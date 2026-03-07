@@ -1,5 +1,5 @@
 // vitest.config.ts
-import { resolve } from "path"
+import { resolve } from "node:path"
 import { defineConfig } from "vitest/config"
 
 export default defineConfig({
