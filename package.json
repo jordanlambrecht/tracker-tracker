@@ -9,7 +9,10 @@
     "lint": "pnpm tsc && biome check .",
     "tsc": "tsc --noEmit",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "argon2": "^0.44.0",
