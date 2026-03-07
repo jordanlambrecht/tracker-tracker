@@ -1,0 +1,43 @@
+{
+  "name": "private-tracker-tracker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "biome lint .",
+    "tsc": "tsc --noEmit"
+  },
+  "dependencies": {
+    "argon2": "^0.44.0",
+    "cookie": "^1.1.1",
+    "dotenv": "^17.3.1",
+    "drizzle-orm": "^0.45.1",
+    "echarts": "^6.0.0",
+    "echarts-for-react": "^3.0.6",
+    "jose": "^6.2.0",
+    "next": "16.1.6",
+    "node-cron": "^4.2.1",
+    "postgres": "^3.4.8",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.6",
+    "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/cookie": "^1.0.0",
+    "@types/node": "^20",
+    "@types/node-cron": "^3.0.11",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^5.1.4",
+    "drizzle-kit": "^0.31.9",
+    "jsdom": "^28.1.0",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^4.0.18"
+  }
+}
