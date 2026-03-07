@@ -1,26 +1,74 @@
+/* src/app/globals.css */
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Fonts */
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-mono), monospace;
+
+  /* Surface colors — navy-black, same hue, shifting lightness */
+  --color-base: #0a0e1a;
+  --color-raised: #0f1424;
+  --color-elevated: #151b30;
+  --color-overlay: #1a2138;
+
+  /* Text hierarchy */
+  --color-primary: #e2e8f0;
+  --color-secondary: #94a3b8;
+  --color-tertiary: #64748b;
+  --color-muted: #475569;
+
+  /* Accent — cyan (active network connections) */
+  --color-accent: #00d4ff;
+  --color-accent-dim: rgba(0, 212, 255, 0.15);
+  --color-accent-glow: rgba(0, 212, 255, 0.25);
+
+  /* Semantic */
+  --color-warn: #f59e0b;
+  --color-warn-dim: rgba(245, 158, 11, 0.15);
+  --color-danger: #ef4444;
+  --color-danger-dim: rgba(239, 68, 68, 0.15);
+  --color-success: #10b981;
+  --color-success-dim: rgba(16, 185, 129, 0.15);
+
+  /* Borders — rgba blends, not solid hex */
+  --color-border: rgba(148, 163, 184, 0.12);
+  --color-border-soft: rgba(148, 163, 184, 0.06);
+  --color-border-emphasis: rgba(148, 163, 184, 0.2);
+
+  /* Controls */
+  --color-control-bg: #080c16;
+  --color-control-border: rgba(148, 163, 184, 0.15);
+  --color-control-focus: rgba(0, 212, 255, 0.5);
+
+  /* Glow shadows */
+  --shadow-glow: 0 0 12px var(--color-accent-glow);
+  --shadow-glow-sm: 0 0 6px var(--color-accent-glow);
+  --shadow-glow-lg: 0 0 24px var(--color-accent-glow);
+  --shadow-glow-warn: 0 0 12px var(--color-warn-dim);
+  --shadow-glow-danger: 0 0 12px var(--color-danger-dim);
+  --shadow-glow-success: 0 0 12px var(--color-success-dim);
+
+  /* Border radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Glow animation for pulse dots */
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 4px currentColor);
+  }
+  50% {
+    opacity: 0.7;
+    filter: drop-shadow(0 0 8px currentColor);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.animate-pulse-glow {
+  animation: pulse-glow 2.5s ease-in-out infinite;
 }

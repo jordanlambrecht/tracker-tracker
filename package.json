@@ -6,8 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "biome lint .",
-    "tsc": "tsc --noEmit"
+    "lint": "pnpm tsc && biome check .",
+    "tsc": "tsc --noEmit",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "argon2": "^0.44.0",
