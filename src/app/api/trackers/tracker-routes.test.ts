@@ -1,0 +1,803 @@
+// src/app/api/trackers/tracker-routes.test.ts
+import { NextResponse } from "next/server"
+import { beforeEach, describe, expect, it, vi } from "vitest"
+import { authenticate, parseJsonBody, parseTrackerId } from "@/lib/api-helpers"
+import { db } from "@/lib/db"
+import { pollTracker } from "@/lib/scheduler"
+import { POST as PollPOST } from "./[id]/poll/route"
+import { GET as RolesGET, POST as RolesPOST } from "./[id]/roles/route"
+import { DELETE, PATCH } from "./[id]/route"
+import { GET as SnapshotsGET } from "./[id]/snapshots/route"
+import { GET, POST } from "./route"
+
+vi.mock("@/lib/api-helpers", () => ({
+  authenticate: vi.fn(),
+  parseTrackerId: vi.fn(),
+  parseJsonBody: vi.fn(),
+}))
+
+vi.mock("@/lib/db", () => ({
+  db: {
+    select: vi.fn(),
+    insert: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  },
+}))
+
+vi.mock("@/lib/crypto", () => ({
+  encrypt: vi.fn().mockReturnValue("encrypted-token"),
+}))
+
+vi.mock("@/lib/scheduler", () => ({
+  pollTracker: vi.fn(),
+}))
+
+const VALID_KEY = "abcd1234".repeat(8)
+
+function makeRequest(
+  url: string,
+  body?: Record<string, unknown>,
+  method = "GET"
+): Request {
+  return new Request(url, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+}
+
+describe("GET /api/trackers", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
+      encryptionKey: VALID_KEY,
+    })
+  })
+
+  it("returns tracker list with latest stats", async () => {
+    const tracker = {
+      id: 1,
+      name: "Aither",
+      baseUrl: "https://aither.cc",
+      platformType: "unit3d",
+      pollIntervalMinutes: 360,
+      isActive: true,
+      lastPolledAt: null,
+      lastError: null,
+      color: "#00d4ff",
+      encryptedApiToken: "should-not-appear",
+    }
+    const snapshot = {
+      id: 1,
+      trackerId: 1,
+      ratio: 2.5,
+      uploadedBytes: BigInt("500000000000"),
+      downloadedBytes: BigInt("200000000000"),
+      seedingCount: 10,
+      leechingCount: 2,
+      username: "user1",
+      group: "VIP",
+      polledAt: new Date(),
+      bufferBytes: null,
+      seedbonus: null,
+      hitAndRuns: null,
+    }
+
+    const mockOrderByTrackers = vi.fn().mockResolvedValue([tracker])
+    const mockFromTrackers = vi.fn().mockReturnValue({ orderBy: mockOrderByTrackers })
+    const mockLimitSnapshot = vi.fn().mockResolvedValue([snapshot])
+    const mockOrderBySnapshot = vi.fn().mockReturnValue({ limit: mockLimitSnapshot })
+    const mockWhereSnapshot = vi.fn().mockReturnValue({ orderBy: mockOrderBySnapshot })
+    const mockFromSnapshot = vi.fn().mockReturnValue({ where: mockWhereSnapshot })
+
+    ;(db.select as ReturnType<typeof vi.fn>)
+      .mockReturnValueOnce({ from: mockFromTrackers })
+      .mockReturnValueOnce({ from: mockFromSnapshot })
+
+    const response = await GET()
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data).toHaveLength(1)
+    expect(data[0].id).toBe(1)
+    expect(data[0].name).toBe("Aither")
+    expect(data[0].latestStats).not.toBeNull()
+    expect(data[0].latestStats.ratio).toBe(2.5)
+  })
+
+  it("returns empty array when no trackers", async () => {
+    const mockOrderBy = vi.fn().mockResolvedValue([])
+    const mockFrom = vi.fn().mockReturnValue({ orderBy: mockOrderBy })
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue({ from: mockFrom })
+
+    const response = await GET()
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data).toEqual([])
+  })
+
+  it("returns 401 when unauthenticated", async () => {
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue(
+      NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    )
+
+    const response = await GET()
+    expect(response.status).toBe(401)
+  })
+
+  it("never includes encryptedApiToken in response", async () => {
+    const tracker = {
+      id: 1,
+      name: "Aither",
+      baseUrl: "https://aither.cc",
+      platformType: "unit3d",
+      pollIntervalMinutes: 360,
+      isActive: true,
+      lastPolledAt: null,
+      lastError: null,
+      color: "#00d4ff",
+      encryptedApiToken: "super-secret-token",
+    }
+
+    const mockOrderBy = vi.fn().mockResolvedValue([tracker])
+    const mockFromTrackers = vi.fn().mockReturnValue({ orderBy: mockOrderBy })
+    const mockLimit = vi.fn().mockResolvedValue([])
+    const mockOrderBySnapshot = vi.fn().mockReturnValue({ limit: mockLimit })
+    const mockWhereSnapshot = vi.fn().mockReturnValue({ orderBy: mockOrderBySnapshot })
+    const mockFromSnapshot = vi.fn().mockReturnValue({ where: mockWhereSnapshot })
+
+    ;(db.select as ReturnType<typeof vi.fn>)
+      .mockReturnValueOnce({ from: mockFromTrackers })
+      .mockReturnValueOnce({ from: mockFromSnapshot })
+
+    const response = await GET()
+    const data = await response.json()
+
+    expect(data[0]).not.toHaveProperty("encryptedApiToken")
+  })
+})
+
+describe("POST /api/trackers", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
+      encryptionKey: VALID_KEY,
+    })
+  })
+
+  it("returns 201 with id and name on happy path", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      name: "Aither",
+      baseUrl: "https://aither.cc",
+      apiToken: "mytoken",
+    })
+
+    const mockReturning = vi.fn().mockResolvedValue([{ id: 42, name: "Aither" }])
+    const mockValues = vi.fn().mockReturnValue({ returning: mockReturning })
+    ;(db.insert as ReturnType<typeof vi.fn>).mockReturnValue({ values: mockValues })
+
+    const request = makeRequest("http://localhost/api/trackers", {
+      name: "Aither",
+      baseUrl: "https://aither.cc",
+      apiToken: "mytoken",
+    }, "POST")
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(201)
+    expect(data).toEqual({ id: 42, name: "Aither" })
+  })
+
+  it("returns 400 when required fields are missing", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      name: "Aither",
+    })
+
+    const request = makeRequest("http://localhost/api/trackers", { name: "Aither" }, "POST")
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toContain("required")
+  })
+
+  it("returns 400 when name exceeds 100 characters", async () => {
+    const longName = "a".repeat(101)
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      name: longName,
+      baseUrl: "https://aither.cc",
+      apiToken: "mytoken",
+    })
+
+    const request = makeRequest("http://localhost/api/trackers", {
+      name: longName,
+      baseUrl: "https://aither.cc",
+      apiToken: "mytoken",
+    }, "POST")
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toMatch(/name/i)
+  })
+
+  it("returns 400 when URL exceeds 500 characters", async () => {
+    const longUrl = `https://aither.cc/${"a".repeat(490)}`
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      name: "Aither",
+      baseUrl: longUrl,
+      apiToken: "mytoken",
+    })
+
+    const request = makeRequest("http://localhost/api/trackers", {
+      name: "Aither",
+      baseUrl: longUrl,
+      apiToken: "mytoken",
+    }, "POST")
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toMatch(/url/i)
+  })
+
+  it("returns 400 for invalid URL format", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      name: "Aither",
+      baseUrl: "not-a-url",
+      apiToken: "mytoken",
+    })
+
+    const request = makeRequest("http://localhost/api/trackers", {
+      name: "Aither",
+      baseUrl: "not-a-url",
+      apiToken: "mytoken",
+    }, "POST")
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toMatch(/url/i)
+  })
+
+  it("returns 400 when API token exceeds 500 characters", async () => {
+    const longToken = "t".repeat(501)
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      name: "Aither",
+      baseUrl: "https://aither.cc",
+      apiToken: longToken,
+    })
+
+    const request = makeRequest("http://localhost/api/trackers", {
+      name: "Aither",
+      baseUrl: "https://aither.cc",
+      apiToken: longToken,
+    }, "POST")
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toMatch(/token/i)
+  })
+
+  it("returns 400 when color exceeds 20 characters", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      name: "Aither",
+      baseUrl: "https://aither.cc",
+      apiToken: "mytoken",
+      color: `#${"a".repeat(20)}`,
+    })
+
+    const request = makeRequest("http://localhost/api/trackers", {
+      name: "Aither",
+      baseUrl: "https://aither.cc",
+      apiToken: "mytoken",
+      color: `#${"a".repeat(20)}`,
+    }, "POST")
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toMatch(/color/i)
+  })
+
+  it("clamps poll interval to minimum 15", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      name: "Aither",
+      baseUrl: "https://aither.cc",
+      apiToken: "mytoken",
+      pollIntervalMinutes: 5,
+    })
+
+    let capturedValues: unknown = null
+    const mockReturning = vi.fn().mockResolvedValue([{ id: 1, name: "Aither" }])
+    const mockValues = vi.fn().mockImplementation((v) => {
+      capturedValues = v
+      return { returning: mockReturning }
+    })
+    ;(db.insert as ReturnType<typeof vi.fn>).mockReturnValue({ values: mockValues })
+
+    const request = makeRequest("http://localhost/api/trackers", {
+      name: "Aither",
+      baseUrl: "https://aither.cc",
+      apiToken: "mytoken",
+      pollIntervalMinutes: 5,
+    }, "POST")
+    await POST(request)
+
+    expect(capturedValues).not.toBeNull()
+    expect((capturedValues as Record<string, unknown>).pollIntervalMinutes).toBe(15)
+  })
+
+  it("clamps poll interval to maximum 1440", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      name: "Aither",
+      baseUrl: "https://aither.cc",
+      apiToken: "mytoken",
+      pollIntervalMinutes: 9999,
+    })
+
+    let capturedValues: unknown = null
+    const mockReturning = vi.fn().mockResolvedValue([{ id: 1, name: "Aither" }])
+    const mockValues = vi.fn().mockImplementation((v) => {
+      capturedValues = v
+      return { returning: mockReturning }
+    })
+    ;(db.insert as ReturnType<typeof vi.fn>).mockReturnValue({ values: mockValues })
+
+    const request = makeRequest("http://localhost/api/trackers", {
+      name: "Aither",
+      baseUrl: "https://aither.cc",
+      apiToken: "mytoken",
+      pollIntervalMinutes: 9999,
+    }, "POST")
+    await POST(request)
+
+    expect(capturedValues).not.toBeNull()
+    expect((capturedValues as Record<string, unknown>).pollIntervalMinutes).toBe(1440)
+  })
+
+  it("returns 401 when unauthenticated", async () => {
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue(
+      NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    )
+
+    const request = makeRequest("http://localhost/api/trackers", {
+      name: "Aither",
+      baseUrl: "https://aither.cc",
+      apiToken: "mytoken",
+    }, "POST")
+    const response = await POST(request)
+    expect(response.status).toBe(401)
+  })
+})
+
+describe("PATCH /api/trackers/[id]", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
+      encryptionKey: VALID_KEY,
+    })
+    ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
+  })
+
+  it("returns 200 on happy path", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      name: "Updated Name",
+    })
+
+    const mockWhere = vi.fn().mockResolvedValue([])
+    const mockSet = vi.fn().mockReturnValue({ where: mockWhere })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
+
+    const request = makeRequest("http://localhost/api/trackers/1", { name: "Updated Name" }, "PATCH")
+    const params = Promise.resolve({ id: "1" })
+    const response = await PATCH(request, { params })
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.success).toBe(true)
+  })
+
+  it("returns 400 when name exceeds 100 characters", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      name: "a".repeat(101),
+    })
+
+    const request = makeRequest("http://localhost/api/trackers/1", { name: "a".repeat(101) }, "PATCH")
+    const params = Promise.resolve({ id: "1" })
+    const response = await PATCH(request, { params })
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toMatch(/name/i)
+  })
+
+  it("returns 400 when URL exceeds 500 characters", async () => {
+    const longUrl = `https://aither.cc/${"a".repeat(490)}`
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      baseUrl: longUrl,
+    })
+
+    const request = makeRequest("http://localhost/api/trackers/1", { baseUrl: longUrl }, "PATCH")
+    const params = Promise.resolve({ id: "1" })
+    const response = await PATCH(request, { params })
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toMatch(/url/i)
+  })
+
+  it("returns 400 for invalid URL format", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      baseUrl: "not-a-url",
+    })
+
+    const request = makeRequest("http://localhost/api/trackers/1", { baseUrl: "not-a-url" }, "PATCH")
+    const params = Promise.resolve({ id: "1" })
+    const response = await PATCH(request, { params })
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toMatch(/url/i)
+  })
+
+  it("returns 400 when color exceeds 20 characters", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      color: `#${"a".repeat(20)}`,
+    })
+
+    const request = makeRequest("http://localhost/api/trackers/1", { color: `#${"a".repeat(20)}` }, "PATCH")
+    const params = Promise.resolve({ id: "1" })
+    const response = await PATCH(request, { params })
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toMatch(/color/i)
+  })
+
+  it("returns 400 when API token exceeds 500 characters", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      apiToken: "t".repeat(501),
+    })
+
+    const request = makeRequest("http://localhost/api/trackers/1", { apiToken: "t".repeat(501) }, "PATCH")
+    const params = Promise.resolve({ id: "1" })
+    const response = await PATCH(request, { params })
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toMatch(/token/i)
+  })
+
+  it("clamps poll interval within bounds", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      pollIntervalMinutes: 1,
+    })
+
+    let capturedSet: unknown = null
+    const mockWhere = vi.fn().mockResolvedValue([])
+    const mockSet = vi.fn().mockImplementation((s) => {
+      capturedSet = s
+      return { where: mockWhere }
+    })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
+
+    const request = makeRequest("http://localhost/api/trackers/1", { pollIntervalMinutes: 1 }, "PATCH")
+    const params = Promise.resolve({ id: "1" })
+    await PATCH(request, { params })
+
+    expect(capturedSet).not.toBeNull()
+    expect((capturedSet as Record<string, unknown>).pollIntervalMinutes).toBe(15)
+  })
+
+  it("returns 401 when unauthenticated", async () => {
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue(
+      NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    )
+
+    const request = makeRequest("http://localhost/api/trackers/1", { name: "x" }, "PATCH")
+    const params = Promise.resolve({ id: "1" })
+    const response = await PATCH(request, { params })
+    expect(response.status).toBe(401)
+  })
+
+  it("returns 400 for invalid tracker ID", async () => {
+    ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(
+      NextResponse.json({ error: "Invalid tracker ID" }, { status: 400 })
+    )
+
+    const request = makeRequest("http://localhost/api/trackers/abc", { name: "x" }, "PATCH")
+    const params = Promise.resolve({ id: "abc" })
+    const response = await PATCH(request, { params })
+    expect(response.status).toBe(400)
+  })
+})
+
+describe("DELETE /api/trackers/[id]", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
+      encryptionKey: VALID_KEY,
+    })
+    ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
+  })
+
+  it("returns 200 on happy path", async () => {
+    const mockWhere = vi.fn().mockResolvedValue([])
+    ;(db.delete as ReturnType<typeof vi.fn>).mockReturnValue({ where: mockWhere })
+
+    const request = makeRequest("http://localhost/api/trackers/1", undefined, "DELETE")
+    const params = Promise.resolve({ id: "1" })
+    const response = await DELETE(request, { params })
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.success).toBe(true)
+  })
+
+  it("returns 401 when unauthenticated", async () => {
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue(
+      NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    )
+
+    const request = makeRequest("http://localhost/api/trackers/1", undefined, "DELETE")
+    const params = Promise.resolve({ id: "1" })
+    const response = await DELETE(request, { params })
+    expect(response.status).toBe(401)
+  })
+
+  it("returns 400 for invalid tracker ID", async () => {
+    ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(
+      NextResponse.json({ error: "Invalid tracker ID" }, { status: 400 })
+    )
+
+    const request = makeRequest("http://localhost/api/trackers/abc", undefined, "DELETE")
+    const params = Promise.resolve({ id: "abc" })
+    const response = await DELETE(request, { params })
+    expect(response.status).toBe(400)
+  })
+})
+
+describe("POST /api/trackers/[id]/poll", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
+      encryptionKey: VALID_KEY,
+    })
+    ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
+  })
+
+  it("returns 200 on happy path", async () => {
+    ;(pollTracker as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
+
+    const request = makeRequest("http://localhost/api/trackers/1/poll", undefined, "POST")
+    const params = Promise.resolve({ id: "1" })
+    const response = await PollPOST(request, { params })
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.success).toBe(true)
+  })
+
+  it("returns 500 when poll fails with error message", async () => {
+    ;(pollTracker as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("Connection refused")
+    )
+
+    const request = makeRequest("http://localhost/api/trackers/1/poll", undefined, "POST")
+    const params = Promise.resolve({ id: "1" })
+    const response = await PollPOST(request, { params })
+    const data = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(data.error).toBe("Connection refused")
+  })
+
+  it("returns 401 when unauthenticated", async () => {
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue(
+      NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    )
+
+    const request = makeRequest("http://localhost/api/trackers/1/poll", undefined, "POST")
+    const params = Promise.resolve({ id: "1" })
+    const response = await PollPOST(request, { params })
+    expect(response.status).toBe(401)
+  })
+
+  it("returns 400 for invalid tracker ID", async () => {
+    ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(
+      NextResponse.json({ error: "Invalid tracker ID" }, { status: 400 })
+    )
+
+    const request = makeRequest("http://localhost/api/trackers/abc/poll", undefined, "POST")
+    const params = Promise.resolve({ id: "abc" })
+    const response = await PollPOST(request, { params })
+    expect(response.status).toBe(400)
+  })
+})
+
+describe("GET /api/trackers/[id]/snapshots", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
+      encryptionKey: VALID_KEY,
+    })
+    ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
+  })
+
+  function buildSnapshotDbMock(result: unknown[]) {
+    const mockOrderBy = vi.fn().mockResolvedValue(result)
+    const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy })
+    const mockFrom = vi.fn().mockReturnValue({ where: mockWhere })
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue({ from: mockFrom })
+  }
+
+  it("returns snapshots with default 30 days and serialized bigints", async () => {
+    const snapshot = {
+      id: 1,
+      trackerId: 1,
+      polledAt: new Date("2026-03-01"),
+      uploadedBytes: BigInt("107374182400"),
+      downloadedBytes: BigInt("53687091200"),
+      ratio: 2.0,
+      bufferBytes: BigInt("1073741824"),
+      seedingCount: 5,
+      leechingCount: 1,
+      seedbonus: null,
+      hitAndRuns: null,
+      username: "user1",
+      group: "VIP",
+    }
+
+    buildSnapshotDbMock([snapshot])
+
+    const request = new Request("http://localhost/api/trackers/1/snapshots")
+    const params = Promise.resolve({ id: "1" })
+    const response = await SnapshotsGET(request, { params })
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data).toHaveLength(1)
+    expect(typeof data[0].uploadedBytes).toBe("string")
+    expect(typeof data[0].downloadedBytes).toBe("string")
+    expect(typeof data[0].bufferBytes).toBe("string")
+    expect(data[0].uploadedBytes).toBe("107374182400")
+  })
+
+  it("accepts custom days query param", async () => {
+    buildSnapshotDbMock([])
+
+    const request = new Request("http://localhost/api/trackers/1/snapshots?days=7")
+    const params = Promise.resolve({ id: "1" })
+    const response = await SnapshotsGET(request, { params })
+
+    expect(response.status).toBe(200)
+  })
+
+  it("clamps days to minimum 1", async () => {
+    buildSnapshotDbMock([])
+
+    const request = new Request("http://localhost/api/trackers/1/snapshots?days=0")
+    const params = Promise.resolve({ id: "1" })
+    const response = await SnapshotsGET(request, { params })
+
+    expect(response.status).toBe(200)
+  })
+
+  it("clamps days to maximum 365", async () => {
+    buildSnapshotDbMock([])
+
+    const request = new Request("http://localhost/api/trackers/1/snapshots?days=9999")
+    const params = Promise.resolve({ id: "1" })
+    const response = await SnapshotsGET(request, { params })
+
+    expect(response.status).toBe(200)
+  })
+
+  it("returns 401 when unauthenticated", async () => {
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue(
+      NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    )
+
+    const request = new Request("http://localhost/api/trackers/1/snapshots")
+    const params = Promise.resolve({ id: "1" })
+    const response = await SnapshotsGET(request, { params })
+    expect(response.status).toBe(401)
+  })
+})
+
+describe("GET /api/trackers/[id]/roles", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
+      encryptionKey: VALID_KEY,
+    })
+    ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
+  })
+
+  it("returns roles list", async () => {
+    const roles = [
+      { id: 1, trackerId: 1, roleName: "VIP", achievedAt: new Date(), notes: null },
+    ]
+
+    const mockOrderBy = vi.fn().mockResolvedValue(roles)
+    const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy })
+    const mockFrom = vi.fn().mockReturnValue({ where: mockWhere })
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue({ from: mockFrom })
+
+    const request = makeRequest("http://localhost/api/trackers/1/roles")
+    const params = Promise.resolve({ id: "1" })
+    const response = await RolesGET(request, { params })
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data).toHaveLength(1)
+    expect(data[0].roleName).toBe("VIP")
+  })
+
+  it("returns 401 when unauthenticated", async () => {
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue(
+      NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    )
+
+    const request = makeRequest("http://localhost/api/trackers/1/roles")
+    const params = Promise.resolve({ id: "1" })
+    const response = await RolesGET(request, { params })
+    expect(response.status).toBe(401)
+  })
+})
+
+describe("POST /api/trackers/[id]/roles", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
+      encryptionKey: VALID_KEY,
+    })
+    ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
+  })
+
+  it("returns 201 on happy path", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      roleName: "VIP",
+    })
+
+    const role = { id: 1, trackerId: 1, roleName: "VIP", achievedAt: new Date(), notes: null }
+    const mockReturning = vi.fn().mockResolvedValue([role])
+    const mockValues = vi.fn().mockReturnValue({ returning: mockReturning })
+    ;(db.insert as ReturnType<typeof vi.fn>).mockReturnValue({ values: mockValues })
+
+    const request = makeRequest("http://localhost/api/trackers/1/roles", { roleName: "VIP" }, "POST")
+    const params = Promise.resolve({ id: "1" })
+    const response = await RolesPOST(request, { params })
+    const data = await response.json()
+
+    expect(response.status).toBe(201)
+    expect(data.roleName).toBe("VIP")
+  })
+
+  it("returns 400 when roleName is missing", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({})
+
+    const request = makeRequest("http://localhost/api/trackers/1/roles", {}, "POST")
+    const params = Promise.resolve({ id: "1" })
+    const response = await RolesPOST(request, { params })
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toMatch(/roleName/i)
+  })
+
+  it("returns 401 when unauthenticated", async () => {
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue(
+      NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    )
+
+    const request = makeRequest("http://localhost/api/trackers/1/roles", { roleName: "VIP" }, "POST")
+    const params = Promise.resolve({ id: "1" })
+    const response = await RolesPOST(request, { params })
+    expect(response.status).toBe(401)
+  })
+})
