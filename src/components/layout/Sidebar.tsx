@@ -6,6 +6,7 @@
 
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
+import { AddTrackerDialog } from "@/components/AddTrackerDialog"
 import { Button } from "@/components/ui/Button"
 import type { PulseDotStatus } from "@/components/ui/PulseDot"
 import { PulseDot } from "@/components/ui/PulseDot"
@@ -24,9 +25,12 @@ function getPulseDotStatus(tracker: TrackerSummary): PulseDotStatus {
 
 function Sidebar() {
   const [trackers, setTrackers] = useState<TrackerSummary[]>([])
+  const [showAddDialog, setShowAddDialog] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
   const pathname = usePathname()
   const router = useRouter()
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refreshKey is a manual trigger — incrementing it intentionally re-runs the fetch
   useEffect(() => {
     let cancelled = false
 
@@ -50,7 +54,7 @@ function Sidebar() {
       cancelled = true
       clearInterval(interval)
     }
-  }, [])
+  }, [refreshKey])
 
   return (
     <aside className="w-64 h-screen flex flex-col bg-base border-r border-border flex-shrink-0">
@@ -66,33 +70,36 @@ function Sidebar() {
         {trackers.length === 0 ? (
           <p className="px-4 py-3 text-xs text-muted">No trackers added yet.</p>
         ) : (
-          trackers.map((tracker) => {
-            const isActive = pathname === `/trackers/${tracker.id}`
-            const status = getPulseDotStatus(tracker)
-            const ratio = tracker.latestStats?.ratio ?? null
+          <ul className="list-none m-0 p-0">
+            {trackers.map((tracker) => {
+              const isActive = pathname === `/trackers/${tracker.id}`
+              const status = getPulseDotStatus(tracker)
+              const ratio = tracker.latestStats?.ratio ?? null
 
-            return (
-              <button
-                key={tracker.id}
-                type="button"
-                onClick={() => router.push(`/trackers/${tracker.id}`)}
-                className={[
-                  "w-full flex items-center gap-3 px-4 py-2.5 text-left",
-                  "transition-colors duration-100 cursor-pointer",
-                  isActive
-                    ? "bg-accent-dim border-r-2 border-accent text-primary"
-                    : "hover:bg-raised text-secondary hover:text-primary",
-                ].join(" ")}
-                aria-current={isActive ? "page" : undefined}
-              >
-                <PulseDot status={status} size="sm" />
-                <span className="flex-1 truncate text-sm">{tracker.name}</span>
-                <span className="font-mono text-xs tabular-nums text-tertiary flex-shrink-0">
-                  {formatRatio(ratio)}
-                </span>
-              </button>
-            )
-          })
+              return (
+                <li key={tracker.id}>
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/trackers/${tracker.id}`)}
+                    className={[
+                      "w-full flex items-center gap-3 px-4 py-2.5 text-left",
+                      "transition-colors duration-100 cursor-pointer",
+                      isActive
+                        ? "bg-accent-dim border-r-2 border-accent text-primary"
+                        : "hover:bg-raised text-secondary hover:text-primary",
+                    ].join(" ")}
+                    aria-current={isActive ? "page" : undefined}
+                  >
+                    <PulseDot status={status} size="sm" />
+                    <span className="flex-1 truncate text-sm">{tracker.name}</span>
+                    <span className="font-mono text-xs tabular-nums text-tertiary flex-shrink-0">
+                      {formatRatio(ratio)}
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
         )}
       </nav>
 
@@ -102,11 +109,21 @@ function Sidebar() {
           variant="secondary"
           size="sm"
           className="w-full"
-          onClick={() => router.push("/trackers/new")}
+          onClick={() => setShowAddDialog(true)}
         >
           + Add Tracker
         </Button>
       </div>
+
+      <AddTrackerDialog
+        open={showAddDialog}
+        onClose={() => setShowAddDialog(false)}
+        onAdded={(id) => {
+          setShowAddDialog(false)
+          setRefreshKey((k) => k + 1)
+          router.push(`/trackers/${id}`)
+        }}
+      />
     </aside>
   )
 }

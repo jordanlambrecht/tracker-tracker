@@ -50,6 +50,13 @@ export async function PATCH(
     updates.color = body.color
   }
 
+  if (typeof body.qbtTag === "string") {
+    if (body.qbtTag.length > 100) {
+      return NextResponse.json({ error: "qBittorrent tag must be 100 characters or fewer" }, { status: 400 })
+    }
+    updates.qbtTag = body.qbtTag.trim()
+  }
+
   if (typeof body.apiToken === "string") {
     if (body.apiToken.length > 500) {
       return NextResponse.json({ error: "API token must be 500 characters or fewer" }, { status: 400 })
