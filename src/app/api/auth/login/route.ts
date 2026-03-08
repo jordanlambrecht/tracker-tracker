@@ -4,6 +4,7 @@ import { createSession, verifyPassword } from "@/lib/auth"
 import { deriveKey } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { parseJsonBody } from "@/lib/api-helpers"
 import { startScheduler } from "@/lib/scheduler"
 
 export async function POST(request: Request) {
@@ -12,14 +13,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not configured. Run setup first." }, { status: 400 })
   }
 
-  let body: { password?: string }
-  try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
-  }
+  const body = await parseJsonBody(request)
+  if (body instanceof NextResponse) return body
 
-  const { password } = body
+  const password = body.password as string | undefined
   if (!password || typeof password !== "string" || password.length > 128) {
     return NextResponse.json({ error: "Invalid password" }, { status: 400 })
   }

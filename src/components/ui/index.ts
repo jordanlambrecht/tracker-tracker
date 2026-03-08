@@ -1,5 +1,6 @@
 // src/components/ui/index.ts
 
+export { ErrorDisplay } from "./ErrorDisplay"
 export type { BadgeProps, BadgeVariant } from "./Badge"
 export { Badge } from "./Badge"
 export type { ButtonProps, ButtonSize, ButtonVariant } from "./Button"

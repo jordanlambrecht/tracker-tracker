@@ -104,6 +104,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Color must be 20 characters or fewer" }, { status: 400 })
   }
 
+  const validPlatforms = ["unit3d"]
+  const platform = typeof platformType === "string" ? platformType : "unit3d"
+  if (!validPlatforms.includes(platform)) {
+    return NextResponse.json({ error: "Invalid platform type" }, { status: 400 })
+  }
+
   const key = Buffer.from(auth.encryptionKey, "hex")
   const encryptedApiToken = encrypt(apiToken, key)
 
@@ -113,7 +119,7 @@ export async function POST(request: Request) {
       name: name.trim(),
       baseUrl: baseUrl.trim(),
       encryptedApiToken,
-      platformType: (platformType as string) || "unit3d",
+      platformType: platform,
       pollIntervalMinutes: typeof pollIntervalMinutes === "number" ? Math.min(1440, Math.max(15, pollIntervalMinutes)) : 360,
       color: (color as string) || "#00d4ff",
     })
