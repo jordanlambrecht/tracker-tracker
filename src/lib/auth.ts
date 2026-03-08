@@ -2,16 +2,18 @@
 //
 // Functions: hashPassword, verifyPassword, createSession, getSession, clearSession, requireAuth
 import argon2 from "argon2"
-import { jwtVerify, SignJWT } from "jose"
+import { EncryptJWT, jwtDecrypt } from "jose"
 import { cookies } from "next/headers"
 
 const SESSION_COOKIE = "tt_session"
 const SESSION_MAX_AGE = 60 * 60 * 24 * 7 // 7 days
 
-function getSessionSecret(): Uint8Array {
+function getSessionKey(): Uint8Array {
   const secret = process.env.SESSION_SECRET
   if (!secret) throw new Error("SESSION_SECRET environment variable is not set")
-  return new TextEncoder().encode(secret)
+  if (secret.length < 32) throw new Error("SESSION_SECRET must be at least 32 characters")
+  // Use first 32 bytes as AES-256 key
+  return new TextEncoder().encode(secret.slice(0, 32))
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -23,11 +25,11 @@ export async function verifyPassword(hash: string, password: string): Promise<bo
 }
 
 export async function createSession(encryptionKey: string): Promise<string> {
-  const token = await new SignJWT({ ek: encryptionKey })
-    .setProtectedHeader({ alg: "HS256" })
+  const token = await new EncryptJWT({ ek: encryptionKey })
+    .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
     .setIssuedAt()
     .setExpirationTime(`${SESSION_MAX_AGE}s`)
-    .sign(getSessionSecret())
+    .encrypt(getSessionKey())
 
   const cookieStore = await cookies()
   cookieStore.set(SESSION_COOKIE, token, {
@@ -47,7 +49,7 @@ export async function getSession(): Promise<{ encryptionKey: string } | null> {
   if (!token) return null
 
   try {
-    const { payload } = await jwtVerify(token, getSessionSecret())
+    const { payload } = await jwtDecrypt(token, getSessionKey())
     return { encryptionKey: payload.ek as string }
   } catch {
     return null

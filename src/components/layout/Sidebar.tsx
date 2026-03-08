@@ -2,38 +2,17 @@
 
 // src/components/layout/Sidebar.tsx
 //
-// Functions: getPulseDotStatus, formatRatio, Sidebar
+// Functions: getPulseDotStatus, Sidebar
 
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/Button"
 import type { PulseDotStatus } from "@/components/ui/PulseDot"
 import { PulseDot } from "@/components/ui/PulseDot"
+import { formatRatio } from "@/lib/formatters"
+import type { TrackerSummary } from "@/types/api"
 
-interface TrackerLatestStats {
-  ratio: number | null
-  uploadedBytes: string | null
-  downloadedBytes: string | null
-  seedingCount: number | null
-  leechingCount: number | null
-  username: string | null
-  group: string | null
-}
-
-interface TrackerEntry {
-  id: number
-  name: string
-  baseUrl: string
-  platformType: string
-  pollIntervalMinutes: number
-  isActive: boolean
-  lastPolledAt: string | null
-  lastError: string | null
-  color: string | null
-  latestStats: TrackerLatestStats | null
-}
-
-function getPulseDotStatus(tracker: TrackerEntry): PulseDotStatus {
+function getPulseDotStatus(tracker: TrackerSummary): PulseDotStatus {
   if (tracker.lastError) return "error"
   if (!tracker.latestStats) return "offline"
   const { ratio } = tracker.latestStats
@@ -43,13 +22,8 @@ function getPulseDotStatus(tracker: TrackerEntry): PulseDotStatus {
   return "critical"
 }
 
-function formatRatio(ratio: number | null | undefined): string {
-  if (ratio === null || ratio === undefined) return "—"
-  return ratio.toFixed(2)
-}
-
 function Sidebar() {
-  const [trackers, setTrackers] = useState<TrackerEntry[]>([])
+  const [trackers, setTrackers] = useState<TrackerSummary[]>([])
   const pathname = usePathname()
   const router = useRouter()
 
@@ -60,7 +34,7 @@ function Sidebar() {
       try {
         const res = await fetch("/api/trackers")
         if (!res.ok) return
-        const data: TrackerEntry[] = await res.json()
+        const data: TrackerSummary[] = await res.json()
         if (!cancelled) {
           setTrackers(data)
         }

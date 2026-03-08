@@ -53,12 +53,12 @@ describe("Unit3dAdapter", () => {
     ).rejects.toThrow("401")
   })
 
-  it("throws on network error", async () => {
-    vi.spyOn(global, "fetch").mockRejectedValueOnce(new Error("Network error"))
+  it("throws a sanitized error on network failure", async () => {
+    vi.spyOn(global, "fetch").mockRejectedValueOnce(new Error("fetch failed"))
 
     await expect(
       adapter.fetchStats("https://aither.cc", "token", "/api/user")
-    ).rejects.toThrow("Network error")
+    ).rejects.toThrow("Failed to connect to aither.cc")
   })
 
   it("constructs URL correctly with api_token query param", async () => {
@@ -93,7 +93,7 @@ describe("Unit3dAdapter - security", () => {
     vi.restoreAllMocks()
   })
 
-  it("does not log or expose the API token in errors", async () => {
+  it("does not expose the API token in non-ok response errors", async () => {
     const secretToken = "super-secret-api-token-12345"
 
     vi.spyOn(global, "fetch").mockResolvedValueOnce({
@@ -108,6 +108,32 @@ describe("Unit3dAdapter - security", () => {
       const errorMessage = (error as Error).message
       expect(errorMessage).not.toContain(secretToken)
     }
+  })
+
+  it("does not expose the API token when fetch itself throws with a URL in the message", async () => {
+    const secretToken = "super-secret-api-token-12345"
+    const urlWithToken = `https://example.com/api/user?api_token=${secretToken}`
+
+    vi.spyOn(global, "fetch").mockRejectedValueOnce(
+      new Error(`request to ${urlWithToken} failed, reason: connect ECONNREFUSED`)
+    )
+
+    await expect(
+      adapter.fetchStats("https://example.com", secretToken, "/api/user")
+    ).rejects.toSatisfy((err: Error) => {
+      expect(err.message).not.toContain(secretToken)
+      expect(err.message).toContain("example.com")
+      return true
+    })
+  })
+
+  it("throws a timeout-specific message when AbortSignal fires", async () => {
+    const timeoutError = new DOMException("signal timed out", "TimeoutError")
+    vi.spyOn(global, "fetch").mockRejectedValueOnce(timeoutError)
+
+    await expect(
+      adapter.fetchStats("https://example.com", "token", "/api/user")
+    ).rejects.toThrow("Request to example.com timed out")
   })
 
   it("uses AbortSignal for timeout protection", async () => {

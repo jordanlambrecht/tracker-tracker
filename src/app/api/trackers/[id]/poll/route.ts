@@ -1,26 +1,19 @@
 // src/app/api/trackers/[id]/poll/route.ts
 import { NextResponse } from "next/server"
-import { requireAuth } from "@/lib/auth"
+import { authenticate, parseTrackerId } from "@/lib/api-helpers"
 import { pollTracker } from "@/lib/scheduler"
 
 export async function POST(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  let session: { encryptionKey: string }
-  try {
-    session = await requireAuth()
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const auth = await authenticate()
+  if (auth instanceof NextResponse) return auth
 
-  const { id } = await params
-  const trackerId = parseInt(id, 10)
-  if (Number.isNaN(trackerId)) {
-    return NextResponse.json({ error: "Invalid tracker ID" }, { status: 400 })
-  }
+  const trackerId = await parseTrackerId(params)
+  if (trackerId instanceof NextResponse) return trackerId
 
-  const key = Buffer.from(session.encryptionKey, "hex")
+  const key = Buffer.from(auth.encryptionKey, "hex")
 
   try {
     await pollTracker(trackerId, key)

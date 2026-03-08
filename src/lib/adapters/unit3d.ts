@@ -20,10 +20,27 @@ export class Unit3dAdapter implements TrackerAdapter {
     const url = new URL(apiPath, baseUrl)
     url.searchParams.set("api_token", apiToken)
 
-    const response = await fetch(url.toString(), {
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(15000),
-    })
+    const hostname = new URL(baseUrl).hostname
+
+    let response: Response
+    try {
+      response = await fetch(url.toString(), {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(15000),
+      })
+    } catch (err) {
+      const name =
+        err !== null && typeof err === "object" && "name" in (err as object)
+          ? String((err as { name: unknown }).name)
+          : ""
+      if (name === "TimeoutError" || name === "AbortError") {
+        throw new Error(`Request to ${hostname} timed out`)
+      }
+      const code =
+        err instanceof Error && "code" in err ? (err as NodeJS.ErrnoException).code : undefined
+      const detail = code ?? (name || "Unknown")
+      throw new Error(`Failed to connect to ${hostname}: ${detail}`)
+    }
 
     if (!response.ok) {
       throw new Error(`Tracker API error: ${response.status} ${response.statusText}`)
