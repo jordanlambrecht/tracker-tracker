@@ -31,7 +31,7 @@ export const trackers = pgTable("trackers", {
   isActive: boolean("is_active").default(true).notNull(),
   lastPolledAt: timestamp("last_polled_at"),
   lastError: text("last_error"),
-  color: varchar("color", { length: 7 }).default("#00d4ff"),
+  color: varchar("color", { length: 20 }).default("#00d4ff"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })

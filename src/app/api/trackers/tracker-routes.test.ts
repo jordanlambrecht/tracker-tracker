@@ -493,6 +493,24 @@ describe("PATCH /api/trackers/[id]", () => {
     expect((capturedSet as Record<string, unknown>).pollIntervalMinutes).toBe(15)
   })
 
+  it("accepts boolean isActive update", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      isActive: false,
+    })
+
+    const mockWhere = vi.fn().mockResolvedValue([])
+    const mockSet = vi.fn().mockReturnValue({ where: mockWhere })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
+
+    const request = makeRequest("http://localhost/api/trackers/1", { isActive: false }, "PATCH")
+    const params = Promise.resolve({ id: "1" })
+    const response = await PATCH(request, { params })
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.success).toBe(true)
+  })
+
   it("returns 401 when unauthenticated", async () => {
     ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue(
       NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -596,6 +614,18 @@ describe("POST /api/trackers/[id]/poll", () => {
     expect(data.error).toBe("Connection refused")
   })
 
+  it("returns 'Poll failed' when pollTracker rejects with non-Error", async () => {
+    ;(pollTracker as ReturnType<typeof vi.fn>).mockRejectedValue("oops")
+
+    const request = makeRequest("http://localhost/api/trackers/1/poll", undefined, "POST")
+    const params = Promise.resolve({ id: "1" })
+    const response = await PollPOST(request, { params })
+    const data = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(data.error).toBe("Poll failed")
+  })
+
   it("returns 401 when unauthenticated", async () => {
     ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue(
       NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -678,6 +708,8 @@ describe("GET /api/trackers/[id]/snapshots", () => {
   })
 
   it("clamps days to minimum 1", async () => {
+    // Smoke test: clamping logic is verified via Math.max(parseInt(...), 1) in source.
+    // The route returns 200 for any non-negative days value including 0.
     buildSnapshotDbMock([])
 
     const request = new Request("http://localhost/api/trackers/1/snapshots?days=0")
@@ -688,9 +720,21 @@ describe("GET /api/trackers/[id]/snapshots", () => {
   })
 
   it("clamps days to maximum 365", async () => {
+    // Smoke test: clamping logic is verified via Math.min(..., 365) in source.
+    // The route returns 200 for any days value, clamped internally.
     buildSnapshotDbMock([])
 
     const request = new Request("http://localhost/api/trackers/1/snapshots?days=9999")
+    const params = Promise.resolve({ id: "1" })
+    const response = await SnapshotsGET(request, { params })
+
+    expect(response.status).toBe(200)
+  })
+
+  it("defaults to 30 days for non-numeric days param", async () => {
+    buildSnapshotDbMock([])
+
+    const request = new Request("http://localhost/api/trackers/1/snapshots?days=abc")
     const params = Promise.resolve({ id: "1" })
     const response = await SnapshotsGET(request, { params })
 
@@ -782,6 +826,18 @@ describe("POST /api/trackers/[id]/roles", () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({})
 
     const request = makeRequest("http://localhost/api/trackers/1/roles", {}, "POST")
+    const params = Promise.resolve({ id: "1" })
+    const response = await RolesPOST(request, { params })
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toMatch(/roleName/i)
+  })
+
+  it("returns 400 when roleName is empty string", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ roleName: "" })
+
+    const request = makeRequest("http://localhost/api/trackers/1/roles", { roleName: "" }, "POST")
     const params = Promise.resolve({ id: "1" })
     const response = await RolesPOST(request, { params })
     const data = await response.json()

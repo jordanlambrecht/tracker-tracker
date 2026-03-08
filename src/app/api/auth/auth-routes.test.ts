@@ -54,7 +54,7 @@ describe("POST /api/auth/setup", () => {
 
   it("returns 200 with success true when not yet configured", async () => {
     makeSelectChain([])
-    makeInsertChain()
+    const { mockValues } = makeInsertChain()
     ;(hashPassword as ReturnType<typeof vi.fn>).mockResolvedValue("hashed")
     ;(generateSalt as ReturnType<typeof vi.fn>).mockReturnValue("salt123")
 
@@ -69,6 +69,12 @@ describe("POST /api/auth/setup", () => {
 
     expect(response.status).toBe(200)
     expect(body).toEqual({ success: true })
+    expect(mockValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        passwordHash: expect.any(String),
+        encryptionSalt: expect.any(String),
+      })
+    )
   })
 
   it("returns 400 when already configured", async () => {
@@ -149,6 +155,44 @@ describe("POST /api/auth/setup", () => {
 
     expect(response.status).toBe(400)
     expect(body).toEqual({ error: "Password must be between 8 and 128 characters" })
+  })
+
+  it("accepts password of exactly 8 characters", async () => {
+    makeSelectChain([])
+    makeInsertChain()
+    ;(hashPassword as ReturnType<typeof vi.fn>).mockResolvedValue("hashed")
+    ;(generateSalt as ReturnType<typeof vi.fn>).mockReturnValue("salt123")
+
+    const { POST } = await import("./setup/route")
+    const req = new Request("http://localhost/api/auth/setup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: "a".repeat(8) }),
+    })
+    const response = await POST(req)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body).toEqual({ success: true })
+  })
+
+  it("accepts password of exactly 128 characters", async () => {
+    makeSelectChain([])
+    makeInsertChain()
+    ;(hashPassword as ReturnType<typeof vi.fn>).mockResolvedValue("hashed")
+    ;(generateSalt as ReturnType<typeof vi.fn>).mockReturnValue("salt123")
+
+    const { POST } = await import("./setup/route")
+    const req = new Request("http://localhost/api/auth/setup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: "a".repeat(128) }),
+    })
+    const response = await POST(req)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body).toEqual({ success: true })
   })
 })
 

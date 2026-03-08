@@ -10,12 +10,7 @@
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
 import { bytesToGiB } from "@/lib/formatters"
-
-interface Snapshot {
-  polledAt: string
-  uploadedBytes: string
-  downloadedBytes: string
-}
+import type { Snapshot } from "@/types/api"
 
 interface UploadDownloadChartProps {
   snapshots: Snapshot[]
@@ -273,4 +268,4 @@ function UploadDownloadChart({
 }
 
 export { UploadDownloadChart }
-export type { UploadDownloadChartProps, Snapshot }
+export type { UploadDownloadChartProps }
