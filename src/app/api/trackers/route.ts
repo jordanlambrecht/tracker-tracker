@@ -36,6 +36,7 @@ export async function GET() {
         lastPolledAt: tracker.lastPolledAt,
         lastError: tracker.lastError,
         color: tracker.color,
+        qbtTag: tracker.qbtTag,
         latestStats: latest
           ? {
               ratio: latest.ratio,
@@ -61,13 +62,14 @@ export async function POST(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const { name, baseUrl, apiToken, platformType, pollIntervalMinutes, color } = body as {
+  const { name, baseUrl, apiToken, platformType, pollIntervalMinutes, color, qbtTag } = body as {
     name?: string
     baseUrl?: string
     apiToken?: string
     platformType?: string
     pollIntervalMinutes?: number
     color?: string
+    qbtTag?: string
   }
 
   if (!name || !baseUrl || !apiToken) {
@@ -104,6 +106,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Color must be 20 characters or fewer" }, { status: 400 })
   }
 
+  if (typeof qbtTag === "string" && qbtTag.length > 100) {
+    return NextResponse.json({ error: "qBittorrent tag must be 100 characters or fewer" }, { status: 400 })
+  }
+
   const validPlatforms = ["unit3d"]
   const platform = typeof platformType === "string" ? platformType : "unit3d"
   if (!validPlatforms.includes(platform)) {
@@ -122,6 +128,7 @@ export async function POST(request: Request) {
       platformType: platform,
       pollIntervalMinutes: typeof pollIntervalMinutes === "number" ? Math.min(1440, Math.max(15, pollIntervalMinutes)) : 360,
       color: (color as string) || "#00d4ff",
+      qbtTag: typeof qbtTag === "string" ? qbtTag.trim() : null,
     })
     .returning()
 

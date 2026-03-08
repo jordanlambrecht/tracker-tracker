@@ -1,10 +1,10 @@
 // src/app/api/auth/login/route.ts
 import { NextResponse } from "next/server"
+import { parseJsonBody } from "@/lib/api-helpers"
 import { createSession, verifyPassword } from "@/lib/auth"
 import { deriveKey } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
-import { parseJsonBody } from "@/lib/api-helpers"
 import { startScheduler } from "@/lib/scheduler"
 
 export async function POST(request: Request) {

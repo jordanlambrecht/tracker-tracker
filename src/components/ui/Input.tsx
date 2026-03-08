@@ -25,14 +25,14 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           id={inputId}
           className={[
-            "w-full font-mono text-sm text-primary",
+            "w-full font-mono text-sm text-primary cursor-pointer",
             "bg-control-bg border border-control-border rounded-md",
             "px-3 py-2 placeholder:text-muted",
             "transition-all duration-150",
             "focus:outline-none focus:border-accent focus:shadow-glow-sm",
             "focus-visible:ring-2 focus-visible:ring-[color:var(--color-control-focus)] focus-visible:ring-offset-1 focus-visible:ring-offset-base",
             "disabled:opacity-40 disabled:cursor-not-allowed",
-            error ? "border-danger focus:border-danger focus:shadow-glow-danger" : "",
+            error ? "border-danger ring-1 ring-danger/30 focus:border-danger focus:shadow-glow-danger" : "",
             className,
           ]
             .filter(Boolean)

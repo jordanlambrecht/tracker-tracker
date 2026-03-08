@@ -72,3 +72,25 @@
 .animate-pulse-glow {
   animation: pulse-glow 2.5s ease-in-out infinite;
 }
+
+/* Firefox cursor fix for interactive form elements */
+select,
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="number"],
+input[type="search"],
+input[type="url"],
+textarea {
+  cursor: pointer;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  cursor: text;
+}
+
+select {
+  cursor: pointer;
+}

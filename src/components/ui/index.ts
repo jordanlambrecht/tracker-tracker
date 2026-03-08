@@ -1,12 +1,12 @@
 // src/components/ui/index.ts
 
-export { ErrorDisplay } from "./ErrorDisplay"
 export type { BadgeProps, BadgeVariant } from "./Badge"
 export { Badge } from "./Badge"
 export type { ButtonProps, ButtonSize, ButtonVariant } from "./Button"
 export { Button } from "./Button"
 export type { CardElevation, CardGlowColor, CardProps } from "./Card"
 export { Card } from "./Card"
+export { ErrorDisplay } from "./ErrorDisplay"
 export type { InputProps } from "./Input"
 export { Input } from "./Input"
 export type { PulseDotProps, PulseDotSize, PulseDotStatus } from "./PulseDot"
