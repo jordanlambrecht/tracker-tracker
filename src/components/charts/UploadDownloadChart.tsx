@@ -1,7 +1,6 @@
 // src/components/charts/UploadDownloadChart.tsx
 /*
  * Available functions:
- *   bytesToGiB     - Convert a byte string to a GiB number
  *   buildOption    - Build the ECharts option object from snapshot data
  *   UploadDownloadChart - React component (default export)
  */
@@ -10,6 +9,7 @@
 
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
+import { bytesToGiB } from "@/lib/formatters"
 
 interface Snapshot {
   polledAt: string
@@ -20,10 +20,6 @@ interface Snapshot {
 interface UploadDownloadChartProps {
   snapshots: Snapshot[]
   height?: number
-}
-
-function bytesToGiB(bytesStr: string): number {
-  return Number(BigInt(bytesStr)) / 1024 ** 3
 }
 
 function buildOption(snapshots: Snapshot[]): EChartsOption {

@@ -1,7 +1,7 @@
 // src/app/api/trackers/[id]/roles/route.ts
 import { desc, eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { requireAuth } from "@/lib/auth"
+import { authenticate, parseJsonBody, parseTrackerId } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { trackerRoles } from "@/lib/db/schema"
 
@@ -9,17 +9,11 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    await requireAuth()
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const auth = await authenticate()
+  if (auth instanceof NextResponse) return auth
 
-  const { id } = await params
-  const trackerId = parseInt(id, 10)
-  if (Number.isNaN(trackerId)) {
-    return NextResponse.json({ error: "Invalid tracker ID" }, { status: 400 })
-  }
+  const trackerId = await parseTrackerId(params)
+  if (trackerId instanceof NextResponse) return trackerId
 
   const roles = await db
     .select()
@@ -34,24 +28,14 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    await requireAuth()
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const auth = await authenticate()
+  if (auth instanceof NextResponse) return auth
 
-  const { id } = await params
-  const trackerId = parseInt(id, 10)
-  if (Number.isNaN(trackerId)) {
-    return NextResponse.json({ error: "Invalid tracker ID" }, { status: 400 })
-  }
+  const trackerId = await parseTrackerId(params)
+  if (trackerId instanceof NextResponse) return trackerId
 
-  let body: Record<string, unknown>
-  try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
-  }
+  const body = await parseJsonBody(request)
+  if (body instanceof NextResponse) return body
 
   const { roleName, achievedAt, notes } = body as {
     roleName?: string

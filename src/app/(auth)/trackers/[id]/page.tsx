@@ -2,7 +2,7 @@
 
 // src/app/(auth)/trackers/[id]/page.tsx
 //
-// Functions: formatGiB, formatRatio, formatHours, TrackerDetailPage
+// Functions: formatHours, TrackerDetailPage
 
 import { useParams } from "next/navigation"
 import { useCallback, useEffect, useState } from "react"
@@ -11,57 +11,12 @@ import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { StatCard } from "@/components/ui/StatCard"
-
-interface TrackerLatestStats {
-  ratio: number | null
-  uploadedBytes: string | null
-  downloadedBytes: string | null
-  seedingCount: number | null
-  leechingCount: number | null
-  username: string | null
-  group: string | null
-}
-
-interface Tracker {
-  id: number
-  name: string
-  baseUrl: string
-  platformType: string
-  pollIntervalMinutes: number
-  isActive: boolean
-  lastPolledAt: string | null
-  lastError: string | null
-  color: string
-  latestStats: TrackerLatestStats | null
-}
-
-interface Snapshot {
-  polledAt: string
-  uploadedBytes: string
-  downloadedBytes: string
-  ratio: number | null
-  bufferBytes: string
-  seedbonus: number | null
-  seedingCount: number | null
-  leechingCount: number | null
-  hitAndRuns: number | null
-}
+import { formatBytesFromString, formatRatio } from "@/lib/formatters"
+import type { Snapshot, TrackerSummary } from "@/types/api"
 
 type DayRange = 7 | 30 | 90 | 365
 
 const DAY_RANGES: DayRange[] = [7, 30, 90, 365]
-
-function formatGiB(bytesStr: string | null): string {
-  if (!bytesStr) return "—"
-  const gib = Number(BigInt(bytesStr)) / 1024 ** 3
-  if (gib >= 1024) return `${(gib / 1024).toFixed(2)} TiB`
-  return `${gib.toFixed(2)} GiB`
-}
-
-function formatRatio(ratio: number | null | undefined): string {
-  if (ratio === null || ratio === undefined) return "—"
-  return ratio.toFixed(2)
-}
 
 function formatHours(minutes: number): string {
   if (minutes < 60) return `${minutes}m`
@@ -73,7 +28,7 @@ export default function TrackerDetailPage() {
   const params = useParams()
   const id = params.id as string
 
-  const [tracker, setTracker] = useState<Tracker | null>(null)
+  const [tracker, setTracker] = useState<TrackerSummary | null>(null)
   const [snapshots, setSnapshots] = useState<Snapshot[]>([])
   const [days, setDays] = useState<DayRange>(30)
   const [loading, setLoading] = useState(true)
@@ -88,7 +43,7 @@ export default function TrackerDetailPage() {
       ])
 
       if (trackersRes.ok) {
-        const allTrackers: Tracker[] = await trackersRes.json()
+        const allTrackers: TrackerSummary[] = await trackersRes.json()
         const found = allTrackers.find((t) => t.id === Number(id))
         setTracker(found ?? null)
       }
@@ -211,11 +166,11 @@ export default function TrackerDetailPage() {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard
           label="Uploaded"
-          value={formatGiB(stats?.uploadedBytes ?? null)}
+          value={formatBytesFromString(stats?.uploadedBytes ?? null)}
         />
         <StatCard
           label="Downloaded"
-          value={formatGiB(stats?.downloadedBytes ?? null)}
+          value={formatBytesFromString(stats?.downloadedBytes ?? null)}
         />
         <StatCard
           label="Ratio"
@@ -232,7 +187,7 @@ export default function TrackerDetailPage() {
         />
         <StatCard
           label="Buffer"
-          value={formatGiB(latestSnapshot?.bufferBytes ?? null)}
+          value={formatBytesFromString(latestSnapshot?.bufferBytes ?? null)}
         />
       </div>
 

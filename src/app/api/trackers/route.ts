@@ -4,17 +4,14 @@
 
 import { desc, eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { requireAuth } from "@/lib/auth"
+import { authenticate, parseJsonBody } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { trackerSnapshots, trackers } from "@/lib/db/schema"
 
 export async function GET() {
-  try {
-    await requireAuth()
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const auth = await authenticate()
+  if (auth instanceof NextResponse) return auth
 
   const allTrackers = await db.select().from(trackers).orderBy(trackers.name)
 
@@ -58,19 +55,11 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  let session: { encryptionKey: string }
-  try {
-    session = await requireAuth()
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const auth = await authenticate()
+  if (auth instanceof NextResponse) return auth
 
-  let body: Record<string, unknown>
-  try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
-  }
+  const body = await parseJsonBody(request)
+  if (body instanceof NextResponse) return body
 
   const { name, baseUrl, apiToken, platformType, pollIntervalMinutes, color } = body as {
     name?: string
@@ -92,6 +81,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid field types" }, { status: 400 })
   }
 
+  if (name.length > 100) {
+    return NextResponse.json({ error: "Name must be 100 characters or fewer" }, { status: 400 })
+  }
+
+  if (baseUrl.length > 500) {
+    return NextResponse.json({ error: "URL must be 500 characters or fewer" }, { status: 400 })
+  }
+
+  if (apiToken.length > 500) {
+    return NextResponse.json({ error: "API token must be 500 characters or fewer" }, { status: 400 })
+  }
+
   // Validate URL format
   try {
     new URL(baseUrl)
@@ -99,7 +100,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid baseUrl format" }, { status: 400 })
   }
 
-  const key = Buffer.from(session.encryptionKey, "hex")
+  if (typeof color === "string" && color.length > 20) {
+    return NextResponse.json({ error: "Color must be 20 characters or fewer" }, { status: 400 })
+  }
+
+  const key = Buffer.from(auth.encryptionKey, "hex")
   const encryptedApiToken = encrypt(apiToken, key)
 
   const [tracker] = await db
@@ -109,7 +114,7 @@ export async function POST(request: Request) {
       baseUrl: baseUrl.trim(),
       encryptedApiToken,
       platformType: (platformType as string) || "unit3d",
-      pollIntervalMinutes: typeof pollIntervalMinutes === "number" ? pollIntervalMinutes : 360,
+      pollIntervalMinutes: typeof pollIntervalMinutes === "number" ? Math.min(1440, Math.max(15, pollIntervalMinutes)) : 360,
       color: (color as string) || "#00d4ff",
     })
     .returning()
