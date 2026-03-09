@@ -226,6 +226,22 @@ describe("computeAggregateStats", () => {
     expect(result.totalSeeding).toBe(0)
     expect(result.totalLeeching).toBe(0)
   })
+
+  it("handles negative buffer when downloaded exceeds uploaded", () => {
+    const t = makeTracker({
+      latestStats: {
+        ratio: 0.5,
+        uploadedBytes: "500",
+        downloadedBytes: "1000",
+        seedingCount: 0,
+        leechingCount: 0,
+        username: "a",
+        group: "User",
+      },
+    })
+    const result = computeAggregateStats([t])
+    expect(result.totalBuffer).toBe("-500")
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -349,7 +365,7 @@ describe("computeAlerts", () => {
     expect(staleAlert).toBeDefined()
     expect(staleAlert?.key).toBe("stale-data-1")
     expect(staleAlert?.trackerColor).toBe("#00d4ff")
-    expect(staleAlert?.message).toContain("hour")
+    expect(staleAlert?.message).toContain("Last polled")
   })
 
   it("does not generate stale-data alert when recently polled", () => {

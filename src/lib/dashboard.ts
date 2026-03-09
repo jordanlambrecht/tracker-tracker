@@ -97,7 +97,7 @@ export function computeAlerts(
     const minimumRatioStr = registryEntry?.rules?.minimumRatio
     if (minimumRatioStr !== undefined && tracker.latestStats?.ratio !== null && tracker.latestStats?.ratio !== undefined) {
       const minimumRatio = parseFloat(minimumRatioStr)
-      if (tracker.latestStats.ratio < minimumRatio) {
+      if (isFinite(minimumRatio) && tracker.latestStats.ratio < minimumRatio) {
         alerts.push({
           key: `ratio-danger-${tracker.id}`,
           type: "ratio-danger",
@@ -122,7 +122,7 @@ export function computeAlerts(
           trackerId: tracker.id,
           trackerName: tracker.name,
           trackerColor: tracker.color,
-          message: `No data for ${hoursAgo} hour${hoursAgo !== 1 ? "s" : ""} (last polled ${hoursAgo}h ago)`,
+          message: `Last polled ${hoursAgo}h ago (expected every ${tracker.pollIntervalMinutes / 60}h)`,
         })
       }
     }
