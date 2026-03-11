@@ -250,6 +250,7 @@ export default function TrackerDetailPage() {
           accentColor={tc}
           rules={registryEntry?.rules}
           tagGroups={tagGroups}
+          trackerSeedingCount={stats?.seedingCount}
           qbitmanageConfig={qbitmanageConfig}
         />
       )}

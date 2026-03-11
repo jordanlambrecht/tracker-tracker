@@ -23,7 +23,7 @@ const HEALTH_META: Record<TrackerHealth, HealthMeta> = {
     label: "Healthy",
     description: "Ratio \u2265 2.0 \u2014 healthy buffer",
     pulseDot: "healthy",
-    badge: "success",
+    badge: "accent",
   },
   warning: {
     label: "Warning",
