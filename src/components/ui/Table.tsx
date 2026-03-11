@@ -37,6 +37,7 @@ interface TableProps<T> {
   fixedLayout?: boolean
   maxHeight?: number
   animated?: boolean
+  noHorizontalScroll?: boolean
 }
 
 const thBase =
@@ -65,6 +66,7 @@ function Table<T>({
   fixedLayout = false,
   maxHeight,
   animated = false,
+  noHorizontalScroll = false,
 }: TableProps<T>) {
   const [animateRef] = useAutoAnimate({ duration: 250, easing: "ease-out" })
   const [sortKey, setSortKey] = useState<string | null>(defaultSortKey ?? null)
@@ -101,7 +103,7 @@ function Table<T>({
   return (
     <Card elevation="raised" className={clsx("!p-0 overflow-hidden", className)}>
       <div
-        className={clsx(surfaceClasses[surface], "overflow-hidden overflow-x-auto rounded-nm-lg", maxHeight && "overflow-y-auto styled-scrollbar")}
+        className={clsx(surfaceClasses[surface], "overflow-hidden rounded-nm-lg", !noHorizontalScroll && "overflow-x-auto", maxHeight && "overflow-y-auto styled-scrollbar")}
         style={maxHeight ? { maxHeight } : undefined}
       >
         {sortedData.length > 0 ? (

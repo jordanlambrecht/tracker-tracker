@@ -21,6 +21,7 @@ interface AnalyticsChartsProps {
   onDaysChange: (d: DayRange) => void
   delta: { uploaded: string; downloaded: string } | null
   gazelleMeta: GazellePlatformMeta | null
+  minimumRatio?: number
 }
 
 export function AnalyticsCharts({
@@ -31,6 +32,7 @@ export function AnalyticsCharts({
   onDaysChange,
   delta,
   gazelleMeta,
+  minimumRatio,
 }: AnalyticsChartsProps) {
   return (
     <div className="flex flex-col md:flex-row gap-8">
@@ -50,7 +52,7 @@ export function AnalyticsCharts({
         {/* Ratio */}
         <Card trackerColor={tc} className="flex flex-col gap-4">
           <H2>Ratio</H2>
-          <MetricChart metric="ratio" snapshots={snapshots} accentColor={tc} />
+          <MetricChart metric="ratio" snapshots={snapshots} accentColor={tc} baselineValue={minimumRatio} />
         </Card>
 
         {/* Buffer */}

@@ -2,13 +2,15 @@
 //
 // Functions: TorrentsTab, NoClientState, NoTagState, ActiveTransfersTable,
 //   CategoryRadarChart, CrossSeedDonut, RatioDistribution, SeedTimeDistribution,
-//   SizeBreakdown, ActivityHeatmap, AgeTimeline, TopTorrentsTable,
-//   UnsatisfiedTorrentsTable, ElderTorrentsTable, parseTorrentTags
+//   SizeBreakdown, ActivityHeatmap, AgeTimeline, AvgSeedTimeChart,
+//   TorrentAgeScatter3D, TopTorrentsTable, UnsatisfiedTorrentsTable,
+//   ElderTorrentsTable, parseTorrentTags
 
 "use client"
 
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
+import "echarts-gl"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { ParallelTorrentsChart } from "@/components/charts/ParallelTorrentsChart"
@@ -985,6 +987,221 @@ function AgeTimeline({
 }
 
 // ---------------------------------------------------------------------------
+// Avg Seed Time Over Time (line chart grouped by month of addedOn)
+// ---------------------------------------------------------------------------
+
+function AvgSeedTimeChart({
+  torrents,
+  accentColor,
+}: {
+  torrents: TorrentInfo[]
+  accentColor: string
+}) {
+  const withDates = torrents.filter((t) => t.addedOn > 0 && t.seedingTime > 0)
+  if (withDates.length === 0) return null
+
+  const byMonth = new Map<string, { total: number; count: number }>()
+  for (const t of withDates) {
+    const d = new Date(t.addedOn * 1000)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+    const entry = byMonth.get(key) ?? { total: 0, count: 0 }
+    entry.total += t.seedingTime
+    entry.count += 1
+    byMonth.set(key, entry)
+  }
+
+  const sorted = [...byMonth.entries()].sort(([a], [b]) => a.localeCompare(b))
+  const labels = sorted.map(([k]) => k)
+  const values = sorted.map(([, v]) => Math.floor(v.total / v.count / 86400))
+
+  const option: EChartsOption = {
+    backgroundColor: "transparent",
+    tooltip: {
+      trigger: "axis",
+      backgroundColor: CHART_THEME.tooltipBg,
+      borderColor: CHART_THEME.tooltipBorder,
+      borderWidth: 1,
+      textStyle: {
+        color: CHART_THEME.textPrimary,
+        fontFamily: CHART_THEME.fontMono,
+        fontSize: 11,
+      },
+      formatter: (params: unknown) => {
+        const p = (params as { name: string; value: number }[])[0]
+        if (!p) return ""
+        return `${escHtml(p.name)}<br/>Avg: <b>${p.value}d</b>`
+      },
+    },
+    grid: { top: 16, right: 16, bottom: 32, left: 48 },
+    xAxis: {
+      type: "category",
+      data: labels,
+      axisLabel: {
+        color: CHART_THEME.textTertiary,
+        fontFamily: CHART_THEME.fontMono,
+        fontSize: 10,
+      },
+      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
+      axisTick: { show: false },
+    },
+    yAxis: {
+      type: "value",
+      name: "Days",
+      nameTextStyle: {
+        color: CHART_THEME.textTertiary,
+        fontFamily: CHART_THEME.fontMono,
+        fontSize: 10,
+      },
+      axisLabel: {
+        color: CHART_THEME.textTertiary,
+        fontFamily: CHART_THEME.fontMono,
+        fontSize: 10,
+      },
+      splitLine: { lineStyle: { color: CHART_THEME.gridLine } },
+    },
+    series: [
+      {
+        type: "line",
+        data: values,
+        smooth: true,
+        symbol: "circle",
+        symbolSize: 4,
+        lineStyle: { color: accentColor, width: 2 },
+        itemStyle: { color: accentColor },
+        areaStyle: {
+          color: {
+            type: "linear",
+            x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: hexToRgba(accentColor, 0.3) },
+              { offset: 1, color: hexToRgba(accentColor, 0.02) },
+            ],
+          },
+        },
+      },
+    ],
+  }
+
+  return (
+    <ReactECharts
+      option={option}
+      style={{ height: 280, width: "100%" }}
+      opts={{ renderer: "canvas" }}
+      notMerge
+      lazyUpdate
+    />
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Torrent Age Scatter 3D (echarts-gl scatter3D)
+// ---------------------------------------------------------------------------
+
+function TorrentAgeScatter3D({
+  torrents,
+  accentColor,
+}: {
+  torrents: TorrentInfo[]
+  accentColor: string
+}) {
+  const now = Date.now() / 1000
+  const data = torrents
+    .filter((t) => t.addedOn > 0)
+    .map((t) => [
+      Math.floor((now - t.addedOn) / 86400),
+      Math.floor(t.seedingTime / 86400),
+      +(t.size / 1024 ** 3).toFixed(2),
+      Math.min(t.ratio, 10),
+    ])
+
+  if (data.length === 0) return null
+
+  const option = {
+    backgroundColor: "transparent",
+    tooltip: {
+      formatter: (p: { data: number[] }) => {
+        const d = p.data
+        return `Age: ${d[0]}d<br/>Seed: ${d[1]}d<br/>Size: ${d[2]} GiB<br/>Ratio: ${d[3].toFixed(2)}`
+      },
+    },
+    visualMap: {
+      show: true,
+      min: 0,
+      max: 5,
+      dimension: 3,
+      inRange: {
+        color: [
+          CHART_THEME.scale[0],
+          CHART_THEME.scale[1],
+          CHART_THEME.scale[2],
+          accentColor,
+          CHART_THEME.scale[4],
+        ],
+      },
+      text: ["Ratio 5+", "0"],
+      textStyle: {
+        color: CHART_THEME.textTertiary,
+        fontFamily: CHART_THEME.fontMono,
+        fontSize: 10,
+      },
+    },
+    xAxis3D: {
+      type: "value",
+      name: "Age (days)",
+      nameTextStyle: { color: CHART_THEME.textTertiary, fontFamily: CHART_THEME.fontMono },
+      axisLabel: { color: CHART_THEME.textTertiary, fontFamily: CHART_THEME.fontMono, fontSize: 9 },
+      axisLine: { lineStyle: { color: CHART_THEME.borderEmphasis } },
+    },
+    yAxis3D: {
+      type: "value",
+      name: "Seed Time (days)",
+      nameTextStyle: { color: CHART_THEME.textTertiary, fontFamily: CHART_THEME.fontMono },
+      axisLabel: { color: CHART_THEME.textTertiary, fontFamily: CHART_THEME.fontMono, fontSize: 9 },
+      axisLine: { lineStyle: { color: CHART_THEME.borderEmphasis } },
+    },
+    zAxis3D: {
+      type: "value",
+      name: "Size (GiB)",
+      nameTextStyle: { color: CHART_THEME.textTertiary, fontFamily: CHART_THEME.fontMono },
+      axisLabel: { color: CHART_THEME.textTertiary, fontFamily: CHART_THEME.fontMono, fontSize: 9 },
+      axisLine: { lineStyle: { color: CHART_THEME.borderEmphasis } },
+    },
+    grid3D: {
+      boxWidth: 100,
+      boxDepth: 80,
+      boxHeight: 60,
+      viewControl: {
+        autoRotate: true,
+        autoRotateSpeed: 4,
+      },
+      light: {
+        main: { intensity: 1.2 },
+        ambient: { intensity: 0.3 },
+      },
+      environment: "transparent",
+    },
+    series: [
+      {
+        type: "scatter3D",
+        data,
+        symbolSize: 4,
+        itemStyle: { opacity: 0.8 },
+      },
+    ],
+  }
+
+  return (
+    <ReactECharts
+      option={option}
+      style={{ height: 400, width: "100%" }}
+      opts={{ renderer: "canvas" }}
+      notMerge
+      lazyUpdate
+    />
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Top torrents table
 // ---------------------------------------------------------------------------
 
@@ -997,10 +1214,16 @@ function TopTorrentsTable({
 }) {
   const columns: Column<TorrentInfo>[] = [
     {
+      key: "rank",
+      header: "#",
+      width: 32,
+      render: (_t, i) => <span className="text-xs font-mono text-muted">{i != null ? i + 1 : ""}</span>,
+    },
+    {
       key: "name",
       header: "Name",
       render: (t) => (
-        <span className="text-xs font-mono text-secondary truncate block" title={t.name}>{t.name}</span>
+        <MarqueeText className="text-xs font-mono text-secondary" speed={30}>{t.name}</MarqueeText>
       ),
     },
     {
@@ -1048,6 +1271,7 @@ function TopTorrentsTable({
       keyExtractor={(t) => t.hash}
       emptyMessage="No torrents found"
       surface="inset"
+      noHorizontalScroll
     />
   )
 }
@@ -1165,10 +1389,16 @@ function ElderTorrentsTable({
 }) {
   const columns: Column<TorrentInfo>[] = [
     {
+      key: "rank",
+      header: "#",
+      width: 32,
+      render: (_t, i) => <span className="text-xs font-mono text-muted">{i != null ? i + 1 : ""}</span>,
+    },
+    {
       key: "name",
       header: "Name",
       render: (t) => (
-        <span className="text-xs font-mono text-secondary truncate block" title={t.name}>{t.name}</span>
+        <MarqueeText className="text-xs font-mono text-secondary" speed={30}>{t.name}</MarqueeText>
       ),
     },
     {
@@ -1219,6 +1449,7 @@ function ElderTorrentsTable({
       keyExtractor={(t) => t.hash}
       emptyMessage="No torrents found"
       surface="inset"
+      noHorizontalScroll
     />
   )
 }
@@ -1515,13 +1746,21 @@ function TorrentsTab({ trackerId, trackerName, qbtTag, accentColor, rules, tagGr
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-7">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-8">
         <StatCard label="Seeding" value={seedingTorrents.length.toLocaleString()} accentColor={accentColor} icon={ICONS.seeding} />
         <StatCard label="Leeching" value={leechingTorrents.length.toLocaleString()} accentColor={accentColor} icon={ICONS.leeching} />
         <StatCard label="Upload Speed" value={formatSpeed(totalUpSpeed)} accentColor={accentColor} icon={ICONS.speed} />
         <StatCard label="Total Size" value={formatBytesFromNumber(totalSize)} accentColor={accentColor} icon={ICONS.size} />
         <StatCard label="Cross-Seeded" value={`${crossSeeded.length} / ${torrents.length}`} accentColor={accentColor} icon={ICONS.crossSeed} />
         <StatCard label="Stale (30d+)" value={staleCount.toLocaleString()} accentColor={staleCount > 0 ? CHART_THEME.warn : accentColor} icon={ICONS.stale} />
+        <StatCard
+          label="Avg Seed Time"
+          value={torrents.length > 0
+            ? formatDuration(Math.floor(torrents.reduce((s, t) => s + t.seedingTime, 0) / torrents.length))
+            : "—"}
+          accentColor={accentColor}
+          icon={ICONS.seeding}
+        />
         {unsatisfiedCount !== null && (
           <StatCard label="H&R Risk" value={unsatisfiedCount.toLocaleString()} accentColor={unsatisfiedCount > 0 ? CHART_THEME.danger : accentColor} icon={ICONS.warning} />
         )}
@@ -1634,6 +1873,19 @@ function TorrentsTab({ trackerId, trackerName, qbtTag, accentColor, rules, tagGr
           Library Growth
         </H2>
         <AgeTimeline torrents={torrents} accentColor={accentColor} />
+      </Card>
+
+      {/* Avg Seed Time Over Time */}
+      <Card trackerColor={accentColor} className="flex flex-col gap-4">
+        <H2>Average Seed Time by Cohort</H2>
+        <AvgSeedTimeChart torrents={torrents} accentColor={accentColor} />
+      </Card>
+
+      {/* 3D Torrent Age Scatter */}
+      <Card trackerColor={accentColor} className="flex flex-col gap-4">
+        <H2>Torrent Library — Age × Seed Time × Size</H2>
+        <p className="text-xs font-mono text-tertiary">Color = ratio (red → green → cyan)</p>
+        <TorrentAgeScatter3D torrents={torrents} accentColor={accentColor} />
       </Card>
 
       {/* Unsatisfied Torrents — only shown when seed time rule exists */}

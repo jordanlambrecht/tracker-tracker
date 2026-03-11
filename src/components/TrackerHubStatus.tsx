@@ -109,7 +109,7 @@ function TrackerHubStatus({ trackerHubSlug, statusPageUrl, defaultExpanded = tru
 
   return (
     <div
-      className="nm-inset-sm bg-control-bg flex flex-col px-4 py-3.5 w-full sm:w-fit rounded-nm-md"
+      className="nm-inset-sm bg-control-bg flex flex-col px-4 py-3.5 w-full rounded-nm-md"
     >
       {/* Header row — always visible */}
       <div className="flex items-center justify-between gap-6 w-full">
@@ -163,7 +163,12 @@ function TrackerHubStatus({ trackerHubSlug, statusPageUrl, defaultExpanded = tru
       </div>
 
       {/* Expandable details */}
-      {expanded && (
+      <div
+        className={clsx(
+          "overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out",
+          expanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+        )}
+      >
         <div className="flex flex-col gap-2.5 mt-2.5">
           {/* Incident banner */}
           {incident && (
@@ -205,7 +210,7 @@ function TrackerHubStatus({ trackerHubSlug, statusPageUrl, defaultExpanded = tru
             </a>
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }

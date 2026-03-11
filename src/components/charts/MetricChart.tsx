@@ -11,7 +11,7 @@ import { useState } from "react"
 import { bytesToGiB, getComplementaryColor, hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
+import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
 
 // ── Types ──
 
@@ -30,6 +30,7 @@ export interface MetricChartProps {
   snapshots: Snapshot[]
   accentColor?: string
   height?: number
+  baselineValue?: number
 }
 
 interface DailyBucket {
@@ -117,7 +118,8 @@ export function computeDailyDeltas(snapshots: Snapshot[]): DailyBucket[] {
 function buildLineOption(
   snapshots: Snapshot[],
   config: MetricConfig,
-  safeAccent: string
+  safeAccent: string,
+  baselineValue?: number
 ): EChartsOption {
   const labels = snapshots.map((s) =>
     new Date(s.polledAt).toLocaleString("en-US", {
@@ -272,6 +274,20 @@ function buildLineOption(
         emphasis: {
           lineStyle: { shadowBlur: 16, shadowColor: safeAccent },
         },
+        markLine: baselineValue != null && baselineValue > 0 ? {
+          silent: true,
+          symbol: "none",
+          lineStyle: { color: CHART_THEME.danger, type: "dashed", width: 1.5 },
+          label: {
+            show: true,
+            formatter: `Min: ${baselineValue}`,
+            position: "insideEndTop",
+            color: CHART_THEME.danger,
+            fontSize: 10,
+            fontFamily: CHART_THEME.fontMono,
+          },
+          data: [{ yAxis: baselineValue }],
+        } : undefined,
       },
     ],
   }
@@ -328,18 +344,7 @@ function buildDailyDeltaOption(
         return `${chartTooltipHeader(time)}${rows}`
       },
     }),
-    legend: {
-      top: 0,
-      right: 0,
-      textStyle: {
-        color: TERTIARY_COLOR,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
-      },
-      icon: "circle",
-      itemWidth: 8,
-      itemHeight: 8,
-    },
+    legend: chartLegend(),
     xAxis: {
       type: "category",
       data: labels,
@@ -440,6 +445,7 @@ function MetricChart({
   snapshots,
   accentColor = CHART_THEME.accent,
   height = 350,
+  baselineValue,
 }: MetricChartProps) {
   const [deltaMode, setDeltaMode] = useState<DeltaMode>("bar")
 
@@ -452,7 +458,12 @@ function MetricChart({
   const option =
     metric === "dailyDelta"
       ? buildDailyDeltaOption(snapshots, safeAccent, deltaMode)
-      : buildLineOption(snapshots, METRIC_CONFIGS[metric], safeAccent)
+      : buildLineOption(
+          snapshots,
+          METRIC_CONFIGS[metric],
+          safeAccent,
+          metric === "ratio" ? baselineValue : undefined
+        )
 
   if (option === null) {
     return <ChartEmptyState height={height} message="Not enough data for daily deltas." />
