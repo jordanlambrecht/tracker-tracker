@@ -1,0 +1,60 @@
+// src/app/api/clients/[id]/test/route.ts
+//
+// Functions: POST
+
+
+import { eq } from "drizzle-orm"
+import { NextResponse } from "next/server"
+import { authenticate, decodeKey, parseRouteId } from "@/lib/api-helpers"
+import { decrypt } from "@/lib/crypto"
+import { db } from "@/lib/db"
+import { downloadClients } from "@/lib/db/schema"
+import { buildBaseUrl, getTransferInfo, invalidateSession, login } from "@/lib/qbt"
+
+export async function POST(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = await authenticate()
+  if (auth instanceof NextResponse) return auth
+
+  const clientId = await parseRouteId(params, "client ID")
+  if (clientId instanceof NextResponse) return clientId
+
+  const [client] = await db
+    .select()
+    .from(downloadClients)
+    .where(eq(downloadClients.id, clientId))
+    .limit(1)
+
+  if (!client) {
+    return NextResponse.json({ error: "Client not found" }, { status: 404 })
+  }
+
+  const key = decodeKey(auth)
+
+  let username: string
+  let password: string
+  try {
+    username = decrypt(client.encryptedUsername, key)
+    password = decrypt(client.encryptedPassword, key)
+  } catch {
+    return NextResponse.json({ error: "Failed to decrypt credentials" }, { status: 422 })
+  }
+
+  try {
+    // Force a fresh login for explicit connection tests — don't use cached SID
+    const baseUrl = buildBaseUrl(client.host, client.port, client.useSsl)
+    invalidateSession(baseUrl)
+    const sid = await login(client.host, client.port, client.useSsl, username, password)
+    await getTransferInfo(baseUrl, sid)
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    const raw = error instanceof Error ? error.message : ""
+    let detail = ""
+    if (/timed?\s*out/i.test(raw)) detail = " (timed out)"
+    else if (/ECONNREFUSED/i.test(raw)) detail = " (ECONNREFUSED)"
+    else if (/403/.test(raw)) detail = " (403)"
+    return NextResponse.json({ error: `Connection test failed${detail}` }, { status: 422 })
+  }
+}
