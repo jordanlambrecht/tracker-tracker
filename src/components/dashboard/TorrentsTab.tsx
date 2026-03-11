@@ -16,6 +16,7 @@ import { StorageSunburst } from "@/components/charts/StorageSunburst"
 import { TagGroupBreakdownChart } from "@/components/charts/TagGroupBreakdownChart"
 import { CHART_THEME, escHtml } from "@/components/charts/theme"
 import { Card } from "@/components/ui/Card"
+import { BoltIcon, BoxIcon, ClockIcon, LeechingIcon, SeedingIcon, ServerIcon, ShareScoreIcon, TagIcon, TriangleWarningIcon } from "@/components/ui/Icons"
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import { StatCard } from "@/components/ui/StatCard"
 import type { Column } from "@/components/ui/Table"
@@ -94,41 +95,13 @@ const HOUR_LABELS = Array.from({ length: 24 }, (_, i) =>
 // ---------------------------------------------------------------------------
 
 const ICONS = {
-  seeding: (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 22V8" /><path d="M5 12H2a10 10 0 0 0 20 0h-3" /><path d="M8 5.2C9.2 4.4 10.6 4 12 4s2.8.4 4 1.2" />
-    </svg>
-  ),
-  leeching: (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7,10 12,15 17,10" /><line x1="12" y1="15" x2="12" y2="3" />
-    </svg>
-  ),
-  warning: (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
-    </svg>
-  ),
-  crossSeed: (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-    </svg>
-  ),
-  speed: (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-    </svg>
-  ),
-  stale: (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" /><polyline points="12,6 12,12 16,14" />
-    </svg>
-  ),
-  size: (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-    </svg>
-  ),
+  seeding: <SeedingIcon width={16} height={16} />,
+  leeching: <LeechingIcon width={16} height={16} />,
+  warning: <TriangleWarningIcon width={16} height={16} />,
+  crossSeed: <ShareScoreIcon width={16} height={16} />,
+  speed: <BoltIcon width={16} height={16} />,
+  stale: <ClockIcon width={16} height={16} />,
+  size: <BoxIcon width={16} height={16} />,
 }
 
 // ---------------------------------------------------------------------------
@@ -1259,12 +1232,7 @@ function NoClientState() {
     <div
       className="flex flex-col items-center justify-center gap-4 py-16 nm-inset-sm bg-control-bg rounded-nm-lg"
     >
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="text-muted">
-        <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
-        <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
-        <line x1="6" y1="6" x2="6.01" y2="6" />
-        <line x1="6" y1="18" x2="6.01" y2="18" />
-      </svg>
+      <ServerIcon width={40} height={40} className="text-muted" />
       <div className="flex flex-col items-center gap-1.5 text-center">
         <p className="text-sm font-sans text-secondary">No download client connected</p>
         <p className="text-xs font-sans text-muted max-w-sm">
@@ -1283,10 +1251,7 @@ function NoTagState({ trackerName }: { trackerName: string }) {
     <div
       className="flex flex-col items-center justify-center gap-4 py-16 nm-inset-sm bg-control-bg rounded-nm-lg"
     >
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="text-muted">
-        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
-        <line x1="7" y1="7" x2="7.01" y2="7" />
-      </svg>
+      <TagIcon width={40} height={40} className="text-muted" />
       <div className="flex flex-col items-center gap-1.5 text-center">
         <p className="text-sm font-sans text-secondary">No qBittorrent tag set for {trackerName}</p>
         <p className="text-xs font-sans text-muted max-w-sm">

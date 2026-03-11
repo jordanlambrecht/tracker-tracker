@@ -8,7 +8,7 @@ import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
 import { RATIO_BUCKETS } from "@/lib/fleet"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartAxisLabel, chartGrid, chartDot, chartTooltip } from "./theme"
+import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartTooltip } from "./theme"
 
 interface FleetRatioDistributionProps {
   torrents: { ratio: number }[]

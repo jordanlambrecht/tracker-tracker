@@ -2,8 +2,8 @@
 //
 // Functions: UL, OL, LI
 
-import type { HTMLAttributes, OlHTMLAttributes } from "react"
 import clsx from "clsx"
+import type { HTMLAttributes, OlHTMLAttributes } from "react"
 
 /** Unordered list — tertiary text, custom bullet markers */
 function UL({ className, children, ...props }: HTMLAttributes<HTMLUListElement>) {

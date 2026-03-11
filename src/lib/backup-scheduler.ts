@@ -5,7 +5,6 @@
 import { mkdir, writeFile } from "node:fs/promises"
 import path from "node:path"
 import cron, { type ScheduledTask } from "node-cron"
-import { log } from "@/lib/logger"
 import {
   encryptBackupPayload,
   generateBackupPayload,
@@ -13,6 +12,7 @@ import {
 } from "@/lib/backup"
 import { db } from "@/lib/db"
 import { appSettings, backupHistory } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
 
 // Store on globalThis to survive HMR in development.
 // Without this, each hot-reload orphans the old cron job while creating a new one.

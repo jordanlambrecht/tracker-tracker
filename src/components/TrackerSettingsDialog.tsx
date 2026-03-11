@@ -42,7 +42,7 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
     setBaseUrl(tracker.baseUrl)
     setUseProxy(tracker.useProxy ?? false)
     setCountCrossSeedUnsatisfied(tracker.countCrossSeedUnsatisfied ?? false)
-  }, [tracker.id])
+  }, [tracker])
 
   const [changingKey, setChangingKey] = useState(false)
   const [newApiToken, setNewApiToken] = useState("")

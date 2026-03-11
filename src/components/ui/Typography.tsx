@@ -2,8 +2,8 @@
 //
 // Functions: H1, H2, H3, Subheader, Paragraph, Subtext
 
-import type { HTMLAttributes } from "react"
 import clsx from "clsx"
+import type { HTMLAttributes } from "react"
 
 interface TypographyProps extends HTMLAttributes<HTMLElement> {
   as?: keyof HTMLElementTagNameMap

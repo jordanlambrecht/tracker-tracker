@@ -32,25 +32,26 @@ function RedactedText({ value, color = "var(--color-tertiary)", className }: Red
   // Generate deterministic-looking blocks from the character count.
   // Each character maps to 1 block. We vary opacity using a simple
   // hash-like distribution so adjacent blocks look different.
-  const blocks: number[] = []
+  const blocks: { id: string; opacity: number }[] = []
   for (let i = 0; i < charCount; i++) {
-    const opacity = 0.3 + ((i * 7 + 3) % 5) * 0.15
-    blocks.push(opacity)
+    const seed = i * 7 + 3
+    blocks.push({ id: `r${charCount}-${seed}`, opacity: 0.3 + (seed % 5) * 0.15 })
   }
 
   return (
     <span
+      role="img"
       className={clsx("inline-flex items-center gap-px", className)}
       title="Redacted — username privacy mode is enabled"
       aria-label={`Redacted text, ${charCount} characters`}
     >
-      {blocks.map((opacity, i) => (
+      {blocks.map((block) => (
         <span
-          key={`block-${i}-${opacity}`}
+          key={block.id}
           className="inline-block rounded-sm w-[0.55em] h-[1em]"
           style={{
             backgroundColor: color,
-            opacity,
+            opacity: block.opacity,
           }}
         />
       ))}

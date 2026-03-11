@@ -89,7 +89,7 @@ export function formatAccountAge(joinedAt: string | null): string | null {
  */
 export function formatJoinedDate(joinedAt: string | null): string | null {
   if (!joinedAt) return null
-  const date = new Date(joinedAt + "T00:00:00")
+  const date = new Date(`${joinedAt}T00:00:00`)
   return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
 }
 

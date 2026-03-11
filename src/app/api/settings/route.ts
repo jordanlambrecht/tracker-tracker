@@ -445,6 +445,7 @@ export async function PATCH(request: Request) {
     })
     .from(appSettings)
     .limit(1)
+  if (!updated) throw new Error("Settings update failed")
 
   // Restart backup scheduler if schedule settings changed
   if (
@@ -455,31 +456,31 @@ export async function PATCH(request: Request) {
       "@/lib/backup-scheduler"
     )
     stopBackupScheduler()
-    if (updated!.backupScheduleEnabled) {
+    if (updated.backupScheduleEnabled) {
       const key = decodeKey(auth)
       startBackupScheduler(key)
     }
   }
 
   return NextResponse.json({
-    storeUsernames: updated!.storeUsernames,
-    username: updated!.username,
-    sessionTimeoutMinutes: updated!.sessionTimeoutMinutes,
-    autoWipeThreshold: updated!.autoWipeThreshold,
-    snapshotRetentionDays: updated!.snapshotRetentionDays,
-    trackerPollIntervalMinutes: updated!.trackerPollIntervalMinutes,
-    proxyEnabled: updated!.proxyEnabled,
-    proxyType: updated!.proxyType,
-    proxyHost: updated!.proxyHost,
-    proxyPort: updated!.proxyPort,
-    proxyUsername: updated!.proxyUsername,
-    hasProxyPassword: !!updated!.hasProxyPassword,
-    qbitmanageEnabled: updated!.qbitmanageEnabled,
-    qbitmanageTags: parseQbitmanageTags(updated!.qbitmanageTags),
-    backupScheduleEnabled: updated!.backupScheduleEnabled,
-    backupScheduleFrequency: updated!.backupScheduleFrequency,
-    backupRetentionCount: updated!.backupRetentionCount,
-    backupEncryptionEnabled: updated!.backupEncryptionEnabled,
-    backupStoragePath: updated!.backupStoragePath,
+    storeUsernames: updated.storeUsernames,
+    username: updated.username,
+    sessionTimeoutMinutes: updated.sessionTimeoutMinutes,
+    autoWipeThreshold: updated.autoWipeThreshold,
+    snapshotRetentionDays: updated.snapshotRetentionDays,
+    trackerPollIntervalMinutes: updated.trackerPollIntervalMinutes,
+    proxyEnabled: updated.proxyEnabled,
+    proxyType: updated.proxyType,
+    proxyHost: updated.proxyHost,
+    proxyPort: updated.proxyPort,
+    proxyUsername: updated.proxyUsername,
+    hasProxyPassword: !!updated.hasProxyPassword,
+    qbitmanageEnabled: updated.qbitmanageEnabled,
+    qbitmanageTags: parseQbitmanageTags(updated.qbitmanageTags),
+    backupScheduleEnabled: updated.backupScheduleEnabled,
+    backupScheduleFrequency: updated.backupScheduleFrequency,
+    backupRetentionCount: updated.backupRetentionCount,
+    backupEncryptionEnabled: updated.backupEncryptionEnabled,
+    backupStoragePath: updated.backupStoragePath,
   })
 }

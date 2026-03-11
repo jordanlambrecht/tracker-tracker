@@ -6,11 +6,11 @@
 
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
-import { formatBytesFromNumber } from "@/lib/formatters"
-import { extractTagsFromSnapshots } from "@/lib/fleet"
 import type { FleetSnapshot } from "@/lib/fleet"
+import { extractTagsFromSnapshots } from "@/lib/fleet"
+import { formatBytesFromNumber } from "@/lib/formatters"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, buildTagColors, chartAxisLabel, chartDot, chartTooltip, chartTooltipHeader, escHtml, formatChartTimestamp } from "./theme"
+import { buildTagColors, CHART_THEME, chartAxisLabel, chartDot, chartTooltip, chartTooltipHeader, escHtml, formatChartTimestamp } from "./theme"
 
 interface SpeedThemeRiverProps {
   snapshots: FleetSnapshot[]

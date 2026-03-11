@@ -121,7 +121,9 @@ function ColorPicker({ value, onChange, label }: ColorPickerProps) {
               pointerEvents: visible ? "auto" : "none",
             }}
           >
-            <HexColorPicker color={draft} onChange={handleDraftChange} />
+            <div className="color-picker-wrapper">
+              <HexColorPicker color={draft} onChange={handleDraftChange} />
+            </div>
             <div className="flex items-center gap-2">
               <div
                 className="w-8 h-8 rounded-nm-sm nm-inset-sm shrink-0"

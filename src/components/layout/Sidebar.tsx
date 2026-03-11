@@ -24,6 +24,7 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import clsx from "clsx"
+import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { type CSSProperties, useCallback, useEffect, useRef, useState } from "react"
 import { AddTrackerDialog } from "@/components/AddTrackerDialog"
@@ -151,19 +152,17 @@ function SortableTrackerItem({
           {stat}
         </span>
         {!unlocked && (
-          <span
-            role="button"
-            tabIndex={0}
+          <button
+            type="button"
             onClick={(e) => { e.stopPropagation(); onToggleFavorite(tracker.id, tracker.isFavorite) }}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); e.preventDefault(); onToggleFavorite(tracker.id, tracker.isFavorite) } }}
             className={clsx(
-              "shrink-0 text-sm leading-none transition-all duration-150 cursor-pointer",
+              "shrink-0 text-sm leading-none transition-all duration-150 cursor-pointer bg-transparent border-none p-0",
               tracker.isFavorite ? "text-warn opacity-100" : "text-muted opacity-0 group-hover:opacity-50 hover:!opacity-100",
             )}
             aria-label={tracker.isFavorite ? "Remove from favorites" : "Add to favorites"}
           >
             {tracker.isFavorite ? "★" : "☆"}
-          </span>
+          </button>
         )}
       </button>
     </li>
@@ -192,7 +191,7 @@ function Sparkline({
   const fillPoints = `0,${height} ${points.join(" ")} ${width},${height}`
 
   return (
-    <svg width={width} height={height} className="shrink-0">
+    <svg width={width} height={height} className="shrink-0" aria-hidden="true">
       <polygon points={fillPoints} fill={color} opacity={0.1} />
       <polyline
         points={points.join(" ")}
@@ -603,7 +602,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
             aria-label="Go to dashboard"
             aria-current={pathname === "/" ? "page" : undefined}
           >
-            <img src="/favicon.png" alt="" width={22} height={22} aria-hidden="true" className="shrink-0" />
+            <Image src="/favicon.png" alt="" width={22} height={22} aria-hidden="true" className="shrink-0" />
             <span className="font-sans font-bold text-lg text-primary leading-none">
               Tracker Tracker
             </span>
@@ -805,6 +804,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
         <dialog
           ref={changelogRef}
           onClick={(e) => { if (e.target === changelogRef.current) { changelogRef.current?.close(); setChangelogOpen(false) } }}
+          onKeyDown={(e) => { if (e.key === "Escape") { changelogRef.current?.close(); setChangelogOpen(false) } }}
           onClose={() => setChangelogOpen(false)}
           className="fixed inset-0 m-auto w-full max-w-2xl max-h-[80vh] bg-elevated p-0 overflow-hidden backdrop:bg-black/60 backdrop:backdrop-blur-sm open:flex open:flex-col nm-raised-lg rounded-nm-xl border-0"
         >

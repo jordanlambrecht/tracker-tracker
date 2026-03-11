@@ -52,7 +52,7 @@ function makeSelectChain(resolvedValue: unknown) {
   return { mockLimit, mockFrom }
 }
 
-function makeInsertChain() {
+function _makeInsertChain() {
   const mockValues = vi.fn().mockResolvedValue(undefined)
   ;(db.insert as ReturnType<typeof vi.fn>).mockReturnValue({ values: mockValues })
   return { mockValues }

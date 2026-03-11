@@ -5,7 +5,9 @@
       "**",
       "!.next",
       "!node_modules",
-      "!public"
+      "!public",
+      "!.history",
+      "!.claude"
     ]
   },
   "assist": {
