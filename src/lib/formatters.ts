@@ -1,8 +1,8 @@
 // src/lib/formatters.ts
 //
-// Functions: formatBytesFromString, bytesToGiB, formatBytesFromNumber, formatBytesNum, formatRatio, formatAccountAge, formatJoinedDate, hexToRgba, hexToHsl, hslToHex, generatePalette, getComplementaryColor, formatStatValue
+// Functions: formatBytesFromString, bytesToGiB, formatBytesFromNumber, formatBytesNum, formatRatio, formatAccountAge, formatJoinedDate, hexToRgba, hexToHsl, hslToHex, generatePalette, getComplementaryColor, formatStatValue, computeDelta
 
-import type { TrackerLatestStats } from "@/types/api"
+import type { Snapshot, TrackerLatestStats } from "@/types/api"
 
 /**
  * Formats a bigint byte string (from API) to human-readable GiB/TiB.
@@ -19,8 +19,10 @@ export function formatBytesFromString(bytesStr: string | null | undefined): stri
 
 /**
  * Converts a bigint byte string to GiB as a number (for chart data).
+ * Returns 0 for null, undefined, or empty string.
  */
-export function bytesToGiB(bytesStr: string): number {
+export function bytesToGiB(bytesStr: string | null | undefined): number {
+  if (!bytesStr) return 0
   return Number(BigInt(bytesStr)) / 1024 ** 3
 }
 
@@ -93,13 +95,18 @@ export function formatJoinedDate(joinedAt: string | null): string | null {
   return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
 }
 
+const VALID_HEX_RE = /^#[0-9a-fA-F]{6}$/
+const FALLBACK_HEX = "#00d4ff"
+
 /**
  * Converts a hex color (#rrggbb) to rgba with the given alpha.
+ * Falls back to the accent cyan (#00d4ff) for invalid inputs.
  */
 export function hexToRgba(hex: string, alpha: number): string {
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
+  const safe = VALID_HEX_RE.test(hex) ? hex : FALLBACK_HEX
+  const r = parseInt(safe.slice(1, 3), 16)
+  const g = parseInt(safe.slice(3, 5), 16)
+  const b = parseInt(safe.slice(5, 7), 16)
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
@@ -225,5 +232,42 @@ export function formatStatValue(
       const buf = up - down
       return `${formatBytesFromString(buf.toString())} buf`
     }
+  }
+}
+
+/**
+ * Computes the 24-hour upload/download delta from a snapshot array.
+ * Sorts snapshots ascending by polledAt before processing, so the result
+ * is correct regardless of the order snapshots arrive in.
+ * Returns null if fewer than 2 snapshots exist or no snapshot falls within
+ * the 24-hour window.
+ */
+export function computeDelta(snaps: Snapshot[]): { uploaded: string; downloaded: string } | null {
+  if (snaps.length < 2) return null
+
+  const sorted = [...snaps].sort(
+    (a, b) => new Date(a.polledAt).getTime() - new Date(b.polledAt).getTime()
+  )
+
+  const latest = sorted[sorted.length - 1]
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000
+
+  let earliest: Snapshot | null = null
+  for (const s of sorted) {
+    if (new Date(s.polledAt).getTime() >= cutoff) {
+      earliest = s
+      break
+    }
+  }
+
+  if (!earliest || earliest === latest) return null
+  if (!latest.uploadedBytes || !earliest.uploadedBytes || !latest.downloadedBytes || !earliest.downloadedBytes) return null
+
+  try {
+    const uploadDelta = BigInt(latest.uploadedBytes) - BigInt(earliest.uploadedBytes)
+    const downloadDelta = BigInt(latest.downloadedBytes) - BigInt(earliest.downloadedBytes)
+    return { uploaded: uploadDelta.toString(), downloaded: downloadDelta.toString() }
+  } catch {
+    return null
   }
 }
