@@ -27,6 +27,9 @@ jobs:
       - name: Type check
         run: pnpm tsc
 
+      - name: Lint
+        run: pnpm biome check .
+
       - name: Run tests
         run: pnpm test:run
 
@@ -153,7 +156,7 @@ jobs:
 
       - name: Verify security test count
         run: |
-          COUNT=$(pnpm test:run -- src/lib/__tests__/security.test.ts 2>&1 | grep -oP '\d+ tests' | grep -oP '\d+')
+          COUNT=$(pnpm test:run -- src/lib/__tests__/security.test.ts 2>&1 | tail -5 | grep -oP '\d+ passed' | grep -oP '\d+')
           echo "Security tests: $COUNT"
           if [ "$COUNT" -lt 78 ]; then
             echo "::error::Security test count dropped below expected minimum (78). Was a test removed?"
@@ -279,3 +282,22 @@ jobs:
       - name: Fail if security audit has critical findings
         if: steps.security-audit.outcome == 'failure'
         run: exit 1
+
+  docker:
+    name: Docker Build
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
