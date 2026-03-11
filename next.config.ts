@@ -14,6 +14,9 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version ?? "0.0.0",
   },
+  devIndicators: {
+    position: "bottom-right",
+  },
   logging: {
     fetches: {
       fullUrl: false,
