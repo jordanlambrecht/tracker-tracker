@@ -53,3 +53,11 @@ docs/superpowers/specs/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+catalog.json
+catalog-filtered.json
+categorized.json
+categorized-enriched.json
+categories/
+duplicates/
+duplicates-report.md
+.tmp-process.jq

@@ -5,11 +5,34 @@ services:
     environment:
       POSTGRES_DB: tracker_tracker
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/tracker_tracker
+      SESSION_SECRET: ${SESSION_SECRET}
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_FILE: /data/logs/tracker-tracker.log
+    volumes:
+      - backups:/data/backups
+      - logs:/data/logs
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   pgdata:
+  backups:
+  logs:
