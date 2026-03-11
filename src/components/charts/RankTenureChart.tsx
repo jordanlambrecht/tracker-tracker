@@ -104,7 +104,7 @@ function buildRankColorMap(
   if (allRanks.length === 0) return colorMap
 
   // Use the first tracker's base color as the starting hue
-  const baseColor = trackerData[0]?.color ?? "#00d4ff"
+  const baseColor = trackerData[0]?.color ?? CHART_THEME.accent
   const [baseH, baseS, baseL] = hexToHsl(baseColor)
 
   if (allRanks.length === 1) {
@@ -162,7 +162,7 @@ function buildRankTenureOption(
         const durationDays = Math.round((endMs - startMs) / (1000 * 60 * 60 * 24))
         const startDate = fmtDate(new Date(startMs))
         const endDate = fmtDate(new Date(endMs))
-        const color = colorMap.get(rankName) ?? "#94a3b8"
+        const color = colorMap.get(rankName) ?? CHART_THEME.neutral
 
         return [
           `<div style="font-family:${CHART_THEME.fontMono};font-size:11px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${trackerName}</div>`,
@@ -229,7 +229,7 @@ function buildRankTenureOption(
           const width = endCoord[0] - startCoord[0]
           const height = barHeight
 
-          const fillColor = colorMap.get(rankName) ?? "#94a3b8"
+          const fillColor = colorMap.get(rankName) ?? CHART_THEME.neutral
 
           // Return type is cast via CustomSeriesRenderItemReturn; we use
           // unknown intermediate to satisfy the strict union without importing
@@ -251,7 +251,7 @@ function buildRankTenureOption(
                     text: rankName,
                     textAlign: "left" as const,
                     textVerticalAlign: "middle" as const,
-                    fill: "#e2e8f0",
+                    fill: CHART_THEME.textPrimary,
                     fontSize: 10,
                     fontFamily: CHART_THEME.fontMono,
                     truncate: { outerWidth: width - 12, ellipsis: "…" },

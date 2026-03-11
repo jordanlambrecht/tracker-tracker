@@ -71,7 +71,7 @@ function buildOption(
       value: catData.total,
       itemStyle: {
         color: catColor,
-        borderColor: "#282a36",
+        borderColor: CHART_THEME.surface,
         borderWidth: 2,
         gapWidth: 1,
       },
@@ -80,7 +80,7 @@ function buildOption(
         value: item.size,
         itemStyle: {
           color: sliceColor(catColor, itemIdx, sortedItems.length),
-          borderColor: "#282a36",
+          borderColor: CHART_THEME.surface,
           borderWidth: 1,
         },
       })),
@@ -138,8 +138,8 @@ function buildOption(
           show: true,
           bottom: 4,
           itemStyle: {
-            color: "#343648",
-            borderColor: "rgba(148, 163, 184, 0.15)",
+            color: CHART_THEME.overlay,
+            borderColor: CHART_THEME.borderEmphasis,
             shadowBlur: 0,
           },
           textStyle: {
@@ -169,14 +169,14 @@ function buildOption(
           position: "insideTopLeft" as const,
         },
         itemStyle: {
-          borderColor: "#282a36",
+          borderColor: CHART_THEME.surface,
           borderWidth: 2,
           gapWidth: 2,
         },
         levels: [
           {
             itemStyle: {
-              borderColor: "#282a36",
+              borderColor: CHART_THEME.surface,
               borderWidth: 3,
               gapWidth: 3,
             },
@@ -184,7 +184,7 @@ function buildOption(
           },
           {
             itemStyle: {
-              borderColor: "#282a36",
+              borderColor: CHART_THEME.surface,
               borderWidth: 1,
               gapWidth: 1,
             },

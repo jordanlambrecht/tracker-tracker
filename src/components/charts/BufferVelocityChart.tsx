@@ -175,12 +175,12 @@ function buildBufferVelocityOption(
               show: true,
               formatter: "Break even",
               position: "insideEndTop",
-              color: "#f59e0b",
+              color: CHART_THEME.warn,
               fontFamily: CHART_THEME.fontMono,
               fontSize: 10,
             },
             lineStyle: {
-              color: "#f59e0b",
+              color: CHART_THEME.warn,
               type: "dashed",
               width: 1.5,
               opacity: 0.8,
@@ -198,7 +198,7 @@ function buildBufferVelocityOption(
       axisPointer: {
         type: "line",
         lineStyle: {
-          color: "rgba(148, 163, 184, 0.3)",
+          color: CHART_THEME.borderMid,
           opacity: 0.8,
           width: 1,
           type: "dashed",
@@ -218,7 +218,7 @@ function buildBufferVelocityOption(
           .map((item) => {
             const val = item.value as number
             const sign = val >= 0 ? "+" : ""
-            const valueColor = val >= 0 ? "#22c55e" : "#ef4444"
+            const valueColor = val >= 0 ? CHART_THEME.positive : CHART_THEME.negative
             const display = `${sign}${fmtNum(val)} ${unit}`
             return (
               `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${item.color};margin-right:6px;box-shadow:0 0 6px ${item.color};"></span>` +

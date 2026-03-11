@@ -70,7 +70,7 @@ function buildFleetCrossSeedOption(
         avoidLabelOverlap: true,
         itemStyle: {
           borderRadius: 4,
-          borderColor: "#282a36",
+          borderColor: CHART_THEME.surface,
           borderWidth: 2,
         },
         label: {
@@ -86,7 +86,7 @@ function buildFleetCrossSeedOption(
           },
         },
         labelLine: {
-          lineStyle: { color: "rgba(148, 163, 184, 0.3)" },
+          lineStyle: { color: CHART_THEME.borderMid },
           length: 10,
           length2: 8,
         },
@@ -98,16 +98,16 @@ function buildFleetCrossSeedOption(
           {
             name: "Cross-seeded",
             value: crossSeeded,
-            itemStyle: { color: "#00d4ff" },
+            itemStyle: { color: CHART_THEME.accent },
             label: {
-              color: "#00d4ff",
+              color: CHART_THEME.accent,
               formatter: () => `Cross-seeded\n${crossPct}%`,
             },
           },
           {
             name: "Unique",
             value: unique,
-            itemStyle: { color: "rgba(148,163,184,0.3)" },
+            itemStyle: { color: CHART_THEME.borderMid },
             label: {
               color: CHART_THEME.textTertiary,
               formatter: () => `Unique\n${uniquePct}%`,

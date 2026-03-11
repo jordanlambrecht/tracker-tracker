@@ -120,8 +120,8 @@ function buildFleetStorageTreemapOption(nodes: TreemapNode[]): EChartsOption {
           bottom: 4,
           height: 22,
           itemStyle: {
-            color: "#2e3042",
-            borderColor: "rgba(148,163,184,0.15)",
+            color: CHART_THEME.elevated,
+            borderColor: CHART_THEME.borderEmphasis,
             borderWidth: 1,
             shadowBlur: 0,
             textStyle: {
@@ -162,14 +162,14 @@ function buildFleetStorageTreemapOption(nodes: TreemapNode[]): EChartsOption {
           {
             itemStyle: {
               borderWidth: 3,
-              borderColor: "#1e2029",
+              borderColor: CHART_THEME.controlBg,
               gapWidth: 3,
             },
           },
           {
             itemStyle: {
               borderWidth: 1,
-              borderColor: "rgba(148,163,184,0.1)",
+              borderColor: CHART_THEME.gridLine,
               gapWidth: 2,
             },
           },

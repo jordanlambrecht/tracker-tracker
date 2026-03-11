@@ -105,7 +105,7 @@ function buildFleetOption(trackerData: TrackerFleetSeries[]): EChartsOption {
       axisPointer: {
         type: "line",
         lineStyle: {
-          color: "rgba(148, 163, 184, 0.3)",
+          color: CHART_THEME.borderMid,
           opacity: 0.8,
           width: 1,
           type: "dashed",
@@ -147,7 +147,7 @@ function buildFleetOption(trackerData: TrackerFleetSeries[]): EChartsOption {
       type: "category",
       data: labels,
       boundaryGap: false,
-      axisLine: { lineStyle: { color: "rgba(148, 163, 184, 0.08)" } },
+      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
       axisTick: { show: false },
       axisLabel: chartAxisLabel({ rotate: 30, interval: "auto" }),
     },

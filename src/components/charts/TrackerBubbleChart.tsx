@@ -113,7 +113,7 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
             silent: true,
             symbol: ["none", "none"] as [string, string],
             lineStyle: {
-              color: "rgba(148, 163, 184, 0.15)",
+              color: CHART_THEME.borderEmphasis,
               type: "dashed" as const,
               width: 1,
             },
@@ -175,7 +175,7 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
           downloadVal > 0 ? (uploadVal / downloadVal).toFixed(2) : "∞"
 
         // Glowing swatch — uses hexToRgba for the box-shadow glow
-        const glowColor = hexToRgba(color.startsWith("#") ? color : "#94a3b8", 0.8)
+        const glowColor = hexToRgba(color.startsWith("#") ? color : CHART_THEME.neutral, 0.8)
         const swatch = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:6px;box-shadow:0 0 6px ${glowColor};"></span>`
 
         return [

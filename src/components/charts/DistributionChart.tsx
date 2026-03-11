@@ -59,7 +59,7 @@ function buildPieOption(
         avoidLabelOverlap: true,
         itemStyle: {
           borderRadius: 4,
-          borderColor: "#282a36",
+          borderColor: CHART_THEME.surface,
           borderWidth: 2,
         },
         label: {
@@ -71,12 +71,12 @@ function buildPieOption(
           formatter: "{b}",
         },
         labelLine: {
-          lineStyle: { color: "rgba(148, 163, 184, 0.3)" },
+          lineStyle: { color: CHART_THEME.borderMid },
           length: 10,
           length2: 8,
         },
         emphasis: {
-          label: { show: true, fontWeight: "bold", color: "#e2e8f0" },
+          label: { show: true, fontWeight: "bold", color: CHART_THEME.textPrimary },
           itemStyle: { shadowBlur: 12, shadowColor: "rgba(0,0,0,0.3)" },
         },
         data: data.map((d) => ({

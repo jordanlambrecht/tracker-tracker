@@ -49,7 +49,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
     tooltip: chartTooltip("axis", {
       axisPointer: {
         type: "line",
-        lineStyle: { color: "rgba(148, 163, 184, 0.3)", type: "dashed" },
+        lineStyle: { color: CHART_THEME.borderMid, type: "dashed" },
       },
       formatter: (params: unknown) => {
         const items = params as Array<{
@@ -137,7 +137,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
             x2: 0,
             y2: 1,
             colorStops: [
-              { offset: 0, color: "rgba(0, 212, 255, 0.30)" },
+              { offset: 0, color: CHART_THEME.accentGlow },
               { offset: 1, color: "rgba(0, 212, 255, 0)" },
             ],
           },
@@ -160,7 +160,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
             x2: 0,
             y2: 1,
             colorStops: [
-              { offset: 0, color: "rgba(245, 158, 11, 0.30)" },
+              { offset: 0, color: CHART_THEME.warnGlow },
               { offset: 1, color: "rgba(245, 158, 11, 0)" },
             ],
           },

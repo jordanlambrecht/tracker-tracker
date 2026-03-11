@@ -67,8 +67,8 @@ function buildOption(
       type: "slider",
       bottom: 8,
       height: 24,
-      borderColor: "rgba(148,163,184,0.08)",
-      backgroundColor: "rgba(40,42,54,0.6)",
+      borderColor: CHART_THEME.gridLine,
+      backgroundColor: CHART_THEME.surfaceSemi,
       fillerColor: hexToRgba(accentColor, 0.06),
       handleStyle: { color: accentColor, borderColor: accentColor },
       moveHandleStyle: { color: accentColor },
@@ -249,7 +249,7 @@ function buildOption(
 
 function UploadDownloadChart({
   snapshots,
-  accentColor = "#00d4ff",
+  accentColor = CHART_THEME.accent,
   height = 400,
   showDataZoom = false,
 }: UploadDownloadChartProps) {

@@ -125,7 +125,7 @@ function donutOption(
         radius: ["40%", "70%"],
         center: ["50%", "50%"],
         avoidLabelOverlap: true,
-        itemStyle: { borderColor: "#282a36", borderWidth: 2, borderRadius: 4 },
+        itemStyle: { borderColor: CHART_THEME.surface, borderWidth: 2, borderRadius: 4 },
         label: {
           show: true,
           color: CHART_THEME.textSecondary,
@@ -181,7 +181,7 @@ function treemapOption(
           formatter: "{b}\n{c}",
         },
         itemStyle: {
-          borderColor: "#282a36",
+          borderColor: CHART_THEME.surface,
           borderWidth: 2,
           gapWidth: 2,
         },

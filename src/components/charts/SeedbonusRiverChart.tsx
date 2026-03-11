@@ -93,7 +93,7 @@ function buildRiverOption(
       axisPointer: {
         type: "line",
         lineStyle: {
-          color: "rgba(148,163,184,0.3)",
+          color: CHART_THEME.borderMid,
           type: "dashed",
         },
       },
@@ -142,7 +142,7 @@ function buildRiverOption(
       bottom: 40,
       axisLabel: chartAxisLabel(),
       axisLine: {
-        lineStyle: { color: "rgba(148, 163, 184, 0.08)" },
+        lineStyle: { color: CHART_THEME.gridLine },
       },
       axisTick: { show: false },
     },

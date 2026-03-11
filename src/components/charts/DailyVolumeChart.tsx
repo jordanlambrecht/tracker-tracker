@@ -192,7 +192,7 @@ function buildDailyVolumeOption(
           .filter(([, v]) => v.upload > 0 || v.download > 0)
           .map(([name, v]) => {
             const dot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${v.color};margin-right:6px;box-shadow:0 0 6px ${v.color};"></span>`
-            return `${dot}<span style="color:#94a3b8;">${name}:</span> <span style="color:#e2e8f0;font-weight:600;">↑ ${fmtNum(v.upload)} ${unit}</span> <span style="color:#64748b;">/</span> <span style="color:#e2e8f0;font-weight:600;">↓ ${fmtNum(v.download)} ${unit}</span>`
+            return `${dot}<span style="color:${CHART_THEME.textSecondary};">${name}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">↑ ${fmtNum(v.upload)} ${unit}</span> <span style="color:${CHART_THEME.textTertiary};">/</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">↓ ${fmtNum(v.download)} ${unit}</span>`
           })
           .join("<br/>")
 
@@ -284,7 +284,7 @@ function buildRiverOption(
     tooltip: chartTooltip("axis", {
       axisPointer: {
         type: "line",
-        lineStyle: { color: "rgba(148, 163, 184, 0.3)", type: "dashed" },
+        lineStyle: { color: CHART_THEME.borderMid, type: "dashed" },
       },
       formatter: (params: unknown) => {
         const items = params as Array<{
