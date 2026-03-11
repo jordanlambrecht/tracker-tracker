@@ -7,8 +7,9 @@
 import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core"
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState, type ReactNode } from "react"
 import { BufferCandlestickChart } from "@/components/charts/BufferCandlestickChart"
+import { CHART_THEME } from "@/components/charts/theme"
 import { BufferVelocityChart } from "@/components/charts/BufferVelocityChart"
 import type { TrackerSeries } from "@/components/charts/ComparisonChart"
 import { ComparisonChart } from "@/components/charts/ComparisonChart"
@@ -48,7 +49,6 @@ import { StatCard } from "@/components/ui/StatCard"
 import { TabBar } from "@/components/ui/TabBar"
 import { Toggle } from "@/components/ui/Toggle"
 import { H1, H2 } from "@/components/ui/Typography"
-import { TRACKER_REGISTRY } from "@/data/tracker-registry"
 import type { DashboardAlert } from "@/lib/dashboard"
 import {
   computeAggregateStats,
@@ -61,7 +61,7 @@ import { formatBytesFromString, formatRatio } from "@/lib/formatters"
 import type { Snapshot, TrackerSummary } from "@/types/api"
 
 
-const AGGREGATE_ICONS: Record<string, React.ReactNode> = {
+const AGGREGATE_ICONS: Record<string, ReactNode> = {
   trackers: <GridIcon width="16" height="16" />,
   uploaded: <UploadArrowIcon width="16" height="16" />,
   downloaded: <DownloadArrowIcon width="16" height="16" />,
@@ -161,7 +161,7 @@ export default function DashboardPage() {
       setTrackers(fetchedTrackers)
       setSnapshotMap(newMap)
 
-      const allAlerts = computeAlerts(fetchedTrackers, TRACKER_REGISTRY)
+      const allAlerts = computeAlerts(fetchedTrackers)
       const rankAlerts = detectRankChanges(fetchedTrackers, newMap, 7)
       const combined = [...allAlerts, ...rankAlerts]
       const dismissed = getDismissedAlerts()
@@ -201,15 +201,15 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-secondary text-sm font-mono">Loading dashboard...</p>
+      <div className="flex h-full min-h-[calc(100vh-6rem)] items-center justify-center">
+        <p className="text-secondary text-sm font-mono animate-loading-breathe">Loading dashboard...</p>
       </div>
     )
   }
 
   if (trackers.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center">
+      <div className="flex h-full min-h-[calc(100vh-6rem)] items-center justify-center">
         <p className="text-secondary text-sm font-mono">No trackers added yet</p>
       </div>
     )
@@ -324,7 +324,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Divider ── */}
-      <div className="h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.12), transparent)" }} />
+      <div className="h-px" style={{ background: `linear-gradient(90deg, transparent, ${CHART_THEME.borderEmphasis}, transparent)` }} />
 
       {/* ── Section 4: Ecosystem (Aggregate Stats) ── */}
       <div className="flex flex-col gap-4">
@@ -380,7 +380,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Divider ── */}
-      <div className="h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.12), transparent)" }} />
+      <div className="h-px" style={{ background: `linear-gradient(90deg, transparent, ${CHART_THEME.borderEmphasis}, transparent)` }} />
 
       {/* ── Tab Switcher ── */}
       <TabBar
@@ -449,7 +449,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Sticky sidebar — shared by both tabs */}
-        <DayRangeSidebar days={dayRange} onChange={setDayRange} accentColor="#00d4ff" />
+        <DayRangeSidebar days={dayRange} onChange={setDayRange} accentColor={CHART_THEME.accent} />
       </div>
 
       {/* ── Settings Sheet ── */}
@@ -466,7 +466,7 @@ export default function DashboardPage() {
             />
           </div>
 
-          <div className="h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.12), transparent)" }} />
+          <div className="h-px" style={{ background: `linear-gradient(90deg, transparent, ${CHART_THEME.borderEmphasis}, transparent)` }} />
 
           {/* Chart Visibility & Order */}
           <div className="flex flex-col gap-4">
