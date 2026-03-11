@@ -5,6 +5,7 @@
 "use client"
 
 import clsx from "clsx"
+import Image from "next/image"
 import { useEffect, useState } from "react"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
@@ -199,7 +200,7 @@ function TrackerHubStatus({ trackerHubSlug, statusPageUrl, defaultExpanded = tru
               rel="noopener noreferrer"
               className="flex items-center gap-1 text-muted hover:text-tertiary transition-colors duration-150 shrink-0"
             >
-              <img src="/trackerHub_logo.svg" alt="" width={12} height={12} aria-hidden="true" />
+              <Image src="/trackerHub_logo.svg" alt="" width={12} height={12} aria-hidden="true" />
               <span className="text-[10px] font-mono">Powered by TrackerHub</span>
             </a>
           </div>

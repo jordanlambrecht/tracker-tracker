@@ -8,7 +8,7 @@ import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
 import type { TrackerTag } from "@/lib/fleet"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartAxisLabel, chartGrid, chartDot, chartLegend, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
+import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
 
 interface FleetAgeTimelineProps {
   torrents: { added_on: number; tags: string }[]

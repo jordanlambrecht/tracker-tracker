@@ -4,9 +4,9 @@
 
 "use client"
 
+import clsx from "clsx"
 import type { ReactNode } from "react"
 import { useEffect, useRef, useState } from "react"
-import clsx from "clsx"
 
 interface SheetProps {
   open: boolean
@@ -68,10 +68,10 @@ function Sheet({ open, onClose, title, children, className }: SheetProps) {
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       {/* Backdrop */}
-      <div
-        className={clsx("absolute inset-0 backdrop-blur-sm bg-black/50 transition-opacity duration-300 ease-out", visible ? "opacity-100" : "opacity-0")}
+      <button
+        type="button"
+        className={clsx("absolute inset-0 backdrop-blur-sm bg-black/50 transition-opacity duration-300 ease-out cursor-default", visible ? "opacity-100" : "opacity-0")}
         onClick={onClose}
-        role="button"
         tabIndex={-1}
         aria-label="Close"
       />

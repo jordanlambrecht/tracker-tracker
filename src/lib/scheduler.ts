@@ -5,8 +5,8 @@ import type { Agent as HttpAgent } from "node:http"
 
 import { eq, lt } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
-import { getAdapter } from "@/lib/adapters"
 import { findRegistryEntry } from "@/data/tracker-registry"
+import { getAdapter } from "@/lib/adapters"
 import {
   startBackupScheduler,
   stopBackupScheduler,

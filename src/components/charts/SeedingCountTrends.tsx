@@ -6,10 +6,10 @@
 
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
-import { extractTagsFromSnapshots } from "@/lib/fleet"
 import type { FleetSnapshot } from "@/lib/fleet"
+import { extractTagsFromSnapshots } from "@/lib/fleet"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, buildTagColors, chartAxisLabel, chartGrid, chartDot, chartLegend, chartTooltip, escHtml, formatChartTimestamp, chartTooltipHeader } from "./theme"
+import { buildTagColors, CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, formatChartTimestamp } from "./theme"
 
 interface SeedingCountTrendsProps {
   snapshots: FleetSnapshot[]

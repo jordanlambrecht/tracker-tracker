@@ -1,8 +1,8 @@
 // src/app/api/trackers/test/route.ts
 import { NextResponse } from "next/server"
+import { findRegistryEntry } from "@/data/tracker-registry"
 import { DEFAULT_API_PATHS, getAdapter } from "@/lib/adapters"
 import { authenticate, parseJsonBody, validateHttpUrl } from "@/lib/api-helpers"
-import { findRegistryEntry } from "@/data/tracker-registry"
 
 export async function POST(request: Request) {
   const auth = await authenticate()

@@ -1,7 +1,8 @@
 // src/types/api.ts
 
-import type { GGnPlatformMeta, GazellePlatformMeta } from "@/lib/adapters/types"
-export type { GGnPlatformMeta, GazellePlatformMeta, GazelleRanks } from "@/lib/adapters/types"
+import type { GazellePlatformMeta, GGnPlatformMeta } from "@/lib/adapters/types"
+
+export type { GazellePlatformMeta, GazelleRanks, GGnPlatformMeta } from "@/lib/adapters/types"
 
 export interface TrackerLatestStats {
   ratio: number | null

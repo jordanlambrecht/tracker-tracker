@@ -16,7 +16,7 @@ function PollRing({ completed, total }: { completed: number; total: number }) {
   const offset = circumference * (1 - pct)
 
   return (
-    <svg width={size} height={size} className="shrink-0 -rotate-90">
+    <svg width={size} height={size} className="shrink-0 -rotate-90" aria-hidden="true">
       <circle
         cx={size / 2}
         cy={size / 2}

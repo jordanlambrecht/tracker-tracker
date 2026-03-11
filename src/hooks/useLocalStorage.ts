@@ -14,7 +14,7 @@ function useLocalStorage<T>(
     } catch {
       setState(defaultValue)
     }
-  }, [key])
+  }, [key, defaultValue])
 
   const setValue = useCallback(
     (value: T | ((prev: T) => T)) => {

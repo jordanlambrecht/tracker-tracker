@@ -6,7 +6,8 @@
 # ---------------------------------------------------------------------------
 # Base
 # ---------------------------------------------------------------------------
-FROM node:20.11-alpine AS base
+FROM node:20-alpine AS base
+RUN npm i -g corepack@latest
 
 # ---------------------------------------------------------------------------
 # Stage 1 — Install dependencies
@@ -27,6 +28,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# Dummy DATABASE_URL so Next.js can evaluate route modules during build
+# (the DB is never actually queried at build time)
+ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
 RUN corepack enable pnpm && pnpm build
 
 # ---------------------------------------------------------------------------

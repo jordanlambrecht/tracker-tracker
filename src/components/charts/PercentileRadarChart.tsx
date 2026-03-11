@@ -4,8 +4,8 @@
 
 "use client"
 
-import { useMemo } from "react"
 import ReactECharts from "echarts-for-react"
+import { useMemo } from "react"
 import { CHART_THEME } from "@/components/charts/theme"
 import { hexToRgba } from "@/lib/formatters"
 import type { GazelleRanks } from "@/types/api"

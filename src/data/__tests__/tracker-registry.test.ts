@@ -11,8 +11,8 @@
 import fs from "node:fs"
 import path from "node:path"
 import { afterAll, describe, expect, it } from "vitest"
-import { DEFAULT_API_PATHS } from "@/lib/adapters"
 import { ALL_TRACKERS } from "@/data/trackers"
+import { DEFAULT_API_PATHS } from "@/lib/adapters"
 
 const VALID_PLATFORMS = ["unit3d", "gazelle", "ggn", "custom"] as const
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
@@ -93,8 +93,6 @@ describe("tracker registry", () => {
     const files = fs.readdirSync(TRACKER_DIR)
       .filter((f) => f.endsWith(".ts") && f !== "index.ts")
       .map((f) => f.replace(/\.ts$/, ""))
-    const registeredSlugs = new Set(ALL_TRACKERS.map((t) => t.slug))
-    // Some files use different names than slugs (i.e 720pier.ts → slug "720pier")
     // Read barrel to get actual imported filenames
     const barrelContent = fs.readFileSync(path.join(TRACKER_DIR, "index.ts"), "utf8")
     const unregistered = files.filter((f) => !barrelContent.includes(`"./${f}"`))
@@ -236,6 +234,7 @@ describe("tracker registry", () => {
           })
 
           it("logo file exists on disk", () => {
+            // biome-ignore lint/style/noNonNullAssertion: test only runs for trackers with logos
             const logoFile = path.join(LOGO_DIR, path.basename(tracker.logo!))
             expect(
               fs.existsSync(logoFile),

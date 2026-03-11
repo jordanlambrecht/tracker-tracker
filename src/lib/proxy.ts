@@ -159,7 +159,7 @@ export function buildProxyAgentFromSettings(settings: ProxySettings, encryptionK
 
   try {
     return createProxyAgent(config)
-  } catch (err) {
+  } catch (_err) {
     log.error("Failed to create proxy agent (check proxy host/port configuration)")
     return undefined
   }
