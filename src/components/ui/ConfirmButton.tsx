@@ -1,6 +1,7 @@
 // src/components/ui/ConfirmButton.tsx
 "use client"
 
+import clsx from "clsx"
 import { useState } from "react"
 import { Button } from "@/components/ui/Button"
 
@@ -27,11 +28,12 @@ function ConfirmButton({
 
   if (confirming) {
     return (
-      <div className={`flex items-center gap-2 ${className ?? ""}`}>
+      <div className={clsx("flex items-center gap-2", className)}>
         <Button
           type="button"
           variant={variant}
           size={size}
+          disabled={disabled}
           onClick={() => {
             onConfirm()
             setConfirming(false)

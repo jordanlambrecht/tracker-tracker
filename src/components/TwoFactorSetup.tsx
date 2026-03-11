@@ -4,8 +4,8 @@
 
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
 import { QRCodeSVG } from "qrcode.react"
+import { useCallback, useEffect, useState } from "react"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Checkbox } from "@/components/ui/Checkbox"

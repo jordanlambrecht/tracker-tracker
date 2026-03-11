@@ -2,7 +2,8 @@
 
 "use client"
 
-import { useEffect, useRef, useState, type ReactNode } from "react"
+import clsx from "clsx"
+import { type ReactNode, useEffect, useRef, useState } from "react"
 
 interface MarqueeTextProps {
   children: ReactNode
@@ -35,13 +36,13 @@ function MarqueeText({ children, className = "", speed = 40 }: MarqueeTextProps)
     const ro = new ResizeObserver(check)
     ro.observe(container)
     return () => ro.disconnect()
-  }, [speed])
+  }, [speed, children])
 
   return (
-    <div ref={containerRef} className={`overflow-hidden whitespace-nowrap ${className}`}>
+    <div ref={containerRef} className={clsx("overflow-hidden whitespace-nowrap", className)}>
       <span
         ref={textRef}
-        className={`inline-block ${overflows ? "marquee-scroll" : ""}`}
+        className={clsx("inline-block", overflows && "marquee-scroll")}
         style={overflows ? { animationDuration: `${duration}s` } : undefined}
       >
         {children}

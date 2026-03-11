@@ -2,8 +2,8 @@
 
 "use client"
 
-import { useEffect, useRef, useState } from "react"
 import clsx from "clsx"
+import { useEffect, useRef, useState } from "react"
 
 interface Tab<T extends string> {
   key: T
@@ -44,10 +44,8 @@ function TabBar<T extends string>({ tabs, activeTab, onChange }: TabBarProps<T>)
       {/* Sliding pill */}
       {pill && (
         <div
-          className="absolute nm-raised-sm bg-raised pointer-events-none rounded-nm-sm"
+          className="absolute top-2 bottom-2 nm-raised-sm bg-raised pointer-events-none rounded-nm-sm"
           style={{
-            top: 8,
-            bottom: 8,
             left: pill.left,
             width: pill.width,
             transition: "left 250ms cubic-bezier(0.4, 0, 0.2, 1), width 250ms cubic-bezier(0.4, 0, 0.2, 1)",

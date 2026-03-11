@@ -112,9 +112,8 @@ function ColorPicker({ value, onChange, label }: ColorPickerProps) {
           <div
             ref={popoverRef}
             onTransitionEnd={handleTransitionEnd}
-            className="absolute bottom-full left-0 mb-2 z-50 nm-raised-sm p-3 bg-elevated rounded-nm-md flex flex-col gap-2"
+            className="absolute bottom-full left-0 mb-2 z-50 nm-raised-sm p-3 bg-elevated rounded-nm-md flex flex-col gap-2 w-[220px]"
             style={{
-              width: 220,
               transformOrigin: "bottom left",
               opacity: visible ? 1 : 0,
               transform: visible ? "scale(1) translateY(0)" : "scale(0.96) translateY(4px)",
