@@ -1,36 +1,154 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Tracker Tracker
 
-## Getting Started
+Self-hosted dashboard for monitoring your private tracker stats over time. Track upload, download, ratio, buffer, seedbonus, and more across multiple trackers — all in one place.
 
-First, run the development server:
+<!-- TODO: Add screenshot here -->
+<!-- ![Dashboard](docs/screenshots/dashboard.png) -->
+
+## Features
+
+- **Multi-tracker dashboard** — aggregate stats, comparison charts, and tracker leaderboard
+- **Tracker detail pages** — upload/download history, ratio, buffer, seedbonus, seeding counts, and rank progression
+- **40+ supported trackers** across UNIT3D, Gazelle, and GGn platforms
+- **qBittorrent integration** — torrent stats, cross-seed tracking, activity heatmaps
+- **Encrypted at rest** — API tokens stored with AES-256-GCM, derived from your master password
+- **Privacy mode** — redact usernames and group names from stored data
+- **Scheduled polling** — configurable global interval (15 min – 24 hours) with automatic snapshot retention
+- **SOCKS5/HTTP/HTTPS proxy** — per-tracker opt-in for proxied API requests
+- **Two-factor auth** — optional TOTP with backup codes
+- **Backup & restore** — scheduled or manual, with optional encryption
+- **Dark neumorphic UI** — per-tracker accent colors, drag-and-drop sidebar, responsive charts
+
+## Supported Trackers
+
+| Tracker | Platform | Status | Notes |
+|---------|----------|--------|-------|
+| Aither | UNIT3D | ✅ Implemented | |
+| Blutopia | UNIT3D | ✅ Implemented | |
+| FearNoPeer | UNIT3D | ✅ Implemented | |
+| OnlyEncodes | UNIT3D | ✅ Implemented | |
+| Upload.cx | UNIT3D | ✅ Implemented | |
+| AlphaRatio | Gazelle | | |
+| AnimeBytes | Gazelle | | |
+| Anthelion | Gazelle | | |
+| BroadcastheNet (BTN) | Gazelle | | |
+| CathodeRayTube (CRT) | UNIT3D | | |
+| Concertos | UNIT3D | | |
+| Empornium | Gazelle | | |
+| GazelleGames (GGn) | GGn | | |
+| GreatPosterWall (GPW) | Gazelle | | |
+| HawkeUno | UNIT3D | | |
+| LST | UNIT3D | | |
+| MoreThanTV (MTV) | Gazelle | | |
+| Nebulance | Gazelle | | |
+| OldToons | UNIT3D | | |
+| Orpheus (OPS) | Gazelle | | |
+| PassThePopcorn (PTP) | Gazelle | | |
+| Racing4Everyone | UNIT3D | | |
+| Redacted (RED) | Gazelle | | |
+| ReelFlix | UNIT3D | | |
+| SkipTheCommercials | UNIT3D | | |
+| 720pier | Custom | | |
+| ABTorrents | Custom | | |
+| AvistaZ | Custom | | |
+| BeyondHD | Custom | | |
+| CinemaZ | Custom | | |
+| Cinemageddon | Custom | | |
+| ExotikaZ | Custom | | |
+| FileList | Custom | | |
+| HDBits | Custom | | |
+| HD-Torrents | Custom | | |
+| IPTorrents | Custom | | |
+| MyAnonamouse (MAM) | Custom | | |
+| PrivateHD | Custom | | |
+| SecretCinema | Custom | | |
+| SportsCult | Custom | | |
+| TorrentLeech | Custom | | |
+| TVVault | Custom | | |
+
+✅ **Implemented** — tested and verified against a live tracker.
+🟡 **Supported** — platform adapter exists and should work, but not yet verified.
+📋 **Planned** — registry entry exists but needs a custom adapter.
+🚧 **Stuck** — I'm not a member of these trackers and have no way of completing the integration. PRs welcome :)
+
+## Quick Start
+
+### Docker (recommended)
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/yourusername/tracker-tracker.git
+cd tracker-tracker
+cp .env.example .env
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Edit `.env` and set your secrets:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```env
+POSTGRES_PASSWORD=your-secure-password
+SESSION_SECRET=your-random-string-at-least-32-characters
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Generate a session secret:
 
-## Learn More
+```bash
+openssl rand -base64 48
+```
 
-To learn more about Next.js, take a look at the following resources:
+Start everything:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+docker compose up -d
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Visit `http://localhost:3000` to set your master password and add trackers.
 
-## Deploy on Vercel
+### Local Development
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Requires Node.js 20+, pnpm, and PostgreSQL.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+pnpm install
+cp .env.example .env.local
+# Edit .env.local with your DATABASE_URL and SESSION_SECRET
+pnpm db:push
+pnpm dev
+```
+
+## Configuration
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `POSTGRES_PASSWORD` | Yes (Docker) | PostgreSQL password |
+| `SESSION_SECRET` | Yes | AES-256 key for session cookies. Min 32 characters |
+| `PORT` | No | App port (default: `3000`) |
+| `DATABASE_URL` | Yes (local dev) | PostgreSQL connection string |
+
+All other settings (polling interval, privacy mode, proxy, backups) are configured in the app's Settings page after login.
+
+## Architecture
+
+- **Next.js 15** (App Router) — server components + API routes
+- **PostgreSQL** + **Drizzle ORM** — schema-first, no raw SQL migrations
+- **ECharts** — interactive time-series charts
+- **node-cron** — background polling scheduler
+- **Argon2** — master password hashing
+- **jose** — JWE session tokens (AES-256-GCM)
+
+## Adding a Tracker
+
+1. Go to the sidebar and click **+ Add Tracker**
+2. Select from the registry or enter details manually
+3. Paste your API token (found in your tracker's security/API settings)
+4. The app validates the connection, then starts polling automatically
+
+## Data Storage
+
+All data stays on your machine. There are no external services, analytics, or telemetry.
+
+- **API tokens** — encrypted with AES-256-GCM using a key derived from your master password
+- **Snapshots** — stored in PostgreSQL with configurable retention (7 days to 10 years)
+- **Backups** — JSON export, optionally encrypted, stored locally or downloaded
+
+## License
+
+[GPL-3.0](LICENSE)

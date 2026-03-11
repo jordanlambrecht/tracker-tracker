@@ -1,0 +1,50 @@
+# .dockerignore
+
+# Dependencies (rebuilt in container)
+node_modules
+
+# Build output (rebuilt in container)
+.next
+out
+build
+
+# Git
+.git
+.gitignore
+
+# Environment files (secrets — passed via docker-compose)
+.env
+.env.*
+
+# IDE / editor
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+
+# Documentation and plans
+docs
+*.md
+!package.json
+
+# Tests (not needed in production image)
+**/*.test.ts
+**/*.test.tsx
+**/__tests__
+coverage
+vitest.config.*
+
+# CI / tooling config
+.github
+.claude
+.serena
+.interface-design
+.biomeignore
+biome.json
+
+# Development scripts
+scripts
+
+# Drizzle generated migrations (schema-push used instead)
+drizzle
