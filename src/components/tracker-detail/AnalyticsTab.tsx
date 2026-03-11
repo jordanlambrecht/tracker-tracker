@@ -24,6 +24,7 @@ interface AnalyticsTabProps {
   days: DayRange
   onDaysChange: (d: DayRange) => void
   delta: { uploaded: string; downloaded: string } | null
+  minimumRatio?: number
 }
 
 export function AnalyticsTab({
@@ -37,6 +38,7 @@ export function AnalyticsTab({
   days,
   onDaysChange,
   delta,
+  minimumRatio,
 }: AnalyticsTabProps) {
   return (
     <div className="flex flex-col gap-10">
@@ -66,6 +68,7 @@ export function AnalyticsTab({
         onDaysChange={onDaysChange}
         delta={delta}
         gazelleMeta={gazelleMeta}
+        minimumRatio={minimumRatio}
       />
     </div>
   )

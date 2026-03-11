@@ -5,7 +5,7 @@
 "use client"
 
 import clsx from "clsx"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { type CSSProperties, useEffect, useMemo, useState } from "react"
 import { CHART_THEME } from "@/components/charts/theme"
 import type { DayRange } from "@/components/dashboard/DayRangeSidebar"
@@ -29,6 +29,7 @@ type Tab = "analytics" | "info" | "torrents"
 
 export default function TrackerDetailPage() {
   const params = useParams()
+  const router = useRouter()
   const id = params.id as string
 
   const [tracker, setTracker] = useState<TrackerSummary | null>(null)
@@ -233,6 +234,7 @@ export default function TrackerDetailPage() {
           days={days}
           onDaysChange={setDays}
           delta={delta}
+          minimumRatio={registryEntry?.rules?.minimumRatio}
         />
       )}
 
@@ -259,7 +261,13 @@ export default function TrackerDetailPage() {
         onClose={() => setShowSettings(false)}
         onUpdated={async () => {
           const res = await fetch(`/api/trackers/${id}`)
-          if (res.ok) setTracker(await res.json())
+          if (!res.ok) return
+          const updated = await res.json()
+          if (!updated.isActive) {
+            router.push("/")
+            return
+          }
+          setTracker(updated)
         }}
       />
     </div>

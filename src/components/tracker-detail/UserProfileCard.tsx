@@ -47,9 +47,14 @@ export function UserProfileCard({ tracker, stats, registryEntry, accentColor: tc
                 <RedactedText value={stats.group} color={tc} />
               </Badge>
             ) : null}
-            {joinedDate && <span className="text-xs font-mono text-muted">Joined {joinedDate}</span>}
-            {accountAge && <span className="text-xs font-mono text-muted">· {accountAge}</span>}
           </div>
+          {(joinedDate || accountAge) && (
+            <div className="flex items-center gap-1">
+              {joinedDate && <span className="text-xs font-mono text-muted">Joined {joinedDate}</span>}
+              {joinedDate && accountAge && <span className="text-xs font-mono text-muted">·</span>}
+              {accountAge && <span className="text-xs font-mono text-muted">{accountAge}</span>}
+            </div>
+          )}
         </div>
       </div>
     </div>

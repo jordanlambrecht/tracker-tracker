@@ -6,7 +6,6 @@
 
 import clsx from "clsx"
 import { useState } from "react"
-import { Badge } from "@/components/ui/Badge"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { H2 } from "@/components/ui/Typography"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
@@ -95,6 +94,11 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
       {registryEntry?.stats && (registryEntry.stats.userCount || registryEntry.stats.torrentCount) && (
         <div className="flex flex-col gap-3">
           <H2>Site Stats</H2>
+          {registryEntry.stats.statsUpdatedAt && (
+            <span className="text-[10px] font-mono text-muted">
+              Updated {registryEntry.stats.statsUpdatedAt}
+            </span>
+          )}
           <div className="flex flex-wrap gap-6">
             {registryEntry.stats.userCount != null && (
               <div className="flex flex-col gap-1">
@@ -127,11 +131,6 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
                 <span className="text-xs font-sans text-tertiary">Seed Size</span>
               </div>
             )}
-            {registryEntry.stats.statsUpdatedAt && (
-              <span className="text-[10px] font-mono text-muted self-end">
-                Updated {registryEntry.stats.statsUpdatedAt}
-              </span>
-            )}
           </div>
         </div>
       )}
@@ -149,15 +148,15 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
                 <div
                   key={uc.name}
                   className={clsx(
-                    "flex items-center justify-between px-5 py-3",
+                    "flex items-start justify-between px-6 py-3.5",
                     i > 0 ? "border-t border-border" : "",
                   )}
                   style={isCurrent ? { backgroundColor: hexToRgba(tc, 0.08) } : undefined}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 pt-0.5">
                     <span
                       className={clsx(
-                        "text-sm font-mono",
+                        "text-sm font-mono min-w-[140px]",
                         isCurrent ? "font-semibold" : "text-secondary",
                       )}
                       style={isCurrent ? { color: tc } : undefined}
@@ -168,8 +167,24 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
                       <span className="text-[10px] font-mono" style={{ color: tc }}>← you</span>
                     )}
                   </div>
-                  {uc.requirements && (
-                    <span className="text-xs font-mono text-muted">{uc.requirements}</span>
+                  {(uc.requirements || (uc.perks && uc.perks.length > 0)) && (
+                    <div className="flex flex-col items-end gap-1 max-w-[60%]">
+                      {uc.requirements && (
+                        <span className="text-xs font-mono text-muted text-right">{uc.requirements}</span>
+                      )}
+                      {uc.perks && uc.perks.length > 0 && (
+                        <div className="flex flex-wrap justify-end gap-1 mt-1">
+                          {uc.perks.map((perk) => (
+                            <span
+                              key={perk.type}
+                              className="text-[10px] font-mono text-muted nm-inset-sm bg-control-bg px-1.5 py-0.5 rounded-nm-pill"
+                            >
+                              {perk.label}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               )
@@ -187,9 +202,13 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
               const name = typeof g === "string" ? g : g.name
               const desc = typeof g === "string" ? undefined : g.description
               return (
-                <Badge key={name} variant="accent" title={desc}>
+                <span
+                  key={name}
+                  title={desc}
+                  className="nm-inset-sm bg-control-bg rounded-nm-pill px-3 py-1 text-xs font-mono text-accent"
+                >
                   {name}
-                </Badge>
+                </span>
               )
             })}
           </div>
@@ -202,7 +221,12 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
           <H2>Notable Members</H2>
           <div className="flex flex-wrap gap-2">
             {registryEntry.notableMembers.map((m) => (
-              <Badge key={m} variant="default">{m}</Badge>
+              <span
+                key={m}
+                className="nm-inset-sm bg-control-bg rounded-nm-pill px-3 py-1 text-xs font-mono text-secondary"
+              >
+                {m}
+              </span>
             ))}
           </div>
         </div>
@@ -223,7 +247,12 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
           {bannedOpen && (
             <div className="flex flex-wrap gap-2">
               {registryEntry.bannedGroups.map((g) => (
-                <Badge key={g} variant="danger">{g}</Badge>
+                <span
+                  key={g}
+                  className="nm-inset-sm bg-control-bg rounded-nm-pill px-3 py-1 text-xs font-mono text-danger"
+                >
+                  {g}
+                </span>
               ))}
             </div>
           )}
