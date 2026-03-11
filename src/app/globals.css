@@ -3,57 +3,233 @@
 
 @theme inline {
   /* Fonts */
-  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-sans: var(--font-archivo), system-ui, sans-serif;
   --font-mono: var(--font-mono), monospace;
 
-  /* Surface colors — navy-black, same hue, shifting lightness */
-  --color-base: #0a0e1a;
-  --color-raised: #0f1424;
-  --color-elevated: #151b30;
-  --color-overlay: #1a2138;
+  /* ── Layer 1: Raw color palette ──────────────────────────────────────
+   * Ground-truth hex values. The only place a raw hex appears.
+   * Tailwind v4 generates text-cyan, bg-amber, border-red, etc.
+   */
+
+  /* Hues */
+  --color-cyan:   #00d4ff;
+  --color-amber:  #f59e0b;
+  --color-red:    #ef4444;
+  --color-green:  #10b981;
+  --color-lime:   #22c55e;
+  --color-violet: #8b5cf6;
+  --color-sky:    #06b6d4;
+
+  /* Surfaces — dark purple-gray. Neumorphism: light (#353848) / dark (#1b1c24). */
+  --color-surface-900: #1b1c24;
+  --color-surface-800: #1e2029;
+  --color-surface-700: #282a36;
+  --color-surface-600: #2e3042;
+  --color-surface-500: #343648;
+  --color-surface-400: #353848;
+
+  /* Text grays */
+  --color-gray-50:  #e2e8f0;
+  --color-gray-400: #94a3b8;
+  --color-gray-500: #64748b;
+  --color-gray-600: #475569;
+
+  /* ── Layer 2: Semantic aliases ─────────────────────────────────────────
+   * Intent-named tokens. Use text-accent, bg-danger, border-warn, etc.
+   */
+
+  /* Surfaces */
+  --color-base:       var(--color-surface-700);
+  --color-raised:     var(--color-surface-700);
+  --color-elevated:   var(--color-surface-600);
+  --color-overlay:    var(--color-surface-500);
+  --color-control-bg: var(--color-surface-800);
 
   /* Text hierarchy */
-  --color-primary: #e2e8f0;
-  --color-secondary: #94a3b8;
-  --color-tertiary: #64748b;
-  --color-muted: #475569;
+  --color-primary:   var(--color-gray-50);
+  --color-secondary: var(--color-gray-400);
+  --color-tertiary:  var(--color-gray-500);
+  --color-muted:     var(--color-gray-600);
 
-  /* Accent — cyan (active network connections) */
-  --color-accent: #00d4ff;
-  --color-accent-dim: rgba(0, 212, 255, 0.15);
-  --color-accent-glow: rgba(0, 212, 255, 0.25);
+  /* Semantic status */
+  --color-accent:  var(--color-cyan);
+  --color-warn:    var(--color-amber);
+  --color-danger:  var(--color-red);
+  --color-success: var(--color-green);
 
-  /* Semantic */
-  --color-warn: #f59e0b;
-  --color-warn-dim: rgba(245, 158, 11, 0.15);
-  --color-danger: #ef4444;
-  --color-danger-dim: rgba(239, 68, 68, 0.15);
-  --color-success: #10b981;
+  /* Dim/glow variants (rgba — cannot use var() inside rgba) */
+  --color-accent-dim:  rgba(0, 212, 255, 0.15);
+  --color-accent-glow: rgba(0, 212, 255, 0.3);
+  --color-warn-dim:    rgba(245, 158, 11, 0.15);
+  --color-danger-dim:  rgba(239, 68, 68, 0.15);
   --color-success-dim: rgba(16, 185, 129, 0.15);
 
-  /* Borders — rgba blends, not solid hex */
-  --color-border: rgba(148, 163, 184, 0.12);
-  --color-border-soft: rgba(148, 163, 184, 0.06);
-  --color-border-emphasis: rgba(148, 163, 184, 0.2);
+  /* Borders */
+  --color-border:          rgba(148, 163, 184, 0.08);
+  --color-border-soft:     rgba(148, 163, 184, 0.04);
+  --color-border-emphasis: rgba(148, 163, 184, 0.15);
 
   /* Controls */
-  --color-control-bg: #080c16;
-  --color-control-border: rgba(148, 163, 184, 0.15);
-  --color-control-focus: rgba(0, 212, 255, 0.5);
+  --color-control-border: rgba(148, 163, 184, 0.08);
+  --color-control-focus:  rgba(0, 212, 255, 0.5);
+
+  /* ── Layer 3: Purpose aliases ──────────────────────────────────────────
+   * Domain-specific meaning for data visualization.
+   * Generates text-upload, bg-download, border-positive, etc.
+   */
+  --color-upload:   var(--color-cyan);
+  --color-download: var(--color-amber);
+  --color-positive: var(--color-lime);
+  --color-negative: var(--color-red);
+  --color-neutral:  var(--color-gray-400);
+  --color-tracker-default: var(--color-cyan);
+
+  /* Ordinal scale — ratio tiers, seed-time tiers */
+  --color-scale-1: var(--color-red);
+  --color-scale-2: var(--color-amber);
+  --color-scale-3: var(--color-green);
+  --color-scale-4: var(--color-cyan);
+  --color-scale-5: var(--color-violet);
+  --color-scale-6: var(--color-sky);
 
   /* Glow shadows */
-  --shadow-glow: 0 0 12px var(--color-accent-glow);
-  --shadow-glow-sm: 0 0 6px var(--color-accent-glow);
-  --shadow-glow-lg: 0 0 24px var(--color-accent-glow);
-  --shadow-glow-warn: 0 0 12px var(--color-warn-dim);
-  --shadow-glow-danger: 0 0 12px var(--color-danger-dim);
-  --shadow-glow-success: 0 0 12px var(--color-success-dim);
+  --shadow-glow: 0 0 16px var(--color-accent-glow);
+  --shadow-glow-sm: 0 0 8px var(--color-accent-glow);
+  --shadow-glow-lg: 0 0 28px var(--color-accent-glow);
+  --shadow-glow-warn: 0 0 16px var(--color-warn-dim);
+  --shadow-glow-danger: 0 0 16px var(--color-danger-dim);
+  --shadow-glow-success: 0 0 16px var(--color-success-dim);
 
-  /* Border radius */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
+  /* Border radius — bubbly */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-pill: 9999px;
+}
+
+/* Custom radius utilities matching design system tokens */
+@utility rounded-nm-sm {
+  border-radius: var(--radius-sm);
+}
+@utility rounded-nm-md {
+  border-radius: var(--radius-md);
+}
+@utility rounded-nm-lg {
+  border-radius: var(--radius-lg);
+}
+@utility rounded-nm-xl {
+  border-radius: var(--radius-xl);
+}
+@utility rounded-nm-pill {
+  border-radius: var(--radius-pill);
+}
+
+/*
+ * Neumorphic shadow utilities — registered as @utility so Tailwind v4
+ * generates variant classes (hover:nm-raised, active:nm-pressed, etc.).
+ * Base: #282A36. Generated via neumorphism.io.
+ */
+@utility nm-raised {
+  box-shadow:
+    -8px -8px 16px #353848,
+    8px 8px 16px #1b1c24;
+}
+
+@utility nm-raised-sm {
+  box-shadow:
+    -4px -4px 8px #323544,
+    4px 4px 8px #1e1f28;
+}
+
+@utility nm-raised-lg {
+  box-shadow:
+    -12px -12px 24px #3b3e50,
+    12px 12px 24px #15161c;
+}
+
+@utility nm-inset {
+  box-shadow:
+    inset 4px 4px 8px #14151b,
+    inset -4px -4px 8px #3c3f51;
+}
+
+@utility nm-inset-sm {
+  box-shadow:
+    inset 2px 2px 5px #1e2029,
+    inset -2px -2px 5px #323443;
+}
+
+@utility nm-pressed {
+  box-shadow:
+    inset 4px 4px 10px #14151b,
+    inset -2px -2px 5px #323443;
+}
+
+/*
+ * Neumorphic interactive states — for clickable raised surfaces.
+ * Three tiers matching elevation: sm (cards), base (panels), inset (dormant links).
+ * Each transitions: rest → hover (raise higher) → active (press inward + scale).
+ * These replace static nm-raised-* classes on interactive elements.
+ */
+.nm-interactive-sm {
+  box-shadow:
+    -4px -4px 8px #323544,
+    4px 4px 8px #1e1f28;
+  transition: box-shadow 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              transform 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.nm-interactive-sm:hover {
+  box-shadow:
+    -4px -4px 8px #2e3140,
+    5px 5px 9px #1d1e27;
+  transform: scale(1.01);
+}
+.nm-interactive-sm:active {
+  box-shadow:
+    inset 2px 2px 6px #18191f,
+    inset -2px -2px 4px #2e3040;
+  transform: scale(0.99);
+}
+
+.nm-interactive {
+  box-shadow:
+    -8px -8px 16px #353848,
+    8px 8px 16px #1b1c24;
+  transition: box-shadow 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              transform 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.nm-interactive:hover {
+  box-shadow:
+    -8px -8px 16px #323546,
+    9px 9px 17px #191a22;
+  transform: scale(1.01);
+}
+.nm-interactive:active {
+  box-shadow:
+    inset 2px 2px 6px #18191f,
+    inset -2px -2px 4px #2e3040;
+  transform: scale(0.99);
+}
+
+.nm-interactive-inset {
+  box-shadow:
+    inset 2px 2px 5px #1e2029,
+    inset -2px -2px 5px #323443;
+  transition: box-shadow 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              transform 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.nm-interactive-inset:hover {
+  box-shadow:
+    -2px -2px 5px #2e3140,
+    3px 3px 6px #20212a;
+  transform: scale(1.01);
+}
+.nm-interactive-inset:active {
+  box-shadow:
+    inset 2px 2px 6px #18191f,
+    inset -2px -2px 4px #2e3040;
+  transform: scale(0.99);
 }
 
 /* Glow animation for pulse dots */
@@ -61,11 +237,11 @@
   0%,
   100% {
     opacity: 1;
-    filter: drop-shadow(0 0 4px currentColor);
+    filter: drop-shadow(0 0 5px currentColor);
   }
   50% {
     opacity: 0.7;
-    filter: drop-shadow(0 0 8px currentColor);
+    filter: drop-shadow(0 0 12px currentColor);
   }
 }
 
@@ -73,24 +249,139 @@
   animation: pulse-glow 2.5s ease-in-out infinite;
 }
 
-/* Firefox cursor fix for interactive form elements */
-select,
-input[type="text"],
-input[type="password"],
-input[type="email"],
-input[type="number"],
-input[type="search"],
-input[type="url"],
-textarea {
-  cursor: pointer;
+@keyframes jiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-0.5deg); }
+  75% { transform: rotate(0.5deg); }
 }
 
-input:focus,
-textarea:focus,
-select:focus {
-  cursor: text;
+.animate-jiggle {
+  animation: jiggle 0.3s ease-in-out infinite;
 }
 
+@keyframes loading-breathe {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.02); }
+}
+
+.animate-loading-breathe {
+  animation: loading-breathe 2s ease-in-out infinite;
+}
+
+@keyframes marquee-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.marquee-scroll {
+  animation: marquee-scroll 12s linear infinite;
+}
+.marquee-scroll:hover {
+  animation-play-state: paused;
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Hide native number input spinners — we use custom NumberInput controls */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Select elements use pointer cursor since they open a dropdown */
 select {
   cursor: pointer;
+}
+
+/* Page scrollbar — picks up --scrollbar-color from nearest ancestor (tracker page sets it) */
+.themed-scrollbar {
+  --scrollbar-color: #353848;
+  --scrollbar-hover: #434660;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-color) transparent;
+}
+.themed-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.themed-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.themed-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-color);
+  border-radius: 9999px;
+}
+.themed-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-hover);
+}
+
+/* Inner horizontal scrollbars on tables/code — always subtle */
+.styled-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #353848 transparent;
+}
+.styled-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.styled-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.styled-scrollbar::-webkit-scrollbar-thumb {
+  background: #353848;
+  border-radius: 9999px;
+}
+.styled-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #434660;
+}
+
+/* react-colorful overrides to match design system */
+.react-colorful {
+  width: 100% !important;
+  height: 160px !important;
+  border-radius: var(--radius-md) !important;
+  overflow: hidden;
+}
+.react-colorful__saturation {
+  border-radius: var(--radius-sm) !important;
+  border-bottom: none !important;
+}
+.react-colorful__hue {
+  height: 10px !important;
+  border-radius: var(--radius-pill) !important;
+  margin-top: 8px;
+}
+.react-colorful__pointer {
+  width: 16px !important;
+  height: 16px !important;
+  border: 2px solid #fff !important;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Emoji picker theme overrides to match app palette */
+.EmojiPickerReact.epr-dark-theme {
+  --epr-bg-color: #2e3042;
+  --epr-category-label-bg-color: #2e3042;
+  --epr-hover-bg-color: #343648;
+  --epr-search-input-bg-color: #1e2029;
+  --epr-text-color: #e2e8f0;
+  --epr-search-input-text-color: #e2e8f0;
+  --epr-search-input-placeholder-color: #64748b;
+  --epr-category-icon-active-color: #00d4ff;
+  --epr-skin-tone-picker-menu-color: #343648;
+  border-radius: var(--radius-md) !important;
+  border: 1px solid #3c3f51 !important;
 }
