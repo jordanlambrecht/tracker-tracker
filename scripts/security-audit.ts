@@ -155,7 +155,7 @@ function findAllLineNumbers(content: string, pattern: RegExp): number[] {
 /** Convert route file path to API route path (i.e "api/trackers/[id]") */
 function routePathFromFile(filePath: string): string {
   const rel = path.relative(API_DIR, filePath)
-  return "api/" + rel.replace(/[/\\]route\.ts$/, "").replace(/\\/g, "/")
+  return `api/${rel.replace(/[/\\]route\.ts$/, "").replace(/\\/g, "/")}`
 }
 
 function isTestFile(filePath: string): boolean {
