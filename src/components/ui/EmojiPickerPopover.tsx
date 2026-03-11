@@ -4,8 +4,8 @@
 
 "use client"
 
-import { useEffect, useRef, useState } from "react"
 import EmojiPicker, { EmojiStyle, Theme } from "emoji-picker-react"
+import { useEffect, useRef, useState } from "react"
 import { useClickOutside } from "@/hooks/useClickOutside"
 
 interface EmojiPickerPopoverProps {
@@ -29,7 +29,7 @@ function EmojiPickerPopover({
   useEffect(() => {
     if (!open) return
     function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false)
+      if (e.key === "Escape") { e.stopPropagation(); setOpen(false) }
     }
     document.addEventListener("keydown", handleKey)
     return () => document.removeEventListener("keydown", handleKey)
@@ -40,7 +40,7 @@ function EmojiPickerPopover({
       <div className="relative group">
         <button
           type="button"
-          onClick={() => !disabled && setOpen((v) => !v)}
+          onClick={() => setOpen((v) => !v)}
           disabled={disabled}
           className="w-14 h-10 flex items-center justify-center text-lg bg-control-bg nm-inset-sm cursor-pointer transition-all duration-150 hover:nm-raised disabled:opacity-40 disabled:cursor-not-allowed rounded-nm-sm"
           aria-label="Pick emoji"
