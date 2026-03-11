@@ -1,6 +1,6 @@
 // src/lib/formatters.test.ts
 import { describe, expect, it } from "vitest"
-import { bytesToGiB, formatBytesFromString, formatRatio } from "./formatters"
+import { bytesToGiB, formatBytesFromString, formatRatio, formatStatValue } from "./formatters"
 
 describe("formatBytesFromString", () => {
   it("returns — for null", () => {
@@ -42,5 +42,52 @@ describe("formatRatio", () => {
 
   it("returns — for undefined", () => {
     expect(formatRatio(undefined)).toBe("—")
+  })
+})
+
+describe("formatStatValue", () => {
+  const stats = {
+    ratio: 2.79,
+    uploadedBytes: "17340000000000",
+    downloadedBytes: "6210000000000",
+    seedingCount: 1882,
+    leechingCount: 0,
+    requiredRatio: null,
+    warned: null,
+    freeleechTokens: null,
+    username: "test",
+    group: "VIP",
+  }
+
+  it("formats ratio with x suffix", () => {
+    expect(formatStatValue(stats, "ratio")).toBe("2.79x")
+  })
+
+  it("formats seeding with label", () => {
+    expect(formatStatValue(stats, "seeding")).toMatch(/1,882 seeding/)
+  })
+
+  it("formats uploaded with arrow", () => {
+    expect(formatStatValue(stats, "uploaded")).toMatch(/↑/)
+  })
+
+  it("formats downloaded with arrow", () => {
+    expect(formatStatValue(stats, "downloaded")).toMatch(/↓/)
+  })
+
+  it("formats buffer with label", () => {
+    expect(formatStatValue(stats, "buffer")).toMatch(/buf/)
+  })
+
+  it("returns dash for null stats", () => {
+    expect(formatStatValue(null, "ratio")).toBe("—")
+  })
+
+  it("returns dash for null ratio", () => {
+    expect(formatStatValue({ ...stats, ratio: null }, "ratio")).toBe("—")
+  })
+
+  it("returns dash for null seedingCount", () => {
+    expect(formatStatValue({ ...stats, seedingCount: null }, "seeding")).toBe("—")
   })
 })
