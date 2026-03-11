@@ -4,7 +4,7 @@
 // Constants: BACKUP_CODE_PATTERN
 
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto"
-import { TOTP, Secret } from "otpauth"
+import { Secret, TOTP } from "otpauth"
 
 const ISSUER = "Tracker Tracker"
 const TOTP_PERIOD = 30

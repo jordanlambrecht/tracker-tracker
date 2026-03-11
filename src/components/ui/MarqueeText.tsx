@@ -17,6 +17,7 @@ function MarqueeText({ children, className = "", speed = 40 }: MarqueeTextProps)
   const [overflows, setOverflows] = useState(false)
   const [duration, setDuration] = useState(12)
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refs don't need to be deps
   useEffect(() => {
     const container = containerRef.current
     const text = textRef.current

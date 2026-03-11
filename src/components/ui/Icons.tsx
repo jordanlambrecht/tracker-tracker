@@ -4,7 +4,8 @@
 //            ChevronDownSmallIcon, EyeOffIcon, EyeIcon, GearIcon, HamburgerIcon,
 //            CheckIcon, CheckLargeIcon, CopyIcon, UploadArrowIcon, DownloadArrowIcon,
 //            UserIcon, PlusIcon, ActivityIcon, ShareScoreIcon, ShieldIcon, StarIcon,
-//            LeechingIcon, SeedingIcon, TriangleWarningIcon, RatioIcon, GridIcon
+//            LeechingIcon, SeedingIcon, TriangleWarningIcon, RatioIcon, GridIcon,
+//            BoltIcon, ClockIcon, BoxIcon, ServerIcon, TagIcon
 
 import type { SVGProps } from "react"
 
@@ -485,6 +486,101 @@ function GridIcon(props: IconProps) {
   )
 }
 
+// Bolt / lightning — used in TorrentsTab speed stat
+function BoltIcon(props: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+    </svg>
+  )
+}
+
+// Clock — used in TorrentsTab stale-torrent stat
+function ClockIcon(props: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12,6 12,12 16,14" />
+    </svg>
+  )
+}
+
+// Box / cube — used in TorrentsTab size stat
+function BoxIcon(props: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+    </svg>
+  )
+}
+
+// Server rack — used in TorrentsTab NoClientState empty state
+function ServerIcon(props: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
+      <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
+      <line x1="6" y1="6" x2="6.01" y2="6" />
+      <line x1="6" y1="18" x2="6.01" y2="18" />
+    </svg>
+  )
+}
+
+// Tag — used in TorrentsTab NoTagState empty state
+function TagIcon(props: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+      <line x1="7" y1="7" x2="7.01" y2="7" />
+    </svg>
+  )
+}
+
 export {
   ExternalLinkIcon,
   ExternalLinkSmallIcon,
@@ -511,4 +607,9 @@ export {
   TriangleWarningIcon,
   RatioIcon,
   GridIcon,
+  BoltIcon,
+  ClockIcon,
+  BoxIcon,
+  ServerIcon,
+  TagIcon,
 }

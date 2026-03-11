@@ -7,10 +7,10 @@
 import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/Badge"
 import { PulseDot } from "@/components/ui/PulseDot"
-import { Table } from "@/components/ui/Table"
 import type { Column } from "@/components/ui/Table"
+import { Table } from "@/components/ui/Table"
 import { formatAccountAge, formatBytesFromString, formatRatio } from "@/lib/formatters"
-import { getTrackerHealth, getHealthBadgeVariant, getHealthLabel, getHealthPulseDot } from "@/lib/tracker-status"
+import { getHealthBadgeVariant, getHealthLabel, getHealthPulseDot, getTrackerHealth } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
 
 function getBufferBytes(t: TrackerSummary): bigint {

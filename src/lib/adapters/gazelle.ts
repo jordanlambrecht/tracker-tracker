@@ -111,7 +111,12 @@ export class GazelleAdapter implements TrackerAdapter {
       throw new Error(data.error ?? `Gazelle API returned status: ${data.status}`)
     }
 
-    const userStats = data.response?.userstats
+    const response = data.response
+    if (!response) {
+      throw new Error(`Unexpected response from ${hostname}: missing response`)
+    }
+
+    const userStats = response.userstats
     if (!userStats) {
       throw new Error(`Unexpected response from ${hostname}: missing userstats`)
     }
@@ -120,7 +125,7 @@ export class GazelleAdapter implements TrackerAdapter {
     const downloaded = BigInt(Math.floor(userStats.downloaded ?? 0))
 
     const stats: TrackerStats = {
-      username: data.response!.username,
+      username: response.username,
       group: userStats.class ?? "Unknown",
       uploadedBytes: uploaded,
       downloadedBytes: downloaded,
@@ -134,19 +139,19 @@ export class GazelleAdapter implements TrackerAdapter {
       warned: false,
       freeleechTokens: typeof userStats.freeleechTokens === "number"
         ? userStats.freeleechTokens
-        : typeof data.response!.giftTokens === "number"
-          ? data.response!.giftTokens
+        : typeof response.giftTokens === "number"
+          ? response.giftTokens
           : null,
     }
 
     // Cache the remote user ID from the index response
-    if (data.response!.id) {
-      stats.remoteUserId = data.response!.id
+    if (response.id) {
+      stats.remoteUserId = response.id
     }
 
     // Enrichment: fetch full user profile for ranks, community, warned, etc.
     if (options?.enrich) {
-      const userId = options.remoteUserId ?? data.response!.id
+      const userId = options.remoteUserId ?? response.id
       if (userId) {
         try {
           const enriched = await this.fetchUserProfile(baseUrl, apiPath, authHeader, userId, hostname, options)
@@ -165,11 +170,11 @@ export class GazelleAdapter implements TrackerAdapter {
     }
 
     // Merge index-level data (notifications, tokens) into platformMeta
-    if (data.response!.notifications || data.response!.giftTokens != null || data.response!.meritTokens != null) {
+    if (response.notifications || response.giftTokens != null || response.meritTokens != null) {
       const meta = (stats.platformMeta as GazellePlatformMeta) ?? {}
-      if (data.response!.notifications) meta.notifications = data.response!.notifications
-      if (typeof data.response!.giftTokens === "number") meta.giftTokens = data.response!.giftTokens
-      if (typeof data.response!.meritTokens === "number") meta.meritTokens = data.response!.meritTokens
+      if (response.notifications) meta.notifications = response.notifications
+      if (typeof response.giftTokens === "number") meta.giftTokens = response.giftTokens
+      if (typeof response.meritTokens === "number") meta.meritTokens = response.meritTokens
       stats.platformMeta = meta
     }
 

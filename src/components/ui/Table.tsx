@@ -86,9 +86,10 @@ function Table<T>({
     const col = columns.find((c) => c.key === sortKey)
     if (!col?.sortValue) return data
 
+    const sortFn = col.sortValue
     return [...data].sort((a, b) => {
-      const aVal = col.sortValue!(a)
-      const bVal = col.sortValue!(b)
+      const aVal = sortFn(a)
+      const bVal = sortFn(b)
       const cmp =
         typeof aVal === "string" && typeof bVal === "string"
           ? aVal.localeCompare(bVal)

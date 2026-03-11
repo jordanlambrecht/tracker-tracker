@@ -7,7 +7,7 @@
 import { useRouter } from "next/navigation"
 import { PulseDot } from "@/components/ui/PulseDot"
 import { formatRatio } from "@/lib/formatters"
-import { getTrackerHealth, getHealthPulseDot } from "@/lib/tracker-status"
+import { getHealthPulseDot, getTrackerHealth } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
 
 interface EcosystemStatusBarProps {

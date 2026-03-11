@@ -6,7 +6,7 @@
 
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Card } from "@/components/ui/Card"
 import { formatBytesFromNumber } from "@/lib/formatters"
 import { ChartEmptyState } from "./ChartEmptyState"
@@ -203,8 +203,6 @@ function FleetSpeedSparklines({ clients }: FleetSpeedSparklinesProps) {
   const [speedMap, setSpeedMap] = useState<Record<number, ClientSpeedState>>({})
   const intervalsRef = useRef<Map<number, ReturnType<typeof setInterval>>>(new Map())
 
-  const clientKey = useMemo(() => clients.map(c => c.id).join(","), [clients])
-
   useEffect(() => {
     if (clients.length === 0) return
 
@@ -275,7 +273,7 @@ function FleetSpeedSparklines({ clients }: FleetSpeedSparklinesProps) {
       }
       intervals.clear()
     }
-  }, [clientKey])
+  }, [clients])
 
   if (clients.length === 0) {
     return <ChartEmptyState height={120} message="No download clients configured." />

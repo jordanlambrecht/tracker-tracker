@@ -63,7 +63,7 @@ function EmojiPickerPopover({
       </div>
 
       {open && (
-        <div className="absolute z-50 mt-2 left-0 nm-raised-lg">
+        <div className="emoji-picker-wrapper absolute z-50 mt-2 left-0 nm-raised-lg">
           <EmojiPicker
             theme={Theme.DARK}
             emojiStyle={EmojiStyle.APPLE}

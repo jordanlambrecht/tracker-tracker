@@ -5,6 +5,7 @@
 "use client"
 
 import clsx from "clsx"
+import Image from "next/image"
 import { useParams } from "next/navigation"
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useState } from "react"
 import { MetricChart } from "@/components/charts/MetricChart"
@@ -107,17 +108,22 @@ function RankTooltip({ currentRank, userClasses, accentColor }: RankTooltipProps
       >
         <span className="flex items-center gap-1.5">
           {currentRank}
-          <span
-            className="cursor-help text-[9px] font-bold opacity-70 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current"
+          <button
+            type="button"
+            className="cursor-help text-[9px] font-bold opacity-70 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current bg-transparent p-0"
             onMouseEnter={() => setOpen(true)}
             onMouseLeave={() => setOpen(false)}
+            onFocus={() => setOpen(true)}
+            onBlur={() => setOpen(false)}
+            aria-label="Show rank progression"
           >
             ?
-          </span>
+          </button>
         </span>
       </Badge>
 
       {open && (
+        // biome-ignore lint/a11y/noStaticElementInteractions: hover-keep-open for tooltip panel
         <div
           className="absolute top-full left-0 mt-2 z-50 bg-elevated nm-raised-sm py-2 px-1 min-w-[200px] rounded-nm-md"
           onMouseEnter={() => setOpen(true)}
@@ -166,13 +172,14 @@ function TrackerAvatar({ trackerId, accentColor }: TrackerAvatarProps) {
   }
 
   return (
-    <img
+    <Image
       src={`/api/trackers/${trackerId}/avatar`}
       alt="User avatar"
       width={56}
       height={56}
       className="w-full h-full object-cover rounded-nm-pill"
       onError={() => setFailed(true)}
+      unoptimized
     />
   )
 }
@@ -343,7 +350,7 @@ export default function TrackerDetailPage() {
             {/* Title row */}
             <div className="flex items-center gap-3">
               {registryEntry?.logo && (
-                <img
+                <Image
                   src={registryEntry.logo}
                   alt=""
                   width={24}

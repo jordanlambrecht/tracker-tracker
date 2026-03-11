@@ -7,7 +7,8 @@ import { authenticate, decodeKey, parseJsonBody, validatePort } from "@/lib/api-
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
-import { createProxyAgent, PROXY_HOST_PATTERN, proxyFetch, VALID_PROXY_TYPES, type ProxyType } from "@/lib/proxy"
+import { createProxyAgent, PROXY_HOST_PATTERN, type ProxyType, proxyFetch, VALID_PROXY_TYPES } from "@/lib/proxy"
+
 const TEST_URL = "https://httpbin.org/ip"
 // Loose IP pattern — IPv4, IPv6, or comma-separated (httpbin returns this)
 const IP_PATTERN = /^[\d.,: a-fA-F]+$/

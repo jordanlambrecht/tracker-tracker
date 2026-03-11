@@ -2,7 +2,7 @@
 //
 // Functions: filterAndDedup, aggregateByTag
 
-import { LEECHING_STATES, SEEDING_STATES, parseTorrentTags } from "@/lib/fleet"
+import { LEECHING_STATES, parseTorrentTags, SEEDING_STATES } from "@/lib/fleet"
 import type { ClientStats, QbtTorrent, TagStats } from "./types"
 
 export function filterAndDedup(allTorrents: QbtTorrent[], knownTags: string[]): QbtTorrent[] {
