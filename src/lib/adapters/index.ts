@@ -1,10 +1,22 @@
 // src/lib/adapters/index.ts
 //
 // Functions: getAdapter
+// Exports: DEFAULT_API_PATHS
+
+import { GazelleAdapter } from "./gazelle"
+import { GGnAdapter } from "./ggn"
 import type { TrackerAdapter } from "./types"
 import { Unit3dAdapter } from "./unit3d"
 
+export const DEFAULT_API_PATHS: Record<string, string> = {
+  unit3d: "/api/user",
+  gazelle: "/ajax.php",
+  ggn: "/api.php",
+}
+
 const adapters: Record<string, TrackerAdapter> = {
+  gazelle: new GazelleAdapter(),
+  ggn: new GGnAdapter(),
   unit3d: new Unit3dAdapter(),
 }
 
@@ -16,4 +28,4 @@ export function getAdapter(platformType: string): TrackerAdapter {
   return adapter
 }
 
-export type { TrackerAdapter, TrackerStats } from "./types"
+export type { FetchOptions, TrackerAdapter, TrackerStats } from "./types"
