@@ -1,0 +1,308 @@
+// src/components/charts/RankTenureChart.tsx
+//
+// Functions: computeRankPeriods, buildRankColorMap, buildRankTenureOption, RankTenureChart
+
+"use client"
+
+import type {
+  CustomSeriesRenderItemAPI,
+  CustomSeriesRenderItemParams,
+  CustomSeriesRenderItemReturn,
+  EChartsOption,
+} from "echarts"
+import ReactECharts from "echarts-for-react"
+import { hexToHsl, hslToHex } from "@/lib/formatters"
+import type { Snapshot } from "@/types/api"
+import { ChartEmptyState } from "./ChartEmptyState"
+import { CHART_THEME, chartAxisLabel, chartGrid, chartTooltip } from "./theme"
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface TrackerRankSeries {
+  name: string
+  color: string
+  snapshots: Snapshot[]
+}
+
+interface RankTenureChartProps {
+  trackerData: TrackerRankSeries[]
+  height?: number
+}
+
+interface RankPeriod {
+  tracker: string
+  rank: string
+  start: Date
+  end: Date
+}
+
+// ---------------------------------------------------------------------------
+// Computation
+// ---------------------------------------------------------------------------
+
+function computeRankPeriods(trackerData: TrackerRankSeries[]): RankPeriod[] {
+  const periods: RankPeriod[] = []
+
+  for (const tracker of trackerData) {
+    // Sort ascending by polledAt
+    const sorted = [...tracker.snapshots].sort(
+      (a, b) => new Date(a.polledAt).getTime() - new Date(b.polledAt).getTime()
+    )
+
+    // Filter out null-group snapshots entirely before walking
+    const withGroup = sorted.filter((s) => s.group !== null)
+    if (withGroup.length === 0) continue
+
+    let periodStart = new Date(withGroup[0].polledAt)
+    let currentRank = withGroup[0].group as string
+
+    for (let i = 1; i < withGroup.length; i++) {
+      const snap = withGroup[i]
+      const snapRank = snap.group as string
+
+      if (snapRank !== currentRank) {
+        // Rank changed — close the current period at the previous snapshot's time
+        const prevSnap = withGroup[i - 1]
+        periods.push({
+          tracker: tracker.name,
+          rank: currentRank,
+          start: periodStart,
+          end: new Date(prevSnap.polledAt),
+        })
+        periodStart = new Date(snap.polledAt)
+        currentRank = snapRank
+      }
+    }
+
+    // Close the final period at the last snapshot's polledAt
+    const lastSnap = withGroup[withGroup.length - 1]
+    periods.push({
+      tracker: tracker.name,
+      rank: currentRank,
+      start: periodStart,
+      end: new Date(lastSnap.polledAt),
+    })
+  }
+
+  return periods
+}
+
+// ---------------------------------------------------------------------------
+// Color map builder
+// ---------------------------------------------------------------------------
+
+function buildRankColorMap(
+  trackerData: TrackerRankSeries[],
+  periods: RankPeriod[]
+): Map<string, string> {
+  const colorMap = new Map<string, string>()
+
+  // Collect all unique rank names
+  const allRanks = Array.from(new Set(periods.map((p) => p.rank)))
+  if (allRanks.length === 0) return colorMap
+
+  // Use the first tracker's base color as the starting hue
+  const baseColor = trackerData[0]?.color ?? "#00d4ff"
+  const [baseH, baseS, baseL] = hexToHsl(baseColor)
+
+  if (allRanks.length === 1) {
+    colorMap.set(allRanks[0], baseColor)
+    return colorMap
+  }
+
+  // Distribute hues evenly around the wheel, starting from base hue
+  const step = 360 / allRanks.length
+  for (let i = 0; i < allRanks.length; i++) {
+    const hue = (baseH + i * step) % 360
+    // Keep saturation vibrant, lightness readable on dark background
+    const s = Math.max(baseS, 0.55)
+    const l = Math.max(0.45, Math.min(0.65, baseL))
+    colorMap.set(allRanks[i], hslToHex(hue, s, l))
+  }
+
+  return colorMap
+}
+
+// ---------------------------------------------------------------------------
+// Chart builder
+// ---------------------------------------------------------------------------
+
+function buildRankTenureOption(
+  trackerData: TrackerRankSeries[],
+  periods: RankPeriod[]
+): EChartsOption {
+  const trackerNames = trackerData.map((t) => t.name)
+  const colorMap = buildRankColorMap(trackerData, periods)
+
+  // Format dates for display
+  const fmtDate = (d: Date): string =>
+    d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+
+  // Build data items: [trackerIndex, startMs, endMs, rankName, trackerName]
+  const data: [number, number, number, string, string][] = periods.map((p) => [
+    trackerNames.indexOf(p.tracker),
+    p.start.getTime(),
+    p.end.getTime(),
+    p.rank,
+    p.tracker,
+  ])
+
+  // Bar height from category axis — use api.size in renderItem
+  const BAR_HEIGHT_RATIO = 0.6 // fraction of category slot height
+
+  return {
+    backgroundColor: "transparent",
+    tooltip: chartTooltip("item", {
+      formatter: (params: unknown) => {
+        const p = params as { data: [number, number, number, string, string] }
+        if (!p?.data) return ""
+        const [, startMs, endMs, rankName, trackerName] = p.data
+        const durationDays = Math.round((endMs - startMs) / (1000 * 60 * 60 * 24))
+        const startDate = fmtDate(new Date(startMs))
+        const endDate = fmtDate(new Date(endMs))
+        const color = colorMap.get(rankName) ?? "#94a3b8"
+
+        return [
+          `<div style="font-family:${CHART_THEME.fontMono};font-size:11px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${trackerName}</div>`,
+          `<span style="color:${CHART_THEME.textSecondary};">Rank:</span> <span style="color:${color};font-weight:600;">${rankName}</span><br/>`,
+          `<span style="color:${CHART_THEME.textSecondary};">Duration:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${durationDays} day${durationDays !== 1 ? "s" : ""}</span><br/>`,
+          `<span style="color:${CHART_THEME.textTertiary};font-size:11px;">${startDate} → ${endDate}</span>`,
+        ].join("")
+      },
+    }),
+    grid: chartGrid({ top: 32, right: 24, left: 120 }),
+    xAxis: {
+      type: "time",
+      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
+      axisTick: { show: false },
+      axisLabel: chartAxisLabel({
+        formatter: (val: number) => {
+          const d = new Date(val)
+          return d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+        },
+      }),
+      splitLine: {
+        lineStyle: { color: CHART_THEME.gridLine, width: 1 },
+      },
+    },
+    yAxis: {
+      type: "category",
+      data: trackerNames,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: {
+        color: CHART_THEME.textSecondary,
+        fontFamily: CHART_THEME.fontMono,
+        fontSize: 11,
+        width: 112,
+        overflow: "truncate",
+      },
+      splitLine: { show: false },
+    },
+    series: [
+      {
+        type: "custom",
+        renderItem: (
+          params: CustomSeriesRenderItemParams,
+          api: CustomSeriesRenderItemAPI
+        ): CustomSeriesRenderItemReturn => {
+          // suppress unused-param lint — params is required by ECharts signature
+          void params
+
+          const categoryIndex = Number(api.value(0))
+          const startMs = Number(api.value(1))
+          const endMs = Number(api.value(2))
+          // rank name is stored at dimension 3 in the data tuple
+          const rankName = String(api.value(3))
+
+          const startCoord = api.coord([startMs, categoryIndex])
+          const endCoord = api.coord([endMs, categoryIndex])
+
+          const slotSize = api.size?.([0, 1]) ?? [0, 24]
+          const slotHeight = Array.isArray(slotSize) ? Number(slotSize[1]) : 24
+          const barHeight = slotHeight * BAR_HEIGHT_RATIO
+
+          const x = startCoord[0]
+          const y = startCoord[1] - barHeight / 2
+          const width = endCoord[0] - startCoord[0]
+          const height = barHeight
+
+          const fillColor = colorMap.get(rankName) ?? "#94a3b8"
+
+          // Return type is cast via CustomSeriesRenderItemReturn; we use
+          // unknown intermediate to satisfy the strict union without importing
+          // the unexported CustomElementOption type.
+          const rectEl = {
+            type: "rect" as const,
+            shape: { x, y, width: Math.max(width, 1), height, r: 2 },
+            style: { fill: fillColor, opacity: 0.85 },
+          }
+
+          // Only show label if segment is wide enough (> 80px)
+          const textEl =
+            width > 80
+              ? {
+                  type: "text" as const,
+                  x: x + 6,
+                  y: startCoord[1],
+                  style: {
+                    text: rankName,
+                    textAlign: "left" as const,
+                    textVerticalAlign: "middle" as const,
+                    fill: "#e2e8f0",
+                    fontSize: 10,
+                    fontFamily: CHART_THEME.fontMono,
+                    truncate: { outerWidth: width - 12, ellipsis: "…" },
+                  },
+                }
+              : null
+
+          const children = textEl
+            ? [rectEl, textEl]
+            : [rectEl]
+
+          return {
+            type: "group" as const,
+            children,
+          } as unknown as CustomSeriesRenderItemReturn
+        },
+        encode: {
+          x: [1, 2],
+          y: 0,
+        },
+        data,
+        itemStyle: {
+          borderRadius: 2,
+        },
+      },
+    ],
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+function RankTenureChart({ trackerData, height = 300 }: RankTenureChartProps) {
+  const periods = computeRankPeriods(trackerData)
+  const hasData = periods.length > 0
+
+  if (!hasData) {
+    return <ChartEmptyState height={height} message="No rank data available" />
+  }
+
+  return (
+    <ReactECharts
+      option={buildRankTenureOption(trackerData, periods)}
+      style={{ height, width: "100%" }}
+      opts={{ renderer: "canvas" }}
+      notMerge
+      lazyUpdate
+    />
+  )
+}
+
+export { RankTenureChart, computeRankPeriods }
+export type { RankTenureChartProps }
