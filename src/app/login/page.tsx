@@ -3,7 +3,7 @@
 
 import { useRouter } from "next/navigation"
 import { type FormEvent, useEffect, useState } from "react"
-import { Button, Card, H1, Input } from "@/components/ui"
+import { Button, Card, Input } from "@/components/ui"
 
 type LoginStep = "password" | "totp"
 
@@ -129,9 +129,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-base flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <H1 className="text-2xl font-semibold tracking-tight">
-            Tracker Tracker
-          </H1>
+          <img src="/trackerTracker_logo.svg" alt="Tracker Tracker" className="h-10 mx-auto" />
           <p className="mt-2 text-sm text-secondary">
             {step === "password"
               ? "Enter your credentials to unlock."

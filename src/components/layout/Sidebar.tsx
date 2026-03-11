@@ -602,16 +602,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
             aria-label="Go to dashboard"
             aria-current={pathname === "/" ? "page" : undefined}
           >
-            <Image src="/favicon.png" alt="" width={22} height={22} aria-hidden="true" className="shrink-0" />
-            <span className="font-sans font-bold text-lg text-primary leading-none">
-              Tracker Tracker
-            </span>
-            {pathname === "/" && (
-              <span
-                className="w-1.5 h-1.5 rounded-full bg-accent shrink-0"
-                aria-hidden="true"
-              />
-            )}
+            <Image src="/trackerTracker_logo.svg" alt="Tracker Tracker" width={140} height={40} className="shrink-0" />
           </button>
           <button
             type="button"
