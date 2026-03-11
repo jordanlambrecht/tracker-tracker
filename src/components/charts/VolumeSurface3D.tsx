@@ -7,21 +7,16 @@
 import ReactECharts from "echarts-for-react"
 import "echarts-gl"
 import type { Snapshot } from "@/types/api"
+import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartAxisLabel, chartTooltip } from "./theme"
+import { CHART_THEME, chartAxisLabel, chartTooltip, escHtml } from "./theme"
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-interface TrackerVolumeSeries {
-  name: string
-  color: string
-  snapshots: Snapshot[]
-}
-
 interface VolumeSurface3DProps {
-  trackerData: TrackerVolumeSeries[]
+  trackerData: TrackerSnapshotSeries[]
   height?: number
 }
 
@@ -38,7 +33,7 @@ interface GridResult {
 // Grid computation
 // ---------------------------------------------------------------------------
 
-function computeDailyGrid(trackerData: TrackerVolumeSeries[]): {
+function computeDailyGrid(trackerData: TrackerSnapshotSeries[]): {
   days: string[]
   trackerNames: string[]
   trackerColors: string[]
@@ -233,7 +228,7 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
     grid.granularity === "month" ? "Month" : grid.granularity === "week" ? "Week" : "Day"
 
   return {
-    backgroundColor: "transparent",
+    backgroundColor: CHART_THEME.elevated,
     tooltip: chartTooltip("item", {
       show: true,
       formatter: (params: { value: number[] }) => {
@@ -245,8 +240,8 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
           maximumFractionDigits: 2,
         })
         return `<div style="font-family:var(--font-mono),monospace">` +
-          `<div style="color:${CHART_THEME.textTertiary};font-size:11px;margin-bottom:2px">${bucketLabel}</div>` +
-          `<div><span style="color:${CHART_THEME.textSecondary}">${tracker}:</span> <b>${formatted} ${unit}</b></div>` +
+          `<div style="color:${CHART_THEME.textTertiary};font-size:11px;margin-bottom:2px">${escHtml(bucketLabel)}</div>` +
+          `<div><span style="color:${CHART_THEME.textSecondary}">${escHtml(tracker)}:</span> <b>${formatted} ${unit}</b></div>` +
           `</div>`
       },
     }),
@@ -311,7 +306,7 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
         },
         ambient: { intensity: 0.3 },
       },
-      environment: "transparent",
+      environment: CHART_THEME.elevated,
     },
     visualMap: {
       show: false,
@@ -390,4 +385,4 @@ function VolumeSurface3D({ trackerData, height = 480 }: VolumeSurface3DProps) {
 }
 
 export { VolumeSurface3D, computeDailyGrid }
-export type { TrackerVolumeSeries, VolumeSurface3DProps }
+export type { VolumeSurface3DProps }

@@ -1,10 +1,13 @@
 // src/components/dashboard/useFleetChartPreferences.ts
 //
 // Functions: useFleetChartPreferences
+//
+// Manages fleet dashboard chart visibility and collapse state in localStorage.
+// Shared base logic lives in src/hooks/useChartPreferencesBase.ts.
 
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useChartPreferencesBase } from "@/hooks/useChartPreferencesBase"
 
 export interface FleetChartDef {
   id: string
@@ -27,6 +30,7 @@ export const FLEET_CHARTS: FleetChartDef[] = [
   { id: "fleet-storage-treemap", label: "Storage Breakdown", description: "Storage by tracker and category" },
   { id: "fleet-seed-time-distribution", label: "Seed Time Distribution", description: "Seed time histogram" },
   { id: "fleet-age-timeline", label: "Library Growth", description: "Cumulative torrent count over time" },
+  { id: "fleet-category-timeline", label: "Categories Over Time", description: "Cumulative torrents per qBT category" },
 ]
 
 const STORAGE_KEY = "tracker-tracker:fleet-chart-preferences"
@@ -36,84 +40,11 @@ interface FleetChartPrefs {
   collapsed: string[]
 }
 
-function readPrefs(): FleetChartPrefs {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return { hidden: [], collapsed: [] }
-    return JSON.parse(raw) as FleetChartPrefs
-  } catch {
-    return { hidden: [], collapsed: [] }
-  }
-}
-
-function writePrefs(prefs: FleetChartPrefs) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs))
-  } catch {
-    // SSR or quota exceeded
-  }
-}
+const EMPTY_PREFS: FleetChartPrefs = { hidden: [], collapsed: [] }
 
 export function useFleetChartPreferences() {
-  const [prefs, setPrefs] = useState<FleetChartPrefs>({ hidden: [], collapsed: [] })
+  const { hydrated, isHidden, isCollapsed, toggleHidden, toggleCollapsed, setVisible, collapseAll, allVisibleCollapsed } =
+    useChartPreferencesBase<FleetChartPrefs>(STORAGE_KEY, EMPTY_PREFS)
 
-  useEffect(() => {
-    setPrefs(readPrefs())
-  }, [])
-
-  const isHidden = useCallback((id: string) => prefs.hidden.includes(id), [prefs.hidden])
-  const isCollapsed = useCallback((id: string) => prefs.collapsed.includes(id), [prefs.collapsed])
-
-  const toggleHidden = useCallback((id: string) => {
-    setPrefs((prev) => {
-      const next = prev.hidden.includes(id)
-        ? { ...prev, hidden: prev.hidden.filter((h) => h !== id) }
-        : { ...prev, hidden: [...prev.hidden, id] }
-      writePrefs(next)
-      return next
-    })
-  }, [])
-
-  const toggleCollapsed = useCallback((id: string) => {
-    setPrefs((prev) => {
-      const next = prev.collapsed.includes(id)
-        ? { ...prev, collapsed: prev.collapsed.filter((c) => c !== id) }
-        : { ...prev, collapsed: [...prev.collapsed, id] }
-      writePrefs(next)
-      return next
-    })
-  }, [])
-
-  const setVisible = useCallback((id: string, visible: boolean) => {
-    setPrefs((prev) => {
-      const hidden = visible
-        ? prev.hidden.filter((x) => x !== id)
-        : prev.hidden.includes(id) ? prev.hidden : [...prev.hidden, id]
-      const next = { ...prev, hidden }
-      writePrefs(next)
-      return next
-    })
-  }, [])
-
-  const collapseAll = useCallback((chartIds: string[]) => {
-    setPrefs((prev) => {
-      const visibleIds = chartIds.filter((id) => !prev.hidden.includes(id))
-      const allCollapsed = visibleIds.every((id) => prev.collapsed.includes(id))
-      const next = allCollapsed
-        ? { ...prev, collapsed: prev.collapsed.filter((c) => !chartIds.includes(c)) }
-        : { ...prev, collapsed: [...new Set([...prev.collapsed, ...visibleIds])] }
-      writePrefs(next)
-      return next
-    })
-  }, [])
-
-  const allVisibleCollapsed = useCallback(
-    (chartIds: string[]) => {
-      const visibleIds = chartIds.filter((id) => !prefs.hidden.includes(id))
-      return visibleIds.length > 0 && visibleIds.every((id) => prefs.collapsed.includes(id))
-    },
-    [prefs]
-  )
-
-  return { isHidden, isCollapsed, toggleHidden, toggleCollapsed, setVisible, collapseAll, allVisibleCollapsed }
+  return { hydrated, isHidden, isCollapsed, toggleHidden, toggleCollapsed, setVisible, collapseAll, allVisibleCollapsed }
 }

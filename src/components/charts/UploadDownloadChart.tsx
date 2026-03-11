@@ -5,11 +5,11 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
+import { ChartECharts } from "./ChartECharts"
 import { bytesToGiB, getComplementaryColor, hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartAxisLabel, chartGrid, chartTooltip } from "./theme"
+import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
 
 interface UploadDownloadChartProps {
   snapshots: Snapshot[]
@@ -87,7 +87,7 @@ function buildOption(
 
   return {
     backgroundColor: "transparent",
-    grid: chartGrid({ top: 24, right: 16, bottom: showDataZoom ? 80 : 40, left: 64 }),
+    grid: chartGrid({ right: 16, bottom: showDataZoom ? 80 : 40, left: 64 }),
     tooltip: chartTooltip("axis", {
       borderColor: accentColor,
       axisPointer: {
@@ -115,28 +115,17 @@ function buildOption(
             const altUnit = useTiB ? "GiB" : "TiB"
             const alt = `${fmtNum(altVal)} ${altUnit}`
             return (
-              `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${item.color};margin-right:6px;box-shadow:0 0 6px ${item.color};"></span>` +
-              `<span style="color:${CHART_THEME.textSecondary};">${item.seriesName}:</span> ` +
+              chartDot(item.color) +
+              `<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> ` +
               `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${primary}</span>` +
               `<span style="color:${CHART_THEME.textTertiary};font-size:10px;"> (${alt})</span>`
             )
           })
           .join("<br/>")
-        return `<div style="font-family:var(--font-mono),monospace;font-size:11px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${time}</div>${rows}`
+        return chartTooltipHeader(time) + rows
       },
     }),
-    legend: {
-      top: 0,
-      right: 0,
-      textStyle: {
-        color: CHART_THEME.textTertiary,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
-      },
-      icon: "circle",
-      itemWidth: 8,
-      itemHeight: 8,
-    },
+    legend: chartLegend(),
     xAxis: {
       type: "category",
       data: labels,
@@ -258,7 +247,7 @@ function UploadDownloadChart({
   }
 
   return (
-    <ReactECharts
+    <ChartECharts
       option={buildOption(snapshots, accentColor, showDataZoom)}
       style={{ height, width: "100%" }}
       opts={{ renderer: "canvas" }}

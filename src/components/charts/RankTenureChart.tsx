@@ -10,24 +10,18 @@ import type {
   CustomSeriesRenderItemReturn,
   EChartsOption,
 } from "echarts"
-import ReactECharts from "echarts-for-react"
+import { ChartECharts } from "./ChartECharts"
 import { hexToHsl, hslToHex } from "@/lib/formatters"
-import type { Snapshot } from "@/types/api"
+import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartAxisLabel, chartGrid, chartTooltip } from "./theme"
+import { CHART_THEME, chartAxisLabel, chartGrid, chartTooltip, escHtml } from "./theme"
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-interface TrackerRankSeries {
-  name: string
-  color: string
-  snapshots: Snapshot[]
-}
-
 interface RankTenureChartProps {
-  trackerData: TrackerRankSeries[]
+  trackerData: TrackerSnapshotSeries[]
   height?: number
 }
 
@@ -42,7 +36,7 @@ interface RankPeriod {
 // Computation
 // ---------------------------------------------------------------------------
 
-function computeRankPeriods(trackerData: TrackerRankSeries[]): RankPeriod[] {
+function computeRankPeriods(trackerData: TrackerSnapshotSeries[]): RankPeriod[] {
   const periods: RankPeriod[] = []
 
   for (const tracker of trackerData) {
@@ -94,7 +88,7 @@ function computeRankPeriods(trackerData: TrackerRankSeries[]): RankPeriod[] {
 // ---------------------------------------------------------------------------
 
 function buildRankColorMap(
-  trackerData: TrackerRankSeries[],
+  trackerData: TrackerSnapshotSeries[],
   periods: RankPeriod[]
 ): Map<string, string> {
   const colorMap = new Map<string, string>()
@@ -130,7 +124,7 @@ function buildRankColorMap(
 // ---------------------------------------------------------------------------
 
 function buildRankTenureOption(
-  trackerData: TrackerRankSeries[],
+  trackerData: TrackerSnapshotSeries[],
   periods: RankPeriod[]
 ): EChartsOption {
   const trackerNames = trackerData.map((t) => t.name)
@@ -165,14 +159,14 @@ function buildRankTenureOption(
         const color = colorMap.get(rankName) ?? CHART_THEME.neutral
 
         return [
-          `<div style="font-family:${CHART_THEME.fontMono};font-size:11px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${trackerName}</div>`,
-          `<span style="color:${CHART_THEME.textSecondary};">Rank:</span> <span style="color:${color};font-weight:600;">${rankName}</span><br/>`,
+          `<div style="font-family:${CHART_THEME.fontMono};font-size:11px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${escHtml(trackerName)}</div>`,
+          `<span style="color:${CHART_THEME.textSecondary};">Rank:</span> <span style="color:${color};font-weight:600;">${escHtml(rankName)}</span><br/>`,
           `<span style="color:${CHART_THEME.textSecondary};">Duration:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${durationDays} day${durationDays !== 1 ? "s" : ""}</span><br/>`,
-          `<span style="color:${CHART_THEME.textTertiary};font-size:11px;">${startDate} → ${endDate}</span>`,
+          `<span style="color:${CHART_THEME.textTertiary};font-size:11px;">${escHtml(startDate)} → ${escHtml(endDate)}</span>`,
         ].join("")
       },
     }),
-    grid: chartGrid({ top: 32, right: 24, left: 120 }),
+    grid: chartGrid({ right: 24, left: 120 }),
     xAxis: {
       type: "time",
       axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
@@ -294,7 +288,7 @@ function RankTenureChart({ trackerData, height = 300 }: RankTenureChartProps) {
   }
 
   return (
-    <ReactECharts
+    <ChartECharts
       option={buildRankTenureOption(trackerData, periods)}
       style={{ height, width: "100%" }}
       opts={{ renderer: "canvas" }}

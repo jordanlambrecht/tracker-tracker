@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { FleetActivityHeatmap } from "@/components/charts/FleetActivityHeatmap"
 import { FleetAgeTimeline } from "@/components/charts/FleetAgeTimeline"
+import { FleetCategoryTimeline } from "@/components/charts/FleetCategoryTimeline"
 import { FleetCrossSeedDonut } from "@/components/charts/FleetCrossSeedDonut"
 import { FleetRatioDistribution } from "@/components/charts/FleetRatioDistribution"
 import { FleetSeedTimeDistribution } from "@/components/charts/FleetSeedTimeDistribution"
@@ -24,11 +25,22 @@ import {
   FLEET_CHARTS,
   useFleetChartPreferences,
 } from "@/components/dashboard/useFleetChartPreferences"
-import { ChevronUpIcon } from "@/components/ui/Icons"
+import {
+  BoxIcon,
+  ChevronUpIcon,
+  ClockIcon,
+  DownloadArrowIcon,
+  LeechingIcon,
+  SeedingIcon,
+  TagIcon,
+  UploadArrowIcon,
+} from "@/components/ui/Icons"
+import { H2 } from "@/components/ui/Typography"
 import { StatCard } from "@/components/ui/StatCard"
 import type { FleetSnapshot, TorrentRaw, TrackerTag } from "@/lib/fleet"
 import { computeFleetStats } from "@/lib/fleet"
 import { formatBytesFromNumber } from "@/lib/formatters"
+import type { TrackerSummary } from "@/types/api"
 
 interface FleetTorrentsResponse {
   torrents: TorrentRaw[]
@@ -39,9 +51,13 @@ interface FleetTorrentsResponse {
 
 interface FleetDashboardProps {
   dayRange: number
+  trackers?: TrackerSummary[]
+  onRefresh?: () => Promise<void>
 }
 
-export function FleetDashboard({ dayRange }: FleetDashboardProps) {
+const allChartIds = FLEET_CHARTS.map((c) => c.id)
+
+export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashboardProps) {
   const [torrents, setTorrents] = useState<TorrentRaw[]>([])
   const [crossSeedTags, setCrossSeedTags] = useState<string[]>([])
   const [snapshots, setSnapshots] = useState<FleetSnapshot[]>([])
@@ -50,15 +66,16 @@ export function FleetDashboard({ dayRange }: FleetDashboardProps) {
   const [loading, setLoading] = useState(true)
 
   const chartPrefs = useFleetChartPreferences()
-  const allChartIds = FLEET_CHARTS.map((c) => c.id)
+  const { hydrated: chartPrefsHydrated } = chartPrefs
 
   const loadData = useCallback(async () => {
     try {
-      const [torrentsRes, snapshotsRes, trackersRes, clientsRes] = await Promise.all([
+      const [torrentsRes, snapshotsRes, clientsRes, trackersRes] = await Promise.all([
         fetch("/api/fleet/torrents"),
         fetch(`/api/fleet/snapshots?days=${dayRange === 0 ? 30 : dayRange}`),
-        fetch("/api/trackers"),
         fetch("/api/clients"),
+        // Skip /api/trackers when the parent already provides tracker data
+        trackersProp ? Promise.resolve(null) : fetch("/api/trackers"),
       ])
 
       if (torrentsRes.ok) {
@@ -72,25 +89,33 @@ export function FleetDashboard({ dayRange }: FleetDashboardProps) {
         setSnapshots(data)
       }
 
-      if (trackersRes.ok) {
-        const data: { id: number; name: string; color: string; qbtTag: string | null }[] = await trackersRes.json()
+      if (clientsRes.ok) {
+        const data: { id: number; name: string }[] = await clientsRes.json()
+        setClientList(data)
+      }
+
+      // Derive tracker tags from prop if available, otherwise from fetched data
+      if (trackersProp) {
+        setTrackerTags(
+          trackersProp
+            .filter((t): t is typeof t & { qbtTag: string } => !!t.qbtTag?.trim())
+            .map((t) => ({ tag: t.qbtTag.trim(), name: t.name, color: t.color ?? CHART_THEME.accent }))
+        )
+      } else if (trackersRes?.ok) {
+        const data: { id: number; name: string; color: string; qbtTag: string | null }[] =
+          await trackersRes.json()
         setTrackerTags(
           data
             .filter((t): t is typeof t & { qbtTag: string } => !!t.qbtTag?.trim())
             .map((t) => ({ tag: t.qbtTag.trim(), name: t.name, color: t.color ?? CHART_THEME.accent }))
         )
       }
-
-      if (clientsRes.ok) {
-        const data: { id: number; name: string }[] = await clientsRes.json()
-        setClientList(data)
-      }
     } catch {
       // Silently ignore — stale state stays visible
     } finally {
       setLoading(false)
     }
-  }, [dayRange])
+  }, [dayRange, trackersProp])
 
   useEffect(() => {
     loadData()
@@ -150,6 +175,8 @@ export function FleetDashboard({ dayRange }: FleetDashboardProps) {
         return <FleetSeedTimeDistribution torrents={torrents} />
       case "fleet-age-timeline":
         return <FleetAgeTimeline torrents={torrents} trackerTags={trackerTags} />
+      case "fleet-category-timeline":
+        return <FleetCategoryTimeline torrents={torrents} />
       default:
         return null
     }
@@ -159,14 +186,17 @@ export function FleetDashboard({ dayRange }: FleetDashboardProps) {
     <div className="flex flex-col gap-6">
       {/* Fleet Stat Cards */}
       {!chartPrefs.isHidden("fleet-stat-cards") && (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
-          <StatCard label="Seeding" value={stats.totalSeeding.toLocaleString()} />
-          <StatCard label="Leeching" value={stats.totalLeeching.toLocaleString()} />
-          <StatCard label="Upload" value={`${formatBytesFromNumber(stats.fleetUploadSpeed)}/s`} />
-          <StatCard label="Download" value={`${formatBytesFromNumber(stats.fleetDownloadSpeed)}/s`} />
-          <StatCard label="Library" value={formatBytesFromNumber(stats.totalLibrarySize)} />
-          <StatCard label="Cross-Seed" value={`${stats.crossSeedPercent.toFixed(1)}%`} />
-          <StatCard label="Stale (30d+)" value={stats.staleCount.toLocaleString()} />
+        <div className="flex flex-col gap-4">
+          <H2>Fleet Overview</H2>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
+            <StatCard label="Seeding" value={stats.totalSeeding.toLocaleString()} icon={<SeedingIcon width="16" height="16" />} />
+            <StatCard label="Leeching" value={stats.totalLeeching.toLocaleString()} icon={<LeechingIcon width="16" height="16" />} />
+            <StatCard label="Upload" value={formatBytesFromNumber(stats.fleetUploadSpeed)} unit="/s" icon={<UploadArrowIcon width="16" height="16" />} />
+            <StatCard label="Download" value={formatBytesFromNumber(stats.fleetDownloadSpeed)} unit="/s" icon={<DownloadArrowIcon width="16" height="16" />} />
+            <StatCard label="Library" value={formatBytesFromNumber(stats.totalLibrarySize)} icon={<BoxIcon width="16" height="16" />} />
+            <StatCard label="Cross-Seed" value={`${stats.crossSeedPercent.toFixed(1)}%`} icon={<TagIcon width="16" height="16" />} />
+            <StatCard label="Stale (30d+)" value={stats.staleCount.toLocaleString()} icon={<ClockIcon width="16" height="16" />} />
+          </div>
         </div>
       )}
 
@@ -174,9 +204,7 @@ export function FleetDashboard({ dayRange }: FleetDashboardProps) {
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <p className="text-xs font-sans font-medium text-tertiary uppercase tracking-wider">
-              Fleet Analytics
-            </p>
+            <H2>Fleet Analytics</H2>
             {hiddenCount > 0 && (
               <span className="text-[10px] font-mono text-muted">{hiddenCount} hidden</span>
             )}
@@ -184,7 +212,7 @@ export function FleetDashboard({ dayRange }: FleetDashboardProps) {
           <button
             type="button"
             onClick={() => chartPrefs.collapseAll(allChartIds)}
-            className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono text-muted hover:text-secondary transition-colors cursor-pointer rounded-nm-sm"
+            className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono text-muted hover:text-secondary hover:bg-overlay transition-colors cursor-pointer rounded-nm-sm"
           >
             <ChevronUpIcon
               width="12"
@@ -206,7 +234,7 @@ export function FleetDashboard({ dayRange }: FleetDashboardProps) {
                 key={def.id}
                 title={def.label}
                 description={def.description}
-                collapsed={chartPrefs.isCollapsed(def.id)}
+                collapsed={!chartPrefsHydrated || chartPrefs.isCollapsed(def.id)}
                 onToggleCollapse={() => chartPrefs.toggleCollapsed(def.id)}
                 onHide={() => chartPrefs.toggleHidden(def.id)}
               >

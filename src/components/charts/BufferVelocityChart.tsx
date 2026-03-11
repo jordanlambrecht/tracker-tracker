@@ -5,24 +5,21 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
+import { useState } from "react"
+import { ChartECharts } from "./ChartECharts"
+import { LogScaleToggle } from "./LogScaleToggle"
 import { hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
+import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartAxisLabel, chartGrid, chartTooltip } from "./theme"
+import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-interface TrackerVelocitySeries {
-  name: string
-  color: string
-  snapshots: Snapshot[]
-}
-
 interface BufferVelocityChartProps {
-  trackerData: TrackerVelocitySeries[]
+  trackerData: TrackerSnapshotSeries[]
   height?: number
 }
 
@@ -80,7 +77,8 @@ function computeBufferVelocity(snapshots: Snapshot[]): {
 // ---------------------------------------------------------------------------
 
 function buildBufferVelocityOption(
-  trackerData: TrackerVelocitySeries[]
+  trackerData: TrackerSnapshotSeries[],
+  forceLog: boolean | null = null
 ): EChartsOption {
   // Compute per-tracker velocities
   const computed: TrackerVelocityData[] = trackerData.map((t) => {
@@ -112,6 +110,16 @@ function buildBufferVelocityOption(
   const useTiB = maxAbsVal >= 1024
   const divisor = useTiB ? 1024 : 1
   const unit = useTiB ? "TiB/day" : "GiB/day"
+
+  // Log scale detection (only considers positive velocities)
+  const positiveVelocities: number[] = []
+  for (const t of computed) {
+    for (const v of t.velocities) {
+      if (v !== null && v > 0) positiveVelocities.push(v / divisor)
+    }
+  }
+  const autoLog = shouldUseLogScale(positiveVelocities)
+  const useLog = forceLog ?? autoLog
 
   const fmtNum = (v: number, decimals = 2): string =>
     v.toLocaleString(undefined, {
@@ -193,7 +201,7 @@ function buildBufferVelocityOption(
 
   return {
     backgroundColor: "transparent",
-    grid: chartGrid({ top: 32, right: 16, left: 72 }),
+    grid: chartGrid({ right: 16, left: 72 }),
     tooltip: chartTooltip("axis", {
       axisPointer: {
         type: "line",
@@ -221,27 +229,16 @@ function buildBufferVelocityOption(
             const valueColor = val >= 0 ? CHART_THEME.positive : CHART_THEME.negative
             const display = `${sign}${fmtNum(val)} ${unit}`
             return (
-              `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${item.color};margin-right:6px;box-shadow:0 0 6px ${item.color};"></span>` +
-              `<span style="color:${CHART_THEME.textSecondary};">${item.seriesName}:</span> ` +
+              chartDot(item.color) +
+              `<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> ` +
               `<span style="color:${valueColor};font-weight:600;">${display}</span>`
             )
           })
           .join("<br/>")
-        return `<div style="font-family:var(--font-mono),monospace;font-size:11px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${date}</div>${rows}`
+        return chartTooltipHeader(date) + rows
       },
     }),
-    legend: {
-      top: 0,
-      right: 0,
-      textStyle: {
-        color: CHART_THEME.textTertiary,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
-      },
-      icon: "circle",
-      itemWidth: 8,
-      itemHeight: 8,
-    },
+    legend: chartLegend(),
     xAxis: {
       type: "category",
       data: labels,
@@ -255,8 +252,8 @@ function buildBufferVelocityOption(
       splitLine: { show: false },
     },
     yAxis: {
-      type: "value",
-      name: unit,
+      type: useLog ? "log" : "value",
+      name: useLog ? `${unit} (log)` : unit,
       scale: true,
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
@@ -287,6 +284,8 @@ function BufferVelocityChart({
   trackerData,
   height = 320,
 }: BufferVelocityChartProps) {
+  const [logOverride, setLogOverride] = useState<boolean | null>(null)
+
   // Need at least 2 days of buffer data per tracker (velocity requires consecutive days)
   const hasEnoughData = trackerData.some((t) => {
     const { days } = computeBufferVelocity(t.snapshots)
@@ -302,16 +301,36 @@ function BufferVelocityChart({
     )
   }
 
+  // Compute auto-detect for toggle label
+  const allVelocities: number[] = []
+  for (const tracker of trackerData) {
+    const { velocities } = computeBufferVelocity(tracker.snapshots)
+    for (const v of velocities) {
+      if (v !== null && v > 0) allVelocities.push(v)
+    }
+  }
+  const autoLog = shouldUseLogScale(allVelocities)
+  const effectiveLog = logOverride ?? autoLog
+
   return (
-    <ReactECharts
-      option={buildBufferVelocityOption(trackerData)}
-      style={{ height, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
-    />
+    <div className="flex flex-col gap-2">
+      <div className="flex justify-end">
+        <LogScaleToggle
+          effectiveLog={effectiveLog}
+          isAuto={logOverride === null}
+          onToggle={() => setLogOverride(logOverride === null ? !autoLog : null)}
+        />
+      </div>
+      <ChartECharts
+        option={buildBufferVelocityOption(trackerData, logOverride)}
+        style={{ height, width: "100%" }}
+        opts={{ renderer: "canvas" }}
+        notMerge
+        lazyUpdate
+      />
+    </div>
   )
 }
 
 export { BufferVelocityChart }
-export type { BufferVelocityChartProps, TrackerVelocitySeries }
+export type { BufferVelocityChartProps }

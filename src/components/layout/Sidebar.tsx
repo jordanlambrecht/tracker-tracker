@@ -720,8 +720,22 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
             </DndContext>
           )}
 
-          {/* Add Tracker button inside scrollable nav, below the list */}
-          <div className="mx-4 mt-4 pt-4 pb-2 border-t border-border">
+          {/* Archive toggle + Add Tracker — inside scrollable nav */}
+          <div className="mx-4 mt-4 pt-4 pb-6 border-t border-border flex flex-col gap-2">
+            {archivedCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowArchived((s) => !s)}
+                className="text-tertiary hover:text-secondary text-xs font-mono flex items-center gap-2 transition-colors duration-150 cursor-pointer w-full"
+              >
+                {showArchived ? (
+                  <EyeOffIcon width="14" height="14" className="shrink-0" />
+                ) : (
+                  <EyeIcon width="14" height="14" className="shrink-0" />
+                )}
+                {showArchived ? "Hide" : "Show"} Archived ({archivedCount})
+              </button>
+            )}
             <Button
               variant="secondary"
               size="sm"
@@ -738,20 +752,6 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
 
         {/* Bottom controls — pinned */}
         <div className="px-3 py-4 border-t border-border shrink-0 flex flex-col gap-1">
-          {archivedCount > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowArchived((s) => !s)}
-              className="text-tertiary hover:text-secondary text-sm font-mono flex items-center gap-3 transition-colors duration-150 cursor-pointer w-full px-1 py-1"
-            >
-              {showArchived ? (
-                <EyeOffIcon width="16" height="16" className="shrink-0 ml-0.5" />
-              ) : (
-                <EyeIcon width="16" height="16" className="shrink-0 ml-0.5" />
-              )}
-              {showArchived ? "Hide" : "Show"} Archived ({archivedCount})
-            </button>
-          )}
           <button
             type="button"
             onClick={async () => {
