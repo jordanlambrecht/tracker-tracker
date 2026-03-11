@@ -1,15 +1,13 @@
-"use client"
-
 // src/app/(auth)/page.tsx
+"use client"
 //
 // Functions: buildTrackerSeries, SortableChartItem, renderChart, handleDismiss, DashboardPage
 
 import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core"
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { useCallback, useEffect, useState, type ReactNode } from "react"
+import { type ReactNode, useCallback, useEffect, useState } from "react"
 import { BufferCandlestickChart } from "@/components/charts/BufferCandlestickChart"
-import { CHART_THEME } from "@/components/charts/theme"
 import { BufferVelocityChart } from "@/components/charts/BufferVelocityChart"
 import type { TrackerSeries } from "@/components/charts/ComparisonChart"
 import { ComparisonChart } from "@/components/charts/ComparisonChart"
@@ -20,6 +18,7 @@ import { RankTenureChart } from "@/components/charts/RankTenureChart"
 import { RatioStabilityChart } from "@/components/charts/RatioStabilityChart"
 import { SeedbonusRiverChart } from "@/components/charts/SeedbonusRiverChart"
 import { TrackerBubbleChart } from "@/components/charts/TrackerBubbleChart"
+import { CHART_THEME } from "@/components/charts/theme"
 import { VolumeSurface3D } from "@/components/charts/VolumeSurface3D"
 import { AlertsBanner } from "@/components/dashboard/AlertsBanner"
 import { ChartCard } from "@/components/dashboard/ChartCard"

@@ -120,7 +120,7 @@ export default function LoginPage() {
   if (!statusLoaded) {
     return (
       <div className="min-h-screen bg-base flex items-center justify-center px-4">
-        <p className="text-sm font-mono text-tertiary">Loading...</p>
+        <p className="text-sm font-mono text-tertiary animate-loading-breathe">Loading...</p>
       </div>
     )
   }

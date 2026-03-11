@@ -1,13 +1,15 @@
-"use client"
-
 // src/app/(auth)/trackers/[id]/page.tsx
 //
 // Functions: computeDelta, STAT_ICONS, RankTooltip, TrackerDetailPage
 
+"use client"
+
+import clsx from "clsx"
 import { useParams } from "next/navigation"
-import { useCallback, useEffect, useState } from "react"
+import { type CSSProperties, type ReactNode, useCallback, useEffect, useState } from "react"
 import { MetricChart } from "@/components/charts/MetricChart"
 import { PercentileRadarChart } from "@/components/charts/PercentileRadarChart"
+import { CHART_THEME } from "@/components/charts/theme"
 import { UploadDownloadChart } from "@/components/charts/UploadDownloadChart"
 import { UploadPolarChart } from "@/components/charts/UploadPolarChart"
 import type { DayRange } from "@/components/dashboard/DayRangeSidebar"
@@ -47,7 +49,7 @@ import type { GazellePlatformMeta, GGnPlatformMeta, QbitmanageTagConfig, Snapsho
 
 type Tab = "analytics" | "info" | "torrents"
 
-const STAT_ICONS: Record<string, React.ReactNode> = {
+const STAT_ICONS: Record<string, ReactNode> = {
   uploaded: <UploadArrowIcon width="16" height="16" />,
   downloaded: <DownloadArrowIcon width="16" height="16" />,
   ratio: <RatioIcon width="16" height="16" />,
@@ -130,7 +132,7 @@ function RankTooltip({ currentRank, userClasses, accentColor }: RankTooltipProps
               <div
                 key={uc.name}
                 className="px-3 py-1.5 text-xs font-mono flex items-center justify-between gap-2"
-                style={isCurrent ? { color: accentColor, backgroundColor: hexToRgba(accentColor, 0.1) } : {}}
+                style={isCurrent ? { color: accentColor, backgroundColor: hexToRgba(accentColor, 0.1) } : undefined}
               >
                 <span className={isCurrent ? "font-semibold" : "text-secondary"}>
                   {uc.name}
@@ -253,7 +255,7 @@ export default function TrackerDetailPage() {
   }, [])
 
   // Tint the page scrollbar to the tracker's color
-  const scrollbarColor = tracker?.color || "#00d4ff"
+  const scrollbarColor = tracker?.color || CHART_THEME.accent
   useEffect(() => {
     const main = document.querySelector("main.themed-scrollbar") as HTMLElement | null
     if (!main) return
@@ -291,15 +293,15 @@ export default function TrackerDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-secondary text-sm font-mono">Loading...</p>
+      <div className="flex h-full min-h-[calc(100vh-6rem)] items-center justify-center">
+        <p className="text-secondary text-sm font-mono animate-loading-breathe">Loading...</p>
       </div>
     )
   }
 
   if (!tracker) {
     return (
-      <div className="flex h-full items-center justify-center">
+      <div className="flex h-full min-h-[calc(100vh-6rem)] items-center justify-center">
         <p className="text-danger text-sm font-mono">Tracker not found.</p>
       </div>
     )
@@ -309,7 +311,7 @@ export default function TrackerDetailPage() {
     ? new Date(tracker.lastPolledAt).toLocaleString()
     : "Never"
 
-  const tc = tracker.color || "#00d4ff"
+  const tc = tracker.color || CHART_THEME.accent
   const health = getTrackerHealth(tracker)
   const registryEntry: TrackerRegistryEntry | undefined = findRegistryEntry(tracker.baseUrl)
   const accountAge = formatAccountAge(tracker.joinedAt)
@@ -331,7 +333,7 @@ export default function TrackerDetailPage() {
           "--tracker-color": tc,
           "--tracker-color-dim": hexToRgba(tc, 0.15),
           "--tracker-color-glow": hexToRgba(tc, 0.25),
-        } as React.CSSProperties
+        } as CSSProperties
       }
     >
       {/* ── Header ── */}
@@ -346,8 +348,7 @@ export default function TrackerDetailPage() {
                   alt=""
                   width={24}
                   height={24}
-                  className="flex-shrink-0 object-contain rounded-nm-sm"
-                  style={{ maxHeight: 24 }}
+                  className="shrink-0 object-contain rounded-nm-sm max-h-6"
                   aria-hidden="true"
                 />
               )}
@@ -357,7 +358,7 @@ export default function TrackerDetailPage() {
                 href={tracker.baseUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-muted hover:text-accent transition-colors duration-150 flex-shrink-0"
+                className="text-muted hover:text-accent transition-colors duration-150 shrink-0"
                 title={`Open ${tracker.name}`}
               >
                 <ExternalLinkSmallIcon width="16" height="16" />
@@ -429,7 +430,7 @@ export default function TrackerDetailPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-start sm:flex-shrink-0">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-start sm:shrink-0">
             <Button
               variant="secondary"
               size="sm"
@@ -467,7 +468,7 @@ export default function TrackerDetailPage() {
             <div className="flex items-center gap-6">
               {/* Avatar circle */}
               <div
-                className="flex items-center justify-center w-14 h-14 nm-inset-sm bg-control-bg flex-shrink-0 overflow-hidden rounded-nm-pill"
+                className="flex items-center justify-center w-14 h-14 nm-inset-sm bg-control-bg shrink-0 overflow-hidden rounded-nm-pill"
               >
                 {tracker.platformType === "ggn" && tracker.remoteUserId ? (
                   <TrackerAvatar trackerId={tracker.id} accentColor={tc} />
@@ -534,7 +535,7 @@ export default function TrackerDetailPage() {
             <button
               type="button"
               onClick={() => setPollError(null)}
-              className="text-danger/60 hover:text-danger transition-colors cursor-pointer flex-shrink-0 text-xs p-1 -m-1"
+              className="text-danger/60 hover:text-danger transition-colors cursor-pointer shrink-0 text-xs p-1 -m-1"
               aria-label="Dismiss error"
             >
               ✕
@@ -565,13 +566,13 @@ export default function TrackerDetailPage() {
             key={tab.key}
             type="button"
             onClick={() => setActiveTab(tab.key)}
-            className={[
+            className={clsx(
               "px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-medium transition-colors duration-150 cursor-pointer -mb-px whitespace-nowrap",
               activeTab === tab.key
                 ? "text-primary border-b-2"
                 : "text-tertiary hover:text-secondary",
-            ].join(" ")}
-            style={activeTab === tab.key ? { borderColor: tc } : {}}
+            )}
+            style={activeTab === tab.key ? { borderColor: tc } : undefined}
           >
             {tab.label}
           </button>
@@ -850,7 +851,7 @@ export default function TrackerDetailPage() {
               >
                 {tracker.lastError && (
                   <div className="flex items-center gap-2 px-4 py-2.5 text-xs font-mono text-danger border-b border-border whitespace-nowrap min-w-fit">
-                    <span className="flex-shrink-0">✕</span>
+                    <span className="shrink-0">✕</span>
                     <span className="text-tertiary">{lastPolledLabel}</span>
                     <span className="truncate">{tracker.lastError}</span>
                   </div>
@@ -864,13 +865,13 @@ export default function TrackerDetailPage() {
                     .map((snap, i) => (
                       <div
                         key={snap.polledAt}
-                        className={[
+                        className={clsx(
                           "flex items-center gap-4 px-4 py-2 text-xs font-mono whitespace-nowrap min-w-fit",
                           i % 2 === 0 ? "" : "bg-elevated",
-                        ].join(" ")}
+                        )}
                       >
-                        <span className="text-success flex-shrink-0">✓</span>
-                        <span className="text-tertiary flex-shrink-0 w-[160px]">
+                        <span className="text-success shrink-0">✓</span>
+                        <span className="text-tertiary shrink-0 w-[160px]">
                           {new Date(snap.polledAt).toLocaleString()}
                         </span>
                         <span className="text-secondary">
@@ -1005,10 +1006,10 @@ export default function TrackerDetailPage() {
                 ].filter((r) => r.value != null).map((rule, i) => (
                   <div
                     key={rule.label}
-                    className={[
+                    className={clsx(
                       "flex items-center justify-between px-5 py-3.5",
                       i > 0 ? "border-t border-border" : "",
-                    ].join(" ")}
+                    )}
                   >
                     <span className="text-sm font-sans text-tertiary flex items-center gap-1.5">
                       {rule.label}
@@ -1100,19 +1101,19 @@ export default function TrackerDetailPage() {
                   return (
                     <div
                       key={uc.name}
-                      className={[
+                      className={clsx(
                         "flex items-center justify-between px-5 py-3",
                         i > 0 ? "border-t border-border" : "",
-                      ].join(" ")}
-                      style={isCurrent ? { backgroundColor: hexToRgba(tc, 0.08) } : {}}
+                      )}
+                      style={isCurrent ? { backgroundColor: hexToRgba(tc, 0.08) } : undefined}
                     >
                       <div className="flex items-center gap-3">
                         <span
-                          className={[
+                          className={clsx(
                             "text-sm font-mono",
                             isCurrent ? "font-semibold" : "text-secondary",
-                          ].join(" ")}
-                          style={isCurrent ? { color: tc } : {}}
+                          )}
+                          style={isCurrent ? { color: tc } : undefined}
                         >
                           {uc.name}
                         </span>

@@ -1,15 +1,17 @@
 // src/app/layout.tsx
 import type { Metadata } from "next"
-import { Inter, JetBrains_Mono } from "next/font/google"
+import { Archivo, Space_Mono } from "next/font/google"
+import type { ReactNode } from "react"
 import "./globals.css"
 
-const inter = Inter({
+const archivo = Archivo({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-archivo",
 })
 
-const jetbrainsMono = JetBrains_Mono({
+const spaceMono = Space_Mono({
   subsets: ["latin"],
+  weight: ["400", "700"],
   variable: "--font-mono",
 })
 
@@ -21,13 +23,12 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: ReactNode
 }) {
   return (
     <html lang="en" className="dark">
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}
-        style={{ backgroundColor: "#0a0e1a", color: "#e2e8f0" }}
+        className={`${archivo.variable} ${spaceMono.variable} font-sans antialiased bg-base text-primary`}
       >
         {children}
       </body>
