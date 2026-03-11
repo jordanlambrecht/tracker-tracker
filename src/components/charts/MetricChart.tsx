@@ -4,13 +4,14 @@
 
 "use client"
 
+import clsx from "clsx"
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
 import { useState } from "react"
 import { bytesToGiB, getComplementaryColor, hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartAxisLabel, chartGrid, chartTooltip } from "./theme"
+import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
 
 // ── Types ──
 
@@ -85,19 +86,18 @@ function fmtNum(v: number, decimals = 2): string {
 export function computeDailyDeltas(snapshots: Snapshot[]): DailyBucket[] {
   if (snapshots.length < 2) return []
 
+  const sorted = [...snapshots].sort((a, b) => new Date(a.polledAt).getTime() - new Date(b.polledAt).getTime())
+
   const bucketMap = new Map<string, { upload: number; download: number }>()
 
-  for (let i = 1; i < snapshots.length; i++) {
-    const prev = snapshots[i - 1]
-    const curr = snapshots[i]
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1]
+    const curr = sorted[i]
 
     const uploadDiff = Number(BigInt(curr.uploadedBytes) - BigInt(prev.uploadedBytes))
     const downloadDiff = Number(BigInt(curr.downloadedBytes) - BigInt(prev.downloadedBytes))
 
-    const dayKey = new Date(curr.polledAt).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-    })
+    const dayKey = new Date(curr.polledAt).toISOString().slice(0, 10)
 
     const existing = bucketMap.get(dayKey) ?? { upload: 0, download: 0 }
     existing.upload += uploadDiff
@@ -117,7 +117,7 @@ export function computeDailyDeltas(snapshots: Snapshot[]): DailyBucket[] {
 function buildLineOption(
   snapshots: Snapshot[],
   config: MetricConfig,
-  accentColor: string
+  safeAccent: string
 ): EChartsOption {
   const labels = snapshots.map((s) =>
     new Date(s.polledAt).toLocaleString("en-US", {
@@ -159,13 +159,13 @@ function buildLineOption(
       height: 24,
       borderColor: BORDER_SOFT,
       backgroundColor: CHART_THEME.surfaceSemi,
-      fillerColor: hexToRgba(accentColor, 0.06),
-      handleStyle: { color: accentColor, borderColor: accentColor },
-      moveHandleStyle: { color: accentColor },
+      fillerColor: hexToRgba(safeAccent, 0.06),
+      handleStyle: { color: safeAccent, borderColor: safeAccent },
+      moveHandleStyle: { color: safeAccent },
       handleLabel: { show: false },
       selectedDataBackground: {
-        lineStyle: { color: accentColor, opacity: 0.3 },
-        areaStyle: { color: accentColor, opacity: 0.05 },
+        lineStyle: { color: safeAccent, opacity: 0.3 },
+        areaStyle: { color: safeAccent, opacity: 0.05 },
       },
       textStyle: {
         color: TERTIARY_COLOR,
@@ -179,11 +179,11 @@ function buildLineOption(
     backgroundColor: "transparent",
     grid: chartGrid({ top: 24, right: 16, bottom: showSlider ? 80 : 40, left: 64 }),
     tooltip: chartTooltip("axis", {
-      borderColor: accentColor,
+      borderColor: safeAccent,
       axisPointer: {
         type: "line",
         lineStyle: {
-          color: accentColor,
+          color: safeAccent,
           opacity: 0.3,
           width: 1,
           type: "dashed",
@@ -200,9 +200,9 @@ function buildLineOption(
         if (val === null || val === undefined) return ""
         const display = config.isInteger ? Math.round(val).toLocaleString() : fmtNum(val)
         return (
-          `<div style="font-family:var(--font-mono),monospace;font-size:11px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${items[0].axisValueLabel}</div>` +
-          `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${accentColor};margin-right:6px;box-shadow:0 0 6px ${accentColor};"></span>` +
-          `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${display} ${unit}</span>`
+          chartTooltipHeader(items[0].axisValueLabel) +
+          chartDot(safeAccent) +
+          `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(display)} ${escHtml(unit)}</span>`
         )
       },
     }),
@@ -249,11 +249,11 @@ function buildLineOption(
         connectNulls: true,
         symbol: "circle",
         symbolSize: dotSize,
-        itemStyle: { color: accentColor },
+        itemStyle: { color: safeAccent },
         lineStyle: {
-          color: accentColor,
+          color: safeAccent,
           width: 2,
-          shadowColor: accentColor,
+          shadowColor: safeAccent,
           shadowBlur: 8,
         },
         areaStyle: {
@@ -264,13 +264,13 @@ function buildLineOption(
             x2: 0,
             y2: 1,
             colorStops: [
-              { offset: 0, color: hexToRgba(accentColor, 0.25) },
-              { offset: 1, color: hexToRgba(accentColor, 0) },
+              { offset: 0, color: hexToRgba(safeAccent, 0.25) },
+              { offset: 1, color: hexToRgba(safeAccent, 0) },
             ],
           },
         },
         emphasis: {
-          lineStyle: { shadowBlur: 16, shadowColor: accentColor },
+          lineStyle: { shadowBlur: 16, shadowColor: safeAccent },
         },
       },
     ],
@@ -283,7 +283,7 @@ type DeltaMode = "bar" | "line"
 
 function buildDailyDeltaOption(
   snapshots: Snapshot[],
-  accentColor: string,
+  safeAccent: string,
   mode: DeltaMode = "bar"
 ): EChartsOption | null {
   const buckets = computeDailyDeltas(snapshots)
@@ -301,13 +301,13 @@ function buildDailyDeltaOption(
   const finalUpload = uploadData.map((v) => Number((v / divisor).toFixed(3)))
   const finalDownload = downloadData.map((v) => Number((v / divisor).toFixed(3)))
 
-  const complementColor = getComplementaryColor(accentColor)
+  const complementColor = getComplementaryColor(safeAccent)
 
   return {
     backgroundColor: "transparent",
     grid: chartGrid({ top: 32, right: 16, left: 64 }),
     tooltip: chartTooltip("axis", {
-      borderColor: accentColor,
+      borderColor: safeAccent,
       formatter: (params: unknown) => {
         const items = params as Array<{
           seriesName: string
@@ -320,12 +320,12 @@ function buildDailyDeltaOption(
         const rows = items
           .map(
             (item) =>
-              `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${item.color};margin-right:6px;box-shadow:0 0 6px ${item.color};"></span>` +
-              `<span style="color:${CHART_THEME.textSecondary};">${item.seriesName}:</span> ` +
+              chartDot(item.color) +
+              `<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> ` +
               `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${fmtNum(item.value)} ${unit}</span>`
           )
           .join("<br/>")
-        return `<div style="font-family:var(--font-mono),monospace;font-size:11px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${time}</div>${rows}`
+        return `${chartTooltipHeader(time)}${rows}`
       },
     }),
     legend: {
@@ -372,19 +372,19 @@ function buildDailyDeltaOption(
             smooth: true,
             symbol: "circle",
             symbolSize: buckets.length > 30 ? 2 : buckets.length > 14 ? 4 : 6,
-            itemStyle: { color: accentColor },
-            lineStyle: { color: accentColor, width: 2, shadowColor: accentColor, shadowBlur: 8 },
+            itemStyle: { color: safeAccent },
+            lineStyle: { color: safeAccent, width: 2, shadowColor: safeAccent, shadowBlur: 8 },
             areaStyle: {
               color: {
                 type: "linear",
                 x: 0, y: 0, x2: 0, y2: 1,
                 colorStops: [
-                  { offset: 0, color: hexToRgba(accentColor, 0.25) },
-                  { offset: 1, color: hexToRgba(accentColor, 0) },
+                  { offset: 0, color: hexToRgba(safeAccent, 0.25) },
+                  { offset: 1, color: hexToRgba(safeAccent, 0) },
                 ],
               },
             },
-            emphasis: { lineStyle: { shadowBlur: 16, shadowColor: accentColor } },
+            emphasis: { lineStyle: { shadowBlur: 16, shadowColor: safeAccent } },
           },
           {
             name: "Download Δ",
@@ -414,10 +414,10 @@ function buildDailyDeltaOption(
             type: "bar",
             data: finalUpload,
             itemStyle: {
-              color: accentColor,
+              color: safeAccent,
               borderRadius: [3, 3, 0, 0],
             },
-            emphasis: { itemStyle: { shadowBlur: 8, shadowColor: accentColor } },
+            emphasis: { itemStyle: { shadowBlur: 8, shadowColor: safeAccent } },
           },
           {
             name: "Download Δ",
@@ -443,14 +443,16 @@ function MetricChart({
 }: MetricChartProps) {
   const [deltaMode, setDeltaMode] = useState<DeltaMode>("bar")
 
+  const safeAccent = /^#[0-9a-fA-F]{6}$/.test(accentColor) ? accentColor : CHART_THEME.accent
+
   if (snapshots.length === 0) {
     return <ChartEmptyState height={height} message="No snapshot data yet." />
   }
 
   const option =
     metric === "dailyDelta"
-      ? buildDailyDeltaOption(snapshots, accentColor, deltaMode)
-      : buildLineOption(snapshots, METRIC_CONFIGS[metric], accentColor)
+      ? buildDailyDeltaOption(snapshots, safeAccent, deltaMode)
+      : buildLineOption(snapshots, METRIC_CONFIGS[metric], safeAccent)
 
   if (option === null) {
     return <ChartEmptyState height={height} message="Not enough data for daily deltas." />
@@ -466,12 +468,12 @@ function MetricChart({
                 key={m}
                 type="button"
                 onClick={() => setDeltaMode(m)}
-                className={[
+                className={clsx(
                   "px-2.5 py-1 text-xs font-mono transition-all duration-150 cursor-pointer rounded-nm-sm",
                   deltaMode === m
                     ? "nm-raised-sm text-primary font-semibold"
                     : "text-tertiary hover:text-secondary",
-                ].join(" ")}
+                )}
               >
                 {m === "bar" ? "Bar" : "Line"}
               </button>

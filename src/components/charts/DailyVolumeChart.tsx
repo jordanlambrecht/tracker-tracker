@@ -1,15 +1,16 @@
 // src/components/charts/DailyVolumeChart.tsx
 //
-// Functions: computeDailyDeltas, buildDailyVolumeOption, buildRiverOption, DailyVolumeChart
+// Functions: computePerTrackerDailyDeltas, buildDailyVolumeOption, buildRiverOption, DailyVolumeChart
 
 "use client"
 
+import clsx from "clsx"
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
 import { useState } from "react"
 import type { Snapshot } from "@/types/api"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartAxisLabel, chartGrid, chartTooltip } from "./theme"
+import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -38,7 +39,7 @@ interface DailyDelta {
 // Computation
 // ---------------------------------------------------------------------------
 
-function computeDailyDeltas(snapshots: Snapshot[]): DailyDelta[] {
+function computePerTrackerDailyDeltas(snapshots: Snapshot[]): DailyDelta[] {
   if (snapshots.length === 0) return []
 
   const sorted = [...snapshots].sort(
@@ -81,7 +82,7 @@ function computeTrackerDeltas(trackerData: TrackerDailySeries[]) {
   const trackerDeltas = trackerData.map((t) => ({
     name: t.name,
     color: t.color,
-    deltas: computeDailyDeltas(t.snapshots),
+    deltas: computePerTrackerDailyDeltas(t.snapshots),
   }))
 
   const allDays = new Set<string>()
@@ -191,12 +192,11 @@ function buildDailyVolumeOption(
         const rows = Array.from(trackerMap.entries())
           .filter(([, v]) => v.upload > 0 || v.download > 0)
           .map(([name, v]) => {
-            const dot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${v.color};margin-right:6px;box-shadow:0 0 6px ${v.color};"></span>`
-            return `${dot}<span style="color:${CHART_THEME.textSecondary};">${name}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">↑ ${fmtNum(v.upload)} ${unit}</span> <span style="color:${CHART_THEME.textTertiary};">/</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">↓ ${fmtNum(v.download)} ${unit}</span>`
+            return `${chartDot(v.color)}<span style="color:${CHART_THEME.textSecondary};">${escHtml(name)}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">↑ ${fmtNum(v.upload)} ${unit}</span> <span style="color:${CHART_THEME.textTertiary};">/</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">↓ ${fmtNum(v.download)} ${unit}</span>`
           })
           .join("<br/>")
 
-        return `<div style="font-family:var(--font-mono),monospace;font-size:11px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${day}</div>${rows}`
+        return `${chartTooltipHeader(day)}${rows}`
       },
     }),
     legend: {
@@ -262,17 +262,22 @@ function buildRiverOption(
 
   if (sortedDays.length === 0) return {}
 
+  // Build maps once per tracker, outside the day loop
+  const trackerDeltaMaps = trackerDeltas.map((tracker) => {
+    const m = new Map<string, DailyDelta>()
+    for (const d of tracker.deltas) m.set(d.day, d)
+    return m
+  })
+
   // Build themeRiver data: [date, value, trackerName]
   // Upload deltas only (river doesn't support diverging)
   const riverData: [string, number, string][] = []
 
   for (const day of sortedDays) {
-    for (const tracker of trackerDeltas) {
-      const deltaMap = new Map<string, DailyDelta>()
-      for (const d of tracker.deltas) deltaMap.set(d.day, d)
-      const d = deltaMap.get(day)
+    for (let ti = 0; ti < trackerDeltas.length; ti++) {
+      const d = trackerDeltaMaps[ti].get(day)
       const val = d ? Number((d.uploadGiB / divisor).toFixed(3)) : 0
-      riverData.push([day, val, tracker.name])
+      riverData.push([day, val, trackerDeltas[ti].name])
     }
   }
 
@@ -303,12 +308,11 @@ function buildRiverOption(
           .filter((item) => item.value[1] > 0)
           .sort((a, b) => b.value[1] - a.value[1])
           .map((item) => {
-            const dot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${item.color};margin-right:6px;box-shadow:0 0 6px ${item.color};"></span>`
-            return `${dot}<span style="color:${CHART_THEME.textSecondary};">${item.value[2]}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${fmtNum(item.value[1])} ${unit}</span>`
+            return `${chartDot(item.color)}<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.value[2])}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${fmtNum(item.value[1])} ${unit}</span>`
           })
           .join("<br/>")
 
-        return `<div style="font-family:var(--font-mono),monospace;font-size:11px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${dateLabel}</div>${rows}`
+        return `${chartTooltipHeader(dateLabel)}${rows}`
       },
     }),
     singleAxis: {
@@ -370,12 +374,12 @@ function DailyVolumeChart({ trackerData, height = 360 }: DailyVolumeChartProps) 
               key={m}
               type="button"
               onClick={() => setMode(m)}
-              className={[
+              className={clsx(
                 "px-2.5 py-1 text-xs font-mono transition-all duration-150 cursor-pointer rounded-nm-sm",
                 mode === m
                   ? "nm-raised-sm text-primary font-semibold"
                   : "text-tertiary hover:text-secondary",
-              ].join(" ")}
+              )}
             >
               {m === "bar" ? "Bar" : "River"}
             </button>
@@ -393,5 +397,5 @@ function DailyVolumeChart({ trackerData, height = 360 }: DailyVolumeChartProps) 
   )
 }
 
-export { DailyVolumeChart, computeDailyDeltas }
+export { DailyVolumeChart, computePerTrackerDailyDeltas }
 export type { TrackerDailySeries, DailyVolumeChartProps }
