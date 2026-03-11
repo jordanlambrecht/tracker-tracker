@@ -1,0 +1,243 @@
+// src/components/charts/StorageSunburst.tsx
+//
+// Functions: StorageSunburst, buildOption
+
+"use client"
+
+import type { EChartsOption } from "echarts"
+import ReactECharts from "echarts-for-react"
+import { formatBytesFromNumber, generatePalette, hexToHsl, hslToHex } from "@/lib/formatters"
+import { ChartEmptyState } from "./ChartEmptyState"
+import { CHART_THEME, chartTooltip } from "./theme"
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface StorageSunburstProps {
+  torrents: { name: string; size: number; category: string }[]
+  accentColor: string
+  height?: number
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function sliceColor(
+  categoryColor: string,
+  index: number,
+  total: number
+): string {
+  const [h, s, l] = hexToHsl(categoryColor)
+  const spread = total > 1 ? 0.2 / (total - 1) : 0
+  const offset = total > 1 ? index * spread - 0.1 : 0
+  return hslToHex(h, s, Math.min(Math.max(l + offset, 0.25), 0.85))
+}
+
+// ---------------------------------------------------------------------------
+// Option builder
+// ---------------------------------------------------------------------------
+
+function buildOption(
+  torrents: StorageSunburstProps["torrents"],
+  accentColor: string
+): EChartsOption {
+  const categoryMap = new Map<
+    string,
+    { total: number; items: { name: string; size: number }[] }
+  >()
+
+  for (const t of torrents) {
+    const key = t.category || "(no category)"
+    const entry = categoryMap.get(key) ?? { total: 0, items: [] }
+    entry.total += t.size
+    entry.items.push({ name: t.name, size: t.size })
+    categoryMap.set(key, entry)
+  }
+
+  const sortedCategories = [...categoryMap.entries()].sort(
+    ([, a], [, b]) => b.total - a.total
+  )
+
+  const categoryColors = generatePalette(sortedCategories.length, accentColor)
+
+  const treemapData = sortedCategories.map(([catName, catData], catIdx) => {
+    const catColor = categoryColors[catIdx]
+    const sortedItems = [...catData.items].sort((a, b) => b.size - a.size)
+
+    return {
+      name: catName,
+      value: catData.total,
+      itemStyle: {
+        color: catColor,
+        borderColor: "#282a36",
+        borderWidth: 2,
+        gapWidth: 1,
+      },
+      children: sortedItems.map((item, itemIdx) => ({
+        name: item.name,
+        value: item.size,
+        itemStyle: {
+          color: sliceColor(catColor, itemIdx, sortedItems.length),
+          borderColor: "#282a36",
+          borderWidth: 1,
+        },
+      })),
+    }
+  })
+
+  return {
+    backgroundColor: "transparent",
+    tooltip: chartTooltip("item", {
+      formatter: (params: unknown) => {
+        const p = params as {
+          name: string
+          value: number
+          treePathInfo?: Array<{ name: string; value: number }>
+          color?: string
+        }
+        const path = p.treePathInfo ?? []
+        const itemColor = p.color ?? accentColor
+        const swatch = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${itemColor};margin-right:6px;box-shadow:0 0 6px ${itemColor};"></span>`
+
+        // Leaf node (torrent)
+        if (path.length === 3) {
+          const catName = path[1].name
+          return (
+            `${swatch}` +
+            `<span style="color:${CHART_THEME.textTertiary};font-size:10px;">${catName}</span><br/>` +
+            `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${p.name}</span><br/>` +
+            `<span style="color:${CHART_THEME.textSecondary};">${formatBytesFromNumber(p.value)}</span>`
+          )
+        }
+
+        // Category node
+        if (path.length === 2) {
+          const childCount = treemapData.find((d) => d.name === p.name)?.children.length ?? 0
+          return (
+            `${swatch}` +
+            `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${p.name}</span><br/>` +
+            `<span style="color:${CHART_THEME.textSecondary};">${formatBytesFromNumber(p.value)}</span>` +
+            `<span style="color:${CHART_THEME.textTertiary};font-size:10px;"> · ${childCount} torrent${childCount !== 1 ? "s" : ""}</span>`
+          )
+        }
+
+        return `<span style="color:${CHART_THEME.textPrimary};">${p.name}: ${formatBytesFromNumber(p.value)}</span>`
+      },
+    }),
+    series: [
+      {
+        type: "treemap",
+        data: treemapData,
+        width: "100%",
+        height: "100%",
+        roam: false,
+        nodeClick: "zoomToNode" as const,
+        breadcrumb: {
+          show: true,
+          bottom: 4,
+          itemStyle: {
+            color: "#343648",
+            borderColor: "rgba(148, 163, 184, 0.15)",
+            shadowBlur: 0,
+          },
+          textStyle: {
+            color: CHART_THEME.textSecondary,
+            fontFamily: CHART_THEME.fontMono,
+            fontSize: 11,
+          },
+        },
+        upperLabel: {
+          show: true,
+          height: 24,
+          color: CHART_THEME.textPrimary,
+          fontFamily: CHART_THEME.fontMono,
+          fontSize: 11,
+          fontWeight: "bold" as const,
+          formatter: (params: unknown) => {
+            const p = params as { name: string; value: number }
+            return `${p.name}  ${formatBytesFromNumber(p.value)}`
+          },
+        },
+        label: {
+          show: true,
+          color: CHART_THEME.textTertiary,
+          fontFamily: CHART_THEME.fontMono,
+          fontSize: 9,
+          formatter: "{b}",
+          position: "insideTopLeft" as const,
+        },
+        itemStyle: {
+          borderColor: "#282a36",
+          borderWidth: 2,
+          gapWidth: 2,
+        },
+        levels: [
+          {
+            itemStyle: {
+              borderColor: "#282a36",
+              borderWidth: 3,
+              gapWidth: 3,
+            },
+            upperLabel: { show: true },
+          },
+          {
+            itemStyle: {
+              borderColor: "#282a36",
+              borderWidth: 1,
+              gapWidth: 1,
+            },
+            label: { show: true },
+          },
+        ],
+        emphasis: {
+          itemStyle: {
+            shadowBlur: 12,
+            shadowColor: "rgba(0,0,0,0.4)",
+          },
+          upperLabel: {
+            show: true,
+            color: CHART_THEME.textPrimary,
+          },
+        },
+      },
+    ],
+  } as EChartsOption
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+function StorageSunburst({
+  torrents,
+  accentColor,
+  height = 480,
+}: StorageSunburstProps) {
+  if (torrents.length === 0) {
+    return <ChartEmptyState height={height} message="No torrent data available" />
+  }
+
+  const totalSize = torrents.reduce((sum, t) => sum + t.size, 0)
+  if (totalSize === 0) {
+    return <ChartEmptyState height={height} message="All torrents report zero size" />
+  }
+
+  return (
+    <ReactECharts
+      option={buildOption(torrents, accentColor)}
+      style={{ height, width: "100%" }}
+      opts={{ renderer: "canvas" }}
+      notMerge
+      lazyUpdate
+    />
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Exports
+// ---------------------------------------------------------------------------
+
+export { StorageSunburst }
+export type { StorageSunburstProps }

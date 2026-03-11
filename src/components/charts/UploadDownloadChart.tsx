@@ -1,23 +1,28 @@
 // src/components/charts/UploadDownloadChart.tsx
-/*
- * Available functions:
- *   buildOption    - Build the ECharts option object from snapshot data
- *   UploadDownloadChart - React component (default export)
- */
+//
+// Functions: buildOption, UploadDownloadChart
 
 "use client"
 
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
-import { bytesToGiB } from "@/lib/formatters"
+import { bytesToGiB, getComplementaryColor, hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
+import { ChartEmptyState } from "./ChartEmptyState"
+import { CHART_THEME, chartAxisLabel, chartGrid, chartTooltip } from "./theme"
 
 interface UploadDownloadChartProps {
   snapshots: Snapshot[]
+  accentColor?: string
   height?: number
+  showDataZoom?: boolean
 }
 
-function buildOption(snapshots: Snapshot[]): EChartsOption {
+function buildOption(
+  snapshots: Snapshot[],
+  accentColor: string,
+  showDataZoom: boolean
+): EChartsOption {
   const labels = snapshots.map((s) =>
     new Date(s.polledAt).toLocaleString("en-US", {
       month: "short",
@@ -28,43 +33,67 @@ function buildOption(snapshots: Snapshot[]): EChartsOption {
     })
   )
 
-  const uploadData = snapshots.map((s) =>
-    Number(bytesToGiB(s.uploadedBytes).toFixed(3))
-  )
-  const downloadData = snapshots.map((s) =>
-    Number(bytesToGiB(s.downloadedBytes).toFixed(3))
-  )
+  // Convert to GiB, then auto-detect whether TiB is more readable
+  const uploadGiB = snapshots.map((s) => bytesToGiB(s.uploadedBytes))
+  const downloadGiB = snapshots.map((s) => bytesToGiB(s.downloadedBytes))
+  const maxGiB = Math.max(...uploadGiB, ...downloadGiB, 0)
+  const useTiB = maxGiB >= 1024
+  const divisor = useTiB ? 1024 : 1
+  const unit = useTiB ? "TiB" : "GiB"
 
-  const cyanColor = "#00d4ff"
-  const amberColor = "#f59e0b"
-  const borderSoft = "rgba(148, 163, 184, 0.06)"
-  const tertiaryColor = "#64748b"
-  const tooltipBg = "#151b30"
+  const uploadData = uploadGiB.map((v) => Number((v / divisor).toFixed(3)))
+  const downloadData = downloadGiB.map((v) => Number((v / divisor).toFixed(3)))
+
+  // Adaptive dot size based on data density
+  const dotSize = snapshots.length > 100 ? 2 : snapshots.length > 30 ? 4 : 6
+
+  const complementColor = getComplementaryColor(accentColor)
+
+  const fmtNum = (v: number, decimals = 2): string =>
+    v.toLocaleString(undefined, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    })
+
+  // Dynamic Y-axis padding — recalculates when series are toggled via legend
+  const yAxisPad = (value: { min: number; max: number }) => {
+    const range = value.max - value.min
+    return Math.max(range * 0.15, (value.max || 1) * 0.001)
+  }
+
+  const dataZoom: EChartsOption["dataZoom"] = []
+  if (showDataZoom) {
+    dataZoom.push({
+      type: "slider",
+      bottom: 8,
+      height: 24,
+      borderColor: "rgba(148,163,184,0.08)",
+      backgroundColor: "rgba(40,42,54,0.6)",
+      fillerColor: hexToRgba(accentColor, 0.06),
+      handleStyle: { color: accentColor, borderColor: accentColor },
+      moveHandleStyle: { color: accentColor },
+      handleLabel: { show: false },
+      selectedDataBackground: {
+        lineStyle: { color: accentColor, opacity: 0.3 },
+        areaStyle: { color: accentColor, opacity: 0.05 },
+      },
+      textStyle: {
+        color: CHART_THEME.textTertiary,
+        fontFamily: CHART_THEME.fontMono,
+        fontSize: 10,
+      },
+    })
+  }
 
   return {
     backgroundColor: "transparent",
-    grid: {
-      top: 24,
-      right: 16,
-      bottom: 80,
-      left: 64,
-      containLabel: false,
-    },
-    tooltip: {
-      trigger: "axis",
-      backgroundColor: tooltipBg,
-      borderColor: cyanColor,
-      borderWidth: 1,
-      padding: [8, 12],
-      textStyle: {
-        color: "#e2e8f0",
-        fontFamily: "var(--font-mono), monospace",
-        fontSize: 12,
-      },
+    grid: chartGrid({ top: 24, right: 16, bottom: showDataZoom ? 80 : 40, left: 64 }),
+    tooltip: chartTooltip("axis", {
+      borderColor: accentColor,
       axisPointer: {
         type: "line",
         lineStyle: {
-          color: cyanColor,
+          color: accentColor,
           opacity: 0.3,
           width: 1,
           type: "dashed",
@@ -80,22 +109,28 @@ function buildOption(snapshots: Snapshot[]): EChartsOption {
         if (!items || items.length === 0) return ""
         const time = items[0].axisValueLabel
         const rows = items
-          .map(
-            (item) =>
+          .map((item) => {
+            const primary = `${fmtNum(item.value)} ${unit}`
+            const altVal = useTiB ? item.value * 1024 : item.value / 1024
+            const altUnit = useTiB ? "GiB" : "TiB"
+            const alt = `${fmtNum(altVal)} ${altUnit}`
+            return (
               `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${item.color};margin-right:6px;box-shadow:0 0 6px ${item.color};"></span>` +
-              `<span style="color:#94a3b8;">${item.seriesName}:</span> ` +
-              `<span style="color:#e2e8f0;font-weight:600;">${item.value.toFixed(3)} GiB</span>`
-          )
+              `<span style="color:${CHART_THEME.textSecondary};">${item.seriesName}:</span> ` +
+              `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${primary}</span>` +
+              `<span style="color:${CHART_THEME.textTertiary};font-size:10px;"> (${alt})</span>`
+            )
+          })
           .join("<br/>")
-        return `<div style="font-family:var(--font-mono),monospace;font-size:11px;color:#64748b;margin-bottom:4px;">${time}</div>${rows}`
+        return `<div style="font-family:var(--font-mono),monospace;font-size:11px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${time}</div>${rows}`
       },
-    },
+    }),
     legend: {
       top: 0,
       right: 0,
       textStyle: {
-        color: tertiaryColor,
-        fontFamily: "var(--font-mono), monospace",
+        color: CHART_THEME.textTertiary,
+        fontFamily: CHART_THEME.fontMono,
         fontSize: 11,
       },
       icon: "circle",
@@ -106,83 +141,52 @@ function buildOption(snapshots: Snapshot[]): EChartsOption {
       type: "category",
       data: labels,
       boundaryGap: false,
-      axisLine: { lineStyle: { color: borderSoft } },
+      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
       axisTick: { show: false },
-      axisLabel: {
-        color: tertiaryColor,
-        fontFamily: "var(--font-mono), monospace",
-        fontSize: 10,
-        rotate: 30,
-        interval: "auto",
-      },
+      axisLabel: chartAxisLabel({ rotate: 30, interval: "auto" }),
       splitLine: { show: false },
     },
     yAxis: {
       type: "value",
-      name: "GiB",
+      name: unit,
+      scale: true,
+      // ECharts accepts function callbacks for min/max that recalculate when
+      // series are toggled via legend — the echarts TS types don't express this
+      min: ((value: { min: number; max: number }) =>
+        Math.max(0, Math.floor((value.min - yAxisPad(value)) * 100) / 100)) as unknown as number,
+      max: ((value: { min: number; max: number }) =>
+        Math.ceil((value.max + yAxisPad(value)) * 100) / 100) as unknown as number,
       nameTextStyle: {
-        color: tertiaryColor,
-        fontFamily: "var(--font-mono), monospace",
+        color: CHART_THEME.textTertiary,
+        fontFamily: CHART_THEME.fontMono,
         fontSize: 10,
       },
       axisLine: { show: false },
       axisTick: { show: false },
-      axisLabel: {
-        color: tertiaryColor,
-        fontFamily: "var(--font-mono), monospace",
-        fontSize: 10,
-        formatter: (val: number) => `${val.toFixed(1)}`,
-      },
+      axisLabel: chartAxisLabel({
+        formatter: (val: number) => fmtNum(val, 1),
+      }),
       splitLine: {
         lineStyle: {
-          color: borderSoft,
+          color: CHART_THEME.gridLine,
           width: 1,
         },
       },
     },
-    dataZoom: [
-      {
-        type: "slider",
-        bottom: 8,
-        height: 24,
-        borderColor: "rgba(148,163,184,0.12)",
-        backgroundColor: "rgba(15,20,36,0.6)",
-        fillerColor: "rgba(0,212,255,0.06)",
-        handleStyle: {
-          color: cyanColor,
-          borderColor: cyanColor,
-        },
-        moveHandleStyle: {
-          color: cyanColor,
-        },
-        handleLabel: { show: false },
-        selectedDataBackground: {
-          lineStyle: { color: cyanColor, opacity: 0.3 },
-          areaStyle: { color: cyanColor, opacity: 0.05 },
-        },
-        textStyle: {
-          color: tertiaryColor,
-          fontFamily: "var(--font-mono), monospace",
-          fontSize: 10,
-        },
-      },
-      {
-        type: "inside",
-        zoomOnMouseWheel: true,
-        moveOnMouseMove: true,
-      },
-    ],
+    dataZoom,
     series: [
       {
         name: "Uploaded",
         type: "line",
         data: uploadData,
         smooth: true,
-        symbol: "none",
+        symbol: "circle",
+        symbolSize: dotSize,
+        itemStyle: { color: accentColor },
         lineStyle: {
-          color: cyanColor,
+          color: accentColor,
           width: 2,
-          shadowColor: cyanColor,
+          shadowColor: accentColor,
           shadowBlur: 8,
         },
         areaStyle: {
@@ -193,15 +197,15 @@ function buildOption(snapshots: Snapshot[]): EChartsOption {
             x2: 0,
             y2: 1,
             colorStops: [
-              { offset: 0, color: "rgba(0,212,255,0.25)" },
-              { offset: 1, color: "rgba(0,212,255,0.00)" },
+              { offset: 0, color: hexToRgba(accentColor, 0.25) },
+              { offset: 1, color: hexToRgba(accentColor, 0) },
             ],
           },
         },
         emphasis: {
           lineStyle: {
             shadowBlur: 16,
-            shadowColor: cyanColor,
+            shadowColor: accentColor,
           },
         },
       },
@@ -210,11 +214,13 @@ function buildOption(snapshots: Snapshot[]): EChartsOption {
         type: "line",
         data: downloadData,
         smooth: true,
-        symbol: "none",
+        symbol: "circle",
+        symbolSize: dotSize,
+        itemStyle: { color: complementColor },
         lineStyle: {
-          color: amberColor,
+          color: complementColor,
           width: 2,
-          shadowColor: amberColor,
+          shadowColor: complementColor,
           shadowBlur: 8,
         },
         areaStyle: {
@@ -225,15 +231,15 @@ function buildOption(snapshots: Snapshot[]): EChartsOption {
             x2: 0,
             y2: 1,
             colorStops: [
-              { offset: 0, color: "rgba(245,158,11,0.20)" },
-              { offset: 1, color: "rgba(245,158,11,0.00)" },
+              { offset: 0, color: hexToRgba(complementColor, 0.2) },
+              { offset: 1, color: hexToRgba(complementColor, 0) },
             ],
           },
         },
         emphasis: {
           lineStyle: {
             shadowBlur: 16,
-            shadowColor: amberColor,
+            shadowColor: complementColor,
           },
         },
       },
@@ -243,22 +249,17 @@ function buildOption(snapshots: Snapshot[]): EChartsOption {
 
 function UploadDownloadChart({
   snapshots,
+  accentColor = "#00d4ff",
   height = 400,
+  showDataZoom = false,
 }: UploadDownloadChartProps) {
   if (snapshots.length === 0) {
-    return (
-      <div
-        className="flex items-center justify-center text-tertiary font-mono text-sm"
-        style={{ height }}
-      >
-        No snapshot data yet. Waiting for first poll...
-      </div>
-    )
+    return <ChartEmptyState height={height} message="No snapshot data yet. Waiting for first poll..." />
   }
 
   return (
     <ReactECharts
-      option={buildOption(snapshots)}
+      option={buildOption(snapshots, accentColor, showDataZoom)}
       style={{ height, width: "100%" }}
       opts={{ renderer: "canvas" }}
       notMerge
