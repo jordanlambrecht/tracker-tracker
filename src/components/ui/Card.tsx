@@ -1,45 +1,52 @@
 // src/components/ui/Card.tsx
-import type { HTMLAttributes } from "react"
+import type { CSSProperties, HTMLAttributes } from "react"
+import { cva } from "class-variance-authority"
+import clsx from "clsx"
+import { hexToRgba } from "@/lib/formatters"
 
 type CardElevation = "raised" | "elevated"
-type CardGlowColor = "accent" | "warn" | "danger" | "success"
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   elevation?: CardElevation
   glow?: boolean
-  glowColor?: CardGlowColor
+  glowColor?: string
+  trackerColor?: string
 }
 
-const elevationClasses: Record<CardElevation, string> = {
-  raised: "bg-raised",
-  elevated: "bg-elevated",
-}
-
-const glowClasses: Record<CardGlowColor, string> = {
-  accent: "shadow-glow",
-  warn: "shadow-glow-warn",
-  danger: "shadow-glow-danger",
-  success: "shadow-glow-success",
-}
+const card = cva("p-5", {
+  variants: {
+    elevation: {
+      raised: "bg-raised nm-raised",
+      elevated: "bg-elevated nm-raised-lg",
+    },
+  },
+  defaultVariants: {
+    elevation: "raised",
+  },
+})
 
 function Card({
   elevation = "raised",
   glow = false,
-  glowColor = "accent",
-  className = "",
+  glowColor,
+  trackerColor,
+  className,
+  style,
   children,
   ...props
 }: CardProps) {
+  const glowStyle: CSSProperties = {}
+
+  if (trackerColor) {
+    glowStyle.filter = `drop-shadow(0 0 16px ${hexToRgba(trackerColor, 0.15)})`
+  } else if (glow && glowColor) {
+    glowStyle.filter = `drop-shadow(0 0 16px ${glowColor})`
+  }
+
   return (
     <div
-      className={[
-        "rounded-lg border border-border p-4",
-        elevationClasses[elevation],
-        glow ? glowClasses[glowColor] : "",
-        className,
-      ]
-        .filter(Boolean)
-        .join(" ")}
+      className={clsx(card({ elevation }), "rounded-nm-lg", className)}
+      style={{ ...glowStyle, ...style }}
       {...props}
     >
       {children}
@@ -48,4 +55,4 @@ function Card({
 }
 
 export { Card }
-export type { CardProps, CardElevation, CardGlowColor }
+export type { CardProps, CardElevation }

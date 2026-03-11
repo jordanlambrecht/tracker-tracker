@@ -1,5 +1,7 @@
 // src/components/ui/StatCard.tsx
-import type { HTMLAttributes } from "react"
+import type { HTMLAttributes, ReactNode } from "react"
+import clsx from "clsx"
+import { hexToRgba } from "@/lib/formatters"
 
 type TrendDirection = "up" | "down" | "flat"
 
@@ -7,7 +9,11 @@ interface StatCardProps extends HTMLAttributes<HTMLDivElement> {
   label: string
   value: string | number
   subValue?: string
+  unit?: string
+  subtitle?: string
   trend?: TrendDirection
+  accentColor?: string
+  icon?: ReactNode
 }
 
 const trendConfig: Record<
@@ -23,32 +29,48 @@ function StatCard({
   label,
   value,
   subValue,
+  unit,
+  subtitle,
   trend,
-  className = "",
+  accentColor,
+  icon,
+  className,
+  style,
   ...props
 }: StatCardProps) {
   const trendInfo = trend ? trendConfig[trend] : null
 
   return (
     <div
-      className={[
-        "bg-raised rounded-lg border border-border p-4 flex flex-col gap-2",
-        className,
-      ]
-        .filter(Boolean)
-        .join(" ")}
+      className={clsx("bg-raised p-5 flex flex-col gap-2 nm-raised rounded-nm-lg", className)}
+      style={{
+        filter: accentColor ? `drop-shadow(0 -2px 12px ${hexToRgba(accentColor, 0.1)})` : undefined,
+        ...style,
+      }}
       {...props}
     >
-      <p className="text-xs font-sans font-medium text-tertiary uppercase tracking-wider">
-        {label}
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-sans font-medium text-tertiary uppercase tracking-wider">
+          {label}
+        </p>
+        {icon && (
+          <span className="text-tertiary shrink-0" aria-hidden="true">
+            {icon}
+          </span>
+        )}
+      </div>
       <div className="flex items-end gap-2">
         <span className="font-mono text-2xl font-semibold text-primary leading-none">
           {value}
         </span>
+        {unit && (
+          <span className="font-mono text-sm text-tertiary leading-none mb-1">
+            {unit}
+          </span>
+        )}
         {trendInfo && (
           <span
-            className={["font-mono text-sm leading-none mb-0.5", trendInfo.colorClass].join(" ")}
+            className={clsx("font-mono text-sm leading-none mb-1", trendInfo.colorClass)}
             title={trendInfo.label}
           >
             <span className="sr-only">{trendInfo.label}</span>
@@ -56,6 +78,9 @@ function StatCard({
           </span>
         )}
       </div>
+      {subtitle && (
+        <p className="font-mono text-xs text-muted">{subtitle}</p>
+      )}
       {subValue && (
         <p className="font-mono text-xs text-tertiary">{subValue}</p>
       )}
@@ -65,3 +90,4 @@ function StatCard({
 
 export { StatCard }
 export type { StatCardProps, TrendDirection }
+
