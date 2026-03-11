@@ -4,7 +4,7 @@
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, parseJsonBody, parseTrackerId } from "@/lib/api-helpers"
+import { authenticate, decodeKey, parseJsonBody, parseTrackerId, validateHexColor, validateHttpUrl } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { trackers } from "@/lib/db/schema"
@@ -34,19 +34,14 @@ export async function PATCH(
     if (body.baseUrl.length > 500) {
       return NextResponse.json({ error: "URL must be 500 characters or fewer" }, { status: 400 })
     }
-    try {
-      new URL(body.baseUrl as string)
-      updates.baseUrl = (body.baseUrl as string).trim()
-    } catch {
-      return NextResponse.json({ error: "Invalid baseUrl format" }, { status: 400 })
-    }
+    const urlErr = validateHttpUrl(body.baseUrl as string)
+    if (urlErr) return urlErr
+    updates.baseUrl = (body.baseUrl as string).trim()
   }
-  if (typeof body.pollIntervalMinutes === "number") updates.pollIntervalMinutes = Math.min(1440, Math.max(15, body.pollIntervalMinutes))
   if (typeof body.isActive === "boolean") updates.isActive = body.isActive
   if (typeof body.color === "string") {
-    if (body.color.length > 20) {
-      return NextResponse.json({ error: "Color must be 20 characters or fewer" }, { status: 400 })
-    }
+    const colorErr = validateHexColor(body.color)
+    if (colorErr) return colorErr
     updates.color = body.color
   }
 
@@ -54,14 +49,28 @@ export async function PATCH(
     if (body.qbtTag.length > 100) {
       return NextResponse.json({ error: "qBittorrent tag must be 100 characters or fewer" }, { status: 400 })
     }
-    updates.qbtTag = body.qbtTag.trim()
+    updates.qbtTag = body.qbtTag.trim() || null
+  }
+
+  if (typeof body.useProxy === "boolean") updates.useProxy = body.useProxy
+  if (typeof body.countCrossSeedUnsatisfied === "boolean") updates.countCrossSeedUnsatisfied = body.countCrossSeedUnsatisfied
+  if (typeof body.isFavorite === "boolean") updates.isFavorite = body.isFavorite
+
+  if (body.joinedAt !== undefined) {
+    if (body.joinedAt === null) {
+      updates.joinedAt = null
+    } else if (typeof body.joinedAt === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.joinedAt)) {
+      updates.joinedAt = body.joinedAt
+    } else {
+      return NextResponse.json({ error: "joinedAt must be YYYY-MM-DD or null" }, { status: 400 })
+    }
   }
 
   if (typeof body.apiToken === "string") {
     if (body.apiToken.length > 500) {
       return NextResponse.json({ error: "API token must be 500 characters or fewer" }, { status: 400 })
     }
-    const key = Buffer.from(auth.encryptionKey, "hex")
+    const key = decodeKey(auth)
     updates.encryptedApiToken = encrypt(body.apiToken, key)
   }
 

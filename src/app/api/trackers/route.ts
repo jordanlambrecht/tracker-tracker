@@ -4,16 +4,34 @@
 
 import { desc, eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, parseJsonBody } from "@/lib/api-helpers"
+import { CHART_THEME } from "@/components/charts/theme"
+import { DEFAULT_API_PATHS } from "@/lib/adapters"
+import { authenticate, decodeKey, parseJsonBody, validateHexColor, validateHttpUrl } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { trackerSnapshots, trackers } from "@/lib/db/schema"
+import { appSettings, trackerSnapshots, trackers } from "@/lib/db/schema"
+import { isRedacted, maskUsername } from "@/lib/privacy"
 
 export async function GET() {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const allTrackers = await db.select().from(trackers).orderBy(trackers.name)
+  const allTrackers = await db.select().from(trackers).orderBy(trackers.createdAt)
+
+  // Check privacy setting once for the entire response
+  const [settings] = await db
+    .select({ storeUsernames: appSettings.storeUsernames })
+    .from(appSettings)
+    .limit(1)
+  const privacyMode = settings ? !settings.storeUsernames : false
+
+  // Enforce masking at response time — even if DB has plaintext from before
+  // privacy was enabled, the API never leaks it when privacy mode is on.
+  const mask = (value: string | null | undefined): string | null => {
+    if (!value) return null
+    if (!privacyMode || isRedacted(value)) return value
+    return maskUsername(value)
+  }
 
   // Get latest snapshot for each tracker (for sidebar ratio display)
   const trackersWithStats = await Promise.all(
@@ -31,12 +49,19 @@ export async function GET() {
         name: tracker.name,
         baseUrl: tracker.baseUrl,
         platformType: tracker.platformType,
-        pollIntervalMinutes: tracker.pollIntervalMinutes,
         isActive: tracker.isActive,
         lastPolledAt: tracker.lastPolledAt,
         lastError: tracker.lastError,
         color: tracker.color,
         qbtTag: tracker.qbtTag,
+        useProxy: tracker.useProxy,
+        countCrossSeedUnsatisfied: tracker.countCrossSeedUnsatisfied,
+        isFavorite: tracker.isFavorite,
+        sortOrder: tracker.sortOrder,
+        joinedAt: tracker.joinedAt,
+        remoteUserId: tracker.remoteUserId ?? null,
+        platformMeta: (() => { try { return tracker.platformMeta ? JSON.parse(tracker.platformMeta) : null } catch { return null } })(),
+        createdAt: tracker.createdAt?.toISOString() ?? new Date().toISOString(),
         latestStats: latest
           ? {
               ratio: latest.ratio,
@@ -44,8 +69,11 @@ export async function GET() {
               downloadedBytes: latest.downloadedBytes?.toString(),
               seedingCount: latest.seedingCount,
               leechingCount: latest.leechingCount,
-              username: latest.username,
-              group: latest.group,
+              requiredRatio: latest.requiredRatio ?? null,
+              warned: latest.warned ?? null,
+              freeleechTokens: latest.freeleechTokens ?? null,
+              username: mask(latest.username),
+              group: mask(latest.group),
             }
           : null,
       }
@@ -62,25 +90,19 @@ export async function POST(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const { name, baseUrl, apiToken, platformType, pollIntervalMinutes, color, qbtTag } = body as {
+  const { name, baseUrl, apiToken, platformType, color, qbtTag, joinedAt } = body as {
     name?: string
     baseUrl?: string
     apiToken?: string
     platformType?: string
-    pollIntervalMinutes?: number
     color?: string
     qbtTag?: string
+    joinedAt?: string
   }
 
-  if (!name || !baseUrl || !apiToken) {
-    return NextResponse.json(
-      { error: "name, baseUrl, and apiToken are required" },
-      { status: 400 }
-    )
-  }
-
-  if (typeof name !== "string" || typeof baseUrl !== "string" || typeof apiToken !== "string") {
-    return NextResponse.json({ error: "Invalid field types" }, { status: 400 })
+  if (typeof name !== "string" || typeof baseUrl !== "string" || typeof apiToken !== "string" ||
+      !name.trim() || !baseUrl.trim() || !apiToken.trim()) {
+    return NextResponse.json({ error: "name, baseUrl, and apiToken are required strings" }, { status: 400 })
   }
 
   if (name.length > 100) {
@@ -95,28 +117,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "API token must be 500 characters or fewer" }, { status: 400 })
   }
 
-  // Validate URL format
-  try {
-    new URL(baseUrl)
-  } catch {
-    return NextResponse.json({ error: "Invalid baseUrl format" }, { status: 400 })
-  }
+  const urlErr = validateHttpUrl(baseUrl)
+  if (urlErr) return urlErr
 
-  if (typeof color === "string" && color.length > 20) {
-    return NextResponse.json({ error: "Color must be 20 characters or fewer" }, { status: 400 })
+  if (typeof color === "string") {
+    const colorErr = validateHexColor(color)
+    if (colorErr) return colorErr
   }
 
   if (typeof qbtTag === "string" && qbtTag.length > 100) {
     return NextResponse.json({ error: "qBittorrent tag must be 100 characters or fewer" }, { status: 400 })
   }
 
-  const validPlatforms = ["unit3d"]
+  const validPlatforms = ["unit3d", "gazelle", "ggn"]
   const platform = typeof platformType === "string" ? platformType : "unit3d"
   if (!validPlatforms.includes(platform)) {
     return NextResponse.json({ error: "Invalid platform type" }, { status: 400 })
   }
 
-  const key = Buffer.from(auth.encryptionKey, "hex")
+  const key = decodeKey(auth)
   const encryptedApiToken = encrypt(apiToken, key)
 
   const [tracker] = await db
@@ -124,11 +143,12 @@ export async function POST(request: Request) {
     .values({
       name: name.trim(),
       baseUrl: baseUrl.trim(),
+      apiPath: DEFAULT_API_PATHS[platform] ?? "/api/user",
       encryptedApiToken,
       platformType: platform,
-      pollIntervalMinutes: typeof pollIntervalMinutes === "number" ? Math.min(1440, Math.max(15, pollIntervalMinutes)) : 360,
-      color: (color as string) || "#00d4ff",
+      color: (color as string) || CHART_THEME.accent,
       qbtTag: typeof qbtTag === "string" ? qbtTag.trim() : null,
+      joinedAt: typeof joinedAt === "string" && joinedAt ? joinedAt : null,
     })
     .returning()
 

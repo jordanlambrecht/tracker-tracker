@@ -1,8 +1,9 @@
 // src/lib/totp.ts
 //
 // Functions: generateTotpSecret, verifyTotpCode, generateBackupCodes, hashBackupCode, verifyAndConsumeBackupCode
+// Constants: BACKUP_CODE_PATTERN
 
-import { createHash, randomBytes } from "node:crypto"
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto"
 import { TOTP, Secret } from "otpauth"
 
 const ISSUER = "Tracker Tracker"
@@ -11,6 +12,8 @@ const TOTP_DIGITS = 6
 const TOTP_ALGORITHM = "SHA1"
 const BACKUP_CODE_COUNT = 8
 const BACKUP_CODE_LENGTH = 8
+
+export const BACKUP_CODE_PATTERN = /^[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}$/
 
 export interface BackupCodeEntry {
   hash: string
@@ -82,7 +85,9 @@ export function verifyAndConsumeBackupCode(
       .update(normalized + entries[i].salt)
       .digest("hex")
 
-    if (candidate === entries[i].hash) {
+    const a = Buffer.from(candidate, "hex")
+    const b = Buffer.from(entries[i].hash, "hex")
+    if (a.length === b.length && timingSafeEqual(a, b)) {
       const updatedEntries = entries.map((entry, idx) =>
         idx === i ? { ...entry, used: true } : entry
       )

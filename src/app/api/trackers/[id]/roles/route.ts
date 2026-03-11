@@ -51,8 +51,14 @@ export async function POST(
     return NextResponse.json({ error: "Role name must be 255 characters or fewer" }, { status: 400 })
   }
 
-  if (achievedAt && Number.isNaN(new Date(achievedAt).getTime())) {
-    return NextResponse.json({ error: "Invalid date format for achievedAt" }, { status: 400 })
+  if (achievedAt !== undefined) {
+    if (typeof achievedAt !== "string" || Number.isNaN(new Date(achievedAt).getTime())) {
+      return NextResponse.json({ error: "Invalid date format for achievedAt" }, { status: 400 })
+    }
+  }
+
+  if (typeof notes === "string" && notes.length > 2000) {
+    return NextResponse.json({ error: "Notes must be 2000 characters or fewer" }, { status: 400 })
   }
 
   const [role] = await db

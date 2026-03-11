@@ -1,6 +1,7 @@
 // src/app/api/trackers/tracker-routes.test.ts
 import { NextResponse } from "next/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { CHART_THEME } from "@/components/charts/theme"
 import { authenticate, parseJsonBody, parseTrackerId } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { pollTracker } from "@/lib/scheduler"
@@ -10,11 +11,15 @@ import { DELETE, PATCH } from "./[id]/route"
 import { GET as SnapshotsGET } from "./[id]/snapshots/route"
 import { GET, POST } from "./route"
 
-vi.mock("@/lib/api-helpers", () => ({
-  authenticate: vi.fn(),
-  parseTrackerId: vi.fn(),
-  parseJsonBody: vi.fn(),
-}))
+vi.mock("@/lib/api-helpers", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/api-helpers")>()
+  return {
+    ...actual,
+    authenticate: vi.fn(),
+    parseTrackerId: vi.fn(),
+    parseJsonBody: vi.fn(),
+  }
+})
 
 vi.mock("@/lib/db", () => ({
   db: {
@@ -27,11 +32,30 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/crypto", () => ({
   encrypt: vi.fn().mockReturnValue("encrypted-token"),
+  decrypt: vi.fn().mockReturnValue("decrypted-value"),
+}))
+
+vi.mock("@/lib/proxy", () => ({
+  createProxyAgent: vi.fn(),
+  buildProxyAgentFromSettings: vi.fn().mockReturnValue(undefined),
+  VALID_PROXY_TYPES: new Set(["socks5", "http", "https"]),
 }))
 
 vi.mock("@/lib/scheduler", () => ({
   pollTracker: vi.fn(),
 }))
+
+vi.mock("@/lib/privacy", () => ({
+  isRedacted: vi.fn().mockReturnValue(false),
+  maskUsername: vi.fn((v: string) => `▓${v.length}`),
+}))
+
+// Returns a chainable mock for: db.select({...}).from(appSettings).limit(1)
+function mockSettingsSelect(storeUsernames = true) {
+  const mockLimit = vi.fn().mockResolvedValue([{ storeUsernames }])
+  const mockFrom = vi.fn().mockReturnValue({ limit: mockLimit })
+  return { from: mockFrom }
+}
 
 const VALID_KEY = "abcd1234".repeat(8)
 
@@ -61,11 +85,10 @@ describe("GET /api/trackers", () => {
       name: "Aither",
       baseUrl: "https://aither.cc",
       platformType: "unit3d",
-      pollIntervalMinutes: 360,
       isActive: true,
       lastPolledAt: null,
       lastError: null,
-      color: "#00d4ff",
+      color: CHART_THEME.accent,
       encryptedApiToken: "should-not-appear",
     }
     const snapshot = {
@@ -93,6 +116,7 @@ describe("GET /api/trackers", () => {
 
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFromTrackers })
+      .mockReturnValueOnce(mockSettingsSelect())
       .mockReturnValueOnce({ from: mockFromSnapshot })
 
     const response = await GET()
@@ -109,7 +133,9 @@ describe("GET /api/trackers", () => {
   it("returns empty array when no trackers", async () => {
     const mockOrderBy = vi.fn().mockResolvedValue([])
     const mockFrom = vi.fn().mockReturnValue({ orderBy: mockOrderBy })
-    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue({ from: mockFrom })
+    ;(db.select as ReturnType<typeof vi.fn>)
+      .mockReturnValueOnce({ from: mockFrom })
+      .mockReturnValueOnce(mockSettingsSelect())
 
     const response = await GET()
     const data = await response.json()
@@ -133,11 +159,10 @@ describe("GET /api/trackers", () => {
       name: "Aither",
       baseUrl: "https://aither.cc",
       platformType: "unit3d",
-      pollIntervalMinutes: 360,
       isActive: true,
       lastPolledAt: null,
       lastError: null,
-      color: "#00d4ff",
+      color: CHART_THEME.accent,
       encryptedApiToken: "super-secret-token",
     }
 
@@ -150,6 +175,7 @@ describe("GET /api/trackers", () => {
 
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFromTrackers })
+      .mockReturnValueOnce(mockSettingsSelect())
       .mockReturnValueOnce({ from: mockFromSnapshot })
 
     const response = await GET()
@@ -303,62 +329,6 @@ describe("POST /api/trackers", () => {
     expect(data.error).toMatch(/color/i)
   })
 
-  it("clamps poll interval to minimum 15", async () => {
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
-      name: "Aither",
-      baseUrl: "https://aither.cc",
-      apiToken: "mytoken",
-      pollIntervalMinutes: 5,
-    })
-
-    let capturedValues: unknown = null
-    const mockReturning = vi.fn().mockResolvedValue([{ id: 1, name: "Aither" }])
-    const mockValues = vi.fn().mockImplementation((v) => {
-      capturedValues = v
-      return { returning: mockReturning }
-    })
-    ;(db.insert as ReturnType<typeof vi.fn>).mockReturnValue({ values: mockValues })
-
-    const request = makeRequest("http://localhost/api/trackers", {
-      name: "Aither",
-      baseUrl: "https://aither.cc",
-      apiToken: "mytoken",
-      pollIntervalMinutes: 5,
-    }, "POST")
-    await POST(request)
-
-    expect(capturedValues).not.toBeNull()
-    expect((capturedValues as Record<string, unknown>).pollIntervalMinutes).toBe(15)
-  })
-
-  it("clamps poll interval to maximum 1440", async () => {
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
-      name: "Aither",
-      baseUrl: "https://aither.cc",
-      apiToken: "mytoken",
-      pollIntervalMinutes: 9999,
-    })
-
-    let capturedValues: unknown = null
-    const mockReturning = vi.fn().mockResolvedValue([{ id: 1, name: "Aither" }])
-    const mockValues = vi.fn().mockImplementation((v) => {
-      capturedValues = v
-      return { returning: mockReturning }
-    })
-    ;(db.insert as ReturnType<typeof vi.fn>).mockReturnValue({ values: mockValues })
-
-    const request = makeRequest("http://localhost/api/trackers", {
-      name: "Aither",
-      baseUrl: "https://aither.cc",
-      apiToken: "mytoken",
-      pollIntervalMinutes: 9999,
-    }, "POST")
-    await POST(request)
-
-    expect(capturedValues).not.toBeNull()
-    expect((capturedValues as Record<string, unknown>).pollIntervalMinutes).toBe(1440)
-  })
-
   it("returns 401 when unauthenticated", async () => {
     ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue(
       NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -472,27 +442,6 @@ describe("PATCH /api/trackers/[id]", () => {
     expect(data.error).toMatch(/token/i)
   })
 
-  it("clamps poll interval within bounds", async () => {
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
-      pollIntervalMinutes: 1,
-    })
-
-    let capturedSet: unknown = null
-    const mockWhere = vi.fn().mockResolvedValue([])
-    const mockSet = vi.fn().mockImplementation((s) => {
-      capturedSet = s
-      return { where: mockWhere }
-    })
-    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
-
-    const request = makeRequest("http://localhost/api/trackers/1", { pollIntervalMinutes: 1 }, "PATCH")
-    const params = Promise.resolve({ id: "1" })
-    await PATCH(request, { params })
-
-    expect(capturedSet).not.toBeNull()
-    expect((capturedSet as Record<string, unknown>).pollIntervalMinutes).toBe(15)
-  })
-
   it("accepts boolean isActive update", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
       isActive: false,
@@ -586,6 +535,33 @@ describe("POST /api/trackers/[id]/poll", () => {
       encryptionKey: VALID_KEY,
     })
     ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
+
+    // Poll route makes two db.select() calls:
+    //   1. Cooldown check: select({ lastPolledAt }).from(trackers).where(...).limit(1)
+    //   2. Settings: select({...}).from(appSettings).limit(1)
+    let selectCallCount = 0
+    ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      selectCallCount++
+      if (selectCallCount === 1) {
+        // Cooldown check — return lastPolledAt far enough in the past
+        const mockLimit = vi.fn().mockResolvedValue([{ lastPolledAt: new Date(0) }])
+        const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit })
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere })
+        return { from: mockFrom }
+      }
+      // Settings query
+      const mockLimit = vi.fn().mockResolvedValue([{
+        storeUsernames: true,
+        proxyEnabled: false,
+        proxyType: "socks5",
+        proxyHost: null,
+        proxyPort: 1080,
+        proxyUsername: null,
+        encryptedProxyPassword: null,
+      }])
+      const mockFrom = vi.fn().mockReturnValue({ limit: mockLimit })
+      return { from: mockFrom }
+    })
   })
 
   it("returns 200 on happy path", async () => {
@@ -626,6 +602,23 @@ describe("POST /api/trackers/[id]/poll", () => {
     expect(data.error).toBe("Poll failed")
   })
 
+  it("returns 429 when tracker was polled within cooldown period", async () => {
+    ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      const mockLimit = vi.fn().mockResolvedValue([{ lastPolledAt: new Date() }])
+      const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit })
+      const mockFrom = vi.fn().mockReturnValue({ where: mockWhere })
+      return { from: mockFrom }
+    })
+
+    const request = makeRequest("http://localhost/api/trackers/1/poll", undefined, "POST")
+    const params = Promise.resolve({ id: "1" })
+    const response = await PollPOST(request, { params })
+    const data = await response.json()
+
+    expect(response.status).toBe(429)
+    expect(data.error).toMatch(/Poll cooldown/)
+  })
+
   it("returns 401 when unauthenticated", async () => {
     ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue(
       NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -658,11 +651,13 @@ describe("GET /api/trackers/[id]/snapshots", () => {
     ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
   })
 
-  function buildSnapshotDbMock(result: unknown[]) {
+  function buildSnapshotDbMock(result: unknown[], storeUsernames = true) {
     const mockOrderBy = vi.fn().mockResolvedValue(result)
     const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy })
     const mockFrom = vi.fn().mockReturnValue({ where: mockWhere })
-    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue({ from: mockFrom })
+    ;(db.select as ReturnType<typeof vi.fn>)
+      .mockReturnValueOnce({ from: mockFrom })
+      .mockReturnValueOnce(mockSettingsSelect(storeUsernames))
   }
 
   it("returns snapshots with default 30 days and serialized bigints", async () => {
@@ -719,8 +714,8 @@ describe("GET /api/trackers/[id]/snapshots", () => {
     expect(response.status).toBe(200)
   })
 
-  it("clamps days to maximum 365", async () => {
-    // Smoke test: clamping logic is verified via Math.min(..., 365) in source.
+  it("clamps days to maximum 3650", async () => {
+    // Smoke test: clamping logic is verified via Math.min(..., 3650) in source.
     // The route returns 200 for any days value, clamped internally.
     buildSnapshotDbMock([])
 

@@ -15,10 +15,8 @@ import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
 import { startScheduler } from "@/lib/scheduler"
 import type { BackupCodeEntry } from "@/lib/totp"
-import { verifyAndConsumeBackupCode, verifyTotpCode } from "@/lib/totp"
+import { BACKUP_CODE_PATTERN, verifyAndConsumeBackupCode, verifyTotpCode } from "@/lib/totp"
 import { recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"
-
-const BACKUP_CODE_PATTERN = /^[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}$/
 
 export async function POST(request: Request) {
   const body = await parseJsonBody(request)
