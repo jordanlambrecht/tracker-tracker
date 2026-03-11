@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 *.pem
+.cache/
 
 # debug
 npm-debug.log*
@@ -31,8 +32,20 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files
+.env
 .env.local
 .env*.local
+
+# working docs (plans, audits, etc.)
+docs/plans/
+docs/audit/
+docs/superpowers/*
+docs/superpowers/specs/
+.claude/
+.history/
+.serena/
+.playwright-mcp/
+.interface-design/
 
 # vercel
 .vercel
