@@ -51,6 +51,7 @@ function TwoFactorSetup() {
   const [setupData, setSetupData] = useState<SetupData | null>(null)
   const [totpCode, setTotpCode] = useState("")
   const [disableCode, setDisableCode] = useState("")
+  const [disablePassword, setDisablePassword] = useState("")
   const [enableBackupCodes, setEnableBackupCodes] = useState(true)
   const [backupCodes, setBackupCodes] = useState<string[]>([])
   const [useBackupCode, setUseBackupCode] = useState(false)
@@ -140,14 +141,20 @@ function TwoFactorSetup() {
     }
 
     if (enableBackupCodes && backupCodes.length > 0) {
+      setSetupData(null) // Clear TOTP secret from memory
       setStep("backup-codes")
     } else {
+      setSetupData(null)
       setStep("enabled")
     }
   }, [totpCode, setupData, enableBackupCodes, backupCodes.length])
 
   const handleDisable = useCallback(async () => {
     const code = disableCode.trim()
+    if (!disablePassword) {
+      setError("Enter your master password")
+      return
+    }
     if (!code) {
       setError("Enter your authenticator code")
       return
@@ -160,7 +167,7 @@ function TwoFactorSetup() {
       const res = await fetch("/api/auth/totp/disable", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, isBackupCode: useBackupCode }),
+        body: JSON.stringify({ code, isBackupCode: useBackupCode, password: disablePassword }),
       })
       const data: ApiError = await res.json()
       if (!res.ok) {
@@ -176,15 +183,18 @@ function TwoFactorSetup() {
 
     setStep("idle")
     setDisableCode("")
+    setDisablePassword("")
     setUseBackupCode(false)
     setSetupData(null)
     setBackupCodes([])
-  }, [disableCode, useBackupCode])
+  }, [disableCode, disablePassword, useBackupCode])
 
   function handleCopyAll() {
     navigator.clipboard.writeText(backupCodes.join("\n")).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
+    }).catch(() => {
+      setError("Copy failed — select the text manually")
     })
   }
 
@@ -193,6 +203,8 @@ function TwoFactorSetup() {
     navigator.clipboard.writeText(setupData.secret).then(() => {
       setCopiedSecret(true)
       setTimeout(() => setCopiedSecret(false), 2000)
+    }).catch(() => {
+      setError("Copy failed — select the text manually")
     })
   }
 
@@ -207,6 +219,7 @@ function TwoFactorSetup() {
   function handleCancelDisable() {
     setStep("enabled")
     setDisableCode("")
+    setDisablePassword("")
     setError(null)
     setUseBackupCode(false)
   }
@@ -369,6 +382,7 @@ function TwoFactorSetup() {
               onClick={() => {
                 setStep("enabled")
                 setBackupCodes([])
+                setSetupData(null)
               }}
             >
               I&apos;ve saved my codes
@@ -391,6 +405,7 @@ function TwoFactorSetup() {
               onClick={() => {
                 setStep("disable-prompt")
                 setDisableCode("")
+                setDisablePassword("")
                 setError(null)
                 setUseBackupCode(false)
               }}
@@ -404,9 +419,20 @@ function TwoFactorSetup() {
       {/* ── State: Disable prompt ──────────────────────────────── */}
       {(step === "disable-prompt" || step === "disabling") && (
         <div
-          className="nm-inset-sm p-4 flex flex-col gap-3 rounded-nm-md"
-          style={{ backgroundColor: "var(--color-danger-dim)" }}
+          className="nm-inset-sm p-4 flex flex-col gap-3 rounded-nm-md bg-danger-dim"
         >
+          <Input
+            label="Master Password"
+            type="password"
+            value={disablePassword}
+            onChange={(e) => {
+              setDisablePassword(e.target.value)
+              setError(null)
+            }}
+            placeholder="Enter your master password"
+            autoComplete="current-password"
+          />
+
           {useBackupCode ? (
             <Input
               label="Backup Code"
@@ -449,7 +475,7 @@ function TwoFactorSetup() {
               size="sm"
               variant="danger"
               onClick={handleDisable}
-              disabled={step === "disabling" || !disableCode.trim()}
+              disabled={step === "disabling" || !disableCode.trim() || !disablePassword.trim()}
             >
               {step === "disabling" ? "Disabling..." : "Confirm Disable"}
             </Button>
@@ -458,33 +484,17 @@ function TwoFactorSetup() {
             </Button>
           </div>
 
-          {!useBackupCode && (
-            <button
-              type="button"
-              onClick={() => {
-                setUseBackupCode(true)
-                setDisableCode("")
-                setError(null)
-              }}
-              className="text-xs font-sans text-tertiary hover:text-secondary transition-colors cursor-pointer self-start"
-            >
-              Use a backup code instead
-            </button>
-          )}
-
-          {useBackupCode && (
-            <button
-              type="button"
-              onClick={() => {
-                setUseBackupCode(false)
-                setDisableCode("")
-                setError(null)
-              }}
-              className="text-xs font-sans text-tertiary hover:text-secondary transition-colors cursor-pointer self-start"
-            >
-              Use authenticator code instead
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => {
+              setUseBackupCode(!useBackupCode)
+              setDisableCode("")
+              setError(null)
+            }}
+            className="text-xs font-sans text-tertiary hover:text-secondary transition-colors cursor-pointer self-start"
+          >
+            {useBackupCode ? "Use authenticator code instead" : "Use a backup code instead"}
+          </button>
         </div>
       )}
     </div>

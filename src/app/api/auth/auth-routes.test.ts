@@ -11,6 +11,7 @@ vi.mock("@/lib/db", () => ({
     insert: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    transaction: vi.fn(),
   },
 }))
 
@@ -57,14 +58,31 @@ function makeInsertChain() {
   return { mockValues }
 }
 
+/** Mock db.transaction to execute the callback with a mock tx that mirrors db */
+function mockTransaction(txSelectResult: unknown) {
+  const txMockValues = vi.fn().mockResolvedValue(undefined)
+  const txMockLimit = vi.fn().mockResolvedValue(txSelectResult)
+  const txMockFrom = vi.fn().mockReturnValue({ limit: txMockLimit })
+  const tx = {
+    select: vi.fn().mockReturnValue({ from: txMockFrom }),
+    insert: vi.fn().mockReturnValue({ values: txMockValues }),
+  }
+  ;(db.transaction as ReturnType<typeof vi.fn>).mockImplementation(
+    async (cb: (t: Record<string, unknown>) => Promise<unknown>) => cb(tx)
+  )
+  return { tx, txMockValues }
+}
+
 describe("POST /api/auth/setup", () => {
   beforeEach(() => {
     vi.restoreAllMocks()
   })
 
   it("returns 200 with success true when not yet configured", async () => {
+    // Pre-flight check returns empty (not configured)
     makeSelectChain([])
-    const { mockValues } = makeInsertChain()
+    // Transaction: tx.select returns empty, tx.insert succeeds
+    const { txMockValues } = mockTransaction([])
     ;(hashPassword as ReturnType<typeof vi.fn>).mockResolvedValue("hashed")
     ;(generateSalt as ReturnType<typeof vi.fn>).mockReturnValue("salt123")
 
@@ -79,7 +97,7 @@ describe("POST /api/auth/setup", () => {
 
     expect(response.status).toBe(200)
     expect(body).toEqual({ success: true })
-    expect(mockValues).toHaveBeenCalledWith(
+    expect(txMockValues).toHaveBeenCalledWith(
       expect.objectContaining({
         passwordHash: expect.any(String),
         encryptionSalt: expect.any(String),
@@ -95,7 +113,7 @@ describe("POST /api/auth/setup", () => {
     const req = new Request("http://localhost/api/auth/setup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "valid-password-123" }),
+      body: JSON.stringify({ password: "valid-password-123", username: "admin" }),
     })
     const response = await POST(req)
     const body = await response.json()
@@ -170,7 +188,7 @@ describe("POST /api/auth/setup", () => {
 
   it("accepts password of exactly 8 characters", async () => {
     makeSelectChain([])
-    makeInsertChain()
+    mockTransaction([])
     ;(hashPassword as ReturnType<typeof vi.fn>).mockResolvedValue("hashed")
     ;(generateSalt as ReturnType<typeof vi.fn>).mockReturnValue("salt123")
 
@@ -247,7 +265,7 @@ describe("POST /api/auth/setup", () => {
 
   it("accepts username of exactly 3 characters", async () => {
     makeSelectChain([])
-    makeInsertChain()
+    mockTransaction([])
     ;(hashPassword as ReturnType<typeof vi.fn>).mockResolvedValue("hashed")
     ;(generateSalt as ReturnType<typeof vi.fn>).mockReturnValue("salt123")
 
@@ -264,7 +282,7 @@ describe("POST /api/auth/setup", () => {
 
   it("accepts password of exactly 128 characters", async () => {
     makeSelectChain([])
-    makeInsertChain()
+    mockTransaction([])
     ;(hashPassword as ReturnType<typeof vi.fn>).mockResolvedValue("hashed")
     ;(generateSalt as ReturnType<typeof vi.fn>).mockReturnValue("salt123")
 
