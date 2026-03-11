@@ -100,6 +100,8 @@ Configured in `next.config.ts` for all routes:
 
 - `X-Content-Type-Options: nosniff`
 - `X-Frame-Options: DENY`
+- `X-XSS-Protection: 0` (disables legacy XSS auditor; modern browsers ignore it, but setting to 0 prevents IE/Edge quirks)
+- `X-DNS-Prefetch-Control: off` (prevents DNS prefetching which can leak browsing activity)
 - `Referrer-Policy: strict-origin-when-cross-origin`
 - `Permissions-Policy: camera=(), microphone=(), geolocation=()`
 
@@ -233,20 +235,19 @@ The backup/restore system (`src/lib/backup.ts`, `src/app/api/settings/backup/`) 
 
 ## Security Testing
 
-Security invariants are verified by 41 automated tests in `src/lib/__tests__/security.test.ts`:
+Security invariants are verified by 80 automated tests in `src/lib/__tests__/security.test.ts`:
 
 | Category | Tests | What's Verified |
 |---|---|---|
-| Auth enforcement | 18 | Every protected route returns 401 without valid session (GET/POST/PATCH/DELETE trackers, snapshots, roles, reorder, settings, TOTP setup/confirm/disable, change-password, lockdown, nuke, proxy-test) |
+| Auth enforcement | 52 | Every protected route returns 401 without valid session — trackers, snapshots, roles, reorder, poll-all, settings, dashboard, quicklinks, reset-stats, logs, clients (CRUD + test + torrents + snapshots + speeds), tag-groups (CRUD + members + member CRUD), fleet (snapshots + torrents), TOTP setup/confirm/disable, change-password, lockdown, nuke, proxy-test, backup (export + restore + history + get + delete), changelog, logout |
 | Token leakage | 2 | `encryptedApiToken` never appears in API responses (list + detail) |
 | Setup protection | 1 | Setup cannot be re-triggered after initial configuration |
-| Input validation | 7 | URL scheme allowlist, hex color validation, poll interval clamping, oversized input rejection |
+| Input validation | 14 | URL scheme allowlist, hex color validation, poll interval clamping, oversized input rejection, API token max length, qBT tag max length, role name max length, notes max length, date format validation, tracker ID validation |
 | Crypto integrity | 5 | Encrypt/decrypt round-trip, tampered ciphertext rejected, wrong key rejected, truncated ciphertext rejected, random IV uniqueness |
-| TOTP auth | 2 | TOTP confirm and disable require valid session |
 | Key zeroing | 2 | Encryption key buffer is zero-filled on scheduler stop; double-stop is safe |
 | Backup auth | 4 | Export, restore, history, and delete routes return 401 without valid session |
 
-Additional security-relevant tests exist across other test files (248 total tests).
+Additional security-relevant tests exist across other test files.
 
 Run the full test suite:
 
@@ -260,28 +261,29 @@ The GitHub Actions workflow (`.github/workflows/ci.yml`) runs on every push and 
 
 1. **Type check** (`pnpm tsc`) — catches type errors before runtime
 2. **Full test suite** (`pnpm test:run`) — all 248 tests including security invariants
-3. **Security test count guard** — fails the build if the security test count drops below 41, preventing accidental removal of security tests
+3. **Security test count guard** — fails the build if the security test count drops below 78, preventing accidental removal of security tests
 4. **Static security audit** (`scripts/security-audit.ts`) — runs on every PR, comments results on the PR, and fails on critical findings
 
 The count guard ensures that security coverage is monotonically non-decreasing. If a security test is removed or refactored, CI will fail until the count is restored or the threshold is explicitly updated.
 
 ### Static Security Audit
 
-The security audit (`scripts/security-audit.ts`) performs 9 automated checks on every PR:
+The security audit (`scripts/security-audit.ts`) performs 10 automated checks on every push and PR:
 
 | # | Check | Severity | What's Verified |
 |---|-------|----------|-----------------|
 | 1 | Auth enforcement | Critical | Every non-public API route calls `authenticate()` or `getSession()` |
 | 2 | Dangerous functions | Critical | No code-injection-risk functions in source |
 | 3 | Hardcoded secrets | Critical | No AWS keys, private keys, PATs, or API keys in source |
-| 4 | Security headers | Critical | All 5 required headers present in `next.config.ts` |
+| 4 | Security headers | Critical | All 6 required headers present in `next.config.ts` |
 | 5 | Cookie security | Critical | All cookie operations use `httpOnly`, `sameSite: "strict"`, `secure` |
 | 6 | Sensitive field exposure | Critical | `encryptedApiToken`, `passwordHash`, etc. not in API responses |
 | 7 | Env files | Critical | No `.env` files tracked by git |
 | 8 | Console in routes | Warning | No `console.log/debug/info` in API route handlers |
 | 9 | TODO in security files | Warning | No `TODO`/`FIXME` in security-critical source files |
+| 10 | Raw SQL in routes | Critical | No `db.execute()` in API route handlers (use Drizzle query builder) |
 
-Critical failures block the PR. Warnings are reported but don't block.
+Critical failures block the build. Warnings are reported but don't block.
 
 Run locally: `npx tsx scripts/security-audit.ts`
 
