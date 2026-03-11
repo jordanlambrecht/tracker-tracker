@@ -36,6 +36,7 @@ import { oldtoons } from "./oldtoons"
 import { onlyencodes } from "./onlyencodes"
 import { orpheus } from "./orpheus"
 import { passthepopcorn } from "./passthepopcorn"
+import { phoenixproject } from "./phoenixproject"
 import { pier720 } from "./720pier"
 import { privatehd } from "./privatehd"
 import { racing4everyone } from "./racing4everyone"
@@ -80,6 +81,7 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   onlyencodes,
   orpheus,
   passthepopcorn,
+  phoenixproject,
   pier720,
   privatehd,
   racing4everyone,
