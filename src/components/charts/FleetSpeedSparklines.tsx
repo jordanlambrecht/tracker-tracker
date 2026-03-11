@@ -6,11 +6,11 @@
 
 "use client"
 
-import { useEffect, useRef, useState } from "react"
-import { formatBytesFromNumber } from "@/lib/formatters"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Card } from "@/components/ui/Card"
-import { CHART_THEME } from "./theme"
+import { formatBytesFromNumber } from "@/lib/formatters"
 import { ChartEmptyState } from "./ChartEmptyState"
+import { CHART_THEME } from "./theme"
 
 // ── Constants ──
 
@@ -108,7 +108,7 @@ function MiniSparkline({ values, color }: MiniSparklineProps) {
       width={SPARKLINE_WIDTH}
       height={SPARKLINE_HEIGHT}
       aria-hidden="true"
-      style={{ overflow: "visible" }}
+      className="overflow-visible"
     >
       <polygon
         points={fillPoints}
@@ -203,6 +203,8 @@ function FleetSpeedSparklines({ clients }: FleetSpeedSparklinesProps) {
   const [speedMap, setSpeedMap] = useState<Record<number, ClientSpeedState>>({})
   const intervalsRef = useRef<Map<number, ReturnType<typeof setInterval>>>(new Map())
 
+  const clientKey = useMemo(() => clients.map(c => c.id).join(","), [clients])
+
   useEffect(() => {
     if (clients.length === 0) return
 
@@ -273,7 +275,7 @@ function FleetSpeedSparklines({ clients }: FleetSpeedSparklinesProps) {
       }
       intervals.clear()
     }
-  }, [clients])
+  }, [clientKey])
 
   if (clients.length === 0) {
     return <ChartEmptyState height={120} message="No download clients configured." />

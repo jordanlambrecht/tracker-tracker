@@ -37,7 +37,7 @@ function ChartCard({
             <p className="text-xs font-mono text-tertiary">{description}</p>
           )}
         </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           {/* Collapse toggle */}
           <button
             type="button"
@@ -68,11 +68,8 @@ function ChartCard({
 
       {/* Animated content area using CSS grid trick */}
       <div
-        className="transition-[grid-template-rows] duration-200 ease-out"
-        style={{
-          display: "grid",
-          gridTemplateRows: collapsed ? "0fr" : "1fr",
-        }}
+        className="grid transition-[grid-template-rows] duration-200 ease-out"
+        style={{ gridTemplateRows: collapsed ? "0fr" : "1fr" }}
       >
         <div className="overflow-hidden p-1 -m-1">{children}</div>
       </div>
