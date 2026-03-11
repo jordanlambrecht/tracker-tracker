@@ -109,7 +109,7 @@ function TrackerHubStatus({ trackerHubSlug, statusPageUrl, defaultExpanded = tru
 
   return (
     <div
-      className="nm-inset-sm bg-control-bg flex flex-col px-4 py-3.5 w-full rounded-nm-md"
+      className="nm-inset-sm bg-control-bg flex flex-col px-4 py-3.5 min-w-[320px] max-w-md rounded-nm-md"
     >
       {/* Header row — always visible */}
       <div className="flex items-center justify-between gap-6 w-full">

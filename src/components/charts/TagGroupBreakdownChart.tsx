@@ -55,7 +55,7 @@ function barOption(
         return `<span style="font-family:${CHART_THEME.fontMono}">${item.name}: <b>${item.value}</b></span>`
       },
     }),
-    grid: { left: 100, right: 48, top: 8, bottom: 8, containLabel: false },
+    grid: { left: 8, right: 48, top: 8, bottom: 8, containLabel: true },
     xAxis: {
       type: "value",
       splitLine: { lineStyle: { color: CHART_THEME.gridLine } },
@@ -70,8 +70,6 @@ function barOption(
         color: CHART_THEME.textSecondary,
         fontFamily: CHART_THEME.fontMono,
         fontSize: 10,
-        width: 90,
-        overflow: "truncate",
       },
       axisLine: { show: false },
       axisTick: { show: false },
