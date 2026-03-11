@@ -158,7 +158,7 @@ function buildLineOption(
       bottom: 8,
       height: 24,
       borderColor: BORDER_SOFT,
-      backgroundColor: "rgba(40,42,54,0.6)",
+      backgroundColor: CHART_THEME.surfaceSemi,
       fillerColor: hexToRgba(accentColor, 0.06),
       handleStyle: { color: accentColor, borderColor: accentColor },
       moveHandleStyle: { color: accentColor },
@@ -438,7 +438,7 @@ function buildDailyDeltaOption(
 function MetricChart({
   metric,
   snapshots,
-  accentColor = "#00d4ff",
+  accentColor = CHART_THEME.accent,
   height = 350,
 }: MetricChartProps) {
   const [deltaMode, setDeltaMode] = useState<DeltaMode>("bar")

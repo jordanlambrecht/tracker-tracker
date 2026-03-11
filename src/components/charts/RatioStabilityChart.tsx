@@ -220,7 +220,7 @@ function buildRatioStabilityOption(
       axisPointer: {
         type: "line",
         lineStyle: {
-          color: "rgba(148, 163, 184, 0.3)",
+          color: CHART_THEME.borderMid,
           opacity: 0.8,
           width: 1,
           type: "dashed",

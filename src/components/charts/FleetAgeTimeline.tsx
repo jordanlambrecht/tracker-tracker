@@ -121,7 +121,7 @@ function buildFleetAgeTimelineOption(
     tooltip: chartTooltip("axis", {
       axisPointer: {
         type: "line",
-        lineStyle: { color: "rgba(148, 163, 184, 0.3)", type: "dashed" },
+        lineStyle: { color: CHART_THEME.borderMid, type: "dashed" },
       },
       formatter: (params: unknown) => {
         const items = params as Array<{

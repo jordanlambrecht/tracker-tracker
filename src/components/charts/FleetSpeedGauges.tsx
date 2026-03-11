@@ -16,7 +16,7 @@ import { CHART_THEME } from "./theme"
 
 const COLOR_UPLOAD = CHART_THEME.accent
 const COLOR_DOWNLOAD = CHART_THEME.warn
-const TRACK_COLOR = "rgba(148, 163, 184, 0.08)"
+const TRACK_COLOR = CHART_THEME.gridLine
 const MIN_MAX_BYTES = 100 * 1024 * 1024 // 100 MiB/s
 
 // ── Types ──

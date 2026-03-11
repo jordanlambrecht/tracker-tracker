@@ -260,7 +260,7 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
         fontSize: 9,
         interval: Math.max(0, Math.floor(displayLabels.length / 8) - 1),
       }),
-      axisLine: { lineStyle: { color: "rgba(148, 163, 184, 0.15)" } },
+      axisLine: { lineStyle: { color: CHART_THEME.borderEmphasis } },
     },
     yAxis3D: {
       type: "category",
@@ -272,7 +272,7 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
         fontSize: 11,
       },
       axisLabel: chartAxisLabel(),
-      axisLine: { lineStyle: { color: "rgba(148, 163, 184, 0.15)" } },
+      axisLine: { lineStyle: { color: CHART_THEME.borderEmphasis } },
     },
     zAxis3D: {
       type: "value",
@@ -283,7 +283,7 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
         fontSize: 11,
       },
       axisLabel: chartAxisLabel({ fontSize: 9 }),
-      axisLine: { lineStyle: { color: "rgba(148, 163, 184, 0.15)" } },
+      axisLine: { lineStyle: { color: CHART_THEME.borderEmphasis } },
     },
     grid3D: {
       boxWidth,
@@ -318,9 +318,9 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
         color: grid.trackerColors.length > 1
           ? grid.trackerColors
           : [
-              "rgba(0, 212, 255, 0.3)",
-              "rgba(0, 212, 255, 0.6)",
-              "rgba(0, 212, 255, 1)",
+              CHART_THEME.accentGlow,
+              CHART_THEME.accentGlow60,
+              CHART_THEME.accent,
             ],
       },
       dimension: 2,
@@ -334,7 +334,7 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
         bevelSize: 0.3,
         bevelSmoothness: 2,
         emphasis: {
-          itemStyle: { color: "#f59e0b", opacity: 1 },
+          itemStyle: { color: CHART_THEME.warn, opacity: 1 },
           label: { show: false },
         },
         itemStyle: {

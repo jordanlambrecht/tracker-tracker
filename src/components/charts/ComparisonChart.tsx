@@ -81,22 +81,22 @@ function buildAverageSeries(
       connectNulls: true,
       symbol: "circle",
       symbolSize: dotSize,
-      itemStyle: { color: "#00d4ff" },
+      itemStyle: { color: CHART_THEME.accent },
       lineStyle: {
-        color: "#00d4ff",
+        color: CHART_THEME.accent,
         width: 3,
-        shadowColor: "#00d4ff",
+        shadowColor: CHART_THEME.accent,
         shadowBlur: 12,
       },
       emphasis: {
-        lineStyle: { shadowBlur: 20, shadowColor: "#00d4ff" },
+        lineStyle: { shadowBlur: 20, shadowColor: CHART_THEME.accent },
       },
       areaStyle: {
         color: {
           type: "linear",
           x: 0, y: 0, x2: 0, y2: 1,
           colorStops: [
-            { offset: 0, color: "rgba(0, 212, 255, 0.15)" },
+            { offset: 0, color: CHART_THEME.accentDim },
             { offset: 1, color: "rgba(0, 212, 255, 0)" },
           ],
         } as unknown as string,
@@ -265,7 +265,7 @@ function buildComparisonOption(
       axisPointer: {
         type: "line",
         lineStyle: {
-          color: "rgba(148, 163, 184, 0.3)",
+          color: CHART_THEME.borderMid,
           opacity: 0.8,
           width: 1,
           type: "dashed",

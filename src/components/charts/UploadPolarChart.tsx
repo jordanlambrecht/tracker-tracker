@@ -182,7 +182,7 @@ function buildPolarOption(buckets: HourDayBucket[], accentColor: string): EChart
 
 function UploadPolarChart({
   snapshots,
-  accentColor = "#00d4ff",
+  accentColor = CHART_THEME.accent,
   height = 380,
 }: UploadPolarChartProps) {
   if (snapshots.length < 2) {

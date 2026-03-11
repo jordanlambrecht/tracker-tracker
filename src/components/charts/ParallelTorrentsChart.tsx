@@ -156,13 +156,13 @@ function buildParallelOption(
     axisLabel: chartAxisLabel(axis.axisLabel),
     axisLine: {
       lineStyle: {
-        color: "rgba(148, 163, 184, 0.2)",
+        color: CHART_THEME.tooltipBorder,
         width: 1,
       },
     },
     axisTick: {
       lineStyle: {
-        color: "rgba(148, 163, 184, 0.15)",
+        color: CHART_THEME.borderEmphasis,
       },
     },
     splitLine: {

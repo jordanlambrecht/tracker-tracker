@@ -99,10 +99,10 @@ function buildFleetActivityHeatmapOption(
       show: false,
       inRange: {
         color: [
-          "rgba(148,163,184,0.08)",
-          "#00d4ff40",
-          "#00d4ff99",
-          "#00d4ff",
+          CHART_THEME.gridLine,
+          CHART_THEME.accentGlow,
+          CHART_THEME.accentGlow60,
+          CHART_THEME.accent,
         ],
       },
     },
@@ -113,12 +113,12 @@ function buildFleetActivityHeatmapOption(
         itemStyle: {
           borderRadius: 3,
           borderWidth: 2,
-          borderColor: "#282a36",
+          borderColor: CHART_THEME.surface,
         },
         emphasis: {
           itemStyle: {
             shadowBlur: 10,
-            shadowColor: "rgba(0, 212, 255, 0.4)",
+            shadowColor: CHART_THEME.accentGlow40,
           },
         },
       },

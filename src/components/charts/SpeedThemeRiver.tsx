@@ -58,7 +58,7 @@ function buildRiverData(
 function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
   const tags = extractTagsFromSnapshots(snapshots)
   const colorMap = buildTagColors(tags)
-  const colors = tags.map((t) => colorMap.get(t) ?? "#888")
+  const colors = tags.map((t) => colorMap.get(t) ?? CHART_THEME.chartFallback)
   const riverData = buildRiverData(snapshots, tags)
 
   return {
@@ -67,7 +67,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
     tooltip: chartTooltip("axis", {
       axisPointer: {
         type: "line",
-        lineStyle: { color: "rgba(148, 163, 184, 0.3)", type: "dashed" },
+        lineStyle: { color: CHART_THEME.borderMid, type: "dashed" },
       },
       formatter: (params: unknown) => {
         const items = params as Array<{

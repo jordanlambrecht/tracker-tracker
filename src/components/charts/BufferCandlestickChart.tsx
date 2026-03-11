@@ -191,7 +191,7 @@ function buildCandlestickOption(
       axisPointer: {
         type: "line",
         lineStyle: {
-          color: "rgba(148, 163, 184, 0.3)",
+          color: CHART_THEME.borderMid,
           opacity: 0.8,
           width: 1,
           type: "dashed",
@@ -224,7 +224,7 @@ function buildCandlestickOption(
             const changeAbs = Math.abs(change)
             const changeSign = change >= 0 ? "+" : "-"
             const arrow = change >= 0 ? "▲" : "▼"
-            const changeColor = change >= 0 ? "#22c55e" : "#ef4444"
+            const changeColor = change >= 0 ? CHART_THEME.positive : CHART_THEME.negative
 
             const swatch = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${item.color};margin-right:6px;box-shadow:0 0 6px ${item.color};"></span>`
             const name = `<span style="color:${CHART_THEME.textSecondary};font-weight:600;">${item.seriesName}:</span>`

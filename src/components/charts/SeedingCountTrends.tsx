@@ -68,18 +68,18 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
     smooth: true,
     symbol: "none",
     areaStyle: { opacity: 0.3 },
-    lineStyle: { width: 2, color: colorMap.get(tag) ?? "#888" },
-    itemStyle: { color: colorMap.get(tag) ?? "#888" },
+    lineStyle: { width: 2, color: colorMap.get(tag) ?? CHART_THEME.chartFallback },
+    itemStyle: { color: colorMap.get(tag) ?? CHART_THEME.chartFallback },
   }))
 
   return {
     backgroundColor: "transparent",
-    color: tags.map((t) => colorMap.get(t) ?? "#888"),
+    color: tags.map((t) => colorMap.get(t) ?? CHART_THEME.chartFallback),
     legend: chartLegend(),
     tooltip: chartTooltip("axis", {
       axisPointer: {
         type: "line",
-        lineStyle: { color: "rgba(148, 163, 184, 0.3)", type: "dashed" },
+        lineStyle: { color: CHART_THEME.borderMid, type: "dashed" },
       },
       formatter: (params: unknown) => {
         const items = params as Array<{
