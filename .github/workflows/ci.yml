@@ -157,7 +157,11 @@ jobs:
 
       - name: Verify security test count
         run: |
-          COUNT=$(pnpm test:run -- src/lib/__tests__/security.test.ts 2>&1 | tail -5 | grep -oP '\d+ passed' | grep -oP '\d+')
+          COUNT=$(pnpm test:run -- src/lib/__tests__/security.test.ts 2>&1 \
+            | sed 's/\x1b\[[0-9;]*m//g' \
+            | grep 'security\.test\.ts' \
+            | grep -oE '[0-9]+ test' \
+            | grep -oE '[0-9]+')
           echo "Security tests: $COUNT"
           if [ "$COUNT" -lt 78 ]; then
             echo "::error::Security test count dropped below expected minimum (78). Was a test removed?"
