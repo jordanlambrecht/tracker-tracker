@@ -11,5 +11,7 @@ export async function GET() {
   return NextResponse.json({
     configured: !!settings,
     authenticated: !!session,
+    totpEnabled: !!settings?.totpSecret,
+    hasUsername: !!settings?.username,
   })
 }
