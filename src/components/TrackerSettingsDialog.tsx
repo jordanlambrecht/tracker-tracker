@@ -44,6 +44,16 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
     setCountCrossSeedUnsatisfied(tracker.countCrossSeedUnsatisfied ?? false)
   }, [tracker])
 
+  const [proxyAvailable, setProxyAvailable] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    fetch("/api/settings")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data) setProxyAvailable(!!data.proxyEnabled) })
+      .catch(() => {})
+  }, [open])
+
   const [changingKey, setChangingKey] = useState(false)
   const [newApiToken, setNewApiToken] = useState("")
 
@@ -236,6 +246,7 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
               id="settings-joined-at"
               type="date"
               value={joinedAt}
+              max={new Date().toISOString().split("T")[0]}
               onChange={(e) => setJoinedAt(e.target.value)}
               className={clsx(
                 "w-full font-mono text-sm text-primary cursor-pointer border-0",
@@ -250,7 +261,11 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
             label="Use proxy"
             checked={useProxy}
             onChange={setUseProxy}
-            description="Route API requests for this tracker through the global proxy configured in Settings."
+            disabled={!proxyAvailable}
+            description={proxyAvailable
+              ? "Route API requests for this tracker through the global proxy configured in Settings."
+              : "No proxy configured. Enable a proxy in Settings first."
+            }
           />
 
           <Toggle

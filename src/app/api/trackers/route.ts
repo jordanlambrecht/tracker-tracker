@@ -129,6 +129,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "qBittorrent tag must be 100 characters or fewer" }, { status: 400 })
   }
 
+  if (typeof joinedAt === "string" && joinedAt && joinedAt > new Date().toISOString().split("T")[0]) {
+    return NextResponse.json({ error: "Join date cannot be in the future" }, { status: 400 })
+  }
+
   const validPlatforms = ["unit3d", "gazelle", "ggn"]
   const platform = typeof platformType === "string" ? platformType : "unit3d"
   if (!validPlatforms.includes(platform)) {
