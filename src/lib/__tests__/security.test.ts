@@ -16,6 +16,7 @@ vi.mock("@/lib/api-helpers", async (importOriginal) => {
     ...actual,
     authenticate: vi.fn(),
     parseTrackerId: vi.fn(),
+    parseRouteId: vi.fn(),
     parseJsonBody: vi.fn(),
   }
 })
@@ -50,6 +51,7 @@ vi.mock("@/lib/auth", () => ({
   createPendingToken: vi.fn().mockResolvedValue("pending-token"),
   verifyPendingToken: vi.fn().mockResolvedValue(null),
   clearSession: vi.fn().mockResolvedValue(undefined),
+  getSession: vi.fn().mockResolvedValue(null),
 }))
 
 vi.mock("@/lib/totp", () => ({
@@ -80,27 +82,120 @@ vi.mock("@/lib/backup", () => ({
   CURRENT_BACKUP_VERSION: 1,
 }))
 
+vi.mock("@/lib/logger", () => ({
+  log: {
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+  },
+}))
+
+vi.mock("@/lib/wipe", () => ({
+  recordFailedAttempt: vi.fn(),
+  resetFailedAttempts: vi.fn(),
+  scrubAndDeleteAll: vi.fn(),
+  WIPE_MESSAGE: "wiped",
+}))
+
+vi.mock("@/lib/client-scheduler", () => ({
+  startClientScheduler: vi.fn(),
+  stopClientScheduler: vi.fn(),
+}))
+
+vi.mock("@/lib/backup-scheduler", () => ({
+  startBackupScheduler: vi.fn(),
+  stopBackupScheduler: vi.fn(),
+}))
+
+vi.mock("@/lib/privacy", () => ({
+  maskUsername: vi.fn((u: string) => u),
+  isRedacted: vi.fn(() => false),
+}))
+
+vi.mock("@/lib/proxy", () => ({
+  VALID_PROXY_TYPES: new Set(["socks5", "http", "https"]),
+  PROXY_HOST_PATTERN: /^[\w.\-:[\]]+$/,
+  buildProxyAgentFromSettings: vi.fn().mockReturnValue(undefined),
+  proxyFetch: vi.fn(),
+}))
+
+vi.mock("@/lib/qbt", () => ({
+  buildBaseUrl: vi.fn().mockReturnValue("http://localhost:8080"),
+  getSession: vi.fn(),
+  getTorrents: vi.fn().mockResolvedValue([]),
+  getTransferInfo: vi.fn().mockResolvedValue({}),
+  invalidateSession: vi.fn(),
+  clearAllSessions: vi.fn(),
+  login: vi.fn().mockResolvedValue("sid"),
+  withSessionRetry: vi.fn().mockResolvedValue([]),
+  aggregateByTag: vi.fn().mockReturnValue({}),
+  filterAndDedup: vi.fn().mockReturnValue([]),
+  getSpeedSnapshots: vi.fn().mockReturnValue([]),
+  pushSpeedSnapshot: vi.fn(),
+  clearSpeedCache: vi.fn(),
+}))
+
+vi.mock("@/lib/qbt/merge", () => ({
+  mergeTorrentLists: vi.fn().mockReturnValue([]),
+  aggregateCrossSeedTags: vi.fn().mockReturnValue([]),
+}))
+
+vi.mock("@/data/tracker-registry", () => ({
+  findRegistryEntry: vi.fn(),
+}))
+
+// ---------------------------------------------------------------------------
+// Route imports
+// ---------------------------------------------------------------------------
+
 import { POST as ChangePasswordPOST } from "@/app/api/auth/change-password/route"
+import { POST as LogoutPOST } from "@/app/api/auth/logout/route"
 import { POST as TotpConfirmPOST } from "@/app/api/auth/totp/confirm/route"
 import { POST as TotpDisablePOST } from "@/app/api/auth/totp/disable/route"
 import { POST as TotpSetupPOST } from "@/app/api/auth/totp/setup/route"
-import { DELETE as BackupDeleteDELETE } from "@/app/api/settings/backup/[id]/route"
+import { GET as ChangelogGET } from "@/app/api/changelog/route"
+import { DELETE as ClientDELETE, PATCH as ClientPATCH } from "@/app/api/clients/[id]/route"
+import { GET as ClientSnapshotsGET } from "@/app/api/clients/[id]/snapshots/route"
+import { GET as ClientSpeedsGET } from "@/app/api/clients/[id]/speeds/route"
+import { POST as ClientTestPOST } from "@/app/api/clients/[id]/test/route"
+import { GET as ClientTorrentsGET } from "@/app/api/clients/[id]/torrents/route"
+import { GET as ClientsGET, POST as ClientsPOST } from "@/app/api/clients/route"
+import { GET as FleetSnapshotsGET } from "@/app/api/fleet/snapshots/route"
+import { GET as FleetTorrentsGET } from "@/app/api/fleet/torrents/route"
+import { DELETE as BackupDeleteDELETE, GET as BackupGetGET } from "@/app/api/settings/backup/[id]/route"
 import { POST as BackupExportPOST } from "@/app/api/settings/backup/export/route"
 import { GET as BackupHistoryGET } from "@/app/api/settings/backup/history/route"
 import { POST as BackupRestorePOST } from "@/app/api/settings/backup/restore/route"
+import { GET as DashboardGET, PUT as DashboardPUT } from "@/app/api/settings/dashboard/route"
 import { POST as LockdownPOST } from "@/app/api/settings/lockdown/route"
+import { GET as LogsGET } from "@/app/api/settings/logs/route"
 import { POST as NukePOST } from "@/app/api/settings/nuke/route"
 import { POST as ProxyTestPOST } from "@/app/api/settings/proxy-test/route"
+import { GET as QuicklinksGET, PUT as QuicklinksPUT } from "@/app/api/settings/quicklinks/route"
+import { POST as ResetStatsPOST } from "@/app/api/settings/reset-stats/route"
 import { GET as SettingsGET, PATCH as SettingsPATCH } from "@/app/api/settings/route"
-// Route imports
+import { DELETE as MemberDELETE, PATCH as MemberPATCH } from "@/app/api/tag-groups/[id]/members/[memberId]/route"
+import { GET as MembersGET, POST as MembersPOST } from "@/app/api/tag-groups/[id]/members/route"
+import { DELETE as TagGroupDELETE, PATCH as TagGroupPATCH } from "@/app/api/tag-groups/[id]/route"
+import { GET as TagGroupsGET, POST as TagGroupsPOST } from "@/app/api/tag-groups/route"
+import { GET as TrackerAvatarGET } from "@/app/api/trackers/[id]/avatar/route"
 import { POST as PollPOST } from "@/app/api/trackers/[id]/poll/route"
 import { GET as RolesGET, POST as RolesPOST } from "@/app/api/trackers/[id]/roles/route"
 import { DELETE, PATCH } from "@/app/api/trackers/[id]/route"
 import { GET as SnapshotsGET } from "@/app/api/trackers/[id]/snapshots/route"
+import { GET as TrackerTorrentsGET } from "@/app/api/trackers/[id]/torrents/route"
+import { POST as PollAllPOST } from "@/app/api/trackers/poll-all/route"
 import { PATCH as ReorderPATCH } from "@/app/api/trackers/reorder/route"
 import { GET, POST } from "@/app/api/trackers/route"
 import { POST as TestPOST } from "@/app/api/trackers/test/route"
-import { authenticate, parseJsonBody, parseTrackerId } from "@/lib/api-helpers"
+
+// ---------------------------------------------------------------------------
+// Lib imports
+// ---------------------------------------------------------------------------
+
+import { authenticate, parseJsonBody, parseRouteId, parseTrackerId } from "@/lib/api-helpers"
+import { getSession } from "@/lib/auth"
 import { db } from "@/lib/db"
 
 // ---------------------------------------------------------------------------
@@ -143,6 +238,7 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
     vi.restoreAllMocks()
     mockAuthFail()
     ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
+    ;(parseRouteId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({})
   })
 
@@ -281,6 +377,177 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
   it("DELETE /api/settings/backup/[id] returns 401", async () => {
     const req = makeRequest("http://localhost/api/settings/backup/1", undefined, "DELETE")
     const res = await BackupDeleteDELETE(req, { params: Promise.resolve({ id: "1" }) })
+    expect(res.status).toBe(401)
+  })
+
+  it("POST /api/auth/logout returns 401 when no session", async () => {
+    ;(getSession as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+    const res = await LogoutPOST()
+    expect(res.status).toBe(401)
+  })
+
+  it("GET /api/clients returns 401", async () => {
+    const res = await ClientsGET()
+    expect(res.status).toBe(401)
+  })
+
+  it("POST /api/clients returns 401", async () => {
+    const req = makeRequest("http://localhost/api/clients", { name: "test" }, "POST")
+    const res = await ClientsPOST(req)
+    expect(res.status).toBe(401)
+  })
+
+  it("PATCH /api/clients/[id] returns 401", async () => {
+    const req = makeRequest("http://localhost/api/clients/1", { name: "test" }, "PATCH")
+    const res = await ClientPATCH(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(401)
+  })
+
+  it("DELETE /api/clients/[id] returns 401", async () => {
+    const req = makeRequest("http://localhost/api/clients/1", undefined, "DELETE")
+    const res = await ClientDELETE(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(401)
+  })
+
+  it("POST /api/clients/[id]/test returns 401", async () => {
+    const req = makeRequest("http://localhost/api/clients/1/test", undefined, "POST")
+    const res = await ClientTestPOST(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(401)
+  })
+
+  it("GET /api/clients/[id]/torrents returns 401", async () => {
+    const req = makeRequest("http://localhost/api/clients/1/torrents?tag=test")
+    const res = await ClientTorrentsGET(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(401)
+  })
+
+  it("GET /api/clients/[id]/snapshots returns 401", async () => {
+    const req = makeRequest("http://localhost/api/clients/1/snapshots")
+    const res = await ClientSnapshotsGET(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(401)
+  })
+
+  it("GET /api/clients/[id]/speeds returns 401", async () => {
+    const req = makeRequest("http://localhost/api/clients/1/speeds")
+    const res = await ClientSpeedsGET(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(401)
+  })
+
+  it("GET /api/tag-groups returns 401", async () => {
+    const res = await TagGroupsGET()
+    expect(res.status).toBe(401)
+  })
+
+  it("POST /api/tag-groups returns 401", async () => {
+    const req = makeRequest("http://localhost/api/tag-groups", { name: "test" }, "POST")
+    const res = await TagGroupsPOST(req)
+    expect(res.status).toBe(401)
+  })
+
+  it("PATCH /api/tag-groups/[id] returns 401", async () => {
+    const req = makeRequest("http://localhost/api/tag-groups/1", { name: "test" }, "PATCH")
+    const res = await TagGroupPATCH(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(401)
+  })
+
+  it("DELETE /api/tag-groups/[id] returns 401", async () => {
+    const req = makeRequest("http://localhost/api/tag-groups/1", undefined, "DELETE")
+    const res = await TagGroupDELETE(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(401)
+  })
+
+  it("GET /api/tag-groups/[id]/members returns 401", async () => {
+    const req = makeRequest("http://localhost/api/tag-groups/1/members")
+    const res = await MembersGET(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(401)
+  })
+
+  it("POST /api/tag-groups/[id]/members returns 401", async () => {
+    const req = makeRequest("http://localhost/api/tag-groups/1/members", { tag: "test", label: "Test" }, "POST")
+    const res = await MembersPOST(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(401)
+  })
+
+  it("PATCH /api/tag-groups/[id]/members/[memberId] returns 401", async () => {
+    const req = makeRequest("http://localhost/api/tag-groups/1/members/1", { label: "test" }, "PATCH")
+    const res = await MemberPATCH(req, { params: Promise.resolve({ id: "1", memberId: "1" }) })
+    expect(res.status).toBe(401)
+  })
+
+  it("DELETE /api/tag-groups/[id]/members/[memberId] returns 401", async () => {
+    const req = makeRequest("http://localhost/api/tag-groups/1/members/1", undefined, "DELETE")
+    const res = await MemberDELETE(req, { params: Promise.resolve({ id: "1", memberId: "1" }) })
+    expect(res.status).toBe(401)
+  })
+
+  it("GET /api/trackers/[id]/torrents returns 401", async () => {
+    const req = makeRequest("http://localhost/api/trackers/1/torrents")
+    const res = await TrackerTorrentsGET(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(401)
+  })
+
+  it("GET /api/trackers/[id]/avatar returns 401", async () => {
+    const req = makeRequest("http://localhost/api/trackers/1/avatar")
+    const res = await TrackerAvatarGET(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(401)
+  })
+
+  it("POST /api/trackers/poll-all returns 401", async () => {
+    const res = await PollAllPOST()
+    expect(res.status).toBe(401)
+  })
+
+  it("GET /api/settings/dashboard returns 401", async () => {
+    const res = await DashboardGET()
+    expect(res.status).toBe(401)
+  })
+
+  it("PUT /api/settings/dashboard returns 401", async () => {
+    const req = makeRequest("http://localhost/api/settings/dashboard", { showHealthIndicators: true }, "PUT")
+    const res = await DashboardPUT(req)
+    expect(res.status).toBe(401)
+  })
+
+  it("GET /api/settings/quicklinks returns 401", async () => {
+    const res = await QuicklinksGET()
+    expect(res.status).toBe(401)
+  })
+
+  it("PUT /api/settings/quicklinks returns 401", async () => {
+    const req = makeRequest("http://localhost/api/settings/quicklinks", { slugs: [] }, "PUT")
+    const res = await QuicklinksPUT(req)
+    expect(res.status).toBe(401)
+  })
+
+  it("POST /api/settings/reset-stats returns 401", async () => {
+    const res = await ResetStatsPOST()
+    expect(res.status).toBe(401)
+  })
+
+  it("GET /api/settings/logs returns 401", async () => {
+    const res = await LogsGET()
+    expect(res.status).toBe(401)
+  })
+
+  it("GET /api/changelog returns 401", async () => {
+    const res = await ChangelogGET()
+    expect(res.status).toBe(401)
+  })
+
+  it("GET /api/fleet/snapshots returns 401", async () => {
+    const req = makeRequest("http://localhost/api/fleet/snapshots")
+    const res = await FleetSnapshotsGET(req)
+    expect(res.status).toBe(401)
+  })
+
+  it("GET /api/fleet/torrents returns 401", async () => {
+    const res = await FleetTorrentsGET()
+    expect(res.status).toBe(401)
+  })
+
+  it("GET /api/settings/backup/[id] returns 401", async () => {
+    const req = makeRequest("http://localhost/api/settings/backup/1")
+    const res = await BackupGetGET(req, { params: Promise.resolve({ id: "1" }) })
     expect(res.status).toBe(401)
   })
 })
@@ -543,6 +810,112 @@ describe("Input validation: PATCH /api/settings trackerPollIntervalMinutes", () 
     expect(res.status).toBe(400)
     const data = await res.json()
     expect(data.error).toMatch(/poll interval/i)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 5b. Input validation: additional field constraints
+// ---------------------------------------------------------------------------
+
+describe("Input validation: additional field constraints", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    mockAuthSuccess()
+    ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
+  })
+
+  it("rejects oversized API token (>500 chars)", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      name: "Test",
+      baseUrl: "https://example.com",
+      apiToken: "a".repeat(501),
+    })
+    const req = makeRequest("http://localhost/api/trackers", {}, "POST")
+    const res = await POST(req)
+    expect(res.status).toBe(400)
+    const data = await res.json()
+    expect(data.error).toMatch(/token/i)
+  })
+
+  it("rejects oversized qbtTag (>100 chars)", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      name: "Test",
+      baseUrl: "https://example.com",
+      apiToken: "valid-token",
+      qbtTag: "a".repeat(101),
+    })
+    const req = makeRequest("http://localhost/api/trackers", {}, "POST")
+    const res = await POST(req)
+    expect(res.status).toBe(400)
+    const data = await res.json()
+    expect(data.error).toMatch(/tag/i)
+  })
+
+  it("rejects role name over 255 chars", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      roleName: "a".repeat(256),
+    })
+    const req = makeRequest("http://localhost/api/trackers/1/roles", {}, "POST")
+    const res = await RolesPOST(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(400)
+    const data = await res.json()
+    expect(data.error).toMatch(/role name/i)
+  })
+
+  it("rejects notes over 2000 chars", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      roleName: "Member",
+      notes: "a".repeat(2001),
+    })
+    const req = makeRequest("http://localhost/api/trackers/1/roles", {}, "POST")
+    const res = await RolesPOST(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(400)
+    const data = await res.json()
+    expect(data.error).toMatch(/notes/i)
+  })
+
+  it("rejects invalid achievedAt format", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      roleName: "Member",
+      achievedAt: "not-a-date",
+    })
+    const req = makeRequest("http://localhost/api/trackers/1/roles", {}, "POST")
+    const res = await RolesPOST(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(400)
+    const data = await res.json()
+    expect(data.error).toMatch(/date/i)
+  })
+
+  it("accepts valid achievedAt date", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      roleName: "Member",
+      achievedAt: "2024-01-15",
+    })
+
+    const mockReturning = vi.fn().mockResolvedValue([{
+      id: 1,
+      trackerId: 1,
+      roleName: "Member",
+      achievedAt: new Date("2024-01-15"),
+      notes: null,
+    }])
+    const mockValues = vi.fn().mockReturnValue({ returning: mockReturning })
+    ;(db.insert as ReturnType<typeof vi.fn>).mockReturnValue({ values: mockValues })
+
+    const req = makeRequest("http://localhost/api/trackers/1/roles", {}, "POST")
+    const res = await RolesPOST(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(201)
+  })
+
+  it("rejects non-integer tracker ID", async () => {
+    ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(
+      NextResponse.json({ error: "Invalid tracker ID" }, { status: 400 })
+    )
+    const req = makeRequest("http://localhost/api/trackers/abc/roles", {}, "POST")
+    const res = await RolesPOST(req, { params: Promise.resolve({ id: "abc" }) })
+    expect(res.status).toBe(400)
+    const data = await res.json()
+    expect(data.error).toMatch(/tracker ID/i)
   })
 })
 
