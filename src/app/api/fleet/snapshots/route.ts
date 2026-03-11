@@ -1,0 +1,47 @@
+// src/app/api/fleet/snapshots/route.ts
+//
+// Functions: GET
+//
+// Returns historical client snapshots with parsed tagStats for all clients.
+// Query param: ?days=N (default 7, max 30)
+
+import { gte } from "drizzle-orm"
+import { NextResponse } from "next/server"
+import { authenticate } from "@/lib/api-helpers"
+import { db } from "@/lib/db"
+import { clientSnapshots, downloadClients } from "@/lib/db/schema"
+
+export async function GET(request: Request) {
+  const auth = await authenticate()
+  if (auth instanceof NextResponse) return auth
+
+  const url = new URL(request.url)
+  const daysParam = parseInt(url.searchParams.get("days") ?? "7", 10)
+  const days = Math.min(Math.max(1, Number.isNaN(daysParam) ? 7 : daysParam), 30)
+
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+
+  const clients = await db
+    .select({ id: downloadClients.id, name: downloadClients.name })
+    .from(downloadClients)
+
+  const clientNameMap = new Map(clients.map((c) => [c.id, c.name]))
+
+  const snapshots = await db
+    .select()
+    .from(clientSnapshots)
+    .where(gte(clientSnapshots.polledAt, cutoff))
+
+  const serialized = snapshots.map((s) => ({
+    clientId: s.clientId,
+    clientName: clientNameMap.get(s.clientId) ?? `Client ${s.clientId}`,
+    polledAt: s.polledAt.toISOString(),
+    totalSeedingCount: s.totalSeedingCount,
+    totalLeechingCount: s.totalLeechingCount,
+    uploadSpeedBytes: s.uploadSpeedBytes?.toString() ?? null,
+    downloadSpeedBytes: s.downloadSpeedBytes?.toString() ?? null,
+    tagStats: s.tagStats ? (JSON.parse(s.tagStats) as unknown) : null,
+  }))
+
+  return NextResponse.json(serialized)
+}

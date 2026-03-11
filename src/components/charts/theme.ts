@@ -1,26 +1,156 @@
 // src/components/charts/theme.ts
 //
-// Shared ECharts theme constants and option builder functions for all chart components.
-// Maps to the design system palette in .interface-design/system.md.
+// Single source of truth for all chart color values. Mirrors the 3-layer
+// token system in globals.css. Every chart component imports from here —
+// never hardcode a hex in a chart file.
 //
 // Functions:
-//   buildTagColors     - golden-angle hue distribution for tag series
-//   shouldUseLogScale  - detects when log scale improves readability
-//   chartTooltip       - standard tooltip configuration
-//   chartGrid          - standard grid margins
-//   chartAxisLabel     - standard axis label styling
-//   chartSplitLine     - standard split line styling
+//   escHtml             - HTML-escape untrusted strings for ECharts tooltips
+//   chartDot            - glowing dot swatch for tooltip rows
+//   chartTooltipHeader  - timestamp header for tooltip content
+//   formatChartTimestamp - locale-formatted date/time for chart tooltips
+//   chartLegend         - standard legend configuration
+//   buildTagColors      - golden-angle hue distribution for tag series
+//   shouldUseLogScale   - detects when log scale improves readability
+//   chartTooltip        - standard tooltip configuration
+//   chartGrid           - standard grid margins
+//   chartAxisLabel      - standard axis label styling
+//   chartSplitLine      - standard split line styling
+//   getRatioBuckets     - ratio distribution bucket definitions with colors
+//   getSeedTimeBuckets  - seed time distribution bucket definitions with colors
 
 export const CHART_THEME = {
-  tooltipBg: "#2e3042",       // bg-elevated
-  tooltipBorder: "rgba(148, 163, 184, 0.2)",
-  textPrimary: "#e2e8f0",     // text-primary
-  textSecondary: "#94a3b8",   // text-secondary
-  textTertiary: "#64748b",    // text-tertiary
+  // ── Surfaces ──
+  surface:    "#282a36",   // --color-base
+  elevated:   "#2e3042",   // --color-elevated
+  overlay:    "#343648",   // --color-overlay
+  controlBg:  "#1e2029",   // --color-control-bg
+  tooltipBg:  "#2e3042",   // same as elevated
+  surfaceSemi: "rgba(40, 42, 54, 0.6)", // semi-transparent base for slider backgrounds
+
+  // ── Text ──
+  textPrimary:   "#e2e8f0",   // --color-primary
+  textSecondary: "#94a3b8",   // --color-secondary
+  textTertiary:  "#64748b",   // --color-tertiary
   fontMono: "var(--font-mono), monospace",
-  gridLine: "rgba(148, 163, 184, 0.08)", // border-soft
-  surface: "#282a36",         // bg-base
+
+  // ── Borders ──
+  tooltipBorder:   "rgba(148, 163, 184, 0.2)",
+  gridLine:        "rgba(148, 163, 184, 0.08)",  // --color-border
+  borderEmphasis:  "rgba(148, 163, 184, 0.15)",  // --color-border-emphasis
+  borderMid:       "rgba(148, 163, 184, 0.3)",   // axis pointers, label lines
+
+  // ── Layer 1: Raw colors ──
+  cyan:   "#00d4ff",
+  amber:  "#f59e0b",
+  red:    "#ef4444",
+  green:  "#10b981",
+  lime:   "#22c55e",
+  violet: "#8b5cf6",
+  sky:    "#06b6d4",
+
+  // ── Layer 2: Semantic ──
+  accent:  "#00d4ff",
+  warn:    "#f59e0b",
+  danger:  "#ef4444",
+  success: "#10b981",
+
+  // ── Layer 3: Purpose ──
+  upload:   "#00d4ff",
+  download: "#f59e0b",
+  positive: "#22c55e",
+  negative: "#ef4444",
+  neutral:  "#94a3b8",
+  chartFallback: "#6b7280",  // gray-500, replaces "#888" in multi-series charts
+
+  // Ordinal scale for ratio/seed-time distribution buckets
+  scale: ["#ef4444", "#f59e0b", "#10b981", "#00d4ff", "#8b5cf6", "#06b6d4"] as const,
+
+  // ── Glow variants (for areaStyle fills, shadows) ──
+  accentDim:    "rgba(0, 212, 255, 0.15)",
+  accentGlow:   "rgba(0, 212, 255, 0.3)",
+  accentGlow40: "rgba(0, 212, 255, 0.4)",
+  accentGlow60: "rgba(0, 212, 255, 0.6)",
+  warnDim:      "rgba(245, 158, 11, 0.15)",
+  warnGlow:     "rgba(245, 158, 11, 0.3)",
 } as const
+
+interface BucketDef {
+  label: string
+  color: string
+}
+
+interface RatioBucket extends BucketDef {
+  max: number
+}
+
+interface SeedTimeBucket extends BucketDef {
+  maxSeconds: number
+}
+
+export function getRatioBuckets(): RatioBucket[] {
+  return [
+    { label: "<0.5",  max: 0.5,      color: CHART_THEME.scale[0] },
+    { label: "0.5-1", max: 1,        color: CHART_THEME.scale[1] },
+    { label: "1-2",   max: 2,        color: CHART_THEME.scale[2] },
+    { label: "2-5",   max: 5,        color: CHART_THEME.scale[3] },
+    { label: "5-10",  max: 10,       color: CHART_THEME.scale[4] },
+    { label: "10+",   max: Infinity, color: CHART_THEME.scale[5] },
+  ]
+}
+
+export function getSeedTimeBuckets(): SeedTimeBucket[] {
+  return [
+    { label: "<1d",    maxSeconds: 86_400,     color: CHART_THEME.scale[0] },
+    { label: "1-7d",   maxSeconds: 604_800,    color: CHART_THEME.scale[1] },
+    { label: "7-30d",  maxSeconds: 2_592_000,  color: CHART_THEME.scale[2] },
+    { label: "30-90d", maxSeconds: 7_776_000,  color: CHART_THEME.scale[3] },
+    { label: "90d+",   maxSeconds: Infinity,   color: CHART_THEME.scale[4] },
+  ]
+}
+
+/** Escape HTML entities in untrusted strings before injecting into ECharts tooltip HTML */
+export function escHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+}
+
+/** Glowing dot swatch for tooltip rows */
+export function chartDot(color: string): string {
+  return `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:6px;box-shadow:0 0 6px ${color};"></span>`
+}
+
+/** Locale-formatted date/time string for chart tooltips */
+export function formatChartTimestamp(ts: number): string {
+  return new Date(ts).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
+}
+
+/** Timestamp header div for tooltip content */
+export function chartTooltipHeader(label: string): string {
+  return `<div style="font-family:var(--font-mono),monospace;font-size:11px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${escHtml(label)}</div>`
+}
+
+/** Standard legend configuration */
+export function chartLegend(overrides?: Record<string, unknown>): Record<string, unknown> {
+  return {
+    top: 0,
+    right: 0,
+    icon: "circle",
+    itemWidth: 8,
+    itemHeight: 8,
+    textStyle: {
+      color: CHART_THEME.textTertiary,
+      fontFamily: CHART_THEME.fontMono,
+      fontSize: 11,
+    },
+    ...overrides,
+  }
+}
 
 /** Golden-angle hue distribution for maximum visual separation of chart series */
 export function buildTagColors(tags: string[]): Map<string, string> {
@@ -71,7 +201,7 @@ export function chartTooltip(
       ? {
           axisPointer: {
             type: "line" as const,
-            lineStyle: { color: "rgba(148, 163, 184, 0.3)", opacity: 0.8 },
+            lineStyle: { color: CHART_THEME.borderMid, opacity: 0.8 },
           },
         }
       : {}),
