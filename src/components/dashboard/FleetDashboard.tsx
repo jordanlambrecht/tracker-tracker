@@ -6,6 +6,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { FleetActivityHeatmap } from "@/components/charts/FleetActivityHeatmap"
+import { CHART_THEME } from "@/components/charts/theme"
 import { FleetAgeTimeline } from "@/components/charts/FleetAgeTimeline"
 import { FleetCrossSeedDonut } from "@/components/charts/FleetCrossSeedDonut"
 import { FleetRatioDistribution } from "@/components/charts/FleetRatioDistribution"
@@ -76,7 +77,7 @@ export function FleetDashboard({ dayRange }: FleetDashboardProps) {
         setTrackerTags(
           data
             .filter((t) => t.qbtTag && t.qbtTag.trim())
-            .map((t) => ({ tag: t.qbtTag!.trim(), name: t.name, color: t.color ?? "#00d4ff" }))
+            .map((t) => ({ tag: t.qbtTag!.trim(), name: t.name, color: t.color ?? CHART_THEME.accent }))
         )
       }
 
@@ -97,15 +98,15 @@ export function FleetDashboard({ dayRange }: FleetDashboardProps) {
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <p className="text-secondary text-sm font-mono">Loading fleet data...</p>
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <p className="text-secondary text-sm font-mono animate-loading-breathe">Loading fleet data...</p>
       </div>
     )
   }
 
   if (torrents.length === 0 && snapshots.length === 0) {
     return (
-      <div className="flex h-64 items-center justify-center flex-col gap-2">
+      <div className="flex min-h-[40vh] items-center justify-center flex-col gap-2">
         <p className="text-secondary text-sm font-mono">
           No torrent data available.
         </p>
