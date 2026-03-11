@@ -1,0 +1,251 @@
+// src/lib/adapters/gazelle.ts
+//
+// Functions: GazelleAdapter
+
+import { adapterFetch } from "./adapter-fetch"
+import type { FetchOptions, GazellePlatformMeta, TrackerAdapter, TrackerStats } from "./types"
+
+interface GazelleUserStats {
+  uploaded: number
+  downloaded: number
+  ratio: number
+  requiredratio?: number
+  class: string
+  bonusPoints?: number
+  bonuspoints?: number
+  seedingcount?: number
+  leechingcount?: number
+  freeleechTokens?: number
+}
+
+interface GazelleIndexResponse {
+  status: string
+  error?: string
+  response?: {
+    username: string
+    id: number
+    giftTokens?: number
+    meritTokens?: number
+    notifications?: {
+      messages: number
+      notifications: number
+      newAnnouncement: boolean
+      newBlog: boolean
+      newSubscriptions?: boolean
+    }
+    userstats: GazelleUserStats
+  }
+}
+
+interface GazelleUserResponse {
+  status: string
+  error?: string
+  response?: {
+    username: string
+    avatar: string
+    stats: {
+      joinedDate: string
+      lastAccess: string
+      uploaded: number
+      downloaded: number
+      ratio: number
+      requiredRatio: number
+    }
+    ranks: {
+      uploaded: number
+      downloaded: number
+      uploads: number
+      requests: number
+      bounty: number
+      posts: number
+      artists: number
+      overall: number
+    }
+    personal: {
+      class: string
+      paranoia: number
+      paranoiaText: string
+      donor: boolean
+      warned: boolean
+      enabled: boolean
+    }
+    community: {
+      posts: number
+      torrentComments: number
+      collagesStarted: number
+      collagesContrib: number
+      requestsFilled: number
+      requestsVoted: number
+      perfectFlacs: number
+      uploaded: number
+      groups: number
+      seeding: number
+      leeching: number
+      snatched: number
+      invited: number
+    }
+  }
+}
+
+export class GazelleAdapter implements TrackerAdapter {
+  async fetchStats(
+    baseUrl: string,
+    apiToken: string,
+    apiPath: string,
+    options?: FetchOptions
+  ): Promise<TrackerStats> {
+    const url = new URL(apiPath, baseUrl)
+    url.searchParams.set("action", "index")
+
+    const hostname = new URL(baseUrl).hostname
+    const authHeader = options?.authStyle === "raw" ? apiToken : `token ${apiToken}`
+
+    const data = await adapterFetch<GazelleIndexResponse>(
+      url.toString(),
+      hostname,
+      options,
+      { Authorization: authHeader }
+    )
+
+    if (data.status !== "success") {
+      throw new Error(data.error ?? `Gazelle API returned status: ${data.status}`)
+    }
+
+    const userStats = data.response?.userstats
+    if (!userStats) {
+      throw new Error(`Unexpected response from ${hostname}: missing userstats`)
+    }
+
+    const uploaded = BigInt(Math.floor(userStats.uploaded ?? 0))
+    const downloaded = BigInt(Math.floor(userStats.downloaded ?? 0))
+
+    const stats: TrackerStats = {
+      username: data.response!.username,
+      group: userStats.class ?? "Unknown",
+      uploadedBytes: uploaded,
+      downloadedBytes: downloaded,
+      ratio: typeof userStats.ratio === "number" ? userStats.ratio : 0,
+      bufferBytes: uploaded > downloaded ? uploaded - downloaded : BigInt(0),
+      seedingCount: userStats.seedingcount ?? 0,
+      leechingCount: userStats.leechingcount ?? 0,
+      seedbonus: userStats.bonusPoints ?? userStats.bonuspoints ?? 0,
+      hitAndRuns: 0,
+      requiredRatio: typeof userStats.requiredratio === "number" ? userStats.requiredratio : null,
+      warned: false,
+      freeleechTokens: typeof userStats.freeleechTokens === "number"
+        ? userStats.freeleechTokens
+        : typeof data.response!.giftTokens === "number"
+          ? data.response!.giftTokens
+          : null,
+    }
+
+    // Cache the remote user ID from the index response
+    if (data.response!.id) {
+      stats.remoteUserId = data.response!.id
+    }
+
+    // Enrichment: fetch full user profile for ranks, community, warned, etc.
+    if (options?.enrich) {
+      const userId = options.remoteUserId ?? data.response!.id
+      if (userId) {
+        try {
+          const enriched = await this.fetchUserProfile(baseUrl, apiPath, authHeader, userId, hostname, options)
+          if (enriched) {
+            // Override core stats with richer data from user profile
+            if (typeof enriched.warned === "boolean") stats.warned = enriched.warned
+            if (enriched.joinedDate) stats.joinedDate = enriched.joinedDate
+            if (typeof enriched.seedingCount === "number") stats.seedingCount = enriched.seedingCount
+            if (typeof enriched.leechingCount === "number") stats.leechingCount = enriched.leechingCount
+            stats.platformMeta = enriched.platformMeta
+          }
+        } catch {
+          // Enrichment failure is non-fatal — core stats from index are still valid
+        }
+      }
+    }
+
+    // Merge index-level data (notifications, tokens) into platformMeta
+    if (data.response!.notifications || data.response!.giftTokens != null || data.response!.meritTokens != null) {
+      const meta = (stats.platformMeta as GazellePlatformMeta) ?? {}
+      if (data.response!.notifications) meta.notifications = data.response!.notifications
+      if (typeof data.response!.giftTokens === "number") meta.giftTokens = data.response!.giftTokens
+      if (typeof data.response!.meritTokens === "number") meta.meritTokens = data.response!.meritTokens
+      stats.platformMeta = meta
+    }
+
+    return stats
+  }
+
+  private async fetchUserProfile(
+    baseUrl: string,
+    apiPath: string,
+    authHeader: string,
+    userId: number,
+    hostname: string,
+    options?: FetchOptions
+  ): Promise<{
+    warned: boolean
+    joinedDate?: string
+    seedingCount?: number
+    leechingCount?: number
+    platformMeta: GazellePlatformMeta
+  } | null> {
+    const userUrl = new URL(apiPath, baseUrl)
+    userUrl.searchParams.set("action", "user")
+    userUrl.searchParams.set("id", String(userId))
+
+    const data = await adapterFetch<GazelleUserResponse>(
+      userUrl.toString(),
+      hostname,
+      options,
+      { Authorization: authHeader }
+    )
+
+    if (data.status !== "success" || !data.response) return null
+
+    const resp = data.response
+    const meta: GazellePlatformMeta = {
+      donor: resp.personal?.donor,
+      enabled: resp.personal?.enabled,
+      paranoia: resp.personal?.paranoia,
+      paranoiaText: resp.personal?.paranoiaText,
+    }
+
+    if (resp.ranks) {
+      meta.ranks = {
+        uploaded: resp.ranks.uploaded,
+        downloaded: resp.ranks.downloaded,
+        uploads: resp.ranks.uploads,
+        requests: resp.ranks.requests,
+        bounty: resp.ranks.bounty,
+        posts: resp.ranks.posts,
+        artists: resp.ranks.artists,
+        overall: resp.ranks.overall,
+      }
+    }
+
+    if (resp.community) {
+      meta.community = {
+        posts: resp.community.posts,
+        torrentComments: resp.community.torrentComments,
+        collagesStarted: resp.community.collagesStarted,
+        collagesContrib: resp.community.collagesContrib,
+        requestsFilled: resp.community.requestsFilled,
+        requestsVoted: resp.community.requestsVoted,
+        perfectFlacs: resp.community.perfectFlacs,
+        uploaded: resp.community.uploaded,
+        groups: resp.community.groups,
+        snatched: resp.community.snatched,
+        invited: resp.community.invited,
+      }
+    }
+
+    return {
+      warned: resp.personal?.warned ?? false,
+      joinedDate: resp.stats?.joinedDate ?? undefined,
+      seedingCount: resp.community?.seeding,
+      leechingCount: resp.community?.leeching,
+      platformMeta: meta,
+    }
+  }
+}

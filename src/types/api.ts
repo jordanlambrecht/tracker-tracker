@@ -1,11 +1,17 @@
 // src/types/api.ts
 
+import type { GGnPlatformMeta, GazellePlatformMeta } from "@/lib/adapters/types"
+export type { GGnPlatformMeta, GazellePlatformMeta, GazelleRanks } from "@/lib/adapters/types"
+
 export interface TrackerLatestStats {
   ratio: number | null
   uploadedBytes: string | null
   downloadedBytes: string | null
   seedingCount: number | null
   leechingCount: number | null
+  requiredRatio: number | null
+  warned: boolean | null
+  freeleechTokens: number | null
   username: string | null
   group: string | null
 }
@@ -15,11 +21,19 @@ export interface TrackerSummary {
   name: string
   baseUrl: string
   platformType: string
-  pollIntervalMinutes: number
   isActive: boolean
   lastPolledAt: string | null
   lastError: string | null
   color: string
+  qbtTag: string | null
+  useProxy: boolean
+  countCrossSeedUnsatisfied: boolean
+  isFavorite: boolean
+  sortOrder: number | null
+  joinedAt: string | null
+  remoteUserId: number | null
+  platformMeta: GGnPlatformMeta | GazellePlatformMeta | null
+  createdAt: string
   latestStats: TrackerLatestStats | null
 }
 
@@ -33,6 +47,45 @@ export interface Snapshot {
   seedingCount: number | null
   leechingCount: number | null
   hitAndRuns: number | null
+  requiredRatio: number | null
+  warned: boolean | null
+  freeleechTokens: number | null
+  shareScore: number | null
   username: string | null
   group: string | null
+}
+
+export interface TagGroupMember {
+  id: number
+  groupId: number
+  tag: string
+  label: string
+  color: string | null
+  sortOrder: number
+}
+
+export type TagGroupChartType = "bar" | "donut" | "treemap"
+
+export interface TagGroup {
+  id: number
+  name: string
+  emoji: string | null
+  chartType: TagGroupChartType
+  description: string | null
+  sortOrder: number
+  members: TagGroupMember[]
+}
+
+export interface QbitmanageTagEntry {
+  enabled: boolean
+  tag: string
+}
+
+export interface QbitmanageTagConfig {
+  issue: QbitmanageTagEntry
+  minTimeNotReached: QbitmanageTagEntry
+  noHardlinks: QbitmanageTagEntry
+  minSeedsNotMet: QbitmanageTagEntry
+  lastActiveLimitNotReached: QbitmanageTagEntry
+  lastActiveNotReached: QbitmanageTagEntry
 }
