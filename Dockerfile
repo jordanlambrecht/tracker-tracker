@@ -7,7 +7,7 @@
 # Base
 # ---------------------------------------------------------------------------
 FROM node:25-alpine AS base
-RUN npm i -g corepack@latest
+RUN corepack enable pnpm
 
 # ---------------------------------------------------------------------------
 # Stage 1 — Install dependencies
@@ -18,7 +18,7 @@ FROM base AS deps
 RUN apk add --no-cache python3 make g++ libc6-compat
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
-RUN corepack enable pnpm && pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile
 
 # ---------------------------------------------------------------------------
 # Stage 2 — Build the Next.js application
@@ -31,7 +31,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Dummy DATABASE_URL so Next.js can evaluate route modules during build
 # (the DB is never actually queried at build time)
 ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
-RUN corepack enable pnpm && pnpm build
+RUN pnpm build
 
 # ---------------------------------------------------------------------------
 # Stage 3 — Production runner
