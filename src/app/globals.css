@@ -7,32 +7,32 @@
   --font-mono: var(--font-mono), monospace;
 
   /* ── Layer 1: Raw color palette ──────────────────────────────────────
-   * Ground-truth hex values. The only place a raw hex appears.
+   * Ground-truth OKLCH values. The only place a raw color appears.
    * Tailwind v4 generates text-cyan, bg-amber, border-red, etc.
    */
 
   /* Hues */
-  --color-cyan:   #00d4ff;
-  --color-amber:  #f59e0b;
-  --color-red:    #ef4444;
-  --color-green:  #10b981;
-  --color-lime:   #22c55e;
-  --color-violet: #8b5cf6;
-  --color-sky:    #06b6d4;
+  --color-cyan:   oklch(80.43% 0.1459 219.52); /* #01d4ff */
+  --color-amber:  oklch(76.86% 0.1647 70.08);  /* #f59e0b */
+  --color-red:    oklch(63.68% 0.2078 25.33);  /* #ef4444 */
+  --color-green:  oklch(69.59% 0.1491 162.48); /* #10b981 */
+  --color-lime:   oklch(72.27% 0.1920 149.58); /* #22c55e */
+  --color-violet: oklch(60.56% 0.2189 292.72); /* #8b5cf6 */
+  --color-sky:    oklch(71.48% 0.1257 215.22); /* #06b6d4 */
 
-  /* Surfaces — dark purple-gray. Neumorphism: light (#353848) / dark (#1b1c24). */
-  --color-surface-900: #1b1c24;
-  --color-surface-800: #1e2029;
-  --color-surface-700: #282a36;
-  --color-surface-600: #2e3042;
-  --color-surface-500: #343648;
-  --color-surface-400: #353848;
+  /* Surfaces — dark purple-gray. Neumorphism: light/dark pair for depth. */
+  --color-surface-900: oklch(22.90% 0.0155 279.49); /* #1b1c24 */
+  --color-surface-800: oklch(24.55% 0.0174 275.22); /* #1e2029 */
+  --color-surface-700: oklch(28.82% 0.0221 277.51); /* #282a36 */
+  --color-surface-600: oklch(31.52% 0.0323 279.44); /* #2e3042 */
+  --color-surface-500: oklch(33.87% 0.0317 279.61); /* #343648 */
+  --color-surface-400: oklch(34.45% 0.0283 276.51); /* #353848 */
 
   /* Text grays */
-  --color-gray-50:  #e2e8f0;
-  --color-gray-400: #94a3b8;
-  --color-gray-500: #64748b;
-  --color-gray-600: #475569;
+  --color-gray-50:  oklch(92.88% 0.0126 255.51); /* #e2e8f0 */
+  --color-gray-400: oklch(71.07% 0.0351 256.79); /* #94a3b8 */
+  --color-gray-500: oklch(55.44% 0.0407 257.42); /* #64748b */
+  --color-gray-600: oklch(44.55% 0.0374 257.28); /* #475569 */
 
   /* ── Layer 2: Semantic aliases ─────────────────────────────────────────
    * Intent-named tokens. Use text-accent, bg-danger, border-warn, etc.
@@ -57,21 +57,21 @@
   --color-danger:  var(--color-red);
   --color-success: var(--color-green);
 
-  /* Dim/glow variants (rgba — cannot use var() inside rgba) */
-  --color-accent-dim:  rgba(0, 212, 255, 0.15);
-  --color-accent-glow: rgba(0, 212, 255, 0.3);
-  --color-warn-dim:    rgba(245, 158, 11, 0.15);
-  --color-danger-dim:  rgba(239, 68, 68, 0.15);
-  --color-success-dim: rgba(16, 185, 129, 0.15);
+  /* Dim/glow variants */
+  --color-accent-dim:  oklch(80.43% 0.1459 219.52 / 0.15); /* #01d4ff 15% */
+  --color-accent-glow: oklch(80.43% 0.1459 219.52 / 0.3);  /* #01d4ff 30% */
+  --color-warn-dim:    oklch(76.86% 0.1647 70.08 / 0.15);   /* #f59e0b 15% */
+  --color-danger-dim:  oklch(63.68% 0.2078 25.33 / 0.15);   /* #ef4444 15% */
+  --color-success-dim: oklch(69.59% 0.1491 162.48 / 0.15);  /* #10b981 15% */
 
   /* Borders */
-  --color-border:          rgba(148, 163, 184, 0.08);
-  --color-border-soft:     rgba(148, 163, 184, 0.04);
-  --color-border-emphasis: rgba(148, 163, 184, 0.15);
+  --color-border:          oklch(71.07% 0.0351 256.79 / 0.08); /* #94a3b8 8% */
+  --color-border-soft:     oklch(71.07% 0.0351 256.79 / 0.04); /* #94a3b8 4% */
+  --color-border-emphasis: oklch(71.07% 0.0351 256.79 / 0.15); /* #94a3b8 15% */
 
   /* Controls */
-  --color-control-border: rgba(148, 163, 184, 0.08);
-  --color-control-focus:  rgba(0, 212, 255, 0.5);
+  --color-control-border: oklch(71.07% 0.0351 256.79 / 0.08); /* #94a3b8 8% */
+  --color-control-focus:  oklch(80.43% 0.1459 219.52 / 0.5);  /* #01d4ff 50% */
 
   /* ── Layer 3: Purpose aliases ──────────────────────────────────────────
    * Domain-specific meaning for data visualization.
@@ -132,38 +132,38 @@
  */
 @utility nm-raised {
   box-shadow:
-    -8px -8px 16px #353848,
-    8px 8px 16px #1b1c24;
+    -8px -8px 16px oklch(34.45% 0.0283 276.51), /* #353848 */
+    8px 8px 16px oklch(22.90% 0.0155 279.49); /* #1b1c24 */
 }
 
 @utility nm-raised-sm {
   box-shadow:
-    -4px -4px 8px #323544,
-    4px 4px 8px #1e1f28;
+    -4px -4px 8px oklch(33.24% 0.0268 276.01), /* #323544 */
+    4px 4px 8px oklch(24.23% 0.0172 280.05); /* #1e1f28 */
 }
 
 @utility nm-raised-lg {
   box-shadow:
-    -12px -12px 24px #3b3e50,
-    12px 12px 24px #15161c;
+    -12px -12px 24px oklch(36.85% 0.0312 277.36), /* #3b3e50 */
+    12px 12px 24px oklch(20.19% 0.0121 277.81); /* #15161c */
 }
 
 @utility nm-inset {
   box-shadow:
-    inset 4px 4px 8px #14151b,
-    inset -4px -4px 8px #3c3f51;
+    inset 4px 4px 8px oklch(19.74% 0.0121 277.78), /* #14151b */
+    inset -4px -4px 8px oklch(37.23% 0.0311 277.38); /* #3c3f51 */
 }
 
 @utility nm-inset-sm {
   box-shadow:
-    inset 2px 2px 5px #1e2029,
-    inset -2px -2px 5px #323443;
+    inset 2px 2px 5px oklch(24.55% 0.0174 275.22), /* #1e2029 */
+    inset -2px -2px 5px oklch(32.94% 0.0266 278.88); /* #323443 */
 }
 
 @utility nm-pressed {
   box-shadow:
-    inset 4px 4px 10px #14151b,
-    inset -2px -2px 5px #323443;
+    inset 4px 4px 10px oklch(19.74% 0.0121 277.78), /* #14151b */
+    inset -2px -2px 5px oklch(32.94% 0.0266 278.88); /* #323443 */
 }
 
 /*
@@ -174,61 +174,61 @@
  */
 .nm-interactive-sm {
   box-shadow:
-    -4px -4px 8px #323544,
-    4px 4px 8px #1e1f28;
+    -4px -4px 8px oklch(33.24% 0.0268 276.01), /* #323544 */
+    4px 4px 8px oklch(24.23% 0.0172 280.05); /* #1e1f28 */
   transition: box-shadow 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
               transform 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 .nm-interactive-sm:hover {
   box-shadow:
-    -4px -4px 8px #2e3140,
-    5px 5px 9px #1d1e27;
+    -4px -4px 8px oklch(31.67% 0.0271 275.92), /* #2e3140 */
+    5px 5px 9px oklch(23.80% 0.0173 280.02); /* #1d1e27 */
   transform: scale(1.01);
 }
 .nm-interactive-sm:active {
   box-shadow:
-    inset 2px 2px 6px #18191f,
-    inset -2px -2px 4px #2e3040;
+    inset 2px 2px 6px oklch(21.50% 0.0119 277.89), /* #18191f */
+    inset -2px -2px 4px oklch(31.42% 0.0287 279.05); /* #2e3040 */
   transform: scale(0.99);
 }
 
 .nm-interactive {
   box-shadow:
-    -8px -8px 16px #353848,
-    8px 8px 16px #1b1c24;
+    -8px -8px 16px oklch(34.45% 0.0283 276.51), /* #353848 */
+    8px 8px 16px oklch(22.90% 0.0155 279.49); /* #1b1c24 */
   transition: box-shadow 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
               transform 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 .nm-interactive:hover {
   box-shadow:
-    -8px -8px 16px #323546,
-    9px 9px 17px #191a22;
+    -8px -8px 16px oklch(33.34% 0.0303 276.83), /* #323546 */
+    9px 9px 17px oklch(22.04% 0.0157 279.43); /* #191a22 */
   transform: scale(1.01);
 }
 .nm-interactive:active {
   box-shadow:
-    inset 2px 2px 6px #18191f,
-    inset -2px -2px 4px #2e3040;
+    inset 2px 2px 6px oklch(21.50% 0.0119 277.89), /* #18191f */
+    inset -2px -2px 4px oklch(31.42% 0.0287 279.05); /* #2e3040 */
   transform: scale(0.99);
 }
 
 .nm-interactive-inset {
   box-shadow:
-    inset 2px 2px 5px #1e2029,
-    inset -2px -2px 5px #323443;
+    inset 2px 2px 5px oklch(24.55% 0.0174 275.22), /* #1e2029 */
+    inset -2px -2px 5px oklch(32.94% 0.0266 278.88); /* #323443 */
   transition: box-shadow 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
               transform 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 .nm-interactive-inset:hover {
   box-shadow:
-    -2px -2px 5px #2e3140,
-    3px 3px 6px #20212a;
+    -2px -2px 5px oklch(31.67% 0.0271 275.92), /* #2e3140 */
+    3px 3px 6px oklch(25.07% 0.0170 280.10); /* #20212a */
   transform: scale(1.01);
 }
 .nm-interactive-inset:active {
   box-shadow:
-    inset 2px 2px 6px #18191f,
-    inset -2px -2px 4px #2e3040;
+    inset 2px 2px 6px oklch(21.50% 0.0119 277.89), /* #18191f */
+    inset -2px -2px 4px oklch(31.42% 0.0287 279.05); /* #2e3040 */
   transform: scale(0.99);
 }
 
@@ -308,8 +308,8 @@ select {
 
 /* Page scrollbar — picks up --scrollbar-color from nearest ancestor (tracker page sets it) */
 .themed-scrollbar {
-  --scrollbar-color: #353848;
-  --scrollbar-hover: #434660;
+  --scrollbar-color: oklch(34.45% 0.0283 276.51); /* #353848 */
+  --scrollbar-hover: oklch(40.24% 0.0439 279.12); /* #434660 */
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-color) transparent;
 }
@@ -331,7 +331,7 @@ select {
 /* Inner horizontal scrollbars on tables/code — always subtle */
 .styled-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #353848 transparent;
+  scrollbar-color: oklch(34.45% 0.0283 276.51) /* #353848 */ transparent;
 }
 .styled-scrollbar::-webkit-scrollbar {
   width: 6px;
@@ -341,47 +341,47 @@ select {
   background: transparent;
 }
 .styled-scrollbar::-webkit-scrollbar-thumb {
-  background: #353848;
+  background: oklch(34.45% 0.0283 276.51); /* #353848 */
   border-radius: 9999px;
 }
 .styled-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #434660;
+  background: oklch(40.24% 0.0439 279.12); /* #434660 */
 }
 
-/* react-colorful overrides to match design system */
-.react-colorful {
-  width: 100% !important;
-  height: 160px !important;
-  border-radius: var(--radius-md) !important;
+/* react-colorful overrides — scoped under wrapper for specificity without !important */
+.color-picker-wrapper .react-colorful {
+  width: 100%;
+  height: 160px;
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
-.react-colorful__saturation {
-  border-radius: var(--radius-sm) !important;
-  border-bottom: none !important;
+.color-picker-wrapper .react-colorful__saturation {
+  border-radius: var(--radius-sm);
+  border-bottom: none;
 }
-.react-colorful__hue {
-  height: 10px !important;
-  border-radius: var(--radius-pill) !important;
+.color-picker-wrapper .react-colorful__hue {
+  height: 10px;
+  border-radius: var(--radius-pill);
   margin-top: 8px;
 }
-.react-colorful__pointer {
-  width: 16px !important;
-  height: 16px !important;
-  border: 2px solid #fff !important;
-  box-shadow: 0 0 4px rgba(0, 0, 0, 0.4) !important;
+.color-picker-wrapper .react-colorful__pointer {
+  width: 16px;
+  height: 16px;
+  border: 2px solid oklch(100% 0 0); /* #ffffff */
+  box-shadow: 0 0 4px oklch(0% 0 0 / 0.4); /* #000000 40% */
 }
 
-/* Emoji picker theme overrides to match app palette */
-.EmojiPickerReact.epr-dark-theme {
-  --epr-bg-color: #2e3042;
-  --epr-category-label-bg-color: #2e3042;
-  --epr-hover-bg-color: #343648;
-  --epr-search-input-bg-color: #1e2029;
-  --epr-text-color: #e2e8f0;
-  --epr-search-input-text-color: #e2e8f0;
-  --epr-search-input-placeholder-color: #64748b;
-  --epr-category-icon-active-color: #00d4ff;
-  --epr-skin-tone-picker-menu-color: #343648;
-  border-radius: var(--radius-md) !important;
-  border: 1px solid #3c3f51 !important;
+/* Emoji picker theme overrides — scoped under wrapper for specificity without !important */
+.emoji-picker-wrapper .EmojiPickerReact.epr-dark-theme {
+  --epr-bg-color: oklch(31.52% 0.0323 279.44); /* #2e3042 */
+  --epr-category-label-bg-color: oklch(31.52% 0.0323 279.44); /* #2e3042 */
+  --epr-hover-bg-color: oklch(33.87% 0.0317 279.61); /* #343648 */
+  --epr-search-input-bg-color: oklch(24.55% 0.0174 275.22); /* #1e2029 */
+  --epr-text-color: oklch(92.88% 0.0126 255.51); /* #e2e8f0 */
+  --epr-search-input-text-color: oklch(92.88% 0.0126 255.51); /* #e2e8f0 */
+  --epr-search-input-placeholder-color: oklch(55.44% 0.0407 257.42); /* #64748b */
+  --epr-category-icon-active-color: oklch(80.43% 0.1459 219.52); /* #01d4ff */
+  --epr-skin-tone-picker-menu-color: oklch(33.87% 0.0317 279.61); /* #343648 */
+  border-radius: var(--radius-md);
+  border: 1px solid oklch(37.23% 0.0311 277.38); /* #3c3f51 */
 }
