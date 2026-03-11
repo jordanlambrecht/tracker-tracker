@@ -1,7 +1,8 @@
 // src/app/api/trackers/test/route.ts
 import { NextResponse } from "next/server"
-import { getAdapter } from "@/lib/adapters"
-import { authenticate, parseJsonBody } from "@/lib/api-helpers"
+import { DEFAULT_API_PATHS, getAdapter } from "@/lib/adapters"
+import { authenticate, parseJsonBody, validateHttpUrl } from "@/lib/api-helpers"
+import { findRegistryEntry } from "@/data/tracker-registry"
 
 export async function POST(request: Request) {
   const auth = await authenticate()
@@ -10,21 +11,35 @@ export async function POST(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const { baseUrl, apiToken, platformType } = body as {
+  const { baseUrl, apiToken, platformType, apiPath } = body as {
     baseUrl?: string
     apiToken?: string
     platformType?: string
+    apiPath?: string
   }
 
   if (!baseUrl || typeof baseUrl !== "string" || !apiToken || typeof apiToken !== "string") {
     return NextResponse.json({ error: "baseUrl and apiToken are required" }, { status: 400 })
   }
 
+  if (baseUrl.length > 500) {
+    return NextResponse.json({ error: "URL must be 500 characters or fewer" }, { status: 400 })
+  }
+
+  const urlErr = validateHttpUrl(baseUrl)
+  if (urlErr) return urlErr
+
   const platform = typeof platformType === "string" ? platformType : "unit3d"
 
   try {
     const adapter = getAdapter(platform)
-    const stats = await adapter.fetchStats(baseUrl, apiToken, "/api/user")
+    const defaultPath = DEFAULT_API_PATHS[platform] ?? "/api/user"
+    const path = typeof apiPath === "string" && apiPath.startsWith("/") ? apiPath : defaultPath
+    const registryEntry = findRegistryEntry(baseUrl)
+    const fetchOptions: { authStyle?: "token" | "raw"; enrich?: boolean } = {}
+    if (registryEntry?.gazelleAuthStyle) fetchOptions.authStyle = registryEntry.gazelleAuthStyle
+    if (registryEntry?.gazelleEnrich) fetchOptions.enrich = true
+    const stats = await adapter.fetchStats(baseUrl, apiToken, path, fetchOptions)
     return NextResponse.json({
       success: true,
       username: stats.username,
