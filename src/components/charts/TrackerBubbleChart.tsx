@@ -5,12 +5,12 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
+import { ChartECharts } from "./ChartECharts"
 import { useState } from "react"
 import { bytesToGiB, hexToRgba } from "@/lib/formatters"
 import { ChartEmptyState } from "./ChartEmptyState"
 import { LogScaleToggle } from "./LogScaleToggle"
-import { CHART_THEME, chartAxisLabel, chartGrid, chartTooltip, shouldUseLogScale } from "./theme"
+import { CHART_THEME, chartAxisLabel, chartGrid, chartLegend, chartTooltip, escHtml, shouldUseLogScale } from "./theme"
 
 interface TrackerBubbleData {
   name: string
@@ -155,7 +155,7 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
 
   return {
     backgroundColor: "transparent",
-    grid: chartGrid({ top: 32, right: 24, bottom: 48, left: 72 }),
+    grid: chartGrid({ right: 24, bottom: 48, left: 72 }),
     tooltip: chartTooltip("item", {
       formatter: (params: unknown) => {
         const p = params as {
@@ -180,7 +180,7 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
 
         return [
           `<div style="font-family:${CHART_THEME.fontMono};font-size:12px;">`,
-          `${swatch}<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${p.seriesName}</span>`,
+          `${swatch}<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(p.seriesName)}</span>`,
           `<br/><span style="color:${CHART_THEME.textSecondary};">Uploaded:</span> <span style="color:${CHART_THEME.textPrimary};">${fmtNum(uploadVal)} ${unit}</span>`,
           `<br/><span style="color:${CHART_THEME.textSecondary};">Downloaded:</span> <span style="color:${CHART_THEME.textPrimary};">${fmtNum(downloadVal)} ${unit}</span>`,
           `<br/><span style="color:${CHART_THEME.textSecondary};">Seeding:</span> <span style="color:${CHART_THEME.textPrimary};">${seedingCount.toLocaleString()} torrents</span>`,
@@ -189,18 +189,7 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
         ].join("")
       },
     }),
-    legend: {
-      top: 0,
-      right: 0,
-      textStyle: {
-        color: CHART_THEME.textTertiary,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
-      },
-      icon: "circle",
-      itemWidth: 8,
-      itemHeight: 8,
-    },
+    legend: chartLegend(),
     xAxis: {
       type: useLogX ? "log" : "value",
       name: useLogX ? `Downloaded (${unit}, log)` : `Downloaded (${unit})`,
@@ -279,7 +268,7 @@ function TrackerBubbleChart({ trackers, height = 360 }: TrackerBubbleChartProps)
           onToggle={() => setLogOverride(logOverride === null ? !autoLog : null)}
         />
       </div>
-      <ReactECharts
+      <ChartECharts
         option={buildBubbleOption(validTrackers, logOverride)}
         style={{ height, width: "100%" }}
         opts={{ renderer: "canvas" }}

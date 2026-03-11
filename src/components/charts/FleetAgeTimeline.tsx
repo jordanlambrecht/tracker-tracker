@@ -5,7 +5,7 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
+import { ChartECharts } from "./ChartECharts"
 import type { TrackerTag } from "@/lib/fleet"
 import { ChartEmptyState } from "./ChartEmptyState"
 import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
@@ -117,7 +117,7 @@ function buildFleetAgeTimelineOption(
 
   return {
     backgroundColor: "transparent",
-    grid: chartGrid({ top: 32, right: 16, bottom: 48, left: 56 }),
+    grid: chartGrid({ right: 16, bottom: 48, left: 56 }),
     tooltip: chartTooltip("axis", {
       axisPointer: {
         type: "line",
@@ -192,7 +192,7 @@ function FleetAgeTimeline({
   }
 
   return (
-    <ReactECharts
+    <ChartECharts
       option={buildFleetAgeTimelineOption(sortedDates, series)}
       style={{ height, width: "100%" }}
       opts={{ renderer: "canvas" }}

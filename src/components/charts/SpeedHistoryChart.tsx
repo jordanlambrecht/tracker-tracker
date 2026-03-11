@@ -5,7 +5,7 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
+import { ChartECharts } from "./ChartECharts"
 import type { FleetSnapshot } from "@/lib/fleet"
 import { formatBytesFromNumber } from "@/lib/formatters"
 import { ChartEmptyState } from "./ChartEmptyState"
@@ -74,7 +74,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
         return `${chartTooltipHeader(dateLabel)}${rows}`
       },
     }),
-    grid: chartGrid({ top: 32, right: 64, left: 72 }),
+    grid: chartGrid({ right: 64, left: 72 }),
     xAxis: {
       type: "time",
       axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
@@ -185,7 +185,7 @@ function SpeedHistoryChart({ snapshots, height = 360 }: SpeedHistoryChartProps) 
   }
 
   return (
-    <ReactECharts
+    <ChartECharts
       option={buildOption(snapshots)}
       style={{ height, width: "100%" }}
       opts={{ renderer: "canvas" }}

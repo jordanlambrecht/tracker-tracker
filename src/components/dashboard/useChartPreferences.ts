@@ -1,13 +1,15 @@
 // src/components/dashboard/useChartPreferences.ts
 //
-// Functions: useChartPreferences, readPrefs, writePrefs, orderedCharts
+// Functions: useChartPreferences, orderedCharts
 //
 // Manages dashboard chart visibility, collapse state, and display order in localStorage.
 // Single source of truth for both inline chart controls and settings sheet.
+// Order/reorder logic is dashboard-specific; shared base lives in src/hooks/useChartPreferencesBase.ts.
 
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback } from "react"
+import { useChartPreferencesBase } from "@/hooks/useChartPreferencesBase"
 
 const STORAGE_KEY = "tracker-tracker:chart-preferences"
 
@@ -93,110 +95,18 @@ const DASHBOARD_CHARTS: ChartDef[] = [
   { id: "torrent-health", label: "Swarm Health", category: "torrents" },
 ]
 
-function readPrefs(): ChartPrefs {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return { hidden: [], collapsed: [], order: [] }
-    const parsed = JSON.parse(raw) as Partial<ChartPrefs>
-    return {
-      hidden: parsed.hidden ?? [],
-      collapsed: parsed.collapsed ?? [],
-      order: parsed.order ?? [],
-    }
-  } catch {
-    return { hidden: [], collapsed: [], order: [] }
-  }
-}
-
-function writePrefs(prefs: ChartPrefs) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs))
-  } catch {
-    // SSR or quota exceeded
-  }
-}
+const EMPTY_PREFS: ChartPrefs = { hidden: [], collapsed: [], order: [] }
 
 function useChartPreferences() {
-  const [prefs, setPrefs] = useState<ChartPrefs>({ hidden: [], collapsed: [], order: [] })
+  const base = useChartPreferencesBase<ChartPrefs>(STORAGE_KEY, EMPTY_PREFS)
+  const { prefs, setPrefs, hydrated } = base
 
-  // Hydrate from localStorage after mount (SSR-safe)
-  useEffect(() => {
-    setPrefs(readPrefs())
-  }, [])
-
-  const isHidden = useCallback(
-    (id: string) => prefs.hidden.includes(id),
-    [prefs.hidden]
-  )
-
-  const isCollapsed = useCallback(
-    (id: string) => prefs.collapsed.includes(id),
-    [prefs.collapsed]
-  )
-
-  const toggleHidden = useCallback((id: string) => {
-    setPrefs((prev) => {
-      const hidden = prev.hidden.includes(id)
-        ? prev.hidden.filter((x) => x !== id)
-        : [...prev.hidden, id]
-      const next = { ...prev, hidden }
-      writePrefs(next)
-      return next
-    })
-  }, [])
-
-  const toggleCollapsed = useCallback((id: string) => {
-    setPrefs((prev) => {
-      const collapsed = prev.collapsed.includes(id)
-        ? prev.collapsed.filter((x) => x !== id)
-        : [...prev.collapsed, id]
-      const next = { ...prev, collapsed }
-      writePrefs(next)
-      return next
-    })
-  }, [])
-
-  const setVisible = useCallback((id: string, visible: boolean) => {
-    setPrefs((prev) => {
-      const hidden = visible
-        ? prev.hidden.filter((x) => x !== id)
-        : prev.hidden.includes(id)
-          ? prev.hidden
-          : [...prev.hidden, id]
-      const next = { ...prev, hidden }
-      writePrefs(next)
-      return next
-    })
-  }, [])
-
-  const collapseAll = useCallback((chartIds: string[]) => {
-    setPrefs((prev) => {
-      const visibleIds = chartIds.filter((id) => !prev.hidden.includes(id))
-      const allCollapsed = visibleIds.length > 0 && visibleIds.every((id) => prev.collapsed.includes(id))
-      const collapsed = allCollapsed
-        ? prev.collapsed.filter((id) => !visibleIds.includes(id))
-        : [...new Set([...prev.collapsed, ...visibleIds])]
-      const next = { ...prev, collapsed }
-      writePrefs(next)
-      return next
-    })
-  }, [])
-
-  const allVisibleCollapsed = useCallback(
-    (chartIds: string[]) => {
-      const visibleIds = chartIds.filter((id) => !prefs.hidden.includes(id))
-      return visibleIds.length > 0 && visibleIds.every((id) => prefs.collapsed.includes(id))
+  const reorder = useCallback(
+    (newOrder: string[]) => {
+      setPrefs((prev) => ({ ...prev, order: newOrder }))
     },
-    [prefs]
+    [setPrefs]
   )
-
-  const reorder = useCallback((newOrder: string[]) => {
-    setPrefs((prev) => {
-      const next = { ...prev, order: newOrder }
-      writePrefs(next)
-      return next
-    })
-  }, [])
 
   const orderedCharts = useCallback(
     (category?: "analytics" | "torrents") => {
@@ -218,13 +128,14 @@ function useChartPreferences() {
 
   return {
     prefs,
-    isHidden,
-    isCollapsed,
-    toggleHidden,
-    toggleCollapsed,
-    setVisible,
-    collapseAll,
-    allVisibleCollapsed,
+    hydrated,
+    isHidden: base.isHidden,
+    isCollapsed: base.isCollapsed,
+    toggleHidden: base.toggleHidden,
+    toggleCollapsed: base.toggleCollapsed,
+    setVisible: base.setVisible,
+    collapseAll: base.collapseAll,
+    allVisibleCollapsed: base.allVisibleCollapsed,
     reorder,
     orderedCharts,
   }

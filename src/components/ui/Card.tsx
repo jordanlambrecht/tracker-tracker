@@ -46,7 +46,7 @@ function Card({
 
   return (
     <div
-      className={clsx(card({ elevation }), "rounded-nm-lg", className)}
+      className={clsx(card({ elevation }), "rounded-nm-lg overflow-hidden", className)}
       style={{ ...glowStyle, ...style }}
       {...props}
     >

@@ -6,22 +6,16 @@
 
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
-import type { Snapshot } from "@/types/api"
+import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartAxisLabel, chartTooltip } from "./theme"
+import { CHART_THEME, chartAxisLabel, chartDot, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-interface TrackerSeedbonusSeries {
-  name: string
-  color: string
-  snapshots: Snapshot[]
-}
-
 interface SeedbonusRiverChartProps {
-  trackerData: TrackerSeedbonusSeries[]
+  trackerData: TrackerSnapshotSeries[]
   height?: number
 }
 
@@ -30,7 +24,7 @@ interface SeedbonusRiverChartProps {
 // ---------------------------------------------------------------------------
 
 function buildRiverData(
-  trackerData: TrackerSeedbonusSeries[]
+  trackerData: TrackerSnapshotSeries[]
 ): [string, number, string][] {
   // Collect all timestamps across all trackers (only from non-null seedbonus snaps)
   const allTs = new Set<string>()
@@ -81,7 +75,7 @@ function buildRiverData(
 // ---------------------------------------------------------------------------
 
 function buildRiverOption(
-  trackerData: TrackerSeedbonusSeries[],
+  trackerData: TrackerSnapshotSeries[],
   riverData: [string, number, string][]
 ): EChartsOption {
   const colors = trackerData.map((t) => t.color)
@@ -127,14 +121,14 @@ function buildRiverOption(
             const display = bon.toLocaleString()
             const col = item.color
             return (
-              `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${col};margin-right:6px;box-shadow:0 0 6px ${col};"></span>` +
-              `<span style="color:${CHART_THEME.textSecondary};">${trackerName}:</span> ` +
+              chartDot(col) +
+              `<span style="color:${CHART_THEME.textSecondary};">${escHtml(trackerName)}:</span> ` +
               `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${display} BON</span>`
             )
           })
           .join("<br/>")
 
-        return `<div style="font-family:var(--font-mono),monospace;font-size:11px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${formattedDate}</div>${rows}`
+        return chartTooltipHeader(formattedDate) + rows
       },
     }),
     singleAxis: {
@@ -197,4 +191,4 @@ function SeedbonusRiverChart({
 }
 
 export { SeedbonusRiverChart }
-export type { SeedbonusRiverChartProps, TrackerSeedbonusSeries }
+export type { SeedbonusRiverChartProps }

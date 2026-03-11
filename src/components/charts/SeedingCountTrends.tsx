@@ -5,7 +5,7 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
+import { ChartECharts } from "./ChartECharts"
 import type { FleetSnapshot } from "@/lib/fleet"
 import { extractTagsFromSnapshots } from "@/lib/fleet"
 import { ChartEmptyState } from "./ChartEmptyState"
@@ -105,7 +105,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
         return `${chartTooltipHeader(dateLabel)}${rows}`
       },
     }),
-    grid: chartGrid({ top: 32, right: 16, left: 56 }),
+    grid: chartGrid({ right: 16, left: 56 }),
     xAxis: {
       type: "time",
       axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
@@ -147,7 +147,7 @@ function SeedingCountTrends({ snapshots, height = 360 }: SeedingCountTrendsProps
   }
 
   return (
-    <ReactECharts
+    <ChartECharts
       option={buildOption(snapshots)}
       style={{ height, width: "100%" }}
       opts={{ renderer: "canvas" }}
