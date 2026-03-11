@@ -1,12 +1,13 @@
 // src/components/layout/AuthShell.tsx
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import clsx from "clsx"
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { HamburgerIcon } from "@/components/ui/Icons"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
 
-export function AuthShell({ children }: { children: React.ReactNode }) {
+export function AuthShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useLocalStorage("sidebar-collapsed", false)
   const [mounted, setMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
@@ -59,11 +60,11 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
           </button>
         )}
         <div
-          className="transition-[padding-left] duration-300 ease-in-out"
-          style={{
-            paddingTop: isMobile ? "3rem" : undefined,
-            paddingLeft: !isMobile && effectiveCollapsed ? "3rem" : undefined,
-          }}
+          className={clsx(
+            "transition-[padding-left] duration-300 ease-in-out min-h-full",
+            isMobile && "pt-12",
+            !isMobile && effectiveCollapsed && "pl-12"
+          )}
         >
           {children}
         </div>

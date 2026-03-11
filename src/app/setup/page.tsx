@@ -2,19 +2,39 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { type FormEvent, useState } from "react"
-import { Button, Card, Input } from "@/components/ui"
+import { type FormEvent, useEffect, useState } from "react"
+import { Button, Card, H1, Input } from "@/components/ui"
 
 export default function SetupPage() {
   const router = useRouter()
+  const [ready, setReady] = useState(false)
+  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  useEffect(() => {
+    fetch("/api/auth/status")
+      .then((res) => res.json())
+      .then((data: { configured?: boolean }) => {
+        if (data.configured) {
+          router.push("/login")
+        } else {
+          setReady(true)
+        }
+      })
+      .catch(() => setReady(true))
+  }, [router])
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
+
+    if (!username.trim() || username.trim().length < 3) {
+      setError("Username must be at least 3 characters.")
+      return
+    }
 
     if (password.length < 8) {
       setError("Password must be at least 8 characters.")
@@ -29,10 +49,12 @@ export default function SetupPage() {
     setIsSubmitting(true)
 
     try {
+      const payload: Record<string, string> = { password, username: username.trim() }
+
       const setupRes = await fetch("/api/auth/setup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify(payload),
       })
 
       if (!setupRes.ok) {
@@ -44,7 +66,7 @@ export default function SetupPage() {
       const loginRes = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ password, username: username.trim() }),
       })
 
       if (!loginRes.ok) {
@@ -61,21 +83,43 @@ export default function SetupPage() {
     }
   }
 
+  if (!ready) {
+    return (
+      <div className="min-h-screen bg-base flex items-center justify-center px-4">
+        <p className="text-sm font-mono text-tertiary">Loading...</p>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-base flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-semibold text-primary tracking-tight">
+          <H1 className="text-2xl font-semibold tracking-tight">
             Tracker Tracker
-          </h1>
+          </H1>
           <p className="mt-2 text-sm text-secondary">
-            Create a master password to encrypt your API tokens. This password
-            is never stored in plain text.
+            Create your account. The master password encrypts your API tokens
+            and is never stored in plain text.
           </p>
         </div>
 
         <Card elevation="elevated" className="p-6">
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            <Input
+              label="Username"
+              type="text"
+              autoComplete="username"
+              placeholder="Min. 3 characters"
+              required
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              error={
+                error?.toLowerCase().includes("username") ? error : undefined
+              }
+              disabled={isSubmitting}
+            />
+
             <Input
               label="Master Password"
               type="password"
@@ -106,7 +150,8 @@ export default function SetupPage() {
 
             {error &&
               !error?.toLowerCase().includes("8 char") &&
-              !error?.toLowerCase().includes("match") && (
+              !error?.toLowerCase().includes("match") &&
+              !error?.toLowerCase().includes("username") && (
                 <p className="text-xs font-sans text-danger" role="alert">
                   {error}
                 </p>
@@ -119,7 +164,7 @@ export default function SetupPage() {
               className="w-full mt-1"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Setting up…" : "Create Password"}
+              {isSubmitting ? "Setting up…" : "Create Account"}
             </Button>
           </form>
         </Card>
