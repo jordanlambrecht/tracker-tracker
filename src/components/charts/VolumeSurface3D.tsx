@@ -160,7 +160,9 @@ function bucketGrid(daily: ReturnType<typeof computeDailyGrid>): GridResult {
   }
 
   const bucketIndex = new Map<string, number>()
-  orderedBucketKeys.forEach((k, i) => bucketIndex.set(k, i))
+  for (let i = 0; i < orderedBucketKeys.length; i++) {
+    bucketIndex.set(orderedBucketKeys[i], i)
+  }
 
   const bucketCount = orderedBucketKeys.length
   const uploadGrid: number[][] = []
@@ -171,7 +173,8 @@ function bucketGrid(daily: ReturnType<typeof computeDailyGrid>): GridResult {
     const downloads = new Array<number>(bucketCount).fill(0)
 
     for (let di = 0; di < daily.days.length; di++) {
-      const bi = bucketIndex.get(dayBucketKeys[di])!
+      const bi = bucketIndex.get(dayBucketKeys[di])
+      if (bi === undefined) continue
       uploads[bi] += daily.uploadGrid[ti][di]
       downloads[bi] += daily.downloadGrid[ti][di]
     }

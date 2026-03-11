@@ -4,9 +4,9 @@
 
 "use client"
 
+import clsx from "clsx"
 import type { ReactNode } from "react"
 import { useId } from "react"
-import clsx from "clsx"
 import { CheckIcon } from "@/components/ui/Icons"
 
 interface CheckboxProps {
@@ -32,40 +32,42 @@ function Checkbox({
   const checkboxId = id ?? generatedId
 
   return (
-    <div className={clsx("flex items-start gap-3", className)}>
-      <button
-        type="button"
-        id={checkboxId}
-        role="checkbox"
-        aria-checked={checked}
-        disabled={disabled}
-        onClick={() => onChange(!checked)}
-        className={clsx(
-          "relative shrink-0 w-5 h-5 mt-0.5 cursor-pointer",
-          "transition-all duration-150",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-control-focus)] focus-visible:ring-offset-1 focus-visible:ring-offset-base",
-          "disabled:opacity-40 disabled:cursor-not-allowed rounded-nm-sm",
-          checked ? "nm-raised-sm bg-accent-dim" : "nm-inset-sm bg-control-bg",
-        )}
-      >
-        {checked && (
-          <CheckIcon
-            className="absolute inset-0 m-auto"
-            width="12"
-            height="12"
-            stroke="var(--color-accent)"
-          />
-        )}
-      </button>
-      {(label || children) && (
-        <label
-          htmlFor={checkboxId}
-          className="text-sm font-sans text-primary cursor-pointer select-none leading-relaxed"
+    <label
+      htmlFor={checkboxId}
+      className={clsx("flex items-start gap-3 cursor-pointer select-none", disabled && "opacity-40 cursor-not-allowed", className)}
+    >
+      <span className="relative shrink-0 w-5 h-5 mt-0.5">
+        <input
+          type="checkbox"
+          id={checkboxId}
+          checked={checked}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.checked)}
+          className="peer sr-only"
+        />
+        <span
+          className={clsx(
+            "absolute inset-0 block rounded-nm-sm transition-all duration-150",
+            "peer-focus-visible:ring-2 peer-focus-visible:ring-[color:var(--color-control-focus)] peer-focus-visible:ring-offset-1 peer-focus-visible:ring-offset-base",
+            checked ? "nm-raised-sm bg-accent-dim" : "nm-inset-sm bg-control-bg",
+          )}
         >
+          {checked && (
+            <CheckIcon
+              className="absolute inset-0 m-auto"
+              width="12"
+              height="12"
+              stroke="var(--color-accent)"
+            />
+          )}
+        </span>
+      </span>
+      {(label || children) && (
+        <span className="text-sm font-sans text-primary leading-relaxed">
           {children ?? label}
-        </label>
+        </span>
       )}
-    </div>
+    </label>
   )
 }
 

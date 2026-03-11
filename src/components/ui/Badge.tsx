@@ -1,7 +1,8 @@
 // src/components/ui/Badge.tsx
-import type { HTMLAttributes } from "react"
+
 import { cva } from "class-variance-authority"
 import clsx from "clsx"
+import type { HTMLAttributes } from "react"
 
 type BadgeVariant = "default" | "accent" | "warn" | "danger" | "success"
 

@@ -2,8 +2,8 @@
 
 "use client"
 
-import { useId, useRef, useState } from "react"
 import clsx from "clsx"
+import { useId, useRef, useState } from "react"
 import { useClickOutside } from "@/hooks/useClickOutside"
 
 type SelectSize = "sm" | "md"

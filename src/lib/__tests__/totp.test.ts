@@ -1,4 +1,6 @@
 // src/lib/__tests__/totp.test.ts
+
+import { Secret, TOTP } from "otpauth"
 import { describe, expect, it } from "vitest"
 import {
   generateBackupCodes,
@@ -7,7 +9,6 @@ import {
   verifyAndConsumeBackupCode,
   verifyTotpCode,
 } from "../totp"
-import { TOTP, Secret } from "otpauth"
 
 // ---------------------------------------------------------------------------
 // generateTotpSecret

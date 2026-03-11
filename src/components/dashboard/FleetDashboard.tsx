@@ -6,7 +6,6 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { FleetActivityHeatmap } from "@/components/charts/FleetActivityHeatmap"
-import { CHART_THEME } from "@/components/charts/theme"
 import { FleetAgeTimeline } from "@/components/charts/FleetAgeTimeline"
 import { FleetCrossSeedDonut } from "@/components/charts/FleetCrossSeedDonut"
 import { FleetRatioDistribution } from "@/components/charts/FleetRatioDistribution"
@@ -19,6 +18,7 @@ import { SeedingCountTrends } from "@/components/charts/SeedingCountTrends"
 import { SpeedHistoryChart } from "@/components/charts/SpeedHistoryChart"
 import { SpeedThemeRiver } from "@/components/charts/SpeedThemeRiver"
 import { TrackerHealthRadar } from "@/components/charts/TrackerHealthRadar"
+import { CHART_THEME } from "@/components/charts/theme"
 import { ChartCard } from "@/components/dashboard/ChartCard"
 import {
   FLEET_CHARTS,
@@ -26,8 +26,8 @@ import {
 } from "@/components/dashboard/useFleetChartPreferences"
 import { ChevronUpIcon } from "@/components/ui/Icons"
 import { StatCard } from "@/components/ui/StatCard"
-import { computeFleetStats } from "@/lib/fleet"
 import type { FleetSnapshot, TorrentRaw, TrackerTag } from "@/lib/fleet"
+import { computeFleetStats } from "@/lib/fleet"
 import { formatBytesFromNumber } from "@/lib/formatters"
 
 interface FleetTorrentsResponse {
@@ -76,8 +76,8 @@ export function FleetDashboard({ dayRange }: FleetDashboardProps) {
         const data: { id: number; name: string; color: string; qbtTag: string | null }[] = await trackersRes.json()
         setTrackerTags(
           data
-            .filter((t) => t.qbtTag && t.qbtTag.trim())
-            .map((t) => ({ tag: t.qbtTag!.trim(), name: t.name, color: t.color ?? CHART_THEME.accent }))
+            .filter((t): t is typeof t & { qbtTag: string } => !!t.qbtTag?.trim())
+            .map((t) => ({ tag: t.qbtTag.trim(), name: t.name, color: t.color ?? CHART_THEME.accent }))
         )
       }
 

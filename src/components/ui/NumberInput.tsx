@@ -4,9 +4,9 @@
 
 "use client"
 
-import { useId } from "react"
 import clsx from "clsx"
-import { ChevronUpSmallIcon, ChevronDownSmallIcon } from "@/components/ui/Icons"
+import { useId } from "react"
+import { ChevronDownSmallIcon, ChevronUpSmallIcon } from "@/components/ui/Icons"
 
 interface NumberInputProps {
   value: number
@@ -63,6 +63,7 @@ function NumberInput({
           type="text"
           inputMode="numeric"
           pattern="[0-9]*"
+          role="spinbutton"
           value={value}
           onChange={(e) => handleChange(e.target.value)}
           disabled={disabled}

@@ -8,8 +8,8 @@
 
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
-import { formatBytesFromNumber } from "@/lib/formatters"
 import { Card } from "@/components/ui/Card"
+import { formatBytesFromNumber } from "@/lib/formatters"
 import { CHART_THEME } from "./theme"
 
 // ── Constants ──

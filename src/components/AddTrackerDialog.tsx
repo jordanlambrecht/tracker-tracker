@@ -4,6 +4,7 @@
 // Functions: AddTrackerDialog
 
 import clsx from "clsx"
+import Image from "next/image"
 import { type FormEvent, type KeyboardEvent, type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { CHART_THEME } from "@/components/charts/theme"
 import { Button } from "@/components/ui/Button"
@@ -96,7 +97,10 @@ function TrackerCombobox({ presets, value, onChange }: TrackerComboboxProps) {
       <div
         className="w-full bg-control-bg text-primary font-mono flex items-center gap-2 nm-inset text-sm px-4 py-3 cursor-text rounded-nm-md border-0"
         onClick={() => { setOpen(true); inputRef.current?.focus() }}
-        role="presentation"
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { setOpen(true); inputRef.current?.focus() } }}
+        role="combobox"
+        tabIndex={0}
+        aria-expanded={open}
       >
         {selectedEntry && !open && !query ? (
           <span className="flex-1 truncate">{selectedEntry.name}</span>
@@ -154,7 +158,7 @@ function TrackerCombobox({ presets, value, onChange }: TrackerComboboxProps) {
                 )}
               >
                 {entry.logo && (
-                  <img src={entry.logo} alt="" width={18} height={18} className="shrink-0 rounded-sm" />
+                  <Image src={entry.logo} alt="" width={18} height={18} className="shrink-0 rounded-sm" />
                 )}
                 <span className="flex-1 truncate">{entry.name}</span>
                 {entry.warning && (

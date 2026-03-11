@@ -1,6 +1,6 @@
 // src/lib/__tests__/privacy.test.ts
 import { describe, expect, it } from "vitest"
-import { REDACTED_PREFIX, isRedacted, maskUsername, redactedLength } from "../privacy"
+import { isRedacted, maskUsername, REDACTED_PREFIX, redactedLength } from "../privacy"
 
 describe("maskUsername", () => {
   it("returns null for null input", () => {

@@ -4,9 +4,9 @@
 
 "use client"
 
-import { useState } from "react"
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
+import { useState } from "react"
 import { bytesToGiB } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import { LogScaleToggle } from "./LogScaleToggle"

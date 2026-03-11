@@ -21,6 +21,7 @@ function TabBar<T extends string>({ tabs, activeTab, onChange }: TabBarProps<T>)
   const buttonRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null)
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refs don't need to be deps
   useEffect(() => {
     const container = containerRef.current
     const button = buttonRefs.current.get(activeTab)

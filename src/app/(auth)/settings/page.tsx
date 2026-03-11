@@ -1689,8 +1689,9 @@ export default function SettingsPage() {
           </Paragraph>
 
           {/* Restore dropzone */}
-          <div
-            className={`relative flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 transition-colors cursor-pointer ${
+          <button
+            type="button"
+            className={`relative flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 transition-colors cursor-pointer w-full ${
               isDraggingRestore
                 ? "border-accent bg-accent/10"
                 : "border-border hover:border-secondary"
@@ -1723,7 +1724,7 @@ export default function SettingsPage() {
               Drop a backup file here to restore, or click to browse
             </span>
             <span className="text-xs text-tertiary">.json or .ttbak</span>
-          </div>
+          </button>
 
           {backupError && (
             <p className="text-sm text-danger font-mono">{backupError}</p>

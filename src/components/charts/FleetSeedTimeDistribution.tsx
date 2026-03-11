@@ -8,7 +8,7 @@ import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
 import { SEED_TIME_BUCKETS, SEEDING_STATES } from "@/lib/fleet"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartAxisLabel, chartGrid, chartDot, chartTooltip } from "./theme"
+import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartTooltip } from "./theme"
 
 interface FleetSeedTimeDistributionProps {
   torrents: { state: string; seeding_time: number }[]

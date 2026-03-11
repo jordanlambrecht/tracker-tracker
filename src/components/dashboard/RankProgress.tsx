@@ -7,11 +7,11 @@
 import { useState } from "react"
 import { CHART_THEME } from "@/components/charts/theme"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
+import { RedactedText } from "@/components/ui/RedactedText"
 import type { TrackerUserClass } from "@/data/tracker-registry"
-import type { Snapshot } from "@/types/api"
 import { hexToRgba } from "@/lib/formatters"
 import { isRedacted } from "@/lib/privacy"
-import { RedactedText } from "@/components/ui/RedactedText"
+import type { Snapshot } from "@/types/api"
 
 interface RankChange {
   from: string
