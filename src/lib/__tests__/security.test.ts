@@ -623,13 +623,18 @@ describe("Setup protection", () => {
             limit: vi.fn().mockResolvedValue([{ id: 1, passwordHash: "hash", encryptionSalt: "salt" }]),
           }),
         }),
+        transaction: vi.fn(),
       },
     }))
+    vi.doMock("@/lib/api-helpers", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("@/lib/api-helpers")>()
+      return { ...actual, parseJsonBody: vi.fn().mockResolvedValue({ password: "mysecurepassword123", username: "admin" }) }
+    })
 
     const { POST: SetupPOST } = await import("@/app/api/auth/setup/route")
     const req = makeRequest(
       "http://localhost/api/auth/setup",
-      { password: "mysecurepassword123" },
+      { password: "mysecurepassword123", username: "admin" },
       "POST"
     )
 
