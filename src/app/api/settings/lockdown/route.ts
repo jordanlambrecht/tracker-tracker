@@ -1,0 +1,55 @@
+// src/app/api/settings/lockdown/route.ts
+//
+// Emergency lockdown: stops scheduler, nullifies all encrypted data,
+// rotates encryption salt (orphaning any remaining ciphertext),
+// and destroys the session. The user must log back in and re-enter
+// all tracker API tokens.
+
+import { eq } from "drizzle-orm"
+import { NextResponse } from "next/server"
+import { authenticate } from "@/lib/api-helpers"
+import { clearSession } from "@/lib/auth"
+import { generateSalt } from "@/lib/crypto"
+import { db } from "@/lib/db"
+import { appSettings, trackers } from "@/lib/db/schema"
+import { stopScheduler } from "@/lib/scheduler"
+
+export async function POST() {
+  const auth = await authenticate()
+  if (auth instanceof NextResponse) return auth
+
+  const [settings] = await db.select().from(appSettings).limit(1)
+  if (!settings) {
+    return NextResponse.json({ error: "Not configured" }, { status: 400 })
+  }
+
+  // 1. Stop all polling immediately
+  stopScheduler()
+
+  // 2. Nullify all tracker API tokens — they're now useless
+  await db.update(trackers).set({
+    encryptedApiToken: "LOCKDOWN_REVOKED",
+    isActive: false,
+    lastError: "Emergency lockdown — API token revoked",
+    updatedAt: new Date(),
+  })
+
+  // 3. Rotate encryption salt — orphans any remaining ciphertext
+  const newSalt = generateSalt()
+
+  // 4. Wipe TOTP secrets (encrypted with old key, now unrecoverable anyway)
+  await db
+    .update(appSettings)
+    .set({
+      encryptionSalt: newSalt,
+      totpSecret: null,
+      totpBackupCodes: null,
+      username: null,
+    })
+    .where(eq(appSettings.id, settings.id))
+
+  // 5. Kill the session
+  await clearSession()
+
+  return NextResponse.json({ success: true })
+}
