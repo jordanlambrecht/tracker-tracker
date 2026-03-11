@@ -474,6 +474,7 @@ function AddTrackerDialog({ open, onClose, onAdded, existingBaseUrls = [] }: Add
             label="Join Date (optional)"
             type="date"
             value={joinedAt}
+            max={new Date().toISOString().split("T")[0]}
             onChange={(e) => setJoinedAt(e.target.value)}
             placeholder="YYYY-MM-DD"
           />

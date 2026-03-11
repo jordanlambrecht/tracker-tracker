@@ -447,7 +447,7 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
   }
 
   return (
-    <Card elevation="raised" className="flex flex-col gap-0 !p-0 overflow-hidden">
+    <Card elevation="raised" className="flex flex-col gap-0 !p-0">
       {/* Header */}
       <div className="flex items-center gap-3 px-5 py-4">
         {/* Emoji */}
