@@ -6,7 +6,8 @@
 // Functions: walkFiles, routePathFromFile, checkAuthEnforcement,
 //   checkDangerousFunctions, checkHardcodedSecrets, checkSecurityHeaders,
 //   checkCookieSecurity, checkSensitiveFieldExposure, checkEnvFiles,
-//   checkConsoleLogInRoutes, checkTodoInSecurityFiles, runAudit
+//   checkConsoleLogInRoutes, checkTodoInSecurityFiles, checkRawSqlInRoutes,
+//   runAudit
 //
 // Usage: npx tsx scripts/security-audit.ts [--changed-only file1 file2 ...]
 // If --changed-only is provided, only those files are scanned for
@@ -55,13 +56,13 @@ interface AuditOutput {
 // Routes that intentionally skip session verification.
 // These are truly public — no cookie, no JWE, no auth at all.
 // Routes that do their own auth (i.e logout via getSession) are NOT listed.
+// NOTE: api/changelog is NOT listed here — it calls authenticate() and must remain protected.
 const NO_AUTH_ROUTES = new Set([
   "api/auth/setup",
   "api/auth/login",
   "api/auth/status",
   "api/auth/totp/verify",
   "api/health",
-  "api/changelog",
 ])
 
 // Both patterns are valid auth mechanisms:
@@ -73,6 +74,7 @@ const REQUIRED_HEADERS = [
   "X-Content-Type-Options",
   "X-Frame-Options",
   "X-XSS-Protection",
+  "X-DNS-Prefetch-Control",
   "Referrer-Policy",
   "Permissions-Policy",
 ]
@@ -544,6 +546,43 @@ function checkTodoInSecurityFiles(): CheckResult {
   }
 }
 
+// ── Check 10: Raw SQL in API routes (critical) ───────────────────────────
+
+// Hardcoded-safe SQL literals permitted in route files.
+// These are DB connectivity checks with no user input — identical in safety
+// to the VACUUM FULL in wipe.ts.
+const SAFE_RAW_SQL_RE = /db\.execute\s*\(\s*sql`SELECT\s+1`\s*\)/
+
+function checkRawSqlInRoutes(): CheckResult {
+  const findings: Finding[] = []
+  const routeFiles = walkFiles(API_DIR, "route.ts")
+  const RAW_SQL_RE = /db\.execute\s*\(/
+
+  for (const file of routeFiles) {
+    const content = fs.readFileSync(file, "utf8")
+    const lineNums = findAllLineNumbers(content, RAW_SQL_RE)
+    for (const line of lineNums) {
+      const lineContent = content.split("\n")[line - 1]?.trim()
+      if (lineContent?.startsWith("//")) continue
+      // Allow hardcoded DB ping (SELECT 1) — no user input, same category as wipe.ts
+      if (lineContent && SAFE_RAW_SQL_RE.test(lineContent)) continue
+      findings.push({
+        file: relativePath(file),
+        line,
+        detail: "Raw SQL (db.execute) in API route — use Drizzle query builder instead",
+      })
+    }
+  }
+
+  return {
+    id: "raw-sql-in-routes",
+    name: "No raw SQL in API routes",
+    severity: "critical",
+    status: findings.length === 0 ? "pass" : "fail",
+    findings,
+  }
+}
+
 // ── Run all checks ──────────────────────────────────────────────────────
 
 function runAudit(changedFiles?: string[]): AuditOutput {
@@ -560,6 +599,7 @@ function runAudit(changedFiles?: string[]): AuditOutput {
     checkCookieSecurity(),
     checkSensitiveFieldExposure(),
     checkEnvFiles(),
+    checkRawSqlInRoutes(),
     // Warning — flag but don't fail
     checkConsoleLogInRoutes(absChangedFiles),
     checkTodoInSecurityFiles(),
