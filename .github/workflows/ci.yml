@@ -155,14 +155,13 @@ jobs:
         run: |
           COUNT=$(pnpm test:run -- src/lib/__tests__/security.test.ts 2>&1 | grep -oP '\d+ tests' | grep -oP '\d+')
           echo "Security tests: $COUNT"
-          if [ "$COUNT" -lt 41 ]; then
-            echo "::error::Security test count dropped below expected minimum (41). Was a test removed?"
+          if [ "$COUNT" -lt 78 ]; then
+            echo "::error::Security test count dropped below expected minimum (78). Was a test removed?"
             exit 1
           fi
 
       # ── Security audit ──────────────────────────────────────────────
       - name: Run security audit
-        if: github.event_name == 'pull_request'
         id: security-audit
         continue-on-error: true
         run: |
@@ -278,5 +277,5 @@ jobs:
             }
 
       - name: Fail if security audit has critical findings
-        if: github.event_name == 'pull_request' && steps.security-audit.outcome == 'failure'
+        if: steps.security-audit.outcome == 'failure'
         run: exit 1
