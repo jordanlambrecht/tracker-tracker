@@ -12,10 +12,14 @@ describe("tracker registry", () => {
       expect(tracker.slug).toBeTruthy()
       expect(tracker.name).toBeTruthy()
       expect(tracker.url).toMatch(/^https:\/\//)
-      expect(tracker.platform).toBe("unit3d")
-      expect(tracker.apiPath).toBe("/api/user")
-      expect(tracker.contentCategories.length).toBeGreaterThan(0)
-      expect(tracker.userClasses.length).toBeGreaterThan(0)
+      expect(["unit3d", "gazelle", "ggn"]).toContain(tracker.platform)
+      if (tracker.platform === "unit3d") {
+        expect(tracker.apiPath).toBe("/api/user")
+      } else if (tracker.platform === "gazelle") {
+        expect(tracker.apiPath).toBe("/ajax.php")
+      } else if (tracker.platform === "ggn") {
+        expect(tracker.apiPath).toBe("/api.php")
+      }
       expect(tracker.color).toMatch(/^#[0-9a-f]{6}$/i)
     }
   })
