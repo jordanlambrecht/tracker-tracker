@@ -1,5 +1,7 @@
 // src/components/ui/ChevronToggle.tsx
 
+import { clsx } from "clsx"
+
 interface ChevronToggleProps {
   expanded: boolean
   variant?: "pivot" | "flip"
@@ -10,8 +12,11 @@ function ChevronToggle({ expanded, variant = "pivot", className }: ChevronToggle
   if (variant === "flip") {
     return (
       <span
-        className={`inline-block transition-transform duration-150 text-tertiary text-sm flex-shrink-0 ${className ?? ""}`}
-        style={{ transform: expanded ? "rotate(0deg)" : "rotate(180deg)" }}
+        className={clsx(
+          "inline-block transition-transform duration-150 text-tertiary text-sm shrink-0",
+          expanded ? "rotate-0" : "rotate-180",
+          className
+        )}
       >
         ▾
       </span>
@@ -20,8 +25,11 @@ function ChevronToggle({ expanded, variant = "pivot", className }: ChevronToggle
 
   return (
     <span
-      className={`inline-block transition-transform duration-150 text-[10px] ${className ?? ""}`}
-      style={{ transform: expanded ? "rotate(90deg)" : "rotate(0deg)" }}
+      className={clsx(
+        "inline-block transition-transform duration-150 text-[10px]",
+        expanded ? "rotate-90" : "rotate-0",
+        className
+      )}
     >
       ▶
     </span>

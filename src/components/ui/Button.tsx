@@ -1,5 +1,7 @@
 // src/components/ui/Button.tsx
 import { type ButtonHTMLAttributes, forwardRef } from "react"
+import { cva } from "class-variance-authority"
+import clsx from "clsx"
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger"
 type ButtonSize = "sm" | "md" | "lg"
@@ -9,35 +11,38 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: ButtonSize
 }
 
-const variantClasses: Record<ButtonVariant, string> = {
-  primary: [
-    "bg-accent-dim text-accent border border-accent",
-    "hover:bg-accent hover:text-base hover:shadow-glow",
-    "active:scale-[0.98]",
-    "shadow-glow-sm",
-  ].join(" "),
-  secondary: [
-    "bg-raised text-primary border border-border",
-    "hover:bg-elevated hover:border-border-emphasis",
-    "active:scale-[0.98]",
-  ].join(" "),
-  ghost: [
-    "bg-transparent text-secondary border border-transparent",
-    "hover:bg-raised hover:text-primary hover:border-border",
-    "active:scale-[0.98]",
-  ].join(" "),
-  danger: [
-    "bg-danger-dim text-danger border border-danger",
-    "hover:bg-danger hover:text-base hover:shadow-glow-danger",
-    "active:scale-[0.98]",
-    "shadow-glow-danger",
-  ].join(" "),
-}
+const button = cva(
+  [
+    "inline-flex items-center justify-center font-sans font-medium",
+    "transition-all duration-150 cursor-pointer select-none",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-control-focus)] focus-visible:ring-offset-1 focus-visible:ring-offset-base",
+    "disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none disabled:shadow-none",
+  ],
+  {
+    variants: {
+      variant: {
+        primary: "bg-accent-dim text-accent nm-raised-sm hover:nm-raised active:nm-pressed active:scale-[0.93]",
+        secondary: "bg-raised text-primary nm-raised-sm hover:nm-raised active:nm-pressed active:scale-[0.93]",
+        ghost: "bg-transparent text-secondary hover:bg-raised hover:text-primary hover:nm-raised-sm active:scale-[0.96]",
+        danger: "bg-danger-dim text-danger nm-raised-sm hover:nm-raised active:nm-pressed active:scale-[0.93]",
+      },
+      size: {
+        sm: "px-4 py-2 text-xs gap-2 rounded-nm-sm",
+        md: "px-5 py-2 text-sm gap-2 rounded-nm-md",
+        lg: "px-6 py-3 text-base gap-3 rounded-nm-md",
+      },
+    },
+    defaultVariants: {
+      variant: "primary",
+      size: "md",
+    },
+  },
+)
 
-const sizeClasses: Record<ButtonSize, string> = {
-  sm: "px-3 py-1.5 text-xs rounded-sm gap-1.5",
-  md: "px-4 py-2 text-sm rounded-md gap-2",
-  lg: "px-6 py-3 text-base rounded-lg gap-2.5",
+const sizeRadii: Record<ButtonSize, string> = {
+  sm: "var(--radius-sm)",
+  md: "var(--radius-md)",
+  lg: "var(--radius-md)",
 }
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -45,9 +50,10 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     {
       variant = "primary",
       size = "md",
-      className = "",
+      className,
       disabled,
       children,
+      style,
       ...props
     },
     ref,
@@ -56,17 +62,8 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         disabled={disabled}
-        className={[
-          "inline-flex items-center justify-center font-sans font-medium",
-          "transition-all duration-150 cursor-pointer select-none",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-control-focus)] focus-visible:ring-offset-1 focus-visible:ring-offset-base",
-          "disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none",
-          variantClasses[variant],
-          sizeClasses[size],
-          className,
-        ]
-          .filter(Boolean)
-          .join(" ")}
+        className={clsx(button({ variant, size }), className)}
+        style={style}
         {...props}
       >
         {children}
@@ -77,5 +74,5 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 
 Button.displayName = "Button"
 
-export { Button }
+export { Button, button as buttonVariants, sizeRadii as buttonRadii }
 export type { ButtonProps, ButtonVariant, ButtonSize }

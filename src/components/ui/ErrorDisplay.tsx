@@ -1,5 +1,12 @@
 // src/components/ui/ErrorDisplay.tsx
+"use client"
+
+import clsx from "clsx"
 import Link from "next/link"
+import { useState } from "react"
+import { Button, buttonVariants } from "@/components/ui/Button"
+import { CheckLargeIcon, CopyIcon } from "@/components/ui/Icons"
+import { H1 } from "@/components/ui/Typography"
 
 export function ErrorDisplay({
   message,
@@ -12,29 +19,53 @@ export function ErrorDisplay({
   linkHref: string
   linkText: string
 }) {
+  const [copied, setCopied] = useState(false)
+  const errorText = message || "An unexpected error occurred."
+
+  function handleCopy() {
+    navigator.clipboard.writeText(errorText).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0a0e1a] px-4">
-      <div className="w-full max-w-md rounded-lg border border-[rgba(239,68,68,0.2)] bg-[#0f1424] p-8">
-        <p className="mb-1 font-mono text-xs uppercase tracking-widest text-[#ef4444]">
+    <div className="flex min-h-screen items-center justify-center bg-base px-4">
+      <div
+        className="w-full max-w-md bg-elevated p-8 nm-raised-lg rounded-nm-xl"
+      >
+        <p className="mb-1 font-mono text-xs uppercase tracking-widest text-danger">
           Runtime Error
         </p>
-        <h1 className="mb-4 text-xl font-semibold text-[#e2e8f0]">
+        <H1 className="mb-4 text-xl font-semibold">
           Something went wrong
-        </h1>
-        <pre className="mb-6 overflow-x-auto rounded border border-[rgba(148,163,184,0.1)] bg-[#080c16] p-3 font-mono text-xs text-[#94a3b8]">
-          {message || "An unexpected error occurred."}
-        </pre>
-        <div className="flex gap-3">
+        </H1>
+        <div className="relative mb-6">
+          <pre
+            className="bg-control-bg p-3 pr-10 font-mono text-xs text-secondary nm-inset whitespace-pre-wrap break-all rounded-nm-md"
+          >
+            {errorText}
+          </pre>
           <button
             type="button"
-            onClick={onRetry}
-            className="rounded border border-[rgba(0,212,255,0.3)] bg-[rgba(0,212,255,0.08)] px-4 py-2 text-sm text-[#00d4ff] transition-colors hover:bg-[rgba(0,212,255,0.15)]"
+            onClick={handleCopy}
+            className="absolute top-2 right-2 p-1.5 text-muted hover:text-secondary transition-colors duration-150 cursor-pointer"
+            title="Copy error message"
           >
-            Try Again
+            {copied ? (
+              <CheckLargeIcon width="14" height="14" />
+            ) : (
+              <CopyIcon width="14" height="14" />
+            )}
           </button>
+        </div>
+        <div className="flex gap-3">
+          <Button variant="primary" size="sm" onClick={onRetry}>
+            Try Again
+          </Button>
           <Link
             href={linkHref}
-            className="rounded border border-[rgba(148,163,184,0.15)] px-4 py-2 text-sm text-[#94a3b8] transition-colors hover:text-[#e2e8f0]"
+            className={clsx(buttonVariants({ variant: "ghost", size: "sm" }), "rounded-nm-sm")}
           >
             {linkText}
           </Link>
