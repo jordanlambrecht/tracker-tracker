@@ -8,7 +8,7 @@ import {
   hashBackupCode,
   verifyAndConsumeBackupCode,
   verifyTotpCode,
-} from "../totp"
+} from "@/lib/totp"
 
 // ---------------------------------------------------------------------------
 // generateTotpSecret
