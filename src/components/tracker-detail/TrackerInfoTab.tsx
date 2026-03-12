@@ -174,9 +174,9 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
                       )}
                       {uc.perks && uc.perks.length > 0 && (
                         <div className="flex flex-wrap justify-end gap-1 mt-1">
-                          {uc.perks.map((perk) => (
+                          {uc.perks.map((perk, pi) => (
                             <span
-                              key={perk.type}
+                              key={`${perk.type}-${pi}`}
                               className="text-[10px] font-mono text-muted nm-inset-sm bg-control-bg px-1.5 py-0.5 rounded-nm-pill"
                             >
                               {perk.label}
