@@ -7,7 +7,7 @@
 # Base
 # ---------------------------------------------------------------------------
 FROM node:25-alpine AS base
-RUN corepack enable pnpm
+RUN npm install -g pnpm
 
 # ---------------------------------------------------------------------------
 # Stage 1 — Install dependencies
