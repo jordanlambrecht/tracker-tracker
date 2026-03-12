@@ -188,7 +188,8 @@ const AUDIT_IGNORE_WITH_REASON_RE = /(?:\/\/|\/\*)\s*security-audit-ignore\s*:\s
 const _lineCache = new Map<string, string[]>()
 
 function getCachedLines(relFile: string): string[] | null {
-  if (_lineCache.has(relFile)) return _lineCache.get(relFile)!
+  const cached = _lineCache.get(relFile)
+  if (cached) return cached
   const absPath = path.resolve(ROOT, relFile)
   if (!fs.existsSync(absPath)) return null
   const lines = fs.readFileSync(absPath, "utf8").split("\n")
