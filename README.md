@@ -2,20 +2,6 @@
 
 Self-hosted dashboard for monitoring private tracker stats over time. One place for upload, download, ratio, buffer, seedbonus, and rank data across all your trackers.
 
-## Features
-
-- **Multi-tracker dashboard** — aggregate stats, comparison charts, tracker leaderboard
-- **Tracker detail pages** — upload/download history, ratio, buffer, seedbonus, seeding counts, rank progression
-- **43 trackers** across UNIT3D, Gazelle, Nebulance, and GGn platforms
-- **qBittorrent integration** — torrent stats, cross-seed tracking, activity heatmaps
-- **Encrypted at rest** — AES-256-GCM encryption for API tokens, derived from your master password
-- **Privacy mode** — redact usernames and group names
-- **Scheduled polling** — configurable interval (15 min – 24 hours) with automatic snapshot retention
-- **SOCKS5/HTTP/HTTPS proxy** — per-tracker opt-in
-- **Two-factor auth** — TOTP with backup codes
-- **Backup & restore** — scheduled or manual, optionally encrypted
-- **Dark neumorphic UI** — per-tracker accent colors, drag-and-drop sidebar, responsive charts
-
 ## Supported Trackers
 
 | Tracker               | Platform  | Status                 | Note                                                |
