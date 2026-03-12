@@ -12,7 +12,7 @@ export const filelist: TrackerRegistryEntry = {
   platform: "custom",
   apiPath: "/api/user",
   specialty: "General",
-  contentCategories: ["Movies", "TV", "Games", "Music", "Software", "Books"],
+  contentCategories: ["Movies", "TV", "Games", "Music", "Apps", "Books"],
   userClasses: [],
   releaseGroups: [],
   notableMembers: [],
