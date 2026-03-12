@@ -136,11 +136,9 @@ function SortableTrackerItem({
       ref={setNodeRef}
       style={dragStyle}
     >
-      <div
-        role="button"
-        tabIndex={0}
+      <button
+        type="button"
         onClick={unlocked ? undefined : onClick}
-        onKeyDown={unlocked ? undefined : (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick?.() } }}
         className={`${itemClasses} rounded-nm-md`}
         style={activeStyle}
         aria-current={isActive ? "page" : undefined}
@@ -165,20 +163,20 @@ function SortableTrackerItem({
             onClick={(e) => { e.stopPropagation(); onToggleFavorite(tracker.id, tracker.isFavorite) }}
             className={clsx(
               "shrink-0 text-sm leading-none transition-all duration-150 cursor-pointer bg-transparent border-none p-0",
-              tracker.isFavorite ? "text-warn opacity-100" : "text-muted opacity-0 group-hover:opacity-50 hover:!opacity-100",
+              tracker.isFavorite ? "text-warn opacity-100" : "text-muted opacity-0 group-hover:opacity-50 hover:opacity-100!",
             )}
             aria-label={tracker.isFavorite ? "Remove from favorites" : "Add to favorites"}
           >
             {tracker.isFavorite ? "★" : "☆"}
           </button>
         )}
-      </div>
+      </button>
     </li>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Sparkline (pure SVG — no chart library)
+// Sparkline
 // ---------------------------------------------------------------------------
 
 function Sparkline({
