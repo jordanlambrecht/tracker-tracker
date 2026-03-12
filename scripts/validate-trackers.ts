@@ -23,8 +23,8 @@ const LOGO_DIR = path.resolve(__dirname, "../public/tracker-logos")
 const TRACKER_DIR = path.resolve(__dirname, "../src/data/trackers")
 
 const VALID_CONTENT_CATEGORIES = new Set([
-  "Movies", "TV", "Music", "Games", "Apps", "Software", "Sports",
-  "Books", "Audiobooks", "Comics", "Manga", "Anime", "Animation",
+  "Movies", "TV", "Music", "Games", "Apps", "Sports",
+  "Books", "Audiobooks", "Comics", "Manga", "Anime",
   "XXX", "Documentaries", "Education", "Tutorials", "Fanres",
 ])
 
