@@ -3,7 +3,7 @@
 "use client"
 
 import clsx from "clsx"
-import { type HTMLAttributes, type ReactNode, useRef, useState } from "react"
+import { type HTMLAttributes, type ReactNode, useEffect, useRef, useState } from "react"
 import { hexToRgba } from "@/lib/formatters"
 
 type TrendDirection = "up" | "down" | "flat"
@@ -56,6 +56,10 @@ function StatCard({
     tooltipTimeout.current = setTimeout(() => setShowTooltip(false), 150)
   }
 
+  useEffect(() => {
+    return () => { if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current) }
+  }, [])
+
   return (
     <div
       className={clsx("bg-raised p-5 flex flex-col gap-2 nm-raised rounded-nm-lg overflow-visible relative", showTooltip && "z-50", className)}
@@ -71,18 +75,22 @@ function StatCard({
             {label}
           </p>
           {tooltip && (
-            <span
-              className="cursor-help text-[9px] font-bold text-muted opacity-50 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current hover:opacity-80 transition-opacity"
+            <button
+              type="button"
+              className="cursor-help text-[9px] font-bold text-muted opacity-50 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current hover:opacity-80 focus:opacity-80 transition-opacity outline-none"
               onMouseEnter={handleEnter}
               onMouseLeave={handleLeave}
+              onFocus={handleEnter}
+              onBlur={handleLeave}
+              aria-label={`Info: ${label}`}
             >
               ?
               {showTooltip && (
-                <span className="absolute left-0 top-full mt-1.5 z-50 w-52 px-3 py-2 text-[11px] font-sans font-normal normal-case tracking-normal text-secondary rounded-nm-sm leading-relaxed whitespace-normal" style={{ backgroundColor: "#343648", boxShadow: "4px 4px 8px #1b1c24, -4px -4px 8px #353848" }}>
+                <span role="tooltip" className="absolute left-0 top-full mt-1.5 z-50 w-52 px-3 py-2 text-[11px] font-sans font-normal normal-case tracking-normal text-secondary rounded-nm-sm leading-relaxed whitespace-normal" style={{ backgroundColor: "#343648", boxShadow: "4px 4px 8px #1b1c24, -4px -4px 8px #353848" }}>
                   {tooltip}
                 </span>
               )}
-            </span>
+            </button>
           )}
         </div>
         {icon && (
