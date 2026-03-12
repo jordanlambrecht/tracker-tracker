@@ -19,7 +19,7 @@ import { TrackerInfoTab } from "@/components/tracker-detail/TrackerInfoTab"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { computeDelta, hexToRgba } from "@/lib/formatters"
-import type { GazellePlatformMeta, GGnPlatformMeta, QbitmanageTagConfig, Snapshot, TagGroup, TrackerSummary } from "@/types/api"
+import type { GazellePlatformMeta, GGnPlatformMeta, NebulancePlatformMeta, QbitmanageTagConfig, Snapshot, TagGroup, TrackerSummary } from "@/types/api"
 
 type Tab = "analytics" | "info" | "torrents"
 
@@ -154,6 +154,7 @@ export default function TrackerDetailPage() {
   const registryEntry: TrackerRegistryEntry | undefined = findRegistryEntry(tracker.baseUrl)
   const ggMeta: GGnPlatformMeta | null = tracker.platformType === "ggn" ? (tracker.platformMeta as GGnPlatformMeta | null) : null
   const gazelleMeta: GazellePlatformMeta | null = tracker.platformType === "gazelle" ? (tracker.platformMeta as GazellePlatformMeta | null) : null
+  const nebulanceMeta: NebulancePlatformMeta | null = tracker.platformType === "nebulance" ? (tracker.platformMeta as NebulancePlatformMeta | null) : null
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "analytics", label: "Data & Analytics" },
@@ -230,6 +231,7 @@ export default function TrackerDetailPage() {
           latestSnapshot={latestSnapshot}
           ggMeta={ggMeta}
           gazelleMeta={gazelleMeta}
+          nebulanceMeta={nebulanceMeta}
           accentColor={tc}
           days={days}
           onDaysChange={setDays}
