@@ -10,9 +10,9 @@ import type {
   CustomSeriesRenderItemReturn,
   EChartsOption,
 } from "echarts"
-import { ChartECharts } from "./ChartECharts"
 import { hexToHsl, hslToHex } from "@/lib/formatters"
 import type { TrackerSnapshotSeries } from "@/types/charts"
+import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
 import { CHART_THEME, chartAxisLabel, chartGrid, chartTooltip, escHtml } from "./theme"
 

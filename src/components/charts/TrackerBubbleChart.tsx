@@ -5,9 +5,9 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { ChartECharts } from "./ChartECharts"
 import { useState } from "react"
 import { bytesToGiB, hexToRgba } from "@/lib/formatters"
+import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
 import { LogScaleToggle } from "./LogScaleToggle"
 import { CHART_THEME, chartAxisLabel, chartGrid, chartLegend, chartTooltip, escHtml, shouldUseLogScale } from "./theme"
