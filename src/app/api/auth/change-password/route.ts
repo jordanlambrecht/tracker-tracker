@@ -92,7 +92,7 @@ export async function POST(request: Request) {
   if (settings.totpSecret) {
     try {
       settingsUpdates.totpSecret = reEncrypt(settings.totpSecret, oldKey, newKey)
-    } catch {
+    } catch { // security-audit-ignore: re-encryption failed — clearing TOTP is the safe fallback
       settingsUpdates.totpSecret = null
       settingsUpdates.totpBackupCodes = null
       totpDisabled = true
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
   if (settings.totpBackupCodes && !settingsUpdates.totpBackupCodes && !totpDisabled) {
     try {
       settingsUpdates.totpBackupCodes = reEncrypt(settings.totpBackupCodes, oldKey, newKey)
-    } catch {
+    } catch { // security-audit-ignore: clearing backup codes is safe when re-encryption fails
       settingsUpdates.totpBackupCodes = null
     }
   }

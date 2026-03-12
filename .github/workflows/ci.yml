@@ -248,8 +248,7 @@ jobs:
               lines.push(`### Passed (${passed.length}/${results.length})`);
               lines.push('');
               for (const r of passed) {
-                const sev = r.severity === 'critical' ? '🔒' : '📋';
-                lines.push(`- ${sev} ${r.name}`);
+                lines.push(`- ✅ ${r.name}`);
               }
               lines.push('');
             }
