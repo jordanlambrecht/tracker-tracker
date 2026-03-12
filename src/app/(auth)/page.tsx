@@ -139,7 +139,6 @@ export default function DashboardPage() {
             <FleetDashboard
               dayRange={data.dayRange}
               trackers={data.trackers}
-              onRefresh={data.refresh}
             />
           ) : (
             <AnalyticsSection trackerSeries={trackerSeries} trackers={data.trackers} />
