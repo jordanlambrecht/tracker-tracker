@@ -18,51 +18,51 @@ Self-hosted dashboard for monitoring private tracker stats over time. One place 
 
 ## Supported Trackers
 
-| Tracker               | Platform  | Status                 | Note                                                                           |
-|-----------------------|-----------|----------------------- |--------------------------------------------------------------------------------|
-| Aither                | UNIT3D    | ✅ Verified            |                                                                                |
-| Anthelion             | Nebulance | ✅ Verified            |                                                                                |
-| Blutopia              | UNIT3D    | ✅ Verified            |                                                                                |
-| Concertos             | UNIT3D    | ✅ Verified            |                                                                                |
-| FearNoPeer            | UNIT3D    | ✅ Verified            |                                                                                |
-| GazelleGames (GGn)    | GGn       | ✅ Verified            |                                                                                |
-| Nebulance             | Nebulance | ✅ Verified            |                                                                                |
-| OldToons              | UNIT3D    | ✅ Verified            |                                                                                |
-| OnlyEncodes           | UNIT3D    | ✅ Verified            |                                                                                |
-| Orpheus (OPS)         | Gazelle   | ✅ Verified            |                                                                                |
-| Phoenix Project (PP)  | Gazelle   | ✅ Verified            |                                                                                |
-| Racing4Everyone       | UNIT3D    | ✅ Verified            |                                                                                |
-| Redacted (RED)        | Gazelle   | ✅ Verified            |                                                                                |
-| ReelFlix              | UNIT3D    | ✅ Verified            |                                                                                |
-| Upload.cx             | UNIT3D    | ✅ Verified            |                                                                                |
-| AlphaRatio            | Gazelle   | 🟡 Unverified ⛔ Stuck |                                                                                |
-| AnimeBytes            | Gazelle   | 🟡 Unverified ⛔ Stuck |                                                                                |
-| BroadcastheNet (BTN)  | Gazelle   | 🟡 Unverified ⛔ Stuck |                                                                                |
-| Empornium             | Gazelle   | 🟡 Unverified ⛔ Stuck | XXX trackers aren't really my jam, so PRs welcome if this is a desired tracker |
-| GreatPosterWall (GPW) | Gazelle   | 🟡 Unverified          |                                                                                |
-| LST                   | UNIT3D    | 🟡 Unverified          |                                                                                |
-| MoreThanTV (MTV)      | Gazelle   | 🟡 Unverified          |                                                                                |
-| PassThePopcorn (PTP)  | Gazelle   | 🟡 Unverified          |                                                                                |
-| SkipTheCommercials    | UNIT3D    | 🟡 Unverified          |                                                                                |
-| 720pier               | Custom    | 📋 Needs adapter       |                                                                                |
-| ABTorrents            | Custom    | 📋 Needs adapter       |                                                                                |
-| AvistaZ               | Custom    | 📋 Needs adapter       |                                                                                |
-| CathodeRayTube (CRT)  | UNIT3D    | 📋 Draft               |                                                                                |
-| CinemaZ               | Custom    | 📋 Needs adapter       |                                                                                |
-| HDBits                | Custom    | 📋 Needs adapter       |                                                                                |
-| MyAnonamouse (MAM)    | Custom    | 📋 Needs adapter       |                                                                                |
-| SecretCinema          | Custom    | 📋 Needs adapter       |                                                                                |
-| SportsCult            | Custom    | 📋 Needs adapter       |                                                                                |
-| TorrentLeech          | Custom    | 📋 Needs adapter       |                                                                                |
-| BeyondHD              | Custom    | ⛔ Stuck               |                                                                                |
-| Cinemageddon          | Custom    | ⛔ Stuck               |                                                                                |
-| ExotikaZ              | Custom    | ⛔ Stuck               |                                                                                |
-| FileList              | Custom    | ⛔ Stuck               |                                                                                |
-| HD-Torrents           | Custom    | ⛔ Stuck               |                                                                                |
-| IPTorrents            | Custom    | ⛔ Stuck               |                                                                                |
-| PrivateHD             | Custom    | ⛔ Stuck               |                                                                                |
-| TVVault               | Custom    | ⛔ Stuck               |                                                                                |
-| HawkeUno              | UNIT3D    | ❌ Broken              | API does not permit /user requests                                             |
+| Tracker               | Platform  | Status                 | Note                                                |
+|-----------------------|-----------|----------------------- |-----------------------------------------------------|
+| Aither                | UNIT3D    | ✅ Verified            |                                                     |
+| Anthelion             | Nebulance | ✅ Verified            |                                                     |
+| Blutopia              | UNIT3D    | ✅ Verified            |                                                     |
+| Concertos             | UNIT3D    | ✅ Verified            |                                                     |
+| FearNoPeer            | UNIT3D    | ✅ Verified            |                                                     |
+| GazelleGames (GGn)    | GGn       | ✅ Verified            |                                                     |
+| LST                   | UNIT3D    | ✅ Verified            |                                                     |
+| Nebulance             | Nebulance | ✅ Verified            |                                                     |
+| OldToons              | UNIT3D    | ✅ Verified            |                                                     |
+| OnlyEncodes           | UNIT3D    | ✅ Verified            |                                                     |
+| Orpheus (OPS)         | Gazelle   | ✅ Verified            |                                                     |
+| Phoenix Project (PP)  | Gazelle   | ✅ Verified            |                                                     |
+| Racing4Everyone       | UNIT3D    | ✅ Verified            |                                                     |
+| Redacted (RED)        | Gazelle   | ✅ Verified            |                                                     |
+| ReelFlix              | UNIT3D    | ✅ Verified            |                                                     |
+| SkipTheCommercials    | UNIT3D    | ✅ Verified            |                                                     |
+| Upload.cx             | UNIT3D    | ✅ Verified            |                                                     |
+| AlphaRatio            | Gazelle   | 🟡 Unverified ⛔ Stuck |                                                     |
+| AnimeBytes            | Gazelle   | 🟡 Unverified ⛔ Stuck |                                                     |
+| BroadcastheNet (BTN)  | Gazelle   | 🟡 Unverified ⛔ Stuck |                                                     |
+| Empornium             | Gazelle   | 🟡 Unverified ⛔ Stuck | XXX trackers aren't really my jam, so PRs welcome   |
+| GreatPosterWall (GPW) | Gazelle   | 🟡 Unverified          |                                                     |
+| MoreThanTV (MTV)      | Gazelle   | 🟡 Unverified          |                                                     |
+| PassThePopcorn (PTP)  | Gazelle   | 🟡 Unverified          |                                                     |
+| 720pier               | Custom    | 📋 Needs adapter       |                                                     |
+| ABTorrents            | Custom    | 📋 Needs adapter       |                                                     |
+| AvistaZ               | Custom    | 📋 Needs adapter       |                                                     |
+| CathodeRayTube (CRT)  | UNIT3D    | 📋 Draft               |                                                     |
+| CinemaZ               | Custom    | 📋 Needs adapter       |                                                     |
+| HDBits                | Custom    | 📋 Needs adapter       |                                                     |
+| MyAnonamouse (MAM)    | Custom    | 📋 Needs adapter       |                                                     |
+| SecretCinema          | Custom    | 📋 Needs adapter       |                                                     |
+| SportsCult            | Custom    | 📋 Needs adapter       |                                                     |
+| TorrentLeech          | Custom    | 📋 Needs adapter       |                                                     |
+| BeyondHD              | Custom    | ⛔ Stuck               |                                                     |
+| Cinemageddon          | Custom    | ⛔ Stuck               |                                                     |
+| ExotikaZ              | Custom    | ⛔ Stuck               |                                                     |
+| FileList              | Custom    | ⛔ Stuck               |                                                     |
+| HD-Torrents           | Custom    | ⛔ Stuck               |                                                     |
+| IPTorrents            | Custom    | ⛔ Stuck               |                                                     |
+| PrivateHD             | Custom    | ⛔ Stuck               |                                                     |
+| TVVault               | Custom    | ⛔ Stuck               |                                                     |
+| HawkeUno              | UNIT3D    | ❌ Broken              | API does not permit /user requests                  |
 
 **Legend:**
 
@@ -197,6 +197,7 @@ PRs welcome. Areas where help matters most:
 - **Download client adapters** — only qBittorrent is supported. Deluge, Transmission, and rTorrent all need adapters. See `src/lib/qbt/` for the pattern.
 - **Tracker verification** — if you belong to a tracker marked 🟡 above, testing and confirming it works helps greatly.
 - **Custom platform adapters** — trackers marked "Custom" need bespoke adapters since they don't run UNIT3D or Gazelle.
+- Someone to convince the mods over at Hawke to add a /users endpoint :D
 
 ## License
 
