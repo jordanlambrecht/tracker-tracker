@@ -164,8 +164,7 @@ export class GazelleAdapter implements TrackerAdapter {
             if (enriched.avatarUrl) stats.avatarUrl = enriched.avatarUrl
             stats.platformMeta = enriched.platformMeta
           }
-        } catch {
-          // Enrichment failure is non-fatal — core stats from index are still valid
+        } catch { // security-audit-ignore: enrichment failure is non-fatal — core stats from index are still valid
         }
       }
     }

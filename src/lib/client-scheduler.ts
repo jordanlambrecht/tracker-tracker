@@ -116,7 +116,7 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
 
     const trackerTags = trackerTagRows.map((r) => r.qbtTag as string)
     let crossSeedTags: string[] = []
-    try { crossSeedTags = JSON.parse(client.crossSeedTags) as string[] } catch { /* malformed JSON in DB */ }
+    try { crossSeedTags = JSON.parse(client.crossSeedTags) as string[] } catch { /* security-audit-ignore: malformed JSON falls back to empty array */ }
     const allTags = [...new Set([...trackerTags, ...crossSeedTags])]
 
     const { allTorrents: rawTorrents, transfer } = await withSessionRetry(

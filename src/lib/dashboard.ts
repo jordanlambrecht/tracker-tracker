@@ -241,15 +241,13 @@ export function dismissAlert(key: string): void {
     const dismissed = getDismissedAlerts()
     dismissed.add(key)
     localStorage.setItem(DISMISSED_STORAGE_KEY, JSON.stringify([...dismissed]))
-  } catch {
-    // silently ignore — SSR or storage quota exceeded
+  } catch { // security-audit-ignore: SSR or storage quota exceeded — localStorage is best-effort
   }
 }
 
 export function clearDismissedAlerts(): void {
   try {
     localStorage.removeItem(DISMISSED_STORAGE_KEY)
-  } catch {
-    // silently ignore
+  } catch { // security-audit-ignore: SSR or storage quota exceeded — localStorage is best-effort
   }
 }
