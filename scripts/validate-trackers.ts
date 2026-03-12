@@ -11,8 +11,8 @@
 import fs from "node:fs"
 import path from "node:path"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
-import { ALL_TRACKERS } from "../src/data/trackers"
-import { DEFAULT_API_PATHS } from "../src/lib/adapters"
+import { ALL_TRACKERS } from "@/data/trackers"
+import { DEFAULT_API_PATHS } from "@/lib/adapters"
 
 const VALID_PLATFORMS = ["unit3d", "gazelle", "ggn", "nebulance", "custom"] as const
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
@@ -20,7 +20,7 @@ const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
 const LOGO_NAME_RE = /^\/tracker-logos\/[a-z0-9_]+_logo\.(svg|png)$/
 const PLACEHOLDER_RE = /^TODO$/i
 const LOGO_DIR = path.resolve(__dirname, "../public/tracker-logos")
-const TRACKER_DIR = path.resolve(__dirname, "../src/data/trackers")
+const TRACKER_DIR = path.resolve(__dirname, "@/data/trackers")
 
 const VALID_CONTENT_CATEGORIES = new Set([
   "Movies", "TV", "Music", "Games", "Apps", "Software", "Sport",
