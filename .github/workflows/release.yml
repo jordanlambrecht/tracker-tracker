@@ -58,8 +58,10 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: |
+            type=gha,scope=buildx-amd64
+            type=gha,scope=buildx-arm64
+          cache-to: type=gha,mode=max,scope=buildx-${{ steps.version.outputs.version }}
 
       - name: Extract changelog for this version
         id: changelog
