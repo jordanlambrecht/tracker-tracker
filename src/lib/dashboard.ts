@@ -19,7 +19,7 @@ export interface AggregateStats {
   totalLeeching: number
 }
 
-export type AlertType = "error" | "ratio-danger" | "stale-data" | "rank-change" | "zero-seeding"
+export type AlertType = "error" | "ratio-danger" | "stale-data" | "rank-change" | "zero-seeding" | "warned"
 
 export interface DashboardAlert {
   key: string
@@ -141,6 +141,19 @@ export function computeAlerts(
         trackerName: tracker.name,
         trackerColor: tracker.color,
         message: "Seeding 0 torrents — no active seeds",
+        timestamp: tracker.lastPolledAt ?? undefined,
+      })
+    }
+
+    // --- Warned by tracker ---
+    if (tracker.latestStats?.warned === true) {
+      alerts.push({
+        key: `warned-${tracker.id}`,
+        type: "warned",
+        trackerId: tracker.id,
+        trackerName: tracker.name,
+        trackerColor: tracker.color,
+        message: "You have an active warning on this tracker",
         timestamp: tracker.lastPolledAt ?? undefined,
       })
     }

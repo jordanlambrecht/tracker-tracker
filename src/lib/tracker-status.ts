@@ -57,6 +57,9 @@ function getTrackerHealth(tracker: TrackerSummary): TrackerHealth {
   const { ratio, seedingCount } = tracker.latestStats
   if (ratio === null) return "offline"
 
+  // Warned by tracker is always critical — potential ban risk
+  if (tracker.latestStats.warned === true) return "critical"
+
   let status: TrackerHealth
   if (ratio >= 2) status = "healthy"
   else if (ratio >= 1) status = "warning"

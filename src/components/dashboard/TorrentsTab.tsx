@@ -22,6 +22,7 @@ import { Card } from "@/components/ui/Card"
 import { BoltIcon, BoxIcon, ClockIcon, LeechingIcon, SeedingIcon, ServerIcon, ShareScoreIcon, TagIcon, TriangleWarningIcon } from "@/components/ui/Icons"
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import { StatCard } from "@/components/ui/StatCard"
+import { TabBar } from "@/components/ui/TabBar"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
 import { H2 } from "@/components/ui/Typography"
@@ -526,32 +527,17 @@ function CategoryCard({
 
   return (
     <Card trackerColor={accentColor} className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <H2 className="text-sm font-sans font-semibold text-primary uppercase tracking-wider">
-          Categories
-        </H2>
-        <div className="flex gap-1 p-1 bg-control-bg nm-inset-sm rounded-nm-sm">
-          {(
-            [
-              { key: "distribution", label: "Distribution" },
-              { key: "profile", label: "Profile" },
-            ] as const
-          ).map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setView(tab.key)}
-              className={`px-2.5 py-1 text-[11px] font-mono rounded-nm-sm transition-all duration-150 cursor-pointer ${
-                view === tab.key
-                  ? "nm-raised-sm text-primary"
-                  : "text-tertiary hover:text-secondary"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <H2 className="text-sm font-sans font-semibold text-primary uppercase tracking-wider">
+        Categories
+      </H2>
+      <TabBar
+        tabs={[
+          { key: "distribution" as CategoryView, label: "Distribution" },
+          { key: "profile" as CategoryView, label: "Profile" },
+        ]}
+        activeTab={view}
+        onChange={setView}
+      />
       {view === "distribution" ? (
         <CategoryDonutChart categories={categories} accentColor={accentColor} />
       ) : (
