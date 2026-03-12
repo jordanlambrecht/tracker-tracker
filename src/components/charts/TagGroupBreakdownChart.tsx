@@ -17,6 +17,8 @@ interface TagGroupBreakdownChartProps {
   members: { label: string; count: number; color: string | null }[]
   accentColor: string
   chartType?: TagGroupChartType
+  countUnmatched?: boolean
+  unmatchedCount?: number
 }
 
 // ---------------------------------------------------------------------------
@@ -208,7 +210,37 @@ function TagGroupBreakdownChart({
   members,
   accentColor,
   chartType = "bar",
+  countUnmatched,
+  unmatchedCount,
 }: TagGroupBreakdownChartProps) {
+  if (chartType === "numbers") {
+    const items = [...members]
+    if (countUnmatched && unmatchedCount != null) {
+      items.push({ label: "Unmatched", count: unmatchedCount, color: CHART_THEME.textTertiary })
+    }
+    if (items.length === 0) return null
+    return (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {items.map((m, i) => (
+          <div
+            key={m.label}
+            className="flex flex-col gap-1 p-3 nm-inset-sm rounded-nm-md"
+          >
+            <span className="text-xs font-sans font-medium text-tertiary uppercase tracking-wider truncate">
+              {m.label}
+            </span>
+            <span
+              className="font-mono text-xl font-semibold"
+              style={{ color: memberColor(accentColor, m, i, items.length) }}
+            >
+              {m.count}
+            </span>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   if (members.length === 0) return null
 
   let option: EChartsOption

@@ -1,7 +1,7 @@
 // src/components/dashboard/TorrentsTab.tsx
 //
 // Functions: TorrentsTab, NoClientState, NoTagState, ActiveTransfersTable,
-//   CategoryRadarChart, CrossSeedDonut, RatioDistribution, SeedTimeDistribution,
+//   CategoryRadarChart, CategoryDonutChart, CategoryCard, CrossSeedDonut, RatioDistribution, SeedTimeDistribution,
 //   SizeBreakdown, ActivityHeatmap, AgeTimeline, CategoryAcquisitionChart,
 //   AvgSeedTimeChart, TorrentAgeScatter3D, TopTorrentsTable,
 //   UnsatisfiedTorrentsTable, ElderTorrentsTable, parseTorrentTags
@@ -392,6 +392,172 @@ function CategoryRadarChart({
       notMerge
       lazyUpdate
     />
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Category Distribution Donut (ECharts pie chart)
+// ---------------------------------------------------------------------------
+
+function CategoryDonutChart({
+  categories,
+  accentColor,
+}: {
+  categories: CategoryStats[]
+  accentColor: string
+}) {
+  if (categories.length === 0) {
+    return <p className="text-sm text-muted font-mono py-4">No category data</p>
+  }
+
+  const sorted = [...categories].sort((a, b) => b.count - a.count)
+  const palette = generatePalette(sorted.length, accentColor)
+  const total = sorted.reduce((sum, c) => sum + c.count, 0)
+
+  const option: EChartsOption = {
+    backgroundColor: "transparent",
+    tooltip: {
+      trigger: "item",
+      backgroundColor: CHART_THEME.tooltipBg,
+      borderColor: CHART_THEME.tooltipBorder,
+      borderWidth: 1,
+      padding: [8, 12],
+      textStyle: {
+        color: CHART_THEME.textPrimary,
+        fontFamily: CHART_THEME.fontMono,
+        fontSize: 11,
+      },
+      formatter: (params: unknown) => {
+        const p = params as { name: string; value: number; percent: number; color: string }
+        const cat = sorted.find((c) => c.name === p.name)
+        if (!cat) return ""
+        return [
+          `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color};margin-right:6px;box-shadow:0 0 6px ${p.color};"></span><span style="color:${p.color};font-weight:600;">${escHtml(p.name)}</span>`,
+          `Torrents: ${cat.count} (${p.percent.toFixed(1)}%)`,
+          `Size: ${formatBytesFromNumber(cat.totalSize)}`,
+        ].join("<br/>")
+      },
+    },
+    legend: {
+      orient: "vertical",
+      right: 0,
+      top: "middle",
+      textStyle: {
+        color: CHART_THEME.textTertiary,
+        fontFamily: CHART_THEME.fontMono,
+        fontSize: 11,
+      },
+      itemWidth: 10,
+      itemHeight: 10,
+      itemGap: 8,
+    },
+    series: [
+      {
+        type: "pie",
+        radius: ["45%", "72%"],
+        center: ["35%", "50%"],
+        avoidLabelOverlap: false,
+        itemStyle: {
+          borderRadius: 4,
+          borderColor: CHART_THEME.surface,
+          borderWidth: 2,
+        },
+        label: {
+          show: true,
+          position: "center",
+          formatter: `{total|${total}}\n{label|torrents}`,
+          rich: {
+            total: {
+              fontSize: 22,
+              fontWeight: "bold",
+              fontFamily: CHART_THEME.fontMono,
+              color: CHART_THEME.textPrimary,
+              lineHeight: 30,
+            },
+            label: {
+              fontSize: 11,
+              fontFamily: CHART_THEME.fontMono,
+              color: CHART_THEME.textTertiary,
+              lineHeight: 16,
+            },
+          },
+        },
+        emphasis: {
+          label: { show: true },
+          itemStyle: {
+            shadowBlur: 12,
+            shadowColor: "rgba(0,0,0,0.3)",
+          },
+        },
+        data: sorted.map((cat, i) => ({
+          name: cat.name,
+          value: cat.count,
+          itemStyle: { color: palette[i % palette.length] },
+        })),
+      },
+    ],
+  }
+
+  return (
+    <ReactECharts
+      option={option}
+      style={{ height: 320, width: "100%" }}
+      opts={{ renderer: "canvas" }}
+      notMerge
+      lazyUpdate
+    />
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Category Card — tabbed container for Radar + Donut
+// ---------------------------------------------------------------------------
+
+type CategoryView = "profile" | "distribution"
+
+function CategoryCard({
+  categories,
+  accentColor,
+}: {
+  categories: CategoryStats[]
+  accentColor: string
+}) {
+  const [view, setView] = useState<CategoryView>("distribution")
+
+  return (
+    <Card trackerColor={accentColor} className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <H2 className="text-sm font-sans font-semibold text-primary uppercase tracking-wider">
+          Categories
+        </H2>
+        <div className="flex gap-1 p-1 bg-control-bg nm-inset-sm rounded-nm-sm">
+          {(
+            [
+              { key: "distribution", label: "Distribution" },
+              { key: "profile", label: "Profile" },
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setView(tab.key)}
+              className={`px-2.5 py-1 text-[11px] font-mono rounded-nm-sm transition-all duration-150 cursor-pointer ${
+                view === tab.key
+                  ? "nm-raised-sm text-primary"
+                  : "text-tertiary hover:text-secondary"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {view === "distribution" ? (
+        <CategoryDonutChart categories={categories} accentColor={accentColor} />
+      ) : (
+        <CategoryRadarChart categories={categories} accentColor={accentColor} />
+      )}
+    </Card>
   )
 }
 
@@ -1875,14 +2041,19 @@ function TorrentsTab({ trackerId, trackerName, qbtTag, accentColor, rules, tagGr
 
   // --- Tag group breakdowns ---
   const tagGroupBreakdowns = (tagGroups ?? []).map((group) => {
+    const allGroupTags = group.members.map((m) => m.tag)
     const memberCounts = group.members
       .map((member) => {
         const count = torrents.filter((t) => parseTorrentTags(t.tags).includes(member.tag)).length
         return { label: member.label, count, color: member.color }
       })
       .filter((m) => m.count > 0)
-    return { group, memberCounts }
-  }).filter((g) => g.memberCounts.length > 0)
+    const unmatchedCount = torrents.filter((t) => {
+      const tags = parseTorrentTags(t.tags)
+      return !tags.some((tag) => allGroupTags.includes(tag))
+    }).length
+    return { group, memberCounts, unmatchedCount }
+  }).filter((g) => g.memberCounts.length > 0 || (g.group.countUnmatched && g.unmatchedCount > 0))
 
   const qbitmanageBreakdown = qbitmanageConfig?.enabled
     ? Object.entries(qbitmanageConfig.tags)
@@ -1972,14 +2143,9 @@ function TorrentsTab({ trackerId, trackerName, qbtTag, accentColor, rules, tagGr
         )}
       </div>
 
-      {/* Row 1: Radar + Cross-seed donut */}
+      {/* Row 1: Category card (tabbed) + Cross-seed donut */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card trackerColor={accentColor} className="flex flex-col gap-4">
-          <H2 className="text-sm font-sans font-semibold text-primary uppercase tracking-wider">
-            Category Profile
-          </H2>
-          <CategoryRadarChart categories={categoryStats} accentColor={accentColor} />
-        </Card>
+        <CategoryCard categories={categoryStats} accentColor={accentColor} />
 
         <Card trackerColor={accentColor} className="flex flex-col gap-4">
           <H2 className="text-sm font-sans font-semibold text-primary uppercase tracking-wider">
@@ -2005,7 +2171,7 @@ function TorrentsTab({ trackerId, trackerName, qbtTag, accentColor, rules, tagGr
       {/* Tag Group Breakdowns */}
       {tagGroupBreakdowns.length > 0 && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {tagGroupBreakdowns.map(({ group, memberCounts }) => (
+          {tagGroupBreakdowns.map(({ group, memberCounts, unmatchedCount }) => (
             <Card key={group.id} trackerColor={accentColor} className="flex flex-col gap-4">
               <H2 className="text-sm font-sans font-semibold text-primary uppercase tracking-wider">
                 {group.emoji ? `${group.emoji} ` : ""}{group.name}
@@ -2015,6 +2181,8 @@ function TorrentsTab({ trackerId, trackerName, qbtTag, accentColor, rules, tagGr
                 members={memberCounts}
                 accentColor={accentColor}
                 chartType={group.chartType}
+                countUnmatched={group.countUnmatched}
+                unmatchedCount={unmatchedCount}
               />
             </Card>
           ))}
