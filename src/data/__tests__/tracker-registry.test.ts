@@ -23,21 +23,19 @@ const LOGO_DIR = path.resolve(__dirname, "../../../public/tracker-logos")
 const PLACEHOLDER_RE = /^TODO$/i
 
 // Canonical content categories — add new categories here, not in tracker files.
-// Keep singular forms. UI filter pills display these directly.
+// UI filter pills display these directly.
 const VALID_CONTENT_CATEGORIES = new Set([
   "Movies",
   "TV",
   "Music",
   "Games",
   "Apps",
-  "Software",
-  "Sport",
+  "Sports",
   "Books",
   "Audiobooks",
   "Comics",
   "Manga",
   "Anime",
-  "Animation",
   "XXX",
   "Documentaries",
   "Education",

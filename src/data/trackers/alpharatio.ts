@@ -12,7 +12,7 @@ export const alpharatio: TrackerRegistryEntry = {
   platform: "gazelle",
   apiPath: "/ajax.php",
   specialty: "0-day / Scene",
-  contentCategories: ["Movies", "TV", "Games", "Music", "Software"],
+  contentCategories: ["Movies", "TV", "Games", "Music", "Apps"],
   userClasses: [],
   releaseGroups: [],
   notableMembers: [],

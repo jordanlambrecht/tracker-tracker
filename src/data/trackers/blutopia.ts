@@ -12,7 +12,7 @@ export const blutopia: TrackerRegistryEntry = {
   platform: "unit3d",
   apiPath: "/api/user",
   specialty: "General / Large library",
-  contentCategories: ["Movies", "TV", "Documentaries", "Fanres", "Music", "Sport"],
+  contentCategories: ["Movies", "TV", "Documentaries", "Fanres", "Music", "Sports"],
   userClasses: [
     // Dynamic — activity-based
     { name: "Leech", requirements: "Ratio below 0.4 — download, invite, and request privileges revoked" },
