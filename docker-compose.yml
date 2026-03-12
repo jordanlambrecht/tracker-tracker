@@ -22,19 +22,17 @@ services:
     ports:
       - "${PORT:-3000}:3000"
     environment:
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/tracker_tracker
+      DATABASE_URL: ${DATABASE_URL}
       SESSION_SECRET: ${SESSION_SECRET}
       NODE_ENV: production
+      TZ: ${TZ:-UTC}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       LOG_FILE: /data/logs/tracker-tracker.log
     volumes:
-      - backups:/data/backups
-      - logs:/data/logs
+      - ./data:/data
     depends_on:
       db:
         condition: service_healthy
 
 volumes:
   pgdata:
-  backups:
-  logs:
