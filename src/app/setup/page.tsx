@@ -4,7 +4,7 @@
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { type FormEvent, useEffect, useState } from "react"
-import { Button, Card, Input } from "@/components/ui"
+import { Button, Card, H2, Input } from "@/components/ui"
 
 export default function SetupPage() {
   const router = useRouter()
@@ -97,10 +97,9 @@ export default function SetupPage() {
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <Image src="/trackerTracker_logo.svg" alt="Tracker Tracker" width={160} height={40} className="h-10 w-auto mx-auto" priority />
-          <p className="mt-2 text-sm text-secondary">
-            Create your account. The master password encrypts your API tokens
-            and is never stored in plain text.
-          </p>
+          <H2 className="mt-6 text-secondary text-center">
+            Create an account
+          </H2>
         </div>
 
         <Card elevation="elevated" className="p-6">
