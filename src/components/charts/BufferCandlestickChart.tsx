@@ -5,11 +5,11 @@
 "use client"
 
 import type { CandlestickSeriesOption, EChartsOption } from "echarts"
-import { ChartECharts } from "./ChartECharts"
 import { useState } from "react"
 import { bytesToGiB, hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
+import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
 import { LogScaleToggle } from "./LogScaleToggle"
 import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
