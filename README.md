@@ -35,17 +35,18 @@ Self-hosted dashboard for monitoring your private tracker stats over time. Track
 | CathodeRayTube (CRT) | UNIT3D | | |
 | Concertos | UNIT3D | | |
 | Empornium | Gazelle | | |
-| GazelleGames (GGn) | GGn | | |
+| GazelleGames (GGn) | GGn | ✅ Implemented | |
 | GreatPosterWall (GPW) | Gazelle | | |
-| HawkeUno | UNIT3D | | |
+| HawkeUno | UNIT3D | ❌ Unsupported | API blocks `/user` polling |
 | LST | UNIT3D | | |
 | MoreThanTV (MTV) | Gazelle | | |
 | Nebulance | Gazelle | | |
 | OldToons | UNIT3D | | |
-| Orpheus (OPS) | Gazelle | | |
+| Orpheus (OPS) | Gazelle | ✅ Implemented | |
 | PassThePopcorn (PTP) | Gazelle | | |
+| Phoenix Project (PP) | Gazelle | ✅ Implemented | |
 | Racing4Everyone | UNIT3D | | |
-| Redacted (RED) | Gazelle | | |
+| Redacted (RED) | Gazelle | ✅ Implemented | |
 | ReelFlix | UNIT3D | | |
 | SkipTheCommercials | UNIT3D | | |
 | 720pier | Custom | | |
