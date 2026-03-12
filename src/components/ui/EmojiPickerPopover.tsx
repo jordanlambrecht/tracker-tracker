@@ -6,7 +6,7 @@
 
 import EmojiPicker, { EmojiStyle, Theme } from "emoji-picker-react"
 import { useEffect, useRef, useState } from "react"
-import { useClickOutside } from "@/hooks/useClickOutside"
+import { createPortal } from "react-dom"
 
 interface EmojiPickerPopoverProps {
   value: string
@@ -22,23 +22,42 @@ function EmojiPickerPopover({
   disabled = false,
 }: EmojiPickerPopoverProps) {
   const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const pickerRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
 
-  useClickOutside(containerRef, () => setOpen(false), open)
+  useEffect(() => {
+    if (!open || !triggerRef.current) return
+    const rect = triggerRef.current.getBoundingClientRect()
+    setPos({ top: rect.bottom + 8, left: rect.left })
+  }, [open])
 
   useEffect(() => {
     if (!open) return
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") { e.stopPropagation(); setOpen(false) }
+    function handleEvent(e: MouseEvent | KeyboardEvent) {
+      if (e instanceof KeyboardEvent) {
+        if (e.key === "Escape") { e.stopPropagation(); setOpen(false) }
+        return
+      }
+      const target = e.target as Node
+      if (containerRef.current?.contains(target)) return
+      if (pickerRef.current?.contains(target)) return
+      setOpen(false)
     }
-    document.addEventListener("keydown", handleKey)
-    return () => document.removeEventListener("keydown", handleKey)
+    document.addEventListener("mousedown", handleEvent)
+    document.addEventListener("keydown", handleEvent)
+    return () => {
+      document.removeEventListener("mousedown", handleEvent)
+      document.removeEventListener("keydown", handleEvent)
+    }
   }, [open])
 
   return (
-    <div className="relative" ref={containerRef}>
+    <div ref={containerRef}>
       <div className="relative group">
         <button
+          ref={triggerRef}
           type="button"
           onClick={() => setOpen((v) => !v)}
           disabled={disabled}
@@ -62,8 +81,13 @@ function EmojiPickerPopover({
         )}
       </div>
 
-      {open && (
-        <div className="emoji-picker-wrapper absolute z-50 mt-2 left-0 nm-raised-lg">
+      {open && createPortal(
+        <div
+          ref={pickerRef}
+          className="emoji-picker-wrapper fixed z-50 nm-raised-lg"
+          style={{ top: pos.top, left: pos.left }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
           <EmojiPicker
             theme={Theme.DARK}
             emojiStyle={EmojiStyle.APPLE}
@@ -77,7 +101,8 @@ function EmojiPickerPopover({
               setOpen(false)
             }}
           />
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )
