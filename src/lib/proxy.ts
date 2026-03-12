@@ -103,7 +103,8 @@ export function proxyFetch(
             ok: (res.statusCode ?? 0) >= 200 && (res.statusCode ?? 0) < 300,
             status: res.statusCode ?? 0,
             statusText: res.statusMessage ?? "",
-            json: () => Promise.resolve(JSON.parse(raw.toString("utf8"))),
+            // security-audit-ignore: async wrapper converts JSON.parse throw to rejected promise — caller handles via await/catch
+            json: async () => JSON.parse(raw.toString("utf8")),
             buffer: () => Promise.resolve(raw),
           })
         })

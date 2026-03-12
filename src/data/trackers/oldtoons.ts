@@ -12,7 +12,7 @@ export const oldtoons: TrackerRegistryEntry = {
   platform: "unit3d",
   apiPath: "/api/user",
   specialty: "Classic Animation",
-  contentCategories: ["Animation"],
+  contentCategories: ["TV"],
   userClasses: [],
   releaseGroups: [],
   notableMembers: [],

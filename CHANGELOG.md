@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.1.0 — Chart & Detail Overhaul
+## v1.3.0 — Chart & Detail Overhaul
 
 ### Features
 
@@ -32,6 +32,9 @@
 - Join date input capped to today in both UI and API validation
 - Redirect to dashboard after archiving a tracker
 - Design system alignment: raw `<p>` elements replaced with `<H2>` component across dashboard sections
+- Archived trackers no longer appear on the dashboard
+- Normalized content categories: "Software" → "Apps", "Sport" → "Sports", "Animation" → "TV"
+- Tracker registry test allows `loginIntervalDays: 0` to mean "no login interval policy"
 
 ## v0.1.0 — Initial Release
 

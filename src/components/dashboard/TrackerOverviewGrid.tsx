@@ -13,7 +13,7 @@ import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { ExternalLinkIcon, PlusIcon } from "@/components/ui/Icons"
 import { PulseDot } from "@/components/ui/PulseDot"
 import { RedactedText } from "@/components/ui/RedactedText"
-import { findRegistryEntry } from "@/data/tracker-registry"
+import { findRegistryEntry, type TrackerRegistryEntry } from "@/data/tracker-registry"
 import { ALL_TRACKERS } from "@/data/trackers"
 import { useClickOutside } from "@/hooks/useClickOutside"
 import { formatAccountAge, formatJoinedDate, formatRatio } from "@/lib/formatters"
@@ -92,8 +92,8 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
     }
   }
 
-  const draftTrackers = ALL_TRACKERS.filter((t) => t.draft)
-  const selectedDraftTrackers = draftTrackers.filter((t) => selectedDrafts.includes(t.slug))
+  const draftTrackers = ALL_TRACKERS.filter((t: TrackerRegistryEntry) => t.draft)
+  const selectedDraftTrackers = draftTrackers.filter((t: TrackerRegistryEntry) => selectedDrafts.includes(t.slug))
 
   // Build category lookup and unique category list from active trackers
   const { trackerCategories, allCategories } = useMemo(() => {
@@ -249,23 +249,23 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
             <RedactedText
               value={t.latestStats?.group ?? null}
               color={t.color}
-              className="font-mono text-xs text-accent ml-[18px]"
+              className="font-mono text-xs text-accent ml-4.5"
             />
 
             {/* Row 3: Account age + join date */}
             {t.joinedAt ? (
-              <span className="font-mono text-xs text-tertiary ml-[18px]">
+              <span className="font-mono text-xs text-tertiary ml-4.5">
                 {formatAccountAge(t.joinedAt)} · Joined {formatJoinedDate(t.joinedAt)}
               </span>
             ) : (
-              <span className="font-mono text-xs text-tertiary ml-[18px]">&nbsp;</span>
+              <span className="font-mono text-xs text-tertiary ml-4.5">&nbsp;</span>
             )}
           </button>
         )
       })}
 
       {/* Draft tracker quicklink cards */}
-      {selectedDraftTrackers.map((dt) => (
+      {selectedDraftTrackers.map((dt: TrackerRegistryEntry) => (
         <a
           key={`draft-${dt.slug}`}
           href={dt.url}
@@ -284,7 +284,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
             </span>
             <ExternalLinkIcon width="12" height="12" className="text-muted shrink-0" strokeWidth={2} />
           </div>
-          <span className="font-mono text-[10px] text-muted ml-[18px]">
+          <span className="font-mono text-[10px] text-muted ml-4.5">
             Stats tracking not yet supported
           </span>
         </a>
@@ -296,7 +296,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
           <button
             type="button"
             onClick={() => setPickerOpen(!pickerOpen)}
-            className="flex items-center justify-center gap-2 w-full h-full min-h-[72px] px-4 py-3 border-2 border-dashed border-border/50 text-muted hover:text-secondary hover:border-border transition-colors cursor-pointer rounded-nm-md"
+            className="flex items-center justify-center gap-2 w-full h-full min-h-18 px-4 py-3 border-2 border-dashed border-border/50 text-muted hover:text-secondary hover:border-border transition-colors cursor-pointer rounded-nm-md"
           >
             <PlusIcon width="14" height="14" />
             <span className="font-mono text-xs">Add Quick Link</span>
@@ -312,7 +312,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
               >
                 These trackers don't have adapter support yet — links only, no stats tracking.
               </p>
-              {draftTrackers.map((dt) => (
+              {draftTrackers.map((dt: TrackerRegistryEntry) => (
                 <div key={dt.slug} className="flex items-center gap-2 px-1">
                   <Checkbox
                     checked={selectedDrafts.includes(dt.slug)}

@@ -17,6 +17,7 @@ export const anthelion: TrackerRegistryEntry = {
   releaseGroups: [],
   notableMembers: [],
   language: "English",
+  logo: "/tracker-logos/anthelion_logo.png",
   color: "#3eaca7",
   rules: {
     minimumRatio: 0.6,

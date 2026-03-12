@@ -12,7 +12,7 @@ export const fearnopeer: TrackerRegistryEntry = {
   platform: "unit3d",
   apiPath: "/api/user",
   specialty: "General / HD content / FANRES",
-  contentCategories: ["Movies", "TV", "Anime", "Music", "Games", "Apps", "Sport", "Tutorials", "Fanres"],
+  contentCategories: ["Movies", "TV", "Anime", "Music", "Games", "Apps", "Sports", "Tutorials", "Fanres"],
   userClasses: [
     // Dynamic — upload-based
     { name: "Leech", requirements: "Ratio below 0.8 — download, request, chat, and forum privileges revoked" },

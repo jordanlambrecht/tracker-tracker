@@ -92,11 +92,36 @@ jobs:
 
             // Only comment on non-draft trackers
             const nonDraft = results.filter(r => !r.draft);
-            if (nonDraft.length === 0) return;
 
             const hasErrors = nonDraft.some(r => r.errors.length > 0);
             const hasWarnings = nonDraft.some(r => r.warnings.length > 0);
-            if (!hasErrors && !hasWarnings) return;
+
+            // Helper: find and delete previous validation comment
+            const marker = 'Tracker registry validation';
+            async function deletePreviousComment() {
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+              });
+              const existing = comments.find(c =>
+                c.user?.login === 'github-actions[bot]' &&
+                c.body?.includes(marker)
+              );
+              if (existing) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existing.id,
+                });
+              }
+            }
+
+            // Clean up and exit if nothing to report
+            if (nonDraft.length === 0 || (!hasErrors && !hasWarnings)) {
+              await deletePreviousComment();
+              return;
+            }
 
             const icon = hasErrors ? '🚫' : '⚠️';
             const title = hasErrors
@@ -124,41 +149,19 @@ jobs:
 
             lines.push('---');
             lines.push('');
-            lines.push('Allowed content categories: `Movies`, `TV`, `Music`, `Games`, `Apps`, `Software`, `Sport`, `Books`, `Audiobooks`, `Comics`, `Manga`, `Anime`, `Animation`, `XXX`, `Documentaries`, `Education`, `Tutorials`, `Fanres`');
+            lines.push('Allowed content categories: `Movies`, `TV`, `Music`, `Games`, `Apps`, `Sports`, `Books`, `Audiobooks`, `Comics`, `Manga`, `Anime`, `XXX`, `Documentaries`, `Education`, `Tutorials`, `Fanres`');
             lines.push('');
             lines.push('See `src/data/__tests__/tracker-registry.test.ts` for all validation rules.');
 
             const body = lines.join('\n');
 
-            const { data: comments } = await github.rest.issues.listComments({
+            await deletePreviousComment();
+            await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
+              body,
             });
-            const marker = 'Tracker registry validation';
-            const existing = comments.find(c =>
-              c.user?.login === 'github-actions[bot]' &&
-              c.body?.includes(marker)
-            );
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existing.id,
-                body,
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body,
-              });
-            }
-
-      - name: Fail if tracker validation has errors
-        if: github.event_name == 'pull_request' && steps.changed-trackers.outputs.has_tracker_changes == 'true' && steps.tracker-validation.outcome == 'failure'
-        run: exit 1
 
       - name: Verify security test count
         run: |
@@ -248,8 +251,7 @@ jobs:
               lines.push(`### Passed (${passed.length}/${results.length})`);
               lines.push('');
               for (const r of passed) {
-                const sev = r.severity === 'critical' ? '🔒' : '📋';
-                lines.push(`- ${sev} ${r.name}`);
+                lines.push(`- ✅ ${r.name}`);
               }
               lines.push('');
             }
@@ -288,6 +290,11 @@ jobs:
                 body,
               });
             }
+
+      # ── Fail steps (after all comments are posted) ─────────────────
+      - name: Fail if tracker validation has errors
+        if: github.event_name == 'pull_request' && steps.changed-trackers.outputs.has_tracker_changes == 'true' && steps.tracker-validation.outcome == 'failure'
+        run: exit 1
 
       - name: Fail if security audit has critical findings
         if: steps.security-audit.outcome == 'failure'
