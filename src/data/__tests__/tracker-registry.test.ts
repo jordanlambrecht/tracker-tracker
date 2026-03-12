@@ -11,8 +11,8 @@
 import fs from "node:fs"
 import path from "node:path"
 import { afterAll, describe, expect, it } from "vitest"
-import { ALL_TRACKERS } from "@/data/trackers"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
+import { ALL_TRACKERS } from "@/data/trackers"
 import { DEFAULT_API_PATHS } from "@/lib/adapters"
 
 const VALID_PLATFORMS = ["unit3d", "gazelle", "ggn", "nebulance", "custom"] as const
