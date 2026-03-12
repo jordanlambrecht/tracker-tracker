@@ -149,7 +149,7 @@ jobs:
 
             lines.push('---');
             lines.push('');
-            lines.push('Allowed content categories: `Movies`, `TV`, `Music`, `Games`, `Apps`, `Software`, `Sports`, `Books`, `Audiobooks`, `Comics`, `Manga`, `Anime`, `Animation`, `XXX`, `Documentaries`, `Education`, `Tutorials`, `Fanres`');
+            lines.push('Allowed content categories: `Movies`, `TV`, `Music`, `Games`, `Apps`, `Sports`, `Books`, `Audiobooks`, `Comics`, `Manga`, `Anime`, `XXX`, `Documentaries`, `Education`, `Tutorials`, `Fanres`');
             lines.push('');
             lines.push('See `src/data/__tests__/tracker-registry.test.ts` for all validation rules.');
 
