@@ -1,7 +1,7 @@
 # Dockerfile
 #
 # Multi-stage build for Tracker Tracker.
-# Stages: deps → builder → drizzle → runner
+# Stages: deps → builder → runner
 #
 # Uses Next.js standalone output for minimal image size (~150MB vs ~1GB).
 
@@ -36,17 +36,7 @@ ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
 RUN pnpm build
 
 # ---------------------------------------------------------------------------
-# Stage 3 — Drizzle-kit dependencies (for schema push at startup)
-# pnpm's symlink store makes cherry-picking packages fragile, so we do
-# a clean isolated install of just drizzle-kit + its peer deps here.
-# ---------------------------------------------------------------------------
-FROM base AS drizzle
-WORKDIR /drizzle
-RUN pnpm init && \
-    pnpm add drizzle-kit drizzle-orm postgres dotenv
-
-# ---------------------------------------------------------------------------
-# Stage 4 — Production runner
+# Stage 3 — Production runner
 # ---------------------------------------------------------------------------
 FROM node:24-alpine AS runner
 RUN apk add --no-cache libc6-compat
@@ -70,10 +60,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # --- Drizzle schema-sync (for drizzle-kit push at startup) ---
+# Install drizzle-kit + deps directly in runner. npm gives a flat node_modules
+# that doesn't break across Docker layers (unlike pnpm's symlink store).
 COPY --from=builder /app/drizzle.config.ts ./
 COPY --from=builder /app/src/lib/db ./src/lib/db
 COPY --from=builder /app/tsconfig.json ./
-COPY --from=drizzle /drizzle/node_modules ./node_modules_drizzle
+RUN npm install --no-audit --no-fund drizzle-kit drizzle-orm postgres dotenv
 
 # --- Changelog (served via /api/changelog) ---
 COPY --from=builder /app/CHANGELOG.md ./
