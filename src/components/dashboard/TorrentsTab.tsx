@@ -135,14 +135,6 @@ function normalize(value: number, max: number): number {
   return Math.min((value / max) * 100, 100)
 }
 
-function timeAgo(unixSec: number): string {
-  const diff = Math.floor(Date.now() / 1000 - unixSec)
-  if (diff < 60) return `${diff}s ago`
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
-  return `${Math.floor(diff / 86400)}d ago`
-}
-
 // ---------------------------------------------------------------------------
 // Active Transfers Table (downloads or uploads)
 // ---------------------------------------------------------------------------
@@ -1040,7 +1032,7 @@ function CategoryAcquisitionChart({
     const cat = t.category || "Uncategorized"
     allCategories.add(cat)
     if (!monthCatMap.has(month)) monthCatMap.set(month, new Map())
-    const catMap = monthCatMap.get(month)!
+    const catMap = monthCatMap.get(month) ?? new Map<string, number>()
     catMap.set(cat, (catMap.get(cat) ?? 0) + 1)
   }
 
