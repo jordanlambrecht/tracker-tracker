@@ -49,7 +49,7 @@ export interface TrackerRegistryEntry {
   abbreviation?: string
   url: string
   description: string
-  platform: "unit3d" | "gazelle" | "ggn" | "custom"
+  platform: "unit3d" | "gazelle" | "ggn" | "nebulance" | "custom"
   apiPath: string
   specialty: string
   contentCategories: string[]
