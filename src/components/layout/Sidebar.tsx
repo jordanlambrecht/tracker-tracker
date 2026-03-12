@@ -781,6 +781,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
             >
               v{process.env.NEXT_PUBLIC_APP_VERSION}
             </button>
+            {/* biome-ignore lint/a11y/useAnchorContent: aria-label provides accessible content */}
             <a
               href="https://github.com/jordanlambrecht/tracker-tracker"
               target="_blank"
