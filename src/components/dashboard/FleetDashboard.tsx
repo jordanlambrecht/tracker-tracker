@@ -35,8 +35,8 @@ import {
   TagIcon,
   UploadArrowIcon,
 } from "@/components/ui/Icons"
-import { H2 } from "@/components/ui/Typography"
 import { StatCard } from "@/components/ui/StatCard"
+import { H2 } from "@/components/ui/Typography"
 import type { FleetSnapshot, TorrentRaw, TrackerTag } from "@/lib/fleet"
 import { computeFleetStats } from "@/lib/fleet"
 import { formatBytesFromNumber } from "@/lib/formatters"
