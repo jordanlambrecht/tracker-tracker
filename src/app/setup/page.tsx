@@ -1,9 +1,10 @@
 // src/app/setup/page.tsx
 "use client"
 
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { type FormEvent, useEffect, useState } from "react"
-import { Button, Card, H1, Input } from "@/components/ui"
+import { Button, Card, Input } from "@/components/ui"
 
 export default function SetupPage() {
   const router = useRouter()
@@ -95,9 +96,7 @@ export default function SetupPage() {
     <div className="min-h-screen bg-base flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <H1 className="text-2xl font-semibold tracking-tight">
-            Tracker Tracker
-          </H1>
+          <Image src="/trackerTracker_logo.svg" alt="Tracker Tracker" width={160} height={40} className="h-10 w-auto mx-auto" priority />
           <p className="mt-2 text-sm text-secondary">
             Create your account. The master password encrypts your API tokens
             and is never stored in plain text.

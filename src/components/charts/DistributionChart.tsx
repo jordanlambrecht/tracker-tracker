@@ -8,7 +8,7 @@ import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
 import { formatBytesFromString } from "@/lib/formatters"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartTooltip } from "./theme"
+import { CHART_THEME, chartDot, chartTooltip, escHtml } from "./theme"
 
 interface TrackerSlice {
   name: string
@@ -33,8 +33,8 @@ function buildPieOption(
       formatter: (params: unknown) => {
         const p = params as { name: string; value: number; percent: number; color: string }
         return (
-          `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color};margin-right:6px;box-shadow:0 0 6px ${p.color};"></span>` +
-          `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${p.name}</span><br/>` +
+          chartDot(p.color) +
+          `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(p.name)}</span><br/>` +
           `<span style="color:${CHART_THEME.textSecondary};">${formatValue(p.value)}</span>` +
           `<span style="color:${CHART_THEME.textTertiary};"> · ${p.percent}%</span>`
         )

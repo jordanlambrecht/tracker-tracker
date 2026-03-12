@@ -14,7 +14,7 @@ import { afterAll, describe, expect, it } from "vitest"
 import { ALL_TRACKERS } from "@/data/trackers"
 import { DEFAULT_API_PATHS } from "@/lib/adapters"
 
-const VALID_PLATFORMS = ["unit3d", "gazelle", "ggn", "custom"] as const
+const VALID_PLATFORMS = ["unit3d", "gazelle", "ggn", "nebulance", "custom"] as const
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
 const LOGO_NAME_RE = /^\/tracker-logos\/[a-z0-9_]+_logo\.(svg|png)$/
@@ -43,6 +43,9 @@ const VALID_CONTENT_CATEGORIES = new Set([
   "Education",
   "Tutorials",
   "Fanres",
+  "iOS Apps",
+  "Graphics",
+  "Audio",
 ])
 
 // ---------------------------------------------------------------------------
@@ -192,11 +195,11 @@ describe("tracker registry", () => {
           expect(Number.isInteger(r), "rules.seedTimeHours must be an integer").toBe(true)
         })
 
-        it("has rules.loginIntervalDays as a positive integer", () => {
+        it("has rules.loginIntervalDays as a non-negative integer (0 = no policy)", () => {
           const r = tracker.rules?.loginIntervalDays
           expect(r, "rules.loginIntervalDays is required").not.toBeUndefined()
           expect(r, "rules.loginIntervalDays must be a number").toBeTypeOf("number")
-          expect(r, "rules.loginIntervalDays must be > 0").toBeGreaterThan(0)
+          expect(r, "rules.loginIntervalDays must be >= 0").toBeGreaterThanOrEqual(0)
           expect(Number.isInteger(r), "rules.loginIntervalDays must be an integer").toBe(true)
         })
 

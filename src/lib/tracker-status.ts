@@ -23,7 +23,7 @@ const HEALTH_META: Record<TrackerHealth, HealthMeta> = {
     label: "Healthy",
     description: "Ratio \u2265 2.0 \u2014 healthy buffer",
     pulseDot: "healthy",
-    badge: "success",
+    badge: "accent",
   },
   warning: {
     label: "Warning",
@@ -56,6 +56,9 @@ function getTrackerHealth(tracker: TrackerSummary): TrackerHealth {
   if (!tracker.latestStats) return "offline"
   const { ratio, seedingCount } = tracker.latestStats
   if (ratio === null) return "offline"
+
+  // Warned by tracker is always critical — potential ban risk
+  if (tracker.latestStats.warned === true) return "critical"
 
   let status: TrackerHealth
   if (ratio >= 2) status = "healthy"

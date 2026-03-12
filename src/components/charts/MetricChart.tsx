@@ -6,12 +6,13 @@
 
 import clsx from "clsx"
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
 import { useState } from "react"
 import { bytesToGiB, getComplementaryColor, hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
+import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
+import { LogScaleToggle } from "./LogScaleToggle"
+import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
 
 // ── Types ──
 
@@ -30,6 +31,7 @@ export interface MetricChartProps {
   snapshots: Snapshot[]
   accentColor?: string
   height?: number
+  baselineValue?: number
 }
 
 interface DailyBucket {
@@ -117,7 +119,9 @@ export function computeDailyDeltas(snapshots: Snapshot[]): DailyBucket[] {
 function buildLineOption(
   snapshots: Snapshot[],
   config: MetricConfig,
-  safeAccent: string
+  safeAccent: string,
+  baselineValue?: number,
+  useLog?: boolean
 ): EChartsOption {
   const labels = snapshots.map((s) =>
     new Date(s.polledAt).toLocaleString("en-US", {
@@ -177,7 +181,7 @@ function buildLineOption(
 
   return {
     backgroundColor: "transparent",
-    grid: chartGrid({ top: 24, right: 16, bottom: showSlider ? 80 : 40, left: 64 }),
+    grid: chartGrid({ right: 16, bottom: showSlider ? 80 : 40, left: 64 }),
     tooltip: chartTooltip("axis", {
       borderColor: safeAccent,
       axisPointer: {
@@ -216,15 +220,23 @@ function buildLineOption(
       splitLine: { show: false },
     },
     yAxis: {
-      type: "value",
-      name: unit,
+      type: useLog ? "log" : "value",
+      name: useLog ? `${unit} (log)` : unit,
       scale: true,
-      min: config.allowNegative
-        ? undefined
-        : ((value: { min: number; max: number }) =>
-            Math.max(0, Math.floor((value.min - yAxisPad(value)) * 100) / 100)) as unknown as number,
-      max: ((value: { min: number; max: number }) =>
-        Math.ceil((value.max + yAxisPad(value)) * 100) / 100) as unknown as number,
+      ...(useLog
+        ? {}
+        : {
+            min: config.allowNegative
+              ? undefined
+              : ((value: { min: number; max: number }) => {
+                  const dataMin = Math.max(0, Math.floor((value.min - yAxisPad(value)) * 100) / 100)
+                  return baselineValue != null && baselineValue > 0
+                    ? Math.min(dataMin, Math.floor(baselineValue * 0.8 * 100) / 100)
+                    : dataMin
+                }) as unknown as number,
+            max: ((value: { min: number; max: number }) =>
+              Math.ceil((value.max + yAxisPad(value)) * 100) / 100) as unknown as number,
+          }),
       nameTextStyle: {
         color: TERTIARY_COLOR,
         fontFamily: CHART_THEME.fontMono,
@@ -272,6 +284,20 @@ function buildLineOption(
         emphasis: {
           lineStyle: { shadowBlur: 16, shadowColor: safeAccent },
         },
+        markLine: baselineValue != null && baselineValue > 0 ? {
+          silent: true,
+          symbol: "none",
+          lineStyle: { color: CHART_THEME.danger, type: "dashed", width: 1.5 },
+          label: {
+            show: true,
+            formatter: `Min: ${baselineValue}`,
+            position: "insideEndTop",
+            color: CHART_THEME.danger,
+            fontSize: 10,
+            fontFamily: CHART_THEME.fontMono,
+          },
+          data: [{ yAxis: baselineValue }],
+        } : undefined,
       },
     ],
   }
@@ -305,7 +331,7 @@ function buildDailyDeltaOption(
 
   return {
     backgroundColor: "transparent",
-    grid: chartGrid({ top: 32, right: 16, left: 64 }),
+    grid: chartGrid({ right: 16, left: 64 }),
     tooltip: chartTooltip("axis", {
       borderColor: safeAccent,
       formatter: (params: unknown) => {
@@ -328,18 +354,7 @@ function buildDailyDeltaOption(
         return `${chartTooltipHeader(time)}${rows}`
       },
     }),
-    legend: {
-      top: 0,
-      right: 0,
-      textStyle: {
-        color: TERTIARY_COLOR,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
-      },
-      icon: "circle",
-      itemWidth: 8,
-      itemHeight: 8,
-    },
+    legend: chartLegend(),
     xAxis: {
       type: "category",
       data: labels,
@@ -440,8 +455,10 @@ function MetricChart({
   snapshots,
   accentColor = CHART_THEME.accent,
   height = 350,
+  baselineValue,
 }: MetricChartProps) {
   const [deltaMode, setDeltaMode] = useState<DeltaMode>("bar")
+  const [forceLog, setForceLog] = useState<boolean | null>(null)
 
   const safeAccent = /^#[0-9a-fA-F]{6}$/.test(accentColor) ? accentColor : CHART_THEME.accent
 
@@ -449,10 +466,22 @@ function MetricChart({
     return <ChartEmptyState height={height} message="No snapshot data yet." />
   }
 
+  const config = metric !== "dailyDelta" ? METRIC_CONFIGS[metric] : null
+  const ratioValues = config ? snapshots.map((s) => config.getValue(s)).filter((v): v is number => v !== null && v > 0) : []
+  const autoLog = ratioValues.length > 0 ? shouldUseLogScale(ratioValues) : false
+  const useLog = forceLog ?? autoLog
+  const showLogToggle = metric === "ratio" || metric === "buffer" || metric === "seedbonus"
+
   const option =
     metric === "dailyDelta"
       ? buildDailyDeltaOption(snapshots, safeAccent, deltaMode)
-      : buildLineOption(snapshots, METRIC_CONFIGS[metric], safeAccent)
+      : buildLineOption(
+          snapshots,
+          METRIC_CONFIGS[metric],
+          safeAccent,
+          metric === "ratio" ? baselineValue : undefined,
+          showLogToggle ? useLog : undefined
+        )
 
   if (option === null) {
     return <ChartEmptyState height={height} message="Not enough data for daily deltas." />
@@ -480,7 +509,7 @@ function MetricChart({
             ))}
           </div>
         </div>
-        <ReactECharts
+        <ChartECharts
           option={option}
           style={{ height, width: "100%" }}
           opts={{ renderer: "canvas" }}
@@ -492,13 +521,27 @@ function MetricChart({
   }
 
   return (
-    <ReactECharts
-      option={option}
-      style={{ height, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
-    />
+    <div className="flex flex-col gap-3">
+      {showLogToggle && (
+        <div className="flex justify-end">
+          <LogScaleToggle
+            effectiveLog={useLog}
+            isAuto={forceLog === null}
+            onToggle={() => setForceLog((prev) => {
+              if (prev === null) return !autoLog
+              return prev ? false : null
+            })}
+          />
+        </div>
+      )}
+      <ChartECharts
+        option={option}
+        style={{ height, width: "100%" }}
+        opts={{ renderer: "canvas" }}
+        notMerge
+        lazyUpdate
+      />
+    </div>
   )
 }
 

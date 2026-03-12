@@ -470,13 +470,16 @@ function AddTrackerDialog({ open, onClose, onAdded, existingBaseUrls = [] }: Add
 
           <ColorPicker label="Color" value={color} onChange={setColor} />
 
-          <Input
-            label="Join Date (optional)"
-            type="date"
-            value={joinedAt}
-            onChange={(e) => setJoinedAt(e.target.value)}
-            placeholder="YYYY-MM-DD"
-          />
+          {!(selectedEntry?.gazelleEnrich || selectedEntry?.platform === "ggn") && (
+            <Input
+              label="Join Date (optional)"
+              type="date"
+              value={joinedAt}
+              max={new Date().toISOString().split("T")[0]}
+              onChange={(e) => setJoinedAt(e.target.value)}
+              placeholder="YYYY-MM-DD"
+            />
+          )}
 
           {errors.form && (
             <p className="text-xs font-sans text-danger" role="alert">

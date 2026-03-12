@@ -5,9 +5,10 @@
 "use client"
 
 import type { ReactNode } from "react"
+import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/Card"
 import { ChevronUpIcon, EyeOffIcon } from "@/components/ui/Icons"
-import { H2 } from "@/components/ui/Typography"
+import { H3 } from "@/components/ui/Typography"
 
 interface ChartCardProps {
   title: string
@@ -26,13 +27,19 @@ function ChartCard({
   onHide,
   children,
 }: ChartCardProps) {
+  const [shouldMount, setShouldMount] = useState(!collapsed)
+
+  useEffect(() => {
+    if (!collapsed) setShouldMount(true)
+  }, [collapsed])
+
   return (
     <Card className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-1 min-w-0">
-          <H2 className="text-sm font-semibold text-secondary uppercase tracking-wider">
+          <H3 className="uppercase tracking-wider text-secondary">
             {title}
-          </H2>
+          </H3>
           {description && !collapsed && (
             <p className="text-xs font-mono text-tertiary">{description}</p>
           )}
@@ -42,7 +49,7 @@ function ChartCard({
           <button
             type="button"
             onClick={onToggleCollapse}
-            className="w-7 h-7 flex items-center justify-center text-muted hover:text-secondary transition-colors cursor-pointer rounded-nm-sm"
+            className="w-7 h-7 flex items-center justify-center text-muted hover:text-secondary hover:bg-overlay transition-colors cursor-pointer rounded-nm-sm"
             aria-label={collapsed ? "Expand chart" : "Collapse chart"}
             title={collapsed ? "Expand" : "Collapse"}
           >
@@ -57,7 +64,7 @@ function ChartCard({
           <button
             type="button"
             onClick={onHide}
-            className="w-7 h-7 flex items-center justify-center text-muted hover:text-secondary transition-colors cursor-pointer rounded-nm-sm"
+            className="w-7 h-7 flex items-center justify-center text-muted hover:text-secondary hover:bg-overlay transition-colors cursor-pointer rounded-nm-sm"
             aria-label="Hide chart"
             title="Hide chart"
           >
@@ -71,7 +78,9 @@ function ChartCard({
         className="grid transition-[grid-template-rows] duration-200 ease-out"
         style={{ gridTemplateRows: collapsed ? "0fr" : "1fr" }}
       >
-        <div className="overflow-hidden p-1 -m-1">{children}</div>
+        <div className="overflow-hidden p-1 -m-1">
+          {shouldMount && children}
+        </div>
       </div>
     </Card>
   )

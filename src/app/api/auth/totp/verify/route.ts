@@ -62,7 +62,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Backup codes are not enabled" }, { status: 400 })
     }
 
-    const entries: BackupCodeEntry[] = JSON.parse(decrypt(settings.totpBackupCodes, key))
+    let entries: BackupCodeEntry[]
+    try { entries = JSON.parse(decrypt(settings.totpBackupCodes, key)) } catch {
+      return NextResponse.json({ error: "Corrupted backup codes" }, { status: 500 })
+    }
     const { valid, updatedEntries } = verifyAndConsumeBackupCode(code, entries)
 
     if (!valid) {

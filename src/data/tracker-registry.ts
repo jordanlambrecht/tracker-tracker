@@ -1,6 +1,6 @@
 // src/data/tracker-registry.ts
 //
-// Exports: TrackerUserClass, TrackerRules, TrackerRegistryEntry, TRACKER_REGISTRY, getTrackerBySlug, getAllTrackers, findRegistryEntry
+// Exports: RankPerkType, RankPerk, TrackerUserClass, TrackerRules, TrackerRegistryEntry, TRACKER_REGISTRY, getTrackerBySlug, getAllTrackers, findRegistryEntry
 //
 // Type definitions and public API for the tracker registry.
 // Individual tracker data lives in src/data/trackers/.
@@ -12,9 +12,26 @@ export interface ReleaseGroup {
   description?: string
 }
 
+export type RankPerkType =
+  | "download-slots"
+  | "upload"
+  | "invite"
+  | "freeleech"
+  | "double-upload"
+  | "hnr-immune"
+  | "mod-bypass"
+  | "custom"
+
+export interface RankPerk {
+  type: RankPerkType
+  label: string
+}
+
 export interface TrackerUserClass {
   name: string
   requirements?: string
+  perks?: RankPerk[]
+  icon?: string
 }
 
 export interface TrackerRules {
@@ -32,7 +49,7 @@ export interface TrackerRegistryEntry {
   abbreviation?: string
   url: string
   description: string
-  platform: "unit3d" | "gazelle" | "ggn" | "custom"
+  platform: "unit3d" | "gazelle" | "ggn" | "nebulance" | "custom"
   apiPath: string
   specialty: string
   contentCategories: string[]

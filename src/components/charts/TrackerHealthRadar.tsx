@@ -5,10 +5,10 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
 import type { TorrentRaw, TrackerTag } from "@/lib/fleet"
+import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartDot, chartTooltip, escHtml } from "./theme"
+import { CHART_THEME, chartDot, chartLegend, chartTooltip, escHtml } from "./theme"
 
 interface TrackerHealthRadarProps {
   torrents: TorrentRaw[]
@@ -119,18 +119,7 @@ function buildTrackerHealthRadarOption(
         )
       },
     }),
-    legend: {
-      bottom: 0,
-      textStyle: {
-        color: CHART_THEME.textTertiary,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
-      },
-      icon: "circle",
-      itemWidth: 8,
-      itemHeight: 8,
-      data: metrics.map((m) => m.name),
-    },
+    legend: chartLegend({ top: undefined, bottom: 0, data: metrics.map((m) => m.name) }),
     radar: {
       indicator: [
         { name: "Torrent Count", max: 100 },
@@ -192,7 +181,7 @@ function TrackerHealthRadar({
   const normalized = normalizeMetrics(metrics)
 
   return (
-    <ReactECharts
+    <ChartECharts
       option={buildTrackerHealthRadarOption(metrics, normalized)}
       style={{ height, width: "100%" }}
       opts={{ renderer: "canvas" }}

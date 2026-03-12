@@ -13,7 +13,7 @@ import path from "node:path"
 import { ALL_TRACKERS } from "../src/data/trackers"
 import { DEFAULT_API_PATHS } from "../src/lib/adapters"
 
-const VALID_PLATFORMS = ["unit3d", "gazelle", "ggn", "custom"] as const
+const VALID_PLATFORMS = ["unit3d", "gazelle", "ggn", "nebulance", "custom"] as const
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
 const LOGO_NAME_RE = /^\/tracker-logos\/[a-z0-9_]+_logo\.(svg|png)$/

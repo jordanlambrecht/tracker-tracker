@@ -15,9 +15,6 @@
 //   chartTooltip        - standard tooltip configuration
 //   chartGrid           - standard grid margins
 //   chartAxisLabel      - standard axis label styling
-//   chartSplitLine      - standard split line styling
-//   getRatioBuckets     - ratio distribution bucket definitions with colors
-//   getSeedTimeBuckets  - seed time distribution bucket definitions with colors
 
 export const CHART_THEME = {
   // ── Surfaces ──
@@ -75,39 +72,6 @@ export const CHART_THEME = {
   warnGlow:     "rgba(245, 158, 11, 0.3)",
 } as const
 
-interface BucketDef {
-  label: string
-  color: string
-}
-
-interface RatioBucket extends BucketDef {
-  max: number
-}
-
-interface SeedTimeBucket extends BucketDef {
-  maxSeconds: number
-}
-
-export function getRatioBuckets(): RatioBucket[] {
-  return [
-    { label: "<0.5",  max: 0.5,      color: CHART_THEME.scale[0] },
-    { label: "0.5-1", max: 1,        color: CHART_THEME.scale[1] },
-    { label: "1-2",   max: 2,        color: CHART_THEME.scale[2] },
-    { label: "2-5",   max: 5,        color: CHART_THEME.scale[3] },
-    { label: "5-10",  max: 10,       color: CHART_THEME.scale[4] },
-    { label: "10+",   max: Infinity, color: CHART_THEME.scale[5] },
-  ]
-}
-
-export function getSeedTimeBuckets(): SeedTimeBucket[] {
-  return [
-    { label: "<1d",    maxSeconds: 86_400,     color: CHART_THEME.scale[0] },
-    { label: "1-7d",   maxSeconds: 604_800,    color: CHART_THEME.scale[1] },
-    { label: "7-30d",  maxSeconds: 2_592_000,  color: CHART_THEME.scale[2] },
-    { label: "30-90d", maxSeconds: 7_776_000,  color: CHART_THEME.scale[3] },
-    { label: "90d+",   maxSeconds: Infinity,   color: CHART_THEME.scale[4] },
-  ]
-}
 
 /** Escape HTML entities in untrusted strings before injecting into ECharts tooltip HTML */
 export function escHtml(s: string): string {
@@ -135,14 +99,17 @@ export function chartTooltipHeader(label: string): string {
   return `<div style="font-family:var(--font-mono),monospace;font-size:11px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${escHtml(label)}</div>`
 }
 
-/** Standard legend configuration */
+/** Standard legend configuration — plain wrapping, toggle handled by ChartECharts wrapper */
 export function chartLegend(overrides?: Record<string, unknown>): Record<string, unknown> {
-  return {
-    top: 0,
-    right: 0,
+  const merged: Record<string, unknown> = {
+    type: "plain",
+    top: 4,
+    left: 56,
+    right: 80,
     icon: "circle",
     itemWidth: 8,
     itemHeight: 8,
+    itemGap: 12,
     textStyle: {
       color: CHART_THEME.textTertiary,
       fontFamily: CHART_THEME.fontMono,
@@ -150,6 +117,11 @@ export function chartLegend(overrides?: Record<string, unknown>): Record<string,
     },
     ...overrides,
   }
+  // Strip keys explicitly set to undefined so ECharts doesn't see them
+  for (const key of Object.keys(merged)) {
+    if (merged[key] === undefined) delete merged[key]
+  }
+  return merged
 }
 
 /** Golden-angle hue distribution for maximum visual separation of chart series */
@@ -222,7 +194,7 @@ export function chartGrid(overrides?: {
   return {
     left: 56,
     right: 24,
-    top: 24,
+    top: 78,
     bottom: 40,
     containLabel: false,
     ...overrides,
@@ -241,12 +213,3 @@ export function chartAxisLabel(overrides?: Record<string, unknown>): Record<stri
   }
 }
 
-/**
- * Standard split line styling for axes.
- */
-export function chartSplitLine(overrides?: Record<string, unknown>): Record<string, unknown> {
-  return {
-    lineStyle: { color: CHART_THEME.gridLine },
-    ...overrides,
-  }
-}

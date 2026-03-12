@@ -5,24 +5,19 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
 import { useState } from "react"
 import { bytesToGiB } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
+import type { TrackerSnapshotSeries } from "@/types/charts"
+import { ChartECharts } from "./ChartECharts"
 import { LogScaleToggle } from "./LogScaleToggle"
-import { CHART_THEME, chartAxisLabel, chartGrid, chartTooltip, shouldUseLogScale } from "./theme"
+import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
 
 type ChartMetric = "uploaded" | "ratio" | "buffer" | "seedbonus" | "active"
 
-interface TrackerSeries {
-  name: string
-  color: string
-  snapshots: Snapshot[]
-}
-
 interface ComparisonChartProps {
   metric: ChartMetric
-  trackerData: TrackerSeries[]
+  trackerData: TrackerSnapshotSeries[]
   height?: number
   enableLogScale?: boolean
   enableAverage?: boolean
@@ -45,11 +40,12 @@ function getValue(snapshot: Snapshot, metric: ChartMetric): number | null {
 
 /** Compute a single "Avg" series — mean of all tracker ratios at each timestamp. */
 function buildAverageSeries(
-  trackerData: TrackerSeries[],
+  trackerData: TrackerSnapshotSeries[],
   sortedTimestamps: string[],
   metric: ChartMetric,
   divisor: number,
-  dotSize: number
+  dotSize: number,
+  useLog = false
 ): EChartsOption["series"] {
   // Index each tracker's snapshots by timestamp
   const trackerMaps = trackerData.map((tracker) => {
@@ -69,7 +65,9 @@ function buildAverageSeries(
       if (raw !== null) values.push(raw / divisor)
     }
     if (values.length === 0) return null
-    return Number((values.reduce((a, b) => a + b, 0) / values.length).toFixed(3))
+    const avg = values.reduce((a, b) => a + b, 0) / values.length
+    if (useLog && avg <= 0) return null
+    return Number(avg.toFixed(3))
   })
 
   return [
@@ -107,7 +105,7 @@ function buildAverageSeries(
 
 function buildComparisonOption(
   metric: ChartMetric,
-  trackerData: TrackerSeries[],
+  trackerData: TrackerSnapshotSeries[],
   opts?: { logScale?: boolean; averageMode?: boolean }
 ): EChartsOption {
   const useLog = opts?.logScale ?? false
@@ -174,7 +172,7 @@ function buildComparisonOption(
   let series: EChartsOption["series"]
 
   if (useAvg) {
-    series = buildAverageSeries(trackerData, sortedTimestamps, metric, divisor, dotSize)
+    series = buildAverageSeries(trackerData, sortedTimestamps, metric, divisor, dotSize, useLog)
   } else {
     series = trackerData.map((tracker) => {
       const snapByTs = new Map<string, Snapshot>()
@@ -187,7 +185,9 @@ function buildComparisonOption(
         if (!snap) return null
         const raw = getValue(snap, metric)
         if (raw === null) return null
-        return Number((raw / divisor).toFixed(3))
+        const scaled = raw / divisor
+        if (useLog && scaled <= 0) return null
+        return Number(scaled.toFixed(3))
       })
 
       return {
@@ -260,7 +260,7 @@ function buildComparisonOption(
 
   return {
     backgroundColor: "transparent",
-    grid: chartGrid({ top: 32, right: 16, left: 64 }),
+    grid: chartGrid({ right: 16, left: 64 }),
     tooltip: chartTooltip("axis", {
       axisPointer: {
         type: "line",
@@ -289,29 +289,16 @@ function buildComparisonOption(
                 ? `${fmtNum(val)} ×`
                 : `${fmtNum(val)} ${unit}`
             return (
-              `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${item.color};margin-right:6px;box-shadow:0 0 6px ${item.color};"></span>` +
-              `<span style="color:${CHART_THEME.textSecondary};">${item.seriesName}:</span> ` +
+              chartDot(item.color) +
+              `<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> ` +
               `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${display}</span>`
             )
           })
           .join("<br/>")
-        return `<div style="font-family:var(--font-mono),monospace;font-size:11px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${time}</div>${rows}`
+        return chartTooltipHeader(time) + rows
       },
     }),
-    legend: useAvg
-      ? { show: false }
-      : {
-          top: 0,
-          right: 0,
-          textStyle: {
-            color: CHART_THEME.textTertiary,
-            fontFamily: CHART_THEME.fontMono,
-            fontSize: 11,
-          },
-          icon: "circle",
-          itemWidth: 8,
-          itemHeight: 8,
-        },
+    legend: useAvg ? { show: false } : chartLegend(),
     xAxis: {
       type: "category",
       data: labels,
@@ -390,7 +377,7 @@ function ComparisonChart({
           )}
         </div>
       )}
-      <ReactECharts
+      <ChartECharts
         option={buildComparisonOption(metric, trackerData, {
           logScale: enableLogScale ? effectiveLog : undefined,
           averageMode,
@@ -405,4 +392,4 @@ function ComparisonChart({
 }
 
 export { ComparisonChart, buildComparisonOption }
-export type { TrackerSeries, ChartMetric, ComparisonChartProps }
+export type { ChartMetric, ComparisonChartProps }

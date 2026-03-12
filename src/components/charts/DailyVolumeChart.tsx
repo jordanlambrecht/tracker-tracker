@@ -6,11 +6,12 @@
 
 import clsx from "clsx"
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
 import { useState } from "react"
 import type { Snapshot } from "@/types/api"
+import type { TrackerSnapshotSeries } from "@/types/charts"
+import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
+import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -18,14 +19,8 @@ import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartTooltip, chartTo
 
 type VolumeMode = "bar" | "river"
 
-interface TrackerDailySeries {
-  name: string
-  color: string
-  snapshots: Snapshot[]
-}
-
 interface DailyVolumeChartProps {
-  trackerData: TrackerDailySeries[]
+  trackerData: TrackerSnapshotSeries[]
   height?: number
 }
 
@@ -78,7 +73,7 @@ function computePerTrackerDailyDeltas(snapshots: Snapshot[]): DailyDelta[] {
 // Shared helpers
 // ---------------------------------------------------------------------------
 
-function computeTrackerDeltas(trackerData: TrackerDailySeries[]) {
+function computeTrackerDeltas(trackerData: TrackerSnapshotSeries[]) {
   const trackerDeltas = trackerData.map((t) => ({
     name: t.name,
     color: t.color,
@@ -115,7 +110,7 @@ const fmtNum = (v: number): string =>
 // ---------------------------------------------------------------------------
 
 function buildDailyVolumeOption(
-  trackerData: TrackerDailySeries[]
+  trackerData: TrackerSnapshotSeries[]
 ): EChartsOption {
   const { trackerDeltas, sortedDays, divisor, unit } = computeTrackerDeltas(trackerData)
 
@@ -199,20 +194,8 @@ function buildDailyVolumeOption(
         return `${chartTooltipHeader(day)}${rows}`
       },
     }),
-    legend: {
-      top: 0,
-      right: 0,
-      textStyle: {
-        color: CHART_THEME.textTertiary,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
-      },
-      icon: "circle",
-      itemWidth: 8,
-      itemHeight: 8,
-      data: trackerDeltas.map((t) => t.name),
-    },
-    grid: chartGrid({ top: 32, right: 16, left: 64 }),
+    legend: chartLegend({ data: trackerDeltas.map((t) => t.name) }),
+    grid: chartGrid({ right: 16, left: 64 }),
     xAxis: {
       type: "category",
       data: labels,
@@ -256,7 +239,7 @@ function buildDailyVolumeOption(
 // ---------------------------------------------------------------------------
 
 function buildRiverOption(
-  trackerData: TrackerDailySeries[]
+  trackerData: TrackerSnapshotSeries[]
 ): EChartsOption {
   const { trackerDeltas, sortedDays, divisor, unit } = computeTrackerDeltas(trackerData)
 
@@ -386,7 +369,7 @@ function DailyVolumeChart({ trackerData, height = 360 }: DailyVolumeChartProps) 
           ))}
         </div>
       </div>
-      <ReactECharts
+      <ChartECharts
         option={option}
         style={{ height, width: "100%" }}
         opts={{ renderer: "canvas" }}
@@ -398,4 +381,4 @@ function DailyVolumeChart({ trackerData, height = 360 }: DailyVolumeChartProps) 
 }
 
 export { DailyVolumeChart, computePerTrackerDailyDeltas }
-export type { TrackerDailySeries, DailyVolumeChartProps }
+export type { DailyVolumeChartProps }
