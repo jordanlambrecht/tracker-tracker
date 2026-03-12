@@ -60,16 +60,13 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # --- Drizzle schema-sync (for drizzle-kit push at startup) ---
-# drizzle-kit is a prod dependency but Next.js standalone doesn't trace it.
-# Copy config + schema, then install just drizzle-kit deps with npm (flat layout,
-# no pnpm symlinks to break). Runs in /tmp to avoid conflicts with standalone's package.json.
+# Next.js standalone doesn't trace drizzle-kit. Install it directly into
+# /app/node_modules (merges with standalone's traced deps).
 COPY --from=builder /app/drizzle.config.ts ./
 COPY --from=builder /app/src/lib/db ./src/lib/db
 COPY --from=builder /app/tsconfig.json ./
-RUN cd /tmp && npm init -y > /dev/null 2>&1 && \
-    npm install --no-audit --no-fund drizzle-kit drizzle-orm postgres dotenv esbuild > /dev/null 2>&1 && \
-    mv /tmp/node_modules /app/node_modules_drizzle && \
-    rm -rf /tmp/package.json /tmp/package-lock.json
+RUN cd /app && npm install --no-audit --no-fund --legacy-peer-deps \
+    drizzle-kit drizzle-orm postgres dotenv esbuild 2>&1 | tail -1
 
 # --- Changelog (served via /api/changelog) ---
 COPY --from=builder /app/CHANGELOG.md ./

@@ -57,11 +57,7 @@ echo "tracker-tracker | Database ready. Syncing schema..."
 # (no TTY) this causes the container to fail, which is the correct behavior:
 # users should review destructive migrations before applying them.
 #
-# node_modules_drizzle is a flat npm install (no pnpm symlinks).
-# Temporarily symlink so drizzle-kit resolves its deps normally.
-ln -sf node_modules_drizzle node_modules
-node node_modules_drizzle/drizzle-kit/bin.cjs push
-rm -f node_modules
+npx drizzle-kit push
 
 # ── Start server ────────────────────────────────────────────────────────
 echo "tracker-tracker | Starting server on port ${PORT:-3000}..."
