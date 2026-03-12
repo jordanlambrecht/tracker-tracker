@@ -5,22 +5,17 @@
 "use client"
 
 import type { CandlestickSeriesOption, EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
 import { useState } from "react"
 import { bytesToGiB, hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
+import type { TrackerSnapshotSeries } from "@/types/charts"
+import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
 import { LogScaleToggle } from "./LogScaleToggle"
-import { CHART_THEME, chartAxisLabel, chartGrid, chartTooltip, shouldUseLogScale } from "./theme"
-
-interface TrackerCandleSeries {
-  name: string
-  color: string
-  snapshots: Snapshot[]
-}
+import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
 
 interface BufferCandlestickChartProps {
-  trackerData: TrackerCandleSeries[]
+  trackerData: TrackerSnapshotSeries[]
   height?: number
 }
 
@@ -78,7 +73,7 @@ function computeCandlestickData(
  * Builds the ECharts option object for a multi-tracker buffer candlestick chart.
  */
 function buildCandlestickOption(
-  trackerData: TrackerCandleSeries[],
+  trackerData: TrackerSnapshotSeries[],
   forceLog: boolean | null = null
 ): EChartsOption {
   // Collect all GiB values across all trackers to decide GiB vs TiB
@@ -174,19 +169,8 @@ function buildCandlestickOption(
 
   return {
     backgroundColor: "transparent",
-    grid: chartGrid({ top: 32, right: 16, left: 72 }),
-    legend: {
-      top: 0,
-      right: 0,
-      textStyle: {
-        color: CHART_THEME.textTertiary,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
-      },
-      icon: "circle",
-      itemWidth: 8,
-      itemHeight: 8,
-    },
+    grid: chartGrid({ right: 16, left: 72 }),
+    legend: chartLegend(),
     tooltip: chartTooltip("axis", {
       axisPointer: {
         type: "line",
@@ -207,7 +191,7 @@ function buildCandlestickOption(
         if (!items || items.length === 0) return ""
 
         const date = items[0].axisValueLabel
-        const header = `<div style="font-family:${CHART_THEME.fontMono};font-size:11px;color:${CHART_THEME.textTertiary};margin-bottom:6px;">${date}</div>`
+        const header = chartTooltipHeader(date)
 
         const rows = items
           .filter((item) => item.value !== null && item.value !== undefined)
@@ -226,8 +210,8 @@ function buildCandlestickOption(
             const arrow = change >= 0 ? "▲" : "▼"
             const changeColor = change >= 0 ? CHART_THEME.positive : CHART_THEME.negative
 
-            const swatch = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${item.color};margin-right:6px;box-shadow:0 0 6px ${item.color};"></span>`
-            const name = `<span style="color:${CHART_THEME.textSecondary};font-weight:600;">${item.seriesName}:</span>`
+            const swatch = chartDot(item.color)
+            const name = `<span style="color:${CHART_THEME.textSecondary};font-weight:600;">${escHtml(item.seriesName)}:</span>`
             const indent = `<span style="display:inline-block;width:14px;"></span>`
             const openLine = `${indent}<span style="color:${CHART_THEME.textTertiary};">Open:</span> <span style="color:${CHART_THEME.textPrimary};">${fmtNum(open)} ${unit}</span>`
             const closeLine = `${indent}<span style="color:${CHART_THEME.textTertiary};">Close:</span> <span style="color:${CHART_THEME.textPrimary};">${fmtNum(close)} ${unit}</span>`
@@ -337,7 +321,7 @@ function BufferCandlestickChart({
           onToggle={() => setLogOverride(logOverride === null ? !autoLog : null)}
         />
       </div>
-      <ReactECharts
+      <ChartECharts
         option={buildCandlestickOption(trackerData, logOverride)}
         style={{ height, width: "100%" }}
         opts={{ renderer: "canvas" }}
@@ -349,4 +333,4 @@ function BufferCandlestickChart({
 }
 
 export { BufferCandlestickChart }
-export type { BufferCandlestickChartProps, TrackerCandleSeries }
+export type { BufferCandlestickChartProps }

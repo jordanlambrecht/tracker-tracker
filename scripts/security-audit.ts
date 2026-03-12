@@ -7,11 +7,14 @@
 //   checkDangerousFunctions, checkHardcodedSecrets, checkSecurityHeaders,
 //   checkCookieSecurity, checkSensitiveFieldExposure, checkEnvFiles,
 //   checkConsoleLogInRoutes, checkTodoInSecurityFiles, checkRawSqlInRoutes,
-//   runAudit
+//   checkUnvalidatedJsonParse, checkBareCatchBlocks, checkUnsafeRedirectFetch,
+//   checkRequestBodySize, checkTimingSafeComparison, checkNoRawMigrations,
+//   checkFetchTimeout, checkDockerfileNonRoot, checkProxyAllowlistSync,
+//   checkBigIntSafety, runAudit
 //
 // Usage: npx tsx scripts/security-audit.ts [--changed-only file1 file2 ...]
 // If --changed-only is provided, only those files are scanned for
-// file-level checks (2/3/8/9). Auth enforcement and headers always
+// file-level checks (2/3/8/9/11/12/14/20). Auth enforcement and headers always
 // run a full scan regardless.
 //
 // Exit code: 1 if any critical check fails, 0 otherwise.
@@ -68,7 +71,7 @@ const NO_AUTH_ROUTES = new Set([
 // Both patterns are valid auth mechanisms:
 // - authenticate() from api-helpers.ts (standard pattern)
 // - getSession() from auth.ts (used by logout)
-const AUTH_PATTERNS = ["authenticate", "getSession", "requireAuth"]
+const AUTH_PATTERNS = [/\bauthenticate\s*\(/, /\bgetSession\s*\(/, /\brequireAuth\s*\(/]
 
 const REQUIRED_HEADERS = [
   "X-Content-Type-Options",
@@ -185,7 +188,7 @@ function checkAuthEnforcement(): CheckResult {
     if (handlers.length === 0) continue
 
     // Accept any of the valid auth patterns
-    const hasAuth = AUTH_PATTERNS.some((p) => content.includes(p))
+    const hasAuth = AUTH_PATTERNS.some((re) => re.test(content))
 
     if (!hasAuth) {
       for (const method of handlers) {
@@ -320,7 +323,7 @@ function checkSecurityHeaders(): CheckResult {
 function checkCookieSecurity(): CheckResult {
   const findings: Finding[] = []
   const allFiles = walkFiles(SRC_DIR, ".ts").concat(walkFiles(SRC_DIR, ".tsx"))
-  const COOKIE_SET_RE = /\.(?:cookies|cookieStore)\.set\s*\(/
+  const COOKIE_SET_RE = /(?:\.cookies|cookieStore|\bcookies\(\))\.set\s*\(/
 
   for (const file of allFiles) {
     if (isTestFile(file)) continue
@@ -583,6 +586,626 @@ function checkRawSqlInRoutes(): CheckResult {
   }
 }
 
+// ── Check 11: Unvalidated JSON.parse (warning) ───────────────────────────
+
+function checkUnvalidatedJsonParse(files?: string[]): CheckResult {
+  const findings: Finding[] = []
+  const targetFiles =
+    files ?? walkFiles(SRC_DIR, ".ts").concat(walkFiles(SRC_DIR, ".tsx"))
+
+  for (const file of targetFiles) {
+    if (isTestFile(file)) continue
+    const content = fs.readFileSync(file, "utf8")
+    const lines = content.split("\n")
+
+    for (let i = 0; i < lines.length; i++) {
+      if (!/JSON\.parse\s*\(/.test(lines[i])) continue
+
+      const lineContent = lines[i].trim()
+      if (lineContent.startsWith("//") || lineContent.startsWith("*")) continue
+
+      // Scan backwards up to 20 lines for a try { or try{
+      let insideTry = false
+      for (let j = i; j >= 0 && j > i - 20; j--) {
+        if (/\btry\s*\{/.test(lines[j])) {
+          insideTry = true
+          break
+        }
+      }
+
+      if (!insideTry) {
+        findings.push({
+          file: relativePath(file),
+          line: i + 1,
+          detail: "JSON.parse() called outside a try-catch block",
+        })
+      }
+    }
+  }
+
+  return {
+    id: "unvalidated-json-parse",
+    name: "JSON.parse wrapped in try-catch",
+    severity: "warning",
+    status: findings.length === 0 ? "pass" : "fail",
+    findings,
+  }
+}
+
+// ── Check 12: Bare catch blocks (warning) ───────────────────────────────
+
+function checkBareCatchBlocks(files?: string[]): CheckResult {
+  const findings: Finding[] = []
+  // Only scan API routes and lib files — client components legitimately
+  // use bare catch for fetch abort cleanup, React error boundaries, etc.
+  const serverFiles = files
+    ? files.filter((f) => f.includes("app/api/") || f.includes("src/lib/"))
+    : walkFiles(API_DIR, ".ts").concat(walkFiles(path.resolve(SRC_DIR, "lib"), ".ts"))
+
+  const CATCH_RE = /}\s*catch\s*(?:\([^)]*\))?\s*\{/
+  const RECOVERY_RE =
+    /console\.error|console\.warn|log\.error|log\.warn|\bthrow\b|setPollError|setError|return\s+null|return\s+\[\]|return\s+0|return\s+false|NextResponse\.json|Response\.json|return\s+new\s+Response|return\s+NextResponse|status:\s*[45]\d\d|\.push\s*\(|\breturn\b|\berror\b.*message/
+
+  for (const file of serverFiles) {
+    if (isTestFile(file)) continue
+    const content = fs.readFileSync(file, "utf8")
+    const lines = content.split("\n")
+
+    for (let i = 0; i < lines.length; i++) {
+      const lineContent = lines[i].trim()
+      if (lineContent.startsWith("//") || lineContent.startsWith("*")) continue
+      if (!CATCH_RE.test(lines[i])) continue
+
+      // Check the next 8 lines for any recovery action
+      let hasRecovery = false
+      for (let j = i + 1; j <= i + 8 && j < lines.length; j++) {
+        if (RECOVERY_RE.test(lines[j])) {
+          hasRecovery = true
+          break
+        }
+      }
+
+      if (!hasRecovery) {
+        findings.push({
+          file: relativePath(file),
+          line: i + 1,
+          detail: "catch block swallows error without logging or re-throwing",
+        })
+      }
+    }
+  }
+
+  return {
+    id: "bare-catch-blocks",
+    name: "No swallowed errors in catch blocks",
+    severity: "warning",
+    status: findings.length === 0 ? "pass" : "fail",
+    findings,
+  }
+}
+
+// ── Check 13: Unsafe redirect/fetch with user input (critical) ───────────
+
+function checkUnsafeRedirectFetch(): CheckResult {
+  const findings: Finding[] = []
+  const routeFiles = walkFiles(API_DIR, "route.ts")
+
+  // A fetch URL is suspicious when it contains a variable (not a pure string literal
+  // and not exclusively a process.env reference)
+  const VARIABLE_FETCH_RE = /\bfetch\s*\(\s*(?!['"`]\/api\/)(?![`'"])[^,)]+/
+  const REDIRECT_VAR_RE =
+    /\b(?:redirect|Response\.redirect)\s*\(\s*(?![`'"])[^,)]+/
+  const USER_INPUT_RE = /request\.json\(\)|searchParams\b/
+  const ENV_ONLY_RE = /^`?\s*process\.env\.\w+/
+
+  for (const file of routeFiles) {
+    const content = fs.readFileSync(file, "utf8")
+    const rel = relativePath(file)
+
+    const hasUserInput = USER_INPUT_RE.test(content)
+    if (!hasUserInput) continue
+
+    const lines = content.split("\n")
+
+    for (let i = 0; i < lines.length; i++) {
+      const lineContent = lines[i].trim()
+      if (lineContent.startsWith("//") || lineContent.startsWith("*")) continue
+
+      if (VARIABLE_FETCH_RE.test(lines[i])) {
+        // Allow internal /api/ fetches (string literals starting with /api/)
+        if (/fetch\s*\(\s*['"`]\/api\//.test(lines[i])) continue
+        // Allow process.env-only URLs
+        const urlMatch = lines[i].match(/fetch\s*\(\s*([^,)]+)/)
+        if (urlMatch && ENV_ONLY_RE.test(urlMatch[1].trim())) continue
+
+        findings.push({
+          file: rel,
+          line: i + 1,
+          detail:
+            "fetch() with variable URL in route that also uses user input — validate/allowlist the URL",
+        })
+      }
+
+      if (REDIRECT_VAR_RE.test(lines[i])) {
+        findings.push({
+          file: rel,
+          line: i + 1,
+          detail:
+            "redirect() with non-literal URL in route that also uses user input — validate the URL",
+        })
+      }
+    }
+  }
+
+  return {
+    id: "unsafe-redirect-fetch",
+    name: "No fetch/redirect with unvalidated URLs in routes",
+    severity: "critical",
+    status: findings.length === 0 ? "pass" : "fail",
+    findings,
+  }
+}
+
+// ── Check 14: Missing request body size check (warning) ─────────────────
+
+function checkRequestBodySize(files?: string[]): CheckResult {
+  const findings: Finding[] = []
+  const targetFiles = files
+    ? files.filter((f) => f.includes("app/api") && f.endsWith("route.ts"))
+    : walkFiles(API_DIR, "route.ts")
+
+  const BODY_PARSE_RE = /request\.(?:json|text|formData)\s*\(\s*\)/
+  const SIZE_CHECK_RE =
+    /content-length|Content-Length|\.size\s*[><=]|\.length\s*[><=]|MAX_\w*SIZE|maxSize\b|maxLength\b|bodyLimit/i
+
+  for (const file of targetFiles) {
+    const content = fs.readFileSync(file, "utf8")
+    const lines = content.split("\n")
+
+    // Exempt trivial routes
+    if (lines.length < 30) continue
+
+    // Only flag POST/PATCH/PUT handlers that parse the body
+    const hasMutableHandler =
+      /export\s+(?:async\s+)?function\s+(?:POST|PATCH|PUT)\b/.test(content)
+    if (!hasMutableHandler) continue
+
+    if (!BODY_PARSE_RE.test(content)) continue
+    if (SIZE_CHECK_RE.test(content)) continue
+
+    findings.push({
+      file: relativePath(file),
+      detail:
+        "POST/PATCH/PUT handler parses request body without a size/length check",
+    })
+  }
+
+  return {
+    id: "request-body-size",
+    name: "Request body size validation on upload routes",
+    severity: "warning",
+    status: findings.length === 0 ? "pass" : "fail",
+    findings,
+  }
+}
+
+// ── Check 15: Timing-safe comparison for secrets (critical) ─────────────
+
+// Variable name patterns that indicate an actual secret value being compared.
+// Must be specific enough to avoid matching loop vars named "key", UI fields like "giftTokens", etc.
+// Pattern: the variable name must START or END with the secret word, or be an exact compound like "apiToken".
+const SECRET_VAR_RE =
+  /\b(?:password(?:Hash)?|apiToken|sessionToken|secretKey|encryptionKey|masterKey|totpSecret|backupCode|authToken|jweToken|pendingToken)\b/
+
+// Allowlist: comparisons against literal keywords, type values, null checks, length checks, typeof checks
+const ALLOWLISTED_COMPARE_RE =
+  /===?\s*(?:null|undefined|true|false|"[a-z_]+"|\d+)\s*$|^(?:null|undefined|true|false|"[a-z_]+"|\d+)\s*===?|\.length\s*===?|typeof\s+[\w.]+\s*===?\s*"|\?\s*[\w.]+\s*:/
+
+function checkTimingSafeComparison(): CheckResult {
+  const findings: Finding[] = []
+
+  // Scan all non-test .ts files in src/lib/ and src/app/api/
+  const libDir = path.resolve(SRC_DIR, "lib")
+  const scanFiles = [
+    ...walkFiles(libDir, ".ts"),
+    ...walkFiles(API_DIR, ".ts"),
+  ]
+
+  for (const absPath of scanFiles) {
+    if (isTestFile(absPath)) continue
+    if (!fs.existsSync(absPath)) continue
+
+    const relFile = relativePath(absPath)
+    const content = fs.readFileSync(absPath, "utf8")
+    const lines = content.split("\n")
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const trimmed = line.trim()
+      if (trimmed.startsWith("//") || trimmed.startsWith("*")) continue
+
+      // Look for === or == comparisons
+      if (!/[^!<>=]={2,3}(?!=)/.test(line)) continue
+
+      // Skip allowlisted patterns (comparisons to null/undefined/true/false/literal words)
+      if (ALLOWLISTED_COMPARE_RE.test(trimmed)) continue
+
+      // Check if either side of the comparison references a secret-named variable
+      const eqMatch = line.match(/([^=!<>]+?)\s*={2,3}\s*([^=].*)/)
+      if (!eqMatch) continue
+
+      const lhs = eqMatch[1].trim()
+      const rhs = eqMatch[2].split(/[;,)]/)[0].trim()
+
+      const lhsIsSecret = SECRET_VAR_RE.test(lhs)
+      const rhsIsSecret = SECRET_VAR_RE.test(rhs)
+
+      if (!lhsIsSecret && !rhsIsSecret) continue
+
+      // Per-line check: look for timingSafeEqual within ±10 lines of this comparison
+      const windowStart = Math.max(0, i - 10)
+      const windowEnd = Math.min(lines.length - 1, i + 10)
+      const localWindow = lines.slice(windowStart, windowEnd + 1).join("\n")
+      const hasLocalTimingSafe = localWindow.includes("timingSafeEqual")
+
+      if (!hasLocalTimingSafe) {
+        findings.push({
+          file: relFile,
+          line: i + 1,
+          detail: `Direct equality comparison involving secret variable — use timingSafeEqual instead`,
+        })
+      }
+    }
+  }
+
+  return {
+    id: "timing-safe-comparison",
+    name: "Timing-safe comparison for secret values",
+    severity: "critical",
+    status: findings.length === 0 ? "pass" : "fail",
+    findings,
+  }
+}
+
+// ── Check 16: No raw SQL migrations (critical) ───────────────────────────
+
+function checkNoRawMigrations(): CheckResult {
+  const findings: Finding[] = []
+  const MIGRATIONS_DIR = path.resolve(SRC_DIR, "lib/db/migrations")
+  const DRIZZLE_MIGRATIONS_DIR = path.resolve(ROOT, "drizzle")
+
+  // Check for a migrations directory with .sql files
+  for (const dir of [MIGRATIONS_DIR, DRIZZLE_MIGRATIONS_DIR]) {
+    if (!fs.existsSync(dir)) continue
+    const sqlFiles = walkFiles(dir, ".sql")
+    for (const f of sqlFiles) {
+      findings.push({
+        file: relativePath(f),
+        detail:
+          "Raw SQL migration file found — use drizzle-kit push (schema-first) instead of generate/migrate",
+      })
+    }
+  }
+
+  // Check package.json scripts for drizzle-kit generate or migrate
+  const pkgPath = path.join(ROOT, "package.json")
+  if (fs.existsSync(pkgPath)) {
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8")) as {
+      scripts?: Record<string, string>
+    }
+    for (const [name, cmd] of Object.entries(pkg.scripts ?? {})) {
+      if (/drizzle-kit\s+(generate|migrate)\b/.test(cmd)) {
+        findings.push({
+          file: "package.json",
+          detail: `Script "${name}" uses drizzle-kit generate/migrate — use drizzle-kit push instead`,
+        })
+      }
+    }
+  }
+
+  // Check CI workflow files for drizzle-kit generate or migrate
+  const workflowDir = path.join(ROOT, ".github/workflows")
+  if (fs.existsSync(workflowDir)) {
+    const yamlFiles = [
+      ...walkFiles(workflowDir, ".yml"),
+      ...walkFiles(workflowDir, ".yaml"),
+    ]
+    for (const f of yamlFiles) {
+      const content = fs.readFileSync(f, "utf8")
+      if (/drizzle-kit\s+(generate|migrate)\b/.test(content)) {
+        findings.push({
+          file: relativePath(f),
+          detail:
+            "CI workflow uses drizzle-kit generate/migrate — use drizzle-kit push instead",
+        })
+      }
+    }
+  }
+
+  return {
+    id: "no-raw-migrations",
+    name: "No raw SQL migration files (schema-first only)",
+    severity: "critical",
+    status: findings.length === 0 ? "pass" : "fail",
+    findings,
+  }
+}
+
+// ── Check 17: External fetch calls have timeouts (critical) ─────────────
+
+// proxy.ts uses https.request with a timeout option — not fetch() — so it
+// is intentionally excluded from this scan.
+function checkFetchTimeout(): CheckResult {
+  const findings: Finding[] = []
+  const FETCH_RE = /\bfetch\s*\(/
+
+  const adaptersDir = path.resolve(SRC_DIR, "lib/adapters")
+  const qbtDir = path.resolve(SRC_DIR, "lib/qbt")
+  const libDir = path.resolve(SRC_DIR, "lib")
+
+  // Collect all .ts files from adapters/ and qbt/ (recursive via walkFiles),
+  // plus direct .ts files in lib/ root only (not recursive into subdirs).
+  const libRootFiles = fs.existsSync(libDir)
+    ? fs.readdirSync(libDir, { withFileTypes: true })
+        .filter((e) => e.isFile() && e.name.endsWith(".ts"))
+        .map((e) => path.join(libDir, e.name))
+    : []
+
+  const scanFiles = [
+    ...walkFiles(adaptersDir, ".ts"),
+    ...walkFiles(qbtDir, ".ts"),
+    ...libRootFiles,
+  ]
+
+  for (const absPath of scanFiles) {
+    if (isTestFile(absPath)) continue
+    if (!fs.existsSync(absPath)) continue
+
+    const relFile = relativePath(absPath)
+    const content = fs.readFileSync(absPath, "utf8")
+    const lines = content.split("\n")
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const trimmed = line.trim()
+      if (trimmed.startsWith("//") || trimmed.startsWith("*")) continue
+      if (!FETCH_RE.test(line)) continue
+
+      // Check within 5 lines after (and on the same line) for timeout indicators
+      const windowEnd = Math.min(i + 5, lines.length - 1)
+      const fetchWindow = lines.slice(i, windowEnd + 1).join("\n")
+
+      const hasTimeout =
+        /\bsignal\s*:/.test(fetchWindow) ||
+        /AbortSignal\.timeout/.test(fetchWindow) ||
+        /\btimeout\s*:/.test(fetchWindow)
+
+      if (!hasTimeout) {
+        findings.push({
+          file: relFile,
+          line: i + 1,
+          detail:
+            "fetch() call without a timeout signal — add signal: AbortSignal.timeout(ms)",
+        })
+      }
+    }
+  }
+
+  return {
+    id: "fetch-timeout",
+    name: "External fetch calls have timeouts",
+    severity: "critical",
+    status: findings.length === 0 ? "pass" : "fail",
+    findings,
+  }
+}
+
+// ── Check 18: Dockerfile runs as non-root user (critical) ────────────────
+
+function checkDockerfileNonRoot(): CheckResult {
+  const findings: Finding[] = []
+  const dockerfilePath = path.join(ROOT, "Dockerfile")
+
+  if (!fs.existsSync(dockerfilePath)) {
+    // Not applicable — no Dockerfile in the repo
+    return {
+      id: "dockerfile-nonroot",
+      name: "Docker container runs as non-root user",
+      severity: "critical",
+      status: "pass",
+      findings,
+    }
+  }
+
+  const content = fs.readFileSync(dockerfilePath, "utf8")
+  const docLines = content.split("\n")
+
+  // Collect all USER directives in document order
+  const userDirectives: Array<{ value: string; line: number }> = []
+  for (let i = 0; i < docLines.length; i++) {
+    const m = /^\s*USER\s+(\S+)/.exec(docLines[i])
+    if (m) userDirectives.push({ value: m[1], line: i + 1 })
+  }
+
+  if (userDirectives.length === 0) {
+    findings.push({
+      file: "Dockerfile",
+      detail: "No USER directive found — container will run as root",
+    })
+  } else {
+    const lastUser = userDirectives[userDirectives.length - 1]
+    if (lastUser.value === "root" || lastUser.value === "0") {
+      findings.push({
+        file: "Dockerfile",
+        line: lastUser.line,
+        detail: `Final USER directive is "${lastUser.value}" — container runs as root`,
+      })
+    }
+  }
+
+  // Verify a non-root user is actually created (not just switched to an assumed account)
+  const hasUserCreation =
+    /\badduser\b/.test(content) ||
+    /\baddgroup\b/.test(content) ||
+    /\buseradd\b/.test(content) ||
+    /\bgroupadd\b/.test(content)
+
+  if (!hasUserCreation) {
+    findings.push({
+      file: "Dockerfile",
+      detail:
+        "No adduser/addgroup directive found — USER directive may reference a non-existent or root-adjacent user",
+    })
+  }
+
+  return {
+    id: "dockerfile-nonroot",
+    name: "Docker container runs as non-root user",
+    severity: "critical",
+    status: findings.length === 0 ? "pass" : "fail",
+    findings,
+  }
+}
+
+// ── Check 19: Public routes match proxy allowlist (critical) ─────────────
+
+/** Strip leading slashes for consistent comparison. */
+function normalizeRoute(r: string): string {
+  return r.replace(/^\/+/, "")
+}
+
+function checkProxyAllowlistSync(): CheckResult {
+  const findings: Finding[] = []
+
+  const proxyPath = path.join(ROOT, "src/proxy.ts")
+  if (!fs.existsSync(proxyPath)) {
+    findings.push({
+      file: "src/proxy.ts",
+      detail: "src/proxy.ts not found — cannot verify allowlist sync",
+    })
+    return {
+      id: "proxy-allowlist-sync",
+      name: "Public routes match proxy allowlist",
+      severity: "critical",
+      status: "fail",
+      findings,
+    }
+  }
+
+  const proxyContent = fs.readFileSync(proxyPath, "utf8")
+
+  // Extract exact routes from PUBLIC_EXACT array literal
+  const exactArrayMatch = proxyContent.match(/PUBLIC_EXACT\s*=\s*\[([^\]]+)\]/)
+  const proxyExact = new Set<string>()
+  if (exactArrayMatch) {
+    for (const m of exactArrayMatch[1].matchAll(/"([^"]+)"|'([^']+)'/g)) {
+      proxyExact.add(normalizeRoute(m[1] ?? m[2]))
+    }
+  }
+
+  // Extract prefix routes from PUBLIC_PREFIX array literal
+  const prefixArrayMatch = proxyContent.match(/PUBLIC_PREFIX\s*=\s*\[([^\]]+)\]/)
+  const proxyPrefixes: string[] = []
+  if (prefixArrayMatch) {
+    for (const m of prefixArrayMatch[1].matchAll(/"([^"]+)"|'([^']+)'/g)) {
+      proxyPrefixes.push(normalizeRoute(m[1] ?? m[2]))
+    }
+  }
+
+  // A route is proxy-public if it matches an exact entry or starts with a prefix
+  function isCoveredByProxy(normalizedRoute: string): boolean {
+    if (proxyExact.has(normalizedRoute)) return true
+    return proxyPrefixes.some((prefix) =>
+      normalizedRoute.startsWith(normalizeRoute(prefix))
+    )
+  }
+
+  // Every NO_AUTH_ROUTES entry must be reachable through the proxy allowlist
+  for (const route of NO_AUTH_ROUTES) {
+    const normalized = normalizeRoute(route)
+    if (!isCoveredByProxy(normalized)) {
+      findings.push({
+        file: "src/proxy.ts",
+        detail: `NO_AUTH_ROUTES contains "${route}" but it is not in the proxy public allowlist — the proxy will block unauthenticated requests before the route handler runs`,
+      })
+    }
+  }
+
+  // Page routes (non-API) intentionally appear in the proxy allowlist but
+  // not in NO_AUTH_ROUTES — they are excluded from the reverse check.
+  const PAGE_ROUTES = new Set(["login", "setup"])
+  for (const route of proxyExact) {
+    if (PAGE_ROUTES.has(route)) continue
+    if (!NO_AUTH_ROUTES.has(route)) {
+      findings.push({
+        file: "src/proxy.ts",
+        detail: `Proxy allowlist contains exact route "/${route}" but it is absent from NO_AUTH_ROUTES in security-audit.ts — verify it is intentionally public and add it to NO_AUTH_ROUTES`,
+      })
+    }
+  }
+
+  return {
+    id: "proxy-allowlist-sync",
+    name: "Public routes match proxy allowlist",
+    severity: "critical",
+    status: findings.length === 0 ? "pass" : "fail",
+    findings,
+  }
+}
+
+// ── Check 20: BigInt fields use string serialization (warning) ───────────
+
+// Column names that hold BigInt values in the DB schema
+const BIGINT_COLUMNS = [
+  "uploadedBytes",
+  "downloadedBytes",
+  "bufferBytes",
+  "rawUploadedBytes",
+  "rawDownloadedBytes",
+]
+
+function checkBigIntSafety(files?: string[]): CheckResult {
+  const findings: Finding[] = []
+  const targetFiles = files
+    ? files.filter((f) => f.includes("app/api") && f.endsWith("route.ts"))
+    : walkFiles(API_DIR, "route.ts")
+
+  const BIGINT_COL_PATTERN = BIGINT_COLUMNS.join("|")
+  const UNSAFE_RE = new RegExp(
+    `\\b(?:Number|parseInt)\\s*\\([^)]*\\b(${BIGINT_COL_PATTERN})\\b`
+  )
+
+  for (const file of targetFiles) {
+    if (isTestFile(file)) continue
+    const content = fs.readFileSync(file, "utf8")
+    const lines = content.split("\n")
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const trimmed = line.trim()
+      if (trimmed.startsWith("//") || trimmed.startsWith("*")) continue
+      if (!UNSAFE_RE.test(line)) continue
+
+      const match = line.match(UNSAFE_RE)
+      const colName = match?.[1] ?? "BigInt column"
+
+      findings.push({
+        file: relativePath(file),
+        line: i + 1,
+        detail: `Number()/parseInt() on BigInt column "${colName}" — use String() or .toString() to avoid precision loss above 2^53`,
+      })
+    }
+  }
+
+  return {
+    id: "bigint-safety",
+    name: "BigInt fields use string serialization",
+    severity: "warning",
+    status: findings.length === 0 ? "pass" : "fail",
+    findings,
+  }
+}
+
 // ── Run all checks ──────────────────────────────────────────────────────
 
 function runAudit(changedFiles?: string[]): AuditOutput {
@@ -600,9 +1223,19 @@ function runAudit(changedFiles?: string[]): AuditOutput {
     checkSensitiveFieldExposure(),
     checkEnvFiles(),
     checkRawSqlInRoutes(),
+    checkUnsafeRedirectFetch(),
+    checkTimingSafeComparison(),
+    checkNoRawMigrations(),
+    checkFetchTimeout(),
+    checkDockerfileNonRoot(),
+    checkProxyAllowlistSync(),
     // Warning — flag but don't fail
     checkConsoleLogInRoutes(absChangedFiles),
     checkTodoInSecurityFiles(),
+    checkUnvalidatedJsonParse(absChangedFiles),
+    checkBareCatchBlocks(absChangedFiles),
+    checkRequestBodySize(absChangedFiles),
+    checkBigIntSafety(absChangedFiles),
   ]
 
   const critical = results.filter(

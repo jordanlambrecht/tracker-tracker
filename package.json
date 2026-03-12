@@ -1,6 +1,6 @@
 {
   "name": "private-tracker-tracker",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "private": true,
   "packageManager": "pnpm@10.32.1",
   "scripts": {
@@ -14,7 +14,6 @@
     "release:patch": "pnpm version patch && git push && git push --tags",
     "release:minor": "pnpm version minor && git push && git push --tags",
     "release:major": "pnpm version major && git push && git push --tags",
-    "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"
   },

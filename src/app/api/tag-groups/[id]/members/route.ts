@@ -50,10 +50,11 @@ export async function POST(
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const { tag, label, color } = body as {
+  const { tag, label, color, sortOrder } = body as {
     tag?: string
     label?: string
     color?: string
+    sortOrder?: number
   }
 
   if (!tag || typeof tag !== "string" || tag.trim().length === 0) {
@@ -107,7 +108,7 @@ export async function POST(
       tag: tag.trim(),
       label: label.trim(),
       color: typeof color === "string" ? color : null,
-      sortOrder: 0,
+      sortOrder: typeof sortOrder === "number" && Number.isFinite(sortOrder) ? Math.floor(sortOrder) : 0,
     })
     .returning()
 

@@ -1,8 +1,8 @@
 // src/types/api.ts
 
-import type { GazellePlatformMeta, GGnPlatformMeta } from "@/lib/adapters/types"
+import type { GazellePlatformMeta, GGnPlatformMeta, NebulancePlatformMeta } from "@/lib/adapters/types"
 
-export type { GazellePlatformMeta, GazelleRanks, GGnPlatformMeta } from "@/lib/adapters/types"
+export type { GazellePlatformMeta, GazelleRanks, GGnPlatformMeta, NebulancePlatformMeta } from "@/lib/adapters/types"
 
 export interface TrackerLatestStats {
   ratio: number | null
@@ -33,7 +33,7 @@ export interface TrackerSummary {
   sortOrder: number | null
   joinedAt: string | null
   remoteUserId: number | null
-  platformMeta: GGnPlatformMeta | GazellePlatformMeta | null
+  platformMeta: GGnPlatformMeta | GazellePlatformMeta | NebulancePlatformMeta | null
   createdAt: string
   latestStats: TrackerLatestStats | null
 }
@@ -65,7 +65,7 @@ export interface TagGroupMember {
   sortOrder: number
 }
 
-export type TagGroupChartType = "bar" | "donut" | "treemap"
+export type TagGroupChartType = "bar" | "donut" | "treemap" | "numbers"
 
 export interface TagGroup {
   id: number
@@ -74,6 +74,7 @@ export interface TagGroup {
   chartType: TagGroupChartType
   description: string | null
   sortOrder: number
+  countUnmatched: boolean
   members: TagGroupMember[]
 }
 

@@ -1,13 +1,106 @@
 // src/app/api/trackers/[id]/route.ts
 //
-// Functions: PATCH, DELETE
+// Functions: GET, PATCH, DELETE
 
-import { eq } from "drizzle-orm"
+import { desc, eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { authenticate, decodeKey, parseJsonBody, parseTrackerId, validateHexColor, validateHttpUrl } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { trackers } from "@/lib/db/schema"
+import { appSettings, trackerSnapshots, trackers } from "@/lib/db/schema"
+import { isRedacted, maskUsername } from "@/lib/privacy"
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = await authenticate()
+  if (auth instanceof NextResponse) return auth
+
+  const trackerId = await parseTrackerId(params)
+  if (trackerId instanceof NextResponse) return trackerId
+
+  const [tracker] = await db
+    .select({
+      id: trackers.id,
+      name: trackers.name,
+      baseUrl: trackers.baseUrl,
+      platformType: trackers.platformType,
+      isActive: trackers.isActive,
+      lastPolledAt: trackers.lastPolledAt,
+      lastError: trackers.lastError,
+      color: trackers.color,
+      qbtTag: trackers.qbtTag,
+      useProxy: trackers.useProxy,
+      countCrossSeedUnsatisfied: trackers.countCrossSeedUnsatisfied,
+      isFavorite: trackers.isFavorite,
+      sortOrder: trackers.sortOrder,
+      joinedAt: trackers.joinedAt,
+      remoteUserId: trackers.remoteUserId,
+      platformMeta: trackers.platformMeta,
+      createdAt: trackers.createdAt,
+    })
+    .from(trackers)
+    .where(eq(trackers.id, trackerId))
+    .limit(1)
+
+  if (!tracker) {
+    return NextResponse.json({ error: "Tracker not found" }, { status: 404 })
+  }
+
+  const [latest] = await db
+    .select()
+    .from(trackerSnapshots)
+    .where(eq(trackerSnapshots.trackerId, trackerId))
+    .orderBy(desc(trackerSnapshots.polledAt))
+    .limit(1)
+
+  const [settings] = await db
+    .select({ storeUsernames: appSettings.storeUsernames })
+    .from(appSettings)
+    .limit(1)
+  const privacyMode = settings ? !settings.storeUsernames : false
+
+  const mask = (value: string | null | undefined): string | null => {
+    if (!value) return null
+    if (!privacyMode || isRedacted(value)) return value
+    return maskUsername(value)
+  }
+
+  return NextResponse.json({
+    id: tracker.id,
+    name: tracker.name,
+    baseUrl: tracker.baseUrl,
+    platformType: tracker.platformType,
+    isActive: tracker.isActive,
+    lastPolledAt: tracker.lastPolledAt,
+    lastError: tracker.lastError,
+    color: tracker.color,
+    qbtTag: tracker.qbtTag,
+    useProxy: tracker.useProxy,
+    countCrossSeedUnsatisfied: tracker.countCrossSeedUnsatisfied,
+    isFavorite: tracker.isFavorite,
+    sortOrder: tracker.sortOrder,
+    joinedAt: tracker.joinedAt,
+    remoteUserId: tracker.remoteUserId ?? null,
+    platformMeta: (() => { try { return tracker.platformMeta ? JSON.parse(tracker.platformMeta) : null } catch { return null } })(),
+    createdAt: tracker.createdAt?.toISOString() ?? new Date().toISOString(),
+    latestStats: latest
+      ? {
+          ratio: latest.ratio,
+          uploadedBytes: latest.uploadedBytes?.toString(),
+          downloadedBytes: latest.downloadedBytes?.toString(),
+          seedingCount: latest.seedingCount,
+          leechingCount: latest.leechingCount,
+          requiredRatio: latest.requiredRatio ?? null,
+          warned: latest.warned ?? null,
+          freeleechTokens: latest.freeleechTokens ?? null,
+          username: mask(latest.username),
+          group: mask(latest.group),
+        }
+      : null,
+  })
+}
 
 export async function PATCH(
   request: Request,
@@ -60,6 +153,9 @@ export async function PATCH(
     if (body.joinedAt === null) {
       updates.joinedAt = null
     } else if (typeof body.joinedAt === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.joinedAt)) {
+      if (body.joinedAt > new Date().toISOString().split("T")[0]) {
+        return NextResponse.json({ error: "Join date cannot be in the future" }, { status: 400 })
+      }
       updates.joinedAt = body.joinedAt
     } else {
       return NextResponse.json({ error: "joinedAt must be YYYY-MM-DD or null" }, { status: 400 })

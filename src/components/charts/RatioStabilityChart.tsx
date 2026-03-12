@@ -5,20 +5,17 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
+import { useState } from "react"
 import { hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
+import type { TrackerSnapshotSeries } from "@/types/charts"
+import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartAxisLabel, chartGrid, chartTooltip } from "./theme"
-
-interface TrackerRatioSeries {
-  name: string
-  color: string
-  snapshots: Snapshot[]
-}
+import { LogScaleToggle } from "./LogScaleToggle"
+import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
 
 interface RatioStabilityChartProps {
-  trackerData: TrackerRatioSeries[]
+  trackerData: TrackerSnapshotSeries[]
   height?: number
   emaPeriod?: number
   bandWindow?: number
@@ -78,9 +75,10 @@ function computeEmaWithBand(
 }
 
 function buildRatioStabilityOption(
-  trackerData: TrackerRatioSeries[],
+  trackerData: TrackerSnapshotSeries[],
   emaPeriod: number,
-  bandWindow: number
+  bandWindow: number,
+  forceLog: boolean | null = null
 ): EChartsOption {
   // Build unified time axis from union of all polledAt timestamps
   const allTimestamps = new Set<string>()
@@ -104,6 +102,16 @@ function buildRatioStabilityOption(
       hour12: false,
     })
   )
+
+  // Log scale detection
+  const allRatioValues: number[] = []
+  for (const tracker of trackerData) {
+    for (const snap of tracker.snapshots) {
+      if (snap.ratio !== null && snap.ratio > 0) allRatioValues.push(snap.ratio)
+    }
+  }
+  const autoLog = shouldUseLogScale(allRatioValues)
+  const useLog = forceLog ?? autoLog
 
   const yAxisPad = (value: { min: number; max: number }) => {
     const range = value.max - value.min
@@ -202,20 +210,8 @@ function buildRatioStabilityOption(
 
   return {
     backgroundColor: "transparent",
-    grid: chartGrid({ top: 32, right: 16, left: 64 }),
-    legend: {
-      top: 0,
-      right: 0,
-      data: legendData,
-      textStyle: {
-        color: CHART_THEME.textTertiary,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
-      },
-      icon: "circle",
-      itemWidth: 8,
-      itemHeight: 8,
-    },
+    grid: chartGrid({ right: 16, left: 64 }),
+    legend: chartLegend({ data: legendData }),
     tooltip: chartTooltip("axis", {
       axisPointer: {
         type: "line",
@@ -267,8 +263,8 @@ function buildRatioStabilityOption(
                 : ""
 
             return (
-              `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${item.color};margin-right:6px;box-shadow:0 0 6px ${item.color};"></span>` +
-              `<span style="color:${CHART_THEME.textSecondary};">${item.seriesName}:</span> ` +
+              chartDot(item.color) +
+              `<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> ` +
               `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${emaVal.toFixed(2)}×</span>` +
               ` <span style="color:${CHART_THEME.textTertiary};">(EMA)</span>` +
               sigmaStr
@@ -276,7 +272,7 @@ function buildRatioStabilityOption(
           })
           .join("<br/>")
 
-        return `<div style="font-family:${CHART_THEME.fontMono};font-size:11px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${time}</div>${rows}`
+        return chartTooltipHeader(time) + rows
       },
     }),
     xAxis: {
@@ -289,13 +285,17 @@ function buildRatioStabilityOption(
       splitLine: { show: false },
     },
     yAxis: {
-      type: "value",
-      name: "Ratio",
+      type: useLog ? "log" : "value",
+      name: useLog ? "Ratio (log)" : "Ratio",
       scale: true,
-      min: ((value: { min: number; max: number }) =>
-        Math.max(0, Math.floor((value.min - yAxisPad(value)) * 100) / 100)) as unknown as number,
-      max: ((value: { min: number; max: number }) =>
-        Math.ceil((value.max + yAxisPad(value)) * 100) / 100) as unknown as number,
+      ...(useLog
+        ? {}
+        : {
+            min: ((value: { min: number; max: number }) =>
+              Math.max(0, Math.floor((value.min - yAxisPad(value)) * 100) / 100)) as unknown as number,
+            max: ((value: { min: number; max: number }) =>
+              Math.ceil((value.max + yAxisPad(value)) * 100) / 100) as unknown as number,
+          }),
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
@@ -327,6 +327,8 @@ function RatioStabilityChart({
   emaPeriod = 7,
   bandWindow = 14,
 }: RatioStabilityChartProps) {
+  const [logOverride, setLogOverride] = useState<boolean | null>(null)
+
   const hasEnoughData = trackerData.some(
     (t) => t.snapshots.filter((s) => s.ratio !== null).length >= 3
   )
@@ -340,14 +342,32 @@ function RatioStabilityChart({
     )
   }
 
+  const allRatioValues: number[] = []
+  for (const tracker of trackerData) {
+    for (const snap of tracker.snapshots) {
+      if (snap.ratio !== null && snap.ratio > 0) allRatioValues.push(snap.ratio)
+    }
+  }
+  const autoLog = shouldUseLogScale(allRatioValues)
+  const effectiveLog = logOverride ?? autoLog
+
   return (
-    <ReactECharts
-      option={buildRatioStabilityOption(trackerData, emaPeriod, bandWindow)}
-      style={{ height, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
-    />
+    <div className="flex flex-col gap-2">
+      <div className="flex justify-end">
+        <LogScaleToggle
+          effectiveLog={effectiveLog}
+          isAuto={logOverride === null}
+          onToggle={() => setLogOverride(logOverride === null ? !autoLog : null)}
+        />
+      </div>
+      <ChartECharts
+        option={buildRatioStabilityOption(trackerData, emaPeriod, bandWindow, logOverride)}
+        style={{ height, width: "100%" }}
+        opts={{ renderer: "canvas" }}
+        notMerge
+        lazyUpdate
+      />
+    </div>
   )
 }
 

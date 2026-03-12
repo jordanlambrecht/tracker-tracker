@@ -1197,6 +1197,11 @@ export default function SettingsPage() {
       <section aria-labelledby="proxy-heading">
         <H2 id="proxy-heading" className="mb-4">Proxy</H2>
 
+        <div className="flex items-center gap-2 mb-3 px-1 text-warn text-xs font-mono">
+          <span aria-hidden="true">⚠</span>
+          <span>EXPERIMENTAL — Use at your own risk. May result in IP leaks and/or angry mods.</span>
+        </div>
+
         <Card elevation="raised" className="flex flex-col gap-5">
           <Toggle
             label="Route tracker requests through a proxy"

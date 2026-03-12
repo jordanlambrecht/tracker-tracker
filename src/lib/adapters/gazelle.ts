@@ -161,6 +161,7 @@ export class GazelleAdapter implements TrackerAdapter {
             if (enriched.joinedDate) stats.joinedDate = enriched.joinedDate
             if (typeof enriched.seedingCount === "number") stats.seedingCount = enriched.seedingCount
             if (typeof enriched.leechingCount === "number") stats.leechingCount = enriched.leechingCount
+            if (enriched.avatarUrl) stats.avatarUrl = enriched.avatarUrl
             stats.platformMeta = enriched.platformMeta
           }
         } catch {
@@ -193,6 +194,7 @@ export class GazelleAdapter implements TrackerAdapter {
     joinedDate?: string
     seedingCount?: number
     leechingCount?: number
+    avatarUrl?: string
     platformMeta: GazellePlatformMeta
   } | null> {
     const userUrl = new URL(apiPath, baseUrl)
@@ -250,6 +252,7 @@ export class GazelleAdapter implements TrackerAdapter {
       joinedDate: resp.stats?.joinedDate ?? undefined,
       seedingCount: resp.community?.seeding,
       leechingCount: resp.community?.leeching,
+      avatarUrl: resp.avatar || undefined,
       platformMeta: meta,
     }
   }

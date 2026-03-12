@@ -21,7 +21,7 @@ export async function PATCH(
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const validChartTypes = ["bar", "donut", "treemap"]
+  const validChartTypes = ["bar", "donut", "treemap", "numbers"]
   const updates: Record<string, unknown> = { updatedAt: new Date() }
 
   if (typeof body.name === "string") {
@@ -68,6 +68,8 @@ export async function PATCH(
     }
     updates.sortOrder = Math.floor(body.sortOrder)
   }
+
+  if (typeof body.countUnmatched === "boolean") updates.countUnmatched = body.countUnmatched
 
   const [existing] = await db
     .select({ id: tagGroups.id })

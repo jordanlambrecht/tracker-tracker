@@ -14,6 +14,7 @@ import { MaskedSecret } from "@/components/ui/MaskedSecret"
 import { QbtTagWarning } from "@/components/ui/QbtTagWarning"
 import { Sheet } from "@/components/ui/Sheet"
 import { Toggle } from "@/components/ui/Toggle"
+import { findRegistryEntry } from "@/data/tracker-registry"
 import type { TrackerSummary } from "@/types/api"
 
 interface TrackerSettingsDialogProps {
@@ -43,6 +44,18 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
     setUseProxy(tracker.useProxy ?? false)
     setCountCrossSeedUnsatisfied(tracker.countCrossSeedUnsatisfied ?? false)
   }, [tracker])
+
+  const registryEntry = findRegistryEntry(tracker.baseUrl)
+
+  const [proxyAvailable, setProxyAvailable] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    fetch("/api/settings")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data) setProxyAvailable(!!data.proxyEnabled) })
+      .catch(() => {})
+  }, [open])
 
   const [changingKey, setChangingKey] = useState(false)
   const [newApiToken, setNewApiToken] = useState("")
@@ -225,32 +238,39 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
 
           <ColorPicker label="Color" value={color} onChange={setColor} />
 
-          <div>
-            <label
-              htmlFor="settings-joined-at"
-              className="text-xs font-sans font-medium text-secondary uppercase tracking-wider mb-1 block"
-            >
-              Join Date
-            </label>
-            <input
-              id="settings-joined-at"
-              type="date"
-              value={joinedAt}
-              onChange={(e) => setJoinedAt(e.target.value)}
-              className={clsx(
-                "w-full font-mono text-sm text-primary cursor-pointer border-0",
-                "bg-control-bg px-4 py-3 nm-inset focus:outline-none rounded-nm-md",
-                !joinedAt && "text-muted",
-              )}
-              style={{ colorScheme: "dark" }}
-            />
-          </div>
+          {!(registryEntry?.gazelleEnrich || tracker.platformType === "ggn") && (
+            <div>
+              <label
+                htmlFor="settings-joined-at"
+                className="text-xs font-sans font-medium text-secondary uppercase tracking-wider mb-1 block"
+              >
+                Join Date
+              </label>
+              <input
+                id="settings-joined-at"
+                type="date"
+                value={joinedAt}
+                max={new Date().toISOString().split("T")[0]}
+                onChange={(e) => setJoinedAt(e.target.value)}
+                className={clsx(
+                  "w-full font-mono text-sm text-primary cursor-pointer border-0",
+                  "bg-control-bg px-4 py-3 nm-inset focus:outline-none rounded-nm-md",
+                  !joinedAt && "text-muted",
+                )}
+                style={{ colorScheme: "dark" }}
+              />
+            </div>
+          )}
 
           <Toggle
             label="Use proxy"
             checked={useProxy}
             onChange={setUseProxy}
-            description="Route API requests for this tracker through the global proxy configured in Settings."
+            disabled={!proxyAvailable}
+            description={proxyAvailable
+              ? "Route API requests for this tracker through the global proxy configured in Settings."
+              : "No proxy configured. Enable a proxy in Settings first."
+            }
           />
 
           <Toggle

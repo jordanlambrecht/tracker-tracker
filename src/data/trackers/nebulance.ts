@@ -9,8 +9,8 @@ export const nebulance: TrackerRegistryEntry = {
   url: "https://nebulance.io",
   description:
     "Ratioless TV site. Good for popular or new TV, but less popular or older content will often not make it on or will lose seeders.",
-  platform: "gazelle",
-  apiPath: "/ajax.php",
+  platform: "nebulance",
+  apiPath: "/api.php",
   specialty: "TV",
   contentCategories: ["TV"],
   userClasses: [],
@@ -18,6 +18,7 @@ export const nebulance: TrackerRegistryEntry = {
   notableMembers: [],
   language: "English",
   color: "#1a4fc2",
+  logo: "/tracker-logos/nebulance_logo.png",
   rules: {
     minimumRatio: 0,
     seedTimeHours: 72,

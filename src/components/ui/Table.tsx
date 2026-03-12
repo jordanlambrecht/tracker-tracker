@@ -17,7 +17,7 @@ interface Column<T> {
   key: string
   header: string
   align?: "left" | "right"
-  width?: number
+  width?: number | string
   sortable?: boolean
   sortValue?: (item: T) => number | string
   render: (item: T, index: number) => ReactNode
@@ -35,8 +35,10 @@ interface TableProps<T> {
   defaultSortKey?: string
   defaultSortDirection?: SortDirection
   fixedLayout?: boolean
+  compact?: boolean
   maxHeight?: number
   animated?: boolean
+  noHorizontalScroll?: boolean
 }
 
 const thBase =
@@ -63,8 +65,10 @@ function Table<T>({
   defaultSortKey,
   defaultSortDirection = "desc",
   fixedLayout = false,
+  compact = false,
   maxHeight,
   animated = false,
+  noHorizontalScroll = false,
 }: TableProps<T>) {
   const [animateRef] = useAutoAnimate({ duration: 250, easing: "ease-out" })
   const [sortKey, setSortKey] = useState<string | null>(defaultSortKey ?? null)
@@ -101,7 +105,7 @@ function Table<T>({
   return (
     <Card elevation="raised" className={clsx("!p-0 overflow-hidden", className)}>
       <div
-        className={clsx(surfaceClasses[surface], "overflow-hidden overflow-x-auto rounded-nm-lg", maxHeight && "overflow-y-auto styled-scrollbar")}
+        className={clsx(surfaceClasses[surface], "overflow-hidden rounded-nm-lg", !noHorizontalScroll && "overflow-x-auto", noHorizontalScroll && "pr-1", maxHeight && "overflow-y-auto styled-scrollbar")}
         style={maxHeight ? { maxHeight } : undefined}
       >
         {sortedData.length > 0 ? (
@@ -112,7 +116,7 @@ function Table<T>({
                   <th
                     key={col.key}
                     className={clsx(
-                      thBase,
+                      compact ? "px-3 py-2.5 text-xs font-sans font-medium text-secondary uppercase tracking-wider" : thBase,
                       col.align === "right" && "text-right",
                       col.sortable && thSortable,
                     )}
@@ -143,7 +147,7 @@ function Table<T>({
                   {columns.map((col) => (
                     <td
                       key={col.key}
-                      className={clsx("px-5 py-3", col.align === "right" && "text-right", fixedLayout && "overflow-hidden")}
+                      className={clsx(compact ? "px-3 py-2.5" : "px-5 py-3", col.align === "right" && "text-right", fixedLayout && "overflow-hidden")}
                     >
                       {col.render(item, i)}
                     </td>

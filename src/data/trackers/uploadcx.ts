@@ -15,18 +15,96 @@ export const uploadcx: TrackerRegistryEntry = {
   contentCategories: ["Movies", "TV"],
   userClasses: [
     // Dynamic — upload-based
-    { name: "Leech", requirements: "Ratio below 0.6 — no download slots" },
-    { name: "User", requirements: "Ratio ≥ 0.6. 10 download slots, invite sending" },
-    { name: "Member", requirements: "Upload ≥ 1 TiB, ratio ≥ 0.6, age ≥ 2 weeks. 15 download slots" },
-    { name: "Power User", requirements: "Upload ≥ 3 TiB, ratio ≥ 1.0, age ≥ 2 weeks. 20 download slots" },
-    { name: "Elite", requirements: "Upload ≥ 10 TiB, ratio ≥ 1.05, age ≥ 1 month. 25 download slots, torrent mod bypass" },
-    { name: "Master", requirements: "Upload ≥ 50 TiB, ratio ≥ 1.1, age ≥ 4 months, avg seedtime ≥ 3 months, seed size ≥ 20 TiB. Unlimited download slots, freeleech, H&R immune" },
-    { name: "Veteran", requirements: "Upload ≥ 100 TiB, ratio ≥ 1.1, age ≥ 5 months, avg seedtime ≥ 4 months, seed size ≥ 30 TiB. Unlimited download slots, freeleech, H&R immune" },
+    {
+      name: "Leech",
+      requirements: "Ratio below 0.6 — no download slots",
+    },
+    {
+      name: "User",
+      requirements: "Ratio ≥ 0.6. 10 download slots, invite sending",
+      perks: [
+        { type: "download-slots", label: "DL Slots: 10" },
+        { type: "invite", label: "Send Invite" },
+      ],
+    },
+    {
+      name: "Member",
+      requirements: "Upload ≥ 1 TiB, ratio ≥ 0.6, age ≥ 2 weeks. 15 download slots",
+      perks: [
+        { type: "download-slots", label: "DL Slots: 15" },
+        { type: "invite", label: "Send Invite" },
+      ],
+    },
+    {
+      name: "Power User",
+      requirements: "Upload ≥ 3 TiB, ratio ≥ 1.0, age ≥ 2 weeks. 20 download slots",
+      perks: [
+        { type: "download-slots", label: "DL Slots: 20" },
+        { type: "upload", label: "Upload Torrents" },
+        { type: "invite", label: "Send Invite" },
+      ],
+    },
+    {
+      name: "Elite",
+      requirements: "Upload ≥ 10 TiB, ratio ≥ 1.05, age ≥ 1 month. 25 download slots, torrent mod bypass",
+      perks: [
+        { type: "download-slots", label: "DL Slots: 25" },
+        { type: "upload", label: "Upload Torrents" },
+        { type: "invite", label: "Send Invite" },
+        { type: "mod-bypass", label: "Torrent Mod Bypass" },
+      ],
+    },
+    {
+      name: "Master",
+      requirements: "Upload ≥ 50 TiB, ratio ≥ 1.1, age ≥ 4 months, avg seedtime ≥ 3 months, seed size ≥ 20 TiB. Unlimited download slots, freeleech, H&R immune",
+      perks: [
+        { type: "download-slots", label: "DL Slots: ∞" },
+        { type: "upload", label: "Upload Torrents" },
+        { type: "invite", label: "Send Invite" },
+        { type: "freeleech", label: "Freeleech" },
+        { type: "double-upload", label: "Double Upload" },
+        { type: "hnr-immune", label: "H&R Immune" },
+      ],
+    },
+    {
+      name: "Veteran",
+      requirements: "Upload ≥ 100 TiB, ratio ≥ 1.1, age ≥ 5 months, avg seedtime ≥ 4 months, seed size ≥ 30 TiB. Unlimited download slots, freeleech, H&R immune",
+      perks: [
+        { type: "download-slots", label: "DL Slots: ∞" },
+        { type: "upload", label: "Upload Torrents" },
+        { type: "invite", label: "Send Invite" },
+        { type: "freeleech", label: "Freeleech" },
+        { type: "double-upload", label: "Double Upload" },
+        { type: "hnr-immune", label: "H&R Immune" },
+      ],
+    },
     // Dynamic — seed-based
-    { name: "Seeder", requirements: "Ratio ≥ 1.0, age ≥ 2 months, avg seedtime ≥ 1 month, seed size ≥ 5 TiB. 25 download slots, H&R immune, torrent mod bypass" },
-    { name: "Archivist", requirements: "Ratio ≥ 1.0, age ≥ 3 months, avg seedtime ≥ 2 months, seed size ≥ 10 TiB. Unlimited download slots, freeleech, H&R immune" },
+    {
+      name: "Seeder",
+      requirements: "Ratio ≥ 1.0, age ≥ 2 months, avg seedtime ≥ 1 month, seed size ≥ 5 TiB. 25 download slots, H&R immune, torrent mod bypass",
+      perks: [
+        { type: "download-slots", label: "DL Slots: 25" },
+        { type: "hnr-immune", label: "H&R Immune" },
+        { type: "mod-bypass", label: "Torrent Mod Bypass" },
+      ],
+    },
+    {
+      name: "Archivist",
+      requirements: "Ratio ≥ 1.0, age ≥ 3 months, avg seedtime ≥ 2 months, seed size ≥ 10 TiB. Unlimited download slots, freeleech, H&R immune",
+      perks: [
+        { type: "download-slots", label: "DL Slots: ∞" },
+        { type: "freeleech", label: "Freeleech" },
+        { type: "hnr-immune", label: "H&R Immune" },
+      ],
+    },
     // Special
-    { name: "Parked", requirements: "Staff-assigned — H&R immune, no download slots" },
+    {
+      name: "Parked",
+      requirements: "Staff-assigned — H&R immune, no download slots",
+      perks: [
+        { type: "hnr-immune", label: "H&R Immune" },
+      ],
+    },
     // Staff-assigned
     { name: "Junior Uploader", requirements: "Staff — H&R immune, torrent mod bypass. Unlimited download slots" },
     { name: "Uploader", requirements: "Staff — freeleech, H&R immune, torrent mod bypass. Unlimited download slots" },

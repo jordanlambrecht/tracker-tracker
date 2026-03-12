@@ -268,7 +268,7 @@ The count guard ensures that security coverage is monotonically non-decreasing. 
 
 ### Static Security Audit
 
-The security audit (`scripts/security-audit.ts`) performs 10 automated checks on every push and PR:
+The security audit (`scripts/security-audit.ts`) performs 20 automated checks on every push and PR:
 
 | # | Check | Severity | What's Verified |
 |---|-------|----------|-----------------|
@@ -279,9 +279,19 @@ The security audit (`scripts/security-audit.ts`) performs 10 automated checks on
 | 5 | Cookie security | Critical | All cookie operations use `httpOnly`, `sameSite: "strict"`, `secure` |
 | 6 | Sensitive field exposure | Critical | `encryptedApiToken`, `passwordHash`, etc. not in API responses |
 | 7 | Env files | Critical | No `.env` files tracked by git |
-| 8 | Console in routes | Warning | No `console.log/debug/info` in API route handlers |
-| 9 | TODO in security files | Warning | No `TODO`/`FIXME` in security-critical source files |
-| 10 | Raw SQL in routes | Critical | No `db.execute()` in API route handlers (use Drizzle query builder) |
+| 8 | Raw SQL in routes | Critical | No `db.execute()` in API route handlers (use Drizzle query builder) |
+| 9 | Unsafe redirect/fetch | Critical | No `fetch()`/`redirect()` with user-supplied URLs in API routes (SSRF) |
+| 10 | Timing-safe comparison | Critical | Secret comparisons in auth/crypto/totp use `timingSafeEqual` |
+| 11 | No raw migrations | Critical | No SQL migration files — enforces schema-first Drizzle approach |
+| 12 | Fetch timeout | Critical | All external HTTP requests in adapters/clients have `AbortSignal.timeout` |
+| 13 | Dockerfile non-root | Critical | Docker container runs as non-root user with explicit `USER` directive |
+| 14 | Proxy allowlist sync | Critical | Public routes in proxy allowlist match `NO_AUTH_ROUTES` bidirectionally |
+| 15 | Console in routes | Warning | No `console.log/debug/info` in API route handlers |
+| 16 | TODO in security files | Warning | No `TODO`/`FIXME` in security-critical source files |
+| 17 | JSON.parse safety | Warning | `JSON.parse()` calls wrapped in try-catch |
+| 18 | Bare catch blocks | Warning | No swallowed errors in API routes/lib catch blocks |
+| 19 | Request body size | Warning | POST/PATCH/PUT handlers validate request body size |
+| 20 | BigInt safety | Warning | BigInt fields use string serialization, not `Number()` |
 
 Critical failures block the build. Warnings are reported but don't block.
 

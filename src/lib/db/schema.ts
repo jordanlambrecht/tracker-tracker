@@ -61,6 +61,7 @@ export const trackers = pgTable("trackers", {
   platformMeta: text("platform_meta"),
   avatarData: text("avatar_data"),
   avatarCachedAt: timestamp("avatar_cached_at"),
+  avatarRemoteUrl: text("avatar_remote_url"),
   useProxy: boolean("use_proxy").default(false).notNull(),
   countCrossSeedUnsatisfied: boolean("count_cross_seed_unsatisfied").default(false).notNull(),
   isFavorite: boolean("is_favorite").default(false).notNull(),
@@ -128,6 +129,7 @@ export const tagGroups = pgTable("tag_groups", {
   chartType: varchar("chart_type", { length: 20 }).default("bar").notNull(),
   description: text("description"),
   sortOrder: integer("sort_order").default(0).notNull(),
+  countUnmatched: boolean("count_unmatched").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })

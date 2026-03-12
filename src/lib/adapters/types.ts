@@ -11,7 +11,7 @@ export interface TrackerStats {
   bufferBytes: bigint
   seedingCount: number
   leechingCount: number
-  seedbonus: number
+  seedbonus: number | null
   hitAndRuns: number
   requiredRatio: number | null
   warned: boolean | null
@@ -19,7 +19,8 @@ export interface TrackerStats {
   remoteUserId?: number
   joinedDate?: string
   shareScore?: number
-  platformMeta?: GGnPlatformMeta | GazellePlatformMeta
+  avatarUrl?: string
+  platformMeta?: GGnPlatformMeta | GazellePlatformMeta | NebulancePlatformMeta
 }
 
 export interface GGnPlatformMeta {
@@ -80,6 +81,13 @@ export interface GazellePlatformMeta {
   }
   giftTokens?: number
   meritTokens?: number
+}
+
+export interface NebulancePlatformMeta {
+  snatched?: number
+  grabbed?: number
+  forumPosts?: number
+  invites?: number
 }
 
 export interface FetchOptions {

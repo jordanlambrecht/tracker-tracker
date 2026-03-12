@@ -35,6 +35,7 @@ export async function GET() {
     chartType: group.chartType as TagGroupChartType,
     description: group.description,
     sortOrder: group.sortOrder,
+    countUnmatched: group.countUnmatched,
     members: membersByGroup.get(group.id) ?? [],
   }))
 
@@ -48,14 +49,15 @@ export async function POST(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const { name, description, emoji, chartType } = body as {
+  const { name, description, emoji, chartType, countUnmatched } = body as {
     name?: string
     description?: string
     emoji?: string
     chartType?: string
+    countUnmatched?: boolean
   }
 
-  const validChartTypes = ["bar", "donut", "treemap"]
+  const validChartTypes = ["bar", "donut", "treemap", "numbers"]
 
   if (!name || typeof name !== "string" || name.trim().length === 0) {
     return NextResponse.json({ error: "name is required" }, { status: 400 })
@@ -85,6 +87,7 @@ export async function POST(request: Request) {
       chartType: typeof chartType === "string" ? chartType : "bar",
       description: typeof description === "string" ? description.trim() : null,
       sortOrder: 0,
+      countUnmatched: typeof countUnmatched === "boolean" ? countUnmatched : false,
     })
     .returning()
 

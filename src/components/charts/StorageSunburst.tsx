@@ -8,7 +8,7 @@ import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
 import { formatBytesFromNumber, generatePalette, hexToHsl, hslToHex } from "@/lib/formatters"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartTooltip } from "./theme"
+import { CHART_THEME, chartDot, chartTooltip, escHtml } from "./theme"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -99,15 +99,15 @@ function buildOption(
         }
         const path = p.treePathInfo ?? []
         const itemColor = p.color ?? accentColor
-        const swatch = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${itemColor};margin-right:6px;box-shadow:0 0 6px ${itemColor};"></span>`
+        const swatch = chartDot(itemColor)
 
         // Leaf node (torrent)
         if (path.length === 3) {
           const catName = path[1].name
           return (
             `${swatch}` +
-            `<span style="color:${CHART_THEME.textTertiary};font-size:10px;">${catName}</span><br/>` +
-            `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${p.name}</span><br/>` +
+            `<span style="color:${CHART_THEME.textTertiary};font-size:10px;">${escHtml(catName)}</span><br/>` +
+            `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(p.name)}</span><br/>` +
             `<span style="color:${CHART_THEME.textSecondary};">${formatBytesFromNumber(p.value)}</span>`
           )
         }
@@ -117,13 +117,13 @@ function buildOption(
           const childCount = treemapData.find((d) => d.name === p.name)?.children.length ?? 0
           return (
             `${swatch}` +
-            `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${p.name}</span><br/>` +
+            `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(p.name)}</span><br/>` +
             `<span style="color:${CHART_THEME.textSecondary};">${formatBytesFromNumber(p.value)}</span>` +
             `<span style="color:${CHART_THEME.textTertiary};font-size:10px;"> · ${childCount} torrent${childCount !== 1 ? "s" : ""}</span>`
           )
         }
 
-        return `<span style="color:${CHART_THEME.textPrimary};">${p.name}: ${formatBytesFromNumber(p.value)}</span>`
+        return `<span style="color:${CHART_THEME.textPrimary};">${escHtml(p.name)}: ${formatBytesFromNumber(p.value)}</span>`
       },
     }),
     series: [

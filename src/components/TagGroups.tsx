@@ -1,9 +1,12 @@
 // src/components/TagGroups.tsx
 //
-// Functions: TagGroups, AddTagGroupForm, TagGroupCard, MemberRow
+// Functions: TagGroups, AddTagGroupForm, TagGroupCard, SortableMemberRow, MemberRow, NewMemberRow
 
 "use client"
 
+import { DndContext, type DragEndEvent, closestCenter } from "@dnd-kit/core"
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import clsx from "clsx"
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/Button"
@@ -11,13 +14,15 @@ import { Card } from "@/components/ui/Card"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { EmojiPickerPopover } from "@/components/ui/EmojiPickerPopover"
 import { Input } from "@/components/ui/Input"
+import { Toggle } from "@/components/ui/Toggle"
 import { H2, H3, Paragraph } from "@/components/ui/Typography"
-import type { TagGroup, TagGroupChartType, TagGroupMember } from "@/types/api"
+import type { TagGroup, TagGroupChartType } from "@/types/api"
 
 const CHART_TYPE_OPTIONS: { value: TagGroupChartType; label: string }[] = [
   { value: "bar", label: "Bar" },
   { value: "donut", label: "Donut" },
   { value: "treemap", label: "Treemap" },
+  { value: "numbers", label: "Numbers" },
 ]
 
 // Characters that are problematic in qBT tag names
@@ -106,7 +111,7 @@ function AddTagGroupForm({ onCreated, onCancel }: AddTagGroupFormProps) {
       {/* Chart type selector */}
       <div className="flex flex-col gap-1.5">
         <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
-          Chart Type
+          Display Type
         </span>
         <div className="nm-inset-sm p-1.5 flex gap-1 rounded-nm-md">
           {CHART_TYPE_OPTIONS.map((opt) => (
@@ -140,88 +145,35 @@ function AddTagGroupForm({ onCreated, onCancel }: AddTagGroupFormProps) {
   )
 }
 
-// ─── MemberRow ────────────────────────────────────────────────────────────────
+// ─── MemberRow (presentational) ───────────────────────────────────────────────
 
-interface ExistingMemberRowProps {
-  groupId: number
-  member: TagGroupMember
-  onRemoved: () => void
+interface MemberRowProps {
+  tag: string
+  label: string
+  onTagChange: (v: string) => void
+  onLabelChange: (v: string) => void
+  onRemove: () => void
+  disabled?: boolean
+  dragHandle?: boolean
 }
 
-function ExistingMemberRow({ groupId, member, onRemoved }: ExistingMemberRowProps) {
-  const [tag, setTag] = useState(member.tag)
-  const [label, setLabel] = useState(member.label)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const savedTag = useRef(member.tag)
-  const savedLabel = useRef(member.label)
-
-  async function handleBlur() {
-    const trimmedTag = tag.trim()
-    const trimmedLabel = label.trim()
-
-    // Nothing changed — skip
-    if (trimmedTag === savedTag.current && trimmedLabel === savedLabel.current) return
-    if (!trimmedTag || !trimmedLabel) return
-
-    setSaving(true)
-    setError(null)
-    try {
-      const res = await fetch(`/api/tag-groups/${groupId}/members/${member.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tag: trimmedTag, label: trimmedLabel }),
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({ error: "Save failed" }))
-        throw new Error((data as { error?: string }).error ?? "Save failed")
-      }
-      savedTag.current = trimmedTag
-      savedLabel.current = trimmedLabel
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Network error")
-      // Revert on error
-      setTag(savedTag.current)
-      setLabel(savedLabel.current)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function handleRemove() {
-    setSaving(true)
-    setError(null)
-    try {
-      const res = await fetch(`/api/tag-groups/${groupId}/members/${member.id}`, {
-        method: "DELETE",
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({ error: "Delete failed" }))
-        throw new Error((data as { error?: string }).error ?? "Delete failed")
-      }
-      onRemoved()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Network error")
-      setSaving(false)
-    }
-  }
-
+function MemberRow({ tag, label, onTagChange, onLabelChange, onRemove, disabled, dragHandle }: MemberRowProps) {
   const warn = tagWarning(tag)
-
   return (
     <div className="flex flex-col gap-1">
-      <div
-        className="nm-inset-sm flex items-center gap-3 px-3 py-2 bg-control-bg rounded-nm-md"
-      >
+      <div className="nm-inset-sm flex items-center gap-3 px-3 py-2 bg-control-bg rounded-nm-md">
+        {dragHandle && (
+          <span className="text-tertiary shrink-0 text-sm leading-none select-none cursor-grab active:cursor-grabbing" aria-hidden="true">
+            ⠿
+          </span>
+        )}
         <div className="flex-1 min-w-0">
           <input
             className="w-full font-mono text-sm text-primary bg-transparent focus:outline-none placeholder:text-muted disabled:opacity-40"
             value={tag}
-            onChange={(e) => setTag(e.target.value)}
-            onBlur={handleBlur}
+            onChange={(e) => onTagChange(e.target.value)}
             placeholder="qbt-tag"
-            disabled={saving}
+            disabled={disabled}
             aria-label="qBT Tag"
           />
         </div>
@@ -230,96 +182,71 @@ function ExistingMemberRow({ groupId, member, onRemoved }: ExistingMemberRowProp
           <input
             className="w-full font-mono text-sm text-primary bg-transparent focus:outline-none placeholder:text-muted disabled:opacity-40"
             value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            onBlur={handleBlur}
+            onChange={(e) => onLabelChange(e.target.value)}
             placeholder="Display Label"
-            disabled={saving}
+            disabled={disabled}
             aria-label="Display Label"
           />
         </div>
-        {saving && (
-          <span className="text-xs font-mono text-tertiary shrink-0">Saving…</span>
-        )}
         <button
           type="button"
-          onClick={handleRemove}
-          disabled={saving}
+          onClick={onRemove}
+          disabled={disabled}
           className="shrink-0 text-tertiary hover:text-danger transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed text-base leading-none"
           aria-label="Remove member"
         >
           ✕
         </button>
       </div>
-      {warn && !error && (
-        <p className="text-xs font-sans text-warn px-1">{warn}</p>
-      )}
-      {error && (
-        <p className="text-xs font-sans text-danger px-1" role="alert">{error}</p>
-      )}
+      {warn && <p className="text-xs font-sans text-warn px-1">{warn}</p>}
     </div>
   )
 }
 
-// ─── NewMemberRow ─────────────────────────────────────────────────────────────
+// ─── SortableMemberRow ────────────────────────────────────────────────────────
 
-interface NewMemberRowProps {
-  groupId: number
-  onAdded: () => void
+interface SortableMemberRowProps extends Omit<MemberRowProps, "dragHandle"> {
+  sortId: string
 }
 
-function NewMemberRow({ groupId, onAdded }: NewMemberRowProps) {
-  const [tag, setTag] = useState("")
-  const [label, setLabel] = useState("")
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+function SortableMemberRow({ sortId, ...props }: SortableMemberRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: sortId })
+  const style = { transform: CSS.Transform.toString(transform), transition }
 
-  async function tryAdd() {
-    const trimmedTag = tag.trim()
-    const trimmedLabel = label.trim()
-    if (!trimmedTag || !trimmedLabel) return
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <MemberRow {...props} dragHandle />
+    </div>
+  )
+}
 
-    setSaving(true)
-    setError(null)
-    try {
-      const res = await fetch(`/api/tag-groups/${groupId}/members`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tag: trimmedTag, label: trimmedLabel }),
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({ error: "Add failed" }))
-        throw new Error((data as { error?: string }).error ?? "Add failed")
-      }
-      setTag("")
-      setLabel("")
-      onAdded()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Network error")
-    } finally {
-      setSaving(false)
-    }
-  }
+// ─── NewMemberRow (always visible) ────────────────────────────────────────────
 
-  function handleKeyDown(e: KeyboardEvent) {
-    if (e.key === "Enter") tryAdd()
-  }
+interface NewMemberRowProps {
+  tag: string
+  label: string
+  onTagChange: (v: string) => void
+  onLabelChange: (v: string) => void
+  onRemove: () => void
+  disabled?: boolean
+}
 
+function NewMemberRow({ tag, label, onTagChange, onLabelChange, onRemove, disabled }: NewMemberRowProps) {
   const warn = tag ? tagWarning(tag) : null
 
   return (
     <div className="flex flex-col gap-1">
-      <div
-        className="nm-inset-sm flex items-center gap-3 px-3 py-2 bg-control-bg border border-dashed border-border rounded-nm-md"
-      >
+      <div className="nm-inset-sm flex items-center gap-3 px-3 py-2 bg-control-bg border border-dashed border-border rounded-nm-md">
+        <span className="text-transparent shrink-0 text-sm leading-none select-none" aria-hidden="true">
+          ⠿
+        </span>
         <div className="flex-1 min-w-0">
           <input
             className="w-full font-mono text-sm text-primary bg-transparent focus:outline-none placeholder:text-muted disabled:opacity-40"
             value={tag}
-            onChange={(e) => { setTag(e.target.value); setError(null) }}
-            onBlur={tryAdd}
-            onKeyDown={handleKeyDown}
+            onChange={(e) => onTagChange(e.target.value)}
             placeholder="qbt-tag"
-            disabled={saving}
+            disabled={disabled}
             aria-label="New qBT Tag"
           />
         </div>
@@ -328,30 +255,34 @@ function NewMemberRow({ groupId, onAdded }: NewMemberRowProps) {
           <input
             className="w-full font-mono text-sm text-primary bg-transparent focus:outline-none placeholder:text-muted disabled:opacity-40"
             value={label}
-            onChange={(e) => { setLabel(e.target.value); setError(null) }}
-            onBlur={tryAdd}
-            onKeyDown={handleKeyDown}
+            onChange={(e) => onLabelChange(e.target.value)}
             placeholder="Display Label"
-            disabled={saving}
+            disabled={disabled}
             aria-label="New Display Label"
           />
         </div>
-        {saving && (
-          <span className="text-xs font-mono text-tertiary shrink-0">Adding…</span>
-        )}
-        <span className="shrink-0 w-5 text-base leading-none" aria-hidden="true" />
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={disabled}
+          className="shrink-0 text-tertiary hover:text-danger transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed text-base leading-none"
+          aria-label="Remove row"
+        >
+          ✕
+        </button>
       </div>
-      {warn && !error && (
-        <p className="text-xs font-sans text-warn px-1">{warn}</p>
-      )}
-      {error && (
-        <p className="text-xs font-sans text-danger px-1" role="alert">{error}</p>
-      )}
+      {warn && <p className="text-xs font-sans text-warn px-1">{warn}</p>}
     </div>
   )
 }
 
 // ─── TagGroupCard ─────────────────────────────────────────────────────────────
+
+interface EditableMember {
+  id: number | null
+  tag: string
+  label: string
+}
 
 interface TagGroupCardProps {
   group: TagGroup
@@ -362,69 +293,128 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
   const [expanded, setExpanded] = useState(false)
   const [editingName, setEditingName] = useState(false)
   const [name, setName] = useState(group.name)
-  const savedName = useRef(group.name)
-  const [savingName, setSavingName] = useState(false)
-  const [nameError, setNameError] = useState<string | null>(null)
   const [emoji, setEmoji] = useState(group.emoji ?? "")
-  const savedEmoji = useRef(group.emoji ?? "")
   const [chartType, setChartType] = useState<TagGroupChartType>(group.chartType)
+  const [countUnmatched, setCountUnmatched] = useState(group.countUnmatched)
+  const [members, setMembers] = useState<EditableMember[]>(
+    group.members.map((m) => ({ id: m.id, tag: m.tag, label: m.label }))
+  )
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
-  async function patchGroup(patch: Record<string, unknown>) {
-    const res = await fetch(`/api/tag-groups/${group.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
+  // Sync from parent when group prop changes (e.g. after save + refetch)
+  const groupIdRef = useRef(group.id)
+  useEffect(() => {
+    if (groupIdRef.current !== group.id) groupIdRef.current = group.id
+    setName(group.name)
+    setEmoji(group.emoji ?? "")
+    setChartType(group.chartType)
+    setCountUnmatched(group.countUnmatched)
+    setMembers(group.members.map((m) => ({ id: m.id, tag: m.tag, label: m.label })))
+  }, [group])
+
+  // Dirty detection
+  const isDirty = (() => {
+    if (name.trim() !== group.name) return true
+    if ((emoji.trim() || null) !== (group.emoji || null)) return true
+    if (chartType !== group.chartType) return true
+    if (countUnmatched !== group.countUnmatched) return true
+    if (members.length !== group.members.length) return true
+    for (let i = 0; i < members.length; i++) {
+      const m = members[i]
+      const orig = group.members[i]
+      if (!orig || m.id !== orig.id || m.tag !== orig.tag || m.label !== orig.label) return true
+    }
+    return false
+  })()
+
+  function handleAddRow() {
+    setMembers((prev) => [...prev, { id: null, tag: "", label: "" }])
+  }
+
+  function handleRemoveMember(index: number) {
+    setMembers((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setMembers((prev) => {
+      const oldIndex = prev.findIndex((_, i) => sortKey(prev[i], i) === active.id)
+      const newIndex = prev.findIndex((_, i) => sortKey(prev[i], i) === over.id)
+      return arrayMove(prev, oldIndex, newIndex)
     })
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({ error: "Save failed" }))
-      throw new Error((data as { error?: string }).error ?? "Save failed")
-    }
   }
 
-  async function handleChartTypeChange(newType: TagGroupChartType) {
-    const prev = chartType
-    setChartType(newType)
-    try {
-      await patchGroup({ chartType: newType })
-    } catch {
-      setChartType(prev)
-    }
-  }
+  async function handleSave() {
+    const trimmedName = name.trim()
+    if (!trimmedName) return
 
-  async function handleNameBlur() {
-    const trimmed = name.trim()
-    if (!trimmed) {
-      setName(savedName.current)
-      setEditingName(false)
-      return
-    }
-    if (trimmed === savedName.current) {
-      setEditingName(false)
-      return
-    }
-    setSavingName(true)
-    setNameError(null)
+    setSaving(true)
+    setSaveError(null)
     try {
-      await patchGroup({ name: trimmed })
-      savedName.current = trimmed
-      setEditingName(false)
+      await fetch(`/api/tag-groups/${group.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: trimmedName, emoji: emoji.trim() || null, chartType, countUnmatched }),
+      }).then((r) => { if (!r.ok) throw new Error("Failed to save group") })
+
+      const currentIds = new Set(members.filter((m) => m.id !== null).map((m) => m.id))
+      const removedMembers = group.members.filter((m) => !currentIds.has(m.id))
+      for (const rm of removedMembers) {
+        await fetch(`/api/tag-groups/${group.id}/members/${rm.id}`, { method: "DELETE" })
+      }
+
+      for (let i = 0; i < members.length; i++) {
+        const m = members[i]
+        if (m.id === null) continue
+        const orig = group.members.find((om) => om.id === m.id)
+        const origIndex = group.members.findIndex((om) => om.id === m.id)
+        if (orig && (m.tag !== orig.tag || m.label !== orig.label || i !== origIndex)) {
+          await fetch(`/api/tag-groups/${group.id}/members/${m.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tag: m.tag.trim(), label: m.label.trim(), sortOrder: i }),
+          })
+        }
+      }
+
+      for (let i = 0; i < members.length; i++) {
+        const m = members[i]
+        if (m.id !== null) continue
+        if (!m.tag.trim() || !m.label.trim()) continue
+        await fetch(`/api/tag-groups/${group.id}/members`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tag: m.tag.trim(), label: m.label.trim(), sortOrder: i }),
+        })
+      }
+
+      onUpdated()
     } catch (err) {
-      setNameError(err instanceof Error ? err.message : "Network error")
-      setName(savedName.current)
+      setSaveError(err instanceof Error ? err.message : "Save failed")
     } finally {
-      setSavingName(false)
+      setSaving(false)
     }
+  }
+
+  function handleDiscard() {
+    setName(group.name)
+    setEmoji(group.emoji ?? "")
+    setChartType(group.chartType)
+    setCountUnmatched(group.countUnmatched)
+    setMembers(group.members.map((m) => ({ id: m.id, tag: m.tag, label: m.label })))
+    setSaveError(null)
   }
 
   function handleNameKeyDown(e: KeyboardEvent) {
-    if (e.key === "Enter") handleNameBlur()
+    if (e.key === "Enter") setEditingName(false)
     if (e.key === "Escape") {
-      setName(savedName.current)
+      setName(group.name)
       setEditingName(false)
-      setNameError(null)
     }
   }
 
@@ -432,9 +422,7 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
     setDeleting(true)
     setDeleteError(null)
     try {
-      const res = await fetch(`/api/tag-groups/${group.id}`, {
-        method: "DELETE",
-      })
+      const res = await fetch(`/api/tag-groups/${group.id}`, { method: "DELETE" })
       if (!res.ok) {
         const data = await res.json().catch(() => ({ error: "Delete failed" }))
         throw new Error((data as { error?: string }).error ?? "Delete failed")
@@ -446,100 +434,85 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
     }
   }
 
+  const sortIds = members.map((m, i) => sortKey(m, i))
+  const savedSortIds = sortIds.filter((_, i) => members[i].id !== null)
+
   return (
-    <Card elevation="raised" className="flex flex-col gap-0 !p-0 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-5 py-4">
-        {/* Emoji */}
-        {group.emoji && (
-          <span className="text-base shrink-0" aria-hidden="true">{group.emoji}</span>
+    <Card elevation="raised" className="flex flex-col gap-0 !p-0">
+      {/* Header — entire row toggles expand/collapse, double-click name to rename */}
+      <div
+        role="button"
+        tabIndex={0}
+        className="flex items-center gap-3 px-5 py-4 cursor-pointer select-none"
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest("input")) return
+          setExpanded((v) => !v)
+        }}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpanded((v) => !v) } }}
+        aria-expanded={expanded}
+      >
+        {emoji && (
+          <span className="text-base shrink-0" aria-hidden="true">{emoji}</span>
         )}
 
-        {/* Name — editable inline */}
         {editingName ? (
           <input
             className="flex-1 font-sans text-sm font-semibold text-primary bg-control-bg nm-inset-sm px-2 py-1 focus:outline-none min-w-0 rounded-nm-sm"
             value={name}
-            onChange={(e) => { setName(e.target.value); setNameError(null) }}
-            onBlur={handleNameBlur}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={() => setEditingName(false)}
             onKeyDown={handleNameKeyDown}
-            disabled={savingName}
+            disabled={saving}
             // biome-ignore lint/a11y/noAutofocus: inline rename input must focus immediately for UX
             autoFocus
             aria-label="Group name"
           />
         ) : (
-          <button
-            type="button"
-            className="flex-1 font-sans text-sm font-semibold text-primary hover:text-accent transition-colors duration-150 min-w-0 truncate text-left bg-transparent border-none p-0 cursor-pointer"
-            onClick={() => setEditingName(true)}
-            title="Click to rename"
+          <span
+            className="flex-1 font-sans text-sm font-semibold text-primary min-w-0 truncate text-left"
+            onDoubleClick={(e) => { e.stopPropagation(); setEditingName(true) }}
+            title="Double-click to rename"
           >
             {name}
-          </button>
+          </span>
         )}
 
-        {savingName && (
-          <span className="text-xs font-mono text-tertiary shrink-0">Saving…</span>
+        {isDirty && (
+          <span className="w-1.5 h-1.5 rounded-full bg-accent shrink-0" title="Unsaved changes" />
         )}
 
-        <span className="text-xs font-mono text-tertiary shrink-0 select-none">
-          {group.members.length} {group.members.length === 1 ? "tag" : "tags"}
+        <span className="text-xs font-mono text-tertiary shrink-0">
+          {members.length} {members.length === 1 ? "tag" : "tags"}
         </span>
 
-        {/* Collapse toggle */}
-        <button
-          type="button"
-          className="shrink-0 text-tertiary hover:text-primary transition-colors duration-150 bg-transparent border-none p-0 cursor-pointer text-xs leading-none"
-          onClick={() => setExpanded((v) => !v)}
-          aria-expanded={expanded}
-          aria-label={expanded ? "Collapse" : "Expand"}
-        >
+        <span className="shrink-0 text-tertiary text-xs leading-none">
           <ChevronToggle expanded={expanded} variant="flip" />
-        </button>
+        </span>
       </div>
-
-      {nameError && (
-        <p className="text-xs font-sans text-danger px-5 pb-2" role="alert">{nameError}</p>
-      )}
 
       {/* Expanded content */}
       {expanded && (
         <div className="flex flex-col gap-3 px-5 pb-5 pt-1">
           <div className="border-t border-border mb-1" />
 
-          {/* Emoji + chart type row */}
+          {/* Emoji + display type row */}
           <div className="flex items-end gap-4 mb-1">
             <div className="flex flex-col gap-1">
               <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
                 Emoji
               </span>
-              <EmojiPickerPopover
-                value={emoji}
-                onChange={(e) => {
-                  setEmoji(e)
-                  // Auto-save on pick
-                  const trimmed = e.trim()
-                  if (trimmed !== savedEmoji.current) {
-                    patchGroup({ emoji: trimmed || null }).then(() => {
-                      savedEmoji.current = trimmed
-                    }).catch(() => {
-                      setEmoji(savedEmoji.current)
-                    })
-                  }
-                }}
-              />
+              <EmojiPickerPopover value={emoji} onChange={setEmoji} />
             </div>
             <div className="flex flex-col gap-1 flex-1">
               <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
-                Chart Type
+                Display Type
               </span>
               <div className="nm-inset-sm p-1.5 flex gap-1 rounded-nm-md">
                 {CHART_TYPE_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
                     type="button"
-                    onClick={() => handleChartTypeChange(opt.value)}
+                    onClick={() => setChartType(opt.value)}
                     className={clsx(
                       "flex-1 px-3 py-1.5 text-xs font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
                       chartType === opt.value
@@ -554,8 +527,17 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
             </div>
           </div>
 
+          {/* Count unmatched toggle */}
+          <Toggle
+            label="Count unmatched tags"
+            checked={countUnmatched}
+            onChange={setCountUnmatched}
+            description="Include a count of torrents that don't match any tag in this group."
+          />
+
           {/* Column headers */}
           <div className="flex items-center gap-3 px-3">
+            <span className="shrink-0 text-sm leading-none w-4" aria-hidden="true" />
             <span className="flex-1 text-xs font-sans font-medium text-secondary uppercase tracking-wider">
               qBT Tag
             </span>
@@ -563,66 +545,110 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
             <span className="flex-1 text-xs font-sans font-medium text-secondary uppercase tracking-wider">
               Display Label
             </span>
-            <span className="w-5" aria-hidden="true" />
+            <span className="w-4" aria-hidden="true" />
           </div>
 
-          {/* Existing members */}
-          {group.members.map((member) => (
-            <ExistingMemberRow
-              key={member.id}
-              groupId={group.id}
-              member={member}
-              onRemoved={onUpdated}
-            />
-          ))}
+          {/* Sortable saved members + unsaved new rows */}
+          <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={savedSortIds} strategy={verticalListSortingStrategy}>
+              {members.map((m, i) => (
+                m.id !== null ? (
+                  <SortableMemberRow
+                    key={sortIds[i]}
+                    sortId={sortIds[i]}
+                    tag={m.tag}
+                    label={m.label}
+                    onTagChange={(v) => setMembers((prev) => prev.map((p, j) => j === i ? { ...p, tag: v } : p))}
+                    onLabelChange={(v) => setMembers((prev) => prev.map((p, j) => j === i ? { ...p, label: v } : p))}
+                    onRemove={() => handleRemoveMember(i)}
+                    disabled={saving}
+                  />
+                ) : (
+                  <NewMemberRow
+                    key={sortIds[i]}
+                    tag={m.tag}
+                    label={m.label}
+                    onTagChange={(v) => setMembers((prev) => prev.map((p, j) => j === i ? { ...p, tag: v } : p))}
+                    onLabelChange={(v) => setMembers((prev) => prev.map((p, j) => j === i ? { ...p, label: v } : p))}
+                    onRemove={() => handleRemoveMember(i)}
+                    disabled={saving}
+                  />
+                )
+              ))}
+            </SortableContext>
+          </DndContext>
 
-          {/* Add new member row */}
-          <NewMemberRow groupId={group.id} onAdded={onUpdated} />
+          {/* Add row button */}
+          <button
+            type="button"
+            onClick={handleAddRow}
+            disabled={saving}
+            className="text-xs font-mono text-tertiary hover:text-accent transition-colors duration-150 cursor-pointer bg-transparent border-none p-0 text-left disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            + Add Row
+          </button>
 
           <div className="border-t border-border mt-1" />
 
-          {/* Delete group */}
+          {/* Footer: Delete + Save */}
+          {saveError && (
+            <p className="text-xs font-sans text-danger px-1" role="alert">{saveError}</p>
+          )}
+          {deleteError && (
+            <p className="text-xs font-sans text-danger px-1" role="alert">{deleteError}</p>
+          )}
           <div className="flex items-center justify-between gap-3">
-            {deleteError && (
-              <p className="text-xs font-sans text-danger" role="alert">{deleteError}</p>
-            )}
-            {!deleteError && <span />}
-
-            {confirmDelete ? (
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-sans text-warn">Delete this group?</span>
-                <Button
-                  size="sm"
-                  variant="danger"
-                  onClick={handleDelete}
-                  disabled={deleting}
-                >
-                  {deleting ? "Deleting…" : "Confirm"}
-                </Button>
+            <div>
+              {confirmDelete ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-sans text-warn">Delete this group?</span>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                  >
+                    {deleting ? "Deleting…" : "Confirm"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setConfirmDelete(false)}
+                    disabled={deleting}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => setConfirmDelete(false)}
-                  disabled={deleting}
+                  onClick={() => setConfirmDelete(true)}
+                  className="text-danger hover:text-danger"
                 >
-                  Cancel
+                  Delete Group
                 </Button>
-              </div>
-            ) : (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setConfirmDelete(true)}
-                className="text-danger hover:text-danger"
-              >
-                Delete Group
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {isDirty && (
+                <Button size="sm" variant="ghost" onClick={handleDiscard} disabled={saving}>
+                  Discard
+                </Button>
+              )}
+              <Button size="sm" onClick={handleSave} disabled={saving || !isDirty || !name.trim()}>
+                {saving ? "Saving…" : "Save"}
               </Button>
-            )}
+            </div>
           </div>
         </div>
       )}
     </Card>
   )
+}
+
+function sortKey(m: EditableMember, i: number): string {
+  return m.id !== null ? `member-${m.id}` : `new-${i}`
 }
 
 // ─── TagGroups ────────────────────────────────────────────────────────────────
@@ -685,7 +711,7 @@ function TagGroups() {
       ) : groups.length === 0 && !showAddForm ? (
         <p className="text-sm font-mono text-muted py-8 text-center">No tag groups yet</p>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-6">
           {groups.map((group) => (
             <TagGroupCard key={group.id} group={group} onUpdated={handleUpdated} />
           ))}

@@ -17,6 +17,8 @@ interface TagGroupBreakdownChartProps {
   members: { label: string; count: number; color: string | null }[]
   accentColor: string
   chartType?: TagGroupChartType
+  countUnmatched?: boolean
+  unmatchedCount?: number
 }
 
 // ---------------------------------------------------------------------------
@@ -55,7 +57,7 @@ function barOption(
         return `<span style="font-family:${CHART_THEME.fontMono}">${item.name}: <b>${item.value}</b></span>`
       },
     }),
-    grid: { left: 100, right: 48, top: 8, bottom: 8, containLabel: false },
+    grid: { left: 8, right: 48, top: 8, bottom: 8, containLabel: true },
     xAxis: {
       type: "value",
       splitLine: { lineStyle: { color: CHART_THEME.gridLine } },
@@ -70,8 +72,6 @@ function barOption(
         color: CHART_THEME.textSecondary,
         fontFamily: CHART_THEME.fontMono,
         fontSize: 10,
-        width: 90,
-        overflow: "truncate",
       },
       axisLine: { show: false },
       axisTick: { show: false },
@@ -210,7 +210,37 @@ function TagGroupBreakdownChart({
   members,
   accentColor,
   chartType = "bar",
+  countUnmatched,
+  unmatchedCount,
 }: TagGroupBreakdownChartProps) {
+  if (chartType === "numbers") {
+    const items = [...members]
+    if (countUnmatched && unmatchedCount != null) {
+      items.push({ label: "Unmatched", count: unmatchedCount, color: CHART_THEME.textTertiary })
+    }
+    if (items.length === 0) return null
+    return (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {items.map((m, i) => (
+          <div
+            key={m.label}
+            className="flex flex-col gap-1 p-3 nm-inset-sm rounded-nm-md"
+          >
+            <span className="text-xs font-sans font-medium text-tertiary uppercase tracking-wider truncate">
+              {m.label}
+            </span>
+            <span
+              className="font-mono text-xl font-semibold"
+              style={{ color: memberColor(accentColor, m, i, items.length) }}
+            >
+              {m.count}
+            </span>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   if (members.length === 0) return null
 
   let option: EChartsOption
