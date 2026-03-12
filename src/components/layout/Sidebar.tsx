@@ -37,6 +37,7 @@ import { PulseDot } from "@/components/ui/PulseDot"
 import { Select } from "@/components/ui/Select"
 import { H2 } from "@/components/ui/Typography"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
+import { useUpdateCheck } from "@/hooks/useUpdateCheck"
 import { formatStatValue, hexToRgba, type StatMode } from "@/lib/formatters"
 import { getHealthPulseDot, getTrackerHealth } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
@@ -441,6 +442,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
   const [changelogOpen, setChangelogOpen] = useState(false)
   const [changelogContent, setChangelogContent] = useState<string | null>(null)
   const changelogRef = useRef<HTMLDialogElement>(null)
+  const { latestVersion, updateAvailable } = useUpdateCheck()
 
   const pathname = usePathname()
   const router = useRouter()
@@ -783,6 +785,18 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
             >
               v{process.env.NEXT_PUBLIC_APP_VERSION}
             </button>
+            {updateAvailable && latestVersion && (
+              <a
+                href={`https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v${latestVersion}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-1.5 py-0.5 text-[9px] font-mono text-accent hover:bg-accent/25 transition-colors duration-150"
+                title={`Update available: v${latestVersion}`}
+              >
+                v{latestVersion}
+                <span aria-hidden="true">↑</span>
+              </a>
+            )}
             {/* biome-ignore lint/a11y/useAnchorContent: aria-label provides accessible content */}
             <a
               href="https://github.com/jordanlambrecht/tracker-tracker"
