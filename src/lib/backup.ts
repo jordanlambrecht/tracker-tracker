@@ -433,7 +433,10 @@ export function decryptBackupPayload(
     )
   }
   const jsonString = decrypt(envelope.ciphertext, encryptionKey)
-  const parsed: unknown = JSON.parse(jsonString)
+  let parsed: unknown
+  try { parsed = JSON.parse(jsonString) } catch {
+    throw new Error("Failed to parse decrypted backup — data may be corrupted or the wrong key was used")
+  }
   validateBackupJson(parsed)
   return parsed
 }

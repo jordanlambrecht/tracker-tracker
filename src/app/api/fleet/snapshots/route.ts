@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     totalLeechingCount: s.totalLeechingCount,
     uploadSpeedBytes: s.uploadSpeedBytes?.toString() ?? null,
     downloadSpeedBytes: s.downloadSpeedBytes?.toString() ?? null,
-    tagStats: s.tagStats ? (JSON.parse(s.tagStats) as unknown) : null,
+    tagStats: s.tagStats ? (() => { try { return JSON.parse(s.tagStats) as unknown } catch { return null } })() : null,
   }))
 
   return NextResponse.json(serialized)
