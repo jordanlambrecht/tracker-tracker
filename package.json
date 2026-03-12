@@ -55,7 +55,7 @@
     "@types/node-cron": "^3.0.11",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@vitejs/plugin-react": "^5.1.4",
+    "@vitejs/plugin-react": "^5.2.0",
     "drizzle-kit": "^0.31.9",
     "jsdom": "^28.1.0",
     "tailwindcss": "^4",
