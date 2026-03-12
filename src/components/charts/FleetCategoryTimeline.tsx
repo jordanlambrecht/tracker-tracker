@@ -6,9 +6,8 @@
 
 import type { EChartsOption } from "echarts"
 import { ChartECharts } from "./ChartECharts"
-import { buildTagColors } from "./theme"
 import { ChartEmptyState } from "./ChartEmptyState"
-import {
+import { buildTagColors, 
   CHART_THEME,
   chartAxisLabel,
   chartDot,
@@ -16,8 +15,7 @@ import {
   chartLegend,
   chartTooltip,
   chartTooltipHeader,
-  escHtml,
-} from "./theme"
+  escHtml,} from "./theme"
 
 interface FleetCategoryTimelineProps {
   torrents: { added_on: number; category: string }[]
@@ -43,7 +41,7 @@ function groupByCategory(
 
     const cat = torrent.category?.trim() || "Uncategorized"
     if (!categoryMaps.has(cat)) categoryMaps.set(cat, new Map())
-    const dateMap = categoryMaps.get(cat)!
+    const dateMap = categoryMaps.get(cat) ?? new Map<string, number>()
     dateMap.set(date, (dateMap.get(date) ?? 0) + 1)
   }
 
