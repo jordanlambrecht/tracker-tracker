@@ -1,111 +1,139 @@
 # Tracker Tracker
 
-Self-hosted dashboard for monitoring your private tracker stats over time. Track upload, download, ratio, buffer, seedbonus, and more across multiple trackers — all in one place.
-
-<!-- TODO: Add screenshot here -->
-<!-- ![Dashboard](docs/screenshots/dashboard.png) -->
+Self-hosted dashboard for monitoring private tracker stats over time. One place for upload, download, ratio, buffer, seedbonus, and rank data across all your trackers.
 
 ## Features
 
-- **Multi-tracker dashboard** — aggregate stats, comparison charts, and tracker leaderboard
-- **Tracker detail pages** — upload/download history, ratio, buffer, seedbonus, seeding counts, and rank progression
-- **40+ supported trackers** across UNIT3D, Gazelle, and GGn platforms
+- **Multi-tracker dashboard** — aggregate stats, comparison charts, tracker leaderboard
+- **Tracker detail pages** — upload/download history, ratio, buffer, seedbonus, seeding counts, rank progression
+- **43 trackers** across UNIT3D, Gazelle, Nebulance, and GGn platforms
 - **qBittorrent integration** — torrent stats, cross-seed tracking, activity heatmaps
-- **Encrypted at rest** — API tokens stored with AES-256-GCM, derived from your master password
-- **Privacy mode** — redact usernames and group names from stored data
-- **Scheduled polling** — configurable global interval (15 min – 24 hours) with automatic snapshot retention
-- **SOCKS5/HTTP/HTTPS proxy** — per-tracker opt-in for proxied API requests
-- **Two-factor auth** — optional TOTP with backup codes
-- **Backup & restore** — scheduled or manual, with optional encryption
+- **Encrypted at rest** — AES-256-GCM encryption for API tokens, derived from your master password
+- **Privacy mode** — redact usernames and group names
+- **Scheduled polling** — configurable interval (15 min – 24 hours) with automatic snapshot retention
+- **SOCKS5/HTTP/HTTPS proxy** — per-tracker opt-in
+- **Two-factor auth** — TOTP with backup codes
+- **Backup & restore** — scheduled or manual, optionally encrypted
 - **Dark neumorphic UI** — per-tracker accent colors, drag-and-drop sidebar, responsive charts
 
 ## Supported Trackers
 
-| Tracker | Platform | Status | Notes |
-|---------|----------|--------|-------|
-| Aither | UNIT3D | ✅ Implemented | |
-| Blutopia | UNIT3D | ✅ Implemented | |
-| FearNoPeer | UNIT3D | ✅ Implemented | |
-| OnlyEncodes | UNIT3D | ✅ Implemented | |
-| Upload.cx | UNIT3D | ✅ Implemented | |
-| AlphaRatio | Gazelle | | |
-| AnimeBytes | Gazelle | | |
-| Anthelion | Gazelle | | |
-| BroadcastheNet (BTN) | Gazelle | | |
-| CathodeRayTube (CRT) | UNIT3D | | |
-| Concertos | UNIT3D | | |
-| Empornium | Gazelle | | |
-| GazelleGames (GGn) | GGn | ✅ Implemented | |
-| GreatPosterWall (GPW) | Gazelle | | |
-| HawkeUno | UNIT3D | ❌ Unsupported | API blocks `/user` polling |
-| LST | UNIT3D | | |
-| MoreThanTV (MTV) | Gazelle | | |
-| Nebulance | Gazelle | | |
-| OldToons | UNIT3D | | |
-| Orpheus (OPS) | Gazelle | ✅ Implemented | |
-| PassThePopcorn (PTP) | Gazelle | | |
-| Phoenix Project (PP) | Gazelle | ✅ Implemented | |
-| Racing4Everyone | UNIT3D | | |
-| Redacted (RED) | Gazelle | ✅ Implemented | |
-| ReelFlix | UNIT3D | | |
-| SkipTheCommercials | UNIT3D | | |
-| 720pier | Custom | | |
-| ABTorrents | Custom | | |
-| AvistaZ | Custom | | |
-| BeyondHD | Custom | | |
-| CinemaZ | Custom | | |
-| Cinemageddon | Custom | | |
-| ExotikaZ | Custom | | |
-| FileList | Custom | | |
-| HDBits | Custom | | |
-| HD-Torrents | Custom | | |
-| IPTorrents | Custom | | |
-| MyAnonamouse (MAM) | Custom | | |
-| PrivateHD | Custom | | |
-| SecretCinema | Custom | | |
-| SportsCult | Custom | | |
-| TorrentLeech | Custom | | |
-| TVVault | Custom | | |
+| Tracker               | Platform  | Status                 | Note                                                                           |
+|-----------------------|-----------|----------------------- |--------------------------------------------------------------------------------|
+| Aither                | UNIT3D    | ✅ Verified            |                                                                                |
+| Anthelion             | Nebulance | ✅ Verified            |                                                                                |
+| Blutopia              | UNIT3D    | ✅ Verified            |                                                                                |
+| Concertos             | UNIT3D    | ✅ Verified            |                                                                                |
+| FearNoPeer            | UNIT3D    | ✅ Verified            |                                                                                |
+| GazelleGames (GGn)    | GGn       | ✅ Verified            |                                                                                |
+| Nebulance             | Nebulance | ✅ Verified            |                                                                                |
+| OldToons              | UNIT3D    | ✅ Verified            |                                                                                |
+| OnlyEncodes           | UNIT3D    | ✅ Verified            |                                                                                |
+| Orpheus (OPS)         | Gazelle   | ✅ Verified            |                                                                                |
+| Phoenix Project (PP)  | Gazelle   | ✅ Verified            |                                                                                |
+| Racing4Everyone       | UNIT3D    | ✅ Verified            |                                                                                |
+| Redacted (RED)        | Gazelle   | ✅ Verified            |                                                                                |
+| ReelFlix              | UNIT3D    | ✅ Verified            |                                                                                |
+| Upload.cx             | UNIT3D    | ✅ Verified            |                                                                                |
+| AlphaRatio            | Gazelle   | 🟡 Unverified ⛔ Stuck |                                                                                |
+| AnimeBytes            | Gazelle   | 🟡 Unverified ⛔ Stuck |                                                                                |
+| BroadcastheNet (BTN)  | Gazelle   | 🟡 Unverified ⛔ Stuck |                                                                                |
+| Empornium             | Gazelle   | 🟡 Unverified ⛔ Stuck | XXX trackers aren't really my jam, so PRs welcome if this is a desired tracker |
+| GreatPosterWall (GPW) | Gazelle   | 🟡 Unverified          |                                                                                |
+| LST                   | UNIT3D    | 🟡 Unverified          |                                                                                |
+| MoreThanTV (MTV)      | Gazelle   | 🟡 Unverified          |                                                                                |
+| PassThePopcorn (PTP)  | Gazelle   | 🟡 Unverified          |                                                                                |
+| SkipTheCommercials    | UNIT3D    | 🟡 Unverified          |                                                                                |
+| 720pier               | Custom    | 📋 Needs adapter       |                                                                                |
+| ABTorrents            | Custom    | 📋 Needs adapter       |                                                                                |
+| AvistaZ               | Custom    | 📋 Needs adapter       |                                                                                |
+| CathodeRayTube (CRT)  | UNIT3D    | 📋 Draft               |                                                                                |
+| CinemaZ               | Custom    | 📋 Needs adapter       |                                                                                |
+| HDBits                | Custom    | 📋 Needs adapter       |                                                                                |
+| MyAnonamouse (MAM)    | Custom    | 📋 Needs adapter       |                                                                                |
+| SecretCinema          | Custom    | 📋 Needs adapter       |                                                                                |
+| SportsCult            | Custom    | 📋 Needs adapter       |                                                                                |
+| TorrentLeech          | Custom    | 📋 Needs adapter       |                                                                                |
+| BeyondHD              | Custom    | ⛔ Stuck               |                                                                                |
+| Cinemageddon          | Custom    | ⛔ Stuck               |                                                                                |
+| ExotikaZ              | Custom    | ⛔ Stuck               |                                                                                |
+| FileList              | Custom    | ⛔ Stuck               |                                                                                |
+| HD-Torrents           | Custom    | ⛔ Stuck               |                                                                                |
+| IPTorrents            | Custom    | ⛔ Stuck               |                                                                                |
+| PrivateHD             | Custom    | ⛔ Stuck               |                                                                                |
+| TVVault               | Custom    | ⛔ Stuck               |                                                                                |
+| HawkeUno              | UNIT3D    | ❌ Broken              | API does not permit /user requests                                             |
 
-✅ **Implemented** — tested and verified against a live tracker.
-🟡 **Supported** — platform adapter exists and should work, but not yet verified.
-📋 **Planned** — registry entry exists but needs a custom adapter.
-🚧 **Stuck** — I'm not a member of these trackers and have no way of completing the integration. PRs welcome :)
+**Legend:**
+
+- ✅ **Verified** — tested against a live tracker
+- 🟡 **Unverified** — platform adapter exists and *should* work, but not yet tested.
+- 📋 **Needs adapter** — registry entry exists, but the platform requires a custom adapter that I haven't gotten around to yet
+- ⛔ **Stuck** - These are trackers I'm not a member of and have no way of implementing
+- ❌ **Broken** — known issue prevents polling (i.e API blocks required endpoints, etc)
+
+## Download Clients
+
+| Client       | Status       | Notes                                                                |
+|--------------|------------- |----------------------------------------------------------------------|
+| qBittorrent  | ✅ Supported | Torrent stats, cross-seed tracking, activity heatmaps, speed history  |
+| Deluge       | 📋 Planned   |                                                                      |
+| Transmission | 📋 Planned   |                                                                      |
+| rTorrent     | 📋 Planned   |                                                                      |
 
 ## Quick Start
 
 ### Docker (recommended)
 
 ```bash
-git clone https://github.com/yourusername/tracker-tracker.git
-cd tracker-tracker
-cp .env.example .env
+mkdir tracker-tracker && cd tracker-tracker
 ```
 
-Edit `.env` and set your secrets:
+1. Download the compose file and example env:
 
-```env
-POSTGRES_PASSWORD=your-secure-password
-SESSION_SECRET=your-random-string-at-least-32-characters
-```
+    ```bash
+    curl -LO https://raw.githubusercontent.com/jordanlambrecht/tracker-tracker/main/docker-compose.yml
+    curl -L https://raw.githubusercontent.com/jordanlambrecht/tracker-tracker/main/.env.example -o .env
+    ```
 
-Generate a session secret:
+2. Generate a session secret and a database password:
+
+    ```bash
+    echo "SESSION_SECRET=$(openssl rand -base64 48)"
+    echo "POSTGRES_PASSWORD=$(openssl rand -base64 24)"
+    ```
+
+3. Edit `.env` with the generated values. Make sure the password in `DATABASE_URL` matches `POSTGRES_PASSWORD`:
+
+    ```env
+    DATABASE_URL=postgresql://postgres:your-password-here@db:5432/tracker_tracker
+    POSTGRES_PASSWORD=your-password-here
+    SESSION_SECRET=your-generated-secret-here
+    ```
+
+4. Start the stack:
+
+    ```bash
+    docker compose up -d
+    ```
+
+5. Visit `http://localhost:3000` to set your master password and start adding trackers.
+
+### Updating
 
 ```bash
-openssl rand -base64 48
+docker compose pull && docker compose up -d
 ```
 
-Start everything:
+The database schema is synced automatically on startup.
 
-```bash
-docker compose up -d
-```
+### Using an external database
 
-Visit `http://localhost:3000` to set your master password and add trackers.
+If you already run Postgres, remove the `db` service and `depends_on` block from `docker-compose.yml`, then point `DATABASE_URL` at your existing instance. The `POSTGRES_PASSWORD` var is only used by the bundled `db` service and can be removed.
 
 ### Local Development
 
-Requires Node.js 20+, pnpm, and PostgreSQL.
+Requires Node.js 24+, pnpm, and PostgreSQL.
 
 ```bash
 pnpm install
@@ -117,18 +145,29 @@ pnpm dev
 
 ## Configuration
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `POSTGRES_PASSWORD` | Yes (Docker) | PostgreSQL password |
-| `SESSION_SECRET` | Yes | AES-256 key for session cookies. Min 32 characters |
-| `PORT` | No | App port (default: `3000`) |
-| `DATABASE_URL` | Yes (local dev) | PostgreSQL connection string |
+| Variable            | Required | Default | Description                                              |
+|---------------------|----------|---------|----------------------------------------------------------|
+| `DATABASE_URL`      | Yes      | —       | PostgreSQL connection string                             |
+| `POSTGRES_PASSWORD` | Docker   | —       | Password for the bundled Postgres container              |
+| `SESSION_SECRET`    | Yes      | —       | AES-256 key for session cookies (min 32 characters)      |
+| `TZ`                | No       | `UTC`   | Timezone for logs and scheduled tasks                    |
+| `PORT`              | No       | `3000`  | Port the app listens on                                  |
+| `LOG_LEVEL`         | No       | `info`  | Log verbosity: `error`, `warn`, `info`, `debug`          |
+| `LOG_FILE`          | No       | —       | Path for log file output (logs always go to stdout too)  |
 
-All other settings (polling interval, privacy mode, proxy, backups) are configured in the app's Settings page after login.
+All other settings — polling interval, privacy mode, proxy, backups — are configured in the app's Settings page after login.
+
+## Data & Volumes
+
+| Host path        | Container path   | Contents                                 |
+|------------------|------------------|------------------------------------------|
+| `./data/backups` | `/data/backups`  | Scheduled backup files                   |
+| `./data/logs`    | `/data/logs`     | Application log files                    |
+| `pgdata` (named) | PG data dir      | PostgreSQL database (managed by Docker)  |
 
 ## Architecture
 
-- **Next.js 15** (App Router) — server components + API routes
+- **Next.js 16** (App Router) — server components + API routes
 - **PostgreSQL** + **Drizzle ORM** — schema-first, no raw SQL migrations
 - **ECharts** — interactive time-series charts
 - **node-cron** — background polling scheduler
@@ -137,18 +176,27 @@ All other settings (polling interval, privacy mode, proxy, backups) are configur
 
 ## Adding a Tracker
 
-1. Go to the sidebar and click **+ Add Tracker**
+1. Click **+ Add Tracker** in the sidebar
 2. Select from the registry or enter details manually
 3. Paste your API token (found in your tracker's security/API settings)
-4. The app validates the connection, then starts polling automatically
+4. The app validates the connection and starts polling automatically
 
 ## Data Storage
 
-All data stays on your machine. There are no external services, analytics, or telemetry.
+All data stays on your machine. No external services, analytics, or telemetry.
 
 - **API tokens** — encrypted with AES-256-GCM using a key derived from your master password
-- **Snapshots** — stored in PostgreSQL with configurable retention (7 days to 10 years)
+- **Snapshots** — stored in PostgreSQL with configurable retention (7 days - 10 years)
 - **Backups** — JSON export, optionally encrypted, stored locally or downloaded
+
+## Contributing
+
+PRs welcome. Areas where help matters most:
+
+- **New trackers & missing data** — copy [`src/data/trackers/_template.ts`](src/data/trackers/_template.ts), fill in what you know, and submit a PR. Partial entries are fine — set `draft: true` and CI will accept it. Filling in user classes, rules, release groups, and banned groups on existing trackers is just as valuable.
+- **Download client adapters** — only qBittorrent is supported. Deluge, Transmission, and rTorrent all need adapters. See `src/lib/qbt/` for the pattern.
+- **Tracker verification** — if you belong to a tracker marked 🟡 above, testing and confirming it works helps greatly.
+- **Custom platform adapters** — trackers marked "Custom" need bespoke adapters since they don't run UNIT3D or Gazelle.
 
 ## License
 
