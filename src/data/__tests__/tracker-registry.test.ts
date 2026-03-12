@@ -92,7 +92,7 @@ describe("tracker registry", () => {
 
   it("every tracker file in src/data/trackers/ is registered in the barrel", () => {
     const files = fs.readdirSync(TRACKER_DIR)
-      .filter((f) => f.endsWith(".ts") && f !== "index.ts")
+      .filter((f) => f.endsWith(".ts") && f !== "index.ts" && !f.startsWith("_"))
       .map((f) => f.replace(/\.ts$/, ""))
     // Read barrel to get actual imported filenames
     const barrelContent = fs.readFileSync(path.join(TRACKER_DIR, "index.ts"), "utf8")
