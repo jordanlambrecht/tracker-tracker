@@ -4,8 +4,8 @@
 
 "use client"
 
-import { DndContext, type DragEndEvent, closestCenter } from "@dnd-kit/core"
-import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable"
+import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core"
+import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import clsx from "clsx"
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react"
@@ -439,7 +439,9 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
 
   return (
     <Card elevation="raised" className="flex flex-col gap-0 !p-0">
-      {/* Header — entire row toggles expand/collapse, double-click name to rename */}
+      {/* Header — entire row toggles expand/collapse, double-click name to rename.
+          Cannot use <button> here because the ternary contains an <input> (interactive nesting). */}
+      {/* biome-ignore lint/a11y/useSemanticElements: contains interactive <input> child, button nesting is invalid HTML */}
       <div
         role="button"
         tabIndex={0}
@@ -468,6 +470,7 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
             aria-label="Group name"
           />
         ) : (
+          // biome-ignore lint/a11y/noStaticElementInteractions: double-click to rename is a progressive enhancement
           <span
             className="flex-1 font-sans text-sm font-semibold text-primary min-w-0 truncate text-left"
             onDoubleClick={(e) => { e.stopPropagation(); setEditingName(true) }}
