@@ -103,8 +103,7 @@ export function proxyFetch(
             ok: (res.statusCode ?? 0) >= 200 && (res.statusCode ?? 0) < 300,
             status: res.statusCode ?? 0,
             statusText: res.statusMessage ?? "",
-            // security-audit-ignore: parse error propagates to caller's try-catch via the returned promise
-            json: () => Promise.resolve(JSON.parse(raw.toString("utf8"))),
+            json: async () => JSON.parse(raw.toString("utf8")),
             buffer: () => Promise.resolve(raw),
           })
         })
