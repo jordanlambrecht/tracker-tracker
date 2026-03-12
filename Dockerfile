@@ -67,7 +67,7 @@ COPY --from=builder /app/drizzle.config.ts ./
 COPY --from=builder /app/src/lib/db ./src/lib/db
 COPY --from=builder /app/tsconfig.json ./
 RUN cd /tmp && npm init -y > /dev/null 2>&1 && \
-    npm install --no-audit --no-fund drizzle-kit drizzle-orm postgres dotenv > /dev/null 2>&1 && \
+    npm install --no-audit --no-fund drizzle-kit drizzle-orm postgres dotenv esbuild > /dev/null 2>&1 && \
     mv /tmp/node_modules /app/node_modules_drizzle && \
     rm -rf /tmp/package.json /tmp/package-lock.json
 
