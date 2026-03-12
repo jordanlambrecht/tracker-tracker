@@ -2,6 +2,7 @@ services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
+    container_name: tracker-tracker-db
     environment:
       POSTGRES_DB: tracker_tracker
       POSTGRES_USER: postgres
@@ -19,6 +20,7 @@ services:
     # To build from source instead of pulling the image, uncomment:
     # build: .
     restart: unless-stopped
+    container_name: tracker-tracker-app
     ports:
       - "${PORT:-3000}:3000"
     environment:
