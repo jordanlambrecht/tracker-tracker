@@ -8,6 +8,8 @@ import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
 import { ensureSchedulerRunning } from "@/lib/scheduler"
 
+export const dynamic = "force-dynamic"
+
 export default async function AuthLayout({
   children,
 }: {
