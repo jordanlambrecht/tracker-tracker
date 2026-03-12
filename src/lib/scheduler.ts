@@ -93,6 +93,9 @@ export async function pollTracker(
     if (stats.platformMeta) {
       metaUpdates.platformMeta = JSON.stringify(stats.platformMeta)
     }
+    if (stats.avatarUrl) {
+      metaUpdates.avatarRemoteUrl = stats.avatarUrl
+    }
     if (Object.keys(metaUpdates).length > 0) {
       await db.update(trackers).set(metaUpdates).where(eq(trackers.id, tracker.id))
     }
