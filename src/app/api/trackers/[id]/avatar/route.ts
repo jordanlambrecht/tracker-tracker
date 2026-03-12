@@ -14,7 +14,8 @@ import { buildProxyAgentFromSettings, proxyFetch } from "@/lib/proxy"
 const STALE_MS = 7 * 24 * 60 * 60 * 1000
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
 
-function avatarUrl(platformType: string, remoteUserId: number): string | null {
+function avatarUrl(platformType: string, remoteUserId: number, avatarRemoteUrl?: string | null): string | null {
+  if (avatarRemoteUrl) return avatarRemoteUrl
   if (platformType === "ggn") {
     return `https://gazellegames.net/avatars/${remoteUserId}.png`
   }
@@ -38,6 +39,7 @@ export async function GET(
       useProxy: trackers.useProxy,
       avatarData: trackers.avatarData,
       avatarCachedAt: trackers.avatarCachedAt,
+      avatarRemoteUrl: trackers.avatarRemoteUrl,
     })
     .from(trackers)
     .where(eq(trackers.id, trackerId))
@@ -47,7 +49,7 @@ export async function GET(
     return NextResponse.json({ error: "No avatar available" }, { status: 404 })
   }
 
-  const url = avatarUrl(tracker.platformType, tracker.remoteUserId)
+  const url = avatarUrl(tracker.platformType, tracker.remoteUserId, tracker.avatarRemoteUrl)
   if (!url) {
     return NextResponse.json({ error: "Platform does not support avatars" }, { status: 404 })
   }
