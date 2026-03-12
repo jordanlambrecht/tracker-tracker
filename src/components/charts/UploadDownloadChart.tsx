@@ -5,9 +5,9 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { ChartECharts } from "./ChartECharts"
 import { bytesToGiB, getComplementaryColor, hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
+import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
 import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
 

@@ -5,8 +5,8 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { ChartECharts } from "./ChartECharts"
 import type { TorrentRaw, TrackerTag } from "@/lib/fleet"
+import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
 import { CHART_THEME, chartDot, chartLegend, chartTooltip, escHtml } from "./theme"
 
