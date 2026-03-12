@@ -20,7 +20,7 @@ const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
 const LOGO_NAME_RE = /^\/tracker-logos\/[a-z0-9_]+_logo\.(svg|png)$/
 const PLACEHOLDER_RE = /^TODO$/i
 const LOGO_DIR = path.resolve(__dirname, "../public/tracker-logos")
-const TRACKER_DIR = path.resolve(__dirname, "@/data/trackers")
+const TRACKER_DIR = path.resolve(__dirname, "../src/data/trackers")
 
 const VALID_CONTENT_CATEGORIES = new Set([
   "Movies", "TV", "Music", "Games", "Apps", "Software", "Sports",
