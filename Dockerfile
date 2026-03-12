@@ -2,12 +2,14 @@
 #
 # Multi-stage build for Tracker Tracker.
 # Stages: deps (install) → builder (compile) → runner (serve)
+#
+# Uses Next.js standalone output for minimal image size (~150MB vs ~1GB).
 
 # ---------------------------------------------------------------------------
 # Base
 # ---------------------------------------------------------------------------
-FROM node:25-alpine AS base
-RUN npm install -g pnpm
+FROM node:24-alpine AS base
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # ---------------------------------------------------------------------------
 # Stage 1 — Install dependencies
@@ -36,7 +38,7 @@ RUN pnpm build
 # ---------------------------------------------------------------------------
 # Stage 3 — Production runner
 # ---------------------------------------------------------------------------
-FROM base AS runner
+FROM node:24-alpine AS runner
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
@@ -49,20 +51,29 @@ ENV HOSTNAME=0.0.0.0
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Persistent volume mount point for scheduled backups
+# Persistent volume mount points for scheduled backups and logs
 RUN mkdir -p /data/backups /data/logs && chown -R nextjs:nodejs /data
 
-# --- Application files ---
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/next.config.ts ./
+# --- Standalone server (traced dependencies only — much smaller than full node_modules) ---
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
-# --- Drizzle schema-sync files (for drizzle-kit push at startup) ---
+# --- Drizzle schema-sync (for drizzle-kit push at startup) ---
+# drizzle-kit isn't in the standalone trace, so we copy the minimal deps it needs.
+# postgres is a peer dep of drizzle-kit (used to connect during schema push).
 COPY --from=builder /app/drizzle.config.ts ./
 COPY --from=builder /app/src/lib/db ./src/lib/db
 COPY --from=builder /app/tsconfig.json ./
+COPY --from=deps /app/node_modules/drizzle-kit ./node_modules/drizzle-kit
+COPY --from=deps /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
+COPY --from=deps /app/node_modules/postgres ./node_modules/postgres
+COPY --from=deps /app/node_modules/dotenv ./node_modules/dotenv
+COPY --from=deps /app/node_modules/esbuild* ./node_modules/
+COPY --from=deps /app/node_modules/@esbuild ./node_modules/@esbuild
+
+# --- Changelog (served via /api/changelog) ---
+COPY --from=builder /app/CHANGELOG.md ./
 
 # --- Entrypoint ---
 COPY docker-entrypoint.sh ./

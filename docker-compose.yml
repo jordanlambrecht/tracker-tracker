@@ -15,7 +15,9 @@ services:
       retries: 5
 
   app:
-    build: .
+    image: ghcr.io/jordanlambrecht/tracker-tracker:latest
+    # To build from source instead of pulling the image, uncomment:
+    # build: .
     restart: unless-stopped
     ports:
       - "${PORT:-3000}:3000"
