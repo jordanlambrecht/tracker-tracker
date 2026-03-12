@@ -121,7 +121,7 @@ function useTrackerTorrents({
         } else {
           if (!cancelled) setTorrentError(null)
         }
-        if (data.clientCount === 0 && !cancelled) setNoClients(true)
+        if (!cancelled) setNoClients(data.clientCount === 0)
       } catch {
         if (!cancelled) setTorrentError("Could not reach server")
       } finally {
