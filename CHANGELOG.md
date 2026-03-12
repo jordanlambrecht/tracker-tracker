@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.1.0 — Chart & Detail Overhaul
+## v1.3.0 — Chart & Detail Overhaul
 
 ### Features
 
