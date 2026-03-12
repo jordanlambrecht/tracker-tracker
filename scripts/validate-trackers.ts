@@ -181,7 +181,7 @@ function checkBarrelInclusion(): string[] {
     .filter((f) => f.endsWith(".ts") && f !== "index.ts")
     .map((f) => f.replace(/\.ts$/, ""))
   return files
-    .filter((f) => !barrelContent.includes(`"./${f}"`))
+    .filter((f) => !barrelContent.includes(`./${f}`))
     .map((f) => `${f}.ts not imported in barrel file (src/data/trackers/index.ts)`)
 }
 
