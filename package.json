@@ -1,10 +1,14 @@
 {
   "name": "private-tracker-tracker",
-  "version": "1.3.4",
+  "version": "1.3.5",
   "private": true,
   "packageManager": "pnpm@10.32.1",
   "pnpm": {
-    "onlyBuiltDependencies": ["argon2", "esbuild", "sharp"]
+    "onlyBuiltDependencies": [
+      "argon2",
+      "esbuild",
+      "sharp"
+    ]
   },
   "scripts": {
     "dev": "next dev",
