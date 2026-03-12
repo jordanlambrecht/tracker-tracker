@@ -59,7 +59,10 @@ echo "tracker-tracker | Database ready. Syncing schema..."
 #
 # drizzle-kit lives in an isolated node_modules tree (node_modules_drizzle)
 # because pnpm's symlink store makes cherry-picking from the main deps fragile.
-NODE_PATH=./node_modules_drizzle node ./node_modules_drizzle/drizzle-kit/bin.cjs push
+# Symlink so drizzle-kit can resolve its peer deps (drizzle-orm, postgres)
+ln -sf node_modules_drizzle node_modules
+node ./node_modules_drizzle/drizzle-kit/bin.cjs push
+rm -f node_modules
 
 # ── Start server ────────────────────────────────────────────────────────
 echo "tracker-tracker | Starting server on port ${PORT:-3000}..."
