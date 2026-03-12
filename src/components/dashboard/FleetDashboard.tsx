@@ -52,7 +52,6 @@ interface FleetTorrentsResponse {
 interface FleetDashboardProps {
   dayRange: number
   trackers?: TrackerSummary[]
-  onRefresh?: () => Promise<void>
 }
 
 const allChartIds = FLEET_CHARTS.map((c) => c.id)
