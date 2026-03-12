@@ -158,9 +158,12 @@ function SortableTrackerItem({
           {archived ? "Archived" : stat}
         </span>
         {!unlocked && (
-          <button
-            type="button"
+          <span
+            role="checkbox"
+            aria-checked={tracker.isFavorite}
+            tabIndex={0}
             onClick={(e) => { e.stopPropagation(); onToggleFavorite(tracker.id, tracker.isFavorite) }}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onToggleFavorite(tracker.id, tracker.isFavorite) } }}
             className={clsx(
               "shrink-0 text-sm leading-none transition-all duration-150 cursor-pointer bg-transparent border-none p-0",
               tracker.isFavorite ? "text-warn opacity-100" : "text-muted opacity-0 group-hover:opacity-50 hover:opacity-100!",
@@ -168,7 +171,7 @@ function SortableTrackerItem({
             aria-label={tracker.isFavorite ? "Remove from favorites" : "Add to favorites"}
           >
             {tracker.isFavorite ? "★" : "☆"}
-          </button>
+          </span>
         )}
       </button>
     </li>
