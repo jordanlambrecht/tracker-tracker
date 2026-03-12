@@ -12,7 +12,7 @@ export const racing4everyone: TrackerRegistryEntry = {
   platform: "unit3d",
   apiPath: "/api/user",
   specialty: "Motorsport",
-  contentCategories: ["Sport"],
+  contentCategories: ["Sports"],
   userClasses: [],
   releaseGroups: [],
   notableMembers: [],

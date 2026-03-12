@@ -1,6 +1,6 @@
 // src/lib/formatters.ts
 //
-// Functions: formatBytesFromString, bytesToGiB, formatBytesFromNumber, formatBytesNum, formatRatio, formatAccountAge, formatJoinedDate, hexToRgba, hexToHsl, hslToHex, generatePalette, getComplementaryColor, formatStatValue, computeDelta
+// Functions: formatBytesFromString, bytesToGiB, formatBytesFromNumber, formatBytesNum, formatRatio, formatAccountAge, formatJoinedDate, hexToRgba, hexToHsl, hslToHex, generatePalette, getComplementaryColor, formatStatValue, computeDelta, formatDuration, splitValueUnit
 
 import type { Snapshot, TrackerLatestStats } from "@/types/api"
 
@@ -270,4 +270,23 @@ export function computeDelta(snaps: Snapshot[]): { uploaded: string; downloaded:
   } catch {
     return null
   }
+}
+
+/**
+ * Formats a duration in seconds to a compact human-readable string.
+ * e.g. 90 → "1m", 7200 → "2.0h", 172800 → "2.0d"
+ */
+export function formatDuration(seconds: number): string {
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
+  if (seconds < 86400) return `${(seconds / 3600).toFixed(1)}h`
+  return `${(seconds / 86400).toFixed(1)}d`
+}
+
+/**
+ * Splits a formatted "123.45 GiB" string into { num, unit } for two-line StatCard rendering.
+ */
+export function splitValueUnit(formatted: string): { num: string; unit: string } {
+  const idx = formatted.indexOf(" ")
+  if (idx === -1) return { num: formatted, unit: "" }
+  return { num: formatted.slice(0, idx), unit: formatted.slice(idx + 1) }
 }

@@ -37,6 +37,7 @@ import { PulseDot } from "@/components/ui/PulseDot"
 import { Select } from "@/components/ui/Select"
 import { H2 } from "@/components/ui/Typography"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
+import { useUpdateCheck } from "@/hooks/useUpdateCheck"
 import { formatStatValue, hexToRgba, type StatMode } from "@/lib/formatters"
 import { getHealthPulseDot, getTrackerHealth } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
@@ -135,11 +136,9 @@ function SortableTrackerItem({
       ref={setNodeRef}
       style={dragStyle}
     >
-      <div
-        role="button"
-        tabIndex={0}
+      <button
+        type="button"
         onClick={unlocked ? undefined : onClick}
-        onKeyDown={unlocked ? undefined : (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick?.() } }}
         className={`${itemClasses} rounded-nm-md`}
         style={activeStyle}
         aria-current={isActive ? "page" : undefined}
@@ -159,25 +158,28 @@ function SortableTrackerItem({
           {archived ? "Archived" : stat}
         </span>
         {!unlocked && (
-          <button
-            type="button"
+          <span
+            role="checkbox"
+            aria-checked={tracker.isFavorite}
+            tabIndex={0}
             onClick={(e) => { e.stopPropagation(); onToggleFavorite(tracker.id, tracker.isFavorite) }}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onToggleFavorite(tracker.id, tracker.isFavorite) } }}
             className={clsx(
               "shrink-0 text-sm leading-none transition-all duration-150 cursor-pointer bg-transparent border-none p-0",
-              tracker.isFavorite ? "text-warn opacity-100" : "text-muted opacity-0 group-hover:opacity-50 hover:!opacity-100",
+              tracker.isFavorite ? "text-warn opacity-100" : "text-muted opacity-0 group-hover:opacity-50 hover:opacity-100!",
             )}
             aria-label={tracker.isFavorite ? "Remove from favorites" : "Add to favorites"}
           >
             {tracker.isFavorite ? "★" : "☆"}
-          </button>
+          </span>
         )}
-      </div>
+      </button>
     </li>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Sparkline (pure SVG — no chart library)
+// Sparkline
 // ---------------------------------------------------------------------------
 
 function Sparkline({
@@ -441,6 +443,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
   const [changelogOpen, setChangelogOpen] = useState(false)
   const [changelogContent, setChangelogContent] = useState<string | null>(null)
   const changelogRef = useRef<HTMLDialogElement>(null)
+  const { latestVersion, updateAvailable } = useUpdateCheck()
 
   const pathname = usePathname()
   const router = useRouter()
@@ -783,6 +786,18 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
             >
               v{process.env.NEXT_PUBLIC_APP_VERSION}
             </button>
+            {updateAvailable && latestVersion && (
+              <a
+                href={`https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v${latestVersion}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-1.5 py-0.5 text-[9px] font-mono text-accent hover:bg-accent/25 transition-colors duration-150"
+                title={`Update available: v${latestVersion}`}
+              >
+                v{latestVersion}
+                <span aria-hidden="true">↑</span>
+              </a>
+            )}
             {/* biome-ignore lint/a11y/useAnchorContent: aria-label provides accessible content */}
             <a
               href="https://github.com/jordanlambrecht/tracker-tracker"

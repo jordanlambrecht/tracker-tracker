@@ -14,7 +14,7 @@ export const redacted: TrackerRegistryEntry = {
   gazelleAuthStyle: "raw",
   gazelleEnrich: true,
   specialty: "Music",
-  contentCategories: ["Music", "Software"],
+  contentCategories: ["Music", "Apps"],
   userClasses: [
     { name: "User", requirements: "Default class on registration" },
     { name: "Member", requirements: "1 week, 25 GB up, 0.65 ratio" },

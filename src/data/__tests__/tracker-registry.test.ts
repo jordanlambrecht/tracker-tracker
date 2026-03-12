@@ -11,6 +11,7 @@
 import fs from "node:fs"
 import path from "node:path"
 import { afterAll, describe, expect, it } from "vitest"
+import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { ALL_TRACKERS } from "@/data/trackers"
 import { DEFAULT_API_PATHS } from "@/lib/adapters"
 
@@ -23,21 +24,19 @@ const LOGO_DIR = path.resolve(__dirname, "../../../public/tracker-logos")
 const PLACEHOLDER_RE = /^TODO$/i
 
 // Canonical content categories — add new categories here, not in tracker files.
-// Keep singular forms. UI filter pills display these directly.
+// UI filter pills display these directly.
 const VALID_CONTENT_CATEGORIES = new Set([
   "Movies",
   "TV",
   "Music",
   "Games",
   "Apps",
-  "Software",
-  "Sport",
+  "Sports",
   "Books",
   "Audiobooks",
   "Comics",
   "Manga",
   "Anime",
-  "Animation",
   "XXX",
   "Documentaries",
   "Education",
@@ -62,8 +61,8 @@ function warn(tracker: string, msg: string) {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const PRODUCTION_TRACKERS = ALL_TRACKERS.filter((t) => !t.draft)
-const DRAFT_TRACKERS = ALL_TRACKERS.filter((t) => t.draft)
+const PRODUCTION_TRACKERS = ALL_TRACKERS.filter((t: TrackerRegistryEntry) => !t.draft)
+const DRAFT_TRACKERS = ALL_TRACKERS.filter((t: TrackerRegistryEntry) => t.draft)
 
 function isEmpty(val: unknown): boolean {
   if (val === undefined || val === null) return true
@@ -80,25 +79,25 @@ describe("tracker registry", () => {
   // ── Global uniqueness (all trackers, including drafts) ────────────────
 
   it("has no duplicate slugs", () => {
-    const slugs = ALL_TRACKERS.map((t) => t.slug)
-    const dupes = slugs.filter((s, i) => slugs.indexOf(s) !== i)
+    const slugs = ALL_TRACKERS.map((t: TrackerRegistryEntry) => t.slug)
+    const dupes = slugs.filter((s: string, i: number) => slugs.indexOf(s) !== i)
     expect(dupes, `Duplicate slugs: ${dupes.join(", ")}`).toEqual([])
   })
 
   it("has no duplicate URLs", () => {
     const normalize = (u: string) => u.replace(/\/+$/, "").toLowerCase()
-    const urls = ALL_TRACKERS.map((t) => normalize(t.url))
-    const dupes = urls.filter((u, i) => urls.indexOf(u) !== i)
+    const urls = ALL_TRACKERS.map((t: TrackerRegistryEntry) => normalize(t.url))
+    const dupes = urls.filter((u: string, i: number) => urls.indexOf(u) !== i)
     expect(dupes, `Duplicate URLs: ${dupes.join(", ")}`).toEqual([])
   })
 
   it("every tracker file in src/data/trackers/ is registered in the barrel", () => {
     const files = fs.readdirSync(TRACKER_DIR)
-      .filter((f) => f.endsWith(".ts") && f !== "index.ts")
+      .filter((f) => f.endsWith(".ts") && f !== "index.ts" && !f.startsWith("_"))
       .map((f) => f.replace(/\.ts$/, ""))
     // Read barrel to get actual imported filenames
     const barrelContent = fs.readFileSync(path.join(TRACKER_DIR, "index.ts"), "utf8")
-    const unregistered = files.filter((f) => !barrelContent.includes(`"./${f}"`))
+    const unregistered = files.filter((f) => !barrelContent.includes(`./${f}`))
     expect(
       unregistered,
       `Tracker files not imported in index.ts: ${unregistered.join(", ")}. Did you forget to add them to the barrel?`,
@@ -166,7 +165,7 @@ describe("tracker registry", () => {
         })
 
         it("uses only allowed content categories", () => {
-          const invalid = tracker.contentCategories.filter((c) => !VALID_CONTENT_CATEGORIES.has(c))
+          const invalid = tracker.contentCategories.filter((c: string) => !VALID_CONTENT_CATEGORIES.has(c))
           expect(
             invalid,
             `Invalid categories: ${invalid.join(", ")}. Allowed: ${[...VALID_CONTENT_CATEGORIES].join(", ")}`,
@@ -212,7 +211,7 @@ describe("tracker registry", () => {
 
         it("has no duplicate content categories", () => {
           const seen = new Set<string>()
-          const dupes = tracker.contentCategories.filter((c) => {
+          const dupes = tracker.contentCategories.filter((c: string) => {
             if (seen.has(c)) return true
             seen.add(c)
             return false

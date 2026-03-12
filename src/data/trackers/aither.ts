@@ -18,7 +18,7 @@ export const aither: TrackerRegistryEntry = {
     "Music",
     "Games",
     "Apps",
-    "Sport",
+    "Sports",
     "Education",
     "Audiobooks",
     "XXX",

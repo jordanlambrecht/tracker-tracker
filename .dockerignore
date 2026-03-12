@@ -19,13 +19,15 @@ build
 # IDE / editor
 .vscode
 .idea
+.history
 *.swp
 *.swo
 .DS_Store
 
-# Documentation and plans
+# Documentation and plans (CHANGELOG.md is needed by /api/changelog)
 docs
 *.md
+!CHANGELOG.md
 !package.json
 
 # Tests (not needed in production image)

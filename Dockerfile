@@ -1,13 +1,15 @@
 # Dockerfile
 #
 # Multi-stage build for Tracker Tracker.
-# Stages: deps (install) → builder (compile) → runner (serve)
+# Stages: deps → builder → drizzle → runner
+#
+# Uses Next.js standalone output for minimal image size (~150MB vs ~1GB).
 
 # ---------------------------------------------------------------------------
 # Base
 # ---------------------------------------------------------------------------
-FROM node:25-alpine AS base
-RUN npm install -g pnpm
+FROM node:24-alpine AS base
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # ---------------------------------------------------------------------------
 # Stage 1 — Install dependencies
@@ -34,9 +36,19 @@ ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
 RUN pnpm build
 
 # ---------------------------------------------------------------------------
-# Stage 3 — Production runner
+# Stage 3 — Drizzle-kit dependencies (for schema push at startup)
+# pnpm's symlink store makes cherry-picking packages fragile, so we do
+# a clean isolated install of just drizzle-kit + its peer deps here.
 # ---------------------------------------------------------------------------
-FROM base AS runner
+FROM base AS drizzle
+WORKDIR /drizzle
+RUN pnpm init && \
+    pnpm add drizzle-kit drizzle-orm postgres dotenv
+
+# ---------------------------------------------------------------------------
+# Stage 4 — Production runner
+# ---------------------------------------------------------------------------
+FROM node:24-alpine AS runner
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
@@ -49,20 +61,22 @@ ENV HOSTNAME=0.0.0.0
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Persistent volume mount point for scheduled backups
+# Persistent volume mount points for scheduled backups and logs
 RUN mkdir -p /data/backups /data/logs && chown -R nextjs:nodejs /data
 
-# --- Application files ---
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/next.config.ts ./
+# --- Standalone server (traced dependencies only — much smaller than full node_modules) ---
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
-# --- Drizzle schema-sync files (for drizzle-kit push at startup) ---
+# --- Drizzle schema-sync (for drizzle-kit push at startup) ---
 COPY --from=builder /app/drizzle.config.ts ./
 COPY --from=builder /app/src/lib/db ./src/lib/db
 COPY --from=builder /app/tsconfig.json ./
+COPY --from=drizzle /drizzle/node_modules ./node_modules_drizzle
+
+# --- Changelog (served via /api/changelog) ---
+COPY --from=builder /app/CHANGELOG.md ./
 
 # --- Entrypoint ---
 COPY docker-entrypoint.sh ./
