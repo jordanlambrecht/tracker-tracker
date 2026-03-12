@@ -56,7 +56,10 @@ echo "tracker-tracker | Database ready. Syncing schema..."
 # Destructive changes (DROP COLUMN) prompt for confirmation — in Docker
 # (no TTY) this causes the container to fail, which is the correct behavior:
 # users should review destructive migrations before applying them.
-npx drizzle-kit push
+#
+# drizzle-kit lives in an isolated node_modules tree (node_modules_drizzle)
+# because pnpm's symlink store makes cherry-picking from the main deps fragile.
+NODE_PATH=./node_modules_drizzle node ./node_modules_drizzle/.bin/drizzle-kit push
 
 # ── Start server ────────────────────────────────────────────────────────
 echo "tracker-tracker | Starting server on port ${PORT:-3000}..."
