@@ -11,7 +11,7 @@ import { GgnAchievementProgress } from "@/components/tracker-detail/platform/Ggn
 import { GgnBuffsDisplay } from "@/components/tracker-detail/platform/GgnBuffsDisplay"
 import { GgnShareScoreProgress } from "@/components/tracker-detail/platform/GgnShareScoreProgress"
 import { GgnStatCards } from "@/components/tracker-detail/platform/GgnStatCards"
-import type { GazellePlatformMeta, GGnPlatformMeta, Snapshot, TrackerLatestStats, TrackerSummary } from "@/types/api"
+import type { GazellePlatformMeta, GGnPlatformMeta, NebulancePlatformMeta, Snapshot, TrackerLatestStats, TrackerSummary } from "@/types/api"
 
 interface AnalyticsTabProps {
   tracker: TrackerSummary
@@ -20,6 +20,7 @@ interface AnalyticsTabProps {
   latestSnapshot: Snapshot | null
   ggMeta: GGnPlatformMeta | null
   gazelleMeta: GazellePlatformMeta | null
+  nebulanceMeta: NebulancePlatformMeta | null
   accentColor: string
   days: DayRange
   onDaysChange: (d: DayRange) => void
@@ -34,6 +35,7 @@ export function AnalyticsTab({
   latestSnapshot,
   ggMeta,
   gazelleMeta,
+  nebulanceMeta,
   accentColor: tc,
   days,
   onDaysChange,
@@ -49,6 +51,7 @@ export function AnalyticsTab({
         latestSnapshot={latestSnapshot}
         platformType={tracker.platformType}
         ggMeta={ggMeta}
+        nebulanceMeta={nebulanceMeta}
         accentColor={tc}
       />
       <GgnStatCards platformType={tracker.platformType} latestSnapshot={latestSnapshot} accentColor={tc} />
