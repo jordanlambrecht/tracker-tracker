@@ -6,6 +6,50 @@ This document describes the security controls, threat model, and testing methodo
 
 Last audited: `2026-03-12`
 
+- [Security Architecture](#security-architecture)
+  - [Authentication](#authentication)
+  - [Data Classification](#data-classification)
+  - [Encryption at Rest](#encryption-at-rest)
+  - [Route Protection (Defense in Depth)](#route-protection-defense-in-depth)
+  - [Data Protection](#data-protection)
+  - [Input Validation](#input-validation)
+  - [Security Response Headers](#security-response-headers)
+  - [Threat Model](#threat-model)
+  - [Huntarr Anti-Pattern Checklist](#huntarr-anti-pattern-checklist)
+  - [Username Privacy Mode](#username-privacy-mode)
+  - [Unmitigated Attack Vectors](#unmitigated-attack-vectors)
+    - [1. Disk Seizure / Physical Access](#1-disk-seizure--physical-access)
+    - [2. Compromised Host / Memory Dump](#2-compromised-host--memory-dump)
+    - [3. Correlation Attack on Masked Usernames](#3-correlation-attack-on-masked-usernames)
+    - [4. Network Traffic Analysis](#4-network-traffic-analysis)
+    - [5. Tracker-Side Logging](#5-tracker-side-logging)
+  - [Backup Security](#backup-security)
+    - [Data Handling](#data-handling)
+    - [Authentication](#authentication-1)
+    - [Optional Encryption Layer](#optional-encryption-layer)
+    - [Restore Safety](#restore-safety)
+    - [File Security](#file-security)
+  - [Known Limitations](#known-limitations)
+  - [Security Testing](#security-testing)
+  - [CI Integration](#ci-integration)
+    - [Static Security Audit](#static-security-audit)
+      - [Inline Suppression](#inline-suppression)
+  - [Deployment Hardening](#deployment-hardening)
+  - [Security Review Checklist](#security-review-checklist)
+    - [Pre-Flight (run every PR)](#pre-flight-run-every-pr)
+    - [1. Authentication \& Authorization](#1-authentication--authorization)
+    - [2. Input Validation](#2-input-validation)
+    - [3. XSS Prevention](#3-xss-prevention)
+    - [4. Encryption \& Secrets](#4-encryption--secrets)
+    - [5. Session Security](#5-session-security)
+    - [6. External Requests](#6-external-requests)
+    - [7. Database Operations](#7-database-operations)
+    - [8. File Operations](#8-file-operations)
+    - [9. Security Headers](#9-security-headers)
+    - [10. Docker \& Deployment](#10-docker--deployment)
+    - [Quick Verification Commands](#quick-verification-commands)
+  - [Vulnerability Reporting](#vulnerability-reporting)
+
 ## Authentication
 
 - **Password hashing**: Argon2 (memory-hard KDF) via `argon2` library — see `src/lib/auth.ts`
@@ -20,23 +64,23 @@ Last audited: `2026-03-12`
 
 ## Data Classification
 
-| Data | Storage | Encrypted | Justification |
-| --- | --- | --- | --- |
-| Master password | `app_settings.password_hash` | Argon2 hash (irreversible) | Memory-hard KDF; cannot be reversed |
-| Tracker API tokens | `trackers.encrypted_api_token` | AES-256-GCM | Most sensitive field; provides account access |
-| Encryption key | JWE session cookie + scheduler memory | JWE (A256GCM) | Never written to disk in plaintext; zero-filled on logout |
-| Encryption salt | `app_settings.encryption_salt` | No | Salt is not secret; useless without master password |
-| Tracker names | `trackers.name` | No | User-assigned label; not inherently identifying |
-| Tracker base URLs | `trackers.base_url` | No | Reveals which trackers the user monitors |
-| Tracker usernames | `tracker_snapshots.username` | No | Fetched fresh from tracker API on each poll |
-| User class/group | `tracker_snapshots.group_name` | No | Fetched fresh from tracker API on each poll |
-| Upload/download stats | `tracker_snapshots.*_bytes` | No | Numeric time-series; meaningful only with context |
-| Ratio, seedbonus, H&Rs | `tracker_snapshots.*` | No | Numeric time-series; meaningful only with context |
-| Session cookie | Browser (`tt_session`) | JWE (A256GCM) | httpOnly, secure, sameSite=strict |
-| TOTP secret | `app_settings.totp_secret` | AES-256-GCM | TOTP enrollment secret; compromised = account takeover |
-| Proxy password | `app_settings.encrypted_proxy_password` | AES-256-GCM | Proxy service credential |
-| qBT credentials | `download_clients.encrypted_*` | AES-256-GCM | Download client authentication |
-| Backup files | Filesystem (optional) | AES-256-GCM (optional) | Contains all data including encrypted fields as ciphertext |
+| Data                   | Storage                                 | Encrypted                  | Justification                                              |
+|------------------------|-----------------------------------------|----------------------------|------------------------------------------------------------|
+| Master password        | `app_settings.password_hash`            | Argon2 hash (irreversible) | Memory-hard KDF; cannot be reversed                        |
+| Tracker API tokens     | `trackers.encrypted_api_token`          | AES-256-GCM                | Most sensitive field; provides account access              |
+| Encryption key         | JWE session cookie + scheduler memory   | JWE (A256GCM)              | Never written to disk in plaintext; zero-filled on logout  |
+| Encryption salt        | `app_settings.encryption_salt`          | No                         | Salt is not secret; useless without master password        |
+| Tracker names          | `trackers.name`                         | No                         | User-assigned label; not inherently identifying            |
+| Tracker base URLs      | `trackers.base_url`                     | No                         | Reveals which trackers the user monitors                   |
+| Tracker usernames      | `tracker_snapshots.username`            | No                         | Fetched fresh from tracker API on each poll                |
+| User class/group       | `tracker_snapshots.group_name`          | No                         | Fetched fresh from tracker API on each poll                |
+| Upload/download stats  | `tracker_snapshots.*_bytes`             | No                         | Numeric time-series; meaningful only with context          |
+| Ratio, seedbonus, H&Rs | `tracker_snapshots.*`                   | No                         | Numeric time-series; meaningful only with context          |
+| Session cookie         | Browser (`tt_session`)                  | JWE (A256GCM)              | httpOnly, secure, sameSite=strict                          |
+| TOTP secret            | `app_settings.totp_secret`              | AES-256-GCM                | TOTP enrollment secret; compromised = account takeover     |
+| Proxy password         | `app_settings.encrypted_proxy_password` | AES-256-GCM                | Proxy service credential                                   |
+| qBT credentials        | `download_clients.encrypted_*`          | AES-256-GCM                | Download client authentication                             |
+| Backup files           | Filesystem (optional)                   | AES-256-GCM (optional)     | Contains all data including encrypted fields as ciphertext |
 
 **Disk seizure note:** If an adversary gains access to the raw database files, all unencrypted fields above are readable. To protect against this scenario, deploy on an encrypted filesystem (LUKS, dm-crypt, or equivalent). See [Known Limitations](#known-limitations).
 
@@ -44,13 +88,13 @@ Last audited: `2026-03-12`
 
 All tracker API tokens are encrypted before database storage — see `src/lib/crypto.ts`.
 
-| Parameter | Value |
-|---|---|
-| Algorithm | AES-256-GCM |
-| Key derivation | scrypt (N=16384, r=8, p=1) |
-| IV | 12 bytes random per encryption |
-| Auth tag | 16 bytes |
-| Salt | 32 bytes random, stored in `app_settings.encryption_salt` |
+| Parameter      | Value                                                     |
+|----------------|-----------------------------------------------------------|
+| Algorithm      | AES-256-GCM                                               |
+| Key derivation | scrypt (N=16384, r=8, p=1)                                |
+| IV             | 12 bytes random per encryption                            |
+| Auth tag       | 16 bytes                                                  |
+| Salt           | 32 bytes random, stored in `app_settings.encryption_salt` |
 
 The encryption key is derived from the master password on login and stored in the encrypted JWE session. It is never persisted to disk in plaintext.
 
@@ -79,20 +123,20 @@ Public routes are explicitly limited to: `/login`, `/setup`, `/api/auth/*`, `/ap
 
 All API routes validate inputs — see `src/app/api/trackers/route.ts` and `src/app/api/trackers/[id]/route.ts`.
 
-| Field | Constraint |
-|---|---|
-| Tracker name | string, max 100 chars, trimmed |
-| Base URL | string, max 500 chars, validated via `new URL()`, scheme restricted to `https://` or `http://` |
-| API token | string, max 500 chars |
-| Color | hex color format only (`#[0-9a-fA-F]{3,8}`), rejects arbitrary strings |
-| qBittorrent tag | string, max 100 chars, trimmed |
-| Poll interval | integer, clamped to 15-1440 minutes |
-| Tracker ID | parsed as integer, NaN rejected |
-| Platform type | allowlist: `["unit3d", "gazelle", "ggn", "nebulance"]` |
-| Password | string, 8-128 chars |
-| Role name | string, max 255 chars |
-| joinedAt | regex-validated YYYY-MM-DD or null |
-| Notes (roles) | string, max 2000 chars |
+| Field           | Constraint                                                                                     |
+|-----------------|------------------------------------------------------------------------------------------------|
+| Tracker name    | string, max 100 chars, trimmed                                                                 |
+| Base URL        | string, max 500 chars, validated via `new URL()`, scheme restricted to `https://` or `http://` |
+| API token       | string, max 500 chars                                                                          |
+| Color           | hex color format only (`#[0-9a-fA-F]{3,8}`), rejects arbitrary strings                         |
+| qBittorrent tag | string, max 100 chars, trimmed                                                                 |
+| Poll interval   | integer, clamped to 15-1440 minutes                                                            |
+| Tracker ID      | parsed as integer, NaN rejected                                                                |
+| Platform type   | allowlist: `["unit3d", "gazelle", "ggn", "nebulance"]`                                         |
+| Password        | string, 8-128 chars                                                                            |
+| Role name       | string, max 255 chars                                                                          |
+| joinedAt        | regex-validated YYYY-MM-DD or null                                                             |
+| Notes (roles)   | string, max 2000 chars                                                                         |
 
 ## Security Response Headers
 
@@ -107,51 +151,51 @@ Configured in `next.config.ts` for all routes:
 
 ## Threat Model
 
-| Property | Description |
-|---|---|
-| User model | Single user, self-hosted |
-| Deployment | Docker Compose (open-source) |
-| Trust boundary | Network perimeter; may be internet-facing behind reverse proxy |
-| Primary threats | Unauthorized access, credential leakage, supply chain |
-| External calls | User-configured tracker URLs (UNIT3D, Gazelle, GGn, Nebulance APIs) + qBittorrent clients |
-| Data sensitivity | Tracker API tokens (encrypted), usage statistics |
+| Property         | Description                                                                               |
+|------------------|-------------------------------------------------------------------------------------------|
+| User model       | Single user, self-hosted                                                                  |
+| Deployment       | Docker Compose (open-source)                                                              |
+| Trust boundary   | Network perimeter; may be internet-facing behind reverse proxy                            |
+| Primary threats  | Unauthorized access, credential leakage, supply chain                                     |
+| External calls   | User-configured tracker URLs (UNIT3D, Gazelle, GGn, Nebulance APIs) + qBittorrent clients |
+| Data sensitivity | Tracker API tokens (encrypted), usage statistics                                          |
 
 ## Huntarr Anti-Pattern Checklist
 
 Comparison against the 21 vulnerabilities found in Huntarr v9.4.2 ([security review](https://github.com/rfsbraz/huntarr-security-review)):
 
-| Huntarr Vulnerability | Status | Implementation |
-|---|---|---|
-| Unauthenticated settings write | Mitigated | All routes call `authenticate()` |
-| Setup flow re-arm without auth | Mitigated | Setup checks for existing config, no clear/reset endpoint |
-| TOTP enrollment without auth | Mitigated | TOTP setup/confirm/disable all require active session via `authenticate()` |
-| Recovery key without auth | Mitigated | Backup codes shown only during enrollment; disable requires valid code |
-| Zip Slip file write | Mitigated | Backups are pure JSON, not archives; no file extraction |
-| Path traversal in backup | Mitigated | File deletion validates resolved path against configured base directory + `path.sep` |
-| Auth bypass whitelist | Mitigated | No whitelist — direct auth per route |
-| Passwords in API responses | Mitigated | `encryptedApiToken` explicitly excluded from all responses |
-| SHA-256 password hashing | Mitigated | Argon2 memory-hard KDF |
-| Cleartext credential storage | Mitigated | AES-256-GCM encrypted at rest |
-| X-Forwarded-For trust | N/A | No proxy bypass mode |
-| Hardcoded API keys | Mitigated | All secrets from env vars or encrypted user input |
-| XML parsing vulnerabilities | N/A | No XML handling |
-| Container runs as root | Mitigated | Dockerfile uses `USER nextjs` (UID 1001) with explicit `adduser`/`addgroup` |
-| Broad auth bypass matching | Mitigated | Explicit route-level auth, no substring/suffix matching |
-| Full cross-app credential exposure | Mitigated | Responses return only safe fields, not entire config |
-| World-writable file permissions | N/A | No installation scripts or service files |
-| Network calls without timeouts | Mitigated | 15-second AbortSignal on all external fetches |
-| Weak password hashing (salted SHA-256) | Mitigated | Argon2 with default parameters |
-| No dependency scanning | Mitigated | Automated via `dependency-review.yml` GitHub Actions workflow on every PR |
-| No security disclosure process | Mitigated | This document, plus issue tracker |
+| Huntarr Vulnerability                  | Status    | Implementation                                                                       |
+|----------------------------------------|-----------|--------------------------------------------------------------------------------------|
+| Unauthenticated settings write         | Mitigated | All routes call `authenticate()`                                                     |
+| Setup flow re-arm without auth         | Mitigated | Setup checks for existing config, no clear/reset endpoint                            |
+| TOTP enrollment without auth           | Mitigated | TOTP setup/confirm/disable all require active session via `authenticate()`           |
+| Recovery key without auth              | Mitigated | Backup codes shown only during enrollment; disable requires valid code               |
+| Zip Slip file write                    | Mitigated | Backups are pure JSON, not archives; no file extraction                              |
+| Path traversal in backup               | Mitigated | File deletion validates resolved path against configured base directory + `path.sep` |
+| Auth bypass whitelist                  | Mitigated | No whitelist — direct auth per route                                                 |
+| Passwords in API responses             | Mitigated | `encryptedApiToken` explicitly excluded from all responses                           |
+| SHA-256 password hashing               | Mitigated | Argon2 memory-hard KDF                                                               |
+| Cleartext credential storage           | Mitigated | AES-256-GCM encrypted at rest                                                        |
+| X-Forwarded-For trust                  | N/A       | No proxy bypass mode                                                                 |
+| Hardcoded API keys                     | Mitigated | All secrets from env vars or encrypted user input                                    |
+| XML parsing vulnerabilities            | N/A       | No XML handling                                                                      |
+| Container runs as root                 | Mitigated | Dockerfile uses `USER nextjs` (UID 1001) with explicit `adduser`/`addgroup`          |
+| Broad auth bypass matching             | Mitigated | Explicit route-level auth, no substring/suffix matching                              |
+| Full cross-app credential exposure     | Mitigated | Responses return only safe fields, not entire config                                 |
+| World-writable file permissions        | N/A       | No installation scripts or service files                                             |
+| Network calls without timeouts         | Mitigated | 15-second AbortSignal on all external fetches                                        |
+| Weak password hashing (salted SHA-256) | Mitigated | Argon2 with default parameters                                                       |
+| No dependency scanning                 | Mitigated | Automated via `dependency-review.yml` GitHub Actions workflow on every PR            |
+| No security disclosure process         | Mitigated | This document, plus issue tracker                                                    |
 
 ## Username Privacy Mode
 
 Tracker Tracker includes an optional privacy mode (`Settings → Store Usernames`) that controls whether tracker usernames and user classes are persisted to the database.
 
-| Mode | Behavior |
-|---|---|
-| **Enabled** (default) | Usernames and groups are stored as-is in `tracker_snapshots` |
-| **Disabled** | Usernames and groups are replaced with a length-preserving mask (`▓N` where N = character count) before database write. Real values are never stored. |
+| Mode                  | Behavior                                                                                                                                              |
+|-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Enabled** (default) | Usernames and groups are stored as-is in `tracker_snapshots`                                                                                          |
+| **Disabled**          | Usernames and groups are replaced with a length-preserving mask (`▓N` where N = character count) before database write. Real values are never stored. |
 
 When disabling, users can optionally **scrub historical data** to retroactively replace all previously stored usernames with their masked equivalents.
 
@@ -241,15 +285,15 @@ The backup/restore system (`src/lib/backup.ts`, `src/app/api/settings/backup/`) 
 
 Security invariants are verified by 80 automated tests in `src/lib/__tests__/security.test.ts`:
 
-| Category | Tests | What's Verified |
-|---|---|---|
-| Auth enforcement | 52 | Every protected route returns 401 without valid session — trackers, snapshots, roles, reorder, poll-all, settings, dashboard, quicklinks, reset-stats, logs, clients (CRUD + test + torrents + snapshots + speeds), tag-groups (CRUD + members + member CRUD), fleet (snapshots + torrents), TOTP setup/confirm/disable, change-password, lockdown, nuke, proxy-test, backup (export + restore + history + get + delete), changelog, logout |
-| Token leakage | 2 | `encryptedApiToken` never appears in API responses (list + detail) |
-| Setup protection | 1 | Setup cannot be re-triggered after initial configuration |
-| Input validation | 14 | URL scheme allowlist, hex color validation, poll interval clamping, oversized input rejection, API token max length, qBT tag max length, role name max length, notes max length, date format validation, tracker ID validation |
-| Crypto integrity | 5 | Encrypt/decrypt round-trip, tampered ciphertext rejected, wrong key rejected, truncated ciphertext rejected, random IV uniqueness |
-| Key zeroing | 2 | Encryption key buffer is zero-filled on scheduler stop; double-stop is safe |
-| Backup auth | 4 | Export, restore, history, and delete routes return 401 without valid session |
+| Category         | Tests | What's Verified                                                                                                                                                                                                                                                                                                                                                                                                                             |
+|------------------|-------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Auth enforcement | 52    | Every protected route returns 401 without valid session — trackers, snapshots, roles, reorder, poll-all, settings, dashboard, quicklinks, reset-stats, logs, clients (CRUD + test + torrents + snapshots + speeds), tag-groups (CRUD + members + member CRUD), fleet (snapshots + torrents), TOTP setup/confirm/disable, change-password, lockdown, nuke, proxy-test, backup (export + restore + history + get + delete), changelog, logout |
+| Token leakage    | 2     | `encryptedApiToken` never appears in API responses (list + detail)                                                                                                                                                                                                                                                                                                                                                                          |
+| Setup protection | 1     | Setup cannot be re-triggered after initial configuration                                                                                                                                                                                                                                                                                                                                                                                    |
+| Input validation | 14    | URL scheme allowlist, hex color validation, poll interval clamping, oversized input rejection, API token max length, qBT tag max length, role name max length, notes max length, date format validation, tracker ID validation                                                                                                                                                                                                              |
+| Crypto integrity | 5     | Encrypt/decrypt round-trip, tampered ciphertext rejected, wrong key rejected, truncated ciphertext rejected, random IV uniqueness                                                                                                                                                                                                                                                                                                           |
+| Key zeroing      | 2     | Encryption key buffer is zero-filled on scheduler stop; double-stop is safe                                                                                                                                                                                                                                                                                                                                                                 |
+| Backup auth      | 4     | Export, restore, history, and delete routes return 401 without valid session                                                                                                                                                                                                                                                                                                                                                                |
 
 Additional security-relevant tests exist across other test files.
 
@@ -274,36 +318,36 @@ The count guard ensures that security coverage is monotonically non-decreasing. 
 
 The security audit (`scripts/security-audit.ts`) performs 28 automated checks on every push and PR:
 
-| # | Check | Severity | What's Verified |
-|---|-------|----------|-----------------|
-| 1 | Auth enforcement | Critical | Every non-public API route calls `authenticate()` or `getSession()` |
-| 2 | Dangerous functions | Critical | No code-injection-risk functions in source |
-| 3 | Hardcoded secrets | Critical | No AWS keys, private keys, PATs, or API keys in source |
-| 4 | Security headers | Critical | All 6 required headers present in `next.config.ts` |
-| 5 | Cookie security | Critical | All cookie operations use `httpOnly`, `sameSite: "strict"`, `secure` |
-| 6 | Sensitive field exposure | Critical | `encryptedApiToken`, `passwordHash`, etc. not in API responses |
-| 7 | Env files | Critical | No `.env` files tracked by git |
-| 8 | Raw SQL in routes | Critical | No `db.execute()` in API route handlers (use Drizzle query builder) |
-| 9 | Unsafe redirect/fetch | Critical | No `fetch()`/`redirect()` with user-supplied URLs in API routes (SSRF) |
-| 10 | Timing-safe comparison | Critical | Secret comparisons in auth/crypto/totp use `timingSafeEqual` |
-| 11 | No raw migrations | Critical | No SQL migration files — enforces schema-first Drizzle approach |
-| 12 | Fetch timeout | Critical | All external HTTP requests in adapters/clients have `AbortSignal.timeout` |
-| 13 | Dockerfile non-root | Critical | Docker container runs as non-root user with explicit `USER` directive |
-| 14 | Proxy allowlist sync | Critical | Public routes in proxy allowlist match `NO_AUTH_ROUTES` bidirectionally |
-| 15 | Console in routes | Warning | No `console.log/debug/info` in API route handlers |
-| 16 | TODO in security files | Warning | No `TODO`/`FIXME` in security-critical source files |
-| 17 | JSON.parse safety | Warning | `JSON.parse()` calls wrapped in try-catch |
-| 18 | Bare catch blocks | Warning | No swallowed errors in API routes/lib catch blocks |
-| 19 | Request body size | Warning | POST/PATCH/PUT handlers validate request body size |
-| 20 | BigInt safety | Warning | BigInt fields use string serialization, not `Number()` |
-| 21 | Path traversal defense | Critical | File delete operations use `path.resolve()` + `startsWith(base)` |
-| 22 | Argon2 hashing | Critical | Password hashing in `auth.ts` uses Argon2, not SHA-256/bcrypt |
-| 23 | Encrypted column writes | Critical | DB writes to encrypted columns use `encrypt()`/`reEncrypt()` |
-| 24 | TOTP flow integrity | Critical | 2FA routes enforce correct auth patterns, token flows, and single-use backup codes |
-| 25 | Lockdown flow integrity | Critical | Emergency lockdown stops scheduler, revokes tokens, rotates salt, clears TOTP |
-| 26 | Nuke flow integrity | Critical | Scrub & delete requires session + password, uses `scrubAndDeleteAll()` |
+| #  | Check                    | Severity | What's Verified                                                                              |
+|----|--------------------------|----------|----------------------------------------------------------------------------------------------|
+| 1  | Auth enforcement         | Critical | Every non-public API route calls `authenticate()` or `getSession()`                          |
+| 2  | Dangerous functions      | Critical | No code-injection-risk functions in source                                                   |
+| 3  | Hardcoded secrets        | Critical | No AWS keys, private keys, PATs, or API keys in source                                       |
+| 4  | Security headers         | Critical | All 6 required headers present in `next.config.ts`                                           |
+| 5  | Cookie security          | Critical | All cookie operations use `httpOnly`, `sameSite: "strict"`, `secure`                         |
+| 6  | Sensitive field exposure | Critical | `encryptedApiToken`, `passwordHash`, etc. not in API responses                               |
+| 7  | Env files                | Critical | No `.env` files tracked by git                                                               |
+| 8  | Raw SQL in routes        | Critical | No `db.execute()` in API route handlers (use Drizzle query builder)                          |
+| 9  | Unsafe redirect/fetch    | Critical | No `fetch()`/`redirect()` with user-supplied URLs in API routes (SSRF)                       |
+| 10 | Timing-safe comparison   | Critical | Secret comparisons in auth/crypto/totp use `timingSafeEqual`                                 |
+| 11 | No raw migrations        | Critical | No SQL migration files — enforces schema-first Drizzle approach                              |
+| 12 | Fetch timeout            | Critical | All external HTTP requests in adapters/clients have `AbortSignal.timeout`                    |
+| 13 | Dockerfile non-root      | Critical | Docker container runs as non-root user with explicit `USER` directive                        |
+| 14 | Proxy allowlist sync     | Critical | Public routes in proxy allowlist match `NO_AUTH_ROUTES` bidirectionally                      |
+| 15 | Console in routes        | Warning  | No `console.log/debug/info` in API route handlers                                            |
+| 16 | TODO in security files   | Warning  | No `TODO`/`FIXME` in security-critical source files                                          |
+| 17 | JSON.parse safety        | Warning  | `JSON.parse()` calls wrapped in try-catch                                                    |
+| 18 | Bare catch blocks        | Warning  | No swallowed errors in API routes/lib catch blocks                                           |
+| 19 | Request body size        | Warning  | POST/PATCH/PUT handlers validate request body size                                           |
+| 20 | BigInt safety            | Warning  | BigInt fields use string serialization, not `Number()`                                       |
+| 21 | Path traversal defense   | Critical | File delete operations use `path.resolve()` + `startsWith(base)`                             |
+| 22 | Argon2 hashing           | Critical | Password hashing in `auth.ts` uses Argon2, not SHA-256/bcrypt                                |
+| 23 | Encrypted column writes  | Critical | DB writes to encrypted columns use `encrypt()`/`reEncrypt()`                                 |
+| 24 | TOTP flow integrity      | Critical | 2FA routes enforce correct auth patterns, token flows, and single-use backup codes           |
+| 25 | Lockdown flow integrity  | Critical | Emergency lockdown stops scheduler, revokes tokens, rotates salt, clears TOTP                |
+| 26 | Nuke flow integrity      | Critical | Scrub & delete requires session + password, uses `scrubAndDeleteAll()`                       |
 | 27 | Backup restore integrity | Critical | Restore requires session + password (no auto-wipe), resets failed attempts, uses transaction |
-| 28 | Login flow integrity | Critical | Login uses Argon2, atomic failed attempts, key derivation, TOTP pending token support |
+| 28 | Login flow integrity     | Critical | Login uses Argon2, atomic failed attempts, key derivation, TOTP pending token support        |
 
 Critical failures block the build. Warnings are reported but don't block.
 
