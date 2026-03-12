@@ -33,4 +33,10 @@ describe("compareVersions", () => {
     expect(compareVersions("1.2", "1.2.1")).toBeGreaterThan(0)
     expect(compareVersions("1.2.1", "1.2")).toBeLessThan(0)
   })
+
+  it("strips pre-release and build metadata", () => {
+    expect(compareVersions("1.3.0-beta.1", "1.3.0")).toBe(0)
+    expect(compareVersions("1.2.0", "1.3.0-beta.1")).toBeGreaterThan(0)
+    expect(compareVersions("1.3.0+build.123", "1.3.0")).toBe(0)
+  })
 })

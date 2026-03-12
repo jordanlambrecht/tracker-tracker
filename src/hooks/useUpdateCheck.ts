@@ -16,8 +16,10 @@ interface UpdateCheckResult {
  * Compares two semver strings. Returns > 0 if latest is newer, 0 if equal, < 0 if current is newer.
  */
 export function compareVersions(current: string, latest: string): number {
-  const a = current.replace(/^v/, "").split(".").map(Number)
-  const b = latest.replace(/^v/, "").split(".").map(Number)
+  // Strip v prefix and pre-release/build metadata (e.g., "1.3.0-beta.1+build" → "1.3.0")
+  const clean = (s: string) => s.replace(/^v/, "").split(/[-+]/)[0]
+  const a = clean(current).split(".").map(Number)
+  const b = clean(latest).split(".").map(Number)
 
   for (let i = 0; i < Math.max(a.length, b.length); i++) {
     const diff = (b[i] ?? 0) - (a[i] ?? 0)
