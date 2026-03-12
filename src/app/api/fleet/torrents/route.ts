@@ -64,7 +64,7 @@ export async function GET() {
   const results = await Promise.allSettled(
     clients.map(async (client) => ({
       clientName: client.name,
-      crossSeedTags: JSON.parse(client.crossSeedTags) as string[],
+      crossSeedTags: (() => { try { return JSON.parse(client.crossSeedTags) as string[] } catch { return [] } })(),
       torrents: await fetchClientTorrents(client, tags, key),
     }))
   )
