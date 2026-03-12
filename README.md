@@ -2,6 +2,13 @@
 
 Self-hosted dashboard for monitoring private tracker stats over time. One place for upload, download, ratio, buffer, seedbonus, and rank data across all your trackers.
 
+## Features
+
+- Centralized, self-hosted dashboard for all your private trackers
+- Periodic collection of upload, download, ratio, buffer, seedbonus, and rank
+- Per-tracker and aggregated views of your stats over time
+- Historical charts to visualize progress and detect trends
+- Pluggable tracker adapters to support multiple tracker platforms
 ## Supported Trackers
 
 | Tracker               | Platform  | Status                 | Note                                                |
