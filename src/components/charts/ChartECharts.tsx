@@ -31,7 +31,7 @@ function ChartECharts({ option, style, opts, notMerge, lazyUpdate }: ChartEChart
   const seriesCount = Array.isArray(series) ? series.length : 0
   const showToggle = hasLegend && seriesCount > 1
 
-  const onEvents: Record<string, Function> = {
+  const onEvents: Record<string, (...args: never[]) => unknown> = {
     legendselectchanged: (params: { selected: Record<string, boolean> }) => {
       const values = Object.values(params.selected)
       setAllSelected(values.length > 0 && values.every(Boolean))
