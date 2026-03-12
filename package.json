@@ -44,7 +44,7 @@
     "react": "19.2.4",
     "react-colorful": "^5.6.1",
     "react-dom": "19.2.4",
-    "socks-proxy-agent": "^8.0.5"
+    "socks-proxy-agent": "^9.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.6",
