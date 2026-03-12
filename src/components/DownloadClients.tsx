@@ -60,7 +60,7 @@ interface ClientCardProps {
 }
 
 function ClientCard({ client, linkedTrackers, onUpdate, onRemove, onSetDefault }: ClientCardProps) {
-  const [expanded, setExpanded] = useState(true)
+  const [expanded, setExpanded] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("idle")
   const [connectionError, setConnectionError] = useState<string | null>(null)
   const [confirmRemove, setConfirmRemove] = useState(false)

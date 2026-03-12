@@ -15,13 +15,14 @@ import {
 } from "@/components/ui/Icons"
 import { StatCard } from "@/components/ui/StatCard"
 import { formatBytesFromString, formatRatio } from "@/lib/formatters"
-import type { GGnPlatformMeta, Snapshot, TrackerLatestStats } from "@/types/api"
+import type { GGnPlatformMeta, NebulancePlatformMeta, Snapshot, TrackerLatestStats } from "@/types/api"
 
 interface CoreStatCardsProps {
   stats: TrackerLatestStats | null
   latestSnapshot: Snapshot | null
   platformType: string
   ggMeta: GGnPlatformMeta | null
+  nebulanceMeta: NebulancePlatformMeta | null
   accentColor: string
 }
 
@@ -35,7 +36,7 @@ interface StatDescriptor {
   trend?: "up" | "flat" | "down"
 }
 
-export function CoreStatCards({ stats, latestSnapshot, platformType, ggMeta, accentColor }: CoreStatCardsProps) {
+export function CoreStatCards({ stats, latestSnapshot, platformType, ggMeta, nebulanceMeta, accentColor }: CoreStatCardsProps) {
   const [upVal, upUnit] = formatBytesFromString(stats?.uploadedBytes ?? null).split(" ")
   const [dlVal, dlUnit] = formatBytesFromString(stats?.downloadedBytes ?? null).split(" ")
   const [bufVal, bufUnit] = formatBytesFromString(latestSnapshot?.bufferBytes ?? null).split(" ")
@@ -64,7 +65,9 @@ export function CoreStatCards({ stats, latestSnapshot, platformType, ggMeta, acc
     { key: "leeching", label: "Leeching", icon: <LeechingIcon width="16" height="16" />, value: stats?.leechingCount != null ? stats.leechingCount.toLocaleString() : "—" },
     platformType === "ggn"
       ? { key: "gold", label: "Gold", icon: <StarIcon width="16" height="16" />, value: seedbonusValue, unit: "Gold", subtitle: ggMeta?.hourlyGold != null ? `+${ggMeta.hourlyGold}/hr` : undefined }
-      : { key: "seedbonus", label: "Seedbonus", icon: <StarIcon width="16" height="16" />, value: seedbonusValue, unit: seedbonusValue !== "—" ? "BON" : undefined },
+      : platformType === "nebulance"
+        ? { key: "snatched", label: "Snatched", icon: <DownloadArrowIcon width="16" height="16" />, value: nebulanceMeta?.snatched != null ? nebulanceMeta.snatched.toLocaleString() : "—" }
+        : { key: "seedbonus", label: "Seedbonus", icon: <StarIcon width="16" height="16" />, value: seedbonusValue, unit: seedbonusValue !== "—" ? "BON" : undefined },
     { key: "hnr", label: "Hit & Runs", icon: <TriangleWarningIcon width="16" height="16" />, value: latestSnapshot?.hitAndRuns != null ? String(latestSnapshot.hitAndRuns) : "—" },
   ]
 

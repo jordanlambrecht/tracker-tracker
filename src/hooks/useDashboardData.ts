@@ -45,7 +45,8 @@ function useDashboardData(): DashboardData {
       const trackersRes = await fetch("/api/trackers", { signal: controller.signal })
       if (!trackersRes.ok) return
 
-      const fetchedTrackers: TrackerSummary[] = await trackersRes.json()
+      const allTrackers: TrackerSummary[] = await trackersRes.json()
+      const fetchedTrackers = allTrackers.filter((t) => t.isActive)
 
       const snapshotEntries = await Promise.all(
         fetchedTrackers.map(async (t) => {

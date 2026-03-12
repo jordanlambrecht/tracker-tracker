@@ -100,7 +100,7 @@ export const phoenixproject: TrackerRegistryEntry = {
   rules: {
     minimumRatio: 0.6,
     seedTimeHours: 0,
-    loginIntervalDays: 120,
+    loginIntervalDays: 0,
     fullRulesMarkdown: [
       "## Ratio System",
       "",
