@@ -10,11 +10,11 @@
 
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
-import { useCallback, useRef, useState } from "react"
+import { type CSSProperties, useCallback, useRef, useState } from "react"
 
 interface ChartEChartsProps {
   option: EChartsOption
-  style?: React.CSSProperties
+  style?: CSSProperties
   opts?: { renderer?: "canvas" | "svg" }
   notMerge?: boolean
   lazyUpdate?: boolean
