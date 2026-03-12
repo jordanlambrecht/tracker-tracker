@@ -10,6 +10,7 @@
 
 import fs from "node:fs"
 import path from "node:path"
+import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { ALL_TRACKERS } from "../src/data/trackers"
 import { DEFAULT_API_PATHS } from "../src/lib/adapters"
 
@@ -44,17 +45,17 @@ interface TrackerResult {
 
 function validate(slugFilter?: string[]): TrackerResult[] {
   // Check for global issues first
-  const allSlugs = ALL_TRACKERS.map((t) => t.slug)
-  const dupeSlugs = allSlugs.filter((s, i) => allSlugs.indexOf(s) !== i)
+  const allSlugs = ALL_TRACKERS.map((t: TrackerRegistryEntry) => t.slug)
+  const dupeSlugs = allSlugs.filter((s: string, i: number) => allSlugs.indexOf(s) !== i)
   const normalize = (u: string) => u.replace(/\/+$/, "").toLowerCase()
-  const allUrls = ALL_TRACKERS.map((t) => normalize(t.url))
-  const dupeUrls = allUrls.filter((u, i) => allUrls.indexOf(u) !== i)
+  const allUrls = ALL_TRACKERS.map((t: TrackerRegistryEntry) => normalize(t.url))
+  const dupeUrls = allUrls.filter((u: string, i: number) => allUrls.indexOf(u) !== i)
 
   const trackers = slugFilter
-    ? ALL_TRACKERS.filter((t) => slugFilter.includes(t.slug))
-    : ALL_TRACKERS.filter((t) => !t.draft)
+    ? ALL_TRACKERS.filter((t: TrackerRegistryEntry) => slugFilter.includes(t.slug))
+    : ALL_TRACKERS.filter((t: TrackerRegistryEntry) => !t.draft)
 
-  return trackers.map((tracker) => {
+  return trackers.map((tracker: TrackerRegistryEntry) => {
     const errors: string[] = []
     const warnings: string[] = []
 
@@ -92,7 +93,7 @@ function validate(slugFilter?: string[]): TrackerResult[] {
     if (isEmpty(tracker.contentCategories)) {
       errors.push("Missing contentCategories")
     } else {
-      const invalid = tracker.contentCategories.filter((c) => !VALID_CONTENT_CATEGORIES.has(c))
+      const invalid = tracker.contentCategories.filter((c: string) => !VALID_CONTENT_CATEGORIES.has(c))
       if (invalid.length > 0) errors.push(`Invalid categories: ${invalid.join(", ")}`)
     }
     if (isEmpty(tracker.language)) errors.push("Missing language")
@@ -137,7 +138,7 @@ function validate(slugFilter?: string[]): TrackerResult[] {
     if (PLACEHOLDER_RE.test(tracker.description?.trim() ?? "")) {
       errors.push("Description is still a placeholder (TODO)")
     }
-    const dupeCats = tracker.contentCategories.filter((c, i) => tracker.contentCategories.indexOf(c) !== i)
+    const dupeCats = tracker.contentCategories.filter((c: string, i: number) => tracker.contentCategories.indexOf(c) !== i)
     if (dupeCats.length > 0) errors.push(`Duplicate categories: ${[...new Set(dupeCats)].join(", ")}`)
 
     if (tracker.color && !HEX_COLOR_RE.test(tracker.color)) {
