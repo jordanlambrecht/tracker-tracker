@@ -16,7 +16,7 @@ import {
   detectRankChanges,
   dismissAlert,
   getDismissedAlerts,
-} from "../dashboard"
+} from "@/lib/dashboard"
 
 const mockFindRegistryEntry = vi.mocked(findRegistryEntry)
 
