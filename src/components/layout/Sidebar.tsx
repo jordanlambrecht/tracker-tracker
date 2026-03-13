@@ -11,11 +11,7 @@
 //   formatSidebarSpeed  — compact speed formatter for sidebar
 //   Sidebar             — main sidebar component with stat/sort controls, tracker list, and settings
 
-import {
-  closestCenter,
-  DndContext,
-  type DragEndEvent,
-} from "@dnd-kit/core"
+import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core"
 import {
   arrayMove,
   SortableContext,
@@ -94,14 +90,9 @@ function SortableTrackerItem({
   onClick,
   onToggleFavorite,
 }: SortableTrackerItemProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: tracker.id })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: tracker.id,
+  })
 
   const archived = !tracker.isActive
   const health = getTrackerHealth(tracker)
@@ -128,14 +119,11 @@ function SortableTrackerItem({
     archived && "opacity-40",
     isActive
       ? "text-primary nm-raised-sm"
-      : "text-secondary nm-raised-sm hover:text-primary hover:nm-raised active:nm-inset-sm active:scale-[0.98]",
+      : "text-secondary nm-raised-sm hover:text-primary hover:nm-raised active:nm-inset-sm active:scale-[0.98]"
   )
 
   return (
-    <li
-      ref={setNodeRef}
-      style={dragStyle}
-    >
+    <li ref={setNodeRef} style={dragStyle}>
       <button
         type="button"
         onClick={unlocked ? undefined : onClick}
@@ -145,33 +133,47 @@ function SortableTrackerItem({
         {...(unlocked ? { ...attributes, ...listeners } : undefined)}
       >
         {unlocked && (
-          <span className="text-tertiary shrink-0 text-sm leading-none select-none" aria-hidden="true">
+          <span
+            className="text-tertiary shrink-0 text-sm leading-none select-none"
+            aria-hidden="true"
+          >
             ⠿
           </span>
         )}
-        {archived
-          ? <span className="w-2 h-2 rounded-full bg-muted shrink-0" aria-hidden="true" />
-          : <PulseDot status={getHealthPulseDot(health)} size="sm" />
-        }
+        {archived ? (
+          <span className="w-2 h-2 rounded-full bg-muted shrink-0" aria-hidden="true" />
+        ) : (
+          <PulseDot status={getHealthPulseDot(health)} size="sm" />
+        )}
         <span className="flex-1 truncate text-[15px] font-semibold">{tracker.name}</span>
         <span className="font-mono text-xs tabular-nums text-tertiary shrink-0">
           {archived ? "Archived" : stat}
         </span>
         {!unlocked && (
-          <span
-            role="checkbox"
-            aria-checked={tracker.isFavorite}
-            tabIndex={0}
-            onClick={(e) => { e.stopPropagation(); onToggleFavorite(tracker.id, tracker.isFavorite) }}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onToggleFavorite(tracker.id, tracker.isFavorite) } }}
+          <button
+            type="button"
+            aria-pressed={tracker.isFavorite}
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleFavorite(tracker.id, tracker.isFavorite)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault()
+                e.stopPropagation()
+                onToggleFavorite(tracker.id, tracker.isFavorite)
+              }
+            }}
             className={clsx(
               "shrink-0 text-sm leading-none transition-all duration-150 cursor-pointer bg-transparent border-none p-0",
-              tracker.isFavorite ? "text-warn opacity-100" : "text-muted opacity-0 group-hover:opacity-50 hover:opacity-100!",
+              tracker.isFavorite
+                ? "text-warn opacity-100"
+                : "text-muted opacity-0 group-hover:opacity-50 hover:opacity-100!"
             )}
             aria-label={tracker.isFavorite ? "Remove from favorites" : "Add to favorites"}
           >
             {tracker.isFavorite ? "★" : "☆"}
-          </span>
+          </button>
         )}
       </button>
     </li>
@@ -236,7 +238,15 @@ interface ClientWithSpeeds {
   speeds: SpeedPoint[]
 }
 
-function ClientSlide({ entry, expanded, onToggle }: { entry: ClientWithSpeeds; expanded: boolean; onToggle: () => void }) {
+function ClientSlide({
+  entry,
+  expanded,
+  onToggle,
+}: {
+  entry: ClientWithSpeeds
+  expanded: boolean
+  onToggle: () => void
+}) {
   const { client } = entry
   const hasError = !!client.lastError
 
@@ -247,16 +257,11 @@ function ClientSlide({ entry, expanded, onToggle }: { entry: ClientWithSpeeds; e
       className="flex items-center gap-2 cursor-pointer w-full text-left"
     >
       <span
-        className={clsx(
-          "w-2 h-2 rounded-full shrink-0",
-          hasError ? "bg-danger" : "bg-success",
-        )}
+        className={clsx("w-2 h-2 rounded-full shrink-0", hasError ? "bg-danger" : "bg-success")}
         style={hasError ? undefined : { boxShadow: "0 0 6px var(--color-success)" }}
       />
       <div className="flex flex-col flex-1 min-w-0">
-        <MarqueeText className="text-xs font-mono text-secondary">
-          {client.name}
-        </MarqueeText>
+        <MarqueeText className="text-xs font-mono text-secondary">{client.name}</MarqueeText>
         <span className="text-[10px] font-mono text-tertiary">
           {hasError ? "Error" : "Connected"}
         </span>
@@ -283,13 +288,16 @@ function ClientStatusWidget() {
     } catch {}
   }, [setExpanded])
 
-  const goTo = useCallback((next: number) => {
-    setActiveIndex((prev) => {
-      setDirection(next > prev || (prev === entries.length - 1 && next === 0) ? "left" : "right")
-      setAnimating(true)
-      return next
-    })
-  }, [entries.length])
+  const goTo = useCallback(
+    (next: number) => {
+      setActiveIndex((prev) => {
+        setDirection(next > prev || (prev === entries.length - 1 && next === 0) ? "left" : "right")
+        setAnimating(true)
+        return next
+      })
+    },
+    [entries.length]
+  )
 
   useEffect(() => {
     if (!animating) return
@@ -322,7 +330,8 @@ function ClientStatusWidget() {
             try {
               const snapRes = await fetch(`/api/clients/${client.id}/speeds`)
               if (!snapRes.ok) return { client, speeds: [] }
-              const snaps: { timestamp: number; uploadSpeed: number; downloadSpeed: number }[] = await snapRes.json()
+              const snaps: { timestamp: number; uploadSpeed: number; downloadSpeed: number }[] =
+                await snapRes.json()
               return {
                 client,
                 speeds: snaps.map((s) => ({
@@ -349,7 +358,10 @@ function ClientStatusWidget() {
 
     poll()
     const interval = setInterval(poll, 10_000)
-    return () => { cancelled = true; clearInterval(interval) }
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
   }, [])
 
   if (!loaded || entries.length === 0) return null
@@ -358,9 +370,7 @@ function ClientStatusWidget() {
 
   return (
     <div className="px-3 py-3 border-t border-border shrink-0">
-      <div
-        className="nm-inset-sm bg-control-bg px-3 pt-2.5 pb-3.5 flex flex-col gap-1.5 rounded-nm-md"
-      >
+      <div className="nm-inset-sm bg-control-bg px-3 pt-2.5 pb-3.5 flex flex-col gap-1.5 rounded-nm-md">
         <div
           key={activeIndex}
           className="overflow-hidden"
@@ -370,22 +380,48 @@ function ClientStatusWidget() {
               : undefined,
           }}
         >
-          <ClientSlide entry={current} expanded={expanded} onToggle={() => setExpanded((prev) => !prev)} />
+          <ClientSlide
+            entry={current}
+            expanded={expanded}
+            onToggle={() => setExpanded((prev) => !prev)}
+          />
 
           {/* Collapsible sparklines */}
           {expanded && current.speeds.length >= 2 && (
             <div className="flex items-center gap-3 pt-1.5">
               <div className="flex flex-col gap-0.5 flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <UploadArrowIcon width="10" height="10" stroke="var(--color-accent)" strokeWidth={2.5} className="shrink-0" />
-                  <Sparkline data={current.speeds.map((s) => s.up)} color="var(--color-accent)" width={160} height={16} />
+                  <UploadArrowIcon
+                    width="10"
+                    height="10"
+                    stroke="var(--color-accent)"
+                    strokeWidth={2.5}
+                    className="shrink-0"
+                  />
+                  <Sparkline
+                    data={current.speeds.map((s) => s.up)}
+                    color="var(--color-accent)"
+                    width={160}
+                    height={16}
+                  />
                   <span className="text-xs font-mono text-accent tabular-nums shrink-0">
                     {formatSidebarSpeed(current.speeds[current.speeds.length - 1].up)}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <DownloadArrowIcon width="10" height="10" stroke="var(--color-warn)" strokeWidth={2.5} className="shrink-0" />
-                  <Sparkline data={current.speeds.map((s) => s.down)} color="var(--color-warn)" width={160} height={16} />
+                  <DownloadArrowIcon
+                    width="10"
+                    height="10"
+                    stroke="var(--color-warn)"
+                    strokeWidth={2.5}
+                    className="shrink-0"
+                  />
+                  <Sparkline
+                    data={current.speeds.map((s) => s.down)}
+                    color="var(--color-warn)"
+                    width={160}
+                    height={16}
+                  />
                   <span className="text-xs font-mono text-warn tabular-nums shrink-0">
                     {formatSidebarSpeed(current.speeds[current.speeds.length - 1].down)}
                   </span>
@@ -405,7 +441,7 @@ function ClientStatusWidget() {
                 onClick={() => goTo(i)}
                 className={clsx(
                   "w-1.5 h-1.5 rounded-full transition-all duration-200 cursor-pointer",
-                  i === activeIndex ? "bg-accent scale-125" : "bg-muted hover:bg-tertiary",
+                  i === activeIndex ? "bg-accent scale-125" : "bg-muted hover:bg-tertiary"
                 )}
                 aria-label={`Show ${entry.client.name}`}
               />
@@ -478,7 +514,10 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
           setTrackers(data)
 
           // Auto-detect custom sort on first load if no preference saved
-          if (!localStorage.getItem("sidebar-sort-mode") && data.some((t) => t.sortOrder !== null)) {
+          if (
+            !localStorage.getItem("sidebar-sort-mode") &&
+            data.some((t) => t.sortOrder !== null)
+          ) {
             setSortMode("custom")
           }
         }
@@ -512,63 +551,64 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
 
   const toggleFavorite = useCallback((id: number, current: boolean) => {
     const next = !current
-    setTrackers((prev) => prev.map((t) => t.id === id ? { ...t, isFavorite: next } : t))
+    setTrackers((prev) => prev.map((t) => (t.id === id ? { ...t, isFavorite: next } : t)))
     fetch(`/api/trackers/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isFavorite: next }),
     }).catch(() => {
       // Revert on failure
-      setTrackers((prev) => prev.map((t) => t.id === id ? { ...t, isFavorite: current } : t))
+      setTrackers((prev) => prev.map((t) => (t.id === id ? { ...t, isFavorite: current } : t)))
     })
   }, [])
 
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event
-      if (!over || active.id === over.id) return
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
 
-      setTrackers((prev) => {
-        const oldIndex = prev.findIndex((t) => t.id === active.id)
-        const newIndex = prev.findIndex((t) => t.id === over.id)
-        if (oldIndex === -1 || newIndex === -1) return prev
-        const reordered = arrayMove(prev, oldIndex, newIndex).map((t, i) => ({
-          ...t,
-          sortOrder: i,
-        }))
+    setTrackers((prev) => {
+      const oldIndex = prev.findIndex((t) => t.id === active.id)
+      const newIndex = prev.findIndex((t) => t.id === over.id)
+      if (oldIndex === -1 || newIndex === -1) return prev
+      const reordered = arrayMove(prev, oldIndex, newIndex).map((t, i) => ({
+        ...t,
+        sortOrder: i,
+      }))
 
-        // Fire-and-forget reorder API call
-        const ids = reordered.map((t) => t.id)
-        fetch("/api/trackers/reorder", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids }),
-        }).catch(() => {
-          // ignore network errors — optimistic update stays in place
-        })
-
-        return reordered
+      // Fire-and-forget reorder API call
+      const ids = reordered.map((t) => t.id)
+      fetch("/api/trackers/reorder", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      }).catch(() => {
+        // ignore network errors — optimistic update stays in place
       })
 
-      // Switch to custom sort and persist
-      setSortMode("custom")
-      try {
-        localStorage.setItem("sidebar-sort-mode", "custom")
-      } catch {
-        // ignore
-      }
-    },
-    [],
-  )
+      return reordered
+    })
+
+    // Switch to custom sort and persist
+    setSortMode("custom")
+    try {
+      localStorage.setItem("sidebar-sort-mode", "custom")
+    } catch {
+      // ignore
+    }
+  }, [])
 
   function updateStatMode(mode: StatMode) {
     setStatMode(mode)
-    try { localStorage.setItem("sidebar-stat-mode", mode) } catch {}
+    try {
+      localStorage.setItem("sidebar-stat-mode", mode)
+    } catch {}
   }
 
   function updateSortMode(mode: SortMode) {
     setSortMode(mode)
-    try { localStorage.setItem("sidebar-sort-mode", mode) } catch {}
+    try {
+      localStorage.setItem("sidebar-sort-mode", mode)
+    } catch {}
   }
 
   const filteredTrackers = trackers
@@ -583,7 +623,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
       <aside
         className={clsx(
           "h-screen flex flex-col bg-base border-r border-border overflow-hidden",
-          isMobile ? "fixed inset-y-0 left-0 z-40 shrink-0" : "shrink-0",
+          isMobile ? "fixed inset-y-0 left-0 z-40 shrink-0" : "shrink-0"
         )}
         style={
           isMobile
@@ -600,218 +640,226 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
         }
       >
         <div className="w-80 min-w-80 h-full flex flex-col">
-        {/* Logo area */}
-        <div className="px-4 py-4 border-b border-border shrink-0 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => router.push("/")}
-            className={clsx(
-              "flex items-center gap-2 cursor-pointer transition-opacity duration-150",
-              pathname === "/" ? "opacity-100" : "opacity-70 hover:opacity-100",
-            )}
-            aria-label="Go to dashboard"
-            aria-current={pathname === "/" ? "page" : undefined}
-          >
-            <Image src="/trackerTracker_logo.svg" alt="Tracker Tracker" width={140} height={40} className="shrink-0" />
-          </button>
-          <button
-            type="button"
-            onClick={handleToggle}
-            className="text-tertiary hover:text-secondary transition-colors duration-150 cursor-pointer p-1 rounded-nm-sm"
-            aria-label="Collapse sidebar"
-          >
-            ◀
-          </button>
-        </div>
-
-        {/* Control bar — collapsible */}
-        <div className="border-b border-border shrink-0">
-          <button
-            type="button"
-            onClick={() => setFiltersExpanded((prev) => !prev)}
-            className="w-full flex items-center justify-between px-3 py-1.5 text-tertiary hover:text-secondary transition-colors duration-150 cursor-pointer"
-            aria-expanded={filtersExpanded}
-            aria-label={filtersExpanded ? "Collapse filters" : "Expand filters"}
-          >
-            <span className="text-[10px] font-mono uppercase tracking-wider">Filters</span>
-            <ChevronToggle expanded={filtersExpanded} variant="flip" />
-          </button>
-          {filtersExpanded && (
-            <div className="px-3 pb-2 flex items-center gap-2">
-              <Select
-                value={statMode}
-                onChange={updateStatMode}
-                ariaLabel="Stat display mode"
-                options={[
-                  { value: "ratio", label: "Ratio" },
-                  { value: "seeding", label: "Seeding" },
-                  { value: "uploaded", label: "Uploaded" },
-                  { value: "downloaded", label: "Downloaded" },
-                  { value: "buffer", label: "Buffer" },
-                ]}
-              />
-
-              <Select
-                value={sortMode}
-                onChange={updateSortMode}
-                ariaLabel="Sort order"
-                options={[
-                  { value: "index", label: "Index" },
-                  { value: "alpha", label: "A-Z" },
-                  { value: "custom", label: "Custom" },
-                ]}
-              />
-
-              {/* Favorites filter */}
-              <button
-                type="button"
-                onClick={() => setShowFavoritesOnly((f) => !f)}
-                className={clsx(
-                  "transition-colors duration-150 cursor-pointer px-2 py-1.5 shrink-0 rounded-nm-sm",
-                  showFavoritesOnly ? "text-warn" : "text-tertiary hover:text-secondary",
-                )}
-                aria-label={showFavoritesOnly ? "Show all trackers" : "Show favorites only"}
-                title={showFavoritesOnly ? "Show all trackers" : "Show favorites only"}
-              >
-                {showFavoritesOnly ? "★" : "☆"}
-              </button>
-
-              {/* Lock/unlock drag-and-drop */}
-              <button
-                type="button"
-                onClick={() => setUnlocked((u) => !u)}
-                className="text-tertiary hover:text-secondary transition-colors duration-150 cursor-pointer px-2 py-1.5 shrink-0 rounded-nm-sm"
-                aria-label={unlocked ? "Lock order" : "Unlock to reorder"}
-                title={unlocked ? "Lock order" : "Unlock to reorder"}
-              >
-                {unlocked ? "🔓" : "🔒"}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Tracker list (scrollable) */}
-        <nav className="flex-1 overflow-y-auto py-2 styled-scrollbar" aria-label="Trackers">
-          {trackers.length === 0 ? (
-            <p className="px-4 py-3 text-xs text-muted font-mono">
-              No trackers added yet.
-            </p>
-          ) : (
-            <DndContext
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext
-                items={trackerIds}
-                strategy={verticalListSortingStrategy}
-              >
-                <ul className="list-none m-0 p-0 flex flex-col gap-4 px-4">
-                  {displayedTrackers.map((tracker) => {
-                    const isActive = pathname === `/trackers/${tracker.id}`
-                    return (
-                      <SortableTrackerItem
-                        key={tracker.id}
-                        tracker={tracker}
-                        isActive={isActive}
-                        unlocked={unlocked}
-                        statMode={statMode}
-                        onClick={() => router.push(`/trackers/${tracker.id}`)}
-                        onToggleFavorite={toggleFavorite}
-                      />
-                    )
-                  })}
-                </ul>
-              </SortableContext>
-            </DndContext>
-          )}
-
-          {/* Archive toggle + Add Tracker — inside scrollable nav */}
-          <div className="mx-4 mt-4 pt-4 pb-6 border-t border-border flex flex-col gap-2">
-            {archivedCount > 0 && (
-              <button
-                type="button"
-                onClick={() => setShowArchived((s) => !s)}
-                className="text-tertiary hover:text-secondary text-xs font-mono flex items-center gap-2 transition-colors duration-150 cursor-pointer w-full"
-              >
-                {showArchived ? (
-                  <EyeOffIcon width="14" height="14" className="shrink-0" />
-                ) : (
-                  <EyeIcon width="14" height="14" className="shrink-0" />
-                )}
-                {showArchived ? "Hide" : "Show"} Archived ({archivedCount})
-              </button>
-            )}
-            <Button
-              variant="secondary"
-              size="sm"
-              className="w-full"
-              onClick={() => setShowAddDialog(true)}
-            >
-              + Add Tracker
-            </Button>
-          </div>
-        </nav>
-
-        {/* Client status widget */}
-        <ClientStatusWidget />
-
-        {/* Bottom controls — pinned */}
-        <div className="px-3 py-4 border-t border-border shrink-0 flex flex-col gap-1">
-          <button
-            type="button"
-            onClick={async () => {
-              await fetch("/api/auth/logout", { method: "POST" })
-              router.push("/login")
-            }}
-            className="text-tertiary hover:text-secondary text-sm font-mono flex items-center gap-3 transition-colors duration-150 cursor-pointer w-full px-1 py-1"
-          >
-            <span className="text-lg" aria-hidden="true">⏻</span>
-            Log Out
-          </button>
-          <button
-            type="button"
-            onClick={() => router.push("/settings")}
-            className="text-tertiary hover:text-secondary text-sm font-mono flex items-center gap-3 transition-colors duration-150 cursor-pointer w-full px-1 py-1"
-          >
-            <span className="text-lg" aria-hidden="true">⚙</span>
-            Settings
-          </button>
-
-          {/* Version + GitHub */}
-          <div className="flex items-center gap-2 px-1 pt-2">
+          {/* Logo area */}
+          <div className="px-4 py-4 border-b border-border shrink-0 flex items-center justify-between">
             <button
               type="button"
-              onClick={openChangelog}
-              className="text-muted hover:text-secondary text-[10px] font-mono transition-colors duration-150 cursor-pointer text-left"
+              onClick={() => router.push("/")}
+              className={clsx(
+                "flex items-center gap-2 cursor-pointer transition-opacity duration-150",
+                pathname === "/" ? "opacity-100" : "opacity-70 hover:opacity-100"
+              )}
+              aria-label="Go to dashboard"
+              aria-current={pathname === "/" ? "page" : undefined}
             >
-              v{process.env.NEXT_PUBLIC_APP_VERSION}
+              <Image
+                src="/trackerTracker_logo.svg"
+                alt="Tracker Tracker"
+                width={140}
+                height={40}
+                className="shrink-0"
+              />
             </button>
-            {updateAvailable && latestVersion && (
+            <button
+              type="button"
+              onClick={handleToggle}
+              className="text-tertiary hover:text-secondary transition-colors duration-150 cursor-pointer p-1 rounded-nm-sm"
+              aria-label="Collapse sidebar"
+            >
+              ◀
+            </button>
+          </div>
+
+          {/* Control bar — collapsible */}
+          <div className="border-b border-border shrink-0">
+            <button
+              type="button"
+              onClick={() => setFiltersExpanded((prev) => !prev)}
+              className="w-full flex items-center justify-between px-3 py-1.5 text-tertiary hover:text-secondary transition-colors duration-150 cursor-pointer"
+              aria-expanded={filtersExpanded}
+              aria-label={filtersExpanded ? "Collapse filters" : "Expand filters"}
+            >
+              <span className="text-[10px] font-mono uppercase tracking-wider">Filters</span>
+              <ChevronToggle expanded={filtersExpanded} variant="flip" />
+            </button>
+            {filtersExpanded && (
+              <div className="px-3 pb-2 flex items-center gap-2">
+                <Select
+                  value={statMode}
+                  onChange={updateStatMode}
+                  ariaLabel="Stat display mode"
+                  options={[
+                    { value: "ratio", label: "Ratio" },
+                    { value: "seeding", label: "Seeding" },
+                    { value: "uploaded", label: "Uploaded" },
+                    { value: "downloaded", label: "Downloaded" },
+                    { value: "buffer", label: "Buffer" },
+                  ]}
+                />
+
+                <Select
+                  value={sortMode}
+                  onChange={updateSortMode}
+                  ariaLabel="Sort order"
+                  options={[
+                    { value: "index", label: "Index" },
+                    { value: "alpha", label: "A-Z" },
+                    { value: "custom", label: "Custom" },
+                  ]}
+                />
+
+                {/* Favorites filter */}
+                <button
+                  type="button"
+                  onClick={() => setShowFavoritesOnly((f) => !f)}
+                  className={clsx(
+                    "transition-colors duration-150 cursor-pointer px-2 py-1.5 shrink-0 rounded-nm-sm",
+                    showFavoritesOnly ? "text-warn" : "text-tertiary hover:text-secondary"
+                  )}
+                  aria-label={showFavoritesOnly ? "Show all trackers" : "Show favorites only"}
+                  title={showFavoritesOnly ? "Show all trackers" : "Show favorites only"}
+                >
+                  {showFavoritesOnly ? "★" : "☆"}
+                </button>
+
+                {/* Lock/unlock drag-and-drop */}
+                <button
+                  type="button"
+                  onClick={() => setUnlocked((u) => !u)}
+                  className="text-tertiary hover:text-secondary transition-colors duration-150 cursor-pointer px-2 py-1.5 shrink-0 rounded-nm-sm"
+                  aria-label={unlocked ? "Lock order" : "Unlock to reorder"}
+                  title={unlocked ? "Lock order" : "Unlock to reorder"}
+                >
+                  {unlocked ? "🔓" : "🔒"}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Tracker list (scrollable) */}
+          <nav className="flex-1 overflow-y-auto py-2 styled-scrollbar" aria-label="Trackers">
+            {trackers.length === 0 ? (
+              <p className="px-4 py-3 text-xs text-muted font-mono">No trackers added yet.</p>
+            ) : (
+              <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={trackerIds} strategy={verticalListSortingStrategy}>
+                  <ul className="list-none m-0 p-0 flex flex-col gap-4 px-4">
+                    {displayedTrackers.map((tracker) => {
+                      const isActive = pathname === `/trackers/${tracker.id}`
+                      return (
+                        <SortableTrackerItem
+                          key={tracker.id}
+                          tracker={tracker}
+                          isActive={isActive}
+                          unlocked={unlocked}
+                          statMode={statMode}
+                          onClick={() => router.push(`/trackers/${tracker.id}`)}
+                          onToggleFavorite={toggleFavorite}
+                        />
+                      )
+                    })}
+                  </ul>
+                </SortableContext>
+              </DndContext>
+            )}
+
+            {/* Archive toggle + Add Tracker — inside scrollable nav */}
+            <div className="mx-4 mt-4 pt-4 pb-6 border-t border-border flex flex-col gap-2">
+              {archivedCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowArchived((s) => !s)}
+                  className="text-tertiary hover:text-secondary text-xs font-mono flex items-center gap-2 transition-colors duration-150 cursor-pointer w-full"
+                >
+                  {showArchived ? (
+                    <EyeOffIcon width="14" height="14" className="shrink-0" />
+                  ) : (
+                    <EyeIcon width="14" height="14" className="shrink-0" />
+                  )}
+                  {showArchived ? "Hide" : "Show"} Archived ({archivedCount})
+                </button>
+              )}
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full"
+                onClick={() => setShowAddDialog(true)}
+              >
+                + Add Tracker
+              </Button>
+            </div>
+          </nav>
+
+          {/* Client status widget */}
+          <ClientStatusWidget />
+
+          {/* Bottom controls — pinned */}
+          <div className="px-3 py-4 border-t border-border shrink-0 flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={async () => {
+                await fetch("/api/auth/logout", { method: "POST" })
+                router.push("/login")
+              }}
+              className="text-tertiary hover:text-secondary text-sm font-mono flex items-center gap-3 transition-colors duration-150 cursor-pointer w-full px-1 py-1"
+            >
+              <span className="text-lg" aria-hidden="true">
+                ⏻
+              </span>
+              Log Out
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push("/settings")}
+              className="text-tertiary hover:text-secondary text-sm font-mono flex items-center gap-3 transition-colors duration-150 cursor-pointer w-full px-1 py-1"
+            >
+              <span className="text-lg" aria-hidden="true">
+                ⚙
+              </span>
+              Settings
+            </button>
+
+            {/* Version + GitHub */}
+            <div className="flex items-center gap-2 px-1 pt-2">
+              <button
+                type="button"
+                onClick={openChangelog}
+                className="text-muted hover:text-secondary text-[10px] font-mono transition-colors duration-150 cursor-pointer text-left"
+              >
+                v{process.env.NEXT_PUBLIC_APP_VERSION}
+              </button>
+              {updateAvailable && latestVersion && (
+                <a
+                  href={`https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v${latestVersion}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-1.5 py-0.5 text-[9px] font-mono text-accent hover:bg-accent/25 transition-colors duration-150"
+                  title={`Update available: v${latestVersion}`}
+                >
+                  v{latestVersion}
+                  <span aria-hidden="true">↑</span>
+                </a>
+              )}
+              {/* biome-ignore lint/a11y/useAnchorContent: aria-label provides accessible content */}
               <a
-                href={`https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v${latestVersion}`}
+                href="https://github.com/jordanlambrecht/tracker-tracker"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-1.5 py-0.5 text-[9px] font-mono text-accent hover:bg-accent/25 transition-colors duration-150"
-                title={`Update available: v${latestVersion}`}
+                className="text-muted hover:text-secondary transition-colors duration-150 shrink-0"
+                aria-label="GitHub repository"
               >
-                v{latestVersion}
-                <span aria-hidden="true">↑</span>
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z" />
+                </svg>
               </a>
-            )}
-            {/* biome-ignore lint/a11y/useAnchorContent: aria-label provides accessible content */}
-            <a
-              href="https://github.com/jordanlambrecht/tracker-tracker"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted hover:text-secondary transition-colors duration-150 shrink-0"
-              aria-label="GitHub repository"
-            >
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/>
-              </svg>
-            </a>
+            </div>
           </div>
-        </div>
         </div>
       </aside>
 
@@ -830,8 +878,18 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
       {changelogOpen && (
         <dialog
           ref={changelogRef}
-          onClick={(e) => { if (e.target === changelogRef.current) { changelogRef.current?.close(); setChangelogOpen(false) } }}
-          onKeyDown={(e) => { if (e.key === "Escape") { changelogRef.current?.close(); setChangelogOpen(false) } }}
+          onClick={(e) => {
+            if (e.target === changelogRef.current) {
+              changelogRef.current?.close()
+              setChangelogOpen(false)
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              changelogRef.current?.close()
+              setChangelogOpen(false)
+            }
+          }}
           onClose={() => setChangelogOpen(false)}
           className="fixed inset-0 m-auto w-full max-w-2xl max-h-[80vh] bg-elevated p-0 overflow-hidden backdrop:bg-black/60 backdrop:backdrop-blur-sm open:flex open:flex-col nm-raised-lg rounded-nm-xl border-0"
         >
@@ -841,7 +899,10 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
             </H2>
             <button
               type="button"
-              onClick={() => { changelogRef.current?.close(); setChangelogOpen(false) }}
+              onClick={() => {
+                changelogRef.current?.close()
+                setChangelogOpen(false)
+              }}
               className="text-tertiary hover:text-primary transition-colors cursor-pointer p-1 -m-1 rounded-nm-sm"
               aria-label="Close changelog"
             >
