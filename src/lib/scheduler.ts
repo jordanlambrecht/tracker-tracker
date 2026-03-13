@@ -7,10 +7,7 @@ import { eq, lt } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { getAdapter } from "@/lib/adapters"
-import {
-  startBackupScheduler,
-  stopBackupScheduler,
-} from "@/lib/backup-scheduler"
+import { startBackupScheduler, stopBackupScheduler } from "@/lib/backup-scheduler"
 import {
   ensureClientSchedulerRunning,
   startClientScheduler,
@@ -45,8 +42,12 @@ function setSchedulerKey(key: Buffer | null) {
   g.__schedulerKey = key
 }
 
-function getPollInFlight(): boolean { return g.__pollInFlight ?? false }
-function setPollInFlight(v: boolean) { g.__pollInFlight = v }
+function getPollInFlight(): boolean {
+  return g.__pollInFlight ?? false
+}
+function setPollInFlight(v: boolean) {
+  g.__pollInFlight = v
+}
 
 export async function pollTracker(
   trackerId: number,
@@ -55,11 +56,7 @@ export async function pollTracker(
   proxyAgent?: HttpAgent,
   batchTimestamp?: Date
 ): Promise<void> {
-  const [tracker] = await db
-    .select()
-    .from(trackers)
-    .where(eq(trackers.id, trackerId))
-    .limit(1)
+  const [tracker] = await db.select().from(trackers).where(eq(trackers.id, trackerId)).limit(1)
 
   if (!tracker || !tracker.isActive) return
 
@@ -69,13 +66,21 @@ export async function pollTracker(
     let apiToken: string
     try {
       apiToken = decrypt(tracker.encryptedApiToken, encryptionKey)
-    } catch (err) {
+    } catch (_err) {
       throw new Error(`API key is missing or invalid for tracker "${tracker.name}"`)
     }
     const adapter = getAdapter(tracker.platformType)
-    const fetchOptions: { proxyAgent?: typeof proxyAgent; remoteUserId?: number; authStyle?: "token" | "raw"; enrich?: boolean } = {}
+    const fetchOptions: {
+      proxyAgent?: typeof proxyAgent
+      remoteUserId?: number
+      authStyle?: "token" | "raw"
+      enrich?: boolean
+    } = {}
     if (tracker.useProxy) {
-      if (!proxyAgent) throw new Error("Proxy required but not available — refusing to leak IP via direct connection")
+      if (!proxyAgent)
+        throw new Error(
+          "Proxy required but not available — refusing to leak IP via direct connection"
+        )
       fetchOptions.proxyAgent = proxyAgent
     }
     if (tracker.remoteUserId) fetchOptions.remoteUserId = tracker.remoteUserId
@@ -166,10 +171,7 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
 
   const globalIntervalMs = (settings?.trackerPollIntervalMinutes ?? 60) * 60 * 1000
 
-  const allTrackers = await db
-    .select()
-    .from(trackers)
-    .where(eq(trackers.isActive, true))
+  const allTrackers = await db.select().from(trackers).where(eq(trackers.isActive, true))
 
   const now = Date.now()
 

@@ -17,7 +17,16 @@ import { db } from "@/lib/db"
 import { clientSnapshots, downloadClients, trackers } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
 import type { QbtTorrent } from "@/lib/qbt"
-import { aggregateByTag, clearAllSessions, clearSpeedCache, filterAndDedup, getTorrents, getTransferInfo, pushSpeedSnapshot, withSessionRetry } from "@/lib/qbt"
+import {
+  aggregateByTag,
+  clearAllSessions,
+  clearSpeedCache,
+  filterAndDedup,
+  getTorrents,
+  getTransferInfo,
+  pushSpeedSnapshot,
+  withSessionRetry,
+} from "@/lib/qbt"
 
 // Store on globalThis to survive HMR in development.
 // Without this, each hot-reload orphans the old cron job while creating a new one.
@@ -61,12 +70,16 @@ async function heartbeatClient(clientId: number, encryptionKey: Buffer): Promise
     try {
       username = decrypt(client.encryptedUsername, encryptionKey)
       password = decrypt(client.encryptedPassword, encryptionKey)
-    } catch (err) {
+    } catch (_err) {
       throw new Error(`Credentials are missing or invalid for client "${client.name}"`)
     }
 
     const transfer = await withSessionRetry(
-      client.host, client.port, client.useSsl, username, password,
+      client.host,
+      client.port,
+      client.useSsl,
+      username,
+      password,
       (baseUrl, sid) => getTransferInfo(baseUrl, sid)
     )
 
@@ -116,7 +129,7 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
     try {
       username = decrypt(client.encryptedUsername, encryptionKey)
       password = decrypt(client.encryptedPassword, encryptionKey)
-    } catch (err) {
+    } catch (_err) {
       throw new Error(`Credentials are missing or invalid for client "${client.name}"`)
     }
 
@@ -128,11 +141,19 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
 
     const trackerTags = trackerTagRows.map((r) => r.qbtTag as string)
     let crossSeedTags: string[] = []
-    try { crossSeedTags = JSON.parse(client.crossSeedTags) as string[] } catch { /* security-audit-ignore: malformed JSON falls back to empty array */ }
+    try {
+      crossSeedTags = JSON.parse(client.crossSeedTags) as string[]
+    } catch {
+      /* security-audit-ignore: malformed JSON falls back to empty array */
+    }
     const allTags = [...new Set([...trackerTags, ...crossSeedTags])]
 
     const { allTorrents: rawTorrents, transfer } = await withSessionRetry(
-      client.host, client.port, client.useSsl, username, password,
+      client.host,
+      client.port,
+      client.useSsl,
+      username,
+      password,
       async (baseUrl, sid) => {
         const [raw, xfer] = await Promise.all([
           getTorrents(baseUrl, sid),
@@ -143,7 +164,9 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
     )
     const torrents = filterAndDedup(rawTorrents, allTags)
 
-    log.debug(`[deep-poll] client=${clientId} → ${torrents.length} relevant torrents (${allTags.length} tags)`)
+    log.debug(
+      `[deep-poll] client=${clientId} → ${torrents.length} relevant torrents (${allTags.length} tags)`
+    )
 
     const stats = aggregateByTag(torrents, trackerTags, crossSeedTags)
 

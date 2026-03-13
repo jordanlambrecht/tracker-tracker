@@ -7,15 +7,13 @@ import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { authenticate } from "@/lib/api-helpers"
 import { verifyPassword } from "@/lib/auth"
-import { deriveKey } from "@/lib/crypto"
-import { log } from "@/lib/logger"
-import { recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"
 import {
   type BackupPayload,
   decryptBackupPayload,
   type EncryptedBackupEnvelope,
   validateBackupJson,
 } from "@/lib/backup"
+import { deriveKey } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import {
   appSettings,
@@ -27,7 +25,9 @@ import {
   trackerSnapshots,
   trackers,
 } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
 import { stopScheduler } from "@/lib/scheduler"
+import { recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"
 
 const BATCH_SIZE = 500
 

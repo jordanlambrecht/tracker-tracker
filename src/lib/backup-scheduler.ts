@@ -42,7 +42,7 @@ function getCronExpression(frequency: string): string {
   }
 }
 
-export async function runScheduledBackup(encryptionKey: Buffer): Promise<void> {
+export async function runScheduledBackup(_encryptionKey: Buffer): Promise<void> {
   const [settings] = await db.select().from(appSettings).limit(1)
   if (!settings) return
 
