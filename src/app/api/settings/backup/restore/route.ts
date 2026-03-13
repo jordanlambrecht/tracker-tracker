@@ -13,7 +13,7 @@ import {
   type EncryptedBackupEnvelope,
   validateBackupJson,
 } from "@/lib/backup"
-import { decrypt, deriveKey, encrypt } from "@/lib/crypto"
+import { deriveKey, reencrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import {
   appSettings,
@@ -59,8 +59,7 @@ function reencryptField(
 ): string {
   if (!ciphertext) return ""
   try {
-    const plaintext = decrypt(ciphertext, backupKey)
-    return encrypt(plaintext, currentKey)
+    return reencrypt(ciphertext, backupKey, currentKey)
   } catch {
     return ""
   }

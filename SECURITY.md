@@ -355,7 +355,7 @@ The security audit (`scripts/security-audit.ts`) performs 28 automated checks on
 | 20  | BigInt safety            | Warning  | BigInt fields use string serialization, not `Number()`                                       |
 | 21  | Path traversal defense   | Critical | File delete operations use `path.resolve()` + `startsWith(base)`                             |
 | 22  | Argon2 hashing           | Critical | Password hashing in `auth.ts` uses Argon2, not SHA-256/bcrypt                                |
-| 23  | Encrypted column writes  | Critical | DB writes to encrypted columns use `encrypt()`/`reEncrypt()`                                 |
+| 23  | Encrypted column writes  | Critical | DB writes to encrypted columns use `encrypt()`/`reencrypt()`                                 |
 | 24  | TOTP flow integrity      | Critical | 2FA routes enforce correct auth patterns, token flows, and single-use backup codes           |
 | 25  | Lockdown flow integrity  | Critical | Emergency lockdown stops scheduler, revokes tokens, rotates salt, clears TOTP                |
 | 26  | Nuke flow integrity      | Critical | Scrub & delete requires session + password, uses `scrubAndDeleteAll()`                       |
