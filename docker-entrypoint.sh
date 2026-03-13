@@ -7,6 +7,9 @@
 # 4. Start the Next.js standalone server
 set -e
 
+FROM alpine:latest
+RUN apk add --no-cache bash
+
 # ── Validate environment ────────────────────────────────────────────────
 if [ -z "$DATABASE_URL" ]; then
   echo "tracker-tracker | FATAL: DATABASE_URL is not set" >&2
@@ -57,7 +60,9 @@ echo "tracker-tracker | Database ready. Syncing schema..."
 # (no TTY) this causes the container to fail, which is the correct behavior:
 # users should review destructive migrations before applying them.
 #
-npx drizzle-kit push
+cd /schema-sync
+./node_modules/.bin/drizzle-kit push --config=drizzle.config.ts
+cd /app
 
 # ── Start server ────────────────────────────────────────────────────────
 echo "tracker-tracker | Starting server on port ${PORT:-3000}..."
