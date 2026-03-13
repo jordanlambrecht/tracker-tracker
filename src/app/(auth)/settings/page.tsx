@@ -124,6 +124,7 @@ export default function SettingsPage() {
 
   // --- Backups ---
   const [encryptBackups, setEncryptBackups] = useState(false)
+  const [exportPassword, setExportPassword] = useState("") // Password for encrypting backups
   const [scheduleEnabled, setScheduleEnabled] = useState(false)
   const [scheduleFrequency, setScheduleFrequency] = useState("daily")
   const [backupRetentionCount, setBackupRetentionCount] = useState(14)
@@ -141,8 +142,11 @@ export default function SettingsPage() {
     backupStoragePath: "",
   })
   const [restorePassword, setRestorePassword] = useState("")
+  const [backupPassword, setBackupPassword] = useState("") // Password for restoring encrypted backups
+  const [restoreConfirmPhrase, setRestoreConfirmPhrase] = useState("") // Typed confirmation
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false)
   const [restoreFile, setRestoreFile] = useState<File | null>(null)
+  const [isEncryptedBackup, setIsEncryptedBackup] = useState(false) // Track if restore file is encrypted
   const [deletingBackupId, setDeletingBackupId] = useState<number | null>(null)
   const [isDraggingRestore, setIsDraggingRestore] = useState(false)
   const restoreInputRef = useRef<HTMLInputElement>(null)
@@ -476,10 +480,21 @@ export default function SettingsPage() {
     (proxyPassword !== "" && proxyPassword !== undefined)
 
   async function handleBackupNow() {
+    if (encryptBackups && !exportPassword) {
+      setBackupError("Backup password is required when encryption is enabled")
+      return
+    }
     setBackingUp(true)
     setBackupError(null)
     try {
-      const res = await fetch("/api/settings/backup/export", { method: "POST" })
+      const formData = new FormData()
+      if (encryptBackups && exportPassword) {
+        formData.append("backupPassword", exportPassword)
+      }
+      const res = await fetch("/api/settings/backup/export", { 
+        method: "POST",
+        body: formData
+      })
       if (!res.ok) {
         const data = await res.json().catch(() => ({ error: "Export failed" }))
         throw new Error((data as { error?: string }).error ?? "Export failed")
@@ -505,24 +520,43 @@ export default function SettingsPage() {
     }
   }
 
-  function handleRestoreFileSelect(e: ChangeEvent<HTMLInputElement>) {
+  async function handleRestoreFileSelect(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null
+    await prepareRestoreFile(file)
+  }
+
+  async function prepareRestoreFile(file: File | null) {
     setRestoreFile(file)
     if (file) {
+      // Detect if file is encrypted by checking format field
+      try {
+        const text = await file.text()
+        const json = JSON.parse(text)
+        const isEncrypted = json.format === "tracker-tracker-encrypted-backup"
+        setIsEncryptedBackup(isEncrypted)
+      } catch {
+        setIsEncryptedBackup(false) // If can't parse, assume not encrypted
+      }
       setShowRestoreConfirm(true)
       setRestorePassword("")
+      setBackupPassword("")
       setBackupError(null)
     }
   }
 
   async function handleRestore() {
-    if (!restoreFile || !restorePassword) return
+    if (!restoreFile) return
+    if (!restorePassword) return // Master password required for authorization
+    if (isEncryptedBackup && !backupPassword) return // Backup password required for decryption
     setRestoring(true)
     setBackupError(null)
     try {
       const formData = new FormData()
       formData.append("file", restoreFile)
-      formData.append("password", restorePassword)
+      formData.append("masterPassword", restorePassword) // Always required for authorization
+      if (isEncryptedBackup && backupPassword) {
+        formData.append("backupPassword", backupPassword) // Required for decryption
+      }
       const res = await fetch("/api/settings/backup/restore", {
         method: "POST",
         body: formData,
@@ -531,16 +565,19 @@ export default function SettingsPage() {
       if (!res.ok) {
         throw new Error((data as { error?: string }).error ?? "Restore failed")
       }
-      if ((data as { requiresRelogin?: boolean }).requiresRelogin) {
-        router.push("/login")
-      }
-    } catch (err) {
-      setBackupError(err instanceof Error ? err.message : "Restore failed")
-    } finally {
-      setRestoring(false)
+      // Success — clean up and reload to show restored data
       setShowRestoreConfirm(false)
       setRestoreFile(null)
-      setRestorePassword("")
+      setRestorePassword("") // Clear master password
+      setBackupPassword("") // Clear backup password
+      setRestoreConfirmPhrase("") // Clear confirmation phrase
+      // Reload to reflect restored settings
+      window.location.reload()
+    } catch (err) {
+      setBackupError(err instanceof Error ? err.message : "Restore failed")
+      // Keep dialog open on error so user can see the error message
+    } finally {
+      setRestoring(false)
     }
   }
 
@@ -803,9 +840,9 @@ export default function SettingsPage() {
       <section aria-labelledby="data-heading">
         <H2 id="data-heading" className="mb-4">Data</H2>
 
-        <Card elevation="raised">
+        <Card elevation="raised" className="overflow-visible">
           {/* Poll interval */}
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 ">
             <H3>Tracker Poll Interval</H3>
             <Paragraph>
               How often all trackers are polled for new stats. All trackers
@@ -817,7 +854,7 @@ export default function SettingsPage() {
               ariaLabel="Poll interval"
               label="Interval"
               size="md"
-              className="max-w-48"
+              className="max-w-48 "
               options={[
                 { value: "15", label: "15 min" },
                 { value: "30", label: "30 min" },
@@ -1703,15 +1740,12 @@ export default function SettingsPage() {
             }`}
             onDragOver={(e) => { e.preventDefault(); setIsDraggingRestore(true) }}
             onDragLeave={() => setIsDraggingRestore(false)}
-            onDrop={(e) => {
+            onDrop={async (e) => {
               e.preventDefault()
               setIsDraggingRestore(false)
               const file = e.dataTransfer.files[0]
               if (file && (file.name.endsWith(".json") || file.name.endsWith(".ttbak"))) {
-                setRestoreFile(file)
-                setShowRestoreConfirm(true)
-                setRestorePassword("")
-                setBackupError(null)
+                await prepareRestoreFile(file)
               } else {
                 setBackupError("Invalid file type. Expected .json or .ttbak")
               }
@@ -1743,28 +1777,67 @@ export default function SettingsPage() {
           <H2 id="restore-confirm-heading" className="mb-4">Confirm Restore</H2>
           <Card elevation="raised" className="flex flex-col gap-4">
             <div className="p-3 rounded-lg bg-warn/10 border border-warn/30">
-              <p className="text-sm text-warn font-sans">
+              <p className="text-sm text-warn font-sans font-semibold mb-2">
                 Restoring will replace <strong>all</strong> current data. This action cannot be undone.
-                You will be logged out and must log in again afterward.
+              </p>
+              <ul className="text-sm text-warn font-sans space-y-1 ml-4 list-disc">
+                <li>Tracker API tokens will be cleared (must re-enter)</li>
+                <li>Download client credentials will be cleared (must re-enter)</li>
+                <li>TOTP/2FA will be disabled (can re-enable after restore)</li>
+                <li>Proxy password will be cleared (must re-enter)</li>
+              </ul>
+              <p className="text-xs text-warn/80 font-sans mt-2">
+                Encrypted secrets stored in your current instance cannot be restored from backups.
               </p>
             </div>
             <p className="text-sm text-secondary font-mono">
               File: {restoreFile?.name}
             </p>
             <Input
-              label="Enter master password to confirm"
+              label="Master password"
               type="password"
               value={restorePassword}
               onChange={(e) => setRestorePassword(e.target.value)}
               data-1p-ignore
               autoComplete="off"
+              placeholder="Required to authorize restore"
             />
+            {isEncryptedBackup && (
+              <Input
+                label="Backup password"
+                type="password"
+                value={backupPassword}
+                onChange={(e) => setBackupPassword(e.target.value)}
+                data-1p-ignore
+                autoComplete="off"
+                placeholder="Enter backup password"
+              />
+            )}
+            <div className="p-3 rounded-lg bg-danger/10 border border-danger/30">
+              <Input
+                label="Type RESTORE ALL DATA to confirm"
+                type="text"
+                value={restoreConfirmPhrase}
+                onChange={(e) => setRestoreConfirmPhrase(e.target.value)}
+                placeholder="RESTORE ALL DATA"
+                autoComplete="off"
+                className="font-mono"
+              />
+              <p className="text-xs text-danger/80 mt-2">
+                This destructive operation cannot be undone. Type the phrase exactly to proceed.
+              </p>
+            </div>
             <div className="flex gap-3">
               <Button
                 size="sm"
                 variant="danger"
                 onClick={handleRestore}
-                disabled={restoring || !restorePassword}
+                disabled={
+                  restoring ||
+                  !restorePassword ||
+                  (isEncryptedBackup && !backupPassword) ||
+                  restoreConfirmPhrase !== "RESTORE ALL DATA"
+                }
               >
                 {restoring ? "Restoring…" : "Confirm Restore"}
               </Button>
@@ -1775,6 +1848,8 @@ export default function SettingsPage() {
                   setShowRestoreConfirm(false)
                   setRestoreFile(null)
                   setRestorePassword("")
+                  setBackupPassword("")
+                  setRestoreConfirmPhrase("")
                 }}
                 disabled={restoring}
               >
@@ -1790,12 +1865,30 @@ export default function SettingsPage() {
         <H2 id="backup-config-heading" className="mb-4">Configuration</H2>
 
         <Card elevation="raised" className="flex flex-col gap-5">
-          <Toggle
-            label="Encrypt backups"
-            checked={encryptBackups}
-            onChange={setEncryptBackups}
-            description="Encrypt backup files using your master password. Encrypted backups cannot be restored without the password that was active when the backup was created."
-          />
+          <div>
+            <Toggle
+              label="Encrypt backups"
+              checked={encryptBackups}
+              onChange={setEncryptBackups}
+              description="Protect manual backup exports with a password. The backup can be restored on any instance with the password."
+            />
+            {encryptBackups && (
+              <div className="mt-4 ml-15">
+                <Input
+                  label="Backup password"
+                  type="password"
+                  value={exportPassword}
+                  onChange={(e) => setExportPassword(e.target.value)}
+                  placeholder="Set password for encrypted backups"
+                  data-1p-ignore
+                  autoComplete="off"
+                />
+                <p className="text-xs text-secondary font-sans mt-1">
+                  This password will be used to encrypt manual backup exports. Store it securely!
+                </p>
+              </div>
+            )}
+          </div>
 
           <div className="border-t border-border" />
 

@@ -23,11 +23,8 @@ const DECIMAL_UNITS: Record<string, bigint> = {
  * into its integer and fractional parts, each multiplied by the multiplier,
  * and then combined.
  */
-function multiplyDecimalStringByBigInt(
-  valueStr: string,
-  multiplier: bigint,
-): bigint {
-  const dotIndex = valueStr.indexOf(".")
+function multiplyDecimalStringByBigInt(valueStr: string, multiplier: bigint): bigint {
+  const dotIndex = valueStr.indexOf('.')
   if (dotIndex === -1) {
     return BigInt(valueStr) * multiplier
   }
@@ -66,7 +63,7 @@ export function parseBytes(formatted: string): bigint {
 
   // Reject negative values (the regex already excludes the minus sign, but be
   // explicit in case the input bypasses the regex somehow)
-  if (valueStr.startsWith("-")) {
+  if (valueStr.startsWith('-')) {
     throw new Error(`Negative byte values are not allowed: "${formatted}"`)
   }
 
@@ -89,17 +86,17 @@ const FORMAT_THRESHOLDS: Array<{
   divisor: number
 }> = [
   {
-    unit: "TiB",
+    unit: 'TiB',
     threshold: BigInt(2) ** BigInt(40),
     divisor: Number(BigInt(2) ** BigInt(40)),
   },
-  { unit: "GiB", threshold: BigInt(1024 ** 3), divisor: 1024 ** 3 },
-  { unit: "MiB", threshold: BigInt(1024 ** 2), divisor: 1024 ** 2 },
-  { unit: "KiB", threshold: BigInt(1024), divisor: 1024 },
+  { unit: 'GiB', threshold: BigInt(1024 ** 3), divisor: 1024 ** 3 },
+  { unit: 'MiB', threshold: BigInt(1024 ** 2), divisor: 1024 ** 2 },
+  { unit: 'KiB', threshold: BigInt(1024), divisor: 1024 },
 ]
 
 export function formatBytes(bytes: bigint): string {
-  if (bytes === BigInt(0)) return "0 B"
+  if (bytes === BigInt(0)) return '0 B'
 
   for (const { unit, threshold, divisor } of FORMAT_THRESHOLDS) {
     if (bytes >= threshold) {

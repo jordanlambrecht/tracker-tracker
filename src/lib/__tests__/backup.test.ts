@@ -235,18 +235,21 @@ describe("validateBackupJson", () => {
 
 describe("Backup encryption", () => {
   it("encrypt then decrypt produces the original payload", async () => {
-    const { deriveKey, generateSalt } = await import("@/lib/crypto")
-    const key = await deriveKey("test-password", generateSalt())
+    const { deriveKey } = await import("@/lib/crypto")
+    const password = "test-password"
     const payload = validPayload()
 
-    const envelope = encryptBackupPayload(
+    const envelope = await encryptBackupPayload(
       payload as Parameters<typeof encryptBackupPayload>[0],
-      key
+      password
     )
     expect(envelope.format).toBe("tracker-tracker-encrypted-backup")
     expect(envelope.version).toBe(1)
     expect(typeof envelope.ciphertext).toBe("string")
+    expect(typeof envelope.encryptionSalt).toBe("string")
 
+    // Derive key from password using the same salt from envelope
+    const key = await deriveKey(password, envelope.encryptionSalt)
     const decrypted = decryptBackupPayload(envelope, key)
     expect(decrypted.manifest.version).toBe(CURRENT_BACKUP_VERSION)
     expect(decrypted.trackers).toHaveLength(1)
@@ -254,16 +257,19 @@ describe("Backup encryption", () => {
   })
 
   it("decrypt rejects wrong key", async () => {
-    const { deriveKey, generateSalt } = await import("@/lib/crypto")
-    const key1 = await deriveKey("password-one", generateSalt())
-    const key2 = await deriveKey("password-two", generateSalt())
+    const { deriveKey } = await import("@/lib/crypto")
+    const password1 = "password-one"
+    const password2 = "password-two"
     const payload = validPayload()
 
-    const envelope = encryptBackupPayload(
+    const envelope = await encryptBackupPayload(
       payload as Parameters<typeof encryptBackupPayload>[0],
-      key1
+      password1
     )
-    expect(() => decryptBackupPayload(envelope, key2)).toThrow()
+
+    // Derive wrong key using different password but same salt
+    const wrongKey = await deriveKey(password2, envelope.encryptionSalt)
+    expect(() => decryptBackupPayload(envelope, wrongKey)).toThrow()
   })
 
   it("decrypt rejects invalid format field", () => {
@@ -271,6 +277,7 @@ describe("Backup encryption", () => {
       format: "not-a-backup" as "tracker-tracker-encrypted-backup",
       version: 1 as const,
       createdAt: new Date().toISOString(),
+      encryptionSalt: "fake-salt",
       ciphertext: "bogus",
     }
     const key = Buffer.alloc(32, 1)

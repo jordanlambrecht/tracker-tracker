@@ -2,11 +2,11 @@
 //
 // Functions: generateBackupPayload, validateBackupJson, encryptBackupPayload, decryptBackupPayload, pruneOldBackups
 
-import { unlink } from "node:fs/promises"
-import path from "node:path"
-import { desc, eq, isNotNull } from "drizzle-orm"
-import { decrypt, encrypt } from "@/lib/crypto"
-import { db } from "@/lib/db"
+import { unlink } from 'node:fs/promises'
+import path from 'node:path'
+import { desc, eq, isNotNull } from 'drizzle-orm'
+import { decrypt, deriveKey, encrypt, generateSalt } from '@/lib/crypto'
+import { db } from '@/lib/db'
 import {
   appSettings,
   backupHistory,
@@ -17,9 +17,9 @@ import {
   trackerRoles,
   trackerSnapshots,
   trackers,
-} from "@/lib/db/schema"
-import { log } from "@/lib/logger"
-import packageJson from "../../package.json"
+} from '@/lib/db/schema'
+import { log } from '@/lib/logger'
+import packageJson from '../../package.json'
 
 export const CURRENT_BACKUP_VERSION = 1
 
@@ -44,15 +44,16 @@ export interface BackupPayload {
 }
 
 export interface EncryptedBackupEnvelope {
-  format: "tracker-tracker-encrypted-backup"
+  format: 'tracker-tracker-encrypted-backup'
   version: 1
   createdAt: string
+  encryptionSalt: string
   ciphertext: string
 }
 
 // Serialize a single value — converts BigInt to decimal string and Date to ISO 8601.
 function serializeValue(value: unknown): unknown {
-  if (typeof value === "bigint") {
+  if (typeof value === 'bigint') {
     return value.toString()
   }
   if (value instanceof Date) {
@@ -97,56 +98,32 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
   })
 
   // trackerSnapshots — include all columns
-  const rawSnapshots = await db
-    .select()
-    .from(trackerSnapshots)
-    .orderBy(trackerSnapshots.id)
-  const snapshotsPayload = rawSnapshots.map((s) =>
-    serializeRow(s as Record<string, unknown>)
-  )
+  const rawSnapshots = await db.select().from(trackerSnapshots).orderBy(trackerSnapshots.id)
+  const snapshotsPayload = rawSnapshots.map((s) => serializeRow(s as Record<string, unknown>))
 
   // trackerRoles — include all columns
-  const rawRoles = await db
-    .select()
-    .from(trackerRoles)
-    .orderBy(trackerRoles.id)
-  const rolesPayload = rawRoles.map((r) =>
-    serializeRow(r as Record<string, unknown>)
-  )
+  const rawRoles = await db.select().from(trackerRoles).orderBy(trackerRoles.id)
+  const rolesPayload = rawRoles.map((r) => serializeRow(r as Record<string, unknown>))
 
   // downloadClients — exclude: lastPolledAt, lastError
-  const rawClients = await db
-    .select()
-    .from(downloadClients)
-    .orderBy(downloadClients.id)
+  const rawClients = await db.select().from(downloadClients).orderBy(downloadClients.id)
   const clientsPayload = rawClients.map((c) => {
     const { lastPolledAt: _lpa, lastError: _le, ...rest } = c
     return serializeRow(rest as Record<string, unknown>)
   })
 
   // tagGroups — include all columns
-  const rawTagGroups = await db
-    .select()
-    .from(tagGroups)
-    .orderBy(tagGroups.id)
-  const tagGroupsPayload = rawTagGroups.map((g) =>
-    serializeRow(g as Record<string, unknown>)
-  )
+  const rawTagGroups = await db.select().from(tagGroups).orderBy(tagGroups.id)
+  const tagGroupsPayload = rawTagGroups.map((g) => serializeRow(g as Record<string, unknown>))
 
   // tagGroupMembers — include all columns
-  const rawTagGroupMembers = await db
-    .select()
-    .from(tagGroupMembers)
-    .orderBy(tagGroupMembers.id)
+  const rawTagGroupMembers = await db.select().from(tagGroupMembers).orderBy(tagGroupMembers.id)
   const tagGroupMembersPayload = rawTagGroupMembers.map((m) =>
     serializeRow(m as Record<string, unknown>)
   )
 
   // clientSnapshots — include all columns
-  const rawClientSnapshots = await db
-    .select()
-    .from(clientSnapshots)
-    .orderBy(clientSnapshots.id)
+  const rawClientSnapshots = await db.select().from(clientSnapshots).orderBy(clientSnapshots.id)
   const clientSnapshotsPayload = rawClientSnapshots.map((cs) =>
     serializeRow(cs as Record<string, unknown>)
   )
@@ -187,16 +164,16 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
 const ISO_8601_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/
 const HEX_64_RE = /^[0-9a-fA-F]{64}$/
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{3,8}$/
-export const VALID_BACKUP_FREQUENCIES = new Set(["daily", "weekly", "monthly"])
+export const VALID_BACKUP_FREQUENCIES = new Set(['daily', 'weekly', 'monthly'])
 
 function assertString(value: unknown, label: string): asserts value is string {
-  if (typeof value !== "string") {
+  if (typeof value !== 'string') {
     throw new Error(`Backup validation: ${label} must be a string`)
   }
 }
 
 function assertNumber(value: unknown, label: string): asserts value is number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
     throw new Error(`Backup validation: ${label} must be a number`)
   }
 }
@@ -216,18 +193,16 @@ function assertValidIso(value: unknown, label: string): void {
 
 // ─── Public validation ────────────────────────────────────────────────────────
 
-export function validateBackupJson(
-  payload: unknown
-): asserts payload is BackupPayload {
-  if (typeof payload !== "object" || payload === null) {
-    throw new Error("Backup validation: payload must be an object")
+export function validateBackupJson(payload: unknown): asserts payload is BackupPayload {
+  if (typeof payload !== 'object' || payload === null) {
+    throw new Error('Backup validation: payload must be an object')
   }
 
   const p = payload as Record<string, unknown>
 
   // manifest
-  if (typeof p.manifest !== "object" || p.manifest === null) {
-    throw new Error("Backup validation: manifest must be an object")
+  if (typeof p.manifest !== 'object' || p.manifest === null) {
+    throw new Error('Backup validation: manifest must be an object')
   }
   const manifest = p.manifest as Record<string, unknown>
 
@@ -237,71 +212,62 @@ export function validateBackupJson(
     )
   }
 
-  assertValidIso(manifest.createdAt, "manifest.createdAt")
+  assertValidIso(manifest.createdAt, 'manifest.createdAt')
 
   if (
-    typeof manifest.counts !== "object" ||
+    typeof manifest.counts !== 'object' ||
     manifest.counts === null ||
     Array.isArray(manifest.counts)
   ) {
-    throw new Error("Backup validation: manifest.counts must be an object")
+    throw new Error('Backup validation: manifest.counts must be an object')
   }
-  for (const [k, v] of Object.entries(
-    manifest.counts as Record<string, unknown>
-  )) {
-    if (typeof v !== "number" || !Number.isInteger(v) || v < 0) {
-      throw new Error(
-        `Backup validation: manifest.counts.${k} must be a non-negative integer`
-      )
+  for (const [k, v] of Object.entries(manifest.counts as Record<string, unknown>)) {
+    if (typeof v !== 'number' || !Number.isInteger(v) || v < 0) {
+      throw new Error(`Backup validation: manifest.counts.${k} must be a non-negative integer`)
     }
   }
 
   // settings
-  if (typeof p.settings !== "object" || p.settings === null) {
-    throw new Error("Backup validation: settings must be an object")
+  if (typeof p.settings !== 'object' || p.settings === null) {
+    throw new Error('Backup validation: settings must be an object')
   }
   const settings = p.settings as Record<string, unknown>
 
-  assertString(settings.encryptionSalt, "settings.encryptionSalt")
+  assertString(settings.encryptionSalt, 'settings.encryptionSalt')
   if (!HEX_64_RE.test(settings.encryptionSalt)) {
-    throw new Error(
-      "Backup validation: settings.encryptionSalt must be exactly 64 hex characters"
-    )
+    throw new Error('Backup validation: settings.encryptionSalt must be exactly 64 hex characters')
   }
 
   if (settings.backupScheduleFrequency !== undefined) {
-    assertString(
-      settings.backupScheduleFrequency,
-      "settings.backupScheduleFrequency"
-    )
+    assertString(settings.backupScheduleFrequency, 'settings.backupScheduleFrequency')
     if (!VALID_BACKUP_FREQUENCIES.has(settings.backupScheduleFrequency)) {
       throw new Error(
-        `Backup validation: settings.backupScheduleFrequency must be one of: ${[...VALID_BACKUP_FREQUENCIES].join(", ")}`
+        `Backup validation: settings.backupScheduleFrequency must be one of: ${[...VALID_BACKUP_FREQUENCIES].join(', ')}`
       )
     }
   }
 
   if (settings.backupRetentionCount !== undefined) {
-    assertNumber(settings.backupRetentionCount, "settings.backupRetentionCount")
+    assertNumber(settings.backupRetentionCount, 'settings.backupRetentionCount')
     if (
       !Number.isInteger(settings.backupRetentionCount) ||
       settings.backupRetentionCount < 1 ||
       settings.backupRetentionCount > 365
     ) {
       throw new Error(
-        "Backup validation: settings.backupRetentionCount must be an integer between 1 and 365"
+        'Backup validation: settings.backupRetentionCount must be an integer between 1 and 365'
       )
     }
   }
 
   // array fields
-  assertArray(p.trackers, "trackers")
-  assertArray(p.trackerSnapshots, "trackerSnapshots")
-  assertArray(p.trackerRoles, "trackerRoles")
-  assertArray(p.downloadClients, "downloadClients")
-  assertArray(p.tagGroups, "tagGroups")
-  assertArray(p.tagGroupMembers, "tagGroupMembers")
-  assertArray(p.clientSnapshots, "clientSnapshots")
+  assertArray(p.trackers, 'trackers')
+  assertArray(p.trackerSnapshots, 'trackerSnapshots')
+  assertArray(p.trackerRoles, 'trackerRoles')
+  assertArray(p.downloadClients, 'downloadClients')
+  assertArray(p.tagGroups, 'tagGroups')
+  assertArray(p.tagGroupMembers, 'tagGroupMembers')
+  assertArray(p.clientSnapshots, 'clientSnapshots')
 
   // tracker entries
   for (let i = 0; i < p.trackers.length; i++) {
@@ -310,9 +276,7 @@ export function validateBackupJson(
 
     assertString(t.name, `${prefix}.name`)
     if (t.name.length === 0 || t.name.length > 100) {
-      throw new Error(
-        `Backup validation: ${prefix}.name must be between 1 and 100 characters`
-      )
+      throw new Error(`Backup validation: ${prefix}.name must be between 1 and 100 characters`)
     }
 
     assertString(t.baseUrl, `${prefix}.baseUrl`)
@@ -324,17 +288,13 @@ export function validateBackupJson(
 
     assertString(t.encryptedApiToken, `${prefix}.encryptedApiToken`)
     if (t.encryptedApiToken.length === 0) {
-      throw new Error(
-        `Backup validation: ${prefix}.encryptedApiToken must not be empty`
-      )
+      throw new Error(`Backup validation: ${prefix}.encryptedApiToken must not be empty`)
     }
 
     if (t.color !== null && t.color !== undefined) {
       assertString(t.color, `${prefix}.color`)
       if (!HEX_COLOR_RE.test(t.color)) {
-        throw new Error(
-          `Backup validation: ${prefix}.color must be a valid hex color or null`
-        )
+        throw new Error(`Backup validation: ${prefix}.color must be a valid hex color or null`)
       }
     }
   }
@@ -350,18 +310,14 @@ export function validateBackupJson(
     try {
       BigInt(s.uploadedBytes)
     } catch {
-      throw new Error(
-        `Backup validation: ${prefix}.uploadedBytes must be parseable as BigInt`
-      )
+      throw new Error(`Backup validation: ${prefix}.uploadedBytes must be parseable as BigInt`)
     }
 
     assertString(s.downloadedBytes, `${prefix}.downloadedBytes`)
     try {
       BigInt(s.downloadedBytes)
     } catch {
-      throw new Error(
-        `Backup validation: ${prefix}.downloadedBytes must be parseable as BigInt`
-      )
+      throw new Error(`Backup validation: ${prefix}.downloadedBytes must be parseable as BigInt`)
     }
 
     assertValidIso(s.polledAt, `${prefix}.polledAt`)
@@ -376,23 +332,17 @@ export function validateBackupJson(
 
     assertNumber(c.port, `${prefix}.port`)
     if (!Number.isInteger(c.port) || c.port < 1 || c.port > 65535) {
-      throw new Error(
-        `Backup validation: ${prefix}.port must be an integer between 1 and 65535`
-      )
+      throw new Error(`Backup validation: ${prefix}.port must be an integer between 1 and 65535`)
     }
 
     assertString(c.encryptedUsername, `${prefix}.encryptedUsername`)
     if (c.encryptedUsername.length === 0) {
-      throw new Error(
-        `Backup validation: ${prefix}.encryptedUsername must not be empty`
-      )
+      throw new Error(`Backup validation: ${prefix}.encryptedUsername must not be empty`)
     }
 
     assertString(c.encryptedPassword, `${prefix}.encryptedPassword`)
     if (c.encryptedPassword.length === 0) {
-      throw new Error(
-        `Backup validation: ${prefix}.encryptedPassword must not be empty`
-      )
+      throw new Error(`Backup validation: ${prefix}.encryptedPassword must not be empty`)
     }
   }
 
@@ -409,16 +359,19 @@ export function validateBackupJson(
 
 // ─── Encryption wrappers ──────────────────────────────────────────────────────
 
-export function encryptBackupPayload(
+export async function encryptBackupPayload(
   payload: BackupPayload,
-  encryptionKey: Buffer
-): EncryptedBackupEnvelope {
+  password: string
+): Promise<EncryptedBackupEnvelope> {
+  const encryptionSalt = generateSalt() // Generate random salt per backup
+  const encryptionKey = await deriveKey(password, encryptionSalt)
   const jsonString = JSON.stringify(payload)
   const ciphertext = encrypt(jsonString, encryptionKey)
   return {
-    format: "tracker-tracker-encrypted-backup",
+    format: 'tracker-tracker-encrypted-backup',
     version: 1,
     createdAt: new Date().toISOString(),
+    encryptionSalt,
     ciphertext,
   }
 }
@@ -427,15 +380,19 @@ export function decryptBackupPayload(
   envelope: EncryptedBackupEnvelope,
   encryptionKey: Buffer
 ): BackupPayload {
-  if (envelope.format !== "tracker-tracker-encrypted-backup") {
+  if (envelope.format !== 'tracker-tracker-encrypted-backup') {
     throw new Error(
       `Invalid backup envelope format: expected "tracker-tracker-encrypted-backup", got "${envelope.format}"`
     )
   }
   const jsonString = decrypt(envelope.ciphertext, encryptionKey)
   let parsed: unknown
-  try { parsed = JSON.parse(jsonString) } catch {
-    throw new Error("Failed to parse decrypted backup — data may be corrupted or the wrong key was used")
+  try {
+    parsed = JSON.parse(jsonString)
+  } catch {
+    throw new Error(
+      'Failed to parse decrypted backup — data may be corrupted or the wrong key was used'
+    )
   }
   validateBackupJson(parsed)
   return parsed
@@ -443,10 +400,7 @@ export function decryptBackupPayload(
 
 // ─── Pruning ──────────────────────────────────────────────────────────────────
 
-export async function pruneOldBackups(
-  retentionCount: number,
-  basePath: string
-): Promise<number> {
+export async function pruneOldBackups(retentionCount: number, basePath: string): Promise<number> {
   const allStored = await db
     .select()
     .from(backupHistory)
@@ -465,17 +419,12 @@ export async function pruneOldBackups(
       const resolved = path.resolve(row.storagePath)
       const base = path.resolve(basePath)
       if (!resolved.startsWith(base + path.sep)) {
-        log.error(
-          `Backup prune: path ${resolved} is outside base ${base}, skipping file deletion`
-        )
+        log.error(`Backup prune: path ${resolved} is outside base ${base}, skipping file deletion`)
       } else {
         try {
           await unlink(resolved)
         } catch (err) {
-          log.error(
-            err,
-            `Backup prune: failed to delete file ${resolved}`
-          )
+          log.error(err, `Backup prune: failed to delete file ${resolved}`)
         }
       }
     }

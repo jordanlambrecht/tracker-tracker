@@ -3,7 +3,7 @@
 import { mkdir, writeFile } from "node:fs/promises"
 import nodePath from "node:path"
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey } from "@/lib/api-helpers"
+import { authenticate } from "@/lib/api-helpers"
 import {
   encryptBackupPayload,
   generateBackupPayload,
@@ -12,13 +12,15 @@ import { db } from "@/lib/db"
 import { appSettings, backupHistory } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
 
-export async function POST() {
+export async function POST(request: Request) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
   try {
+    const formData = await request.formData()
+    const backupPassword = formData.get("backupPassword")
+
     const [settings] = await db.select().from(appSettings).limit(1)
-    const encryptionEnabled = settings?.backupEncryptionEnabled ?? false
     const storagePath = settings?.backupStoragePath ?? "/data/backups"
 
     const payload = await generateBackupPayload()
@@ -26,14 +28,17 @@ export async function POST() {
     let serialized: string
     let contentType: string
     let ext: string
+    let encrypted = false
 
-    if (encryptionEnabled) {
-      const key = decodeKey(auth)
-      const envelope = encryptBackupPayload(payload, key)
+    if (backupPassword && typeof backupPassword === "string" && backupPassword.length > 0) {
+      // Encrypt with backup password (salt generated per backup)
+      const envelope = await encryptBackupPayload(payload, backupPassword)
       serialized = JSON.stringify(envelope)
       contentType = "application/octet-stream"
       ext = "ttbak"
+      encrypted = true
     } else {
+      // Plain JSON backup
       serialized = JSON.stringify(payload)
       contentType = "application/json"
       ext = "json"
@@ -57,7 +62,7 @@ export async function POST() {
 
     await db.insert(backupHistory).values({
       sizeBytes,
-      encrypted: encryptionEnabled,
+      encrypted,
       frequency: null,
       status: "completed",
       storagePath: filePath,
