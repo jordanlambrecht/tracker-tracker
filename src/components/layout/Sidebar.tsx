@@ -124,16 +124,9 @@ function SortableTrackerItem({
 
   return (
     <li ref={setNodeRef} style={dragStyle}>
-      <div
-        role="button"
-        tabIndex={0}
+      <button
+        type="button"
         onClick={unlocked ? undefined : onClick}
-        onKeyDown={unlocked ? undefined : (e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault()
-            onClick?.()
-          }
-        }}
         className={`${itemClasses} rounded-nm-md`}
         style={activeStyle}
         aria-current={isActive ? "page" : undefined}
@@ -182,7 +175,7 @@ function SortableTrackerItem({
             {tracker.isFavorite ? "★" : "☆"}
           </button>
         )}
-      </div>
+      </button>
     </li>
   )
 }
