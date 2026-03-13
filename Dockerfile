@@ -51,22 +51,22 @@ ENV HOSTNAME=0.0.0.0
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Persistent volume mount points for scheduled backups and logs
 RUN mkdir -p /data/backups /data/logs && chown -R nextjs:nodejs /data
 
-# --- Standalone server (traced dependencies only — much smaller than full node_modules) ---
+# --- Standalone server (traced dependencies only) ---
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # --- Drizzle schema-sync (for drizzle-kit push at startup) ---
-# Next.js standalone doesn't trace drizzle-kit. Install it directly into
-# /app/node_modules (merges with standalone's traced deps).
-COPY --from=builder /app/drizzle.config.ts ./
-COPY --from=builder /app/src/lib/db ./src/lib/db
-COPY --from=builder /app/tsconfig.json ./
-RUN cd /app && npm install --no-audit --no-fund --legacy-peer-deps \
-    drizzle-kit drizzle-orm postgres dotenv esbuild 2>&1 | tail -1
+# Reuse the locked pnpm dependency tree from the deps stage instead of
+# re-resolving packages in the runtime image.
+RUN mkdir -p /schema-sync/src/lib
+COPY --from=deps /app/node_modules /schema-sync/node_modules
+COPY --from=builder /app/package.json /schema-sync/
+COPY --from=builder /app/drizzle.config.ts /schema-sync/
+COPY --from=builder /app/src/lib/db /schema-sync/src/lib/db
+COPY --from=builder /app/tsconfig.json /schema-sync/
 
 # --- Changelog (served via /api/changelog) ---
 COPY --from=builder /app/CHANGELOG.md ./
