@@ -653,7 +653,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
               aria-current={pathname === "/" ? "page" : undefined}
             >
               <Image
-                src="/trackerTracker_logo.svg"
+                src="/img/trackerTracker_logo.svg"
                 alt="Tracker Tracker"
                 width={140}
                 height={40}
