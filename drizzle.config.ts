@@ -1,8 +1,8 @@
 // drizzle.config.ts
-import { config } from "dotenv"
 import { defineConfig } from "drizzle-kit"
 
-config({ path: ".env.local" })
+// In Docker, DATABASE_URL is set via environment. Locally, load from .env.local.
+try { require("dotenv").config({ path: ".env.local" }) } catch { /* dotenv is a devDependency */ }
 
 const databaseUrl = process.env.DATABASE_URL
 if (!databaseUrl) {
