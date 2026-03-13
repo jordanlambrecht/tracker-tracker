@@ -5,11 +5,7 @@
 import { mkdir, writeFile } from "node:fs/promises"
 import path from "node:path"
 import cron, { type ScheduledTask } from "node-cron"
-import {
-  encryptBackupPayload,
-  generateBackupPayload,
-  pruneOldBackups,
-} from "@/lib/backup"
+import { generateBackupPayload, pruneOldBackups } from "@/lib/backup"
 import { db } from "@/lib/db"
 import { appSettings, backupHistory } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
@@ -51,22 +47,14 @@ export async function runScheduledBackup(encryptionKey: Buffer): Promise<void> {
   if (!settings) return
 
   const storagePath = settings.backupStoragePath ?? "/data/backups"
-  const shouldEncrypt = settings.backupEncryptionEnabled
   const retentionCount = settings.backupRetentionCount
 
   try {
     const payload = await generateBackupPayload()
 
-    let serialized: string
-    let ext: string
-    if (shouldEncrypt) {
-      const envelope = encryptBackupPayload(payload, encryptionKey)
-      serialized = JSON.stringify(envelope)
-      ext = "ttbak"
-    } else {
-      serialized = JSON.stringify(payload)
-      ext = "json"
-    }
+    // Automated backups are always plain JSON (encryption requires user-provided password)
+    const serialized = JSON.stringify(payload)
+    const ext = "json"
 
     await mkdir(storagePath, { recursive: true })
 
@@ -79,7 +67,7 @@ export async function runScheduledBackup(encryptionKey: Buffer): Promise<void> {
 
     await db.insert(backupHistory).values({
       sizeBytes,
-      encrypted: shouldEncrypt,
+      encrypted: false, // Automated backups are always plain JSON
       frequency: settings.backupScheduleFrequency,
       status: "completed",
       storagePath: filePath,
@@ -94,7 +82,7 @@ export async function runScheduledBackup(encryptionKey: Buffer): Promise<void> {
     try {
       await db.insert(backupHistory).values({
         sizeBytes: 0,
-        encrypted: shouldEncrypt,
+        encrypted: false,
         frequency: settings.backupScheduleFrequency,
         status: "failed",
         storagePath: null,

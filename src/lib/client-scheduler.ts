@@ -56,8 +56,14 @@ async function heartbeatClient(clientId: number, encryptionKey: Buffer): Promise
   if (!client || !client.enabled) return
 
   try {
-    const username = decrypt(client.encryptedUsername, encryptionKey)
-    const password = decrypt(client.encryptedPassword, encryptionKey)
+    let username: string
+    let password: string
+    try {
+      username = decrypt(client.encryptedUsername, encryptionKey)
+      password = decrypt(client.encryptedPassword, encryptionKey)
+    } catch (err) {
+      throw new Error(`Credentials are missing or invalid for client "${client.name}"`)
+    }
 
     const transfer = await withSessionRetry(
       client.host, client.port, client.useSsl, username, password,
@@ -105,8 +111,14 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
   if (!client || !client.enabled) return
 
   try {
-    const username = decrypt(client.encryptedUsername, encryptionKey)
-    const password = decrypt(client.encryptedPassword, encryptionKey)
+    let username: string
+    let password: string
+    try {
+      username = decrypt(client.encryptedUsername, encryptionKey)
+      password = decrypt(client.encryptedPassword, encryptionKey)
+    } catch (err) {
+      throw new Error(`Credentials are missing or invalid for client "${client.name}"`)
+    }
 
     // Collect known tags
     const trackerTagRows = await db

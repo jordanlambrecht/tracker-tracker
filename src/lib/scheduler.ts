@@ -66,7 +66,12 @@ export async function pollTracker(
   const timestamp = batchTimestamp ?? new Date()
 
   try {
-    const apiToken = decrypt(tracker.encryptedApiToken, encryptionKey)
+    let apiToken: string
+    try {
+      apiToken = decrypt(tracker.encryptedApiToken, encryptionKey)
+    } catch (err) {
+      throw new Error(`API key is missing or invalid for tracker "${tracker.name}"`)
+    }
     const adapter = getAdapter(tracker.platformType)
     const fetchOptions: { proxyAgent?: typeof proxyAgent; remoteUserId?: number; authStyle?: "token" | "raw"; enrich?: boolean } = {}
     if (tracker.useProxy) {
