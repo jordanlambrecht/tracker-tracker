@@ -82,7 +82,15 @@ export async function POST(request: Request) {
     )
   }
 
-  // Step 3: Parse and validate backup JSON
+  // Step 3: Verify master password is present before parsing the backup payload.
+  if (!masterPassword || typeof masterPassword !== "string" || masterPassword.length === 0) {
+    return NextResponse.json(
+      { error: "Master password is required to restore backups" },
+      { status: 400 }
+    )
+  }
+
+  // Step 4: Parse and validate backup JSON
   let text: string
   try {
     text = await (file as Blob).text()
@@ -131,18 +139,10 @@ export async function POST(request: Request) {
     )
   }
 
-  // Step 4: Get current settings for ID
+  // Step 5: Get current settings for ID
   const [currentSettings] = await db.select().from(appSettings).limit(1)
   if (!currentSettings) {
     return NextResponse.json({ error: "Not configured" }, { status: 400 })
-  }
-
-  // Step 5: Verify master password (authorization for destructive operation)
-  if (!masterPassword || typeof masterPassword !== "string" || masterPassword.length === 0) {
-    return NextResponse.json(
-      { error: "Master password is required to restore backups" },
-      { status: 400 }
-    )
   }
 
   const isPasswordValid = await verifyPassword(currentSettings.passwordHash, masterPassword)
@@ -168,10 +168,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: WIPE_MESSAGE }, { status: 403 })
     }
 
-    return NextResponse.json(
-      { error: "Invalid credentials" }, // Generic message (no info leakage)
-      { status: 401 }
-    )
+    return NextResponse.json({ error: "Invalid master password" }, { status: 401 })
   }
 
   // Master password verified - reset failed attempts counter
