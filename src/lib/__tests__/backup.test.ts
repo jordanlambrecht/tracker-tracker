@@ -178,10 +178,10 @@ describe("validateBackupJson", () => {
     expect(() => validateBackupJson(p)).toThrow("trackers[0].baseUrl")
   })
 
-  it("rejects tracker with empty API token", () => {
+  it("accepts tracker with empty API token (post-restore backups)", () => {
     const p = validPayload()
     ;(p.trackers[0] as Record<string, unknown>).encryptedApiToken = ""
-    expect(() => validateBackupJson(p)).toThrow("trackers[0].encryptedApiToken")
+    expect(() => validateBackupJson(p)).not.toThrow()
   })
 
   it("rejects invalid hex color", () => {

@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Extracted DB-aware privacy operations (createPrivacyMask, scrubSnapshotUsernames) into new privacy-db.ts module to eliminate duplication across 4 route handlers
+- Added shared reencrypt() function in crypto.ts, used by change-password and backup-restore routes
+
+### Fixed
+
+- Critical SQL column mapping bug in scrubSnapshotUsernames: "group" → group_name (Drizzle schema field mapping)
+- UTF-8 consistency in scrubSnapshotUsernames: LENGTH → CHAR_LENGTH
+- Missing transaction error handling in change-password route (would crash with opaque 500)
+
 ## v1.3.0 — Chart & Detail Overhaul
 
 ### Features

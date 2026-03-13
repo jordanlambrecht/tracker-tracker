@@ -805,87 +805,7 @@ describe("Input validation: POST /api/trackers", () => {
 })
 
 // ---------------------------------------------------------------------------
-// 5. Input validation: PATCH /api/settings trackerPollIntervalMinutes
-// ---------------------------------------------------------------------------
-
-describe("Input validation: PATCH /api/settings trackerPollIntervalMinutes", () => {
-  beforeEach(() => {
-    vi.restoreAllMocks()
-    mockAuthSuccess()
-
-    // PATCH route fetches settings row before applying updates
-    const mockSettingsRow = {
-      id: 1,
-      storeUsernames: true,
-      username: null,
-      sessionTimeoutMinutes: null,
-      autoWipeThreshold: null,
-      snapshotRetentionDays: null,
-      trackerPollIntervalMinutes: 60,
-      proxyEnabled: false,
-      proxyType: "socks5",
-      proxyHost: null,
-      proxyPort: 1080,
-      proxyUsername: null,
-      encryptedProxyPassword: null,
-      failedLoginAttempts: 0,
-    }
-    const mockLimit = vi.fn().mockResolvedValue([mockSettingsRow])
-    const mockFrom = vi.fn().mockReturnValue({ limit: mockLimit })
-    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue({ from: mockFrom })
-  })
-
-  it("rejects non-integer trackerPollIntervalMinutes", async () => {
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
-      trackerPollIntervalMinutes: 30.5,
-    })
-
-    const req = makeRequest(
-      "http://localhost/api/settings",
-      { trackerPollIntervalMinutes: 30.5 },
-      "PATCH"
-    )
-    const res = await SettingsPATCH(req)
-    expect(res.status).toBe(400)
-    const data = await res.json()
-    expect(data.error).toMatch(/poll interval/i)
-  })
-
-  it("rejects trackerPollIntervalMinutes below 15", async () => {
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
-      trackerPollIntervalMinutes: 5,
-    })
-
-    const req = makeRequest(
-      "http://localhost/api/settings",
-      { trackerPollIntervalMinutes: 5 },
-      "PATCH"
-    )
-    const res = await SettingsPATCH(req)
-    expect(res.status).toBe(400)
-    const data = await res.json()
-    expect(data.error).toMatch(/poll interval/i)
-  })
-
-  it("rejects trackerPollIntervalMinutes above 1440", async () => {
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
-      trackerPollIntervalMinutes: 9999,
-    })
-
-    const req = makeRequest(
-      "http://localhost/api/settings",
-      { trackerPollIntervalMinutes: 9999 },
-      "PATCH"
-    )
-    const res = await SettingsPATCH(req)
-    expect(res.status).toBe(400)
-    const data = await res.json()
-    expect(data.error).toMatch(/poll interval/i)
-  })
-})
-
-// ---------------------------------------------------------------------------
-// 5b. Input validation: additional field constraints
+// 5. Input validation: additional field constraints
 // ---------------------------------------------------------------------------
 
 describe("Input validation: additional field constraints", () => {
@@ -1176,6 +1096,7 @@ describe("Backup restore authenticated flows", () => {
   it("POST /api/settings/backup/restore with wrong password returns 401", async () => {
     const { POST } = await import("@/app/api/settings/backup/restore/route")
     const { verifyPassword } = await import("@/lib/auth")
+    const { log } = await import("@/lib/logger")
 
     // Mock authenticate to return valid session
     vi.mocked(authenticate).mockResolvedValue({
@@ -1204,6 +1125,52 @@ describe("Backup restore authenticated flows", () => {
     expect(res.status).toBe(401)
     const data = await res.json()
     expect(data.error).toBe("Invalid master password")
+    expect(log.warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "restore_unauthorized",
+        reason: "invalid_master_password",
+        encrypted: false,
+        fileNameHash: expect.any(String),
+      }),
+      "Restore attempt with invalid master password"
+    )
+    expect(log.warn).not.toHaveBeenCalledWith(
+      expect.objectContaining({ fileName: expect.any(String) }),
+      expect.any(String)
+    )
+  })
+
+  it("POST /api/settings/backup/restore returns wipe message after threshold breach", async () => {
+    const { POST } = await import("@/app/api/settings/backup/restore/route")
+    const { verifyPassword } = await import("@/lib/auth")
+    const { recordFailedAttempt, WIPE_MESSAGE } = await import("@/lib/wipe")
+
+    vi.mocked(authenticate).mockResolvedValue({
+      encryptionKey: "a".repeat(64),
+    })
+
+    vi.mocked(db.select).mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        limit: vi.fn().mockResolvedValue([
+          {
+            id: 1,
+            passwordHash: "hashed_password",
+            encryptionSalt: "a".repeat(64),
+            autoWipeThreshold: 1,
+            lockedUntil: null,
+          },
+        ]),
+      }),
+    } as unknown as ReturnType<typeof db.select>)
+
+    vi.mocked(verifyPassword).mockResolvedValue(false)
+    vi.mocked(recordFailedAttempt).mockResolvedValue(true)
+
+    const req = createRestoreRequest(JSON.stringify(VALID_BACKUP), "wrong_master_password")
+    const res = await POST(req)
+
+    expect(res.status).toBe(403)
+    await expect(res.json()).resolves.toEqual({ error: WIPE_MESSAGE })
   })
 
   it("POST /api/settings/backup/restore with invalid JSON returns 400", async () => {

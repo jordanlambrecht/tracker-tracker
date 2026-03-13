@@ -50,12 +50,11 @@ vi.mock("@/lib/privacy", () => ({
   maskUsername: vi.fn((v: string) => `▓${v.length}`),
 }))
 
-// Returns a chainable mock for: db.select({...}).from(appSettings).limit(1)
-function mockSettingsSelect(storeUsernames = true) {
-  const mockLimit = vi.fn().mockResolvedValue([{ storeUsernames }])
-  const mockFrom = vi.fn().mockReturnValue({ limit: mockLimit })
-  return { from: mockFrom }
-}
+vi.mock("@/lib/privacy-db", () => ({
+  createPrivacyMask: vi.fn().mockResolvedValue(
+    (v: string | null | undefined) => (v ? `▓${v.length}` : null)
+  ),
+}))
 
 const VALID_KEY = "abcd1234".repeat(8)
 
@@ -73,7 +72,7 @@ function makeRequest(
 
 describe("GET /api/trackers", () => {
   beforeEach(() => {
-    vi.restoreAllMocks()
+    vi.clearAllMocks()
     ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
       encryptionKey: VALID_KEY,
     })
@@ -116,7 +115,6 @@ describe("GET /api/trackers", () => {
 
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFromTrackers })
-      .mockReturnValueOnce(mockSettingsSelect())
       .mockReturnValueOnce({ from: mockFromSnapshot })
 
     const response = await GET()
@@ -135,7 +133,6 @@ describe("GET /api/trackers", () => {
     const mockFrom = vi.fn().mockReturnValue({ orderBy: mockOrderBy })
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFrom })
-      .mockReturnValueOnce(mockSettingsSelect())
 
     const response = await GET()
     const data = await response.json()
@@ -175,7 +172,6 @@ describe("GET /api/trackers", () => {
 
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFromTrackers })
-      .mockReturnValueOnce(mockSettingsSelect())
       .mockReturnValueOnce({ from: mockFromSnapshot })
 
     const response = await GET()
@@ -187,7 +183,7 @@ describe("GET /api/trackers", () => {
 
 describe("POST /api/trackers", () => {
   beforeEach(() => {
-    vi.restoreAllMocks()
+    vi.clearAllMocks()
     ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
       encryptionKey: VALID_KEY,
     })
@@ -288,6 +284,44 @@ describe("POST /api/trackers", () => {
     expect(data.error).toMatch(/url/i)
   })
 
+  it("blocks SSRF via loopback address in baseUrl", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      name: "Aither",
+      baseUrl: "http://127.0.0.1:8080",
+      apiToken: "mytoken",
+    })
+
+    const request = makeRequest("http://localhost/api/trackers", {
+      name: "Aither",
+      baseUrl: "http://127.0.0.1:8080",
+      apiToken: "mytoken",
+    }, "POST")
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toMatch(/private network address/i)
+  })
+
+  it("blocks SSRF via cloud metadata endpoint (169.254.169.254)", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      name: "Aither",
+      baseUrl: "http://169.254.169.254/latest/meta-data",
+      apiToken: "mytoken",
+    })
+
+    const request = makeRequest("http://localhost/api/trackers", {
+      name: "Aither",
+      baseUrl: "http://169.254.169.254/latest/meta-data",
+      apiToken: "mytoken",
+    }, "POST")
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toMatch(/private network address/i)
+  })
+
   it("returns 400 when API token exceeds 500 characters", async () => {
     const longToken = "t".repeat(501)
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -346,7 +380,7 @@ describe("POST /api/trackers", () => {
 
 describe("PATCH /api/trackers/[id]", () => {
   beforeEach(() => {
-    vi.restoreAllMocks()
+    vi.clearAllMocks()
     ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
       encryptionKey: VALID_KEY,
     })
@@ -412,6 +446,24 @@ describe("PATCH /api/trackers/[id]", () => {
 
     expect(response.status).toBe(400)
     expect(data.error).toMatch(/url/i)
+  })
+
+  it("blocks SSRF via localhost in PATCH baseUrl", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      baseUrl: "http://localhost:9000/internal",
+    })
+
+    const request = makeRequest(
+      "http://localhost/api/trackers/1",
+      { baseUrl: "http://localhost:9000/internal" },
+      "PATCH"
+    )
+    const params = Promise.resolve({ id: "1" })
+    const response = await PATCH(request, { params })
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toMatch(/private network address/i)
   })
 
   it("returns 400 when color exceeds 20 characters", async () => {
@@ -485,7 +537,7 @@ describe("PATCH /api/trackers/[id]", () => {
 
 describe("DELETE /api/trackers/[id]", () => {
   beforeEach(() => {
-    vi.restoreAllMocks()
+    vi.clearAllMocks()
     ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
       encryptionKey: VALID_KEY,
     })
@@ -530,7 +582,7 @@ describe("DELETE /api/trackers/[id]", () => {
 
 describe("POST /api/trackers/[id]/poll", () => {
   beforeEach(() => {
-    vi.restoreAllMocks()
+    vi.clearAllMocks()
     ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
       encryptionKey: VALID_KEY,
     })
@@ -644,20 +696,19 @@ describe("POST /api/trackers/[id]/poll", () => {
 
 describe("GET /api/trackers/[id]/snapshots", () => {
   beforeEach(() => {
-    vi.restoreAllMocks()
+    vi.clearAllMocks()
     ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
       encryptionKey: VALID_KEY,
     })
     ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
   })
 
-  function buildSnapshotDbMock(result: unknown[], storeUsernames = true) {
+  function buildSnapshotDbMock(result: unknown[]) {
     const mockOrderBy = vi.fn().mockResolvedValue(result)
     const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy })
     const mockFrom = vi.fn().mockReturnValue({ where: mockWhere })
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFrom })
-      .mockReturnValueOnce(mockSettingsSelect(storeUsernames))
   }
 
   it("returns snapshots with default 30 days and serialized bigints", async () => {
@@ -750,7 +801,7 @@ describe("GET /api/trackers/[id]/snapshots", () => {
 
 describe("GET /api/trackers/[id]/roles", () => {
   beforeEach(() => {
-    vi.restoreAllMocks()
+    vi.clearAllMocks()
     ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
       encryptionKey: VALID_KEY,
     })
@@ -791,7 +842,7 @@ describe("GET /api/trackers/[id]/roles", () => {
 
 describe("POST /api/trackers/[id]/roles", () => {
   beforeEach(() => {
-    vi.restoreAllMocks()
+    vi.clearAllMocks()
     ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
       encryptionKey: VALID_KEY,
     })

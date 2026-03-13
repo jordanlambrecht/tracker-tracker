@@ -1,6 +1,6 @@
 // src/lib/wipe.ts
 //
-// Functions: recordFailedAttempt, resetFailedAttempts, scrubAndDeleteAll
+// Functions: getProgressiveLockoutMs, recordFailedAttempt, resetFailedAttempts, scrubAndDeleteAll
 
 import { randomBytes } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
@@ -19,6 +19,14 @@ import { stopScheduler } from "@/lib/scheduler"
 
 const WIPE_MESSAGE = "Too many failed attempts. All data has been deleted."
 
+export function getProgressiveLockoutMs(attemptCount: number): number {
+  if (attemptCount >= 20) return 3_600_000 // 1 hour
+  if (attemptCount >= 15) return 900_000 // 15 minutes
+  if (attemptCount >= 10) return 120_000 // 2 minutes
+  if (attemptCount >= 5) return 30_000 // 30 seconds
+  return 0
+}
+
 export async function recordFailedAttempt(
   settingsId: number,
   threshold: number | null
@@ -28,6 +36,14 @@ export async function recordFailedAttempt(
     .set({ failedLoginAttempts: sql`${appSettings.failedLoginAttempts} + 1` })
     .where(eq(appSettings.id, settingsId))
     .returning({ failedLoginAttempts: appSettings.failedLoginAttempts })
+
+  const lockoutMs = getProgressiveLockoutMs(updated.failedLoginAttempts)
+  if (lockoutMs > 0) {
+    await db
+      .update(appSettings)
+      .set({ lockedUntil: new Date(Date.now() + lockoutMs) })
+      .where(eq(appSettings.id, settingsId))
+  }
 
   if (threshold && threshold > 0 && updated.failedLoginAttempts >= threshold) {
     await scrubAndDeleteAll()
@@ -39,7 +55,7 @@ export async function recordFailedAttempt(
 export async function resetFailedAttempts(settingsId: number): Promise<void> {
   await db
     .update(appSettings)
-    .set({ failedLoginAttempts: 0 })
+    .set({ failedLoginAttempts: 0, lockedUntil: null })
     .where(eq(appSettings.id, settingsId))
 }
 

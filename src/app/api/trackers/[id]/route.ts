@@ -7,8 +7,8 @@ import { NextResponse } from "next/server"
 import { authenticate, decodeKey, parseJsonBody, parseTrackerId, validateHexColor, validateHttpUrl } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { appSettings, trackerSnapshots, trackers } from "@/lib/db/schema"
-import { isRedacted, maskUsername } from "@/lib/privacy"
+import { trackerSnapshots, trackers } from "@/lib/db/schema"
+import { createPrivacyMask } from "@/lib/privacy-db"
 
 export async function GET(
   _request: Request,
@@ -55,17 +55,7 @@ export async function GET(
     .orderBy(desc(trackerSnapshots.polledAt))
     .limit(1)
 
-  const [settings] = await db
-    .select({ storeUsernames: appSettings.storeUsernames })
-    .from(appSettings)
-    .limit(1)
-  const privacyMode = settings ? !settings.storeUsernames : false
-
-  const mask = (value: string | null | undefined): string | null => {
-    if (!value) return null
-    if (!privacyMode || isRedacted(value)) return value
-    return maskUsername(value)
-  }
+  const mask = await createPrivacyMask()
 
   return NextResponse.json({
     id: tracker.id,
