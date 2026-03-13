@@ -46,4 +46,18 @@ export class Unit3dAdapter implements TrackerAdapter {
       freeleechTokens: null,
     }
   }
+
+  async fetchRaw(
+    baseUrl: string,
+    apiToken: string,
+    apiPath: string,
+    options?: FetchOptions
+  ): Promise<Record<string, unknown>> {
+    const url = new URL(apiPath, baseUrl)
+    url.searchParams.set("api_token", apiToken)
+
+    const hostname = new URL(baseUrl).hostname
+    const data = await adapterFetch<Record<string, unknown>>(url.toString(), hostname, options)
+    return data
+  }
 }

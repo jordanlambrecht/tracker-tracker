@@ -1,6 +1,6 @@
 // src/lib/adapters/ggn.ts
 //
-// Functions: GGnAdapter
+// Functions: GGnAdapter, GGnAdapter.fetchStats, GGnAdapter.fetchRaw
 
 import { adapterFetch } from "./adapter-fetch"
 import type { FetchOptions, GGnPlatformMeta, TrackerAdapter, TrackerStats } from "./types"
@@ -57,6 +57,48 @@ interface GGnUserResponse {
 }
 
 export class GGnAdapter implements TrackerAdapter {
+  async fetchRaw(
+    baseUrl: string,
+    apiToken: string,
+    apiPath: string,
+    options?: FetchOptions
+  ): Promise<Record<string, unknown>> {
+    const hostname = new URL(baseUrl).hostname
+    const result: Record<string, unknown> = {}
+
+    let userId: number | undefined = options?.remoteUserId
+
+    if (!userId) {
+      const quickUrl = new URL(apiPath, baseUrl)
+      quickUrl.searchParams.set("request", "quick_user")
+      quickUrl.searchParams.set("key", apiToken)
+
+      const quickData = await adapterFetch<GGnQuickUserResponse>(
+        quickUrl.toString(),
+        hostname,
+        options
+      )
+      result.quickUser = quickData
+      userId = quickData.response?.id
+    }
+
+    if (userId) {
+      const userUrl = new URL(apiPath, baseUrl)
+      userUrl.searchParams.set("request", "user")
+      userUrl.searchParams.set("id", String(userId))
+      userUrl.searchParams.set("key", apiToken)
+
+      const userData = await adapterFetch<Record<string, unknown>>(
+        userUrl.toString(),
+        hostname,
+        options
+      )
+      result.user = userData
+    }
+
+    return result
+  }
+
   async fetchStats(
     baseUrl: string,
     apiToken: string,
