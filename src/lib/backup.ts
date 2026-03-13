@@ -287,9 +287,7 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
     }
 
     assertString(t.encryptedApiToken, `${prefix}.encryptedApiToken`)
-    if (t.encryptedApiToken.length === 0) {
-      throw new Error(`Backup validation: ${prefix}.encryptedApiToken must not be empty`)
-    }
+    // Empty token is valid — happens after a restore clears encrypted fields
 
     if (t.color !== null && t.color !== undefined) {
       assertString(t.color, `${prefix}.color`)
@@ -336,14 +334,8 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
     }
 
     assertString(c.encryptedUsername, `${prefix}.encryptedUsername`)
-    if (c.encryptedUsername.length === 0) {
-      throw new Error(`Backup validation: ${prefix}.encryptedUsername must not be empty`)
-    }
-
+    // Empty credentials are valid — happens after a restore clears encrypted fields
     assertString(c.encryptedPassword, `${prefix}.encryptedPassword`)
-    if (c.encryptedPassword.length === 0) {
-      throw new Error(`Backup validation: ${prefix}.encryptedPassword must not be empty`)
-    }
   }
 
   // tagGroupMember entries
