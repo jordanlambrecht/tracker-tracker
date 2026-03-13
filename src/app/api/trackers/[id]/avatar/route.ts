@@ -6,7 +6,7 @@
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseTrackerId } from "@/lib/api-helpers"
+import { authenticate, decodeKey, parseTrackerId, validateHttpUrl } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
 import { buildProxyAgentFromSettings, proxyFetch } from "@/lib/proxy"
@@ -52,6 +52,11 @@ export async function GET(
   const url = avatarUrl(tracker.platformType, tracker.remoteUserId, tracker.avatarRemoteUrl)
   if (!url) {
     return NextResponse.json({ error: "Platform does not support avatars" }, { status: 404 })
+  }
+
+  const urlErr = validateHttpUrl(url)
+  if (urlErr) {
+    return NextResponse.json({ error: "Invalid avatar URL" }, { status: 400 })
   }
 
   // Serve from DB cache if fresh

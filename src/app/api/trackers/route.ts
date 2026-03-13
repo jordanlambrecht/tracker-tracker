@@ -9,8 +9,8 @@ import { DEFAULT_API_PATHS } from "@/lib/adapters"
 import { authenticate, decodeKey, parseJsonBody, validateHexColor, validateHttpUrl } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { appSettings, trackerSnapshots, trackers } from "@/lib/db/schema"
-import { isRedacted, maskUsername } from "@/lib/privacy"
+import { trackerSnapshots, trackers } from "@/lib/db/schema"
+import { createPrivacyMask } from "@/lib/privacy-db"
 
 export async function GET() {
   const auth = await authenticate()
@@ -18,20 +18,9 @@ export async function GET() {
 
   const allTrackers = await db.select().from(trackers).orderBy(trackers.createdAt)
 
-  // Check privacy setting once for the entire response
-  const [settings] = await db
-    .select({ storeUsernames: appSettings.storeUsernames })
-    .from(appSettings)
-    .limit(1)
-  const privacyMode = settings ? !settings.storeUsernames : false
-
   // Enforce masking at response time — even if DB has plaintext from before
   // privacy was enabled, the API never leaks it when privacy mode is on.
-  const mask = (value: string | null | undefined): string | null => {
-    if (!value) return null
-    if (!privacyMode || isRedacted(value)) return value
-    return maskUsername(value)
-  }
+  const mask = await createPrivacyMask()
 
   // Get latest snapshot for each tracker (for sidebar ratio display)
   const trackersWithStats = await Promise.all(

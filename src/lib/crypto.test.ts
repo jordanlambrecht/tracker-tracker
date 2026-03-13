@@ -1,6 +1,6 @@
 // src/lib/crypto.test.ts
 import { describe, expect, it } from "vitest"
-import { decrypt, deriveKey, encrypt, generateSalt } from "./crypto"
+import { decrypt, deriveKey, encrypt, generateSalt, reencrypt } from "./crypto"
 
 describe("generateSalt", () => {
   it("produces a hex string", () => {
@@ -129,5 +129,48 @@ describe("crypto - security", () => {
     const truncated = encrypted.slice(0, encrypted.length - 10)
 
     expect(() => decrypt(truncated, key)).toThrow()
+  })
+})
+
+describe("reencrypt", () => {
+  it("re-encrypts ciphertext from one key to another", async () => {
+    const oldKey = await deriveKey("old-password", "salt-a")
+    const newKey = await deriveKey("new-password", "salt-b")
+
+    const original = "my-secret-api-token"
+    const ciphertext = encrypt(original, oldKey)
+
+    const reencrypted = reencrypt(ciphertext, oldKey, newKey)
+
+    expect(decrypt(reencrypted, newKey)).toBe(original)
+    expect(() => decrypt(reencrypted, oldKey)).toThrow()
+  })
+
+  it("is a no-op when old and new keys are the same", async () => {
+    const key = await deriveKey("same-password", "same-salt")
+
+    const original = "token-value"
+    const ciphertext = encrypt(original, key)
+
+    const reencrypted = reencrypt(ciphertext, key, key)
+
+    expect(decrypt(reencrypted, key)).toBe(original)
+  })
+
+  it("throws on invalid ciphertext", async () => {
+    const oldKey = await deriveKey("old", "salt")
+    const newKey = await deriveKey("new", "salt")
+
+    expect(() => reencrypt("not-valid-base64-ciphertext", oldKey, newKey)).toThrow()
+  })
+
+  it("throws when old key is wrong", async () => {
+    const correctKey = await deriveKey("correct", "salt")
+    const wrongKey = await deriveKey("wrong", "salt")
+    const newKey = await deriveKey("new", "salt")
+
+    const ciphertext = encrypt("secret", correctKey)
+
+    expect(() => reencrypt(ciphertext, wrongKey, newKey)).toThrow()
   })
 })
