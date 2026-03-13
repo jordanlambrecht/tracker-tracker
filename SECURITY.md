@@ -15,6 +15,7 @@ Last audited: `2026-03-12`
   - [Input Validation](#input-validation)
   - [Security Response Headers](#security-response-headers)
   - [Threat Model](#threat-model)
+  - [Is There Any Telemetry Baked In?](#is-there-any-telemetry-baked-in)
   - [Huntarr Anti-Pattern Checklist](#huntarr-anti-pattern-checklist)
   - [Username Privacy Mode](#username-privacy-mode)
   - [Unmitigated Attack Vectors](#unmitigated-attack-vectors)
@@ -23,6 +24,7 @@ Last audited: `2026-03-12`
     - [3. Correlation Attack on Masked Usernames](#3-correlation-attack-on-masked-usernames)
     - [4. Network Traffic Analysis](#4-network-traffic-analysis)
     - [5. Tracker-Side Logging](#5-tracker-side-logging)
+    - [6. DNS Rebinding](#6-dns-rebinding)
   - [Backup Security](#backup-security)
     - [Data Handling](#data-handling)
     - [Authentication](#authentication-1)
@@ -65,7 +67,7 @@ Last audited: `2026-03-12`
 ## Data Classification
 
 | Data                   | Storage                                 | Encrypted                  | Justification                                              |
-|------------------------|-----------------------------------------|----------------------------|------------------------------------------------------------|
+| ---------------------- | --------------------------------------- | -------------------------- | ---------------------------------------------------------- |
 | Master password        | `app_settings.password_hash`            | Argon2 hash (irreversible) | Memory-hard KDF; cannot be reversed                        |
 | Tracker API tokens     | `trackers.encrypted_api_token`          | AES-256-GCM                | Most sensitive field; provides account access              |
 | Encryption key         | JWE session cookie + scheduler memory   | JWE (A256GCM)              | Never written to disk in plaintext; zero-filled on logout  |
@@ -89,7 +91,7 @@ Last audited: `2026-03-12`
 All tracker API tokens are encrypted before database storage — see `src/lib/crypto.ts`.
 
 | Parameter      | Value                                                     |
-|----------------|-----------------------------------------------------------|
+| -------------- | --------------------------------------------------------- |
 | Algorithm      | AES-256-GCM                                               |
 | Key derivation | scrypt (N=16384, r=8, p=1)                                |
 | IV             | 12 bytes random per encryption                            |
@@ -124,7 +126,7 @@ Public routes are explicitly limited to: `/login`, `/setup`, `/api/auth/*`, `/ap
 All API routes validate inputs — see `src/app/api/trackers/route.ts` and `src/app/api/trackers/[id]/route.ts`.
 
 | Field           | Constraint                                                                                     |
-|-----------------|------------------------------------------------------------------------------------------------|
+| --------------- | ---------------------------------------------------------------------------------------------- |
 | Tracker name    | string, max 100 chars, trimmed                                                                 |
 | Base URL        | string, max 500 chars, validated via `new URL()`, scheme restricted to `https://` or `http://` |
 | API token       | string, max 500 chars                                                                          |
@@ -152,7 +154,7 @@ Configured in `next.config.ts` for all routes:
 ## Threat Model
 
 | Property         | Description                                                                               |
-|------------------|-------------------------------------------------------------------------------------------|
+| ---------------- | ----------------------------------------------------------------------------------------- |
 | User model       | Single user, self-hosted                                                                  |
 | Deployment       | Docker Compose (open-source)                                                              |
 | Trust boundary   | Network perimeter; may be internet-facing behind reverse proxy                            |
@@ -160,12 +162,16 @@ Configured in `next.config.ts` for all routes:
 | External calls   | User-configured tracker URLs (UNIT3D, Gazelle, GGn, Nebulance APIs) + qBittorrent clients |
 | Data sensitivity | Tracker API tokens (encrypted), usage statistics                                          |
 
+## Is There Any Telemetry Baked In?
+
+Nope 😎
+
 ## Huntarr Anti-Pattern Checklist
 
 Comparison against the 21 vulnerabilities found in Huntarr v9.4.2 ([security review](https://github.com/rfsbraz/huntarr-security-review)):
 
 | Huntarr Vulnerability                  | Status    | Implementation                                                                       |
-|----------------------------------------|-----------|--------------------------------------------------------------------------------------|
+| -------------------------------------- | --------- | ------------------------------------------------------------------------------------ |
 | Unauthenticated settings write         | Mitigated | All routes call `authenticate()`                                                     |
 | Setup flow re-arm without auth         | Mitigated | Setup checks for existing config, no clear/reset endpoint                            |
 | TOTP enrollment without auth           | Mitigated | TOTP setup/confirm/disable all require active session via `authenticate()`           |
@@ -193,7 +199,7 @@ Comparison against the 21 vulnerabilities found in Huntarr v9.4.2 ([security rev
 Tracker Tracker includes an optional privacy mode (`Settings → Store Usernames`) that controls whether tracker usernames and user classes are persisted to the database.
 
 | Mode                  | Behavior                                                                                                                                              |
-|-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Enabled** (default) | Usernames and groups are stored as-is in `tracker_snapshots`                                                                                          |
 | **Disabled**          | Usernames and groups are replaced with a length-preserving mask (`▓N` where N = character count) before database write. Real values are never stored. |
 
@@ -227,7 +233,7 @@ The following attack vectors are **not fully mitigated** by Tracker Tracker's ap
 
 ### 4. Network Traffic Analysis
 
-**Risk:** Even over HTTPS, an observer at the network level can see the IP addresses of tracker API endpoints that the application connects to. This reveals *which trackers* the user monitors, even though the request/response content is encrypted.
+**Risk:** Even over HTTPS, an observer at the network level can see the IP addresses of tracker API endpoints that the application connects to. This reveals _which trackers_ the user monitors, even though the request/response content is encrypted.
 
 **Countermeasure:** Route outbound traffic through a VPN or Tor. This is outside the application's scope.
 
@@ -236,6 +242,12 @@ The following attack vectors are **not fully mitigated** by Tracker Tracker's ap
 **Risk:** Some tracker APIs pass authentication tokens in the URL query string: UNIT3D uses `?api_token=TOKEN`, GGn uses `?key=TOKEN`. The tracker's web server access logs will contain the full URL including the token. Gazelle trackers use `Authorization` headers (not logged by default). This is a protocol-level constraint that Tracker Tracker cannot mitigate.
 
 **Countermeasure:** None at the application level. This is an upstream API design decision. Users should be aware that their API token may appear in the tracker's server logs depending on the platform.
+
+### 6. DNS Rebinding
+
+**Risk:** The SSRF protection in `src/lib/network.ts` validates hostnames at configuration time (when a tracker URL is saved), not at request time (when the adapter makes the outbound fetch). An attacker who controls DNS resolution could register a domain that initially resolves to a public IP (passing validation), then change the DNS record to point to a private IP (e.g., `192.168.1.1` or `169.254.169.254`) before the next poll cycle. The adapter would then make requests to the internal host.
+
+**Countermeasure:** For this application's threat model, the risk is low: the single authenticated user manually enters tracker URLs for known private tracker sites, and an attacker would need both session access and DNS control. For additional protection, deploy the Docker container on an isolated network segment where the application cannot reach internal services. A future enhancement could add DNS resolution validation at fetch time.
 
 ## Backup Security
 
@@ -280,13 +292,14 @@ The backup/restore system (`src/lib/backup.ts`, `src/app/api/settings/backup/`) 
 3. **No CSP header**: Content Security Policy is not yet configured due to the complexity of tuning it for ECharts canvas rendering. Basic security headers (X-Frame-Options, X-Content-Type-Options) are in place.
 4. **Optional 2FA**: TOTP two-factor authentication is available but optional. Backup codes use SHA-256 + random salt (not Argon2 — high-entropy generated codes don't need memory-hard KDF).
 5. **SESSION_SECRET truncation**: The session key uses only the first 32 bytes of `SESSION_SECRET`. Longer secrets work correctly but additional entropy beyond 32 characters is not used.
+6. **DNS rebinding not mitigated at fetch time**: SSRF protection validates hostnames when tracker URLs are saved, not when outbound requests are made. See [Unmitigated Attack Vectors](#6-dns-rebinding) for details.
 
 ## Security Testing
 
 Security invariants are verified by 80 automated tests in `src/lib/__tests__/security.test.ts`:
 
 | Category         | Tests | What's Verified                                                                                                                                                                                                                                                                                                                                                                                                                             |
-|------------------|-------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ---------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Auth enforcement | 52    | Every protected route returns 401 without valid session — trackers, snapshots, roles, reorder, poll-all, settings, dashboard, quicklinks, reset-stats, logs, clients (CRUD + test + torrents + snapshots + speeds), tag-groups (CRUD + members + member CRUD), fleet (snapshots + torrents), TOTP setup/confirm/disable, change-password, lockdown, nuke, proxy-test, backup (export + restore + history + get + delete), changelog, logout |
 | Token leakage    | 2     | `encryptedApiToken` never appears in API responses (list + detail)                                                                                                                                                                                                                                                                                                                                                                          |
 | Setup protection | 1     | Setup cannot be re-triggered after initial configuration                                                                                                                                                                                                                                                                                                                                                                                    |
@@ -318,36 +331,36 @@ The count guard ensures that security coverage is monotonically non-decreasing. 
 
 The security audit (`scripts/security-audit.ts`) performs 28 automated checks on every push and PR:
 
-| #  | Check                    | Severity | What's Verified                                                                              |
-|----|--------------------------|----------|----------------------------------------------------------------------------------------------|
-| 1  | Auth enforcement         | Critical | Every non-public API route calls `authenticate()` or `getSession()`                          |
-| 2  | Dangerous functions      | Critical | No code-injection-risk functions in source                                                   |
-| 3  | Hardcoded secrets        | Critical | No AWS keys, private keys, PATs, or API keys in source                                       |
-| 4  | Security headers         | Critical | All 6 required headers present in `next.config.ts`                                           |
-| 5  | Cookie security          | Critical | All cookie operations use `httpOnly`, `sameSite: "strict"`, `secure`                         |
-| 6  | Sensitive field exposure | Critical | `encryptedApiToken`, `passwordHash`, etc. not in API responses                               |
-| 7  | Env files                | Critical | No `.env` files tracked by git                                                               |
-| 8  | Raw SQL in routes        | Critical | No `db.execute()` in API route handlers (use Drizzle query builder)                          |
-| 9  | Unsafe redirect/fetch    | Critical | No `fetch()`/`redirect()` with user-supplied URLs in API routes (SSRF)                       |
-| 10 | Timing-safe comparison   | Critical | Secret comparisons in auth/crypto/totp use `timingSafeEqual`                                 |
-| 11 | No raw migrations        | Critical | No SQL migration files — enforces schema-first Drizzle approach                              |
-| 12 | Fetch timeout            | Critical | All external HTTP requests in adapters/clients have `AbortSignal.timeout`                    |
-| 13 | Dockerfile non-root      | Critical | Docker container runs as non-root user with explicit `USER` directive                        |
-| 14 | Proxy allowlist sync     | Critical | Public routes in proxy allowlist match `NO_AUTH_ROUTES` bidirectionally                      |
-| 15 | Console in routes        | Warning  | No `console.log/debug/info` in API route handlers                                            |
-| 16 | TODO in security files   | Warning  | No `TODO`/`FIXME` in security-critical source files                                          |
-| 17 | JSON.parse safety        | Warning  | `JSON.parse()` calls wrapped in try-catch                                                    |
-| 18 | Bare catch blocks        | Warning  | No swallowed errors in API routes/lib catch blocks                                           |
-| 19 | Request body size        | Warning  | POST/PATCH/PUT handlers validate request body size                                           |
-| 20 | BigInt safety            | Warning  | BigInt fields use string serialization, not `Number()`                                       |
-| 21 | Path traversal defense   | Critical | File delete operations use `path.resolve()` + `startsWith(base)`                             |
-| 22 | Argon2 hashing           | Critical | Password hashing in `auth.ts` uses Argon2, not SHA-256/bcrypt                                |
-| 23 | Encrypted column writes  | Critical | DB writes to encrypted columns use `encrypt()`/`reEncrypt()`                                 |
-| 24 | TOTP flow integrity      | Critical | 2FA routes enforce correct auth patterns, token flows, and single-use backup codes           |
-| 25 | Lockdown flow integrity  | Critical | Emergency lockdown stops scheduler, revokes tokens, rotates salt, clears TOTP                |
-| 26 | Nuke flow integrity      | Critical | Scrub & delete requires session + password, uses `scrubAndDeleteAll()`                       |
-| 27 | Backup restore integrity | Critical | Restore requires session + password (no auto-wipe), resets failed attempts, uses transaction |
-| 28 | Login flow integrity     | Critical | Login uses Argon2, atomic failed attempts, key derivation, TOTP pending token support        |
+| #   | Check                    | Severity | What's Verified                                                                              |
+| --- | ------------------------ | -------- | -------------------------------------------------------------------------------------------- |
+| 1   | Auth enforcement         | Critical | Every non-public API route calls `authenticate()` or `getSession()`                          |
+| 2   | Dangerous functions      | Critical | No code-injection-risk functions in source                                                   |
+| 3   | Hardcoded secrets        | Critical | No AWS keys, private keys, PATs, or API keys in source                                       |
+| 4   | Security headers         | Critical | All 6 required headers present in `next.config.ts`                                           |
+| 5   | Cookie security          | Critical | All cookie operations use `httpOnly`, `sameSite: "strict"`, `secure`                         |
+| 6   | Sensitive field exposure | Critical | `encryptedApiToken`, `passwordHash`, etc. not in API responses                               |
+| 7   | Env files                | Critical | No `.env` files tracked by git                                                               |
+| 8   | Raw SQL in routes        | Critical | No `db.execute()` in API route handlers (use Drizzle query builder)                          |
+| 9   | Unsafe redirect/fetch    | Critical | No `fetch()`/`redirect()` with user-supplied URLs in API routes (SSRF)                       |
+| 10  | Timing-safe comparison   | Critical | Secret comparisons in auth/crypto/totp use `timingSafeEqual`                                 |
+| 11  | No raw migrations        | Critical | No SQL migration files — enforces schema-first Drizzle approach                              |
+| 12  | Fetch timeout            | Critical | All external HTTP requests in adapters/clients have `AbortSignal.timeout`                    |
+| 13  | Dockerfile non-root      | Critical | Docker container runs as non-root user with explicit `USER` directive                        |
+| 14  | Proxy allowlist sync     | Critical | Public routes in proxy allowlist match `NO_AUTH_ROUTES` bidirectionally                      |
+| 15  | Console in routes        | Warning  | No `console.log/debug/info` in API route handlers                                            |
+| 16  | TODO in security files   | Warning  | No `TODO`/`FIXME` in security-critical source files                                          |
+| 17  | JSON.parse safety        | Warning  | `JSON.parse()` calls wrapped in try-catch                                                    |
+| 18  | Bare catch blocks        | Warning  | No swallowed errors in API routes/lib catch blocks                                           |
+| 19  | Request body size        | Warning  | POST/PATCH/PUT handlers validate request body size                                           |
+| 20  | BigInt safety            | Warning  | BigInt fields use string serialization, not `Number()`                                       |
+| 21  | Path traversal defense   | Critical | File delete operations use `path.resolve()` + `startsWith(base)`                             |
+| 22  | Argon2 hashing           | Critical | Password hashing in `auth.ts` uses Argon2, not SHA-256/bcrypt                                |
+| 23  | Encrypted column writes  | Critical | DB writes to encrypted columns use `encrypt()`/`reEncrypt()`                                 |
+| 24  | TOTP flow integrity      | Critical | 2FA routes enforce correct auth patterns, token flows, and single-use backup codes           |
+| 25  | Lockdown flow integrity  | Critical | Emergency lockdown stops scheduler, revokes tokens, rotates salt, clears TOTP                |
+| 26  | Nuke flow integrity      | Critical | Scrub & delete requires session + password, uses `scrubAndDeleteAll()`                       |
+| 27  | Backup restore integrity | Critical | Restore requires session + password (no auto-wipe), resets failed attempts, uses transaction |
+| 28  | Login flow integrity     | Critical | Login uses Argon2, atomic failed attempts, key derivation, TOTP pending token support        |
 
 Critical failures block the build. Warnings are reported but don't block.
 
