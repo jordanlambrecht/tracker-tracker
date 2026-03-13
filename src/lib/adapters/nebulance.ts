@@ -6,7 +6,7 @@
 //   - HnR field: present on Nebulance, absent on Anthelion
 //   - Response may be wrapped {"status":"success","response":{...}} or flat
 //
-// Functions: NebulanceAdapter
+// Functions: NebulanceAdapter, NebulanceAdapter.fetchStats, NebulanceAdapter.fetchRaw
 
 import { proxyFetch } from "@/lib/proxy"
 import type { FetchOptions, NebulancePlatformMeta, TrackerAdapter, TrackerStats } from "./types"
@@ -42,6 +42,39 @@ interface NebulanceErrorResponse {
 type NebulanceResponse = NebulanceWrappedResponse | NebulanceErrorResponse | NebulanceUserData
 
 export class NebulanceAdapter implements TrackerAdapter {
+  async fetchRaw(
+    baseUrl: string,
+    apiToken: string,
+    apiPath: string,
+    options?: FetchOptions
+  ): Promise<Record<string, unknown>> {
+    const hostname = new URL(baseUrl).hostname
+    const userId = options?.remoteUserId ?? 1
+
+    const isAnthelion = hostname.includes("anthelion")
+    const authParam = isAnthelion ? "apikey" : "api_key"
+
+    const url = new URL(apiPath, baseUrl)
+    url.searchParams.set("action", "user")
+    url.searchParams.set(authParam, apiToken)
+    url.searchParams.set("method", "getuserinfo")
+    url.searchParams.set("type", "id")
+    url.searchParams.set("user", String(userId))
+
+    const headers = { Accept: "application/json" }
+    let data: unknown
+
+    if (options?.proxyAgent) {
+      const result = await proxyFetch(url.toString(), options.proxyAgent, { headers })
+      data = await result.json()
+    } else {
+      const response = await fetch(url.toString(), { headers, signal: AbortSignal.timeout(15000) })
+      data = await response.json()
+    }
+
+    return data as Record<string, unknown>
+  }
+
   async fetchStats(
     baseUrl: string,
     apiToken: string,

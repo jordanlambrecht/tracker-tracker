@@ -13,6 +13,8 @@ import { RankProgress } from "@/components/dashboard/RankProgress"
 import { TorrentsTab } from "@/components/dashboard/TorrentsTab"
 import { TrackerSettingsDialog } from "@/components/TrackerSettingsDialog"
 import { AnalyticsTab } from "@/components/tracker-detail/AnalyticsTab"
+import type { DebugData } from "@/components/tracker-detail/DebugResponseDialog"
+import { DebugResponseDialog } from "@/components/tracker-detail/DebugResponseDialog"
 import { PollErrorBanner } from "@/components/tracker-detail/PollErrorBanner"
 import { TrackerDetailHeader } from "@/components/tracker-detail/TrackerDetailHeader"
 import { TrackerInfoTab } from "@/components/tracker-detail/TrackerInfoTab"
@@ -43,6 +45,10 @@ export default function TrackerDetailPage() {
   const [activeTab, setActiveTab] = useState<Tab>("analytics")
   const [tagGroups, setTagGroups] = useState<TagGroup[]>([])
   const [qbitmanageConfig, setQbitmanageConfig] = useState<{ enabled: boolean; tags: QbitmanageTagConfig } | null>(null)
+  const [showDebugDialog, setShowDebugDialog] = useState(false)
+  const [debugData, setDebugData] = useState<DebugData | null>(null)
+  const [debugLoading, setDebugLoading] = useState(false)
+  const [debugError, setDebugError] = useState<string | null>(null)
 
   // Fetch tracker metadata (depends on id only)
   useEffect(() => {
@@ -130,6 +136,26 @@ export default function TrackerDetailPage() {
     }
   }
 
+  async function handleDebugPoll() {
+    setDebugLoading(true)
+    setDebugError(null)
+    setDebugData(null)
+    setShowDebugDialog(true)
+    try {
+      const res = await fetch(`/api/trackers/${id}/debug`, { method: "POST" })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: "Debug poll failed" }))
+        setDebugError((body as { error?: string }).error ?? "Debug poll failed")
+      } else {
+        setDebugData(await res.json())
+      }
+    } catch {
+      setDebugError("Network error during debug poll")
+    } finally {
+      setDebugLoading(false)
+    }
+  }
+
   const latestSnapshot = snapshots.length > 0 ? snapshots[snapshots.length - 1] : null
   const stats = tracker?.latestStats ?? null
   const delta = useMemo(() => computeDelta(snapshots), [snapshots])
@@ -184,6 +210,8 @@ export default function TrackerDetailPage() {
         polling={polling}
         onPollNow={handlePollNow}
         onOpenSettings={() => setShowSettings(true)}
+        onDebugPoll={handleDebugPoll}
+        debugLoading={debugLoading}
       />
 
       {/* Rank Progression */}
@@ -272,6 +300,14 @@ export default function TrackerDetailPage() {
           }
           setTracker(updated)
         }}
+      />
+
+      <DebugResponseDialog
+        open={showDebugDialog}
+        loading={debugLoading}
+        data={debugData}
+        error={debugError}
+        onClose={() => setShowDebugDialog(false)}
       />
     </div>
   )

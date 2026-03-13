@@ -7,7 +7,7 @@ import { TrackerHubStatus } from "@/components/TrackerHubStatus"
 import { UserProfileCard } from "@/components/tracker-detail/UserProfileCard"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
-import { ExternalLinkSmallIcon, GearIcon } from "@/components/ui/Icons"
+import { BugIcon, ExternalLinkSmallIcon, GearIcon } from "@/components/ui/Icons"
 import { PulseDot } from "@/components/ui/PulseDot"
 import { H1 } from "@/components/ui/Typography"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
@@ -24,6 +24,8 @@ interface TrackerDetailHeaderProps {
   polling: boolean
   onPollNow: () => void
   onOpenSettings: () => void
+  onDebugPoll: () => void
+  debugLoading: boolean
 }
 
 export function TrackerDetailHeader({
@@ -36,6 +38,8 @@ export function TrackerDetailHeader({
   polling,
   onPollNow,
   onOpenSettings,
+  onDebugPoll,
+  debugLoading,
 }: TrackerDetailHeaderProps) {
   const health = getTrackerHealth(tracker)
 
@@ -118,6 +122,17 @@ export function TrackerDetailHeader({
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto justify-start sm:shrink-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onDebugPoll}
+            disabled={debugLoading || polling}
+            aria-label="Debug: fetch raw API response"
+            title="Fetch raw API response"
+            className="px-2"
+          >
+            <BugIcon width="16" height="16" />
+          </Button>
           <Button variant="secondary" size="sm" onClick={onPollNow} disabled={polling}>
             {polling ? "Polling..." : "Poll Now"}
           </Button>

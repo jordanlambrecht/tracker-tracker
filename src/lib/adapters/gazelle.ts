@@ -1,6 +1,6 @@
 // src/lib/adapters/gazelle.ts
 //
-// Functions: GazelleAdapter
+// Functions: GazelleAdapter, GazelleAdapter.fetchStats, GazelleAdapter.fetchRaw
 
 import { adapterFetch } from "./adapter-fetch"
 import type { FetchOptions, GazellePlatformMeta, TrackerAdapter, TrackerStats } from "./types"
@@ -179,6 +179,50 @@ export class GazelleAdapter implements TrackerAdapter {
     }
 
     return stats
+  }
+
+  async fetchRaw(
+    baseUrl: string,
+    apiToken: string,
+    apiPath: string,
+    options?: FetchOptions
+  ): Promise<Record<string, unknown>> {
+    const url = new URL(apiPath, baseUrl)
+    url.searchParams.set("action", "index")
+
+    const hostname = new URL(baseUrl).hostname
+    const authHeader = options?.authStyle === "raw" ? apiToken : `token ${apiToken}`
+
+    const indexData = await adapterFetch<Record<string, unknown>>(
+      url.toString(),
+      hostname,
+      options,
+      { Authorization: authHeader }
+    )
+
+    const result: Record<string, unknown> = { index: indexData }
+
+    // If we have a remoteUserId, also fetch the user profile
+    const indexResponse = indexData.response as { id?: number } | undefined
+    const userId = options?.remoteUserId ?? indexResponse?.id
+    if (userId) {
+      try {
+        const userUrl = new URL(apiPath, baseUrl)
+        userUrl.searchParams.set("action", "user")
+        userUrl.searchParams.set("id", String(userId))
+        const userData = await adapterFetch<Record<string, unknown>>(
+          userUrl.toString(),
+          hostname,
+          options,
+          { Authorization: authHeader }
+        )
+        result.user = userData
+      } catch {
+        // user profile fetch is non-fatal for raw debug
+      }
+    }
+
+    return result
   }
 
   private async fetchUserProfile(
