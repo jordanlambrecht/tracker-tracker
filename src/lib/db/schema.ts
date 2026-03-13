@@ -25,6 +25,7 @@ export const appSettings = pgTable("app_settings", {
   sessionTimeoutMinutes: integer("session_timeout_minutes"),
   autoWipeThreshold: integer("auto_wipe_threshold"),
   failedLoginAttempts: integer("failed_login_attempts").default(0).notNull(),
+  lockedUntil: timestamp("locked_until"),
   snapshotRetentionDays: integer("snapshot_retention_days"),
   trackerPollIntervalMinutes: integer("tracker_poll_interval_minutes").default(60).notNull(),
   proxyEnabled: boolean("proxy_enabled").default(false).notNull(),

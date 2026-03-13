@@ -3,14 +3,14 @@
 // Functions: GET, PATCH
 
 import path from "node:path"
-import { eq, isNotNull, or } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { authenticate, decodeKey, parseJsonBody } from "@/lib/api-helpers"
 import { VALID_BACKUP_FREQUENCIES } from "@/lib/backup"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { appSettings, trackerSnapshots } from "@/lib/db/schema"
-import { isRedacted, maskUsername } from "@/lib/privacy"
+import { appSettings } from "@/lib/db/schema"
+import { scrubSnapshotUsernames } from "@/lib/privacy-db"
 import { PROXY_HOST_PATTERN, VALID_PROXY_TYPES } from "@/lib/proxy"
 import { parseQbitmanageTags, QBITMANAGE_KEYS } from "@/lib/qbitmanage-defaults"
 
@@ -256,26 +256,7 @@ export async function PATCH(request: Request) {
 
     // When disabling username storage, optionally scrub historical data
     if (!body.storeUsernames && body.scrubExisting) {
-      const snapshots = await db
-        .select({
-          id: trackerSnapshots.id,
-          username: trackerSnapshots.username,
-          group: trackerSnapshots.group,
-        })
-        .from(trackerSnapshots)
-        .where(or(isNotNull(trackerSnapshots.username), isNotNull(trackerSnapshots.group)))
-
-      for (const snap of snapshots) {
-        if (isRedacted(snap.username) && isRedacted(snap.group)) continue
-
-        await db
-          .update(trackerSnapshots)
-          .set({
-            username: isRedacted(snap.username) ? snap.username : maskUsername(snap.username),
-            group: isRedacted(snap.group) ? snap.group : maskUsername(snap.group),
-          })
-          .where(eq(trackerSnapshots.id, snap.id))
-      }
+      await scrubSnapshotUsernames()
     }
   }
 

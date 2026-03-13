@@ -100,7 +100,18 @@ export async function POST(request: Request) {
       proxyIp: origin,
     })
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Connection failed"
-    return NextResponse.json({ success: false, error: message }, { status: 422 })
+    const raw = error instanceof Error ? error.message : ""
+    let detail = ""
+    if (/timed?\s*out/i.test(raw)) detail = " (timed out)"
+    else if (/ECONNREFUSED/i.test(raw)) detail = " (connection refused)"
+    else if (/ENOTFOUND/i.test(raw)) detail = " (host not found)"
+    else if (/EHOSTUNREACH/i.test(raw)) detail = " (host unreachable)"
+    else if (/ECONNRESET/i.test(raw)) detail = " (connection reset)"
+    else if (/SOCKS/i.test(raw)) detail = " (SOCKS proxy error)"
+    else if (/407/i.test(raw)) detail = " (proxy authentication required)"
+    return NextResponse.json(
+      { success: false, error: `Proxy test failed${detail}` },
+      { status: 422 }
+    )
   }
 }

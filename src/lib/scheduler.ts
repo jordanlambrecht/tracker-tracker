@@ -134,12 +134,24 @@ export async function pollTracker(
       .set({ lastPolledAt: timestamp, lastError: null, updatedAt: timestamp })
       .where(eq(trackers.id, tracker.id))
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error"
+    const raw = error instanceof Error ? error.message : "Unknown error"
+    let message = "Poll failed"
+    if (/timed?\s*out/i.test(raw)) message = "Request timed out"
+    else if (/ECONNREFUSED/i.test(raw)) message = "Connection refused"
+    else if (/ENOTFOUND/i.test(raw)) message = "Host not found"
+    else if (/EHOSTUNREACH/i.test(raw)) message = "Host unreachable"
+    else if (/ECONNRESET/i.test(raw)) message = "Connection reset"
+    else if (/401|403|Unauthorized|Forbidden/i.test(raw)) message = "Authentication failed"
+    else if (/proxy/i.test(raw)) message = "Proxy connection failed"
+    else {
+      const apiMatch = raw.match(/Tracker API error: (\d+)/i)
+      if (apiMatch) message = `API returned ${apiMatch[1]}`
+    }
     await db
       .update(trackers)
       .set({ lastError: message, updatedAt: new Date() })
       .where(eq(trackers.id, trackerId))
-    log.error(`Poll failed for tracker ${trackerId}: ${message}`)
+    log.error(`Poll failed for tracker ${trackerId}: ${raw}`)
   }
 }
 
