@@ -7,9 +7,6 @@
 # 4. Start the Next.js standalone server
 set -e
 
-FROM alpine:latest
-RUN apk add --no-cache bash
-
 # ── Validate environment ────────────────────────────────────────────────
 if [ -z "$DATABASE_URL" ]; then
   echo "tracker-tracker | FATAL: DATABASE_URL is not set" >&2

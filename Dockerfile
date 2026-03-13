@@ -39,7 +39,7 @@ RUN pnpm build
 # Stage 3 — Production runner
 # ---------------------------------------------------------------------------
 FROM node:24-alpine AS runner
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat bash
 WORKDIR /app
 
 ENV NODE_ENV=production
