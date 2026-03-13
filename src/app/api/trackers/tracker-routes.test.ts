@@ -50,12 +50,11 @@ vi.mock("@/lib/privacy", () => ({
   maskUsername: vi.fn((v: string) => `▓${v.length}`),
 }))
 
-// Returns a chainable mock for: db.select({...}).from(appSettings).limit(1)
-function mockSettingsSelect(storeUsernames = true) {
-  const mockLimit = vi.fn().mockResolvedValue([{ storeUsernames }])
-  const mockFrom = vi.fn().mockReturnValue({ limit: mockLimit })
-  return { from: mockFrom }
-}
+vi.mock("@/lib/privacy-db", () => ({
+  createPrivacyMask: vi.fn().mockResolvedValue(
+    (v: string | null | undefined) => (v ? `▓${v.length}` : null)
+  ),
+}))
 
 const VALID_KEY = "abcd1234".repeat(8)
 
@@ -116,7 +115,6 @@ describe("GET /api/trackers", () => {
 
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFromTrackers })
-      .mockReturnValueOnce(mockSettingsSelect())
       .mockReturnValueOnce({ from: mockFromSnapshot })
 
     const response = await GET()
@@ -135,7 +133,6 @@ describe("GET /api/trackers", () => {
     const mockFrom = vi.fn().mockReturnValue({ orderBy: mockOrderBy })
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFrom })
-      .mockReturnValueOnce(mockSettingsSelect())
 
     const response = await GET()
     const data = await response.json()
@@ -175,7 +172,6 @@ describe("GET /api/trackers", () => {
 
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFromTrackers })
-      .mockReturnValueOnce(mockSettingsSelect())
       .mockReturnValueOnce({ from: mockFromSnapshot })
 
     const response = await GET()
@@ -707,13 +703,12 @@ describe("GET /api/trackers/[id]/snapshots", () => {
     ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
   })
 
-  function buildSnapshotDbMock(result: unknown[], storeUsernames = true) {
+  function buildSnapshotDbMock(result: unknown[]) {
     const mockOrderBy = vi.fn().mockResolvedValue(result)
     const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy })
     const mockFrom = vi.fn().mockReturnValue({ where: mockWhere })
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFrom })
-      .mockReturnValueOnce(mockSettingsSelect(storeUsernames))
   }
 
   it("returns snapshots with default 30 days and serialized bigints", async () => {

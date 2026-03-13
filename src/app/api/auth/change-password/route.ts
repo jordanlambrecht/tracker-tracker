@@ -11,15 +11,11 @@ import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { authenticate, decodeKey, parseJsonBody } from "@/lib/api-helpers"
 import { clearSession, hashPassword, verifyPassword } from "@/lib/auth"
-import { decrypt, deriveKey, encrypt } from "@/lib/crypto"
+import { decrypt, deriveKey, encrypt, reencrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings, downloadClients, trackers } from "@/lib/db/schema"
 import { stopScheduler } from "@/lib/scheduler"
 import { recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"
-
-function reEncrypt(ciphertext: string, oldKey: Buffer, newKey: Buffer): string {
-  return encrypt(decrypt(ciphertext, oldKey), newKey)
-}
 
 export async function POST(request: Request) {
   const auth = await authenticate()
@@ -91,7 +87,7 @@ export async function POST(request: Request) {
 
   if (settings.totpSecret) {
     try {
-      settingsUpdates.totpSecret = reEncrypt(settings.totpSecret, oldKey, newKey)
+      settingsUpdates.totpSecret = reencrypt(settings.totpSecret, oldKey, newKey)
     } catch { // security-audit-ignore: re-encryption failed — clearing TOTP is the safe fallback
       settingsUpdates.totpSecret = null
       settingsUpdates.totpBackupCodes = null
@@ -100,7 +96,7 @@ export async function POST(request: Request) {
   }
   if (settings.totpBackupCodes && !settingsUpdates.totpBackupCodes && !totpDisabled) {
     try {
-      settingsUpdates.totpBackupCodes = reEncrypt(settings.totpBackupCodes, oldKey, newKey)
+      settingsUpdates.totpBackupCodes = reencrypt(settings.totpBackupCodes, oldKey, newKey)
     } catch { // security-audit-ignore: clearing backup codes is safe when re-encryption fails
       settingsUpdates.totpBackupCodes = null
     }
@@ -108,7 +104,7 @@ export async function POST(request: Request) {
 
   if (settings.encryptedProxyPassword) {
     try {
-      settingsUpdates.encryptedProxyPassword = reEncrypt(settings.encryptedProxyPassword, oldKey, newKey)
+      settingsUpdates.encryptedProxyPassword = reencrypt(settings.encryptedProxyPassword, oldKey, newKey)
     } catch {
       settingsUpdates.encryptedProxyPassword = null
       warnings.push("Proxy password could not be re-encrypted and was cleared. Re-enter it in settings.")
@@ -135,6 +131,8 @@ export async function POST(request: Request) {
         .set({ passwordHash: newHash, ...settingsUpdates })
         .where(eq(appSettings.id, settings.id))
     })
+  } catch {
+    return NextResponse.json({ error: "Password change failed. Your current password is unchanged." }, { status: 500 })
   } finally {
     oldKey.fill(0)
     newKey.fill(0)

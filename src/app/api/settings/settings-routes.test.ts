@@ -41,6 +41,10 @@ vi.mock("@/lib/privacy", () => ({
   maskUsername: vi.fn((value: string | null | undefined) => value ?? null),
 }))
 
+vi.mock("@/lib/privacy-db", () => ({
+  scrubSnapshotUsernames: vi.fn().mockResolvedValue(0),
+}))
+
 vi.mock("@/lib/proxy", () => ({
   PROXY_HOST_PATTERN: /^[\w.\-:[\]]+$/,
   VALID_PROXY_TYPES: new Set(["socks5", "http", "https"]),

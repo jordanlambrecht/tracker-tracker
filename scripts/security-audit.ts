@@ -1427,7 +1427,7 @@ function checkEncryptedColumnWrites(): CheckResult {
       if (!writePattern.test(content)) continue
 
       // File writes to an encrypted column — verify encrypt() is used
-      const hasEncrypt = /\bencrypt\s*\(/.test(content) || /\breEncrypt\s*\(/.test(content)
+      const hasEncrypt = /\bencrypt\s*\(/.test(content) || /\breencrypt\s*\(/.test(content)
 
       // Allow: setting to null (clearing the field)
       const setsToNull = new RegExp(`${col}\\s*:\\s*null`).test(content)
@@ -1442,7 +1442,7 @@ function checkEncryptedColumnWrites(): CheckResult {
       if (!hasEncrypt && !setsToNull && !setsToLiteral && !isRestoreRoute) {
         findings.push({
           file: rel,
-          detail: `Writes to encrypted column "${col}" without calling encrypt() or reEncrypt()`,
+          detail: `Writes to encrypted column "${col}" without calling encrypt() or reencrypt()`,
         })
       }
     }
