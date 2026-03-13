@@ -54,6 +54,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "TOTP is not enabled" }, { status: 400 })
   }
 
+  if (settings.lockedUntil && settings.lockedUntil > new Date()) {
+    const retryAfter = Math.ceil((settings.lockedUntil.getTime() - Date.now()) / 1000)
+    return NextResponse.json(
+      { error: "Too many failed attempts. Try again later.", retryAfter },
+      { status: 429, headers: { "Retry-After": String(retryAfter) } }
+    )
+  }
+
   const key = Buffer.from(pending.encryptionKey, "hex")
 
   if (isBackupCode) {

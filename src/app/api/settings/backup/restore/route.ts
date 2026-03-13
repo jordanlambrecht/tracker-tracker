@@ -156,6 +156,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not configured" }, { status: 400 })
   }
 
+  if (currentSettings.lockedUntil && currentSettings.lockedUntil > new Date()) {
+    const retryAfter = Math.ceil((currentSettings.lockedUntil.getTime() - Date.now()) / 1000)
+    return NextResponse.json(
+      { error: "Too many failed attempts. Try again later.", retryAfter },
+      { status: 429, headers: { "Retry-After": String(retryAfter) } }
+    )
+  }
+
   const isPasswordValid = await verifyPassword(currentSettings.passwordHash, masterPassword)
   if (!isPasswordValid) {
     const wiped = await recordFailedAttempt(currentSettings.id, currentSettings.autoWipeThreshold)
@@ -221,6 +229,7 @@ export async function POST(request: Request) {
   const currentSettingsId = currentSettings.id
   let tokensPreserved = 0
   let tokensCleared = 0
+  let totpDisabledOnRestore = false
 
   try {
     await db.transaction(async (tx) => {
@@ -449,7 +458,11 @@ export async function POST(request: Request) {
             totpBackupCodes = payload.settings.totpBackupCodes
               ? reencryptField(payload.settings.totpBackupCodes as string, backupKey, currentKey) || null
               : null
+          } else {
+            totpDisabledOnRestore = true
           }
+        } else {
+          totpDisabledOnRestore = true
         }
       }
 
@@ -464,6 +477,7 @@ export async function POST(request: Request) {
           sessionTimeoutMinutes: (payload.settings.sessionTimeoutMinutes as number | null) ?? null,
           autoWipeThreshold: (payload.settings.autoWipeThreshold as number | null) ?? null,
           failedLoginAttempts: 0,
+          lockedUntil: null,
           snapshotRetentionDays: (payload.settings.snapshotRetentionDays as number | null) ?? null,
           trackerPollIntervalMinutes:
             (payload.settings.trackerPollIntervalMinutes as number) ?? 60,
@@ -502,12 +516,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Restore failed: ${message}` }, { status: 409 })
   }
 
+  if (totpDisabledOnRestore) {
+    log.warn(
+      { event: "restore_totp_cleared" },
+      "TOTP secret could not be re-encrypted — 2FA has been disabled"
+    )
+  }
+
   log.info(
     {
       event: "restore_completed",
       fileNameHash: hashFileName(fileName),
       tokensPreserved,
       tokensCleared,
+      totpDisabledOnRestore,
       restored: {
         trackers: payload.trackers.length,
         trackerSnapshots: payload.trackerSnapshots.length,
@@ -532,6 +554,7 @@ export async function POST(request: Request) {
     },
     tokensPreserved,
     tokensCleared,
+    totpDisabledOnRestore,
     requiresRelogin: false,
   })
 }
