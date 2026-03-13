@@ -163,7 +163,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
 
 const ISO_8601_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/
 const HEX_64_RE = /^[0-9a-fA-F]{64}$/
-const HEX_COLOR_RE = /^#[0-9a-fA-F]{3,8}$/
+const HEX_COLOR_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
 export const VALID_BACKUP_FREQUENCIES = new Set(['daily', 'weekly', 'monthly'])
 
 function assertString(value: unknown, label: string): asserts value is string {
