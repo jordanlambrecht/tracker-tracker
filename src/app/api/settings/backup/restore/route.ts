@@ -1,6 +1,6 @@
 // src/app/api/settings/backup/restore/route.ts
 //
-// Functions: batchInsert, POST, hashFileName
+// Functions: batchInsert, POST, hashFileName, reencryptField
 
 import { createHash } from "node:crypto"
 import { eq } from "drizzle-orm"
@@ -13,7 +13,7 @@ import {
   type EncryptedBackupEnvelope,
   validateBackupJson,
 } from "@/lib/backup"
-import { deriveKey } from "@/lib/crypto"
+import { decrypt, deriveKey, encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import {
   appSettings,
@@ -33,9 +33,6 @@ const BATCH_SIZE = 500
 
 type TxType = Parameters<typeof db.transaction>[0] extends (tx: infer T) => unknown ? T : never
 
-/**
- * Hash filename for audit logging to prevent PII leakage while maintaining correlation capability
- */
 function hashFileName(fileName: string): string {
   return createHash("sha256").update(fileName).digest("hex").substring(0, 16)
 }
@@ -50,6 +47,22 @@ async function batchInsert<T extends Record<string, unknown>>(
     if (batch.length > 0) {
       await tx.insert(table).values(batch)
     }
+  }
+}
+
+// Attempt to decrypt a field with the backup key and re-encrypt with the current key.
+// Returns the re-encrypted ciphertext, or "" if the field is empty or re-encryption fails.
+function reencryptField(
+  ciphertext: string,
+  backupKey: Buffer,
+  currentKey: Buffer
+): string {
+  if (!ciphertext) return ""
+  try {
+    const plaintext = decrypt(ciphertext, backupKey)
+    return encrypt(plaintext, currentKey)
+  } catch {
+    return ""
   }
 }
 
@@ -111,7 +124,6 @@ export async function POST(request: Request) {
     const envelope = raw as Record<string, unknown>
     if (envelope.format === "tracker-tracker-encrypted-backup") {
       isEncrypted = true
-      // Encrypted backup - password required
       if (!backupPassword || typeof backupPassword !== "string" || backupPassword.length === 0) {
         return NextResponse.json(
           { error: "Backup password is required for encrypted backups" },
@@ -127,7 +139,6 @@ export async function POST(request: Request) {
       const decryptionKey = await deriveKey(backupPassword, backupEnvelope.encryptionSalt)
       payload = decryptBackupPayload(backupEnvelope, decryptionKey)
     } else {
-      // Plain JSON backup - no password needed
       validateBackupJson(raw)
       payload = raw as BackupPayload
     }
@@ -147,8 +158,6 @@ export async function POST(request: Request) {
 
   const isPasswordValid = await verifyPassword(currentSettings.passwordHash, masterPassword)
   if (!isPasswordValid) {
-    // Security event: Failed master password verification
-    // Apply auto-wipe defense (same pattern as login)
     const wiped = await recordFailedAttempt(currentSettings.id, currentSettings.autoWipeThreshold)
 
     const fileName = file instanceof File ? file.name : "unknown"
@@ -156,10 +165,9 @@ export async function POST(request: Request) {
       {
         event: "restore_unauthorized",
         reason: "invalid_master_password",
-        fileNameHash: hashFileName(fileName), // Hashed to prevent PII leakage
+        fileNameHash: hashFileName(fileName),
         encrypted: isEncrypted,
         wiped,
-        // fileSize intentionally omitted from unauthorized attempts (prevents fingerprinting)
       },
       "Restore attempt with invalid master password"
     )
@@ -171,26 +179,48 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid master password" }, { status: 401 })
   }
 
-  // Master password verified - reset failed attempts counter
   await resetFailedAttempts(currentSettings.id)
 
-  // Audit log: Restore authorized and starting
   const fileName = file instanceof File ? file.name : "unknown"
   log.info(
     {
       event: "restore_starting",
-      fileNameHash: hashFileName(fileName), // Hashed to prevent PII leakage
-      fileSize: file.size, // Safe to include in authorized logs for debugging
+      fileNameHash: hashFileName(fileName),
+      fileSize: file.size,
       encrypted: isEncrypted,
     },
     "Restore operation authorized and starting"
   )
 
-  // Step 6: Stop schedulers (key is zeroed inside stopScheduler)
+  // Step 6: Derive encryption keys for token re-encryption.
+  // The backup's encryptionSalt may differ from the current instance's salt (e.g. after a
+  // nuke + re-setup). We derive the backup key from masterPassword + backupSalt, and the
+  // current key from masterPassword + currentSalt. If the salts match, the keys are identical
+  // and re-encryption is a no-op pass-through.
+  const backupSalt = payload.settings.encryptionSalt as string
+  const currentSalt = currentSettings.encryptionSalt
+  const sameSalt = backupSalt === currentSalt
+
+  let backupKey: Buffer
+  let currentKey: Buffer
+  try {
+    backupKey = await deriveKey(masterPassword, backupSalt)
+    currentKey = sameSalt ? backupKey : await deriveKey(masterPassword, currentSalt)
+  } catch {
+    // If key derivation fails, fall back to clearing encrypted fields
+    backupKey = Buffer.alloc(0)
+    currentKey = Buffer.alloc(0)
+  }
+
+  const canReencrypt = backupKey.length === 32
+
+  // Step 7: Stop schedulers (key is zeroed inside stopScheduler)
   stopScheduler()
 
-  // Step 7: Execute restore in a transaction
+  // Step 8: Execute restore in a transaction
   const currentSettingsId = currentSettings.id
+  let tokensPreserved = 0
+  let tokensCleared = 0
 
   try {
     await db.transaction(async (tx) => {
@@ -202,14 +232,25 @@ export async function POST(request: Request) {
       await tx.delete(tagGroups)
       await tx.delete(downloadClients)
       await tx.delete(trackers)
-      // appSettings is NOT deleted — updated in place below
 
-      // Insert trackers and build oldId → newId map
-      // Note: API tokens are cleared because they were encrypted with the old
-      // encryption key and cannot be decrypted with a different password
+      // Insert trackers with token re-encryption
       const trackerIdMap = new Map<number, number>()
       for (const t of payload.trackers) {
         const { id: oldId, ...fields } = t as Record<string, unknown> & { id: number }
+
+        let apiToken: string
+        if (sameSalt) {
+          // Same instance — keep ciphertext as-is
+          apiToken = (fields.encryptedApiToken as string) || ""
+        } else if (canReencrypt) {
+          apiToken = reencryptField(fields.encryptedApiToken as string, backupKey, currentKey)
+        } else {
+          apiToken = ""
+        }
+
+        if (apiToken) tokensPreserved++
+        else if (fields.encryptedApiToken) tokensCleared++
+
         const [inserted] = await tx
           .insert(trackers)
           .values({
@@ -217,11 +258,20 @@ export async function POST(request: Request) {
             baseUrl: fields.baseUrl as string,
             apiPath: fields.apiPath as string,
             platformType: fields.platformType as string,
-            encryptedApiToken: "", // Cleared - requires re-entry after restore
+            encryptedApiToken: apiToken,
             isActive: fields.isActive as boolean,
             color: (fields.color as string | null) ?? null,
             qbtTag: (fields.qbtTag as string | null) ?? null,
+            remoteUserId: (fields.remoteUserId as number | null) ?? null,
+            platformMeta: (fields.platformMeta as string | null) ?? null,
+            avatarData: (fields.avatarData as string | null) ?? null,
+            avatarCachedAt: fields.avatarCachedAt
+              ? new Date(fields.avatarCachedAt as string)
+              : null,
+            avatarRemoteUrl: (fields.avatarRemoteUrl as string | null) ?? null,
             useProxy: fields.useProxy as boolean,
+            countCrossSeedUnsatisfied: (fields.countCrossSeedUnsatisfied as boolean) ?? false,
+            isFavorite: (fields.isFavorite as boolean) ?? false,
             sortOrder: (fields.sortOrder as number | null) ?? null,
             joinedAt: (fields.joinedAt as string | null) ?? null,
             createdAt: new Date(fields.createdAt as string),
@@ -231,12 +281,24 @@ export async function POST(request: Request) {
         trackerIdMap.set(oldId, inserted.id)
       }
 
-      // Insert downloadClients and build oldId → newId map
-      // Note: Credentials are cleared because they were encrypted with the old
-      // encryption key and cannot be decrypted with a different password
+      // Insert downloadClients with credential re-encryption
       const clientIdMap = new Map<number, number>()
       for (const c of payload.downloadClients) {
         const { id: oldId, ...fields } = c as Record<string, unknown> & { id: number }
+
+        let encUsername: string
+        let encPassword: string
+        if (sameSalt) {
+          encUsername = (fields.encryptedUsername as string) || ""
+          encPassword = (fields.encryptedPassword as string) || ""
+        } else if (canReencrypt) {
+          encUsername = reencryptField(fields.encryptedUsername as string, backupKey, currentKey)
+          encPassword = reencryptField(fields.encryptedPassword as string, backupKey, currentKey)
+        } else {
+          encUsername = ""
+          encPassword = ""
+        }
+
         const [inserted] = await tx
           .insert(downloadClients)
           .values({
@@ -246,8 +308,8 @@ export async function POST(request: Request) {
             host: fields.host as string,
             port: fields.port as number,
             useSsl: fields.useSsl as boolean,
-            encryptedUsername: "", // Cleared - requires re-entry after restore
-            encryptedPassword: "", // Cleared - requires re-entry after restore
+            encryptedUsername: encUsername,
+            encryptedPassword: encPassword,
             pollIntervalSeconds: fields.pollIntervalSeconds as number,
             isDefault: fields.isDefault as boolean,
             crossSeedTags: (fields.crossSeedTags as string) ?? "[]",
@@ -258,7 +320,7 @@ export async function POST(request: Request) {
         clientIdMap.set(oldId, inserted.id)
       }
 
-      // Insert tagGroups and build oldId → newId map
+      // Insert tagGroups
       const tagGroupIdMap = new Map<number, number>()
       for (const g of payload.tagGroups) {
         const { id: oldId, ...fields } = g as Record<string, unknown> & { id: number }
@@ -266,8 +328,11 @@ export async function POST(request: Request) {
           .insert(tagGroups)
           .values({
             name: fields.name as string,
+            emoji: (fields.emoji as string | null) ?? null,
+            chartType: (fields.chartType as string) ?? "bar",
             description: (fields.description as string | null) ?? null,
             sortOrder: (fields.sortOrder as number) ?? 0,
+            countUnmatched: (fields.countUnmatched as boolean) ?? false,
             createdAt: new Date(fields.createdAt as string),
             updatedAt: new Date(fields.updatedAt as string),
           })
@@ -280,7 +345,7 @@ export async function POST(request: Request) {
       for (const s of payload.trackerSnapshots) {
         const fields = s as Record<string, unknown>
         const newTrackerId = trackerIdMap.get(fields.trackerId as number)
-        if (!newTrackerId) continue // orphaned snapshot — skip
+        if (!newTrackerId) continue
         snapshotRows.push({
           trackerId: newTrackerId,
           polledAt: new Date(fields.polledAt as string),
@@ -292,17 +357,21 @@ export async function POST(request: Request) {
           leechingCount: (fields.leechingCount as number | null) ?? null,
           seedbonus: (fields.seedbonus as number | null) ?? null,
           hitAndRuns: (fields.hitAndRuns as number | null) ?? null,
+          requiredRatio: (fields.requiredRatio as number | null) ?? null,
+          warned: (fields.warned as boolean | null) ?? null,
+          freeleechTokens: (fields.freeleechTokens as number | null) ?? null,
+          shareScore: (fields.shareScore as number | null) ?? null,
           username: (fields.username as string | null) ?? null,
           group: (fields.group as string | null) ?? null,
         })
       }
       await batchInsert(tx, trackerSnapshots, snapshotRows)
 
-      // Insert trackerRoles (remap trackerId; small table)
+      // Insert trackerRoles (remap trackerId)
       for (const r of payload.trackerRoles) {
         const fields = r as Record<string, unknown>
         const newTrackerId = trackerIdMap.get(fields.trackerId as number)
-        if (!newTrackerId) continue // orphaned role — skip
+        if (!newTrackerId) continue
         await tx.insert(trackerRoles).values({
           trackerId: newTrackerId,
           roleName: fields.roleName as string,
@@ -311,11 +380,11 @@ export async function POST(request: Request) {
         })
       }
 
-      // Insert tagGroupMembers (remap groupId; small table)
+      // Insert tagGroupMembers (remap groupId)
       for (const m of payload.tagGroupMembers) {
         const fields = m as Record<string, unknown>
         const newGroupId = tagGroupIdMap.get(fields.groupId as number)
-        if (!newGroupId) continue // orphaned member — skip
+        if (!newGroupId) continue
         await tx.insert(tagGroupMembers).values({
           groupId: newGroupId,
           tag: fields.tag as string,
@@ -330,7 +399,7 @@ export async function POST(request: Request) {
       for (const cs of payload.clientSnapshots) {
         const fields = cs as Record<string, unknown>
         const newClientId = clientIdMap.get(fields.clientId as number)
-        if (!newClientId) continue // orphaned snapshot — skip
+        if (!newClientId) continue
         clientSnapshotRows.push({
           clientId: newClientId,
           polledAt: new Date(fields.polledAt as string),
@@ -347,29 +416,63 @@ export async function POST(request: Request) {
       }
       await batchInsert(tx, clientSnapshots, clientSnapshotRows)
 
+      // Re-encrypt proxy password if possible
+      let proxyPassword: string | null = null
+      if (payload.settings.encryptedProxyPassword) {
+        if (sameSalt) {
+          proxyPassword = payload.settings.encryptedProxyPassword as string
+        } else if (canReencrypt) {
+          const result = reencryptField(
+            payload.settings.encryptedProxyPassword as string,
+            backupKey,
+            currentKey
+          )
+          proxyPassword = result || null
+        }
+      }
+
+      // Re-encrypt TOTP secret if possible
+      let totpSecret: string | null = null
+      let totpBackupCodes: string | null = null
+      if (payload.settings.totpSecret) {
+        if (sameSalt) {
+          totpSecret = payload.settings.totpSecret as string
+          totpBackupCodes = (payload.settings.totpBackupCodes as string | null) ?? null
+        } else if (canReencrypt) {
+          const reencryptedSecret = reencryptField(
+            payload.settings.totpSecret as string,
+            backupKey,
+            currentKey
+          )
+          if (reencryptedSecret) {
+            totpSecret = reencryptedSecret
+            totpBackupCodes = payload.settings.totpBackupCodes
+              ? reencryptField(payload.settings.totpBackupCodes as string, backupKey, currentKey) || null
+              : null
+          }
+        }
+      }
+
       // Update appSettings in place — NEVER delete + re-insert
-      // NOTE: encryptionSalt is NOT updated from backup - keep the current instance's salt
-      // since it's used for encrypting API tokens/credentials, and those are cleared on restore
       await tx
         .update(appSettings)
         .set({
           username: (payload.settings.username as string | null) ?? null,
           storeUsernames: payload.settings.storeUsernames as boolean,
-          // ALWAYS clear encrypted fields on restore - they were encrypted with
-          // the old encryption key and can't be decrypted with current instance's key
-          totpSecret: null,
-          totpBackupCodes: null,
+          totpSecret,
+          totpBackupCodes,
           sessionTimeoutMinutes: (payload.settings.sessionTimeoutMinutes as number | null) ?? null,
           autoWipeThreshold: (payload.settings.autoWipeThreshold as number | null) ?? null,
-          failedLoginAttempts: 0, // ALWAYS reset — never restore the backup's counter
+          failedLoginAttempts: 0,
           snapshotRetentionDays: (payload.settings.snapshotRetentionDays as number | null) ?? null,
+          trackerPollIntervalMinutes:
+            (payload.settings.trackerPollIntervalMinutes as number) ?? 60,
           proxyEnabled: payload.settings.proxyEnabled as boolean,
           proxyType: payload.settings.proxyType as string,
           proxyHost: (payload.settings.proxyHost as string | null) ?? null,
           proxyPort: (payload.settings.proxyPort as number | null) ?? null,
           proxyUsername: (payload.settings.proxyUsername as string | null) ?? null,
-          // Proxy password was also encrypted with old key, can't restore
-          encryptedProxyPassword: null,
+          encryptedProxyPassword: proxyPassword,
           qbitmanageEnabled: payload.settings.qbitmanageEnabled as boolean,
           qbitmanageTags: (payload.settings.qbitmanageTags as string | null) ?? null,
           backupScheduleEnabled: payload.settings.backupScheduleEnabled as boolean,
@@ -377,6 +480,8 @@ export async function POST(request: Request) {
           backupRetentionCount: payload.settings.backupRetentionCount as number,
           backupEncryptionEnabled: payload.settings.backupEncryptionEnabled as boolean,
           backupStoragePath: (payload.settings.backupStoragePath as string | null) ?? null,
+          draftQuicklinks: (payload.settings.draftQuicklinks as string | null) ?? null,
+          dashboardSettings: (payload.settings.dashboardSettings as string | null) ?? null,
           // passwordHash: NEVER updated from backup
           // encryptionSalt: NEVER updated from backup
         })
@@ -385,13 +490,11 @@ export async function POST(request: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error"
 
-    // Audit log: Restore failed
-    const fileName = file instanceof File ? file.name : "unknown"
     log.error(
       {
         event: "restore_failed",
         error: message,
-        fileNameHash: hashFileName(fileName), // Hashed to prevent PII leakage
+        fileNameHash: hashFileName(fileName),
       },
       "Restore operation failed"
     )
@@ -399,12 +502,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Restore failed: ${message}` }, { status: 409 })
   }
 
-  // Audit log: Restore completed successfully
-  const fileNameForLog = file instanceof File ? file.name : "unknown"
   log.info(
     {
       event: "restore_completed",
-      fileNameHash: hashFileName(fileNameForLog), // Hashed to prevent PII leakage
+      fileNameHash: hashFileName(fileName),
+      tokensPreserved,
+      tokensCleared,
       restored: {
         trackers: payload.trackers.length,
         trackerSnapshots: payload.trackerSnapshots.length,
@@ -416,9 +519,6 @@ export async function POST(request: Request) {
     "Restore operation completed successfully"
   )
 
-  // encryptionSalt did NOT change, so session is still valid - no clearSession needed
-
-  // Return success
   return NextResponse.json({
     success: true,
     restored: {
@@ -430,6 +530,8 @@ export async function POST(request: Request) {
       tagGroupMembers: payload.tagGroupMembers.length,
       clientSnapshots: payload.clientSnapshots.length,
     },
+    tokensPreserved,
+    tokensCleared,
     requiresRelogin: false,
   })
 }
