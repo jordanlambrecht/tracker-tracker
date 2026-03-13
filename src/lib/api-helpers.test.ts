@@ -103,4 +103,25 @@ describe("validateHttpUrl", () => {
     const response = validateHttpUrl("http://[::ffff:7f00:1]/api")
     expect(response?.status).toBe(400)
   })
+
+  it("rejects shorthand IPv4 loopback (127.1)", async () => {
+    const response = validateHttpUrl("http://127.1/api")
+    expect(response?.status).toBe(400)
+  })
+
+  it("rejects shorthand IPv4 loopback (127.0.1)", async () => {
+    const response = validateHttpUrl("http://127.0.1/api")
+    expect(response?.status).toBe(400)
+  })
+
+  it("rejects single-octet loopback (2130706433)", async () => {
+    // 2130706433 = 0x7F000001 = 127.0.0.1
+    const response = validateHttpUrl("http://2130706433/api")
+    expect(response?.status).toBe(400)
+  })
+
+  it("rejects shorthand private range (10.1)", async () => {
+    const response = validateHttpUrl("http://10.1/api")
+    expect(response?.status).toBe(400)
+  })
 })

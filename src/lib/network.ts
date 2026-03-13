@@ -1,6 +1,6 @@
 // src/lib/network.ts
 //
-// Functions: toIpv4Integer, isPrivateIpv4Literal, isUnsafeIpv6Literal, isUnsafeNetworkHost
+// Functions: toIpv4Integer, isPrivateIpv4Literal, normalizeShorthandIpv4, isUnsafeIpv6Literal, isUnsafeNetworkHost
 
 import { isIP } from "node:net"
 
@@ -79,6 +79,39 @@ function isUnsafeIpv6Literal(host: string): boolean {
     normalized.startsWith("feb")
 }
 
+function normalizeShorthandIpv4(host: string): string | null {
+  const parts = host.split(".")
+  if (parts.length < 1 || parts.length > 4) return null
+  if (!parts.every((p) => /^\d+$/.test(p))) return null
+
+  const nums = parts.map((p) => Number.parseInt(p, 10))
+  let value: number
+
+  switch (nums.length) {
+    case 1:
+      if (nums[0] > 0xffffffff) return null
+      value = nums[0]
+      break
+    case 2:
+      if (nums[0] > 255 || nums[1] > 0xffffff) return null
+      value = (nums[0] << 24) | nums[1]
+      break
+    case 3:
+      if (nums[0] > 255 || nums[1] > 255 || nums[2] > 0xffff) return null
+      value = (nums[0] << 24) | (nums[1] << 16) | nums[2]
+      break
+    case 4:
+      if (nums.some((n) => n > 255)) return null
+      value = (nums[0] << 24) | (nums[1] << 16) | (nums[2] << 8) | nums[3]
+      break
+    default:
+      return null
+  }
+
+  value = value >>> 0
+  return `${(value >>> 24) & 0xff}.${(value >>> 16) & 0xff}.${(value >>> 8) & 0xff}.${value & 0xff}`
+}
+
 export function isUnsafeNetworkHost(host: string): boolean {
   const normalized = host
     .trim()
@@ -94,6 +127,10 @@ export function isUnsafeNetworkHost(host: string): boolean {
   const version = isIP(normalized)
   if (version === 4) return isPrivateIpv4Literal(normalized)
   if (version === 6) return isUnsafeIpv6Literal(normalized)
+
+  // Handle shorthand IPv4 forms (e.g., "127.1", "127.0.1") that isIP() doesn't recognize
+  const expanded = normalizeShorthandIpv4(normalized)
+  if (expanded) return isPrivateIpv4Literal(expanded)
 
   return false
 }
