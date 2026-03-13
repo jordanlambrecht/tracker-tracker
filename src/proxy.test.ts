@@ -40,7 +40,7 @@ describe("auth middleware", () => {
     expect(setCookie).toContain("tt_session=session-token")
     expect(setCookie).toContain("tt_max_age=1800")
     expect(setCookie).toContain("HttpOnly")
-    expect(setCookie).toContain("SameSite=strict")
+    expect(setCookie.toLowerCase()).toContain("samesite=strict")
     expect(setCookie).toContain("Max-Age=1800")
   })
 

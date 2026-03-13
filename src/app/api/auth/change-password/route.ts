@@ -131,7 +131,8 @@ export async function POST(request: Request) {
         .set({ passwordHash: newHash, ...settingsUpdates })
         .where(eq(appSettings.id, settings.id))
     })
-  } catch {
+  } catch (err) {
+    console.error("[change-password] Transaction failed:", err) // security-audit-ignore: server-side only
     return NextResponse.json({ error: "Password change failed. Your current password is unchanged." }, { status: 500 })
   } finally {
     oldKey.fill(0)

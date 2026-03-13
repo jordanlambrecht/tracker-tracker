@@ -1694,14 +1694,11 @@ function checkBackupRestoreIntegrity(): CheckResult {
   if (!/\btransaction\b/.test(content) && !/\.transaction\s*\(/.test(content)) {
     findings.push({ file: rel, detail: "Restore must run inside a database transaction (rollback on failure)" })
   }
-  // Restore must NOT increment auto-wipe counter on password failure
-  const lines = content.split("\n")
-  for (let i = 0; i < lines.length; i++) {
-    const trimmed = lines[i].trim()
-    if (trimmed.startsWith("//") || trimmed.startsWith("*")) continue
-    if (/\brecordFailedAttempt\s*\(/.test(lines[i])) {
-      findings.push({ file: rel, line: i + 1, detail: "Restore password check must NOT call recordFailedAttempt() (it is intent confirmation, not login)" })
-    }
+  // Restore SHOULD call recordFailedAttempt — a wrong password on restore is a
+  // brute-force vector (attacker with backup file guessing the master password).
+  // The restore route also checks lockedUntil, so progressive lockout applies.
+  if (!/\brecordFailedAttempt\s*\(/.test(content)) {
+    findings.push({ file: rel, detail: "Restore must call recordFailedAttempt() on invalid password (brute-force protection)" })
   }
   // Must validate backup before destructive operations
   if (!/\bvalidateBackupJson\b/.test(content) && !/\bvalidateBackup\b/.test(content)) {

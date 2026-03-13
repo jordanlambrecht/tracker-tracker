@@ -513,6 +513,9 @@ export async function POST(request: Request) {
     )
 
     return NextResponse.json({ error: `Restore failed: ${message}` }, { status: 409 })
+  } finally {
+    if (backupKey.length > 0) backupKey.fill(0)
+    if (currentKey !== backupKey && currentKey.length > 0) currentKey.fill(0)
   }
 
   if (totpDisabledOnRestore) {
