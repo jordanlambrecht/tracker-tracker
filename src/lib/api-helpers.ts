@@ -5,6 +5,7 @@
 
 import { NextResponse } from "next/server"
 import { requireAuth } from "@/lib/auth"
+import { isUnsafeNetworkHost } from "@/lib/network"
 
 export async function authenticate(): Promise<NextResponse | { encryptionKey: string }> {
   try {
@@ -49,6 +50,12 @@ export function validateHttpUrl(url: string): NextResponse | null {
     if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
       return NextResponse.json(
         { error: "baseUrl must use https:// or http://" },
+        { status: 400 }
+      )
+    }
+    if (isUnsafeNetworkHost(parsed.hostname)) {
+      return NextResponse.json(
+        { error: "baseUrl must not target localhost or a private network address" },
         { status: 400 }
       )
     }

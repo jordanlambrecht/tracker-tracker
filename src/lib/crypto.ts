@@ -1,6 +1,6 @@
 // src/lib/crypto.ts
 //
-// Functions: deriveKey, encrypt, decrypt, generateSalt
+// Functions: deriveKey, encrypt, decrypt, reencrypt, generateSalt
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "node:crypto"
 
 const KEY_LENGTH = 32 // 256 bits for AES-256
@@ -53,6 +53,15 @@ export function decrypt(encryptedBase64: string, key: Buffer): string {
   ])
 
   return decrypted.toString("utf8")
+}
+
+/**
+ * Decrypt ciphertext with oldKey and re-encrypt with newKey.
+ * Throws if decryption fails (wrong key, corrupt ciphertext).
+ * Callers that need silent fallback should wrap in try/catch.
+ */
+export function reencrypt(ciphertext: string, oldKey: Buffer, newKey: Buffer): string {
+  return encrypt(decrypt(ciphertext, oldKey), newKey)
 }
 
 export function generateSalt(): string {

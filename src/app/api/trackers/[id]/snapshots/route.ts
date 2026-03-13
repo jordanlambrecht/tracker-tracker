@@ -3,8 +3,8 @@ import { and, eq, gte } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { authenticate, parseTrackerId } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
-import { appSettings, trackerSnapshots } from "@/lib/db/schema"
-import { isRedacted, maskUsername } from "@/lib/privacy"
+import { trackerSnapshots } from "@/lib/db/schema"
+import { createPrivacyMask } from "@/lib/privacy-db"
 
 export async function GET(
   request: Request,
@@ -35,17 +35,7 @@ export async function GET(
 
   // Check privacy setting — enforce masking at response time even if DB has
   // plaintext from before privacy mode was enabled.
-  const [settings] = await db
-    .select({ storeUsernames: appSettings.storeUsernames })
-    .from(appSettings)
-    .limit(1)
-  const privacyMode = settings ? !settings.storeUsernames : false
-
-  const mask = (value: string | null | undefined): string | null => {
-    if (!value) return null
-    if (!privacyMode || isRedacted(value)) return value
-    return maskUsername(value)
-  }
+  const mask = await createPrivacyMask()
 
   // Serialize bigints to strings for JSON.
   // Username/group are included because detectRankChanges needs them.

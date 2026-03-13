@@ -17,6 +17,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not configured. Run setup first." }, { status: 400 })
   }
 
+  if (settings.lockedUntil && settings.lockedUntil > new Date()) {
+    const retryAfter = Math.ceil((settings.lockedUntil.getTime() - Date.now()) / 1000)
+    return NextResponse.json(
+      { error: "Too many failed attempts. Try again later.", retryAfter },
+      { status: 429, headers: { "Retry-After": String(retryAfter) } }
+    )
+  }
+
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
