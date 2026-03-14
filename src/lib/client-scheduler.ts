@@ -143,8 +143,7 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
     let crossSeedTags: string[] = []
     try {
       crossSeedTags = JSON.parse(client.crossSeedTags) as string[]
-    } catch {
-      /* security-audit-ignore: malformed JSON falls back to empty array */
+    } catch { // security-audit-ignore: malformed JSON falls back to empty array
     }
     const allTags = [...new Set([...trackerTags, ...crossSeedTags])]
 
@@ -169,6 +168,15 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
     )
 
     const stats = aggregateByTag(torrents, trackerTags, crossSeedTags)
+
+    // Cache the filtered torrent list for fallback when client is offline
+    await db
+      .update(downloadClients)
+      .set({
+        cachedTorrents: JSON.stringify(torrents),
+        cachedTorrentsAt: new Date(),
+      })
+      .where(eq(downloadClients.id, clientId))
 
     await db.insert(clientSnapshots).values({
       clientId,

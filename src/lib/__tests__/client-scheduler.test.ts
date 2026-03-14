@@ -403,6 +403,44 @@ describe("deepPollClient per-tag optimization", () => {
   })
 
   // -------------------------------------------------------------------------
+  // Cache write
+  // -------------------------------------------------------------------------
+
+  it("caches filtered torrents to downloadClients on successful poll", async () => {
+    const filteredTorrents = [
+      { hash: "a1", name: "Movie.mkv", state: "uploading", tags: "aither", upspeed: 100, dlspeed: 0 },
+      { hash: "a2", name: "Show.mkv", state: "uploading", tags: "aither", upspeed: 200, dlspeed: 0 },
+    ]
+
+    mockDbSelectSequence(MOCK_CLIENT, ["aither"])
+    ;(decrypt as ReturnType<typeof vi.fn>)
+      .mockReturnValueOnce("admin")
+      .mockReturnValueOnce("secret")
+    ;(getTorrents as ReturnType<typeof vi.fn>).mockResolvedValue([])
+    ;(getTransferInfo as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TRANSFER_INFO)
+    ;(filterAndDedup as ReturnType<typeof vi.fn>).mockReturnValue(filteredTorrents)
+    ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
+    mockDbInsertSnapshot()
+
+    // Capture ALL update calls — deep poll does 2 updates now (cache + status)
+    const updateCalls: Record<string, unknown>[] = []
+    const mockWhere = vi.fn().mockResolvedValue(undefined)
+    const mockSet = vi.fn().mockImplementation((values: Record<string, unknown>) => {
+      updateCalls.push(values)
+      return { where: mockWhere }
+    })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
+
+    await deepPollClient(1, makeEncryptionKey())
+
+    // One of the update calls should contain the cached torrents
+    const cacheUpdate = updateCalls.find((c) => "cachedTorrents" in c)
+    expect(cacheUpdate).toBeDefined()
+    expect(cacheUpdate!.cachedTorrents).toBe(JSON.stringify(filteredTorrents))
+    expect(cacheUpdate!.cachedTorrentsAt).toBeInstanceOf(Date)
+  })
+
+  // -------------------------------------------------------------------------
   // Credential flow
   // -------------------------------------------------------------------------
 
