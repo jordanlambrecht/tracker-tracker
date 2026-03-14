@@ -20,6 +20,8 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import clsx from "clsx"
+import Markdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { type CSSProperties, useCallback, useEffect, useRef, useState } from "react"
@@ -911,10 +913,12 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
               ✕
             </button>
           </div>
-          <div className="overflow-y-auto px-6 py-5 styled-scrollbar">
-            <pre className="text-sm font-mono text-secondary whitespace-pre-wrap leading-relaxed">
-              {changelogContent ?? "Loading..."}
-            </pre>
+          <div className="overflow-y-auto px-6 py-5 styled-scrollbar prose prose-invert prose-sm max-w-none prose-headings:font-mono prose-headings:text-primary prose-h1:text-lg prose-h2:text-base prose-h2:text-white prose-h2:border-b prose-h2:border-border prose-h2:pb-2 prose-h3:text-sm prose-li:text-secondary prose-p:text-secondary prose-strong:text-primary prose-a:text-accent">
+            {changelogContent ? (
+              <Markdown remarkPlugins={[remarkGfm]}>{changelogContent}</Markdown>
+            ) : (
+              <p className="text-muted">Loading...</p>
+            )}
           </div>
         </dialog>
       )}
