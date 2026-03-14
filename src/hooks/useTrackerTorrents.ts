@@ -53,6 +53,8 @@ interface TrackerTorrentsData {
   torrentError: string | null
   noClients: boolean
   clientCount: number
+  stale: boolean
+  cachedAt: string | null
 
   // Derived stats
   seedingTorrents: TorrentInfo[]
@@ -92,6 +94,8 @@ function useTrackerTorrents({
   const [torrentError, setTorrentError] = useState<string | null>(null)
   const [noClients, setNoClients] = useState(false)
   const [clientCount, setClientCount] = useState(0)
+  const [stale, setStale] = useState(false)
+  const [cachedAt, setCachedAt] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -101,31 +105,68 @@ function useTrackerTorrents({
         if (!cancelled) setLoading(false)
         return
       }
+
+      // Reset stale state on fresh fetch
+      if (!cancelled) {
+        setStale(false)
+        setCachedAt(null)
+      }
+
       try {
         const res = await fetch(`/api/trackers/${trackerId}/torrents`)
-        if (!res.ok) {
-          if (res.status === 400) {
-            // No qbtTag configured — handled by caller
-          } else {
-            if (!cancelled) setTorrentError(`Failed to fetch torrents (${res.status})`)
+        if (res.ok) {
+          const data: AggregatedTorrentsResponse = await res.json()
+          if (!cancelled) {
+            setTorrents(data.torrents.map(mapTorrent))
+            setCrossSeedTags(data.crossSeedTags)
+            setClientCount(data.clientCount)
+            setNoClients(data.clientCount === 0)
+            setTorrentError(
+              data.clientErrors.length > 0
+                ? `Partial data — some clients failed: ${data.clientErrors.join("; ")}`
+                : null
+            )
           }
-          if (!cancelled) setLoading(false)
+          return
+        }
+
+        // Live fetch failed — try cached fallback
+        if (res.status !== 400) {
+          await fetchCached()
+        }
+      } catch {
+        // Network error — try cached fallback
+        await fetchCached()
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    async function fetchCached() {
+      // References `cancelled` from the outer useEffect closure — NOT passed as a
+      // parameter — so it stays reactive if the component unmounts mid-fetch.
+      try {
+        const res = await fetch(`/api/trackers/${trackerId}/torrents/cached`)
+        if (!res.ok) {
+          if (!cancelled) setTorrentError("Client offline — no cached data available")
           return
         }
         const data: AggregatedTorrentsResponse = await res.json()
-        if (!cancelled) setTorrents(data.torrents.map(mapTorrent))
-        if (!cancelled) setCrossSeedTags(data.crossSeedTags)
-        if (!cancelled) setClientCount(data.clientCount)
-        if (data.clientErrors.length > 0) {
-          if (!cancelled) setTorrentError(`Partial data — some clients failed: ${data.clientErrors.join("; ")}`)
-        } else {
-          if (!cancelled) setTorrentError(null)
+        if (data.torrents.length === 0) {
+          if (!cancelled) setTorrentError("Client offline — no cached data available")
+          return
         }
-        if (!cancelled) setNoClients(data.clientCount === 0)
+        if (!cancelled) {
+          setTorrents(data.torrents.map(mapTorrent))
+          setCrossSeedTags(data.crossSeedTags)
+          setClientCount(data.clientCount)
+          setNoClients(false)
+          setStale(true)
+          setCachedAt(data.cachedAt ?? null)
+          setTorrentError(null)
+        }
       } catch {
-        if (!cancelled) setTorrentError("Could not reach server")
-      } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) setTorrentError("Client offline — no cached data available")
       }
     }
 
@@ -262,6 +303,8 @@ function useTrackerTorrents({
     torrentError,
     noClients,
     clientCount,
+    stale,
+    cachedAt,
     ...derived,
   }
 }
