@@ -68,6 +68,7 @@ export const trackers = pgTable("trackers", {
   isFavorite: boolean("is_favorite").default(false).notNull(),
   sortOrder: integer("sort_order"),
   joinedAt: date("joined_at"),
+  lastAccessAt: date("last_access_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })
@@ -119,6 +120,8 @@ export const downloadClients = pgTable("download_clients", {
   crossSeedTags: text("cross_seed_tags").default("[]").notNull(),
   lastPolledAt: timestamp("last_polled_at"),
   lastError: text("last_error"),
+  cachedTorrents: text("cached_torrents"),
+  cachedTorrentsAt: timestamp("cached_torrents_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })

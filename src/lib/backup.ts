@@ -105,10 +105,10 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
   const rawRoles = await db.select().from(trackerRoles).orderBy(trackerRoles.id)
   const rolesPayload = rawRoles.map((r) => serializeRow(r as Record<string, unknown>))
 
-  // downloadClients — exclude: lastPolledAt, lastError
+  // downloadClients — exclude: lastPolledAt, lastError, cachedTorrents, cachedTorrentsAt
   const rawClients = await db.select().from(downloadClients).orderBy(downloadClients.id)
   const clientsPayload = rawClients.map((c) => {
-    const { lastPolledAt: _lpa, lastError: _le, ...rest } = c
+    const { lastPolledAt: _lpa, lastError: _le, cachedTorrents: _ct, cachedTorrentsAt: _cta, ...rest } = c
     return serializeRow(rest as Record<string, unknown>)
   })
 
