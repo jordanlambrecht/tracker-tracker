@@ -99,7 +99,7 @@ export default function DashboardPage() {
 
       {/* ── Section 2: Alerts ── */}
       {data.alerts.length > 0 && (
-        <AlertsBanner alerts={data.alerts} onDismiss={data.dismissAlert} />
+        <AlertsBanner alerts={data.alerts} onDismiss={data.dismissAlert} onDismissAll={data.dismissAllAlerts} />
       )}
 
       {/* ── Section 3: Login Timers ── */}

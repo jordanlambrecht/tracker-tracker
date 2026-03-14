@@ -7,6 +7,7 @@
 import { useState } from "react"
 import { CHART_THEME } from "@/components/charts/theme"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
+import { ExternalLinkIcon } from "@/components/ui/Icons"
 import { StatCard } from "@/components/ui/StatCard"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import type { TrackerSummary } from "@/types/api"
@@ -55,15 +56,25 @@ export function LoginTimers({ trackers }: { trackers: TrackerSummary[] }) {
       {expanded && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
           {entries.map(({ tracker, loginIntervalDays, lastAccessAt }) => (
-            <StatCard
+            <a
               key={tracker.id}
-              type="ring"
-              title={tracker.name}
-              lastAccessAt={lastAccessAt}
-              loginIntervalDays={loginIntervalDays}
-              accentColor={CHART_THEME.success}
-              className="p-3 nm-raised-sm rounded-nm-md"
-            />
+              href={tracker.baseUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group relative block"
+            >
+              <StatCard
+                type="ring"
+                title={tracker.name}
+                lastAccessAt={lastAccessAt}
+                loginIntervalDays={loginIntervalDays}
+                accentColor={CHART_THEME.success}
+                className="p-3 nm-raised-sm rounded-nm-md group-hover:nm-raised transition-shadow duration-150"
+              />
+              <span className="absolute top-2 right-2 text-muted opacity-0 group-hover:opacity-60 transition-opacity duration-150">
+                <ExternalLinkIcon width={12} height={12} />
+              </span>
+            </a>
           ))}
         </div>
       )}
