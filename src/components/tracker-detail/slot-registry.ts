@@ -343,8 +343,8 @@ const gazelleCommentsSlot: SlotDefinition<StatCardStackedProps> = {
     const gazMeta = meta as GazellePlatformMeta
     if (!gazMeta.community) return null
     const c = gazMeta.community
-    const total = c.torrentComments + c.artistComments + c.collageComments + c.requestComments
-    if (total <= 0) return null
+    const total = (c.torrentComments ?? 0) + (c.artistComments ?? 0) + (c.collageComments ?? 0) + (c.requestComments ?? 0)
+    if (!total || total <= 0) return null
     return {
       type: "stacked" as const,
       title: "Comments",
