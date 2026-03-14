@@ -213,8 +213,8 @@ export async function POST(request: Request) {
   try {
     backupKey = await deriveKey(masterPassword, backupSalt)
     currentKey = sameSalt ? backupKey : await deriveKey(masterPassword, currentSalt)
-  } catch {
-    // If key derivation fails, fall back to clearing encrypted fields
+  } catch (err) {
+    log.warn({ err }, "Backup restore: key derivation failed, encrypted fields will be cleared")
     backupKey = Buffer.alloc(0)
     currentKey = Buffer.alloc(0)
   }

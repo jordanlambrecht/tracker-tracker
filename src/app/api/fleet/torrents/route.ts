@@ -11,7 +11,7 @@ import { authenticate, decodeKey } from "@/lib/api-helpers"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { downloadClients, trackers } from "@/lib/db/schema"
-import { type QbtTorrent, getTorrents, withSessionRetry } from "@/lib/qbt"
+import { getTorrents, type QbtTorrent, withSessionRetry } from "@/lib/qbt"
 import { aggregateCrossSeedTags, mergeTorrentLists } from "@/lib/qbt/merge"
 
 async function fetchClientTorrents(
