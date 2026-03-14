@@ -100,6 +100,12 @@ export async function pollTracker(
         metaUpdates.joinedAt = parsed.toISOString().split("T")[0]
       }
     }
+    if (stats.lastAccessDate) {
+      const parsed = new Date(stats.lastAccessDate)
+      if (!Number.isNaN(parsed.getTime())) {
+        metaUpdates.lastAccessAt = parsed.toISOString().split("T")[0]
+      }
+    }
     if (stats.platformMeta) {
       metaUpdates.platformMeta = JSON.stringify(stats.platformMeta)
     }

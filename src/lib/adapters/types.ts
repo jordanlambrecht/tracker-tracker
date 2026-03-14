@@ -12,12 +12,13 @@ export interface TrackerStats {
   seedingCount: number
   leechingCount: number
   seedbonus: number | null
-  hitAndRuns: number
+  hitAndRuns: number | null
   requiredRatio: number | null
   warned: boolean | null
   freeleechTokens: number | null
   remoteUserId?: number
   joinedDate?: string
+  lastAccessDate?: string
   shareScore?: number
   avatarUrl?: string
   platformMeta?: GGnPlatformMeta | GazellePlatformMeta | NebulancePlatformMeta
@@ -55,6 +56,9 @@ export interface GazelleRanks {
 export interface GazelleCommunity {
   posts: number
   torrentComments: number
+  artistComments: number
+  collageComments: number
+  requestComments: number
   collagesStarted: number
   collagesContrib: number
   requestsFilled: number
@@ -64,6 +68,8 @@ export interface GazelleCommunity {
   groups: number
   snatched: number
   invited: number
+  bountyEarned: number | null
+  bountySpent: number | null
 }
 
 export interface GazellePlatformMeta {
