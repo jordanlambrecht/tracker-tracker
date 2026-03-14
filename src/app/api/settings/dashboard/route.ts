@@ -7,14 +7,9 @@ import { NextResponse } from "next/server"
 import { authenticate, parseJsonBody } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { DASHBOARD_SETTINGS_DEFAULTS, type DashboardSettings } from "@/types/api"
 
-interface DashboardSettings {
-  showHealthIndicators: boolean
-}
-
-const DEFAULTS: DashboardSettings = {
-  showHealthIndicators: true,
-}
+const DEFAULTS = DASHBOARD_SETTINGS_DEFAULTS
 
 function parseSettings(raw: string | null): DashboardSettings {
   if (!raw) return { ...DEFAULTS }
@@ -47,6 +42,9 @@ export async function PUT(request: Request) {
   const merged: DashboardSettings = { ...DEFAULTS }
   if (typeof body.showHealthIndicators === "boolean") {
     merged.showHealthIndicators = body.showHealthIndicators
+  }
+  if (typeof body.showLoginTimers === "boolean") {
+    merged.showLoginTimers = body.showLoginTimers
   }
 
   const [row] = await db.select({ id: appSettings.id }).from(appSettings).limit(1)
