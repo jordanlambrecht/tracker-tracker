@@ -5,6 +5,7 @@
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
+import { Tooltip } from "@/components/ui/Tooltip"
 import { formatBytesFromNumber, formatDuration } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 
@@ -37,7 +38,7 @@ export function TopTorrentsTable({
       header: "Cat",
       width: 56,
       render: (t) => (
-        <span className="text-[11px] font-mono text-muted truncate block" title={t.category}>{t.category || "\u2014"}</span>
+        <Tooltip content={t.category}><span className="text-[11px] font-mono text-muted truncate block">{t.category || "\u2014"}</span></Tooltip>
       ),
     },
     {

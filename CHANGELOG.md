@@ -2,6 +2,59 @@
 
 ## [Unreleased]
 
+### Features
+
+- Cached torrent fallback: stores last successful torrent list per tag, serves cached data when qBittorrent is unreachable, with stale data banner indicating cache age
+- Anniversary milestone detection with dashboard alerts for tracker join date anniversaries
+- Login timer dashboard setting (showLoginTimers) with shared state toggle
+- Last access date field and enhanced community data in tracker adapters
+- Bento grid slot system with explicit-positioning layout algorithms for tracker detail stat cards
+
+### Security
+
+- Strip announce URL passkeys from torrent responses at both cache-write time and API response time
+- Sanitize raw error messages in client scheduler — generic messages to client, raw errors to server logs only
+
+### Changed
+
+- StatCard expanded with stacked and ring variants for bento grid layouts
+- Tracker detail cards migrated to slot-based grid system with slot registry
+- LoginTimers custom ring replaced with StatCard type=ring
+- formatTimeAgo extracted to shared formatters module
+- formatBytesNum improved with negative value handling and rounding
+- Import order standardized across codebase
+- Shared portal-based Tooltip component replaces all native title attributes and inline tooltip implementations across 15 files
+- Backup settings restructured: Export, Restore, and Configuration split into separate sections
+- "Encrypt backups" renamed to "Password-protect backups" for clarity
+- Backup password field moved from Configuration to Export section (ephemeral per-export, not a saved setting)
+- Storage path input visible outside scheduled backup toggle (used by both manual exports and scheduled backups)
+- Backup Now saves to disk silently when storage path is available; browser download only as fallback
+- Changelog dialog renders markdown instead of raw text
+- Changelog version header auto-updates on release via pnpm version lifecycle hook
+
+### Fixed
+
+- Color hex code validation bug
+- Backup storage path validated on filesystem (mkdir + access check) when saving settings
+- Backup Now disabled when configuration has unsaved changes
+- Default storage path (/data/backups) shown in input instead of empty placeholder
+- Export error messages now visible in Export section (were orphaned after section split)
+
+## v1.6.0 — Settings & Debug
+
+### Features
+
+- Debug button that shows raw API response output for tracker polling
+- Settings page decomposed into section components
+
+## v1.5.0 — Security & Backup Hardening
+
+### Features
+
+- Re-encryption for backup restore: tokens re-encrypted from backup salt to current salt via reencryptField()
+- Progressive login throttling: escalating lockout delays (5 req → 30s, 10 → 2m, 15 → 15m, 20 → 1h) with 429 responses
+- SSRF protection: isUnsafeNetworkHost blocks private/loopback/link-local addresses in tracker URLs
+
 ### Changed
 
 - Extracted DB-aware privacy operations (createPrivacyMask, scrubSnapshotUsernames) into new privacy-db.ts module to eliminate duplication across 4 route handlers
@@ -12,6 +65,21 @@
 - Critical SQL column mapping bug in scrubSnapshotUsernames: "group" → group_name (Drizzle schema field mapping)
 - UTF-8 consistency in scrubSnapshotUsernames: LENGTH → CHAR_LENGTH
 - Missing transaction error handling in change-password route (would crash with opaque 500)
+- Master password now validated before parsing backup payload
+
+## v1.4.0 — Docker & Deployment
+
+### Changed
+
+- Simplified backup process by removing encryption for automated backups
+- Dockerfile optimized for drizzle-kit schema sync (dedicated build stage, bash in runner)
+- Docker entrypoint improved for schema sync process
+- PostgreSQL image updated to 17-alpine
+
+### Fixed
+
+- Proxy configuration updated to include tracker logo path
+- Drizzle config dotenv handling improved
 
 ## v1.3.0 — Chart & Detail Overhaul
 

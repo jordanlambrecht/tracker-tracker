@@ -10,8 +10,9 @@
 "use client"
 
 import clsx from "clsx"
-import { type HTMLAttributes, type ReactNode, useEffect, useRef, useState } from "react"
+import type { HTMLAttributes, ReactNode } from "react"
 import { CHART_THEME } from "@/components/charts/theme"
+import { Tooltip } from "@/components/ui/Tooltip"
 import { hexToRgba } from "@/lib/formatters"
 
 // ---------------------------------------------------------------------------
@@ -127,64 +128,36 @@ function Header({
   alert,
   alertReason,
 }: { label: string; icon?: ReactNode; tooltip?: string; alert?: AlertLevel; alertReason?: string }) {
-  const [showTooltip, setShowTooltip] = useState(false)
-  const [showAlertTip, setShowAlertTip] = useState(false)
-  const tipTimeout = useRef<ReturnType<typeof setTimeout>>(null)
-  const alertTipTimeout = useRef<ReturnType<typeof setTimeout>>(null)
-
-  function enterTip() { if (tipTimeout.current) clearTimeout(tipTimeout.current); setShowTooltip(true) }
-  function leaveTip() { tipTimeout.current = setTimeout(() => setShowTooltip(false), 150) }
-  function enterAlert() { if (alertTipTimeout.current) clearTimeout(alertTipTimeout.current); setShowAlertTip(true) }
-  function leaveAlert() { alertTipTimeout.current = setTimeout(() => setShowAlertTip(false), 150) }
-  useEffect(() => () => {
-    if (tipTimeout.current) clearTimeout(tipTimeout.current)
-    if (alertTipTimeout.current) clearTimeout(alertTipTimeout.current)
-  }, [])
-
   const alertColor = alert === "danger" ? CHART_THEME.danger : alert === "warn" ? CHART_THEME.warn : null
 
   return (
     <div className="flex items-center justify-between">
-      <div className="flex items-center gap-1.5 relative">
+      <div className="flex items-center gap-1.5">
         <p className="text-xs font-sans font-medium text-tertiary uppercase tracking-wider">
           {label}
         </p>
         {tooltip && (
-          <button
-            type="button"
-            className="cursor-help text-[9px] font-bold text-muted opacity-50 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current hover:opacity-80 focus:opacity-80 transition-opacity outline-none"
-            onMouseEnter={enterTip}
-            onMouseLeave={leaveTip}
-            onFocus={enterTip}
-            onBlur={leaveTip}
-            aria-label={`Info: ${label}`}
-          >
-            ?
-            {showTooltip && (
-              <span role="tooltip" className="absolute left-0 top-full mt-1.5 z-50 w-52 px-3 py-2 text-[11px] font-sans font-normal normal-case tracking-normal text-secondary rounded-nm-sm leading-relaxed whitespace-normal" style={{ backgroundColor: "#343648", boxShadow: "4px 4px 8px #1b1c24, -4px -4px 8px #353848" }}>
-                {tooltip}
-              </span>
-            )}
-          </button>
+          <Tooltip content={<span className="w-52 block">{tooltip}</span>}>
+            <button
+              type="button"
+              className="cursor-help text-[9px] font-bold text-muted opacity-50 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current hover:opacity-80 focus:opacity-80 transition-opacity outline-none"
+              aria-label={`Info: ${label}`}
+            >
+              ?
+            </button>
+          </Tooltip>
         )}
         {alertReason && alertColor && (
-          <button
-            type="button"
-            className="cursor-help text-[9px] font-bold inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current hover:opacity-80 transition-opacity outline-none"
-            style={{ color: alertColor }}
-            onMouseEnter={enterAlert}
-            onMouseLeave={leaveAlert}
-            onFocus={enterAlert}
-            onBlur={leaveAlert}
-            aria-label={`Alert: ${alertReason}`}
-          >
-            !
-            {showAlertTip && (
-              <span role="tooltip" className="absolute left-0 top-full mt-1.5 z-50 w-52 px-3 py-2 text-[11px] font-sans font-normal normal-case tracking-normal text-secondary rounded-nm-sm leading-relaxed whitespace-normal" style={{ backgroundColor: "#343648", boxShadow: "4px 4px 8px #1b1c24, -4px -4px 8px #353848" }}>
-                {alertReason}
-              </span>
-            )}
-          </button>
+          <Tooltip content={<span className="w-52 block">{alertReason}</span>}>
+            <button
+              type="button"
+              className="cursor-help text-[9px] font-bold inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current hover:opacity-80 transition-opacity outline-none"
+              style={{ color: alertColor }}
+              aria-label={`Alert: ${alertReason}`}
+            >
+              !
+            </button>
+          </Tooltip>
         )}
       </div>
       {icon && (
@@ -216,10 +189,12 @@ function BasicContent({ value, unit, trend, subtitle, subValue }: {
         <span className="font-mono text-2xl font-semibold text-primary leading-none">{value}</span>
         {unit && <span className="font-mono text-xs font-normal text-muted leading-none mb-0.5">{unit}</span>}
         {trendInfo && (
-          <span className={clsx("font-mono text-sm leading-none mb-1", trendInfo.colorClass)} title={trendInfo.label}>
-            <span className="sr-only">{trendInfo.label}</span>
-            <span aria-hidden="true">{trendInfo.symbol}</span>
-          </span>
+          <Tooltip content={trendInfo.label}>
+            <span className={clsx("font-mono text-sm leading-none mb-1", trendInfo.colorClass)}>
+              <span className="sr-only">{trendInfo.label}</span>
+              <span aria-hidden="true">{trendInfo.symbol}</span>
+            </span>
+          </Tooltip>
         )}
       </div>
       {subtitle && <p className="font-mono text-xs text-muted">{subtitle}</p>}
@@ -362,7 +337,7 @@ function StatCard(props: StatCardProps) {
 
   // Default: basic
   return (
-    <Shell accentColor={accentColor} alert={alert} className={clsx(className, props.tooltip && "overflow-visible")} style={style} {...rest}>
+    <Shell accentColor={accentColor} alert={alert} className={className} style={style} {...rest}>
       <Header label={props.label} icon={icon} tooltip={props.tooltip} alert={alert} alertReason={alertReason} />
       <BasicContent value={props.value} unit={props.unit} trend={props.trend} subtitle={props.subtitle} subValue={props.subValue} />
     </Shell>

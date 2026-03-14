@@ -8,6 +8,7 @@ import type { ReactNode } from "react"
 import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/Card"
 import { ChevronUpIcon, EyeOffIcon } from "@/components/ui/Icons"
+import { Tooltip } from "@/components/ui/Tooltip"
 import { H3 } from "@/components/ui/Typography"
 
 interface ChartCardProps {
@@ -46,30 +47,32 @@ function ChartCard({
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {/* Collapse toggle */}
-          <button
-            type="button"
-            onClick={onToggleCollapse}
-            className="w-7 h-7 flex items-center justify-center text-muted hover:text-secondary hover:bg-overlay transition-colors cursor-pointer rounded-nm-sm"
-            aria-label={collapsed ? "Expand chart" : "Collapse chart"}
-            title={collapsed ? "Expand" : "Collapse"}
-          >
-            <ChevronUpIcon
-              width="14"
-              height="14"
-              className="transition-transform duration-200"
-              style={{ transform: collapsed ? "rotate(180deg)" : "rotate(0deg)" }}
-            />
-          </button>
+          <Tooltip content={collapsed ? "Expand" : "Collapse"}>
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              className="w-7 h-7 flex items-center justify-center text-muted hover:text-secondary hover:bg-overlay transition-colors cursor-pointer rounded-nm-sm"
+              aria-label={collapsed ? "Expand chart" : "Collapse chart"}
+            >
+              <ChevronUpIcon
+                width="14"
+                height="14"
+                className="transition-transform duration-200"
+                style={{ transform: collapsed ? "rotate(180deg)" : "rotate(0deg)" }}
+              />
+            </button>
+          </Tooltip>
           {/* Hide */}
-          <button
-            type="button"
-            onClick={onHide}
-            className="w-7 h-7 flex items-center justify-center text-muted hover:text-secondary hover:bg-overlay transition-colors cursor-pointer rounded-nm-sm"
-            aria-label="Hide chart"
-            title="Hide chart"
-          >
-            <EyeOffIcon width="14" height="14" />
-          </button>
+          <Tooltip content="Hide chart">
+            <button
+              type="button"
+              onClick={onHide}
+              className="w-7 h-7 flex items-center justify-center text-muted hover:text-secondary hover:bg-overlay transition-colors cursor-pointer rounded-nm-sm"
+              aria-label="Hide chart"
+            >
+              <EyeOffIcon width="14" height="14" />
+            </button>
+          </Tooltip>
         </div>
       </div>
 

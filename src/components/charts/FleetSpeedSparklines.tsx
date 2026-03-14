@@ -8,6 +8,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Card } from "@/components/ui/Card"
+import { Tooltip } from "@/components/ui/Tooltip"
 import { formatBytesFromNumber } from "@/lib/formatters"
 import { ChartEmptyState } from "./ChartEmptyState"
 import { CHART_THEME } from "./theme"
@@ -143,12 +144,13 @@ function ClientSpeedCard({ name, state }: ClientSpeedCardProps) {
 
   return (
     <Card className="flex flex-col gap-2 p-3">
-      <p
-        className="text-xs font-mono truncate text-secondary"
-        title={name}
-      >
-        {name}
-      </p>
+      <Tooltip content={name}>
+        <p
+          className="text-xs font-mono truncate text-secondary"
+        >
+          {name}
+        </p>
+      </Tooltip>
 
       {state.error ? (
         <p className="text-xs font-mono text-warn">

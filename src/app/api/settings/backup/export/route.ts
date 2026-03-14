@@ -68,6 +68,17 @@ export async function POST(request: Request) {
       storagePath: filePath,
     })
 
+    if (filePath) {
+      // Saved to disk — return JSON success (no browser download)
+      return NextResponse.json({
+        success: true,
+        filename,
+        sizeBytes,
+        storagePath: filePath,
+      })
+    }
+
+    // Disk write failed or no storage path — fall through to browser download
     return new Response(serialized, {
       headers: {
         "Content-Type": contentType,

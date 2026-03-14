@@ -12,6 +12,7 @@ import { ColorPicker } from "@/components/ui/ColorPicker"
 import { TriangleWarningIcon } from "@/components/ui/Icons"
 import { Input } from "@/components/ui/Input"
 import { QbtTagWarning } from "@/components/ui/QbtTagWarning"
+import { Tooltip } from "@/components/ui/Tooltip"
 import { H2 } from "@/components/ui/Typography"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { TRACKER_REGISTRY } from "@/data/tracker-registry"
@@ -162,12 +163,14 @@ function TrackerCombobox({ presets, value, onChange }: TrackerComboboxProps) {
                 )}
                 <span className="flex-1 truncate">{entry.name}</span>
                 {entry.warning && (
-                  <span className="flex items-center gap-1 shrink-0" title={entry.warningNote}>
-                    <TriangleWarningIcon width="13" height="13" className="text-warn" />
-                    {entry.warningNote && (
-                      <span className="text-[10px] text-warn">{entry.warningNote}</span>
-                    )}
-                  </span>
+                  <Tooltip content={entry.warningNote ?? "Warning"}>
+                    <span className="flex items-center gap-1 shrink-0">
+                      <TriangleWarningIcon width="13" height="13" className="text-warn" />
+                      {entry.warningNote && (
+                        <span className="text-[10px] text-warn">{entry.warningNote}</span>
+                      )}
+                    </span>
+                  </Tooltip>
                 )}
                 {entry.abbreviation && (
                   <span className="text-xs text-muted shrink-0">{entry.abbreviation}</span>

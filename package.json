@@ -18,6 +18,7 @@
     "tsc": "tsc --noEmit",
     "test": "vitest",
     "test:run": "vitest run",
+    "version": "sed -i '' \"s/## \\[Unreleased\\]/## [Unreleased]\\n\\n## v$npm_package_version — $(date +%Y-%m-%d)/\" CHANGELOG.md && git add CHANGELOG.md",
     "release:patch": "pnpm version patch && git push && git push --tags",
     "release:minor": "pnpm version minor && git push && git push --tags",
     "release:major": "pnpm version major && git push && git push --tags",

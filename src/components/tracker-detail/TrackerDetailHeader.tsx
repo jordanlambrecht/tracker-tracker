@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { BugIcon, ExternalLinkSmallIcon, GearIcon } from "@/components/ui/Icons"
 import { PulseDot } from "@/components/ui/PulseDot"
+import { Tooltip } from "@/components/ui/Tooltip"
 import { H1 } from "@/components/ui/Typography"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import type { ResolvedSlot } from "@/lib/slot-types"
@@ -61,15 +62,16 @@ export function TrackerDetailHeader({
             )}
             <H1 className="text-3xl font-bold tracking-tight">{tracker.name}</H1>
             <PulseDot status={getHealthPulseDot(health)} size="md" />
-            <a
-              href={tracker.baseUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted hover:text-accent transition-colors duration-150 shrink-0"
-              title={`Open ${tracker.name}`}
-            >
-              <ExternalLinkSmallIcon width="16" height="16" />
-            </a>
+            <Tooltip content={`Open ${tracker.name}`}>
+              <a
+                href={tracker.baseUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted hover:text-accent transition-colors duration-150 shrink-0"
+              >
+                <ExternalLinkSmallIcon width="16" height="16" />
+              </a>
+            </Tooltip>
           </div>
 
           {/* Meta badges */}
@@ -89,17 +91,18 @@ export function TrackerDetailHeader({
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto justify-start sm:shrink-0">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onDebugPoll}
-            disabled={debugLoading || polling}
-            aria-label="Debug: fetch raw API response"
-            title="Fetch raw API response"
-            className="px-2"
-          >
-            <BugIcon width="16" height="16" />
-          </Button>
+          <Tooltip content="Fetch raw API response">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onDebugPoll}
+              disabled={debugLoading || polling}
+              aria-label="Debug: fetch raw API response"
+              className="px-2"
+            >
+              <BugIcon width="16" height="16" />
+            </Button>
+          </Tooltip>
           <Button variant="secondary" size="sm" onClick={onPollNow} disabled={polling}>
             {polling ? "Polling..." : "Poll Now"}
           </Button>

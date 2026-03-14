@@ -9,6 +9,7 @@ import { useState } from "react"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
+import { Tooltip } from "@/components/ui/Tooltip"
 import { H2 } from "@/components/ui/Typography"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { hexToRgba } from "@/lib/formatters"
@@ -61,12 +62,13 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
               >
                 <span className="text-sm font-sans text-tertiary flex items-center gap-1.5">
                   {rule.label}
-                  <span
-                    className="cursor-help text-[9px] font-bold opacity-50 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current hover:opacity-80 transition-opacity"
-                    title={rule.tip}
-                  >
-                    ?
-                  </span>
+                  <Tooltip content={rule.tip}>
+                    <span
+                      className="cursor-help text-[9px] font-bold opacity-50 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current hover:opacity-80 transition-opacity"
+                    >
+                      ?
+                    </span>
+                  </Tooltip>
                 </span>
                 <span className="text-base font-mono font-semibold text-primary">{rule.value}</span>
               </div>
@@ -203,15 +205,17 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
             {registryEntry.releaseGroups.map((g) => {
               const name = typeof g === "string" ? g : g.name
               const desc = typeof g === "string" ? undefined : g.description
-              return (
+              const badge = (
                 <span
                   key={name}
-                  title={desc}
                   className="nm-inset-sm bg-control-bg rounded-nm-pill px-3 py-1 text-xs font-mono text-accent"
                 >
                   {name}
                 </span>
               )
+              return desc ? (
+                <Tooltip key={name} content={desc}>{badge}</Tooltip>
+              ) : badge
             })}
           </div>
         </div>

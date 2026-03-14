@@ -5,6 +5,7 @@
 import { CHART_THEME } from "@/components/charts/theme"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
+import { Tooltip } from "@/components/ui/Tooltip"
 import { formatBytesFromNumber, formatDuration } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 
@@ -29,7 +30,7 @@ export function UnsatisfiedTorrentsTable({
         const pct = Math.min((t.seedingTime / requiredSeconds) * 100, 100)
         return (
           <div className="flex flex-col gap-1.5 min-w-0">
-            <span className="text-xs font-mono text-secondary truncate" title={t.name}>{t.name}</span>
+            <Tooltip content={t.name}><span className="text-xs font-mono text-secondary truncate">{t.name}</span></Tooltip>
             <div className="flex items-center gap-2">
               <div className="flex-1 h-1 rounded-full bg-base overflow-hidden">
                 <div
@@ -51,7 +52,7 @@ export function UnsatisfiedTorrentsTable({
       header: "Category",
       width: 80,
       render: (t) => (
-        <span className="text-xs font-mono text-muted truncate block" title={t.category}>{t.category || "\u2014"}</span>
+        <Tooltip content={t.category}><span className="text-xs font-mono text-muted truncate block">{t.category || "\u2014"}</span></Tooltip>
       ),
     },
     {

@@ -6,6 +6,7 @@ import Link from "next/link"
 import { useState } from "react"
 import { Button, buttonVariants } from "@/components/ui/Button"
 import { CheckLargeIcon, CopyIcon } from "@/components/ui/Icons"
+import { Tooltip } from "@/components/ui/Tooltip"
 import { H1 } from "@/components/ui/Typography"
 
 export function ErrorDisplay({
@@ -46,18 +47,19 @@ export function ErrorDisplay({
           >
             {errorText}
           </pre>
-          <button
-            type="button"
-            onClick={handleCopy}
-            className="absolute top-2 right-2 p-1.5 text-muted hover:text-secondary transition-colors duration-150 cursor-pointer"
-            title="Copy error message"
-          >
-            {copied ? (
-              <CheckLargeIcon width="14" height="14" />
-            ) : (
-              <CopyIcon width="14" height="14" />
-            )}
-          </button>
+          <Tooltip content="Copy error message">
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="absolute top-2 right-2 p-1.5 text-muted hover:text-secondary transition-colors duration-150 cursor-pointer"
+            >
+              {copied ? (
+                <CheckLargeIcon width="14" height="14" />
+              ) : (
+                <CopyIcon width="14" height="14" />
+              )}
+            </button>
+          </Tooltip>
         </div>
         <div className="flex gap-3">
           <Button variant="primary" size="sm" onClick={onRetry}>

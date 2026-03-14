@@ -20,11 +20,11 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import clsx from "clsx"
-import Markdown from "react-markdown"
-import remarkGfm from "remark-gfm"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { type CSSProperties, useCallback, useEffect, useRef, useState } from "react"
+import Markdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import { AddTrackerDialog } from "@/components/AddTrackerDialog"
 import { CHART_THEME } from "@/components/charts/theme"
 import { Button } from "@/components/ui/Button"
@@ -33,6 +33,7 @@ import { DownloadArrowIcon, EyeIcon, EyeOffIcon, UploadArrowIcon } from "@/compo
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import { PulseDot } from "@/components/ui/PulseDot"
 import { Select } from "@/components/ui/Select"
+import { Tooltip } from "@/components/ui/Tooltip"
 import { H2 } from "@/components/ui/Typography"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
 import { useUpdateCheck } from "@/hooks/useUpdateCheck"
@@ -721,9 +722,10 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
                     showFavoritesOnly ? "text-warn" : "text-tertiary hover:text-secondary"
                   )}
                   aria-label={showFavoritesOnly ? "Show all trackers" : "Show favorites only"}
-                  title={showFavoritesOnly ? "Show all trackers" : "Show favorites only"}
                 >
-                  {showFavoritesOnly ? "★" : "☆"}
+                  <Tooltip content={showFavoritesOnly ? "Show all trackers" : "Show favorites only"}>
+                    <span>{showFavoritesOnly ? "★" : "☆"}</span>
+                  </Tooltip>
                 </button>
 
                 {/* Lock/unlock drag-and-drop */}
@@ -732,9 +734,10 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
                   onClick={() => setUnlocked((u) => !u)}
                   className="text-tertiary hover:text-secondary transition-colors duration-150 cursor-pointer px-2 py-1.5 shrink-0 rounded-nm-sm"
                   aria-label={unlocked ? "Lock order" : "Unlock to reorder"}
-                  title={unlocked ? "Lock order" : "Unlock to reorder"}
                 >
-                  {unlocked ? "🔓" : "🔒"}
+                  <Tooltip content={unlocked ? "Lock order" : "Unlock to reorder"}>
+                    <span>{unlocked ? "🔓" : "🔒"}</span>
+                  </Tooltip>
                 </button>
               </div>
             )}
@@ -838,10 +841,13 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-1.5 py-0.5 text-[9px] font-mono text-accent hover:bg-accent/25 transition-colors duration-150"
-                  title={`Update available: v${latestVersion}`}
                 >
-                  v{latestVersion}
-                  <span aria-hidden="true">↑</span>
+                  <Tooltip content={`Update available: v${latestVersion}`}>
+                    <span className="flex items-center gap-1">
+                      v{latestVersion}
+                      <span aria-hidden="true">↑</span>
+                    </span>
+                  </Tooltip>
                 </a>
               )}
               {/* biome-ignore lint/a11y/useAnchorContent: aria-label provides accessible content */}
