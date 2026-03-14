@@ -155,6 +155,7 @@ export function AnalyticsTab({
         lastError={tracker.lastError}
       />
       <AnalyticsCharts
+        trackerName={tracker.name}
         platformType={tracker.platformType}
         snapshots={snapshots}
         accentColor={tc}
