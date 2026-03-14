@@ -4,7 +4,7 @@ import { H2 } from "@/components/ui/Typography"
 import { hexToRgba } from "@/lib/formatters"
 import type { GGnPlatformMeta } from "@/types/api"
 
-interface GgnBuffsDisplayProps {
+export interface GgnBuffsDisplayProps {
   ggMeta: GGnPlatformMeta | null
   accentColor: string
 }
