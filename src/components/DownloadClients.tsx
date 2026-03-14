@@ -15,6 +15,7 @@ import { NumberInput } from "@/components/ui/NumberInput"
 import { Select } from "@/components/ui/Select"
 import { Toggle } from "@/components/ui/Toggle"
 import { H3, Paragraph, Subheader, Subtext } from "@/components/ui/Typography"
+import { UptimeBar } from "@/components/ui/UptimeBar"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -71,6 +72,31 @@ function ClientCard({ client, linkedTrackers, onUpdate, onRemove, onSetDefault }
   const [newUsername, setNewUsername] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [credError, setCredError] = useState<string | null>(null)
+
+  const [uptimeData, setUptimeData] = useState<{
+    buckets: { bucketTs: string; ok: number; fail: number }[]
+    uptimePercent: number | null
+  } | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    async function fetchUptime() {
+      try {
+        const res = await fetch(`/api/clients/${client.id}/uptime`)
+        if (!res.ok || cancelled) return
+        const data = await res.json()
+        if (!cancelled) setUptimeData(data)
+      } catch {
+        // uptime bar is non-critical
+      }
+    }
+    fetchUptime()
+    const interval = setInterval(fetchUptime, 5 * 60 * 1000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [client.id])
 
   const handleTestConnection = useCallback(async () => {
     setConnectionStatus("testing")
@@ -136,6 +162,16 @@ function ClientCard({ client, linkedTrackers, onUpdate, onRemove, onSetDefault }
         </span>
         <ChevronToggle expanded={expanded} variant="flip" className="text-tertiary text-sm" />
       </button>
+
+      {/* Uptime bar — always visible */}
+      {uptimeData && (
+        <div className="px-5 pb-3">
+          <UptimeBar
+            buckets={uptimeData.buckets}
+            uptimePercent={uptimeData.uptimePercent}
+          />
+        </div>
+      )}
 
       {/* Body — collapsible */}
       {expanded && (
