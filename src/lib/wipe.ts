@@ -8,6 +8,7 @@ import { db } from "@/lib/db"
 import {
   appSettings,
   clientSnapshots,
+  clientUptimeBuckets,
   downloadClients,
   tagGroupMembers,
   tagGroups,
@@ -107,6 +108,7 @@ export async function scrubAndDeleteAll(): Promise<void> {
   })
 
   // 3. Delete all rows (child tables first due to FK constraints)
+  await db.delete(clientUptimeBuckets)
   await db.delete(clientSnapshots)
   await db.delete(trackerSnapshots)
   await db.delete(trackerRoles)
@@ -118,6 +120,7 @@ export async function scrubAndDeleteAll(): Promise<void> {
   // backupHistory intentionally preserved — allows restore after nuke
 
   // 4. VACUUM FULL to rewrite table files
+  await db.execute(sql`VACUUM FULL client_uptime_buckets`)
   await db.execute(sql`VACUUM FULL client_snapshots`)
   await db.execute(sql`VACUUM FULL tracker_snapshots`)
   await db.execute(sql`VACUUM FULL tracker_roles`)

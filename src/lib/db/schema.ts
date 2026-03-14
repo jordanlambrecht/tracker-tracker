@@ -5,12 +5,14 @@ import {
   bigint,
   boolean,
   date,
+  index,
   integer,
   pgTable,
   real,
   serial,
   text,
   timestamp,
+  uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core"
 
@@ -125,6 +127,19 @@ export const downloadClients = pgTable("download_clients", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })
+
+export const clientUptimeBuckets = pgTable("client_uptime_buckets", {
+  id: serial("id").primaryKey(),
+  clientId: integer("client_id")
+    .references(() => downloadClients.id, { onDelete: "cascade" })
+    .notNull(),
+  bucketTs: timestamp("bucket_ts").notNull(),
+  ok: integer("ok").default(0).notNull(),
+  fail: integer("fail").default(0).notNull(),
+}, (table) => [
+  uniqueIndex("uq_client_uptime_bucket").on(table.clientId, table.bucketTs),
+  index("idx_uptime_bucket_ts").on(table.bucketTs),
+])
 
 export const tagGroups = pgTable("tag_groups", {
   id: serial("id").primaryKey(),
