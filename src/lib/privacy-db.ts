@@ -46,18 +46,18 @@ export async function scrubSnapshotUsernames(): Promise<number> {
     UPDATE tracker_snapshots
     SET
       username = CASE
-        WHEN username IS NOT NULL AND username NOT LIKE ${prefix + "%"}
+        WHEN username IS NOT NULL AND username NOT LIKE ${`${prefix}%`}
         THEN CONCAT(${prefix}, CHAR_LENGTH(username))
         ELSE username
       END,
       group_name = CASE
-        WHEN group_name IS NOT NULL AND group_name NOT LIKE ${prefix + "%"}
+        WHEN group_name IS NOT NULL AND group_name NOT LIKE ${`${prefix}%`}
         THEN CONCAT(${prefix}, CHAR_LENGTH(group_name))
         ELSE group_name
       END
     WHERE
-      (username IS NOT NULL AND username NOT LIKE ${prefix + "%"})
-      OR (group_name IS NOT NULL AND group_name NOT LIKE ${prefix + "%"})
+      (username IS NOT NULL AND username NOT LIKE ${`${prefix}%`})
+      OR (group_name IS NOT NULL AND group_name NOT LIKE ${`${prefix}%`})
   `)
   return (result as { rowCount?: number }).rowCount ?? 0
 }
