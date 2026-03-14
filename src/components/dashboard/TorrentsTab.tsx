@@ -2,6 +2,7 @@
 
 "use client"
 
+import { useState } from "react"
 import { ParallelTorrentsChart } from "@/components/charts/ParallelTorrentsChart"
 import { StorageSunburst } from "@/components/charts/StorageSunburst"
 import { TagGroupBreakdownChart } from "@/components/charts/TagGroupBreakdownChart"
@@ -31,6 +32,20 @@ import { useTrackerTorrents } from "@/hooks/useTrackerTorrents"
 import type { QbitmanageTagConfig, TagGroup } from "@/types/api"
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function formatTimeAgo(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime()
+  const minutes = Math.floor(diffMs / 60000)
+  if (minutes < 1) return "just now"
+  if (minutes < 60) return `${minutes} min ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
+}
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -54,6 +69,7 @@ interface TorrentsTabProps {
 
 function TorrentsTab({ trackerId, trackerName, qbtTag, accentColor, rules, tagGroups, trackerSeedingCount, qbitmanageConfig }: TorrentsTabProps) {
   const data = useTrackerTorrents({ trackerId, qbtTag, rules, tagGroups, trackerSeedingCount, qbitmanageConfig })
+  const [staleDismissed, setStaleDismissed] = useState(false)
 
   if (data.loading) {
     return (
@@ -72,6 +88,26 @@ function TorrentsTab({ trackerId, trackerName, qbtTag, accentColor, rules, tagGr
       {data.torrentError && (
         <div className="px-4 py-3 text-xs font-mono text-warn nm-inset-sm bg-warn-dim rounded-nm-md">
           {data.torrentError}
+        </div>
+      )}
+
+      {/* Stale data banner — dismissible, reappears on next mount */}
+      {data.stale && data.cachedAt && !staleDismissed && (
+        <div className="px-4 py-3 text-xs font-mono text-secondary nm-inset-sm rounded-nm-md flex items-center gap-2">
+          <span className="text-warn">●</span>
+          <span className="flex-1">
+            Showing cached data from{" "}
+            {formatTimeAgo(data.cachedAt)}
+            {" "}— client offline
+          </span>
+          <button
+            type="button"
+            onClick={() => setStaleDismissed(true)}
+            className="text-muted hover:text-secondary transition-colors text-sm leading-none"
+            aria-label="Dismiss stale data banner"
+          >
+            ✕
+          </button>
         </div>
       )}
 
