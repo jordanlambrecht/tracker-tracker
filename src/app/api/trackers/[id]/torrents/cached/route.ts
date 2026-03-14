@@ -73,7 +73,7 @@ export async function GET(
     if (!client.cachedTorrents) continue
     try {
       parsedCache.set(client.id, JSON.parse(client.cachedTorrents) as QbtTorrent[])
-    } catch {
+    } catch { // security-audit-ignore: malformed cached JSON — skip this client
       continue
     }
   }
@@ -93,7 +93,7 @@ export async function GET(
     torrentLists.push(filtered)
 
     // Build hash->client name(s) map for client_name stamping (matches live endpoint)
-    for (const t of torrents) {
+    for (const t of filtered) {
       const names = hashClients.get(t.hash) ?? []
       names.push(client.name)
       hashClients.set(t.hash, names)

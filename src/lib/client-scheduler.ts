@@ -7,7 +7,7 @@
 //                Runs on each client's configured pollIntervalSeconds.
 //                Stores full tagStats alongside speed data.
 //
-// Functions: heartbeatClient, heartbeatAllClients, deepPollClient, deepPollAllClients,
+// Functions: sanitizeClientError, heartbeatClient, heartbeatAllClients, deepPollClient, deepPollAllClients,
 //            startClientScheduler, stopClientScheduler, isClientSchedulerRunning, ensureClientSchedulerRunning
 
 import { eq, isNotNull, lt } from "drizzle-orm"
@@ -27,6 +27,18 @@ import {
   pushSpeedSnapshot,
   withSessionRetry,
 } from "@/lib/qbt"
+
+function sanitizeClientError(raw: string): string {
+  if (/timed?\s*out/i.test(raw)) return "Request timed out"
+  if (/ECONNREFUSED/i.test(raw)) return "Connection refused"
+  if (/ENOTFOUND/i.test(raw)) return "Host not found"
+  if (/EHOSTUNREACH/i.test(raw)) return "Host unreachable"
+  if (/ECONNRESET/i.test(raw)) return "Connection reset"
+  if (/401|403|Unauthorized|Forbidden/i.test(raw)) return "Authentication failed"
+  if (/Session expired/i.test(raw)) return "Session expired"
+  if (/Credentials.*missing|invalid/i.test(raw)) return "Invalid credentials"
+  return "Connection failed"
+}
 
 // Store on globalThis to survive HMR in development.
 // Without this, each hot-reload orphans the old cron job while creating a new one.
@@ -90,12 +102,13 @@ async function heartbeatClient(clientId: number, encryptionKey: Buffer): Promise
       .set({ lastPolledAt: new Date(), lastError: null, updatedAt: new Date() })
       .where(eq(downloadClients.id, clientId))
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error"
+    const raw = error instanceof Error ? error.message : "Unknown error"
+    const message = sanitizeClientError(raw)
     await db
       .update(downloadClients)
       .set({ lastError: message, updatedAt: new Date() })
       .where(eq(downloadClients.id, clientId))
-    log.error(`Heartbeat failed for client ${clientId}: ${message}`)
+    log.error(`Heartbeat failed for client ${clientId}: ${raw}`)
   }
 }
 
@@ -169,11 +182,14 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
 
     const stats = aggregateByTag(torrents, trackerTags, crossSeedTags)
 
-    // Cache the filtered torrent list for fallback when client is offline
+    // Cache the filtered torrent list for fallback when client is offline.
+    // Strip fields that may contain credentials (tracker announce URLs with
+    // passkeys) or expose server filesystem paths before persisting.
+    const sanitizedTorrents = torrents.map(({ tracker: _t, content_path: _cp, save_path: _sp, ...rest }) => rest)
     await db
       .update(downloadClients)
       .set({
-        cachedTorrents: JSON.stringify(torrents),
+        cachedTorrents: JSON.stringify(sanitizedTorrents),
         cachedTorrentsAt: new Date(),
       })
       .where(eq(downloadClients.id, clientId))
@@ -193,12 +209,13 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
       .set({ lastPolledAt: new Date(), lastError: null, updatedAt: new Date() })
       .where(eq(downloadClients.id, clientId))
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error"
+    const raw = error instanceof Error ? error.message : "Unknown error"
+    const message = sanitizeClientError(raw)
     await db
       .update(downloadClients)
       .set({ lastError: message, updatedAt: new Date() })
       .where(eq(downloadClients.id, clientId))
-    log.error(`Deep poll failed for client ${clientId}: ${message}`)
+    log.error(`Deep poll failed for client ${clientId}: ${raw}`)
   }
 }
 

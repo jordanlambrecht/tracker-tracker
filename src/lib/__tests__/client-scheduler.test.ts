@@ -329,20 +329,19 @@ describe("deepPollClient per-tag optimization", () => {
   // Error recording
   // -------------------------------------------------------------------------
 
-  it("records error to DB when qBT login fails and does not re-throw", async () => {
+  it("records sanitized error to DB when qBT login fails and does not re-throw", async () => {
     mockDbSelectSequence(MOCK_CLIENT, ["aither"])
     ;(decrypt as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce("admin")
       .mockReturnValueOnce("secret")
     ;(withSessionRetry as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error("Connection refused")
+      new Error("connect ECONNREFUSED 192.168.1.100:8080")
     )
     const { mockSet } = mockDbUpdateClient()
 
-    // Must not throw — errors are caught and recorded
     await expect(deepPollClient(1, makeEncryptionKey())).resolves.toBeUndefined()
 
-    // The error message must be written to lastError
+    // Raw error is sanitized — IP and port stripped, generic message stored
     expect(mockSet).toHaveBeenCalledWith(
       expect.objectContaining({ lastError: "Connection refused" })
     )
@@ -358,8 +357,9 @@ describe("deepPollClient per-tag optimization", () => {
 
     await expect(deepPollClient(1, makeEncryptionKey())).resolves.toBeUndefined()
 
+    // Non-Error throws are sanitized to the generic fallback
     expect(mockSet).toHaveBeenCalledWith(
-      expect.objectContaining({ lastError: "Unknown error" })
+      expect.objectContaining({ lastError: "Connection failed" })
     )
   })
 
@@ -438,6 +438,54 @@ describe("deepPollClient per-tag optimization", () => {
     expect(cacheUpdate).toBeDefined()
     expect(cacheUpdate!.cachedTorrents).toBe(JSON.stringify(filteredTorrents))
     expect(cacheUpdate!.cachedTorrentsAt).toBeInstanceOf(Date)
+  })
+
+  it("strips tracker, content_path, and save_path from cached torrents", async () => {
+    const torrentsWithSensitiveFields = [
+      {
+        hash: "a1", name: "Movie.mkv", state: "uploading", tags: "aither",
+        upspeed: 100, dlspeed: 0,
+        tracker: "https://aither.cc/announce?passkey=SECRET123",
+        content_path: "/data/torrents/Movie.mkv",
+        save_path: "/data/torrents",
+      },
+    ]
+
+    mockDbSelectSequence(MOCK_CLIENT, ["aither"])
+    ;(decrypt as ReturnType<typeof vi.fn>)
+      .mockReturnValueOnce("admin")
+      .mockReturnValueOnce("secret")
+    ;(getTorrents as ReturnType<typeof vi.fn>).mockResolvedValue([])
+    ;(getTransferInfo as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TRANSFER_INFO)
+    ;(filterAndDedup as ReturnType<typeof vi.fn>).mockReturnValue(torrentsWithSensitiveFields)
+    ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
+    mockDbInsertSnapshot()
+
+    const updateCalls: Record<string, unknown>[] = []
+    const mockWhere = vi.fn().mockResolvedValue(undefined)
+    const mockSet = vi.fn().mockImplementation((values: Record<string, unknown>) => {
+      updateCalls.push(values)
+      return { where: mockWhere }
+    })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
+
+    await deepPollClient(1, makeEncryptionKey())
+
+    const cacheUpdate = updateCalls.find((c) => "cachedTorrents" in c)
+    expect(cacheUpdate).toBeDefined()
+
+    const cached = JSON.parse(cacheUpdate!.cachedTorrents as string) as Record<string, unknown>[]
+    expect(cached).toHaveLength(1)
+
+    // Sensitive fields must be stripped
+    expect(cached[0]).not.toHaveProperty("tracker")
+    expect(cached[0]).not.toHaveProperty("content_path")
+    expect(cached[0]).not.toHaveProperty("save_path")
+
+    // Non-sensitive fields must be preserved
+    expect(cached[0]).toHaveProperty("hash", "a1")
+    expect(cached[0]).toHaveProperty("name", "Movie.mkv")
+    expect(cached[0]).toHaveProperty("tags", "aither")
   })
 
   // -------------------------------------------------------------------------
