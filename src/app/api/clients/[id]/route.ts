@@ -9,6 +9,7 @@ import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
 import { PROXY_HOST_PATTERN } from "@/lib/proxy"
+import { removeClientFromAccumulator } from "@/lib/uptime"
 
 const VALID_TYPES = ["qbittorrent"]
 
@@ -144,6 +145,8 @@ export async function DELETE(
   if (!target) {
     return NextResponse.json({ error: "Client not found" }, { status: 404 })
   }
+
+  removeClientFromAccumulator(clientId)
 
   await db.transaction(async (tx) => {
     await tx.delete(downloadClients).where(eq(downloadClients.id, clientId))

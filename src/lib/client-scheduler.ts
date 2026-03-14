@@ -1,8 +1,9 @@
 // src/lib/client-scheduler.ts
 //
 // Two polling loops with different cadences:
-//   heartbeat  — lightweight: login + getTransferInfo (2 requests). Runs every 30s.
+//   heartbeat  — lightweight: login + getTransferInfo (2 requests). Runs every 10s.
 //                Stores upload/download speed in memory cache. Updates connection status.
+//                Records success/failure in uptime accumulator (5-min buckets).
 //   deep poll  — heavy: login + getTorrents (all) + filter/dedup + aggregation.
 //                Runs on each client's configured pollIntervalSeconds.
 //                Stores full tagStats alongside speed data.
@@ -14,7 +15,7 @@ import { eq, isNotNull, lt } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { clientSnapshots, downloadClients, trackers } from "@/lib/db/schema"
+import { appSettings, clientSnapshots, downloadClients, trackers } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
 import type { QbtTorrent } from "@/lib/qbt"
 import {
@@ -27,6 +28,7 @@ import {
   pushSpeedSnapshot,
   withSessionRetry,
 } from "@/lib/qbt"
+import { clearUptimeAccumulator, flushCompletedBuckets, recordHeartbeat } from "@/lib/uptime"
 
 function sanitizeClientError(raw: string): string {
   if (/timed?\s*out/i.test(raw)) return "Request timed out"
@@ -96,12 +98,14 @@ async function heartbeatClient(clientId: number, encryptionKey: Buffer): Promise
     )
 
     pushSpeedSnapshot(clientId, transfer.up_info_speed, transfer.dl_info_speed)
+    recordHeartbeat(clientId, true)
 
     await db
       .update(downloadClients)
       .set({ lastPolledAt: new Date(), lastError: null, updatedAt: new Date() })
       .where(eq(downloadClients.id, clientId))
   } catch (error) {
+    recordHeartbeat(clientId, false)
     const raw = error instanceof Error ? error.message : "Unknown error"
     const message = sanitizeClientError(raw)
     await db
@@ -277,6 +281,8 @@ export function startClientScheduler(encryptionKey: Buffer): void {
     deepPollInFlight = true
     try {
       await deepPollAllClients(encryptionKey)
+      const [settings] = await db.select({ retention: appSettings.snapshotRetentionDays }).from(appSettings).limit(1)
+      await flushCompletedBuckets(settings?.retention ?? null)
     } catch (error) {
       log.error(error, "Client deep poll error")
     } finally {
@@ -301,6 +307,9 @@ export function stopClientScheduler(): void {
   }
   clearAllSessions()
   clearSpeedCache()
+  // Best-effort flush of any completed uptime buckets before clearing
+  flushCompletedBuckets().catch(() => {})
+  clearUptimeAccumulator()
 }
 
 export function isClientSchedulerRunning(): boolean {
