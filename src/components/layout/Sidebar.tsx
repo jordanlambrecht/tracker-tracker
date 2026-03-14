@@ -1,7 +1,4 @@
 // src/components/layout/Sidebar.tsx
-"use client"
-
-// src/components/layout/Sidebar.tsx
 //
 // Functions:
 //   sortTrackers        — sorts a TrackerSummary[] by the given sort mode
@@ -10,6 +7,8 @@
 //   ClientStatusWidget  — download client connection status + speed sparklines
 //   formatSidebarSpeed  — compact speed formatter for sidebar
 //   Sidebar             — main sidebar component with stat/sort controls, tracker list, and settings
+
+"use client"
 
 import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core"
 import {
@@ -369,13 +368,53 @@ function ClientStatusWidget() {
     }
   }, [])
 
+  // Swipe/drag gesture for carousel (touch + pointer for desktop)
+  const swipeStartX = useRef(0)
+  const swipeStartY = useRef(0)
+  const pointerDown = useRef(false)
+
+  const handleSwipeStart = useCallback((x: number, y: number) => {
+    swipeStartX.current = x
+    swipeStartY.current = y
+  }, [])
+
+  const handleSwipeEnd = useCallback((x: number, y: number) => {
+    if (entries.length <= 1) return
+    const dx = x - swipeStartX.current
+    const dy = y - swipeStartY.current
+    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return
+    if (dx < 0) goTo((activeIndex + 1) % entries.length)
+    else goTo((activeIndex - 1 + entries.length) % entries.length)
+  }, [entries.length, activeIndex, goTo])
+
+  const onPointerDown = useCallback((e: React.PointerEvent) => {
+    pointerDown.current = true
+    handleSwipeStart(e.clientX, e.clientY)
+  }, [handleSwipeStart])
+
+  const onPointerUp = useCallback((e: React.PointerEvent) => {
+    if (!pointerDown.current) return
+    pointerDown.current = false
+    handleSwipeEnd(e.clientX, e.clientY)
+  }, [handleSwipeEnd])
+
+  // Capture pointer so up fires even if cursor leaves the element
+  const onPointerDownCapture = useCallback((e: React.PointerEvent) => {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    onPointerDown(e)
+  }, [onPointerDown])
+
   if (!loaded || entries.length === 0) return null
 
   const current = entries[activeIndex]
 
   return (
     <div className="px-3 py-3 border-t border-border shrink-0">
-      <div className="nm-inset-sm bg-control-bg px-3 pt-2.5 pb-3.5 flex flex-col gap-1.5 rounded-nm-md">
+      <div
+        className="nm-inset-sm bg-control-bg px-3 pt-2.5 pb-3.5 flex flex-col gap-1.5 rounded-nm-md touch-pan-y"
+        onPointerDown={onPointerDownCapture}
+        onPointerUp={onPointerUp}
+      >
         <div
           key={activeIndex}
           className="overflow-hidden"
