@@ -150,8 +150,10 @@ function SortableTrackerItem({
           {archived ? "Archived" : stat}
         </span>
         {!unlocked && (
-          <button
-            type="button"
+          // biome-ignore lint/a11y/useSemanticElements: Star must be inside parent button for visual layout
+          <span
+            role="button"
+            tabIndex={0}
             aria-pressed={tracker.isFavorite}
             onClick={(e) => {
               e.stopPropagation()
@@ -173,7 +175,7 @@ function SortableTrackerItem({
             aria-label={tracker.isFavorite ? "Remove from favorites" : "Add to favorites"}
           >
             {tracker.isFavorite ? "★" : "☆"}
-          </button>
+          </span>
         )}
       </button>
     </li>

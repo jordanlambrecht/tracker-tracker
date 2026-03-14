@@ -16,12 +16,14 @@ import { AnalyticsTab } from "@/components/tracker-detail/AnalyticsTab"
 import type { DebugData } from "@/components/tracker-detail/DebugResponseDialog"
 import { DebugResponseDialog } from "@/components/tracker-detail/DebugResponseDialog"
 import { PollErrorBanner } from "@/components/tracker-detail/PollErrorBanner"
+import { resolveSlots } from "@/components/tracker-detail/resolve-slots"
 import { TrackerDetailHeader } from "@/components/tracker-detail/TrackerDetailHeader"
 import { TrackerInfoTab } from "@/components/tracker-detail/TrackerInfoTab"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { computeDelta, hexToRgba } from "@/lib/formatters"
-import type { GazellePlatformMeta, GGnPlatformMeta, NebulancePlatformMeta, QbitmanageTagConfig, Snapshot, TagGroup, TrackerSummary } from "@/types/api"
+import type { SlotContext } from "@/lib/slot-types"
+import type { GazellePlatformMeta, QbitmanageTagConfig, Snapshot, TagGroup, TrackerSummary } from "@/types/api"
 
 type Tab = "analytics" | "info" | "torrents"
 
@@ -160,6 +162,27 @@ export default function TrackerDetailPage() {
   const stats = tracker?.latestStats ?? null
   const delta = useMemo(() => computeDelta(snapshots), [snapshots])
 
+  const tc = tracker?.color || CHART_THEME.accent
+  const registryEntry: TrackerRegistryEntry | undefined = tracker ? findRegistryEntry(tracker.baseUrl) : undefined
+
+  const { statCardSlots, badgeSlots, progressSlots } = useMemo(() => {
+    if (!tracker) return { statCardSlots: [], badgeSlots: [], progressSlots: [] }
+    const ctx: SlotContext = {
+      tracker,
+      latestSnapshot,
+      snapshots,
+      meta: tracker.platformMeta as SlotContext["meta"],
+      registry: registryEntry,
+      accentColor: tc,
+    }
+    const resolved = resolveSlots(ctx)
+    return {
+      statCardSlots: resolved.get("stat-card") ?? [],
+      badgeSlots: resolved.get("badge") ?? [],
+      progressSlots: resolved.get("progress") ?? [],
+    }
+  }, [tracker, latestSnapshot, snapshots, registryEntry, tc])
+
   if (loading) {
     return (
       <div className="flex h-full min-h-[calc(100vh-6rem)] items-center justify-center">
@@ -176,11 +199,7 @@ export default function TrackerDetailPage() {
     )
   }
 
-  const tc = tracker.color || CHART_THEME.accent
-  const registryEntry: TrackerRegistryEntry | undefined = findRegistryEntry(tracker.baseUrl)
-  const ggMeta: GGnPlatformMeta | null = tracker.platformType === "ggn" ? (tracker.platformMeta as GGnPlatformMeta | null) : null
   const gazelleMeta: GazellePlatformMeta | null = tracker.platformType === "gazelle" ? (tracker.platformMeta as GazellePlatformMeta | null) : null
-  const nebulanceMeta: NebulancePlatformMeta | null = tracker.platformType === "nebulance" ? (tracker.platformMeta as NebulancePlatformMeta | null) : null
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "analytics", label: "Data & Analytics" },
@@ -204,14 +223,13 @@ export default function TrackerDetailPage() {
         tracker={tracker}
         stats={stats}
         registryEntry={registryEntry}
-        ggMeta={ggMeta}
-        gazelleMeta={gazelleMeta}
         accentColor={tc}
         polling={polling}
         onPollNow={handlePollNow}
         onOpenSettings={() => setShowSettings(true)}
         onDebugPoll={handleDebugPoll}
         debugLoading={debugLoading}
+        badgeSlots={badgeSlots}
       />
 
       {/* Rank Progression */}
@@ -257,14 +275,14 @@ export default function TrackerDetailPage() {
           snapshots={snapshots}
           stats={stats}
           latestSnapshot={latestSnapshot}
-          ggMeta={ggMeta}
           gazelleMeta={gazelleMeta}
-          nebulanceMeta={nebulanceMeta}
           accentColor={tc}
           days={days}
           onDaysChange={setDays}
           delta={delta}
           minimumRatio={registryEntry?.rules?.minimumRatio}
+          statCardSlots={statCardSlots}
+          progressSlots={progressSlots}
         />
       )}
 

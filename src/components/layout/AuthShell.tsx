@@ -40,9 +40,12 @@ export function AuthShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {isMobile && !effectiveCollapsed && (
+      {isMobile && (
         <div
-          className="fixed inset-0 z-30 bg-black/50"
+          className={clsx(
+            "fixed inset-0 z-30 bg-black/50 transition-opacity duration-300 ease-in-out",
+            effectiveCollapsed ? "opacity-0 pointer-events-none" : "opacity-100"
+          )}
           onClick={toggle}
           aria-hidden="true"
         />
