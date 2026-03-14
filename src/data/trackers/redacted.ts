@@ -29,6 +29,8 @@ export const redacted: TrackerRegistryEntry = {
   notableMembers: [],
   language: "English",
   color: "#f44336",
+  trackerHubSlug: "redacted",
+  statusPageUrl: "https://red.trackerstatus.info/",
   rules: {
     minimumRatio: 0.6,
     seedTimeHours: 72,
@@ -69,4 +71,5 @@ export const redacted: TrackerRegistryEntry = {
 - Merit tokens can be used to highlight or recommend releases.
 - Earned through community contributions.`,
   },
+  draft: false,
 }

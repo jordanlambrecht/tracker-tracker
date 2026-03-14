@@ -118,4 +118,5 @@ export const onlyencodes: TrackerRegistryEntry = {
   color: "#facc15",
   logo: "/tracker-logos/onlyencodes_logo.png",
   trackerHubSlug: "only-encodes",
+  draft: false,
 }

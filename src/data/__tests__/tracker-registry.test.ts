@@ -91,6 +91,15 @@ describe("tracker registry", () => {
     expect(dupes, `Duplicate URLs: ${dupes.join(", ")}`).toEqual([])
   })
 
+  it("every tracker has an explicit draft field (true or false)", () => {
+    for (const tracker of ALL_TRACKERS) {
+      expect(
+        typeof tracker.draft === "boolean",
+        `${tracker.slug} is missing an explicit draft: true/false field`,
+      ).toBe(true)
+    }
+  })
+
   it("every tracker file in src/data/trackers/ is registered in the barrel", () => {
     const files = fs.readdirSync(TRACKER_DIR)
       .filter((f) => f.endsWith(".ts") && f !== "index.ts" && !f.startsWith("_"))

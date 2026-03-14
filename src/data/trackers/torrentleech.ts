@@ -18,5 +18,6 @@ export const torrentleech: TrackerRegistryEntry = {
   notableMembers: [],
   language: "English",
   color: "#2ecc71",
+  trackerHubSlug: "torrent-leech",
   draft: true,
 }

@@ -18,5 +18,6 @@ export const privatehd: TrackerRegistryEntry = {
   notableMembers: [],
   language: "English",
   color: "#5c6bc0",
+  trackerHubSlug: "private-hd",
   draft: true,
 }

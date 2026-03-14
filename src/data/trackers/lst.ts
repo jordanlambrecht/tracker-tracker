@@ -112,4 +112,5 @@ export const lst: TrackerRegistryEntry = {
   language: "English",
   color: "#12BC00",
   logo: undefined,
+  draft: false,
 }

@@ -18,6 +18,7 @@ export const empornium: TrackerRegistryEntry = {
   notableMembers: [],
   language: "English",
   color: "#ab47bc",
+  trackerHubSlug: "empornium",
   warning: true,
   warningNote: "Unvalidated",
   rules: {
@@ -25,4 +26,5 @@ export const empornium: TrackerRegistryEntry = {
     seedTimeHours: 72,
     loginIntervalDays: 90,
   },
+  draft: false,
 }

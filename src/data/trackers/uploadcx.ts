@@ -227,4 +227,5 @@ export const uploadcx: TrackerRegistryEntry = {
   language: "English",
   color: "#538dab",
   logo: "/tracker-logos/ulcx_logo.png",
+  draft: false,
 }

@@ -155,4 +155,5 @@ export const blutopia: TrackerRegistryEntry = {
   color: "#3b82f6",
   logo: "/tracker-logos/blutopia_logo.svg",
   trackerHubSlug: "blutopia",
+  draft: false,
 }

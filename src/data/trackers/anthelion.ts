@@ -19,9 +19,12 @@ export const anthelion: TrackerRegistryEntry = {
   language: "English",
   logo: "/tracker-logos/anthelion_logo.png",
   color: "#3eaca7",
+  trackerHubSlug: "anthelion",
+  statusPageUrl: "https://ant.trackerstatus.info/",
   rules: {
     minimumRatio: 0.6,
     seedTimeHours: 72,
     loginIntervalDays: 90,
   },
+  draft: false,
 }
