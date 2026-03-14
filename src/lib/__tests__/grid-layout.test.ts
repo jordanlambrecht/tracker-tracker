@@ -5,6 +5,7 @@ import {
   findOptimalLayout2Col,
   findOptimalLayout3Col,
   findOptimalLayout4Col,
+  getCardClasses,
 } from "@/lib/grid-layout"
 
 describe("findOptimalLayout4Col", () => {
@@ -851,5 +852,62 @@ describe("findOptimalLayout2Col.cards (placement)", () => {
     expect(layout.cards.length).toBe(6)
     expect(layout.cards.every((c) => c.type === "single" || c.type === "fixed")).toBe(true)
     expect(layout.gaps).toBe(0)
+  })
+})
+
+// ============================================
+// getCardClasses
+// ============================================
+
+describe("getCardClasses", () => {
+  it("returns correct classes for a basic card", () => {
+    const classes = getCardClasses({ id: "s1", type: "single", row: 1, col: 1, span: 1 })
+    expect(classes).toContain("row-start-1")
+    expect(classes).toContain("col-start-1")
+    expect(classes).toContain("row-span-1")
+  })
+
+  it("returns correct classes for a double-height card", () => {
+    const classes = getCardClasses({ id: "d1", type: "double", row: 3, col: 2, span: 2 })
+    expect(classes).toContain("row-start-3")
+    expect(classes).toContain("col-start-2")
+    expect(classes).toContain("row-span-2")
+  })
+
+  it("returns correct classes for a triple-height card", () => {
+    const classes = getCardClasses({ id: "t1", type: "triple", row: 2, col: 4, span: 3 })
+    expect(classes).toContain("row-start-2")
+    expect(classes).toContain("col-start-4")
+    expect(classes).toContain("row-span-3")
+  })
+
+  it("returns valid classes for all rows up to 30", () => {
+    for (let row = 1; row <= 30; row++) {
+      const classes = getCardClasses({ id: "s1", type: "single", row, col: 1, span: 1 })
+      expect(classes).toContain(`row-start-${row}`)
+    }
+  })
+
+  it("returns empty row-start for rows beyond 30", () => {
+    const classes = getCardClasses({ id: "s1", type: "single", row: 31, col: 1, span: 1 })
+    expect(classes).not.toContain("row-start-31")
+    expect(classes).toContain("col-start-1")
+  })
+
+  it("returns valid classes for all columns 1-4", () => {
+    for (let col = 1; col <= 4; col++) {
+      const classes = getCardClasses({ id: "s1", type: "single", row: 1, col, span: 1 })
+      expect(classes).toContain(`col-start-${col}`)
+    }
+  })
+
+  it("produces correct classes for real layout output", () => {
+    const layout = findOptimalLayout4Col(8, 2)
+    for (const card of layout.cards) {
+      const classes = getCardClasses(card)
+      expect(classes).toContain(`row-start-${card.row}`)
+      expect(classes).toContain(`col-start-${card.col}`)
+      expect(classes).toContain(`row-span-${card.span}`)
+    }
   })
 })

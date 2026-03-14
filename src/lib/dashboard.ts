@@ -80,7 +80,7 @@ const ANNIVERSARY_WINDOW_DAYS = 3
  * Returns the milestone label if within the window, null otherwise.
  */
 export function getAnniversaryMilestone(joinedAt: string): { label: string } | null {
-  const joined = new Date(joinedAt + "T00:00:00")
+  const joined = new Date(`${joinedAt}T00:00:00`)
   if (Number.isNaN(joined.getTime())) return null
 
   const today = new Date()

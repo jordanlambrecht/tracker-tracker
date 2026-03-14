@@ -436,8 +436,8 @@ describe("deepPollClient per-tag optimization", () => {
     // One of the update calls should contain the cached torrents
     const cacheUpdate = updateCalls.find((c) => "cachedTorrents" in c)
     expect(cacheUpdate).toBeDefined()
-    expect(cacheUpdate!.cachedTorrents).toBe(JSON.stringify(filteredTorrents))
-    expect(cacheUpdate!.cachedTorrentsAt).toBeInstanceOf(Date)
+    expect(cacheUpdate?.cachedTorrents).toBe(JSON.stringify(filteredTorrents))
+    expect(cacheUpdate?.cachedTorrentsAt).toBeInstanceOf(Date)
   })
 
   it("strips tracker, content_path, and save_path from cached torrents", async () => {
@@ -474,7 +474,7 @@ describe("deepPollClient per-tag optimization", () => {
     const cacheUpdate = updateCalls.find((c) => "cachedTorrents" in c)
     expect(cacheUpdate).toBeDefined()
 
-    const cached = JSON.parse(cacheUpdate!.cachedTorrents as string) as Record<string, unknown>[]
+    const cached = JSON.parse(cacheUpdate?.cachedTorrents as string) as Record<string, unknown>[]
     expect(cached).toHaveLength(1)
 
     // Sensitive fields must be stripped

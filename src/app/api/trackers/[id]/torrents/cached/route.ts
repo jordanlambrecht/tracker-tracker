@@ -74,7 +74,6 @@ export async function GET(
     try {
       parsedCache.set(client.id, JSON.parse(client.cachedTorrents) as QbtTorrent[])
     } catch { // security-audit-ignore: malformed cached JSON — skip this client
-      continue
     }
   }
 
