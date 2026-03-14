@@ -15,6 +15,7 @@ import {
   computeAlerts,
   detectRankChanges,
   dismissAlert,
+  getAnniversaryMilestone,
   getDismissedAlerts,
 } from "@/lib/dashboard"
 
@@ -37,6 +38,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     qbtTag: null,
     sortOrder: 0,
     joinedAt: null,
+    lastAccessAt: null,
     remoteUserId: null,
     platformMeta: null,
     useProxy: false,
@@ -683,5 +685,81 @@ describe("detectRankChanges", () => {
     const result = detectRankChanges([tracker], map)
     expect(result).toHaveLength(1)
     expect(result[0].message).toContain("Power User → Elite")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// getAnniversaryMilestone
+// ---------------------------------------------------------------------------
+
+describe("getAnniversaryMilestone", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("returns 1 month anniversary on exact date", () => {
+    vi.setSystemTime(new Date("2026-04-15"))
+    expect(getAnniversaryMilestone("2026-03-15")).toEqual({ label: "1 month anniversary" })
+  })
+
+  it("returns 6 month anniversary on exact date", () => {
+    vi.setSystemTime(new Date("2026-09-15"))
+    expect(getAnniversaryMilestone("2026-03-15")).toEqual({ label: "6 month anniversary" })
+  })
+
+  it("returns 1 year anniversary on exact date", () => {
+    vi.setSystemTime(new Date("2027-03-15"))
+    expect(getAnniversaryMilestone("2026-03-15")).toEqual({ label: "1 year anniversary" })
+  })
+
+  it("returns multi-year anniversary", () => {
+    vi.setSystemTime(new Date("2031-03-15"))
+    expect(getAnniversaryMilestone("2026-03-15")).toEqual({ label: "5 year anniversary" })
+  })
+
+  it("matches within the ±3 day window", () => {
+    vi.setSystemTime(new Date("2027-03-13")) // 2 days before 1yr anniversary
+    expect(getAnniversaryMilestone("2026-03-15")).toEqual({ label: "1 year anniversary" })
+  })
+
+  it("does not match outside the ±3 day window", () => {
+    vi.setSystemTime(new Date("2027-03-10")) // 5 days before 1yr anniversary
+    expect(getAnniversaryMilestone("2026-03-15")).toBeNull()
+  })
+
+  it("returns null for dates not near any milestone", () => {
+    vi.setSystemTime(new Date("2026-08-01")) // ~4.5 months in, no milestone nearby
+    expect(getAnniversaryMilestone("2026-03-15")).toBeNull()
+  })
+
+  it("returns null for invalid date string", () => {
+    expect(getAnniversaryMilestone("not-a-date")).toBeNull()
+  })
+
+  it("prefers 1 month over 1 year when both could match", () => {
+    // Edge case: 1 month anniversary checked before annual milestones
+    vi.setSystemTime(new Date("2026-04-15"))
+    const result = getAnniversaryMilestone("2026-03-15")
+    expect(result?.label).toBe("1 month anniversary")
+  })
+
+  it("generates anniversary alert in computeAlerts", () => {
+    vi.setSystemTime(new Date("2027-06-10"))
+    const tracker = makeTracker({ joinedAt: "2026-06-10" })
+    const alerts = computeAlerts([tracker])
+    const anniversary = alerts.find((a) => a.type === "anniversary")
+    expect(anniversary).toBeDefined()
+    expect(anniversary?.message).toBe("1 year anniversary")
+  })
+
+  it("does not generate anniversary alert without joinedAt", () => {
+    vi.setSystemTime(new Date("2027-06-10"))
+    const tracker = makeTracker({ joinedAt: null })
+    const alerts = computeAlerts([tracker])
+    expect(alerts.find((a) => a.type === "anniversary")).toBeUndefined()
   })
 })

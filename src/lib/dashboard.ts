@@ -1,6 +1,6 @@
 // src/lib/dashboard.ts
 //
-// Functions: computeAggregateStats, computeAlerts, detectRankChanges, getDismissedAlerts, dismissAlert, clearDismissedAlerts
+// Functions: computeAggregateStats, getAnniversaryMilestone, computeAlerts, detectRankChanges, getDismissedAlerts, dismissAlert, clearDismissedAlerts
 
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { isRedacted } from "@/lib/privacy"
@@ -19,7 +19,7 @@ export interface AggregateStats {
   totalLeeching: number
 }
 
-export type AlertType = "error" | "ratio-danger" | "stale-data" | "rank-change" | "zero-seeding" | "warned"
+export type AlertType = "error" | "ratio-danger" | "stale-data" | "rank-change" | "zero-seeding" | "warned" | "anniversary"
 
 export interface DashboardAlert {
   key: string
@@ -66,6 +66,57 @@ export function computeAggregateStats(trackers: TrackerSummary[]): AggregateStat
     totalSeeding,
     totalLeeching,
   }
+}
+
+// ---------------------------------------------------------------------------
+// Anniversary milestones
+// ---------------------------------------------------------------------------
+
+const ANNIVERSARY_WINDOW_DAYS = 3
+
+/**
+ * Checks if a joinedAt date falls within ±ANNIVERSARY_WINDOW_DAYS of a milestone.
+ * Milestones: 1 month, 6 months, then every year (1yr, 2yr, 3yr, ...).
+ * Returns the milestone label if within the window, null otherwise.
+ */
+export function getAnniversaryMilestone(joinedAt: string): { label: string } | null {
+  const joined = new Date(joinedAt + "T00:00:00")
+  if (Number.isNaN(joined.getTime())) return null
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  // Build candidate milestone dates from most specific to least
+  const candidates: { date: Date; label: string }[] = []
+
+  // 1 month
+  const m1 = new Date(joined)
+  m1.setMonth(m1.getMonth() + 1)
+  candidates.push({ date: m1, label: "1 month anniversary" })
+
+  // 6 months
+  const m6 = new Date(joined)
+  m6.setMonth(m6.getMonth() + 6)
+  candidates.push({ date: m6, label: "6 month anniversary" })
+
+  // Annual: 1yr, 2yr, ... up to 50yr
+  const yearsSinceJoin = today.getFullYear() - joined.getFullYear()
+  for (let y = 1; y <= Math.max(yearsSinceJoin + 1, 1); y++) {
+    const ann = new Date(joined)
+    ann.setFullYear(ann.getFullYear() + y)
+    candidates.push({ date: ann, label: `${y} year anniversary` })
+  }
+
+  // Find the first milestone within the window
+  for (const { date, label } of candidates) {
+    const diffMs = Math.abs(today.getTime() - date.getTime())
+    const diffDays = diffMs / (1000 * 60 * 60 * 24)
+    if (diffDays <= ANNIVERSARY_WINDOW_DAYS) {
+      return { label }
+    }
+  }
+
+  return null
 }
 
 // ---------------------------------------------------------------------------
@@ -156,6 +207,21 @@ export function computeAlerts(
         message: "You have an active warning on this tracker",
         timestamp: tracker.lastPolledAt ?? undefined,
       })
+    }
+
+    // --- Anniversary ---
+    if (tracker.joinedAt) {
+      const milestone = getAnniversaryMilestone(tracker.joinedAt)
+      if (milestone) {
+        alerts.push({
+          key: `anniversary-${tracker.id}-${milestone.label}`,
+          type: "anniversary",
+          trackerId: tracker.id,
+          trackerName: tracker.name,
+          trackerColor: tracker.color,
+          message: milestone.label,
+        })
+      }
     }
 
     // H&R risk: skipped — requires snapshot data not available in TrackerSummary
