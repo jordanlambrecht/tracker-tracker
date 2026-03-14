@@ -238,6 +238,7 @@ export default function TrackerDetailPage() {
         currentRank={stats?.group ?? null}
         snapshots={allTimeSnapshots}
         accentColor={tc}
+        joinedAt={tracker.joinedAt}
       />
 
       {/* ── Error banners ── */}

@@ -2,6 +2,7 @@
 //
 // Functions: AnalyticsCharts
 
+import { BufferCandlestickChart } from "@/components/charts/BufferCandlestickChart"
 import { MetricChart } from "@/components/charts/MetricChart"
 import { PercentileRadarChart } from "@/components/charts/PercentileRadarChart"
 import { UploadDownloadChart } from "@/components/charts/UploadDownloadChart"
@@ -14,6 +15,7 @@ import { formatBytesFromString } from "@/lib/formatters"
 import type { GazellePlatformMeta, Snapshot } from "@/types/api"
 
 interface AnalyticsChartsProps {
+  trackerName: string
   platformType: string
   snapshots: Snapshot[]
   accentColor: string
@@ -25,6 +27,7 @@ interface AnalyticsChartsProps {
 }
 
 export function AnalyticsCharts({
+  trackerName,
   platformType,
   snapshots,
   accentColor: tc,
@@ -34,6 +37,7 @@ export function AnalyticsCharts({
   gazelleMeta,
   minimumRatio,
 }: AnalyticsChartsProps) {
+  const candlestickData = [{ name: trackerName, color: tc, snapshots }]
   return (
     <div className="flex flex-col md:flex-row gap-8">
       <div className="flex-1 flex flex-col gap-8 min-w-0">
@@ -59,6 +63,12 @@ export function AnalyticsCharts({
         <Card trackerColor={tc} className="flex flex-col gap-4">
           <H2>Buffer</H2>
           <MetricChart metric="buffer" snapshots={snapshots} accentColor={tc} />
+        </Card>
+
+        {/* Buffer Candlestick */}
+        <Card trackerColor={tc} className="flex flex-col gap-4">
+          <H2>Daily Buffer</H2>
+          <BufferCandlestickChart trackerData={candlestickData} height={320} />
         </Card>
 
         {/* Seedbonus / Gold */}

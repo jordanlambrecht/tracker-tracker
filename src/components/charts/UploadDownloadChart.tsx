@@ -87,7 +87,7 @@ function buildOption(
 
   return {
     backgroundColor: "transparent",
-    grid: chartGrid({ right: 16, bottom: showDataZoom ? 80 : 40, left: 64 }),
+    grid: chartGrid({ top: 40, right: 16, bottom: showDataZoom ? 80 : 40, left: 64 }),
     tooltip: chartTooltip("axis", {
       borderColor: accentColor,
       axisPointer: {

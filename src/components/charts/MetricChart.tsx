@@ -181,7 +181,7 @@ function buildLineOption(
 
   return {
     backgroundColor: "transparent",
-    grid: chartGrid({ right: 16, bottom: showSlider ? 80 : 40, left: 64 }),
+    grid: chartGrid({ top: 16, right: 16, bottom: showSlider ? 80 : 40, left: 64 }),
     tooltip: chartTooltip("axis", {
       borderColor: safeAccent,
       axisPointer: {
@@ -331,7 +331,7 @@ function buildDailyDeltaOption(
 
   return {
     backgroundColor: "transparent",
-    grid: chartGrid({ right: 16, left: 64 }),
+    grid: chartGrid({ top: 16, right: 16, left: 64 }),
     tooltip: chartTooltip("axis", {
       borderColor: safeAccent,
       formatter: (params: unknown) => {
@@ -489,7 +489,7 @@ function MetricChart({
 
   if (metric === "dailyDelta") {
     return (
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
         <div className="flex justify-end">
           <div className="nm-inset-sm p-1 flex gap-0.5 rounded-nm-sm">
             {(["bar", "line"] as const).map((m) => (
@@ -521,7 +521,7 @@ function MetricChart({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-1">
       {showLogToggle && (
         <div className="flex justify-end">
           <LogScaleToggle
