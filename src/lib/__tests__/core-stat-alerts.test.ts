@@ -5,41 +5,34 @@ import { buildCoreStatDescriptors } from "@/components/tracker-detail/CoreStatCa
 import type { Snapshot, TrackerLatestStats } from "@/types/api"
 
 const baseStats: TrackerLatestStats = {
-  username: "test",
-  group: "User",
+  ratio: 2.0,
   uploadedBytes: "100000000000",
   downloadedBytes: "50000000000",
-  ratio: 2.0,
   seedingCount: 100,
   leechingCount: 0,
-  seedbonus: 500,
-  hitAndRuns: 0,
   requiredRatio: null,
   warned: false,
   freeleechTokens: null,
-  bufferBytes: "50000000000",
-  shareScore: null,
+  username: "test",
+  group: "User",
 }
 
 const baseSnapshot: Snapshot = {
-  id: 1,
-  trackerId: 1,
+  polledAt: new Date().toISOString(),
   uploadedBytes: "100000000000",
   downloadedBytes: "50000000000",
   ratio: 2.0,
   bufferBytes: "50000000000",
+  seedbonus: 500,
   seedingCount: 100,
   leechingCount: 0,
-  seedbonus: 500,
   hitAndRuns: 0,
   requiredRatio: null,
   warned: false,
   freeleechTokens: null,
-  username: "test",
-  groupName: "User",
-  snapshotBatchId: "batch-1",
-  createdAt: new Date().toISOString(),
   shareScore: null,
+  username: "test",
+  group: "User",
 }
 
 describe("buildCoreStatDescriptors alerts", () => {
@@ -90,9 +83,8 @@ describe("buildCoreStatDescriptors alerts", () => {
     expect(buffer?.alertReason).toBe("Negative buffer")
   })
 
-  it("no buffer alert when bufferBytes is null", () => {
-    const snap = { ...baseSnapshot, bufferBytes: null }
-    const cards = buildCoreStatDescriptors(baseStats, snap)
+  it("no buffer alert when snapshot is null", () => {
+    const cards = buildCoreStatDescriptors(baseStats, null)
     const buffer = cards.find((c) => c.key === "buffer")
     expect(buffer?.alert).toBeUndefined()
   })
