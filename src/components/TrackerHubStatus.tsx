@@ -1,6 +1,6 @@
 // src/components/TrackerHubStatus.tsx
 //
-// Functions: getRecentIncident, formatIncidentDate, formatDowntime, formatRelativeTime, TrackerHubStatus
+// Functions: getRecentIncident, formatIncidentDate, formatDowntime, TrackerHubStatus
 
 "use client"
 
@@ -9,6 +9,7 @@ import Image from "next/image"
 import { useEffect, useState } from "react"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
+import { formatTimeAgo } from "@/lib/formatters"
 
 const TRACKERHUB_SUMMARY =
   "https://raw.githubusercontent.com/HDVinnie/TrackerHub/HEAD/history/summary.json"
@@ -65,15 +66,6 @@ function formatDowntime(minutes: number): string {
   return `${minutes}m`
 }
 
-function formatRelativeTime(date: Date): string {
-  const seconds = Math.floor((Date.now() - date.getTime()) / 1000)
-  if (seconds < 60) return "just now"
-  const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes}m ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
-  return `${Math.floor(hours / 24)}d ago`
-}
 
 function TrackerHubStatus({
   trackerHubSlug,
@@ -143,7 +135,7 @@ function TrackerHubStatus({
           </span>
           {fetchedAt && (
             <span className="text-xs font-mono text-muted ml-1">
-              · Checked {formatRelativeTime(fetchedAt)}
+              · Checked {formatTimeAgo(fetchedAt)}
             </span>
           )}
         </button>

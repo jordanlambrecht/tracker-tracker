@@ -4,6 +4,7 @@
 
 import { useState } from "react"
 import { ParallelTorrentsChart } from "@/components/charts/ParallelTorrentsChart"
+import { formatTimeAgo } from "@/lib/formatters"
 import { StorageSunburst } from "@/components/charts/StorageSunburst"
 import { TagGroupBreakdownChart } from "@/components/charts/TagGroupBreakdownChart"
 import { TorrentActivityHeatmap } from "@/components/charts/TorrentActivityHeatmap"
@@ -30,20 +31,6 @@ import { H2 } from "@/components/ui/Typography"
 import type { TrackerRules } from "@/data/tracker-registry"
 import { useTrackerTorrents } from "@/hooks/useTrackerTorrents"
 import type { QbitmanageTagConfig, TagGroup } from "@/types/api"
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function formatTimeAgo(iso: string): string {
-  const diffMs = Date.now() - new Date(iso).getTime()
-  const minutes = Math.floor(diffMs / 60000)
-  if (minutes < 1) return "just now"
-  if (minutes < 60) return `${minutes} min ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
-  return `${Math.floor(hours / 24)}d ago`
-}
 
 // ---------------------------------------------------------------------------
 // Types
