@@ -1,4 +1,14 @@
-# Tracker Tracker
+<p align="center">
+  <img src="public/img/trackerTracker_logo.svg" alt="Tracker Tracker" width="200" />
+</p>
+
+<h1 align="center">Tracker Tracker</h1>
+
+![CI](https://github.com/jordanlambrecht/tracker-tracker/actions/workflows/ci.yml/badge.svg)
+![Version](https://img.shields.io/github/package-json/v/jordanlambrecht/tracker-tracker)
+![License](https://img.shields.io/github/license/jordanlambrecht/tracker-tracker)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6)
+![Self-Hosted](https://img.shields.io/badge/self--hosted-Docker-2496ed)
 
 Self-hosted dashboard for monitoring private tracker stats over time. One place for upload, download, ratio, buffer, seedbonus, and rank data across all your trackers.
 
