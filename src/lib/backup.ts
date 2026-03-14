@@ -11,6 +11,7 @@ import {
   appSettings,
   backupHistory,
   clientSnapshots,
+  clientUptimeBuckets,
   downloadClients,
   tagGroupMembers,
   tagGroups,
@@ -41,6 +42,7 @@ export interface BackupPayload {
   tagGroups: Record<string, unknown>[]
   tagGroupMembers: Record<string, unknown>[]
   clientSnapshots: Record<string, unknown>[]
+  clientUptimeBuckets?: Record<string, unknown>[]
 }
 
 export interface EncryptedBackupEnvelope {
@@ -128,6 +130,12 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     serializeRow(cs as Record<string, unknown>)
   )
 
+  // clientUptimeBuckets — heartbeat history
+  const rawUptimeBuckets = await db.select().from(clientUptimeBuckets).orderBy(clientUptimeBuckets.id)
+  const uptimeBucketsPayload = rawUptimeBuckets.map((ub) =>
+    serializeRow(ub as Record<string, unknown>)
+  )
+
   const counts: Record<string, number> = {
     trackers: trackersPayload.length,
     trackerSnapshots: snapshotsPayload.length,
@@ -136,6 +144,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     tagGroups: tagGroupsPayload.length,
     tagGroupMembers: tagGroupMembersPayload.length,
     clientSnapshots: clientSnapshotsPayload.length,
+    clientUptimeBuckets: uptimeBucketsPayload.length,
   }
 
   const manifest: BackupManifest = {
@@ -156,6 +165,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     tagGroups: tagGroupsPayload,
     tagGroupMembers: tagGroupMembersPayload,
     clientSnapshots: clientSnapshotsPayload,
+    clientUptimeBuckets: uptimeBucketsPayload,
   }
 }
 
@@ -268,6 +278,18 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
   assertArray(p.tagGroups, 'tagGroups')
   assertArray(p.tagGroupMembers, 'tagGroupMembers')
   assertArray(p.clientSnapshots, 'clientSnapshots')
+  // clientUptimeBuckets is optional for backward compatibility with older backups
+  if (p.clientUptimeBuckets !== undefined) {
+    assertArray(p.clientUptimeBuckets, 'clientUptimeBuckets')
+    for (let i = 0; i < p.clientUptimeBuckets.length; i++) {
+      const ub = p.clientUptimeBuckets[i] as Record<string, unknown>
+      const prefix = `clientUptimeBuckets[${i}]`
+      assertNumber(ub.clientId, `${prefix}.clientId`)
+      assertValidIso(ub.bucketTs, `${prefix}.bucketTs`)
+      assertNumber(ub.ok, `${prefix}.ok`)
+      assertNumber(ub.fail, `${prefix}.fail`)
+    }
+  }
 
   // tracker entries
   for (let i = 0; i < p.trackers.length; i++) {

@@ -18,6 +18,7 @@ import { db } from "@/lib/db"
 import {
   appSettings,
   clientSnapshots,
+  clientUptimeBuckets,
   downloadClients,
   tagGroupMembers,
   tagGroups,
@@ -233,6 +234,7 @@ export async function POST(request: Request) {
   try {
     await db.transaction(async (tx) => {
       // Delete all existing data — FK-safe order (children before parents)
+      await tx.delete(clientUptimeBuckets)
       await tx.delete(clientSnapshots)
       await tx.delete(trackerSnapshots)
       await tx.delete(trackerRoles)
@@ -424,6 +426,23 @@ export async function POST(request: Request) {
       }
       await batchInsert(tx, clientSnapshots, clientSnapshotRows)
 
+      // Batch insert clientUptimeBuckets (remap clientId, optional for older backups)
+      if (Array.isArray(payload.clientUptimeBuckets) && payload.clientUptimeBuckets.length > 0) {
+        const uptimeRows: Record<string, unknown>[] = []
+        for (const ub of payload.clientUptimeBuckets) {
+          const fields = ub as Record<string, unknown>
+          const newClientId = clientIdMap.get(fields.clientId as number)
+          if (!newClientId) continue
+          uptimeRows.push({
+            clientId: newClientId,
+            bucketTs: new Date(fields.bucketTs as string),
+            ok: (fields.ok as number) ?? 0,
+            fail: (fields.fail as number) ?? 0,
+          })
+        }
+        await batchInsert(tx, clientUptimeBuckets, uptimeRows)
+      }
+
       // Re-encrypt proxy password if possible
       let proxyPassword: string | null = null
       if (payload.settings.encryptedProxyPassword) {
@@ -553,6 +572,7 @@ export async function POST(request: Request) {
       tagGroups: payload.tagGroups.length,
       tagGroupMembers: payload.tagGroupMembers.length,
       clientSnapshots: payload.clientSnapshots.length,
+      clientUptimeBuckets: Array.isArray(payload.clientUptimeBuckets) ? payload.clientUptimeBuckets.length : 0,
     },
     tokensPreserved,
     tokensCleared,
