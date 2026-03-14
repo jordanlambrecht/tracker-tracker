@@ -40,16 +40,19 @@ export function formatBytesFromNumber(bytes: number): string {
 /**
  * Formats a JS number of bytes into a human-readable string with auto-scaling.
  * Uses binary units (KiB, MiB, GiB, TiB) by default, or decimal (KB, MB, GB, TB)
- * when binary is false.
+ * when binary is false. Handles negative values (e.g. negative buffer).
  */
 export function formatBytesNum(bytes: number, binary = true): string {
-  if (bytes === 0) return "0 B"
+  if (bytes === 0) return "0"
+  const sign = bytes < 0 ? "-" : ""
+  const abs = Math.abs(bytes)
   const k = binary ? 1024 : 1000
   const units = binary
     ? ["B", "KiB", "MiB", "GiB", "TiB"]
     : ["B", "KB", "MB", "GB", "TB"]
-  const i = Math.floor(Math.log(Math.max(bytes, 1)) / Math.log(k))
-  return `${(bytes / k ** i).toFixed(2)} ${units[i]}`
+  const i = Math.min(Math.floor(Math.log(abs) / Math.log(k)), units.length - 1)
+  const val = abs / k ** i
+  return `${sign}${val.toFixed(val >= 100 ? 0 : val >= 10 ? 1 : 2)} ${units[i]}`
 }
 
 /**
