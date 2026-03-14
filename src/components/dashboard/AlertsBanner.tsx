@@ -19,6 +19,7 @@ const typeConfig: Record<string, { borderColor: string; icon: string; label: str
   "rank-change": { borderColor: "var(--color-accent)", icon: "🎉", label: "Rank" },
   "zero-seeding": { borderColor: "var(--color-warn)", icon: "⏸", label: "Seeds" },
   warned: { borderColor: "var(--color-danger)", icon: "⚠", label: "Warning" },
+  anniversary: { borderColor: "var(--color-accent)", icon: "🎂", label: "Anniversary" },
 }
 
 function AlertsBanner({ alerts, onDismiss }: AlertsBannerProps) {

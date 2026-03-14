@@ -4,7 +4,6 @@
 
 import { useState } from "react"
 import { ParallelTorrentsChart } from "@/components/charts/ParallelTorrentsChart"
-import { formatTimeAgo } from "@/lib/formatters"
 import { StorageSunburst } from "@/components/charts/StorageSunburst"
 import { TagGroupBreakdownChart } from "@/components/charts/TagGroupBreakdownChart"
 import { TorrentActivityHeatmap } from "@/components/charts/TorrentActivityHeatmap"
@@ -30,6 +29,7 @@ import { Card } from "@/components/ui/Card"
 import { H2 } from "@/components/ui/Typography"
 import type { TrackerRules } from "@/data/tracker-registry"
 import { useTrackerTorrents } from "@/hooks/useTrackerTorrents"
+import { formatTimeAgo } from "@/lib/formatters"
 import type { QbitmanageTagConfig, TagGroup } from "@/types/api"
 
 // ---------------------------------------------------------------------------
