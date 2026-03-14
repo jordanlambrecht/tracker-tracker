@@ -170,7 +170,7 @@ export class NebulanceAdapter implements TrackerAdapter {
       seedingCount: resp.SeedCount ?? 0,
       leechingCount: 0, // Not available from Nebulance API
       seedbonus: null, // Not available from Nebulance API
-      hitAndRuns: resp.HnR ?? 0,
+      hitAndRuns: resp.HnR ?? null,
       requiredRatio: null, // Not available from Nebulance API
       warned: null, // Not available from Nebulance API
       freeleechTokens: null, // Not available from Nebulance API

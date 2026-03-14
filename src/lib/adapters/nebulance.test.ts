@@ -363,7 +363,7 @@ describe("NebulanceAdapter - Anthelion compatibility", () => {
     expect(stats.group).toBe("Power User")
     expect(stats.uploadedBytes).toBe(BigInt(5368709120))
     expect(stats.seedingCount).toBe(88)
-    expect(stats.hitAndRuns).toBe(0) // No HnR field → defaults to 0
+    expect(stats.hitAndRuns).toBeNull() // No HnR field → null
     expect(stats.remoteUserId).toBe(1646)
   })
 

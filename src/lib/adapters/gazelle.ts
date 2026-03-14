@@ -49,6 +49,7 @@ interface GazelleUserResponse {
       uploaded: number
       downloaded: number
       ratio: number
+      buffer: number
       requiredRatio: number
     }
     ranks: {
@@ -72,6 +73,9 @@ interface GazelleUserResponse {
     community: {
       posts: number
       torrentComments: number
+      artistComments?: number
+      collageComments?: number
+      requestComments?: number
       collagesStarted: number
       collagesContrib: number
       requestsFilled: number
@@ -83,6 +87,8 @@ interface GazelleUserResponse {
       leeching: number
       snatched: number
       invited: number
+      bountyEarned: number | null
+      bountySpent: number | null
     }
   }
 }
@@ -133,8 +139,8 @@ export class GazelleAdapter implements TrackerAdapter {
       bufferBytes: uploaded > downloaded ? uploaded - downloaded : BigInt(0),
       seedingCount: userStats.seedingcount ?? 0,
       leechingCount: userStats.leechingcount ?? 0,
-      seedbonus: userStats.bonusPoints ?? userStats.bonuspoints ?? 0,
-      hitAndRuns: 0,
+      seedbonus: userStats.bonusPoints ?? userStats.bonuspoints ?? null,
+      hitAndRuns: null,
       requiredRatio: typeof userStats.requiredratio === "number" ? userStats.requiredratio : null,
       warned: false,
       freeleechTokens: typeof userStats.freeleechTokens === "number"
@@ -159,6 +165,8 @@ export class GazelleAdapter implements TrackerAdapter {
             // Override core stats with richer data from user profile
             if (typeof enriched.warned === "boolean") stats.warned = enriched.warned
             if (enriched.joinedDate) stats.joinedDate = enriched.joinedDate
+            if (enriched.lastAccessDate) stats.lastAccessDate = enriched.lastAccessDate
+            if (enriched.bufferBytes != null) stats.bufferBytes = enriched.bufferBytes
             if (typeof enriched.seedingCount === "number") stats.seedingCount = enriched.seedingCount
             if (typeof enriched.leechingCount === "number") stats.leechingCount = enriched.leechingCount
             if (enriched.avatarUrl) stats.avatarUrl = enriched.avatarUrl
@@ -235,6 +243,8 @@ export class GazelleAdapter implements TrackerAdapter {
   ): Promise<{
     warned: boolean
     joinedDate?: string
+    lastAccessDate?: string
+    bufferBytes?: bigint
     seedingCount?: number
     leechingCount?: number
     avatarUrl?: string
@@ -278,6 +288,9 @@ export class GazelleAdapter implements TrackerAdapter {
       meta.community = {
         posts: resp.community.posts,
         torrentComments: resp.community.torrentComments,
+        artistComments: resp.community.artistComments ?? 0,
+        collageComments: resp.community.collageComments ?? 0,
+        requestComments: resp.community.requestComments ?? 0,
         collagesStarted: resp.community.collagesStarted,
         collagesContrib: resp.community.collagesContrib,
         requestsFilled: resp.community.requestsFilled,
@@ -287,12 +300,16 @@ export class GazelleAdapter implements TrackerAdapter {
         groups: resp.community.groups,
         snatched: resp.community.snatched,
         invited: resp.community.invited,
+        bountyEarned: resp.community.bountyEarned ?? null,
+        bountySpent: resp.community.bountySpent ?? null,
       }
     }
 
     return {
       warned: resp.personal?.warned ?? false,
       joinedDate: resp.stats?.joinedDate ?? undefined,
+      lastAccessDate: resp.stats?.lastAccess ?? undefined,
+      bufferBytes: resp.stats?.buffer != null ? BigInt(Math.floor(resp.stats.buffer)) : undefined,
       seedingCount: resp.community?.seeding,
       leechingCount: resp.community?.leeching,
       avatarUrl: resp.avatar || undefined,
