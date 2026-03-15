@@ -29,7 +29,7 @@ import { Card } from "@/components/ui/Card"
 import { H2 } from "@/components/ui/Typography"
 import type { TrackerRules } from "@/data/tracker-registry"
 import { useTrackerTorrents } from "@/hooks/useTrackerTorrents"
-import { formatTimeAgo } from "@/lib/formatters"
+import { formatBytesNum, formatTimeAgo } from "@/lib/formatters"
 import type { QbitmanageTagConfig, TagGroup } from "@/types/api"
 
 // ---------------------------------------------------------------------------
@@ -100,21 +100,31 @@ function TorrentsTab({ trackerId, trackerName, qbtTag, accentColor, rules, tagGr
 
       {/* Active Transfers */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="flex flex-col gap-3 min-w-0">
+        <div className="flex flex-col gap-3 min-w-0 [&>*:last-child]:flex-1">
           <H2 className="text-xs font-sans font-medium text-secondary uppercase tracking-wider flex items-center gap-2">
             {data.activelyDownloading.length > 0 && (
               <span className="inline-block w-2 h-2 rounded-full bg-warn animate-pulse" />
             )}
             Active Downloads ({data.activelyDownloading.length})
+            {data.activelyDownloading.length > 0 && (
+              <span className="font-mono text-warn ml-auto mr-2 text-[11px] normal-case tracking-normal">
+                {formatBytesNum(data.activelyDownloading.reduce((s, t) => s + t.dlspeed, 0))}/s
+              </span>
+            )}
           </H2>
           <ActiveTransfersTable torrents={data.activelyDownloading} mode="downloading" accentColor={accentColor} showClientName={data.clientCount > 1} />
         </div>
-        <div className="flex flex-col gap-3 min-w-0">
+        <div className="flex flex-col gap-3 min-w-0 [&>*:last-child]:flex-1">
           <H2 className="text-xs font-sans font-medium text-secondary uppercase tracking-wider flex items-center gap-2">
             {data.activelySeedingTorrents.length > 0 && (
               <span className="inline-block w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: accentColor }} />
             )}
             Active Uploads ({data.activelySeedingTorrents.length})
+            {data.activelySeedingTorrents.length > 0 && (
+              <span className="font-mono text-accent ml-auto mr-2 text-[11px] normal-case tracking-normal">
+                {formatBytesNum(data.activelySeedingTorrents.reduce((s, t) => s + t.upspeed, 0))}/s
+              </span>
+            )}
           </H2>
           <ActiveTransfersTable torrents={data.activelySeedingTorrents} mode="uploading" accentColor={accentColor} showClientName={data.clientCount > 1} />
         </div>
@@ -124,15 +134,14 @@ function TorrentsTab({ trackerId, trackerName, qbtTag, accentColor, rules, tagGr
       <TorrentStatCards
         torrents={data.torrents}
         seedingTorrents={data.seedingTorrents}
-        leechingTorrents={data.leechingTorrents}
-        totalUpSpeed={data.totalUpSpeed}
         totalSize={data.totalSize}
         crossSeededCount={data.crossSeeded.length}
         deadCount={data.deadCount}
         trackerSeedingCount={trackerSeedingCount ?? null}
         unsatisfiedCount={data.unsatisfiedCount}
-        requiredSeedSeconds={data.requiredSeedSeconds}
+        hnrRiskCount={data.hnrRiskCount}
         accentColor={accentColor}
+        clientCount={data.clientCount}
       />
 
       {/* Category + Cross-Seed */}
@@ -141,14 +150,16 @@ function TorrentsTab({ trackerId, trackerName, qbtTag, accentColor, rules, tagGr
         <Card trackerColor={accentColor} className="flex flex-col gap-4">
           <H2 className="text-sm font-sans font-semibold text-primary uppercase tracking-wider">Cross-Seed Ratio</H2>
           {data.crossSeedTags.length === 0 ? (
-            <div className="flex items-center justify-center h-48">
+            <div className="flex items-center justify-center flex-1">
               <p className="text-xs font-mono text-tertiary text-center">
                 No cross-seed tags configured.<br />
                 Set them in Settings → Download Clients.
               </p>
             </div>
           ) : (
-            <TorrentCrossSeedDonut crossSeeded={data.crossSeeded.length} unique={data.torrents.length - data.crossSeeded.length} accentColor={accentColor} />
+            <div className="flex-1 flex items-center">
+              <TorrentCrossSeedDonut crossSeeded={data.crossSeeded.length} unique={data.torrents.length - data.crossSeeded.length} accentColor={accentColor} />
+            </div>
           )}
         </Card>
       </div>
