@@ -3,7 +3,7 @@
 // Functions: GET
 //
 // Returns historical client snapshots with parsed tagStats for all clients.
-// Query param: ?days=N (default 7, max 30)
+// Query param: ?days=N (default 7, max 365)
 
 import { gte } from "drizzle-orm"
 import { NextResponse } from "next/server"
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url)
   const daysParam = parseInt(url.searchParams.get("days") ?? "7", 10)
-  const days = Math.min(Math.max(1, Number.isNaN(daysParam) ? 7 : daysParam), 30)
+  const days = Math.min(Math.max(1, Number.isNaN(daysParam) ? 7 : daysParam), 365)
 
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 
