@@ -103,9 +103,9 @@ function Table<T>({
   })()
 
   return (
-    <Card elevation="raised" className={clsx("!p-0 overflow-hidden", className)}>
+    <Card elevation="raised" className={clsx("!p-0 overflow-hidden", sortedData.length === 0 && "flex flex-col", className)}>
       <div
-        className={clsx(surfaceClasses[surface], "overflow-hidden rounded-nm-lg", !noHorizontalScroll && "overflow-x-auto", noHorizontalScroll && "pr-1", maxHeight && "overflow-y-auto styled-scrollbar")}
+        className={clsx(surfaceClasses[surface], "overflow-hidden rounded-nm-lg", !noHorizontalScroll && "overflow-x-auto", noHorizontalScroll && "pr-1", maxHeight && "overflow-y-auto overscroll-contain styled-scrollbar", sortedData.length === 0 && "flex-1 flex items-center justify-center")}
         style={maxHeight ? { maxHeight } : undefined}
       >
         {sortedData.length > 0 ? (
@@ -157,9 +157,7 @@ function Table<T>({
             </tbody>
           </table>
         ) : (
-          <div className="px-5 py-8 text-center">
-            <p className="text-sm font-mono text-muted">{emptyMessage}</p>
-          </div>
+          <p className="text-sm font-mono text-muted py-8">{emptyMessage}</p>
         )}
       </div>
     </Card>

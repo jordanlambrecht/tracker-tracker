@@ -81,7 +81,10 @@ function ChartCard({
         className="grid transition-[grid-template-rows] duration-200 ease-out"
         style={{ gridTemplateRows: collapsed ? "0fr" : "1fr" }}
       >
-        <div className="overflow-hidden p-1 -m-1">
+        {/* p-6 -m-6: overflow-hidden is required for grid collapse animation,
+            but clips neumorphic shadows (nm-raised reaches ~24px). The padding
+            pushes the clip boundary out; the negative margin cancels layout shift. */}
+        <div className="overflow-hidden p-6 -m-6">
           {shouldMount && children}
         </div>
       </div>
