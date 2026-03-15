@@ -52,8 +52,8 @@ export function AnalyticsTab({
 }: AnalyticsTabProps) {
   // Build core stat descriptors (data, not elements)
   const coreDescriptors = useMemo(
-    () => buildCoreStatDescriptors(stats, latestSnapshot),
-    [stats, latestSnapshot],
+    () => buildCoreStatDescriptors(stats, latestSnapshot, minimumRatio),
+    [stats, latestSnapshot, minimumRatio],
   )
   const coreCount = coreDescriptors.length
 

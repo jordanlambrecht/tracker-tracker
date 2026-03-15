@@ -38,7 +38,7 @@ export function DataSection({ initialPollInterval }: DataSectionProps) {
     <section aria-labelledby="data-heading">
       <H2 id="data-heading" className="mb-4">Data</H2>
 
-      <Card elevation="raised" className="overflow-visible">
+      <Card elevation="raised">
         {/* Poll interval */}
         <div className="flex flex-col gap-3 ">
           <H3>Tracker Poll Interval</H3>
