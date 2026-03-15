@@ -5,7 +5,6 @@ export { Button, buttonRadii, buttonVariants } from "./Button"
 export { Card } from "./Card"
 export { Checkbox } from "./Checkbox"
 export { ChevronToggle } from "./ChevronToggle"
-export { ConfirmButton } from "./ConfirmButton"
 export { ErrorDisplay } from "./ErrorDisplay"
 export {
   ActivityIcon,
@@ -36,7 +35,6 @@ export {
   UserIcon,
 } from "./Icons"
 export { Input } from "./Input"
-export { LI, OL, UL } from "./List"
 export { MarqueeText } from "./MarqueeText"
 export { MaskedSecret } from "./MaskedSecret"
 export { NumberInput } from "./NumberInput"

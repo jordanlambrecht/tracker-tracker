@@ -2,7 +2,6 @@
 
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 
-export * from './_template';
 export * from './720pier';
 export * from './abtorrents';
 export * from './aither';

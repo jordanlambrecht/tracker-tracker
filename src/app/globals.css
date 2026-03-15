@@ -200,26 +200,6 @@
   transform: scale(0.99);
 }
 
-.nm-interactive {
-  box-shadow:
-    -8px -8px 16px oklch(34.45% 0.0283 276.51), /* #353848 */
-    8px 8px 16px oklch(22.90% 0.0155 279.49); /* #1b1c24 */
-  transition: box-shadow 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
-              transform 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-.nm-interactive:hover {
-  box-shadow:
-    -8px -8px 16px oklch(33.34% 0.0303 276.83), /* #323546 */
-    9px 9px 17px oklch(22.04% 0.0157 279.43); /* #191a22 */
-  transform: scale(1.01);
-}
-.nm-interactive:active {
-  box-shadow:
-    inset 2px 2px 6px oklch(21.50% 0.0119 277.89), /* #18191f */
-    inset -2px -2px 4px oklch(31.42% 0.0287 279.05); /* #2e3040 */
-  transform: scale(0.99);
-}
-
 .nm-interactive-inset {
   box-shadow:
     inset 2px 2px 5px oklch(24.55% 0.0174 275.22), /* #1e2029 */
@@ -286,16 +266,6 @@
 }
 .marquee-scroll:hover {
   animation-play-state: paused;
-}
-
-@keyframes slideInLeft {
-  from { opacity: 0; transform: translateX(12px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes slideInRight {
-  from { opacity: 0; transform: translateX(-12px); }
-  to   { opacity: 1; transform: translateX(0); }
 }
 
 /* Hide native number input spinners — we use custom NumberInput controls */
