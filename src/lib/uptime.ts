@@ -67,7 +67,6 @@ export function recordHeartbeat(clientId: number, success: boolean): void {
 
 /**
  * Write completed buckets to the database. Returns the number of buckets flushed.
- * Also prunes entries older than the retention window.
  *
  * Scans the accumulator for buckets older than the current 5-min window and
  * drains the flush queue. This ensures buckets are flushed even if
