@@ -133,18 +133,35 @@ jobs:
             for (const r of nonDraft) {
               if (r.errors.length === 0 && r.warnings.length === 0) continue;
 
-              lines.push(`### ${r.name} (\`${r.slug}\`)`);
-              lines.push('');
-              lines.push('| Field | Status |');
-              lines.push('|---|---|');
+              // Errors are always visible
+              if (r.errors.length > 0) {
+                lines.push(`### ${r.name} (\`${r.slug}\`)`);
+                lines.push('');
+                lines.push('| Field | Status |');
+                lines.push('|---|---|');
+                for (const e of r.errors) {
+                  lines.push(`| ${e} | ❌ Error |`);
+                }
+                lines.push('');
+              }
 
-              for (const e of r.errors) {
-                lines.push(`| ${e} | ❌ Error |`);
+              // Warnings are collapsed
+              if (r.warnings.length > 0) {
+                const heading = r.errors.length > 0
+                  ? `Warnings for ${r.name}`
+                  : `${r.name} (\`${r.slug}\`) — Warnings`;
+                lines.push(`<details>`);
+                lines.push(`<summary>${heading} (${r.warnings.length})</summary>`);
+                lines.push('');
+                lines.push('| Field | Status |');
+                lines.push('|---|---|');
+                for (const w of r.warnings) {
+                  lines.push(`| ${w} | ⚠️ Warning |`);
+                }
+                lines.push('');
+                lines.push('</details>');
+                lines.push('');
               }
-              for (const w of r.warnings) {
-                lines.push(`| ${w} | ⚠️ Warning |`);
-              }
-              lines.push('');
             }
 
             lines.push('---');
