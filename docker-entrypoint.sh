@@ -20,7 +20,8 @@ if [ -z "$DATABASE_URL" ]; then
   DB_NAME="${POSTGRES_DB:-tracker_tracker}"
   DB_HOST="${POSTGRES_HOST:-db}"
   DB_PORT="${POSTGRES_PORT:-5432}"
-  DATABASE_URL="postgresql://${DB_USER}:${POSTGRES_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+  ENCODED_PASSWORD=$(node -e "process.stdout.write(encodeURIComponent(process.argv[1]))" "$POSTGRES_PASSWORD")
+  DATABASE_URL="postgresql://${DB_USER}:${ENCODED_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
   export DATABASE_URL
 else
   # Parse host/port from the explicit URL for the TCP check below
