@@ -42,6 +42,7 @@ export function RankTooltip({ currentRank, userClasses, accentColor }: RankToolt
       }
     >
       <Badge
+        tabIndex={0}
         style={{
           backgroundColor: hexToRgba(accentColor, 0.15),
           color: accentColor,
@@ -50,9 +51,8 @@ export function RankTooltip({ currentRank, userClasses, accentColor }: RankToolt
         <span className="flex items-center gap-1.5">
           {currentRank}
           <span
-            role="img"
             className="cursor-help text-[9px] font-bold opacity-70 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current"
-            aria-label="Show rank progression"
+            aria-hidden="true"
           >
             ?
           </span>

@@ -42,9 +42,6 @@ const VALID_CONTENT_CATEGORIES = new Set([
   "Education",
   "Tutorials",
   "Fanres",
-  "iOS Apps",
-  "Graphics",
-  "Audio",
 ])
 
 // ---------------------------------------------------------------------------

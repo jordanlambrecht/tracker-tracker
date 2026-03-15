@@ -13,7 +13,7 @@ export const phoenixproject: TrackerRegistryEntry = {
   apiPath: "/ajax.php",
   gazelleEnrich: true,
   specialty: "macOS Software",
-  contentCategories: ["Apps", "Games", "iOS Apps", "Graphics", "Audio", "Tutorials", "Books", "Audiobooks"],
+  contentCategories: ["Apps", "Games", "Tutorials", "Books", "Audiobooks"],
   userClasses: [
     {
       name: "User",

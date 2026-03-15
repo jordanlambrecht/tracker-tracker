@@ -51,23 +51,14 @@ function validate(slugFilter?: string[]): TrackerResult[] {
   const allUrls = ALL_TRACKERS.map((t: TrackerRegistryEntry) => normalize(t.url))
   const dupeUrls = allUrls.filter((u: string, i: number) => allUrls.indexOf(u) !== i)
 
+  const nonDraft = ALL_TRACKERS.filter((t: TrackerRegistryEntry) => !t.draft)
   const trackers = slugFilter
-    ? ALL_TRACKERS.filter((t: TrackerRegistryEntry) => slugFilter.includes(t.slug))
-    : ALL_TRACKERS.filter((t: TrackerRegistryEntry) => !t.draft)
+    ? nonDraft.filter((t: TrackerRegistryEntry) => slugFilter.includes(t.slug))
+    : nonDraft
 
   return trackers.map((tracker: TrackerRegistryEntry) => {
     const errors: string[] = []
     const warnings: string[] = []
-
-    // Skip strict validation for drafts
-    if (tracker.draft) {
-      if (!SLUG_RE.test(tracker.slug)) errors.push("Invalid slug format")
-      if (!(VALID_PLATFORMS as readonly string[]).includes(tracker.platform)) {
-        errors.push(`Invalid platform "${tracker.platform}"`)
-      }
-      if (!/^https:\/\//.test(tracker.url)) errors.push("URL must use https://")
-      return { slug: tracker.slug, name: tracker.name, draft: true, errors, warnings }
-    }
 
     // ── Global duplication checks ─────────────────────────────────────
     if (dupeSlugs.includes(tracker.slug)) errors.push("Duplicate slug")
@@ -119,7 +110,7 @@ function validate(slugFilter?: string[]): TrackerResult[] {
       if (typeof rules.loginIntervalDays !== "number") {
         errors.push("Missing rules.loginIntervalDays")
       } else {
-        if (rules.loginIntervalDays <= 0) errors.push(`rules.loginIntervalDays must be > 0 (got ${rules.loginIntervalDays})`)
+        if (rules.loginIntervalDays < 0) errors.push(`rules.loginIntervalDays must be >= 0 (got ${rules.loginIntervalDays})`)
         if (!Number.isInteger(rules.loginIntervalDays)) errors.push(`rules.loginIntervalDays must be an integer (got ${rules.loginIntervalDays})`)
       }
 

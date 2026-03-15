@@ -130,7 +130,7 @@ export function isUnsafeNetworkHost(host: string): boolean {
   if (version === 4) return isPrivateIpv4Literal(normalized)
   if (version === 6) return isUnsafeIpv6Literal(normalized)
 
-  // Handle shorthand IPv4 forms (i.e, "127.1", "127.0.1") that isIP() doesn't recognize
+  // Handle shorthand IPv4 forms (i.e., "127.1", "127.0.1") that isIP() doesn't recognize
   const expanded = normalizeShorthandIpv4(normalized)
   if (expanded) return isPrivateIpv4Literal(expanded)
 
