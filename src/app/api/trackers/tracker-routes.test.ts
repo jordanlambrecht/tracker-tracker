@@ -51,21 +51,15 @@ vi.mock("@/lib/privacy", () => ({
 }))
 
 vi.mock("@/lib/privacy-db", () => ({
-  createPrivacyMask: vi.fn().mockResolvedValue(
-    (v: string | null | undefined) => (v ? `▓${v.length}` : null)
-  ),
-  createPrivacyMaskSync: vi.fn().mockReturnValue(
-    (v: string | null | undefined) => v ?? null
-  ),
+  createPrivacyMask: vi
+    .fn()
+    .mockResolvedValue((v: string | null | undefined) => (v ? `▓${v.length}` : null)),
+  createPrivacyMaskSync: vi.fn().mockReturnValue((v: string | null | undefined) => v ?? null),
 }))
 
 const VALID_KEY = "abcd1234".repeat(8)
 
-function makeRequest(
-  url: string,
-  body?: Record<string, unknown>,
-  method = "GET"
-): Request {
+function makeRequest(url: string, body?: Record<string, unknown>, method = "GET"): Request {
   return new Request(url, {
     method,
     headers: { "Content-Type": "application/json" },
@@ -221,11 +215,15 @@ describe("POST /api/trackers", () => {
     const mockValues = vi.fn().mockReturnValue({ returning: mockReturning })
     ;(db.insert as ReturnType<typeof vi.fn>).mockReturnValue({ values: mockValues })
 
-    const request = makeRequest("http://localhost/api/trackers", {
-      name: "Aither",
-      baseUrl: "https://aither.cc",
-      apiToken: "mytoken",
-    }, "POST")
+    const request = makeRequest(
+      "http://localhost/api/trackers",
+      {
+        name: "Aither",
+        baseUrl: "https://aither.cc",
+        apiToken: "mytoken",
+      },
+      "POST"
+    )
     const response = await POST(request)
     const data = await response.json()
 
@@ -254,11 +252,15 @@ describe("POST /api/trackers", () => {
       apiToken: "mytoken",
     })
 
-    const request = makeRequest("http://localhost/api/trackers", {
-      name: longName,
-      baseUrl: "https://aither.cc",
-      apiToken: "mytoken",
-    }, "POST")
+    const request = makeRequest(
+      "http://localhost/api/trackers",
+      {
+        name: longName,
+        baseUrl: "https://aither.cc",
+        apiToken: "mytoken",
+      },
+      "POST"
+    )
     const response = await POST(request)
     const data = await response.json()
 
@@ -274,11 +276,15 @@ describe("POST /api/trackers", () => {
       apiToken: "mytoken",
     })
 
-    const request = makeRequest("http://localhost/api/trackers", {
-      name: "Aither",
-      baseUrl: longUrl,
-      apiToken: "mytoken",
-    }, "POST")
+    const request = makeRequest(
+      "http://localhost/api/trackers",
+      {
+        name: "Aither",
+        baseUrl: longUrl,
+        apiToken: "mytoken",
+      },
+      "POST"
+    )
     const response = await POST(request)
     const data = await response.json()
 
@@ -293,11 +299,15 @@ describe("POST /api/trackers", () => {
       apiToken: "mytoken",
     })
 
-    const request = makeRequest("http://localhost/api/trackers", {
-      name: "Aither",
-      baseUrl: "not-a-url",
-      apiToken: "mytoken",
-    }, "POST")
+    const request = makeRequest(
+      "http://localhost/api/trackers",
+      {
+        name: "Aither",
+        baseUrl: "not-a-url",
+        apiToken: "mytoken",
+      },
+      "POST"
+    )
     const response = await POST(request)
     const data = await response.json()
 
@@ -312,11 +322,15 @@ describe("POST /api/trackers", () => {
       apiToken: "mytoken",
     })
 
-    const request = makeRequest("http://localhost/api/trackers", {
-      name: "Aither",
-      baseUrl: "http://127.0.0.1:8080",
-      apiToken: "mytoken",
-    }, "POST")
+    const request = makeRequest(
+      "http://localhost/api/trackers",
+      {
+        name: "Aither",
+        baseUrl: "http://127.0.0.1:8080",
+        apiToken: "mytoken",
+      },
+      "POST"
+    )
     const response = await POST(request)
     const data = await response.json()
 
@@ -331,11 +345,15 @@ describe("POST /api/trackers", () => {
       apiToken: "mytoken",
     })
 
-    const request = makeRequest("http://localhost/api/trackers", {
-      name: "Aither",
-      baseUrl: "http://169.254.169.254/latest/meta-data",
-      apiToken: "mytoken",
-    }, "POST")
+    const request = makeRequest(
+      "http://localhost/api/trackers",
+      {
+        name: "Aither",
+        baseUrl: "http://169.254.169.254/latest/meta-data",
+        apiToken: "mytoken",
+      },
+      "POST"
+    )
     const response = await POST(request)
     const data = await response.json()
 
@@ -351,11 +369,15 @@ describe("POST /api/trackers", () => {
       apiToken: longToken,
     })
 
-    const request = makeRequest("http://localhost/api/trackers", {
-      name: "Aither",
-      baseUrl: "https://aither.cc",
-      apiToken: longToken,
-    }, "POST")
+    const request = makeRequest(
+      "http://localhost/api/trackers",
+      {
+        name: "Aither",
+        baseUrl: "https://aither.cc",
+        apiToken: longToken,
+      },
+      "POST"
+    )
     const response = await POST(request)
     const data = await response.json()
 
@@ -371,12 +393,16 @@ describe("POST /api/trackers", () => {
       color: `#${"a".repeat(20)}`,
     })
 
-    const request = makeRequest("http://localhost/api/trackers", {
-      name: "Aither",
-      baseUrl: "https://aither.cc",
-      apiToken: "mytoken",
-      color: `#${"a".repeat(20)}`,
-    }, "POST")
+    const request = makeRequest(
+      "http://localhost/api/trackers",
+      {
+        name: "Aither",
+        baseUrl: "https://aither.cc",
+        apiToken: "mytoken",
+        color: `#${"a".repeat(20)}`,
+      },
+      "POST"
+    )
     const response = await POST(request)
     const data = await response.json()
 
@@ -389,11 +415,15 @@ describe("POST /api/trackers", () => {
       NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     )
 
-    const request = makeRequest("http://localhost/api/trackers", {
-      name: "Aither",
-      baseUrl: "https://aither.cc",
-      apiToken: "mytoken",
-    }, "POST")
+    const request = makeRequest(
+      "http://localhost/api/trackers",
+      {
+        name: "Aither",
+        baseUrl: "https://aither.cc",
+        apiToken: "mytoken",
+      },
+      "POST"
+    )
     const response = await POST(request)
     expect(response.status).toBe(401)
   })
@@ -417,7 +447,11 @@ describe("PATCH /api/trackers/[id]", () => {
     const mockSet = vi.fn().mockReturnValue({ where: mockWhere })
     ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
 
-    const request = makeRequest("http://localhost/api/trackers/1", { name: "Updated Name" }, "PATCH")
+    const request = makeRequest(
+      "http://localhost/api/trackers/1",
+      { name: "Updated Name" },
+      "PATCH"
+    )
     const params = Promise.resolve({ id: "1" })
     const response = await PATCH(request, { params })
     const data = await response.json()
@@ -431,7 +465,11 @@ describe("PATCH /api/trackers/[id]", () => {
       name: "a".repeat(101),
     })
 
-    const request = makeRequest("http://localhost/api/trackers/1", { name: "a".repeat(101) }, "PATCH")
+    const request = makeRequest(
+      "http://localhost/api/trackers/1",
+      { name: "a".repeat(101) },
+      "PATCH"
+    )
     const params = Promise.resolve({ id: "1" })
     const response = await PATCH(request, { params })
     const data = await response.json()
@@ -460,7 +498,11 @@ describe("PATCH /api/trackers/[id]", () => {
       baseUrl: "not-a-url",
     })
 
-    const request = makeRequest("http://localhost/api/trackers/1", { baseUrl: "not-a-url" }, "PATCH")
+    const request = makeRequest(
+      "http://localhost/api/trackers/1",
+      { baseUrl: "not-a-url" },
+      "PATCH"
+    )
     const params = Promise.resolve({ id: "1" })
     const response = await PATCH(request, { params })
     const data = await response.json()
@@ -492,7 +534,11 @@ describe("PATCH /api/trackers/[id]", () => {
       color: `#${"a".repeat(20)}`,
     })
 
-    const request = makeRequest("http://localhost/api/trackers/1", { color: `#${"a".repeat(20)}` }, "PATCH")
+    const request = makeRequest(
+      "http://localhost/api/trackers/1",
+      { color: `#${"a".repeat(20)}` },
+      "PATCH"
+    )
     const params = Promise.resolve({ id: "1" })
     const response = await PATCH(request, { params })
     const data = await response.json()
@@ -506,7 +552,11 @@ describe("PATCH /api/trackers/[id]", () => {
       apiToken: "t".repeat(501),
     })
 
-    const request = makeRequest("http://localhost/api/trackers/1", { apiToken: "t".repeat(501) }, "PATCH")
+    const request = makeRequest(
+      "http://localhost/api/trackers/1",
+      { apiToken: "t".repeat(501) },
+      "PATCH"
+    )
     const params = Promise.resolve({ id: "1" })
     const response = await PATCH(request, { params })
     const data = await response.json()
@@ -623,15 +673,17 @@ describe("POST /api/trackers/[id]/poll", () => {
         return { from: mockFrom }
       }
       // Settings query
-      const mockLimit = vi.fn().mockResolvedValue([{
-        storeUsernames: true,
-        proxyEnabled: false,
-        proxyType: "socks5",
-        proxyHost: null,
-        proxyPort: 1080,
-        proxyUsername: null,
-        encryptedProxyPassword: null,
-      }])
+      const mockLimit = vi.fn().mockResolvedValue([
+        {
+          storeUsernames: true,
+          proxyEnabled: false,
+          proxyType: "socks5",
+          proxyHost: null,
+          proxyPort: 1080,
+          proxyUsername: null,
+          encryptedProxyPassword: null,
+        },
+      ])
       const mockFrom = vi.fn().mockReturnValue({ limit: mockLimit })
       return { from: mockFrom }
     })
@@ -650,9 +702,7 @@ describe("POST /api/trackers/[id]/poll", () => {
   })
 
   it("returns 500 when poll fails with error message", async () => {
-    ;(pollTracker as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error("Connection refused")
-    )
+    ;(pollTracker as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Connection refused"))
 
     const request = makeRequest("http://localhost/api/trackers/1/poll", undefined, "POST")
     const params = Promise.resolve({ id: "1" })
@@ -836,9 +886,7 @@ describe("GET /api/trackers/[id]/roles", () => {
   })
 
   it("returns roles list", async () => {
-    const roles = [
-      { id: 1, trackerId: 1, roleName: "VIP", achievedAt: new Date(), notes: null },
-    ]
+    const roles = [{ id: 1, trackerId: 1, roleName: "VIP", achievedAt: new Date(), notes: null }]
 
     const mockOrderBy = vi.fn().mockResolvedValue(roles)
     const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy })
@@ -886,7 +934,11 @@ describe("POST /api/trackers/[id]/roles", () => {
     const mockValues = vi.fn().mockReturnValue({ returning: mockReturning })
     ;(db.insert as ReturnType<typeof vi.fn>).mockReturnValue({ values: mockValues })
 
-    const request = makeRequest("http://localhost/api/trackers/1/roles", { roleName: "VIP" }, "POST")
+    const request = makeRequest(
+      "http://localhost/api/trackers/1/roles",
+      { roleName: "VIP" },
+      "POST"
+    )
     const params = Promise.resolve({ id: "1" })
     const response = await RolesPOST(request, { params })
     const data = await response.json()
@@ -924,7 +976,11 @@ describe("POST /api/trackers/[id]/roles", () => {
       NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     )
 
-    const request = makeRequest("http://localhost/api/trackers/1/roles", { roleName: "VIP" }, "POST")
+    const request = makeRequest(
+      "http://localhost/api/trackers/1/roles",
+      { roleName: "VIP" },
+      "POST"
+    )
     const params = Promise.resolve({ id: "1" })
     const response = await RolesPOST(request, { params })
     expect(response.status).toBe(401)
