@@ -36,7 +36,7 @@ import { Tooltip } from "@/components/ui/Tooltip"
 import { H2 } from "@/components/ui/Typography"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
 import { useUpdateCheck } from "@/hooks/useUpdateCheck"
-import { formatStatValue, hexToRgba, type StatMode } from "@/lib/formatters"
+import { formatBytesNum, formatStatValue, hexToRgba, type StatMode } from "@/lib/formatters"
 import { getHealthPulseDot, getTrackerHealth } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
 
@@ -499,10 +499,7 @@ function ClientStatusWidget() {
 
 function formatSidebarSpeed(bytesPerSec: number): string {
   if (!bytesPerSec || bytesPerSec <= 0) return "0 B/s"
-  const units = ["B/s", "KiB/s", "MiB/s", "GiB/s"]
-  const i = Math.min(Math.floor(Math.log(bytesPerSec) / Math.log(1024)), units.length - 1)
-  const val = bytesPerSec / 1024 ** i
-  return `${val < 10 ? val.toFixed(1) : Math.round(val)} ${units[i]}`
+  return `${formatBytesNum(bytesPerSec)}/s`
 }
 
 // ---------------------------------------------------------------------------

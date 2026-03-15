@@ -14,10 +14,9 @@ import { FleetSeedTimeDistribution } from "@/components/charts/FleetSeedTimeDist
 import { FleetSpeedGauges } from "@/components/charts/FleetSpeedGauges"
 import { FleetSpeedSparklines } from "@/components/charts/FleetSpeedSparklines"
 import { FleetStorageTreemap } from "@/components/charts/FleetStorageTreemap"
-import { LeechingTrends } from "@/components/charts/LeechingTrends"
-import { SeedingCountTrends } from "@/components/charts/SeedingCountTrends"
 import { SpeedHistoryChart } from "@/components/charts/SpeedHistoryChart"
 import { SpeedThemeRiver } from "@/components/charts/SpeedThemeRiver"
+import { TagCountTrends } from "@/components/charts/TagCountTrends"
 import { TrackerHealthRadar } from "@/components/charts/TrackerHealthRadar"
 import { CHART_THEME } from "@/components/charts/theme"
 import { ChartCard } from "@/components/dashboard/ChartCard"
@@ -155,9 +154,9 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
       case "speed-theme-river":
         return <SpeedThemeRiver snapshots={snapshots} />
       case "seeding-count-trends":
-        return <SeedingCountTrends snapshots={snapshots} />
+        return <TagCountTrends snapshots={snapshots} mode="seeding" />
       case "leeching-trends":
-        return <LeechingTrends snapshots={snapshots} />
+        return <TagCountTrends snapshots={snapshots} mode="leeching" />
       case "speed-history":
         return <SpeedHistoryChart snapshots={snapshots} />
       case "fleet-ratio-distribution":

@@ -8,7 +8,7 @@
 //                Runs on each client's configured pollIntervalSeconds.
 //                Stores full tagStats alongside speed data.
 //
-// Functions: sanitizeClientError, heartbeatClient, heartbeatAllClients, deepPollClient, deepPollAllClients,
+// Functions: heartbeatClient, heartbeatAllClients, deepPollClient, deepPollAllClients,
 //            startClientScheduler, stopClientScheduler, isClientSchedulerRunning, ensureClientSchedulerRunning
 
 import { eq, isNotNull, lt } from "drizzle-orm"
@@ -16,6 +16,7 @@ import cron, { type ScheduledTask } from "node-cron"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings, clientSnapshots, clientUptimeBuckets, downloadClients, trackers } from "@/lib/db/schema"
+import { sanitizeNetworkError } from "@/lib/error-utils"
 import { log } from "@/lib/logger"
 import type { QbtTorrent } from "@/lib/qbt"
 import {
@@ -30,18 +31,6 @@ import {
   withSessionRetry,
 } from "@/lib/qbt"
 import { clearUptimeAccumulator, flushCompletedBuckets, recordHeartbeat } from "@/lib/uptime"
-
-function sanitizeClientError(raw: string): string {
-  if (/timed?\s*out/i.test(raw)) return "Request timed out"
-  if (/ECONNREFUSED/i.test(raw)) return "Connection refused"
-  if (/ENOTFOUND/i.test(raw)) return "Host not found"
-  if (/EHOSTUNREACH/i.test(raw)) return "Host unreachable"
-  if (/ECONNRESET/i.test(raw)) return "Connection reset"
-  if (/401|403|Unauthorized|Forbidden/i.test(raw)) return "Authentication failed"
-  if (/Session expired/i.test(raw)) return "Session expired"
-  if (/Credentials.*missing|invalid/i.test(raw)) return "Invalid credentials"
-  return "Connection failed"
-}
 
 // Store on globalThis to survive HMR in development.
 // Without this, each hot-reload orphans the old cron job while creating a new one.
@@ -108,7 +97,7 @@ async function heartbeatClient(clientId: number, encryptionKey: Buffer): Promise
   } catch (error) {
     recordHeartbeat(clientId, false)
     const raw = error instanceof Error ? error.message : "Unknown error"
-    const message = sanitizeClientError(raw)
+    const message = sanitizeNetworkError(raw)
     await db
       .update(downloadClients)
       .set({ lastError: message, updatedAt: new Date() })
@@ -221,7 +210,7 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
       .where(eq(downloadClients.id, clientId))
   } catch (error) {
     const raw = error instanceof Error ? error.message : "Unknown error"
-    const message = sanitizeClientError(raw)
+    const message = sanitizeNetworkError(raw)
     await db
       .update(downloadClients)
       .set({ lastError: message, updatedAt: new Date() })
