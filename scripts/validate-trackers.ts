@@ -12,7 +12,7 @@ import fs from "node:fs"
 import path from "node:path"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { ALL_TRACKERS } from "@/data/trackers"
-import { DEFAULT_API_PATHS } from "@/lib/adapters"
+import { DEFAULT_API_PATHS } from "@/lib/adapters/constants"
 
 const VALID_PLATFORMS = ["unit3d", "gazelle", "ggn", "nebulance", "custom"] as const
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/

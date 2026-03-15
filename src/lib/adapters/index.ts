@@ -9,12 +9,7 @@ import { NebulanceAdapter } from "./nebulance"
 import type { TrackerAdapter } from "./types"
 import { Unit3dAdapter } from "./unit3d"
 
-export const DEFAULT_API_PATHS: Record<string, string> = {
-  unit3d: "/api/user",
-  gazelle: "/ajax.php",
-  ggn: "/api.php",
-  nebulance: "/api.php",
-}
+export { DEFAULT_API_PATHS } from "./constants"
 
 const adapters: Record<string, TrackerAdapter> = {
   gazelle: new GazelleAdapter(),
