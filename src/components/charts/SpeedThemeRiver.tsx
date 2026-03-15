@@ -8,7 +8,7 @@ import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
 import type { FleetSnapshot } from "@/lib/fleet"
 import { extractTagsFromSnapshots } from "@/lib/fleet"
-import { formatBytesFromNumber } from "@/lib/formatters"
+import { formatBytesNum } from "@/lib/formatters"
 import { ChartEmptyState } from "./ChartEmptyState"
 import { buildTagColors, CHART_THEME, chartAxisLabel, chartDot, chartTooltip, chartTooltipHeader, escHtml, formatChartTimestamp } from "./theme"
 
@@ -84,7 +84,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
           .sort((a, b) => b.value[1] - a.value[1])
           .map((item) => {
             const dot = chartDot(item.color)
-            const speedLabel = `${formatBytesFromNumber(item.value[1])}/s`
+            const speedLabel = `${formatBytesNum(item.value[1])}/s`
             return `${dot}<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.value[2])}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${speedLabel}</span>`
           })
           .join("<br/>")

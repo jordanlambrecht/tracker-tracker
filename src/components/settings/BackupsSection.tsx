@@ -19,7 +19,7 @@ import { H2, Paragraph, Subtext } from "@/components/ui/Typography"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 import { extractApiError } from "@/lib/client-helpers"
 import { downloadResponseBlob } from "@/lib/download"
-import { formatBytesFromNumber } from "@/lib/formatters"
+import { formatBytesNum } from "@/lib/formatters"
 
 export interface BackupRecord {
   id: number
@@ -237,7 +237,7 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
       header: "Size",
       render: (b) => (
         <span className="text-sm font-mono text-tertiary tabular-nums">
-          {formatBytesFromNumber(b.sizeBytes)}
+          {formatBytesNum(b.sizeBytes)}
         </span>
       ),
     },

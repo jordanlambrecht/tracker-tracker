@@ -9,7 +9,7 @@
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
 import { Card } from "@/components/ui/Card"
-import { formatBytesFromNumber } from "@/lib/formatters"
+import { formatBytesNum } from "@/lib/formatters"
 import { CHART_THEME } from "./theme"
 
 // ── Constants ──
@@ -39,7 +39,7 @@ function buildGaugeOption(
   label: string
 ): EChartsOption {
   const max = Math.max(speed * 2, MIN_MAX_BYTES)
-  const formatted = formatBytesFromNumber(speed)
+  const formatted = formatBytesNum(speed)
   const speedLabel = `${formatted}/s`
 
   return {

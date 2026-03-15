@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Card } from "@/components/ui/Card"
 import { Tooltip } from "@/components/ui/Tooltip"
-import { formatBytesFromNumber } from "@/lib/formatters"
+import { formatBytesNum } from "@/lib/formatters"
 import { ChartEmptyState } from "./ChartEmptyState"
 import { CHART_THEME } from "./theme"
 
@@ -170,7 +170,7 @@ function ClientSpeedCard({ name, state }: ClientSpeedCardProps) {
               className="text-[10px] font-mono tabular-nums"
               style={{ color: COLOR_UPLOAD }}
             >
-              {formatBytesFromNumber(currentUpload)}/s
+              {formatBytesNum(currentUpload)}/s
             </span>
           </div>
 
@@ -186,7 +186,7 @@ function ClientSpeedCard({ name, state }: ClientSpeedCardProps) {
               className="text-[10px] font-mono tabular-nums"
               style={{ color: COLOR_DOWNLOAD }}
             >
-              {formatBytesFromNumber(currentDownload)}/s
+              {formatBytesNum(currentDownload)}/s
             </span>
           </div>
         </>

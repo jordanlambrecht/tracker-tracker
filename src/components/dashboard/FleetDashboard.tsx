@@ -39,7 +39,7 @@ import { StatCard } from "@/components/ui/StatCard"
 import { H2 } from "@/components/ui/Typography"
 import type { FleetSnapshot, TorrentRaw, TrackerTag } from "@/lib/fleet"
 import { computeFleetStats } from "@/lib/fleet"
-import { formatBytesFromNumber } from "@/lib/formatters"
+import { formatBytesNum } from "@/lib/formatters"
 import type { TrackerSummary } from "@/types/api"
 
 interface FleetTorrentsResponse {
@@ -190,9 +190,9 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
           <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
             <StatCard label="Seeding" value={stats.totalSeeding.toLocaleString()} icon={<SeedingIcon width="16" height="16" />} />
             <StatCard label="Leeching" value={stats.totalLeeching.toLocaleString()} icon={<LeechingIcon width="16" height="16" />} />
-            <StatCard label="Upload" value={formatBytesFromNumber(stats.fleetUploadSpeed)} unit="/s" icon={<UploadArrowIcon width="16" height="16" />} />
-            <StatCard label="Download" value={formatBytesFromNumber(stats.fleetDownloadSpeed)} unit="/s" icon={<DownloadArrowIcon width="16" height="16" />} />
-            <StatCard label="Library" value={formatBytesFromNumber(stats.totalLibrarySize)} icon={<BoxIcon width="16" height="16" />} />
+            <StatCard label="Upload" value={formatBytesNum(stats.fleetUploadSpeed)} unit="/s" icon={<UploadArrowIcon width="16" height="16" />} />
+            <StatCard label="Download" value={formatBytesNum(stats.fleetDownloadSpeed)} unit="/s" icon={<DownloadArrowIcon width="16" height="16" />} />
+            <StatCard label="Library" value={formatBytesNum(stats.totalLibrarySize)} icon={<BoxIcon width="16" height="16" />} />
             <StatCard label="Cross-Seed" value={`${stats.crossSeedPercent.toFixed(1)}%`} icon={<TagIcon width="16" height="16" />} />
             <StatCard label="Stale (30d+)" value={stats.staleCount.toLocaleString()} icon={<ClockIcon width="16" height="16" />} />
           </div>

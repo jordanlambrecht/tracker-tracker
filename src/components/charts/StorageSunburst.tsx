@@ -6,7 +6,7 @@
 
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
-import { formatBytesFromNumber, generatePalette, hexToHsl, hslToHex } from "@/lib/formatters"
+import { formatBytesNum, generatePalette, hexToHsl, hslToHex } from "@/lib/formatters"
 import { ChartEmptyState } from "./ChartEmptyState"
 import { CHART_THEME, chartDot, chartTooltip, escHtml } from "./theme"
 
@@ -108,7 +108,7 @@ function buildOption(
             `${swatch}` +
             `<span style="color:${CHART_THEME.textTertiary};font-size:10px;">${escHtml(catName)}</span><br/>` +
             `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(p.name)}</span><br/>` +
-            `<span style="color:${CHART_THEME.textSecondary};">${formatBytesFromNumber(p.value)}</span>`
+            `<span style="color:${CHART_THEME.textSecondary};">${formatBytesNum(p.value)}</span>`
           )
         }
 
@@ -118,12 +118,12 @@ function buildOption(
           return (
             `${swatch}` +
             `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(p.name)}</span><br/>` +
-            `<span style="color:${CHART_THEME.textSecondary};">${formatBytesFromNumber(p.value)}</span>` +
+            `<span style="color:${CHART_THEME.textSecondary};">${formatBytesNum(p.value)}</span>` +
             `<span style="color:${CHART_THEME.textTertiary};font-size:10px;"> · ${childCount} torrent${childCount !== 1 ? "s" : ""}</span>`
           )
         }
 
-        return `<span style="color:${CHART_THEME.textPrimary};">${escHtml(p.name)}: ${formatBytesFromNumber(p.value)}</span>`
+        return `<span style="color:${CHART_THEME.textPrimary};">${escHtml(p.name)}: ${formatBytesNum(p.value)}</span>`
       },
     }),
     series: [
@@ -157,7 +157,7 @@ function buildOption(
           fontWeight: "bold" as const,
           formatter: (params: unknown) => {
             const p = params as { name: string; value: number }
-            return `${p.name}  ${formatBytesFromNumber(p.value)}`
+            return `${p.name}  ${formatBytesNum(p.value)}`
           },
         },
         label: {
