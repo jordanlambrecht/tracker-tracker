@@ -80,8 +80,8 @@ export async function PATCH(
   if (typeof body.enabled === "boolean") updates.enabled = body.enabled
 
   if (typeof body.pollIntervalSeconds === "number") {
-    if (body.pollIntervalSeconds < 10 || body.pollIntervalSeconds > 86400) {
-      return NextResponse.json({ error: "Poll interval must be between 10 and 86400 seconds" }, { status: 400 })
+    if (body.pollIntervalSeconds < 60 || body.pollIntervalSeconds > 86400) {
+      return NextResponse.json({ error: "Poll interval must be between 60 and 86400 seconds" }, { status: 400 })
     }
     updates.pollIntervalSeconds = body.pollIntervalSeconds
   }

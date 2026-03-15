@@ -55,17 +55,89 @@ const CLIENT_TYPE_OPTIONS: { value: ClientType; label: string; disabled?: boolea
 interface ClientCardProps {
   client: DownloadClient
   linkedTrackers: string[]
-  onUpdate: (id: number, patch: Partial<DownloadClient>) => void
+  onSaved: (id: number, updated: DownloadClient) => void
   onRemove: (id: number) => void
   onSetDefault: (id: number) => void
 }
 
-function ClientCard({ client, linkedTrackers, onUpdate, onRemove, onSetDefault }: ClientCardProps) {
+/** Fields tracked for dirty detection (excludes transient fields like lastPolledAt). */
+const DRAFT_KEYS: (keyof DownloadClient)[] = [
+  "name",
+  "type",
+  "enabled",
+  "host",
+  "port",
+  "useSsl",
+  "pollIntervalSeconds",
+  "crossSeedTags",
+]
+
+function isDirty(draft: DownloadClient, saved: DownloadClient): boolean {
+  for (const key of DRAFT_KEYS) {
+    const a = draft[key]
+    const b = saved[key]
+    if (Array.isArray(a) && Array.isArray(b)) {
+      if (a.length !== b.length || a.some((v, i) => v !== b[i])) return true
+    } else if (a !== b) return true
+  }
+  return false
+}
+
+function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }: ClientCardProps) {
+  const [draft, setDraft] = useState<DownloadClient>(client)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("idle")
   const [connectionError, setConnectionError] = useState<string | null>(null)
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [tagInput, setTagInput] = useState("")
+
+  const dirty = isDirty(draft, client)
+
+  // Sync draft when parent pushes new server state (i.e after another card's setDefault)
+  useEffect(() => {
+    if (!dirty) setDraft(client)
+  }, [client, dirty])
+
+  function updateDraft(patch: Partial<DownloadClient>) {
+    setDraft((prev) => ({ ...prev, ...patch }))
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    setSaveError(null)
+    const patch: Record<string, unknown> = {}
+    for (const key of DRAFT_KEYS) {
+      const a = draft[key]
+      const b = client[key]
+      if (Array.isArray(a) && Array.isArray(b)) {
+        if (a.length !== b.length || a.some((v, i) => v !== b[i])) patch[key] = a
+      } else if (a !== b) patch[key] = a
+    }
+    try {
+      const res = await fetch(`/api/clients/${client.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setSaveError(data.error || "Failed to save")
+        return
+      }
+      onSaved(client.id, draft)
+    } catch {
+      setSaveError("Network error")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function handleDiscard() {
+    setDraft(client)
+    setSaveError(null)
+  }
 
   // Credential change state — show inputs for new clients (no creds yet) or after "Change"
   const [changingCredentials, setChangingCredentials] = useState(!client.hasCredentials)
@@ -131,7 +203,7 @@ function ClientCard({ client, linkedTrackers, onUpdate, onRemove, onSetDefault }
         setCredError(data.error || "Failed to save credentials")
         return
       }
-      onUpdate(client.id, { hasCredentials: true })
+      onSaved(client.id, { ...client, hasCredentials: true })
       setChangingCredentials(false)
       setNewUsername("")
       setNewPassword("")
@@ -140,9 +212,11 @@ function ClientCard({ client, linkedTrackers, onUpdate, onRemove, onSetDefault }
     }
   }
 
-  const statusBadge = client.enabled
-    ? <Badge variant="success">Active</Badge>
-    : <Badge variant="default">Disabled</Badge>
+  const statusBadge = client.enabled ? (
+    <Badge variant="success">Active</Badge>
+  ) : (
+    <Badge variant="default">Disabled</Badge>
+  )
 
   return (
     <Card elevation="raised" className="flex flex-col gap-0 !p-0 overflow-hidden">
@@ -166,10 +240,7 @@ function ClientCard({ client, linkedTrackers, onUpdate, onRemove, onSetDefault }
       {/* Uptime bar — always visible */}
       {uptimeData && (
         <div className="px-5 pb-3">
-          <UptimeBar
-            buckets={uptimeData.buckets}
-            uptimePercent={uptimeData.uptimePercent}
-          />
+          <UptimeBar buckets={uptimeData.buckets} uptimePercent={uptimeData.uptimePercent} />
         </div>
       )}
 
@@ -181,16 +252,16 @@ function ClientCard({ client, linkedTrackers, onUpdate, onRemove, onSetDefault }
             <div className="flex-1">
               <Input
                 label="Name"
-                value={client.name}
-                onChange={(e) => onUpdate(client.id, { name: e.target.value })}
+                value={draft.name}
+                onChange={(e) => updateDraft({ name: e.target.value })}
                 placeholder="My qBittorrent"
               />
             </div>
             <div className="w-full sm:w-40">
               <Select
                 label="Type"
-                value={client.type}
-                onChange={(v) => onUpdate(client.id, { type: v as ClientType })}
+                value={draft.type}
+                onChange={(v) => updateDraft({ type: v as ClientType })}
                 ariaLabel="Client type"
                 size="md"
                 options={CLIENT_TYPE_OPTIONS}
@@ -200,8 +271,8 @@ function ClientCard({ client, linkedTrackers, onUpdate, onRemove, onSetDefault }
 
           <Toggle
             label="Enabled"
-            checked={client.enabled}
-            onChange={(v) => onUpdate(client.id, { enabled: v })}
+            checked={draft.enabled}
+            onChange={(v) => updateDraft({ enabled: v })}
             description="Disabled clients are not polled and their stats are excluded from dashboard totals."
           />
 
@@ -212,15 +283,15 @@ function ClientCard({ client, linkedTrackers, onUpdate, onRemove, onSetDefault }
             <div className="flex-1">
               <Input
                 label="Host"
-                value={client.host}
-                onChange={(e) => onUpdate(client.id, { host: e.target.value })}
+                value={draft.host}
+                onChange={(e) => updateDraft({ host: e.target.value })}
                 placeholder="localhost or 192.168.1.100"
               />
             </div>
             <NumberInput
               label="Port"
-              value={client.port}
-              onChange={(v) => onUpdate(client.id, { port: v })}
+              value={draft.port}
+              onChange={(v) => updateDraft({ port: v })}
               min={1}
               max={65535}
             />
@@ -228,17 +299,17 @@ function ClientCard({ client, linkedTrackers, onUpdate, onRemove, onSetDefault }
 
           <Toggle
             label="Use SSL"
-            checked={client.useSsl}
-            onChange={(v) => onUpdate(client.id, { useSsl: v })}
-            description={`Connect via ${client.useSsl ? "https" : "http"}://${client.host}:${client.port}`}
+            checked={draft.useSsl}
+            onChange={(v) => updateDraft({ useSsl: v })}
+            description={`Connect via ${draft.useSsl ? "https" : "http"}://${draft.host}:${draft.port}`}
           />
 
-          {client.useSsl && client.port === 80 && (
+          {draft.useSsl && draft.port === 80 && (
             <p className="text-xs font-mono text-warning">
               SSL is enabled but port is 80 (standard HTTP). Did you mean port 443?
             </p>
           )}
-          {!client.useSsl && client.port === 443 && (
+          {!draft.useSsl && draft.port === 443 && (
             <p className="text-xs font-mono text-warning">
               Port 443 is typically used with SSL. Did you mean to enable SSL?
             </p>
@@ -302,9 +373,7 @@ function ClientCard({ client, linkedTrackers, onUpdate, onRemove, onSetDefault }
                     </button>
                   )}
                 </div>
-                {credError && (
-                  <p className="text-xs font-mono text-danger">{credError}</p>
-                )}
+                {credError && <p className="text-xs font-mono text-danger">{credError}</p>}
               </div>
             ) : (
               <MaskedSecret onChangeClick={() => setChangingCredentials(true)} />
@@ -318,14 +387,13 @@ function ClientCard({ client, linkedTrackers, onUpdate, onRemove, onSetDefault }
             <div className="w-48">
               <Select
                 label="Poll Frequency"
-                value={String(client.pollIntervalSeconds)}
-                onChange={(v) => onUpdate(client.id, { pollIntervalSeconds: parseInt(v, 10) })}
+                value={String(draft.pollIntervalSeconds)}
+                onChange={(v) => updateDraft({ pollIntervalSeconds: parseInt(v, 10) })}
                 ariaLabel="Polling frequency"
                 size="md"
                 options={[
-                  { value: "10", label: "Every 10 seconds" },
-                  { value: "30", label: "Every 30 seconds" },
                   { value: "60", label: "Every minute" },
+                  { value: "120", label: "Every 2 minutes" },
                   { value: "300", label: "Every 5 minutes" },
                   { value: "600", label: "Every 10 minutes" },
                 ]}
@@ -349,8 +417,8 @@ function ClientCard({ client, linkedTrackers, onUpdate, onRemove, onSetDefault }
                       if ((e.key === "Enter" || e.key === ",") && tagInput.trim()) {
                         e.preventDefault()
                         const tag = tagInput.trim().replace(/,/g, "")
-                        if (tag && !client.crossSeedTags.includes(tag)) {
-                          onUpdate(client.id, { crossSeedTags: [...client.crossSeedTags, tag] })
+                        if (tag && !draft.crossSeedTags.includes(tag)) {
+                          updateDraft({ crossSeedTags: [...draft.crossSeedTags, tag] })
                         }
                         setTagInput("")
                       }
@@ -363,8 +431,8 @@ function ClientCard({ client, linkedTrackers, onUpdate, onRemove, onSetDefault }
                   disabled={!tagInput.trim()}
                   onClick={() => {
                     const tag = tagInput.trim()
-                    if (tag && !client.crossSeedTags.includes(tag)) {
-                      onUpdate(client.id, { crossSeedTags: [...client.crossSeedTags, tag] })
+                    if (tag && !draft.crossSeedTags.includes(tag)) {
+                      updateDraft({ crossSeedTags: [...draft.crossSeedTags, tag] })
                     }
                     setTagInput("")
                   }}
@@ -372,9 +440,9 @@ function ClientCard({ client, linkedTrackers, onUpdate, onRemove, onSetDefault }
                   Add
                 </Button>
               </div>
-              {client.crossSeedTags.length > 0 && (
+              {draft.crossSeedTags.length > 0 && (
                 <div className="flex gap-1.5 flex-wrap">
-                  {client.crossSeedTags.map((tag) => (
+                  {draft.crossSeedTags.map((tag) => (
                     <span
                       key={tag}
                       className="inline-flex items-center gap-1.5 font-mono text-xs text-primary bg-control-bg nm-inset-sm px-2.5 py-1 rounded-nm-sm"
@@ -382,9 +450,11 @@ function ClientCard({ client, linkedTrackers, onUpdate, onRemove, onSetDefault }
                       {tag}
                       <button
                         type="button"
-                        onClick={() => onUpdate(client.id, {
-                          crossSeedTags: client.crossSeedTags.filter((t) => t !== tag),
-                        })}
+                        onClick={() =>
+                          updateDraft({
+                            crossSeedTags: draft.crossSeedTags.filter((t) => t !== tag),
+                          })
+                        }
                         className="text-tertiary hover:text-danger transition-colors cursor-pointer text-xs leading-none"
                         aria-label={`Remove tag ${tag}`}
                       >
@@ -396,29 +466,45 @@ function ClientCard({ client, linkedTrackers, onUpdate, onRemove, onSetDefault }
               )}
             </div>
             <Subtext>
-              Torrents with these tags are counted as cross-seeded and tracked
-              separately from direct seeding stats on the dashboard.
+              Torrents with these tags are counted as cross-seeded and tracked separately from
+              direct seeding stats on the dashboard.
             </Subtext>
           </div>
 
           {/* Linked trackers */}
           {linkedTrackers.length > 0 && (
             <div className="flex items-center gap-2">
-              <Subheader className="uppercase tracking-wider shrink-0">
-                Linked Trackers
-              </Subheader>
+              <Subheader className="uppercase tracking-wider shrink-0">Linked Trackers</Subheader>
               <div className="flex gap-1.5 flex-wrap">
                 {linkedTrackers.map((name) => (
-                  <Badge key={name} variant="default">{name}</Badge>
+                  <Badge key={name} variant="default">
+                    {name}
+                  </Badge>
                 ))}
               </div>
             </div>
           )}
 
           <Subtext>
-            Trackers are linked to this client via their qBittorrent Tag field in
-            individual tracker settings.
+            Trackers are linked to this client via their qBittorrent Tag field in individual tracker
+            settings.
           </Subtext>
+
+          {/* Save / Discard bar — only visible when draft has changes */}
+          {dirty && (
+            <>
+              <div className="border-t border-border" />
+              <div className="flex items-center gap-3">
+                <Button size="sm" onClick={handleSave} disabled={saving}>
+                  {saving ? "Saving..." : "Save Changes"}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={handleDiscard} disabled={saving}>
+                  Discard
+                </Button>
+                {saveError && <span className="text-xs font-mono text-danger">{saveError}</span>}
+              </div>
+            </>
+          )}
 
           <div className="border-t border-border" />
 
@@ -439,48 +525,28 @@ function ClientCard({ client, linkedTrackers, onUpdate, onRemove, onSetDefault }
                     : "Test Connection"}
             </Button>
 
-            {connectionStatus === "success" && (
-              <Badge variant="success">Connection OK</Badge>
-            )}
-            {connectionStatus === "failed" && (
-              <Badge variant="danger">Failed</Badge>
-            )}
+            {connectionStatus === "success" && <Badge variant="success">Connection OK</Badge>}
+            {connectionStatus === "failed" && <Badge variant="danger">Failed</Badge>}
 
             <div className="flex-1" />
 
             {!client.isDefault && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => onSetDefault(client.id)}
-              >
+              <Button size="sm" variant="ghost" onClick={() => onSetDefault(client.id)}>
                 Set as Default
               </Button>
             )}
 
             {confirmRemove ? (
               <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="danger"
-                  onClick={() => onRemove(client.id)}
-                >
+                <Button size="sm" variant="danger" onClick={() => onRemove(client.id)}>
                   Confirm Remove
                 </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setConfirmRemove(false)}
-                >
+                <Button size="sm" variant="ghost" onClick={() => setConfirmRemove(false)}>
                   Cancel
                 </Button>
               </div>
             ) : (
-              <Button
-                size="sm"
-                variant="danger"
-                onClick={() => setConfirmRemove(true)}
-              >
+              <Button size="sm" variant="danger" onClick={() => setConfirmRemove(true)}>
                 Remove
               </Button>
             )}
@@ -498,7 +564,11 @@ function ClientCard({ client, linkedTrackers, onUpdate, onRemove, onSetDefault }
 // DownloadClients
 // ---------------------------------------------------------------------------
 
-function AddClientForm({ onCreated, onCancel, isFirst }: {
+function AddClientForm({
+  onCreated,
+  onCancel,
+  isFirst,
+}: {
   onCreated: () => void
   onCancel: () => void
   isFirst: boolean
@@ -548,21 +618,48 @@ function AddClientForm({ onCreated, onCancel, isFirst }: {
       <H3>Add Download Client</H3>
       <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
         <div className="flex-1">
-          <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="My qBittorrent" />
+          <Input
+            label="Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="My qBittorrent"
+          />
         </div>
         <div className="flex flex-row gap-4 items-end">
           <div className="flex-1 sm:flex-none sm:w-40">
-            <Input label="Host" value={host} onChange={(e) => setHost(e.target.value)} placeholder="localhost" />
+            <Input
+              label="Host"
+              value={host}
+              onChange={(e) => setHost(e.target.value)}
+              placeholder="localhost"
+            />
           </div>
           <NumberInput label="Port" value={port} onChange={setPort} min={1} max={65535} />
         </div>
       </div>
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex-1">
-          <Input label="Username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="admin" name="client-username" autoComplete="off" data-1p-ignore />
+          <Input
+            label="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="admin"
+            name="client-username"
+            autoComplete="off"
+            data-1p-ignore
+          />
         </div>
         <div className="flex-1">
-          <Input type="password" label="Password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" name="client-password" autoComplete="off" data-1p-ignore />
+          <Input
+            type="password"
+            label="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            name="client-password"
+            autoComplete="off"
+            data-1p-ignore
+          />
         </div>
       </div>
       {error && <p className="text-sm font-mono text-danger">{error}</p>}
@@ -570,7 +667,9 @@ function AddClientForm({ onCreated, onCancel, isFirst }: {
         <Button size="sm" onClick={handleSubmit} disabled={!canSubmit || saving}>
           {saving ? "Creating..." : "Create Client"}
         </Button>
-        <Button size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>
+        <Button size="sm" variant="ghost" onClick={onCancel}>
+          Cancel
+        </Button>
       </div>
     </Card>
   )
@@ -598,13 +697,8 @@ function DownloadClients() {
     fetchClients()
   }, [fetchClients])
 
-  const handleUpdate = useCallback((id: number, patch: Partial<DownloadClient>) => {
-    setClients((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)))
-    fetch(`/api/clients/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
-    }).catch(() => {})
+  const handleSaved = useCallback((id: number, updated: DownloadClient) => {
+    setClients((prev) => prev.map((c) => (c.id === id ? updated : c)))
   }, [])
 
   const handleRemove = useCallback(async (id: number) => {
@@ -620,9 +714,7 @@ function DownloadClients() {
   }, [])
 
   const handleSetDefault = useCallback((id: number) => {
-    setClients((prev) =>
-      prev.map((c) => ({ ...c, isDefault: c.id === id }))
-    )
+    setClients((prev) => prev.map((c) => ({ ...c, isDefault: c.id === id })))
     fetch(`/api/clients/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -638,12 +730,14 @@ function DownloadClients() {
     <div className="flex flex-col gap-6">
       {clients.length === 0 && !showAddForm ? (
         <Card elevation="raised" className="flex flex-col items-center gap-4 py-10">
-          <span className="text-2xl" aria-hidden="true">📡</span>
+          <span className="text-2xl" aria-hidden="true">
+            📡
+          </span>
           <div className="text-center flex flex-col gap-2">
             <H3>No download clients configured</H3>
             <Paragraph>
-              Add a download client to track seeding stats, active torrents, and
-              per-tracker download activity.
+              Add a download client to track seeding stats, active torrents, and per-tracker
+              download activity.
             </Paragraph>
           </div>
           <Button size="sm" onClick={() => setShowAddForm(true)}>
@@ -657,7 +751,7 @@ function DownloadClients() {
               key={client.id}
               client={client}
               linkedTrackers={[]}
-              onUpdate={handleUpdate}
+              onSaved={handleSaved}
               onRemove={handleRemove}
               onSetDefault={handleSetDefault}
             />
