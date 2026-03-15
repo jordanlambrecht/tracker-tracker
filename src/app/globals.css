@@ -130,6 +130,13 @@
  * Neumorphic shadow utilities — registered as @utility so Tailwind v4
  * generates variant classes (hover:nm-raised, active:nm-pressed, etc.).
  * Base: #282A36. Generated via neumorphism.io.
+ *
+ * IMPORTANT: overflow-hidden on a parent CLIPS these shadows. If you nest
+ * nm-raised elements inside an overflow-hidden container, use the p-N/-m-N
+ * trick to push the clip boundary out. Shadow reach per variant:
+ *   nm-raised-sm: ~12px  (use p-3 -m-3)
+ *   nm-raised:    ~24px  (use p-6 -m-6)
+ *   nm-raised-lg: ~36px  (use p-9 -m-9)
  */
 @utility nm-raised {
   box-shadow:

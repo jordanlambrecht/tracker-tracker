@@ -245,7 +245,7 @@ The following attack vectors are **not fully mitigated** by Tracker Tracker's ap
 
 ### 6. DNS Rebinding
 
-**Risk:** The SSRF protection in `src/lib/network.ts` validates hostnames at configuration time (when a tracker URL is saved), not at request time (when the adapter makes the outbound fetch). An attacker who controls DNS resolution could register a domain that initially resolves to a public IP (passing validation), then change the DNS record to point to a private IP (e.g., `192.168.1.1` or `169.254.169.254`) before the next poll cycle. The adapter would then make requests to the internal host.
+**Risk:** The SSRF protection in `src/lib/network.ts` validates hostnames at configuration time (when a tracker URL is saved), not at request time (when the adapter makes the outbound fetch). An attacker who controls DNS resolution could register a domain that initially resolves to a public IP (passing validation), then change the DNS record to point to a private IP (i.e, `192.168.1.1` or `169.254.169.254`) before the next poll cycle. The adapter would then make requests to the internal host.
 
 **Countermeasure:** For this application's threat model, the risk is low: the single authenticated user manually enters tracker URLs for known private tracker sites, and an attacker would need both session access and DNS control. For additional protection, deploy the Docker container on an isolated network segment where the application cannot reach internal services. A future enhancement could add DNS resolution validation at fetch time.
 
@@ -417,7 +417,7 @@ npx tsx scripts/security-audit.ts     # Static security audit (28 checks)
 - [ ] All user-supplied strings have a maximum length (`str.length > N` -> 400)
 - [ ] URL inputs validated with `new URL()` + scheme restricted to `http://` or `https://`
 - [ ] Color inputs validated against hex pattern (`/^#[0-9a-fA-F]{3,8}$/`)
-- [ ] Numeric inputs parsed and bounds-checked (e.g., poll interval clamped to 15-1440)
+- [ ] Numeric inputs parsed and bounds-checked (i.e, poll interval clamped to 15-1440)
 - [ ] Date inputs regex-validated (`/^\d{4}-\d{2}-\d{2}$/`) or null
 - [ ] ID parameters parsed as integers with `Number()` + `Number.isNaN()` check
 - [ ] Platform type validated against allowlist, not open string
