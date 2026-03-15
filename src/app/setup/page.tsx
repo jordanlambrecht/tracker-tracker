@@ -96,10 +96,15 @@ export default function SetupPage() {
     <div className="min-h-screen bg-base flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <Image src="/trackerTracker_logo.svg" alt="Tracker Tracker" width={160} height={40} className="h-10 w-auto mx-auto" priority />
-          <H2 className="mt-6 text-secondary text-center">
-            Create an account
-          </H2>
+          <Image
+            src="/img/trackerTracker_logo.svg"
+            alt="Tracker Tracker"
+            width={160}
+            height={40}
+            className="h-10 w-auto mx-auto"
+            priority
+          />
+          <H2 className="mt-6 text-secondary text-center">Create an account</H2>
         </div>
 
         <Card elevation="elevated" className="p-6">
@@ -112,9 +117,7 @@ export default function SetupPage() {
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              error={
-                error?.toLowerCase().includes("username") ? error : undefined
-              }
+              error={error?.toLowerCase().includes("username") ? error : undefined}
               disabled={isSubmitting}
             />
 
@@ -125,9 +128,7 @@ export default function SetupPage() {
               placeholder="Min. 8 characters"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              error={
-                error?.toLowerCase().includes("8 char") ? error : undefined
-              }
+              error={error?.toLowerCase().includes("8 char") ? error : undefined}
               disabled={isSubmitting}
               required
             />
@@ -139,9 +140,7 @@ export default function SetupPage() {
               placeholder="Re-enter password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              error={
-                error?.toLowerCase().includes("match") ? error : undefined
-              }
+              error={error?.toLowerCase().includes("match") ? error : undefined}
               disabled={isSubmitting}
               required
             />

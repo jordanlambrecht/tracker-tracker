@@ -6,7 +6,7 @@
 
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
-import { formatBytesFromNumber, hexToRgba } from "@/lib/formatters"
+import { formatBytesNum, hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import { ChartEmptyState } from "./ChartEmptyState"
 import { CHART_THEME, chartTooltip } from "./theme"
@@ -108,7 +108,7 @@ function buildPolarOption(buckets: HourDayBucket[], accentColor: string): EChart
         if (val <= 0) return ""
         const dayName = DAY_LABELS[day]
         const hourLabel = HOUR_LABELS[hour]
-        const formatted = formatBytesFromNumber(val)
+        const formatted = formatBytesNum(val)
         return (
           `<div style="font-family:var(--font-mono),monospace;font-size:11px;` +
           `color:${CHART_THEME.textTertiary};margin-bottom:4px;">${dayName} ${hourLabel}</div>` +

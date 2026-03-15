@@ -18,6 +18,7 @@ export const greatposterwall: TrackerRegistryEntry = {
   notableMembers: [],
   language: "Chinese",
   color: "#c0392b",
+  trackerHubSlug: "great-poster-wall",
   warning: true,
   warningNote: "Unvalidated",
   rules: {
@@ -25,4 +26,5 @@ export const greatposterwall: TrackerRegistryEntry = {
     seedTimeHours: 72,
     loginIntervalDays: 90,
   },
+  draft: false,
 }

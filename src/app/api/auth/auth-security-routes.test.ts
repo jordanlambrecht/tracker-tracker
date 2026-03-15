@@ -3,9 +3,9 @@
 // Functions: makeSelectChain, makeUpdateChain
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { db } from "@/lib/db"
 import { createPendingToken, createSession, verifyPassword, verifyPendingToken } from "@/lib/auth"
 import { decrypt, deriveKey } from "@/lib/crypto"
+import { db } from "@/lib/db"
 import { startScheduler } from "@/lib/scheduler"
 import { verifyAndConsumeBackupCode, verifyTotpCode } from "@/lib/totp"
 import { recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"

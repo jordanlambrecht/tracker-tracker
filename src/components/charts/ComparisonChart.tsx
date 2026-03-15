@@ -6,10 +6,12 @@
 
 import type { EChartsOption } from "echarts"
 import { useState } from "react"
+import { Tooltip } from "@/components/ui/Tooltip"
 import { bytesToGiB } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./ChartECharts"
+import { fmtNum, yAxisPad } from "./chart-helpers"
 import { LogScaleToggle } from "./LogScaleToggle"
 import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
 
@@ -156,17 +158,6 @@ function buildComparisonOption(
   // Total data points across all trackers — drives adaptive dot size
   const totalPoints = trackerData.reduce((sum, t) => sum + t.snapshots.length, 0)
   const dotSize = totalPoints > 100 ? 2 : totalPoints > 30 ? 4 : 6
-
-  const fmtNum = (v: number, decimals = 2): string =>
-    v.toLocaleString(undefined, {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    })
-
-  const yAxisPad = (value: { min: number; max: number }) => {
-    const range = value.max - value.min
-    return Math.max(range * 0.15, (value.max || 1) * 0.001)
-  }
 
   // Build series — either per-tracker or single average line
   let series: EChartsOption["series"]
@@ -359,14 +350,15 @@ function ComparisonChart({
       {showToolbar && (
         <div className="flex justify-end gap-2">
           {enableAverage && (
-            <button
-              type="button"
-              onClick={() => setAverageMode((v) => !v)}
-              className="nm-raised-sm bg-raised px-2.5 py-1 text-[10px] font-mono text-muted hover:text-secondary active:nm-inset-sm active:scale-[0.97] transition-all duration-150 cursor-pointer flex items-center gap-1.5 rounded-nm-sm"
-              title={averageMode ? "Showing fleet average. Click for per-tracker." : "Showing per-tracker. Click for fleet average."}
-            >
-              {averageMode ? "Avg" : "Per-Tracker"}
-            </button>
+            <Tooltip content={averageMode ? "Showing fleet average. Click for per-tracker." : "Showing per-tracker. Click for fleet average."}>
+              <button
+                type="button"
+                onClick={() => setAverageMode((v) => !v)}
+                className="nm-raised-sm bg-raised px-2.5 py-1 text-[10px] font-mono text-muted hover:text-secondary active:nm-inset-sm active:scale-[0.97] transition-all duration-150 cursor-pointer flex items-center gap-1.5 rounded-nm-sm"
+              >
+                {averageMode ? "Avg" : "Per-Tracker"}
+              </button>
+            </Tooltip>
           )}
           {enableLogScale && (
             <LogScaleToggle

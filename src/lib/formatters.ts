@@ -1,6 +1,6 @@
 // src/lib/formatters.ts
 //
-// Functions: formatBytesFromString, bytesToGiB, formatBytesFromNumber, formatBytesNum, formatRatio, formatAccountAge, formatJoinedDate, hexToRgba, hexToHsl, hslToHex, generatePalette, getComplementaryColor, formatStatValue, computeDelta, formatDuration, splitValueUnit
+// Functions: formatBytesFromString, bytesToGiB, formatBytesNum, formatRatio, formatAccountAge, formatJoinedDate, hexToRgba, hexToHsl, hslToHex, generatePalette, getComplementaryColor, formatStatValue, computeDelta, formatDuration, formatTimeAgo, splitValueUnit
 
 import type { Snapshot, TrackerLatestStats } from "@/types/api"
 
@@ -28,28 +28,21 @@ export function bytesToGiB(bytesStr: string | null | undefined): number {
 
 /**
  * Formats a JS number of bytes into a human-readable string with auto-scaling.
- * Uses binary units (KiB, MiB, GiB, TiB, PiB).
- */
-export function formatBytesFromNumber(bytes: number): string {
-  if (bytes === 0) return "0 B"
-  const units = ["B", "KiB", "MiB", "GiB", "TiB", "PiB"]
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
-  return `${(bytes / 1024 ** i).toFixed(i === 0 ? 0 : 2)} ${units[i]}`
-}
-
-/**
- * Formats a JS number of bytes into a human-readable string with auto-scaling.
- * Uses binary units (KiB, MiB, GiB, TiB) by default, or decimal (KB, MB, GB, TB)
- * when binary is false.
+ * Uses binary units (KiB, MiB, GiB, TiB, PiB) by default, or decimal (KB, MB, GB, TB, PB)
+ * when binary is false. Handles negative values (i.e negative buffer).
+ * Adaptive precision: 0dp for ≥100, 1dp for ≥10, 2dp for <10.
  */
 export function formatBytesNum(bytes: number, binary = true): string {
   if (bytes === 0) return "0 B"
+  const sign = bytes < 0 ? "-" : ""
+  const abs = Math.abs(bytes)
   const k = binary ? 1024 : 1000
   const units = binary
-    ? ["B", "KiB", "MiB", "GiB", "TiB"]
-    : ["B", "KB", "MB", "GB", "TB"]
-  const i = Math.floor(Math.log(Math.max(bytes, 1)) / Math.log(k))
-  return `${(bytes / k ** i).toFixed(2)} ${units[i]}`
+    ? ["B", "KiB", "MiB", "GiB", "TiB", "PiB"]
+    : ["B", "KB", "MB", "GB", "TB", "PB"]
+  const i = Math.min(Math.floor(Math.log(abs) / Math.log(k)), units.length - 1)
+  const val = abs / k ** i
+  return `${sign}${val.toFixed(val >= 100 ? 0 : val >= 10 ? 1 : 2)} ${units[i]}`
 }
 
 /**
@@ -100,7 +93,6 @@ const FALLBACK_HEX = "#00d4ff"
 
 /**
  * Converts a hex color (#rrggbb) to rgba with the given alpha.
- * Falls back to the accent cyan (#00d4ff) for invalid inputs.
  */
 export function hexToRgba(hex: string, alpha: number): string {
   const safe = VALID_HEX_RE.test(hex) ? hex : FALLBACK_HEX
@@ -182,9 +174,7 @@ export function generatePalette(count: number, baseColor: string): string[] {
   const lit = Math.min(Math.max(baseL, 0.45), 0.65)
   if (count === 1) return [hslToHex(baseH, sat, lit)]
   const step = 360 / count
-  return Array.from({ length: count }, (_, i) =>
-    hslToHex(baseH + i * step, sat, lit)
-  )
+  return Array.from({ length: count }, (_, i) => hslToHex(baseH + i * step, sat, lit))
 }
 
 /**
@@ -202,29 +192,20 @@ export type StatMode = "ratio" | "seeding" | "uploaded" | "downloaded" | "buffer
  * Formats a stat value from TrackerLatestStats for display in the sidebar.
  * Returns "—" when stats are null or the requested field is missing.
  */
-export function formatStatValue(
-  stats: TrackerLatestStats | null,
-  mode: StatMode
-): string {
+export function formatStatValue(stats: TrackerLatestStats | null, mode: StatMode): string {
   if (!stats) return "—"
 
   switch (mode) {
     case "ratio":
-      return stats.ratio !== null && stats.ratio !== undefined
-        ? `${stats.ratio.toFixed(2)}x`
-        : "—"
+      return stats.ratio !== null && stats.ratio !== undefined ? `${stats.ratio.toFixed(2)}x` : "—"
     case "seeding":
       return stats.seedingCount !== null && stats.seedingCount !== undefined
         ? `${stats.seedingCount.toLocaleString()} seeding`
         : "—"
     case "uploaded":
-      return stats.uploadedBytes
-        ? `${formatBytesFromString(stats.uploadedBytes)} ↑`
-        : "—"
+      return stats.uploadedBytes ? `${formatBytesFromString(stats.uploadedBytes)} ↑` : "—"
     case "downloaded":
-      return stats.downloadedBytes
-        ? `${formatBytesFromString(stats.downloadedBytes)} ↓`
-        : "—"
+      return stats.downloadedBytes ? `${formatBytesFromString(stats.downloadedBytes)} ↓` : "—"
     case "buffer": {
       if (!stats.uploadedBytes || !stats.downloadedBytes) return "—"
       const up = BigInt(stats.uploadedBytes)
@@ -261,7 +242,13 @@ export function computeDelta(snaps: Snapshot[]): { uploaded: string; downloaded:
   }
 
   if (!earliest || earliest === latest) return null
-  if (!latest.uploadedBytes || !earliest.uploadedBytes || !latest.downloadedBytes || !earliest.downloadedBytes) return null
+  if (
+    !latest.uploadedBytes ||
+    !earliest.uploadedBytes ||
+    !latest.downloadedBytes ||
+    !earliest.downloadedBytes
+  )
+    return null
 
   try {
     const uploadDelta = BigInt(latest.uploadedBytes) - BigInt(earliest.uploadedBytes)
@@ -274,12 +261,26 @@ export function computeDelta(snaps: Snapshot[]): { uploaded: string; downloaded:
 
 /**
  * Formats a duration in seconds to a compact human-readable string.
- * e.g. 90 → "1m", 7200 → "2.0h", 172800 → "2.0d"
+ * i.e 90 → "1m", 7200 → "2.0h", 172800 → "2.0d"
  */
 export function formatDuration(seconds: number): string {
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
   if (seconds < 86400) return `${(seconds / 3600).toFixed(1)}h`
   return `${(seconds / 86400).toFixed(1)}d`
+}
+
+/**
+ * Formats a Date or ISO string as a compact relative time, i.e "just now", "5m ago", "3h ago", "2d ago".
+ */
+export function formatTimeAgo(dateOrIso: Date | string): string {
+  const ms = typeof dateOrIso === "string" ? new Date(dateOrIso).getTime() : dateOrIso.getTime()
+  const seconds = Math.floor((Date.now() - ms) / 1000)
+  if (seconds < 60) return "just now"
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
 }
 
 /**

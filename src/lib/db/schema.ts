@@ -5,12 +5,14 @@ import {
   bigint,
   boolean,
   date,
+  index,
   integer,
   pgTable,
   real,
   serial,
   text,
   timestamp,
+  uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core"
 
@@ -68,6 +70,7 @@ export const trackers = pgTable("trackers", {
   isFavorite: boolean("is_favorite").default(false).notNull(),
   sortOrder: integer("sort_order"),
   joinedAt: date("joined_at"),
+  lastAccessAt: date("last_access_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })
@@ -114,14 +117,29 @@ export const downloadClients = pgTable("download_clients", {
   useSsl: boolean("use_ssl").default(false).notNull(),
   encryptedUsername: text("encrypted_username").notNull(),
   encryptedPassword: text("encrypted_password").notNull(),
-  pollIntervalSeconds: integer("poll_interval_seconds").default(30).notNull(),
+  pollIntervalSeconds: integer("poll_interval_seconds").default(300).notNull(),
   isDefault: boolean("is_default").default(false).notNull(),
   crossSeedTags: text("cross_seed_tags").default("[]").notNull(),
   lastPolledAt: timestamp("last_polled_at"),
   lastError: text("last_error"),
+  cachedTorrents: text("cached_torrents"),
+  cachedTorrentsAt: timestamp("cached_torrents_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })
+
+export const clientUptimeBuckets = pgTable("client_uptime_buckets", {
+  id: serial("id").primaryKey(),
+  clientId: integer("client_id")
+    .references(() => downloadClients.id, { onDelete: "cascade" })
+    .notNull(),
+  bucketTs: timestamp("bucket_ts").notNull(),
+  ok: integer("ok").default(0).notNull(),
+  fail: integer("fail").default(0).notNull(),
+}, (table) => [
+  uniqueIndex("uq_client_uptime_bucket").on(table.clientId, table.bucketTs),
+  index("idx_uptime_bucket_ts").on(table.bucketTs),
+])
 
 export const tagGroups = pgTable("tag_groups", {
   id: serial("id").primaryKey(),

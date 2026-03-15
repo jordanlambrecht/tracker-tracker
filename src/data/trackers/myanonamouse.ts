@@ -18,5 +18,7 @@ export const myanonamouse: TrackerRegistryEntry = {
   notableMembers: [],
   language: "English",
   color: "#ec407a",
+  trackerHubSlug: "my-anona-mouse",
+  statusPageUrl: "https://status.myanonamouse.net/",
   draft: true,
 }

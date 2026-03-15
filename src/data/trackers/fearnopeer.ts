@@ -112,4 +112,5 @@ export const fearnopeer: TrackerRegistryEntry = {
   color: "#f59e0b",
   logo: "/tracker-logos/fearnopeer_logo.png",
   trackerHubSlug: "fear-no-peer",
+  draft: false,
 }

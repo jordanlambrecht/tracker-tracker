@@ -93,7 +93,7 @@ describe("GGnAdapter", () => {
     expect(stats.seedbonus).toBe(39781)
     expect(stats.seedingCount).toBe(0) // null → 0
     expect(stats.leechingCount).toBe(0) // null → 0
-    expect(stats.hitAndRuns).toBe(0) // null → 0
+    expect(stats.hitAndRuns).toBeNull() // personal.hnrs not present → null
     expect(stats.requiredRatio).toBeCloseTo(0.012)
     expect(stats.warned).toBe(false)
     expect(stats.freeleechTokens).toBeNull()

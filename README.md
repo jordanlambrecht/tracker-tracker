@@ -1,4 +1,14 @@
-# Tracker Tracker
+<p align="center">
+  <img src="public/img/trackerTracker_logo.svg" alt="Tracker Tracker" width="200" />
+</p>
+
+<h1 align="center">Tracker Tracker</h1>
+
+![CI](https://github.com/jordanlambrecht/tracker-tracker/actions/workflows/ci.yml/badge.svg)
+![Version](https://img.shields.io/github/package-json/v/jordanlambrecht/tracker-tracker)
+![License](https://img.shields.io/github/license/jordanlambrecht/tracker-tracker)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6)
+![Self-Hosted](https://img.shields.io/badge/self--hosted-Docker-2496ed)
 
 Self-hosted dashboard for monitoring private tracker stats over time. One place for upload, download, ratio, buffer, seedbonus, and rank data across all your trackers.
 
@@ -89,28 +99,21 @@ mkdir tracker-tracker && cd tracker-tracker
     curl -L https://raw.githubusercontent.com/jordanlambrecht/tracker-tracker/main/.env.example -o .env
     ```
 
-2. Generate a session secret and a database password:
+2. Generate secrets and paste them into `.env`:
 
     ```bash
-    echo "SESSION_SECRET=$(openssl rand -base64 48)"
-    echo "POSTGRES_PASSWORD=$(openssl rand -base64 24)"
+    # Run these, then copy the output into .env
+    openssl rand -base64 24   # → POSTGRES_PASSWORD
+    openssl rand -base64 48   # → SESSION_SECRET
     ```
 
-3. Edit `.env` with the generated values. Make sure the password in `DATABASE_URL` matches `POSTGRES_PASSWORD`:
-
-    ```env
-    DATABASE_URL=postgresql://postgres:your-password-here@db:5432/tracker_tracker
-    POSTGRES_PASSWORD=your-password-here
-    SESSION_SECRET=your-generated-secret-here
-    ```
-
-4. Start the stack:
+3. Start the stack:
 
     ```bash
     docker compose up -d
     ```
 
-5. Visit `http://localhost:3000` to set your master password and start adding trackers.
+4. Visit `http://localhost:3000` to set your master password and start adding trackers.
 
 ### Updating
 
@@ -122,7 +125,7 @@ The database schema is synced automatically on startup.
 
 ### Using an external database
 
-If you already run Postgres, remove the `db` service and `depends_on` block from `docker-compose.yml`, then point `DATABASE_URL` at your existing instance. The `POSTGRES_PASSWORD` var is only used by the bundled `db` service and can be removed.
+If you already run Postgres, remove the `tracker-tracker-db` service and `depends_on` block from `docker-compose.yml`, then set `DATABASE_URL` in your `.env`. The `POSTGRES_PASSWORD` and `POSTGRES_USER` vars can be removed.
 
 ### Local Development
 
@@ -131,22 +134,25 @@ Requires Node.js 24+, pnpm, and PostgreSQL.
 ```bash
 pnpm install
 cp .env.example .env.local
-# Edit .env.local with your DATABASE_URL and SESSION_SECRET
+# Edit .env.local — set DATABASE_URL to your local Postgres and SESSION_SECRET
 pnpm db:push
 pnpm dev
 ```
 
 ## Configuration
 
-| Variable            | Required | Default | Description                                              |
-|---------------------|----------|---------|----------------------------------------------------------|
-| `DATABASE_URL`      | Yes      | —       | PostgreSQL connection string                             |
-| `POSTGRES_PASSWORD` | Docker   | —       | Password for the bundled Postgres container              |
-| `SESSION_SECRET`    | Yes      | —       | AES-256 key for session cookies (min 32 characters)      |
-| `TZ`                | No       | `UTC`   | Timezone for logs and scheduled tasks                    |
-| `PORT`              | No       | `3000`  | Port the app listens on                                  |
-| `LOG_LEVEL`         | No       | `info`  | Log verbosity: `error`, `warn`, `info`, `debug`          |
-| `LOG_FILE`          | No       | —       | Path for log file output (logs always go to stdout too)  |
+| Variable            | Required | Default          | Description                                             |
+|---------------------|----------|------------------|---------------------------------------------------------|
+| `POSTGRES_PASSWORD` | Yes*     | —                | Database password                                       |
+| `SESSION_SECRET`    | Yes      | —                | AES-256 key for session cookies (min 32 characters)     |
+| `TZ`                | No       | `UTC`            | Timezone for cron schedules and log timestamps          |
+| `PORT`              | No       | `3000`           | Port the app listens on                                 |
+| `LOG_LEVEL`         | No       | `info`           | Log verbosity: `error`, `warn`, `info`, `debug`         |
+| `POSTGRES_USER`     | No       | `postgres`       | Database user                                           |
+| `POSTGRES_DB`       | No       | `tracker_tracker`| Database name                                           |
+| `DATABASE_URL`      | No*      | _(auto-built)_   | Override to use an external Postgres instance            |
+
+\* Set either `POSTGRES_PASSWORD` (bundled DB) or `DATABASE_URL` (external DB).
 
 All other settings — polling interval, privacy mode, proxy, backups — are configured in the app's Settings page after login.
 

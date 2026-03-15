@@ -7,7 +7,7 @@
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
 import type { TorrentRaw } from "@/lib/fleet"
-import { formatBytesFromNumber } from "@/lib/formatters"
+import { formatBytesNum } from "@/lib/formatters"
 import { ChartEmptyState } from "./ChartEmptyState"
 import { CHART_THEME, chartTooltip, escHtml } from "./theme"
 
@@ -105,7 +105,7 @@ function buildFleetStorageTreemapOption(nodes: TreemapNode[]): EChartsOption {
         const path = p.treePathInfo.map((n) => escHtml(n.name)).join(" › ")
         return (
           `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${path}</span><br/>` +
-          `<span style="color:${CHART_THEME.textSecondary};">${formatBytesFromNumber(p.value)}</span>`
+          `<span style="color:${CHART_THEME.textSecondary};">${formatBytesNum(p.value)}</span>`
         )
       },
     }),
@@ -145,7 +145,7 @@ function buildFleetStorageTreemapOption(nodes: TreemapNode[]): EChartsOption {
           fontWeight: "bold",
           formatter: (params: unknown) => {
             const p = params as { name: string; value: number }
-            return `${p.name}  ${formatBytesFromNumber(p.value)}`
+            return `${p.name}  ${formatBytesNum(p.value)}`
           },
         },
         label: {
@@ -155,7 +155,7 @@ function buildFleetStorageTreemapOption(nodes: TreemapNode[]): EChartsOption {
           fontSize: 10,
           formatter: (params: unknown) => {
             const p = params as { name: string; value: number }
-            return `${p.name}\n${formatBytesFromNumber(p.value)}`
+            return `${p.name}\n${formatBytesNum(p.value)}`
           },
         },
         levels: [

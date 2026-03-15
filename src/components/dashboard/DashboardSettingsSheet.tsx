@@ -56,14 +56,16 @@ function SortableChartItem({ def, isHidden, onToggle }: SortableChartItemProps) 
 interface DashboardSettingsSheetProps {
   open: boolean
   onClose: () => void
+  dashSettings?: ReturnType<typeof useDashboardSettings>
 }
 
-function DashboardSettingsSheet({ open, onClose }: DashboardSettingsSheetProps) {
+function DashboardSettingsSheet({ open, onClose, dashSettings: externalSettings }: DashboardSettingsSheetProps) {
+  const internalSettings = useDashboardSettings()
+  const dashSettings = externalSettings ?? internalSettings
   const [chartSettingsTab, setChartSettingsTab] = useState<"analytics" | "torrents">("analytics")
 
   const chartPrefs = useChartPreferences()
   const { orderedCharts, reorder } = chartPrefs
-  const dashSettings = useDashboardSettings()
 
   const handleChartDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -92,6 +94,12 @@ function DashboardSettingsSheet({ open, onClose }: DashboardSettingsSheetProps) 
             description="Display the breathing pulse dot on each tracker card showing connection status."
             checked={dashSettings.settings.showHealthIndicators}
             onChange={(checked) => dashSettings.update("showHealthIndicators", checked)}
+          />
+          <Toggle
+            label="Show login timers"
+            description="Display countdown rings for trackers with login interval requirements."
+            checked={dashSettings.settings.showLoginTimers}
+            onChange={(checked) => dashSettings.update("showLoginTimers", checked)}
           />
         </div>
 

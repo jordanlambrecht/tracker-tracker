@@ -11,24 +11,35 @@ import { authenticate, decodeKey, parseTrackerId } from "@/lib/api-helpers"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { downloadClients, trackers } from "@/lib/db/schema"
-import { getTorrents, withSessionRetry } from "@/lib/qbt"
-import { aggregateCrossSeedTags, mergeTorrentLists, type RawTorrent } from "@/lib/qbt/merge"
+import { getTorrents, parseCrossSeedTags, type QbtTorrent, stripSensitiveTorrentFields, withSessionRetry } from "@/lib/qbt"
+import { aggregateCrossSeedTags, mergeTorrentLists } from "@/lib/qbt/merge"
+
+interface ClientRow {
+  name: string
+  host: string
+  port: number
+  useSsl: boolean
+  encryptedUsername: string
+  encryptedPassword: string
+  crossSeedTags: string
+}
 
 async function fetchClientTorrents(
-  client: typeof downloadClients.$inferSelect,
+  client: ClientRow,
   tag: string,
-  key: Buffer
-): Promise<RawTorrent[]> {
+  key: Buffer,
+  filter?: string
+): Promise<QbtTorrent[]> {
   const username = decrypt(client.encryptedUsername, key)
   const password = decrypt(client.encryptedPassword, key)
   return withSessionRetry(
     client.host, client.port, client.useSsl, username, password,
-    (baseUrl, sid) => getTorrents(baseUrl, sid, tag) as Promise<RawTorrent[]>
+    (baseUrl, sid) => getTorrents(baseUrl, sid, tag, filter)
   )
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await authenticate()
@@ -52,9 +63,18 @@ export async function GET(
     return NextResponse.json({ error: "No qBittorrent tag configured for this tracker" }, { status: 400 })
   }
 
-  // Fetch all enabled clients
+  // Fetch only the columns needed — avoids loading cachedTorrents blob
+  // and keeps encrypted credentials scoped to this handler's memory.
   const clients = await db
-    .select()
+    .select({
+      name: downloadClients.name,
+      host: downloadClients.host,
+      port: downloadClients.port,
+      useSsl: downloadClients.useSsl,
+      encryptedUsername: downloadClients.encryptedUsername,
+      encryptedPassword: downloadClients.encryptedPassword,
+      crossSeedTags: downloadClients.crossSeedTags,
+    })
     .from(downloadClients)
     .where(eq(downloadClients.enabled, true))
 
@@ -69,25 +89,22 @@ export async function GET(
 
   const key = decodeKey(auth)
   const tag = tracker.qbtTag.trim()
+  const url = new URL(request.url)
+  const activeOnly = url.searchParams.get("active") === "true"
+  const qbtFilter = activeOnly ? "active" : undefined
 
   // Query all clients in parallel — partial failures don't block
   const results = await Promise.allSettled(
     clients.map(async (client) => {
-      let parsedTags: string[] = []
-      try {
-        parsedTags = JSON.parse(client.crossSeedTags) as string[]
-      } catch {
-        // malformed JSON, treat as empty
-      }
       return {
         clientName: client.name,
-        crossSeedTags: parsedTags,
-        torrents: await fetchClientTorrents(client, tag, key),
+        crossSeedTags: parseCrossSeedTags(client.crossSeedTags),
+        torrents: await fetchClientTorrents(client, tag, key, qbtFilter),
       }
     })
   )
 
-  const torrentLists: RawTorrent[][] = []
+  const torrentLists: QbtTorrent[][] = []
   const crossSeedClients: { crossSeedTags: string[] }[] = []
   const clientErrors: string[] = []
 
@@ -119,9 +136,9 @@ export async function GET(
   const merged = mergeTorrentLists(torrentLists)
   const crossSeedTags = aggregateCrossSeedTags(crossSeedClients)
 
-  // Stamp each merged torrent with source client name(s)
+  // Strip sensitive fields, then stamp client name(s).
   const stamped = merged.map((t) => ({
-    ...t,
+    ...stripSensitiveTorrentFields(t),
     client_name: (hashClients.get(t.hash) ?? []).join(", "),
   }))
 

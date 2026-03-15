@@ -154,8 +154,11 @@ export function DebugResponseDialog({
             </div>
 
             {/* Code viewer */}
-            <div className="relative flex-1 min-h-0 mx-5 mb-5">
-              <div className="h-full overflow-auto nm-inset rounded-nm-md bg-control-bg">
+            <div className="relative mx-5 mb-5">
+              <div
+                className="overflow-y-auto nm-inset rounded-nm-md bg-control-bg"
+                style={{ maxHeight: "calc(85vh - 11rem)" }}
+              >
                 <pre
                   className={[
                     "p-4 text-xs font-mono leading-relaxed whitespace-pre-wrap break-all",

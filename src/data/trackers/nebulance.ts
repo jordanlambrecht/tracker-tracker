@@ -19,9 +19,12 @@ export const nebulance: TrackerRegistryEntry = {
   language: "English",
   color: "#1a4fc2",
   logo: "/tracker-logos/nebulance_logo.png",
+  trackerHubSlug: "nebulance",
+  statusPageUrl: "https://nbl.trackerstatus.info/",
   rules: {
     minimumRatio: 0,
     seedTimeHours: 72,
     loginIntervalDays: 90,
   },
+  draft: false,
 }

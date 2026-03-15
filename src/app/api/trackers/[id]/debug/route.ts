@@ -150,7 +150,7 @@ export async function POST(
     try {
       const raw = await adapter.fetchRaw(tracker.baseUrl, apiToken, tracker.apiPath, fetchOptions)
       rawResponse = scrubObject(raw) as Record<string, unknown>
-    } catch (err) {
+    } catch (err) { // security-audit-ignore: error captured in rawError for debug response
       rawError = err instanceof Error ? err.message : "Raw fetch failed"
     }
   } else {

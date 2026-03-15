@@ -146,4 +146,5 @@ export const aither: TrackerRegistryEntry = {
   logo: "/tracker-logos/aither_logo.svg",
   trackerHubSlug: "aither",
   statusPageUrl: "https://status.aither.cc/status/aither",
+  draft: false,
 }

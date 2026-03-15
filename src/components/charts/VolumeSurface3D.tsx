@@ -9,6 +9,7 @@ import "echarts-gl"
 import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartEmptyState } from "./ChartEmptyState"
+import { fmtNum } from "./chart-helpers"
 import { CHART_THEME, chartAxisLabel, chartTooltip, escHtml } from "./theme"
 
 // ---------------------------------------------------------------------------
@@ -235,10 +236,7 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
         const [bi, ti, val] = params.value
         const bucketLabel = displayLabels[bi] ?? "?"
         const tracker = grid.trackerNames[ti] ?? "?"
-        const formatted = Math.abs(val).toLocaleString(undefined, {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })
+        const formatted = fmtNum(Math.abs(val))
         return `<div style="font-family:var(--font-mono),monospace">` +
           `<div style="color:${CHART_THEME.textTertiary};font-size:11px;margin-bottom:2px">${escHtml(bucketLabel)}</div>` +
           `<div><span style="color:${CHART_THEME.textSecondary}">${escHtml(tracker)}:</span> <b>${formatted} ${unit}</b></div>` +

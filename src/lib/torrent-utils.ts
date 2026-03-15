@@ -55,6 +55,7 @@ export interface AggregatedTorrentsResponse {
   crossSeedTags: string[]
   clientErrors: string[]
   clientCount: number
+  cachedAt?: string | null
 }
 
 // ---------------------------------------------------------------------------

@@ -26,6 +26,8 @@ export const gazellegames: TrackerRegistryEntry = {
   notableMembers: [],
   language: "English",
   color: "#7b1fa2",
+  trackerHubSlug: "gazelle-games",
+  statusPageUrl: "https://ggn.trackerstatus.info/",
   rules: {
     minimumRatio: 0.6,
     seedTimeHours: 80,
@@ -75,4 +77,5 @@ export const gazellegames: TrackerRegistryEntry = {
       "Throttling upload speed to an unfair level (relative to download speed) results in warning or permanent ban. Enforced automatically.",
     ].join("\n"),
   },
+  draft: false,
 }

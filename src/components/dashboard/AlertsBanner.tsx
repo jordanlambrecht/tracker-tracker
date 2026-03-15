@@ -10,6 +10,7 @@ import type { DashboardAlert } from "@/lib/dashboard"
 interface AlertsBannerProps {
   alerts: DashboardAlert[]
   onDismiss: (key: string) => void
+  onDismissAll?: () => void
 }
 
 const typeConfig: Record<string, { borderColor: string; icon: string; label: string }> = {
@@ -19,13 +20,25 @@ const typeConfig: Record<string, { borderColor: string; icon: string; label: str
   "rank-change": { borderColor: "var(--color-accent)", icon: "🎉", label: "Rank" },
   "zero-seeding": { borderColor: "var(--color-warn)", icon: "⏸", label: "Seeds" },
   warned: { borderColor: "var(--color-danger)", icon: "⚠", label: "Warning" },
+  anniversary: { borderColor: "var(--color-accent)", icon: "🎂", label: "Anniversary" },
 }
 
-function AlertsBanner({ alerts, onDismiss }: AlertsBannerProps) {
+function AlertsBanner({ alerts, onDismiss, onDismissAll }: AlertsBannerProps) {
   if (alerts.length === 0) return null
 
   return (
     <div className="flex flex-col gap-2">
+      {onDismissAll && alerts.length > 1 && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={onDismissAll}
+            className="text-[10px] font-mono text-muted hover:text-secondary transition-colors duration-150 cursor-pointer uppercase tracking-wider"
+          >
+            Clear All
+          </button>
+        </div>
+      )}
       {alerts.map((alert) => {
         const config = typeConfig[alert.type] ?? typeConfig.error
         return (

@@ -2,6 +2,7 @@
 //
 // Functions: GET, PATCH
 
+import { access, mkdir } from "node:fs/promises"
 import path from "node:path"
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
@@ -10,6 +11,7 @@ import { VALID_BACKUP_FREQUENCIES } from "@/lib/backup"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
 import { scrubSnapshotUsernames } from "@/lib/privacy-db"
 import { PROXY_HOST_PATTERN, VALID_PROXY_TYPES } from "@/lib/proxy"
 import { parseQbitmanageTags, QBITMANAGE_KEYS } from "@/lib/qbitmanage-defaults"
@@ -383,6 +385,16 @@ export async function PATCH(request: Request) {
       if (!path.isAbsolute(trimmedPath) || trimmedPath.includes("..")) {
         return NextResponse.json(
           { error: "Backup storage path must be an absolute path with no '..' segments" },
+          { status: 400 }
+        )
+      }
+      try {
+        await mkdir(trimmedPath, { recursive: true })
+        await access(trimmedPath)
+      } catch (err) {
+        log.warn(err, `Backup storage path validation failed: ${trimmedPath}`)
+        return NextResponse.json(
+          { error: `Backup storage path is not accessible: ${trimmedPath}` },
           { status: 400 }
         )
       }

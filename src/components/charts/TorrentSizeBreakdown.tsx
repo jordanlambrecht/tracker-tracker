@@ -5,7 +5,7 @@
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
 import { CHART_THEME, escHtml } from "@/components/charts/theme"
-import { formatBytesFromNumber, generatePalette } from "@/lib/formatters"
+import { formatBytesNum, generatePalette } from "@/lib/formatters"
 import type { CategoryStats } from "@/lib/torrent-utils"
 
 // ---------------------------------------------------------------------------
@@ -47,7 +47,7 @@ export function TorrentSizeBreakdown({
         const cat = top.find((c) => c.name === p.name)
         return [
           `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color};margin-right:6px;box-shadow:0 0 6px ${p.color};"></span><span style="font-weight:600;color:${p.color}">${escHtml(p.name)}</span>`,
-          `Size: ${formatBytesFromNumber(p.value)}`,
+          `Size: ${formatBytesNum(p.value)}`,
           cat ? `Torrents: ${cat.count}` : "",
         ].filter(Boolean).join("<br/>")
       },
@@ -59,7 +59,7 @@ export function TorrentSizeBreakdown({
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
         fontSize: 10,
-        formatter: (val: number) => formatBytesFromNumber(val),
+        formatter: (val: number) => formatBytesNum(val),
       },
       splitLine: { lineStyle: { color: CHART_THEME.gridLine } },
     },

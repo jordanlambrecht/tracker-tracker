@@ -144,6 +144,10 @@ vi.mock("@/lib/qbt/merge", () => ({
   aggregateCrossSeedTags: vi.fn().mockReturnValue([]),
 }))
 
+vi.mock("@/lib/privacy-db", () => ({
+  createPrivacyMask: vi.fn(async () => (v: string | null | undefined) => v ?? null),
+}))
+
 vi.mock("@/data/tracker-registry", () => ({
   findRegistryEntry: vi.fn(),
 }))
@@ -189,9 +193,10 @@ import { GET as MembersGET, POST as MembersPOST } from "@/app/api/tag-groups/[id
 import { DELETE as TagGroupDELETE, PATCH as TagGroupPATCH } from "@/app/api/tag-groups/[id]/route"
 import { GET as TagGroupsGET, POST as TagGroupsPOST } from "@/app/api/tag-groups/route"
 import { GET as TrackerAvatarGET } from "@/app/api/trackers/[id]/avatar/route"
+import { POST as DebugPOST } from "@/app/api/trackers/[id]/debug/route"
 import { POST as PollPOST } from "@/app/api/trackers/[id]/poll/route"
 import { GET as RolesGET, POST as RolesPOST } from "@/app/api/trackers/[id]/roles/route"
-import { DELETE, PATCH } from "@/app/api/trackers/[id]/route"
+import { DELETE, PATCH, GET as TrackerDetailGET } from "@/app/api/trackers/[id]/route"
 import { GET as SnapshotsGET } from "@/app/api/trackers/[id]/snapshots/route"
 import { GET as TrackerTorrentsGET } from "@/app/api/trackers/[id]/torrents/route"
 import { POST as PollAllPOST } from "@/app/api/trackers/poll-all/route"
@@ -267,6 +272,18 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
   it("DELETE /api/trackers/[id] returns 401", async () => {
     const req = makeRequest("http://localhost/api/trackers/1", undefined, "DELETE")
     const res = await DELETE(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(401)
+  })
+
+  it("GET /api/trackers/[id] returns 401", async () => {
+    const req = makeRequest("http://localhost/api/trackers/1")
+    const res = await TrackerDetailGET(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(401)
+  })
+
+  it("POST /api/trackers/[id]/debug returns 401", async () => {
+    const req = makeRequest("http://localhost/api/trackers/1/debug", undefined, "POST")
+    const res = await DebugPOST(req, { params: MOCK_PARAMS })
     expect(res.status).toBe(401)
   })
 
@@ -626,23 +643,22 @@ describe("Token leakage prevention", () => {
       encryptedApiToken: "SUPER_SECRET_SHOULD_NOT_APPEAR",
     }
 
+    // Call 1: db.select().from(trackers).orderBy(trackers.createdAt)
     const mockOrderBy = vi.fn().mockResolvedValue([tracker])
     const mockFrom = vi.fn().mockReturnValue({ orderBy: mockOrderBy })
-    // settings query: db.select({storeUsernames}).from(appSettings).limit(1)
-    const mockSettingsLimit = vi.fn().mockResolvedValue([{ storeUsernames: true }])
-    const mockSettingsFrom = vi.fn().mockReturnValue({ limit: mockSettingsLimit })
-    ;(db.select as ReturnType<typeof vi.fn>)
-      .mockReturnValueOnce({ from: mockFrom })
-      .mockReturnValueOnce({ from: mockSettingsFrom })
-      .mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            orderBy: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue([]),
-            }),
+    // Call 2+: per-tracker snapshot queries (db.select().from(snapshots).where(...).orderBy(...).limit(1))
+    const mockSnapshotChain = {
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          orderBy: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([]),
           }),
         }),
-      })
+      }),
+    }
+    ;(db.select as ReturnType<typeof vi.fn>)
+      .mockReturnValueOnce({ from: mockFrom })
+      .mockReturnValue(mockSnapshotChain)
 
     const res = await GET()
     const body = await res.json()
@@ -650,6 +666,63 @@ describe("Token leakage prevention", () => {
 
     expect(json).not.toContain("SUPER_SECRET_SHOULD_NOT_APPEAR")
     expect(json).not.toContain("encryptedApiToken")
+  })
+
+  it("GET /api/trackers/[id] does not include encryptedApiToken or apiPath in response", async () => {
+    ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
+
+    // DB row with secrets present — the route's .select() projection must strip them
+    const trackerRow = {
+      id: 1,
+      name: "TestTracker",
+      baseUrl: "https://test.example.com",
+      platformType: "unit3d",
+      isActive: true,
+      lastPolledAt: null,
+      lastError: null,
+      color: "#00d4ff",
+      qbtTag: null,
+      useProxy: false,
+      countCrossSeedUnsatisfied: false,
+      isFavorite: false,
+      sortOrder: 0,
+      joinedAt: null,
+      lastAccessAt: null,
+      remoteUserId: null,
+      platformMeta: null,
+      createdAt: new Date(),
+      // Secrets that MUST NOT appear in the response
+      encryptedApiToken: "SECRET_API_TOKEN_CIPHERTEXT",
+      apiPath: "/api/user",
+    }
+
+    // First select: tracker detail (route uses explicit column allowlist)
+    const mockTrackerWhere = vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue([trackerRow]) })
+    const mockTrackerFrom = vi.fn().mockReturnValue({ where: mockTrackerWhere })
+
+    // Second select: latest snapshot
+    const mockSnapshotWhere = vi.fn().mockReturnValue({
+      orderBy: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue([]) }),
+    })
+    const mockSnapshotFrom = vi.fn().mockReturnValue({ where: mockSnapshotWhere })
+
+    ;(db.select as ReturnType<typeof vi.fn>)
+      .mockReturnValueOnce({ from: mockTrackerFrom })
+      .mockReturnValueOnce({ from: mockSnapshotFrom })
+
+    const req = makeRequest("http://localhost/api/trackers/1")
+    const res = await TrackerDetailGET(req, { params: MOCK_PARAMS })
+    const body = await res.json()
+    const json = JSON.stringify(body)
+
+    expect(res.status).toBe(200)
+    expect(json).not.toContain("SECRET_API_TOKEN_CIPHERTEXT")
+    expect(json).not.toContain("encryptedApiToken")
+    expect(json).not.toContain("apiPath")
+    // Verify slot-critical fields ARE present
+    expect(body).toHaveProperty("lastAccessAt")
+    expect(body).toHaveProperty("platformMeta")
+    expect(body).toHaveProperty("platformType")
   })
 })
 

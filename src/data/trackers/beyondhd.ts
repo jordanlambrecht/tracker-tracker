@@ -25,5 +25,6 @@ export const beyondhd: TrackerRegistryEntry = {
   },
   language: "English",
   color: "#00897b",
+  trackerHubSlug: "beyond-hd",
   draft: true,
 }

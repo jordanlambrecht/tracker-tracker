@@ -27,6 +27,7 @@ interface GGnUserResponse {
       requiredRatio: number
       gold: number
       joinedDate: string | null
+      lastAccess?: string | null
       onIRC: boolean
       shareScore: number | null
     }
@@ -189,12 +190,13 @@ export class GGnAdapter implements TrackerAdapter {
       seedingCount: resp.community?.seeding ?? 0,
       leechingCount: resp.community?.leeching ?? 0,
       seedbonus: resp.stats.gold ?? 0,
-      hitAndRuns: resp.personal?.hnrs ?? 0,
+      hitAndRuns: resp.personal?.hnrs ?? null,
       requiredRatio:
         typeof resp.stats.requiredRatio === "number" ? resp.stats.requiredRatio : null,
       warned: resp.personal?.warned ?? false,
       freeleechTokens: null,
       joinedDate: resp.stats.joinedDate ?? undefined,
+      lastAccessDate: resp.stats.lastAccess ?? undefined,
       shareScore: resp.stats.shareScore ?? undefined,
       platformMeta,
     }

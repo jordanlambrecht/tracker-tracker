@@ -5,16 +5,11 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import { DASHBOARD_SETTINGS_DEFAULTS, type DashboardSettings } from "@/types/api"
 
 const LEGACY_STORAGE_KEY = "tracker-tracker:dashboard-settings"
 
-interface DashboardSettings {
-  showHealthIndicators: boolean
-}
-
-const DEFAULTS: DashboardSettings = {
-  showHealthIndicators: true,
-}
+const DEFAULTS = DASHBOARD_SETTINGS_DEFAULTS
 
 function useDashboardSettings() {
   const [settings, setSettings] = useState<DashboardSettings>(DEFAULTS)
@@ -74,5 +69,5 @@ function useDashboardSettings() {
   return { settings, update }
 }
 
-export { useDashboardSettings, DEFAULTS as DASHBOARD_SETTINGS_DEFAULTS }
-export type { DashboardSettings }
+export { useDashboardSettings }
+export type { DashboardSettings } from "@/types/api"

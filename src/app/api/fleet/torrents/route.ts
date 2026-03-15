@@ -11,23 +11,23 @@ import { authenticate, decodeKey } from "@/lib/api-helpers"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { downloadClients, trackers } from "@/lib/db/schema"
-import { getTorrents, withSessionRetry } from "@/lib/qbt"
-import { aggregateCrossSeedTags, mergeTorrentLists, type RawTorrent } from "@/lib/qbt/merge"
+import { getTorrents, parseCrossSeedTags, type QbtTorrent, stripSensitiveTorrentFields, withSessionRetry } from "@/lib/qbt"
+import { aggregateCrossSeedTags, mergeTorrentLists } from "@/lib/qbt/merge"
 
 async function fetchClientTorrents(
   client: typeof downloadClients.$inferSelect,
   tags: string[],
   key: Buffer
-): Promise<RawTorrent[]> {
+): Promise<QbtTorrent[]> {
   const username = decrypt(client.encryptedUsername, key)
   const password = decrypt(client.encryptedPassword, key)
   return withSessionRetry(
     client.host, client.port, client.useSsl, username, password,
     async (baseUrl, sid) => {
       const results = await Promise.allSettled(
-        tags.map((tag) => getTorrents(baseUrl, sid, tag) as Promise<RawTorrent[]>)
+        tags.map((tag) => getTorrents(baseUrl, sid, tag))
       )
-      const allTorrents: RawTorrent[] = []
+      const allTorrents: QbtTorrent[] = []
       for (const result of results) {
         if (result.status === "fulfilled") allTorrents.push(...result.value)
       }
@@ -58,13 +58,13 @@ export async function GET() {
   }
 
   const clientErrors: string[] = []
-  const torrentLists: RawTorrent[][] = []
+  const torrentLists: QbtTorrent[][] = []
   const crossSeedClients: { crossSeedTags: string[] }[] = []
 
   const results = await Promise.allSettled(
     clients.map(async (client) => ({
       clientName: client.name,
-      crossSeedTags: (() => { try { return JSON.parse(client.crossSeedTags) as string[] } catch { return [] } })(),
+      crossSeedTags: parseCrossSeedTags(client.crossSeedTags),
       torrents: await fetchClientTorrents(client, tags, key),
     }))
   )
@@ -96,8 +96,9 @@ export async function GET() {
   const merged = mergeTorrentLists(torrentLists)
   const crossSeedTags = aggregateCrossSeedTags(crossSeedClients)
 
+  // Strip sensitive fields, then stamp client name(s).
   const stamped = merged.map((t) => ({
-    ...t,
+    ...stripSensitiveTorrentFields(t),
     client_name: (hashClients.get(t.hash) ?? []).join(", "),
   }))
 

@@ -1,7 +1,4 @@
 // src/components/layout/Sidebar.tsx
-"use client"
-
-// src/components/layout/Sidebar.tsx
 //
 // Functions:
 //   sortTrackers        — sorts a TrackerSummary[] by the given sort mode
@@ -10,6 +7,8 @@
 //   ClientStatusWidget  — download client connection status + speed sparklines
 //   formatSidebarSpeed  — compact speed formatter for sidebar
 //   Sidebar             — main sidebar component with stat/sort controls, tracker list, and settings
+
+"use client"
 
 import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core"
 import {
@@ -23,6 +22,8 @@ import clsx from "clsx"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { type CSSProperties, useCallback, useEffect, useRef, useState } from "react"
+import Markdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import { AddTrackerDialog } from "@/components/AddTrackerDialog"
 import { CHART_THEME } from "@/components/charts/theme"
 import { Button } from "@/components/ui/Button"
@@ -31,10 +32,11 @@ import { DownloadArrowIcon, EyeIcon, EyeOffIcon, UploadArrowIcon } from "@/compo
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import { PulseDot } from "@/components/ui/PulseDot"
 import { Select } from "@/components/ui/Select"
+import { Tooltip } from "@/components/ui/Tooltip"
 import { H2 } from "@/components/ui/Typography"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
 import { useUpdateCheck } from "@/hooks/useUpdateCheck"
-import { formatStatValue, hexToRgba, type StatMode } from "@/lib/formatters"
+import { formatBytesNum, formatStatValue, hexToRgba, type StatMode } from "@/lib/formatters"
 import { getHealthPulseDot, getTrackerHealth } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
 
@@ -150,8 +152,10 @@ function SortableTrackerItem({
           {archived ? "Archived" : stat}
         </span>
         {!unlocked && (
-          <button
-            type="button"
+          // biome-ignore lint/a11y/useSemanticElements: Star must be inside parent button for visual layout
+          <span
+            role="button"
+            tabIndex={0}
             aria-pressed={tracker.isFavorite}
             onClick={(e) => {
               e.stopPropagation()
@@ -173,7 +177,7 @@ function SortableTrackerItem({
             aria-label={tracker.isFavorite ? "Remove from favorites" : "Add to favorites"}
           >
             {tracker.isFavorite ? "★" : "☆"}
-          </button>
+          </span>
         )}
       </button>
     </li>
@@ -364,13 +368,53 @@ function ClientStatusWidget() {
     }
   }, [])
 
+  // Swipe/drag gesture for carousel (touch + pointer for desktop)
+  const swipeStartX = useRef(0)
+  const swipeStartY = useRef(0)
+  const pointerDown = useRef(false)
+
+  const handleSwipeStart = useCallback((x: number, y: number) => {
+    swipeStartX.current = x
+    swipeStartY.current = y
+  }, [])
+
+  const handleSwipeEnd = useCallback((x: number, y: number) => {
+    if (entries.length <= 1) return
+    const dx = x - swipeStartX.current
+    const dy = y - swipeStartY.current
+    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return
+    if (dx < 0) goTo((activeIndex + 1) % entries.length)
+    else goTo((activeIndex - 1 + entries.length) % entries.length)
+  }, [entries.length, activeIndex, goTo])
+
+  const onPointerDown = useCallback((e: React.PointerEvent) => {
+    pointerDown.current = true
+    handleSwipeStart(e.clientX, e.clientY)
+  }, [handleSwipeStart])
+
+  const onPointerUp = useCallback((e: React.PointerEvent) => {
+    if (!pointerDown.current) return
+    pointerDown.current = false
+    handleSwipeEnd(e.clientX, e.clientY)
+  }, [handleSwipeEnd])
+
+  // Capture pointer so up fires even if cursor leaves the element
+  const onPointerDownCapture = useCallback((e: React.PointerEvent) => {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    onPointerDown(e)
+  }, [onPointerDown])
+
   if (!loaded || entries.length === 0) return null
 
   const current = entries[activeIndex]
 
   return (
     <div className="px-3 py-3 border-t border-border shrink-0">
-      <div className="nm-inset-sm bg-control-bg px-3 pt-2.5 pb-3.5 flex flex-col gap-1.5 rounded-nm-md">
+      <div
+        className="nm-inset-sm bg-control-bg px-3 pt-2.5 pb-3.5 flex flex-col gap-1.5 rounded-nm-md touch-pan-y"
+        onPointerDown={onPointerDownCapture}
+        onPointerUp={onPointerUp}
+      >
         <div
           key={activeIndex}
           className="overflow-hidden"
@@ -455,10 +499,7 @@ function ClientStatusWidget() {
 
 function formatSidebarSpeed(bytesPerSec: number): string {
   if (!bytesPerSec || bytesPerSec <= 0) return "0 B/s"
-  const units = ["B/s", "KiB/s", "MiB/s", "GiB/s"]
-  const i = Math.min(Math.floor(Math.log(bytesPerSec) / Math.log(1024)), units.length - 1)
-  const val = bytesPerSec / 1024 ** i
-  return `${val < 10 ? val.toFixed(1) : Math.round(val)} ${units[i]}`
+  return `${formatBytesNum(bytesPerSec)}/s`
 }
 
 // ---------------------------------------------------------------------------
@@ -653,7 +694,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
               aria-current={pathname === "/" ? "page" : undefined}
             >
               <Image
-                src="/trackerTracker_logo.svg"
+                src="/img/trackerTracker_logo.svg"
                 alt="Tracker Tracker"
                 width={140}
                 height={40}
@@ -717,9 +758,10 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
                     showFavoritesOnly ? "text-warn" : "text-tertiary hover:text-secondary"
                   )}
                   aria-label={showFavoritesOnly ? "Show all trackers" : "Show favorites only"}
-                  title={showFavoritesOnly ? "Show all trackers" : "Show favorites only"}
                 >
-                  {showFavoritesOnly ? "★" : "☆"}
+                  <Tooltip content={showFavoritesOnly ? "Show all trackers" : "Show favorites only"}>
+                    <span>{showFavoritesOnly ? "★" : "☆"}</span>
+                  </Tooltip>
                 </button>
 
                 {/* Lock/unlock drag-and-drop */}
@@ -728,9 +770,10 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
                   onClick={() => setUnlocked((u) => !u)}
                   className="text-tertiary hover:text-secondary transition-colors duration-150 cursor-pointer px-2 py-1.5 shrink-0 rounded-nm-sm"
                   aria-label={unlocked ? "Lock order" : "Unlock to reorder"}
-                  title={unlocked ? "Lock order" : "Unlock to reorder"}
                 >
-                  {unlocked ? "🔓" : "🔒"}
+                  <Tooltip content={unlocked ? "Lock order" : "Unlock to reorder"}>
+                    <span>{unlocked ? "🔓" : "🔒"}</span>
+                  </Tooltip>
                 </button>
               </div>
             )}
@@ -834,10 +877,13 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-1.5 py-0.5 text-[9px] font-mono text-accent hover:bg-accent/25 transition-colors duration-150"
-                  title={`Update available: v${latestVersion}`}
                 >
-                  v{latestVersion}
-                  <span aria-hidden="true">↑</span>
+                  <Tooltip content={`Update available: v${latestVersion}`}>
+                    <span className="flex items-center gap-1">
+                      v{latestVersion}
+                      <span aria-hidden="true">↑</span>
+                    </span>
+                  </Tooltip>
                 </a>
               )}
               {/* biome-ignore lint/a11y/useAnchorContent: aria-label provides accessible content */}
@@ -909,10 +955,12 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
               ✕
             </button>
           </div>
-          <div className="overflow-y-auto px-6 py-5 styled-scrollbar">
-            <pre className="text-sm font-mono text-secondary whitespace-pre-wrap leading-relaxed">
-              {changelogContent ?? "Loading..."}
-            </pre>
+          <div className="overflow-y-auto px-6 py-5 styled-scrollbar prose prose-invert prose-sm max-w-none prose-headings:font-mono prose-headings:text-primary prose-h1:text-lg prose-h2:text-base prose-h2:text-white prose-h2:border-b prose-h2:border-border prose-h2:pb-2 prose-h3:text-sm prose-li:text-secondary prose-p:text-secondary prose-strong:text-primary prose-a:text-accent">
+            {changelogContent ? (
+              <Markdown remarkPlugins={[remarkGfm]}>{changelogContent}</Markdown>
+            ) : (
+              <p className="text-muted">Loading...</p>
+            )}
           </div>
         </dialog>
       )}

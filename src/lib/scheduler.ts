@@ -16,6 +16,7 @@ import {
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings, trackerSnapshots, trackers } from "@/lib/db/schema"
+import { sanitizeNetworkError } from "@/lib/error-utils"
 import { log } from "@/lib/logger"
 import { maskUsername } from "@/lib/privacy"
 import { buildProxyAgentFromSettings } from "@/lib/proxy"
@@ -100,6 +101,12 @@ export async function pollTracker(
         metaUpdates.joinedAt = parsed.toISOString().split("T")[0]
       }
     }
+    if (stats.lastAccessDate) {
+      const parsed = new Date(stats.lastAccessDate)
+      if (!Number.isNaN(parsed.getTime())) {
+        metaUpdates.lastAccessAt = parsed.toISOString().split("T")[0]
+      }
+    }
     if (stats.platformMeta) {
       metaUpdates.platformMeta = JSON.stringify(stats.platformMeta)
     }
@@ -135,18 +142,7 @@ export async function pollTracker(
       .where(eq(trackers.id, tracker.id))
   } catch (error) {
     const raw = error instanceof Error ? error.message : "Unknown error"
-    let message = "Poll failed"
-    if (/timed?\s*out/i.test(raw)) message = "Request timed out"
-    else if (/ECONNREFUSED/i.test(raw)) message = "Connection refused"
-    else if (/ENOTFOUND/i.test(raw)) message = "Host not found"
-    else if (/EHOSTUNREACH/i.test(raw)) message = "Host unreachable"
-    else if (/ECONNRESET/i.test(raw)) message = "Connection reset"
-    else if (/401|403|Unauthorized|Forbidden/i.test(raw)) message = "Authentication failed"
-    else if (/proxy/i.test(raw)) message = "Proxy connection failed"
-    else {
-      const apiMatch = raw.match(/Tracker API error: (\d+)/i)
-      if (apiMatch) message = `API returned ${apiMatch[1]}`
-    }
+    const message = sanitizeNetworkError(raw, "Poll failed")
     await db
       .update(trackers)
       .set({ lastError: message, updatedAt: new Date() })

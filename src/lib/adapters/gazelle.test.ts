@@ -49,7 +49,7 @@ describe("GazelleAdapter", () => {
     expect(stats.seedbonus).toBe(12500)
     expect(stats.seedingCount).toBe(0)
     expect(stats.leechingCount).toBe(0)
-    expect(stats.hitAndRuns).toBe(0)
+    expect(stats.hitAndRuns).toBeNull()
     expect(stats.requiredRatio).toBeCloseTo(0.6)
     expect(stats.freeleechTokens).toBe(3)
     expect(stats.warned).toBe(false)

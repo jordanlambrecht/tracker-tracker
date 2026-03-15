@@ -4,6 +4,7 @@
 import clsx from "clsx"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { Sidebar } from "@/components/layout/Sidebar"
+import { BackToTop } from "@/components/ui/BackToTop"
 import { HamburgerIcon } from "@/components/ui/Icons"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
 
@@ -35,20 +36,24 @@ export function AuthShell({ children }: { children: ReactNode }) {
     setCollapsed((prev) => !prev)
   }, [setCollapsed])
 
+  const mainRef = useRef<HTMLElement>(null)
   const effectiveCollapsed = !mounted || collapsed
   const showHamburger = isMobile || effectiveCollapsed
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {isMobile && !effectiveCollapsed && (
+      {isMobile && (
         <div
-          className="fixed inset-0 z-30 bg-black/50"
+          className={clsx(
+            "fixed inset-0 z-30 bg-black/50 transition-opacity duration-300 ease-in-out",
+            effectiveCollapsed ? "opacity-0 pointer-events-none" : "opacity-100"
+          )}
           onClick={toggle}
           aria-hidden="true"
         />
       )}
       <Sidebar collapsed={effectiveCollapsed} onToggle={toggle} isMobile={isMobile} />
-      <main className="flex-1 min-w-0 overflow-y-auto p-4 md:p-6 relative themed-scrollbar">
+      <main ref={mainRef} className="flex-1 min-w-0 overflow-y-auto p-4 md:p-6 relative themed-scrollbar">
         {showHamburger && (
           <button
             type="button"
@@ -68,6 +73,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
         >
           {children}
         </div>
+        <BackToTop scrollRef={mainRef} />
       </main>
     </div>
   )

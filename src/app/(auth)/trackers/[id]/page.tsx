@@ -5,8 +5,8 @@
 "use client"
 
 import clsx from "clsx"
-import { useParams, useRouter } from "next/navigation"
-import { type CSSProperties, useEffect, useMemo, useState } from "react"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
+import { type CSSProperties, useCallback, useEffect, useMemo, useState } from "react"
 import { CHART_THEME } from "@/components/charts/theme"
 import type { DayRange } from "@/components/dashboard/DayRangeSidebar"
 import { RankProgress } from "@/components/dashboard/RankProgress"
@@ -16,12 +16,14 @@ import { AnalyticsTab } from "@/components/tracker-detail/AnalyticsTab"
 import type { DebugData } from "@/components/tracker-detail/DebugResponseDialog"
 import { DebugResponseDialog } from "@/components/tracker-detail/DebugResponseDialog"
 import { PollErrorBanner } from "@/components/tracker-detail/PollErrorBanner"
+import { resolveSlots } from "@/components/tracker-detail/resolve-slots"
 import { TrackerDetailHeader } from "@/components/tracker-detail/TrackerDetailHeader"
 import { TrackerInfoTab } from "@/components/tracker-detail/TrackerInfoTab"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { computeDelta, hexToRgba } from "@/lib/formatters"
-import type { GazellePlatformMeta, GGnPlatformMeta, NebulancePlatformMeta, QbitmanageTagConfig, Snapshot, TagGroup, TrackerSummary } from "@/types/api"
+import type { SlotContext } from "@/lib/slot-types"
+import type { GazellePlatformMeta, QbitmanageTagConfig, Snapshot, TagGroup, TrackerSummary } from "@/types/api"
 
 type Tab = "analytics" | "info" | "torrents"
 
@@ -32,7 +34,13 @@ type Tab = "analytics" | "info" | "torrents"
 export default function TrackerDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const id = params.id as string
+
+  const VALID_TABS: Tab[] = ["analytics", "info", "torrents"]
+  const initialTab = VALID_TABS.includes(searchParams.get("tab") as Tab)
+    ? (searchParams.get("tab") as Tab)
+    : "analytics"
 
   const [tracker, setTracker] = useState<TrackerSummary | null>(null)
   const [snapshots, setSnapshots] = useState<Snapshot[]>([])
@@ -42,7 +50,7 @@ export default function TrackerDetailPage() {
   const [polling, setPolling] = useState(false)
   const [pollError, setPollError] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
-  const [activeTab, setActiveTab] = useState<Tab>("analytics")
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab)
   const [tagGroups, setTagGroups] = useState<TagGroup[]>([])
   const [qbitmanageConfig, setQbitmanageConfig] = useState<{ enabled: boolean; tags: QbitmanageTagConfig } | null>(null)
   const [showDebugDialog, setShowDebugDialog] = useState(false)
@@ -156,9 +164,44 @@ export default function TrackerDetailPage() {
     }
   }
 
+  const handleTabChange = useCallback(
+    (tab: Tab) => {
+      setActiveTab(tab)
+      const url = new URL(window.location.href)
+      if (tab === "analytics") {
+        url.searchParams.delete("tab")
+      } else {
+        url.searchParams.set("tab", tab)
+      }
+      router.replace(url.pathname + url.search, { scroll: false })
+    },
+    [router],
+  )
+
   const latestSnapshot = snapshots.length > 0 ? snapshots[snapshots.length - 1] : null
   const stats = tracker?.latestStats ?? null
   const delta = useMemo(() => computeDelta(snapshots), [snapshots])
+
+  const tc = tracker?.color || CHART_THEME.accent
+  const registryEntry: TrackerRegistryEntry | undefined = tracker ? findRegistryEntry(tracker.baseUrl) : undefined
+
+  const { statCardSlots, badgeSlots, progressSlots } = useMemo(() => {
+    if (!tracker) return { statCardSlots: [], badgeSlots: [], progressSlots: [] }
+    const ctx: SlotContext = {
+      tracker,
+      latestSnapshot,
+      snapshots,
+      meta: tracker.platformMeta as SlotContext["meta"],
+      registry: registryEntry,
+      accentColor: tc,
+    }
+    const resolved = resolveSlots(ctx)
+    return {
+      statCardSlots: resolved.get("stat-card") ?? [],
+      badgeSlots: resolved.get("badge") ?? [],
+      progressSlots: resolved.get("progress") ?? [],
+    }
+  }, [tracker, latestSnapshot, snapshots, registryEntry, tc])
 
   if (loading) {
     return (
@@ -176,11 +219,7 @@ export default function TrackerDetailPage() {
     )
   }
 
-  const tc = tracker.color || CHART_THEME.accent
-  const registryEntry: TrackerRegistryEntry | undefined = findRegistryEntry(tracker.baseUrl)
-  const ggMeta: GGnPlatformMeta | null = tracker.platformType === "ggn" ? (tracker.platformMeta as GGnPlatformMeta | null) : null
   const gazelleMeta: GazellePlatformMeta | null = tracker.platformType === "gazelle" ? (tracker.platformMeta as GazellePlatformMeta | null) : null
-  const nebulanceMeta: NebulancePlatformMeta | null = tracker.platformType === "nebulance" ? (tracker.platformMeta as NebulancePlatformMeta | null) : null
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "analytics", label: "Data & Analytics" },
@@ -204,14 +243,13 @@ export default function TrackerDetailPage() {
         tracker={tracker}
         stats={stats}
         registryEntry={registryEntry}
-        ggMeta={ggMeta}
-        gazelleMeta={gazelleMeta}
         accentColor={tc}
         polling={polling}
         onPollNow={handlePollNow}
         onOpenSettings={() => setShowSettings(true)}
         onDebugPoll={handleDebugPoll}
         debugLoading={debugLoading}
+        badgeSlots={badgeSlots}
       />
 
       {/* Rank Progression */}
@@ -220,6 +258,7 @@ export default function TrackerDetailPage() {
         currentRank={stats?.group ?? null}
         snapshots={allTimeSnapshots}
         accentColor={tc}
+        joinedAt={tracker.joinedAt}
       />
 
       {/* ── Error banners ── */}
@@ -236,7 +275,7 @@ export default function TrackerDetailPage() {
           <button
             key={tab.key}
             type="button"
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => handleTabChange(tab.key)}
             className={clsx(
               "px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-medium transition-colors duration-150 cursor-pointer -mb-px whitespace-nowrap",
               activeTab === tab.key
@@ -257,14 +296,14 @@ export default function TrackerDetailPage() {
           snapshots={snapshots}
           stats={stats}
           latestSnapshot={latestSnapshot}
-          ggMeta={ggMeta}
           gazelleMeta={gazelleMeta}
-          nebulanceMeta={nebulanceMeta}
           accentColor={tc}
           days={days}
           onDaysChange={setDays}
           delta={delta}
           minimumRatio={registryEntry?.rules?.minimumRatio}
+          statCardSlots={statCardSlots}
+          progressSlots={progressSlots}
         />
       )}
 

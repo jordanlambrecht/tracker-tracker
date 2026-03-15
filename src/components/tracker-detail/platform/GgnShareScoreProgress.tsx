@@ -3,14 +3,13 @@
 import { hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 
-interface GgnShareScoreProgressProps {
-  platformType: string
+export interface GgnShareScoreProgressProps {
   latestSnapshot: Snapshot | null
   accentColor: string
 }
 
-export function GgnShareScoreProgress({ platformType, latestSnapshot, accentColor }: GgnShareScoreProgressProps) {
-  if (platformType !== "ggn" || latestSnapshot?.shareScore == null) return null
+export function GgnShareScoreProgress({ latestSnapshot, accentColor }: GgnShareScoreProgressProps) {
+  if (latestSnapshot?.shareScore == null) return null
 
   const score = latestSnapshot.shareScore
   const maxScore = 15

@@ -9,8 +9,10 @@ export * from './aither';
 export * from './alpharatio';
 export * from './animebytes';
 export * from './anthelion';
+export * from './asiancinema';
 export * from './avistaz';
 export * from './beyondhd';
+export * from './bibliotik';
 export * from './blutopia';
 export * from './broadcasthenet';
 export * from './cathoderaytube';
@@ -41,10 +43,12 @@ export * from './racing4everyone';
 export * from './redacted';
 export * from './reelflix';
 export * from './secretcinema';
+export * from './seedpool';
 export * from './skipthecommercials';
 export * from './sportscult';
 export * from './torrentleech';
 export * from './tvvault';
+export * from './uhdbits';
 export * from './uploadcx';
 
 import { pier720 } from './720pier';
@@ -53,8 +57,10 @@ import { aither } from './aither';
 import { alpharatio } from './alpharatio';
 import { animebytes } from './animebytes';
 import { anthelion } from './anthelion';
+import { asiancinema } from './asiancinema';
 import { avistaz } from './avistaz';
 import { beyondhd } from './beyondhd';
+import { bibliotik } from './bibliotik';
 import { blutopia } from './blutopia';
 import { broadcasthenet } from './broadcasthenet';
 import { cathoderaytube } from './cathoderaytube';
@@ -85,21 +91,25 @@ import { racing4everyone } from './racing4everyone';
 import { redacted } from './redacted';
 import { reelflix } from './reelflix';
 import { secretcinema } from './secretcinema';
+import { seedpool } from './seedpool';
 import { skipthecommercials } from './skipthecommercials';
 import { sportscult } from './sportscult';
 import { torrentleech } from './torrentleech';
 import { tvvault } from './tvvault';
+import { uhdbits } from './uhdbits';
 import { uploadcx } from './uploadcx';
 
 export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   pier720,
   abtorrents,
   aither,
+  asiancinema,
   alpharatio,
   animebytes,
   anthelion,
   avistaz,
   beyondhd,
+  bibliotik,
   blutopia,
   broadcasthenet,
   cathoderaytube,
@@ -130,9 +140,11 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   redacted,
   reelflix,
   secretcinema,
+  seedpool,
   skipthecommercials,
   sportscult,
   torrentleech,
   tvvault,
+  uhdbits,
   uploadcx,
 ];

@@ -35,8 +35,12 @@ export default function LoginPage() {
         setHasUsername(!!data.hasUsername)
         setStatusLoaded(true)
       })
-      .catch(() => { if (!cancelled) setStatusLoaded(true) })
-    return () => { cancelled = true }
+      .catch(() => {
+        if (!cancelled) setStatusLoaded(true)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [router])
 
   async function handlePasswordSubmit(e: FormEvent<HTMLFormElement>) {
@@ -130,7 +134,14 @@ export default function LoginPage() {
     <div className="min-h-screen bg-base flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <Image src="/trackerTracker_logo.svg" alt="Tracker Tracker" width={160} height={40} className="h-10 w-auto mx-auto" priority />
+          <Image
+            src="/img/trackerTracker_logo.svg"
+            alt="Tracker Tracker"
+            width={160}
+            height={40}
+            className="h-10 w-auto mx-auto"
+            priority
+          />
           <p className="mt-2 text-sm text-secondary">
             {step === "password"
               ? "Enter your credentials to unlock."

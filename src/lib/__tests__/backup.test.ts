@@ -108,6 +108,7 @@ function validPayload() {
     tagGroups: [],
     tagGroupMembers: [],
     clientSnapshots: [],
+    clientUptimeBuckets: [],
   }
 }
 

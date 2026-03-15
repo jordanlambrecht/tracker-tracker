@@ -14,11 +14,12 @@ import { Select } from "@/components/ui/Select"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
 import { Toggle } from "@/components/ui/Toggle"
+import { Tooltip } from "@/components/ui/Tooltip"
 import { H2, Paragraph, Subtext } from "@/components/ui/Typography"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 import { extractApiError } from "@/lib/client-helpers"
 import { downloadResponseBlob } from "@/lib/download"
-import { formatBytesFromNumber } from "@/lib/formatters"
+import { formatBytesNum } from "@/lib/formatters"
 
 export interface BackupRecord {
   id: number
@@ -81,7 +82,7 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
 
   async function handleBackupNow() {
     if (encryptBackups && !exportPassword) {
-      setBackupError("Backup password is required when encryption is enabled")
+      setBackupError("Backup password is required when password protection is enabled")
       return
     }
     setBackingUp(true)
@@ -98,7 +99,12 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
       if (!res.ok) {
         throw new Error(await extractApiError(res, "Export failed"))
       }
-      await downloadResponseBlob(res, `tracker-tracker-backup-${Date.now()}.json`)
+
+      const contentType = res.headers.get("Content-Type") ?? ""
+      if (!contentType.includes("application/json")) {
+        await downloadResponseBlob(res, `tracker-tracker-backup-${Date.now()}.json`)
+      }
+
       setExportPassword("")
       const histRes = await fetch("/api/settings/backup/history")
       if (histRes.ok) setBackupHistory(await histRes.json())
@@ -221,7 +227,7 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
         <span className="text-sm font-mono text-primary tabular-nums">
           {new Date(b.createdAt).toLocaleString()}
           {b.encrypted && (
-            <span className="ml-2 text-xs text-accent" title="Encrypted">🔒</span>
+            <Tooltip content="Password-protected"><span className="ml-2 text-xs text-accent">🔒</span></Tooltip>
           )}
         </span>
       ),
@@ -231,7 +237,7 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
       header: "Size",
       render: (b) => (
         <span className="text-sm font-mono text-tertiary tabular-nums">
-          {formatBytesFromNumber(b.sizeBytes)}
+          {formatBytesNum(b.sizeBytes)}
         </span>
       ),
     },
@@ -274,22 +280,56 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
 
   return (
     <>
-      {/* ── Actions ────────────────────────────────────────────── */}
-      <section aria-labelledby="backup-actions-heading">
-        <H2 id="backup-actions-heading" className="mb-4">Actions</H2>
+      {/* ── Export ──────────────────────────────────────────────── */}
+      <section aria-labelledby="backup-export-heading">
+        <H2 id="backup-export-heading" className="mb-4">Export</H2>
 
         <Card elevation="raised" className="flex flex-col gap-4">
-          <div className="flex gap-3">
-            <Button size="sm" onClick={handleBackupNow} disabled={backingUp}>
+          {encryptBackups && (
+            <Input
+              label="Backup password"
+              type="password"
+              value={exportPassword}
+              onChange={(e) => setExportPassword(e.target.value)}
+              placeholder="Required for password-protected export"
+              data-1p-ignore
+              autoComplete="off"
+            />
+          )}
+          <div className="flex gap-3 items-center">
+            <Button
+              size="sm"
+              onClick={handleBackupNow}
+              disabled={backingUp || backupConfigDirty}
+            >
               {backingUp ? "Creating Backup…" : "Backup Now"}
             </Button>
+            {backupConfigDirty && (
+              <span className="text-xs text-warn">Save configuration before exporting</span>
+            )}
+            {!backupConfigDirty && encryptBackups && !exportPassword && (
+              <span className="text-xs text-tertiary">Enter a password to enable export</span>
+            )}
           </div>
           <Paragraph>
             Manual backup exports all trackers, snapshots, roles, and settings as a
-            single JSON file. The file is saved to the backup volume and downloaded to your browser.
+            single file.{" "}
+            {backupStoragePath
+              ? `Saved to ${backupStoragePath}.`
+              : "Downloaded to your browser."}
           </Paragraph>
 
-          {/* Restore dropzone */}
+          {backupError && (
+            <p className="text-sm text-danger font-mono">{backupError}</p>
+          )}
+        </Card>
+      </section>
+
+      {/* ── Restore ────────────────────────────────────────────── */}
+      <section aria-labelledby="restore-heading">
+        <H2 id="restore-heading" className="mb-4">Restore</H2>
+
+        <Card elevation="raised" className="flex flex-col gap-4">
           <button
             type="button"
             className={`relative flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 transition-colors cursor-pointer w-full ${
@@ -424,30 +464,12 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
         <H2 id="backup-config-heading" className="mb-4">Configuration</H2>
 
         <Card elevation="raised" className="flex flex-col gap-5">
-          <div>
-            <Toggle
-              label="Encrypt backups"
-              checked={encryptBackups}
-              onChange={setEncryptBackups}
-              description="Protect manual backup exports with a password. The backup can be restored on any instance with the password."
-            />
-            {encryptBackups && (
-              <div className="mt-4 ml-15">
-                <Input
-                  label="Backup password"
-                  type="password"
-                  value={exportPassword}
-                  onChange={(e) => setExportPassword(e.target.value)}
-                  placeholder="Set password for encrypted backups"
-                  data-1p-ignore
-                  autoComplete="off"
-                />
-                <p className="text-xs text-secondary font-sans mt-1">
-                  This password will be used to encrypt manual backup exports. Store it securely!
-                </p>
-              </div>
-            )}
-          </div>
+          <Toggle
+            label="Password-protect backups"
+            checked={encryptBackups}
+            onChange={setEncryptBackups}
+            description="Protect manual backup exports with a password. You'll need this password to restore from a protected backup."
+          />
 
           <div className="border-t border-border" />
 
@@ -484,14 +506,22 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
                 />
               </div>
               <Subtext className="-mt-1">Keep this many scheduled backups before older ones are pruned.</Subtext>
-              <Input
-                label="Storage path"
-                value={backupStoragePath}
-                onChange={(e) => setBackupStoragePath(e.target.value)}
-                placeholder="/data/backups"
-              />
             </div>
           )}
+
+          <div className="border-t border-border" />
+
+          <div>
+            <Input
+              label="Storage path"
+              value={backupStoragePath}
+              onChange={(e) => setBackupStoragePath(e.target.value)}
+              placeholder="/data/backups"
+            />
+            <Subtext className="mt-1">
+              Absolute path where backups are saved. Used by both manual exports and scheduled backups.
+            </Subtext>
+          </div>
 
           <div className="flex justify-end pt-1">
             <Button size="sm" onClick={saveBackupConfig} disabled={!backupConfigDirty || savingBackupConfig}>

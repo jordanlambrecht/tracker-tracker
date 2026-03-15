@@ -8,6 +8,7 @@ import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
 import { hexToRgba } from "@/lib/formatters"
 import { ChartEmptyState } from "./ChartEmptyState"
+import { fmtNum } from "./chart-helpers"
 import { CHART_THEME, chartAxisLabel, chartTooltip } from "./theme"
 
 // ---------------------------------------------------------------------------
@@ -80,12 +81,6 @@ function buildParallelOption(
     const buffer = base === safeMins[i] ? 1 : (base - safeMins[i]) * 0.1
     return base + buffer
   })
-
-  const fmtNum = (v: number, decimals = 2): string =>
-    v.toLocaleString(undefined, {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    })
 
   const parallelAxes = [
     {

@@ -18,5 +18,6 @@ export const hdbits: TrackerRegistryEntry = {
   notableMembers: [],
   language: "English",
   color: "#ffd700",
+  trackerHubSlug: "hd-bits",
   draft: true,
 }

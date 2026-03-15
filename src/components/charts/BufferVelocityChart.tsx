@@ -11,6 +11,7 @@ import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
+import { fmtNum } from "./chart-helpers"
 import { LogScaleToggle } from "./LogScaleToggle"
 import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
 
@@ -120,12 +121,6 @@ function buildBufferVelocityOption(
   }
   const autoLog = shouldUseLogScale(positiveVelocities)
   const useLog = forceLog ?? autoLog
-
-  const fmtNum = (v: number, decimals = 2): string =>
-    v.toLocaleString(undefined, {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    })
 
   // Build per-tracker series mapped to the unified day axis
   const series: NonNullable<EChartsOption["series"]> = computed.map((tracker) => {

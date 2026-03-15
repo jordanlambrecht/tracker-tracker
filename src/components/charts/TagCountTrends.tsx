@@ -1,6 +1,6 @@
-// src/components/charts/LeechingTrends.tsx
+// src/components/charts/TagCountTrends.tsx
 //
-// Functions: buildSeriesData, buildOption, LeechingTrends
+// Functions: buildSeriesData, buildOption, TagCountTrends
 
 "use client"
 
@@ -11,16 +11,19 @@ import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
 import { buildTagColors, CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, formatChartTimestamp } from "./theme"
 
-interface LeechingTrendsProps {
+type TagCountMode = "seeding" | "leeching"
+
+interface TagCountTrendsProps {
   snapshots: FleetSnapshot[]
+  mode: TagCountMode
   height?: number
 }
 
 function buildSeriesData(
   snapshots: FleetSnapshot[],
-  tags: string[]
+  tags: string[],
+  mode: TagCountMode
 ): Map<string, [number, number][]> {
-  // For each tag, accumulate leechingCount per timestamp across all clients
   const timeTagMap = new Map<number, Map<string, number>>()
 
   for (const snap of snapshots) {
@@ -35,7 +38,7 @@ function buildSeriesData(
 
     for (const stat of snap.tagStats) {
       const prev = tagAccum.get(stat.tag) ?? 0
-      tagAccum.set(stat.tag, prev + stat.leechingCount)
+      tagAccum.set(stat.tag, prev + (mode === "seeding" ? stat.seedingCount : stat.leechingCount))
     }
   }
 
@@ -55,18 +58,23 @@ function buildSeriesData(
   return seriesMap
 }
 
-function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
+function buildOption(snapshots: FleetSnapshot[], mode: TagCountMode): EChartsOption {
   const tags = extractTagsFromSnapshots(snapshots)
   const colorMap = buildTagColors(tags)
-  const seriesMap = buildSeriesData(snapshots, tags)
+  const seriesMap = buildSeriesData(snapshots, tags, mode)
+
+  const isSeeding = mode === "seeding"
 
   const series: NonNullable<EChartsOption["series"]> = tags.map((tag) => ({
     name: tag,
     type: "line",
+    ...(isSeeding ? { stack: "seeding" } : {}),
     data: seriesMap.get(tag) ?? [],
-    symbol: "circle",
-    symbolSize: 3,
-    lineStyle: { width: 1.5, color: colorMap.get(tag) ?? CHART_THEME.chartFallback },
+    smooth: true,
+    symbol: isSeeding ? "none" : "circle",
+    ...(isSeeding ? {} : { symbolSize: 3 }),
+    ...(isSeeding ? { areaStyle: { opacity: 0.3 } } : {}),
+    lineStyle: { width: isSeeding ? 2 : 1.5, color: colorMap.get(tag) ?? CHART_THEME.chartFallback },
     itemStyle: { color: colorMap.get(tag) ?? CHART_THEME.chartFallback },
   }))
 
@@ -113,7 +121,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
     },
     yAxis: {
       type: "value",
-      name: "Leeching",
+      name: isSeeding ? "Seeding" : "Leeching",
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
@@ -132,21 +140,21 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
   }
 }
 
-function LeechingTrends({ snapshots, height = 360 }: LeechingTrendsProps) {
+function TagCountTrends({ snapshots, mode, height = 360 }: TagCountTrendsProps) {
   const hasTagStats = snapshots.some((s) => s.tagStats && s.tagStats.length > 0)
 
   if (!hasTagStats) {
     return (
       <ChartEmptyState
         height={height}
-        message="No tag leeching data available yet."
+        message={mode === "seeding" ? "No tag seeding data available yet." : "No tag leeching data available yet."}
       />
     )
   }
 
   return (
     <ChartECharts
-      option={buildOption(snapshots)}
+      option={buildOption(snapshots, mode)}
       style={{ height, width: "100%" }}
       opts={{ renderer: "canvas" }}
       notMerge
@@ -155,5 +163,5 @@ function LeechingTrends({ snapshots, height = 360 }: LeechingTrendsProps) {
   )
 }
 
-export { LeechingTrends }
-export type { LeechingTrendsProps }
+export { TagCountTrends }
+export type { TagCountTrendsProps }

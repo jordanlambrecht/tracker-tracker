@@ -5,7 +5,7 @@
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
-import { formatBytesFromNumber } from "@/lib/formatters"
+import { formatBytesNum } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 
 interface ActiveTransfersTableProps {
@@ -23,11 +23,13 @@ export function ActiveTransfersTable({
 }: ActiveTransfersTableProps) {
   if (torrents.length === 0) {
     return (
-      <div
-        className="nm-inset-sm bg-control-bg flex flex-1 items-center justify-center rounded-nm-md min-h-[72px]"
-      >
-        <p className="text-xs text-muted font-mono">No active {mode === "downloading" ? "downloads" : "uploads"}</p>
-      </div>
+      <Table<TorrentInfo>
+        columns={[]}
+        data={[]}
+        keyExtractor={(t) => t.hash}
+        emptyMessage={`No active ${mode === "downloading" ? "downloads" : "uploads"}`}
+        surface="inset"
+      />
     )
   }
 
@@ -64,7 +66,7 @@ export function ActiveTransfersTable({
       align: "right",
       width: 48,
       render: (t) => {
-        const formatted = formatBytesFromNumber(t.size)
+        const formatted = formatBytesNum(t.size)
         const spaceIdx = formatted.indexOf(" ")
         const num = spaceIdx > -1 ? formatted.slice(0, spaceIdx) : formatted
         const unit = spaceIdx > -1 ? formatted.slice(spaceIdx + 1) : ""
@@ -93,7 +95,7 @@ export function ActiveTransfersTable({
       width: 48,
       render: (t) => {
         const raw = isDownload ? t.dlspeed : t.upspeed
-        const formatted = formatBytesFromNumber(raw)
+        const formatted = formatBytesNum(raw)
         const spaceIdx = formatted.indexOf(" ")
         const num = spaceIdx > -1 ? formatted.slice(0, spaceIdx) : formatted
         const unit = spaceIdx > -1 ? `${formatted.slice(spaceIdx + 1)}/s` : "/s"

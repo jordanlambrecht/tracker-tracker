@@ -6,7 +6,10 @@
 
 import clsx from "clsx"
 import { useState } from "react"
+import Markdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
+import { Tooltip } from "@/components/ui/Tooltip"
 import { H2 } from "@/components/ui/Typography"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { hexToRgba } from "@/lib/formatters"
@@ -59,12 +62,13 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
               >
                 <span className="text-sm font-sans text-tertiary flex items-center gap-1.5">
                   {rule.label}
-                  <span
-                    className="cursor-help text-[9px] font-bold opacity-50 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current hover:opacity-80 transition-opacity"
-                    title={rule.tip}
-                  >
-                    ?
-                  </span>
+                  <Tooltip content={rule.tip}>
+                    <span
+                      className="cursor-help text-[9px] font-bold opacity-50 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current hover:opacity-80 transition-opacity"
+                    >
+                      ?
+                    </span>
+                  </Tooltip>
                 </span>
                 <span className="text-base font-mono font-semibold text-primary">{rule.value}</span>
               </div>
@@ -201,15 +205,17 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
             {registryEntry.releaseGroups.map((g) => {
               const name = typeof g === "string" ? g : g.name
               const desc = typeof g === "string" ? undefined : g.description
-              return (
+              const badge = (
                 <span
                   key={name}
-                  title={desc}
                   className="nm-inset-sm bg-control-bg rounded-nm-pill px-3 py-1 text-xs font-mono text-accent"
                 >
                   {name}
                 </span>
               )
+              return desc ? (
+                <Tooltip key={name} content={desc}>{badge}</Tooltip>
+              ) : badge
             })}
           </div>
         </div>
@@ -264,9 +270,9 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
         <div className="flex flex-col gap-3">
           <H2>Full Rules</H2>
           <div
-            className="nm-inset-sm bg-control-bg px-5 py-4 text-sm font-sans text-secondary leading-relaxed whitespace-pre-wrap rounded-nm-md"
+            className="nm-inset-sm bg-control-bg px-5 py-4 text-sm font-sans text-secondary leading-relaxed rounded-nm-md prose prose-invert prose-sm max-w-none prose-headings:text-primary prose-headings:font-semibold prose-headings:mt-4 prose-headings:mb-2 prose-table:w-full prose-th:text-left prose-th:py-2 prose-th:px-3 prose-th:text-xs prose-th:font-mono prose-th:uppercase prose-th:tracking-wider prose-th:text-tertiary prose-td:py-2 prose-td:px-3 prose-td:font-mono prose-td:text-sm prose-strong:text-primary prose-li:marker:text-muted"
           >
-            {registryEntry.rules.fullRulesMarkdown}
+            <Markdown remarkPlugins={[remarkGfm]}>{registryEntry.rules.fullRulesMarkdown}</Markdown>
           </div>
         </div>
       )}

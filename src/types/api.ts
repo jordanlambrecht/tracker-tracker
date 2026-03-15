@@ -32,6 +32,7 @@ export interface TrackerSummary {
   isFavorite: boolean
   sortOrder: number | null
   joinedAt: string | null
+  lastAccessAt: string | null
   remoteUserId: number | null
   platformMeta: GGnPlatformMeta | GazellePlatformMeta | NebulancePlatformMeta | null
   createdAt: string
@@ -90,4 +91,14 @@ export interface QbitmanageTagConfig {
   minSeedsNotMet: QbitmanageTagEntry
   lastActiveLimitNotReached: QbitmanageTagEntry
   lastActiveNotReached: QbitmanageTagEntry
+}
+
+export interface DashboardSettings {
+  showHealthIndicators: boolean
+  showLoginTimers: boolean
+}
+
+export const DASHBOARD_SETTINGS_DEFAULTS: DashboardSettings = {
+  showHealthIndicators: true,
+  showLoginTimers: true,
 }

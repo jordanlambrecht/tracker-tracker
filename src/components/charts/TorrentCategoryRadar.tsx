@@ -5,7 +5,7 @@
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
 import { CHART_THEME, escHtml } from "@/components/charts/theme"
-import { formatBytesFromNumber, formatDuration, generatePalette, hexToRgba } from "@/lib/formatters"
+import { formatBytesNum, formatDuration, generatePalette, hexToRgba } from "@/lib/formatters"
 import type { CategoryStats } from "@/lib/torrent-utils"
 
 // ---------------------------------------------------------------------------
@@ -90,7 +90,7 @@ export function TorrentCategoryRadar({
         return [
           `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color};margin-right:6px;box-shadow:0 0 6px ${p.color};"></span><span style="color:${p.color};font-weight:600;">${escHtml(p.name)}</span>`,
           `Torrents: ${cat.count}`,
-          `Size: ${formatBytesFromNumber(cat.totalSize)}`,
+          `Size: ${formatBytesNum(cat.totalSize)}`,
           `Avg Ratio: ${cat.avgRatio.toFixed(2)}`,
           `Avg Seed Time: ${formatDuration(cat.avgSeedTime)}`,
           `Avg Swarm Seeds: ${cat.avgSwarmSeeds.toFixed(0)}`,

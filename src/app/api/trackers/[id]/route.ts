@@ -36,6 +36,7 @@ export async function GET(
       isFavorite: trackers.isFavorite,
       sortOrder: trackers.sortOrder,
       joinedAt: trackers.joinedAt,
+      lastAccessAt: trackers.lastAccessAt,
       remoteUserId: trackers.remoteUserId,
       platformMeta: trackers.platformMeta,
       createdAt: trackers.createdAt,
@@ -72,6 +73,7 @@ export async function GET(
     isFavorite: tracker.isFavorite,
     sortOrder: tracker.sortOrder,
     joinedAt: tracker.joinedAt,
+    lastAccessAt: tracker.lastAccessAt ?? null,
     remoteUserId: tracker.remoteUserId ?? null,
     // security-audit-ignore: malformed platformMeta falls back to null — non-critical display field
     platformMeta: (() => { try { return tracker.platformMeta ? JSON.parse(tracker.platformMeta) : null } catch { return null } })(),

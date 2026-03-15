@@ -23,6 +23,7 @@ interface DashboardData {
   dayRange: DayRange
   setDayRange: (range: DayRange) => void
   dismissAlert: (key: string) => void
+  dismissAllAlerts: () => void
   refresh: () => Promise<void>
 }
 
@@ -111,6 +112,13 @@ function useDashboardData(): DashboardData {
     setVisibleAlerts((prev) => prev.filter((a) => a.key !== key))
   }, [])
 
+  const dismissAllAlerts = useCallback(() => {
+    setVisibleAlerts((prev) => {
+      for (const alert of prev) persistDismiss(alert.key)
+      return []
+    })
+  }, [])
+
   return {
     trackers,
     snapshotMap,
@@ -119,6 +127,7 @@ function useDashboardData(): DashboardData {
     dayRange,
     setDayRange,
     dismissAlert,
+    dismissAllAlerts,
     refresh: loadData,
   }
 }

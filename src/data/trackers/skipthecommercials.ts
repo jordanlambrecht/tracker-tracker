@@ -141,4 +141,5 @@ export const skipthecommercials: TrackerRegistryEntry = {
   language: "English",
   color: "#b026ff",
   logo: "/tracker-logos/skipthecommercials_logo.png",
+  draft: false,
 }

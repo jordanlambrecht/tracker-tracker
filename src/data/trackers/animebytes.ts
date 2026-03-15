@@ -18,6 +18,8 @@ export const animebytes: TrackerRegistryEntry = {
   notableMembers: [],
   language: "English",
   color: "#ff7043",
+  trackerHubSlug: "anime-bytes",
+  statusPageUrl: "https://status.animebytes.tv/",
   warning: true,
   warningNote: "Unvalidated",
   rules: {
@@ -25,4 +27,5 @@ export const animebytes: TrackerRegistryEntry = {
     seedTimeHours: 72,
     loginIntervalDays: 90,
   },
+  draft: false,
 }

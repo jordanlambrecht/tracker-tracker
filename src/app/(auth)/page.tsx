@@ -12,6 +12,7 @@ import { DashboardSettingsSheet } from "@/components/dashboard/DashboardSettings
 import { DayRangeSidebar } from "@/components/dashboard/DayRangeSidebar"
 import { EcosystemStatsSection } from "@/components/dashboard/EcosystemStatsSection"
 import { FleetDashboard } from "@/components/dashboard/FleetDashboard"
+import { LoginTimers } from "@/components/dashboard/LoginTimers"
 import { PollAllButton } from "@/components/dashboard/PollAllButton"
 import { TrackerLeaderboard } from "@/components/dashboard/TrackerLeaderboard"
 import { TrackerOverviewGrid } from "@/components/dashboard/TrackerOverviewGrid"
@@ -98,10 +99,13 @@ export default function DashboardPage() {
 
       {/* ── Section 2: Alerts ── */}
       {data.alerts.length > 0 && (
-        <AlertsBanner alerts={data.alerts} onDismiss={data.dismissAlert} />
+        <AlertsBanner alerts={data.alerts} onDismiss={data.dismissAlert} onDismissAll={data.dismissAllAlerts} />
       )}
 
-      {/* ── Section 3: Leaderboard ── */}
+      {/* ── Section 3: Login Timers ── */}
+      {dashSettings.settings.showLoginTimers && <LoginTimers trackers={data.trackers} />}
+
+      {/* ── Section 4: Leaderboard ── */}
       <div className="flex flex-col gap-4">
         <H2>Leaderboard</H2>
         <TrackerLeaderboard trackers={data.trackers} />
@@ -150,7 +154,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Settings Sheet ── */}
-      <DashboardSettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <DashboardSettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} dashSettings={dashSettings} />
     </div>
   )
 }

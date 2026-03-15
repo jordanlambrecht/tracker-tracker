@@ -9,6 +9,7 @@ import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
 import { PROXY_HOST_PATTERN } from "@/lib/proxy"
+import { removeClientFromAccumulator } from "@/lib/uptime"
 
 const VALID_TYPES = ["qbittorrent"]
 
@@ -79,8 +80,8 @@ export async function PATCH(
   if (typeof body.enabled === "boolean") updates.enabled = body.enabled
 
   if (typeof body.pollIntervalSeconds === "number") {
-    if (body.pollIntervalSeconds < 10 || body.pollIntervalSeconds > 86400) {
-      return NextResponse.json({ error: "Poll interval must be between 10 and 86400 seconds" }, { status: 400 })
+    if (body.pollIntervalSeconds < 60 || body.pollIntervalSeconds > 86400) {
+      return NextResponse.json({ error: "Poll interval must be between 60 and 86400 seconds" }, { status: 400 })
     }
     updates.pollIntervalSeconds = body.pollIntervalSeconds
   }
@@ -144,6 +145,8 @@ export async function DELETE(
   if (!target) {
     return NextResponse.json({ error: "Client not found" }, { status: 404 })
   }
+
+  removeClientFromAccumulator(clientId)
 
   await db.transaction(async (tx) => {
     await tx.delete(downloadClients).where(eq(downloadClients.id, clientId))

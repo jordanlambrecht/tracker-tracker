@@ -8,6 +8,7 @@ import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
 import { PROXY_HOST_PATTERN } from "@/lib/proxy"
+import { parseCrossSeedTags } from "@/lib/qbt"
 
 const VALID_TYPES = ["qbittorrent"]
 
@@ -29,13 +30,7 @@ export async function GET() {
     hasCredentials: !!(client.encryptedUsername && client.encryptedPassword),
     pollIntervalSeconds: client.pollIntervalSeconds,
     isDefault: client.isDefault,
-    crossSeedTags: (() => {
-      try {
-        return JSON.parse(client.crossSeedTags)
-      } catch {
-        return []
-      }
-    })(),
+    crossSeedTags: parseCrossSeedTags(client.crossSeedTags),
     lastPolledAt: client.lastPolledAt,
     lastError: client.lastError,
     createdAt: client.createdAt,
@@ -107,8 +102,8 @@ export async function POST(request: Request) {
   const portErr = validatePort(resolvedPort)
   if (portErr) return portErr
 
-  if (typeof pollIntervalSeconds === "number" && (pollIntervalSeconds < 10 || pollIntervalSeconds > 86400)) {
-    return NextResponse.json({ error: "Poll interval must be between 10 and 86400 seconds" }, { status: 400 })
+  if (typeof pollIntervalSeconds === "number" && (pollIntervalSeconds < 60 || pollIntervalSeconds > 86400)) {
+    return NextResponse.json({ error: "Poll interval must be between 60 and 86400 seconds" }, { status: 400 })
   }
 
   const key = decodeKey(auth)
@@ -140,7 +135,7 @@ export async function POST(request: Request) {
       useSsl: typeof useSsl === "boolean" ? useSsl : false,
       encryptedUsername,
       encryptedPassword,
-      pollIntervalSeconds: typeof pollIntervalSeconds === "number" ? pollIntervalSeconds : 30,
+      pollIntervalSeconds: typeof pollIntervalSeconds === "number" ? pollIntervalSeconds : 300,
       isDefault: resolvedIsDefault,
       crossSeedTags: JSON.stringify(resolvedTags),
     })

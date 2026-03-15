@@ -18,5 +18,6 @@ export const exoticaz: TrackerRegistryEntry = {
   notableMembers: [],
   language: "English",
   color: "#ef5350",
+  trackerHubSlug: "exoticaz",
   draft: true,
 }

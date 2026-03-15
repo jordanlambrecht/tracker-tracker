@@ -42,9 +42,6 @@ const VALID_CONTENT_CATEGORIES = new Set([
   "Education",
   "Tutorials",
   "Fanres",
-  "iOS Apps",
-  "Graphics",
-  "Audio",
 ])
 
 // ---------------------------------------------------------------------------
@@ -89,6 +86,15 @@ describe("tracker registry", () => {
     const urls = ALL_TRACKERS.map((t: TrackerRegistryEntry) => normalize(t.url))
     const dupes = urls.filter((u: string, i: number) => urls.indexOf(u) !== i)
     expect(dupes, `Duplicate URLs: ${dupes.join(", ")}`).toEqual([])
+  })
+
+  it("every tracker has an explicit draft field (true or false)", () => {
+    for (const tracker of ALL_TRACKERS) {
+      expect(
+        typeof tracker.draft === "boolean",
+        `${tracker.slug} is missing an explicit draft: true/false field`,
+      ).toBe(true)
+    }
   })
 
   it("every tracker file in src/data/trackers/ is registered in the barrel", () => {

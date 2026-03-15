@@ -15,6 +15,7 @@ import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { EmojiPickerPopover } from "@/components/ui/EmojiPickerPopover"
 import { Input } from "@/components/ui/Input"
 import { Toggle } from "@/components/ui/Toggle"
+import { Tooltip } from "@/components/ui/Tooltip"
 import { H2, H3, Paragraph } from "@/components/ui/Typography"
 import type { TagGroup, TagGroupChartType } from "@/types/api"
 
@@ -470,18 +471,19 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
             aria-label="Group name"
           />
         ) : (
-          // biome-ignore lint/a11y/noStaticElementInteractions: double-click to rename is a progressive enhancement
-          <span
-            className="flex-1 font-sans text-sm font-semibold text-primary min-w-0 truncate text-left"
-            onDoubleClick={(e) => { e.stopPropagation(); setEditingName(true) }}
-            title="Double-click to rename"
-          >
-            {name}
-          </span>
+          <Tooltip content="Double-click to rename">
+            {/* biome-ignore lint/a11y/noStaticElementInteractions: double-click to rename is a progressive enhancement */}
+            <span
+              className="flex-1 font-sans text-sm font-semibold text-primary min-w-0 truncate text-left"
+              onDoubleClick={(e) => { e.stopPropagation(); setEditingName(true) }}
+            >
+              {name}
+            </span>
+          </Tooltip>
         )}
 
         {isDirty && (
-          <span className="w-1.5 h-1.5 rounded-full bg-accent shrink-0" title="Unsaved changes" />
+          <Tooltip content="Unsaved changes"><span className="w-1.5 h-1.5 rounded-full bg-accent shrink-0" /></Tooltip>
         )}
 
         <span className="text-xs font-mono text-tertiary shrink-0">

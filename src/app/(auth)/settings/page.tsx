@@ -228,7 +228,7 @@ export default function SettingsPage() {
             scheduleEnabled: settings.backupScheduleEnabled,
             scheduleFrequency: settings.backupScheduleFrequency,
             backupRetentionCount: settings.backupRetentionCount,
-            backupStoragePath: settings.backupStoragePath ?? "",
+            backupStoragePath: settings.backupStoragePath ?? "/data/backups",
           }}
           initialHistory={backupHistory}
         />
