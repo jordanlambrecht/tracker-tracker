@@ -7,12 +7,30 @@
 # 4. Start the Next.js standalone server
 set -e
 
-# ── Validate environment ────────────────────────────────────────────────
+# ── Build DATABASE_URL if not provided ──────────────────────────────────
+# Users can either set DATABASE_URL directly (external DB) or let us
+# construct it from the simpler POSTGRES_* variables (bundled DB).
 if [ -z "$DATABASE_URL" ]; then
-  echo "tracker-tracker | FATAL: DATABASE_URL is not set" >&2
-  exit 1
+  if [ -z "$POSTGRES_PASSWORD" ]; then
+    echo "tracker-tracker | FATAL: Set either DATABASE_URL or POSTGRES_PASSWORD" >&2
+    echo "tracker-tracker |   Generate a password with: openssl rand -base64 24" >&2
+    exit 1
+  fi
+  DB_USER="${POSTGRES_USER:-postgres}"
+  DB_NAME="${POSTGRES_DB:-tracker_tracker}"
+  DB_HOST="${POSTGRES_HOST:-db}"
+  DB_PORT="${POSTGRES_PORT:-5432}"
+  DATABASE_URL="postgresql://${DB_USER}:${POSTGRES_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+  export DATABASE_URL
+else
+  # Parse host/port from the explicit URL for the TCP check below
+  DB_HOST=$(echo "$DATABASE_URL" | sed -n 's|.*@\([^:/]*\).*|\1|p')
+  DB_PORT=$(echo "$DATABASE_URL" | sed -n 's|.*:\([0-9]*\)/.*|\1|p')
+  DB_HOST="${DB_HOST:-localhost}"
+  DB_PORT="${DB_PORT:-5432}"
 fi
 
+# ── Validate environment ────────────────────────────────────────────────
 if [ -z "$SESSION_SECRET" ]; then
   echo "tracker-tracker | FATAL: SESSION_SECRET is not set." >&2
   echo "tracker-tracker |   Generate one with: openssl rand -base64 48" >&2
@@ -28,14 +46,6 @@ fi
 
 # ── Wait for PostgreSQL ─────────────────────────────────────────────────
 echo "tracker-tracker | Waiting for database..."
-
-# Parse host and port from DATABASE_URL for a lightweight TCP check.
-# The postgres package is bundled into server chunks by Turbopack and isn't
-# available as a standalone require(), so we use a raw TCP probe instead.
-DB_HOST=$(echo "$DATABASE_URL" | sed -n 's|.*@\([^:/]*\).*|\1|p')
-DB_PORT=$(echo "$DATABASE_URL" | sed -n 's|.*:\([0-9]*\)/.*|\1|p')
-DB_HOST="${DB_HOST:-localhost}"
-DB_PORT="${DB_PORT:-5432}"
 
 until node -e "
   const net = require('net');

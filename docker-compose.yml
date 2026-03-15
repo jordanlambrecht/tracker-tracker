@@ -1,12 +1,35 @@
 services:
-  db:
+  tracker-tracker-app:
+    # image: ghcr.io/jordanlambrecht/tracker-tracker:latest
+    build: .
+    restart: unless-stopped
+    container_name: tracker-tracker-app
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      POSTGRES_HOST: tracker-tracker-db
+      # POSTGRES_PORT: ${POSTGRES_PORT} uncomment if you change the default port in the db service
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SESSION_SECRET: ${SESSION_SECRET}
+      TZ: ${TZ}
+      LOG_LEVEL: ${LOG_LEVEL} # optional, defaults to 'info'
+      LOG_FILE: /data/logs/tracker-tracker.log # optional
+    volumes:
+      - ./data:/data
+    depends_on:
+      tracker-tracker-db:
+        condition: service_healthy
+
+  tracker-tracker-db:
     image: postgres:17-alpine
     restart: unless-stopped
     container_name: tracker-tracker-db
     environment:
       POSTGRES_DB: tracker_tracker
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # POSTGRES_PORT: ${POSTGRES_PORT} uncomment if you want to customize
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -14,27 +37,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-
-  app:
-    image: ghcr.io/jordanlambrecht/tracker-tracker:latest
-    # To build from source instead of pulling the image, uncomment:
-    # build: .
-    restart: unless-stopped
-    container_name: tracker-tracker-app
-    ports:
-      - "${PORT:-3000}:3000"
-    environment:
-      DATABASE_URL: ${DATABASE_URL}
-      SESSION_SECRET: ${SESSION_SECRET}
-      NODE_ENV: production
-      TZ: ${TZ:-UTC}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      LOG_FILE: /data/logs/tracker-tracker.log
-    volumes:
-      - ./data:/data
-    depends_on:
-      db:
-        condition: service_healthy
 
 volumes:
   pgdata:
