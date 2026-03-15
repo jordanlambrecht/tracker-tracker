@@ -3,17 +3,15 @@
 "use client"
 
 import { CHART_THEME } from "@/components/charts/theme"
-import { BoltIcon, BoxIcon, ClockIcon, LeechingIcon, SeedingIcon, ShareScoreIcon, TriangleWarningIcon } from "@/components/ui/Icons"
+import { BoxIcon, ClockIcon, SeedingIcon, ShareScoreIcon, TriangleWarningIcon } from "@/components/ui/Icons"
 import { StatCard } from "@/components/ui/StatCard"
-import { formatBytesFromNumber, formatDuration, splitValueUnit } from "@/lib/formatters"
+import { formatBytesNum, formatDuration, splitValueUnit } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 
 const ICONS = {
   seeding: <SeedingIcon width={16} height={16} />,
-  leeching: <LeechingIcon width={16} height={16} />,
   warning: <TriangleWarningIcon width={16} height={16} />,
   crossSeed: <ShareScoreIcon width={16} height={16} />,
-  speed: <BoltIcon width={16} height={16} />,
   stale: <ClockIcon width={16} height={16} />,
   size: <BoxIcon width={16} height={16} />,
 }
@@ -21,51 +19,96 @@ const ICONS = {
 interface TorrentStatCardsProps {
   torrents: TorrentInfo[]
   seedingTorrents: TorrentInfo[]
-  leechingTorrents: TorrentInfo[]
-  totalUpSpeed: number
   totalSize: number
   crossSeededCount: number
   deadCount: number | null
   trackerSeedingCount: number | null
   unsatisfiedCount: number | null
-  requiredSeedSeconds: number | null
+  hnrRiskCount: number | null
   accentColor: string
+  clientCount: number
 }
 
 export function TorrentStatCards({
   torrents,
   seedingTorrents,
-  leechingTorrents,
-  totalUpSpeed,
   totalSize,
   crossSeededCount,
   deadCount,
   trackerSeedingCount,
   unsatisfiedCount,
+  hnrRiskCount,
   accentColor,
+  clientCount,
 }: TorrentStatCardsProps) {
-  const uploadSpeedFormatted = `${formatBytesFromNumber(totalUpSpeed)}/s`
-  const uploadSpeedParts = splitValueUnit(uploadSpeedFormatted)
-  const totalSizeParts = splitValueUnit(formatBytesFromNumber(totalSize))
+  const totalSizeParts = splitValueUnit(formatBytesNum(totalSize))
 
   const avgSeedTimeValue = torrents.length > 0
     ? formatDuration(Math.floor(torrents.reduce((s, t) => s + t.seedingTime, 0) / torrents.length))
     : "—"
 
   const avgSizeParts = torrents.length > 0
-    ? splitValueUnit(formatBytesFromNumber(Math.floor(totalSize / torrents.length)))
+    ? splitValueUnit(formatBytesNum(Math.floor(totalSize / torrents.length)))
     : null
 
   const largestParts = torrents.length > 0
-    ? splitValueUnit(formatBytesFromNumber(Math.max(...torrents.map((t) => t.size))))
+    ? splitValueUnit(formatBytesNum(Math.max(...torrents.map((t) => t.size))))
     : null
 
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-      <StatCard label="Seeding" value={seedingTorrents.length.toLocaleString()} accentColor={accentColor} icon={ICONS.seeding} />
-      <StatCard label="Leeching" value={leechingTorrents.length.toLocaleString()} accentColor={accentColor} icon={ICONS.leeching} />
-      <StatCard label="Upload Speed" value={uploadSpeedParts.num} unit={uploadSpeedParts.unit} accentColor={accentColor} icon={ICONS.speed} />
-      <StatCard label="Total Size" value={totalSizeParts.num} unit={totalSizeParts.unit} accentColor={accentColor} icon={ICONS.size} />
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 auto-rows-fr">
+      {clientCount > 1 ? (
+        <StatCard
+          type="stacked"
+          title="Seeding"
+          icon={ICONS.seeding}
+          accentColor={accentColor}
+          sumIsHero
+          className="row-span-2"
+          total={{ label: "Total", value: seedingTorrents.length.toLocaleString() }}
+          rows={(() => {
+            const byClient = new Map<string, number>()
+            for (const t of seedingTorrents) {
+              const names = (t.clientName || "Unknown").split(",").map((s) => s.trim())
+              for (const name of names) {
+                byClient.set(name, (byClient.get(name) ?? 0) + 1)
+              }
+            }
+            return [...byClient.entries()].map(([label, count]) => ({
+              label,
+              value: count.toLocaleString(),
+            }))
+          })()}
+        />
+      ) : (
+        <StatCard label="Seeding" value={seedingTorrents.length.toLocaleString()} accentColor={accentColor} icon={ICONS.seeding} />
+      )}
+      {clientCount > 1 ? (
+        <StatCard
+          type="stacked"
+          title="Total Size"
+          icon={ICONS.size}
+          accentColor={accentColor}
+          sumIsHero
+          className="row-span-2"
+          total={{ label: "Total", value: totalSizeParts.num, unit: totalSizeParts.unit }}
+          rows={(() => {
+            const byClient = new Map<string, number>()
+            for (const t of torrents) {
+              const names = (t.clientName || "Unknown").split(",").map((s) => s.trim())
+              for (const name of names) {
+                byClient.set(name, (byClient.get(name) ?? 0) + t.size)
+              }
+            }
+            return [...byClient.entries()].map(([label, bytes]) => {
+              const parts = splitValueUnit(formatBytesNum(bytes))
+              return { label, value: parts.num, unit: parts.unit }
+            })
+          })()}
+        />
+      ) : (
+        <StatCard label="Total Size" value={totalSizeParts.num} unit={totalSizeParts.unit} accentColor={accentColor} icon={ICONS.size} />
+      )}
       <StatCard label="Cross-Seeded" value={crossSeededCount.toLocaleString()} unit={`/ ${torrents.length.toLocaleString()}`} accentColor={accentColor} icon={ICONS.crossSeed} />
       {deadCount !== null && (
         <StatCard
@@ -84,8 +127,14 @@ export function TorrentStatCards({
       />
       <StatCard label="Avg Size" value={avgSizeParts?.num ?? "—"} unit={avgSizeParts?.unit} accentColor={accentColor} icon={ICONS.size} />
       <StatCard label="Largest" value={largestParts?.num ?? "—"} unit={largestParts?.unit} accentColor={accentColor} icon={ICONS.size} />
-      {unsatisfiedCount !== null && (
-        <StatCard label="H&R Risk" value={unsatisfiedCount.toLocaleString()} accentColor={unsatisfiedCount > 0 ? CHART_THEME.danger : accentColor} icon={ICONS.warning} />
+      {hnrRiskCount !== null && (
+        <StatCard
+          label="H&R Risk"
+          value={hnrRiskCount.toLocaleString()}
+          accentColor={hnrRiskCount > 0 ? CHART_THEME.danger : accentColor}
+          icon={ICONS.warning}
+          tooltip={unsatisfiedCount != null ? `${unsatisfiedCount} unsatisfied total, ${hnrRiskCount} stopped/paused (actual risk)` : undefined}
+        />
       )}
     </div>
   )
