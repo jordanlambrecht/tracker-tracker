@@ -1,6 +1,6 @@
 {
   "name": "private-tracker-tracker",
-  "version": "1.8.4",
+  "version": "1.8.5",
   "private": true,
   "packageManager": "pnpm@10.32.1",
   "pnpm": {
