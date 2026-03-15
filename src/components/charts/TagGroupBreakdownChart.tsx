@@ -241,23 +241,28 @@ function TagGroupBreakdownChart({
     )
   }
 
-  if (members.length === 0) return null
+  const allMembers = [...members]
+  if (countUnmatched && unmatchedCount != null && unmatchedCount > 0) {
+    allMembers.push({ label: "Untagged", count: unmatchedCount, color: CHART_THEME.textTertiary })
+  }
+
+  if (allMembers.length === 0) return null
 
   let option: EChartsOption
   let height: number
 
   switch (chartType) {
     case "donut":
-      option = donutOption(members, accentColor)
+      option = donutOption(allMembers, accentColor)
       height = 240
       break
     case "treemap":
-      option = treemapOption(members, accentColor)
+      option = treemapOption(allMembers, accentColor)
       height = 240
       break
     default:
-      option = barOption(members, accentColor)
-      height = Math.max(120, members.length * 36 + 40)
+      option = barOption(allMembers, accentColor)
+      height = Math.max(120, allMembers.length * 36 + 40)
       break
   }
 

@@ -11,6 +11,7 @@ export function filterAndDedup(allTorrents: QbtTorrent[], knownTags: string[]): 
   const tagSet = new Set(knownTags.map((t) => t.toLowerCase()))
 
   for (const torrent of allTorrents) {
+    if (!torrent.isPrivate) continue
     if (seen.has(torrent.hash)) continue
     const torrentTags = parseTorrentTags(torrent.tags)
     if (torrentTags.some((t) => tagSet.has(t))) {
