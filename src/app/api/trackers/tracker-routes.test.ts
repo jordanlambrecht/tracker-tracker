@@ -54,6 +54,9 @@ vi.mock("@/lib/privacy-db", () => ({
   createPrivacyMask: vi.fn().mockResolvedValue(
     (v: string | null | undefined) => (v ? `▓${v.length}` : null)
   ),
+  createPrivacyMaskSync: vi.fn().mockReturnValue(
+    (v: string | null | undefined) => v ?? null
+  ),
 }))
 
 const VALID_KEY = "abcd1234".repeat(8)
@@ -106,16 +109,20 @@ describe("GET /api/trackers", () => {
       hitAndRuns: null,
     }
 
+    // Call 1: db.select().from(trackers).orderBy(...)
     const mockOrderByTrackers = vi.fn().mockResolvedValue([tracker])
     const mockFromTrackers = vi.fn().mockReturnValue({ orderBy: mockOrderByTrackers })
-    const mockLimitSnapshot = vi.fn().mockResolvedValue([snapshot])
-    const mockOrderBySnapshot = vi.fn().mockReturnValue({ limit: mockLimitSnapshot })
-    const mockWhereSnapshot = vi.fn().mockReturnValue({ orderBy: mockOrderBySnapshot })
-    const mockFromSnapshot = vi.fn().mockReturnValue({ where: mockWhereSnapshot })
+    // Call 2: db.select({storeUsernames}).from(appSettings).limit(1)
+    const mockSettingsLimit = vi.fn().mockResolvedValue([{ storeUsernames: true }])
+    const mockSettingsFrom = vi.fn().mockReturnValue({ limit: mockSettingsLimit })
+    // Call 3: db.select().from(trackerSnapshots).where(sql`...`)
+    const mockSnapshotWhere = vi.fn().mockResolvedValue([snapshot])
+    const mockSnapshotFrom = vi.fn().mockReturnValue({ where: mockSnapshotWhere })
 
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFromTrackers })
-      .mockReturnValueOnce({ from: mockFromSnapshot })
+      .mockReturnValueOnce({ from: mockSettingsFrom })
+      .mockReturnValueOnce({ from: mockSnapshotFrom })
 
     const response = await GET()
     const data = await response.json()
@@ -129,10 +136,20 @@ describe("GET /api/trackers", () => {
   })
 
   it("returns empty array when no trackers", async () => {
+    // Call 1: db.select().from(trackers).orderBy(...)
     const mockOrderBy = vi.fn().mockResolvedValue([])
     const mockFrom = vi.fn().mockReturnValue({ orderBy: mockOrderBy })
+    // Call 2: db.select({storeUsernames}).from(appSettings).limit(1)
+    const mockSettingsLimit = vi.fn().mockResolvedValue([{ storeUsernames: true }])
+    const mockSettingsFrom = vi.fn().mockReturnValue({ limit: mockSettingsLimit })
+    // Call 3: db.select().from(trackerSnapshots).where(sql`...`)
+    const mockSnapshotWhere = vi.fn().mockResolvedValue([])
+    const mockSnapshotFrom = vi.fn().mockReturnValue({ where: mockSnapshotWhere })
+
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFrom })
+      .mockReturnValueOnce({ from: mockSettingsFrom })
+      .mockReturnValueOnce({ from: mockSnapshotFrom })
 
     const response = await GET()
     const data = await response.json()
@@ -163,16 +180,20 @@ describe("GET /api/trackers", () => {
       encryptedApiToken: "super-secret-token",
     }
 
+    // Call 1: db.select().from(trackers).orderBy(...)
     const mockOrderBy = vi.fn().mockResolvedValue([tracker])
     const mockFromTrackers = vi.fn().mockReturnValue({ orderBy: mockOrderBy })
-    const mockLimit = vi.fn().mockResolvedValue([])
-    const mockOrderBySnapshot = vi.fn().mockReturnValue({ limit: mockLimit })
-    const mockWhereSnapshot = vi.fn().mockReturnValue({ orderBy: mockOrderBySnapshot })
-    const mockFromSnapshot = vi.fn().mockReturnValue({ where: mockWhereSnapshot })
+    // Call 2: db.select({storeUsernames}).from(appSettings).limit(1)
+    const mockSettingsLimit = vi.fn().mockResolvedValue([{ storeUsernames: true }])
+    const mockSettingsFrom = vi.fn().mockReturnValue({ limit: mockSettingsLimit })
+    // Call 3: db.select().from(trackerSnapshots).where(sql`...`)
+    const mockSnapshotWhere = vi.fn().mockResolvedValue([])
+    const mockSnapshotFrom = vi.fn().mockReturnValue({ where: mockSnapshotWhere })
 
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFromTrackers })
-      .mockReturnValueOnce({ from: mockFromSnapshot })
+      .mockReturnValueOnce({ from: mockSettingsFrom })
+      .mockReturnValueOnce({ from: mockSnapshotFrom })
 
     const response = await GET()
     const data = await response.json()
@@ -704,11 +725,17 @@ describe("GET /api/trackers/[id]/snapshots", () => {
   })
 
   function buildSnapshotDbMock(result: unknown[]) {
+    // Call 1: db.select().from(trackerSnapshots).where(...).orderBy(...)
     const mockOrderBy = vi.fn().mockResolvedValue(result)
     const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy })
     const mockFrom = vi.fn().mockReturnValue({ where: mockWhere })
+    // Call 2: db.select({storeUsernames}).from(appSettings).limit(1)
+    const mockSettingsLimit = vi.fn().mockResolvedValue([{ storeUsernames: true }])
+    const mockSettingsFrom = vi.fn().mockReturnValue({ limit: mockSettingsLimit })
+
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFrom })
+      .mockReturnValueOnce({ from: mockSettingsFrom })
   }
 
   it("returns snapshots with default 30 days and serialized bigints", async () => {

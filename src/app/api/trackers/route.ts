@@ -2,74 +2,87 @@
 //
 // Functions: GET, POST
 
-import { desc, eq } from "drizzle-orm"
+import { sql } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { CHART_THEME } from "@/components/charts/theme"
 import { DEFAULT_API_PATHS } from "@/lib/adapters"
 import { authenticate, decodeKey, parseJsonBody, validateHexColor, validateHttpUrl } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { trackerSnapshots, trackers } from "@/lib/db/schema"
-import { createPrivacyMask } from "@/lib/privacy-db"
+import { appSettings, trackerSnapshots, trackers } from "@/lib/db/schema"
+import { createPrivacyMaskSync } from "@/lib/privacy-db"
 
 export async function GET() {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const allTrackers = await db.select().from(trackers).orderBy(trackers.createdAt)
+  const [allTrackers, [privacySettings]] = await Promise.all([
+    db.select().from(trackers).orderBy(trackers.createdAt),
+    db.select({ storeUsernames: appSettings.storeUsernames }).from(appSettings).limit(1),
+  ])
 
   // Enforce masking at response time — even if DB has plaintext from before
   // privacy was enabled, the API never leaks it when privacy mode is on.
-  const mask = await createPrivacyMask()
+  // Fallback true = "store usernames" = no masking. Matches createPrivacyMask()
+  // behavior when no settings row exists. Do NOT change to false.
+  const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
 
-  // Get latest snapshot for each tracker (for sidebar ratio display)
-  const trackersWithStats = await Promise.all(
-    allTrackers.map(async (tracker) => {
-      const [latest] = await db
-        .select()
-        .from(trackerSnapshots)
-        .where(eq(trackerSnapshots.trackerId, tracker.id))
-        .orderBy(desc(trackerSnapshots.polledAt))
-        .limit(1)
+  // Batch-fetch the latest snapshot per tracker using a single query.
+  const latestSnapshots = await db
+    .select()
+    .from(trackerSnapshots)
+    .where(
+      sql`(${trackerSnapshots.trackerId}, ${trackerSnapshots.polledAt}) IN (
+        SELECT ${trackerSnapshots.trackerId}, MAX(${trackerSnapshots.polledAt})
+        FROM ${trackerSnapshots}
+        GROUP BY ${trackerSnapshots.trackerId}
+      )`
+    )
 
-      // SECURITY: Never include encryptedApiToken in response
-      return {
-        id: tracker.id,
-        name: tracker.name,
-        baseUrl: tracker.baseUrl,
-        platformType: tracker.platformType,
-        isActive: tracker.isActive,
-        lastPolledAt: tracker.lastPolledAt,
-        lastError: tracker.lastError,
-        color: tracker.color,
-        qbtTag: tracker.qbtTag,
-        useProxy: tracker.useProxy,
-        countCrossSeedUnsatisfied: tracker.countCrossSeedUnsatisfied,
-        isFavorite: tracker.isFavorite,
-        sortOrder: tracker.sortOrder,
-        joinedAt: tracker.joinedAt,
-        lastAccessAt: tracker.lastAccessAt ?? null,
-        remoteUserId: tracker.remoteUserId ?? null,
-        // security-audit-ignore: malformed platformMeta falls back to null — non-critical display field
-        platformMeta: (() => { try { return tracker.platformMeta ? JSON.parse(tracker.platformMeta) : null } catch { return null } })(),
-        createdAt: tracker.createdAt?.toISOString() ?? new Date().toISOString(),
-        latestStats: latest
-          ? {
-              ratio: latest.ratio,
-              uploadedBytes: latest.uploadedBytes?.toString(),
-              downloadedBytes: latest.downloadedBytes?.toString(),
-              seedingCount: latest.seedingCount,
-              leechingCount: latest.leechingCount,
-              requiredRatio: latest.requiredRatio ?? null,
-              warned: latest.warned ?? null,
-              freeleechTokens: latest.freeleechTokens ?? null,
-              username: mask(latest.username),
-              group: mask(latest.group),
-            }
-          : null,
-      }
-    })
+  // Build a lookup map for O(1) access
+  const snapshotByTracker = new Map(
+    latestSnapshots.map((s) => [s.trackerId, s])
   )
+
+  // SECURITY: Never include encryptedApiToken in response
+  const trackersWithStats = allTrackers.map((tracker) => {
+    const latest = snapshotByTracker.get(tracker.id) ?? null
+    return {
+      id: tracker.id,
+      name: tracker.name,
+      baseUrl: tracker.baseUrl,
+      platformType: tracker.platformType,
+      isActive: tracker.isActive,
+      lastPolledAt: tracker.lastPolledAt,
+      lastError: tracker.lastError,
+      color: tracker.color,
+      qbtTag: tracker.qbtTag,
+      useProxy: tracker.useProxy,
+      countCrossSeedUnsatisfied: tracker.countCrossSeedUnsatisfied,
+      isFavorite: tracker.isFavorite,
+      sortOrder: tracker.sortOrder,
+      joinedAt: tracker.joinedAt,
+      lastAccessAt: tracker.lastAccessAt ?? null,
+      remoteUserId: tracker.remoteUserId ?? null,
+      // security-audit-ignore: malformed platformMeta falls back to null — non-critical display field
+      platformMeta: (() => { try { return tracker.platformMeta ? JSON.parse(tracker.platformMeta) : null } catch { return null } })(),
+      createdAt: tracker.createdAt?.toISOString() ?? new Date().toISOString(),
+      latestStats: latest
+        ? {
+            ratio: latest.ratio,
+            uploadedBytes: latest.uploadedBytes?.toString(),
+            downloadedBytes: latest.downloadedBytes?.toString(),
+            seedingCount: latest.seedingCount,
+            leechingCount: latest.leechingCount,
+            requiredRatio: latest.requiredRatio ?? null,
+            warned: latest.warned ?? null,
+            freeleechTokens: latest.freeleechTokens ?? null,
+            username: mask(latest.username),
+            group: mask(latest.group),
+          }
+        : null,
+    }
+  })
 
   return NextResponse.json(trackersWithStats)
 }

@@ -1,6 +1,6 @@
 // src/lib/privacy-db.ts
 //
-// Functions: createPrivacyMask, scrubSnapshotUsernames
+// Functions: createPrivacyMask, createPrivacyMaskSync, scrubSnapshotUsernames
 //
 // DB-aware privacy operations. Pure helpers (maskUsername, isRedacted) live
 // in privacy.ts to keep that module free of I/O dependencies.
@@ -28,6 +28,22 @@ export async function createPrivacyMask(): Promise<(value: string | null | undef
     if (!privacyMode || isRedacted(value)) return value
     return maskUsername(value)
   }
+}
+
+/**
+ * Synchronous variant — accepts a pre-fetched storeUsernames boolean instead of
+ * querying the DB. Use when the caller already has appSettings in scope so the
+ * DB round-trip can be avoided.
+ *
+ * Fallback convention: pass `true` (store usernames = no masking) when the
+ * settings row does not exist, which matches the default column value and the
+ * existing createPrivacyMask() behavior.
+ */
+export function createPrivacyMaskSync(
+  storeUsernames: boolean
+): (val: string | null | undefined) => string | null {
+  if (storeUsernames) return (val) => val ?? null
+  return (val) => (val ? maskUsername(val) : null)
 }
 
 /**

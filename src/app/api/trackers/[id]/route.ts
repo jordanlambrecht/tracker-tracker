@@ -7,8 +7,8 @@ import { NextResponse } from "next/server"
 import { authenticate, decodeKey, parseJsonBody, parseTrackerId, validateHexColor, validateHttpUrl } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { trackerSnapshots, trackers } from "@/lib/db/schema"
-import { createPrivacyMask } from "@/lib/privacy-db"
+import { appSettings, trackerSnapshots, trackers } from "@/lib/db/schema"
+import { createPrivacyMaskSync } from "@/lib/privacy-db"
 
 export async function GET(
   _request: Request,
@@ -20,43 +20,47 @@ export async function GET(
   const trackerId = await parseTrackerId(params)
   if (trackerId instanceof NextResponse) return trackerId
 
-  const [tracker] = await db
-    .select({
-      id: trackers.id,
-      name: trackers.name,
-      baseUrl: trackers.baseUrl,
-      platformType: trackers.platformType,
-      isActive: trackers.isActive,
-      lastPolledAt: trackers.lastPolledAt,
-      lastError: trackers.lastError,
-      color: trackers.color,
-      qbtTag: trackers.qbtTag,
-      useProxy: trackers.useProxy,
-      countCrossSeedUnsatisfied: trackers.countCrossSeedUnsatisfied,
-      isFavorite: trackers.isFavorite,
-      sortOrder: trackers.sortOrder,
-      joinedAt: trackers.joinedAt,
-      lastAccessAt: trackers.lastAccessAt,
-      remoteUserId: trackers.remoteUserId,
-      platformMeta: trackers.platformMeta,
-      createdAt: trackers.createdAt,
-    })
-    .from(trackers)
-    .where(eq(trackers.id, trackerId))
-    .limit(1)
+  const [[tracker], [latest], [privacySettings]] = await Promise.all([
+    db
+      .select({
+        id: trackers.id,
+        name: trackers.name,
+        baseUrl: trackers.baseUrl,
+        platformType: trackers.platformType,
+        isActive: trackers.isActive,
+        lastPolledAt: trackers.lastPolledAt,
+        lastError: trackers.lastError,
+        color: trackers.color,
+        qbtTag: trackers.qbtTag,
+        useProxy: trackers.useProxy,
+        countCrossSeedUnsatisfied: trackers.countCrossSeedUnsatisfied,
+        isFavorite: trackers.isFavorite,
+        sortOrder: trackers.sortOrder,
+        joinedAt: trackers.joinedAt,
+        lastAccessAt: trackers.lastAccessAt,
+        remoteUserId: trackers.remoteUserId,
+        platformMeta: trackers.platformMeta,
+        createdAt: trackers.createdAt,
+      })
+      .from(trackers)
+      .where(eq(trackers.id, trackerId))
+      .limit(1),
+    db
+      .select()
+      .from(trackerSnapshots)
+      .where(eq(trackerSnapshots.trackerId, trackerId))
+      .orderBy(desc(trackerSnapshots.polledAt))
+      .limit(1),
+    db.select({ storeUsernames: appSettings.storeUsernames }).from(appSettings).limit(1),
+  ])
 
   if (!tracker) {
     return NextResponse.json({ error: "Tracker not found" }, { status: 404 })
   }
 
-  const [latest] = await db
-    .select()
-    .from(trackerSnapshots)
-    .where(eq(trackerSnapshots.trackerId, trackerId))
-    .orderBy(desc(trackerSnapshots.polledAt))
-    .limit(1)
-
-  const mask = await createPrivacyMask()
+  // Fallback true = "store usernames" = no masking. Matches createPrivacyMask()
+  // behavior when no settings row exists. Do NOT change to false.
+  const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
 
   return NextResponse.json({
     id: tracker.id,
