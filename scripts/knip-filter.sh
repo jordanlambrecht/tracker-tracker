@@ -59,35 +59,35 @@ echo "$input" | jq -r --argjson patterns "$pattern_json" '
         (.filtered_issues | map(.file as $file | .dependencies // [] | map(. + {file: $file})) | flatten) as $all_deps |
         if ($all_deps | length) > 0 then
           "\n" + yellow + "Unused dependencies (" + ($all_deps | length | tostring) + ")" + reset,
-          ($all_deps | map("  " + ((.name + (" " * (40 - (.name | length))))[0:40]) + "  " + .file + ":" + (.line | tostring) + ":" + (.col | tostring)) | .[])
+          ($all_deps | map("  " + ((.name + (" " * ((40 - (.name | length)) | max(0; .))))[0:40]) + "  " + .file + ":" + (.line | tostring) + ":" + (.col | tostring)) | .[])
         else empty end
       ),
       (
         (.filtered_issues | map(.file as $file | .devDependencies // [] | map(. + {file: $file})) | flatten) as $all_devdeps |
         if ($all_devdeps | length) > 0 then
           "\n" + yellow + "Unused devDependencies (" + ($all_devdeps | length | tostring) + ")" + reset,
-          ($all_devdeps | map("  " + ((.name + (" " * (40 - (.name | length))))[0:40]) + "  " + .file + ":" + (.line | tostring) + ":" + (.col | tostring)) | .[])
+          ($all_devdeps | map("  " + ((.name + (" " * ((40 - (.name | length)) | max(0; .))))[0:40]) + "  " + .file + ":" + (.line | tostring) + ":" + (.col | tostring)) | .[])
         else empty end
       ),
       (
         (.filtered_issues | map(.file as $file | .exports // [] | map(. + {file: $file})) | flatten) as $all_exports |
         if ($all_exports | length) > 0 then
           "\n" + yellow + "Unused exports (" + ($all_exports | length | tostring) + ")" + reset,
-          ($all_exports | map("  " + ((.name + (" " * (40 - (.name | length))))[0:40]) + "  " + .file + ":" + (.line | tostring) + ":" + (.col | tostring)) | .[])
+          ($all_exports | map("  " + ((.name + (" " * ((40 - (.name | length)) | max(0; .))))[0:40]) + "  " + .file + ":" + (.line | tostring) + ":" + (.col | tostring)) | .[])
         else empty end
       ),
       (
         (.filtered_issues | map(.file as $file | .types // [] | map(. + {file: $file})) | flatten) as $all_types |
         if ($all_types | length) > 0 then
           "\n" + yellow + "Unused types (" + ($all_types | length | tostring) + ")" + reset,
-          ($all_types | map("  " + ((.name + (" " * (40 - (.name | length))))[0:40]) + "  " + .file + ":" + (.line | tostring) + ":" + (.col | tostring)) | .[])
+          ($all_types | map("  " + ((.name + (" " * ((40 - (.name | length)) | max(0; .))))[0:40]) + "  " + .file + ":" + (.line | tostring) + ":" + (.col | tostring)) | .[])
         else empty end
       ),
       (
         (.filtered_issues | map(.file as $file | .unlisted // [] | map(. + {file: $file})) | flatten) as $all_unlisted |
         if ($all_unlisted | length) > 0 then
           "\n" + yellow + "Unlisted dependencies (" + ($all_unlisted | length | tostring) + ")" + reset,
-          ($all_unlisted | map("  " + ((.name + (" " * (40 - (.name | length))))[0:40]) + "  " + .file + ":" + (.line | tostring) + ":" + (.col | tostring)) | .[])
+          ($all_unlisted | map("  " + ((.name + (" " * ((40 - (.name | length)) | max(0; .))))[0:40]) + "  " + .file + ":" + (.line | tostring) + ":" + (.col | tostring)) | .[])
         else empty end
       )
     ] | join("\n")
