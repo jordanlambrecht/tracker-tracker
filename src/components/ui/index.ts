@@ -32,6 +32,7 @@ export {
   LeechingIcon,
   PlusIcon,
   RatioIcon,
+  RequiredRatioIcon,
   SeedingIcon,
   ShareScoreIcon,
   ShieldIcon,
