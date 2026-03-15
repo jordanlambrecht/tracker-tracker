@@ -10,7 +10,7 @@ import { UploadPolarChart } from "@/components/charts/UploadPolarChart"
 import type { DayRange } from "@/components/dashboard/DayRangeSidebar"
 import { DayRangeSidebar } from "@/components/dashboard/DayRangeSidebar"
 import { Card } from "@/components/ui/Card"
-import { H2 } from "@/components/ui/Typography"
+import { H2 } from "@typography"
 import { formatBytesFromString } from "@/lib/formatters"
 import type { GazellePlatformMeta, Snapshot } from "@/types/api"
 

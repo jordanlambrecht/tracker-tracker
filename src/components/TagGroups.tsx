@@ -16,7 +16,7 @@ import { EmojiPickerPopover } from "@/components/ui/EmojiPickerPopover"
 import { Input } from "@/components/ui/Input"
 import { Toggle } from "@/components/ui/Toggle"
 import { Tooltip } from "@/components/ui/Tooltip"
-import { H2, H3, Paragraph } from "@/components/ui/Typography"
+import { H2, H3, Paragraph } from "@typography"
 import type { TagGroup, TagGroupChartType } from "@/types/api"
 
 const CHART_TYPE_OPTIONS: { value: TagGroupChartType; label: string }[] = [

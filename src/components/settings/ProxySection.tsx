@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/Input"
 import { NumberInput } from "@/components/ui/NumberInput"
 import { Select } from "@/components/ui/Select"
 import { Toggle } from "@/components/ui/Toggle"
-import { H2, H3, Paragraph, Subtext } from "@/components/ui/Typography"
+import { H2, H3, Paragraph, Subtext } from "@typography"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 import { extractApiError } from "@/lib/client-helpers"
 

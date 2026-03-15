@@ -15,7 +15,7 @@ import {
   UploadArrowIcon,
 } from "@/components/ui/Icons"
 import { StatCard } from "@/components/ui/StatCard"
-import { H2 } from "@/components/ui/Typography"
+import { H2 } from "@typography"
 import type { AggregateStats } from "@/lib/dashboard"
 import { formatBytesFromString, formatRatio, splitValueUnit } from "@/lib/formatters"
 import type { TrackerSummary } from "@/types/api"

@@ -17,7 +17,7 @@ import { TagGroups } from "@/components/TagGroups"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { TabBar } from "@/components/ui/TabBar"
-import { H1, H2, Paragraph } from "@/components/ui/Typography"
+import { H1, H2, Paragraph } from "@typography"
 import { extractApiError } from "@/lib/client-helpers"
 import type { TrackerSummary } from "@/types/api"
 

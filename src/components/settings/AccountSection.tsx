@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/Card"
 import { Input } from "@/components/ui/Input"
 import { RedactedText } from "@/components/ui/RedactedText"
 import { Toggle } from "@/components/ui/Toggle"
-import { H2, H3, Paragraph, Subtext } from "@/components/ui/Typography"
+import { H2, H3, Paragraph, Subtext } from "@typography"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 import { extractApiError } from "@/lib/client-helpers"
 

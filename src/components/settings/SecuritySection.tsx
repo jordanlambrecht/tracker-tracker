@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { Checkbox } from "@/components/ui/Checkbox"
 import { NumberInput } from "@/components/ui/NumberInput"
-import { H2, Paragraph } from "@/components/ui/Typography"
+import { H2, Paragraph } from "@typography"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 
 export interface SecuritySectionProps {

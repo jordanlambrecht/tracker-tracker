@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@typography": ["./src/components/ui/Typography"]
     }
   },
   "include": [

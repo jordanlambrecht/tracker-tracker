@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/Card"
 import { Checkbox } from "@/components/ui/Checkbox"
 import { Input } from "@/components/ui/Input"
 import { Toggle } from "@/components/ui/Toggle"
-import { H3, Subtext } from "@/components/ui/Typography"
+import { H3, Subtext } from "@typography"
 import { QBITMANAGE_TAG_DEFAULTS } from "@/lib/qbitmanage-defaults"
 import type { QbitmanageTagConfig } from "@/types/api"
 

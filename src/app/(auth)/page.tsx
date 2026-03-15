@@ -20,7 +20,7 @@ import { useDashboardSettings } from "@/components/dashboard/useDashboardSetting
 import { Button } from "@/components/ui/Button"
 import { GearIcon } from "@/components/ui/Icons"
 import { TabBar } from "@/components/ui/TabBar"
-import { H1, H2 } from "@/components/ui/Typography"
+import { H1, H2 } from "@typography"
 import { useDashboardData } from "@/hooks/useDashboardData"
 import { computeAggregateStats } from "@/lib/dashboard"
 import type { Snapshot, TrackerSummary } from "@/types/api"

@@ -7,7 +7,7 @@ import { TorrentCategoryDonut } from "@/components/charts/TorrentCategoryDonut"
 import { TorrentCategoryRadar } from "@/components/charts/TorrentCategoryRadar"
 import { Card } from "@/components/ui/Card"
 import { TabBar } from "@/components/ui/TabBar"
-import { H2 } from "@/components/ui/Typography"
+import { H2 } from "@typography"
 import type { CategoryStats } from "@/lib/torrent-utils"
 
 type CategoryView = "radar" | "donut"

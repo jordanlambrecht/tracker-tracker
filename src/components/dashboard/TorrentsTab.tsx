@@ -26,7 +26,7 @@ import {
   UnsatisfiedTorrentsTable,
 } from "@/components/dashboard/torrents"
 import { Card } from "@/components/ui/Card"
-import { H2 } from "@/components/ui/Typography"
+import { H2 } from "@typography"
 import type { TrackerRules } from "@/data/tracker-registry"
 import { useTrackerTorrents } from "@/hooks/useTrackerTorrents"
 import { formatBytesNum, formatTimeAgo } from "@/lib/formatters"

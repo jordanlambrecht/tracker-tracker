@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Checkbox } from "@/components/ui/Checkbox"
 import { Input } from "@/components/ui/Input"
-import { H3, Paragraph, Subtext } from "@/components/ui/Typography"
+import { H3, Paragraph, Subtext } from "@typography"
 
 // ---------------------------------------------------------------------------
 // Types

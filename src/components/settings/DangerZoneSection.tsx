@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { Checkbox } from "@/components/ui/Checkbox"
 import { Input } from "@/components/ui/Input"
-import { H2, H3, Paragraph } from "@/components/ui/Typography"
+import { H2, H3, Paragraph } from "@typography"
 import { extractApiError } from "@/lib/client-helpers"
 
 export function DangerZoneSection() {

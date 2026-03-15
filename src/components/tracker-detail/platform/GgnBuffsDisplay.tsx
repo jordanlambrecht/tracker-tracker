@@ -1,6 +1,6 @@
 // src/components/tracker-detail/platform/GgnBuffsDisplay.tsx
 
-import { H2 } from "@/components/ui/Typography"
+import { H2 } from "@typography"
 import { hexToRgba } from "@/lib/formatters"
 import type { GGnPlatformMeta } from "@/types/api"
 

@@ -14,7 +14,7 @@ import { MaskedSecret } from "@/components/ui/MaskedSecret"
 import { NumberInput } from "@/components/ui/NumberInput"
 import { Select } from "@/components/ui/Select"
 import { Toggle } from "@/components/ui/Toggle"
-import { H3, Paragraph, Subheader, Subtext } from "@/components/ui/Typography"
+import { H3, Paragraph, Subheader, Subtext } from "@typography"
 import { UptimeBar } from "@/components/ui/UptimeBar"
 
 // ---------------------------------------------------------------------------

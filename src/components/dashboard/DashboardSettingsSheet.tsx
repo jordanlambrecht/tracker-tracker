@@ -15,7 +15,7 @@ import { useDashboardSettings } from "@/components/dashboard/useDashboardSetting
 import { Sheet } from "@/components/ui/Sheet"
 import { TabBar } from "@/components/ui/TabBar"
 import { Toggle } from "@/components/ui/Toggle"
-import { H2 } from "@/components/ui/Typography"
+import { H2 } from "@typography"
 
 interface SortableChartItemProps {
   def: ChartDef

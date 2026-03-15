@@ -9,7 +9,7 @@ import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/Card"
 import { ChevronUpIcon, EyeOffIcon } from "@/components/ui/Icons"
 import { Tooltip } from "@/components/ui/Tooltip"
-import { H3 } from "@/components/ui/Typography"
+import { H3 } from "@typography"
 
 interface ChartCardProps {
   title: string
