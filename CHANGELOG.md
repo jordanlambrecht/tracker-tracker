@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## v1.7.0 — 2026-03-15
+
 ### Features
 
 - Cached torrent fallback: stores last successful torrent list per tag, serves cached data when qBittorrent is unreachable, with stale data banner indicating cache age
