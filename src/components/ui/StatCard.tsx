@@ -32,6 +32,7 @@ interface StatCardRow {
 interface StatCardTotal {
   label: string
   value: string
+  unit?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -63,6 +64,7 @@ interface StatCardStackedProps extends StatCardBase {
   title: string
   rows: StatCardRow[]
   total?: StatCardTotal
+  sumIsHero?: boolean
   tooltip?: string
 }
 
@@ -100,7 +102,7 @@ function Shell({
   return (
     <div
       className={clsx(
-        "bg-raised p-5 flex flex-col gap-2 nm-raised rounded-nm-lg overflow-visible relative",
+        "bg-raised p-5 flex flex-col gap-2 nm-raised-sm rounded-nm-lg overflow-visible relative",
         center && "items-center gap-3",
         className,
       )}
@@ -207,29 +209,37 @@ function BasicContent({ value, unit, trend, subtitle, subValue }: {
 // Stacked variant — multiple label/value rows
 // ---------------------------------------------------------------------------
 
-function StackedContent({ rows, total }: { rows: StatCardRow[]; total?: StatCardTotal }) {
+function StackedContent({ rows, total, sumIsHero }: { rows: StatCardRow[]; total?: StatCardTotal; sumIsHero?: boolean }) {
   return (
     <>
+      {sumIsHero && total && (
+        <div className="flex items-end gap-2">
+          <span className="font-mono text-2xl font-semibold text-primary leading-none tabular-nums">
+            {total.value}
+          </span>
+          {total.unit && <span className="font-mono text-xs font-normal text-muted leading-none mb-0.5">{total.unit}</span>}
+        </div>
+      )}
       <div className="flex flex-col gap-2">
         {rows.map((row, i) => {
           const isEmpty = row.value === "—" || row.value === 0 || row.value === ""
           const color = row.colorClass ?? (isEmpty ? "text-muted" : "text-primary")
           const display = row.prefix ? `${row.prefix}${row.value}` : row.value
-          const withUnit = row.unit ? `${display} ${row.unit}` : display
           return (
             <div key={row.label}>
               {i > 0 && <div className="h-px bg-border opacity-50 mb-2" />}
-              <div className="flex items-baseline justify-between">
-                <span className="text-xs font-mono text-muted">{row.label}</span>
-                <span className={clsx("font-mono text-lg font-semibold leading-none tabular-nums", color)}>
-                  {withUnit}
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-xs font-mono text-muted truncate shrink min-w-0">{row.label}</span>
+                <span className={clsx("font-mono text-lg font-semibold leading-none tabular-nums whitespace-nowrap shrink-0", color)}>
+                  {display}
+                  {row.unit && <span className="text-xs font-normal text-muted ml-1">{row.unit}</span>}
                 </span>
               </div>
             </div>
           )
         })}
       </div>
-      {total && (
+      {total && !sumIsHero && (
         <>
           <div className="h-px bg-border opacity-50" />
           <div className="flex items-baseline justify-between">
@@ -330,7 +340,7 @@ function StatCard(props: StatCardProps) {
     return (
       <Shell accentColor={accentColor} alert={alert} className={className} style={style}>
         <Header label={props.title} icon={icon} tooltip={props.tooltip} alert={alert} alertReason={alertReason} />
-        <StackedContent rows={props.rows} total={props.total} />
+        <StackedContent rows={props.rows} total={props.total} sumIsHero={props.sumIsHero} />
       </Shell>
     )
   }
