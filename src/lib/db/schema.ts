@@ -117,7 +117,7 @@ export const downloadClients = pgTable("download_clients", {
   useSsl: boolean("use_ssl").default(false).notNull(),
   encryptedUsername: text("encrypted_username").notNull(),
   encryptedPassword: text("encrypted_password").notNull(),
-  pollIntervalSeconds: integer("poll_interval_seconds").default(30).notNull(),
+  pollIntervalSeconds: integer("poll_interval_seconds").default(300).notNull(),
   isDefault: boolean("is_default").default(false).notNull(),
   crossSeedTags: text("cross_seed_tags").default("[]").notNull(),
   lastPolledAt: timestamp("last_polled_at"),

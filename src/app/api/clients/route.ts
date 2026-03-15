@@ -135,7 +135,7 @@ export async function POST(request: Request) {
       useSsl: typeof useSsl === "boolean" ? useSsl : false,
       encryptedUsername,
       encryptedPassword,
-      pollIntervalSeconds: typeof pollIntervalSeconds === "number" ? pollIntervalSeconds : 30,
+      pollIntervalSeconds: typeof pollIntervalSeconds === "number" ? pollIntervalSeconds : 300,
       isDefault: resolvedIsDefault,
       crossSeedTags: JSON.stringify(resolvedTags),
     })
