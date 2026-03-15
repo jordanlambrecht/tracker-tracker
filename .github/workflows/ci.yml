@@ -415,7 +415,7 @@ jobs:
           docker rm smoke
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: tracker-tracker:ci
           format: table
