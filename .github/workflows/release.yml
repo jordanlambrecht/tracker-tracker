@@ -7,6 +7,7 @@ on:
 permissions:
   contents: write
   packages: write
+  security-events: write
 
 env:
   REGISTRY: ghcr.io
@@ -76,6 +77,30 @@ jobs:
             type=gha,scope=buildx-arm64
           cache-to: type=gha,mode=max,scope=buildx-${{ steps.tag.outputs.version }}
 
+      - name: Run Trivy vulnerability scanner
+        if: steps.tag.outputs.should_release == 'true'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.version }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+
+      - name: Upload Trivy results to GitHub Security
+        if: steps.tag.outputs.should_release == 'true'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Generate SBOM
+        if: steps.tag.outputs.should_release == 'true'
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.version }}
+          artifact-name: sbom-tracker-tracker.spdx.json
+          output-file: sbom-tracker-tracker.spdx.json
+
       - name: Extract changelog for this version
         if: steps.tag.outputs.should_release == 'true'
         id: changelog
@@ -98,3 +123,4 @@ jobs:
           name: v${{ steps.tag.outputs.version }}
           body: ${{ steps.changelog.outputs.notes }}
           generate_release_notes: false
+          files: sbom-tracker-tracker.spdx.json

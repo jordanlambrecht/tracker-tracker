@@ -377,7 +377,7 @@ jobs:
         run: exit 1
 
   docker:
-    name: Docker Build
+    name: Docker Build & Scan
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
@@ -392,5 +392,33 @@ jobs:
         with:
           context: .
           push: false
+          load: true
+          tags: tracker-tracker:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Smoke test
+        run: |
+          docker run -d --name smoke -p 3000:3000 \
+            -e DATABASE_URL="postgresql://test:test@localhost:5432/test" \
+            -e NODE_ENV=production \
+            tracker-tracker:ci
+          sleep 5
+          STATUS=$(docker inspect -f '{{.State.Status}}' smoke 2>/dev/null || echo "missing")
+          if [ "$STATUS" != "running" ]; then
+            echo "::error::Container exited unexpectedly"
+            docker logs smoke
+            exit 1
+          fi
+          echo "Smoke test passed — container is running."
+          docker stop smoke
+          docker rm smoke
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: tracker-tracker:ci
+          format: table
+          exit-code: "1"
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
