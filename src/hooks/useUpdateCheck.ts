@@ -16,7 +16,7 @@ interface UpdateCheckResult {
  * Compares two semver strings. Returns > 0 if latest is newer, 0 if equal, < 0 if current is newer.
  */
 export function compareVersions(current: string, latest: string): number {
-  // Strip v prefix and pre-release/build metadata (e.g., "1.3.0-beta.1+build" → "1.3.0")
+  // Strip v prefix and pre-release/build metadata (i.e, "1.3.0-beta.1+build" → "1.3.0")
   const clean = (s: string) => s.replace(/^v/, "").split(/[-+]/)[0]
   const a = clean(current).split(".").map(Number)
   const b = clean(latest).split(".").map(Number)
@@ -44,10 +44,9 @@ export function useUpdateCheck(): UpdateCheckResult {
     async function check() {
       try {
         // Try GitHub Releases API first (has explicit "latest" concept)
-        const res = await fetch(
-          `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
-          { headers: { Accept: "application/vnd.github.v3+json" } }
-        )
+        const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
+          headers: { Accept: "application/vnd.github.v3+json" },
+        })
 
         if (res.ok) {
           const data = await res.json()
@@ -59,10 +58,9 @@ export function useUpdateCheck(): UpdateCheckResult {
         }
 
         // Fall back to Tags API (created by `pnpm version` + `git push --tags`)
-        const tagRes = await fetch(
-          `https://api.github.com/repos/${GITHUB_REPO}/tags?per_page=1`,
-          { headers: { Accept: "application/vnd.github.v3+json" } }
-        )
+        const tagRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/tags?per_page=1`, {
+          headers: { Accept: "application/vnd.github.v3+json" },
+        })
 
         if (tagRes.ok) {
           const tags = (await tagRes.json()) as { name: string }[]

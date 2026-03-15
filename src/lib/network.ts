@@ -23,7 +23,7 @@ function isPrivateIpv4Literal(host: string): boolean {
   const ipv4 = toIpv4Integer(host)
   if (ipv4 === null) return false
 
-  const matches = (mask: number, value: number) => ((ipv4 & mask) >>> 0) === (value >>> 0)
+  const matches = (mask: number, value: number) => (ipv4 & mask) >>> 0 === value >>> 0
 
   return (
     matches(0xff000000, 0x0a000000) ||
@@ -71,12 +71,14 @@ function isUnsafeIpv6Literal(host: string): boolean {
     return isPrivateIpv4Literal(mappedIpv4)
   }
 
-  return normalized.startsWith("fc") ||
+  return (
+    normalized.startsWith("fc") ||
     normalized.startsWith("fd") ||
     normalized.startsWith("fe8") ||
     normalized.startsWith("fe9") ||
     normalized.startsWith("fea") ||
     normalized.startsWith("feb")
+  )
 }
 
 function normalizeShorthandIpv4(host: string): string | null {
@@ -128,7 +130,7 @@ export function isUnsafeNetworkHost(host: string): boolean {
   if (version === 4) return isPrivateIpv4Literal(normalized)
   if (version === 6) return isUnsafeIpv6Literal(normalized)
 
-  // Handle shorthand IPv4 forms (e.g., "127.1", "127.0.1") that isIP() doesn't recognize
+  // Handle shorthand IPv4 forms (i.e, "127.1", "127.0.1") that isIP() doesn't recognize
   const expanded = normalizeShorthandIpv4(normalized)
   if (expanded) return isPrivateIpv4Literal(expanded)
 
