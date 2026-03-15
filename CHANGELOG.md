@@ -9,9 +9,7 @@ All notable changes to this project will be documented in this file. See [commit
 
 * remove redundant comment ([18688d5](https://github.com/jordanlambrecht/tracker-tracker/commit/18688d5f1dc4cc1f7c78bb4825b1e9892a344dbf))
 
-# Changelog
-
-## v1.8.4 — 2026-03-15
+## [1.8.4](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.8.3...v1.8.4) (2026-03-15)
 
 ### Features
 
