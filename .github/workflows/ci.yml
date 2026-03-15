@@ -399,20 +399,48 @@ jobs:
 
       - name: Smoke test
         run: |
-          docker run -d --name smoke -p 3000:3000 \
-            -e DATABASE_URL="postgresql://test:test@localhost:5432/test" \
+          set -euo pipefail
+
+          # Create an isolated network for the smoke test
+          docker network create smoke-net
+
+          # Start a Postgres container the app can talk to
+          docker run -d --name smoke-db --network smoke-net \
+            -e POSTGRES_USER=test \
+            -e POSTGRES_PASSWORD=test \
+            -e POSTGRES_DB=test \
+            postgres:16
+
+          # Give Postgres a moment to initialize
+          sleep 10
+
+          # Start the application container connected to the same network
+          docker run -d --name smoke --network smoke-net -p 3000:3000 \
+            -e DATABASE_URL="postgresql://test:test@smoke-db:5432/test" \
             -e NODE_ENV=production \
+            -e SESSION_SECRET="ci-smoke-test-secret" \
             tracker-tracker:ci
+
+          # Wait briefly for the app to start up
           sleep 5
+
           STATUS=$(docker inspect -f '{{.State.Status}}' smoke 2>/dev/null || echo "missing")
           if [ "$STATUS" != "running" ]; then
             echo "::error::Container exited unexpectedly"
-            docker logs smoke
+            docker logs smoke || true
+            # Cleanup on failure
+            docker stop smoke-db >/dev/null 2>&1 || true
+            docker rm smoke-db >/dev/null 2>&1 || true
+            docker network rm smoke-net >/dev/null 2>&1 || true
             exit 1
           fi
+
           echo "Smoke test passed — container is running."
-          docker stop smoke
-          docker rm smoke
+
+          # Cleanup containers and network
+          docker stop smoke smoke-db
+          docker rm smoke smoke-db
+          docker network rm smoke-net
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.28.0
