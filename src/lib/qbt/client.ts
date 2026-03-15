@@ -193,9 +193,12 @@ async function qbtFetch(
   return response
 }
 
-export async function getTorrents(baseUrl: string, sid: string, tag?: string): Promise<QbtTorrent[]> {
-  const params = tag ? `?tag=${encodeURIComponent(tag)}` : ""
-  const url = `${baseUrl}/api/v2/torrents/info${params}`
+export async function getTorrents(baseUrl: string, sid: string, tag?: string, filter?: string): Promise<QbtTorrent[]> {
+  const parts: string[] = []
+  if (tag) parts.push(`tag=${encodeURIComponent(tag)}`)
+  if (filter) parts.push(`filter=${encodeURIComponent(filter)}`)
+  const qs = parts.join("&")
+  const url = `${baseUrl}/api/v2/torrents/info${qs ? `?${qs}` : ""}`
   const host = new URL(baseUrl).hostname
   const response = await qbtFetch(url, host, baseUrl, sid)
   return response.json() as Promise<QbtTorrent[]>

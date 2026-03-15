@@ -4,7 +4,7 @@
 
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import type { TrackerRules } from "@/data/tracker-registry"
 import {
   type AggregatedTorrentsResponse,
@@ -68,6 +68,7 @@ interface TrackerTorrentsData {
   unsatisfiedTorrents: TorrentInfo[]
   unsatisfiedSorted: TorrentInfo[]
   unsatisfiedCount: number | null
+  hnrRiskCount: number | null
   deadCount: number | null
   categoryStats: CategoryStats[]
   topBySeeding: TorrentInfo[]
@@ -91,6 +92,7 @@ function useTrackerTorrents({
   const [torrents, setTorrents] = useState<TorrentInfo[]>([])
   const [crossSeedTags, setCrossSeedTags] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const ready = useRef(false)
   const [torrentError, setTorrentError] = useState<string | null>(null)
   const [noClients, setNoClients] = useState(false)
   const [clientCount, setClientCount] = useState(0)
@@ -138,7 +140,10 @@ function useTrackerTorrents({
         // Network error — try cached fallback
         await fetchCached()
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+          ready.current = true
+        }
       }
     }
 
@@ -176,6 +181,49 @@ function useTrackerTorrents({
     }
   }, [trackerId, qbtTag])
 
+  // Poll active torrents every 5s for live upload/download speeds.
+  // Uses a ref instead of `loading` state to avoid tearing down the
+  // interval if loading ever toggled more than once.
+  useEffect(() => {
+    if (!qbtTag) return
+    let cancelled = false
+
+    async function pollActive() {
+      if (!ready.current) return
+      try {
+        const res = await fetch(`/api/trackers/${trackerId}/torrents?active=true`)
+        if (!res.ok || cancelled) return
+        const data: AggregatedTorrentsResponse = await res.json()
+        if (cancelled) return
+        const activeTorrents = data.torrents.map(mapTorrent)
+        const activeMap = new Map(activeTorrents.map((t) => [t.hash, t]))
+
+        setTorrents((prev) =>
+          prev.map((t) => {
+            const active = activeMap.get(t.hash)
+            if (active) {
+              // Update speed and state from live data
+              return { ...t, upspeed: active.upspeed, dlspeed: active.dlspeed, state: active.state, progress: active.progress }
+            }
+            // Not in active list — zero out speeds and clear active state
+            if (t.upspeed > 0 || t.dlspeed > 0 || t.state === "uploading" || t.state === "downloading") {
+              return { ...t, upspeed: 0, dlspeed: 0, state: t.state === "downloading" ? "stalledDL" : "stalledUP" }
+            }
+            return t
+          })
+        )
+      } catch {
+        // Non-critical — stale speeds are acceptable
+      }
+    }
+
+    const interval = setInterval(pollActive, 5000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [trackerId, qbtTag])
+
   const derived = useMemo(() => {
     const seedingTorrents = torrents.filter((t) => SEEDING_STATES.has(t.state))
     const leechingTorrents = torrents.filter((t) => LEECHING_STATES.has(t.state))
@@ -191,13 +239,18 @@ function useTrackerTorrents({
       return tags.some((tag) => csTagSet.has(tag))
     })
 
-    // H&R risk — unsatisfied torrents (below min seed time)
+    // Unsatisfied: all torrents below min seed time (regardless of state)
     const requiredSeedSeconds =
       rules?.seedTimeHours != null && rules.seedTimeHours > 0 ? rules.seedTimeHours * 3600 : null
     const unsatisfiedTorrents = requiredSeedSeconds
-      ? seedingTorrents.filter((t) => t.seedingTime < requiredSeedSeconds)
+      ? torrents.filter((t) => t.seedingTime < requiredSeedSeconds)
       : []
     const unsatisfiedCount = requiredSeedSeconds ? unsatisfiedTorrents.length : null
+
+    // H&R risk: unsatisfied AND not seeding AND not downloading — actually at risk
+    const hnrRiskCount = requiredSeedSeconds
+      ? unsatisfiedTorrents.filter((t) => !SEEDING_STATES.has(t.state) && !LEECHING_STATES.has(t.state)).length
+      : null
 
     // Dead torrents: client has more torrents than tracker reports seeding
     const deadCount =
@@ -287,6 +340,7 @@ function useTrackerTorrents({
       unsatisfiedTorrents,
       unsatisfiedSorted,
       unsatisfiedCount,
+      hnrRiskCount,
       deadCount,
       categoryStats,
       topBySeeding,
