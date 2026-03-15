@@ -6,12 +6,10 @@
 //
 // Functions: floorToFiveMin, recordHeartbeat, flushCompletedBuckets, removeClientFromAccumulator, clearUptimeAccumulator
 
-import { lt } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { clientUptimeBuckets } from "@/lib/db/schema"
 
 const BUCKET_MS = 5 * 60 * 1000 // 5 minutes
-const DEFAULT_RETENTION_MS = 90 * 24 * 60 * 60 * 1000 // 90 days
 
 interface Bucket {
   ts: number // floored epoch ms
@@ -70,8 +68,23 @@ export function recordHeartbeat(clientId: number, success: boolean): void {
 /**
  * Write completed buckets to the database. Returns the number of buckets flushed.
  * Also prunes entries older than the retention window.
+ *
+ * Scans the accumulator for buckets older than the current 5-min window and
+ * drains the flush queue. This ensures buckets are flushed even if
+ * recordHeartbeat hasn't detected the boundary crossing yet.
+ * Pruning is handled separately in the deep poll cron.
  */
-export async function flushCompletedBuckets(retentionDays?: number | null): Promise<number> {
+export async function flushCompletedBuckets(): Promise<number> {
+  // Move any completed buckets from the accumulator to the flush queue
+  const acc = getAccumulator()
+  const currentTs = floorToFiveMin(new Date()).getTime()
+  for (const [clientId, bucket] of acc) {
+    if (bucket.ts < currentTs) {
+      getFlushQueue().push({ clientId, ...bucket })
+      acc.delete(clientId)
+    }
+  }
+
   const queue = getFlushQueue()
   if (queue.length === 0) return 0
 
@@ -85,11 +98,6 @@ export async function flushCompletedBuckets(retentionDays?: number | null): Prom
       fail: entry.fail,
     }).onConflictDoNothing()
   }
-
-  // Prune old buckets
-  const retMs = retentionDays != null ? retentionDays * 24 * 60 * 60 * 1000 : DEFAULT_RETENTION_MS
-  const cutoff = new Date(Date.now() - retMs)
-  await db.delete(clientUptimeBuckets).where(lt(clientUptimeBuckets.bucketTs, cutoff))
 
   return entries.length
 }

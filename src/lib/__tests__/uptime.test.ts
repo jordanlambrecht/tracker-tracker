@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 vi.mock("@/lib/db", () => ({
   db: {
     insert: vi.fn(),
-    delete: vi.fn(),
   },
 }))
 
@@ -19,12 +18,6 @@ function mockDbInsert() {
     }),
   }
   vi.mocked(db.insert).mockReturnValue(chain as never)
-  return chain
-}
-
-function mockDbDelete() {
-  const chain = { where: vi.fn().mockResolvedValue(undefined) }
-  vi.mocked(db.delete).mockReturnValue(chain as never)
   return chain
 }
 
@@ -70,7 +63,7 @@ describe("recordHeartbeat + flushCompletedBuckets", () => {
 
   it("does not flush a bucket that is still in progress", async () => {
     mockDbInsert()
-    mockDbDelete()
+
     recordHeartbeat(1, true)
     recordHeartbeat(1, true)
     recordHeartbeat(1, false)
@@ -82,7 +75,7 @@ describe("recordHeartbeat + flushCompletedBuckets", () => {
 
   it("flushes a completed bucket when time advances past boundary", async () => {
     const insertChain = mockDbInsert()
-    mockDbDelete()
+
 
     recordHeartbeat(1, true)
     recordHeartbeat(1, true)
@@ -108,7 +101,7 @@ describe("recordHeartbeat + flushCompletedBuckets", () => {
 
   it("tracks multiple clients independently", async () => {
     mockDbInsert()
-    mockDbDelete()
+
 
     recordHeartbeat(1, true)
     recordHeartbeat(2, false)
