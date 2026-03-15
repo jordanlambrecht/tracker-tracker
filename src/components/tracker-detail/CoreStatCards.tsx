@@ -7,6 +7,7 @@ import {
   DownloadArrowIcon,
   LeechingIcon,
   RatioIcon,
+  RequiredRatioIcon,
   SeedingIcon,
   ShieldIcon,
   TriangleWarningIcon,
@@ -32,13 +33,16 @@ export interface StatDescriptor {
 export function buildCoreStatDescriptors(
   stats: TrackerLatestStats | null,
   latestSnapshot: Snapshot | null,
+  minimumRatio?: number,
 ): StatDescriptor[] {
   const [upVal, upUnit] = formatBytesFromString(stats?.uploadedBytes ?? null).split(" ")
   const [dlVal, dlUnit] = formatBytesFromString(stats?.downloadedBytes ?? null).split(" ")
   const [bufVal, bufUnit] = formatBytesFromString(latestSnapshot?.bufferBytes ?? null).split(" ")
 
-  const ratioBelowRequired = stats?.ratio != null && latestSnapshot?.requiredRatio != null && stats.ratio < latestSnapshot.requiredRatio
-  const ratioAlertReason = ratioBelowRequired && latestSnapshot?.requiredRatio != null ? `Below required ratio (${formatRatio(latestSnapshot.requiredRatio)}x)` : undefined
+  const rawRequiredRatio = latestSnapshot?.requiredRatio ?? minimumRatio ?? null
+  const effectiveRequiredRatio = rawRequiredRatio != null && rawRequiredRatio > 0 ? rawRequiredRatio : null
+  const ratioBelowRequired = stats?.ratio != null && effectiveRequiredRatio != null && stats.ratio < effectiveRequiredRatio
+  const ratioAlertReason = ratioBelowRequired && effectiveRequiredRatio != null ? `Below required ratio (${formatRatio(effectiveRequiredRatio)}x)` : undefined
   const bufferNegative = latestSnapshot?.bufferBytes?.startsWith("-")
 
   return [
@@ -58,7 +62,7 @@ export function buildCoreStatDescriptors(
     { key: "seeding", label: "Seeding", icon: <SeedingIcon width="16" height="16" />, value: stats?.seedingCount != null ? stats.seedingCount.toLocaleString() : "—" },
     { key: "leeching", label: "Leeching", icon: <LeechingIcon width="16" height="16" />, value: stats?.leechingCount != null ? stats.leechingCount.toLocaleString() : "—" },
     { key: "hnr", label: "Hit & Runs", icon: <TriangleWarningIcon width="16" height="16" />, value: latestSnapshot?.hitAndRuns != null ? String(latestSnapshot.hitAndRuns) : "—" },
-    { key: "req-ratio", label: "Req. Ratio", icon: <RatioIcon width="16" height="16" />, value: latestSnapshot?.requiredRatio != null ? formatRatio(latestSnapshot.requiredRatio) : "—", unit: latestSnapshot?.requiredRatio != null ? "x" : undefined, tooltip: "The minimum ratio you must maintain" },
+    { key: "req-ratio", label: "Req. Ratio", icon: <RequiredRatioIcon width="16" height="16" />, value: effectiveRequiredRatio != null ? formatRatio(effectiveRequiredRatio) : "—", unit: effectiveRequiredRatio != null ? "x" : undefined, tooltip: "The minimum ratio you must maintain" },
   ]
 }
 
