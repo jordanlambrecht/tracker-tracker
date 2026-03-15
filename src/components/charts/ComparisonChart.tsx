@@ -11,6 +11,7 @@ import { bytesToGiB } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./ChartECharts"
+import { fmtNum, yAxisPad } from "./chart-helpers"
 import { LogScaleToggle } from "./LogScaleToggle"
 import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
 
@@ -157,17 +158,6 @@ function buildComparisonOption(
   // Total data points across all trackers — drives adaptive dot size
   const totalPoints = trackerData.reduce((sum, t) => sum + t.snapshots.length, 0)
   const dotSize = totalPoints > 100 ? 2 : totalPoints > 30 ? 4 : 6
-
-  const fmtNum = (v: number, decimals = 2): string =>
-    v.toLocaleString(undefined, {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    })
-
-  const yAxisPad = (value: { min: number; max: number }) => {
-    const range = value.max - value.min
-    return Math.max(range * 0.15, (value.max || 1) * 0.001)
-  }
 
   // Build series — either per-tracker or single average line
   let series: EChartsOption["series"]

@@ -9,6 +9,7 @@ import { useState } from "react"
 import { bytesToGiB, hexToRgba } from "@/lib/formatters"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
+import { fmtNum } from "./chart-helpers"
 import { LogScaleToggle } from "./LogScaleToggle"
 import { CHART_THEME, chartAxisLabel, chartGrid, chartLegend, chartTooltip, escHtml, shouldUseLogScale } from "./theme"
 
@@ -93,12 +94,6 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
 
   // Diagonal reference line endpoint — max of all axis values
   const maxAxisVal = Math.max(...scaled.map((d) => Math.max(d.x, d.y)), 1)
-
-  const fmtNum = (v: number, decimals = 2): string =>
-    v.toLocaleString(undefined, {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    })
 
   // One series per tracker — required for legend + per-tracker color control
   const series: EChartsOption["series"] = scaled.map((d, i) => {

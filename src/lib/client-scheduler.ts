@@ -1,7 +1,7 @@
 // src/lib/client-scheduler.ts
 //
 // Two polling loops with different cadences:
-//   heartbeat  — lightweight: login + getTransferInfo (2 requests). Runs every 10s.
+//   heartbeat  — lightweight: login + getTransferInfo (2 requests). Runs every 5s.
 //                Stores upload/download speed in memory cache. Updates connection status.
 //                Records success/failure in uptime accumulator (5-min buckets).
 //   deep poll  — heavy: login + getTorrents (all) + filter/dedup + aggregation.
@@ -15,17 +15,18 @@ import { eq, isNotNull, lt } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { appSettings, clientSnapshots, downloadClients, trackers } from "@/lib/db/schema"
+import { appSettings, clientSnapshots, clientUptimeBuckets, downloadClients, trackers } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
 import type { QbtTorrent } from "@/lib/qbt"
 import {
   aggregateByTag,
   clearAllSessions,
   clearSpeedCache,
-  filterAndDedup,
   getTorrents,
   getTransferInfo,
+  parseCrossSeedTags,
   pushSpeedSnapshot,
+  stripSensitiveTorrentFields,
   withSessionRetry,
 } from "@/lib/qbt"
 import { clearUptimeAccumulator, flushCompletedBuckets, recordHeartbeat } from "@/lib/uptime"
@@ -157,28 +158,36 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
       .where(isNotNull(trackers.qbtTag))
 
     const trackerTags = trackerTagRows.map((r) => r.qbtTag as string)
-    let crossSeedTags: string[] = []
-    try {
-      crossSeedTags = JSON.parse(client.crossSeedTags) as string[]
-    } catch { // security-audit-ignore: malformed JSON falls back to empty array
-    }
+    const crossSeedTags = parseCrossSeedTags(client.crossSeedTags)
     const allTags = [...new Set([...trackerTags, ...crossSeedTags])]
 
-    const { allTorrents: rawTorrents, transfer } = await withSessionRetry(
+    // Fetch torrents per-tag in parallel (avoids downloading the full unfiltered
+    // torrent list). Each request returns only torrents matching that tag.
+    // Dedup by hash in case a torrent has multiple known tags.
+    const { torrents, transfer } = await withSessionRetry(
       client.host,
       client.port,
       client.useSsl,
       username,
       password,
       async (baseUrl, sid) => {
-        const [raw, xfer] = await Promise.all([
-          getTorrents(baseUrl, sid),
+        const [tagSettled, xfer] = await Promise.all([
+          Promise.allSettled(allTags.map((tag) => getTorrents(baseUrl, sid, tag))),
           getTransferInfo(baseUrl, sid),
         ])
-        return { allTorrents: raw as QbtTorrent[], transfer: xfer }
+        const seen = new Set<string>()
+        const deduped: QbtTorrent[] = []
+        for (const result of tagSettled) {
+          if (result.status !== "fulfilled") continue
+          for (const t of result.value) {
+            if (!t.isPrivate || seen.has(t.hash)) continue
+            seen.add(t.hash)
+            deduped.push(t)
+          }
+        }
+        return { torrents: deduped, transfer: xfer }
       }
     )
-    const torrents = filterAndDedup(rawTorrents, allTags)
 
     log.debug(
       `[deep-poll] client=${clientId} → ${torrents.length} relevant torrents (${allTags.length} tags)`
@@ -187,9 +196,7 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
     const stats = aggregateByTag(torrents, trackerTags, crossSeedTags)
 
     // Cache the filtered torrent list for fallback when client is offline.
-    // Strip fields that may contain credentials (tracker announce URLs with
-    // passkeys) or expose server filesystem paths before persisting.
-    const sanitizedTorrents = torrents.map(({ tracker: _t, content_path: _cp, save_path: _sp, ...rest }) => rest)
+    const sanitizedTorrents = torrents.map(stripSensitiveTorrentFields)
     await db
       .update(downloadClients)
       .set({
@@ -241,9 +248,6 @@ async function deepPollAllClients(encryptionKey: Buffer): Promise<void> {
 
   await Promise.allSettled(overdue.map((c) => deepPollClient(c.id, encryptionKey)))
 
-  // Prune client snapshots older than 30 days
-  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-  await db.delete(clientSnapshots).where(lt(clientSnapshots.polledAt, cutoff))
 }
 
 // ---------------------------------------------------------------------------
@@ -261,12 +265,13 @@ export function startClientScheduler(encryptionKey: Buffer): void {
     log.error(error, "Initial deep poll error")
   })
 
-  // Heartbeat: every 10 seconds — lightweight speed + connection check
-  const hbTask = cron.schedule("*/10 * * * * *", async () => {
+  // Heartbeat: every 5 seconds — lightweight speed + connection check
+  const hbTask = cron.schedule("*/5 * * * * *", async () => {
     if (heartbeatInFlight) return
     heartbeatInFlight = true
     try {
       await heartbeatAllClients(encryptionKey)
+      await flushCompletedBuckets()
     } catch (error) {
       log.error(error, "Client heartbeat error")
     } finally {
@@ -281,8 +286,12 @@ export function startClientScheduler(encryptionKey: Buffer): void {
     deepPollInFlight = true
     try {
       await deepPollAllClients(encryptionKey)
+      // Prune client snapshots + uptime buckets using snapshotRetentionDays
       const [settings] = await db.select({ retention: appSettings.snapshotRetentionDays }).from(appSettings).limit(1)
-      await flushCompletedBuckets(settings?.retention ?? null)
+      const retentionDays = settings?.retention ?? 90
+      const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000)
+      await db.delete(clientSnapshots).where(lt(clientSnapshots.polledAt, cutoff))
+      await db.delete(clientUptimeBuckets).where(lt(clientUptimeBuckets.bucketTs, cutoff))
     } catch (error) {
       log.error(error, "Client deep poll error")
     } finally {
@@ -291,7 +300,7 @@ export function startClientScheduler(encryptionKey: Buffer): void {
   })
   setDeepPollTask(dpTask)
 
-  log.info("Client scheduler started (heartbeat: 10s, deep poll: 5m)")
+  log.info("Client scheduler started (heartbeat: 5s, deep poll: 5m)")
 }
 
 export function stopClientScheduler(): void {

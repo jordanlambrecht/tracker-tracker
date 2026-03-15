@@ -7,15 +7,8 @@
 import type { EChartsOption } from "echarts"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { buildTagColors, 
-  CHART_THEME,
-  chartAxisLabel,
-  chartDot,
-  chartGrid,
-  chartLegend,
-  chartTooltip,
-  chartTooltipHeader,
-  escHtml,} from "./theme"
+import { formatDateLabel } from "./chart-helpers"
+import { buildTagColors, CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
 
 interface FleetCategoryTimelineProps {
   torrents: { added_on: number; category: string }[]
@@ -65,11 +58,6 @@ function groupByCategory(
   }))
 
   return { sortedDates, series }
-}
-
-function formatDateLabel(isoDate: string): string {
-  const date = new Date(`${isoDate}T12:00:00`)
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
 }
 
 function buildCategoryTimelineOption(

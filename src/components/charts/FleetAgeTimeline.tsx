@@ -1,6 +1,6 @@
 // src/components/charts/FleetAgeTimeline.tsx
 //
-// Functions: formatDateLabel, groupByDate, buildFleetAgeTimelineOption, FleetAgeTimeline
+// Functions: groupByDate, buildFleetAgeTimelineOption, FleetAgeTimeline
 
 "use client"
 
@@ -8,6 +8,7 @@ import type { EChartsOption } from "echarts"
 import type { TrackerTag } from "@/lib/fleet"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
+import { formatDateLabel } from "./chart-helpers"
 import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
 
 interface FleetAgeTimelineProps {
@@ -20,11 +21,6 @@ interface SeriesData {
   name: string
   color: string
   dateMap: Map<string, number>
-}
-
-function formatDateLabel(isoDate: string): string {
-  const date = new Date(`${isoDate}T12:00:00`)
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
 }
 
 function groupByDate(

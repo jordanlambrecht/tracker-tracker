@@ -11,7 +11,7 @@ import { authenticate, decodeKey } from "@/lib/api-helpers"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { downloadClients, trackers } from "@/lib/db/schema"
-import { getTorrents, type QbtTorrent, withSessionRetry } from "@/lib/qbt"
+import { getTorrents, parseCrossSeedTags, type QbtTorrent, stripSensitiveTorrentFields, withSessionRetry } from "@/lib/qbt"
 import { aggregateCrossSeedTags, mergeTorrentLists } from "@/lib/qbt/merge"
 
 async function fetchClientTorrents(
@@ -64,7 +64,7 @@ export async function GET() {
   const results = await Promise.allSettled(
     clients.map(async (client) => ({
       clientName: client.name,
-      crossSeedTags: (() => { try { return JSON.parse(client.crossSeedTags) as string[] } catch { return [] } })(),
+      crossSeedTags: parseCrossSeedTags(client.crossSeedTags),
       torrents: await fetchClientTorrents(client, tags, key),
     }))
   )
@@ -96,10 +96,9 @@ export async function GET() {
   const merged = mergeTorrentLists(torrentLists)
   const crossSeedTags = aggregateCrossSeedTags(crossSeedClients)
 
-  // Strip fields that may contain credentials (tracker announce URLs with
-  // passkeys) or expose server filesystem paths, then stamp client name(s).
-  const stamped = merged.map(({ tracker: _t, content_path: _cp, save_path: _sp, ...t }) => ({
-    ...t,
+  // Strip sensitive fields, then stamp client name(s).
+  const stamped = merged.map((t) => ({
+    ...stripSensitiveTorrentFields(t),
     client_name: (hashClients.get(t.hash) ?? []).join(", "),
   }))
 

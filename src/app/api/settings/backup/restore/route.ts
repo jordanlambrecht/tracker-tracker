@@ -428,7 +428,7 @@ export async function POST(request: Request) {
 
       // Batch insert clientUptimeBuckets (remap clientId, optional for older backups)
       if (Array.isArray(payload.clientUptimeBuckets) && payload.clientUptimeBuckets.length > 0) {
-        const uptimeRows: Record<string, unknown>[] = []
+        const uptimeRows: { clientId: number; bucketTs: Date; ok: number; fail: number }[] = []
         for (const ub of payload.clientUptimeBuckets) {
           const fields = ub as Record<string, unknown>
           const newClientId = clientIdMap.get(fields.clientId as number)
@@ -440,7 +440,12 @@ export async function POST(request: Request) {
             fail: (fields.fail as number) ?? 0,
           })
         }
-        await batchInsert(tx, clientUptimeBuckets, uptimeRows)
+        for (let i = 0; i < uptimeRows.length; i += BATCH_SIZE) {
+          const batch = uptimeRows.slice(i, i + BATCH_SIZE)
+          if (batch.length > 0) {
+            await tx.insert(clientUptimeBuckets).values(batch).onConflictDoNothing()
+          }
+        }
       }
 
       // Re-encrypt proxy password if possible

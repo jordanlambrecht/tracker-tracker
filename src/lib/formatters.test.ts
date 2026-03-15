@@ -32,8 +32,8 @@ describe("bytesToGiB", () => {
 })
 
 describe("formatBytesNum", () => {
-  it("returns 0 for zero bytes", () => {
-    expect(formatBytesNum(0)).toBe("0")
+  it("returns 0 B for zero bytes", () => {
+    expect(formatBytesNum(0)).toBe("0 B")
   })
 
   it("formats positive bytes with binary units", () => {
@@ -61,10 +61,15 @@ describe("formatBytesNum", () => {
     expect(formatBytesNum(1.5 * 1024 ** 3)).toBe("1.50 GiB")
   })
 
+  it("formats PiB for very large values", () => {
+    const huge = 1024 ** 5
+    expect(formatBytesNum(huge)).toBe("1.00 PiB")
+  })
+
   it("clamps unit index to array bounds", () => {
-    const huge = 1024 ** 6
+    const huge = 1024 ** 7
     const result = formatBytesNum(huge)
-    expect(result).toMatch(/TiB$/)
+    expect(result).toMatch(/PiB$/)
   })
 })
 

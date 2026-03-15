@@ -11,6 +11,7 @@ import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
+import { fmtNum } from "./chart-helpers"
 import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
 
 // ---------------------------------------------------------------------------
@@ -98,12 +99,6 @@ function computeTrackerDeltas(trackerData: TrackerSnapshotSeries[]) {
 
   return { trackerDeltas, sortedDays, divisor, unit }
 }
-
-const fmtNum = (v: number): string =>
-  Math.abs(v).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
 
 // ---------------------------------------------------------------------------
 // Bar chart builder (existing)

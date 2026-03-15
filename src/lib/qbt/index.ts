@@ -5,3 +5,4 @@ export { buildBaseUrl, clearAllSessions, getSession, getTorrents, getTransferInf
 export type { SpeedSnapshot } from "./speed-cache"
 export { clearSpeedCache, getSpeedSnapshots, pushSpeedSnapshot } from "./speed-cache"
 export type { ClientStats, QbtTorrent, QbtTransferInfo, TagStats } from "./types"
+export { parseCrossSeedTags, stripSensitiveTorrentFields } from "./utils"

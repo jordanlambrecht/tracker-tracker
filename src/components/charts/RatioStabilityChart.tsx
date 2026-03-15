@@ -11,6 +11,7 @@ import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
+import { fmtNum, yAxisPad } from "./chart-helpers"
 import { LogScaleToggle } from "./LogScaleToggle"
 import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
 
@@ -112,11 +113,6 @@ function buildRatioStabilityOption(
   }
   const autoLog = shouldUseLogScale(allRatioValues)
   const useLog = forceLog ?? autoLog
-
-  const yAxisPad = (value: { min: number; max: number }) => {
-    const range = value.max - value.min
-    return Math.max(range * 0.15, (value.max || 1) * 0.001)
-  }
 
   // Pre-compute EMA + band for each tracker, keyed by timestamp
   const trackerComputations = trackerData.map((tracker) => {
@@ -304,11 +300,7 @@ function buildRatioStabilityOption(
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: chartAxisLabel({
-        formatter: (val: number) =>
-          val.toLocaleString(undefined, {
-            minimumFractionDigits: 1,
-            maximumFractionDigits: 1,
-          }),
+        formatter: (val: number) => fmtNum(val, 1),
       }),
       splitLine: {
         lineStyle: {

@@ -11,6 +11,7 @@ import { bytesToGiB, getComplementaryColor, hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
+import { fmtNum, yAxisPad } from "./chart-helpers"
 import { LogScaleToggle } from "./LogScaleToggle"
 import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
 
@@ -75,13 +76,6 @@ const METRIC_CONFIGS: Record<Exclude<Metric, "dailyDelta">, MetricConfig> = {
 
 const BORDER_SOFT = CHART_THEME.gridLine
 const TERTIARY_COLOR = CHART_THEME.textTertiary
-
-function fmtNum(v: number, decimals = 2): string {
-  return v.toLocaleString(undefined, {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  })
-}
 
 // ── Daily delta computation ──
 
@@ -148,11 +142,6 @@ function buildLineOption(
 
   const data = rawData.map((v) => (v !== null ? Number((v / divisor).toFixed(3)) : null))
   const dotSize = snapshots.length > 100 ? 2 : snapshots.length > 30 ? 4 : 6
-
-  const yAxisPad = (value: { min: number; max: number }) => {
-    const range = value.max - value.min
-    return Math.max(range * 0.15, (value.max || 1) * 0.001)
-  }
 
   const showSlider = snapshots.length >= 30
   const dataZoom: EChartsOption["dataZoom"] = []

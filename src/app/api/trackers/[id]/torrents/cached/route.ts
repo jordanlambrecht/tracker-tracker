@@ -10,7 +10,7 @@ import { NextResponse } from "next/server"
 import { authenticate, parseTrackerId } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { downloadClients, trackers } from "@/lib/db/schema"
-import type { QbtTorrent } from "@/lib/qbt"
+import { parseCrossSeedTags, type QbtTorrent } from "@/lib/qbt"
 import { aggregateCrossSeedTags, mergeTorrentLists } from "@/lib/qbt/merge"
 
 export async function GET(
@@ -98,13 +98,7 @@ export async function GET(
       hashClients.set(t.hash, names)
     }
 
-    let parsedTags: string[] = []
-    try {
-      parsedTags = JSON.parse(client.crossSeedTags) as string[]
-    } catch {
-      // malformed JSON, treat as empty
-    }
-    crossSeedClients.push({ crossSeedTags: parsedTags })
+    crossSeedClients.push({ crossSeedTags: parseCrossSeedTags(client.crossSeedTags) })
 
     // Track the oldest cache timestamp for the stale indicator.
     // We use the oldest (most pessimistic) timestamp across clients so the

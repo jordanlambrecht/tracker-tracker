@@ -1,6 +1,6 @@
 // src/lib/formatters.ts
 //
-// Functions: formatBytesFromString, bytesToGiB, formatBytesFromNumber, formatBytesNum, formatRatio, formatAccountAge, formatJoinedDate, hexToRgba, hexToHsl, hslToHex, generatePalette, getComplementaryColor, formatStatValue, computeDelta, formatDuration, formatTimeAgo, splitValueUnit
+// Functions: formatBytesFromString, bytesToGiB, formatBytesNum, formatRatio, formatAccountAge, formatJoinedDate, hexToRgba, hexToHsl, hslToHex, generatePalette, getComplementaryColor, formatStatValue, computeDelta, formatDuration, formatTimeAgo, splitValueUnit
 
 import type { Snapshot, TrackerLatestStats } from "@/types/api"
 
@@ -28,28 +28,18 @@ export function bytesToGiB(bytesStr: string | null | undefined): number {
 
 /**
  * Formats a JS number of bytes into a human-readable string with auto-scaling.
- * Uses binary units (KiB, MiB, GiB, TiB, PiB).
- */
-export function formatBytesFromNumber(bytes: number): string {
-  if (bytes === 0) return "0 B"
-  const units = ["B", "KiB", "MiB", "GiB", "TiB", "PiB"]
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
-  return `${(bytes / 1024 ** i).toFixed(i === 0 ? 0 : 2)} ${units[i]}`
-}
-
-/**
- * Formats a JS number of bytes into a human-readable string with auto-scaling.
- * Uses binary units (KiB, MiB, GiB, TiB) by default, or decimal (KB, MB, GB, TB)
+ * Uses binary units (KiB, MiB, GiB, TiB, PiB) by default, or decimal (KB, MB, GB, TB, PB)
  * when binary is false. Handles negative values (e.g. negative buffer).
+ * Adaptive precision: 0dp for ≥100, 1dp for ≥10, 2dp for <10.
  */
 export function formatBytesNum(bytes: number, binary = true): string {
-  if (bytes === 0) return "0"
+  if (bytes === 0) return "0 B"
   const sign = bytes < 0 ? "-" : ""
   const abs = Math.abs(bytes)
   const k = binary ? 1024 : 1000
   const units = binary
-    ? ["B", "KiB", "MiB", "GiB", "TiB"]
-    : ["B", "KB", "MB", "GB", "TB"]
+    ? ["B", "KiB", "MiB", "GiB", "TiB", "PiB"]
+    : ["B", "KB", "MB", "GB", "TB", "PB"]
   const i = Math.min(Math.floor(Math.log(abs) / Math.log(k)), units.length - 1)
   const val = abs / k ** i
   return `${sign}${val.toFixed(val >= 100 ? 0 : val >= 10 ? 1 : 2)} ${units[i]}`

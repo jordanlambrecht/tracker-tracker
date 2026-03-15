@@ -9,6 +9,7 @@ import { bytesToGiB, getComplementaryColor, hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
+import { fmtNum, yAxisPad } from "./chart-helpers"
 import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
 
 interface UploadDownloadChartProps {
@@ -49,18 +50,7 @@ function buildOption(
 
   const complementColor = getComplementaryColor(accentColor)
 
-  const fmtNum = (v: number, decimals = 2): string =>
-    v.toLocaleString(undefined, {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    })
-
   // Dynamic Y-axis padding — recalculates when series are toggled via legend
-  const yAxisPad = (value: { min: number; max: number }) => {
-    const range = value.max - value.min
-    return Math.max(range * 0.15, (value.max || 1) * 0.001)
-  }
-
   const dataZoom: EChartsOption["dataZoom"] = []
   if (showDataZoom) {
     dataZoom.push({
