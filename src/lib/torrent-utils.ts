@@ -9,7 +9,7 @@
 import { LEECHING_STATES, SEEDING_STATES, type TorrentRaw } from "@/lib/fleet"
 
 // Re-export constants from fleet.ts — single source of truth
-export { SEEDING_STATES, LEECHING_STATES }
+export { LEECHING_STATES, SEEDING_STATES }
 
 // QbtTorrentRaw is the same shape as TorrentRaw (fleet.ts) — aliased here
 // for semantic clarity in per-tracker contexts vs fleet-wide contexts.

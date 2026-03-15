@@ -354,5 +354,5 @@ function StatCard(props: StatCardProps) {
   )
 }
 
+export type { AlertLevel, StatCardBasicProps, StatCardProps, StatCardRingProps, StatCardRow, StatCardStackedProps, StatCardTotal, TrendDirection }
 export { StatCard }
-export type { AlertLevel, StatCardProps, StatCardBasicProps, StatCardStackedProps, StatCardRingProps, StatCardRow, StatCardTotal, TrendDirection }

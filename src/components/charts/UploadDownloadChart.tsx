@@ -247,5 +247,5 @@ function UploadDownloadChart({
   )
 }
 
-export { UploadDownloadChart }
 export type { UploadDownloadChartProps }
+export { UploadDownloadChart }

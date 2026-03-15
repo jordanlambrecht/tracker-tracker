@@ -117,5 +117,5 @@ function NumberInput({
   )
 }
 
-export { NumberInput }
 export type { NumberInputProps }
+export { NumberInput }

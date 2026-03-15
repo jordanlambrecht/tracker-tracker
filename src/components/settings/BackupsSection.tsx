@@ -4,6 +4,7 @@
 
 "use client"
 
+import { H2, Paragraph, Subtext } from "@typography"
 import { type ChangeEvent, useRef, useState } from "react"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
@@ -15,7 +16,6 @@ import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
 import { Toggle } from "@/components/ui/Toggle"
 import { Tooltip } from "@/components/ui/Tooltip"
-import { H2, Paragraph, Subtext } from "@typography"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 import { extractApiError } from "@/lib/client-helpers"
 import { downloadResponseBlob } from "@/lib/download"

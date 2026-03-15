@@ -327,5 +327,5 @@ function BufferVelocityChart({
   )
 }
 
-export { BufferVelocityChart }
 export type { BufferVelocityChartProps }
+export { BufferVelocityChart }

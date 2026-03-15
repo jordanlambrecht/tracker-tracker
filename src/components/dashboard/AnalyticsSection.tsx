@@ -4,6 +4,7 @@
 
 "use client"
 
+import { H2 } from "@typography"
 import dynamic from "next/dynamic"
 import { BufferCandlestickChart } from "@/components/charts/BufferCandlestickChart"
 import { BufferVelocityChart } from "@/components/charts/BufferVelocityChart"
@@ -18,7 +19,6 @@ import { TrackerBubbleChart } from "@/components/charts/TrackerBubbleChart"
 import { ChartCard } from "@/components/dashboard/ChartCard"
 import { DASHBOARD_CHARTS, useChartPreferences } from "@/components/dashboard/useChartPreferences"
 import { ChevronUpIcon } from "@/components/ui/Icons"
-import { H2 } from "@typography"
 import type { TrackerSummary } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 

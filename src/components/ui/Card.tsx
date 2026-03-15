@@ -55,5 +55,5 @@ function Card({
   )
 }
 
+export type { CardElevation, CardProps }
 export { Card }
-export type { CardProps, CardElevation }

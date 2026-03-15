@@ -4,6 +4,7 @@
 
 "use client"
 
+import { H1, H2, Paragraph } from "@typography"
 import { useEffect, useState } from "react"
 import { DownloadClients } from "@/components/DownloadClients"
 import { QbitmanageSettings } from "@/components/QbitmanageSettings"
@@ -17,7 +18,6 @@ import { TagGroups } from "@/components/TagGroups"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { TabBar } from "@/components/ui/TabBar"
-import { H1, H2, Paragraph } from "@typography"
 import { extractApiError } from "@/lib/client-helpers"
 import type { TrackerSummary } from "@/types/api"
 

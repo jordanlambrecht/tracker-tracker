@@ -2,6 +2,7 @@
 //
 // Functions: TrackerDetailHeader
 
+import { H1 } from "@typography"
 import Image from "next/image"
 import { TrackerHubStatus } from "@/components/TrackerHubStatus"
 import { SlotRenderer } from "@/components/tracker-detail/SlotRenderer"
@@ -11,7 +12,6 @@ import { Button } from "@/components/ui/Button"
 import { BugIcon, ExternalLinkSmallIcon, GearIcon } from "@/components/ui/Icons"
 import { PulseDot } from "@/components/ui/PulseDot"
 import { Tooltip } from "@/components/ui/Tooltip"
-import { H1 } from "@typography"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import type { ResolvedSlot } from "@/lib/slot-types"
 import { getHealthBadgeVariant, getHealthDescription, getHealthPulseDot, getTrackerHealth } from "@/lib/tracker-status"

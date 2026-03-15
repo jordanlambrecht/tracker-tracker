@@ -375,5 +375,5 @@ function DailyVolumeChart({ trackerData, height = 360 }: DailyVolumeChartProps) 
   )
 }
 
-export { DailyVolumeChart, computePerTrackerDailyDeltas }
 export type { DailyVolumeChartProps }
+export { computePerTrackerDailyDeltas, DailyVolumeChart }

@@ -157,5 +157,5 @@ function FleetCrossSeedDonut({
   )
 }
 
-export { FleetCrossSeedDonut }
 export type { FleetCrossSeedDonutProps }
+export { FleetCrossSeedDonut }

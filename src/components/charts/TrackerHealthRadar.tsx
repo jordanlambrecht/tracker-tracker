@@ -191,5 +191,5 @@ function TrackerHealthRadar({
   )
 }
 
-export { TrackerHealthRadar, computeTrackerMetrics, normalizeMetrics }
 export type { TrackerHealthRadarProps, TrackerTag }
+export { computeTrackerMetrics, normalizeMetrics, TrackerHealthRadar }

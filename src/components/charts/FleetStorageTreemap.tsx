@@ -211,5 +211,5 @@ function FleetStorageTreemap({
   )
 }
 
-export { FleetStorageTreemap, goldenAngleColor, groupTorrentsForTreemap }
 export type { FleetStorageTreemapProps }
+export { FleetStorageTreemap, goldenAngleColor, groupTorrentsForTreemap }

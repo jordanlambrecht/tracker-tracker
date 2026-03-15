@@ -134,5 +134,5 @@ function useDashboardData(): DashboardData {
   }
 }
 
-export { useDashboardData }
 export type { DashboardData }
+export { useDashboardData }

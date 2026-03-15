@@ -64,5 +64,5 @@ function Toggle({ label, checked, onChange, disabled = false, description, id }:
   )
 }
 
-export { Toggle }
 export type { ToggleProps }
+export { Toggle }

@@ -1,13 +1,13 @@
 // src/components/ui/ErrorDisplay.tsx
 "use client"
 
+import { H1 } from "@typography"
 import clsx from "clsx"
 import Link from "next/link"
 import { useState } from "react"
 import { Button, buttonVariants } from "@/components/ui/Button"
 import { CheckLargeIcon, CopyIcon } from "@/components/ui/Icons"
 import { Tooltip } from "@/components/ui/Tooltip"
-import { H1 } from "@typography"
 
 export function ErrorDisplay({
   message,

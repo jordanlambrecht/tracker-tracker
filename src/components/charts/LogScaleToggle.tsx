@@ -31,5 +31,5 @@ function LogScaleToggle({ effectiveLog, isAuto, onToggle }: LogScaleToggleProps)
   )
 }
 
-export { LogScaleToggle }
 export type { LogScaleToggleProps }
+export { LogScaleToggle }

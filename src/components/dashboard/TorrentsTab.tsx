@@ -2,6 +2,7 @@
 
 "use client"
 
+import { H2 } from "@typography"
 import { useState } from "react"
 import { ParallelTorrentsChart } from "@/components/charts/ParallelTorrentsChart"
 import { StorageSunburst } from "@/components/charts/StorageSunburst"
@@ -26,7 +27,6 @@ import {
   UnsatisfiedTorrentsTable,
 } from "@/components/dashboard/torrents"
 import { Card } from "@/components/ui/Card"
-import { H2 } from "@typography"
 import type { TrackerRules } from "@/data/tracker-registry"
 import { useTrackerTorrents } from "@/hooks/useTrackerTorrents"
 import { formatBytesNum, formatTimeAgo } from "@/lib/formatters"
@@ -273,5 +273,5 @@ function TorrentsTab({ trackerId, trackerName, qbtTag, accentColor, rules, tagGr
   )
 }
 
-export { TorrentsTab }
 export type { TorrentsTabProps }
+export { TorrentsTab }

@@ -326,5 +326,5 @@ function BufferCandlestickChart({
   )
 }
 
-export { BufferCandlestickChart }
 export type { BufferCandlestickChartProps }
+export { BufferCandlestickChart }

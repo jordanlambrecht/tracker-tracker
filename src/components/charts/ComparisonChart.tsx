@@ -383,5 +383,5 @@ function ComparisonChart({
   )
 }
 
-export { ComparisonChart, buildComparisonOption }
 export type { ChartMetric, ComparisonChartProps }
+export { buildComparisonOption, ComparisonChart }

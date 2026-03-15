@@ -294,5 +294,5 @@ function FleetSpeedSparklines({ clients }: FleetSpeedSparklinesProps) {
   )
 }
 
+export type { FleetSpeedSparklinesProps, SpeedEntry }
 export { FleetSpeedSparklines }
-export type { SpeedEntry, FleetSpeedSparklinesProps }

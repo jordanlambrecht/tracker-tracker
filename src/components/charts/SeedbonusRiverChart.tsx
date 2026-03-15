@@ -190,5 +190,5 @@ function SeedbonusRiverChart({
   )
 }
 
-export { SeedbonusRiverChart }
 export type { SeedbonusRiverChartProps }
+export { SeedbonusRiverChart }

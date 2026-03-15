@@ -198,5 +198,5 @@ function FleetAgeTimeline({
   )
 }
 
-export { FleetAgeTimeline, groupByDate, formatDateLabel }
 export type { FleetAgeTimelineProps, TrackerTag }
+export { FleetAgeTimeline, formatDateLabel, groupByDate }

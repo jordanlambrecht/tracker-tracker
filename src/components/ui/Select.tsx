@@ -117,5 +117,5 @@ function Select<T extends string>({
   )
 }
 
+export type { SelectOption, SelectProps, SelectSize }
 export { Select }
-export type { SelectProps, SelectOption, SelectSize }

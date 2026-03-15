@@ -382,5 +382,5 @@ function VolumeSurface3D({ trackerData, height = 480 }: VolumeSurface3DProps) {
   )
 }
 
-export { VolumeSurface3D, computeDailyGrid }
 export type { VolumeSurface3DProps }
+export { computeDailyGrid, VolumeSurface3D }

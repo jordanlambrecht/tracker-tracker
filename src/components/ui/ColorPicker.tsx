@@ -153,5 +153,5 @@ function ColorPicker({ value, onChange, label }: ColorPickerProps) {
   )
 }
 
-export { ColorPicker }
 export type { ColorPickerProps }
+export { ColorPicker }

@@ -43,5 +43,5 @@ function FleetRatioDistribution({
   )
 }
 
-export { FleetRatioDistribution }
 export type { FleetRatioDistributionProps }
+export { FleetRatioDistribution }

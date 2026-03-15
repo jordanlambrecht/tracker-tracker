@@ -239,5 +239,5 @@ function StorageSunburst({
 // Exports
 // ---------------------------------------------------------------------------
 
-export { StorageSunburst }
 export type { StorageSunburstProps }
+export { StorageSunburst }

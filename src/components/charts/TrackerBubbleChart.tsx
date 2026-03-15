@@ -274,5 +274,5 @@ function TrackerBubbleChart({ trackers, height = 360 }: TrackerBubbleChartProps)
   )
 }
 
-export { TrackerBubbleChart }
 export type { TrackerBubbleChartProps, TrackerBubbleData }
+export { TrackerBubbleChart }

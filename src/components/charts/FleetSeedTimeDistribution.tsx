@@ -51,5 +51,5 @@ function FleetSeedTimeDistribution({
   )
 }
 
-export { FleetSeedTimeDistribution }
 export type { FleetSeedTimeDistributionProps }
+export { FleetSeedTimeDistribution }

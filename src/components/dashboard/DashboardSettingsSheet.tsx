@@ -7,6 +7,7 @@
 import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core"
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
+import { H2 } from "@typography"
 import { useCallback, useState } from "react"
 import { CHART_THEME } from "@/components/charts/theme"
 import type { ChartDef } from "@/components/dashboard/useChartPreferences"
@@ -15,7 +16,6 @@ import { useDashboardSettings } from "@/components/dashboard/useDashboardSetting
 import { Sheet } from "@/components/ui/Sheet"
 import { TabBar } from "@/components/ui/TabBar"
 import { Toggle } from "@/components/ui/Toggle"
-import { H2 } from "@typography"
 
 interface SortableChartItemProps {
   def: ChartDef

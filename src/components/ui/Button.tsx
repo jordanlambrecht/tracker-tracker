@@ -75,5 +75,5 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 
 Button.displayName = "Button"
 
+export type { ButtonProps, ButtonSize, ButtonVariant }
 export { Button, button as buttonVariants, sizeRadii as buttonRadii }
-export type { ButtonProps, ButtonVariant, ButtonSize }

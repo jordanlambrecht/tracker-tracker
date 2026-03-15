@@ -363,5 +363,5 @@ function RatioStabilityChart({
   )
 }
 
-export { RatioStabilityChart, computeEmaWithBand }
 export type { RatioStabilityChartProps }
+export { computeEmaWithBand, RatioStabilityChart }

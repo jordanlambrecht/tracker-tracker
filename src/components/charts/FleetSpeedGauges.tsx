@@ -149,5 +149,5 @@ function FleetSpeedGauges({
   )
 }
 
-export { FleetSpeedGauges }
 export type { FleetSpeedGaugesProps }
+export { FleetSpeedGauges }

@@ -195,5 +195,5 @@ function SpeedHistoryChart({ snapshots, height = 360 }: SpeedHistoryChartProps) 
   )
 }
 
-export { SpeedHistoryChart }
 export type { SpeedHistoryChartProps }
+export { SpeedHistoryChart }

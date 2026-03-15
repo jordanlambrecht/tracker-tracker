@@ -36,5 +36,5 @@ function ChevronToggle({ expanded, variant = "pivot", className }: ChevronToggle
   )
 }
 
-export { ChevronToggle }
 export type { ChevronToggleProps }
+export { ChevronToggle }

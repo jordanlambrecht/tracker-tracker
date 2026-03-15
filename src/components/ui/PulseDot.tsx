@@ -76,5 +76,5 @@ function PulseDot({
   )
 }
 
+export type { PulseDotProps, PulseDotSize, PulseDotStatus }
 export { PulseDot }
-export type { PulseDotProps, PulseDotStatus, PulseDotSize }

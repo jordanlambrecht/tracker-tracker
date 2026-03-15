@@ -4,13 +4,13 @@
 
 "use client"
 
+import { H2 } from "@typography"
 import clsx from "clsx"
 import { useState } from "react"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { Tooltip } from "@/components/ui/Tooltip"
-import { H2 } from "@typography"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { hexToRgba } from "@/lib/formatters"
 import type { TrackerLatestStats } from "@/types/api"

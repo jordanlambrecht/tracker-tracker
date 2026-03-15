@@ -67,4 +67,4 @@ function Subtext({ className, children, ...props }: HTMLAttributes<HTMLParagraph
   )
 }
 
-export { H1, H2, H3, Subheader, Paragraph, Subtext }
+export { H1, H2, H3, Paragraph, Subheader, Subtext }

@@ -7,6 +7,7 @@
 import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core"
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
+import { H2, H3, Paragraph } from "@typography"
 import clsx from "clsx"
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/Button"
@@ -16,7 +17,6 @@ import { EmojiPickerPopover } from "@/components/ui/EmojiPickerPopover"
 import { Input } from "@/components/ui/Input"
 import { Toggle } from "@/components/ui/Toggle"
 import { Tooltip } from "@/components/ui/Tooltip"
-import { H2, H3, Paragraph } from "@typography"
 import type { TagGroup, TagGroupChartType } from "@/types/api"
 
 const CHART_TYPE_OPTIONS: { value: TagGroupChartType; label: string }[] = [

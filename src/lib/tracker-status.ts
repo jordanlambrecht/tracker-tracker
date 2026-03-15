@@ -90,11 +90,11 @@ function getHealthPulseDot(status: TrackerHealth): PulseDotStatus {
   return HEALTH_META[status].pulseDot
 }
 
-export {
-  getTrackerHealth,
-  getHealthBadgeVariant,
-  getHealthLabel,
-  getHealthDescription,
-  getHealthPulseDot,
-}
 export type { TrackerHealth }
+export {
+  getHealthBadgeVariant,
+  getHealthDescription,
+  getHealthLabel,
+  getHealthPulseDot,
+  getTrackerHealth,
+}

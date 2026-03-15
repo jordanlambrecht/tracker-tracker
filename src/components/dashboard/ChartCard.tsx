@@ -4,12 +4,12 @@
 
 "use client"
 
+import { H3 } from "@typography"
 import type { ReactNode } from "react"
 import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/Card"
 import { ChevronUpIcon, EyeOffIcon } from "@/components/ui/Icons"
 import { Tooltip } from "@/components/ui/Tooltip"
-import { H3 } from "@typography"
 
 interface ChartCardProps {
   title: string
@@ -92,5 +92,5 @@ function ChartCard({
   )
 }
 
-export { ChartCard }
 export type { ChartCardProps }
+export { ChartCard }

@@ -277,5 +277,5 @@ function TagGroupBreakdownChart({
   )
 }
 
-export { TagGroupBreakdownChart }
 export type { TagGroupBreakdownChartProps }
+export { TagGroupBreakdownChart }

@@ -69,5 +69,5 @@ function useDashboardSettings() {
   return { settings, update }
 }
 
-export { useDashboardSettings }
 export type { DashboardSettings } from "@/types/api"
+export { useDashboardSettings }

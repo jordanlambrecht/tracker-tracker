@@ -181,5 +181,5 @@ function FleetCompositionChart({
   )
 }
 
-export { FleetCompositionChart }
 export type { FleetCompositionChartProps }
+export { FleetCompositionChart }

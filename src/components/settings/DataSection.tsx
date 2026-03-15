@@ -4,11 +4,11 @@
 
 "use client"
 
+import { H2, H3, Paragraph } from "@typography"
 import { useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { Select } from "@/components/ui/Select"
-import { H2, H3, Paragraph } from "@typography"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 
 export interface DataSectionProps {

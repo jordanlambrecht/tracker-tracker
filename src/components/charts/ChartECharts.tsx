@@ -75,5 +75,5 @@ function ChartECharts({ option, style, opts, notMerge, lazyUpdate }: ChartEChart
   )
 }
 
-export { ChartECharts }
 export type { ChartEChartsProps }
+export { ChartECharts }

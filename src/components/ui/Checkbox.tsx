@@ -71,5 +71,5 @@ function Checkbox({
   )
 }
 
-export { Checkbox }
 export type { CheckboxProps }
+export { Checkbox }

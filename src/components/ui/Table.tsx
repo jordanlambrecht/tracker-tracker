@@ -164,5 +164,5 @@ function Table<T>({
   )
 }
 
+export type { Column, SortDirection, TableProps, TableSurface }
 export { Table }
-export type { TableProps, Column, TableSurface, SortDirection }

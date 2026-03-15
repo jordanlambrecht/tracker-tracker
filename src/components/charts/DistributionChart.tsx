@@ -141,5 +141,5 @@ function DistributionChart({ trackers, height = 300 }: DistributionChartProps) {
   )
 }
 
-export { DistributionChart }
 export type { DistributionChartProps, TrackerSlice }
+export { DistributionChart }

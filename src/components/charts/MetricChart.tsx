@@ -534,5 +534,5 @@ function MetricChart({
   )
 }
 
-export { MetricChart, METRIC_CONFIGS }
-export type { MetricConfig, DailyBucket }
+export type { DailyBucket, MetricConfig }
+export { METRIC_CONFIGS, MetricChart }

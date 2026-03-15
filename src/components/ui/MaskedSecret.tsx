@@ -23,5 +23,5 @@ function MaskedSecret({ onChangeClick, label = "Change" }: MaskedSecretProps) {
   )
 }
 
-export { MaskedSecret }
 export type { MaskedSecretProps }
+export { MaskedSecret }

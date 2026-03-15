@@ -54,5 +54,5 @@ function MarqueeText({ children, className = "", speed = 40 }: MarqueeTextProps)
   )
 }
 
-export { MarqueeText }
 export type { MarqueeTextProps }
+export { MarqueeText }

@@ -78,5 +78,5 @@ function TabBar<T extends string>({ tabs, activeTab, onChange }: TabBarProps<T>)
   )
 }
 
-export { TabBar }
 export type { TabBarProps }
+export { TabBar }

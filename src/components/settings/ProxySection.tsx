@@ -4,6 +4,7 @@
 
 "use client"
 
+import { H2, H3, Paragraph, Subtext } from "@typography"
 import { useState } from "react"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
@@ -12,7 +13,6 @@ import { Input } from "@/components/ui/Input"
 import { NumberInput } from "@/components/ui/NumberInput"
 import { Select } from "@/components/ui/Select"
 import { Toggle } from "@/components/ui/Toggle"
-import { H2, H3, Paragraph, Subtext } from "@typography"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 import { extractApiError } from "@/lib/client-helpers"
 

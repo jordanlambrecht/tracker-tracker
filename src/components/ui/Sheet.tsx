@@ -113,5 +113,5 @@ function Sheet({ open, onClose, title, children, className }: SheetProps) {
   )
 }
 
-export { Sheet }
 export type { SheetProps }
+export { Sheet }

@@ -16,5 +16,5 @@ function ChartEmptyState({ height, message = "No data available" }: ChartEmptySt
   )
 }
 
-export { ChartEmptyState }
 export type { ChartEmptyStateProps }
+export { ChartEmptyState }

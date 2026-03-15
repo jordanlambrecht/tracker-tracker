@@ -12,4 +12,4 @@ function QbtTagWarning({ tag }: { tag: string }) {
   )
 }
 
-export { QbtTagWarning, QBT_TAG_WARN_PATTERN }
+export { QBT_TAG_WARN_PATTERN, QbtTagWarning }

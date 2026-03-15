@@ -163,5 +163,5 @@ function TagCountTrends({ snapshots, mode, height = 360 }: TagCountTrendsProps) 
   )
 }
 
-export { TagCountTrends }
 export type { TagCountTrendsProps }
+export { TagCountTrends }

@@ -144,5 +144,5 @@ function SpeedThemeRiver({ snapshots, height = 360 }: SpeedThemeRiverProps) {
   )
 }
 
-export { SpeedThemeRiver }
 export type { SpeedThemeRiverProps }
+export { SpeedThemeRiver }

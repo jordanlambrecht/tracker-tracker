@@ -148,5 +148,5 @@ function FleetActivityHeatmap({
   )
 }
 
-export { FleetActivityHeatmap, buildHourLabel, buildActivityMatrix }
 export type { FleetActivityHeatmapProps }
+export { buildActivityMatrix, buildHourLabel, FleetActivityHeatmap }

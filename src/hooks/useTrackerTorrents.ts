@@ -363,5 +363,5 @@ function useTrackerTorrents({
   }
 }
 
+export type { QbitmanageBreakdownItem, TagGroupBreakdown, TrackerTorrentsData, UseTrackerTorrentsParams }
 export { useTrackerTorrents }
-export type { TrackerTorrentsData, UseTrackerTorrentsParams, TagGroupBreakdown, QbitmanageBreakdownItem }

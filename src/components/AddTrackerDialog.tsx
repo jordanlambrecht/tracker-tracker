@@ -1,8 +1,10 @@
 // src/components/AddTrackerDialog.tsx
 "use client"
+
 //
 // Functions: AddTrackerDialog
 
+import { H2 } from "@typography"
 import clsx from "clsx"
 import Image from "next/image"
 import { type FormEvent, type KeyboardEvent, type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -13,7 +15,6 @@ import { TriangleWarningIcon } from "@/components/ui/Icons"
 import { Input } from "@/components/ui/Input"
 import { QbtTagWarning } from "@/components/ui/QbtTagWarning"
 import { Tooltip } from "@/components/ui/Tooltip"
-import { H2 } from "@typography"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { TRACKER_REGISTRY } from "@/data/tracker-registry"
 import { useClickOutside } from "@/hooks/useClickOutside"

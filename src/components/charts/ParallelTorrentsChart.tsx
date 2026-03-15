@@ -250,5 +250,5 @@ function ParallelTorrentsChart({
   )
 }
 
-export { ParallelTorrentsChart }
 export type { ParallelTorrentsChartProps }
+export { ParallelTorrentsChart }

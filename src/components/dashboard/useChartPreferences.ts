@@ -141,5 +141,5 @@ function useChartPreferences() {
   }
 }
 
-export { useChartPreferences, DASHBOARD_CHARTS }
 export type { ChartDef, ChartPrefs }
+export { DASHBOARD_CHARTS, useChartPreferences }

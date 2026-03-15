@@ -257,5 +257,5 @@ function RankProgress({ userClasses, currentRank, snapshots, accentColor, joined
   )
 }
 
-export { RankProgress, extractRankHistory }
 export type { RankChange, RankProgressProps, TimelineEvent }
+export { extractRankHistory, RankProgress }

@@ -216,5 +216,5 @@ function UploadPolarChart({
   )
 }
 
+export type { HourDayBucket, UploadPolarChartProps }
 export { UploadPolarChart }
-export type { UploadPolarChartProps, HourDayBucket }

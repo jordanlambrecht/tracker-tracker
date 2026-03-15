@@ -170,5 +170,5 @@ function FleetCategoryTimeline({
   )
 }
 
-export { FleetCategoryTimeline }
 export type { FleetCategoryTimelineProps }
+export { FleetCategoryTimeline }
