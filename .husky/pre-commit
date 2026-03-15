@@ -1,1 +1,5 @@
+/// 1: #!/usr/bin/env sh
+/// 2: . "$(dirname -- "$0")/_/husky.sh"
+/// 3: 
+/// 4: pnpm tsc --noEmit
 pnpm tsc --noEmit
