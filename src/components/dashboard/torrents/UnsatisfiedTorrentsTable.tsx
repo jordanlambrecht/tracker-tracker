@@ -3,10 +3,10 @@
 "use client"
 
 import { CHART_THEME } from "@/components/charts/theme"
+import { MarqueeText } from "@/components/ui/MarqueeText"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
-import { Tooltip } from "@/components/ui/Tooltip"
-import { formatBytesFromNumber, formatDuration } from "@/lib/formatters"
+import { formatBytesNum, formatDuration } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 
 interface UnsatisfiedTorrentsTableProps {
@@ -30,7 +30,7 @@ export function UnsatisfiedTorrentsTable({
         const pct = Math.min((t.seedingTime / requiredSeconds) * 100, 100)
         return (
           <div className="flex flex-col gap-1.5 min-w-0">
-            <Tooltip content={t.name}><span className="text-xs font-mono text-secondary truncate">{t.name}</span></Tooltip>
+            <MarqueeText className="text-xs font-mono text-secondary">{t.name}</MarqueeText>
             <div className="flex items-center gap-2">
               <div className="flex-1 h-1 rounded-full bg-base overflow-hidden">
                 <div
@@ -48,51 +48,36 @@ export function UnsatisfiedTorrentsTable({
       },
     },
     {
-      key: "category",
-      header: "Category",
-      width: 80,
-      render: (t) => (
-        <Tooltip content={t.category}><span className="text-xs font-mono text-muted truncate block">{t.category || "\u2014"}</span></Tooltip>
-      ),
-    },
-    {
       key: "size",
       header: "Size",
       align: "right",
-      width: 72,
-      render: (t) => <span className="text-xs font-mono text-muted">{formatBytesFromNumber(t.size)}</span>,
+      width: "12%",
+      render: (t) => <span className="text-xs font-mono text-muted whitespace-nowrap">{formatBytesNum(t.size)}</span>,
     },
     {
       key: "seedTime",
       header: "Seed Time",
       align: "right",
-      width: 72,
+      width: "12%",
       render: (t) => {
         const pct = Math.min((t.seedingTime / requiredSeconds) * 100, 100)
         return (
-          <span className="text-xs font-mono" style={{ color: pctColor(pct) }}>
+          <span className="text-xs font-mono whitespace-nowrap" style={{ color: pctColor(pct) }}>
             {formatDuration(t.seedingTime)}
           </span>
         )
       },
     },
     {
-      key: "required",
-      header: "Required",
+      key: "remaining",
+      header: "Remaining",
       align: "right",
-      width: 72,
-      render: () => <span className="text-xs font-mono text-muted">{formatDuration(requiredSeconds)}</span>,
-    },
-    {
-      key: "progress",
-      header: "Progress",
-      align: "right",
-      width: 72,
+      width: "12%",
       render: (t) => {
-        const pct = Math.min((t.seedingTime / requiredSeconds) * 100, 100)
+        const remaining = Math.max(requiredSeconds - t.seedingTime, 0)
         return (
-          <span className="text-xs font-mono" style={{ color: pctColor(pct) }}>
-            {pct.toFixed(0)}%
+          <span className="text-xs font-mono text-muted whitespace-nowrap">
+            {remaining > 0 ? formatDuration(remaining) : "Done"}
           </span>
         )
       },
@@ -102,10 +87,13 @@ export function UnsatisfiedTorrentsTable({
   return (
     <Table<TorrentInfo>
       columns={columns}
-      data={torrents.slice(0, 15)}
+      data={torrents}
       keyExtractor={(t) => t.hash}
       emptyMessage="All torrents meet seed time requirements"
       surface="inset"
+      fixedLayout
+      noHorizontalScroll
+      maxHeight={torrents.length > 15 ? 720 : undefined}
     />
   )
 }
