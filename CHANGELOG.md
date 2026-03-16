@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.10.2](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.10.0...v1.10.2) (2026-03-16)
+
+
+### Bug Fixes
+
+* **ci:** update codeql-action to v4, pin sbom-action version ([16082b8](https://github.com/jordanlambrecht/tracker-tracker/commit/16082b8694a7004f7a67cf2c2e970bd351455c43))
+* reduce CVE surface in Docker image ([d1196fc](https://github.com/jordanlambrecht/tracker-tracker/commit/d1196fc6487dce16bba46e05d2e39f5ab426596e))
+* update jsdom to v29.0.0 and dom-selector to v7.0.3 ([6565f35](https://github.com/jordanlambrecht/tracker-tracker/commit/6565f355c5cf6a1bb792a76ee8ab3b955701d0ae))
+
 ## [1.10.1](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.10.0...v1.10.1) (2026-03-16)
 
 
