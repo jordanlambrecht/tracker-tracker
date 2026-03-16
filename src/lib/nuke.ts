@@ -24,49 +24,51 @@ function randomHex(bytes: number): string {
 export async function scrubAndDeleteAll(): Promise<void> {
   stopScheduler()
 
-  await db.update(trackerSnapshots).set({
-    username: randomHex(16),
-    group: randomHex(16),
-  })
+  await db.transaction(async (tx) => {
+    await tx.update(trackerSnapshots).set({
+      username: randomHex(16),
+      group: randomHex(16),
+    })
 
-  await db.update(trackers).set({
-    encryptedApiToken: randomHex(64),
-    name: randomHex(8),
-    baseUrl: randomHex(16),
-    lastError: null,
-    qbtTag: null,
-  })
+    await tx.update(trackers).set({
+      encryptedApiToken: randomHex(64),
+      name: randomHex(8),
+      baseUrl: randomHex(16),
+      lastError: null,
+      qbtTag: null,
+    })
 
-  await db.update(trackerRoles).set({
-    roleName: randomHex(8),
-    notes: null,
-  })
+    await tx.update(trackerRoles).set({
+      roleName: randomHex(8),
+      notes: null,
+    })
 
-  await db.update(appSettings).set({
-    passwordHash: randomHex(32),
-    encryptionSalt: randomHex(32),
-    username: null,
-    totpSecret: null,
-    totpBackupCodes: null,
-    encryptedProxyPassword: null,
-    encryptedBackupPassword: null,
-  })
+    await tx.update(appSettings).set({
+      passwordHash: randomHex(32),
+      encryptionSalt: randomHex(32),
+      username: null,
+      totpSecret: null,
+      totpBackupCodes: null,
+      encryptedProxyPassword: null,
+      encryptedBackupPassword: null,
+    })
 
-  await db.update(downloadClients).set({
-    encryptedUsername: randomHex(64),
-    encryptedPassword: randomHex(64),
-    name: randomHex(8),
-    host: randomHex(16),
-    lastError: null,
-  })
+    await tx.update(downloadClients).set({
+      encryptedUsername: randomHex(64),
+      encryptedPassword: randomHex(64),
+      name: randomHex(8),
+      host: randomHex(16),
+      lastError: null,
+    })
 
-  await db.delete(clientUptimeBuckets)
-  await db.delete(clientSnapshots)
-  await db.delete(trackerSnapshots)
-  await db.delete(trackerRoles)
-  await db.delete(tagGroupMembers)
-  await db.delete(tagGroups)
-  await db.delete(downloadClients)
-  await db.delete(trackers)
-  await db.delete(appSettings)
+    await tx.delete(clientUptimeBuckets)
+    await tx.delete(clientSnapshots)
+    await tx.delete(trackerSnapshots)
+    await tx.delete(trackerRoles)
+    await tx.delete(tagGroupMembers)
+    await tx.delete(tagGroups)
+    await tx.delete(downloadClients)
+    await tx.delete(trackers)
+    await tx.delete(appSettings)
+  })
 }
