@@ -28,9 +28,7 @@ export function GgnBuffsDisplay({ ggMeta, accentColor }: GgnBuffsDisplayProps) {
               className="inline-flex items-center px-2.5 py-1 font-mono text-xs nm-inset-sm rounded-nm-pill"
               style={{
                 color: isBoost ? accentColor : "var(--color-warn)",
-                backgroundColor: isBoost
-                  ? hexToRgba(accentColor, 0.1)
-                  : "var(--color-warn-dim)",
+                backgroundColor: isBoost ? hexToRgba(accentColor, 0.1) : "var(--color-warn-dim)",
               }}
             >
               {label}

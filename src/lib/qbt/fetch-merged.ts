@@ -52,9 +52,7 @@ async function fetchClientTorrents(
         return getTorrents(baseUrl, sid, tags[0], filter)
       }
       // Multiple tags: fetch all in parallel, ignore per-tag failures
-      const results = await Promise.allSettled(
-        tags.map((tag) => getTorrents(baseUrl, sid, tag))
-      )
+      const results = await Promise.allSettled(tags.map((tag) => getTorrents(baseUrl, sid, tag)))
       const allTorrents: QbtTorrent[] = []
       for (const result of results) {
         if (result.status === "fulfilled") allTorrents.push(...result.value)
@@ -111,10 +109,7 @@ export async function fetchAndMergeTorrents(
       crossSeedClients.push({ crossSeedTags: result.value.crossSeedTags })
     } else {
       const clientName = clients[i].name
-      const raw =
-        result.reason instanceof Error
-          ? result.reason.message
-          : "Unknown error"
+      const raw = result.reason instanceof Error ? result.reason.message : "Unknown error"
       const message = /decrypt|crypt|EVP_/i.test(raw)
         ? "Credential decryption failed"
         : sanitizeNetworkError(raw)

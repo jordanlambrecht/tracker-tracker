@@ -8,7 +8,17 @@ import type { EChartsOption } from "echarts"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
 import { formatDateLabel } from "./chart-helpers"
-import { buildTagColors, CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
+import {
+  buildTagColors,
+  CHART_THEME,
+  chartAxisLabel,
+  chartDot,
+  chartGrid,
+  chartLegend,
+  chartTooltip,
+  chartTooltipHeader,
+  escHtml,
+} from "./theme"
 
 interface FleetCategoryTimelineProps {
   torrents: { added_on: number; category: string }[]
@@ -21,9 +31,10 @@ interface CategorySeries {
   dateMap: Map<string, number>
 }
 
-function groupByCategory(
-  torrents: { added_on: number; category: string }[]
-): { sortedDates: string[]; series: CategorySeries[] } {
+function groupByCategory(torrents: { added_on: number; category: string }[]): {
+  sortedDates: string[]
+  series: CategorySeries[]
+} {
   const categoryMaps = new Map<string, Map<string, number>>()
   const allDates = new Set<string>()
 
@@ -136,17 +147,12 @@ function buildCategoryTimelineOption(
       axisLabel: chartAxisLabel(),
       splitLine: { lineStyle: { color: CHART_THEME.gridLine } },
     },
-    dataZoom: [
-      { type: "inside", zoomOnMouseWheel: true, moveOnMouseMove: true },
-    ],
+    dataZoom: [{ type: "inside", zoomOnMouseWheel: true, moveOnMouseMove: true }],
     series: eChartsSeries,
   }
 }
 
-function FleetCategoryTimeline({
-  torrents,
-  height = 320,
-}: FleetCategoryTimelineProps) {
+function FleetCategoryTimeline({ torrents, height = 320 }: FleetCategoryTimelineProps) {
   const validTorrents = torrents.filter((t) => t.added_on && t.added_on > 0)
 
   if (validTorrents.length === 0) {

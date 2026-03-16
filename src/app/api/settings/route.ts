@@ -116,7 +116,10 @@ export async function PATCH(request: Request) {
   if (body.sessionTimeoutMinutes !== undefined) {
     if (body.sessionTimeoutMinutes === null || body.sessionTimeoutMinutes === 0) {
       updates.sessionTimeoutMinutes = null
-    } else if (typeof body.sessionTimeoutMinutes === "number" && Number.isInteger(body.sessionTimeoutMinutes)) {
+    } else if (
+      typeof body.sessionTimeoutMinutes === "number" &&
+      Number.isInteger(body.sessionTimeoutMinutes)
+    ) {
       if (body.sessionTimeoutMinutes < 1 || body.sessionTimeoutMinutes > 525960) {
         return NextResponse.json(
           { error: "Session timeout must be between 1 minute and 1 year" },
@@ -135,7 +138,10 @@ export async function PATCH(request: Request) {
       updates.autoWipeThreshold = null
       // Also reset the counter when disabling
       updates.failedLoginAttempts = 0
-    } else if (typeof body.autoWipeThreshold === "number" && Number.isInteger(body.autoWipeThreshold)) {
+    } else if (
+      typeof body.autoWipeThreshold === "number" &&
+      Number.isInteger(body.autoWipeThreshold)
+    ) {
       if (body.autoWipeThreshold < 1 || body.autoWipeThreshold > 99) {
         return NextResponse.json(
           { error: "Auto-wipe threshold must be between 1 and 99" },
@@ -154,7 +160,10 @@ export async function PATCH(request: Request) {
   if (body.snapshotRetentionDays !== undefined) {
     if (body.snapshotRetentionDays === null || body.snapshotRetentionDays === 0) {
       updates.snapshotRetentionDays = null
-    } else if (typeof body.snapshotRetentionDays === "number" && Number.isInteger(body.snapshotRetentionDays)) {
+    } else if (
+      typeof body.snapshotRetentionDays === "number" &&
+      Number.isInteger(body.snapshotRetentionDays)
+    ) {
       if (body.snapshotRetentionDays < 7 || body.snapshotRetentionDays > 3650) {
         return NextResponse.json(
           { error: "Snapshot retention must be between 7 days and 10 years" },
@@ -169,7 +178,10 @@ export async function PATCH(request: Request) {
 
   // --- Tracker poll interval ---
   if (body.trackerPollIntervalMinutes !== undefined) {
-    if (typeof body.trackerPollIntervalMinutes !== "number" || !Number.isInteger(body.trackerPollIntervalMinutes)) {
+    if (
+      typeof body.trackerPollIntervalMinutes !== "number" ||
+      !Number.isInteger(body.trackerPollIntervalMinutes)
+    ) {
       return NextResponse.json({ error: "Invalid poll interval" }, { status: 400 })
     }
     if (body.trackerPollIntervalMinutes < 15 || body.trackerPollIntervalMinutes > 1440) {
@@ -204,7 +216,10 @@ export async function PATCH(request: Request) {
       updates.proxyHost = null
     } else if (typeof body.proxyHost === "string") {
       if (body.proxyHost.length > 255) {
-        return NextResponse.json({ error: "Proxy host must be 255 characters or fewer" }, { status: 400 })
+        return NextResponse.json(
+          { error: "Proxy host must be 255 characters or fewer" },
+          { status: 400 }
+        )
       }
       if (!PROXY_HOST_PATTERN.test(body.proxyHost)) {
         return NextResponse.json({ error: "Invalid proxy host format" }, { status: 400 })
@@ -220,7 +235,10 @@ export async function PATCH(request: Request) {
       updates.proxyPort = null
     } else if (typeof body.proxyPort === "number" && Number.isInteger(body.proxyPort)) {
       if (body.proxyPort < 1 || body.proxyPort > 65535) {
-        return NextResponse.json({ error: "Proxy port must be between 1 and 65535" }, { status: 400 })
+        return NextResponse.json(
+          { error: "Proxy port must be between 1 and 65535" },
+          { status: 400 }
+        )
       }
       updates.proxyPort = body.proxyPort
     } else {
@@ -233,7 +251,10 @@ export async function PATCH(request: Request) {
       updates.proxyUsername = null
     } else if (typeof body.proxyUsername === "string") {
       if (body.proxyUsername.length > 255) {
-        return NextResponse.json({ error: "Proxy username must be 255 characters or fewer" }, { status: 400 })
+        return NextResponse.json(
+          { error: "Proxy username must be 255 characters or fewer" },
+          { status: 400 }
+        )
       }
       updates.proxyUsername = body.proxyUsername
     } else {
@@ -246,7 +267,10 @@ export async function PATCH(request: Request) {
       updates.encryptedProxyPassword = null
     } else if (typeof body.proxyPassword === "string") {
       if (body.proxyPassword.length > 255) {
-        return NextResponse.json({ error: "Proxy password must be 255 characters or fewer" }, { status: 400 })
+        return NextResponse.json(
+          { error: "Proxy password must be 255 characters or fewer" },
+          { status: 400 }
+        )
       }
       const key = decodeKey(auth)
       updates.encryptedProxyPassword = encrypt(body.proxyPassword, key)
@@ -258,10 +282,7 @@ export async function PATCH(request: Request) {
   // --- Store usernames (privacy toggle) ---
   if (body.storeUsernames !== undefined) {
     if (typeof body.storeUsernames !== "boolean") {
-      return NextResponse.json(
-        { error: "storeUsernames must be a boolean" },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: "storeUsernames must be a boolean" }, { status: 400 })
     }
     updates.storeUsernames = body.storeUsernames
 
@@ -280,7 +301,11 @@ export async function PATCH(request: Request) {
   }
 
   if (body.qbitmanageTags !== undefined) {
-    if (typeof body.qbitmanageTags !== "object" || body.qbitmanageTags === null || Array.isArray(body.qbitmanageTags)) {
+    if (
+      typeof body.qbitmanageTags !== "object" ||
+      body.qbitmanageTags === null ||
+      Array.isArray(body.qbitmanageTags)
+    ) {
       return NextResponse.json({ error: "qbitmanageTags must be an object" }, { status: 400 })
     }
     const incoming = body.qbitmanageTags as Record<string, unknown>
@@ -356,10 +381,7 @@ export async function PATCH(request: Request) {
       typeof body.backupRetentionCount !== "number" ||
       !Number.isInteger(body.backupRetentionCount)
     ) {
-      return NextResponse.json(
-        { error: "Invalid backup retention count" },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: "Invalid backup retention count" }, { status: 400 })
     }
     if (body.backupRetentionCount < 1 || body.backupRetentionCount > 365) {
       return NextResponse.json(
@@ -409,10 +431,7 @@ export async function PATCH(request: Request) {
       }
       updates.backupStoragePath = trimmedPath
     } else {
-      return NextResponse.json(
-        { error: "Invalid backup storage path" },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: "Invalid backup storage path" }, { status: 400 })
     }
   }
 
@@ -431,9 +450,7 @@ export async function PATCH(request: Request) {
     updates.backupScheduleEnabled !== undefined ||
     updates.backupScheduleFrequency !== undefined
   ) {
-    const { stopBackupScheduler, startBackupScheduler } = await import(
-      "@/lib/backup-scheduler"
-    )
+    const { stopBackupScheduler, startBackupScheduler } = await import("@/lib/backup-scheduler")
     stopBackupScheduler()
     if (updated.backupScheduleEnabled) {
       const key = decodeKey(auth)

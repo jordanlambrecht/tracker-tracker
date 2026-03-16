@@ -177,10 +177,7 @@ function UploadPolarChart({
 }: UploadPolarChartProps) {
   if (snapshots.length < 2) {
     return (
-      <ChartEmptyState
-        height={height}
-        message="Not enough snapshots to compute upload patterns."
-      />
+      <ChartEmptyState height={height} message="Not enough snapshots to compute upload patterns." />
     )
   }
 

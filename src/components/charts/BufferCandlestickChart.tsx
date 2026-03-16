@@ -13,7 +13,17 @@ import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
 import { autoByteScale, fmtNum, formatDateLabel } from "./chart-helpers"
 import { LogScaleToggle } from "./LogScaleToggle"
-import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
+import {
+  CHART_THEME,
+  chartAxisLabel,
+  chartDot,
+  chartGrid,
+  chartLegend,
+  chartTooltip,
+  chartTooltipHeader,
+  escHtml,
+  shouldUseLogScale,
+} from "./theme"
 
 interface BufferCandlestickChartProps {
   trackerData: TrackerSnapshotSeries[]
@@ -30,10 +40,7 @@ interface CandlestickResult {
  * open/high/low/close buffer values in GiB. Returns the day labels
  * and OHLC array in ECharts candlestick format [open, close, low, high].
  */
-function computeCandlestickData(
-  snapshots: Snapshot[],
-  divisor: number
-): CandlestickResult {
+function computeCandlestickData(snapshots: Snapshot[], divisor: number): CandlestickResult {
   if (snapshots.length === 0) return { days: [], ohlc: [] }
 
   const sorted = [...snapshots].sort(
@@ -56,9 +63,7 @@ function computeCandlestickData(
   const ohlc: [number, number, number, number][] = []
 
   for (const [day, snaps] of byDay) {
-    const values = snaps.map(
-      (s) => bytesToGiB(s.bufferBytes) / divisor
-    )
+    const values = snaps.map((s) => bytesToGiB(s.bufferBytes) / divisor)
     const open = values[0]
     const close = values[values.length - 1]
     const high = Math.max(...values)
@@ -263,16 +268,11 @@ function buildCandlestickOption(
  * Each candle represents open/high/low/close buffer for a calendar day.
  * Shows empty state if no tracker has at least 2 days of data.
  */
-function BufferCandlestickChart({
-  trackerData,
-  height = 360,
-}: BufferCandlestickChartProps) {
+function BufferCandlestickChart({ trackerData, height = 360 }: BufferCandlestickChartProps) {
   const [logOverride, setLogOverride] = useState<boolean | null>(null)
 
   const hasEnoughDays = trackerData.some((tracker) => {
-    const uniqueDays = new Set(
-      tracker.snapshots.map((s) => s.polledAt.slice(0, 10))
-    )
+    const uniqueDays = new Set(tracker.snapshots.map((s) => s.polledAt.slice(0, 10)))
     return uniqueDays.size >= 2
   })
 

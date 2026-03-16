@@ -19,7 +19,14 @@ export interface AggregateStats {
   totalLeeching: number
 }
 
-export type AlertType = "error" | "ratio-danger" | "stale-data" | "rank-change" | "zero-seeding" | "warned" | "anniversary"
+export type AlertType =
+  | "error"
+  | "ratio-danger"
+  | "stale-data"
+  | "rank-change"
+  | "zero-seeding"
+  | "warned"
+  | "anniversary"
 
 export interface DashboardAlert {
   key: string
@@ -54,9 +61,8 @@ export function computeAggregateStats(trackers: TrackerSummary[]): AggregateStat
   }
 
   const totalBuffer = totalUploaded - totalDownloaded
-  const avgRatio = totalDownloaded > 0n
-    ? Number(totalUploaded * 1_000_000n / totalDownloaded) / 1_000_000
-    : null
+  const avgRatio =
+    totalDownloaded > 0n ? Number((totalUploaded * 1_000_000n) / totalDownloaded) / 1_000_000 : null
 
   return {
     totalUploaded: totalUploaded.toString(),
@@ -123,9 +129,7 @@ export function getAnniversaryMilestone(joinedAt: string): { label: string } | n
 // computeAlerts
 // ---------------------------------------------------------------------------
 
-export function computeAlerts(
-  trackers: TrackerSummary[],
-): DashboardAlert[] {
+export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
   const alerts: DashboardAlert[] = []
 
   for (const tracker of trackers) {
@@ -146,7 +150,11 @@ export function computeAlerts(
     // --- Ratio danger ---
     const registryEntry = findRegistryEntry(tracker.baseUrl)
     const minimumRatio = registryEntry?.rules?.minimumRatio
-    if (minimumRatio !== undefined && tracker.latestStats?.ratio !== null && tracker.latestStats?.ratio !== undefined) {
+    if (
+      minimumRatio !== undefined &&
+      tracker.latestStats?.ratio !== null &&
+      tracker.latestStats?.ratio !== undefined
+    ) {
       if (Number.isFinite(minimumRatio) && tracker.latestStats.ratio < minimumRatio) {
         alerts.push({
           key: `ratio-danger-${tracker.id}`,
@@ -180,11 +188,7 @@ export function computeAlerts(
     }
 
     // --- Zero seeding ---
-    if (
-      tracker.isActive &&
-      tracker.latestStats &&
-      tracker.latestStats.seedingCount === 0
-    ) {
+    if (tracker.isActive && tracker.latestStats && tracker.latestStats.seedingCount === 0) {
       alerts.push({
         key: `zero-seeding-${tracker.id}`,
         type: "zero-seeding",
@@ -307,13 +311,15 @@ export function dismissAlert(key: string): void {
     const dismissed = getDismissedAlerts()
     dismissed.add(key)
     localStorage.setItem(DISMISSED_STORAGE_KEY, JSON.stringify([...dismissed]))
-  } catch { // security-audit-ignore: SSR or storage quota exceeded — localStorage is best-effort
+  } catch {
+    // security-audit-ignore: SSR or storage quota exceeded — localStorage is best-effort
   }
 }
 
 export function clearDismissedAlerts(): void {
   try {
     localStorage.removeItem(DISMISSED_STORAGE_KEY)
-  } catch { // security-audit-ignore: SSR or storage quota exceeded — localStorage is best-effort
+  } catch {
+    // security-audit-ignore: SSR or storage quota exceeded — localStorage is best-effort
   }
 }

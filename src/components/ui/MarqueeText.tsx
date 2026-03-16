@@ -47,7 +47,11 @@ function MarqueeText({ children, className = "", speed = 40 }: MarqueeTextProps)
         style={overflows ? { animationDuration: `${duration}s` } : undefined}
       >
         {children}
-        {overflows && <span className="px-8" aria-hidden="true">·</span>}
+        {overflows && (
+          <span className="px-8" aria-hidden="true">
+            ·
+          </span>
+        )}
         {overflows && children}
       </span>
     </div>

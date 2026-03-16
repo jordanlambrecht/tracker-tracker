@@ -15,7 +15,13 @@ import { eq, isNotNull, lt, sql } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
 import { decryptClientCredentials } from "@/lib/client-decrypt"
 import { db } from "@/lib/db"
-import { appSettings, clientSnapshots, clientUptimeBuckets, downloadClients, trackers } from "@/lib/db/schema"
+import {
+  appSettings,
+  clientSnapshots,
+  clientUptimeBuckets,
+  downloadClients,
+  trackers,
+} from "@/lib/db/schema"
 import { sanitizeNetworkError } from "@/lib/error-utils"
 import { log } from "@/lib/logger"
 import type { QbtTorrent } from "@/lib/qbt"
@@ -230,7 +236,6 @@ async function deepPollAllClients(encryptionKey: Buffer): Promise<void> {
   if (overdue.length === 0) return
 
   await Promise.allSettled(overdue.map((c) => deepPollClient(c.id, encryptionKey)))
-
 }
 
 // ---------------------------------------------------------------------------
@@ -270,7 +275,10 @@ export function startClientScheduler(encryptionKey: Buffer): void {
     try {
       await deepPollAllClients(encryptionKey)
       // Prune client snapshots + uptime buckets using snapshotRetentionDays
-      const [settings] = await db.select({ retention: appSettings.snapshotRetentionDays }).from(appSettings).limit(1)
+      const [settings] = await db
+        .select({ retention: appSettings.snapshotRetentionDays })
+        .from(appSettings)
+        .limit(1)
       const retentionDays = settings?.retention ?? 90
       const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000)
       await db.delete(clientSnapshots).where(lt(clientSnapshots.polledAt, cutoff))

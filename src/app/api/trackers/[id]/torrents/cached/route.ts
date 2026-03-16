@@ -13,10 +13,7 @@ import { downloadClients, trackers } from "@/lib/db/schema"
 import { parseCrossSeedTags, type QbtTorrent } from "@/lib/qbt"
 import { aggregateCrossSeedTags, mergeTorrentLists } from "@/lib/qbt/merge"
 
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -73,7 +70,8 @@ export async function GET(
     if (!client.cachedTorrents) continue
     try {
       parsedCache.set(client.id, JSON.parse(client.cachedTorrents) as QbtTorrent[])
-    } catch { // security-audit-ignore: malformed cached JSON — skip this client
+    } catch {
+      // security-audit-ignore: malformed cached JSON — skip this client
     }
   }
 

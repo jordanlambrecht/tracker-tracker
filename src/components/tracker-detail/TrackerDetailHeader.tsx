@@ -14,7 +14,12 @@ import { PulseDot } from "@/components/ui/PulseDot"
 import { Tooltip } from "@/components/ui/Tooltip"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import type { ResolvedSlot } from "@/lib/slot-types"
-import { getHealthBadgeVariant, getHealthDescription, getHealthPulseDot, getTrackerHealth } from "@/lib/tracker-status"
+import {
+  getHealthBadgeVariant,
+  getHealthDescription,
+  getHealthPulseDot,
+  getTrackerHealth,
+} from "@/lib/tracker-status"
 import type { TrackerLatestStats, TrackerSummary } from "@/types/api"
 
 interface TrackerDetailHeaderProps {
@@ -76,16 +81,10 @@ export function TrackerDetailHeader({
 
           {/* Meta badges */}
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={getHealthBadgeVariant(health)}>
-              {getHealthDescription(health)}
-            </Badge>
+            <Badge variant={getHealthBadgeVariant(health)}>{getHealthDescription(health)}</Badge>
             <Badge variant="default">{tracker.platformType}</Badge>
-            {registryEntry?.language && (
-              <Badge variant="default">{registryEntry.language}</Badge>
-            )}
-            {!tracker.isActive && (
-              <Badge variant="warn">Archived</Badge>
-            )}
+            {registryEntry?.language && <Badge variant="default">{registryEntry.language}</Badge>}
+            {!tracker.isActive && <Badge variant="warn">Archived</Badge>}
             <SlotRenderer slots={badgeSlots} bare />
           </div>
         </div>
@@ -106,7 +105,12 @@ export function TrackerDetailHeader({
           <Button variant="secondary" size="sm" onClick={onPollNow} disabled={polling}>
             {polling ? "Polling..." : "Poll Now"}
           </Button>
-          <Button variant="secondary" size="sm" onClick={onOpenSettings} aria-label="Tracker settings">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onOpenSettings}
+            aria-label="Tracker settings"
+          >
             <GearIcon width="16" height="16" />
           </Button>
         </div>
@@ -121,7 +125,14 @@ export function TrackerDetailHeader({
         </div>
       )}
 
-      {stats && <UserProfileCard tracker={tracker} stats={stats} registryEntry={registryEntry} accentColor={tc} />}
+      {stats && (
+        <UserProfileCard
+          tracker={tracker}
+          stats={stats}
+          registryEntry={registryEntry}
+          accentColor={tc}
+        />
+      )}
     </div>
   )
 }

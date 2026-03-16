@@ -11,7 +11,15 @@ import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
 import { autoByteScale, fmtNum } from "./chart-helpers"
 import { LogScaleToggle } from "./LogScaleToggle"
-import { CHART_THEME, chartAxisLabel, chartGrid, chartLegend, chartTooltip, escHtml, shouldUseLogScale } from "./theme"
+import {
+  CHART_THEME,
+  chartAxisLabel,
+  chartGrid,
+  chartLegend,
+  chartTooltip,
+  escHtml,
+  shouldUseLogScale,
+} from "./theme"
 
 interface TrackerBubbleData {
   name: string
@@ -85,10 +93,7 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
   const yLogBounds = useLogY ? logBounds(yValues) : {}
 
   // Compute max seeding count for bubble size scaling
-  const maxSeedingCount = Math.max(
-    ...trackers.map((t) => t.seedingCount ?? 0),
-    0
-  )
+  const maxSeedingCount = Math.max(...trackers.map((t) => t.seedingCount ?? 0), 0)
 
   // Diagonal reference line endpoint — max of all axis values
   const maxAxisVal = Math.max(...scaled.map((d) => Math.max(d.x, d.y)), 1)
@@ -164,8 +169,7 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
         const match = scaled.find((d) => d.tracker.name === p.seriesName)
         const seedingCount = match?.tracker.seedingCount ?? 0
 
-        const ratio =
-          downloadVal > 0 ? (uploadVal / downloadVal).toFixed(2) : "∞"
+        const ratio = downloadVal > 0 ? (uploadVal / downloadVal).toFixed(2) : "∞"
 
         // Glowing swatch — uses hexToRgba for the box-shadow glow
         const glowColor = hexToRgba(color.startsWith("#") ? color : CHART_THEME.neutral, 0.8)

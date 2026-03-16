@@ -1,6 +1,12 @@
 // src/lib/formatters.test.ts
 import { describe, expect, it } from "vitest"
-import { bytesToGiB, formatBytesFromString, formatBytesNum, formatRatio, formatStatValue } from "./formatters"
+import {
+  bytesToGiB,
+  formatBytesFromString,
+  formatBytesNum,
+  formatRatio,
+  formatStatValue,
+} from "./formatters"
 
 describe("formatBytesFromString", () => {
   it("returns — for null", () => {

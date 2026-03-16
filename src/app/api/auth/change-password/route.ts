@@ -32,8 +32,16 @@ export async function POST(request: Request) {
   if (!currentPassword || typeof currentPassword !== "string" || currentPassword.length > 128) {
     return NextResponse.json({ error: "Current password is required" }, { status: 400 })
   }
-  if (!newPassword || typeof newPassword !== "string" || newPassword.length < 8 || newPassword.length > 128) {
-    return NextResponse.json({ error: "New password must be between 8 and 128 characters" }, { status: 400 })
+  if (
+    !newPassword ||
+    typeof newPassword !== "string" ||
+    newPassword.length < 8 ||
+    newPassword.length > 128
+  ) {
+    return NextResponse.json(
+      { error: "New password must be between 8 and 128 characters" },
+      { status: 400 }
+    )
   }
 
   const [settings] = await db.select().from(appSettings).limit(1)
@@ -88,7 +96,8 @@ export async function POST(request: Request) {
   if (settings.totpSecret) {
     try {
       settingsUpdates.totpSecret = reencrypt(settings.totpSecret, oldKey, newKey)
-    } catch { // security-audit-ignore: re-encryption failed — clearing TOTP is the safe fallback
+    } catch {
+      // security-audit-ignore: re-encryption failed — clearing TOTP is the safe fallback
       settingsUpdates.totpSecret = null
       settingsUpdates.totpBackupCodes = null
       totpDisabled = true
@@ -97,17 +106,24 @@ export async function POST(request: Request) {
   if (settings.totpBackupCodes && !settingsUpdates.totpBackupCodes && !totpDisabled) {
     try {
       settingsUpdates.totpBackupCodes = reencrypt(settings.totpBackupCodes, oldKey, newKey)
-    } catch { // security-audit-ignore: clearing backup codes is safe when re-encryption fails
+    } catch {
+      // security-audit-ignore: clearing backup codes is safe when re-encryption fails
       settingsUpdates.totpBackupCodes = null
     }
   }
 
   if (settings.encryptedProxyPassword) {
     try {
-      settingsUpdates.encryptedProxyPassword = reencrypt(settings.encryptedProxyPassword, oldKey, newKey)
+      settingsUpdates.encryptedProxyPassword = reencrypt(
+        settings.encryptedProxyPassword,
+        oldKey,
+        newKey
+      )
     } catch {
       settingsUpdates.encryptedProxyPassword = null
-      warnings.push("Proxy password could not be re-encrypted and was cleared. Re-enter it in settings.")
+      warnings.push(
+        "Proxy password could not be re-encrypted and was cleared. Re-enter it in settings."
+      )
     }
   }
 
@@ -116,14 +132,20 @@ export async function POST(request: Request) {
   try {
     await db.transaction(async (tx) => {
       for (const [id, plainToken] of trackerPlaintexts) {
-        await tx.update(trackers).set({ encryptedApiToken: encrypt(plainToken, newKey) }).where(eq(trackers.id, id))
+        await tx
+          .update(trackers)
+          .set({ encryptedApiToken: encrypt(plainToken, newKey) })
+          .where(eq(trackers.id, id))
       }
 
       for (const [id, creds] of clientPlaintexts) {
-        await tx.update(downloadClients).set({
-          encryptedUsername: encrypt(creds.username, newKey),
-          encryptedPassword: encrypt(creds.password, newKey),
-        }).where(eq(downloadClients.id, id))
+        await tx
+          .update(downloadClients)
+          .set({
+            encryptedUsername: encrypt(creds.username, newKey),
+            encryptedPassword: encrypt(creds.password, newKey),
+          })
+          .where(eq(downloadClients.id, id))
       }
 
       await tx
@@ -133,7 +155,10 @@ export async function POST(request: Request) {
     })
   } catch (err) {
     console.error("[change-password] Transaction failed:", err) // security-audit-ignore: server-side only
-    return NextResponse.json({ error: "Password change failed. Your current password is unchanged." }, { status: 500 })
+    return NextResponse.json(
+      { error: "Password change failed. Your current password is unchanged." },
+      { status: 500 }
+    )
   } finally {
     oldKey.fill(0)
     newKey.fill(0)
@@ -144,10 +169,14 @@ export async function POST(request: Request) {
   await clearSession()
 
   if (failedTrackers.length > 0) {
-    warnings.push(`Could not re-encrypt ${failedTrackers.length} tracker API key(s). Re-enter them manually.`)
+    warnings.push(
+      `Could not re-encrypt ${failedTrackers.length} tracker API key(s). Re-enter them manually.`
+    )
   }
   if (failedClients.length > 0) {
-    warnings.push(`Could not re-encrypt ${failedClients.length} client credential(s). Re-enter them manually.`)
+    warnings.push(
+      `Could not re-encrypt ${failedClients.length} client credential(s). Re-enter them manually.`
+    )
   }
   if (totpDisabled) {
     warnings.push("TOTP could not be re-encrypted and was disabled. Re-enroll 2FA after login.")

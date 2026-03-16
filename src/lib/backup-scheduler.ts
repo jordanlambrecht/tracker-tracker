@@ -135,4 +135,3 @@ export function stopBackupScheduler(): void {
     setBackupKey(null)
   }
 }
-

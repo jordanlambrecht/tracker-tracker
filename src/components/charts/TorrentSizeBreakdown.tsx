@@ -18,10 +18,7 @@ export interface TorrentSizeBreakdownProps {
   accentColor: string
 }
 
-export function TorrentSizeBreakdown({
-  categories,
-  accentColor,
-}: TorrentSizeBreakdownProps) {
+export function TorrentSizeBreakdown({ categories, accentColor }: TorrentSizeBreakdownProps) {
   if (categories.length === 0) {
     return <ChartEmptyState height={160} message="No category data" />
   }
@@ -41,7 +38,9 @@ export function TorrentSizeBreakdown({
           `${chartDot(p.color)}<span style="font-weight:600;color:${p.color}">${escHtml(p.name)}</span>`,
           `Size: ${formatBytesNum(p.value)}`,
           cat ? `Torrents: ${cat.count}` : "",
-        ].filter(Boolean).join("<br/>")
+        ]
+          .filter(Boolean)
+          .join("<br/>")
       },
     }),
     grid: { left: 100, right: 24, top: 8, bottom: 8 },
@@ -71,11 +70,13 @@ export function TorrentSizeBreakdown({
     series: [
       {
         type: "bar",
-        data: top.map((c, i) => ({
-          value: c.totalSize,
-          itemStyle: { color: palette[i % palette.length], borderRadius: [0, 4, 4, 0] },
-          emphasis: { itemStyle: { shadowBlur: 8, shadowColor: palette[i % palette.length] } },
-        })).reverse(),
+        data: top
+          .map((c, i) => ({
+            value: c.totalSize,
+            itemStyle: { color: palette[i % palette.length], borderRadius: [0, 4, 4, 0] },
+            emphasis: { itemStyle: { shadowBlur: 8, shadowColor: palette[i % palette.length] } },
+          }))
+          .reverse(),
         barWidth: "60%",
       },
     ],

@@ -7,9 +7,7 @@ import { ServerIcon, TagIcon } from "@/components/ui/Icons"
 
 export function NoClientState() {
   return (
-    <div
-      className="flex flex-col items-center justify-center gap-4 py-16 nm-inset-sm bg-control-bg rounded-nm-lg"
-    >
+    <div className="flex flex-col items-center justify-center gap-4 py-16 nm-inset-sm bg-control-bg rounded-nm-lg">
       <ServerIcon width={40} height={40} className="text-muted" />
       <div className="flex flex-col items-center gap-1.5 text-center">
         <p className="text-sm font-sans text-secondary">No download client connected</p>
@@ -26,9 +24,7 @@ export function NoClientState() {
 
 export function NoTagState({ trackerName }: { trackerName: string }) {
   return (
-    <div
-      className="flex flex-col items-center justify-center gap-4 py-16 nm-inset-sm bg-control-bg rounded-nm-lg"
-    >
+    <div className="flex flex-col items-center justify-center gap-4 py-16 nm-inset-sm bg-control-bg rounded-nm-lg">
       <TagIcon width={40} height={40} className="text-muted" />
       <div className="flex flex-col items-center gap-1.5 text-center">
         <p className="text-sm font-sans text-secondary">No qBittorrent tag set for {trackerName}</p>

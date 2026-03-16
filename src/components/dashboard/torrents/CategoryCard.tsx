@@ -17,10 +17,7 @@ interface CategoryCardProps {
   accentColor: string
 }
 
-export function CategoryCard({
-  categories,
-  accentColor,
-}: CategoryCardProps) {
+export function CategoryCard({ categories, accentColor }: CategoryCardProps) {
   const [view, setView] = useState<CategoryView>("donut")
 
   return (

@@ -9,9 +9,26 @@ import { bytesToGiB, getComplementaryColor } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { adaptiveDotSize, autoByteScale, buildAxisPointer, buildGlowAreaStyle, fmtNum, yAxisAutoRange } from "./chart-helpers"
+import {
+  adaptiveDotSize,
+  autoByteScale,
+  buildAxisPointer,
+  buildGlowAreaStyle,
+  fmtNum,
+  yAxisAutoRange,
+} from "./chart-helpers"
 import { buildSmartLabels, formatSnapshotLabel } from "./chart-transforms"
-import { CHART_THEME, chartAxisLabel, chartDataZoom, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
+import {
+  CHART_THEME,
+  chartAxisLabel,
+  chartDataZoom,
+  chartDot,
+  chartGrid,
+  chartLegend,
+  chartTooltip,
+  chartTooltipHeader,
+  escHtml,
+} from "./theme"
 
 interface UploadDownloadChartProps {
   snapshots: Snapshot[]
@@ -41,7 +58,9 @@ function buildOption(
   const complementColor = getComplementaryColor(accentColor)
 
   // Dynamic Y-axis padding — recalculates when series are toggled via legend
-  const dataZoom: EChartsOption["dataZoom"] = showDataZoom ? chartDataZoom(accentColor) as EChartsOption["dataZoom"] : []
+  const dataZoom: EChartsOption["dataZoom"] = showDataZoom
+    ? (chartDataZoom(accentColor) as EChartsOption["dataZoom"])
+    : []
 
   return {
     backgroundColor: "transparent",
@@ -82,7 +101,11 @@ function buildOption(
       boundaryGap: false,
       axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
       axisTick: { show: false },
-      axisLabel: chartAxisLabel({ rotate: 30, interval: "auto", formatter: (_: string, idx: number) => smartLabels[idx] ?? "" }),
+      axisLabel: chartAxisLabel({
+        rotate: 30,
+        interval: "auto",
+        formatter: (_: string, idx: number) => smartLabels[idx] ?? "",
+      }),
       splitLine: { show: false },
     },
     yAxis: {
@@ -164,7 +187,9 @@ function UploadDownloadChart({
   showDataZoom = false,
 }: UploadDownloadChartProps) {
   if (snapshots.length === 0) {
-    return <ChartEmptyState height={height} message="No snapshot data yet. Waiting for first poll..." />
+    return (
+      <ChartEmptyState height={height} message="No snapshot data yet. Waiting for first poll..." />
+    )
   }
 
   return (

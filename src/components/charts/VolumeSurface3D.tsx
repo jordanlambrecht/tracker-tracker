@@ -235,10 +235,12 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
         const bucketLabel = displayLabels[bi] ?? "?"
         const tracker = grid.trackerNames[ti] ?? "?"
         const formatted = fmtNum(Math.abs(val))
-        return `<div style="font-family:var(--font-mono),monospace">` +
+        return (
+          `<div style="font-family:var(--font-mono),monospace">` +
           `<div style="color:${CHART_THEME.textTertiary};font-size:11px;margin-bottom:2px">${escHtml(bucketLabel)}</div>` +
           `<div><span style="color:${CHART_THEME.textSecondary}">${escHtml(tracker)}:</span> <b>${formatted} ${unit}</b></div>` +
           `</div>`
+        )
       },
     }),
     xAxis3D: {
@@ -309,13 +311,10 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
       min: 0,
       max: maxVal / divisor,
       inRange: {
-        color: grid.trackerColors.length > 1
-          ? grid.trackerColors
-          : [
-              CHART_THEME.accentGlow,
-              CHART_THEME.accentGlow60,
-              CHART_THEME.accent,
-            ],
+        color:
+          grid.trackerColors.length > 1
+            ? grid.trackerColors
+            : [CHART_THEME.accentGlow, CHART_THEME.accentGlow60, CHART_THEME.accent],
       },
       dimension: 2,
     },
@@ -349,10 +348,7 @@ function VolumeSurface3D({ trackerData, height = 480 }: VolumeSurface3DProps) {
 
   if (!hasData) {
     return (
-      <ChartEmptyState
-        height={height}
-        message="Need at least 2 days of data across trackers."
-      />
+      <ChartEmptyState height={height} message="Need at least 2 days of data across trackers." />
     )
   }
 
@@ -361,12 +357,7 @@ function VolumeSurface3D({ trackerData, height = 480 }: VolumeSurface3DProps) {
   const option = buildSurfaceOption(grid)
 
   if (!option.series) {
-    return (
-      <ChartEmptyState
-        height={height}
-        message="No daily volume data to display."
-      />
-    )
+    return <ChartEmptyState height={height} message="No daily volume data to display." />
   }
 
   return (

@@ -29,7 +29,7 @@ function memberColor(
   accentColor: string,
   member: { color: string | null },
   index: number,
-  total: number,
+  total: number
 ): string {
   if (member.color) return member.color
   const opacity = Math.max(0.4, 1 - index * (0.6 / Math.max(total - 1, 1)))
@@ -42,7 +42,7 @@ function memberColor(
 
 function barOption(
   members: TagGroupBreakdownChartProps["members"],
-  accentColor: string,
+  accentColor: string
 ): EChartsOption {
   const reversedMembers = [...members].reverse()
 
@@ -109,7 +109,7 @@ function barOption(
 
 function donutOption(
   members: TagGroupBreakdownChartProps["members"],
-  accentColor: string,
+  accentColor: string
 ): EChartsOption {
   return {
     backgroundColor: "transparent",
@@ -157,7 +157,7 @@ function donutOption(
 
 function treemapOption(
   members: TagGroupBreakdownChartProps["members"],
-  accentColor: string,
+  accentColor: string
 ): EChartsOption {
   return {
     backgroundColor: "transparent",
@@ -222,10 +222,7 @@ function TagGroupBreakdownChart({
     return (
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {items.map((m, i) => (
-          <div
-            key={m.label}
-            className="flex flex-col gap-1 p-3 nm-inset-sm rounded-nm-md"
-          >
+          <div key={m.label} className="flex flex-col gap-1 p-3 nm-inset-sm rounded-nm-md">
             <span className="text-xs font-sans font-medium text-tertiary uppercase tracking-wider truncate">
               {m.label}
             </span>

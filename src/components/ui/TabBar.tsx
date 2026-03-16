@@ -49,7 +49,8 @@ function TabBar<T extends string>({ tabs, activeTab, onChange }: TabBarProps<T>)
           style={{
             left: pill.left,
             width: pill.width,
-            transition: "left 250ms cubic-bezier(0.4, 0, 0.2, 1), width 250ms cubic-bezier(0.4, 0, 0.2, 1)",
+            transition:
+              "left 250ms cubic-bezier(0.4, 0, 0.2, 1), width 250ms cubic-bezier(0.4, 0, 0.2, 1)",
           }}
         />
       )}
@@ -64,9 +65,7 @@ function TabBar<T extends string>({ tabs, activeTab, onChange }: TabBarProps<T>)
           onClick={() => onChange(tab.key)}
           className={clsx(
             "relative z-10 flex-1 px-4 py-2.5 text-sm font-sans font-medium transition-colors duration-150 cursor-pointer rounded-nm-sm",
-            activeTab === tab.key
-              ? "text-primary"
-              : "text-tertiary hover:text-secondary",
+            activeTab === tab.key ? "text-primary" : "text-tertiary hover:text-secondary"
           )}
           aria-selected={activeTab === tab.key}
           role="tab"

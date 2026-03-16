@@ -61,9 +61,10 @@ export function mergeTorrentLists<T extends RawTorrent>(lists: T[][]): T[] {
       existing.num_incomplete = Math.max(existing.num_incomplete, torrent.num_incomplete)
 
       // Recalculate ratio from summed transfer totals
-      existing.ratio = existing.downloaded > 0
-        ? existing.uploaded / existing.downloaded
-        : Math.max(existing.ratio, torrent.ratio)
+      existing.ratio =
+        existing.downloaded > 0
+          ? existing.uploaded / existing.downloaded
+          : Math.max(existing.ratio, torrent.ratio)
     }
   }
 
@@ -73,9 +74,7 @@ export function mergeTorrentLists<T extends RawTorrent>(lists: T[][]): T[] {
 /**
  * Union cross-seed tags from all clients into a single deduplicated array.
  */
-export function aggregateCrossSeedTags(
-  clients: { crossSeedTags: string[] }[]
-): string[] {
+export function aggregateCrossSeedTags(clients: { crossSeedTags: string[] }[]): string[] {
   const tagSet = new Set<string>()
   for (const client of clients) {
     for (const tag of client.crossSeedTags) {

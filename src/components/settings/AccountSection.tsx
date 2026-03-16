@@ -28,11 +28,7 @@ export function AccountSection({ initialStoreUsernames, initialUsername }: Accou
   // ── Privacy ──────────────────────────────────────────────────────────
   const [storeUsernames, setStoreUsernames] = useState(initialStoreUsernames)
   const [scrubState, setScrubState] = useState<ScrubState>("idle")
-  const {
-    saving,
-    error,
-    patch: patchPrivacy,
-  } = usePatchSettings()
+  const { saving, error, patch: patchPrivacy } = usePatchSettings()
 
   async function patchSettings(payload: { storeUsernames: boolean; scrubExisting?: boolean }) {
     const result = await patchPrivacy(payload)
@@ -140,7 +136,9 @@ export function AccountSection({ initialStoreUsernames, initialUsername }: Accou
     <>
       {/* ── Account ──────────────────────────────────────────────────── */}
       <section aria-labelledby="account-heading">
-        <H2 id="account-heading" className="mb-4">Account</H2>
+        <H2 id="account-heading" className="mb-4">
+          Account
+        </H2>
 
         <Card elevation="raised" className="flex flex-col gap-6">
           {/* Change Username */}
@@ -209,11 +207,11 @@ export function AccountSection({ initialStoreUsernames, initialUsername }: Accou
               placeholder="••••••••"
               disabled={savingPassword}
             />
-            <Paragraph>
-              Re-encrypts all stored API tokens. You will be logged out.
-            </Paragraph>
+            <Paragraph>Re-encrypts all stored API tokens. You will be logged out.</Paragraph>
             {passwordError && (
-              <p className="text-xs font-sans text-danger" role="alert">{passwordError}</p>
+              <p className="text-xs font-sans text-danger" role="alert">
+                {passwordError}
+              </p>
             )}
             <div className="flex justify-end">
               <Button
@@ -230,7 +228,9 @@ export function AccountSection({ initialStoreUsernames, initialUsername }: Accou
 
       {/* ── Privacy ──────────────────────────────────────────────────── */}
       <section aria-labelledby="privacy-heading">
-        <H2 id="privacy-heading" className="mb-4">Privacy</H2>
+        <H2 id="privacy-heading" className="mb-4">
+          Privacy
+        </H2>
 
         <Card elevation="raised" className="flex flex-col gap-5">
           <Toggle
@@ -249,15 +249,13 @@ export function AccountSection({ initialStoreUsernames, initialUsername }: Accou
           )}
 
           {scrubState === "confirming" && (
-            <div
-              className="nm-inset-sm p-4 flex flex-col gap-3 rounded-nm-md bg-warn-dim"
-            >
+            <div className="nm-inset-sm p-4 flex flex-col gap-3 rounded-nm-md bg-warn-dim">
               <p className="text-sm font-sans text-primary leading-relaxed">
                 Also scrub existing usernames from historical data?
               </p>
               <Paragraph>
-                This will permanently replace all stored usernames and user classes with
-                redacted markers. This cannot be undone.
+                This will permanently replace all stored usernames and user classes with redacted
+                markers. This cannot be undone.
               </Paragraph>
               <div className="flex gap-3">
                 <Button size="sm" variant="danger" onClick={handleScrubYes}>
@@ -278,9 +276,8 @@ export function AccountSection({ initialStoreUsernames, initialUsername }: Accou
           )}
 
           <Subtext>
-            This does not provide strong anonymization. Character count and other data
-            points may still allow correlation. For full protection, deploy on an
-            encrypted filesystem.
+            This does not provide strong anonymization. Character count and other data points may
+            still allow correlation. For full protection, deploy on an encrypted filesystem.
           </Subtext>
 
           {error && (

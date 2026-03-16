@@ -11,10 +11,28 @@ import { bytesToGiB, getComplementaryColor } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { adaptiveDotSize, autoByteScale, buildAxisPointer, buildGlowAreaStyle, fmtNum, yAxisAutoRange } from "./chart-helpers"
+import {
+  adaptiveDotSize,
+  autoByteScale,
+  buildAxisPointer,
+  buildGlowAreaStyle,
+  fmtNum,
+  yAxisAutoRange,
+} from "./chart-helpers"
 import { computeDailyDeltas, formatSnapshotLabel } from "./chart-transforms"
 import { LogScaleToggle } from "./LogScaleToggle"
-import { CHART_THEME, chartAxisLabel, chartDataZoom, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
+import {
+  CHART_THEME,
+  chartAxisLabel,
+  chartDataZoom,
+  chartDot,
+  chartGrid,
+  chartLegend,
+  chartTooltip,
+  chartTooltipHeader,
+  escHtml,
+  shouldUseLogScale,
+} from "./theme"
 
 // ── Types ──
 
@@ -97,7 +115,9 @@ function buildLineOption(
   const dotSize = adaptiveDotSize(snapshots.length)
 
   const showSlider = snapshots.length >= 30
-  const dataZoom: EChartsOption["dataZoom"] = showSlider ? chartDataZoom(safeAccent) as EChartsOption["dataZoom"] : []
+  const dataZoom: EChartsOption["dataZoom"] = showSlider
+    ? (chartDataZoom(safeAccent) as EChartsOption["dataZoom"])
+    : []
 
   return {
     backgroundColor: "transparent",
@@ -135,9 +155,7 @@ function buildLineOption(
       type: useLog ? "log" : "value",
       name: useLog ? `${unit} (log)` : unit,
       scale: true,
-      ...(useLog
-        ? {}
-        : yAxisAutoRange({ allowNegative: config.allowNegative, baselineValue })),
+      ...(useLog ? {} : yAxisAutoRange({ allowNegative: config.allowNegative, baselineValue })),
       nameTextStyle: {
         color: TERTIARY_COLOR,
         fontFamily: CHART_THEME.fontMono,
@@ -173,20 +191,23 @@ function buildLineOption(
         emphasis: {
           lineStyle: { shadowBlur: 16, shadowColor: safeAccent },
         },
-        markLine: baselineValue != null && baselineValue > 0 ? {
-          silent: true,
-          symbol: "none",
-          lineStyle: { color: CHART_THEME.danger, type: "dashed", width: 1.5 },
-          label: {
-            show: true,
-            formatter: `Min: ${baselineValue}`,
-            position: "insideEndTop",
-            color: CHART_THEME.danger,
-            fontSize: 10,
-            fontFamily: CHART_THEME.fontMono,
-          },
-          data: [{ yAxis: baselineValue }],
-        } : undefined,
+        markLine:
+          baselineValue != null && baselineValue > 0
+            ? {
+                silent: true,
+                symbol: "none",
+                lineStyle: { color: CHART_THEME.danger, type: "dashed", width: 1.5 },
+                label: {
+                  show: true,
+                  formatter: `Min: ${baselineValue}`,
+                  position: "insideEndTop",
+                  color: CHART_THEME.danger,
+                  fontSize: 10,
+                  fontFamily: CHART_THEME.fontMono,
+                },
+                data: [{ yAxis: baselineValue }],
+              }
+            : undefined,
       },
     ],
   }
@@ -266,55 +287,61 @@ function buildDailyDeltaOption(
       splitLine: { lineStyle: { color: BORDER_SOFT, width: 1 } },
     },
     dataZoom: [],
-    series: mode === "line"
-      ? [
-          {
-            name: "Upload Δ",
-            type: "line",
-            data: finalUpload,
-            smooth: true,
-            symbol: "circle",
-            symbolSize: deltaDotSize,
-            itemStyle: { color: safeAccent },
-            lineStyle: { color: safeAccent, width: 2, shadowColor: safeAccent, shadowBlur: 8 },
-            areaStyle: buildGlowAreaStyle(safeAccent),
-            emphasis: { lineStyle: { shadowBlur: 16, shadowColor: safeAccent } },
-          },
-          {
-            name: "Download Δ",
-            type: "line",
-            data: finalDownload,
-            smooth: true,
-            symbol: "circle",
-            symbolSize: deltaDotSize,
-            itemStyle: { color: complementColor },
-            lineStyle: { color: complementColor, width: 2, shadowColor: complementColor, shadowBlur: 8 },
-            areaStyle: buildGlowAreaStyle(complementColor, 0.2),
-            emphasis: { lineStyle: { shadowBlur: 16, shadowColor: complementColor } },
-          },
-        ]
-      : [
-          {
-            name: "Upload Δ",
-            type: "bar",
-            data: finalUpload,
-            itemStyle: {
-              color: safeAccent,
-              borderRadius: [3, 3, 0, 0],
+    series:
+      mode === "line"
+        ? [
+            {
+              name: "Upload Δ",
+              type: "line",
+              data: finalUpload,
+              smooth: true,
+              symbol: "circle",
+              symbolSize: deltaDotSize,
+              itemStyle: { color: safeAccent },
+              lineStyle: { color: safeAccent, width: 2, shadowColor: safeAccent, shadowBlur: 8 },
+              areaStyle: buildGlowAreaStyle(safeAccent),
+              emphasis: { lineStyle: { shadowBlur: 16, shadowColor: safeAccent } },
             },
-            emphasis: { itemStyle: { shadowBlur: 8, shadowColor: safeAccent } },
-          },
-          {
-            name: "Download Δ",
-            type: "bar",
-            data: finalDownload,
-            itemStyle: {
-              color: complementColor,
-              borderRadius: [3, 3, 0, 0],
+            {
+              name: "Download Δ",
+              type: "line",
+              data: finalDownload,
+              smooth: true,
+              symbol: "circle",
+              symbolSize: deltaDotSize,
+              itemStyle: { color: complementColor },
+              lineStyle: {
+                color: complementColor,
+                width: 2,
+                shadowColor: complementColor,
+                shadowBlur: 8,
+              },
+              areaStyle: buildGlowAreaStyle(complementColor, 0.2),
+              emphasis: { lineStyle: { shadowBlur: 16, shadowColor: complementColor } },
             },
-            emphasis: { itemStyle: { shadowBlur: 8, shadowColor: complementColor } },
-          },
-        ],
+          ]
+        : [
+            {
+              name: "Upload Δ",
+              type: "bar",
+              data: finalUpload,
+              itemStyle: {
+                color: safeAccent,
+                borderRadius: [3, 3, 0, 0],
+              },
+              emphasis: { itemStyle: { shadowBlur: 8, shadowColor: safeAccent } },
+            },
+            {
+              name: "Download Δ",
+              type: "bar",
+              data: finalDownload,
+              itemStyle: {
+                color: complementColor,
+                borderRadius: [3, 3, 0, 0],
+              },
+              emphasis: { itemStyle: { shadowBlur: 8, shadowColor: complementColor } },
+            },
+          ],
   }
 }
 
@@ -337,7 +364,9 @@ function MetricChart({
   }
 
   const config = metric !== "dailyDelta" ? METRIC_CONFIGS[metric] : null
-  const ratioValues = config ? snapshots.map((s) => config.getValue(s)).filter((v): v is number => v !== null && v > 0) : []
+  const ratioValues = config
+    ? snapshots.map((s) => config.getValue(s)).filter((v): v is number => v !== null && v > 0)
+    : []
   const autoLog = ratioValues.length > 0 ? shouldUseLogScale(ratioValues) : false
   const useLog = forceLog ?? autoLog
   const showLogToggle = metric === "ratio" || metric === "buffer" || metric === "seedbonus"
@@ -371,7 +400,7 @@ function MetricChart({
                   "px-2.5 py-1 text-xs font-mono transition-all duration-150 cursor-pointer rounded-nm-sm",
                   deltaMode === m
                     ? "nm-raised-sm text-primary font-semibold"
-                    : "text-tertiary hover:text-secondary",
+                    : "text-tertiary hover:text-secondary"
                 )}
               >
                 {m === "bar" ? "Bar" : "Line"}
@@ -397,10 +426,12 @@ function MetricChart({
           <LogScaleToggle
             effectiveLog={useLog}
             isAuto={forceLog === null}
-            onToggle={() => setForceLog((prev) => {
-              if (prev === null) return !autoLog
-              return prev ? false : null
-            })}
+            onToggle={() =>
+              setForceLog((prev) => {
+                if (prev === null) return !autoLog
+                return prev ? false : null
+              })
+            }
           />
         </div>
       )}

@@ -6,10 +6,7 @@ import { db } from "@/lib/db"
 import { appSettings, trackerSnapshots } from "@/lib/db/schema"
 import { createPrivacyMaskSync } from "@/lib/privacy-db"
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 

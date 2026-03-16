@@ -23,7 +23,10 @@ function H2({ className, children, id, ...props }: HTMLAttributes<HTMLHeadingEle
   return (
     <h2
       id={id}
-      className={clsx("text-xs font-sans font-medium text-secondary uppercase tracking-wider", className)}
+      className={clsx(
+        "text-xs font-sans font-medium text-secondary uppercase tracking-wider",
+        className
+      )}
       {...props}
     >
       {children}

@@ -11,9 +11,24 @@ import { hexToRgba } from "@/lib/formatters"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { autoByteScale, buildAxisPointer, buildThemeRiverSingleAxis, fmtNum, formatDateLabel } from "./chart-helpers"
+import {
+  autoByteScale,
+  buildAxisPointer,
+  buildThemeRiverSingleAxis,
+  fmtNum,
+  formatDateLabel,
+} from "./chart-helpers"
 import { computeDailyDeltas } from "./chart-transforms"
-import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
+import {
+  CHART_THEME,
+  chartAxisLabel,
+  chartDot,
+  chartGrid,
+  chartLegend,
+  chartTooltip,
+  chartTooltipHeader,
+  escHtml,
+} from "./theme"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -59,9 +74,7 @@ function computeTrackerDeltas(trackerData: TrackerSnapshotSeries[]) {
 // Bar chart builder (existing)
 // ---------------------------------------------------------------------------
 
-function buildDailyVolumeOption(
-  trackerData: TrackerSnapshotSeries[]
-): EChartsOption {
+function buildDailyVolumeOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
   const { trackerDeltas, sortedDays, divisor, unit } = computeTrackerDeltas(trackerData)
 
   if (sortedDays.length === 0) return {}
@@ -124,7 +137,11 @@ function buildDailyVolumeOption(
         for (const item of items) {
           const isDownload = item.seriesName.endsWith(" ↓")
           const trackerName = isDownload ? item.seriesName.slice(0, -2) : item.seriesName
-          const existing = trackerMap.get(trackerName) ?? { upload: 0, download: 0, color: item.color }
+          const existing = trackerMap.get(trackerName) ?? {
+            upload: 0,
+            download: 0,
+            color: item.color,
+          }
           if (isDownload) {
             existing.download = Math.abs(item.value)
           } else {
@@ -187,9 +204,7 @@ function buildDailyVolumeOption(
 // River (ThemeRiver) chart builder
 // ---------------------------------------------------------------------------
 
-function buildRiverOption(
-  trackerData: TrackerSnapshotSeries[]
-): EChartsOption {
+function buildRiverOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
   const { trackerDeltas, sortedDays, divisor, unit } = computeTrackerDeltas(trackerData)
 
   if (sortedDays.length === 0) return {}
@@ -285,9 +300,7 @@ function buildRiverOption(
 // Stacked area chart builder
 // ---------------------------------------------------------------------------
 
-function buildAreaOption(
-  trackerData: TrackerSnapshotSeries[]
-): EChartsOption {
+function buildAreaOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
   const { trackerDeltas, sortedDays, divisor, unit } = computeTrackerDeltas(trackerData)
 
   if (sortedDays.length === 0) return {}
@@ -334,8 +347,9 @@ function buildAreaOption(
         const rows = items
           .filter((item) => item.value > 0)
           .sort((a, b) => (b.value as number) - (a.value as number))
-          .map((item) =>
-            `${chartDot(item.color)}<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${fmtNum(item.value)} ${unit}</span>`
+          .map(
+            (item) =>
+              `${chartDot(item.color)}<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${fmtNum(item.value)} ${unit}</span>`
           )
           .join("<br/>")
 
@@ -372,9 +386,7 @@ function buildAreaOption(
         lineStyle: { color: CHART_THEME.gridLine, width: 1 },
       },
     },
-    dataZoom: [
-      { type: "inside", zoomOnMouseWheel: true, moveOnMouseMove: true },
-    ],
+    dataZoom: [{ type: "inside", zoomOnMouseWheel: true, moveOnMouseMove: true }],
     series,
   }
 }
@@ -383,9 +395,7 @@ function buildAreaOption(
 // Sums line chart builder (total upload + total download as two lines)
 // ---------------------------------------------------------------------------
 
-function buildSumsOption(
-  trackerData: TrackerSnapshotSeries[]
-): EChartsOption {
+function buildSumsOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
   const { trackerDeltas, sortedDays, divisor, unit } = computeTrackerDeltas(trackerData)
 
   if (sortedDays.length === 0) return {}
@@ -431,8 +441,9 @@ function buildSumsOption(
         if (!items?.length) return ""
         const day = items[0].axisValueLabel
         const rows = items
-          .map((item) =>
-            `${chartDot(item.color)}<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${fmtNum(item.value)} ${unit}</span>`
+          .map(
+            (item) =>
+              `${chartDot(item.color)}<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${fmtNum(item.value)} ${unit}</span>`
           )
           .join("<br/>")
         return `${chartTooltipHeader(day)}${rows}`
@@ -468,9 +479,7 @@ function buildSumsOption(
         lineStyle: { color: CHART_THEME.gridLine, width: 1 },
       },
     },
-    dataZoom: [
-      { type: "inside", zoomOnMouseWheel: true, moveOnMouseMove: true },
-    ],
+    dataZoom: [{ type: "inside", zoomOnMouseWheel: true, moveOnMouseMove: true }],
     series: [
       {
         name: "Upload",
@@ -480,11 +489,19 @@ function buildSumsOption(
         symbol: "circle",
         symbolSize: 6,
         itemStyle: { color: CHART_THEME.upload },
-        lineStyle: { color: CHART_THEME.upload, width: 3, shadowColor: CHART_THEME.upload, shadowBlur: 12 },
+        lineStyle: {
+          color: CHART_THEME.upload,
+          width: 3,
+          shadowColor: CHART_THEME.upload,
+          shadowBlur: 12,
+        },
         areaStyle: {
           color: {
             type: "linear",
-            x: 0, y: 0, x2: 0, y2: 1,
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
             colorStops: [
               { offset: 0, color: hexToRgba(CHART_THEME.upload, 0.25) },
               { offset: 1, color: hexToRgba(CHART_THEME.upload, 0) },
@@ -500,11 +517,19 @@ function buildSumsOption(
         symbol: "circle",
         symbolSize: 6,
         itemStyle: { color: CHART_THEME.download },
-        lineStyle: { color: CHART_THEME.download, width: 3, shadowColor: CHART_THEME.download, shadowBlur: 12 },
+        lineStyle: {
+          color: CHART_THEME.download,
+          width: 3,
+          shadowColor: CHART_THEME.download,
+          shadowBlur: 12,
+        },
         areaStyle: {
           color: {
             type: "linear",
-            x: 0, y: 0, x2: 0, y2: 1,
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
             colorStops: [
               { offset: 0, color: hexToRgba(CHART_THEME.download, 0.25) },
               { offset: 1, color: hexToRgba(CHART_THEME.download, 0) },
@@ -534,10 +559,13 @@ function DailyVolumeChart({ trackerData, height = 360 }: DailyVolumeChartProps) 
   }
 
   const option =
-    mode === "river" ? buildRiverOption(trackerData)
-    : mode === "area" ? buildAreaOption(trackerData)
-    : mode === "sums" ? buildSumsOption(trackerData)
-    : buildDailyVolumeOption(trackerData)
+    mode === "river"
+      ? buildRiverOption(trackerData)
+      : mode === "area"
+        ? buildAreaOption(trackerData)
+        : mode === "sums"
+          ? buildSumsOption(trackerData)
+          : buildDailyVolumeOption(trackerData)
 
   return (
     <div className="flex flex-col gap-3">
@@ -552,7 +580,7 @@ function DailyVolumeChart({ trackerData, height = 360 }: DailyVolumeChartProps) 
                 "px-2.5 py-1 text-xs font-mono transition-all duration-150 cursor-pointer rounded-nm-sm",
                 mode === m
                   ? "nm-raised-sm text-primary font-semibold"
-                  : "text-tertiary hover:text-secondary",
+                  : "text-tertiary hover:text-secondary"
               )}
             >
               {m === "bar" ? "Bar" : m === "area" ? "Area" : m === "sums" ? "Totals" : "River"}

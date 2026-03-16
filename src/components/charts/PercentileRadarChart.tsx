@@ -63,9 +63,9 @@ function PercentileRadarChart({ ranks, accentColor }: PercentileRadarChartProps)
       },
       tooltip: chartTooltip("item", {
         formatter: (params: { value: number[] }) => {
-          return AXIS_LABELS.map(
-            ({ label }, i) => `${label}: <b>${params.value[i]}th</b>`
-          ).join("<br/>")
+          return AXIS_LABELS.map(({ label }, i) => `${label}: <b>${params.value[i]}th</b>`).join(
+            "<br/>"
+          )
         },
       }),
       series: [

@@ -10,9 +10,25 @@ import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { autoByteScale, buildAxisPointer, buildGlowAreaStyle, fmtNum, formatDateLabel } from "./chart-helpers"
+import {
+  autoByteScale,
+  buildAxisPointer,
+  buildGlowAreaStyle,
+  fmtNum,
+  formatDateLabel,
+} from "./chart-helpers"
 import { LogScaleToggle } from "./LogScaleToggle"
-import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
+import {
+  CHART_THEME,
+  chartAxisLabel,
+  chartDot,
+  chartGrid,
+  chartLegend,
+  chartTooltip,
+  chartTooltipHeader,
+  escHtml,
+  shouldUseLogScale,
+} from "./theme"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -62,8 +78,7 @@ function computeBufferVelocity(snapshots: Snapshot[]): {
     // Both entries are guaranteed to exist since days comes from dayMap.keys()
     if (!prev || !curr) continue
     // Allow negative values — this is the whole point
-    const velocityGiB =
-      Number(BigInt(curr.bufferBytes) - BigInt(prev.bufferBytes)) / 1024 ** 3
+    const velocityGiB = Number(BigInt(curr.bufferBytes) - BigInt(prev.bufferBytes)) / 1024 ** 3
 
     resultDays.push(days[i])
     velocities.push(velocityGiB)
@@ -250,10 +265,7 @@ function buildBufferVelocityOption(
 // Component
 // ---------------------------------------------------------------------------
 
-function BufferVelocityChart({
-  trackerData,
-  height = 320,
-}: BufferVelocityChartProps) {
+function BufferVelocityChart({ trackerData, height = 320 }: BufferVelocityChartProps) {
   const [logOverride, setLogOverride] = useState<boolean | null>(null)
 
   // Need at least 2 days of buffer data per tracker (velocity requires consecutive days)

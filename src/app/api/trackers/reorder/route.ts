@@ -27,9 +27,7 @@ export async function PATCH(request: Request) {
   }
 
   await Promise.all(
-    ids.map((id, index) =>
-      db.update(trackers).set({ sortOrder: index }).where(eq(trackers.id, id))
-    )
+    ids.map((id, index) => db.update(trackers).set({ sortOrder: index }).where(eq(trackers.id, id)))
   )
 
   return NextResponse.json({ ok: true })

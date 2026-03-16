@@ -4,10 +4,7 @@ import { mkdir, writeFile } from "node:fs/promises"
 import nodePath from "node:path"
 import { NextResponse } from "next/server"
 import { authenticate } from "@/lib/api-helpers"
-import {
-  encryptBackupPayload,
-  generateBackupPayload,
-} from "@/lib/backup"
+import { encryptBackupPayload, generateBackupPayload } from "@/lib/backup"
 import { db } from "@/lib/db"
 import { appSettings, backupHistory } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
@@ -87,9 +84,6 @@ export async function POST(request: Request) {
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error"
-    return NextResponse.json(
-      { error: `Backup export failed: ${message}` },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: `Backup export failed: ${message}` }, { status: 500 })
   }
 }

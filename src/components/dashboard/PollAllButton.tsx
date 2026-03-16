@@ -113,12 +113,7 @@ export function PollAllButton({ onPollComplete }: PollAllButtonProps) {
   }, [polling, status, onPollComplete])
 
   return (
-    <Button
-      variant="secondary"
-      size="sm"
-      onClick={handleClick}
-      className="min-w-[136px]"
-    >
+    <Button variant="secondary" size="sm" onClick={handleClick} className="min-w-[136px]">
       <span className="grid [&>*]:col-start-1 [&>*]:row-start-1 [&>*]:flex [&>*]:items-center [&>*]:justify-center [&>*]:transition-opacity [&>*]:duration-200">
         <span className={polling || status !== "idle" ? "opacity-0" : "opacity-100"}>
           Poll All Now
@@ -126,15 +121,21 @@ export function PollAllButton({ onPollComplete }: PollAllButtonProps) {
         <span className={polling ? "opacity-100" : "opacity-0 pointer-events-none"}>
           <PollRing completed={progress.completed} total={progress.total} />
           <span className="font-mono text-xs tabular-nums ml-2">
-            {progress.total > 0
-              ? `${progress.completed}/${progress.total}`
-              : "Starting…"}
+            {progress.total > 0 ? `${progress.completed}/${progress.total}` : "Starting…"}
           </span>
         </span>
-        <span className={!polling && status === "success" ? "opacity-100" : "opacity-0 pointer-events-none"}>
+        <span
+          className={
+            !polling && status === "success" ? "opacity-100" : "opacity-0 pointer-events-none"
+          }
+        >
           ✓ All Polled
         </span>
-        <span className={!polling && status === "failed" ? "opacity-100" : "opacity-0 pointer-events-none"}>
+        <span
+          className={
+            !polling && status === "failed" ? "opacity-100" : "opacity-0 pointer-events-none"
+          }
+        >
           ✕ Some Failed
         </span>
       </span>

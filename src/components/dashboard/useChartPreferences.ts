@@ -56,43 +56,37 @@ const DASHBOARD_CHARTS: ChartDef[] = [
   {
     id: "ratio-stability",
     label: "Ratio Stability",
-    description:
-      "7-point EMA with ±1σ confidence band — wider bands indicate more volatile ratios",
+    description: "7-point EMA with ±1σ confidence band — wider bands indicate more volatile ratios",
     category: "analytics",
   },
   {
     id: "fleet-composition",
     label: "Fleet Composition",
-    description:
-      "Seeding torrent count over time per tracker — stacked to show total fleet size",
+    description: "Seeding torrent count over time per tracker — stacked to show total fleet size",
     category: "analytics",
   },
   {
     id: "rank-tenure",
     label: "Rank Tenure",
-    description:
-      "Time spent at each rank per tracker — hover segments for duration details",
+    description: "Time spent at each rank per tracker — hover segments for duration details",
     category: "analytics",
   },
   {
     id: "buffer-velocity",
     label: "Buffer Velocity",
-    description:
-      "Rate of buffer change per day — above zero means gaining, below means losing",
+    description: "Rate of buffer change per day — above zero means gaining, below means losing",
     category: "analytics",
   },
   {
     id: "buffer-candlestick",
     label: "Buffer Candlestick",
-    description:
-      "Daily buffer open/high/low/close per tracker — like stock price charts",
+    description: "Daily buffer open/high/low/close per tracker — like stock price charts",
     category: "analytics",
   },
   {
     id: "tracker-landscape",
     label: "Tracker Landscape",
-    description:
-      "Each tracker as a bubble — position shows upload vs download, size shows fleet",
+    description: "Each tracker as a bubble — position shows upload vs download, size shows fleet",
     category: "analytics",
   },
   {

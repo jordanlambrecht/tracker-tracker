@@ -8,10 +8,7 @@ import { authenticate, parseRouteId } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { clientUptimeBuckets, downloadClients } from "@/lib/db/schema"
 
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -38,10 +35,7 @@ export async function GET(
     })
     .from(clientUptimeBuckets)
     .where(
-      and(
-        eq(clientUptimeBuckets.clientId, clientId),
-        gte(clientUptimeBuckets.bucketTs, since)
-      )
+      and(eq(clientUptimeBuckets.clientId, clientId), gte(clientUptimeBuckets.bucketTs, since))
     )
     .orderBy(clientUptimeBuckets.bucketTs)
 

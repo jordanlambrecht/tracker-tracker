@@ -40,12 +40,12 @@ export function yAxisAutoRange(opts?: { allowNegative?: boolean; baselineValue?:
   return {
     min: allowNegative
       ? undefined
-      : ((value: { min: number; max: number }) => {
+      : (((value: { min: number; max: number }) => {
           const dataMin = Math.max(0, Math.floor((value.min - yAxisPad(value)) * 100) / 100)
           return baselineValue != null && baselineValue > 0
             ? Math.min(dataMin, Math.floor(baselineValue * 0.8 * 100) / 100)
             : dataMin
-        }) as unknown as number,
+        }) as unknown as number),
     max: ((value: { min: number; max: number }) =>
       Math.ceil((value.max + yAxisPad(value)) * 100) / 100) as unknown as number,
   }
@@ -78,7 +78,17 @@ interface BucketedBarConfig<TBucket, TTorrent> {
 export function buildBucketedBarOption<TBucket, TTorrent>(
   config: BucketedBarConfig<TBucket, TTorrent>
 ): EChartsOption {
-  const { buckets, torrents, getThreshold, getValue, getLabel, getColor, labelPrefix, pctSuffix = "", markLine } = config
+  const {
+    buckets,
+    torrents,
+    getThreshold,
+    getValue,
+    getLabel,
+    getColor,
+    labelPrefix,
+    pctSuffix = "",
+    markLine,
+  } = config
   const total = torrents.length
 
   const enriched = buckets.map((bucket, i) => {
@@ -160,7 +170,11 @@ export function buildBucketedBarOption<TBucket, TTorrent>(
  * @param topOpacity - Opacity at the top of the gradient (default 0.25)
  * @param bottomOpacity - Opacity at the bottom of the gradient (default 0)
  */
-export function buildGlowAreaStyle(color: string, topOpacity = 0.25, bottomOpacity = 0): Record<string, unknown> {
+export function buildGlowAreaStyle(
+  color: string,
+  topOpacity = 0.25,
+  bottomOpacity = 0
+): Record<string, unknown> {
   return {
     color: {
       type: "linear",
@@ -197,7 +211,10 @@ export function buildAxisPointer(
  * Builds the singleAxis config for ThemeRiver charts.
  * @param overrides - Optional top/bottom pixel overrides
  */
-export function buildThemeRiverSingleAxis(overrides?: { top?: number; bottom?: number }): Record<string, unknown> {
+export function buildThemeRiverSingleAxis(overrides?: {
+  top?: number
+  bottom?: number
+}): Record<string, unknown> {
   return {
     type: "time",
     bottom: overrides?.bottom ?? 40,

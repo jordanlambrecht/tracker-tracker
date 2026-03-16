@@ -4,17 +4,21 @@
 
 import { desc, eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseJsonBody, parseTrackerId, validateHexColor, validateHttpUrl } from "@/lib/api-helpers"
+import {
+  authenticate,
+  decodeKey,
+  parseJsonBody,
+  parseTrackerId,
+  validateHexColor,
+  validateHttpUrl,
+} from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings, trackerSnapshots, trackers } from "@/lib/db/schema"
 import { createPrivacyMaskSync } from "@/lib/privacy-db"
 import { serializeTrackerResponse } from "@/lib/tracker-serializer"
 
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -22,11 +26,7 @@ export async function GET(
   if (trackerId instanceof NextResponse) return trackerId
 
   const [[tracker], [latest], [privacySettings]] = await Promise.all([
-    db
-      .select()
-      .from(trackers)
-      .where(eq(trackers.id, trackerId))
-      .limit(1),
+    db.select().from(trackers).where(eq(trackers.id, trackerId)).limit(1),
     db
       .select()
       .from(trackerSnapshots)
@@ -48,10 +48,7 @@ export async function GET(
   return NextResponse.json(serializeTrackerResponse(tracker, latest ?? null, mask))
 }
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -86,13 +83,17 @@ export async function PATCH(
 
   if (typeof body.qbtTag === "string") {
     if (body.qbtTag.length > 100) {
-      return NextResponse.json({ error: "qBittorrent tag must be 100 characters or fewer" }, { status: 400 })
+      return NextResponse.json(
+        { error: "qBittorrent tag must be 100 characters or fewer" },
+        { status: 400 }
+      )
     }
     updates.qbtTag = body.qbtTag.trim() || null
   }
 
   if (typeof body.useProxy === "boolean") updates.useProxy = body.useProxy
-  if (typeof body.countCrossSeedUnsatisfied === "boolean") updates.countCrossSeedUnsatisfied = body.countCrossSeedUnsatisfied
+  if (typeof body.countCrossSeedUnsatisfied === "boolean")
+    updates.countCrossSeedUnsatisfied = body.countCrossSeedUnsatisfied
   if (typeof body.isFavorite === "boolean") updates.isFavorite = body.isFavorite
 
   if (body.joinedAt !== undefined) {
@@ -110,24 +111,21 @@ export async function PATCH(
 
   if (typeof body.apiToken === "string") {
     if (body.apiToken.length > 500) {
-      return NextResponse.json({ error: "API token must be 500 characters or fewer" }, { status: 400 })
+      return NextResponse.json(
+        { error: "API token must be 500 characters or fewer" },
+        { status: 400 }
+      )
     }
     const key = decodeKey(auth)
     updates.encryptedApiToken = encrypt(body.apiToken, key)
   }
 
-  await db
-    .update(trackers)
-    .set(updates)
-    .where(eq(trackers.id, trackerId))
+  await db.update(trackers).set(updates).where(eq(trackers.id, trackerId))
 
   return NextResponse.json({ success: true })
 }
 
-export async function DELETE(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 

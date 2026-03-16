@@ -76,8 +76,9 @@ function buildFleetCategoryBreakdownOption(
         const rows = items
           .filter((item) => item.value > 0)
           .sort((a, b) => b.value - a.value)
-          .map((item) =>
-            `${chartDot(item.color)}<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${fmtNum(item.value, 1)}%</span>`
+          .map(
+            (item) =>
+              `${chartDot(item.color)}<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${fmtNum(item.value, 1)}%</span>`
           )
           .join("<br/>")
         return `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(tracker)}</span><br/>${rows}`
@@ -112,23 +113,28 @@ function buildFleetCategoryBreakdownOption(
         lineStyle: { color: CHART_THEME.gridLine, width: 1 },
       },
     },
-    dataZoom: trackerNames.length > 10
-      ? [
-          {
-            type: "slider",
-            xAxisIndex: 0,
-            startValue: 0,
-            endValue: 9,
-            height: 20,
-            bottom: 4,
-            borderColor: CHART_THEME.gridLine,
-            fillerColor: hexToRgba(CHART_THEME.accent, 0.09),
-            handleStyle: { color: CHART_THEME.accent },
-            textStyle: { color: CHART_THEME.textTertiary, fontFamily: CHART_THEME.fontMono, fontSize: 9 },
-          },
-          { type: "inside", xAxisIndex: 0 },
-        ]
-      : undefined,
+    dataZoom:
+      trackerNames.length > 10
+        ? [
+            {
+              type: "slider",
+              xAxisIndex: 0,
+              startValue: 0,
+              endValue: 9,
+              height: 20,
+              bottom: 4,
+              borderColor: CHART_THEME.gridLine,
+              fillerColor: hexToRgba(CHART_THEME.accent, 0.09),
+              handleStyle: { color: CHART_THEME.accent },
+              textStyle: {
+                color: CHART_THEME.textTertiary,
+                fontFamily: CHART_THEME.fontMono,
+                fontSize: 9,
+              },
+            },
+            { type: "inside", xAxisIndex: 0 },
+          ]
+        : undefined,
     series,
   }
 }
@@ -142,7 +148,11 @@ const CATEGORY_PALETTE = [
   ...CHART_THEME.scale,
 ]
 
-function FleetCategoryBreakdown({ torrents, trackerTags, height = 360 }: FleetCategoryBreakdownProps) {
+function FleetCategoryBreakdown({
+  torrents,
+  trackerTags,
+  height = 360,
+}: FleetCategoryBreakdownProps) {
   if (torrents.length === 0 || trackerTags.length === 0) {
     return <ChartEmptyState height={height} message="No torrent data available" />
   }
@@ -173,9 +183,7 @@ function FleetCategoryBreakdown({ torrents, trackerTags, height = 360 }: FleetCa
     return <ChartEmptyState height={height} message="No tagged torrents found" />
   }
 
-  const trackerNames = trackerTags
-    .map((t) => t.name)
-    .filter((name) => data.has(name))
+  const trackerNames = trackerTags.map((t) => t.name).filter((name) => data.has(name))
 
   const categories = Array.from(allCategories).sort()
   const categoryColors = categories.map((_, i) => CATEGORY_PALETTE[i % CATEGORY_PALETTE.length])

@@ -23,7 +23,13 @@ interface RankChange {
 }
 
 type TimelineEvent =
-  | { kind: "rank"; from: string; to: string; date: string; direction: "promotion" | "demotion" | "unknown" }
+  | {
+      kind: "rank"
+      from: string
+      to: string
+      date: string
+      direction: "promotion" | "demotion" | "unknown"
+    }
   | { kind: "anniversary"; label: string }
 
 // ── Helpers ──
@@ -48,7 +54,7 @@ function extractRankHistory(snapshots: Snapshot[]): RankChange[] {
 function classifyDirection(
   from: string,
   to: string,
-  userClasses: TrackerUserClass[],
+  userClasses: TrackerUserClass[]
 ): "promotion" | "demotion" | "unknown" {
   if (userClasses.length === 0) return "unknown"
   const fromIdx = userClasses.findIndex((uc) => uc.name.toLowerCase() === from.toLowerCase())
@@ -86,9 +92,7 @@ function RankProgressBar({ userClasses, currentRank, accentColor }: RankProgress
                 className="w-4 h-px shrink-0"
                 style={{
                   backgroundColor:
-                    isPast || isCurrent
-                      ? hexToRgba(accentColor, 0.5)
-                      : CHART_THEME.borderEmphasis,
+                    isPast || isCurrent ? hexToRgba(accentColor, 0.5) : CHART_THEME.borderEmphasis,
                 }}
               />
             )}
@@ -140,7 +144,10 @@ function RankTimeline({ events, accentColor }: RankTimelineProps) {
       {events.map((event) => {
         if (event.kind === "anniversary") {
           return (
-            <div key={`anniv-${event.label}`} className="flex flex-col items-center gap-1.5 shrink-0">
+            <div
+              key={`anniv-${event.label}`}
+              className="flex flex-col items-center gap-1.5 shrink-0"
+            >
               <div
                 className="w-2.5 h-2.5 rounded-full shrink-0"
                 style={{
@@ -156,13 +163,13 @@ function RankTimeline({ events, accentColor }: RankTimelineProps) {
         }
 
         const dirColor =
-          event.direction === "promotion" ? CHART_THEME.success
-          : event.direction === "demotion" ? CHART_THEME.danger
-          : accentColor
+          event.direction === "promotion"
+            ? CHART_THEME.success
+            : event.direction === "demotion"
+              ? CHART_THEME.danger
+              : accentColor
         const dirIcon =
-          event.direction === "promotion" ? "▲"
-          : event.direction === "demotion" ? "▼"
-          : "→"
+          event.direction === "promotion" ? "▲" : event.direction === "demotion" ? "▼" : "→"
 
         const dateStr = new Date(event.date).toLocaleDateString("en-US", {
           month: "short",
@@ -177,12 +184,18 @@ function RankTimeline({ events, accentColor }: RankTimelineProps) {
                 {dirIcon}
               </span>
               <span className="text-xs font-mono text-secondary">
-                <RedactedText value={event.from} color="var(--color-tertiary)" className="text-tertiary" />
+                <RedactedText
+                  value={event.from}
+                  color="var(--color-tertiary)"
+                  className="text-tertiary"
+                />
                 <span className="text-muted mx-1">→</span>
                 <RedactedText value={event.to} color={dirColor} className="font-semibold" />
               </span>
             </div>
-            <span className="text-[10px] font-mono text-muted whitespace-nowrap pl-4">{dateStr}</span>
+            <span className="text-[10px] font-mono text-muted whitespace-nowrap pl-4">
+              {dateStr}
+            </span>
           </div>
         )
       })}
@@ -200,20 +213,24 @@ interface RankProgressProps {
   joinedAt?: string | null
 }
 
-function RankProgress({ userClasses, currentRank, snapshots, accentColor, joinedAt }: RankProgressProps) {
+function RankProgress({
+  userClasses,
+  currentRank,
+  snapshots,
+  accentColor,
+  joinedAt,
+}: RankProgressProps) {
   const [expanded, setExpanded] = useState(true)
   const rankHistory = extractRankHistory(snapshots)
 
   // Build timeline events: rank changes + anniversary milestone
-  const events: TimelineEvent[] = [...rankHistory]
-    .reverse()
-    .map((change) => ({
-      kind: "rank" as const,
-      from: change.from,
-      to: change.to,
-      date: change.date,
-      direction: classifyDirection(change.from, change.to, userClasses),
-    }))
+  const events: TimelineEvent[] = [...rankHistory].reverse().map((change) => ({
+    kind: "rank" as const,
+    from: change.from,
+    to: change.to,
+    date: change.date,
+    direction: classifyDirection(change.from, change.to, userClasses),
+  }))
 
   if (joinedAt) {
     const milestone = getAnniversaryMilestone(joinedAt)
@@ -247,10 +264,7 @@ function RankProgress({ userClasses, currentRank, snapshots, accentColor, joined
             />
           )}
 
-          <RankTimeline
-            events={events}
-            accentColor={accentColor}
-          />
+          <RankTimeline events={events} accentColor={accentColor} />
         </>
       )}
     </div>

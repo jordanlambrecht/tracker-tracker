@@ -21,7 +21,9 @@ const seedTimeCol: Column<TorrentInfo> = {
   header: "Seed",
   align: "right",
   width: "8%",
-  render: (t) => <span className="text-[11px] font-mono text-muted">{formatDuration(t.seedingTime)}</span>,
+  render: (t) => (
+    <span className="text-[11px] font-mono text-muted">{formatDuration(t.seedingTime)}</span>
+  ),
 }
 
 const seedTimeColLast: Column<TorrentInfo> = {
@@ -29,7 +31,9 @@ const seedTimeColLast: Column<TorrentInfo> = {
   header: "Seed",
   align: "right",
   width: "8%",
-  render: (t) => <span className="text-[11px] font-mono text-muted pr-2">{formatDuration(t.seedingTime)}</span>,
+  render: (t) => (
+    <span className="text-[11px] font-mono text-muted pr-2">{formatDuration(t.seedingTime)}</span>
+  ),
 }
 
 const swarmCol: Column<TorrentInfo> = {
@@ -37,7 +41,11 @@ const swarmCol: Column<TorrentInfo> = {
   header: "S/L",
   align: "right",
   width: "7%",
-  render: (t) => <span className="text-[11px] font-mono text-muted pr-2">{t.numComplete}/{t.numIncomplete}</span>,
+  render: (t) => (
+    <span className="text-[11px] font-mono text-muted pr-2">
+      {t.numComplete}/{t.numIncomplete}
+    </span>
+  ),
 }
 
 const addedCol: Column<TorrentInfo> = {
@@ -47,31 +55,36 @@ const addedCol: Column<TorrentInfo> = {
   width: "9%",
   render: (t) => {
     const d = new Date(t.addedOn * 1000)
-    return <span className="text-[11px] font-mono text-muted">{d.toLocaleDateString("en-US", { month: "short", year: "2-digit" })}</span>
+    return (
+      <span className="text-[11px] font-mono text-muted">
+        {d.toLocaleDateString("en-US", { month: "short", year: "2-digit" })}
+      </span>
+    )
   },
 }
 
 const variantColumns: Record<TorrentTableVariant, Column<TorrentInfo>[]> = {
   "top-seeded": [seedTimeCol, swarmCol],
-  "elder": [addedCol, seedTimeColLast],
+  elder: [addedCol, seedTimeColLast],
 }
 
-export function TorrentRankingTable({
-  torrents,
-  variant,
-}: TorrentRankingTableProps) {
+export function TorrentRankingTable({ torrents, variant }: TorrentRankingTableProps) {
   const sharedColumns: Column<TorrentInfo>[] = [
     {
       key: "rank",
       header: "#",
       width: "3%",
-      render: (_t, i) => <span className="text-[11px] font-mono text-muted pl-2">{i != null ? i + 1 : ""}</span>,
+      render: (_t, i) => (
+        <span className="text-[11px] font-mono text-muted pl-2">{i != null ? i + 1 : ""}</span>
+      ),
     },
     {
       key: "name",
       header: "Name",
       render: (t) => (
-        <MarqueeText className="text-[11px] font-mono text-secondary" speed={30}>{t.name}</MarqueeText>
+        <MarqueeText className="text-[11px] font-mono text-secondary" speed={30}>
+          {t.name}
+        </MarqueeText>
       ),
     },
     {
@@ -79,7 +92,11 @@ export function TorrentRankingTable({
       header: "Cat",
       width: "10%",
       render: (t) => (
-        <Tooltip content={t.category}><span className="text-[11px] font-mono text-muted truncate block">{t.category || "\u2014"}</span></Tooltip>
+        <Tooltip content={t.category}>
+          <span className="text-[11px] font-mono text-muted truncate block">
+            {t.category || "\u2014"}
+          </span>
+        </Tooltip>
       ),
     },
     {
@@ -94,7 +111,8 @@ export function TorrentRankingTable({
         const unit = spaceIdx > -1 ? formatted.slice(spaceIdx + 1) : ""
         return (
           <span className="text-[11px] font-mono text-muted text-right leading-none">
-            {num}<span className="block text-[9px] mt-px">{unit}</span>
+            {num}
+            <span className="block text-[9px] mt-px">{unit}</span>
           </span>
         )
       },

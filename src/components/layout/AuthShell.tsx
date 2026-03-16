@@ -53,7 +53,10 @@ export function AuthShell({ children }: { children: ReactNode }) {
         />
       )}
       <Sidebar collapsed={effectiveCollapsed} onToggle={toggle} isMobile={isMobile} />
-      <main ref={mainRef} className="flex-1 min-w-0 overflow-y-auto p-4 md:p-6 relative themed-scrollbar">
+      <main
+        ref={mainRef}
+        className="flex-1 min-w-0 overflow-y-auto p-4 md:p-6 relative themed-scrollbar"
+      >
         {showHamburger && (
           <button
             type="button"

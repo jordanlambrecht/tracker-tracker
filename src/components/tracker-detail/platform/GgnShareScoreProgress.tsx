@@ -18,8 +18,12 @@ export function GgnShareScoreProgress({ latestSnapshot, accentColor }: GgnShareS
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between text-xs font-mono">
-        <span className="text-tertiary uppercase tracking-wider font-sans font-medium text-[10px]">Share Score</span>
-        <span className="text-secondary font-semibold">{score.toFixed(2)} / {maxScore}</span>
+        <span className="text-tertiary uppercase tracking-wider font-sans font-medium text-[10px]">
+          Share Score
+        </span>
+        <span className="text-secondary font-semibold">
+          {score.toFixed(2)} / {maxScore}
+        </span>
       </div>
       <div className="nm-inset h-2 w-full overflow-hidden rounded-nm-pill">
         <div

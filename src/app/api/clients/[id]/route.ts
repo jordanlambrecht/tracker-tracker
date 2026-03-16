@@ -4,7 +4,13 @@
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseJsonBody, parseRouteId, validatePort } from "@/lib/api-helpers"
+import {
+  authenticate,
+  decodeKey,
+  parseJsonBody,
+  parseRouteId,
+  validatePort,
+} from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
@@ -12,10 +18,7 @@ import { PROXY_HOST_PATTERN } from "@/lib/proxy"
 import { VALID_CLIENT_TYPES } from "@/lib/qbt/types"
 import { removeClientFromAccumulator } from "@/lib/uptime"
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -80,7 +83,10 @@ export async function PATCH(
 
   if (typeof body.pollIntervalSeconds === "number") {
     if (body.pollIntervalSeconds < 60 || body.pollIntervalSeconds > 86400) {
-      return NextResponse.json({ error: "Poll interval must be between 60 and 86400 seconds" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Poll interval must be between 60 and 86400 seconds" },
+        { status: 400 }
+      )
     }
     updates.pollIntervalSeconds = body.pollIntervalSeconds
   }
@@ -90,24 +96,40 @@ export async function PATCH(
       return NextResponse.json({ error: "crossSeedTags must be an array" }, { status: 400 })
     }
     if (body.crossSeedTags.length > 50) {
-      return NextResponse.json({ error: "Cannot specify more than 50 cross-seed tags" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Cannot specify more than 50 cross-seed tags" },
+        { status: 400 }
+      )
     }
-    if (!body.crossSeedTags.every((t: unknown) => typeof t === "string" && t.length > 0 && t.length <= 100)) {
-      return NextResponse.json({ error: "Each cross-seed tag must be a non-empty string of 100 characters or fewer" }, { status: 400 })
+    if (
+      !body.crossSeedTags.every(
+        (t: unknown) => typeof t === "string" && t.length > 0 && t.length <= 100
+      )
+    ) {
+      return NextResponse.json(
+        { error: "Each cross-seed tag must be a non-empty string of 100 characters or fewer" },
+        { status: 400 }
+      )
     }
     updates.crossSeedTags = JSON.stringify(body.crossSeedTags)
   }
 
   if (typeof body.username === "string") {
     if (body.username.length > 255) {
-      return NextResponse.json({ error: "Username must be 255 characters or fewer" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Username must be 255 characters or fewer" },
+        { status: 400 }
+      )
     }
     updates.encryptedUsername = encrypt(body.username, getKey())
   }
 
   if (typeof body.password === "string") {
     if (body.password.length > 255) {
-      return NextResponse.json({ error: "Password must be 255 characters or fewer" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Password must be 255 characters or fewer" },
+        { status: 400 }
+      )
     }
     updates.encryptedPassword = encrypt(body.password, getKey())
   }
@@ -124,10 +146,7 @@ export async function PATCH(
   return NextResponse.json({ success: true })
 }
 
-export async function DELETE(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 

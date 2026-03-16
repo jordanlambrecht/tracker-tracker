@@ -82,7 +82,6 @@ function makeRegistryEntry(overrides: Partial<TrackerRegistryEntry> = {}): Track
 
 // Reset the findRegistryEntry mock before each test in computeAlerts suite
 
-
 const makeSnapshot = (overrides: Partial<Snapshot> = {}): Snapshot => ({
   polledAt: new Date().toISOString(),
   uploadedBytes: "1000",
@@ -322,13 +321,26 @@ describe("computeAlerts", () => {
   })
 
   it("returns no alerts for a healthy tracker", () => {
-    mockFindRegistryEntry.mockReturnValue(makeRegistryEntry({ rules: { minimumRatio: 0.4, seedTimeHours: 72, loginIntervalDays: 90 } }))
+    mockFindRegistryEntry.mockReturnValue(
+      makeRegistryEntry({ rules: { minimumRatio: 0.4, seedTimeHours: 72, loginIntervalDays: 90 } })
+    )
     const tracker = makeTracker({
       id: 1,
       name: "Aither",
       lastError: null,
       lastPolledAt: new Date().toISOString(),
-      latestStats: { ratio: 2.5, uploadedBytes: "1000", downloadedBytes: "400", seedingCount: 5, leechingCount: 1, requiredRatio: null, warned: null, freeleechTokens: null, username: "u", group: null },
+      latestStats: {
+        ratio: 2.5,
+        uploadedBytes: "1000",
+        downloadedBytes: "400",
+        seedingCount: 5,
+        leechingCount: 1,
+        requiredRatio: null,
+        warned: null,
+        freeleechTokens: null,
+        username: "u",
+        group: null,
+      },
     })
     const alerts = computeAlerts([tracker])
     expect(alerts).toHaveLength(0)
@@ -363,7 +375,9 @@ describe("computeAlerts", () => {
   })
 
   it("generates a ratio-danger alert when ratio is below minimumRatio", () => {
-    mockFindRegistryEntry.mockReturnValue(makeRegistryEntry({ rules: { minimumRatio: 0.4, seedTimeHours: 72, loginIntervalDays: 90 } }))
+    mockFindRegistryEntry.mockReturnValue(
+      makeRegistryEntry({ rules: { minimumRatio: 0.4, seedTimeHours: 72, loginIntervalDays: 90 } })
+    )
     const tracker = makeTracker({
       id: 2,
       name: "OnlyEncodes",
@@ -392,7 +406,9 @@ describe("computeAlerts", () => {
   })
 
   it("does not generate ratio-danger alert when ratio meets minimumRatio", () => {
-    mockFindRegistryEntry.mockReturnValue(makeRegistryEntry({ rules: { minimumRatio: 0.4, seedTimeHours: 72, loginIntervalDays: 90 } }))
+    mockFindRegistryEntry.mockReturnValue(
+      makeRegistryEntry({ rules: { minimumRatio: 0.4, seedTimeHours: 72, loginIntervalDays: 90 } })
+    )
     const tracker = makeTracker({
       id: 1,
       name: "Aither",
@@ -415,13 +431,26 @@ describe("computeAlerts", () => {
   })
 
   it("looks up registry by baseUrl not name", () => {
-    mockFindRegistryEntry.mockReturnValue(makeRegistryEntry({ rules: { minimumRatio: 0.4, seedTimeHours: 72, loginIntervalDays: 90 } }))
+    mockFindRegistryEntry.mockReturnValue(
+      makeRegistryEntry({ rules: { minimumRatio: 0.4, seedTimeHours: 72, loginIntervalDays: 90 } })
+    )
     const tracker = makeTracker({
       id: 1,
       name: "My Custom Name", // user renamed — should still match via baseUrl
       baseUrl: "https://aither.cc",
       lastError: null,
-      latestStats: { ratio: 0.2, uploadedBytes: "200", downloadedBytes: "1000", seedingCount: 1, leechingCount: 0, requiredRatio: null, warned: null, freeleechTokens: null, username: "u", group: null },
+      latestStats: {
+        ratio: 0.2,
+        uploadedBytes: "200",
+        downloadedBytes: "1000",
+        seedingCount: 1,
+        leechingCount: 0,
+        requiredRatio: null,
+        warned: null,
+        freeleechTokens: null,
+        username: "u",
+        group: null,
+      },
     })
     const alerts = computeAlerts([tracker])
     expect(mockFindRegistryEntry).toHaveBeenCalledWith("https://aither.cc")
@@ -435,7 +464,18 @@ describe("computeAlerts", () => {
       name: "Aither",
       lastPolledAt: staleTime,
       lastError: null,
-      latestStats: { ratio: 2.0, uploadedBytes: "1000", downloadedBytes: "500", seedingCount: 5, leechingCount: 1, requiredRatio: null, warned: null, freeleechTokens: null, username: "u", group: null },
+      latestStats: {
+        ratio: 2.0,
+        uploadedBytes: "1000",
+        downloadedBytes: "500",
+        seedingCount: 5,
+        leechingCount: 1,
+        requiredRatio: null,
+        warned: null,
+        freeleechTokens: null,
+        username: "u",
+        group: null,
+      },
     })
     const alerts = computeAlerts([tracker])
     const staleAlert = alerts.find((a) => a.type === "stale-data")
@@ -573,8 +613,12 @@ describe("getDismissedAlerts / dismissAlert / clearDismissedAlerts", () => {
     for (const key in store) delete store[key]
     vi.stubGlobal("localStorage", {
       getItem: (key: string) => store[key] ?? null,
-      setItem: (key: string, value: string) => { store[key] = value },
-      removeItem: (key: string) => { delete store[key] },
+      setItem: (key: string, value: string) => {
+        store[key] = value
+      },
+      removeItem: (key: string) => {
+        delete store[key]
+      },
     })
   })
 
@@ -613,7 +657,9 @@ describe("getDismissedAlerts / dismissAlert / clearDismissedAlerts", () => {
 
   it("getDismissedAlerts returns empty set when localStorage throws (SSR safety)", () => {
     vi.stubGlobal("localStorage", {
-      getItem: () => { throw new Error("localStorage unavailable") },
+      getItem: () => {
+        throw new Error("localStorage unavailable")
+      },
       setItem: () => {},
       removeItem: () => {},
     })
@@ -624,7 +670,9 @@ describe("getDismissedAlerts / dismissAlert / clearDismissedAlerts", () => {
   it("dismissAlert silently fails when localStorage throws (SSR safety)", () => {
     vi.stubGlobal("localStorage", {
       getItem: () => null,
-      setItem: () => { throw new Error("localStorage unavailable") },
+      setItem: () => {
+        throw new Error("localStorage unavailable")
+      },
       removeItem: () => {},
     })
     expect(() => dismissAlert("some-key")).not.toThrow()

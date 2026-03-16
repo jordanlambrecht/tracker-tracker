@@ -11,7 +11,16 @@ import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
 import { buildAxisPointer, buildGlowAreaStyle } from "./chart-helpers"
 import { buildUnifiedTimestampAxis } from "./chart-transforms"
-import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
+import {
+  CHART_THEME,
+  chartAxisLabel,
+  chartDot,
+  chartGrid,
+  chartLegend,
+  chartTooltip,
+  chartTooltipHeader,
+  escHtml,
+} from "./theme"
 
 interface FleetCompositionChartProps {
   trackerData: TrackerSnapshotSeries[]
@@ -67,16 +76,9 @@ function buildFleetOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
         }>
         if (!items?.length) return ""
         const time = items[0].axisValueLabel
-        const validItems = items.filter(
-          (i) => i.value !== null && i.value !== undefined
-        )
-        const total = validItems.reduce(
-          (sum, i) => sum + (i.value as number),
-          0
-        )
-        const sorted = [...validItems].sort(
-          (a, b) => (b.value as number) - (a.value as number)
-        )
+        const validItems = items.filter((i) => i.value !== null && i.value !== undefined)
+        const total = validItems.reduce((sum, i) => sum + (i.value as number), 0)
+        const sorted = [...validItems].sort((a, b) => (b.value as number) - (a.value as number))
 
         const header = chartTooltipHeader(time)
         const totalRow = `<div style="color:${CHART_THEME.textPrimary};font-weight:600;margin-bottom:4px;">Total: ${total.toLocaleString()} seeding</div>`
@@ -121,13 +123,8 @@ function buildFleetOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
   }
 }
 
-function FleetCompositionChart({
-  trackerData,
-  height = 360,
-}: FleetCompositionChartProps) {
-  const hasData = trackerData.some((t) =>
-    t.snapshots.some((s) => s.seedingCount !== null)
-  )
+function FleetCompositionChart({ trackerData, height = 360 }: FleetCompositionChartProps) {
+  const hasData = trackerData.some((t) => t.snapshots.some((s) => s.seedingCount !== null))
 
   if (!hasData) {
     return <ChartEmptyState height={height} message="No fleet data available" />

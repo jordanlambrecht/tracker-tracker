@@ -6,7 +6,13 @@ import { sql } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { CHART_THEME } from "@/components/charts/theme"
 import { DEFAULT_API_PATHS } from "@/lib/adapters"
-import { authenticate, decodeKey, parseJsonBody, validateHexColor, validateHttpUrl } from "@/lib/api-helpers"
+import {
+  authenticate,
+  decodeKey,
+  parseJsonBody,
+  validateHexColor,
+  validateHttpUrl,
+} from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings, trackerSnapshots, trackers } from "@/lib/db/schema"
@@ -41,9 +47,7 @@ export async function GET() {
     )
 
   // Build a lookup map for O(1) access
-  const snapshotByTracker = new Map(
-    latestSnapshots.map((s) => [s.trackerId, s])
-  )
+  const snapshotByTracker = new Map(latestSnapshots.map((s) => [s.trackerId, s]))
 
   // SECURITY: Never include encryptedApiToken in response
   // security-audit-ignore: serializeTrackerResponse omits encryptedApiToken by design
@@ -72,9 +76,18 @@ export async function POST(request: Request) {
     joinedAt?: string
   }
 
-  if (typeof name !== "string" || typeof baseUrl !== "string" || typeof apiToken !== "string" ||
-      !name.trim() || !baseUrl.trim() || !apiToken.trim()) {
-    return NextResponse.json({ error: "name, baseUrl, and apiToken are required strings" }, { status: 400 })
+  if (
+    typeof name !== "string" ||
+    typeof baseUrl !== "string" ||
+    typeof apiToken !== "string" ||
+    !name.trim() ||
+    !baseUrl.trim() ||
+    !apiToken.trim()
+  ) {
+    return NextResponse.json(
+      { error: "name, baseUrl, and apiToken are required strings" },
+      { status: 400 }
+    )
   }
 
   if (name.length > 100) {
@@ -86,7 +99,10 @@ export async function POST(request: Request) {
   }
 
   if (apiToken.length > 500) {
-    return NextResponse.json({ error: "API token must be 500 characters or fewer" }, { status: 400 })
+    return NextResponse.json(
+      { error: "API token must be 500 characters or fewer" },
+      { status: 400 }
+    )
   }
 
   const urlErr = validateHttpUrl(baseUrl)
@@ -98,10 +114,17 @@ export async function POST(request: Request) {
   }
 
   if (typeof qbtTag === "string" && qbtTag.length > 100) {
-    return NextResponse.json({ error: "qBittorrent tag must be 100 characters or fewer" }, { status: 400 })
+    return NextResponse.json(
+      { error: "qBittorrent tag must be 100 characters or fewer" },
+      { status: 400 }
+    )
   }
 
-  if (typeof joinedAt === "string" && joinedAt && joinedAt > new Date().toISOString().split("T")[0]) {
+  if (
+    typeof joinedAt === "string" &&
+    joinedAt &&
+    joinedAt > new Date().toISOString().split("T")[0]
+  ) {
     return NextResponse.json({ error: "Join date cannot be in the future" }, { status: 400 })
   }
 

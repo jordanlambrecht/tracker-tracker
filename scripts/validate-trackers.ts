@@ -23,9 +23,22 @@ const LOGO_DIR = path.resolve(__dirname, "../public/tracker-logos")
 const TRACKER_DIR = path.resolve(__dirname, "../src/data/trackers")
 
 const VALID_CONTENT_CATEGORIES = new Set([
-  "Movies", "TV", "Music", "Games", "Apps", "Sports",
-  "Books", "Audiobooks", "Comics", "Manga", "Anime",
-  "XXX", "Documentaries", "Education", "Tutorials", "Fanres",
+  "Movies",
+  "TV",
+  "Music",
+  "Games",
+  "Apps",
+  "Sports",
+  "Books",
+  "Audiobooks",
+  "Comics",
+  "Manga",
+  "Anime",
+  "XXX",
+  "Documentaries",
+  "Education",
+  "Tutorials",
+  "Fanres",
 ])
 
 function isEmpty(val: unknown): boolean {
@@ -73,18 +86,26 @@ function validate(slugFilter?: string[]): TrackerResult[] {
     if (tracker.platform !== "custom") {
       const expected = DEFAULT_API_PATHS[tracker.platform]
       if (tracker.apiPath !== expected) {
-        errors.push(`apiPath "${tracker.apiPath}" does not match platform "${tracker.platform}" (expected "${expected}")`)
+        errors.push(
+          `apiPath "${tracker.apiPath}" does not match platform "${tracker.platform}" (expected "${expected}")`
+        )
       }
     }
     if (!/^https:\/\//.test(tracker.url)) {
       errors.push("URL must use https://")
     } else {
-      try { new URL(tracker.url) } catch { errors.push("Invalid URL format") }
+      try {
+        new URL(tracker.url)
+      } catch {
+        errors.push("Invalid URL format")
+      }
     }
     if (isEmpty(tracker.contentCategories)) {
       errors.push("Missing contentCategories")
     } else {
-      const invalid = tracker.contentCategories.filter((c: string) => !VALID_CONTENT_CATEGORIES.has(c))
+      const invalid = tracker.contentCategories.filter(
+        (c: string) => !VALID_CONTENT_CATEGORIES.has(c)
+      )
       if (invalid.length > 0) errors.push(`Invalid categories: ${invalid.join(", ")}`)
     }
     if (isEmpty(tracker.language)) errors.push("Missing language")
@@ -103,25 +124,37 @@ function validate(slugFilter?: string[]): TrackerResult[] {
       if (typeof rules.seedTimeHours !== "number") {
         errors.push("Missing rules.seedTimeHours")
       } else {
-        if (rules.seedTimeHours < 0) errors.push(`rules.seedTimeHours must be >= 0 (got ${rules.seedTimeHours})`)
-        if (!Number.isInteger(rules.seedTimeHours)) errors.push(`rules.seedTimeHours must be an integer (got ${rules.seedTimeHours})`)
+        if (rules.seedTimeHours < 0)
+          errors.push(`rules.seedTimeHours must be >= 0 (got ${rules.seedTimeHours})`)
+        if (!Number.isInteger(rules.seedTimeHours))
+          errors.push(`rules.seedTimeHours must be an integer (got ${rules.seedTimeHours})`)
       }
 
       if (typeof rules.loginIntervalDays !== "number") {
         errors.push("Missing rules.loginIntervalDays")
       } else {
-        if (rules.loginIntervalDays < 0) errors.push(`rules.loginIntervalDays must be >= 0 (got ${rules.loginIntervalDays})`)
-        if (!Number.isInteger(rules.loginIntervalDays)) errors.push(`rules.loginIntervalDays must be an integer (got ${rules.loginIntervalDays})`)
+        if (rules.loginIntervalDays < 0)
+          errors.push(`rules.loginIntervalDays must be >= 0 (got ${rules.loginIntervalDays})`)
+        if (!Number.isInteger(rules.loginIntervalDays))
+          errors.push(`rules.loginIntervalDays must be an integer (got ${rules.loginIntervalDays})`)
       }
 
       if (rules.fulfillmentPeriodHours != null) {
-        if (!Number.isInteger(rules.fulfillmentPeriodHours)) errors.push(`rules.fulfillmentPeriodHours must be an integer (got ${rules.fulfillmentPeriodHours})`)
-        if (rules.fulfillmentPeriodHours < 0) errors.push(`rules.fulfillmentPeriodHours must be >= 0 (got ${rules.fulfillmentPeriodHours})`)
+        if (!Number.isInteger(rules.fulfillmentPeriodHours))
+          errors.push(
+            `rules.fulfillmentPeriodHours must be an integer (got ${rules.fulfillmentPeriodHours})`
+          )
+        if (rules.fulfillmentPeriodHours < 0)
+          errors.push(
+            `rules.fulfillmentPeriodHours must be >= 0 (got ${rules.fulfillmentPeriodHours})`
+          )
       }
 
       if (rules.hnrBanLimit != null) {
-        if (!Number.isInteger(rules.hnrBanLimit)) errors.push(`rules.hnrBanLimit must be an integer (got ${rules.hnrBanLimit})`)
-        if (rules.hnrBanLimit < 0) errors.push(`rules.hnrBanLimit must be >= 0 (got ${rules.hnrBanLimit})`)
+        if (!Number.isInteger(rules.hnrBanLimit))
+          errors.push(`rules.hnrBanLimit must be an integer (got ${rules.hnrBanLimit})`)
+        if (rules.hnrBanLimit < 0)
+          errors.push(`rules.hnrBanLimit must be >= 0 (got ${rules.hnrBanLimit})`)
       }
     }
 
@@ -129,8 +162,11 @@ function validate(slugFilter?: string[]): TrackerResult[] {
     if (PLACEHOLDER_RE.test(tracker.description?.trim() ?? "")) {
       errors.push("Description is still a placeholder (TODO)")
     }
-    const dupeCats = tracker.contentCategories.filter((c: string, i: number) => tracker.contentCategories.indexOf(c) !== i)
-    if (dupeCats.length > 0) errors.push(`Duplicate categories: ${[...new Set(dupeCats)].join(", ")}`)
+    const dupeCats = tracker.contentCategories.filter(
+      (c: string, i: number) => tracker.contentCategories.indexOf(c) !== i
+    )
+    if (dupeCats.length > 0)
+      errors.push(`Duplicate categories: ${[...new Set(dupeCats)].join(", ")}`)
 
     if (tracker.color && !HEX_COLOR_RE.test(tracker.color)) {
       errors.push(`Invalid hex color "${tracker.color}"`)
@@ -168,7 +204,8 @@ function checkBarrelInclusion(): string[] {
   const barrelPath = path.join(TRACKER_DIR, "index.ts")
   if (!fs.existsSync(barrelPath)) return ["Barrel file src/data/trackers/index.ts not found"]
   const barrelContent = fs.readFileSync(barrelPath, "utf8")
-  const files = fs.readdirSync(TRACKER_DIR)
+  const files = fs
+    .readdirSync(TRACKER_DIR)
     .filter((f) => f.endsWith(".ts") && f !== "index.ts")
     .map((f) => f.replace(/\.ts$/, ""))
   return files
@@ -181,7 +218,13 @@ const slugArgs = process.argv.slice(2).filter((a) => !a.startsWith("-"))
 const results = validate(slugArgs.length > 0 ? slugArgs : undefined)
 const barrelErrors = checkBarrelInclusion()
 if (barrelErrors.length > 0) {
-  results.unshift({ slug: "_barrel", name: "Barrel File", draft: false, errors: barrelErrors, warnings: [] })
+  results.unshift({
+    slug: "_barrel",
+    name: "Barrel File",
+    draft: false,
+    errors: barrelErrors,
+    warnings: [],
+  })
 }
 
 // Output JSON to stdout for CI consumption

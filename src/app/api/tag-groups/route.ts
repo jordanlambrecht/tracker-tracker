@@ -67,11 +67,20 @@ export async function POST(request: Request) {
   }
 
   if (typeof description === "string" && description.length > 500) {
-    return NextResponse.json({ error: "Description must be 500 characters or fewer" }, { status: 400 })
+    return NextResponse.json(
+      { error: "Description must be 500 characters or fewer" },
+      { status: 400 }
+    )
   }
 
-  if (typeof chartType === "string" && !(VALID_CHART_TYPES as readonly string[]).includes(chartType)) {
-    return NextResponse.json({ error: `chartType must be one of: ${VALID_CHART_TYPES.join(", ")}` }, { status: 400 })
+  if (
+    typeof chartType === "string" &&
+    !(VALID_CHART_TYPES as readonly string[]).includes(chartType)
+  ) {
+    return NextResponse.json(
+      { error: `chartType must be one of: ${VALID_CHART_TYPES.join(", ")}` },
+      { status: 400 }
+    )
   }
 
   if (typeof emoji === "string" && emoji.length > 10) {

@@ -35,24 +35,20 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             "focus:outline-none focus:nm-inset",
             "disabled:opacity-40 disabled:cursor-not-allowed",
             "border-0",
-            className,
+            className
           )}
           aria-invalid={error ? "true" : undefined}
           aria-describedby={error ? `${inputId}-error` : undefined}
           {...props}
         />
         {error && (
-          <p
-            id={`${inputId}-error`}
-            className="text-xs font-sans text-danger"
-            role="alert"
-          >
+          <p id={`${inputId}-error`} className="text-xs font-sans text-danger" role="alert">
             {error}
           </p>
         )}
       </div>
     )
-  },
+  }
 )
 
 Input.displayName = "Input"

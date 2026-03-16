@@ -25,9 +25,7 @@ interface SeedbonusRiverChartProps {
 // Data builder
 // ---------------------------------------------------------------------------
 
-function buildRiverData(
-  trackerData: TrackerSnapshotSeries[]
-): [string, number, string][] {
+function buildRiverData(trackerData: TrackerSnapshotSeries[]): [string, number, string][] {
   // Collect all timestamps across all trackers (only from non-null seedbonus snaps)
   const allTs = new Set<string>()
   const trackerMaps: Map<string, number>[] = []
@@ -36,9 +34,7 @@ function buildRiverData(
     const map = new Map<string, number>()
     const sorted = [...tracker.snapshots]
       .filter((s) => s.seedbonus !== null)
-      .sort(
-        (a, b) => new Date(a.polledAt).getTime() - new Date(b.polledAt).getTime()
-      )
+      .sort((a, b) => new Date(a.polledAt).getTime() - new Date(b.polledAt).getTime())
     for (const s of sorted) {
       allTs.add(s.polledAt)
       map.set(s.polledAt, s.seedbonus as number)
@@ -46,9 +42,7 @@ function buildRiverData(
     trackerMaps.push(map)
   }
 
-  const sortedTs = [...allTs].sort(
-    (a, b) => new Date(a).getTime() - new Date(b).getTime()
-  )
+  const sortedTs = [...allTs].sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
 
   const data: [string, number, string][] = []
 
@@ -145,13 +139,8 @@ function buildRiverOption(
 // Component
 // ---------------------------------------------------------------------------
 
-function SeedbonusRiverChart({
-  trackerData,
-  height = 320,
-}: SeedbonusRiverChartProps) {
-  const hasData = trackerData.some((t) =>
-    t.snapshots.some((s) => s.seedbonus !== null)
-  )
+function SeedbonusRiverChart({ trackerData, height = 320 }: SeedbonusRiverChartProps) {
+  const hasData = trackerData.some((t) => t.snapshots.some((s) => s.seedbonus !== null))
 
   if (!hasData) {
     return <ChartEmptyState height={height} message="No seedbonus data available" />

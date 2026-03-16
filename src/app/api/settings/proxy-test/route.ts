@@ -7,7 +7,13 @@ import { authenticate, decodeKey, parseJsonBody, validatePort } from "@/lib/api-
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
-import { createProxyAgent, PROXY_HOST_PATTERN, type ProxyType, proxyFetch, VALID_PROXY_TYPES } from "@/lib/proxy"
+import {
+  createProxyAgent,
+  PROXY_HOST_PATTERN,
+  type ProxyType,
+  proxyFetch,
+  VALID_PROXY_TYPES,
+} from "@/lib/proxy"
 
 const TEST_URL = "https://httpbin.org/ip"
 // Loose IP pattern — IPv4, IPv6, or comma-separated (httpbin returns this)
@@ -20,21 +26,25 @@ export async function POST(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const { proxyType, proxyHost, proxyPort, proxyUsername, proxyPassword, useStoredPassword } = body as {
-    proxyType?: string
-    proxyHost?: string
-    proxyPort?: number
-    proxyUsername?: string
-    proxyPassword?: string
-    useStoredPassword?: boolean
-  }
+  const { proxyType, proxyHost, proxyPort, proxyUsername, proxyPassword, useStoredPassword } =
+    body as {
+      proxyType?: string
+      proxyHost?: string
+      proxyPort?: number
+      proxyUsername?: string
+      proxyPassword?: string
+      useStoredPassword?: boolean
+    }
 
   if (!proxyHost || typeof proxyHost !== "string") {
     return NextResponse.json({ error: "proxyHost is required" }, { status: 400 })
   }
 
   if (proxyHost.length > 255) {
-    return NextResponse.json({ error: "Proxy host must be 255 characters or fewer" }, { status: 400 })
+    return NextResponse.json(
+      { error: "Proxy host must be 255 characters or fewer" },
+      { status: 400 }
+    )
   }
 
   if (!PROXY_HOST_PATTERN.test(proxyHost)) {
@@ -42,7 +52,10 @@ export async function POST(request: Request) {
   }
 
   if (!proxyType || !VALID_PROXY_TYPES.has(proxyType)) {
-    return NextResponse.json({ error: `proxyType must be one of: ${[...VALID_PROXY_TYPES].join(", ")}` }, { status: 400 })
+    return NextResponse.json(
+      { error: `proxyType must be one of: ${[...VALID_PROXY_TYPES].join(", ")}` },
+      { status: 400 }
+    )
   }
 
   const port = typeof proxyPort === "number" ? proxyPort : 1080
@@ -91,9 +104,8 @@ export async function POST(request: Request) {
     const data = (await response.json()) as { origin?: string }
 
     // Sanitize origin — only return if it matches an IP-like pattern
-    const origin = typeof data.origin === "string" && IP_PATTERN.test(data.origin)
-      ? data.origin
-      : null
+    const origin =
+      typeof data.origin === "string" && IP_PATTERN.test(data.origin) ? data.origin : null
 
     return NextResponse.json({
       success: true,

@@ -24,7 +24,11 @@ export function DangerZoneSection() {
 
   // --- Emergency Lockdown ---
   const [confirmLockdown, setConfirmLockdown] = useState(false)
-  const [lockdownChecks, setLockdownChecks] = useState({ sessions: false, tokens: false, totp: false })
+  const [lockdownChecks, setLockdownChecks] = useState({
+    sessions: false,
+    tokens: false,
+    totp: false,
+  })
   const [lockdownSubmitting, setLockdownSubmitting] = useState(false)
   const [lockdownError, setLockdownError] = useState<string | null>(null)
 
@@ -87,7 +91,9 @@ export function DangerZoneSection() {
 
   return (
     <section aria-labelledby="danger-heading">
-      <H2 id="danger-heading" className="mb-4 !text-danger">Danger Zone</H2>
+      <H2 id="danger-heading" className="mb-4 !text-danger">
+        Danger Zone
+      </H2>
 
       <Card elevation="raised" className="flex flex-col gap-6">
         {/* Reset All Stats */}
@@ -95,19 +101,22 @@ export function DangerZoneSection() {
           <div className="flex flex-col gap-1">
             <H3>Reset All Tracker Stats</H3>
             <Paragraph>
-              Deletes all tracker snapshots and client snapshots from the database.
-              Trackers and their settings are preserved — only historical data is removed.
-              Trackers will re-poll on their next scheduled interval.
+              Deletes all tracker snapshots and client snapshots from the database. Trackers and
+              their settings are preserved — only historical data is removed. Trackers will re-poll
+              on their next scheduled interval.
             </Paragraph>
           </div>
 
           {confirmResetStats ? (
             <div className="nm-inset-sm p-4 flex flex-col gap-3 rounded-nm-md bg-danger-dim">
               <p className="text-sm font-sans text-primary leading-relaxed">
-                This will permanently delete all snapshot history for every tracker and download client. This cannot be undone.
+                This will permanently delete all snapshot history for every tracker and download
+                client. This cannot be undone.
               </p>
               {resetStatsError && (
-                <p className="text-xs font-sans text-danger" role="alert">{resetStatsError}</p>
+                <p className="text-xs font-sans text-danger" role="alert">
+                  {resetStatsError}
+                </p>
               )}
               <div className="flex gap-3">
                 <Button
@@ -135,7 +144,10 @@ export function DangerZoneSection() {
               <Button
                 size="sm"
                 variant="danger"
-                onClick={() => { setConfirmResetStats(true); setResetStatsSuccess(false) }}
+                onClick={() => {
+                  setConfirmResetStats(true)
+                  setResetStatsSuccess(false)
+                }}
               >
                 Reset All Stats
               </Button>
@@ -153,9 +165,9 @@ export function DangerZoneSection() {
           <div className="flex flex-col gap-1">
             <H3>Emergency Lockdown</H3>
             <Paragraph>
-              Immediately revokes all sessions, stops all tracker polling, and rotates
-              the encryption key. You will need to re-enter your master password and
-              re-add all tracker API tokens.
+              Immediately revokes all sessions, stops all tracker polling, and rotates the
+              encryption key. You will need to re-enter your master password and re-add all tracker
+              API tokens.
             </Paragraph>
           </div>
 
@@ -185,7 +197,9 @@ export function DangerZoneSection() {
                 </Checkbox>
               </div>
               {lockdownError && (
-                <p className="text-xs font-sans text-danger" role="alert">{lockdownError}</p>
+                <p className="text-xs font-sans text-danger" role="alert">
+                  {lockdownError}
+                </p>
               )}
               <div className="flex gap-3">
                 <Button
@@ -216,11 +230,7 @@ export function DangerZoneSection() {
             </div>
           ) : (
             <div>
-              <Button
-                size="sm"
-                variant="danger"
-                onClick={() => setConfirmLockdown(true)}
-              >
+              <Button size="sm" variant="danger" onClick={() => setConfirmLockdown(true)}>
                 Initiate Lockdown
               </Button>
             </div>
@@ -234,9 +244,9 @@ export function DangerZoneSection() {
           <div className="flex flex-col gap-1">
             <H3>Scrub &amp; Delete All Data</H3>
             <Paragraph>
-              Permanently deletes all trackers, snapshots, roles, and settings from
-              the database. Scrubs all stored API tokens and usernames before deletion.
-              The application will reset to first-run setup.
+              Permanently deletes all trackers, snapshots, roles, and settings from the database.
+              Scrubs all stored API tokens and usernames before deletion. The application will reset
+              to first-run setup.
             </Paragraph>
           </div>
 
@@ -281,11 +291,7 @@ export function DangerZoneSection() {
             </div>
           ) : (
             <div>
-              <Button
-                size="sm"
-                variant="danger"
-                onClick={() => setConfirmNuke(true)}
-              >
+              <Button size="sm" variant="danger" onClick={() => setConfirmNuke(true)}>
                 Scrub &amp; Delete
               </Button>
             </div>

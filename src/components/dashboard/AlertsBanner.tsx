@@ -57,9 +57,7 @@ function AlertsBanner({ alerts, onDismiss, onDismissAll }: AlertsBannerProps) {
               >
                 {alert.trackerName}
               </Link>
-              <span className="font-mono text-xs text-tertiary truncate">
-                {alert.message}
-              </span>
+              <span className="font-mono text-xs text-tertiary truncate">{alert.message}</span>
             </div>
             {alert.timestamp && (
               <span className="font-mono text-[10px] text-muted shrink-0 hidden sm:block">

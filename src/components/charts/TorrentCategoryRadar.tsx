@@ -28,10 +28,7 @@ export interface TorrentCategoryRadarProps {
   accentColor: string
 }
 
-export function TorrentCategoryRadar({
-  categories,
-  accentColor,
-}: TorrentCategoryRadarProps) {
+export function TorrentCategoryRadar({ categories, accentColor }: TorrentCategoryRadarProps) {
   if (categories.length < 2) {
     return <ChartEmptyState height={380} message="Need 2+ categories for radar" />
   }

@@ -827,7 +827,15 @@ describe("security: slot resolution does not expose secrets", () => {
     const map = resolveSlots(ctx)
 
     // Flatten ALL resolved slot props and verify no secrets leaked
-    const forbidden = ["encryptedApiToken", "passwordHash", "encryptionSalt", "encryptedPassword", "encryptedUsername", "totpSecret", "totpBackupCodes"]
+    const forbidden = [
+      "encryptedApiToken",
+      "passwordHash",
+      "encryptionSalt",
+      "encryptedPassword",
+      "encryptedUsername",
+      "totpSecret",
+      "totpBackupCodes",
+    ]
     for (const [, slots] of map) {
       for (const slot of slots) {
         const propsJson = JSON.stringify(slot.props)

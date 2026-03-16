@@ -54,7 +54,7 @@ describe("LoginDeadlineCard", () => {
     // 90-day interval, 89.5 days elapsed → ~12 hours remaining
     const now = new Date("2026-06-15T00:00:00Z")
     vi.setSystemTime(now)
-    const lastAccess = new Date(now.getTime() - (89.5 * DAY_MS)).toISOString()
+    const lastAccess = new Date(now.getTime() - 89.5 * DAY_MS).toISOString()
 
     render(
       <StatCard type="ring" lastAccessAt={lastAccess} loginIntervalDays={90} accentColor={ACCENT} />
@@ -126,7 +126,8 @@ describe("LoginDeadlineCard", () => {
     vi.setSystemTime(now)
 
     const { container } = render(
-      <StatCard type="ring"
+      <StatCard
+        type="ring"
         lastAccessAt="<script>alert(1)</script>"
         loginIntervalDays={90}
         accentColor={ACCENT}
@@ -153,7 +154,12 @@ describe("LoginDeadlineCard", () => {
     vi.setSystemTime(now)
 
     render(
-      <StatCard type="ring" lastAccessAt={now.toISOString()} loginIntervalDays={-1} accentColor={ACCENT} />
+      <StatCard
+        type="ring"
+        lastAccessAt={now.toISOString()}
+        loginIntervalDays={-1}
+        accentColor={ACCENT}
+      />
     )
 
     // Negative interval → totalMs negative → remainingMs always negative → overdue
@@ -166,7 +172,12 @@ describe("LoginDeadlineCard", () => {
 
     expect(() => {
       render(
-        <StatCard type="ring" lastAccessAt={now.toISOString()} loginIntervalDays={999999} accentColor={ACCENT} />
+        <StatCard
+          type="ring"
+          lastAccessAt={now.toISOString()}
+          loginIntervalDays={999999}
+          accentColor={ACCENT}
+        />
       )
     }).not.toThrow()
   })

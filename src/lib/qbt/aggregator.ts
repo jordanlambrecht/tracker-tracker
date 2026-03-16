@@ -77,10 +77,7 @@ export function aggregateByTag(
   }
 
   const tagStats: TagStats[] = [...tagMap.values()]
-  if (
-    untaggedBucket.seedingCount > 0 ||
-    untaggedBucket.leechingCount > 0
-  ) {
+  if (untaggedBucket.seedingCount > 0 || untaggedBucket.leechingCount > 0) {
     tagStats.push(untaggedBucket)
   }
 

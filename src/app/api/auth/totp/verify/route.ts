@@ -66,7 +66,9 @@ export async function POST(request: Request) {
     }
 
     let entries: BackupCodeEntry[]
-    try { entries = JSON.parse(decrypt(settings.totpBackupCodes, key)) } catch {
+    try {
+      entries = JSON.parse(decrypt(settings.totpBackupCodes, key))
+    } catch {
       return NextResponse.json({ error: "Corrupted backup codes" }, { status: 500 })
     }
     const { valid, updatedEntries } = verifyAndConsumeBackupCode(code, entries)

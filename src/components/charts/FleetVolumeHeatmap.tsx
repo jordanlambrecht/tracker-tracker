@@ -162,9 +162,7 @@ function FleetVolumeHeatmap({ trackerData, height = 260 }: FleetVolumeHeatmapPro
           type="button"
           onClick={() => setField("upload")}
           className={`px-2.5 py-1 text-[10px] font-mono rounded-nm-sm cursor-pointer transition-colors duration-150 ${
-            field === "upload"
-              ? "nm-raised-sm text-accent"
-              : "text-tertiary hover:text-secondary"
+            field === "upload" ? "nm-raised-sm text-accent" : "text-tertiary hover:text-secondary"
           }`}
         >
           Upload
@@ -173,9 +171,7 @@ function FleetVolumeHeatmap({ trackerData, height = 260 }: FleetVolumeHeatmapPro
           type="button"
           onClick={() => setField("download")}
           className={`px-2.5 py-1 text-[10px] font-mono rounded-nm-sm cursor-pointer transition-colors duration-150 ${
-            field === "download"
-              ? "nm-raised-sm text-warn"
-              : "text-tertiary hover:text-secondary"
+            field === "download" ? "nm-raised-sm text-warn" : "text-tertiary hover:text-secondary"
           }`}
         >
           Download

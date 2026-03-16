@@ -53,11 +53,7 @@ async function batchInsert<T extends Record<string, unknown>>(
 
 // Attempt to decrypt a field with the backup key and re-encrypt with the current key.
 // Returns the re-encrypted ciphertext, or "" if the field is empty or re-encryption fails.
-function reencryptField(
-  ciphertext: string,
-  backupKey: Buffer,
-  currentKey: Buffer
-): string {
+function reencryptField(ciphertext: string, backupKey: Buffer, currentKey: Buffer): string {
   if (!ciphertext) return ""
   try {
     return reencrypt(ciphertext, backupKey, currentKey)
@@ -474,7 +470,8 @@ export async function POST(request: Request) {
           if (reencryptedSecret) {
             totpSecret = reencryptedSecret
             totpBackupCodes = payload.settings.totpBackupCodes
-              ? reencryptField(payload.settings.totpBackupCodes as string, backupKey, currentKey) || null
+              ? reencryptField(payload.settings.totpBackupCodes as string, backupKey, currentKey) ||
+                null
               : null
           } else {
             totpDisabledOnRestore = true
@@ -497,8 +494,7 @@ export async function POST(request: Request) {
           failedLoginAttempts: 0,
           lockedUntil: null,
           snapshotRetentionDays: (payload.settings.snapshotRetentionDays as number | null) ?? null,
-          trackerPollIntervalMinutes:
-            (payload.settings.trackerPollIntervalMinutes as number) ?? 60,
+          trackerPollIntervalMinutes: (payload.settings.trackerPollIntervalMinutes as number) ?? 60,
           proxyEnabled: payload.settings.proxyEnabled as boolean,
           proxyType: payload.settings.proxyType as string,
           proxyHost: (payload.settings.proxyHost as string | null) ?? null,
@@ -531,7 +527,10 @@ export async function POST(request: Request) {
       "Restore operation failed"
     )
 
-    return NextResponse.json({ error: "Restore failed. Check server logs for details." }, { status: 409 })
+    return NextResponse.json(
+      { error: "Restore failed. Check server logs for details." },
+      { status: 409 }
+    )
   } finally {
     if (backupKey.length > 0) backupKey.fill(0)
     if (currentKey !== backupKey && currentKey.length > 0) currentKey.fill(0)
@@ -572,7 +571,9 @@ export async function POST(request: Request) {
       tagGroups: payload.tagGroups.length,
       tagGroupMembers: payload.tagGroupMembers.length,
       clientSnapshots: payload.clientSnapshots.length,
-      clientUptimeBuckets: Array.isArray(payload.clientUptimeBuckets) ? payload.clientUptimeBuckets.length : 0,
+      clientUptimeBuckets: Array.isArray(payload.clientUptimeBuckets)
+        ? payload.clientUptimeBuckets.length
+        : 0,
     },
     tokensPreserved,
     tokensCleared,

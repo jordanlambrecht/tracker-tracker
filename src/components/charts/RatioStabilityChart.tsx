@@ -14,7 +14,17 @@ import { ChartEmptyState } from "./ChartEmptyState"
 import { fmtNum, yAxisAutoRange } from "./chart-helpers"
 import { buildUnifiedTimestampAxis } from "./chart-transforms"
 import { LogScaleToggle } from "./LogScaleToggle"
-import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
+import {
+  CHART_THEME,
+  chartAxisLabel,
+  chartDot,
+  chartGrid,
+  chartLegend,
+  chartTooltip,
+  chartTooltipHeader,
+  escHtml,
+  shouldUseLogScale,
+} from "./theme"
 
 interface RatioStabilityChartProps {
   trackerData: TrackerSnapshotSeries[]
@@ -214,24 +224,19 @@ function buildRatioStabilityOption(
 
         // Only show EMA series in tooltip (filter out lower/band series by name suffix)
         const emaItems = items.filter(
-          (item) =>
-            !item.seriesName.endsWith("-lower") && !item.seriesName.endsWith("-band")
+          (item) => !item.seriesName.endsWith("-lower") && !item.seriesName.endsWith("-band")
         )
 
         if (emaItems.length === 0) return ""
 
-        const ts = sortedTimestamps[
-          labels.indexOf(time) >= 0 ? labels.indexOf(time) : 0
-        ]
+        const ts = sortedTimestamps[labels.indexOf(time) >= 0 ? labels.indexOf(time) : 0]
 
         const rows = emaItems
           .filter((item) => item.value !== null && item.value !== undefined)
           .map((item) => {
             const emaVal = item.value as number
             // Look up std dev for this tracker + timestamp
-            const computation = trackerComputations.find(
-              (c) => c.tracker.name === item.seriesName
-            )
+            const computation = trackerComputations.find((c) => c.tracker.name === item.seriesName)
             const sigma = computation?.stdDevByTs.get(ts) ?? null
 
             const sigmaStr =
@@ -300,12 +305,7 @@ function RatioStabilityChart({
   )
 
   if (!hasEnoughData) {
-    return (
-      <ChartEmptyState
-        height={height}
-        message="Not enough data for stability analysis"
-      />
-    )
+    return <ChartEmptyState height={height} message="Not enough data for stability analysis" />
   }
 
   const allRatioValues: number[] = []

@@ -2,7 +2,11 @@
 import { defineConfig } from "drizzle-kit"
 
 // In Docker, DATABASE_URL is set via environment. Locally, load from .env.
-try { require("dotenv").config() } catch { /* dotenv is a devDependency */ }
+try {
+  require("dotenv").config()
+} catch {
+  /* dotenv is a devDependency */
+}
 
 function buildConnectionString(): string {
   if (process.env.DATABASE_URL) return process.env.DATABASE_URL

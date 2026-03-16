@@ -71,13 +71,15 @@ function Select<T extends string>({
         onClick={() => setOpen((o) => !o)}
         className={clsx(
           "w-full bg-control-bg text-primary font-mono flex items-center justify-between gap-1 cursor-pointer border-0",
-          s.trigger,
+          s.trigger
         )}
         aria-label={ariaLabel}
         aria-expanded={open}
       >
         <span className="truncate">{selectedLabel}</span>
-        <span className="text-tertiary text-[10px] shrink-0" aria-hidden="true">▾</span>
+        <span className="text-tertiary text-[10px] shrink-0" aria-hidden="true">
+          ▾
+        </span>
       </button>
 
       {open && (
@@ -105,7 +107,7 @@ function Select<T extends string>({
                   ? "text-muted cursor-not-allowed opacity-50"
                   : option.value === value
                     ? "text-accent bg-accent-dim cursor-pointer"
-                    : "text-secondary hover:text-primary hover:bg-overlay cursor-pointer",
+                    : "text-secondary hover:text-primary hover:bg-overlay cursor-pointer"
               )}
             >
               {option.label}

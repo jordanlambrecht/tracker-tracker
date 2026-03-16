@@ -114,21 +114,34 @@ export class NebulanceAdapter implements TrackerAdapter {
         status = result.status
         data = (await result.json()) as NebulanceResponse
       } else {
-        const response = await fetch(url.toString(), { headers, signal: AbortSignal.timeout(15000) })
+        const response = await fetch(url.toString(), {
+          headers,
+          signal: AbortSignal.timeout(15000),
+        })
         ok = response.ok
         status = response.status
         data = (await response.json()) as NebulanceResponse
       }
     } catch (err) {
-      if (err instanceof DOMException && (err.name === "TimeoutError" || err.name === "AbortError")) {
+      if (
+        err instanceof DOMException &&
+        (err.name === "TimeoutError" || err.name === "AbortError")
+      ) {
         throw new Error(`Request to ${hostname} timed out`)
       }
-      throw new Error(`Failed to connect to ${hostname}: ${err instanceof Error ? err.message : "Unknown"}`)
+      throw new Error(
+        `Failed to connect to ${hostname}: ${err instanceof Error ? err.message : "Unknown"}`
+      )
     }
 
     if (!ok || "error" in data) {
       const err = "error" in data ? data.error : undefined
-      const errMsg = typeof err === "object" && err !== null ? err.message : typeof err === "string" ? err : `HTTP ${status}`
+      const errMsg =
+        typeof err === "object" && err !== null
+          ? err.message
+          : typeof err === "string"
+            ? err
+            : `HTTP ${status}`
       throw new Error(`${hostname} API error: ${errMsg}`)
     }
 
@@ -161,7 +174,10 @@ export class NebulanceAdapter implements TrackerAdapter {
 
     return {
       username: resp.Username,
-      group: (resp.SubClasses ?? resp.SubClass) ? `${resp.Class} / ${resp.SubClasses ?? resp.SubClass}` : (resp.Class ?? "Unknown"),
+      group:
+        (resp.SubClasses ?? resp.SubClass)
+          ? `${resp.Class} / ${resp.SubClasses ?? resp.SubClass}`
+          : (resp.Class ?? "Unknown"),
       remoteUserId: resp.ID,
       uploadedBytes: uploaded,
       downloadedBytes: downloaded,

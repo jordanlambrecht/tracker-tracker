@@ -30,10 +30,16 @@ export async function POST(request: Request) {
 
   // Password re-verification required to disable 2FA
   if (!password || typeof password !== "string") {
-    return NextResponse.json({ error: "Master password is required to disable 2FA" }, { status: 400 })
+    return NextResponse.json(
+      { error: "Master password is required to disable 2FA" },
+      { status: 400 }
+    )
   }
   if (!code || typeof code !== "string") {
-    return NextResponse.json({ error: "A TOTP or backup code is required to disable 2FA" }, { status: 400 })
+    return NextResponse.json(
+      { error: "A TOTP or backup code is required to disable 2FA" },
+      { status: 400 }
+    )
   }
 
   const [settings] = await db.select().from(appSettings).limit(1)

@@ -144,11 +144,7 @@ export class GGnAdapter implements TrackerAdapter {
     userUrl.searchParams.set("id", String(userId))
     userUrl.searchParams.set("key", apiToken)
 
-    const userData = await adapterFetch<GGnUserResponse>(
-      userUrl.toString(),
-      hostname,
-      options
-    )
+    const userData = await adapterFetch<GGnUserResponse>(userUrl.toString(), hostname, options)
 
     if (userData.status !== "success") {
       throw new Error(userData.error ?? `GGn API returned status: ${userData.status}`)
@@ -162,9 +158,7 @@ export class GGnAdapter implements TrackerAdapter {
     const uploaded = BigInt(Math.floor(resp.stats.uploaded ?? 0))
     const downloaded = BigInt(Math.floor(resp.stats.downloaded ?? 0))
     const ratio =
-      typeof resp.stats.ratio === "number"
-        ? resp.stats.ratio
-        : parseFloat(resp.stats.ratio) || 0
+      typeof resp.stats.ratio === "number" ? resp.stats.ratio : parseFloat(resp.stats.ratio) || 0
 
     const platformMeta: GGnPlatformMeta = {
       donor: resp.personal?.donor ?? false,
@@ -191,8 +185,7 @@ export class GGnAdapter implements TrackerAdapter {
       leechingCount: resp.community?.leeching ?? 0,
       seedbonus: resp.stats.gold ?? 0,
       hitAndRuns: resp.personal?.hnrs ?? null,
-      requiredRatio:
-        typeof resp.stats.requiredRatio === "number" ? resp.stats.requiredRatio : null,
+      requiredRatio: typeof resp.stats.requiredRatio === "number" ? resp.stats.requiredRatio : null,
       warned: resp.personal?.warned ?? false,
       freeleechTokens: null,
       joinedDate: resp.stats.joinedDate ?? undefined,
@@ -201,5 +194,4 @@ export class GGnAdapter implements TrackerAdapter {
       platformMeta,
     }
   }
-
 }

@@ -47,9 +47,7 @@ async function adapterFetch<T>(
       throw new Error(`Request to ${hostname} timed out`)
     }
     const code =
-      err instanceof Error && "code" in err
-        ? (err as NodeJS.ErrnoException).code
-        : undefined
+      err instanceof Error && "code" in err ? (err as NodeJS.ErrnoException).code : undefined
     const detail = code ?? (name || "Unknown")
     throw new Error(`Failed to connect to ${hostname}: ${detail}`)
   }

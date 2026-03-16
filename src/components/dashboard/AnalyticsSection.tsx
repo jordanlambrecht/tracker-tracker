@@ -63,17 +63,63 @@ function AnalyticsSection({ trackerSeries, trackers }: AnalyticsSectionProps) {
           />
         )
       case "comparison-uploaded":
-        return <ComparisonChart metric="uploaded" trackerData={trackerSeries} height={320} enableLogScale enableStacked />
+        return (
+          <ComparisonChart
+            metric="uploaded"
+            trackerData={trackerSeries}
+            height={320}
+            enableLogScale
+            enableStacked
+          />
+        )
       case "comparison-downloaded":
-        return <ComparisonChart metric="downloaded" trackerData={trackerSeries} height={320} enableLogScale enableStacked />
+        return (
+          <ComparisonChart
+            metric="downloaded"
+            trackerData={trackerSeries}
+            height={320}
+            enableLogScale
+            enableStacked
+          />
+        )
       case "comparison-ratio":
-        return <ComparisonChart metric="ratio" trackerData={trackerSeries} height={320} enableLogScale enableAverage />
+        return (
+          <ComparisonChart
+            metric="ratio"
+            trackerData={trackerSeries}
+            height={320}
+            enableLogScale
+            enableAverage
+          />
+        )
       case "comparison-buffer":
-        return <ComparisonChart metric="buffer" trackerData={trackerSeries} height={320} enableLogScale />
+        return (
+          <ComparisonChart
+            metric="buffer"
+            trackerData={trackerSeries}
+            height={320}
+            enableLogScale
+          />
+        )
       case "comparison-seedbonus":
-        return <ComparisonChart metric="seedbonus" trackerData={trackerSeries} height={320} enableLogScale />
+        return (
+          <ComparisonChart
+            metric="seedbonus"
+            trackerData={trackerSeries}
+            height={320}
+            enableLogScale
+          />
+        )
       case "comparison-active":
-        return <ComparisonChart metric="active" trackerData={trackerSeries} height={320} enableLogScale enableStacked />
+        return (
+          <ComparisonChart
+            metric="active"
+            trackerData={trackerSeries}
+            height={320}
+            enableLogScale
+            enableStacked
+          />
+        )
       case "ratio-stability":
         return <RatioStabilityChart trackerData={trackerSeries} height={360} />
       case "fleet-composition":
@@ -114,9 +160,7 @@ function AnalyticsSection({ trackerSeries, trackers }: AnalyticsSectionProps) {
         <div className="flex items-center gap-3">
           <H2>Analytics</H2>
           {hiddenChartCount > 0 && (
-            <span className="text-[10px] font-mono text-muted">
-              {hiddenChartCount} hidden
-            </span>
+            <span className="text-[10px] font-mono text-muted">{hiddenChartCount} hidden</span>
           )}
         </div>
         <button

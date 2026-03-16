@@ -104,6 +104,16 @@ export interface FetchOptions {
 }
 
 export interface TrackerAdapter {
-  fetchStats(baseUrl: string, apiToken: string, apiPath: string, options?: FetchOptions): Promise<TrackerStats>
-  fetchRaw?(baseUrl: string, apiToken: string, apiPath: string, options?: FetchOptions): Promise<Record<string, unknown>>
+  fetchStats(
+    baseUrl: string,
+    apiToken: string,
+    apiPath: string,
+    options?: FetchOptions
+  ): Promise<TrackerStats>
+  fetchRaw?(
+    baseUrl: string,
+    apiToken: string,
+    apiPath: string,
+    options?: FetchOptions
+  ): Promise<Record<string, unknown>>
 }

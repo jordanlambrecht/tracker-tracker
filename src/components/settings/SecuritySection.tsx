@@ -26,12 +26,10 @@ export function SecuritySection({
 }: SecuritySectionProps) {
   // ── Auto-wipe ──────────────────────────────────────────────────────
   const [autoWipeEnabled, setAutoWipeEnabled] = useState(
-    initialAutoWipeThreshold !== null && initialAutoWipeThreshold > 0,
+    initialAutoWipeThreshold !== null && initialAutoWipeThreshold > 0
   )
   const [autoWipeThreshold, setAutoWipeThreshold] = useState(
-    initialAutoWipeThreshold && initialAutoWipeThreshold > 0
-      ? initialAutoWipeThreshold
-      : 5,
+    initialAutoWipeThreshold && initialAutoWipeThreshold > 0 ? initialAutoWipeThreshold : 5
   )
   const [savedAutoWipe, setSavedAutoWipe] = useState<{
     enabled: boolean
@@ -39,9 +37,7 @@ export function SecuritySection({
   }>({
     enabled: initialAutoWipeThreshold !== null && initialAutoWipeThreshold > 0,
     threshold:
-      initialAutoWipeThreshold && initialAutoWipeThreshold > 0
-        ? initialAutoWipeThreshold
-        : 5,
+      initialAutoWipeThreshold && initialAutoWipeThreshold > 0 ? initialAutoWipeThreshold : 5,
   })
 
   const {
@@ -54,20 +50,18 @@ export function SecuritySection({
 
   // ── Snapshot retention ─────────────────────────────────────────────
   const [retentionEnabled, setRetentionEnabled] = useState(
-    initialSnapshotRetentionDays !== null && initialSnapshotRetentionDays > 0,
+    initialSnapshotRetentionDays !== null && initialSnapshotRetentionDays > 0
   )
   const [retentionDays, setRetentionDays] = useState(
     initialSnapshotRetentionDays && initialSnapshotRetentionDays > 0
       ? initialSnapshotRetentionDays
-      : 90,
+      : 90
   )
   const [savedRetention, setSavedRetention] = useState<{
     enabled: boolean
     days: number
   }>({
-    enabled:
-      initialSnapshotRetentionDays !== null &&
-      initialSnapshotRetentionDays > 0,
+    enabled: initialSnapshotRetentionDays !== null && initialSnapshotRetentionDays > 0,
     days:
       initialSnapshotRetentionDays && initialSnapshotRetentionDays > 0
         ? initialSnapshotRetentionDays
@@ -84,7 +78,7 @@ export function SecuritySection({
 
   // ── Session timeout ────────────────────────────────────────────────
   const resolveInitialTimeout = (
-    totalMinutes: number | null,
+    totalMinutes: number | null
   ): { enabled: boolean; days: number; hours: number; minutes: number } => {
     if (!totalMinutes || totalMinutes <= 0) {
       return { enabled: false, days: 0, hours: 1, minutes: 0 }
@@ -104,7 +98,7 @@ export function SecuritySection({
   const [autoLogoutHours, setAutoLogoutHours] = useState(initTimeout.hours)
   const [autoLogoutMinutes, setAutoLogoutMinutes] = useState(initTimeout.minutes)
   const [savedTimeoutMinutes, setSavedTimeoutMinutes] = useState<number | null>(
-    initialSessionTimeoutMinutes,
+    initialSessionTimeoutMinutes
   )
 
   const {
@@ -120,8 +114,7 @@ export function SecuritySection({
     const value = autoWipeEnabled ? autoWipeThreshold : null
     const result = await patchAutoWipe({ autoWipeThreshold: value })
     if (result !== null) {
-      const saved = (result as { autoWipeThreshold?: number | null })
-        .autoWipeThreshold ?? null
+      const saved = (result as { autoWipeThreshold?: number | null }).autoWipeThreshold ?? null
       setSavedAutoWipe({
         enabled: saved !== null && saved > 0,
         threshold: saved ?? 5,
@@ -133,8 +126,8 @@ export function SecuritySection({
     const value = retentionEnabled ? retentionDays : null
     const result = await patchRetention({ snapshotRetentionDays: value })
     if (result !== null) {
-      const saved = (result as { snapshotRetentionDays?: number | null })
-        .snapshotRetentionDays ?? null
+      const saved =
+        (result as { snapshotRetentionDays?: number | null }).snapshotRetentionDays ?? null
       setSavedRetention({
         enabled: saved !== null && saved > 0,
         days: saved ?? 90,
@@ -149,8 +142,8 @@ export function SecuritySection({
     const currentValue = currentTotal > 0 ? currentTotal : null
     const result = await patchTimeout({ sessionTimeoutMinutes: currentValue })
     if (result !== null) {
-      const saved = (result as { sessionTimeoutMinutes?: number | null })
-        .sessionTimeoutMinutes ?? null
+      const saved =
+        (result as { sessionTimeoutMinutes?: number | null }).sessionTimeoutMinutes ?? null
       setSavedTimeoutMinutes(saved)
     }
   }
@@ -214,15 +207,13 @@ export function SecuritySection({
               failed login attempts
             </Checkbox>
             <Paragraph className="ml-8">
-              Automatically scrubs and deletes all trackers, snapshots, and
-              settings after consecutive failed login attempts. The application
-              resets to first-run setup.
+              Automatically scrubs and deletes all trackers, snapshots, and settings after
+              consecutive failed login attempts. The application resets to first-run setup.
             </Paragraph>
             {autoWipeEnabled && (
               <p className="text-xs font-sans leading-relaxed ml-8 text-warn">
                 Mistyping your password {autoWipeThreshold} time
-                {autoWipeThreshold === 1 ? "" : "s"} in a row will permanently
-                destroy all data.
+                {autoWipeThreshold === 1 ? "" : "s"} in a row will permanently destroy all data.
               </p>
             )}
             {autoWipeError && (
@@ -231,17 +222,11 @@ export function SecuritySection({
               </p>
             )}
             {autoWipeSuccess && (
-              <p className="text-xs font-sans text-success ml-8">
-                Auto-wipe setting saved.
-              </p>
+              <p className="text-xs font-sans text-success ml-8">Auto-wipe setting saved.</p>
             )}
             {autoWipeDirty && (
               <div className="flex justify-end">
-                <Button
-                  size="sm"
-                  disabled={savingAutoWipe}
-                  onClick={handleSaveAutoWipe}
-                >
+                <Button size="sm" disabled={savingAutoWipe} onClick={handleSaveAutoWipe}>
                   {savingAutoWipe ? "Saving…" : "Save Auto-Wipe"}
                 </Button>
               </div>
@@ -274,9 +259,8 @@ export function SecuritySection({
               days
             </Checkbox>
             <Paragraph className="ml-8">
-              Automatically prunes historical snapshot data older than the
-              configured period. Reduces what&apos;s stored on disk. Disabled
-              means data is kept indefinitely.
+              Automatically prunes historical snapshot data older than the configured period.
+              Reduces what&apos;s stored on disk. Disabled means data is kept indefinitely.
             </Paragraph>
             {retentionError && (
               <p className="text-xs font-sans text-danger ml-8" role="alert">
@@ -284,17 +268,11 @@ export function SecuritySection({
               </p>
             )}
             {retentionSuccess && (
-              <p className="text-xs font-sans text-success ml-8">
-                Retention setting saved.
-              </p>
+              <p className="text-xs font-sans text-success ml-8">Retention setting saved.</p>
             )}
             {retentionDirty && (
               <div className="flex justify-end">
-                <Button
-                  size="sm"
-                  disabled={savingRetention}
-                  onClick={handleSaveRetention}
-                >
+                <Button size="sm" disabled={savingRetention} onClick={handleSaveRetention}>
                   {savingRetention ? "Saving…" : "Save Retention"}
                 </Button>
               </div>
@@ -351,8 +329,8 @@ export function SecuritySection({
               minutes
             </Checkbox>
             <Paragraph className="ml-8">
-              Automatically ends your session after a period of inactivity. You
-              will need to log in again with your master password.
+              Automatically ends your session after a period of inactivity. You will need to log in
+              again with your master password.
             </Paragraph>
             {autoLogoutEnabled &&
               autoLogoutDays === 0 &&
@@ -376,10 +354,7 @@ export function SecuritySection({
               <div className="flex justify-end">
                 <Button
                   size="sm"
-                  disabled={
-                    savingTimeout ||
-                    (autoLogoutEnabled && currentTimeoutTotal === 0)
-                  }
+                  disabled={savingTimeout || (autoLogoutEnabled && currentTimeoutTotal === 0)}
                   onClick={handleSaveTimeout}
                 >
                   {savingTimeout ? "Saving…" : "Save Timeout"}

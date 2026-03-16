@@ -33,8 +33,7 @@ export async function POST(request: Request) {
   if (settings.username) {
     const username = body.username as string | undefined
     usernameOk =
-      typeof username === "string" &&
-      username.toLowerCase() === settings.username.toLowerCase()
+      typeof username === "string" && username.toLowerCase() === settings.username.toLowerCase()
   }
 
   // Always run Argon2 to normalize timing — prevents username oracle

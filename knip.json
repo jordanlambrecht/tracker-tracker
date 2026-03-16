@@ -11,14 +11,8 @@
     "enumMembers": "warn",
     "duplicates": "warn"
   },
-  "entry": [
-    "src/app/**/*.{ts,tsx}",
-    "scripts/**/*.ts"
-  ],
-  "project": [
-    "src/**/*.{ts,tsx}",
-    "scripts/**/*.ts"
-  ],
+  "entry": ["src/app/**/*.{ts,tsx}", "scripts/**/*.ts"],
+  "project": ["src/**/*.{ts,tsx}", "scripts/**/*.ts"],
   "next": true,
   "typescript": true,
   "biome": true,

@@ -10,10 +10,7 @@ import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
 import { getTorrents, withSessionRetry } from "@/lib/qbt"
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -48,7 +45,11 @@ export async function GET(
 
   try {
     const torrents = await withSessionRetry(
-      client.host, client.port, client.useSsl, username, password,
+      client.host,
+      client.port,
+      client.useSsl,
+      username,
+      password,
       (baseUrl, sid) => getTorrents(baseUrl, sid, tag.trim())
     )
     return NextResponse.json(torrents)
@@ -58,6 +59,9 @@ export async function GET(
     if (/timed?\s*out/i.test(raw)) detail = " (timed out)"
     else if (/ECONNREFUSED/i.test(raw)) detail = " (ECONNREFUSED)"
     else if (/403/.test(raw)) detail = " (403)"
-    return NextResponse.json({ error: `Failed to fetch torrents from client${detail}` }, { status: 502 })
+    return NextResponse.json(
+      { error: `Failed to fetch torrents from client${detail}` },
+      { status: 502 }
+    )
   }
 }

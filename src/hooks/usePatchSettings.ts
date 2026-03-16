@@ -23,29 +23,32 @@ export function usePatchSettings(): UsePatchSettingsReturn {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
-  const patch = useCallback(async (payload: Record<string, unknown>): Promise<Record<string, unknown> | null> => {
-    setSaving(true)
-    setError(null)
-    setSuccess(false)
-    try {
-      const res = await fetch("/api/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-      if (!res.ok) {
-        throw new Error(await extractApiError(res, "Save failed"))
+  const patch = useCallback(
+    async (payload: Record<string, unknown>): Promise<Record<string, unknown> | null> => {
+      setSaving(true)
+      setError(null)
+      setSuccess(false)
+      try {
+        const res = await fetch("/api/settings", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        })
+        if (!res.ok) {
+          throw new Error(await extractApiError(res, "Save failed"))
+        }
+        const result = await res.json()
+        setSuccess(true)
+        return result
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Network error")
+        return null
+      } finally {
+        setSaving(false)
       }
-      const result = await res.json()
-      setSuccess(true)
-      return result
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Network error")
-      return null
-    } finally {
-      setSaving(false)
-    }
-  }, [])
+    },
+    []
+  )
 
   return {
     saving,

@@ -138,12 +138,7 @@ function ColorPicker({ value, onChange, label }: ColorPickerProps) {
                 spellCheck={false}
               />
             </div>
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleConfirm}
-              className="w-full"
-            >
+            <Button type="button" size="sm" onClick={handleConfirm} className="w-full">
               Set Color
             </Button>
           </div>

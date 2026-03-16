@@ -11,7 +11,7 @@ import { ChevronUpIcon } from "@/components/ui/Icons"
 // We lerp between these numerically for smooth continuous elevation.
 const SHADOW_STEPS = [
   { offset: [-4, -4, 8], light: [33.24, 0.0268, 276.01], dark: [24.23, 0.0172, 280.05] },
-  { offset: [-8, -8, 16], light: [34.45, 0.0283, 276.51], dark: [22.90, 0.0155, 279.49] },
+  { offset: [-8, -8, 16], light: [34.45, 0.0283, 276.51], dark: [22.9, 0.0155, 279.49] },
   { offset: [-12, -12, 24], light: [36.85, 0.0312, 277.36], dark: [20.19, 0.0121, 277.81] },
 ]
 

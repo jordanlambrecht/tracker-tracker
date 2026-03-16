@@ -37,10 +37,7 @@ export interface TorrentRatioDistributionProps {
   accentColor: string
 }
 
-export function TorrentRatioDistribution({
-  torrents,
-  accentColor,
-}: TorrentRatioDistributionProps) {
+export function TorrentRatioDistribution({ torrents, accentColor }: TorrentRatioDistributionProps) {
   const buckets = getRatioBuckets(accentColor)
 
   const option = buildBucketedBarOption({

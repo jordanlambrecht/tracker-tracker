@@ -34,9 +34,7 @@ export async function createSession(
   encryptionKey: string,
   timeoutMinutes?: number | null
 ): Promise<string> {
-  const cookieMaxAge = timeoutMinutes && timeoutMinutes > 0
-    ? timeoutMinutes * 60
-    : SESSION_MAX_AGE
+  const cookieMaxAge = timeoutMinutes && timeoutMinutes > 0 ? timeoutMinutes * 60 : SESSION_MAX_AGE
 
   // JWE expiry is a generous safety net — the real timeout is controlled by
   // cookie maxAge + middleware sliding window refresh.

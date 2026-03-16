@@ -113,30 +113,36 @@ function buildFleetSizeJitterOption(
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: chartAxisLabel({
-        formatter: (val: number) => val >= 1 ? fmtNum(val, 0) : val >= 0.01 ? fmtNum(val, 2) : fmtNum(val, 3),
+        formatter: (val: number) =>
+          val >= 1 ? fmtNum(val, 0) : val >= 0.01 ? fmtNum(val, 2) : fmtNum(val, 3),
       }),
       splitLine: {
         lineStyle: { color: CHART_THEME.gridLine, width: 1 },
       },
     },
     legend: { show: false },
-    dataZoom: trackerNames.length > 10
-      ? [
-          {
-            type: "slider",
-            xAxisIndex: 0,
-            startValue: 0,
-            endValue: 9,
-            height: 20,
-            bottom: 4,
-            borderColor: CHART_THEME.gridLine,
-            fillerColor: hexToRgba(CHART_THEME.accent, 0.09),
-            handleStyle: { color: CHART_THEME.accent },
-            textStyle: { color: CHART_THEME.textTertiary, fontFamily: CHART_THEME.fontMono, fontSize: 9 },
-          },
-          { type: "inside", xAxisIndex: 0 },
-        ]
-      : undefined,
+    dataZoom:
+      trackerNames.length > 10
+        ? [
+            {
+              type: "slider",
+              xAxisIndex: 0,
+              startValue: 0,
+              endValue: 9,
+              height: 20,
+              bottom: 4,
+              borderColor: CHART_THEME.gridLine,
+              fillerColor: hexToRgba(CHART_THEME.accent, 0.09),
+              handleStyle: { color: CHART_THEME.accent },
+              textStyle: {
+                color: CHART_THEME.textTertiary,
+                fontFamily: CHART_THEME.fontMono,
+                fontSize: 9,
+              },
+            },
+            { type: "inside", xAxisIndex: 0 },
+          ]
+        : undefined,
     series,
   }
 }

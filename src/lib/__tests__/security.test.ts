@@ -146,9 +146,7 @@ vi.mock("@/lib/qbt/merge", () => ({
 
 vi.mock("@/lib/privacy-db", () => ({
   createPrivacyMask: vi.fn(async () => (v: string | null | undefined) => v ?? null),
-  createPrivacyMaskSync: vi.fn().mockReturnValue(
-    (v: string | null | undefined) => v ?? null
-  ),
+  createPrivacyMaskSync: vi.fn().mockReturnValue((v: string | null | undefined) => v ?? null),
 }))
 
 vi.mock("@/data/tracker-registry", () => ({
@@ -698,7 +696,9 @@ describe("Token leakage prevention", () => {
     }
 
     // Call 1: tracker detail with explicit column allowlist
-    const mockTrackerWhere = vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue([trackerRow]) })
+    const mockTrackerWhere = vi
+      .fn()
+      .mockReturnValue({ limit: vi.fn().mockResolvedValue([trackerRow]) })
     const mockTrackerFrom = vi.fn().mockReturnValue({ where: mockTrackerWhere })
 
     // Call 2: latest snapshot

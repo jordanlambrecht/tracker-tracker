@@ -203,11 +203,27 @@ function useTrackerTorrents({
             const active = activeMap.get(t.hash)
             if (active) {
               // Update speed and state from live data
-              return { ...t, upspeed: active.upspeed, dlspeed: active.dlspeed, state: active.state, progress: active.progress }
+              return {
+                ...t,
+                upspeed: active.upspeed,
+                dlspeed: active.dlspeed,
+                state: active.state,
+                progress: active.progress,
+              }
             }
             // Not in active list — zero out speeds and clear active state
-            if (t.upspeed > 0 || t.dlspeed > 0 || t.state === "uploading" || t.state === "downloading") {
-              return { ...t, upspeed: 0, dlspeed: 0, state: t.state === "downloading" ? "stalledDL" : "stalledUP" }
+            if (
+              t.upspeed > 0 ||
+              t.dlspeed > 0 ||
+              t.state === "uploading" ||
+              t.state === "downloading"
+            ) {
+              return {
+                ...t,
+                upspeed: 0,
+                dlspeed: 0,
+                state: t.state === "downloading" ? "stalledDL" : "stalledUP",
+              }
             }
             return t
           })
@@ -228,14 +244,19 @@ function useTrackerTorrents({
     const seedingTorrents = torrents.filter((t) => SEEDING_STATES.has(t.state))
     const leechingTorrents = torrents.filter((t) => LEECHING_STATES.has(t.state))
     const activelySeedingTorrents = torrents.filter((t) => t.state === "uploading")
-    const activelyDownloading = torrents.filter((t) => LEECHING_STATES.has(t.state) && t.dlspeed > 0)
+    const activelyDownloading = torrents.filter(
+      (t) => LEECHING_STATES.has(t.state) && t.dlspeed > 0
+    )
     const totalUpSpeed = torrents.reduce((sum, t) => sum + t.upspeed, 0)
     const totalSize = torrents.reduce((sum, t) => sum + t.size, 0)
 
     // Cross-seed: torrents that have at least one cross-seed tag (aggregated from all clients)
     const csTagSet = new Set(crossSeedTags.map((t) => t.toLowerCase()))
     const crossSeeded = torrents.filter((t) => {
-      const tags = t.tags.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)
+      const tags = t.tags
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean)
       return tags.some((tag) => csTagSet.has(tag))
     })
 
@@ -249,7 +270,9 @@ function useTrackerTorrents({
 
     // H&R risk: unsatisfied AND not seeding AND not downloading — actually at risk
     const hnrRiskCount = requiredSeedSeconds
-      ? unsatisfiedTorrents.filter((t) => !SEEDING_STATES.has(t.state) && !LEECHING_STATES.has(t.state)).length
+      ? unsatisfiedTorrents.filter(
+          (t) => !SEEDING_STATES.has(t.state) && !LEECHING_STATES.has(t.state)
+        ).length
       : null
 
     // Dead torrents: client has more torrents than tracker reports seeding
@@ -298,7 +321,9 @@ function useTrackerTorrents({
         const allGroupTags = group.members.map((m) => m.tag)
         const memberCounts = group.members
           .map((member) => {
-            const count = torrents.filter((t) => parseTorrentTags(t.tags).includes(member.tag)).length
+            const count = torrents.filter((t) =>
+              parseTorrentTags(t.tags).includes(member.tag)
+            ).length
             return { label: member.label, count, color: member.color }
           })
           .filter((m) => m.count > 0)
@@ -314,7 +339,9 @@ function useTrackerTorrents({
       ? Object.entries(qbitmanageConfig.tags)
           .filter(([, entry]) => entry.enabled)
           .map(([key, entry]) => {
-            const count = torrents.filter((t) => parseTorrentTags(t.tags).includes(entry.tag)).length
+            const count = torrents.filter((t) =>
+              parseTorrentTags(t.tags).includes(entry.tag)
+            ).length
             const labelMap: Record<string, string> = {
               issue: "Issue",
               minTimeNotReached: "Min Time Not Reached",
@@ -363,5 +390,10 @@ function useTrackerTorrents({
   }
 }
 
-export type { QbitmanageBreakdownItem, TagGroupBreakdown, TrackerTorrentsData, UseTrackerTorrentsParams }
+export type {
+  QbitmanageBreakdownItem,
+  TagGroupBreakdown,
+  TrackerTorrentsData,
+  UseTrackerTorrentsParams,
+}
 export { useTrackerTorrents }

@@ -16,7 +16,6 @@ interface FleetActivityHeatmapProps {
   height?: number
 }
 
-
 function buildFleetActivityHeatmapOption(
   data: [number, number, number][],
   maxCount: number
@@ -49,8 +48,7 @@ function buildFleetActivityHeatmapOption(
       axisTick: { show: false },
       axisLabel: chartAxisLabel({
         interval: 1,
-        formatter: (_val: string, index: number) =>
-          index % 2 === 0 ? _val : "",
+        formatter: (_val: string, index: number) => (index % 2 === 0 ? _val : ""),
       }),
     },
     yAxis: {
@@ -94,10 +92,7 @@ function buildFleetActivityHeatmapOption(
   }
 }
 
-function FleetActivityHeatmap({
-  torrents,
-  height = 260,
-}: FleetActivityHeatmapProps) {
+function FleetActivityHeatmap({ torrents, height = 260 }: FleetActivityHeatmapProps) {
   if (torrents.length === 0) {
     return <ChartEmptyState height={height} message="No torrent data available" />
   }

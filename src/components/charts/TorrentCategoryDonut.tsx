@@ -18,10 +18,7 @@ export interface TorrentCategoryDonutProps {
   accentColor: string
 }
 
-export function TorrentCategoryDonut({
-  categories,
-  accentColor,
-}: TorrentCategoryDonutProps) {
+export function TorrentCategoryDonut({ categories, accentColor }: TorrentCategoryDonutProps) {
   if (categories.length === 0) {
     return <ChartEmptyState height={320} message="No category data" />
   }

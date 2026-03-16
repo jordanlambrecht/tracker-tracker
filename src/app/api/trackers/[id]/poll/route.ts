@@ -9,10 +9,7 @@ import { pollTracker } from "@/lib/scheduler"
 
 const POLL_COOLDOWN_MS = 10_000
 
-export async function POST(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 

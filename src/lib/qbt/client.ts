@@ -132,9 +132,10 @@ export async function login(
       signal: AbortSignal.timeout(15000),
     })
   } catch (err) {
-    const errName = err !== null && typeof err === "object" && "name" in (err as object)
-      ? String((err as { name: unknown }).name)
-      : ""
+    const errName =
+      err !== null && typeof err === "object" && "name" in (err as object)
+        ? String((err as { name: unknown }).name)
+        : ""
     if (errName === "TimeoutError" || errName === "AbortError") {
       throw new Error(`Request to ${host} timed out after 15s`)
     }
@@ -172,9 +173,10 @@ async function qbtFetch(
       signal: AbortSignal.timeout(15000),
     })
   } catch (err) {
-    const errName = err !== null && typeof err === "object" && "name" in (err as object)
-      ? String((err as { name: unknown }).name)
-      : ""
+    const errName =
+      err !== null && typeof err === "object" && "name" in (err as object)
+        ? String((err as { name: unknown }).name)
+        : ""
     if (errName === "TimeoutError" || errName === "AbortError") {
       throw new Error(`Request to ${host} timed out after 15s`)
     }
@@ -193,7 +195,12 @@ async function qbtFetch(
   return response
 }
 
-export async function getTorrents(baseUrl: string, sid: string, tag?: string, filter?: string): Promise<QbtTorrent[]> {
+export async function getTorrents(
+  baseUrl: string,
+  sid: string,
+  tag?: string,
+  filter?: string
+): Promise<QbtTorrent[]> {
   const parts: string[] = []
   if (tag) parts.push(`tag=${encodeURIComponent(tag)}`)
   if (filter) parts.push(`filter=${encodeURIComponent(filter)}`)

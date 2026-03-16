@@ -12,10 +12,7 @@ import { db } from "@/lib/db"
 import { downloadClients, trackers } from "@/lib/db/schema"
 import { fetchAndMergeTorrents } from "@/lib/qbt/fetch-merged"
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 

@@ -22,7 +22,10 @@ interface TorrentCategoryAcquisitionProps {
 // Component
 // ---------------------------------------------------------------------------
 
-export function TorrentCategoryAcquisition({ torrents, accentColor }: TorrentCategoryAcquisitionProps) {
+export function TorrentCategoryAcquisition({
+  torrents,
+  accentColor,
+}: TorrentCategoryAcquisitionProps) {
   const withDates = torrents.filter((t) => t.addedOn > 0)
   if (withDates.length < 2) {
     return <ChartEmptyState height={280} message="Need 2+ torrents with dates" />
@@ -64,7 +67,11 @@ export function TorrentCategoryAcquisition({ torrents, accentColor }: TorrentCat
     legend: {
       type: "scroll",
       bottom: 0,
-      textStyle: { color: CHART_THEME.textTertiary, fontFamily: CHART_THEME.fontMono, fontSize: 10 },
+      textStyle: {
+        color: CHART_THEME.textTertiary,
+        fontFamily: CHART_THEME.fontMono,
+        fontSize: 10,
+      },
       pageTextStyle: { color: CHART_THEME.textTertiary },
       pageIconColor: CHART_THEME.textSecondary,
       pageIconInactiveColor: CHART_THEME.textTertiary,

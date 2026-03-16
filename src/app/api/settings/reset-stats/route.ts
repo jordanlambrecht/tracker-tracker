@@ -18,9 +18,7 @@ export async function POST() {
   await db.delete(clientSnapshots)
 
   // Clear lastPolledAt and lastError on all trackers so they re-poll fresh
-  await db
-    .update(trackers)
-    .set({ lastPolledAt: null, lastError: null })
+  await db.update(trackers).set({ lastPolledAt: null, lastError: null })
 
   return NextResponse.json({ success: true })
 }

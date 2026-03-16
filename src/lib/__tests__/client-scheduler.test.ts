@@ -47,8 +47,17 @@ vi.mock("@/lib/qbt", () => ({
   getTorrents: vi.fn(),
   getTransferInfo: vi.fn(),
   aggregateByTag: vi.fn(),
-  parseCrossSeedTags: vi.fn((raw: string) => { try { return JSON.parse(raw) as string[] } catch { return [] } }),
-  stripSensitiveTorrentFields: vi.fn((t: Record<string, unknown>) => { const { tracker: _t, content_path: _cp, save_path: _sp, ...rest } = t; return rest }),
+  parseCrossSeedTags: vi.fn((raw: string) => {
+    try {
+      return JSON.parse(raw) as string[]
+    } catch {
+      return []
+    }
+  }),
+  stripSensitiveTorrentFields: vi.fn((t: Record<string, unknown>) => {
+    const { tracker: _t, content_path: _cp, save_path: _sp, ...rest } = t
+    return rest
+  }),
   pushSpeedSnapshot: vi.fn(),
   clearSpeedCache: vi.fn(),
   clearAllSessions: vi.fn(),
@@ -117,10 +126,7 @@ function makeEncryptionKey(): Buffer {
  *
  * Uses mockReturnValueOnce so each call in sequence gets the right data.
  */
-function mockDbSelectSequence(
-  client: typeof MOCK_CLIENT | null,
-  trackerTags: string[]
-) {
+function mockDbSelectSequence(client: typeof MOCK_CLIENT | null, trackerTags: string[]) {
   // First call: downloadClients lookup
   const clientMockLimit = vi.fn().mockResolvedValue(client ? [client] : [])
   const clientMockWhere = vi.fn().mockReturnValue({ limit: clientMockLimit })
@@ -158,9 +164,7 @@ function mockDbUpdateClient() {
  */
 function setupFullHappyPathMocks(trackerTags: string[]) {
   mockDbSelectSequence(MOCK_CLIENT, trackerTags)
-  ;(decrypt as ReturnType<typeof vi.fn>)
-    .mockReturnValueOnce("admin")
-    .mockReturnValueOnce("secret")
+  ;(decrypt as ReturnType<typeof vi.fn>).mockReturnValueOnce("admin").mockReturnValueOnce("secret")
   // getTorrents is called once per tag (parallel per-tag fetching)
   ;(getTorrents as ReturnType<typeof vi.fn>).mockResolvedValue([])
   ;(getTransferInfo as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TRANSFER_INFO)
@@ -266,9 +270,30 @@ describe("deepPollClient per-tag optimization", () => {
       { hash: "a2", state: "uploading", tags: "aither", upspeed: 100, dlspeed: 0, isPrivate: true },
     ]
     const crossTorrents = [
-      { hash: "c1", state: "uploading", tags: "cross-seed", upspeed: 100, dlspeed: 0, isPrivate: true },
-      { hash: "c2", state: "uploading", tags: "cross-seed", upspeed: 100, dlspeed: 0, isPrivate: true },
-      { hash: "c3", state: "uploading", tags: "cross-seed", upspeed: 100, dlspeed: 0, isPrivate: true },
+      {
+        hash: "c1",
+        state: "uploading",
+        tags: "cross-seed",
+        upspeed: 100,
+        dlspeed: 0,
+        isPrivate: true,
+      },
+      {
+        hash: "c2",
+        state: "uploading",
+        tags: "cross-seed",
+        upspeed: 100,
+        dlspeed: 0,
+        isPrivate: true,
+      },
+      {
+        hash: "c3",
+        state: "uploading",
+        tags: "cross-seed",
+        upspeed: 100,
+        dlspeed: 0,
+        isPrivate: true,
+      },
     ]
 
     mockDbSelectSequence(MOCK_CLIENT, ["aither"])
@@ -405,8 +430,24 @@ describe("deepPollClient per-tag optimization", () => {
 
   it("caches filtered torrents to downloadClients on successful poll", async () => {
     const filteredTorrents = [
-      { hash: "a1", name: "Movie.mkv", state: "uploading", tags: "aither", upspeed: 100, dlspeed: 0, isPrivate: true },
-      { hash: "a2", name: "Show.mkv", state: "uploading", tags: "aither", upspeed: 200, dlspeed: 0, isPrivate: true },
+      {
+        hash: "a1",
+        name: "Movie.mkv",
+        state: "uploading",
+        tags: "aither",
+        upspeed: 100,
+        dlspeed: 0,
+        isPrivate: true,
+      },
+      {
+        hash: "a2",
+        name: "Show.mkv",
+        state: "uploading",
+        tags: "aither",
+        upspeed: 200,
+        dlspeed: 0,
+        isPrivate: true,
+      },
     ]
 
     mockDbSelectSequence(MOCK_CLIENT, ["aither"])
@@ -440,8 +481,13 @@ describe("deepPollClient per-tag optimization", () => {
   it("strips tracker, content_path, and save_path from cached torrents", async () => {
     const torrentsWithSensitiveFields = [
       {
-        hash: "a1", name: "Movie.mkv", state: "uploading", tags: "aither",
-        upspeed: 100, dlspeed: 0, isPrivate: true,
+        hash: "a1",
+        name: "Movie.mkv",
+        state: "uploading",
+        tags: "aither",
+        upspeed: 100,
+        dlspeed: 0,
+        isPrivate: true,
         tracker: "https://aither.cc/announce?passkey=SECRET123",
         content_path: "/data/torrents/Movie.mkv",
         save_path: "/data/torrents",

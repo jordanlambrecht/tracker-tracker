@@ -11,10 +11,26 @@ import { bytesToGiB } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./ChartECharts"
-import { adaptiveDotSize, autoByteScale, buildAxisPointer, fmtNum, yAxisAutoRange } from "./chart-helpers"
+import {
+  adaptiveDotSize,
+  autoByteScale,
+  buildAxisPointer,
+  fmtNum,
+  yAxisAutoRange,
+} from "./chart-helpers"
 import { buildUnifiedTimestampAxis } from "./chart-transforms"
 import { LogScaleToggle } from "./LogScaleToggle"
-import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
+import {
+  CHART_THEME,
+  chartAxisLabel,
+  chartDot,
+  chartGrid,
+  chartLegend,
+  chartTooltip,
+  chartTooltipHeader,
+  escHtml,
+  shouldUseLogScale,
+} from "./theme"
 
 type ChartMetric = "uploaded" | "downloaded" | "ratio" | "buffer" | "seedbonus" | "active"
 
@@ -98,7 +114,10 @@ function buildAverageSeries(
       areaStyle: {
         color: {
           type: "linear",
-          x: 0, y: 0, x2: 0, y2: 1,
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
           colorStops: [
             { offset: 0, color: CHART_THEME.accentDim },
             { offset: 1, color: "rgba(0, 212, 255, 0)" },
@@ -177,7 +196,10 @@ function buildComparisonOption(
         areaStyle: {
           color: {
             type: "linear",
-            x: 0, y: 0, x2: 0, y2: 1,
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
             colorStops: [
               { offset: 0, color: CHART_THEME.accentDim },
               { offset: 1, color: "rgba(0, 212, 255, 0)" },
@@ -301,10 +323,7 @@ function buildComparisonOption(
           .filter((item) => item.value !== null && item.value !== undefined)
           .map((item) => {
             const val = item.value as number
-            const display =
-              metric === "ratio"
-                ? `${fmtNum(val)} ×`
-                : `${fmtNum(val)} ${unit}`
+            const display = metric === "ratio" ? `${fmtNum(val)} ×` : `${fmtNum(val)} ${unit}`
             return (
               chartDot(item.color) +
               `<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> ` +
@@ -326,9 +345,7 @@ function buildComparisonOption(
       splitLine: { show: false },
     },
     yAxis,
-    dataZoom: [
-      { type: "inside", zoomOnMouseWheel: true, moveOnMouseMove: true },
-    ],
+    dataZoom: [{ type: "inside", zoomOnMouseWheel: true, moveOnMouseMove: true }],
     series,
   }
 }
@@ -376,16 +393,20 @@ function ComparisonChart({
     )
   }
 
-  const viewModes = enableStacked
-    ? (["lines", "stacked", "total"] as const)
-    : ([] as const)
+  const viewModes = enableStacked ? (["lines", "stacked", "total"] as const) : ([] as const)
 
   return (
     <div className="flex flex-col gap-2">
       {showToolbar && (
         <div className="flex justify-end gap-2">
           {enableAverage && !isNonLineMode && (
-            <Tooltip content={averageMode ? "Showing fleet average. Click for per-tracker." : "Showing per-tracker. Click for fleet average."}>
+            <Tooltip
+              content={
+                averageMode
+                  ? "Showing fleet average. Click for per-tracker."
+                  : "Showing per-tracker. Click for fleet average."
+              }
+            >
               <button
                 type="button"
                 onClick={() => setAverageMode((v) => !v)}

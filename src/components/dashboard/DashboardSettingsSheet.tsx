@@ -5,7 +5,12 @@
 "use client"
 
 import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core"
-import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { H2 } from "@typography"
 import { useCallback, useState } from "react"
@@ -44,11 +49,7 @@ function SortableChartItem({ def, isHidden, onToggle }: SortableChartItemProps) 
       >
         ⠿
       </button>
-      <Toggle
-        label={def.label}
-        checked={!isHidden}
-        onChange={onToggle}
-      />
+      <Toggle label={def.label} checked={!isHidden} onChange={onToggle} />
     </div>
   )
 }
@@ -59,7 +60,11 @@ interface DashboardSettingsSheetProps {
   dashSettings?: ReturnType<typeof useDashboardSettings>
 }
 
-function DashboardSettingsSheet({ open, onClose, dashSettings: externalSettings }: DashboardSettingsSheetProps) {
+function DashboardSettingsSheet({
+  open,
+  onClose,
+  dashSettings: externalSettings,
+}: DashboardSettingsSheetProps) {
   const internalSettings = useDashboardSettings()
   const dashSettings = externalSettings ?? internalSettings
   const [chartSettingsTab, setChartSettingsTab] = useState<"analytics" | "torrents">("analytics")

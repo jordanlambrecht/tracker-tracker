@@ -48,7 +48,9 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
   const [exportPassword, setExportPassword] = useState("")
   const [scheduleEnabled, setScheduleEnabled] = useState(initialConfig.scheduleEnabled)
   const [scheduleFrequency, setScheduleFrequency] = useState(initialConfig.scheduleFrequency)
-  const [backupRetentionCount, setBackupRetentionCount] = useState(initialConfig.backupRetentionCount)
+  const [backupRetentionCount, setBackupRetentionCount] = useState(
+    initialConfig.backupRetentionCount
+  )
   const [backupStoragePath, setBackupStoragePath] = useState(initialConfig.backupStoragePath)
   const [backupHistory, setBackupHistory] = useState<BackupRecord[]>(initialHistory)
   const [backingUp, setBackingUp] = useState(false)
@@ -227,7 +229,9 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
         <span className="text-sm font-mono text-primary tabular-nums">
           {new Date(b.createdAt).toLocaleString()}
           {b.encrypted && (
-            <Tooltip content="Password-protected"><span className="ml-2 text-xs text-accent">🔒</span></Tooltip>
+            <Tooltip content="Password-protected">
+              <span className="ml-2 text-xs text-accent">🔒</span>
+            </Tooltip>
           )}
         </span>
       ),
@@ -245,9 +249,7 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
       key: "status",
       header: "Status",
       render: (b) => (
-        <Badge variant={b.status === "completed" ? "success" : "danger"}>
-          {b.status}
-        </Badge>
+        <Badge variant={b.status === "completed" ? "success" : "danger"}>{b.status}</Badge>
       ),
     },
     {
@@ -257,11 +259,7 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
       render: (b) => (
         <div className="flex gap-2 justify-end">
           {b.storagePath && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => handleDownloadBackup(b.id)}
-            >
+            <Button variant="secondary" size="sm" onClick={() => handleDownloadBackup(b.id)}>
               Download
             </Button>
           )}
@@ -282,7 +280,9 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
     <>
       {/* ── Export ──────────────────────────────────────────────── */}
       <section aria-labelledby="backup-export-heading">
-        <H2 id="backup-export-heading" className="mb-4">Export</H2>
+        <H2 id="backup-export-heading" className="mb-4">
+          Export
+        </H2>
 
         <Card elevation="raised" className="flex flex-col gap-4">
           {encryptBackups && (
@@ -297,11 +297,7 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
             />
           )}
           <div className="flex gap-3 items-center">
-            <Button
-              size="sm"
-              onClick={handleBackupNow}
-              disabled={backingUp || backupConfigDirty}
-            >
+            <Button size="sm" onClick={handleBackupNow} disabled={backingUp || backupConfigDirty}>
               {backingUp ? "Creating Backup…" : "Backup Now"}
             </Button>
             {backupConfigDirty && (
@@ -312,22 +308,19 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
             )}
           </div>
           <Paragraph>
-            Manual backup exports all trackers, snapshots, roles, and settings as a
-            single file.{" "}
-            {backupStoragePath
-              ? `Saved to ${backupStoragePath}.`
-              : "Downloaded to your browser."}
+            Manual backup exports all trackers, snapshots, roles, and settings as a single file.{" "}
+            {backupStoragePath ? `Saved to ${backupStoragePath}.` : "Downloaded to your browser."}
           </Paragraph>
 
-          {backupError && (
-            <p className="text-sm text-danger font-mono">{backupError}</p>
-          )}
+          {backupError && <p className="text-sm text-danger font-mono">{backupError}</p>}
         </Card>
       </section>
 
       {/* ── Restore ────────────────────────────────────────────── */}
       <section aria-labelledby="restore-heading">
-        <H2 id="restore-heading" className="mb-4">Restore</H2>
+        <H2 id="restore-heading" className="mb-4">
+          Restore
+        </H2>
 
         <Card elevation="raised" className="flex flex-col gap-4">
           <button
@@ -337,7 +330,10 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
                 ? "border-accent bg-accent/10"
                 : "border-border hover:border-secondary"
             }`}
-            onDragOver={(e) => { e.preventDefault(); setIsDraggingRestore(true) }}
+            onDragOver={(e) => {
+              e.preventDefault()
+              setIsDraggingRestore(true)
+            }}
             onDragLeave={() => setIsDraggingRestore(false)}
             onDrop={async (e) => {
               e.preventDefault()
@@ -364,20 +360,21 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
             <span className="text-xs text-tertiary">.json or .ttbak</span>
           </button>
 
-          {backupError && (
-            <p className="text-sm text-danger font-mono">{backupError}</p>
-          )}
+          {backupError && <p className="text-sm text-danger font-mono">{backupError}</p>}
         </Card>
       </section>
 
       {/* ── Restore Confirmation ──────────────────────────────── */}
       {showRestoreConfirm && (
         <section aria-labelledby="restore-confirm-heading">
-          <H2 id="restore-confirm-heading" className="mb-4">Confirm Restore</H2>
+          <H2 id="restore-confirm-heading" className="mb-4">
+            Confirm Restore
+          </H2>
           <Card elevation="raised" className="flex flex-col gap-4">
             <div className="p-3 rounded-lg bg-warn/10 border border-warn/30">
               <p className="text-sm text-warn font-sans font-semibold mb-2">
-                Restoring will replace <strong>all</strong> current data. This action cannot be undone.
+                Restoring will replace <strong>all</strong> current data. This action cannot be
+                undone.
               </p>
               <ul className="text-sm text-warn font-sans space-y-1 ml-4 list-disc">
                 <li>Tracker API tokens will be cleared (must re-enter)</li>
@@ -389,9 +386,7 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
                 Encrypted secrets stored in your current instance cannot be restored from backups.
               </p>
             </div>
-            <p className="text-sm text-secondary font-mono">
-              File: {restoreFile?.name}
-            </p>
+            <p className="text-sm text-secondary font-mono">File: {restoreFile?.name}</p>
             <Input
               label="Master password"
               type="password"
@@ -461,7 +456,9 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
 
       {/* ── Configuration ──────────────────────────────────────── */}
       <section aria-labelledby="backup-config-heading">
-        <H2 id="backup-config-heading" className="mb-4">Configuration</H2>
+        <H2 id="backup-config-heading" className="mb-4">
+          Configuration
+        </H2>
 
         <Card elevation="raised" className="flex flex-col gap-5">
           <Toggle
@@ -505,7 +502,9 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
                   max={365}
                 />
               </div>
-              <Subtext className="-mt-1">Keep this many scheduled backups before older ones are pruned.</Subtext>
+              <Subtext className="-mt-1">
+                Keep this many scheduled backups before older ones are pruned.
+              </Subtext>
             </div>
           )}
 
@@ -519,12 +518,17 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
               placeholder="/data/backups"
             />
             <Subtext className="mt-1">
-              Absolute path where backups are saved. Used by both manual exports and scheduled backups.
+              Absolute path where backups are saved. Used by both manual exports and scheduled
+              backups.
             </Subtext>
           </div>
 
           <div className="flex justify-end pt-1">
-            <Button size="sm" onClick={saveBackupConfig} disabled={!backupConfigDirty || savingBackupConfig}>
+            <Button
+              size="sm"
+              onClick={saveBackupConfig}
+              disabled={!backupConfigDirty || savingBackupConfig}
+            >
               {savingBackupConfig ? "Saving…" : "Save Configuration"}
             </Button>
           </div>
@@ -533,7 +537,9 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
 
       {/* ── Recent Backups ─────────────────────────────────────── */}
       <section aria-labelledby="backup-history-heading">
-        <H2 id="backup-history-heading" className="mb-4">Recent Backups</H2>
+        <H2 id="backup-history-heading" className="mb-4">
+          Recent Backups
+        </H2>
 
         <Table<BackupRecord>
           columns={backupColumns}

@@ -234,9 +234,7 @@ function buildRankTenureOption(
                 }
               : null
 
-          const children = textEl
-            ? [rectEl, textEl]
-            : [rectEl]
+          const children = textEl ? [rectEl, textEl] : [rectEl]
 
           return {
             type: "group" as const,

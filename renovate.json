@@ -1,9 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended",
-    ":separateMajorReleases"
-  ],
+  "extends": ["config:recommended", ":separateMajorReleases"],
   "schedule": ["before 6am on Monday"],
   "labels": ["dependencies"],
   "rangeStrategy": "bump",

@@ -16,7 +16,9 @@ export interface DailyBucket {
 export function computeDailyDeltas(snapshots: Snapshot[]): DailyBucket[] {
   if (snapshots.length < 2) return []
 
-  const sorted = [...snapshots].sort((a, b) => new Date(a.polledAt).getTime() - new Date(b.polledAt).getTime())
+  const sorted = [...snapshots].sort(
+    (a, b) => new Date(a.polledAt).getTime() - new Date(b.polledAt).getTime()
+  )
 
   const bucketMap = new Map<string, { upload: number; download: number }>()
 
@@ -57,7 +59,11 @@ export function buildSmartLabels(isoTimestamps: string[]): string[] {
   return isoTimestamps.map((iso) => {
     const d = new Date(iso)
     const day = d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
-    const time = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })
+    const time = d.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    })
     if (day !== prevDay) {
       prevDay = day
       return day
@@ -70,9 +76,10 @@ export function buildSmartLabels(isoTimestamps: string[]): string[] {
  * Build a unified, sorted timestamp axis from the union of all polledAt values
  * across multiple tracker snapshot series.
  */
-export function buildUnifiedTimestampAxis(
-  trackerData: TrackerSnapshotSeries[]
-): { timestamps: string[]; labels: string[] } {
+export function buildUnifiedTimestampAxis(trackerData: TrackerSnapshotSeries[]): {
+  timestamps: string[]
+  labels: string[]
+} {
   const set = new Set<string>()
   for (const { snapshots } of trackerData) {
     for (const s of snapshots) set.add(s.polledAt as string)
@@ -85,9 +92,10 @@ export function buildUnifiedTimestampAxis(
  * Build a 7×24 activity matrix from a list of Unix epoch timestamps (seconds).
  * Returns the flattened [hour, day, count] data array and the maximum count.
  */
-export function buildActivityMatrix(
-  addedOnSeconds: number[]
-): { data: [number, number, number][]; maxCount: number } {
+export function buildActivityMatrix(addedOnSeconds: number[]): {
+  data: [number, number, number][]
+  maxCount: number
+} {
   const grid = Array.from({ length: 7 }, () => Array(24).fill(0) as number[])
   for (const ts of addedOnSeconds) {
     const d = new Date(ts * 1000)

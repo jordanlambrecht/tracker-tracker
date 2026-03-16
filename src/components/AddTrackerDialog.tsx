@@ -7,7 +7,16 @@
 import { H2 } from "@typography"
 import clsx from "clsx"
 import Image from "next/image"
-import { type FormEvent, type KeyboardEvent, type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import {
+  type FormEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import { CHART_THEME } from "@/components/charts/theme"
 import { Button } from "@/components/ui/Button"
 import { ColorPicker } from "@/components/ui/ColorPicker"
@@ -54,7 +63,12 @@ function TrackerCombobox({ presets, value, onChange }: TrackerComboboxProps) {
 
   const selectedEntry = presets.find((p) => p.slug === value)
   const filtered = query
-    ? presets.filter((p) => fuzzyMatch(query, p.name) || fuzzyMatch(query, p.slug) || (p.abbreviation && fuzzyMatch(query, p.abbreviation)))
+    ? presets.filter(
+        (p) =>
+          fuzzyMatch(query, p.name) ||
+          fuzzyMatch(query, p.slug) ||
+          (p.abbreviation && fuzzyMatch(query, p.abbreviation))
+      )
     : presets
 
   // Close on outside click
@@ -98,8 +112,16 @@ function TrackerCombobox({ presets, value, onChange }: TrackerComboboxProps) {
     <div ref={ref} className="relative">
       <div
         className="w-full bg-control-bg text-primary font-mono flex items-center gap-2 nm-inset text-sm px-4 py-3 cursor-text rounded-nm-md border-0"
-        onClick={() => { setOpen(true); inputRef.current?.focus() }}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { setOpen(true); inputRef.current?.focus() } }}
+        onClick={() => {
+          setOpen(true)
+          inputRef.current?.focus()
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            setOpen(true)
+            inputRef.current?.focus()
+          }
+        }}
         role="combobox"
         tabIndex={0}
         aria-expanded={open}
@@ -111,7 +133,11 @@ function TrackerCombobox({ presets, value, onChange }: TrackerComboboxProps) {
             ref={inputRef}
             type="text"
             value={query}
-            onChange={(e) => { setQuery(e.target.value); setHighlightIndex(0); setOpen(true) }}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setHighlightIndex(0)
+              setOpen(true)
+            }}
             onFocus={() => setOpen(true)}
             onKeyDown={handleKeyDown}
             placeholder={selectedEntry ? selectedEntry.name : "Search trackers..."}
@@ -123,14 +149,20 @@ function TrackerCombobox({ presets, value, onChange }: TrackerComboboxProps) {
         {value && (
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); onChange(""); setQuery("") }}
+            onClick={(e) => {
+              e.stopPropagation()
+              onChange("")
+              setQuery("")
+            }}
             className="text-muted hover:text-secondary transition-colors cursor-pointer shrink-0 text-xs"
             aria-label="Clear selection"
           >
             ✕
           </button>
         )}
-        <span className="text-tertiary text-[10px] shrink-0" aria-hidden="true">▾</span>
+        <span className="text-tertiary text-[10px] shrink-0" aria-hidden="true">
+          ▾
+        </span>
       </div>
 
       {open && (
@@ -156,11 +188,17 @@ function TrackerCombobox({ presets, value, onChange }: TrackerComboboxProps) {
                     ? "text-accent bg-accent-dim cursor-pointer"
                     : i === highlightIndex
                       ? "text-primary bg-overlay cursor-pointer"
-                      : "text-secondary hover:text-primary hover:bg-overlay cursor-pointer",
+                      : "text-secondary hover:text-primary hover:bg-overlay cursor-pointer"
                 )}
               >
                 {entry.logo && (
-                  <Image src={entry.logo} alt="" width={18} height={18} className="shrink-0 rounded-sm" />
+                  <Image
+                    src={entry.logo}
+                    alt=""
+                    width={18}
+                    height={18}
+                    className="shrink-0 rounded-sm"
+                  />
                 )}
                 <span className="flex-1 truncate">{entry.name}</span>
                 {entry.warning && (
@@ -196,7 +234,12 @@ interface AddTrackerDialogProps {
   existingBaseUrls?: string[]
 }
 
-function AddTrackerDialog({ open, onClose, onAdded, existingBaseUrls = [] }: AddTrackerDialogProps) {
+function AddTrackerDialog({
+  open,
+  onClose,
+  onAdded,
+  existingBaseUrls = [],
+}: AddTrackerDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
 
   const [selectedPreset, setSelectedPreset] = useState("")
@@ -395,7 +438,12 @@ function AddTrackerDialog({ open, onClose, onAdded, existingBaseUrls = [] }: Add
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4" autoComplete="off" data-1p-ignore>
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col gap-4"
+          autoComplete="off"
+          data-1p-ignore
+        >
           <div className="flex flex-col gap-1">
             <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
               Tracker
@@ -496,11 +544,7 @@ function AddTrackerDialog({ open, onClose, onAdded, existingBaseUrls = [] }: Add
             <Button type="submit" disabled={loading}>
               {loading ? "Connecting..." : "Add Tracker"}
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => dialogRef.current?.close()}
-            >
+            <Button type="button" variant="ghost" onClick={() => dialogRef.current?.close()}>
               Cancel
             </Button>
           </div>

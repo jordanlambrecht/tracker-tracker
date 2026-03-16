@@ -16,7 +16,9 @@ import { isRedacted, maskUsername, REDACTED_PREFIX } from "@/lib/privacy"
  * replaces plaintext values with redacted markers. When off, values
  * pass through unchanged. Already-redacted values are never double-masked.
  */
-export async function createPrivacyMask(): Promise<(value: string | null | undefined) => string | null> {
+export async function createPrivacyMask(): Promise<
+  (value: string | null | undefined) => string | null
+> {
   const [settings] = await db
     .select({ storeUsernames: appSettings.storeUsernames })
     .from(appSettings)

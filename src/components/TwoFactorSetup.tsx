@@ -75,7 +75,9 @@ function TwoFactorSetup() {
       }
     }
     checkStatus()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   // ---------------------------------------------------------------------------
@@ -190,22 +192,28 @@ function TwoFactorSetup() {
   }, [disableCode, disablePassword, useBackupCode])
 
   function handleCopyAll() {
-    navigator.clipboard.writeText(backupCodes.join("\n")).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    }).catch(() => {
-      setError("Copy failed — select the text manually")
-    })
+    navigator.clipboard
+      .writeText(backupCodes.join("\n"))
+      .then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      })
+      .catch(() => {
+        setError("Copy failed — select the text manually")
+      })
   }
 
   function handleCopySecret() {
     if (!setupData) return
-    navigator.clipboard.writeText(setupData.secret).then(() => {
-      setCopiedSecret(true)
-      setTimeout(() => setCopiedSecret(false), 2000)
-    }).catch(() => {
-      setError("Copy failed — select the text manually")
-    })
+    navigator.clipboard
+      .writeText(setupData.secret)
+      .then(() => {
+        setCopiedSecret(true)
+        setTimeout(() => setCopiedSecret(false), 2000)
+      })
+      .catch(() => {
+        setError("Copy failed — select the text manually")
+      })
   }
 
   function handleCancel() {
@@ -240,11 +248,13 @@ function TwoFactorSetup() {
       {step === "idle" && (
         <>
           <Paragraph>
-            Add a second layer of security to your login. You&apos;ll need an
-            authenticator app like Google Authenticator, Authy, or 1Password.
+            Add a second layer of security to your login. You&apos;ll need an authenticator app like
+            Google Authenticator, Authy, or 1Password.
           </Paragraph>
           {error && (
-            <p className="text-xs font-sans text-danger" role="alert">{error}</p>
+            <p className="text-xs font-sans text-danger" role="alert">
+              {error}
+            </p>
           )}
           <div>
             <Button size="sm" onClick={handleStartSetup}>
@@ -261,14 +271,10 @@ function TwoFactorSetup() {
 
       {/* ── State: QR Code + verify ────────────────────────────── */}
       {(step === "qr-code" || step === "confirming") && setupData && (
-        <div
-          className="nm-inset-sm p-5 flex flex-col gap-5 rounded-nm-md"
-        >
+        <div className="nm-inset-sm p-5 flex flex-col gap-5 rounded-nm-md">
           {/* QR code on white background */}
           <div className="flex flex-col items-center gap-4">
-            <div
-              className="p-4 bg-white inline-flex rounded-nm-md"
-            >
+            <div className="p-4 bg-white inline-flex rounded-nm-md">
               <QRCodeSVG
                 value={setupData.qrCodeUri}
                 size={180}
@@ -280,9 +286,7 @@ function TwoFactorSetup() {
 
             {/* Manual entry fallback */}
             <div className="flex flex-col items-center gap-2 w-full">
-              <Subtext className="text-center">
-                Can&apos;t scan? Enter this code manually:
-              </Subtext>
+              <Subtext className="text-center">Can&apos;t scan? Enter this code manually:</Subtext>
               <div className="flex items-center gap-2">
                 <code className="font-mono text-xs text-primary bg-control-bg nm-inset-sm px-3 py-2 tracking-wider select-all rounded-nm-sm">
                   {setupData.secret}
@@ -325,9 +329,7 @@ function TwoFactorSetup() {
               maxLength={6}
               error={error ?? undefined}
             />
-            <Subtext>
-              Enter the 6-digit code from your authenticator app to confirm setup.
-            </Subtext>
+            <Subtext>Enter the 6-digit code from your authenticator app to confirm setup.</Subtext>
           </div>
 
           <div className="flex gap-3">
@@ -347,14 +349,10 @@ function TwoFactorSetup() {
 
       {/* ── State: Backup codes ────────────────────────────────── */}
       {step === "backup-codes" && (
-        <div
-          className="nm-inset-sm p-5 flex flex-col gap-4 rounded-nm-md"
-        >
+        <div className="nm-inset-sm p-5 flex flex-col gap-4 rounded-nm-md">
           <H3>Backup Codes</H3>
 
-          <div
-            className="grid grid-cols-2 gap-2 nm-inset-sm p-4 rounded-nm-sm"
-          >
+          <div className="grid grid-cols-2 gap-2 nm-inset-sm p-4 rounded-nm-sm">
             {backupCodes.map((code) => (
               <span
                 key={code}
@@ -372,8 +370,8 @@ function TwoFactorSetup() {
           </div>
 
           <p className="text-xs font-sans leading-relaxed text-warn">
-            Save these codes somewhere safe. Each code can only be used once.
-            You won&apos;t be able to see them again.
+            Save these codes somewhere safe. Each code can only be used once. You won&apos;t be able
+            to see them again.
           </p>
 
           <div>
@@ -395,8 +393,8 @@ function TwoFactorSetup() {
       {step === "enabled" && (
         <>
           <Paragraph>
-            Your account is protected with two-factor authentication.
-            You&apos;ll need your authenticator app each time you log in.
+            Your account is protected with two-factor authentication. You&apos;ll need your
+            authenticator app each time you log in.
           </Paragraph>
           <div>
             <Button
@@ -418,9 +416,7 @@ function TwoFactorSetup() {
 
       {/* ── State: Disable prompt ──────────────────────────────── */}
       {(step === "disable-prompt" || step === "disabling") && (
-        <div
-          className="nm-inset-sm p-4 flex flex-col gap-3 rounded-nm-md bg-danger-dim"
-        >
+        <div className="nm-inset-sm p-4 flex flex-col gap-3 rounded-nm-md bg-danger-dim">
           <Input
             label="Master Password"
             type="password"

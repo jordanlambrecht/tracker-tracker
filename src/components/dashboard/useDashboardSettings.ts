@@ -50,21 +50,26 @@ function useDashboardSettings() {
     }
 
     load()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [])
 
-  const update = useCallback(<K extends keyof DashboardSettings>(key: K, value: DashboardSettings[K]) => {
-    setSettings((prev) => {
-      const next = { ...prev, [key]: value }
-      // Fire-and-forget save
-      fetch("/api/settings/dashboard", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(next),
+  const update = useCallback(
+    <K extends keyof DashboardSettings>(key: K, value: DashboardSettings[K]) => {
+      setSettings((prev) => {
+        const next = { ...prev, [key]: value }
+        // Fire-and-forget save
+        fetch("/api/settings/dashboard", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(next),
+        })
+        return next
       })
-      return next
-    })
-  }, [])
+    },
+    []
+  )
 
   return { settings, update }
 }

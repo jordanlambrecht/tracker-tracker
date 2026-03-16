@@ -16,7 +16,13 @@ import { buildCoreStatDescriptors } from "@/components/tracker-detail/CoreStatCa
 import { PollLog } from "@/components/tracker-detail/PollLog"
 import { SlotRenderer } from "@/components/tracker-detail/SlotRenderer"
 import { StatCard } from "@/components/ui/StatCard"
-import { findOptimalLayout2Col, findOptimalLayout3Col, findOptimalLayout4Col, getCardClasses, type LayoutConfig } from "@/lib/grid-layout"
+import {
+  findOptimalLayout2Col,
+  findOptimalLayout3Col,
+  findOptimalLayout4Col,
+  getCardClasses,
+  type LayoutConfig,
+} from "@/lib/grid-layout"
 import type { ResolvedSlot } from "@/lib/slot-types"
 import type { GazellePlatformMeta, Snapshot, TrackerLatestStats, TrackerSummary } from "@/types/api"
 import { renderSlotElement } from "./slot-registry"
@@ -53,7 +59,7 @@ export function AnalyticsTab({
   // Build core stat descriptors (data, not elements)
   const coreDescriptors = useMemo(
     () => buildCoreStatDescriptors(stats, latestSnapshot, minimumRatio),
-    [stats, latestSnapshot, minimumRatio],
+    [stats, latestSnapshot, minimumRatio]
   )
   const coreCount = coreDescriptors.length
 
@@ -69,14 +75,8 @@ export function AnalyticsTab({
   const layout2 = useMemo(() => findOptimalLayout2Col(totalS, totalD), [totalS, totalD])
 
   // Memoize slot partitions for stable references
-  const singleSlots = useMemo(
-    () => statCardSlots.filter((s) => s.span !== 2),
-    [statCardSlots],
-  )
-  const doubleSlots = useMemo(
-    () => statCardSlots.filter((s) => s.span === 2),
-    [statCardSlots],
-  )
+  const singleSlots = useMemo(() => statCardSlots.filter((s) => s.span !== 2), [statCardSlots])
+  const doubleSlots = useMemo(() => statCardSlots.filter((s) => s.span === 2), [statCardSlots])
 
   // Render cards for a given layout. Maps card IDs to React elements:
   // s1..s{coreCount} → core stats, s{coreCount+1}+ → slot singles,
@@ -134,9 +134,7 @@ export function AnalyticsTab({
       <SlotRenderer slots={progressSlots} className="flex flex-col gap-10" />
 
       {/* Mobile: 2-col with explicit positioning */}
-      <div className="grid grid-cols-2 gap-5 md:hidden">
-        {renderLayoutCards(layout2)}
-      </div>
+      <div className="grid grid-cols-2 gap-5 md:hidden">{renderLayoutCards(layout2)}</div>
 
       {/* Medium: 3-col with explicit positioning */}
       <div className="hidden gap-5 md:grid md:grid-cols-3 lg:hidden">
@@ -144,9 +142,7 @@ export function AnalyticsTab({
       </div>
 
       {/* Large: 3 or 4-col with explicit positioning */}
-      <div className={`hidden gap-5 lg:grid ${lgColClass}`}>
-        {renderLayoutCards(layout4)}
-      </div>
+      <div className={`hidden gap-5 lg:grid ${lgColClass}`}>{renderLayoutCards(layout4)}</div>
 
       <hr className="border-border" />
       <PollLog

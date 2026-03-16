@@ -19,7 +19,12 @@ interface UserProfileCardProps {
   accentColor: string
 }
 
-export function UserProfileCard({ tracker, stats, registryEntry, accentColor: tc }: UserProfileCardProps) {
+export function UserProfileCard({
+  tracker,
+  stats,
+  registryEntry,
+  accentColor: tc,
+}: UserProfileCardProps) {
   if (!stats.username && !stats.group) return null
 
   const accountAge = formatAccountAge(tracker.joinedAt)
@@ -37,11 +42,19 @@ export function UserProfileCard({ tracker, stats, registryEntry, accentColor: tc
         </div>
         <div className="flex flex-col gap-2">
           {stats.username && (
-            <RedactedText value={stats.username} color={tc} className="text-lg font-mono text-primary font-semibold" />
+            <RedactedText
+              value={stats.username}
+              color={tc}
+              className="text-lg font-mono text-primary font-semibold"
+            />
           )}
           <div className="flex items-center gap-3 flex-wrap">
             {stats.group && registryEntry?.userClasses && !isRedacted(stats.group) ? (
-              <RankTooltip currentRank={stats.group} userClasses={registryEntry.userClasses} accentColor={tc} />
+              <RankTooltip
+                currentRank={stats.group}
+                userClasses={registryEntry.userClasses}
+                accentColor={tc}
+              />
             ) : stats.group ? (
               <Badge style={{ backgroundColor: hexToRgba(tc, 0.15), color: tc }}>
                 <RedactedText value={stats.group} color={tc} />
@@ -50,7 +63,9 @@ export function UserProfileCard({ tracker, stats, registryEntry, accentColor: tc
           </div>
           {(joinedDate || accountAge) && (
             <div className="flex items-center gap-1">
-              {joinedDate && <span className="text-xs font-mono text-muted">Joined {joinedDate}</span>}
+              {joinedDate && (
+                <span className="text-xs font-mono text-muted">Joined {joinedDate}</span>
+              )}
               {joinedDate && accountAge && <span className="text-xs font-mono text-muted">·</span>}
               {accountAge && <span className="text-xs font-mono text-muted">{accountAge}</span>}
             </div>

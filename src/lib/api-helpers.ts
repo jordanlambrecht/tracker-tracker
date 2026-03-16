@@ -41,15 +41,11 @@ export async function parseJsonBody(
   }
 }
 
-
 export function validateHttpUrl(url: string): NextResponse | null {
   try {
     const parsed = new URL(url)
     if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-      return NextResponse.json(
-        { error: "baseUrl must use https:// or http://" },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: "baseUrl must use https:// or http://" }, { status: 400 })
     }
     if (isUnsafeNetworkHost(parsed.hostname)) {
       return NextResponse.json(

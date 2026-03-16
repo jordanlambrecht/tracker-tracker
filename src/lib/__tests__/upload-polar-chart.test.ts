@@ -117,7 +117,9 @@ describe("computeHourlyUploadAverages", () => {
 
     expect(result).toHaveLength(2)
     const hours = result.map((b) => b.hour).sort((a, b) => a - b)
-    const expectedHours = [new Date(ts9).getHours(), new Date(ts10).getHours()].sort((a, b) => a - b)
+    const expectedHours = [new Date(ts9).getHours(), new Date(ts10).getHours()].sort(
+      (a, b) => a - b
+    )
     expect(hours).toEqual(expectedHours)
   })
 

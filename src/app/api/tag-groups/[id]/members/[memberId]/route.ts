@@ -58,12 +58,7 @@ export async function PATCH(
       const [duplicate] = await db
         .select({ id: tagGroupMembers.id })
         .from(tagGroupMembers)
-        .where(
-          and(
-            eq(tagGroupMembers.groupId, groupId),
-            eq(tagGroupMembers.tag, body.tag.trim())
-          )
-        )
+        .where(and(eq(tagGroupMembers.groupId, groupId), eq(tagGroupMembers.tag, body.tag.trim())))
         .limit(1)
 
       if (duplicate) {

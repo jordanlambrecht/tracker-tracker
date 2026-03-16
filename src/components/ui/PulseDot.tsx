@@ -65,13 +65,9 @@ function PulseDot({
       className={clsx(
         pulseDot({ status: useCustomColor ? undefined : status, size }),
         pulse ? "animate-pulse-glow" : "opacity-50",
-        className,
+        className
       )}
-      style={
-        useCustomColor
-          ? { backgroundColor: color, color: color }
-          : undefined
-      }
+      style={useCustomColor ? { backgroundColor: color, color: color } : undefined}
     />
   )
 }

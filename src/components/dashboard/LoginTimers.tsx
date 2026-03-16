@@ -30,7 +30,11 @@ export function LoginTimers({ trackers }: { trackers: TrackerSummary[] }) {
       const lastAccess = new Date(tracker.lastAccessAt).getTime()
       if (Number.isNaN(lastAccess)) return null
 
-      return { tracker, loginIntervalDays: entry.rules.loginIntervalDays, lastAccessAt: tracker.lastAccessAt }
+      return {
+        tracker,
+        loginIntervalDays: entry.rules.loginIntervalDays,
+        lastAccessAt: tracker.lastAccessAt,
+      }
     })
     .filter((e): e is TimerEntry => e !== null)
     .sort((a, b) => {

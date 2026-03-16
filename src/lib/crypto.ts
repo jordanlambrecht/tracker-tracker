@@ -22,10 +22,7 @@ export function encrypt(plaintext: string, key: Buffer): string {
   const iv = randomBytes(IV_LENGTH)
   const cipher = createCipheriv("aes-256-gcm", key, iv)
 
-  const encrypted = Buffer.concat([
-    cipher.update(plaintext, "utf8"),
-    cipher.final(),
-  ])
+  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()])
   const authTag = cipher.getAuthTag()
 
   // Format: base64(iv + authTag + ciphertext)
@@ -47,10 +44,7 @@ export function decrypt(encryptedBase64: string, key: Buffer): string {
   const decipher = createDecipheriv("aes-256-gcm", key, iv)
   decipher.setAuthTag(authTag)
 
-  const decrypted = Buffer.concat([
-    decipher.update(ciphertext),
-    decipher.final(),
-  ])
+  const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()])
 
   return decrypted.toString("utf8")
 }

@@ -50,13 +50,22 @@ export function AnalyticsCharts({
               <span className="text-primary">{formatBytesFromString(delta.downloaded)}</span> ↓
             </p>
           )}
-          <UploadDownloadChart snapshots={snapshots} accentColor={tc} showDataZoom={days >= 30 || days === 0} />
+          <UploadDownloadChart
+            snapshots={snapshots}
+            accentColor={tc}
+            showDataZoom={days >= 30 || days === 0}
+          />
         </Card>
 
         {/* Ratio */}
         <Card trackerColor={tc} className="flex flex-col gap-4">
           <H2>Ratio</H2>
-          <MetricChart metric="ratio" snapshots={snapshots} accentColor={tc} baselineValue={minimumRatio} />
+          <MetricChart
+            metric="ratio"
+            snapshots={snapshots}
+            accentColor={tc}
+            baselineValue={minimumRatio}
+          />
         </Card>
 
         {/* Buffer */}

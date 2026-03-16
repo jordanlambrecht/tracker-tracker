@@ -6,56 +6,56 @@ Reference document for adapter development. Compares the three tracker platform 
 
 ## Connection Details
 
-| Aspect | UNIT3D | Gazelle (RED/OPS) | GGn |
-| --- | --- | --- | --- |
-| **Base endpoint** | `/api/user` | `/ajax.php?action=index` | `/api.php?request=quick_user` + `/api.php?request=user&id=X` |
-| **Auth method** | Query parameter: `?api_token=TOKEN` | Header: `Authorization: token TOKEN` | Query parameter: `?key=TOKEN` |
-| **Response format** | Flat JSON object | Nested: `{ status, response: { userstats } }` | Nested: `{ status, response: { stats, personal, community } }` |
-| **Status indication** | HTTP status codes only | HTTP codes + `status` field (`"success"` / `"failure"`) | HTTP codes + `status` field |
-| **Byte representation** | Formatted strings (`"500.25 GiB"`) | Raw integers (bytes) | Raw integers (bytes) |
-| **API calls per poll** | 1 | 1 | 2 (quick_user → user) |
-| **Timeout** | 15s `AbortSignal` | 15s `AbortSignal` | 15s `AbortSignal` per call |
+| Aspect                  | UNIT3D                              | Gazelle (RED/OPS)                                       | GGn                                                            |
+| ----------------------- | ----------------------------------- | ------------------------------------------------------- | -------------------------------------------------------------- |
+| **Base endpoint**       | `/api/user`                         | `/ajax.php?action=index`                                | `/api.php?request=quick_user` + `/api.php?request=user&id=X`   |
+| **Auth method**         | Query parameter: `?api_token=TOKEN` | Header: `Authorization: token TOKEN`                    | Query parameter: `?key=TOKEN`                                  |
+| **Response format**     | Flat JSON object                    | Nested: `{ status, response: { userstats } }`           | Nested: `{ status, response: { stats, personal, community } }` |
+| **Status indication**   | HTTP status codes only              | HTTP codes + `status` field (`"success"` / `"failure"`) | HTTP codes + `status` field                                    |
+| **Byte representation** | Formatted strings (`"500.25 GiB"`)  | Raw integers (bytes)                                    | Raw integers (bytes)                                           |
+| **API calls per poll**  | 1                                   | 1                                                       | 2 (quick_user → user)                                          |
+| **Timeout**             | 15s `AbortSignal`                   | 15s `AbortSignal`                                       | 15s `AbortSignal` per call                                     |
 
 ## Field Mapping
 
 ### Core Fields (always available)
 
-| TrackerStats field | UNIT3D source | Gazelle source | GGn source | Notes |
-| --- | --- | --- | --- | --- |
-| `username` | `username` (string) | `response.username` (string) | `response.username` (string) | Direct on all platforms |
-| `group` | `group` (string) | `userstats.class` (string) | `personal.class` (string) | Different locations per platform |
-| `uploadedBytes` | `uploaded` → `parseBytes()` | `userstats.uploaded` → `BigInt()` | `stats.uploaded` → `BigInt()` | UNIT3D needs string parsing |
-| `downloadedBytes` | `downloaded` → `parseBytes()` | `userstats.downloaded` → `BigInt()` | `stats.downloaded` → `BigInt()` | UNIT3D needs string parsing |
-| `ratio` | `ratio` → `parseFloat()` | `userstats.ratio` (number) | `stats.ratio` (string or number) | GGn full response returns string |
-| `bufferBytes` | `buffer` → `parseBytes()` | Calculated: `uploaded - downloaded` | Calculated: `uploaded - downloaded` | Only UNIT3D provides directly |
-| `seedbonus` | `seedbonus` → `parseFloat()` | `userstats.bonusPoints` or `.bonuspoints` | `stats.gold` (number) | GGn uses "gold" currency system |
+| TrackerStats field | UNIT3D source                 | Gazelle source                            | GGn source                          | Notes                            |
+| ------------------ | ----------------------------- | ----------------------------------------- | ----------------------------------- | -------------------------------- |
+| `username`         | `username` (string)           | `response.username` (string)              | `response.username` (string)        | Direct on all platforms          |
+| `group`            | `group` (string)              | `userstats.class` (string)                | `personal.class` (string)           | Different locations per platform |
+| `uploadedBytes`    | `uploaded` → `parseBytes()`   | `userstats.uploaded` → `BigInt()`         | `stats.uploaded` → `BigInt()`       | UNIT3D needs string parsing      |
+| `downloadedBytes`  | `downloaded` → `parseBytes()` | `userstats.downloaded` → `BigInt()`       | `stats.downloaded` → `BigInt()`     | UNIT3D needs string parsing      |
+| `ratio`            | `ratio` → `parseFloat()`      | `userstats.ratio` (number)                | `stats.ratio` (string or number)    | GGn full response returns string |
+| `bufferBytes`      | `buffer` → `parseBytes()`     | Calculated: `uploaded - downloaded`       | Calculated: `uploaded - downloaded` | Only UNIT3D provides directly    |
+| `seedbonus`        | `seedbonus` → `parseFloat()`  | `userstats.bonusPoints` or `.bonuspoints` | `stats.gold` (number)               | GGn uses "gold" currency system  |
 
 ### Platform-Dependent Fields
 
-| TrackerStats field | UNIT3D | Gazelle (RED/OPS) | GGn | Notes |
-| --- | --- | --- | --- | --- |
-| `seedingCount` | `seeding` (number) | `userstats.seedingcount` (optional) | `community.seeding` (nullable) | GGn depends on paranoia settings |
-| `leechingCount` | `leeching` (number) | `userstats.leechingcount` (optional) | `community.leeching` (nullable) | GGn depends on paranoia settings |
-| `hitAndRuns` | `hit_and_runs` (number) | **Not available** (0) | `personal.hnrs` (nullable) | Defaults to 0 when absent |
-| `requiredRatio` | **Not available** (null) | `userstats.requiredratio` (number) | `stats.requiredRatio` (number) | UNIT3D returns null |
-| `warned` | **Not available** (null) | **Requires 2nd call** (false) | `personal.warned` (boolean) | GGn gets it in the user call |
-| `freeleechTokens` | **Not available** (null) | `userstats.freeleechTokens` (optional) | **Not available** (null) | GGn does not expose FL tokens |
+| TrackerStats field | UNIT3D                   | Gazelle (RED/OPS)                      | GGn                             | Notes                            |
+| ------------------ | ------------------------ | -------------------------------------- | ------------------------------- | -------------------------------- |
+| `seedingCount`     | `seeding` (number)       | `userstats.seedingcount` (optional)    | `community.seeding` (nullable)  | GGn depends on paranoia settings |
+| `leechingCount`    | `leeching` (number)      | `userstats.leechingcount` (optional)   | `community.leeching` (nullable) | GGn depends on paranoia settings |
+| `hitAndRuns`       | `hit_and_runs` (number)  | **Not available** (0)                  | `personal.hnrs` (nullable)      | Defaults to 0 when absent        |
+| `requiredRatio`    | **Not available** (null) | `userstats.requiredratio` (number)     | `stats.requiredRatio` (number)  | UNIT3D returns null              |
+| `warned`           | **Not available** (null) | **Requires 2nd call** (false)          | `personal.warned` (boolean)     | GGn gets it in the user call     |
+| `freeleechTokens`  | **Not available** (null) | `userstats.freeleechTokens` (optional) | **Not available** (null)        | GGn does not expose FL tokens    |
 
 ### Platform Capabilities Summary
 
-| Capability | UNIT3D | Gazelle | GGn | Status |
-| --- | --- | --- | --- | --- |
-| Upload / Download / Ratio | Yes | Yes | Yes | **Implemented** |
-| Buffer | Yes (direct) | Yes (calculated) | Yes (calculated) | **Implemented** |
-| Seedbonus / Gold | Yes | Yes (most forks) | Yes (gold) | **Implemented** |
-| Seeding / Leeching counts | Yes | Partial (some forks) | Paranoia-dependent | **Implemented** (defaults to 0) |
-| Hit & Runs | Yes | No | Partial (nullable) | **Implemented** |
-| Required Ratio | No | Yes | Yes | **Implemented** |
-| Freeleech Tokens | No | Yes (some forks) | No | **Implemented** |
-| Warned status | No | Needs 2nd call | Yes | **Implemented** (Gazelle defaults false) |
-| Snatched count | No | Needs 2nd call | Available | **Not implemented** — future |
-| Last access time | No | Needs 2nd call | Available | **Not implemented** — future |
-| Upload/Download buffs | No | No | Yes (multipliers) | **Not implemented** — GGn-specific |
+| Capability                | UNIT3D       | Gazelle              | GGn                | Status                                   |
+| ------------------------- | ------------ | -------------------- | ------------------ | ---------------------------------------- |
+| Upload / Download / Ratio | Yes          | Yes                  | Yes                | **Implemented**                          |
+| Buffer                    | Yes (direct) | Yes (calculated)     | Yes (calculated)   | **Implemented**                          |
+| Seedbonus / Gold          | Yes          | Yes (most forks)     | Yes (gold)         | **Implemented**                          |
+| Seeding / Leeching counts | Yes          | Partial (some forks) | Paranoia-dependent | **Implemented** (defaults to 0)          |
+| Hit & Runs                | Yes          | No                   | Partial (nullable) | **Implemented**                          |
+| Required Ratio            | No           | Yes                  | Yes                | **Implemented**                          |
+| Freeleech Tokens          | No           | Yes (some forks)     | No                 | **Implemented**                          |
+| Warned status             | No           | Needs 2nd call       | Yes                | **Implemented** (Gazelle defaults false) |
+| Snatched count            | No           | Needs 2nd call       | Available          | **Not implemented** — future             |
+| Last access time          | No           | Needs 2nd call       | Available          | **Not implemented** — future             |
+| Upload/Download buffs     | No           | No                   | Yes (multipliers)  | **Not implemented** — GGn-specific       |
 
 ## Response Shapes
 
@@ -226,14 +226,14 @@ Reference document for adapter development. Compares the three tracker platform 
 
 ## Known Gazelle Fork Variations
 
-| Fork / Site | Platform | Auth Method | bonusPoints field | freeleechTokens | seedingcount in index |
-| --- | --- | --- | --- | --- | --- |
-| Redacted (RED) | `gazelle` | Header token | `bonusPoints` | Sometimes | No |
-| Orpheus (OPS) | `gazelle` | Header token | `bonusPoints` | Sometimes | No |
-| GazelleGames (GGn) | `ggn` | Query key | N/A (uses `gold`) | No | No (paranoia) |
-| BroadcasTheNet (BTN) | `gazelle` | Header token | Varies | No | No |
-| PassThePopcorn (PTP) | `gazelle` | Header token | Varies | No | No |
-| AnimeBytes (AB) | `gazelle` | Header token | Varies | Varies | No |
+| Fork / Site          | Platform  | Auth Method  | bonusPoints field | freeleechTokens | seedingcount in index |
+| -------------------- | --------- | ------------ | ----------------- | --------------- | --------------------- |
+| Redacted (RED)       | `gazelle` | Header token | `bonusPoints`     | Sometimes       | No                    |
+| Orpheus (OPS)        | `gazelle` | Header token | `bonusPoints`     | Sometimes       | No                    |
+| GazelleGames (GGn)   | `ggn`     | Query key    | N/A (uses `gold`) | No              | No (paranoia)         |
+| BroadcasTheNet (BTN) | `gazelle` | Header token | Varies            | No              | No                    |
+| PassThePopcorn (PTP) | `gazelle` | Header token | Varies            | No              | No                    |
+| AnimeBytes (AB)      | `gazelle` | Header token | Varies            | Varies          | No                    |
 
 ## Future Work
 

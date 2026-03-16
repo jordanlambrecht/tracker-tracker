@@ -49,7 +49,10 @@ function buildNetworkData(
   const trackerTorrentCount = new Map<string, number>()
 
   for (const torrent of torrents) {
-    const tags = torrent.tags.split(",").map((t) => t.trim().toLowerCase()).filter((t) => t && !crossSeedSet.has(t))
+    const tags = torrent.tags
+      .split(",")
+      .map((t) => t.trim().toLowerCase())
+      .filter((t) => t && !crossSeedSet.has(t))
     const matched = tags.filter((t) => trackerTagMap.has(t))
     if (matched.length === 0) continue
     for (const tag of matched) trackerTorrentCount.set(tag, (trackerTorrentCount.get(tag) ?? 0) + 1)
@@ -126,7 +129,11 @@ function buildCrossSeedNetworkOption(nodes: NetworkNode[], edges: NetworkEdge[])
     backgroundColor: "transparent",
     tooltip: chartTooltip("item", {
       formatter: (params: unknown) => {
-        const p = params as { dataType: "node" | "edge"; data: NetworkNode | NetworkEdge; name: string }
+        const p = params as {
+          dataType: "node" | "edge"
+          data: NetworkNode | NetworkEdge
+          name: string
+        }
 
         if (p.dataType === "edge") {
           const edge = p.data as NetworkEdge
@@ -139,7 +146,8 @@ function buildCrossSeedNetworkOption(nodes: NetworkNode[], edges: NetworkEdge[])
         }
 
         const node = p.data as NetworkNode
-        const pct = node.torrentCount > 0 ? fmtNum((node.crossSeeded / node.torrentCount) * 100, 1) : "0.0"
+        const pct =
+          node.torrentCount > 0 ? fmtNum((node.crossSeeded / node.torrentCount) * 100, 1) : "0.0"
         return (
           `<span style="color:${node.itemStyle.color};font-weight:600;">${escHtml(node.name)}</span><br/>` +
           `<span style="color:${CHART_THEME.textSecondary};">${node.torrentCount.toLocaleString()} torrents</span><br/>` +
@@ -183,13 +191,21 @@ function buildCrossSeedNetworkOption(nodes: NetworkNode[], edges: NetworkEdge[])
   }
 }
 
-function CrossSeedNetwork({ torrents, trackerTags, crossSeedTags, height = 450 }: CrossSeedNetworkProps) {
-  if (trackerTags.length === 0) return <ChartEmptyState height={height} message="No tracker tags configured" />
+function CrossSeedNetwork({
+  torrents,
+  trackerTags,
+  crossSeedTags,
+  height = 450,
+}: CrossSeedNetworkProps) {
+  if (trackerTags.length === 0)
+    return <ChartEmptyState height={height} message="No tracker tags configured" />
 
   const { nodes, edges } = buildNetworkData(torrents, trackerTags, crossSeedTags)
 
-  if (nodes.length === 0) return <ChartEmptyState height={height} message="No torrent data available" />
-  if (edges.length === 0) return <ChartEmptyState height={height} message="No cross-seeded content detected" />
+  if (nodes.length === 0)
+    return <ChartEmptyState height={height} message="No torrent data available" />
+  if (edges.length === 0)
+    return <ChartEmptyState height={height} message="No cross-seeded content detected" />
 
   return (
     <ReactECharts

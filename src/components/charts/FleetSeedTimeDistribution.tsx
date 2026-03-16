@@ -14,19 +14,11 @@ interface FleetSeedTimeDistributionProps {
   height?: number
 }
 
-function FleetSeedTimeDistribution({
-  torrents,
-  height = 280,
-}: FleetSeedTimeDistributionProps) {
+function FleetSeedTimeDistribution({ torrents, height = 280 }: FleetSeedTimeDistributionProps) {
   const seedingTorrents = torrents.filter((t) => SEEDING_STATES.has(t.state))
 
   if (seedingTorrents.length === 0) {
-    return (
-      <ChartEmptyState
-        height={height}
-        message="No seeding torrents found"
-      />
-    )
+    return <ChartEmptyState height={height} message="No seeding torrents found" />
   }
 
   const option = buildBucketedBarOption({

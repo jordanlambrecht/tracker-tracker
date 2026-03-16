@@ -15,7 +15,13 @@ interface LogScaleToggleProps {
 
 function LogScaleToggle({ effectiveLog, isAuto, onToggle }: LogScaleToggleProps) {
   return (
-    <Tooltip content={isAuto ? "Scale: auto-detected. Click to override." : "Scale: manual override. Click to reset to auto."}>
+    <Tooltip
+      content={
+        isAuto
+          ? "Scale: auto-detected. Click to override."
+          : "Scale: manual override. Click to reset to auto."
+      }
+    >
       <button
         type="button"
         onClick={onToggle}
@@ -23,9 +29,7 @@ function LogScaleToggle({ effectiveLog, isAuto, onToggle }: LogScaleToggleProps)
       >
         <ActivityIcon width="10" height="10" />
         {effectiveLog ? "Log" : "Linear"}
-        {isAuto && (
-          <span className="opacity-50">auto</span>
-        )}
+        {isAuto && <span className="opacity-50">auto</span>}
       </button>
     </Tooltip>
   )

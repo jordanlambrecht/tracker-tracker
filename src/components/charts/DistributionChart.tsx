@@ -99,8 +99,17 @@ function buildSankeyOption(
 ): EChartsOption {
   // Nodes: left side = "Upload: TrackerName", right side = "Seeding: TrackerName"
   // Links: each tracker flows from its upload node to its seeding node
-  const nodes: { name: string; itemStyle: { color: string; borderColor: string }; depth: number }[] = []
-  const links: { source: string; target: string; value: number; lineStyle: { color: string; opacity: number } }[] = []
+  const nodes: {
+    name: string
+    itemStyle: { color: string; borderColor: string }
+    depth: number
+  }[] = []
+  const links: {
+    source: string
+    target: string
+    value: number
+    lineStyle: { color: string; opacity: number }
+  }[] = []
 
   // Sort left side by upload % (desc), right side by seeding % (desc)
   // layoutIterations: 0 preserves insertion order per depth, so different orderings produce crossing flows
@@ -340,8 +349,14 @@ function DistributionChart({ trackers, height = 300 }: DistributionChartProps) {
     .map((t) => ({
       name: t.name,
       color: t.color,
-      uploadPct: Math.max(0.01, totalUpload > 0 ? (Number(BigInt(t.uploadedBytes as string)) / totalUpload) * 100 : 0),
-      seedingPct: Math.max(0.01, totalSeeding > 0 ? ((t.seedingCount as number) / totalSeeding) * 100 : 0),
+      uploadPct: Math.max(
+        0.01,
+        totalUpload > 0 ? (Number(BigInt(t.uploadedBytes as string)) / totalUpload) * 100 : 0
+      ),
+      seedingPct: Math.max(
+        0.01,
+        totalSeeding > 0 ? ((t.seedingCount as number) / totalSeeding) * 100 : 0
+      ),
     }))
     .sort((a, b) => b.uploadPct - a.uploadPct)
 
@@ -385,8 +400,10 @@ function DistributionChart({ trackers, height = 300 }: DistributionChartProps) {
         )}
         {hasSeeding && (
           <ReactECharts
-            option={buildPieOption("Seeding Share", seedingData, (v) =>
-              `${v.toLocaleString()} torrents`
+            option={buildPieOption(
+              "Seeding Share",
+              seedingData,
+              (v) => `${v.toLocaleString()} torrents`
             )}
             style={{ height, width: "100%" }}
             opts={{ renderer: "canvas" }}

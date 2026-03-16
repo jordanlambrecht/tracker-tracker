@@ -50,7 +50,9 @@ export default function SettingsPage() {
 
   // Fetched data — null until loaded
   const [settings, setSettings] = useState<SettingsData | null>(null)
-  const [proxyTrackers, setProxyTrackers] = useState<{ id: number; name: string; color: string }[]>([])
+  const [proxyTrackers, setProxyTrackers] = useState<{ id: number; name: string; color: string }[]>(
+    []
+  )
   const [backupHistory, setBackupHistory] = useState<BackupRecord[]>([])
 
   // Error log (small enough to keep inline)
@@ -79,11 +81,10 @@ export default function SettingsPage() {
         const res = await fetch("/api/trackers")
         if (!res.ok) return
         const data: TrackerSummary[] = await res.json()
-        if (!cancelled) setProxyTrackers(
-          data
-            .filter((t) => t.useProxy)
-            .map((t) => ({ id: t.id, name: t.name, color: t.color }))
-        )
+        if (!cancelled)
+          setProxyTrackers(
+            data.filter((t) => t.useProxy).map((t) => ({ id: t.id, name: t.name, color: t.color }))
+          )
       } catch {
         // Non-critical — proxy list just won't populate
       }
@@ -103,7 +104,9 @@ export default function SettingsPage() {
     fetchSettings()
     fetchTrackers()
     fetchBackupHistory()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const tabs: { key: SettingsTab; label: string }[] = [
@@ -145,9 +148,7 @@ export default function SettingsPage() {
             initialUsername={settings.username ?? ""}
           />
 
-          <DataSection
-            initialPollInterval={settings.trackerPollIntervalMinutes ?? 60}
-          />
+          <DataSection initialPollInterval={settings.trackerPollIntervalMinutes ?? 60} />
 
           <SecuritySection
             initialAutoWipeThreshold={settings.autoWipeThreshold}
@@ -169,10 +170,13 @@ export default function SettingsPage() {
 
           {/* ── Error Log ──────────────────────────────────────────── */}
           <section aria-labelledby="error-log-heading">
-            <H2 id="error-log-heading" className="mb-4">Error Log</H2>
+            <H2 id="error-log-heading" className="mb-4">
+              Error Log
+            </H2>
             <Card elevation="raised" className="flex flex-col gap-4">
               <Paragraph>
-                Copy recent log output to share when reporting issues. Logs stay on your machine — nothing is sent externally.
+                Copy recent log output to share when reporting issues. Logs stay on your machine —
+                nothing is sent externally.
               </Paragraph>
               <div className="flex gap-3 items-center">
                 <Button
@@ -183,7 +187,8 @@ export default function SettingsPage() {
                     setLogError(null)
                     try {
                       const res = await fetch("/api/settings/logs")
-                      if (!res.ok) throw new Error(await extractApiError(res, "Failed to load logs"))
+                      if (!res.ok)
+                        throw new Error(await extractApiError(res, "Failed to load logs"))
                       const data = await res.json()
                       const content = (data as { content: string }).content
                       if (!content) {
