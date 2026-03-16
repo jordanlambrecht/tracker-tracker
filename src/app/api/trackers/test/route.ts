@@ -22,18 +22,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "baseUrl and apiToken are required" }, { status: 400 })
   }
 
-  if (apiToken.length > 500) {
+  const trimmedBaseUrl = baseUrl.trim()
+  const trimmedApiToken = apiToken.trim()
+
+  if (trimmedApiToken.length > 500) {
     return NextResponse.json(
       { error: "API token must be 500 characters or fewer" },
       { status: 400 }
     )
   }
 
-  if (baseUrl.length > 500) {
+  if (trimmedBaseUrl.length > 500) {
     return NextResponse.json({ error: "URL must be 500 characters or fewer" }, { status: 400 })
   }
 
-  const urlErr = validateHttpUrl(baseUrl)
+  const urlErr = validateHttpUrl(trimmedBaseUrl)
   if (urlErr) return urlErr
 
   const platform = typeof platformType === "string" ? platformType : "unit3d"
@@ -45,11 +48,11 @@ export async function POST(request: Request) {
     const adapter = getAdapter(platform)
     const defaultPath = DEFAULT_API_PATHS[platform] ?? "/api/user"
     const path = typeof apiPath === "string" && apiPath.startsWith("/") ? apiPath : defaultPath
-    const registryEntry = findRegistryEntry(baseUrl)
+    const registryEntry = findRegistryEntry(trimmedBaseUrl)
     const fetchOptions: { authStyle?: "token" | "raw"; enrich?: boolean } = {}
     if (registryEntry?.gazelleAuthStyle) fetchOptions.authStyle = registryEntry.gazelleAuthStyle
     if (registryEntry?.gazelleEnrich) fetchOptions.enrich = true
-    const stats = await adapter.fetchStats(baseUrl, apiToken, path, fetchOptions)
+    const stats = await adapter.fetchStats(trimmedBaseUrl, trimmedApiToken, path, fetchOptions)
     return NextResponse.json({
       success: true,
       username: stats.username,
