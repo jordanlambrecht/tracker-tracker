@@ -68,6 +68,8 @@ export interface TagGroupMember {
 
 export type TagGroupChartType = "bar" | "donut" | "treemap" | "numbers"
 
+export const VALID_CHART_TYPES = ["bar", "donut", "treemap", "numbers"] as const
+
 export interface TagGroup {
   id: number
   name: string

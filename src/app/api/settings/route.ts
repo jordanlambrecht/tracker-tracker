@@ -1,6 +1,6 @@
 // src/app/api/settings/route.ts
 //
-// Functions: GET, PATCH
+// Functions: fetchSettings, serializeSettingsResponse, GET, PATCH
 
 import { access, mkdir } from "node:fs/promises"
 import path from "node:path"
@@ -16,60 +16,69 @@ import { scrubSnapshotUsernames } from "@/lib/privacy-db"
 import { PROXY_HOST_PATTERN, VALID_PROXY_TYPES } from "@/lib/proxy"
 import { parseQbitmanageTags, QBITMANAGE_KEYS } from "@/lib/qbitmanage-defaults"
 
+const settingsColumns = {
+  storeUsernames: appSettings.storeUsernames,
+  username: appSettings.username,
+  sessionTimeoutMinutes: appSettings.sessionTimeoutMinutes,
+  autoWipeThreshold: appSettings.autoWipeThreshold,
+  snapshotRetentionDays: appSettings.snapshotRetentionDays,
+  trackerPollIntervalMinutes: appSettings.trackerPollIntervalMinutes,
+  proxyEnabled: appSettings.proxyEnabled,
+  proxyType: appSettings.proxyType,
+  proxyHost: appSettings.proxyHost,
+  proxyPort: appSettings.proxyPort,
+  proxyUsername: appSettings.proxyUsername,
+  hasProxyPassword: appSettings.encryptedProxyPassword,
+  qbitmanageEnabled: appSettings.qbitmanageEnabled,
+  qbitmanageTags: appSettings.qbitmanageTags,
+  backupScheduleEnabled: appSettings.backupScheduleEnabled,
+  backupScheduleFrequency: appSettings.backupScheduleFrequency,
+  backupRetentionCount: appSettings.backupRetentionCount,
+  backupEncryptionEnabled: appSettings.backupEncryptionEnabled,
+  backupStoragePath: appSettings.backupStoragePath,
+}
+
+function fetchSettings() {
+  return db.select(settingsColumns).from(appSettings).limit(1)
+}
+
+type SettingsRow = Awaited<ReturnType<typeof fetchSettings>>[number]
+
+function serializeSettingsResponse(row: SettingsRow) {
+  return {
+    storeUsernames: row.storeUsernames,
+    username: row.username,
+    sessionTimeoutMinutes: row.sessionTimeoutMinutes,
+    autoWipeThreshold: row.autoWipeThreshold,
+    snapshotRetentionDays: row.snapshotRetentionDays,
+    trackerPollIntervalMinutes: row.trackerPollIntervalMinutes,
+    proxyEnabled: row.proxyEnabled,
+    proxyType: row.proxyType,
+    proxyHost: row.proxyHost,
+    proxyPort: row.proxyPort,
+    proxyUsername: row.proxyUsername,
+    hasProxyPassword: !!row.hasProxyPassword,
+    qbitmanageEnabled: row.qbitmanageEnabled,
+    qbitmanageTags: parseQbitmanageTags(row.qbitmanageTags),
+    backupScheduleEnabled: row.backupScheduleEnabled,
+    backupScheduleFrequency: row.backupScheduleFrequency,
+    backupRetentionCount: row.backupRetentionCount,
+    backupEncryptionEnabled: row.backupEncryptionEnabled,
+    backupStoragePath: row.backupStoragePath,
+  }
+}
+
 export async function GET() {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const [settings] = await db
-    .select({
-      storeUsernames: appSettings.storeUsernames,
-      username: appSettings.username,
-      sessionTimeoutMinutes: appSettings.sessionTimeoutMinutes,
-      autoWipeThreshold: appSettings.autoWipeThreshold,
-      snapshotRetentionDays: appSettings.snapshotRetentionDays,
-      trackerPollIntervalMinutes: appSettings.trackerPollIntervalMinutes,
-      proxyEnabled: appSettings.proxyEnabled,
-      proxyType: appSettings.proxyType,
-      proxyHost: appSettings.proxyHost,
-      proxyPort: appSettings.proxyPort,
-      proxyUsername: appSettings.proxyUsername,
-      hasProxyPassword: appSettings.encryptedProxyPassword,
-      qbitmanageEnabled: appSettings.qbitmanageEnabled,
-      qbitmanageTags: appSettings.qbitmanageTags,
-      backupScheduleEnabled: appSettings.backupScheduleEnabled,
-      backupScheduleFrequency: appSettings.backupScheduleFrequency,
-      backupRetentionCount: appSettings.backupRetentionCount,
-      backupEncryptionEnabled: appSettings.backupEncryptionEnabled,
-      backupStoragePath: appSettings.backupStoragePath,
-    })
-    .from(appSettings)
-    .limit(1)
+  const [settings] = await fetchSettings()
 
   if (!settings) {
     return NextResponse.json({ error: "Not configured" }, { status: 400 })
   }
 
-  return NextResponse.json({
-    storeUsernames: settings.storeUsernames,
-    username: settings.username,
-    sessionTimeoutMinutes: settings.sessionTimeoutMinutes,
-    autoWipeThreshold: settings.autoWipeThreshold,
-    snapshotRetentionDays: settings.snapshotRetentionDays,
-    trackerPollIntervalMinutes: settings.trackerPollIntervalMinutes,
-    proxyEnabled: settings.proxyEnabled,
-    proxyType: settings.proxyType,
-    proxyHost: settings.proxyHost,
-    proxyPort: settings.proxyPort,
-    proxyUsername: settings.proxyUsername,
-    hasProxyPassword: !!settings.hasProxyPassword,
-    qbitmanageEnabled: settings.qbitmanageEnabled,
-    qbitmanageTags: parseQbitmanageTags(settings.qbitmanageTags),
-    backupScheduleEnabled: settings.backupScheduleEnabled,
-    backupScheduleFrequency: settings.backupScheduleFrequency,
-    backupRetentionCount: settings.backupRetentionCount,
-    backupEncryptionEnabled: settings.backupEncryptionEnabled,
-    backupStoragePath: settings.backupStoragePath,
-  })
+  return NextResponse.json(serializeSettingsResponse(settings))
 }
 
 export async function PATCH(request: Request) {
@@ -414,30 +423,7 @@ export async function PATCH(request: Request) {
   await db.update(appSettings).set(updates).where(eq(appSettings.id, settings.id))
 
   // Re-fetch to return current state
-  const [updated] = await db
-    .select({
-      storeUsernames: appSettings.storeUsernames,
-      username: appSettings.username,
-      sessionTimeoutMinutes: appSettings.sessionTimeoutMinutes,
-      autoWipeThreshold: appSettings.autoWipeThreshold,
-      snapshotRetentionDays: appSettings.snapshotRetentionDays,
-      trackerPollIntervalMinutes: appSettings.trackerPollIntervalMinutes,
-      proxyEnabled: appSettings.proxyEnabled,
-      proxyType: appSettings.proxyType,
-      proxyHost: appSettings.proxyHost,
-      proxyPort: appSettings.proxyPort,
-      proxyUsername: appSettings.proxyUsername,
-      hasProxyPassword: appSettings.encryptedProxyPassword,
-      qbitmanageEnabled: appSettings.qbitmanageEnabled,
-      qbitmanageTags: appSettings.qbitmanageTags,
-      backupScheduleEnabled: appSettings.backupScheduleEnabled,
-      backupScheduleFrequency: appSettings.backupScheduleFrequency,
-      backupRetentionCount: appSettings.backupRetentionCount,
-      backupEncryptionEnabled: appSettings.backupEncryptionEnabled,
-      backupStoragePath: appSettings.backupStoragePath,
-    })
-    .from(appSettings)
-    .limit(1)
+  const [updated] = await fetchSettings()
   if (!updated) throw new Error("Settings update failed")
 
   // Restart backup scheduler if schedule settings changed
@@ -455,25 +441,5 @@ export async function PATCH(request: Request) {
     }
   }
 
-  return NextResponse.json({
-    storeUsernames: updated.storeUsernames,
-    username: updated.username,
-    sessionTimeoutMinutes: updated.sessionTimeoutMinutes,
-    autoWipeThreshold: updated.autoWipeThreshold,
-    snapshotRetentionDays: updated.snapshotRetentionDays,
-    trackerPollIntervalMinutes: updated.trackerPollIntervalMinutes,
-    proxyEnabled: updated.proxyEnabled,
-    proxyType: updated.proxyType,
-    proxyHost: updated.proxyHost,
-    proxyPort: updated.proxyPort,
-    proxyUsername: updated.proxyUsername,
-    hasProxyPassword: !!updated.hasProxyPassword,
-    qbitmanageEnabled: updated.qbitmanageEnabled,
-    qbitmanageTags: parseQbitmanageTags(updated.qbitmanageTags),
-    backupScheduleEnabled: updated.backupScheduleEnabled,
-    backupScheduleFrequency: updated.backupScheduleFrequency,
-    backupRetentionCount: updated.backupRetentionCount,
-    backupEncryptionEnabled: updated.backupEncryptionEnabled,
-    backupStoragePath: updated.backupStoragePath,
-  })
+  return NextResponse.json(serializeSettingsResponse(updated))
 }

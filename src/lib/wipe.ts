@@ -1,9 +1,10 @@
 // src/lib/wipe.ts
 //
-// Functions: getProgressiveLockoutMs, recordFailedAttempt, resetFailedAttempts, scrubAndDeleteAll
+// Functions: getProgressiveLockoutMs, checkLockout, recordFailedAttempt, resetFailedAttempts, scrubAndDeleteAll
 
 import { randomBytes } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
+import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import {
   appSettings,
@@ -26,6 +27,15 @@ export function getProgressiveLockoutMs(attemptCount: number): number {
   if (attemptCount >= 10) return 120_000 // 2 minutes
   if (attemptCount >= 5) return 30_000 // 30 seconds
   return 0
+}
+
+export function checkLockout(settings: { lockedUntil: Date | null }): NextResponse | null {
+  if (!settings.lockedUntil || settings.lockedUntil <= new Date()) return null
+  const retryAfter = Math.ceil((settings.lockedUntil.getTime() - Date.now()) / 1000)
+  return NextResponse.json(
+    { error: "Too many failed attempts. Try again later.", retryAfter },
+    { status: 429, headers: { "Retry-After": String(retryAfter) } }
+  )
 }
 
 export async function recordFailedAttempt(
@@ -119,15 +129,9 @@ export async function scrubAndDeleteAll(): Promise<void> {
   await db.delete(appSettings)
   // backupHistory intentionally preserved — allows restore after nuke
 
-  // 4. VACUUM FULL to rewrite table files
-  await db.execute(sql`VACUUM FULL client_uptime_buckets`)
-  await db.execute(sql`VACUUM FULL client_snapshots`)
-  await db.execute(sql`VACUUM FULL tracker_snapshots`)
-  await db.execute(sql`VACUUM FULL tracker_roles`)
-  await db.execute(sql`VACUUM FULL tag_group_members`)
-  await db.execute(sql`VACUUM FULL tag_groups`)
-  await db.execute(sql`VACUUM FULL download_clients`)
-  await db.execute(sql`VACUUM FULL trackers`)
-  await db.execute(sql`VACUUM FULL app_settings`)
-  await db.execute(sql`VACUUM FULL backup_history`)
+  // Disk space reclamation is left to PostgreSQL's autovacuum.
+  // VACUUM FULL cannot run inside a transaction block and requires an exclusive
+  // table lock that conflicts with the connection pool. Since the wipe is a
+  // rare nuclear option, the immediate disk reclamation benefit does not
+  // justify the operational risk.
 }

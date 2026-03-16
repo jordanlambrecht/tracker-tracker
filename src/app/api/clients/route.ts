@@ -9,8 +9,7 @@ import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
 import { PROXY_HOST_PATTERN } from "@/lib/proxy"
 import { parseCrossSeedTags } from "@/lib/qbt"
-
-const VALID_TYPES = ["qbittorrent"]
+import { VALID_CLIENT_TYPES } from "@/lib/qbt/types"
 
 export async function GET() {
   const auth = await authenticate()
@@ -33,6 +32,7 @@ export async function GET() {
     crossSeedTags: parseCrossSeedTags(client.crossSeedTags),
     lastPolledAt: client.lastPolledAt,
     lastError: client.lastError,
+    errorSince: client.errorSince,
     createdAt: client.createdAt,
     updatedAt: client.updatedAt,
   }))
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
   }
 
   const resolvedType = typeof type === "string" ? type : "qbittorrent"
-  if (!VALID_TYPES.includes(resolvedType)) {
+  if (!(VALID_CLIENT_TYPES as readonly string[]).includes(resolvedType)) {
     return NextResponse.json({ error: "Invalid client type" }, { status: 400 })
   }
 

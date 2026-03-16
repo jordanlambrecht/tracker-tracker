@@ -8,7 +8,7 @@ import { decrypt, deriveKey } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { startScheduler } from "@/lib/scheduler"
 import { verifyAndConsumeBackupCode, verifyTotpCode } from "@/lib/totp"
-import { recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"
+import { checkLockout, recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"
 
 vi.mock("@/lib/db", () => ({
   db: {
@@ -48,6 +48,7 @@ vi.mock("@/lib/totp", async (importOriginal) => {
 })
 
 vi.mock("@/lib/wipe", () => ({
+  checkLockout: vi.fn().mockReturnValue(null),
   recordFailedAttempt: vi.fn().mockResolvedValue(false),
   resetFailedAttempts: vi.fn().mockResolvedValue(undefined),
   WIPE_MESSAGE: "Too many failed attempts. All data has been deleted.",
@@ -238,6 +239,7 @@ describe("auth abuse defenses", () => {
 
   it("returns 429 when lockedUntil is in the future (login)", async () => {
     const futureDate = new Date(Date.now() + 60_000)
+    const retryAfterSecs = Math.ceil((futureDate.getTime() - Date.now()) / 1000)
     const settings = {
       id: 1,
       username: "admin",
@@ -249,6 +251,12 @@ describe("auth abuse defenses", () => {
       sessionTimeoutMinutes: null,
     }
     makeSelectChain([settings])
+    ;(checkLockout as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+      new Response(
+        JSON.stringify({ error: "Too many failed attempts. Try again later.", retryAfter: retryAfterSecs }),
+        { status: 429, headers: { "Retry-After": String(retryAfterSecs), "Content-Type": "application/json" } }
+      )
+    )
 
     const { POST } = await import("./login/route")
     const response = await POST(
@@ -269,6 +277,7 @@ describe("auth abuse defenses", () => {
 
   it("returns 429 when lockedUntil is in the future (TOTP verify)", async () => {
     const futureDate = new Date(Date.now() + 120_000)
+    const retryAfterSecs = Math.ceil((futureDate.getTime() - Date.now()) / 1000)
     const settings = [
       {
         id: 1,
@@ -282,6 +291,12 @@ describe("auth abuse defenses", () => {
     ]
     ;(verifyPendingToken as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: "c".repeat(64) })
     makeSelectChain(settings)
+    ;(checkLockout as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+      new Response(
+        JSON.stringify({ error: "Too many failed attempts. Try again later.", retryAfter: retryAfterSecs }),
+        { status: 429, headers: { "Retry-After": String(retryAfterSecs), "Content-Type": "application/json" } }
+      )
+    )
 
     const { POST } = await import("./totp/verify/route")
     const response = await POST(

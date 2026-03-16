@@ -47,7 +47,6 @@ vi.mock("@/lib/qbt", () => ({
   getTorrents: vi.fn(),
   getTransferInfo: vi.fn(),
   aggregateByTag: vi.fn(),
-  filterAndDedup: vi.fn(),
   parseCrossSeedTags: vi.fn((raw: string) => { try { return JSON.parse(raw) as string[] } catch { return [] } }),
   stripSensitiveTorrentFields: vi.fn((t: Record<string, unknown>) => { const { tracker: _t, content_path: _cp, save_path: _sp, ...rest } = t; return rest }),
   pushSpeedSnapshot: vi.fn(),

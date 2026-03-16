@@ -39,6 +39,7 @@ vi.mock("@/lib/scheduler", () => ({
 }))
 
 vi.mock("@/lib/wipe", () => ({
+  checkLockout: vi.fn().mockReturnValue(null),
   recordFailedAttempt: vi.fn().mockResolvedValue(false),
   resetFailedAttempts: vi.fn().mockResolvedValue(undefined),
   WIPE_MESSAGE: "Too many failed attempts. All data has been deleted.",

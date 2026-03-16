@@ -9,11 +9,11 @@
 //                Stores full tagStats alongside speed data.
 //
 // Functions: heartbeatClient, heartbeatAllClients, deepPollClient, deepPollAllClients,
-//            startClientScheduler, stopClientScheduler, isClientSchedulerRunning, ensureClientSchedulerRunning
+//            startClientScheduler, stopClientScheduler, ensureClientSchedulerRunning
 
-import { eq, isNotNull, lt } from "drizzle-orm"
+import { eq, isNotNull, lt, sql } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
-import { decrypt } from "@/lib/crypto"
+import { decryptClientCredentials } from "@/lib/client-decrypt"
 import { db } from "@/lib/db"
 import { appSettings, clientSnapshots, clientUptimeBuckets, downloadClients, trackers } from "@/lib/db/schema"
 import { sanitizeNetworkError } from "@/lib/error-utils"
@@ -69,14 +69,7 @@ async function heartbeatClient(clientId: number, encryptionKey: Buffer): Promise
   if (!client || !client.enabled) return
 
   try {
-    let username: string
-    let password: string
-    try {
-      username = decrypt(client.encryptedUsername, encryptionKey)
-      password = decrypt(client.encryptedPassword, encryptionKey)
-    } catch (_err) {
-      throw new Error(`Credentials are missing or invalid for client "${client.name}"`)
-    }
+    const { username, password } = decryptClientCredentials(client, encryptionKey)
 
     const transfer = await withSessionRetry(
       client.host,
@@ -92,7 +85,7 @@ async function heartbeatClient(clientId: number, encryptionKey: Buffer): Promise
 
     await db
       .update(downloadClients)
-      .set({ lastPolledAt: new Date(), lastError: null, updatedAt: new Date() })
+      .set({ lastPolledAt: new Date(), lastError: null, errorSince: null, updatedAt: new Date() })
       .where(eq(downloadClients.id, clientId))
   } catch (error) {
     recordHeartbeat(clientId, false)
@@ -100,7 +93,11 @@ async function heartbeatClient(clientId: number, encryptionKey: Buffer): Promise
     const message = sanitizeNetworkError(raw)
     await db
       .update(downloadClients)
-      .set({ lastError: message, updatedAt: new Date() })
+      .set({
+        lastError: message,
+        errorSince: sql`COALESCE(${downloadClients.errorSince}, NOW())`,
+        updatedAt: new Date(),
+      })
       .where(eq(downloadClients.id, clientId))
     log.error(`Heartbeat failed for client ${clientId}: ${raw}`)
   }
@@ -131,14 +128,7 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
   if (!client || !client.enabled) return
 
   try {
-    let username: string
-    let password: string
-    try {
-      username = decrypt(client.encryptedUsername, encryptionKey)
-      password = decrypt(client.encryptedPassword, encryptionKey)
-    } catch (_err) {
-      throw new Error(`Credentials are missing or invalid for client "${client.name}"`)
-    }
+    const { username, password } = decryptClientCredentials(client, encryptionKey)
 
     // Collect known tags
     const trackerTagRows = await db
@@ -206,14 +196,18 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
 
     await db
       .update(downloadClients)
-      .set({ lastPolledAt: new Date(), lastError: null, updatedAt: new Date() })
+      .set({ lastPolledAt: new Date(), lastError: null, errorSince: null, updatedAt: new Date() })
       .where(eq(downloadClients.id, clientId))
   } catch (error) {
     const raw = error instanceof Error ? error.message : "Unknown error"
     const message = sanitizeNetworkError(raw)
     await db
       .update(downloadClients)
-      .set({ lastError: message, updatedAt: new Date() })
+      .set({
+        lastError: message,
+        errorSince: sql`COALESCE(${downloadClients.errorSince}, NOW())`,
+        updatedAt: new Date(),
+      })
       .where(eq(downloadClients.id, clientId))
     log.error(`Deep poll failed for client ${clientId}: ${raw}`)
   }
@@ -308,10 +302,6 @@ export function stopClientScheduler(): void {
   // Best-effort flush of any completed uptime buckets before clearing
   flushCompletedBuckets().catch(() => {})
   clearUptimeAccumulator()
-}
-
-export function isClientSchedulerRunning(): boolean {
-  return getHeartbeatTask() !== null
 }
 
 /**

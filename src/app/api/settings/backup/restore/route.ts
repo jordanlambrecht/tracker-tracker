@@ -28,7 +28,7 @@ import {
 } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
 import { stopScheduler } from "@/lib/scheduler"
-import { recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"
+import { checkLockout, recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"
 
 const BATCH_SIZE = 500
 
@@ -156,13 +156,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not configured" }, { status: 400 })
   }
 
-  if (currentSettings.lockedUntil && currentSettings.lockedUntil > new Date()) {
-    const retryAfter = Math.ceil((currentSettings.lockedUntil.getTime() - Date.now()) / 1000)
-    return NextResponse.json(
-      { error: "Too many failed attempts. Try again later.", retryAfter },
-      { status: 429, headers: { "Retry-After": String(retryAfter) } }
-    )
-  }
+  const lockout = checkLockout(currentSettings)
+  if (lockout) return lockout
 
   const isPasswordValid = await verifyPassword(currentSettings.passwordHash, masterPassword)
   if (!isPasswordValid) {
@@ -536,7 +531,7 @@ export async function POST(request: Request) {
       "Restore operation failed"
     )
 
-    return NextResponse.json({ error: `Restore failed: ${message}` }, { status: 409 })
+    return NextResponse.json({ error: "Restore failed. Check server logs for details." }, { status: 409 })
   } finally {
     if (backupKey.length > 0) backupKey.fill(0)
     if (currentKey !== backupKey && currentKey.length > 0) currentKey.fill(0)

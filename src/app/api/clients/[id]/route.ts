@@ -9,9 +9,8 @@ import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
 import { PROXY_HOST_PATTERN } from "@/lib/proxy"
+import { VALID_CLIENT_TYPES } from "@/lib/qbt/types"
 import { removeClientFromAccumulator } from "@/lib/uptime"
-
-const VALID_TYPES = ["qbittorrent"]
 
 export async function PATCH(
   request: Request,
@@ -64,7 +63,7 @@ export async function PATCH(
   }
 
   if (typeof body.type === "string") {
-    if (!VALID_TYPES.includes(body.type)) {
+    if (!(VALID_CLIENT_TYPES as readonly string[]).includes(body.type)) {
       return NextResponse.json({ error: "Invalid client type" }, { status: 400 })
     }
     updates.type = body.type

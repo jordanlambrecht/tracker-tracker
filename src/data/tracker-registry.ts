@@ -5,6 +5,7 @@
 // Type definitions and public API for the tracker registry.
 // Individual tracker data lives in src/data/trackers/.
 
+import { normalizeUrl } from "@/lib/url"
 import { ALL_TRACKERS } from "./trackers"
 
 export interface ReleaseGroup {
@@ -88,8 +89,8 @@ export function getAllTrackers(): TrackerRegistryEntry[] {
 }
 
 export function findRegistryEntry(baseUrl: string): TrackerRegistryEntry | undefined {
-  const normalized = baseUrl.replace(/\/+$/, "").toLowerCase()
+  const normalized = normalizeUrl(baseUrl)
   return TRACKER_REGISTRY.find(
-    (r) => r.url.replace(/\/+$/, "").toLowerCase() === normalized
+    (r) => normalizeUrl(r.url) === normalized
   )
 }

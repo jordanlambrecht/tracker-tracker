@@ -8,6 +8,19 @@ import { authenticate, parseJsonBody, validateHexColor } from "@/lib/api-helpers
 import { db } from "@/lib/db"
 import { tagGroupMembers } from "@/lib/db/schema"
 
+async function parseGroupAndMemberId(
+  params: Promise<{ id: string; memberId: string }>
+): Promise<NextResponse | { groupId: number; memberId: number }> {
+  const { id, memberId } = await params
+  const groupId = parseInt(id, 10)
+  const memberIdNum = parseInt(memberId, 10)
+  if (Number.isNaN(groupId) || groupId < 1)
+    return NextResponse.json({ error: "Invalid group ID" }, { status: 400 })
+  if (Number.isNaN(memberIdNum) || memberIdNum < 1)
+    return NextResponse.json({ error: "Invalid member ID" }, { status: 400 })
+  return { groupId, memberId: memberIdNum }
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string; memberId: string }> }
@@ -15,17 +28,9 @@ export async function PATCH(
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const { id, memberId: memberIdStr } = await params
-
-  const groupId = parseInt(id, 10)
-  if (Number.isNaN(groupId) || groupId < 1) {
-    return NextResponse.json({ error: "Invalid group ID" }, { status: 400 })
-  }
-
-  const memberId = parseInt(memberIdStr, 10)
-  if (Number.isNaN(memberId) || memberId < 1) {
-    return NextResponse.json({ error: "Invalid member ID" }, { status: 400 })
-  }
+  const parsed = await parseGroupAndMemberId(params)
+  if (parsed instanceof NextResponse) return parsed
+  const { groupId, memberId } = parsed
 
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
@@ -118,17 +123,9 @@ export async function DELETE(
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const { id, memberId: memberIdStr } = await params
-
-  const groupId = parseInt(id, 10)
-  if (Number.isNaN(groupId) || groupId < 1) {
-    return NextResponse.json({ error: "Invalid group ID" }, { status: 400 })
-  }
-
-  const memberId = parseInt(memberIdStr, 10)
-  if (Number.isNaN(memberId) || memberId < 1) {
-    return NextResponse.json({ error: "Invalid member ID" }, { status: 400 })
-  }
+  const parsed = await parseGroupAndMemberId(params)
+  if (parsed instanceof NextResponse) return parsed
+  const { groupId, memberId } = parsed
 
   const [existing] = await db
     .select({ id: tagGroupMembers.id })

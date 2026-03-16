@@ -95,6 +95,7 @@ vi.mock("@/lib/logger", () => ({
 }))
 
 vi.mock("@/lib/wipe", () => ({
+  checkLockout: vi.fn().mockReturnValue(null),
   recordFailedAttempt: vi.fn(),
   resetFailedAttempts: vi.fn(),
   scrubAndDeleteAll: vi.fn(),
@@ -133,7 +134,6 @@ vi.mock("@/lib/qbt", () => ({
   login: vi.fn().mockResolvedValue("sid"),
   withSessionRetry: vi.fn().mockResolvedValue([]),
   aggregateByTag: vi.fn().mockReturnValue({}),
-  filterAndDedup: vi.fn().mockReturnValue([]),
   getSpeedSnapshots: vi.fn().mockReturnValue([]),
   pushSpeedSnapshot: vi.fn(),
   clearSpeedCache: vi.fn(),

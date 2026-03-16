@@ -15,6 +15,7 @@ import { Card } from "@/components/ui/Card"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { EmojiPickerPopover } from "@/components/ui/EmojiPickerPopover"
 import { Input } from "@/components/ui/Input"
+import { QBT_TAG_WARN_PATTERN } from "@/components/ui/QbtTagWarning"
 import { Toggle } from "@/components/ui/Toggle"
 import { Tooltip } from "@/components/ui/Tooltip"
 import type { TagGroup, TagGroupChartType } from "@/types/api"
@@ -26,12 +27,9 @@ const CHART_TYPE_OPTIONS: { value: TagGroupChartType; label: string }[] = [
   { value: "numbers", label: "Numbers" },
 ]
 
-// Characters that are problematic in qBT tag names
-const TAG_WARN_PATTERN = /[+&#%?]/
-
 function tagWarning(tag: string): string | null {
-  if (TAG_WARN_PATTERN.test(tag)) {
-    return `Tag contains a special character (${tag.match(TAG_WARN_PATTERN)?.[0]}). qBittorrent may not recognise it.`
+  if (QBT_TAG_WARN_PATTERN.test(tag)) {
+    return `Tag contains a special character (${tag.match(QBT_TAG_WARN_PATTERN)?.[0]}). qBittorrent may not recognise it.`
   }
   return null
 }

@@ -7,6 +7,7 @@ import { NextResponse } from "next/server"
 import { authenticate, parseJsonBody, parseRouteId } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { tagGroups } from "@/lib/db/schema"
+import { VALID_CHART_TYPES } from "@/types/api"
 
 export async function PATCH(
   request: Request,
@@ -21,7 +22,6 @@ export async function PATCH(
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const validChartTypes = ["bar", "donut", "treemap", "numbers"]
   const updates: Record<string, unknown> = { updatedAt: new Date() }
 
   if (typeof body.name === "string") {
@@ -53,8 +53,8 @@ export async function PATCH(
   }
 
   if (typeof body.chartType === "string") {
-    if (!validChartTypes.includes(body.chartType)) {
-      return NextResponse.json({ error: `chartType must be one of: ${validChartTypes.join(", ")}` }, { status: 400 })
+    if (!(VALID_CHART_TYPES as readonly string[]).includes(body.chartType)) {
+      return NextResponse.json({ error: `chartType must be one of: ${VALID_CHART_TYPES.join(", ")}` }, { status: 400 })
     }
     updates.chartType = body.chartType
   }

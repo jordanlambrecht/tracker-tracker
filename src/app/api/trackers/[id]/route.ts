@@ -9,6 +9,7 @@ import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings, trackerSnapshots, trackers } from "@/lib/db/schema"
 import { createPrivacyMaskSync } from "@/lib/privacy-db"
+import { serializeTrackerResponse } from "@/lib/tracker-serializer"
 
 export async function GET(
   _request: Request,
@@ -22,26 +23,7 @@ export async function GET(
 
   const [[tracker], [latest], [privacySettings]] = await Promise.all([
     db
-      .select({
-        id: trackers.id,
-        name: trackers.name,
-        baseUrl: trackers.baseUrl,
-        platformType: trackers.platformType,
-        isActive: trackers.isActive,
-        lastPolledAt: trackers.lastPolledAt,
-        lastError: trackers.lastError,
-        color: trackers.color,
-        qbtTag: trackers.qbtTag,
-        useProxy: trackers.useProxy,
-        countCrossSeedUnsatisfied: trackers.countCrossSeedUnsatisfied,
-        isFavorite: trackers.isFavorite,
-        sortOrder: trackers.sortOrder,
-        joinedAt: trackers.joinedAt,
-        lastAccessAt: trackers.lastAccessAt,
-        remoteUserId: trackers.remoteUserId,
-        platformMeta: trackers.platformMeta,
-        createdAt: trackers.createdAt,
-      })
+      .select()
       .from(trackers)
       .where(eq(trackers.id, trackerId))
       .limit(1),
@@ -62,41 +44,8 @@ export async function GET(
   // behavior when no settings row exists. Do NOT change to false.
   const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
 
-  return NextResponse.json({
-    id: tracker.id,
-    name: tracker.name,
-    baseUrl: tracker.baseUrl,
-    platformType: tracker.platformType,
-    isActive: tracker.isActive,
-    lastPolledAt: tracker.lastPolledAt,
-    lastError: tracker.lastError,
-    color: tracker.color,
-    qbtTag: tracker.qbtTag,
-    useProxy: tracker.useProxy,
-    countCrossSeedUnsatisfied: tracker.countCrossSeedUnsatisfied,
-    isFavorite: tracker.isFavorite,
-    sortOrder: tracker.sortOrder,
-    joinedAt: tracker.joinedAt,
-    lastAccessAt: tracker.lastAccessAt ?? null,
-    remoteUserId: tracker.remoteUserId ?? null,
-    // security-audit-ignore: malformed platformMeta falls back to null — non-critical display field
-    platformMeta: (() => { try { return tracker.platformMeta ? JSON.parse(tracker.platformMeta) : null } catch { return null } })(),
-    createdAt: tracker.createdAt?.toISOString() ?? new Date().toISOString(),
-    latestStats: latest
-      ? {
-          ratio: latest.ratio,
-          uploadedBytes: latest.uploadedBytes?.toString(),
-          downloadedBytes: latest.downloadedBytes?.toString(),
-          seedingCount: latest.seedingCount,
-          leechingCount: latest.leechingCount,
-          requiredRatio: latest.requiredRatio ?? null,
-          warned: latest.warned ?? null,
-          freeleechTokens: latest.freeleechTokens ?? null,
-          username: mask(latest.username),
-          group: mask(latest.group),
-        }
-      : null,
-  })
+  // security-audit-ignore: serializeTrackerResponse omits encryptedApiToken by design
+  return NextResponse.json(serializeTrackerResponse(tracker, latest ?? null, mask))
 }
 
 export async function PATCH(

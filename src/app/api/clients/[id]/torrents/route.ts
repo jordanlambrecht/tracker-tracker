@@ -5,7 +5,7 @@
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { authenticate, decodeKey, parseRouteId } from "@/lib/api-helpers"
-import { decrypt } from "@/lib/crypto"
+import { decryptClientCredentials } from "@/lib/client-decrypt"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
 import { getTorrents, withSessionRetry } from "@/lib/qbt"
@@ -41,8 +41,7 @@ export async function GET(
   let username: string
   let password: string
   try {
-    username = decrypt(client.encryptedUsername, key)
-    password = decrypt(client.encryptedPassword, key)
+    ;({ username, password } = decryptClientCredentials(client, key))
   } catch {
     return NextResponse.json({ error: "Failed to decrypt credentials" }, { status: 422 })
   }

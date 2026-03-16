@@ -11,6 +11,7 @@ import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings, trackerSnapshots, trackers } from "@/lib/db/schema"
 import { createPrivacyMaskSync } from "@/lib/privacy-db"
+import { serializeTrackerResponse } from "@/lib/tracker-serializer"
 
 export async function GET() {
   const auth = await authenticate()
@@ -45,43 +46,10 @@ export async function GET() {
   )
 
   // SECURITY: Never include encryptedApiToken in response
+  // security-audit-ignore: serializeTrackerResponse omits encryptedApiToken by design
   const trackersWithStats = allTrackers.map((tracker) => {
     const latest = snapshotByTracker.get(tracker.id) ?? null
-    return {
-      id: tracker.id,
-      name: tracker.name,
-      baseUrl: tracker.baseUrl,
-      platformType: tracker.platformType,
-      isActive: tracker.isActive,
-      lastPolledAt: tracker.lastPolledAt,
-      lastError: tracker.lastError,
-      color: tracker.color,
-      qbtTag: tracker.qbtTag,
-      useProxy: tracker.useProxy,
-      countCrossSeedUnsatisfied: tracker.countCrossSeedUnsatisfied,
-      isFavorite: tracker.isFavorite,
-      sortOrder: tracker.sortOrder,
-      joinedAt: tracker.joinedAt,
-      lastAccessAt: tracker.lastAccessAt ?? null,
-      remoteUserId: tracker.remoteUserId ?? null,
-      // security-audit-ignore: malformed platformMeta falls back to null — non-critical display field
-      platformMeta: (() => { try { return tracker.platformMeta ? JSON.parse(tracker.platformMeta) : null } catch { return null } })(),
-      createdAt: tracker.createdAt?.toISOString() ?? new Date().toISOString(),
-      latestStats: latest
-        ? {
-            ratio: latest.ratio,
-            uploadedBytes: latest.uploadedBytes?.toString(),
-            downloadedBytes: latest.downloadedBytes?.toString(),
-            seedingCount: latest.seedingCount,
-            leechingCount: latest.leechingCount,
-            requiredRatio: latest.requiredRatio ?? null,
-            warned: latest.warned ?? null,
-            freeleechTokens: latest.freeleechTokens ?? null,
-            username: mask(latest.username),
-            group: mask(latest.group),
-          }
-        : null,
-    }
+    return serializeTrackerResponse(tracker, latest, mask)
   })
 
   return NextResponse.json(trackersWithStats)
