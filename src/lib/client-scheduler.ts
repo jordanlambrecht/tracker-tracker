@@ -73,6 +73,7 @@ async function heartbeatClient(clientId: number, encryptionKey: Buffer): Promise
     .limit(1)
 
   if (!client || !client.enabled) return
+  if (!client.encryptedUsername || !client.encryptedPassword) return
 
   try {
     const { username, password } = decryptClientCredentials(client, encryptionKey)
@@ -132,6 +133,7 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
     .limit(1)
 
   if (!client || !client.enabled) return
+  if (!client.encryptedUsername || !client.encryptedPassword) return
 
   try {
     const { username, password } = decryptClientCredentials(client, encryptionKey)

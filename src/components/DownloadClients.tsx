@@ -352,7 +352,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
                 <div className="flex items-center gap-2">
                   <Button
                     size="sm"
-                    variant="secondary"
+                    variant="primary"
                     onClick={handleSaveCredentials}
                     disabled={!newUsername.trim() || !newPassword.trim()}
                   >

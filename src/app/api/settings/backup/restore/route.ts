@@ -220,6 +220,7 @@ export async function POST(request: Request) {
   const currentSettingsId = currentSettings.id
   let tokensPreserved = 0
   let tokensCleared = 0
+  let clientCredentialsCleared = 0
   let totpDisabledOnRestore = false
 
   try {
@@ -300,12 +301,13 @@ export async function POST(request: Request) {
           encPassword = ""
         }
 
+        const credentialsCleared = !encUsername || !encPassword
         const [inserted] = await tx
           .insert(downloadClients)
           .values({
             name: fields.name as string,
             type: fields.type as string,
-            enabled: fields.enabled as boolean,
+            enabled: credentialsCleared ? false : (fields.enabled as boolean),
             host: fields.host as string,
             port: fields.port as number,
             useSsl: fields.useSsl as boolean,
@@ -314,11 +316,15 @@ export async function POST(request: Request) {
             pollIntervalSeconds: fields.pollIntervalSeconds as number,
             isDefault: fields.isDefault as boolean,
             crossSeedTags: (fields.crossSeedTags as string) ?? "[]",
+            lastError: credentialsCleared
+              ? "Credentials cleared during restore — re-enter and re-enable"
+              : null,
             createdAt: new Date(fields.createdAt as string),
             updatedAt: new Date(fields.updatedAt as string),
           })
           .returning({ id: downloadClients.id })
         clientIdMap.set(oldId, inserted.id)
+        if (credentialsCleared) clientCredentialsCleared++
       }
 
       // Insert tagGroups
@@ -593,6 +599,7 @@ export async function POST(request: Request) {
     },
     tokensPreserved,
     tokensCleared,
+    clientCredentialsCleared,
     totpDisabledOnRestore,
     requiresRelogin: false,
   })
