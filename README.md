@@ -23,7 +23,7 @@ Self-hosted dashboard for monitoring private tracker stats over time. Track uplo
 </p>
 
 <p align="center">
-  <img src="docs/trackerTracker_screenshot_trackerPage.png" alt="Tracker Tracker Dashboard" width="1080" />
+  <img src="docs/trackerTracker_screenshot_trackerPage_v2.png" alt="Tracker Tracker Dashboard" width="1080" />
 </p>
 
 ## Supported Trackers
