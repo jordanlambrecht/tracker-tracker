@@ -16,6 +16,7 @@ import { NumberInput } from "@/components/ui/NumberInput"
 import { Select } from "@/components/ui/Select"
 import { Toggle } from "@/components/ui/Toggle"
 import { UptimeBar } from "@/components/ui/UptimeBar"
+import { formatTimeAgo } from "@/lib/formatters"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -37,6 +38,7 @@ interface DownloadClient {
   crossSeedTags: string[]
   lastPolledAt: string | null
   lastError: string | null
+  errorSince: string | null
 }
 
 type ConnectionStatus = "idle" | "testing" | "success" | "failed"
@@ -226,10 +228,27 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
         onClick={() => setExpanded((e) => !e)}
         className="flex items-center gap-3 px-5 py-4 w-full text-left cursor-pointer hover:bg-overlay transition-colors duration-100"
       >
-        <div className="flex-1 min-w-0 flex items-center gap-3">
-          <H3 className="truncate">{client.name || "Untitled Client"}</H3>
-          {statusBadge}
-          {client.isDefault && <Badge variant="accent">Default</Badge>}
+        <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+          <div className="flex items-center gap-3">
+            <H3 className="truncate">{client.name || "Untitled Client"}</H3>
+            {statusBadge}
+            {client.isDefault && <Badge variant="accent">Default</Badge>}
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-[10px] font-mono text-tertiary">
+              {client.lastPolledAt
+                ? `Last seen: ${formatTimeAgo(client.lastPolledAt)}`
+                : "Last seen: Never"}
+            </span>
+            {client.errorSince && (
+              <span className="text-[10px] font-mono text-danger">
+                Down since {formatTimeAgo(client.errorSince)}
+              </span>
+            )}
+            {client.lastError && !client.errorSince && (
+              <span className="text-[10px] font-mono text-danger">{client.lastError}</span>
+            )}
+          </div>
         </div>
         <span className="text-xs font-mono text-tertiary shrink-0">
           {CLIENT_TYPE_OPTIONS.find((o) => o.value === client.type)?.label}
