@@ -8,15 +8,9 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { CheckLargeIcon, CopyIcon, XIcon } from "@/components/ui/Icons"
 import { TabBar } from "@/components/ui/TabBar"
+import type { DebugApiCall } from "@/lib/adapters/types"
 
 type DebugTab = "raw" | "normalized"
-
-interface DebugApiCall {
-  label: string
-  endpoint: string
-  data: unknown | null
-  error: string | null
-}
 
 export interface DebugData {
   apiCalls: DebugApiCall[] | null

@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { getAdapter } from "@/lib/adapters"
-import type { TrackerStats } from "@/lib/adapters/types"
+import type { DebugApiCall, TrackerStats } from "@/lib/adapters/types"
 import { authenticate, decodeKey, parseTrackerId } from "@/lib/api-helpers"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
@@ -140,13 +140,21 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
   const adapter = getAdapter(tracker.platformType)
 
-  let rawResponse: Record<string, unknown> | null = null
+  let apiCalls: DebugApiCall[] | null = null
   let rawError: string | null = null
 
   if (adapter.fetchRaw) {
     try {
-      const raw = await adapter.fetchRaw(tracker.baseUrl, apiToken, tracker.apiPath, fetchOptions)
-      rawResponse = scrubObject(raw) as Record<string, unknown>
+      const calls = await adapter.fetchRaw(
+        tracker.baseUrl,
+        apiToken,
+        tracker.apiPath,
+        fetchOptions
+      )
+      apiCalls = calls.map((call) => ({
+        ...call,
+        data: call.data ? scrubObject(call.data) : null,
+      }))
     } catch (err) {
       // security-audit-ignore: error captured in rawError for debug response
       rawError = err instanceof Error ? err.message : "Raw fetch failed"
@@ -166,7 +174,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   }
 
   return NextResponse.json({
-    raw: rawResponse,
+    apiCalls,
     rawError,
     normalized: normalizedResponse,
     normalizedError,

@@ -103,6 +103,13 @@ export interface FetchOptions {
   enrich?: boolean
 }
 
+export interface DebugApiCall {
+  label: string
+  endpoint: string
+  data: unknown | null
+  error: string | null
+}
+
 export interface TrackerAdapter {
   fetchStats(
     baseUrl: string,
@@ -115,5 +122,5 @@ export interface TrackerAdapter {
     apiToken: string,
     apiPath: string,
     options?: FetchOptions
-  ): Promise<Record<string, unknown>>
+  ): Promise<DebugApiCall[]>
 }

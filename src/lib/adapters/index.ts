@@ -9,7 +9,7 @@ import { NebulanceAdapter } from "./nebulance"
 import type { TrackerAdapter } from "./types"
 import { Unit3dAdapter } from "./unit3d"
 
-export { DEFAULT_API_PATHS } from "./constants"
+export { DEFAULT_API_PATHS, VALID_PLATFORM_TYPES } from "./constants"
 
 const adapters: Record<string, TrackerAdapter> = {
   gazelle: new GazelleAdapter(),
