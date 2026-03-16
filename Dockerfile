@@ -8,7 +8,7 @@
 # ---------------------------------------------------------------------------
 # Base
 # ---------------------------------------------------------------------------
-FROM node:24-alpine AS base
+FROM node:25-alpine AS base
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # ---------------------------------------------------------------------------
@@ -45,7 +45,7 @@ RUN pnpm prune --prod --ignore-scripts
 # ---------------------------------------------------------------------------
 # Stage 4 — Production runner
 # ---------------------------------------------------------------------------
-FROM node:24-alpine AS runner
+FROM node:25-alpine AS runner
 # Targeted upgrade for CVE-2026-22184 (zlib). Remove once node:24-alpine ships zlib >= 1.3.2-r0.
 RUN apk add --no-cache libc6-compat bash && apk upgrade --no-cache zlib
 WORKDIR /app
