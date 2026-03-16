@@ -8,7 +8,10 @@
       "argon2",
       "esbuild",
       "sharp"
-    ]
+    ],
+    "overrides": {
+      "esbuild": ">=0.25.0"
+    }
   },
   "scripts": {
     "dev": "next dev",

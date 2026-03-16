@@ -1,7 +1,7 @@
 # Dockerfile
 #
 # Multi-stage build for Tracker Tracker.
-# Stages: deps → builder → runner
+# Stages: deps → builder → prod-deps → runner
 #
 # Uses Next.js standalone output for minimal image size (~150MB vs ~1GB).
 
@@ -36,10 +36,17 @@ ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
 RUN pnpm build
 
 # ---------------------------------------------------------------------------
-# Stage 3 — Production runner
+# Stage 3 — Prune to production deps for schema-sync
+# ---------------------------------------------------------------------------
+FROM deps AS prod-deps
+WORKDIR /app
+RUN pnpm prune --prod
+
+# ---------------------------------------------------------------------------
+# Stage 4 — Production runner
 # ---------------------------------------------------------------------------
 FROM node:24-alpine AS runner
-RUN apk add --no-cache libc6-compat bash
+RUN apk upgrade --no-cache && apk add --no-cache libc6-compat bash
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -59,10 +66,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # --- Drizzle schema-sync (for drizzle-kit push at startup) ---
-# Reuse the locked pnpm dependency tree from the deps stage instead of
-# re-resolving packages in the runtime image.
+# Use production-only dependencies to minimize image size and CVE surface.
 RUN mkdir -p /schema-sync/src/lib
-COPY --from=deps /app/node_modules /schema-sync/node_modules
+COPY --from=prod-deps /app/node_modules /schema-sync/node_modules
 COPY --from=builder /app/package.json /schema-sync/
 COPY --from=builder /app/drizzle.config.ts /schema-sync/
 COPY --from=builder /app/src/lib/db /schema-sync/src/lib/db
