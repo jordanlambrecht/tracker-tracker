@@ -1,24 +1,22 @@
-<p align="center">
-  <img src="public/img/trackerTracker_logo.svg" alt="Tracker Tracker" width="200" />
-</p>
-
-<h1 align="center">Tracker Tracker</h1>
-
 ![CI](https://github.com/jordanlambrecht/tracker-tracker/actions/workflows/ci.yml/badge.svg)
 ![Version](https://img.shields.io/github/package-json/v/jordanlambrecht/tracker-tracker)
 ![License](https://img.shields.io/github/license/jordanlambrecht/tracker-tracker)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6)
 ![Self-Hosted](https://img.shields.io/badge/self--hosted-Docker-2496ed)
 
-Self-hosted dashboard for monitoring private tracker stats over time. One place for upload, download, ratio, buffer, seedbonus, and rank data across all your trackers.
+<p align="center">
+  <img src="public/img/trackerTracker_logo.svg" alt="Tracker Tracker" width="400" />
+</p>
+
+Self-hosted dashboard for monitoring private tracker stats over time. Track upload, download, ratio, buffer, seedbonus, and rank across all your trackers from one place.
 
 ## Features
 
-- Centralized, self-hosted dashboard for all your private trackers
-- Periodic collection of upload, download, ratio, buffer, seedbonus, and rank
-- Per-tracker and aggregated views of your stats over time
-- Historical charts to visualize progress and detect trends
-- Pluggable tracker adapters to support multiple tracker platforms
+- Per-tracker and fleet-wide stats with 30+ charts
+- UNIT3D, Gazelle, GGn, and Nebulance support out of the box
+- qBittorrent integration — cross-seed tracking, activity heatmaps, speed history
+- Configurable polling intervals, snapshot retention, and scheduled backups
+- Everything stays on your machine. No telemetry, no phoning home.
 
 ## Supported Trackers
 
@@ -73,7 +71,7 @@ Self-hosted dashboard for monitoring private tracker stats over time. One place 
 - ✅ **Verified** — tested against a live tracker
 - 🟡 **Unverified** — platform adapter exists and _should_ work, but not yet tested.
 - 📋 **Needs adapter** — registry entry exists, but the platform requires a custom adapter that I haven't gotten around to yet
-- ⛔ **Stuck** - These are trackers I'm not a member of and have no way of implementing
+- ⛔ **Stuck** — trackers I'm not a member of and have no way of implementing
 - ❌ **Broken** — known issue prevents polling (i.e API blocks required endpoints, etc)
 
 ## Download Clients
@@ -126,7 +124,7 @@ The database schema is synced automatically on startup.
 
 ### Using an external database
 
-If you already run Postgres, remove the `tracker-tracker-db` service and `depends_on` block from `docker-compose.yml`, then set `DATABASE_URL` in your `.env`. The `POSTGRES_PASSWORD` and `POSTGRES_USER` vars can be removed.
+If you already run Postgres, remove the `tracker-tracker-db` service and `depends_on` block from `docker-compose.yml`. Set `DATABASE_URL` in your `.env` and remove `POSTGRES_PASSWORD` and `POSTGRES_USER`.
 
 ### Local Development
 
@@ -181,14 +179,6 @@ All other settings — polling interval, privacy mode, proxy, backups — are co
 3. Paste your API token (found in your tracker's security/API settings)
 4. The app validates the connection and starts polling automatically
 
-## Data Storage
-
-All data stays on your machine. No external services, analytics, or telemetry.
-
-- **API tokens** — encrypted with AES-256-GCM using a key derived from your master password
-- **Snapshots** — stored in PostgreSQL with configurable retention (7 days - 10 years)
-- **Backups** — JSON export, optionally encrypted, stored locally or downloaded
-
 ## Contributing
 
 PRs welcome. Areas where help matters most:
@@ -196,8 +186,11 @@ PRs welcome. Areas where help matters most:
 - **New trackers & missing data** — copy [`src/data/trackers/_template.ts`](src/data/trackers/_template.ts), fill in what you know, and submit a PR. Partial entries are fine — set `draft: true` and CI will accept it. Filling in user classes, rules, release groups, and banned groups on existing trackers is just as valuable.
 - **Download client adapters** — only qBittorrent is supported. Deluge, Transmission, and rTorrent all need adapters. See `src/lib/qbt/` for the pattern.
 - **Tracker verification** — if you belong to a tracker marked 🟡 above, testing and confirming it works helps greatly.
+- **Security auditing** — Check out SECURITY.md for threat surfice info.
+- **Responsiveness** – I only have my 16" MBP to work off of, so feedback of different screen experiences is much appreciated
+- **Data Visualization** – I ain't no math wizard, so any contributions for data viz, charts/graphs, etc.
 - **Custom platform adapters** — trackers marked "Custom" need bespoke adapters since they don't run UNIT3D or Gazelle.
-- Someone to convince the mods over at Hawke to add a /users endpoint :D
+- **HawkeUno lobbying** — convince the Hawke mods to add a `/users` endpoint so the adapter can work
 
 ## License
 
