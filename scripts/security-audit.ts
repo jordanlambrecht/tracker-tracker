@@ -631,7 +631,7 @@ function checkTodoInSecurityFiles(): CheckResult {
 
 // Hardcoded-safe SQL literals permitted in route files.
 // These are DB connectivity checks with no user input — identical in safety
-// to the VACUUM FULL in wipe.ts.
+// to the scrub operations in nuke.ts.
 const SAFE_RAW_SQL_RE = /db\.execute\s*\(\s*sql`SELECT\s+1`\s*\)/
 
 function checkRawSqlInRoutes(): CheckResult {
@@ -645,7 +645,7 @@ function checkRawSqlInRoutes(): CheckResult {
     for (const line of lineNums) {
       const lineContent = content.split("\n")[line - 1]?.trim()
       if (lineContent?.startsWith("//")) continue
-      // Allow hardcoded DB ping (SELECT 1) — no user input, same category as wipe.ts
+      // Allow hardcoded DB ping (SELECT 1) — no user input, same category as nuke.ts
       if (lineContent && SAFE_RAW_SQL_RE.test(lineContent)) continue
       findings.push({
         file: relativePath(file),
