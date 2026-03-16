@@ -1,12 +1,12 @@
 // src/components/layout/Sidebar.tsx
 //
 // Functions:
-//   sortTrackers        — sorts a TrackerSummary[] by the given sort mode
-//   SortableTrackerItem — drag-and-drop sortable list item for a single tracker
-//   Sparkline           — pure SVG sparkline (no chart library)
-//   ClientStatusWidget  — download client connection status + speed sparklines
-//   formatSidebarSpeed  — compact speed formatter for sidebar
-//   Sidebar             — main sidebar component with stat/sort controls, tracker list, and settings
+//   sortTrackers
+//   SortableTrackerItem
+//   Sparkline
+//   ClientStatusWidget
+//   formatSidebarSpeed
+//   Sidebar
 
 "use client"
 
@@ -36,7 +36,13 @@ import { Select } from "@/components/ui/Select"
 import { Tooltip } from "@/components/ui/Tooltip"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
 import { useUpdateCheck } from "@/hooks/useUpdateCheck"
-import { formatBytesNum, formatStatValue, hexToRgba, type StatMode } from "@/lib/formatters"
+import {
+  formatBytesNum,
+  formatStatValue,
+  formatTimeAgo,
+  hexToRgba,
+  type StatMode,
+} from "@/lib/formatters"
 import { getHealthPulseDot, getTrackerHealth } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
 
@@ -152,7 +158,7 @@ function SortableTrackerItem({
           {archived ? "Archived" : stat}
         </span>
         {!unlocked && (
-          // biome-ignore lint/a11y/useSemanticElements: Star must be inside parent button for visual layout
+          // biome-ignore lint/a11y/useSemanticElements: Star must be inside parent button for visual layout. I know this is sloppy please don't sue me.
           <span
             role="button"
             tabIndex={0}
@@ -229,6 +235,7 @@ interface ClientInfo {
   name: string
   enabled: boolean
   lastError: string | null
+  errorSince: string | null
   lastPolledAt: string | null
 }
 
@@ -258,6 +265,7 @@ function ClientSlide({
     <button
       type="button"
       onClick={onToggle}
+      onPointerDown={(e) => e.stopPropagation()}
       className="flex items-center gap-2 cursor-pointer w-full text-left"
     >
       <span
@@ -267,7 +275,22 @@ function ClientSlide({
       <div className="flex flex-col flex-1 min-w-0">
         <MarqueeText className="text-xs font-mono text-secondary">{client.name}</MarqueeText>
         <span className="text-[10px] font-mono text-tertiary">
-          {hasError ? "Error" : "Connected"}
+          {hasError ? (
+            <span className="text-danger">
+              Down{client.errorSince ? ` ${formatTimeAgo(client.errorSince)}` : ""}
+            </span>
+          ) : !expanded && entry.speeds.length > 0 ? (
+            <span className="flex items-center gap-1.5">
+              <span className="text-accent">
+                {formatSidebarSpeed(entry.speeds[entry.speeds.length - 1].up)}↑
+              </span>
+              <span className="text-warn">
+                {formatSidebarSpeed(entry.speeds[entry.speeds.length - 1].down)}↓
+              </span>
+            </span>
+          ) : (
+            "Connected"
+          )}
         </span>
       </div>
       <ChevronToggle expanded={expanded} variant="flip" />
@@ -378,31 +401,43 @@ function ClientStatusWidget() {
     swipeStartY.current = y
   }, [])
 
-  const handleSwipeEnd = useCallback((x: number, y: number) => {
-    if (entries.length <= 1) return
-    const dx = x - swipeStartX.current
-    const dy = y - swipeStartY.current
-    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return
-    if (dx < 0) goTo((activeIndex + 1) % entries.length)
-    else goTo((activeIndex - 1 + entries.length) % entries.length)
-  }, [entries.length, activeIndex, goTo])
+  const handleSwipeEnd = useCallback(
+    (x: number, y: number) => {
+      if (entries.length <= 1) return
+      const dx = x - swipeStartX.current
+      const dy = y - swipeStartY.current
+      if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return
+      if (dx < 0) goTo((activeIndex + 1) % entries.length)
+      else goTo((activeIndex - 1 + entries.length) % entries.length)
+    },
+    [entries.length, activeIndex, goTo]
+  )
 
-  const onPointerDown = useCallback((e: React.PointerEvent) => {
-    pointerDown.current = true
-    handleSwipeStart(e.clientX, e.clientY)
-  }, [handleSwipeStart])
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      pointerDown.current = true
+      handleSwipeStart(e.clientX, e.clientY)
+    },
+    [handleSwipeStart]
+  )
 
-  const onPointerUp = useCallback((e: React.PointerEvent) => {
-    if (!pointerDown.current) return
-    pointerDown.current = false
-    handleSwipeEnd(e.clientX, e.clientY)
-  }, [handleSwipeEnd])
+  const onPointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      if (!pointerDown.current) return
+      pointerDown.current = false
+      handleSwipeEnd(e.clientX, e.clientY)
+    },
+    [handleSwipeEnd]
+  )
 
   // Capture pointer so up fires even if cursor leaves the element
-  const onPointerDownCapture = useCallback((e: React.PointerEvent) => {
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-    onPointerDown(e)
-  }, [onPointerDown])
+  const onPointerDownCapture = useCallback(
+    (e: React.PointerEvent) => {
+      ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+      onPointerDown(e)
+    },
+    [onPointerDown]
+  )
 
   if (!loaded || entries.length === 0) return null
 
@@ -431,44 +466,54 @@ function ClientStatusWidget() {
           />
 
           {/* Collapsible sparklines */}
-          {expanded && current.speeds.length >= 2 && (
-            <div className="flex items-center gap-3 pt-1.5">
-              <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <UploadArrowIcon
-                    width="10"
-                    height="10"
-                    stroke="var(--color-accent)"
-                    strokeWidth={2.5}
-                    className="shrink-0"
-                  />
-                  <Sparkline
-                    data={current.speeds.map((s) => s.up)}
-                    color="var(--color-accent)"
-                    width={160}
-                    height={16}
-                  />
-                  <span className="text-xs font-mono text-accent tabular-nums shrink-0">
-                    {formatSidebarSpeed(current.speeds[current.speeds.length - 1].up)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <DownloadArrowIcon
-                    width="10"
-                    height="10"
-                    stroke="var(--color-warn)"
-                    strokeWidth={2.5}
-                    className="shrink-0"
-                  />
-                  <Sparkline
-                    data={current.speeds.map((s) => s.down)}
-                    color="var(--color-warn)"
-                    width={160}
-                    height={16}
-                  />
-                  <span className="text-xs font-mono text-warn tabular-nums shrink-0">
-                    {formatSidebarSpeed(current.speeds[current.speeds.length - 1].down)}
-                  </span>
+          {current.speeds.length >= 2 && (
+            <div
+              className="grid transition-[grid-template-rows,opacity] duration-200 ease-out"
+              style={{
+                gridTemplateRows: expanded ? "1fr" : "0fr",
+                opacity: expanded ? 1 : 0,
+              }}
+            >
+              <div className="overflow-hidden">
+                <div className="flex items-center gap-3 pt-1.5">
+                  <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <UploadArrowIcon
+                        width="10"
+                        height="10"
+                        stroke="var(--color-accent)"
+                        strokeWidth={2.5}
+                        className="shrink-0"
+                      />
+                      <Sparkline
+                        data={current.speeds.map((s) => s.up)}
+                        color="var(--color-accent)"
+                        width={160}
+                        height={16}
+                      />
+                      <span className="text-xs font-mono text-accent tabular-nums shrink-0">
+                        {formatSidebarSpeed(current.speeds[current.speeds.length - 1].up)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <DownloadArrowIcon
+                        width="10"
+                        height="10"
+                        stroke="var(--color-warn)"
+                        strokeWidth={2.5}
+                        className="shrink-0"
+                      />
+                      <Sparkline
+                        data={current.speeds.map((s) => s.down)}
+                        color="var(--color-warn)"
+                        width={160}
+                        height={16}
+                      />
+                      <span className="text-xs font-mono text-warn tabular-nums shrink-0">
+                        {formatSidebarSpeed(current.speeds[current.speeds.length - 1].down)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -623,7 +668,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids }),
       }).catch(() => {
-        // ignore network errors — optimistic update stays in place
+        // ignore network errors
       })
 
       return reordered
@@ -759,7 +804,9 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
                   )}
                   aria-label={showFavoritesOnly ? "Show all trackers" : "Show favorites only"}
                 >
-                  <Tooltip content={showFavoritesOnly ? "Show all trackers" : "Show favorites only"}>
+                  <Tooltip
+                    content={showFavoritesOnly ? "Show all trackers" : "Show favorites only"}
+                  >
                     <span>{showFavoritesOnly ? "★" : "☆"}</span>
                   </Tooltip>
                 </button>

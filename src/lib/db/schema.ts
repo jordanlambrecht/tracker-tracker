@@ -122,6 +122,7 @@ export const downloadClients = pgTable("download_clients", {
   crossSeedTags: text("cross_seed_tags").default("[]").notNull(),
   lastPolledAt: timestamp("last_polled_at"),
   lastError: text("last_error"),
+  errorSince: timestamp("error_since"),
   cachedTorrents: text("cached_torrents"),
   cachedTorrentsAt: timestamp("cached_torrents_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
