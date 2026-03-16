@@ -340,36 +340,36 @@ The count guard ensures security coverage is monotonically non-decreasing. If a 
 
 The security audit (`scripts/security-audit.ts`) performs 28 automated checks on every push and PR:
 
-| #   | Check                    | Severity | What's Verified                                                                              |
-| --- | ------------------------ | -------- | -------------------------------------------------------------------------------------------- |
-| 1   | Auth enforcement         | Critical | Every non-public API route calls `authenticate()` or `getSession()`                          |
-| 2   | Dangerous functions      | Critical | No code-injection-risk functions in source                                                   |
-| 3   | Hardcoded secrets        | Critical | No AWS keys, private keys, PATs, or API keys in source                                       |
-| 4   | Security headers         | Critical | All 6 required headers present in `next.config.ts`                                           |
-| 5   | Cookie security          | Critical | All cookie operations use `httpOnly`, `sameSite: "strict"`, `secure`                         |
-| 6   | Sensitive field exposure | Critical | `encryptedApiToken`, `passwordHash`, etc. not in API responses                               |
-| 7   | Env files                | Critical | No `.env` files tracked by git                                                               |
-| 8   | Raw SQL in routes        | Critical | No `db.execute()` in API route handlers (use Drizzle query builder)                          |
-| 9   | Unsafe redirect/fetch    | Critical | No `fetch()`/`redirect()` with user-supplied URLs in API routes (SSRF)                       |
-| 10  | Timing-safe comparison   | Critical | Secret comparisons in auth/crypto/totp use `timingSafeEqual`                                 |
-| 11  | No raw migrations        | Critical | No SQL migration files — enforces schema-first Drizzle approach                              |
-| 12  | Fetch timeout            | Critical | All external HTTP requests in adapters/clients have `AbortSignal.timeout`                    |
-| 13  | Dockerfile non-root      | Critical | Docker container runs as non-root user with explicit `USER` directive                        |
-| 14  | Proxy allowlist sync     | Critical | Public routes in proxy allowlist match `NO_AUTH_ROUTES` bidirectionally                      |
-| 15  | Console in routes        | Warning  | No `console.log/debug/info` in API route handlers                                            |
-| 16  | TODO in security files   | Warning  | No `TODO`/`FIXME` in security-critical source files                                          |
-| 17  | JSON.parse safety        | Warning  | `JSON.parse()` calls wrapped in try-catch                                                    |
-| 18  | Bare catch blocks        | Warning  | No swallowed errors in API routes/lib catch blocks                                           |
-| 19  | Request body size        | Warning  | POST/PATCH/PUT handlers validate request body size                                           |
-| 20  | BigInt safety            | Warning  | BigInt fields use string serialization, not `Number()`                                       |
-| 21  | Path traversal defense   | Critical | File delete operations use `path.resolve()` + `startsWith(base)`                             |
-| 22  | Argon2 hashing           | Critical | Password hashing in `auth.ts` uses Argon2, not SHA-256/bcrypt                                |
-| 23  | Encrypted column writes  | Critical | DB writes to encrypted columns use `encrypt()`/`reencrypt()`                                 |
-| 24  | TOTP flow integrity      | Critical | 2FA routes enforce correct auth patterns, token flows, and single-use backup codes           |
-| 25  | Lockdown flow integrity  | Critical | Emergency lockdown stops scheduler, revokes tokens, rotates salt, clears TOTP                |
-| 26  | Nuke flow integrity      | Critical | Scrub & delete requires session + password, uses `scrubAndDeleteAll()`                       |
-| 27  | Backup restore integrity | Critical | Restore requires session + password, resets failed attempts, uses transaction                 |
-| 28  | Login flow integrity     | Critical | Login uses Argon2, atomic failed attempts, key derivation, TOTP pending token support        |
+| #   | Check                    | Severity | What's Verified                                                                       |
+| --- | ------------------------ | -------- | ------------------------------------------------------------------------------------- |
+| 1   | Auth enforcement         | Critical | Every non-public API route calls `authenticate()` or `getSession()`                   |
+| 2   | Dangerous functions      | Critical | No code-injection-risk functions in source                                            |
+| 3   | Hardcoded secrets        | Critical | No AWS keys, private keys, PATs, or API keys in source                                |
+| 4   | Security headers         | Critical | All 6 required headers present in `next.config.ts`                                    |
+| 5   | Cookie security          | Critical | All cookie operations use `httpOnly`, `sameSite: "strict"`, `secure`                  |
+| 6   | Sensitive field exposure | Critical | `encryptedApiToken`, `passwordHash`, etc. not in API responses                        |
+| 7   | Env files                | Critical | No `.env` files tracked by git                                                        |
+| 8   | Raw SQL in routes        | Critical | No `db.execute()` in API route handlers (use Drizzle query builder)                   |
+| 9   | Unsafe redirect/fetch    | Critical | No `fetch()`/`redirect()` with user-supplied URLs in API routes (SSRF)                |
+| 10  | Timing-safe comparison   | Critical | Secret comparisons in auth/crypto/totp use `timingSafeEqual`                          |
+| 11  | No raw migrations        | Critical | No SQL migration files — enforces schema-first Drizzle approach                       |
+| 12  | Fetch timeout            | Critical | All external HTTP requests in adapters/clients have `AbortSignal.timeout`             |
+| 13  | Dockerfile non-root      | Critical | Docker container runs as non-root user with explicit `USER` directive                 |
+| 14  | Proxy allowlist sync     | Critical | Public routes in proxy allowlist match `NO_AUTH_ROUTES` bidirectionally               |
+| 15  | Console in routes        | Warning  | No `console.log/debug/info` in API route handlers                                     |
+| 16  | TODO in security files   | Warning  | No `TODO`/`FIXME` in security-critical source files                                   |
+| 17  | JSON.parse safety        | Warning  | `JSON.parse()` calls wrapped in try-catch                                             |
+| 18  | Bare catch blocks        | Warning  | No swallowed errors in API routes/lib catch blocks                                    |
+| 19  | Request body size        | Warning  | POST/PATCH/PUT handlers validate request body size                                    |
+| 20  | BigInt safety            | Warning  | BigInt fields use string serialization, not `Number()`                                |
+| 21  | Path traversal defense   | Critical | File delete operations use `path.resolve()` + `startsWith(base)`                      |
+| 22  | Argon2 hashing           | Critical | Password hashing in `auth.ts` uses Argon2, not SHA-256/bcrypt                         |
+| 23  | Encrypted column writes  | Critical | DB writes to encrypted columns use `encrypt()`/`reencrypt()`                          |
+| 24  | TOTP flow integrity      | Critical | 2FA routes enforce correct auth patterns, token flows, and single-use backup codes    |
+| 25  | Lockdown flow integrity  | Critical | Emergency lockdown stops scheduler, revokes tokens, rotates salt, clears TOTP         |
+| 26  | Nuke flow integrity      | Critical | Scrub & delete requires session + password, uses `scrubAndDeleteAll()`                |
+| 27  | Backup restore integrity | Critical | Restore requires session + password, resets failed attempts, uses transaction         |
+| 28  | Login flow integrity     | Critical | Login uses Argon2, atomic failed attempts, key derivation, TOTP pending token support |
 
 Critical failures block the build. Warnings are reported but don't block.
 

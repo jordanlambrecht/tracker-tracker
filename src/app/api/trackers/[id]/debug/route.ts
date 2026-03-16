@@ -145,12 +145,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
   if (adapter.fetchRaw) {
     try {
-      const calls = await adapter.fetchRaw(
-        tracker.baseUrl,
-        apiToken,
-        tracker.apiPath,
-        fetchOptions
-      )
+      const calls = await adapter.fetchRaw(tracker.baseUrl, apiToken, tracker.apiPath, fetchOptions)
       apiCalls = calls.map((call) => ({
         ...call,
         data: call.data ? scrubObject(call.data) : null,

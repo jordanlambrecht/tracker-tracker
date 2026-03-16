@@ -23,7 +23,10 @@ export async function POST(request: Request) {
   }
 
   if (apiToken.length > 500) {
-    return NextResponse.json({ error: "API token must be 500 characters or fewer" }, { status: 400 })
+    return NextResponse.json(
+      { error: "API token must be 500 characters or fewer" },
+      { status: 400 }
+    )
   }
 
   if (baseUrl.length > 500) {

@@ -91,11 +91,9 @@ export function DebugResponseDialog({
   }
 
   const content = getActiveContent()
-  const hasRawError =
-    !!data?.rawError || (data?.apiCalls?.some((c) => c.error != null) ?? false)
+  const hasRawError = !!data?.rawError || (data?.apiCalls?.some((c) => c.error != null) ?? false)
   const isError =
-    (activeTab === "raw" && hasRawError) ||
-    (activeTab === "normalized" && !!data?.normalizedError)
+    (activeTab === "raw" && hasRawError) || (activeTab === "normalized" && !!data?.normalizedError)
 
   return (
     <div

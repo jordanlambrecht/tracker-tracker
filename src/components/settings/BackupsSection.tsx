@@ -324,7 +324,9 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
               <span className="text-xs text-warn">Save configuration before exporting</span>
             )}
             {!backupConfigDirty && encryptBackups && !hasStoredPassword && (
-              <span className="text-xs text-warn">Set a backup password in Configuration first</span>
+              <span className="text-xs text-warn">
+                Set a backup password in Configuration first
+              </span>
             )}
             {!backupConfigDirty && encryptBackups && hasStoredPassword && (
               <span className="text-xs text-success">Password-protected</span>
