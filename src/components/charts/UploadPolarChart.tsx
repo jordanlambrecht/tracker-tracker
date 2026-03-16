@@ -9,6 +9,7 @@ import ReactECharts from "echarts-for-react"
 import { formatBytesNum, hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import { ChartEmptyState } from "./ChartEmptyState"
+import { DAY_LABELS, HOUR_LABELS } from "./chart-helpers"
 import { CHART_THEME, chartTooltip } from "./theme"
 
 // ── Types ──
@@ -25,17 +26,6 @@ interface UploadPolarChartProps {
   accentColor: string
   height?: number
 }
-
-// ── Constants ──
-
-const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-
-const HOUR_LABELS = Array.from({ length: 24 }, (_, i) => {
-  if (i === 0) return "12a"
-  if (i < 12) return `${i}a`
-  if (i === 12) return "12p"
-  return `${i - 12}p`
-})
 
 // ── Data computation ──
 
@@ -187,10 +177,7 @@ function UploadPolarChart({
 }: UploadPolarChartProps) {
   if (snapshots.length < 2) {
     return (
-      <ChartEmptyState
-        height={height}
-        message="Not enough snapshots to compute upload patterns."
-      />
+      <ChartEmptyState height={height} message="Not enough snapshots to compute upload patterns." />
     )
   }
 
@@ -216,5 +203,5 @@ function UploadPolarChart({
   )
 }
 
+export type { HourDayBucket, UploadPolarChartProps }
 export { UploadPolarChart }
-export type { UploadPolarChartProps, HourDayBucket }

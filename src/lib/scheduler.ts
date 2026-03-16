@@ -1,6 +1,6 @@
 // src/lib/scheduler.ts
 //
-// Functions: pollTracker, pollAllTrackers, pruneOldSnapshots, startScheduler, stopScheduler, ensureSchedulerRunning, isSchedulerRunning
+// Functions: pollTracker, pollAllTrackers, pruneOldSnapshots, startScheduler, stopScheduler, ensureSchedulerRunning
 import type { Agent as HttpAgent } from "node:http"
 
 import { eq, lt } from "drizzle-orm"
@@ -269,10 +269,6 @@ export function stopScheduler(): void {
 /** Exposed for testing — returns the raw schedulerKey buffer reference. */
 export function _getSchedulerKeyForTest(): Buffer | null {
   return getSchedulerKey()
-}
-
-export function isSchedulerRunning(): boolean {
-  return getSchedulerTask() !== null
 }
 
 /**

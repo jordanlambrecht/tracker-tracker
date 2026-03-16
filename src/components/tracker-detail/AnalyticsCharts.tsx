@@ -2,6 +2,7 @@
 //
 // Functions: AnalyticsCharts
 
+import { H2 } from "@typography"
 import { BufferCandlestickChart } from "@/components/charts/BufferCandlestickChart"
 import { MetricChart } from "@/components/charts/MetricChart"
 import { PercentileRadarChart } from "@/components/charts/PercentileRadarChart"
@@ -10,7 +11,6 @@ import { UploadPolarChart } from "@/components/charts/UploadPolarChart"
 import type { DayRange } from "@/components/dashboard/DayRangeSidebar"
 import { DayRangeSidebar } from "@/components/dashboard/DayRangeSidebar"
 import { Card } from "@/components/ui/Card"
-import { H2 } from "@/components/ui/Typography"
 import { formatBytesFromString } from "@/lib/formatters"
 import type { GazellePlatformMeta, Snapshot } from "@/types/api"
 
@@ -50,13 +50,22 @@ export function AnalyticsCharts({
               <span className="text-primary">{formatBytesFromString(delta.downloaded)}</span> ↓
             </p>
           )}
-          <UploadDownloadChart snapshots={snapshots} accentColor={tc} showDataZoom={days >= 30 || days === 0} />
+          <UploadDownloadChart
+            snapshots={snapshots}
+            accentColor={tc}
+            showDataZoom={days >= 30 || days === 0}
+          />
         </Card>
 
         {/* Ratio */}
         <Card trackerColor={tc} className="flex flex-col gap-4">
           <H2>Ratio</H2>
-          <MetricChart metric="ratio" snapshots={snapshots} accentColor={tc} baselineValue={minimumRatio} />
+          <MetricChart
+            metric="ratio"
+            snapshots={snapshots}
+            accentColor={tc}
+            baselineValue={minimumRatio}
+          />
         </Card>
 
         {/* Buffer */}

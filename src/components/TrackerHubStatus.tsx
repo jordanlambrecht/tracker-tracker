@@ -66,7 +66,6 @@ function formatDowntime(minutes: number): string {
   return `${minutes}m`
 }
 
-
 function TrackerHubStatus({
   trackerHubSlug,
   statusPageUrl,

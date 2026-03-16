@@ -23,7 +23,13 @@ import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { computeDelta, hexToRgba } from "@/lib/formatters"
 import type { SlotContext } from "@/lib/slot-types"
-import type { GazellePlatformMeta, QbitmanageTagConfig, Snapshot, TagGroup, TrackerSummary } from "@/types/api"
+import type {
+  GazellePlatformMeta,
+  QbitmanageTagConfig,
+  Snapshot,
+  TagGroup,
+  TrackerSummary,
+} from "@/types/api"
 
 type Tab = "analytics" | "info" | "torrents"
 
@@ -52,7 +58,10 @@ export default function TrackerDetailPage() {
   const [showSettings, setShowSettings] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>(initialTab)
   const [tagGroups, setTagGroups] = useState<TagGroup[]>([])
-  const [qbitmanageConfig, setQbitmanageConfig] = useState<{ enabled: boolean; tags: QbitmanageTagConfig } | null>(null)
+  const [qbitmanageConfig, setQbitmanageConfig] = useState<{
+    enabled: boolean
+    tags: QbitmanageTagConfig
+  } | null>(null)
   const [showDebugDialog, setShowDebugDialog] = useState(false)
   const [debugData, setDebugData] = useState<DebugData | null>(null)
   const [debugLoading, setDebugLoading] = useState(false)
@@ -97,12 +106,22 @@ export default function TrackerDetailPage() {
     Promise.all([
       fetch("/api/tag-groups", { signal: controller.signal }).then((r) => (r.ok ? r.json() : [])),
       fetch("/api/settings", { signal: controller.signal }).then((r) => (r.ok ? r.json() : null)),
-    ]).then(([tg, settings]: [TagGroup[], { qbitmanageEnabled?: boolean; qbitmanageTags?: QbitmanageTagConfig } | null]) => {
-      setTagGroups(tg)
-      if (settings?.qbitmanageEnabled !== undefined && settings.qbitmanageTags !== undefined) {
-        setQbitmanageConfig({ enabled: settings.qbitmanageEnabled, tags: settings.qbitmanageTags })
-      }
-    }).catch(() => {})
+    ])
+      .then(
+        ([tg, settings]: [
+          TagGroup[],
+          { qbitmanageEnabled?: boolean; qbitmanageTags?: QbitmanageTagConfig } | null,
+        ]) => {
+          setTagGroups(tg)
+          if (settings?.qbitmanageEnabled !== undefined && settings.qbitmanageTags !== undefined) {
+            setQbitmanageConfig({
+              enabled: settings.qbitmanageEnabled,
+              tags: settings.qbitmanageTags,
+            })
+          }
+        }
+      )
+      .catch(() => {})
     return () => controller.abort()
   }, [])
 
@@ -175,7 +194,7 @@ export default function TrackerDetailPage() {
       }
       router.replace(url.pathname + url.search, { scroll: false })
     },
-    [router],
+    [router]
   )
 
   const latestSnapshot = snapshots.length > 0 ? snapshots[snapshots.length - 1] : null
@@ -183,7 +202,9 @@ export default function TrackerDetailPage() {
   const delta = useMemo(() => computeDelta(snapshots), [snapshots])
 
   const tc = tracker?.color || CHART_THEME.accent
-  const registryEntry: TrackerRegistryEntry | undefined = tracker ? findRegistryEntry(tracker.baseUrl) : undefined
+  const registryEntry: TrackerRegistryEntry | undefined = tracker
+    ? findRegistryEntry(tracker.baseUrl)
+    : undefined
 
   const { statCardSlots, badgeSlots, progressSlots } = useMemo(() => {
     if (!tracker) return { statCardSlots: [], badgeSlots: [], progressSlots: [] }
@@ -219,7 +240,8 @@ export default function TrackerDetailPage() {
     )
   }
 
-  const gazelleMeta: GazellePlatformMeta | null = tracker.platformType === "gazelle" ? (tracker.platformMeta as GazellePlatformMeta | null) : null
+  const gazelleMeta: GazellePlatformMeta | null =
+    tracker.platformType === "gazelle" ? (tracker.platformMeta as GazellePlatformMeta | null) : null
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "analytics", label: "Data & Analytics" },
@@ -280,7 +302,7 @@ export default function TrackerDetailPage() {
               "px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-medium transition-colors duration-150 cursor-pointer -mb-px whitespace-nowrap",
               activeTab === tab.key
                 ? "text-primary border-b-2"
-                : "text-tertiary hover:text-secondary",
+                : "text-tertiary hover:text-secondary"
             )}
             style={activeTab === tab.key ? { borderColor: tc } : undefined}
           >

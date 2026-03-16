@@ -1,11 +1,12 @@
 // src/lib/backup-scheduler.ts
 //
-// Functions: startBackupScheduler, stopBackupScheduler, isBackupSchedulerRunning, runScheduledBackup
+// Functions: startBackupScheduler, stopBackupScheduler, runScheduledBackup
 
 import { mkdir, writeFile } from "node:fs/promises"
 import path from "node:path"
 import cron, { type ScheduledTask } from "node-cron"
-import { generateBackupPayload, pruneOldBackups } from "@/lib/backup"
+import { encryptBackupPayload, generateBackupPayload, pruneOldBackups } from "@/lib/backup"
+import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings, backupHistory } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
@@ -42,7 +43,7 @@ function getCronExpression(frequency: string): string {
   }
 }
 
-export async function runScheduledBackup(_encryptionKey: Buffer): Promise<void> {
+export async function runScheduledBackup(encryptionKey: Buffer): Promise<void> {
   const [settings] = await db.select().from(appSettings).limit(1)
   if (!settings) return
 
@@ -52,9 +53,27 @@ export async function runScheduledBackup(_encryptionKey: Buffer): Promise<void> 
   try {
     const payload = await generateBackupPayload()
 
-    // Automated backups are always plain JSON (encryption requires user-provided password)
-    const serialized = JSON.stringify(payload)
-    const ext = "json"
+    // Encrypt if enabled and a backup password is stored
+    let serialized: string
+    let ext: string
+    let encrypted = false
+
+    if (settings.backupEncryptionEnabled && settings.encryptedBackupPassword) {
+      try {
+        const backupPassword = decrypt(settings.encryptedBackupPassword, encryptionKey)
+        const envelope = await encryptBackupPayload(payload, backupPassword)
+        serialized = JSON.stringify(envelope)
+        ext = "ttbak"
+        encrypted = true
+      } catch {
+        log.error("Failed to decrypt stored backup password — falling back to plain JSON backup")
+        serialized = JSON.stringify(payload)
+        ext = "json"
+      }
+    } else {
+      serialized = JSON.stringify(payload)
+      ext = "json"
+    }
 
     await mkdir(storagePath, { recursive: true })
 
@@ -67,7 +86,7 @@ export async function runScheduledBackup(_encryptionKey: Buffer): Promise<void> 
 
     await db.insert(backupHistory).values({
       sizeBytes,
-      encrypted: false, // Automated backups are always plain JSON
+      encrypted,
       frequency: settings.backupScheduleFrequency,
       status: "completed",
       storagePath: filePath,
@@ -134,8 +153,4 @@ export function stopBackupScheduler(): void {
     key.fill(0)
     setBackupKey(null)
   }
-}
-
-export function isBackupSchedulerRunning(): boolean {
-  return getBackupTask() !== null
 }

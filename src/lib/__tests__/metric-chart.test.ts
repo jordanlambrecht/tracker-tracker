@@ -1,7 +1,7 @@
 // src/lib/__tests__/metric-chart.test.ts
 
 import { describe, expect, it } from "vitest"
-import { computeDailyDeltas } from "@/components/charts/MetricChart"
+import { computeDailyDeltas } from "@/components/charts/chart-transforms"
 import { extractRankHistory } from "@/components/dashboard/RankProgress"
 import type { Snapshot } from "@/types/api"
 
@@ -123,7 +123,11 @@ describe("computeDailyDeltas", () => {
 
     const snapshots = [
       makeSnapshot({ polledAt: isoAt(0), uploadedBytes: fourGiB.toString(), downloadedBytes: "0" }),
-      makeSnapshot({ polledAt: isoAt(1), uploadedBytes: eightGiB.toString(), downloadedBytes: "0" }),
+      makeSnapshot({
+        polledAt: isoAt(1),
+        uploadedBytes: eightGiB.toString(),
+        downloadedBytes: "0",
+      }),
     ]
 
     const result = computeDailyDeltas(snapshots)
@@ -237,7 +241,7 @@ describe("extractRankHistory", () => {
     const changeTime = isoAt(2)
     const snapshots = [
       makeSnapshot({ group: "User", polledAt: isoAt(0) }),
-      makeSnapshot({ group: null, polledAt: isoAt(1) }),   // gap — skipped
+      makeSnapshot({ group: null, polledAt: isoAt(1) }), // gap — skipped
       makeSnapshot({ group: "Power User", polledAt: changeTime }),
     ]
 

@@ -6,14 +6,29 @@
 
 import type { EChartsOption } from "echarts"
 import { useState } from "react"
-import { hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { fmtNum } from "./chart-helpers"
+import {
+  autoByteScale,
+  buildAxisPointer,
+  buildGlowAreaStyle,
+  fmtNum,
+  formatDateLabel,
+} from "./chart-helpers"
 import { LogScaleToggle } from "./LogScaleToggle"
-import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
+import {
+  CHART_THEME,
+  chartAxisLabel,
+  chartDot,
+  chartGrid,
+  chartLegend,
+  chartTooltip,
+  chartTooltipHeader,
+  escHtml,
+  shouldUseLogScale,
+} from "./theme"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -63,8 +78,7 @@ function computeBufferVelocity(snapshots: Snapshot[]): {
     // Both entries are guaranteed to exist since days comes from dayMap.keys()
     if (!prev || !curr) continue
     // Allow negative values — this is the whole point
-    const velocityGiB =
-      Number(BigInt(curr.bufferBytes) - BigInt(prev.bufferBytes)) / 1024 ** 3
+    const velocityGiB = Number(BigInt(curr.bufferBytes) - BigInt(prev.bufferBytes)) / 1024 ** 3
 
     resultDays.push(days[i])
     velocities.push(velocityGiB)
@@ -96,10 +110,7 @@ function buildBufferVelocityOption(
 
   if (sortedDays.length === 0) return {}
 
-  const labels = sortedDays.map((d) => {
-    const date = new Date(`${d}T12:00:00`)
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
-  })
+  const labels = sortedDays.map(formatDateLabel)
 
   // Determine unit (GiB vs TiB) based on max absolute velocity
   let maxAbsVal = 0
@@ -108,9 +119,8 @@ function buildBufferVelocityOption(
       if (v !== null) maxAbsVal = Math.max(maxAbsVal, Math.abs(v))
     }
   }
-  const useTiB = maxAbsVal >= 1024
-  const divisor = useTiB ? 1024 : 1
-  const unit = useTiB ? "TiB/day" : "GiB/day"
+  const { divisor, unit: baseUnit } = autoByteScale(maxAbsVal)
+  const unit = `${baseUnit}/day`
 
   // Log scale detection (only considers positive velocities)
   const positiveVelocities: number[] = []
@@ -149,19 +159,7 @@ function buildBufferVelocityOption(
         shadowColor: tracker.color,
         shadowBlur: 8,
       },
-      areaStyle: {
-        color: {
-          type: "linear",
-          x: 0,
-          y: 0,
-          x2: 0,
-          y2: 1,
-          colorStops: [
-            { offset: 0, color: hexToRgba(tracker.color, 0.2) },
-            { offset: 1, color: hexToRgba(tracker.color, 0) },
-          ],
-        },
-      },
+      areaStyle: buildGlowAreaStyle(tracker.color, 0.2),
       emphasis: {
         lineStyle: {
           shadowBlur: 16,
@@ -198,15 +196,7 @@ function buildBufferVelocityOption(
     backgroundColor: "transparent",
     grid: chartGrid({ right: 16, left: 72 }),
     tooltip: chartTooltip("axis", {
-      axisPointer: {
-        type: "line",
-        lineStyle: {
-          color: CHART_THEME.borderMid,
-          opacity: 0.8,
-          width: 1,
-          type: "dashed",
-        },
-      },
+      axisPointer: buildAxisPointer(CHART_THEME.borderMid, 0.8, 1),
       formatter: (params: unknown) => {
         const items = params as Array<{
           seriesName: string
@@ -275,10 +265,7 @@ function buildBufferVelocityOption(
 // Component
 // ---------------------------------------------------------------------------
 
-function BufferVelocityChart({
-  trackerData,
-  height = 320,
-}: BufferVelocityChartProps) {
+function BufferVelocityChart({ trackerData, height = 320 }: BufferVelocityChartProps) {
   const [logOverride, setLogOverride] = useState<boolean | null>(null)
 
   // Need at least 2 days of buffer data per tracker (velocity requires consecutive days)
@@ -327,5 +314,5 @@ function BufferVelocityChart({
   )
 }
 
-export { BufferVelocityChart }
 export type { BufferVelocityChartProps }
+export { BufferVelocityChart }

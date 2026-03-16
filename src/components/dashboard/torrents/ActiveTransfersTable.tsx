@@ -72,7 +72,8 @@ export function ActiveTransfersTable({
         const unit = spaceIdx > -1 ? formatted.slice(spaceIdx + 1) : ""
         return (
           <span className="text-[11px] font-mono text-muted text-right leading-none">
-            {num}<span className="block text-[9px] mt-px">{unit}</span>
+            {num}
+            <span className="block text-[9px] mt-px">{unit}</span>
           </span>
         )
       },
@@ -100,8 +101,12 @@ export function ActiveTransfersTable({
         const num = spaceIdx > -1 ? formatted.slice(0, spaceIdx) : formatted
         const unit = spaceIdx > -1 ? `${formatted.slice(spaceIdx + 1)}/s` : "/s"
         return (
-          <span className="text-[11px] font-mono text-right leading-none" style={{ color: accentColor }}>
-            {num}<span className="block text-[9px] text-muted mt-px">{unit}</span>
+          <span
+            className="text-[11px] font-mono text-right leading-none"
+            style={{ color: accentColor }}
+          >
+            {num}
+            <span className="block text-[9px] text-muted mt-px">{unit}</span>
           </span>
         )
       },
@@ -114,7 +119,14 @@ export function ActiveTransfersTable({
       render: (t) => {
         if (t.lastActivity <= 0) return <span className="text-[11px] font-mono text-muted">—</span>
         const diff = Math.floor(Date.now() / 1000 - t.lastActivity)
-        const val = diff < 60 ? `${diff}s` : diff < 3600 ? `${Math.floor(diff / 60)}m` : diff < 86400 ? `${Math.floor(diff / 3600)}h` : `${Math.floor(diff / 86400)}d`
+        const val =
+          diff < 60
+            ? `${diff}s`
+            : diff < 3600
+              ? `${Math.floor(diff / 60)}m`
+              : diff < 86400
+                ? `${Math.floor(diff / 3600)}h`
+                : `${Math.floor(diff / 86400)}d`
         return <span className="text-[11px] font-mono text-muted">{val}</span>
       },
     },

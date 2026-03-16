@@ -11,9 +11,19 @@ import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { fmtNum } from "./chart-helpers"
+import { autoByteScale, fmtNum, formatDateLabel } from "./chart-helpers"
 import { LogScaleToggle } from "./LogScaleToggle"
-import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
+import {
+  CHART_THEME,
+  chartAxisLabel,
+  chartDot,
+  chartGrid,
+  chartLegend,
+  chartTooltip,
+  chartTooltipHeader,
+  escHtml,
+  shouldUseLogScale,
+} from "./theme"
 
 interface BufferCandlestickChartProps {
   trackerData: TrackerSnapshotSeries[]
@@ -30,10 +40,7 @@ interface CandlestickResult {
  * open/high/low/close buffer values in GiB. Returns the day labels
  * and OHLC array in ECharts candlestick format [open, close, low, high].
  */
-function computeCandlestickData(
-  snapshots: Snapshot[],
-  divisor: number
-): CandlestickResult {
+function computeCandlestickData(snapshots: Snapshot[], divisor: number): CandlestickResult {
   if (snapshots.length === 0) return { days: [], ohlc: [] }
 
   const sorted = [...snapshots].sort(
@@ -56,9 +63,7 @@ function computeCandlestickData(
   const ohlc: [number, number, number, number][] = []
 
   for (const [day, snaps] of byDay) {
-    const values = snaps.map(
-      (s) => bytesToGiB(s.bufferBytes) / divisor
-    )
+    const values = snaps.map((s) => bytesToGiB(s.bufferBytes) / divisor)
     const open = values[0]
     const close = values[values.length - 1]
     const high = Math.max(...values)
@@ -85,9 +90,7 @@ function buildCandlestickOption(
       if (gib > maxGiB) maxGiB = gib
     }
   }
-  const useTiB = maxGiB >= 1024
-  const divisor = useTiB ? 1024 : 1
-  const unit = useTiB ? "TiB" : "GiB"
+  const { divisor, unit } = autoByteScale(maxGiB)
 
   // Build per-tracker candlestick data
   const trackerResults = trackerData.map((tracker) =>
@@ -222,10 +225,7 @@ function buildCandlestickOption(
     }),
     xAxis: {
       type: "category",
-      data: allDays.map((d) => {
-        const date = new Date(`${d}T12:00:00`)
-        return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
-      }),
+      data: allDays.map(formatDateLabel),
       boundaryGap: true,
       axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
       axisTick: { show: false },
@@ -268,16 +268,11 @@ function buildCandlestickOption(
  * Each candle represents open/high/low/close buffer for a calendar day.
  * Shows empty state if no tracker has at least 2 days of data.
  */
-function BufferCandlestickChart({
-  trackerData,
-  height = 360,
-}: BufferCandlestickChartProps) {
+function BufferCandlestickChart({ trackerData, height = 360 }: BufferCandlestickChartProps) {
   const [logOverride, setLogOverride] = useState<boolean | null>(null)
 
   const hasEnoughDays = trackerData.some((tracker) => {
-    const uniqueDays = new Set(
-      tracker.snapshots.map((s) => s.polledAt.slice(0, 10))
-    )
+    const uniqueDays = new Set(tracker.snapshots.map((s) => s.polledAt.slice(0, 10)))
     return uniqueDays.size >= 2
   })
 
@@ -326,5 +321,5 @@ function BufferCandlestickChart({
   )
 }
 
-export { BufferCandlestickChart }
 export type { BufferCandlestickChartProps }
+export { BufferCandlestickChart }

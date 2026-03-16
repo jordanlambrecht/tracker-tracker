@@ -76,7 +76,6 @@ describe("recordHeartbeat + flushCompletedBuckets", () => {
   it("flushes a completed bucket when time advances past boundary", async () => {
     const insertChain = mockDbInsert()
 
-
     recordHeartbeat(1, true)
     recordHeartbeat(1, true)
     recordHeartbeat(1, false)
@@ -101,7 +100,6 @@ describe("recordHeartbeat + flushCompletedBuckets", () => {
 
   it("tracks multiple clients independently", async () => {
     mockDbInsert()
-
 
     recordHeartbeat(1, true)
     recordHeartbeat(2, false)

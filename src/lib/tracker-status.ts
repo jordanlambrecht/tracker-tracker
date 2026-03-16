@@ -70,10 +70,6 @@ function getTrackerHealth(tracker: TrackerSummary): TrackerHealth {
   return status
 }
 
-function getHealthMeta(status: TrackerHealth): HealthMeta {
-  return HEALTH_META[status]
-}
-
 function getHealthBadgeVariant(status: TrackerHealth): BadgeVariant {
   return HEALTH_META[status].badge
 }
@@ -90,13 +86,11 @@ function getHealthPulseDot(status: TrackerHealth): PulseDotStatus {
   return HEALTH_META[status].pulseDot
 }
 
-export {
-  getTrackerHealth,
-  getHealthMeta,
-  getHealthBadgeVariant,
-  getHealthLabel,
-  getHealthDescription,
-  getHealthPulseDot,
-  HEALTH_META,
-}
 export type { TrackerHealth }
+export {
+  getHealthBadgeVariant,
+  getHealthDescription,
+  getHealthLabel,
+  getHealthPulseDot,
+  getTrackerHealth,
+}

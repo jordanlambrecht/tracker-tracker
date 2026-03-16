@@ -4,12 +4,12 @@
 
 "use client"
 
+import { H3 } from "@typography"
 import type { ReactNode } from "react"
 import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/Card"
 import { ChevronUpIcon, EyeOffIcon } from "@/components/ui/Icons"
 import { Tooltip } from "@/components/ui/Tooltip"
-import { H3 } from "@/components/ui/Typography"
 
 interface ChartCardProps {
   title: string
@@ -38,9 +38,7 @@ function ChartCard({
     <Card className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-1 min-w-0">
-          <H3 className="uppercase tracking-wider text-secondary">
-            {title}
-          </H3>
+          <H3 className="uppercase tracking-wider text-secondary">{title}</H3>
           {description && !collapsed && (
             <p className="text-xs font-mono text-tertiary">{description}</p>
           )}
@@ -84,13 +82,11 @@ function ChartCard({
         {/* p-6 -m-6: overflow-hidden is required for grid collapse animation,
             but clips neumorphic shadows (nm-raised reaches ~24px). The padding
             pushes the clip boundary out; the negative margin cancels layout shift. */}
-        <div className="overflow-hidden p-6 -m-6">
-          {shouldMount && children}
-        </div>
+        <div className="overflow-hidden p-6 -m-6">{shouldMount && children}</div>
       </div>
     </Card>
   )
 }
 
-export { ChartCard }
 export type { ChartCardProps }
+export { ChartCard }

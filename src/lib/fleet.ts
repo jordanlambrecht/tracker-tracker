@@ -47,13 +47,6 @@ export function parseTorrentTags(rawTags: string): string[] {
     .filter((t) => t.length > 0)
 }
 
-/** Speed snapshot from in-memory ring buffer */
-export interface ClientSpeedData {
-  clientId: number
-  clientName: string
-  snapshots: { timestamp: number; uploadSpeed: number; downloadSpeed: number }[]
-}
-
 /** Parsed clientSnapshot row for fleet historical charts */
 export interface FleetSnapshot {
   clientId: number
@@ -63,7 +56,15 @@ export interface FleetSnapshot {
   totalLeechingCount: number | null
   uploadSpeedBytes: string | null
   downloadSpeedBytes: string | null
-  tagStats: { tag: string; seedingCount: number; leechingCount: number; uploadSpeed: number; downloadSpeed: number }[] | null
+  tagStats:
+    | {
+        tag: string
+        seedingCount: number
+        leechingCount: number
+        uploadSpeed: number
+        downloadSpeed: number
+      }[]
+    | null
 }
 
 /** Extract sorted unique tag names from fleet snapshots */
@@ -107,12 +108,31 @@ export interface FleetStats {
   staleCount: number
 }
 
-export const SEEDING_STATES = new Set(["uploading", "stalledUP", "forcedUP", "queuedUP", "pausedUP"])
-export const LEECHING_STATES = new Set(["downloading", "stalledDL", "forcedDL", "queuedDL", "metaDL"])
+export const SEEDING_STATES = new Set([
+  "uploading",
+  "stalledUP",
+  "forcedUP",
+  "queuedUP",
+  "pausedUP",
+])
+export const LEECHING_STATES = new Set([
+  "downloading",
+  "stalledDL",
+  "forcedDL",
+  "queuedDL",
+  "metaDL",
+])
 const STALE_THRESHOLD_MS = 30 * 24 * 60 * 60 * 1000
 
 export function computeFleetStats(
-  torrents: { state: string; upspeed: number; dlspeed: number; size: number; last_activity: number; tags: string }[],
+  torrents: {
+    state: string
+    upspeed: number
+    dlspeed: number
+    size: number
+    last_activity: number
+    tags: string
+  }[],
   crossSeedTags: string[]
 ): FleetStats {
   const csTagSet = new Set(crossSeedTags.map((t) => t.toLowerCase()))

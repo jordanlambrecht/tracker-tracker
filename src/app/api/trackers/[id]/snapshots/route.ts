@@ -3,13 +3,10 @@ import { and, eq, gte } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { authenticate, parseTrackerId } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
-import { trackerSnapshots } from "@/lib/db/schema"
-import { createPrivacyMask } from "@/lib/privacy-db"
+import { appSettings, trackerSnapshots } from "@/lib/db/schema"
+import { createPrivacyMaskSync } from "@/lib/privacy-db"
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -27,15 +24,20 @@ export async function GET(
     conditions.push(gte(trackerSnapshots.polledAt, since))
   }
 
-  const snapshots = await db
-    .select()
-    .from(trackerSnapshots)
-    .where(and(...conditions))
-    .orderBy(trackerSnapshots.polledAt)
+  const [snapshots, [privacySettings]] = await Promise.all([
+    db
+      .select()
+      .from(trackerSnapshots)
+      .where(and(...conditions))
+      .orderBy(trackerSnapshots.polledAt),
+    db.select({ storeUsernames: appSettings.storeUsernames }).from(appSettings).limit(1),
+  ])
 
   // Check privacy setting — enforce masking at response time even if DB has
   // plaintext from before privacy mode was enabled.
-  const mask = await createPrivacyMask()
+  // Fallback true = "store usernames" = no masking. Matches createPrivacyMask()
+  // behavior when no settings row exists. Do NOT change to false.
+  const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
 
   // Serialize bigints to strings for JSON.
   // Username/group are included because detectRankChanges needs them.

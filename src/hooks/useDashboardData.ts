@@ -35,6 +35,7 @@ function useDashboardData(): DashboardData {
   const [visibleAlerts, setVisibleAlerts] = useState<DashboardAlert[]>([])
 
   const abortRef = useRef<AbortController | null>(null)
+  const lastFetchRef = useRef(0)
 
   const loadData = useCallback(async () => {
     // Abort any in-flight request so day-range changes restart immediately
@@ -78,6 +79,7 @@ function useDashboardData(): DashboardData {
       const combined = [...allAlerts, ...rankAlerts]
       const dismissed = getDismissedAlerts()
       setVisibleAlerts(combined.filter((a) => !dismissed.has(a.key)))
+      lastFetchRef.current = Date.now()
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return
     } finally {
@@ -94,9 +96,9 @@ function useDashboardData(): DashboardData {
     }, 60_000)
 
     function handleVisibilityChange() {
-      if (document.visibilityState === "visible") {
-        loadData()
-      }
+      if (document.visibilityState !== "visible") return
+      if (Date.now() - lastFetchRef.current < 2 * 60 * 1000) return // Skip refetch if data is < 2 min old
+      loadData()
     }
     document.addEventListener("visibilitychange", handleVisibilityChange)
 
@@ -132,5 +134,5 @@ function useDashboardData(): DashboardData {
   }
 }
 
-export { useDashboardData }
 export type { DashboardData }
+export { useDashboardData }

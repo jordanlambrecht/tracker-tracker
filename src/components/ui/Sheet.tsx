@@ -60,7 +60,9 @@ function Sheet({ open, onClose, title, children, className }: SheetProps) {
   useEffect(() => {
     if (!mounted) return
     document.body.style.overflow = "hidden"
-    return () => { document.body.style.overflow = "" }
+    return () => {
+      document.body.style.overflow = ""
+    }
   }, [mounted])
 
   if (!mounted) return null
@@ -70,7 +72,10 @@ function Sheet({ open, onClose, title, children, className }: SheetProps) {
       {/* Backdrop */}
       <button
         type="button"
-        className={clsx("absolute inset-0 backdrop-blur-sm bg-black/50 transition-opacity duration-300 ease-out cursor-default", visible ? "opacity-100" : "opacity-0")}
+        className={clsx(
+          "absolute inset-0 backdrop-blur-sm bg-black/50 transition-opacity duration-300 ease-out cursor-default",
+          visible ? "opacity-100" : "opacity-0"
+        )}
         onClick={onClose}
         tabIndex={-1}
         aria-label="Close"
@@ -80,7 +85,7 @@ function Sheet({ open, onClose, title, children, className }: SheetProps) {
         ref={panelRef}
         className={clsx(
           "relative w-full max-w-md h-full bg-elevated nm-raised-lg flex flex-col transition-transform duration-300 ease-out",
-          className,
+          className
         )}
         style={{
           borderRadius: "var(--radius-lg) 0 0 var(--radius-lg)",
@@ -105,13 +110,11 @@ function Sheet({ open, onClose, title, children, className }: SheetProps) {
           </div>
         )}
         {/* Content */}
-        <div className="flex-1 overflow-y-auto styled-scrollbar">
-          {children}
-        </div>
+        <div className="flex-1 overflow-y-auto styled-scrollbar">{children}</div>
       </div>
     </div>
   )
 }
 
-export { Sheet }
 export type { SheetProps }
+export { Sheet }

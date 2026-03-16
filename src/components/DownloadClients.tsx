@@ -4,6 +4,7 @@
 
 "use client"
 
+import { H3, Paragraph, Subheader, Subtext } from "@typography"
 import { useCallback, useEffect, useState } from "react"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
@@ -14,7 +15,6 @@ import { MaskedSecret } from "@/components/ui/MaskedSecret"
 import { NumberInput } from "@/components/ui/NumberInput"
 import { Select } from "@/components/ui/Select"
 import { Toggle } from "@/components/ui/Toggle"
-import { H3, Paragraph, Subheader, Subtext } from "@/components/ui/Typography"
 import { UptimeBar } from "@/components/ui/UptimeBar"
 
 // ---------------------------------------------------------------------------

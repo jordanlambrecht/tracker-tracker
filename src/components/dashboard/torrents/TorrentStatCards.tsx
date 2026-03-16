@@ -3,7 +3,13 @@
 "use client"
 
 import { CHART_THEME } from "@/components/charts/theme"
-import { BoxIcon, ClockIcon, SeedingIcon, ShareScoreIcon, TriangleWarningIcon } from "@/components/ui/Icons"
+import {
+  BoxIcon,
+  ClockIcon,
+  SeedingIcon,
+  ShareScoreIcon,
+  TriangleWarningIcon,
+} from "@/components/ui/Icons"
 import { StatCard } from "@/components/ui/StatCard"
 import { formatBytesNum, formatDuration, splitValueUnit } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
@@ -43,17 +49,22 @@ export function TorrentStatCards({
 }: TorrentStatCardsProps) {
   const totalSizeParts = splitValueUnit(formatBytesNum(totalSize))
 
-  const avgSeedTimeValue = torrents.length > 0
-    ? formatDuration(Math.floor(torrents.reduce((s, t) => s + t.seedingTime, 0) / torrents.length))
-    : "—"
+  const avgSeedTimeValue =
+    torrents.length > 0
+      ? formatDuration(
+          Math.floor(torrents.reduce((s, t) => s + t.seedingTime, 0) / torrents.length)
+        )
+      : "—"
 
-  const avgSizeParts = torrents.length > 0
-    ? splitValueUnit(formatBytesNum(Math.floor(totalSize / torrents.length)))
-    : null
+  const avgSizeParts =
+    torrents.length > 0
+      ? splitValueUnit(formatBytesNum(Math.floor(totalSize / torrents.length)))
+      : null
 
-  const largestParts = torrents.length > 0
-    ? splitValueUnit(formatBytesNum(Math.max(...torrents.map((t) => t.size))))
-    : null
+  const largestParts =
+    torrents.length > 0
+      ? splitValueUnit(formatBytesNum(Math.max(...torrents.map((t) => t.size))))
+      : null
 
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 auto-rows-fr">
@@ -81,7 +92,12 @@ export function TorrentStatCards({
           })()}
         />
       ) : (
-        <StatCard label="Seeding" value={seedingTorrents.length.toLocaleString()} accentColor={accentColor} icon={ICONS.seeding} />
+        <StatCard
+          label="Seeding"
+          value={seedingTorrents.length.toLocaleString()}
+          accentColor={accentColor}
+          icon={ICONS.seeding}
+        />
       )}
       {clientCount > 1 ? (
         <StatCard
@@ -107,9 +123,21 @@ export function TorrentStatCards({
           })()}
         />
       ) : (
-        <StatCard label="Total Size" value={totalSizeParts.num} unit={totalSizeParts.unit} accentColor={accentColor} icon={ICONS.size} />
+        <StatCard
+          label="Total Size"
+          value={totalSizeParts.num}
+          unit={totalSizeParts.unit}
+          accentColor={accentColor}
+          icon={ICONS.size}
+        />
       )}
-      <StatCard label="Cross-Seeded" value={crossSeededCount.toLocaleString()} unit={`/ ${torrents.length.toLocaleString()}`} accentColor={accentColor} icon={ICONS.crossSeed} />
+      <StatCard
+        label="Cross-Seeded"
+        value={crossSeededCount.toLocaleString()}
+        unit={`/ ${torrents.length.toLocaleString()}`}
+        accentColor={accentColor}
+        icon={ICONS.crossSeed}
+      />
       {deadCount !== null && (
         <StatCard
           label="Dead"
@@ -125,15 +153,31 @@ export function TorrentStatCards({
         accentColor={accentColor}
         icon={ICONS.seeding}
       />
-      <StatCard label="Avg Size" value={avgSizeParts?.num ?? "—"} unit={avgSizeParts?.unit} accentColor={accentColor} icon={ICONS.size} />
-      <StatCard label="Largest" value={largestParts?.num ?? "—"} unit={largestParts?.unit} accentColor={accentColor} icon={ICONS.size} />
+      <StatCard
+        label="Avg Size"
+        value={avgSizeParts?.num ?? "—"}
+        unit={avgSizeParts?.unit}
+        accentColor={accentColor}
+        icon={ICONS.size}
+      />
+      <StatCard
+        label="Largest"
+        value={largestParts?.num ?? "—"}
+        unit={largestParts?.unit}
+        accentColor={accentColor}
+        icon={ICONS.size}
+      />
       {hnrRiskCount !== null && (
         <StatCard
           label="H&R Risk"
           value={hnrRiskCount.toLocaleString()}
           accentColor={hnrRiskCount > 0 ? CHART_THEME.danger : accentColor}
           icon={ICONS.warning}
-          tooltip={unsatisfiedCount != null ? `${unsatisfiedCount} unsatisfied total, ${hnrRiskCount} stopped/paused (actual risk)` : undefined}
+          tooltip={
+            unsatisfiedCount != null
+              ? `${unsatisfiedCount} unsatisfied total, ${hnrRiskCount} stopped/paused (actual risk)`
+              : undefined
+          }
         />
       )}
     </div>

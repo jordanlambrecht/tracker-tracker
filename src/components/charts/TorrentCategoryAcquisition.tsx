@@ -4,9 +4,10 @@
 
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
-import { CHART_THEME } from "@/components/charts/theme"
+import { CHART_THEME, chartTooltip } from "@/components/charts/theme"
 import { generatePalette } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
+import { ChartEmptyState } from "./ChartEmptyState"
 
 // ---------------------------------------------------------------------------
 // Props
@@ -21,10 +22,13 @@ interface TorrentCategoryAcquisitionProps {
 // Component
 // ---------------------------------------------------------------------------
 
-export function TorrentCategoryAcquisition({ torrents, accentColor }: TorrentCategoryAcquisitionProps) {
+export function TorrentCategoryAcquisition({
+  torrents,
+  accentColor,
+}: TorrentCategoryAcquisitionProps) {
   const withDates = torrents.filter((t) => t.addedOn > 0)
   if (withDates.length < 2) {
-    return <p className="text-sm text-muted font-mono py-4">Need 2+ torrents with dates</p>
+    return <ChartEmptyState height={280} message="Need 2+ torrents with dates" />
   }
 
   // Group by month + category
@@ -59,22 +63,15 @@ export function TorrentCategoryAcquisition({ torrents, accentColor }: TorrentCat
 
   const option: EChartsOption = {
     backgroundColor: "transparent",
-    tooltip: {
-      trigger: "axis",
-      axisPointer: { type: "shadow" },
-      backgroundColor: CHART_THEME.tooltipBg,
-      borderColor: CHART_THEME.tooltipBorder,
-      borderWidth: 1,
-      textStyle: {
-        color: CHART_THEME.textPrimary,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
-      },
-    },
+    tooltip: chartTooltip("axis", { axisPointer: { type: "shadow" } }),
     legend: {
       type: "scroll",
       bottom: 0,
-      textStyle: { color: CHART_THEME.textTertiary, fontFamily: CHART_THEME.fontMono, fontSize: 10 },
+      textStyle: {
+        color: CHART_THEME.textTertiary,
+        fontFamily: CHART_THEME.fontMono,
+        fontSize: 10,
+      },
       pageTextStyle: { color: CHART_THEME.textTertiary },
       pageIconColor: CHART_THEME.textSecondary,
       pageIconInactiveColor: CHART_THEME.textTertiary,

@@ -27,14 +27,14 @@ export function RankTooltip({ currentRank, userClasses, accentColor }: RankToolt
               <div
                 key={uc.name}
                 className="px-3 py-1.5 text-xs font-mono flex items-center justify-between gap-2"
-                style={isCurrent ? { color: accentColor, backgroundColor: hexToRgba(accentColor, 0.1) } : undefined}
+                style={
+                  isCurrent
+                    ? { color: accentColor, backgroundColor: hexToRgba(accentColor, 0.1) }
+                    : undefined
+                }
               >
-                <span className={isCurrent ? "font-semibold" : "text-secondary"}>
-                  {uc.name}
-                </span>
-                {isCurrent && (
-                  <span className="text-[10px]">&larr; you</span>
-                )}
+                <span className={isCurrent ? "font-semibold" : "text-secondary"}>{uc.name}</span>
+                {isCurrent && <span className="text-[10px]">&larr; you</span>}
               </div>
             )
           })}

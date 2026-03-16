@@ -1,13 +1,13 @@
 // src/components/ui/ErrorDisplay.tsx
 "use client"
 
+import { H1 } from "@typography"
 import clsx from "clsx"
 import Link from "next/link"
 import { useState } from "react"
 import { Button, buttonVariants } from "@/components/ui/Button"
 import { CheckLargeIcon, CopyIcon } from "@/components/ui/Icons"
 import { Tooltip } from "@/components/ui/Tooltip"
-import { H1 } from "@/components/ui/Typography"
 
 export function ErrorDisplay({
   message,
@@ -32,19 +32,13 @@ export function ErrorDisplay({
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-base px-4">
-      <div
-        className="w-full max-w-md bg-elevated p-8 nm-raised-lg rounded-nm-xl"
-      >
+      <div className="w-full max-w-md bg-elevated p-8 nm-raised-lg rounded-nm-xl">
         <p className="mb-1 font-mono text-xs uppercase tracking-widest text-danger">
           Runtime Error
         </p>
-        <H1 className="mb-4 text-xl font-semibold">
-          Something went wrong
-        </H1>
+        <H1 className="mb-4 text-xl font-semibold">Something went wrong</H1>
         <div className="relative mb-6">
-          <pre
-            className="bg-control-bg p-3 pr-10 font-mono text-xs text-secondary nm-inset whitespace-pre-wrap break-all rounded-nm-md"
-          >
+          <pre className="bg-control-bg p-3 pr-10 font-mono text-xs text-secondary nm-inset whitespace-pre-wrap break-all rounded-nm-md">
             {errorText}
           </pre>
           <Tooltip content="Copy error message">

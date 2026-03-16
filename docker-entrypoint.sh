@@ -7,6 +7,35 @@
 # 4. Start the Next.js standalone server
 set -e
 
+# ── Banner ────────────────────────────────────────────────────────────
+echo ".----------------------------------------------.";
+echo "|                                              |";
+echo "|       ██╗ ██████╗ ██████╗ ██████╗ ██╗   ██╗  |";
+echo "|       ██║██╔═══██╗██╔══██╗██╔══██╗╚██╗ ██╔╝  |";
+echo "|       ██║██║   ██║██████╔╝██║  ██║ ╚████╔╝   |";
+echo "|  ██   ██║██║   ██║██╔══██╗██║  ██║  ╚██╔╝    |";
+echo "|  ╚█████╔╝╚██████╔╝██║  ██║██████╔╝   ██║     |";
+echo "|   ╚════╝  ╚═════╝ ╚═╝  ╚═╝╚═════╝    ╚═╝     |";
+echo "|                                              |";
+echo "'----------------------------------------------'";
+echo ""
+echo ""
+APP_VERSION=$(node -e "process.stdout.write(require('./package.json').version)" 2>/dev/null || echo "unknown")
+VERSION_STR="v${APP_VERSION}"
+TOTAL_WIDTH=48
+STR_LEN=$(printf '%s' "$VERSION_STR" | wc -c | tr -d ' ')
+PAD_TOTAL=$((TOTAL_WIDTH - STR_LEN - 2))
+PAD_LEFT=$((PAD_TOTAL / 2))
+PAD_RIGHT=$((PAD_TOTAL - PAD_LEFT))
+LEFT_DASHES=$(printf '%*s' "$PAD_LEFT" '' | tr ' ' '-')
+RIGHT_DASHES=$(printf '%*s' "$PAD_RIGHT" '' | tr ' ' '-')
+echo "${LEFT_DASHES} ${VERSION_STR} ${RIGHT_DASHES}"
+echo ""
+echo ""
+echo "Found a bug or need help? https://github.com/jordanlambrecht/tracker-tracker"
+echo ""
+echo ""
+
 # ── Build DATABASE_URL if not provided ──────────────────────────────────
 # Users can either set DATABASE_URL directly (external DB) or let us
 # construct it from the simpler POSTGRES_* variables (bundled DB).

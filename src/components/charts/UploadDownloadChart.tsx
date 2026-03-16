@@ -5,12 +5,30 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { bytesToGiB, getComplementaryColor, hexToRgba } from "@/lib/formatters"
+import { bytesToGiB, getComplementaryColor } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { fmtNum, yAxisPad } from "./chart-helpers"
-import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
+import {
+  adaptiveDotSize,
+  autoByteScale,
+  buildAxisPointer,
+  buildGlowAreaStyle,
+  fmtNum,
+  yAxisAutoRange,
+} from "./chart-helpers"
+import { buildSmartLabels, formatSnapshotLabel } from "./chart-transforms"
+import {
+  CHART_THEME,
+  chartAxisLabel,
+  chartDataZoom,
+  chartDot,
+  chartGrid,
+  chartLegend,
+  chartTooltip,
+  chartTooltipHeader,
+  escHtml,
+} from "./theme"
 
 interface UploadDownloadChartProps {
   snapshots: Snapshot[]
@@ -24,71 +42,32 @@ function buildOption(
   accentColor: string,
   showDataZoom: boolean
 ): EChartsOption {
-  const labels = snapshots.map((s) =>
-    new Date(s.polledAt).toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    })
-  )
+  const labels = snapshots.map((s) => formatSnapshotLabel(s.polledAt))
+  const smartLabels = buildSmartLabels(snapshots.map((s) => s.polledAt))
 
   // Convert to GiB, then auto-detect whether TiB is more readable
   const uploadGiB = snapshots.map((s) => bytesToGiB(s.uploadedBytes))
   const downloadGiB = snapshots.map((s) => bytesToGiB(s.downloadedBytes))
   const maxGiB = Math.max(...uploadGiB, ...downloadGiB, 0)
-  const useTiB = maxGiB >= 1024
-  const divisor = useTiB ? 1024 : 1
-  const unit = useTiB ? "TiB" : "GiB"
+  const { divisor, unit } = autoByteScale(maxGiB)
 
   const uploadData = uploadGiB.map((v) => Number((v / divisor).toFixed(3)))
   const downloadData = downloadGiB.map((v) => Number((v / divisor).toFixed(3)))
 
-  // Adaptive dot size based on data density
-  const dotSize = snapshots.length > 100 ? 2 : snapshots.length > 30 ? 4 : 6
-
+  const dotSize = adaptiveDotSize(snapshots.length)
   const complementColor = getComplementaryColor(accentColor)
 
   // Dynamic Y-axis padding — recalculates when series are toggled via legend
-  const dataZoom: EChartsOption["dataZoom"] = []
-  if (showDataZoom) {
-    dataZoom.push({
-      type: "slider",
-      bottom: 8,
-      height: 24,
-      borderColor: CHART_THEME.gridLine,
-      backgroundColor: CHART_THEME.surfaceSemi,
-      fillerColor: hexToRgba(accentColor, 0.06),
-      handleStyle: { color: accentColor, borderColor: accentColor },
-      moveHandleStyle: { color: accentColor },
-      handleLabel: { show: false },
-      selectedDataBackground: {
-        lineStyle: { color: accentColor, opacity: 0.3 },
-        areaStyle: { color: accentColor, opacity: 0.05 },
-      },
-      textStyle: {
-        color: CHART_THEME.textTertiary,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
-      },
-    })
-  }
+  const dataZoom: EChartsOption["dataZoom"] = showDataZoom
+    ? (chartDataZoom(accentColor) as EChartsOption["dataZoom"])
+    : []
 
   return {
     backgroundColor: "transparent",
     grid: chartGrid({ top: 40, right: 16, bottom: showDataZoom ? 80 : 40, left: 64 }),
     tooltip: chartTooltip("axis", {
       borderColor: accentColor,
-      axisPointer: {
-        type: "line",
-        lineStyle: {
-          color: accentColor,
-          opacity: 0.3,
-          width: 1,
-          type: "dashed",
-        },
-      },
+      axisPointer: buildAxisPointer(accentColor, 0.3, 1),
       formatter: (params: unknown) => {
         const items = params as Array<{
           seriesName: string
@@ -101,8 +80,8 @@ function buildOption(
         const rows = items
           .map((item) => {
             const primary = `${fmtNum(item.value)} ${unit}`
-            const altVal = useTiB ? item.value * 1024 : item.value / 1024
-            const altUnit = useTiB ? "GiB" : "TiB"
+            const altVal = unit === "TiB" ? item.value * 1024 : item.value / 1024
+            const altUnit = unit === "TiB" ? "GiB" : "TiB"
             const alt = `${fmtNum(altVal)} ${altUnit}`
             return (
               chartDot(item.color) +
@@ -122,19 +101,18 @@ function buildOption(
       boundaryGap: false,
       axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
       axisTick: { show: false },
-      axisLabel: chartAxisLabel({ rotate: 30, interval: "auto" }),
+      axisLabel: chartAxisLabel({
+        rotate: 30,
+        interval: "auto",
+        formatter: (_: string, idx: number) => smartLabels[idx] ?? "",
+      }),
       splitLine: { show: false },
     },
     yAxis: {
       type: "value",
       name: unit,
       scale: true,
-      // ECharts accepts function callbacks for min/max that recalculate when
-      // series are toggled via legend — the echarts TS types don't express this
-      min: ((value: { min: number; max: number }) =>
-        Math.max(0, Math.floor((value.min - yAxisPad(value)) * 100) / 100)) as unknown as number,
-      max: ((value: { min: number; max: number }) =>
-        Math.ceil((value.max + yAxisPad(value)) * 100) / 100) as unknown as number,
+      ...yAxisAutoRange(),
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
@@ -168,19 +146,7 @@ function buildOption(
           shadowColor: accentColor,
           shadowBlur: 8,
         },
-        areaStyle: {
-          color: {
-            type: "linear",
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
-            colorStops: [
-              { offset: 0, color: hexToRgba(accentColor, 0.25) },
-              { offset: 1, color: hexToRgba(accentColor, 0) },
-            ],
-          },
-        },
+        areaStyle: buildGlowAreaStyle(accentColor),
         emphasis: {
           lineStyle: {
             shadowBlur: 16,
@@ -202,19 +168,7 @@ function buildOption(
           shadowColor: complementColor,
           shadowBlur: 8,
         },
-        areaStyle: {
-          color: {
-            type: "linear",
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
-            colorStops: [
-              { offset: 0, color: hexToRgba(complementColor, 0.2) },
-              { offset: 1, color: hexToRgba(complementColor, 0) },
-            ],
-          },
-        },
+        areaStyle: buildGlowAreaStyle(complementColor, 0.2),
         emphasis: {
           lineStyle: {
             shadowBlur: 16,
@@ -233,7 +187,9 @@ function UploadDownloadChart({
   showDataZoom = false,
 }: UploadDownloadChartProps) {
   if (snapshots.length === 0) {
-    return <ChartEmptyState height={height} message="No snapshot data yet. Waiting for first poll..." />
+    return (
+      <ChartEmptyState height={height} message="No snapshot data yet. Waiting for first poll..." />
+    )
   }
 
   return (
@@ -247,5 +203,5 @@ function UploadDownloadChart({
   )
 }
 
-export { UploadDownloadChart }
 export type { UploadDownloadChartProps }
+export { UploadDownloadChart }

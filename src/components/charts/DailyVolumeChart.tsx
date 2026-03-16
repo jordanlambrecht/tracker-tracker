@@ -1,73 +1,44 @@
 // src/components/charts/DailyVolumeChart.tsx
 //
-// Functions: computePerTrackerDailyDeltas, buildDailyVolumeOption, buildRiverOption, DailyVolumeChart
+// Functions: computeTrackerDeltas, buildDailyVolumeOption, buildRiverOption, buildAreaOption, buildSumsOption, DailyVolumeChart
 
 "use client"
 
 import clsx from "clsx"
 import type { EChartsOption } from "echarts"
 import { useState } from "react"
-import type { Snapshot } from "@/types/api"
+import { hexToRgba } from "@/lib/formatters"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { fmtNum } from "./chart-helpers"
-import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
+import {
+  autoByteScale,
+  buildAxisPointer,
+  buildThemeRiverSingleAxis,
+  fmtNum,
+  formatDateLabel,
+} from "./chart-helpers"
+import { computeDailyDeltas } from "./chart-transforms"
+import {
+  CHART_THEME,
+  chartAxisLabel,
+  chartDot,
+  chartGrid,
+  chartLegend,
+  chartTooltip,
+  chartTooltipHeader,
+  escHtml,
+} from "./theme"
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type VolumeMode = "bar" | "river"
+type VolumeMode = "bar" | "river" | "area" | "sums"
 
 interface DailyVolumeChartProps {
   trackerData: TrackerSnapshotSeries[]
   height?: number
-}
-
-interface DailyDelta {
-  day: string // YYYY-MM-DD
-  uploadGiB: number
-  downloadGiB: number
-}
-
-// ---------------------------------------------------------------------------
-// Computation
-// ---------------------------------------------------------------------------
-
-function computePerTrackerDailyDeltas(snapshots: Snapshot[]): DailyDelta[] {
-  if (snapshots.length === 0) return []
-
-  const sorted = [...snapshots].sort(
-    (a, b) => new Date(a.polledAt).getTime() - new Date(b.polledAt).getTime()
-  )
-
-  const dayMap = new Map<string, Snapshot>()
-  for (const snap of sorted) {
-    const day = new Date(snap.polledAt).toISOString().slice(0, 10)
-    dayMap.set(day, snap)
-  }
-
-  const days = Array.from(dayMap.keys()).sort()
-  const deltas: DailyDelta[] = []
-
-  for (let i = 1; i < days.length; i++) {
-    const prev = dayMap.get(days[i - 1])
-    const curr = dayMap.get(days[i])
-
-    if (!prev || !curr) continue
-
-    const uploadDelta = Number(BigInt(curr.uploadedBytes) - BigInt(prev.uploadedBytes))
-    const downloadDelta = Number(BigInt(curr.downloadedBytes) - BigInt(prev.downloadedBytes))
-
-    deltas.push({
-      day: days[i],
-      uploadGiB: Math.max(0, uploadDelta / 1024 ** 3),
-      downloadGiB: Math.max(0, downloadDelta / 1024 ** 3),
-    })
-  }
-
-  return deltas
 }
 
 // ---------------------------------------------------------------------------
@@ -78,24 +49,23 @@ function computeTrackerDeltas(trackerData: TrackerSnapshotSeries[]) {
   const trackerDeltas = trackerData.map((t) => ({
     name: t.name,
     color: t.color,
-    deltas: computePerTrackerDailyDeltas(t.snapshots),
+    deltas: computeDailyDeltas(t.snapshots),
   }))
 
   const allDays = new Set<string>()
   for (const t of trackerDeltas) {
-    for (const d of t.deltas) allDays.add(d.day)
+    for (const d of t.deltas) allDays.add(d.label)
   }
   const sortedDays = Array.from(allDays).sort()
 
   let maxVal = 0
   for (const t of trackerDeltas) {
     for (const d of t.deltas) {
-      maxVal = Math.max(maxVal, d.uploadGiB, d.downloadGiB)
+      // Use abs so negative deltas (tracker corrections) still inform the scale
+      maxVal = Math.max(maxVal, Math.abs(d.uploadDelta), Math.abs(d.downloadDelta))
     }
   }
-  const useTiB = maxVal >= 1024
-  const divisor = useTiB ? 1024 : 1
-  const unit = useTiB ? "TiB" : "GiB"
+  const { divisor, unit } = autoByteScale(maxVal)
 
   return { trackerDeltas, sortedDays, divisor, unit }
 }
@@ -104,23 +74,18 @@ function computeTrackerDeltas(trackerData: TrackerSnapshotSeries[]) {
 // Bar chart builder (existing)
 // ---------------------------------------------------------------------------
 
-function buildDailyVolumeOption(
-  trackerData: TrackerSnapshotSeries[]
-): EChartsOption {
+function buildDailyVolumeOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
   const { trackerDeltas, sortedDays, divisor, unit } = computeTrackerDeltas(trackerData)
 
   if (sortedDays.length === 0) return {}
 
-  const labels = sortedDays.map((d) => {
-    const date = new Date(`${d}T12:00:00`)
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
-  })
+  const labels = sortedDays.map(formatDateLabel)
 
   const series: NonNullable<EChartsOption["series"]> = []
 
   for (const tracker of trackerDeltas) {
-    const deltaMap = new Map<string, DailyDelta>()
-    for (const d of tracker.deltas) deltaMap.set(d.day, d)
+    const deltaMap = new Map<string, { uploadDelta: number; downloadDelta: number }>()
+    for (const d of tracker.deltas) deltaMap.set(d.label, d)
 
     series.push({
       name: `${tracker.name}`,
@@ -128,7 +93,8 @@ function buildDailyVolumeOption(
       stack: "upload",
       data: sortedDays.map((day) => {
         const d = deltaMap.get(day)
-        return d ? Number((d.uploadGiB / divisor).toFixed(3)) : 0
+        // Clamp for stacked bar display — raw data may have negatives from tracker corrections
+        return d ? Number((Math.max(0, d.uploadDelta) / divisor).toFixed(3)) : 0
       }),
       itemStyle: { color: tracker.color, borderRadius: [2, 2, 0, 0] },
       emphasis: { itemStyle: { shadowBlur: 8, shadowColor: tracker.color } },
@@ -140,7 +106,8 @@ function buildDailyVolumeOption(
       stack: "download",
       data: sortedDays.map((day) => {
         const d = deltaMap.get(day)
-        return d ? -Number((d.downloadGiB / divisor).toFixed(3)) : 0
+        // Clamp for stacked bar display — raw data may have negatives from tracker corrections
+        return d ? -Number((Math.max(0, d.downloadDelta) / divisor).toFixed(3)) : 0
       }),
       itemStyle: {
         color: tracker.color,
@@ -170,7 +137,11 @@ function buildDailyVolumeOption(
         for (const item of items) {
           const isDownload = item.seriesName.endsWith(" ↓")
           const trackerName = isDownload ? item.seriesName.slice(0, -2) : item.seriesName
-          const existing = trackerMap.get(trackerName) ?? { upload: 0, download: 0, color: item.color }
+          const existing = trackerMap.get(trackerName) ?? {
+            upload: 0,
+            download: 0,
+            color: item.color,
+          }
           if (isDownload) {
             existing.download = Math.abs(item.value)
           } else {
@@ -233,17 +204,15 @@ function buildDailyVolumeOption(
 // River (ThemeRiver) chart builder
 // ---------------------------------------------------------------------------
 
-function buildRiverOption(
-  trackerData: TrackerSnapshotSeries[]
-): EChartsOption {
+function buildRiverOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
   const { trackerDeltas, sortedDays, divisor, unit } = computeTrackerDeltas(trackerData)
 
   if (sortedDays.length === 0) return {}
 
   // Build maps once per tracker, outside the day loop
   const trackerDeltaMaps = trackerDeltas.map((tracker) => {
-    const m = new Map<string, DailyDelta>()
-    for (const d of tracker.deltas) m.set(d.day, d)
+    const m = new Map<string, { uploadDelta: number; downloadDelta: number }>()
+    for (const d of tracker.deltas) m.set(d.label, d)
     return m
   })
 
@@ -254,7 +223,8 @@ function buildRiverOption(
   for (const day of sortedDays) {
     for (let ti = 0; ti < trackerDeltas.length; ti++) {
       const d = trackerDeltaMaps[ti].get(day)
-      const val = d ? Number((d.uploadGiB / divisor).toFixed(3)) : 0
+      // Clamp for stacked bar display — raw data may have negatives from tracker corrections
+      const val = d ? Number((Math.max(0, d.uploadDelta) / divisor).toFixed(3)) : 0
       riverData.push([day, val, trackerDeltas[ti].name])
     }
   }
@@ -265,10 +235,7 @@ function buildRiverOption(
     backgroundColor: "transparent",
     color: colors,
     tooltip: chartTooltip("axis", {
-      axisPointer: {
-        type: "line",
-        lineStyle: { color: CHART_THEME.borderMid, type: "dashed" },
-      },
+      axisPointer: buildAxisPointer(),
       formatter: (params: unknown) => {
         const items = params as Array<{
           value: [string, number, string]
@@ -277,10 +244,7 @@ function buildRiverOption(
         if (!items?.length) return ""
 
         const day = items[0].value[0]
-        const dateLabel = new Date(`${day}T12:00:00`).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        })
+        const dateLabel = formatDateLabel(day)
 
         const rows = items
           .filter((item) => item.value[1] > 0)
@@ -293,14 +257,24 @@ function buildRiverOption(
         return `${chartTooltipHeader(dateLabel)}${rows}`
       },
     }),
-    singleAxis: {
-      type: "time",
-      bottom: 40,
-      top: 32,
-      axisLabel: chartAxisLabel(),
-      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
-      axisTick: { show: false },
-    },
+    singleAxis: buildThemeRiverSingleAxis({ top: 32 }),
+    graphic: [
+      {
+        type: "line",
+        left: 0,
+        right: 0,
+        top: "50%",
+        shape: { x1: 0, y1: 0, x2: 2000, y2: 0 },
+        style: {
+          stroke: CHART_THEME.textTertiary,
+          lineWidth: 1,
+          lineDash: [4, 4],
+          opacity: 0.4,
+        },
+        silent: true,
+        z: 10,
+      },
+    ],
     series: [
       {
         type: "themeRiver",
@@ -323,6 +297,251 @@ function buildRiverOption(
 }
 
 // ---------------------------------------------------------------------------
+// Stacked area chart builder
+// ---------------------------------------------------------------------------
+
+function buildAreaOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
+  const { trackerDeltas, sortedDays, divisor, unit } = computeTrackerDeltas(trackerData)
+
+  if (sortedDays.length === 0) return {}
+
+  const labels = sortedDays.map(formatDateLabel)
+
+  const series: NonNullable<EChartsOption["series"]> = trackerDeltas.map((tracker) => {
+    const deltaMap = new Map<string, { uploadDelta: number }>()
+    for (const d of tracker.deltas) deltaMap.set(d.label, d)
+
+    return {
+      name: tracker.name,
+      type: "line",
+      stack: "upload",
+      areaStyle: { opacity: 0.6 },
+      smooth: true,
+      symbol: "none",
+      lineStyle: { width: 1, color: tracker.color },
+      itemStyle: { color: tracker.color },
+      data: sortedDays.map((day) => {
+        const d = deltaMap.get(day)
+        return d ? Number((Math.max(0, d.uploadDelta) / divisor).toFixed(3)) : 0
+      }),
+      emphasis: {
+        focus: "series" as const,
+      },
+    }
+  })
+
+  return {
+    backgroundColor: "transparent",
+    tooltip: chartTooltip("axis", {
+      axisPointer: buildAxisPointer(),
+      formatter: (params: unknown) => {
+        const items = params as Array<{
+          seriesName: string
+          value: number
+          color: string
+          axisValueLabel: string
+        }>
+        if (!items?.length) return ""
+
+        const day = items[0].axisValueLabel
+        const rows = items
+          .filter((item) => item.value > 0)
+          .sort((a, b) => (b.value as number) - (a.value as number))
+          .map(
+            (item) =>
+              `${chartDot(item.color)}<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${fmtNum(item.value)} ${unit}</span>`
+          )
+          .join("<br/>")
+
+        return `${chartTooltipHeader(day)}${rows}`
+      },
+    }),
+    legend: chartLegend({ data: trackerDeltas.map((t) => t.name) }),
+    grid: chartGrid({ right: 16, left: 64 }),
+    xAxis: {
+      type: "category",
+      data: labels,
+      boundaryGap: false,
+      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
+      axisTick: { show: false },
+      axisLabel: chartAxisLabel({
+        rotate: sortedDays.length > 14 ? 30 : 0,
+        interval: "auto",
+      }),
+    },
+    yAxis: {
+      type: "value",
+      name: unit,
+      nameTextStyle: {
+        color: CHART_THEME.textTertiary,
+        fontFamily: CHART_THEME.fontMono,
+        fontSize: 10,
+      },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: chartAxisLabel({
+        formatter: (val: number) => fmtNum(val, 1),
+      }),
+      splitLine: {
+        lineStyle: { color: CHART_THEME.gridLine, width: 1 },
+      },
+    },
+    dataZoom: [{ type: "inside", zoomOnMouseWheel: true, moveOnMouseMove: true }],
+    series,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Sums line chart builder (total upload + total download as two lines)
+// ---------------------------------------------------------------------------
+
+function buildSumsOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
+  const { trackerDeltas, sortedDays, divisor, unit } = computeTrackerDeltas(trackerData)
+
+  if (sortedDays.length === 0) return {}
+
+  const labels = sortedDays.map(formatDateLabel)
+
+  // Pre-build maps once per tracker to avoid O(n*m*k) find() calls
+  const trackerMaps = trackerDeltas.map((tracker) => {
+    const m = new Map<string, { uploadDelta: number; downloadDelta: number }>()
+    for (const d of tracker.deltas) m.set(d.label, d)
+    return m
+  })
+
+  const uploadSums = sortedDays.map((day) => {
+    let total = 0
+    for (const m of trackerMaps) {
+      const d = m.get(day)
+      if (d) total += Math.max(0, d.uploadDelta)
+    }
+    return Number((total / divisor).toFixed(3))
+  })
+
+  const downloadSums = sortedDays.map((day) => {
+    let total = 0
+    for (const m of trackerMaps) {
+      const d = m.get(day)
+      if (d) total += Math.max(0, d.downloadDelta)
+    }
+    return Number((total / divisor).toFixed(3))
+  })
+
+  return {
+    backgroundColor: "transparent",
+    tooltip: chartTooltip("axis", {
+      axisPointer: buildAxisPointer(),
+      formatter: (params: unknown) => {
+        const items = params as Array<{
+          seriesName: string
+          value: number
+          color: string
+          axisValueLabel: string
+        }>
+        if (!items?.length) return ""
+        const day = items[0].axisValueLabel
+        const rows = items
+          .map(
+            (item) =>
+              `${chartDot(item.color)}<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${fmtNum(item.value)} ${unit}</span>`
+          )
+          .join("<br/>")
+        return `${chartTooltipHeader(day)}${rows}`
+      },
+    }),
+    legend: chartLegend({ data: ["Upload", "Download"] }),
+    grid: chartGrid({ right: 16, left: 64 }),
+    xAxis: {
+      type: "category",
+      data: labels,
+      boundaryGap: false,
+      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
+      axisTick: { show: false },
+      axisLabel: chartAxisLabel({
+        rotate: sortedDays.length > 14 ? 30 : 0,
+        interval: "auto",
+      }),
+    },
+    yAxis: {
+      type: "value",
+      name: unit,
+      nameTextStyle: {
+        color: CHART_THEME.textTertiary,
+        fontFamily: CHART_THEME.fontMono,
+        fontSize: 10,
+      },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: chartAxisLabel({
+        formatter: (val: number) => fmtNum(val, 1),
+      }),
+      splitLine: {
+        lineStyle: { color: CHART_THEME.gridLine, width: 1 },
+      },
+    },
+    dataZoom: [{ type: "inside", zoomOnMouseWheel: true, moveOnMouseMove: true }],
+    series: [
+      {
+        name: "Upload",
+        type: "line",
+        data: uploadSums,
+        smooth: true,
+        symbol: "circle",
+        symbolSize: 6,
+        itemStyle: { color: CHART_THEME.upload },
+        lineStyle: {
+          color: CHART_THEME.upload,
+          width: 3,
+          shadowColor: CHART_THEME.upload,
+          shadowBlur: 12,
+        },
+        areaStyle: {
+          color: {
+            type: "linear",
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [
+              { offset: 0, color: hexToRgba(CHART_THEME.upload, 0.25) },
+              { offset: 1, color: hexToRgba(CHART_THEME.upload, 0) },
+            ],
+          } as unknown as string,
+        },
+      },
+      {
+        name: "Download",
+        type: "line",
+        data: downloadSums,
+        smooth: true,
+        symbol: "circle",
+        symbolSize: 6,
+        itemStyle: { color: CHART_THEME.download },
+        lineStyle: {
+          color: CHART_THEME.download,
+          width: 3,
+          shadowColor: CHART_THEME.download,
+          shadowBlur: 12,
+        },
+        areaStyle: {
+          color: {
+            type: "linear",
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [
+              { offset: 0, color: hexToRgba(CHART_THEME.download, 0.25) },
+              { offset: 1, color: hexToRgba(CHART_THEME.download, 0) },
+            ],
+          } as unknown as string,
+        },
+      },
+    ],
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -339,15 +558,20 @@ function DailyVolumeChart({ trackerData, height = 360 }: DailyVolumeChartProps) 
     )
   }
 
-  const option = mode === "river"
-    ? buildRiverOption(trackerData)
-    : buildDailyVolumeOption(trackerData)
+  const option =
+    mode === "river"
+      ? buildRiverOption(trackerData)
+      : mode === "area"
+        ? buildAreaOption(trackerData)
+        : mode === "sums"
+          ? buildSumsOption(trackerData)
+          : buildDailyVolumeOption(trackerData)
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex justify-end">
         <div className="nm-inset-sm p-1 flex gap-0.5 rounded-nm-sm">
-          {(["bar", "river"] as const).map((m) => (
+          {(["bar", "area", "sums", "river"] as const).map((m) => (
             <button
               key={m}
               type="button"
@@ -356,10 +580,10 @@ function DailyVolumeChart({ trackerData, height = 360 }: DailyVolumeChartProps) 
                 "px-2.5 py-1 text-xs font-mono transition-all duration-150 cursor-pointer rounded-nm-sm",
                 mode === m
                   ? "nm-raised-sm text-primary font-semibold"
-                  : "text-tertiary hover:text-secondary",
+                  : "text-tertiary hover:text-secondary"
               )}
             >
-              {m === "bar" ? "Bar" : "River"}
+              {m === "bar" ? "Bar" : m === "area" ? "Area" : m === "sums" ? "Totals" : "River"}
             </button>
           ))}
         </div>
@@ -375,5 +599,5 @@ function DailyVolumeChart({ trackerData, height = 360 }: DailyVolumeChartProps) 
   )
 }
 
-export { DailyVolumeChart, computePerTrackerDailyDeltas }
 export type { DailyVolumeChartProps }
+export { DailyVolumeChart }

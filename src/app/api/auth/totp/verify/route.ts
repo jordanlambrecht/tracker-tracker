@@ -16,7 +16,7 @@ import { appSettings } from "@/lib/db/schema"
 import { startScheduler } from "@/lib/scheduler"
 import type { BackupCodeEntry } from "@/lib/totp"
 import { BACKUP_CODE_PATTERN, verifyAndConsumeBackupCode, verifyTotpCode } from "@/lib/totp"
-import { recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"
+import { checkLockout, recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"
 
 export async function POST(request: Request) {
   const body = await parseJsonBody(request)
@@ -54,13 +54,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "TOTP is not enabled" }, { status: 400 })
   }
 
-  if (settings.lockedUntil && settings.lockedUntil > new Date()) {
-    const retryAfter = Math.ceil((settings.lockedUntil.getTime() - Date.now()) / 1000)
-    return NextResponse.json(
-      { error: "Too many failed attempts. Try again later.", retryAfter },
-      { status: 429, headers: { "Retry-After": String(retryAfter) } }
-    )
-  }
+  const lockout = checkLockout(settings)
+  if (lockout) return lockout
 
   const key = Buffer.from(pending.encryptionKey, "hex")
 
@@ -71,7 +66,9 @@ export async function POST(request: Request) {
     }
 
     let entries: BackupCodeEntry[]
-    try { entries = JSON.parse(decrypt(settings.totpBackupCodes, key)) } catch {
+    try {
+      entries = JSON.parse(decrypt(settings.totpBackupCodes, key))
+    } catch {
       return NextResponse.json({ error: "Corrupted backup codes" }, { status: 500 })
     }
     const { valid, updatedEntries } = verifyAndConsumeBackupCode(code, entries)

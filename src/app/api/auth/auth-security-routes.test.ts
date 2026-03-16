@@ -8,7 +8,7 @@ import { decrypt, deriveKey } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { startScheduler } from "@/lib/scheduler"
 import { verifyAndConsumeBackupCode, verifyTotpCode } from "@/lib/totp"
-import { recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"
+import { checkLockout, recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"
 
 vi.mock("@/lib/db", () => ({
   db: {
@@ -48,6 +48,7 @@ vi.mock("@/lib/totp", async (importOriginal) => {
 })
 
 vi.mock("@/lib/wipe", () => ({
+  checkLockout: vi.fn().mockReturnValue(null),
   recordFailedAttempt: vi.fn().mockResolvedValue(false),
   resetFailedAttempts: vi.fn().mockResolvedValue(undefined),
   WIPE_MESSAGE: "Too many failed attempts. All data has been deleted.",
@@ -138,7 +139,10 @@ describe("auth abuse defenses", () => {
     )
 
     expect(response.status).toBe(200)
-    await expect(response.json()).resolves.toEqual({ requiresTotp: true, pendingToken: "pending-token" })
+    await expect(response.json()).resolves.toEqual({
+      requiresTotp: true,
+      pendingToken: "pending-token",
+    })
     expect(createSession).not.toHaveBeenCalled()
     expect(startScheduler).not.toHaveBeenCalled()
     expect(resetFailedAttempts).not.toHaveBeenCalled()
@@ -154,7 +158,9 @@ describe("auth abuse defenses", () => {
         sessionTimeoutMinutes: 30,
       },
     ])
-    ;(verifyPendingToken as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: "a".repeat(64) })
+    ;(verifyPendingToken as ReturnType<typeof vi.fn>).mockResolvedValue({
+      encryptionKey: "a".repeat(64),
+    })
     ;(decrypt as ReturnType<typeof vi.fn>).mockReturnValue("totp-secret")
     ;(verifyTotpCode as ReturnType<typeof vi.fn>).mockReturnValue(false)
 
@@ -185,8 +191,12 @@ describe("auth abuse defenses", () => {
       },
     ])
     const { set } = makeUpdateChain()
-    ;(verifyPendingToken as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: "b".repeat(64) })
-    ;(decrypt as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify([{ hash: "x", salt: "y", used: false }]))
+    ;(verifyPendingToken as ReturnType<typeof vi.fn>).mockResolvedValue({
+      encryptionKey: "b".repeat(64),
+    })
+    ;(decrypt as ReturnType<typeof vi.fn>).mockReturnValue(
+      JSON.stringify([{ hash: "x", salt: "y", used: false }])
+    )
     ;(verifyAndConsumeBackupCode as ReturnType<typeof vi.fn>).mockReturnValue({
       valid: true,
       updatedEntries: [{ hash: "x", salt: "y", used: true }],
@@ -197,13 +207,19 @@ describe("auth abuse defenses", () => {
       new Request("http://localhost/api/auth/totp/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pendingToken: "pending-token", code: "ABCD-1234", isBackupCode: true }),
+        body: JSON.stringify({
+          pendingToken: "pending-token",
+          code: "ABCD-1234",
+          isBackupCode: true,
+        }),
       })
     )
 
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({ success: true })
-    expect(set).toHaveBeenCalledWith({ totpBackupCodes: "encrypted:[{\"hash\":\"x\",\"salt\":\"y\",\"used\":true}]" })
+    expect(set).toHaveBeenCalledWith({
+      totpBackupCodes: 'encrypted:[{"hash":"x","salt":"y","used":true}]',
+    })
     expect(resetFailedAttempts).toHaveBeenCalledWith(1)
     expect(createSession).toHaveBeenCalledWith("b".repeat(64), 45)
     expect(startScheduler).toHaveBeenCalledWith(Buffer.from("b".repeat(64), "hex"))
@@ -218,7 +234,9 @@ describe("auth abuse defenses", () => {
         lockedUntil: null,
       },
     ])
-    ;(verifyPendingToken as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: "c".repeat(64) })
+    ;(verifyPendingToken as ReturnType<typeof vi.fn>).mockResolvedValue({
+      encryptionKey: "c".repeat(64),
+    })
     ;(decrypt as ReturnType<typeof vi.fn>).mockReturnValue("totp-secret")
     ;(verifyTotpCode as ReturnType<typeof vi.fn>).mockReturnValue(false)
     ;(recordFailedAttempt as ReturnType<typeof vi.fn>).mockResolvedValue(true)
@@ -238,6 +256,7 @@ describe("auth abuse defenses", () => {
 
   it("returns 429 when lockedUntil is in the future (login)", async () => {
     const futureDate = new Date(Date.now() + 60_000)
+    const retryAfterSecs = Math.ceil((futureDate.getTime() - Date.now()) / 1000)
     const settings = {
       id: 1,
       username: "admin",
@@ -249,6 +268,18 @@ describe("auth abuse defenses", () => {
       sessionTimeoutMinutes: null,
     }
     makeSelectChain([settings])
+    ;(checkLockout as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+      new Response(
+        JSON.stringify({
+          error: "Too many failed attempts. Try again later.",
+          retryAfter: retryAfterSecs,
+        }),
+        {
+          status: 429,
+          headers: { "Retry-After": String(retryAfterSecs), "Content-Type": "application/json" },
+        }
+      )
+    )
 
     const { POST } = await import("./login/route")
     const response = await POST(
@@ -269,6 +300,7 @@ describe("auth abuse defenses", () => {
 
   it("returns 429 when lockedUntil is in the future (TOTP verify)", async () => {
     const futureDate = new Date(Date.now() + 120_000)
+    const retryAfterSecs = Math.ceil((futureDate.getTime() - Date.now()) / 1000)
     const settings = [
       {
         id: 1,
@@ -280,8 +312,22 @@ describe("auth abuse defenses", () => {
         sessionTimeoutMinutes: 90,
       },
     ]
-    ;(verifyPendingToken as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: "c".repeat(64) })
+    ;(verifyPendingToken as ReturnType<typeof vi.fn>).mockResolvedValue({
+      encryptionKey: "c".repeat(64),
+    })
     makeSelectChain(settings)
+    ;(checkLockout as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+      new Response(
+        JSON.stringify({
+          error: "Too many failed attempts. Try again later.",
+          retryAfter: retryAfterSecs,
+        }),
+        {
+          status: 429,
+          headers: { "Retry-After": String(retryAfterSecs), "Content-Type": "application/json" },
+        }
+      )
+    )
 
     const { POST } = await import("./totp/verify/route")
     const response = await POST(

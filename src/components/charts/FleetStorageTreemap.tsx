@@ -21,7 +21,7 @@ const GOLDEN_ANGLE = 137.508
 
 function goldenAngleColor(index: number): string {
   const hue = (index * GOLDEN_ANGLE) % 360
-  return `hsl(${hue.toFixed(1)}, 65%, 55%)`
+  return `hsl(${hue.toFixed(1)}, 70%, 55%)`
 }
 
 interface TreemapNode {
@@ -32,10 +32,7 @@ interface TreemapNode {
   upperLabel?: { show: boolean; color: string }
 }
 
-function groupTorrentsForTreemap(
-  torrents: TorrentRaw[],
-  trackerTags: string[]
-): TreemapNode[] {
+function groupTorrentsForTreemap(torrents: TorrentRaw[], trackerTags: string[]): TreemapNode[] {
   const tagSetLower = trackerTags.map((t) => t.toLowerCase())
 
   const trackerMap = new Map<string, Map<string, number>>()
@@ -66,18 +63,16 @@ function groupTorrentsForTreemap(
     const displayName =
       trackerKey === "__other__"
         ? "Other"
-        : trackerTags.find((t) => t.toLowerCase() === trackerKey) ?? trackerKey
+        : (trackerTags.find((t) => t.toLowerCase() === trackerKey) ?? trackerKey)
 
     const trackerColor = goldenAngleColor(colorIndex++)
     const totalSize = Array.from(catMap.values()).reduce((a, b) => a + b, 0)
 
-    const children: TreemapNode[] = Array.from(catMap.entries()).map(
-      ([category, size]) => ({
-        name: category,
-        value: size,
-        itemStyle: { color: trackerColor },
-      })
-    )
+    const children: TreemapNode[] = Array.from(catMap.entries()).map(([category, size]) => ({
+      name: category,
+      value: size,
+      itemStyle: { color: trackerColor },
+    }))
 
     nodes.push({
       name: displayName,
@@ -185,11 +180,7 @@ function buildFleetStorageTreemapOption(nodes: TreemapNode[]): EChartsOption {
   }
 }
 
-function FleetStorageTreemap({
-  torrents,
-  trackerTags,
-  height = 400,
-}: FleetStorageTreemapProps) {
+function FleetStorageTreemap({ torrents, trackerTags, height = 400 }: FleetStorageTreemapProps) {
   if (torrents.length === 0) {
     return <ChartEmptyState height={height} message="No torrent data available" />
   }
@@ -211,5 +202,5 @@ function FleetStorageTreemap({
   )
 }
 
-export { FleetStorageTreemap, goldenAngleColor, groupTorrentsForTreemap }
 export type { FleetStorageTreemapProps }
+export { FleetStorageTreemap, goldenAngleColor, groupTorrentsForTreemap }

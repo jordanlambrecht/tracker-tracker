@@ -9,7 +9,12 @@ interface PollErrorBannerProps {
   onDismissPollError: () => void
 }
 
-export function PollErrorBanner({ pollError, lastError, lastPolledAt, onDismissPollError }: PollErrorBannerProps) {
+export function PollErrorBanner({
+  pollError,
+  lastError,
+  lastPolledAt,
+  onDismissPollError,
+}: PollErrorBannerProps) {
   if (!pollError && !lastError) return null
 
   return (

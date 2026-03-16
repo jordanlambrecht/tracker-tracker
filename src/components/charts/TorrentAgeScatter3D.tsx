@@ -15,17 +15,21 @@ import type { TorrentInfo } from "@/lib/torrent-utils"
 
 type Scatter3DView = "age-seed" | "seed-ratio"
 
-const SCATTER3D_VIEWS: Record<Scatter3DView, {
-  label: string
-  description: string
-  x: { idx: number; name: string }
-  y: { idx: number; name: string }
-  z: { idx: number; name: string }
-  color: { idx: number; name: string; max: number }
-}> = {
+const SCATTER3D_VIEWS: Record<
+  Scatter3DView,
+  {
+    label: string
+    description: string
+    x: { idx: number; name: string }
+    y: { idx: number; name: string }
+    z: { idx: number; name: string }
+    color: { idx: number; name: string; max: number }
+  }
+> = {
   "age-seed": {
     label: "Age vs Seed Time",
-    description: "Age = time since added · Seed Time = cumulative active seeding · Gap reveals downtime · Color = ratio",
+    description:
+      "Age = time since added · Seed Time = cumulative active seeding · Gap reveals downtime · Color = ratio",
     x: { idx: 0, name: "Age (days)" },
     y: { idx: 1, name: "Seed Time (days)" },
     z: { idx: 2, name: "Size (GiB)" },
@@ -62,16 +66,20 @@ export function TorrentAgeScatter3D({ torrents, accentColor }: TorrentAgeScatter
   const data = torrents
     .filter((t) => t.addedOn > 0)
     .map((t) => [
-      Math.floor((now - t.addedOn) / 86400),   // 0: age
-      Math.floor(t.seedingTime / 86400),         // 1: seed time
-      +(t.size / 1024 ** 3).toFixed(2),          // 2: size
-      Math.min(t.ratio, 10),                     // 3: ratio
+      Math.floor((now - t.addedOn) / 86400), // 0: age
+      Math.floor(t.seedingTime / 86400), // 1: seed time
+      +(t.size / 1024 ** 3).toFixed(2), // 2: size
+      Math.min(t.ratio, 10), // 3: ratio
     ])
 
   if (data.length === 0) return null
 
   const axisStyle = {
-    nameTextStyle: { color: CHART_THEME.textTertiary, fontFamily: CHART_THEME.fontMono, fontSize: 10 },
+    nameTextStyle: {
+      color: CHART_THEME.textTertiary,
+      fontFamily: CHART_THEME.fontMono,
+      fontSize: 10,
+    },
     axisLabel: { color: CHART_THEME.textTertiary, fontFamily: CHART_THEME.fontMono, fontSize: 9 },
     axisLine: { lineStyle: { color: CHART_THEME.borderEmphasis } },
   }
@@ -139,7 +147,9 @@ export function TorrentAgeScatter3D({ torrents, accentColor }: TorrentAgeScatter
             onClick={() => setView(key)}
             className={clsx(
               "px-3 py-1.5 text-[11px] font-mono rounded-nm-pill transition-colors cursor-pointer",
-              view === key ? "nm-raised-sm text-primary" : "nm-inset-sm text-tertiary hover:text-secondary",
+              view === key
+                ? "nm-raised-sm text-primary"
+                : "nm-inset-sm text-tertiary hover:text-secondary"
             )}
           >
             {SCATTER3D_VIEWS[key].label}
@@ -147,7 +157,10 @@ export function TorrentAgeScatter3D({ torrents, accentColor }: TorrentAgeScatter
         ))}
       </div>
       <p className="text-xs font-mono text-tertiary">{cfg.description}</p>
-      <div className="rounded-nm-md overflow-hidden" style={{ backgroundColor: CHART_THEME.surface }}>
+      <div
+        className="rounded-nm-md overflow-hidden"
+        style={{ backgroundColor: CHART_THEME.surface }}
+      >
         <ReactECharts
           option={option}
           style={{ height: 400, width: "100%" }}

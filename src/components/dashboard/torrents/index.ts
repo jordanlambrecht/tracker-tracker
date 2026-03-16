@@ -2,8 +2,8 @@
 
 export { ActiveTransfersTable } from "./ActiveTransfersTable"
 export { CategoryCard } from "./CategoryCard"
-export { ElderTorrentsTable } from "./ElderTorrentsTable"
-export { TopTorrentsTable } from "./TopTorrentsTable"
 export { NoClientState, NoTagState } from "./TorrentEmptyStates"
+export type { TorrentTableVariant } from "./TorrentRankingTable"
+export { TorrentRankingTable } from "./TorrentRankingTable"
 export { TorrentStatCards } from "./TorrentStatCards"
 export { UnsatisfiedTorrentsTable } from "./UnsatisfiedTorrentsTable"

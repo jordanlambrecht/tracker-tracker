@@ -10,17 +10,23 @@ import type { FleetSnapshot } from "@/lib/fleet"
 import { extractTagsFromSnapshots } from "@/lib/fleet"
 import { formatBytesNum } from "@/lib/formatters"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { buildTagColors, CHART_THEME, chartAxisLabel, chartDot, chartTooltip, chartTooltipHeader, escHtml, formatChartTimestamp } from "./theme"
+import { buildAxisPointer, buildThemeRiverSingleAxis } from "./chart-helpers"
+import {
+  buildTagColors,
+  CHART_THEME,
+  chartDot,
+  chartTooltip,
+  chartTooltipHeader,
+  escHtml,
+  formatChartTimestamp,
+} from "./theme"
 
 interface SpeedThemeRiverProps {
   snapshots: FleetSnapshot[]
   height?: number
 }
 
-function buildRiverData(
-  snapshots: FleetSnapshot[],
-  tags: string[]
-): [number, number, string][] {
+function buildRiverData(snapshots: FleetSnapshot[], tags: string[]): [number, number, string][] {
   // Group snapshots by timestamp, sum speeds per tag across all clients
   const timeTagMap = new Map<number, Map<string, number>>()
 
@@ -65,10 +71,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
     backgroundColor: "transparent",
     color: colors,
     tooltip: chartTooltip("axis", {
-      axisPointer: {
-        type: "line",
-        lineStyle: { color: CHART_THEME.borderMid, type: "dashed" },
-      },
+      axisPointer: buildAxisPointer(),
       formatter: (params: unknown) => {
         const items = params as Array<{
           value: [number, number, string]
@@ -92,14 +95,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
         return `${chartTooltipHeader(dateLabel)}${rows}`
       },
     }),
-    singleAxis: {
-      type: "time",
-      bottom: 40,
-      top: 32,
-      axisLabel: chartAxisLabel(),
-      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
-      axisTick: { show: false },
-    },
+    singleAxis: buildThemeRiverSingleAxis({ top: 32 }),
     series: [
       {
         type: "themeRiver",
@@ -125,12 +121,7 @@ function SpeedThemeRiver({ snapshots, height = 360 }: SpeedThemeRiverProps) {
   const hasTagStats = snapshots.some((s) => s.tagStats && s.tagStats.length > 0)
 
   if (!hasTagStats) {
-    return (
-      <ChartEmptyState
-        height={height}
-        message="No tag speed data available yet."
-      />
-    )
+    return <ChartEmptyState height={height} message="No tag speed data available yet." />
   }
 
   return (
@@ -144,5 +135,5 @@ function SpeedThemeRiver({ snapshots, height = 360 }: SpeedThemeRiverProps) {
   )
 }
 
-export { SpeedThemeRiver }
 export type { SpeedThemeRiverProps }
+export { SpeedThemeRiver }

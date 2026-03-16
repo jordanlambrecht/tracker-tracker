@@ -1,7 +1,7 @@
 // src/lib/auth.ts
 //
 // Functions: hashPassword, verifyPassword, createSession, getSession,
-//            clearSession, requireAuth, createPendingToken, verifyPendingToken,
+//            clearSession, createPendingToken, verifyPendingToken,
 //            createSetupToken, verifySetupToken
 
 import argon2 from "argon2"
@@ -34,9 +34,7 @@ export async function createSession(
   encryptionKey: string,
   timeoutMinutes?: number | null
 ): Promise<string> {
-  const cookieMaxAge = timeoutMinutes && timeoutMinutes > 0
-    ? timeoutMinutes * 60
-    : SESSION_MAX_AGE
+  const cookieMaxAge = timeoutMinutes && timeoutMinutes > 0 ? timeoutMinutes * 60 : SESSION_MAX_AGE
 
   // JWE expiry is a generous safety net — the real timeout is controlled by
   // cookie maxAge + middleware sliding window refresh.
@@ -88,14 +86,6 @@ export async function clearSession(): Promise<void> {
   const cookieStore = await cookies()
   cookieStore.delete(SESSION_COOKIE)
   cookieStore.delete(MAX_AGE_COOKIE)
-}
-
-export async function requireAuth(): Promise<{ encryptionKey: string }> {
-  const session = await getSession()
-  if (!session) {
-    throw new Error("Unauthorized")
-  }
-  return session
 }
 
 // ---------------------------------------------------------------------------

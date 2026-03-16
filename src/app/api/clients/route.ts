@@ -9,8 +9,7 @@ import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
 import { PROXY_HOST_PATTERN } from "@/lib/proxy"
 import { parseCrossSeedTags } from "@/lib/qbt"
-
-const VALID_TYPES = ["qbittorrent"]
+import { VALID_CLIENT_TYPES } from "@/lib/qbt/types"
 
 export async function GET() {
   const auth = await authenticate()
@@ -33,6 +32,7 @@ export async function GET() {
     crossSeedTags: parseCrossSeedTags(client.crossSeedTags),
     lastPolledAt: client.lastPolledAt,
     lastError: client.lastError,
+    errorSince: client.errorSince,
     createdAt: client.createdAt,
     updatedAt: client.updatedAt,
   }))
@@ -47,19 +47,29 @@ export async function POST(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const { name, host, username, password, type, port, useSsl, pollIntervalSeconds, isDefault, crossSeedTags } =
-    body as {
-      name?: string
-      host?: string
-      username?: string
-      password?: string
-      type?: string
-      port?: number
-      useSsl?: boolean
-      pollIntervalSeconds?: number
-      isDefault?: boolean
-      crossSeedTags?: string[]
-    }
+  const {
+    name,
+    host,
+    username,
+    password,
+    type,
+    port,
+    useSsl,
+    pollIntervalSeconds,
+    isDefault,
+    crossSeedTags,
+  } = body as {
+    name?: string
+    host?: string
+    username?: string
+    password?: string
+    type?: string
+    port?: number
+    useSsl?: boolean
+    pollIntervalSeconds?: number
+    isDefault?: boolean
+    crossSeedTags?: string[]
+  }
 
   if (!name || !host || !username || !password) {
     return NextResponse.json(
@@ -68,7 +78,12 @@ export async function POST(request: Request) {
     )
   }
 
-  if (typeof name !== "string" || typeof host !== "string" || typeof username !== "string" || typeof password !== "string") {
+  if (
+    typeof name !== "string" ||
+    typeof host !== "string" ||
+    typeof username !== "string" ||
+    typeof password !== "string"
+  ) {
     return NextResponse.json({ error: "Invalid field types" }, { status: 400 })
   }
 
@@ -94,7 +109,7 @@ export async function POST(request: Request) {
   }
 
   const resolvedType = typeof type === "string" ? type : "qbittorrent"
-  if (!VALID_TYPES.includes(resolvedType)) {
+  if (!(VALID_CLIENT_TYPES as readonly string[]).includes(resolvedType)) {
     return NextResponse.json({ error: "Invalid client type" }, { status: 400 })
   }
 
@@ -102,8 +117,14 @@ export async function POST(request: Request) {
   const portErr = validatePort(resolvedPort)
   if (portErr) return portErr
 
-  if (typeof pollIntervalSeconds === "number" && (pollIntervalSeconds < 60 || pollIntervalSeconds > 86400)) {
-    return NextResponse.json({ error: "Poll interval must be between 60 and 86400 seconds" }, { status: 400 })
+  if (
+    typeof pollIntervalSeconds === "number" &&
+    (pollIntervalSeconds < 60 || pollIntervalSeconds > 86400)
+  ) {
+    return NextResponse.json(
+      { error: "Poll interval must be between 60 and 86400 seconds" },
+      { status: 400 }
+    )
   }
 
   const key = decodeKey(auth)
@@ -114,11 +135,20 @@ export async function POST(request: Request) {
   const resolvedTags = Array.isArray(crossSeedTags) ? crossSeedTags : []
 
   if (resolvedTags.length > 50) {
-    return NextResponse.json({ error: "Cannot specify more than 50 cross-seed tags" }, { status: 400 })
+    return NextResponse.json(
+      { error: "Cannot specify more than 50 cross-seed tags" },
+      { status: 400 }
+    )
   }
 
-  if (resolvedTags.length > 0 && !resolvedTags.every((t: unknown) => typeof t === "string" && t.length > 0 && t.length <= 100)) {
-    return NextResponse.json({ error: "Each cross-seed tag must be a non-empty string of 100 characters or fewer" }, { status: 400 })
+  if (
+    resolvedTags.length > 0 &&
+    !resolvedTags.every((t: unknown) => typeof t === "string" && t.length > 0 && t.length <= 100)
+  ) {
+    return NextResponse.json(
+      { error: "Each cross-seed tag must be a non-empty string of 100 characters or fewer" },
+      { status: 400 }
+    )
   }
 
   if (resolvedIsDefault) {

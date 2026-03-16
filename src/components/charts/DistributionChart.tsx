@@ -1,14 +1,19 @@
 // src/components/charts/DistributionChart.tsx
 //
-// Functions: buildPieOption, DistributionChart
+// Functions: buildPieOption, buildSankeyOption, buildParallelOption, DistributionChart
 
 "use client"
 
+import clsx from "clsx"
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
+import { useState } from "react"
 import { formatBytesFromString } from "@/lib/formatters"
 import { ChartEmptyState } from "./ChartEmptyState"
+import { fmtNum } from "./chart-helpers"
 import { CHART_THEME, chartDot, chartTooltip, escHtml } from "./theme"
+
+type ViewMode = "donuts" | "sankey" | "parallel"
 
 interface TrackerSlice {
   name: string
@@ -89,7 +94,227 @@ function buildPieOption(
   }
 }
 
+function buildSankeyOption(
+  trackers: { name: string; color: string; uploadPct: number; seedingPct: number }[]
+): EChartsOption {
+  // Nodes: left side = "Upload: TrackerName", right side = "Seeding: TrackerName"
+  // Links: each tracker flows from its upload node to its seeding node
+  const nodes: {
+    name: string
+    itemStyle: { color: string; borderColor: string }
+    depth: number
+  }[] = []
+  const links: {
+    source: string
+    target: string
+    value: number
+    lineStyle: { color: string; opacity: number }
+  }[] = []
+
+  // Sort left side by upload % (desc), right side by seeding % (desc)
+  // layoutIterations: 0 preserves insertion order per depth, so different orderings produce crossing flows
+  const byUpload = [...trackers].sort((a, b) => b.uploadPct - a.uploadPct)
+  const bySeeding = [...trackers].sort((a, b) => b.seedingPct - a.seedingPct)
+
+  // Interleave: all left nodes first (depth 0), then all right nodes (depth 1)
+  for (const t of byUpload) {
+    nodes.push({
+      name: `${t.name} `,
+      depth: 0,
+      itemStyle: { color: t.color, borderColor: CHART_THEME.surface },
+    })
+  }
+
+  for (const t of bySeeding) {
+    nodes.push({
+      name: ` ${t.name}`,
+      depth: 1,
+      itemStyle: { color: t.color, borderColor: CHART_THEME.surface },
+    })
+  }
+
+  // Use upload % as flow value so widths represent upload contribution
+  for (const t of trackers) {
+    links.push({
+      source: `${t.name} `,
+      target: ` ${t.name}`,
+      value: Math.max(t.uploadPct, 0.1),
+      lineStyle: {
+        color: t.color,
+        opacity: 0.35,
+      },
+    })
+  }
+
+  return {
+    backgroundColor: "transparent",
+    tooltip: chartTooltip("item", {
+      formatter: (params: unknown) => {
+        const p = params as {
+          dataType: "node" | "edge"
+          data: { name: string; value?: number }
+          name: string
+        }
+
+        if (p.dataType === "edge") {
+          const edge = p.data as unknown as { source: string; target: string; value: number }
+          const trackerName = edge.source.trim()
+          const tracker = trackers.find((t) => t.name === trackerName)
+          if (!tracker) return ""
+          return (
+            `<span style="color:${tracker.color};font-weight:600;">${escHtml(trackerName)}</span><br/>` +
+            `<span style="color:${CHART_THEME.textSecondary};">Upload: ${fmtNum(tracker.uploadPct, 1)}%</span><br/>` +
+            `<span style="color:${CHART_THEME.textSecondary};">Seeding: ${fmtNum(tracker.seedingPct, 1)}%</span>`
+          )
+        }
+
+        const nodeName = p.name.trim()
+        const tracker = trackers.find((t) => t.name === nodeName)
+        if (!tracker) return ""
+        const isUploadSide = p.name.endsWith(" ")
+        return (
+          `<span style="color:${tracker.color};font-weight:600;">${escHtml(nodeName)}</span><br/>` +
+          `<span style="color:${CHART_THEME.textSecondary};">${isUploadSide ? "Upload" : "Seeding"}: ${fmtNum(isUploadSide ? tracker.uploadPct : tracker.seedingPct, 1)}%</span>`
+        )
+      },
+    }),
+    series: [
+      {
+        type: "sankey" as const,
+        left: 80,
+        right: 100,
+        top: 32,
+        bottom: 16,
+        nodeWidth: 16,
+        nodeGap: 10,
+        layoutIterations: 0,
+        emphasis: {
+          focus: "adjacency",
+        },
+        label: {
+          color: CHART_THEME.textSecondary,
+          fontFamily: CHART_THEME.fontMono,
+          fontSize: 10,
+          formatter: (params: { name: string }) => params.name.trim(),
+        },
+        lineStyle: {
+          curveness: 0.5,
+        },
+        data: nodes,
+        links,
+      },
+    ],
+    graphic: [
+      {
+        type: "text",
+        left: 20,
+        top: 8,
+        style: {
+          text: "Upload %",
+          fill: CHART_THEME.textTertiary,
+          fontSize: 11,
+          fontFamily: CHART_THEME.fontMono,
+        },
+      },
+      {
+        type: "text",
+        right: 20,
+        top: 8,
+        style: {
+          text: "Seeding %",
+          fill: CHART_THEME.textTertiary,
+          fontSize: 11,
+          fontFamily: CHART_THEME.fontMono,
+        },
+      },
+    ],
+  }
+}
+
+function buildParallelOption(
+  trackers: { name: string; color: string; uploadPct: number; seedingPct: number }[]
+): EChartsOption {
+  return {
+    backgroundColor: "transparent",
+    tooltip: chartTooltip("item", {
+      formatter: (params: unknown) => {
+        const p = params as { data: number[]; color: string; seriesName: string }
+        const tracker = trackers.find((t) => t.name === p.seriesName)
+        if (!tracker) return ""
+        return (
+          `<span style="color:${tracker.color};font-weight:600;">${escHtml(tracker.name)}</span><br/>` +
+          `<span style="color:${CHART_THEME.textSecondary};">Upload: ${fmtNum(tracker.uploadPct, 1)}%</span><br/>` +
+          `<span style="color:${CHART_THEME.textSecondary};">Seeding: ${fmtNum(tracker.seedingPct, 1)}%</span>`
+        )
+      },
+    }),
+    parallelAxis: [
+      {
+        dim: 0,
+        name: "Upload %",
+        nameLocation: "start",
+        nameTextStyle: {
+          color: CHART_THEME.textTertiary,
+          fontFamily: CHART_THEME.fontMono,
+          fontSize: 11,
+          padding: [0, 0, 12, 0],
+        },
+        axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
+        axisLabel: {
+          color: CHART_THEME.textTertiary,
+          fontFamily: CHART_THEME.fontMono,
+          fontSize: 10,
+          formatter: (v: number) => `${fmtNum(v, 1)}%`,
+        },
+      },
+      {
+        dim: 1,
+        name: "Seeding %",
+        nameLocation: "start",
+        nameTextStyle: {
+          color: CHART_THEME.textTertiary,
+          fontFamily: CHART_THEME.fontMono,
+          fontSize: 11,
+          padding: [0, 0, 12, 0],
+        },
+        axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
+        axisLabel: {
+          color: CHART_THEME.textTertiary,
+          fontFamily: CHART_THEME.fontMono,
+          fontSize: 10,
+          formatter: (v: number) => `${fmtNum(v, 1)}%`,
+        },
+      },
+    ],
+    parallel: {
+      left: 80,
+      right: 80,
+      top: 40,
+      bottom: 40,
+      parallelAxisDefault: {
+        type: "log",
+        min: 0.01,
+      },
+    },
+    series: trackers.map((t) => ({
+      type: "parallel" as const,
+      name: t.name,
+      lineStyle: {
+        color: t.color,
+        width: 2.5,
+        opacity: 0.7,
+      },
+      emphasis: {
+        lineStyle: { width: 5, opacity: 1, shadowBlur: 12, shadowColor: t.color },
+      },
+      data: [[t.uploadPct, t.seedingPct]],
+    })),
+  }
+}
+
 function DistributionChart({ trackers, height = 300 }: DistributionChartProps) {
+  const [mode, setMode] = useState<ViewMode>("donuts")
+
   const uploadData = trackers
     .filter((t) => t.uploadedBytes !== null)
     .map((t) => ({
@@ -113,33 +338,110 @@ function DistributionChart({ trackers, height = 300 }: DistributionChartProps) {
     return <ChartEmptyState height={height} message="No distribution data yet" />
   }
 
+  const hasBothMetrics = hasUpload && hasSeeding
+  const modes: ViewMode[] = hasBothMetrics ? ["donuts", "sankey", "parallel"] : ["donuts"]
+
+  // Compute percentage data for sankey and parallel views
+  const totalUpload = uploadData.reduce((a, b) => a + b.value, 0)
+  const totalSeeding = seedingData.reduce((a, b) => a + b.value, 0)
+  const pctTrackers = trackers
+    .filter((t) => t.uploadedBytes !== null && t.seedingCount != null && t.seedingCount > 0)
+    .map((t) => ({
+      name: t.name,
+      color: t.color,
+      uploadPct: Math.max(
+        0.01,
+        totalUpload > 0 ? (Number(BigInt(t.uploadedBytes as string)) / totalUpload) * 100 : 0
+      ),
+      seedingPct: Math.max(
+        0.01,
+        totalSeeding > 0 ? ((t.seedingCount as number) / totalSeeding) * 100 : 0
+      ),
+    }))
+    .sort((a, b) => b.uploadPct - a.uploadPct)
+
+  function renderChart() {
+    if (mode === "sankey" && hasBothMetrics) {
+      return (
+        <ReactECharts
+          option={buildSankeyOption(pctTrackers)}
+          style={{ height: height + 60, width: "100%" }}
+          opts={{ renderer: "canvas" }}
+          notMerge
+          lazyUpdate
+        />
+      )
+    }
+
+    if (mode === "parallel" && hasBothMetrics) {
+      return (
+        <ReactECharts
+          option={buildParallelOption(pctTrackers)}
+          style={{ height: height + 60, width: "100%" }}
+          opts={{ renderer: "canvas" }}
+          notMerge
+          lazyUpdate
+        />
+      )
+    }
+
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {hasUpload && (
+          <ReactECharts
+            option={buildPieOption("Upload Share", uploadData, (v) =>
+              formatBytesFromString(v.toString())
+            )}
+            style={{ height, width: "100%" }}
+            opts={{ renderer: "canvas" }}
+            notMerge
+            lazyUpdate
+          />
+        )}
+        {hasSeeding && (
+          <ReactECharts
+            option={buildPieOption(
+              "Seeding Share",
+              seedingData,
+              (v) => `${v.toLocaleString()} torrents`
+            )}
+            style={{ height, width: "100%" }}
+            opts={{ renderer: "canvas" }}
+            notMerge
+            lazyUpdate
+          />
+        )}
+      </div>
+    )
+  }
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      {hasUpload && (
-        <ReactECharts
-          option={buildPieOption("Upload Share", uploadData, (v) =>
-            formatBytesFromString(v.toString())
-          )}
-          style={{ height, width: "100%" }}
-          opts={{ renderer: "canvas" }}
-          notMerge
-          lazyUpdate
-        />
+    <div className="flex flex-col gap-3">
+      {modes.length > 1 && (
+        <div className="flex justify-end">
+          <div className="nm-inset-sm p-1 flex gap-0.5 rounded-nm-sm">
+            {modes.map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                className={clsx(
+                  "px-2.5 py-1 text-xs font-mono transition-all duration-150 cursor-pointer rounded-nm-sm",
+                  mode === m
+                    ? "nm-raised-sm text-primary font-semibold"
+                    : "text-tertiary hover:text-secondary"
+                )}
+              >
+                {m === "donuts" ? "Donuts" : m === "sankey" ? "Flow" : "Parallel"}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
-      {hasSeeding && (
-        <ReactECharts
-          option={buildPieOption("Seeding Share", seedingData, (v) =>
-            `${v.toLocaleString()} torrents`
-          )}
-          style={{ height, width: "100%" }}
-          opts={{ renderer: "canvas" }}
-          notMerge
-          lazyUpdate
-        />
-      )}
+      {renderChart()}
     </div>
   )
 }
 
-export { DistributionChart }
 export type { DistributionChartProps, TrackerSlice }
+export { DistributionChart }

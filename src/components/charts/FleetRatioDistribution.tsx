@@ -14,10 +14,7 @@ interface FleetRatioDistributionProps {
   height?: number
 }
 
-function FleetRatioDistribution({
-  torrents,
-  height = 280,
-}: FleetRatioDistributionProps) {
+function FleetRatioDistribution({ torrents, height = 280 }: FleetRatioDistributionProps) {
   if (torrents.length === 0) {
     return <ChartEmptyState height={height} message="No torrent data available" />
   }
@@ -43,5 +40,5 @@ function FleetRatioDistribution({
   )
 }
 
-export { FleetRatioDistribution }
 export type { FleetRatioDistributionProps }
+export { FleetRatioDistribution }

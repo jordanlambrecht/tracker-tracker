@@ -47,22 +47,17 @@ function computeTrackerMetrics(
 
       if (group.length === 0) return null
 
-      const avgRatio =
-        group.reduce((sum, t) => sum + t.ratio, 0) / group.length
+      const avgRatio = group.reduce((sum, t) => sum + t.ratio, 0) / group.length
 
       const uploadSpeedSum = group.reduce((sum, t) => sum + t.upspeed, 0)
 
       const recentCount = group.filter(
-        (t) =>
-          t.last_activity > 0 &&
-          now - t.last_activity * 1000 < FRESHNESS_WINDOW_MS
+        (t) => t.last_activity > 0 && now - t.last_activity * 1000 < FRESHNESS_WINDOW_MS
       ).length
       const freshnessPct = (recentCount / group.length) * 100
 
       const avgSeedTimeDays =
-        group.reduce((sum, t) => sum + t.seeding_time, 0) /
-        group.length /
-        86400
+        group.reduce((sum, t) => sum + t.seeding_time, 0) / group.length / 86400
 
       return {
         name: tracker.name,
@@ -162,11 +157,7 @@ function buildTrackerHealthRadarOption(
   }
 }
 
-function TrackerHealthRadar({
-  torrents,
-  trackerTags,
-  height = 360,
-}: TrackerHealthRadarProps) {
+function TrackerHealthRadar({ torrents, trackerTags, height = 360 }: TrackerHealthRadarProps) {
   const metrics = computeTrackerMetrics(torrents, trackerTags)
 
   if (metrics.length < 2) {
@@ -191,5 +182,5 @@ function TrackerHealthRadar({
   )
 }
 
-export { TrackerHealthRadar, computeTrackerMetrics, normalizeMetrics }
 export type { TrackerHealthRadarProps, TrackerTag }
+export { computeTrackerMetrics, normalizeMetrics, TrackerHealthRadar }

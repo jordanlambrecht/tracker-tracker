@@ -20,11 +20,7 @@ export const metadata: Metadata = {
   description: "Monitor your private tracker stats",
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: ReactNode
-}) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className="dark">
       <body

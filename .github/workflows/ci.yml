@@ -43,7 +43,7 @@ jobs:
         if: github.event_name == 'pull_request'
         id: changed-trackers
         run: |
-          FILES=$(gh pr diff "$PR_NUMBER" --name-only | grep '^src/data/trackers/.*\.ts$' | grep -v 'index\.ts$' || true)
+          FILES=$(gh api "repos/${{ github.repository }}/pulls/$PR_NUMBER/files" --paginate --jq '.[].filename' | grep '^src/data/trackers/.*\.ts$' | grep -v 'index\.ts$' || true)
           if [ -z "$FILES" ]; then
             echo "has_tracker_changes=false" >> "$GITHUB_OUTPUT"
             echo "No tracker files changed."
@@ -317,11 +317,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         with:
           script: |
-            const { execSync } = require('child_process');
-            const files = execSync(
-              `gh pr diff ${process.env.PR_NUMBER} --name-only`,
-              { encoding: 'utf8' }
-            ).trim().split('\n');
+            const { data: prFiles } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 100,
+            });
+            const files = prFiles.map(f => f.filename);
 
             const auditFiles = files.filter(f =>
               f === 'scripts/security-audit.ts' ||
@@ -377,7 +379,7 @@ jobs:
         run: exit 1
 
   docker:
-    name: Docker Build
+    name: Docker Build & Scan
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
@@ -392,5 +394,62 @@ jobs:
         with:
           context: .
           push: false
+          load: true
+          tags: tracker-tracker:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+
+          # Create an isolated network for the smoke test
+          docker network create smoke-net
+
+          # Start a Postgres container the app can talk to
+          docker run -d --name smoke-db --network smoke-net \
+            -e POSTGRES_USER=test \
+            -e POSTGRES_PASSWORD=test \
+            -e POSTGRES_DB=test \
+            postgres:16
+
+          # Give Postgres a moment to initialize
+          sleep 10
+
+          # Start the application container connected to the same network
+          docker run -d --name smoke --network smoke-net -p 3000:3000 \
+            -e DATABASE_URL="postgresql://test:test@smoke-db:5432/test" \
+            -e NODE_ENV=production \
+            -e SESSION_SECRET="ci-smoke-test-secret-that-is-at-least-32-characters-long" \
+            tracker-tracker:ci
+
+          # Wait briefly for the app to start up
+          sleep 5
+
+          STATUS=$(docker inspect -f '{{.State.Status}}' smoke 2>/dev/null || echo "missing")
+          if [ "$STATUS" != "running" ]; then
+            echo "::error::Container exited unexpectedly"
+            docker logs smoke || true
+            # Cleanup on failure
+            docker stop smoke-db >/dev/null 2>&1 || true
+            docker rm smoke-db >/dev/null 2>&1 || true
+            docker network rm smoke-net >/dev/null 2>&1 || true
+            exit 1
+          fi
+
+          echo "Smoke test passed — container is running."
+
+          # Cleanup containers and network
+          docker stop smoke smoke-db
+          docker rm smoke smoke-db
+          docker network rm smoke-net
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: tracker-tracker:ci
+          format: table
+          exit-code: "1"
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          trivyignores: .trivyignore

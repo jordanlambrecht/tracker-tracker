@@ -1,0 +1,25 @@
+# Alpine zlib — fix requires base image rebuild. Will resolve when node:24-alpine or node:25-alpine ships with zlib 1.3.2-r0.
+CVE-2026-22184
+
+# minimatch — transitive via npm internals. No direct dep to bump.
+CVE-2026-26996
+CVE-2026-27903
+CVE-2026-27904
+
+# node-tar — transitive via npm internals. No direct dep to bump.
+CVE-2026-26960
+CVE-2026-29786
+CVE-2026-31802
+
+# esbuild Go stdlib — build tool binary, not runtime. Cannot fix until esbuild releases with newer Go.
+CVE-2024-24790
+CVE-2025-68121
+CVE-2023-39325
+CVE-2023-45283
+CVE-2023-45288
+CVE-2024-34156
+CVE-2025-47907
+CVE-2025-58183
+CVE-2025-61726
+CVE-2025-61728
+CVE-2025-61729

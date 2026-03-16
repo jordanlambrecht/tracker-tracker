@@ -106,12 +106,9 @@ export class GazelleAdapter implements TrackerAdapter {
     const hostname = new URL(baseUrl).hostname
     const authHeader = options?.authStyle === "raw" ? apiToken : `token ${apiToken}`
 
-    const data = await adapterFetch<GazelleIndexResponse>(
-      url.toString(),
-      hostname,
-      options,
-      { Authorization: authHeader }
-    )
+    const data = await adapterFetch<GazelleIndexResponse>(url.toString(), hostname, options, {
+      Authorization: authHeader,
+    })
 
     if (data.status !== "success") {
       throw new Error(data.error ?? `Gazelle API returned status: ${data.status}`)
@@ -143,11 +140,12 @@ export class GazelleAdapter implements TrackerAdapter {
       hitAndRuns: null,
       requiredRatio: typeof userStats.requiredratio === "number" ? userStats.requiredratio : null,
       warned: false,
-      freeleechTokens: typeof userStats.freeleechTokens === "number"
-        ? userStats.freeleechTokens
-        : typeof response.giftTokens === "number"
-          ? response.giftTokens
-          : null,
+      freeleechTokens:
+        typeof userStats.freeleechTokens === "number"
+          ? userStats.freeleechTokens
+          : typeof response.giftTokens === "number"
+            ? response.giftTokens
+            : null,
     }
 
     // Cache the remote user ID from the index response
@@ -160,19 +158,29 @@ export class GazelleAdapter implements TrackerAdapter {
       const userId = options.remoteUserId ?? response.id
       if (userId) {
         try {
-          const enriched = await this.fetchUserProfile(baseUrl, apiPath, authHeader, userId, hostname, options)
+          const enriched = await this.fetchUserProfile(
+            baseUrl,
+            apiPath,
+            authHeader,
+            userId,
+            hostname,
+            options
+          )
           if (enriched) {
             // Override core stats with richer data from user profile
             if (typeof enriched.warned === "boolean") stats.warned = enriched.warned
             if (enriched.joinedDate) stats.joinedDate = enriched.joinedDate
             if (enriched.lastAccessDate) stats.lastAccessDate = enriched.lastAccessDate
             if (enriched.bufferBytes != null) stats.bufferBytes = enriched.bufferBytes
-            if (typeof enriched.seedingCount === "number") stats.seedingCount = enriched.seedingCount
-            if (typeof enriched.leechingCount === "number") stats.leechingCount = enriched.leechingCount
+            if (typeof enriched.seedingCount === "number")
+              stats.seedingCount = enriched.seedingCount
+            if (typeof enriched.leechingCount === "number")
+              stats.leechingCount = enriched.leechingCount
             if (enriched.avatarUrl) stats.avatarUrl = enriched.avatarUrl
             stats.platformMeta = enriched.platformMeta
           }
-        } catch { // security-audit-ignore: enrichment failure is non-fatal — core stats from index are still valid
+        } catch {
+          // security-audit-ignore: enrichment failure is non-fatal — core stats from index are still valid
         }
       }
     }
@@ -254,12 +262,9 @@ export class GazelleAdapter implements TrackerAdapter {
     userUrl.searchParams.set("action", "user")
     userUrl.searchParams.set("id", String(userId))
 
-    const data = await adapterFetch<GazelleUserResponse>(
-      userUrl.toString(),
-      hostname,
-      options,
-      { Authorization: authHeader }
-    )
+    const data = await adapterFetch<GazelleUserResponse>(userUrl.toString(), hostname, options, {
+      Authorization: authHeader,
+    })
 
     if (data.status !== "success" || !data.response) return null
 

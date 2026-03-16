@@ -1,8 +1,17 @@
 // src/types/api.ts
 
-import type { GazellePlatformMeta, GGnPlatformMeta, NebulancePlatformMeta } from "@/lib/adapters/types"
+import type {
+  GazellePlatformMeta,
+  GGnPlatformMeta,
+  NebulancePlatformMeta,
+} from "@/lib/adapters/types"
 
-export type { GazellePlatformMeta, GazelleRanks, GGnPlatformMeta, NebulancePlatformMeta } from "@/lib/adapters/types"
+export type {
+  GazellePlatformMeta,
+  GazelleRanks,
+  GGnPlatformMeta,
+  NebulancePlatformMeta,
+} from "@/lib/adapters/types"
 
 export interface TrackerLatestStats {
   ratio: number | null
@@ -67,6 +76,8 @@ export interface TagGroupMember {
 }
 
 export type TagGroupChartType = "bar" | "donut" | "treemap" | "numbers"
+
+export const VALID_CHART_TYPES = ["bar", "donut", "treemap", "numbers"] as const
 
 export interface TagGroup {
   id: number

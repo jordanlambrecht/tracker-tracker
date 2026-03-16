@@ -1,18 +1,16 @@
 // src/lib/api-helpers.ts
 //
 // Functions: authenticate, parseRouteId, parseTrackerId, parseJsonBody,
-//            validateHttpUrl, validateHexColor, validatePort, decodeKey, errorMessage
+//            validateHttpUrl, validateHexColor, validatePort, decodeKey
 
 import { NextResponse } from "next/server"
-import { requireAuth } from "@/lib/auth"
+import { getSession } from "@/lib/auth"
 import { isUnsafeNetworkHost } from "@/lib/network"
 
 export async function authenticate(): Promise<NextResponse | { encryptionKey: string }> {
-  try {
-    return await requireAuth()
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  return session
 }
 
 export async function parseRouteId(
@@ -43,15 +41,11 @@ export async function parseJsonBody(
   }
 }
 
-
 export function validateHttpUrl(url: string): NextResponse | null {
   try {
     const parsed = new URL(url)
     if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-      return NextResponse.json(
-        { error: "baseUrl must use https:// or http://" },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: "baseUrl must use https:// or http://" }, { status: 400 })
     }
     if (isUnsafeNetworkHost(parsed.hostname)) {
       return NextResponse.json(
@@ -87,8 +81,4 @@ export function validatePort(port: number): NextResponse | null {
 
 export function decodeKey(auth: { encryptionKey: string }): Buffer {
   return Buffer.from(auth.encryptionKey, "hex")
-}
-
-export function errorMessage(err: unknown, fallback = "Unknown error"): string {
-  return err instanceof Error ? err.message : fallback
 }

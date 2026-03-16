@@ -3,7 +3,11 @@
 // Functions: (types only)
 
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
-import type { GazellePlatformMeta, GGnPlatformMeta, NebulancePlatformMeta } from "@/lib/adapters/types"
+import type {
+  GazellePlatformMeta,
+  GGnPlatformMeta,
+  NebulancePlatformMeta,
+} from "@/lib/adapters/types"
 import type { Snapshot, TrackerSummary } from "@/types/api"
 
 export type SlotCategory = "badge" | "stat-card" | "progress"

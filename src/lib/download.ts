@@ -31,7 +31,10 @@ export function triggerBlobDownload(blob: Blob, filename: string): void {
  * Convenience: extracts blob + filename from a Response, then triggers download.
  * Combines extractFilename + triggerBlobDownload for the common case.
  */
-export async function downloadResponseBlob(response: Response, fallbackFilename: string): Promise<void> {
+export async function downloadResponseBlob(
+  response: Response,
+  fallbackFilename: string
+): Promise<void> {
   const blob = await response.blob()
   const filename = extractFilename(response, fallbackFilename)
   triggerBlobDownload(blob, filename)

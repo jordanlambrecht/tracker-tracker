@@ -14,7 +14,11 @@ import { buildProxyAgentFromSettings, proxyFetch } from "@/lib/proxy"
 const STALE_MS = 7 * 24 * 60 * 60 * 1000
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
 
-function avatarUrl(platformType: string, remoteUserId: number, avatarRemoteUrl?: string | null): string | null {
+function avatarUrl(
+  platformType: string,
+  remoteUserId: number,
+  avatarRemoteUrl?: string | null
+): string | null {
   if (avatarRemoteUrl) return avatarRemoteUrl
   if (platformType === "ggn") {
     return `https://gazellegames.net/avatars/${remoteUserId}.png`
@@ -22,10 +26,7 @@ function avatarUrl(platformType: string, remoteUserId: number, avatarRemoteUrl?:
   return null
 }
 
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 

@@ -6,7 +6,7 @@
 
 import ReactECharts from "echarts-for-react"
 import { useMemo } from "react"
-import { CHART_THEME } from "@/components/charts/theme"
+import { CHART_THEME, chartTooltip } from "@/components/charts/theme"
 import { hexToRgba } from "@/lib/formatters"
 import type { GazelleRanks } from "@/types/api"
 
@@ -61,21 +61,13 @@ function PercentileRadarChart({ ranks, accentColor }: PercentileRadarChartProps)
           },
         },
       },
-      tooltip: {
-        trigger: "item",
-        backgroundColor: CHART_THEME.tooltipBg,
-        borderColor: CHART_THEME.tooltipBorder,
-        textStyle: {
-          color: CHART_THEME.textPrimary,
-          fontFamily: CHART_THEME.fontMono,
-          fontSize: 12,
-        },
+      tooltip: chartTooltip("item", {
         formatter: (params: { value: number[] }) => {
-          return AXIS_LABELS.map(
-            ({ label }, i) => `${label}: <b>${params.value[i]}th</b>`
-          ).join("<br/>")
+          return AXIS_LABELS.map(({ label }, i) => `${label}: <b>${params.value[i]}th</b>`).join(
+            "<br/>"
+          )
         },
-      },
+      }),
       series: [
         {
           type: "radar",

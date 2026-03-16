@@ -2,19 +2,15 @@
 //
 // Functions: POST
 
-
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { authenticate, decodeKey, parseRouteId } from "@/lib/api-helpers"
-import { decrypt } from "@/lib/crypto"
+import { decryptClientCredentials } from "@/lib/client-decrypt"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
 import { buildBaseUrl, getTransferInfo, invalidateSession, login } from "@/lib/qbt"
 
-export async function POST(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -36,8 +32,7 @@ export async function POST(
   let username: string
   let password: string
   try {
-    username = decrypt(client.encryptedUsername, key)
-    password = decrypt(client.encryptedPassword, key)
+    ;({ username, password } = decryptClientCredentials(client, key))
   } catch {
     return NextResponse.json({ error: "Failed to decrypt credentials" }, { status: 422 })
   }

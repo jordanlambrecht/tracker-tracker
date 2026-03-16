@@ -9,7 +9,7 @@ import { deriveKey } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
 import { startScheduler } from "@/lib/scheduler"
-import { recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"
+import { checkLockout, recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"
 
 export async function POST(request: Request) {
   const [settings] = await db.select().from(appSettings).limit(1)
@@ -17,13 +17,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not configured. Run setup first." }, { status: 400 })
   }
 
-  if (settings.lockedUntil && settings.lockedUntil > new Date()) {
-    const retryAfter = Math.ceil((settings.lockedUntil.getTime() - Date.now()) / 1000)
-    return NextResponse.json(
-      { error: "Too many failed attempts. Try again later.", retryAfter },
-      { status: 429, headers: { "Retry-After": String(retryAfter) } }
-    )
-  }
+  const lockout = checkLockout(settings)
+  if (lockout) return lockout
 
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
@@ -38,8 +33,7 @@ export async function POST(request: Request) {
   if (settings.username) {
     const username = body.username as string | undefined
     usernameOk =
-      typeof username === "string" &&
-      username.toLowerCase() === settings.username.toLowerCase()
+      typeof username === "string" && username.toLowerCase() === settings.username.toLowerCase()
   }
 
   // Always run Argon2 to normalize timing — prevents username oracle

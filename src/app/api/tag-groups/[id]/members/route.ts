@@ -8,10 +8,7 @@ import { authenticate, parseJsonBody, parseRouteId, validateHexColor } from "@/l
 import { db } from "@/lib/db"
 import { tagGroupMembers, tagGroups } from "@/lib/db/schema"
 
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -37,10 +34,7 @@ export async function GET(
   return NextResponse.json(members)
 }
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -108,7 +102,8 @@ export async function POST(
       tag: tag.trim(),
       label: label.trim(),
       color: typeof color === "string" ? color : null,
-      sortOrder: typeof sortOrder === "number" && Number.isFinite(sortOrder) ? Math.floor(sortOrder) : 0,
+      sortOrder:
+        typeof sortOrder === "number" && Number.isFinite(sortOrder) ? Math.floor(sortOrder) : 0,
     })
     .returning()
 

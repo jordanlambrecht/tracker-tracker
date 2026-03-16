@@ -9,9 +9,17 @@ import { useState } from "react"
 import { bytesToGiB, hexToRgba } from "@/lib/formatters"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { fmtNum } from "./chart-helpers"
+import { autoByteScale, fmtNum } from "./chart-helpers"
 import { LogScaleToggle } from "./LogScaleToggle"
-import { CHART_THEME, chartAxisLabel, chartGrid, chartLegend, chartTooltip, escHtml, shouldUseLogScale } from "./theme"
+import {
+  CHART_THEME,
+  chartAxisLabel,
+  chartGrid,
+  chartLegend,
+  chartTooltip,
+  escHtml,
+  shouldUseLogScale,
+} from "./theme"
 
 interface TrackerBubbleData {
   name: string
@@ -60,9 +68,7 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
 
   // Determine scale: GiB or TiB
   const maxGiB = Math.max(...allGiB.map((d) => Math.max(d.uploadGiB, d.downloadGiB)), 0)
-  const useTiB = maxGiB >= 1024
-  const divisor = useTiB ? 1024 : 1
-  const unit = useTiB ? "TiB" : "GiB"
+  const { divisor, unit } = autoByteScale(maxGiB)
 
   // Scale all values to the chosen unit
   const scaled = allGiB.map((d) => ({
@@ -87,10 +93,7 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
   const yLogBounds = useLogY ? logBounds(yValues) : {}
 
   // Compute max seeding count for bubble size scaling
-  const maxSeedingCount = Math.max(
-    ...trackers.map((t) => t.seedingCount ?? 0),
-    0
-  )
+  const maxSeedingCount = Math.max(...trackers.map((t) => t.seedingCount ?? 0), 0)
 
   // Diagonal reference line endpoint — max of all axis values
   const maxAxisVal = Math.max(...scaled.map((d) => Math.max(d.x, d.y)), 1)
@@ -166,8 +169,7 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
         const match = scaled.find((d) => d.tracker.name === p.seriesName)
         const seedingCount = match?.tracker.seedingCount ?? 0
 
-        const ratio =
-          downloadVal > 0 ? (uploadVal / downloadVal).toFixed(2) : "∞"
+        const ratio = downloadVal > 0 ? (uploadVal / downloadVal).toFixed(2) : "∞"
 
         // Glowing swatch — uses hexToRgba for the box-shadow glow
         const glowColor = hexToRgba(color.startsWith("#") ? color : CHART_THEME.neutral, 0.8)
@@ -274,5 +276,5 @@ function TrackerBubbleChart({ trackers, height = 360 }: TrackerBubbleChartProps)
   )
 }
 
-export { TrackerBubbleChart }
 export type { TrackerBubbleChartProps, TrackerBubbleData }
+export { TrackerBubbleChart }

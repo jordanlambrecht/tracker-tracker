@@ -20,7 +20,8 @@ export function UnsatisfiedTorrentsTable({
   requiredSeconds,
   accentColor: _accentColor,
 }: UnsatisfiedTorrentsTableProps) {
-  const pctColor = (p: number) => p < 50 ? CHART_THEME.danger : p < 80 ? CHART_THEME.warn : CHART_THEME.positive
+  const pctColor = (p: number) =>
+    p < 50 ? CHART_THEME.danger : p < 80 ? CHART_THEME.warn : CHART_THEME.positive
 
   const columns: Column<TorrentInfo>[] = [
     {
@@ -41,7 +42,9 @@ export function UnsatisfiedTorrentsTable({
                   }}
                 />
               </div>
-              <span className="text-[10px] font-mono shrink-0" style={{ color: pctColor(pct) }}>{pct.toFixed(0)}%</span>
+              <span className="text-[10px] font-mono shrink-0" style={{ color: pctColor(pct) }}>
+                {pct.toFixed(0)}%
+              </span>
             </div>
           </div>
         )
@@ -52,7 +55,11 @@ export function UnsatisfiedTorrentsTable({
       header: "Size",
       align: "right",
       width: "12%",
-      render: (t) => <span className="text-xs font-mono text-muted whitespace-nowrap">{formatBytesNum(t.size)}</span>,
+      render: (t) => (
+        <span className="text-xs font-mono text-muted whitespace-nowrap">
+          {formatBytesNum(t.size)}
+        </span>
+      ),
     },
     {
       key: "seedTime",

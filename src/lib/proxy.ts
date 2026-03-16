@@ -133,7 +133,10 @@ export interface ProxySettings {
   encryptedProxyPassword: string | null
 }
 
-export function buildProxyAgentFromSettings(settings: ProxySettings, encryptionKey: Buffer): HttpAgent | undefined {
+export function buildProxyAgentFromSettings(
+  settings: ProxySettings,
+  encryptionKey: Buffer
+): HttpAgent | undefined {
   if (!settings.proxyEnabled || !settings.proxyHost) return undefined
 
   if (!VALID_PROXY_TYPES.has(settings.proxyType)) {

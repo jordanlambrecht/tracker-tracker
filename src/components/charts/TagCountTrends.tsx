@@ -9,7 +9,18 @@ import type { FleetSnapshot } from "@/lib/fleet"
 import { extractTagsFromSnapshots } from "@/lib/fleet"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { buildTagColors, CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, formatChartTimestamp } from "./theme"
+import {
+  buildTagColors,
+  CHART_THEME,
+  chartAxisLabel,
+  chartDot,
+  chartGrid,
+  chartLegend,
+  chartTooltip,
+  chartTooltipHeader,
+  escHtml,
+  formatChartTimestamp,
+} from "./theme"
 
 type TagCountMode = "seeding" | "leeching"
 
@@ -74,7 +85,10 @@ function buildOption(snapshots: FleetSnapshot[], mode: TagCountMode): EChartsOpt
     symbol: isSeeding ? "none" : "circle",
     ...(isSeeding ? {} : { symbolSize: 3 }),
     ...(isSeeding ? { areaStyle: { opacity: 0.3 } } : {}),
-    lineStyle: { width: isSeeding ? 2 : 1.5, color: colorMap.get(tag) ?? CHART_THEME.chartFallback },
+    lineStyle: {
+      width: isSeeding ? 2 : 1.5,
+      color: colorMap.get(tag) ?? CHART_THEME.chartFallback,
+    },
     itemStyle: { color: colorMap.get(tag) ?? CHART_THEME.chartFallback },
   }))
 
@@ -147,7 +161,11 @@ function TagCountTrends({ snapshots, mode, height = 360 }: TagCountTrendsProps) 
     return (
       <ChartEmptyState
         height={height}
-        message={mode === "seeding" ? "No tag seeding data available yet." : "No tag leeching data available yet."}
+        message={
+          mode === "seeding"
+            ? "No tag seeding data available yet."
+            : "No tag leeching data available yet."
+        }
       />
     )
   }
@@ -163,5 +181,5 @@ function TagCountTrends({ snapshots, mode, height = 360 }: TagCountTrendsProps) 
   )
 }
 
-export { TagCountTrends }
 export type { TagCountTrendsProps }
+export { TagCountTrends }

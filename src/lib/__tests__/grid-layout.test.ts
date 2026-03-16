@@ -237,7 +237,7 @@ describe("findOptimalLayout4Col.cards (placement)", () => {
 
     // First row cards should be singles/fixed in row 1
     const row1Singles = layout.cards.filter(
-      (c) => c.row === 1 && (c.type === "single" || c.type === "fixed"),
+      (c) => c.row === 1 && (c.type === "single" || c.type === "fixed")
     )
     expect(row1Singles.length).toBeGreaterThanOrEqual(3)
   })

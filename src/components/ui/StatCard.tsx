@@ -97,17 +97,20 @@ function Shell({
   alert?: AlertLevel
   center?: boolean
 }) {
-  const alertColor = alert === "danger" ? CHART_THEME.danger : alert === "warn" ? CHART_THEME.warn : null
+  const alertColor =
+    alert === "danger" ? CHART_THEME.danger : alert === "warn" ? CHART_THEME.warn : null
   const glowColor = alertColor ?? accentOverride ?? accentColor
   return (
     <div
       className={clsx(
         "bg-raised p-5 flex flex-col gap-2 nm-raised-sm rounded-nm-lg overflow-visible relative",
         center && "items-center gap-3",
-        className,
+        className
       )}
       style={{
-        filter: glowColor ? `drop-shadow(0 -2px 12px ${hexToRgba(glowColor, alertColor ? 0.25 : 0.1)})` : undefined,
+        filter: glowColor
+          ? `drop-shadow(0 -2px 12px ${hexToRgba(glowColor, alertColor ? 0.25 : 0.1)})`
+          : undefined,
         outline: alertColor ? `1px solid ${hexToRgba(alertColor, 0.25)}` : undefined,
         outlineOffset: "-1px",
         ...style,
@@ -129,8 +132,15 @@ function Header({
   tooltip,
   alert,
   alertReason,
-}: { label: string; icon?: ReactNode; tooltip?: string; alert?: AlertLevel; alertReason?: string }) {
-  const alertColor = alert === "danger" ? CHART_THEME.danger : alert === "warn" ? CHART_THEME.warn : null
+}: {
+  label: string
+  icon?: ReactNode
+  tooltip?: string
+  alert?: AlertLevel
+  alertReason?: string
+}) {
+  const alertColor =
+    alert === "danger" ? CHART_THEME.danger : alert === "warn" ? CHART_THEME.warn : null
 
   return (
     <div className="flex items-center justify-between">
@@ -181,15 +191,29 @@ const trendConfig: Record<TrendDirection, { symbol: string; colorClass: string; 
   flat: { symbol: "—", colorClass: "text-secondary", label: "No change" },
 }
 
-function BasicContent({ value, unit, trend, subtitle, subValue }: {
-  value: string | number; unit?: string; trend?: TrendDirection; subtitle?: string; subValue?: string
+function BasicContent({
+  value,
+  unit,
+  trend,
+  subtitle,
+  subValue,
+}: {
+  value: string | number
+  unit?: string
+  trend?: TrendDirection
+  subtitle?: string
+  subValue?: string
 }) {
   const trendInfo = trend ? trendConfig[trend] : null
   return (
     <>
       <div className="flex items-end gap-2">
         <span className="font-mono text-2xl font-semibold text-primary leading-none">{value}</span>
-        {unit && <span className="font-mono text-xs font-normal text-muted leading-none mb-0.5">{unit}</span>}
+        {unit && (
+          <span className="font-mono text-xs font-normal text-muted leading-none mb-0.5">
+            {unit}
+          </span>
+        )}
         {trendInfo && (
           <Tooltip content={trendInfo.label}>
             <span className={clsx("font-mono text-sm leading-none mb-1", trendInfo.colorClass)}>
@@ -209,7 +233,15 @@ function BasicContent({ value, unit, trend, subtitle, subValue }: {
 // Stacked variant — multiple label/value rows
 // ---------------------------------------------------------------------------
 
-function StackedContent({ rows, total, sumIsHero }: { rows: StatCardRow[]; total?: StatCardTotal; sumIsHero?: boolean }) {
+function StackedContent({
+  rows,
+  total,
+  sumIsHero,
+}: {
+  rows: StatCardRow[]
+  total?: StatCardTotal
+  sumIsHero?: boolean
+}) {
   return (
     <>
       {sumIsHero && total && (
@@ -217,7 +249,11 @@ function StackedContent({ rows, total, sumIsHero }: { rows: StatCardRow[]; total
           <span className="font-mono text-2xl font-semibold text-primary leading-none tabular-nums">
             {total.value}
           </span>
-          {total.unit && <span className="font-mono text-xs font-normal text-muted leading-none mb-0.5">{total.unit}</span>}
+          {total.unit && (
+            <span className="font-mono text-xs font-normal text-muted leading-none mb-0.5">
+              {total.unit}
+            </span>
+          )}
         </div>
       )}
       <div className="flex flex-col gap-2">
@@ -229,10 +265,19 @@ function StackedContent({ rows, total, sumIsHero }: { rows: StatCardRow[]; total
             <div key={row.label}>
               {i > 0 && <div className="h-px bg-border opacity-50 mb-2" />}
               <div className="flex items-baseline justify-between gap-2">
-                <span className="text-xs font-mono text-muted truncate shrink min-w-0">{row.label}</span>
-                <span className={clsx("font-mono text-lg font-semibold leading-none tabular-nums whitespace-nowrap shrink-0", color)}>
+                <span className="text-xs font-mono text-muted truncate shrink min-w-0">
+                  {row.label}
+                </span>
+                <span
+                  className={clsx(
+                    "font-mono text-lg font-semibold leading-none tabular-nums whitespace-nowrap shrink-0",
+                    color
+                  )}
+                >
                   {display}
-                  {row.unit && <span className="text-xs font-normal text-muted ml-1">{row.unit}</span>}
+                  {row.unit && (
+                    <span className="text-xs font-normal text-muted ml-1">{row.unit}</span>
+                  )}
                 </span>
               </div>
             </div>
@@ -244,7 +289,9 @@ function StackedContent({ rows, total, sumIsHero }: { rows: StatCardRow[]; total
           <div className="h-px bg-border opacity-50" />
           <div className="flex items-baseline justify-between">
             <span className="text-xs font-mono text-tertiary">{total.label}</span>
-            <span className="font-mono text-xl font-semibold leading-none text-primary tabular-nums">{total.value}</span>
+            <span className="font-mono text-xl font-semibold leading-none text-primary tabular-nums">
+              {total.value}
+            </span>
           </div>
         </>
       )}
@@ -262,8 +309,14 @@ function getDeadlineColor(progress: number, accent: string): string {
   return accent
 }
 
-function RingContent({ lastAccessAt, loginIntervalDays, accentColor }: {
-  lastAccessAt: string; loginIntervalDays: number; accentColor: string
+function RingContent({
+  lastAccessAt,
+  loginIntervalDays,
+  accentColor,
+}: {
+  lastAccessAt: string
+  loginIntervalDays: number
+  accentColor: string
 }) {
   const now = Date.now()
   const lastAccess = new Date(lastAccessAt).getTime()
@@ -284,7 +337,11 @@ function RingContent({ lastAccessAt, loginIntervalDays, accentColor }: {
   const dashOffset = circumference * progress
 
   const deadlineDate = new Date(lastAccess + totalMs)
-  const deadlineDateStr = deadlineDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+  const deadlineDateStr = deadlineDate.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })
 
   const days = Math.floor(remainingMs / (1000 * 60 * 60 * 24))
   const hours = Math.floor(remainingMs / (1000 * 60 * 60))
@@ -294,20 +351,50 @@ function RingContent({ lastAccessAt, loginIntervalDays, accentColor }: {
   return (
     <>
       <div className="relative" style={{ width: size, height: size }}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden="true">
-          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={strokeWidth} />
-          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round"
-            strokeDasharray={circumference} strokeDashoffset={dashOffset}
-            style={{ transition: "stroke-dashoffset 0.5s ease, stroke 0.3s ease", filter: `drop-shadow(0 0 4px ${hexToRgba(color, 0.5)})` }}
+        <svg
+          width={size}
+          height={size}
+          viewBox={`0 0 ${size} ${size}`}
+          className="-rotate-90"
+          aria-hidden="true"
+        >
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke="rgba(255,255,255,0.08)"
+            strokeWidth={strokeWidth}
+          />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={dashOffset}
+            style={{
+              transition: "stroke-dashoffset 0.5s ease, stroke 0.3s ease",
+              filter: `drop-shadow(0 0 4px ${hexToRgba(color, 0.5)})`,
+            }}
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="font-mono text-lg font-bold leading-none" style={{ color }}>{valueText}</span>
-          {!isOverdue && <span className="font-mono text-[10px] text-muted mt-0.5">{unitText}</span>}
+          <span className="font-mono text-lg font-bold leading-none" style={{ color }}>
+            {valueText}
+          </span>
+          {!isOverdue && (
+            <span className="font-mono text-[10px] text-muted mt-0.5">{unitText}</span>
+          )}
         </div>
       </div>
       <p className="font-mono text-[10px] text-muted text-center">
-        {isOverdue ? `${overdueDays} ${overdueDays === 1 ? "day" : "days"} overdue` : `by ${deadlineDateStr}`}
+        {isOverdue
+          ? `${overdueDays} ${overdueDays === 1 ? "day" : "days"} overdue`
+          : `by ${deadlineDateStr}`}
       </p>
     </>
   )
@@ -329,9 +416,26 @@ function StatCard(props: StatCardProps) {
     })()
     const ringColor = getDeadlineColor(progress, accentColor ?? CHART_THEME.accent)
     return (
-      <Shell accentColor={accentColor} accentOverride={ringColor} alert={alert} className={className} style={style} center>
-        <Header label={props.title ?? "Login Deadline"} icon={icon} tooltip={props.tooltip} alert={alert} alertReason={alertReason} />
-        <RingContent lastAccessAt={props.lastAccessAt} loginIntervalDays={props.loginIntervalDays} accentColor={accentColor ?? CHART_THEME.accent} />
+      <Shell
+        accentColor={accentColor}
+        accentOverride={ringColor}
+        alert={alert}
+        className={className}
+        style={style}
+        center
+      >
+        <Header
+          label={props.title ?? "Login Deadline"}
+          icon={icon}
+          tooltip={props.tooltip}
+          alert={alert}
+          alertReason={alertReason}
+        />
+        <RingContent
+          lastAccessAt={props.lastAccessAt}
+          loginIntervalDays={props.loginIntervalDays}
+          accentColor={accentColor ?? CHART_THEME.accent}
+        />
       </Shell>
     )
   }
@@ -339,7 +443,13 @@ function StatCard(props: StatCardProps) {
   if (props.type === "stacked") {
     return (
       <Shell accentColor={accentColor} alert={alert} className={className} style={style}>
-        <Header label={props.title} icon={icon} tooltip={props.tooltip} alert={alert} alertReason={alertReason} />
+        <Header
+          label={props.title}
+          icon={icon}
+          tooltip={props.tooltip}
+          alert={alert}
+          alertReason={alertReason}
+        />
         <StackedContent rows={props.rows} total={props.total} sumIsHero={props.sumIsHero} />
       </Shell>
     )
@@ -348,11 +458,32 @@ function StatCard(props: StatCardProps) {
   // Default: basic
   return (
     <Shell accentColor={accentColor} alert={alert} className={className} style={style} {...rest}>
-      <Header label={props.label} icon={icon} tooltip={props.tooltip} alert={alert} alertReason={alertReason} />
-      <BasicContent value={props.value} unit={props.unit} trend={props.trend} subtitle={props.subtitle} subValue={props.subValue} />
+      <Header
+        label={props.label}
+        icon={icon}
+        tooltip={props.tooltip}
+        alert={alert}
+        alertReason={alertReason}
+      />
+      <BasicContent
+        value={props.value}
+        unit={props.unit}
+        trend={props.trend}
+        subtitle={props.subtitle}
+        subValue={props.subValue}
+      />
     </Shell>
   )
 }
 
+export type {
+  AlertLevel,
+  StatCardBasicProps,
+  StatCardProps,
+  StatCardRingProps,
+  StatCardRow,
+  StatCardStackedProps,
+  StatCardTotal,
+  TrendDirection,
+}
 export { StatCard }
-export type { AlertLevel, StatCardProps, StatCardBasicProps, StatCardStackedProps, StatCardRingProps, StatCardRow, StatCardTotal, TrendDirection }

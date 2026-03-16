@@ -41,11 +41,9 @@ interface TableProps<T> {
   noHorizontalScroll?: boolean
 }
 
-const thBase =
-  "px-5 py-3 text-xs font-sans font-medium text-secondary uppercase tracking-wider"
+const thBase = "px-5 py-3 text-xs font-sans font-medium text-secondary uppercase tracking-wider"
 
-const thSortable =
-  "cursor-pointer hover:text-primary transition-colors duration-150 select-none"
+const thSortable = "cursor-pointer hover:text-primary transition-colors duration-150 select-none"
 
 const surfaceClasses: Record<TableSurface, string> = {
   inset: "nm-inset-sm",
@@ -76,14 +74,17 @@ function Table<T>({
 
   const hasSorting = columns.some((c) => c.sortable)
 
-  const handleSort = useCallback((key: string) => {
-    if (key === sortKey) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"))
-    } else {
-      setSortKey(key)
-      setSortDir("desc")
-    }
-  }, [sortKey])
+  const handleSort = useCallback(
+    (key: string) => {
+      if (key === sortKey) {
+        setSortDir((d) => (d === "asc" ? "desc" : "asc"))
+      } else {
+        setSortKey(key)
+        setSortDir("desc")
+      }
+    },
+    [sortKey]
+  )
 
   const sortedData = (() => {
     if (!hasSorting || !sortKey) return data
@@ -103,9 +104,23 @@ function Table<T>({
   })()
 
   return (
-    <Card elevation="raised" className={clsx("!p-0 overflow-hidden", sortedData.length === 0 && "flex flex-col", className)}>
+    <Card
+      elevation="raised"
+      className={clsx(
+        "!p-0 overflow-hidden",
+        sortedData.length === 0 && "flex flex-col",
+        className
+      )}
+    >
       <div
-        className={clsx(surfaceClasses[surface], "overflow-hidden rounded-nm-lg", !noHorizontalScroll && "overflow-x-auto", noHorizontalScroll && "pr-1", maxHeight && "overflow-y-auto overscroll-contain styled-scrollbar", sortedData.length === 0 && "flex-1 flex items-center justify-center")}
+        className={clsx(
+          surfaceClasses[surface],
+          "overflow-hidden rounded-nm-lg",
+          !noHorizontalScroll && "overflow-x-auto",
+          noHorizontalScroll && "pr-1",
+          maxHeight && "overflow-y-auto overscroll-contain styled-scrollbar",
+          sortedData.length === 0 && "flex-1 flex items-center justify-center"
+        )}
         style={maxHeight ? { maxHeight } : undefined}
       >
         {sortedData.length > 0 ? (
@@ -116,18 +131,18 @@ function Table<T>({
                   <th
                     key={col.key}
                     className={clsx(
-                      compact ? "px-3 py-2.5 text-xs font-sans font-medium text-secondary uppercase tracking-wider" : thBase,
+                      compact
+                        ? "px-3 py-2.5 text-xs font-sans font-medium text-secondary uppercase tracking-wider"
+                        : thBase,
                       col.align === "right" && "text-right",
-                      col.sortable && thSortable,
+                      col.sortable && thSortable
                     )}
                     style={col.width ? { width: col.width } : undefined}
                     onClick={col.sortable ? () => handleSort(col.key) : undefined}
                   >
                     {col.header}
                     {col.sortable && sortKey === col.key && (
-                      <span className="ml-1 text-accent">
-                        {sortDir === "asc" ? "▲" : "▼"}
-                      </span>
+                      <span className="ml-1 text-accent">{sortDir === "asc" ? "▲" : "▼"}</span>
                     )}
                   </th>
                 ))}
@@ -139,7 +154,7 @@ function Table<T>({
                   key={keyExtractor(item)}
                   className={clsx(
                     i < sortedData.length - 1 && "border-b border-border",
-                    onRowClick && "cursor-pointer hover:bg-elevated transition-colors duration-150",
+                    onRowClick && "cursor-pointer hover:bg-elevated transition-colors duration-150"
                   )}
                   style={rowStyle?.(item)}
                   onClick={onRowClick ? () => onRowClick(item) : undefined}
@@ -147,7 +162,11 @@ function Table<T>({
                   {columns.map((col) => (
                     <td
                       key={col.key}
-                      className={clsx(compact ? "px-3 py-2.5" : "px-5 py-3", col.align === "right" && "text-right", fixedLayout && "overflow-hidden")}
+                      className={clsx(
+                        compact ? "px-3 py-2.5" : "px-5 py-3",
+                        col.align === "right" && "text-right",
+                        fixedLayout && "overflow-hidden"
+                      )}
                     >
                       {col.render(item, i)}
                     </td>
@@ -164,5 +183,5 @@ function Table<T>({
   )
 }
 
+export type { Column, SortDirection, TableProps, TableSurface }
 export { Table }
-export type { TableProps, Column, TableSurface, SortDirection }

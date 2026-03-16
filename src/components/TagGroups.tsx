@@ -5,8 +5,14 @@
 "use client"
 
 import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core"
-import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
+import { H2, H3, Paragraph } from "@typography"
 import clsx from "clsx"
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/Button"
@@ -14,9 +20,9 @@ import { Card } from "@/components/ui/Card"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { EmojiPickerPopover } from "@/components/ui/EmojiPickerPopover"
 import { Input } from "@/components/ui/Input"
+import { QBT_TAG_WARN_PATTERN } from "@/components/ui/QbtTagWarning"
 import { Toggle } from "@/components/ui/Toggle"
 import { Tooltip } from "@/components/ui/Tooltip"
-import { H2, H3, Paragraph } from "@/components/ui/Typography"
 import type { TagGroup, TagGroupChartType } from "@/types/api"
 
 const CHART_TYPE_OPTIONS: { value: TagGroupChartType; label: string }[] = [
@@ -26,12 +32,9 @@ const CHART_TYPE_OPTIONS: { value: TagGroupChartType; label: string }[] = [
   { value: "numbers", label: "Numbers" },
 ]
 
-// Characters that are problematic in qBT tag names
-const TAG_WARN_PATTERN = /[+&#%?]/
-
 function tagWarning(tag: string): string | null {
-  if (TAG_WARN_PATTERN.test(tag)) {
-    return `Tag contains a special character (${tag.match(TAG_WARN_PATTERN)?.[0]}). qBittorrent may not recognise it.`
+  if (QBT_TAG_WARN_PATTERN.test(tag)) {
+    return `Tag contains a special character (${tag.match(QBT_TAG_WARN_PATTERN)?.[0]}). qBittorrent may not recognise it.`
   }
   return null
 }
@@ -89,17 +92,16 @@ function AddTagGroupForm({ onCreated, onCancel }: AddTagGroupFormProps) {
           <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
             Emoji
           </span>
-          <EmojiPickerPopover
-            value={emoji}
-            onChange={setEmoji}
-            disabled={saving}
-          />
+          <EmojiPickerPopover value={emoji} onChange={setEmoji} disabled={saving} />
         </div>
         <div className="flex-1">
           <Input
             label="Group Name"
             value={name}
-            onChange={(e) => { setName(e.target.value); setError(null) }}
+            onChange={(e) => {
+              setName(e.target.value)
+              setError(null)
+            }}
             onKeyDown={handleKeyDown}
             placeholder="i.e Cross-Seed, Tracker Upload"
             disabled={saving}
@@ -158,13 +160,24 @@ interface MemberRowProps {
   dragHandle?: boolean
 }
 
-function MemberRow({ tag, label, onTagChange, onLabelChange, onRemove, disabled, dragHandle }: MemberRowProps) {
+function MemberRow({
+  tag,
+  label,
+  onTagChange,
+  onLabelChange,
+  onRemove,
+  disabled,
+  dragHandle,
+}: MemberRowProps) {
   const warn = tagWarning(tag)
   return (
     <div className="flex flex-col gap-1">
       <div className="nm-inset-sm flex items-center gap-3 px-3 py-2 bg-control-bg rounded-nm-md">
         {dragHandle && (
-          <span className="text-tertiary shrink-0 text-sm leading-none select-none cursor-grab active:cursor-grabbing" aria-hidden="true">
+          <span
+            className="text-tertiary shrink-0 text-sm leading-none select-none cursor-grab active:cursor-grabbing"
+            aria-hidden="true"
+          >
             ⠿
           </span>
         )}
@@ -232,13 +245,23 @@ interface NewMemberRowProps {
   disabled?: boolean
 }
 
-function NewMemberRow({ tag, label, onTagChange, onLabelChange, onRemove, disabled }: NewMemberRowProps) {
+function NewMemberRow({
+  tag,
+  label,
+  onTagChange,
+  onLabelChange,
+  onRemove,
+  disabled,
+}: NewMemberRowProps) {
   const warn = tag ? tagWarning(tag) : null
 
   return (
     <div className="flex flex-col gap-1">
       <div className="nm-inset-sm flex items-center gap-3 px-3 py-2 bg-control-bg border border-dashed border-border rounded-nm-md">
-        <span className="text-transparent shrink-0 text-sm leading-none select-none" aria-hidden="true">
+        <span
+          className="text-transparent shrink-0 text-sm leading-none select-none"
+          aria-hidden="true"
+        >
           ⠿
         </span>
         <div className="flex-1 min-w-0">
@@ -360,8 +383,15 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
       await fetch(`/api/tag-groups/${group.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: trimmedName, emoji: emoji.trim() || null, chartType, countUnmatched }),
-      }).then((r) => { if (!r.ok) throw new Error("Failed to save group") })
+        body: JSON.stringify({
+          name: trimmedName,
+          emoji: emoji.trim() || null,
+          chartType,
+          countUnmatched,
+        }),
+      }).then((r) => {
+        if (!r.ok) throw new Error("Failed to save group")
+      })
 
       const currentIds = new Set(members.filter((m) => m.id !== null).map((m) => m.id))
       const removedMembers = group.members.filter((m) => !currentIds.has(m.id))
@@ -451,11 +481,18 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
           if ((e.target as HTMLElement).closest("input")) return
           setExpanded((v) => !v)
         }}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpanded((v) => !v) } }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            setExpanded((v) => !v)
+          }
+        }}
         aria-expanded={expanded}
       >
         {emoji && (
-          <span className="text-base shrink-0" aria-hidden="true">{emoji}</span>
+          <span className="text-base shrink-0" aria-hidden="true">
+            {emoji}
+          </span>
         )}
 
         {editingName ? (
@@ -475,7 +512,10 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
             {/* biome-ignore lint/a11y/noStaticElementInteractions: double-click to rename is a progressive enhancement */}
             <span
               className="flex-1 font-sans text-sm font-semibold text-primary min-w-0 truncate text-left"
-              onDoubleClick={(e) => { e.stopPropagation(); setEditingName(true) }}
+              onDoubleClick={(e) => {
+                e.stopPropagation()
+                setEditingName(true)
+              }}
             >
               {name}
             </span>
@@ -483,7 +523,9 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
         )}
 
         {isDirty && (
-          <Tooltip content="Unsaved changes"><span className="w-1.5 h-1.5 rounded-full bg-accent shrink-0" /></Tooltip>
+          <Tooltip content="Unsaved changes">
+            <span className="w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
+          </Tooltip>
         )}
 
         <span className="text-xs font-mono text-tertiary shrink-0">
@@ -556,15 +598,19 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
           {/* Sortable saved members + unsaved new rows */}
           <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={savedSortIds} strategy={verticalListSortingStrategy}>
-              {members.map((m, i) => (
+              {members.map((m, i) =>
                 m.id !== null ? (
                   <SortableMemberRow
                     key={sortIds[i]}
                     sortId={sortIds[i]}
                     tag={m.tag}
                     label={m.label}
-                    onTagChange={(v) => setMembers((prev) => prev.map((p, j) => j === i ? { ...p, tag: v } : p))}
-                    onLabelChange={(v) => setMembers((prev) => prev.map((p, j) => j === i ? { ...p, label: v } : p))}
+                    onTagChange={(v) =>
+                      setMembers((prev) => prev.map((p, j) => (j === i ? { ...p, tag: v } : p)))
+                    }
+                    onLabelChange={(v) =>
+                      setMembers((prev) => prev.map((p, j) => (j === i ? { ...p, label: v } : p)))
+                    }
                     onRemove={() => handleRemoveMember(i)}
                     disabled={saving}
                   />
@@ -573,13 +619,17 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
                     key={sortIds[i]}
                     tag={m.tag}
                     label={m.label}
-                    onTagChange={(v) => setMembers((prev) => prev.map((p, j) => j === i ? { ...p, tag: v } : p))}
-                    onLabelChange={(v) => setMembers((prev) => prev.map((p, j) => j === i ? { ...p, label: v } : p))}
+                    onTagChange={(v) =>
+                      setMembers((prev) => prev.map((p, j) => (j === i ? { ...p, tag: v } : p)))
+                    }
+                    onLabelChange={(v) =>
+                      setMembers((prev) => prev.map((p, j) => (j === i ? { ...p, label: v } : p)))
+                    }
                     onRemove={() => handleRemoveMember(i)}
                     disabled={saving}
                   />
                 )
-              ))}
+              )}
             </SortableContext>
           </DndContext>
 
@@ -597,22 +647,21 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
 
           {/* Footer: Delete + Save */}
           {saveError && (
-            <p className="text-xs font-sans text-danger px-1" role="alert">{saveError}</p>
+            <p className="text-xs font-sans text-danger px-1" role="alert">
+              {saveError}
+            </p>
           )}
           {deleteError && (
-            <p className="text-xs font-sans text-danger px-1" role="alert">{deleteError}</p>
+            <p className="text-xs font-sans text-danger px-1" role="alert">
+              {deleteError}
+            </p>
           )}
           <div className="flex items-center justify-between gap-3">
             <div>
               {confirmDelete ? (
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-sans text-warn">Delete this group?</span>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onClick={handleDelete}
-                    disabled={deleting}
-                  >
+                  <Button size="sm" variant="danger" onClick={handleDelete} disabled={deleting}>
                     {deleting ? "Deleting…" : "Confirm"}
                   </Button>
                   <Button
@@ -701,14 +750,12 @@ function TagGroups() {
       </div>
 
       <Paragraph className="mb-6">
-        Bundle qBittorrent tags into named groups for breakdown charts on each tracker&apos;s Torrents tab.
+        Bundle qBittorrent tags into named groups for breakdown charts on each tracker&apos;s
+        Torrents tab.
       </Paragraph>
 
       {showAddForm && (
-        <AddTagGroupForm
-          onCreated={handleCreated}
-          onCancel={() => setShowAddForm(false)}
-        />
+        <AddTagGroupForm onCreated={handleCreated} onCancel={() => setShowAddForm(false)} />
       )}
 
       {loading ? (

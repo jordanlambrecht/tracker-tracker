@@ -55,9 +55,7 @@ function NumberInput({
           {label}
         </label>
       )}
-      <div
-        className="inline-flex items-stretch nm-inset-sm overflow-hidden rounded-nm-sm"
-      >
+      <div className="inline-flex items-stretch nm-inset-sm overflow-hidden rounded-nm-sm">
         <input
           id={inputId}
           type="text"
@@ -71,7 +69,7 @@ function NumberInput({
             "w-12 text-center font-mono text-xs text-primary",
             "bg-control-bg py-2 px-1",
             "border-0 focus:outline-none",
-            "disabled:opacity-40 disabled:cursor-not-allowed",
+            "disabled:opacity-40 disabled:cursor-not-allowed"
           )}
           aria-valuenow={value}
           aria-valuemin={min}
@@ -89,7 +87,7 @@ function NumberInput({
               "hover:text-primary hover:bg-overlay",
               "transition-colors duration-100 cursor-pointer",
               "disabled:opacity-30 disabled:cursor-not-allowed",
-              "border-b border-border",
+              "border-b border-border"
             )}
             aria-label="Increase"
           >
@@ -105,7 +103,7 @@ function NumberInput({
               "bg-control-bg text-tertiary",
               "hover:text-primary hover:bg-overlay",
               "transition-colors duration-100 cursor-pointer",
-              "disabled:opacity-30 disabled:cursor-not-allowed",
+              "disabled:opacity-30 disabled:cursor-not-allowed"
             )}
             aria-label="Decrease"
           >
@@ -117,5 +115,5 @@ function NumberInput({
   )
 }
 
-export { NumberInput }
 export type { NumberInputProps }
+export { NumberInput }

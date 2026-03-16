@@ -95,6 +95,7 @@ vi.mock("@/lib/logger", () => ({
 }))
 
 vi.mock("@/lib/wipe", () => ({
+  checkLockout: vi.fn().mockReturnValue(null),
   recordFailedAttempt: vi.fn(),
   resetFailedAttempts: vi.fn(),
   scrubAndDeleteAll: vi.fn(),
@@ -133,7 +134,6 @@ vi.mock("@/lib/qbt", () => ({
   login: vi.fn().mockResolvedValue("sid"),
   withSessionRetry: vi.fn().mockResolvedValue([]),
   aggregateByTag: vi.fn().mockReturnValue({}),
-  filterAndDedup: vi.fn().mockReturnValue([]),
   getSpeedSnapshots: vi.fn().mockReturnValue([]),
   pushSpeedSnapshot: vi.fn(),
   clearSpeedCache: vi.fn(),
@@ -146,6 +146,7 @@ vi.mock("@/lib/qbt/merge", () => ({
 
 vi.mock("@/lib/privacy-db", () => ({
   createPrivacyMask: vi.fn(async () => (v: string | null | undefined) => v ?? null),
+  createPrivacyMaskSync: vi.fn().mockReturnValue((v: string | null | undefined) => v ?? null),
 }))
 
 vi.mock("@/data/tracker-registry", () => ({
@@ -646,19 +647,17 @@ describe("Token leakage prevention", () => {
     // Call 1: db.select().from(trackers).orderBy(trackers.createdAt)
     const mockOrderBy = vi.fn().mockResolvedValue([tracker])
     const mockFrom = vi.fn().mockReturnValue({ orderBy: mockOrderBy })
-    // Call 2+: per-tracker snapshot queries (db.select().from(snapshots).where(...).orderBy(...).limit(1))
-    const mockSnapshotChain = {
-      from: vi.fn().mockReturnValue({
-        where: vi.fn().mockReturnValue({
-          orderBy: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue([]),
-          }),
-        }),
-      }),
-    }
+    // Call 2: db.select({storeUsernames}).from(appSettings).limit(1)
+    const mockSettingsLimit = vi.fn().mockResolvedValue([{ storeUsernames: true }])
+    const mockSettingsFrom = vi.fn().mockReturnValue({ limit: mockSettingsLimit })
+    // Call 3: db.select().from(trackerSnapshots).where(sql`...`) — batch snapshot query
+    const mockSnapshotWhere = vi.fn().mockResolvedValue([])
+    const mockSnapshotFrom = vi.fn().mockReturnValue({ where: mockSnapshotWhere })
+
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFrom })
-      .mockReturnValue(mockSnapshotChain)
+      .mockReturnValueOnce({ from: mockSettingsFrom })
+      .mockReturnValueOnce({ from: mockSnapshotFrom })
 
     const res = await GET()
     const body = await res.json()
@@ -696,19 +695,26 @@ describe("Token leakage prevention", () => {
       apiPath: "/api/user",
     }
 
-    // First select: tracker detail (route uses explicit column allowlist)
-    const mockTrackerWhere = vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue([trackerRow]) })
+    // Call 1: tracker detail with explicit column allowlist
+    const mockTrackerWhere = vi
+      .fn()
+      .mockReturnValue({ limit: vi.fn().mockResolvedValue([trackerRow]) })
     const mockTrackerFrom = vi.fn().mockReturnValue({ where: mockTrackerWhere })
 
-    // Second select: latest snapshot
+    // Call 2: latest snapshot
     const mockSnapshotWhere = vi.fn().mockReturnValue({
       orderBy: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue([]) }),
     })
     const mockSnapshotFrom = vi.fn().mockReturnValue({ where: mockSnapshotWhere })
 
+    // Call 3: appSettings for privacy
+    const mockSettingsLimit = vi.fn().mockResolvedValue([{ storeUsernames: true }])
+    const mockSettingsFrom = vi.fn().mockReturnValue({ limit: mockSettingsLimit })
+
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockTrackerFrom })
       .mockReturnValueOnce({ from: mockSnapshotFrom })
+      .mockReturnValueOnce({ from: mockSettingsFrom })
 
     const req = makeRequest("http://localhost/api/trackers/1")
     const res = await TrackerDetailGET(req, { params: MOCK_PARAMS })

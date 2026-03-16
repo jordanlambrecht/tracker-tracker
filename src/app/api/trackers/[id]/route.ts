@@ -4,101 +4,51 @@
 
 import { desc, eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseJsonBody, parseTrackerId, validateHexColor, validateHttpUrl } from "@/lib/api-helpers"
+import {
+  authenticate,
+  decodeKey,
+  parseJsonBody,
+  parseTrackerId,
+  validateHexColor,
+  validateHttpUrl,
+} from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { trackerSnapshots, trackers } from "@/lib/db/schema"
-import { createPrivacyMask } from "@/lib/privacy-db"
+import { appSettings, trackerSnapshots, trackers } from "@/lib/db/schema"
+import { createPrivacyMaskSync } from "@/lib/privacy-db"
+import { serializeTrackerResponse } from "@/lib/tracker-serializer"
 
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
   const trackerId = await parseTrackerId(params)
   if (trackerId instanceof NextResponse) return trackerId
 
-  const [tracker] = await db
-    .select({
-      id: trackers.id,
-      name: trackers.name,
-      baseUrl: trackers.baseUrl,
-      platformType: trackers.platformType,
-      isActive: trackers.isActive,
-      lastPolledAt: trackers.lastPolledAt,
-      lastError: trackers.lastError,
-      color: trackers.color,
-      qbtTag: trackers.qbtTag,
-      useProxy: trackers.useProxy,
-      countCrossSeedUnsatisfied: trackers.countCrossSeedUnsatisfied,
-      isFavorite: trackers.isFavorite,
-      sortOrder: trackers.sortOrder,
-      joinedAt: trackers.joinedAt,
-      lastAccessAt: trackers.lastAccessAt,
-      remoteUserId: trackers.remoteUserId,
-      platformMeta: trackers.platformMeta,
-      createdAt: trackers.createdAt,
-    })
-    .from(trackers)
-    .where(eq(trackers.id, trackerId))
-    .limit(1)
+  const [[tracker], [latest], [privacySettings]] = await Promise.all([
+    db.select().from(trackers).where(eq(trackers.id, trackerId)).limit(1),
+    db
+      .select()
+      .from(trackerSnapshots)
+      .where(eq(trackerSnapshots.trackerId, trackerId))
+      .orderBy(desc(trackerSnapshots.polledAt))
+      .limit(1),
+    db.select({ storeUsernames: appSettings.storeUsernames }).from(appSettings).limit(1),
+  ])
 
   if (!tracker) {
     return NextResponse.json({ error: "Tracker not found" }, { status: 404 })
   }
 
-  const [latest] = await db
-    .select()
-    .from(trackerSnapshots)
-    .where(eq(trackerSnapshots.trackerId, trackerId))
-    .orderBy(desc(trackerSnapshots.polledAt))
-    .limit(1)
+  // Fallback true = "store usernames" = no masking. Matches createPrivacyMask()
+  // behavior when no settings row exists. Do NOT change to false.
+  const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
 
-  const mask = await createPrivacyMask()
-
-  return NextResponse.json({
-    id: tracker.id,
-    name: tracker.name,
-    baseUrl: tracker.baseUrl,
-    platformType: tracker.platformType,
-    isActive: tracker.isActive,
-    lastPolledAt: tracker.lastPolledAt,
-    lastError: tracker.lastError,
-    color: tracker.color,
-    qbtTag: tracker.qbtTag,
-    useProxy: tracker.useProxy,
-    countCrossSeedUnsatisfied: tracker.countCrossSeedUnsatisfied,
-    isFavorite: tracker.isFavorite,
-    sortOrder: tracker.sortOrder,
-    joinedAt: tracker.joinedAt,
-    lastAccessAt: tracker.lastAccessAt ?? null,
-    remoteUserId: tracker.remoteUserId ?? null,
-    // security-audit-ignore: malformed platformMeta falls back to null — non-critical display field
-    platformMeta: (() => { try { return tracker.platformMeta ? JSON.parse(tracker.platformMeta) : null } catch { return null } })(),
-    createdAt: tracker.createdAt?.toISOString() ?? new Date().toISOString(),
-    latestStats: latest
-      ? {
-          ratio: latest.ratio,
-          uploadedBytes: latest.uploadedBytes?.toString(),
-          downloadedBytes: latest.downloadedBytes?.toString(),
-          seedingCount: latest.seedingCount,
-          leechingCount: latest.leechingCount,
-          requiredRatio: latest.requiredRatio ?? null,
-          warned: latest.warned ?? null,
-          freeleechTokens: latest.freeleechTokens ?? null,
-          username: mask(latest.username),
-          group: mask(latest.group),
-        }
-      : null,
-  })
+  // security-audit-ignore: serializeTrackerResponse omits encryptedApiToken by design
+  return NextResponse.json(serializeTrackerResponse(tracker, latest ?? null, mask))
 }
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -133,13 +83,17 @@ export async function PATCH(
 
   if (typeof body.qbtTag === "string") {
     if (body.qbtTag.length > 100) {
-      return NextResponse.json({ error: "qBittorrent tag must be 100 characters or fewer" }, { status: 400 })
+      return NextResponse.json(
+        { error: "qBittorrent tag must be 100 characters or fewer" },
+        { status: 400 }
+      )
     }
     updates.qbtTag = body.qbtTag.trim() || null
   }
 
   if (typeof body.useProxy === "boolean") updates.useProxy = body.useProxy
-  if (typeof body.countCrossSeedUnsatisfied === "boolean") updates.countCrossSeedUnsatisfied = body.countCrossSeedUnsatisfied
+  if (typeof body.countCrossSeedUnsatisfied === "boolean")
+    updates.countCrossSeedUnsatisfied = body.countCrossSeedUnsatisfied
   if (typeof body.isFavorite === "boolean") updates.isFavorite = body.isFavorite
 
   if (body.joinedAt !== undefined) {
@@ -157,24 +111,21 @@ export async function PATCH(
 
   if (typeof body.apiToken === "string") {
     if (body.apiToken.length > 500) {
-      return NextResponse.json({ error: "API token must be 500 characters or fewer" }, { status: 400 })
+      return NextResponse.json(
+        { error: "API token must be 500 characters or fewer" },
+        { status: 400 }
+      )
     }
     const key = decodeKey(auth)
     updates.encryptedApiToken = encrypt(body.apiToken, key)
   }
 
-  await db
-    .update(trackers)
-    .set(updates)
-    .where(eq(trackers.id, trackerId))
+  await db.update(trackers).set(updates).where(eq(trackers.id, trackerId))
 
   return NextResponse.json({ success: true })
 }
 
-export async function DELETE(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 

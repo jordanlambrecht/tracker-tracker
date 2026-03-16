@@ -5,7 +5,7 @@
 //            CheckIcon, CheckLargeIcon, CopyIcon, UploadArrowIcon, DownloadArrowIcon,
 //            UserIcon, PlusIcon, ActivityIcon, ShareScoreIcon, ShieldIcon, StarIcon,
 //            LeechingIcon, SeedingIcon, TriangleWarningIcon, RatioIcon, GridIcon,
-//            BoltIcon, ClockIcon, BoxIcon, ServerIcon, TagIcon, BugIcon, XIcon
+//            ClockIcon, BoxIcon, ServerIcon, TagIcon, BugIcon, XIcon
 
 import type { SVGProps } from "react"
 
@@ -511,24 +511,6 @@ function GridIcon(props: IconProps) {
   )
 }
 
-// Bolt / lightning — used in TorrentsTab speed stat
-function BoltIcon(props: IconProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      {...props}
-    >
-      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-    </svg>
-  )
-}
-
 // Clock — used in TorrentsTab stale-torrent stat
 function ClockIcon(props: IconProps) {
   return (
@@ -654,37 +636,36 @@ function XIcon(props: IconProps) {
 }
 
 export {
-  ExternalLinkIcon,
-  ExternalLinkSmallIcon,
-  ChevronUpIcon,
-  ChevronUpSmallIcon,
-  ChevronDownSmallIcon,
-  EyeOffIcon,
-  EyeIcon,
-  GearIcon,
-  HamburgerIcon,
+  ActivityIcon,
+  BoxIcon,
+  BugIcon,
   CheckIcon,
   CheckLargeIcon,
+  ChevronDownSmallIcon,
+  ChevronUpIcon,
+  ChevronUpSmallIcon,
+  ClockIcon,
   CopyIcon,
-  UploadArrowIcon,
   DownloadArrowIcon,
-  UserIcon,
+  ExternalLinkIcon,
+  ExternalLinkSmallIcon,
+  EyeIcon,
+  EyeOffIcon,
+  GearIcon,
+  GridIcon,
+  HamburgerIcon,
+  LeechingIcon,
   PlusIcon,
-  ActivityIcon,
+  RatioIcon,
+  RequiredRatioIcon,
+  SeedingIcon,
+  ServerIcon,
   ShareScoreIcon,
   ShieldIcon,
   StarIcon,
-  LeechingIcon,
-  SeedingIcon,
-  TriangleWarningIcon,
-  RatioIcon,
-  RequiredRatioIcon,
-  GridIcon,
-  BoltIcon,
-  ClockIcon,
-  BoxIcon,
-  ServerIcon,
   TagIcon,
-  BugIcon,
+  TriangleWarningIcon,
+  UploadArrowIcon,
+  UserIcon,
   XIcon,
 }

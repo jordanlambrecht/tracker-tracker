@@ -1,10 +1,11 @@
 // src/app/setup/page.tsx
 "use client"
 
+import { H2 } from "@typography"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { type FormEvent, useEffect, useState } from "react"
-import { Button, Card, H2, Input } from "@/components/ui"
+import { Button, Card, Input } from "@/components/ui"
 
 export default function SetupPage() {
   const router = useRouter()

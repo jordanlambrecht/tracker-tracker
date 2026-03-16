@@ -46,10 +46,7 @@ const DIM_AVAILABILITY = 5
 // Option builder
 // ---------------------------------------------------------------------------
 
-function buildParallelOption(
-  torrents: TorrentInfo[],
-  trackerColor: string
-): EChartsOption {
+function buildParallelOption(torrents: TorrentInfo[], trackerColor: string): EChartsOption {
   const nowSec = Date.now() / 1000
 
   // Pre-compute derived values
@@ -250,5 +247,5 @@ function ParallelTorrentsChart({
   )
 }
 
-export { ParallelTorrentsChart }
 export type { ParallelTorrentsChartProps }
+export { ParallelTorrentsChart }

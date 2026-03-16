@@ -184,7 +184,13 @@ function layoutCards4Col(S: number, D: number, T: number, cols: 3 | 4): PlacedCa
       const triplesInThisRow = Math.min(T - tr * cols, cols)
       for (let c = triplesInThisRow + 1; c <= cols && sIdx <= S; c++) {
         for (let r = 0; r < 3 && sIdx <= S; r++) {
-          cards.push({ id: `s${sIdx}`, type: "single", row: tripleRowStart + tr * 3 + r, col: c, span: 1 })
+          cards.push({
+            id: `s${sIdx}`,
+            type: "single",
+            row: tripleRowStart + tr * 3 + r,
+            col: c,
+            span: 1,
+          })
           sIdx++
         }
       }
@@ -208,7 +214,13 @@ function layoutCards4Col(S: number, D: number, T: number, cols: 3 | 4): PlacedCa
       const doublesInThisRow = Math.min(D - dr * cols, cols)
       for (let c = doublesInThisRow + 1; c <= cols && sIdx <= S; c++) {
         for (let r = 0; r < 2 && sIdx <= S; r++) {
-          cards.push({ id: `s${sIdx}`, type: "single", row: doubleRowStart + dr * 2 + r, col: c, span: 1 })
+          cards.push({
+            id: `s${sIdx}`,
+            type: "single",
+            row: doubleRowStart + dr * 2 + r,
+            col: c,
+            span: 1,
+          })
           sIdx++
         }
       }

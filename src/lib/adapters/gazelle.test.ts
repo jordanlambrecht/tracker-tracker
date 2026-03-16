@@ -126,9 +126,9 @@ describe("GazelleAdapter", () => {
   it("throws a sanitized error on network failure", async () => {
     vi.spyOn(global, "fetch").mockRejectedValueOnce(new Error("fetch failed"))
 
-    await expect(
-      adapter.fetchStats("https://redacted.sh", "token", "/ajax.php")
-    ).rejects.toThrow("Failed to connect to redacted.sh")
+    await expect(adapter.fetchStats("https://redacted.sh", "token", "/ajax.php")).rejects.toThrow(
+      "Failed to connect to redacted.sh"
+    )
   })
 
   it("constructs URL with action=index query param", async () => {
@@ -165,7 +165,9 @@ describe("GazelleAdapter", () => {
       json: async () => mockGazelleResponse(),
     } as Response)
 
-    await adapter.fetchStats("https://redacted.sh", "my-secret-token", "/ajax.php", { authStyle: "raw" })
+    await adapter.fetchStats("https://redacted.sh", "my-secret-token", "/ajax.php", {
+      authStyle: "raw",
+    })
 
     const fetchOptions = fetchSpy.mock.calls[0][1] as RequestInit
     const headers = fetchOptions.headers as Record<string, string>
@@ -389,9 +391,9 @@ describe("GazelleAdapter - security", () => {
     const timeoutError = new DOMException("signal timed out", "TimeoutError")
     vi.spyOn(global, "fetch").mockRejectedValueOnce(timeoutError)
 
-    await expect(
-      adapter.fetchStats("https://example.com", "token", "/ajax.php")
-    ).rejects.toThrow("Request to example.com timed out")
+    await expect(adapter.fetchStats("https://example.com", "token", "/ajax.php")).rejects.toThrow(
+      "Request to example.com timed out"
+    )
   })
 
   it("uses AbortSignal for timeout protection", async () => {

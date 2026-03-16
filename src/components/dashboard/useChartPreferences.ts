@@ -29,13 +29,26 @@ interface ChartPrefs {
 const DASHBOARD_CHARTS: ChartDef[] = [
   { id: "daily-volume", label: "Daily Volume", category: "analytics" },
   {
+    id: "volume-calendar",
+    label: "Volume Calendar",
+    description: "GitHub-style calendar showing daily upload or download volume over time",
+    category: "analytics",
+  },
+  {
     id: "upload-landscape",
     label: "Upload Landscape",
     description: "Daily upload volume per tracker — drag to rotate, scroll to zoom",
     category: "analytics",
   },
   { id: "distribution", label: "Distribution", category: "analytics" },
+  {
+    id: "volume-heatmap",
+    label: "Volume Heatmap",
+    description: "Upload or download volume by day of week and hour — reveals activity patterns",
+    category: "analytics",
+  },
   { id: "comparison-uploaded", label: "Total Uploaded", category: "analytics" },
+  { id: "comparison-downloaded", label: "Total Downloaded", category: "analytics" },
   { id: "comparison-ratio", label: "Ratio", category: "analytics" },
   { id: "comparison-buffer", label: "Buffer", category: "analytics" },
   { id: "comparison-seedbonus", label: "Seedbonus", category: "analytics" },
@@ -43,43 +56,37 @@ const DASHBOARD_CHARTS: ChartDef[] = [
   {
     id: "ratio-stability",
     label: "Ratio Stability",
-    description:
-      "7-point EMA with ±1σ confidence band — wider bands indicate more volatile ratios",
+    description: "7-point EMA with ±1σ confidence band — wider bands indicate more volatile ratios",
     category: "analytics",
   },
   {
     id: "fleet-composition",
     label: "Fleet Composition",
-    description:
-      "Seeding torrent count over time per tracker — stacked to show total fleet size",
+    description: "Seeding torrent count over time per tracker — stacked to show total fleet size",
     category: "analytics",
   },
   {
     id: "rank-tenure",
     label: "Rank Tenure",
-    description:
-      "Time spent at each rank per tracker — hover segments for duration details",
+    description: "Time spent at each rank per tracker — hover segments for duration details",
     category: "analytics",
   },
   {
     id: "buffer-velocity",
     label: "Buffer Velocity",
-    description:
-      "Rate of buffer change per day — above zero means gaining, below means losing",
+    description: "Rate of buffer change per day — above zero means gaining, below means losing",
     category: "analytics",
   },
   {
     id: "buffer-candlestick",
     label: "Buffer Candlestick",
-    description:
-      "Daily buffer open/high/low/close per tracker — like stock price charts",
+    description: "Daily buffer open/high/low/close per tracker — like stock price charts",
     category: "analytics",
   },
   {
     id: "tracker-landscape",
     label: "Tracker Landscape",
-    description:
-      "Each tracker as a bubble — position shows upload vs download, size shows fleet",
+    description: "Each tracker as a bubble — position shows upload vs download, size shows fleet",
     category: "analytics",
   },
   {
@@ -141,5 +148,5 @@ function useChartPreferences() {
   }
 }
 
-export { useChartPreferences, DASHBOARD_CHARTS }
 export type { ChartDef, ChartPrefs }
+export { DASHBOARD_CHARTS, useChartPreferences }

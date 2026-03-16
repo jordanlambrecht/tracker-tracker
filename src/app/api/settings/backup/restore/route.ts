@@ -28,7 +28,7 @@ import {
 } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
 import { stopScheduler } from "@/lib/scheduler"
-import { recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"
+import { checkLockout, recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"
 
 const BATCH_SIZE = 500
 
@@ -53,11 +53,7 @@ async function batchInsert<T extends Record<string, unknown>>(
 
 // Attempt to decrypt a field with the backup key and re-encrypt with the current key.
 // Returns the re-encrypted ciphertext, or "" if the field is empty or re-encryption fails.
-function reencryptField(
-  ciphertext: string,
-  backupKey: Buffer,
-  currentKey: Buffer
-): string {
+function reencryptField(ciphertext: string, backupKey: Buffer, currentKey: Buffer): string {
   if (!ciphertext) return ""
   try {
     return reencrypt(ciphertext, backupKey, currentKey)
@@ -156,13 +152,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not configured" }, { status: 400 })
   }
 
-  if (currentSettings.lockedUntil && currentSettings.lockedUntil > new Date()) {
-    const retryAfter = Math.ceil((currentSettings.lockedUntil.getTime() - Date.now()) / 1000)
-    return NextResponse.json(
-      { error: "Too many failed attempts. Try again later.", retryAfter },
-      { status: 429, headers: { "Retry-After": String(retryAfter) } }
-    )
-  }
+  const lockout = checkLockout(currentSettings)
+  if (lockout) return lockout
 
   const isPasswordValid = await verifyPassword(currentSettings.passwordHash, masterPassword)
   if (!isPasswordValid) {
@@ -463,6 +454,21 @@ export async function POST(request: Request) {
         }
       }
 
+      // Re-encrypt backup password if possible
+      let backupPasswordEncrypted: string | null = null
+      if (payload.settings.encryptedBackupPassword) {
+        if (sameSalt) {
+          backupPasswordEncrypted = payload.settings.encryptedBackupPassword as string
+        } else if (canReencrypt) {
+          const result = reencryptField(
+            payload.settings.encryptedBackupPassword as string,
+            backupKey,
+            currentKey
+          )
+          backupPasswordEncrypted = result || null
+        }
+      }
+
       // Re-encrypt TOTP secret if possible
       let totpSecret: string | null = null
       let totpBackupCodes: string | null = null
@@ -479,7 +485,8 @@ export async function POST(request: Request) {
           if (reencryptedSecret) {
             totpSecret = reencryptedSecret
             totpBackupCodes = payload.settings.totpBackupCodes
-              ? reencryptField(payload.settings.totpBackupCodes as string, backupKey, currentKey) || null
+              ? reencryptField(payload.settings.totpBackupCodes as string, backupKey, currentKey) ||
+                null
               : null
           } else {
             totpDisabledOnRestore = true
@@ -502,8 +509,7 @@ export async function POST(request: Request) {
           failedLoginAttempts: 0,
           lockedUntil: null,
           snapshotRetentionDays: (payload.settings.snapshotRetentionDays as number | null) ?? null,
-          trackerPollIntervalMinutes:
-            (payload.settings.trackerPollIntervalMinutes as number) ?? 60,
+          trackerPollIntervalMinutes: (payload.settings.trackerPollIntervalMinutes as number) ?? 60,
           proxyEnabled: payload.settings.proxyEnabled as boolean,
           proxyType: payload.settings.proxyType as string,
           proxyHost: (payload.settings.proxyHost as string | null) ?? null,
@@ -516,6 +522,7 @@ export async function POST(request: Request) {
           backupScheduleFrequency: payload.settings.backupScheduleFrequency as string,
           backupRetentionCount: payload.settings.backupRetentionCount as number,
           backupEncryptionEnabled: payload.settings.backupEncryptionEnabled as boolean,
+          encryptedBackupPassword: backupPasswordEncrypted,
           backupStoragePath: (payload.settings.backupStoragePath as string | null) ?? null,
           draftQuicklinks: (payload.settings.draftQuicklinks as string | null) ?? null,
           dashboardSettings: (payload.settings.dashboardSettings as string | null) ?? null,
@@ -536,7 +543,10 @@ export async function POST(request: Request) {
       "Restore operation failed"
     )
 
-    return NextResponse.json({ error: `Restore failed: ${message}` }, { status: 409 })
+    return NextResponse.json(
+      { error: "Restore failed. Check server logs for details." },
+      { status: 409 }
+    )
   } finally {
     if (backupKey.length > 0) backupKey.fill(0)
     if (currentKey !== backupKey && currentKey.length > 0) currentKey.fill(0)
@@ -577,7 +587,9 @@ export async function POST(request: Request) {
       tagGroups: payload.tagGroups.length,
       tagGroupMembers: payload.tagGroupMembers.length,
       clientSnapshots: payload.clientSnapshots.length,
-      clientUptimeBuckets: Array.isArray(payload.clientUptimeBuckets) ? payload.clientUptimeBuckets.length : 0,
+      clientUptimeBuckets: Array.isArray(payload.clientUptimeBuckets)
+        ? payload.clientUptimeBuckets.length
+        : 0,
     },
     tokensPreserved,
     tokensCleared,

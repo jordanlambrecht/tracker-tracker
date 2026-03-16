@@ -46,10 +46,7 @@ export async function PUT(request: Request) {
   const { slugs } = body
 
   if (!Array.isArray(slugs) || !slugs.every((s) => typeof s === "string")) {
-    return NextResponse.json(
-      { error: "slugs must be an array of strings" },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: "slugs must be an array of strings" }, { status: 400 })
   }
 
   const [settings] = await db.select({ id: appSettings.id }).from(appSettings).limit(1)

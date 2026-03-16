@@ -61,5 +61,5 @@ function RedactedText({ value, color = "var(--color-tertiary)", className }: Red
   )
 }
 
-export { RedactedText }
 export type { RedactedTextProps }
+export { RedactedText }

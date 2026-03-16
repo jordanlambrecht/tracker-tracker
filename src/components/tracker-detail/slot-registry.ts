@@ -20,7 +20,11 @@ import {
   UserIcon,
 } from "@/components/ui/Icons"
 import { PulseDot } from "@/components/ui/PulseDot"
-import type { StatCardBasicProps, StatCardRingProps, StatCardStackedProps } from "@/components/ui/StatCard"
+import type {
+  StatCardBasicProps,
+  StatCardRingProps,
+  StatCardStackedProps,
+} from "@/components/ui/StatCard"
 import { StatCard } from "@/components/ui/StatCard"
 import type { GazellePlatformMeta, GGnPlatformMeta } from "@/lib/adapters/types"
 import { formatBytesNum } from "@/lib/formatters"
@@ -65,10 +69,11 @@ export interface AnySlotDefinition {
 // Helper — creates a 16x16 icon element
 // ---------------------------------------------------------------------------
 
-function icon16(Icon: ComponentType<{ width?: string | number; height?: string | number }>): ReactNode {
+function icon16(
+  Icon: ComponentType<{ width?: string | number; height?: string | number }>
+): ReactNode {
   return createElement(Icon, { width: 16, height: 16 })
 }
-
 
 // ---------------------------------------------------------------------------
 // Stat-card slot definitions
@@ -91,7 +96,12 @@ const goldSlot: SlotDefinition<StatCardStackedProps> = {
       title: "Gold",
       rows: [
         { label: "Balance", value: gold.toLocaleString() },
-        { label: "Per Hour", value: ggMeta.hourlyGold != null ? `+${Math.floor(ggMeta.hourlyGold).toLocaleString()}` : "—", colorClass: ggMeta.hourlyGold ? "text-success" : undefined },
+        {
+          label: "Per Hour",
+          value:
+            ggMeta.hourlyGold != null ? `+${Math.floor(ggMeta.hourlyGold).toLocaleString()}` : "—",
+          colorClass: ggMeta.hourlyGold ? "text-success" : undefined,
+        },
       ],
       accentColor,
     }
@@ -322,8 +332,16 @@ const gazelleBountySlot: SlotDefinition<StatCardStackedProps> = {
       type: "stacked" as const,
       title: "Bounty",
       rows: [
-        { label: "Earned", value: earned > 0 ? formatBytesNum(earned) : "—", colorClass: earned > 0 ? "text-success" : undefined },
-        { label: "Spent", value: spent > 0 ? formatBytesNum(spent) : "—", colorClass: spent > 0 ? "text-warn" : undefined },
+        {
+          label: "Earned",
+          value: earned > 0 ? formatBytesNum(earned) : "—",
+          colorClass: earned > 0 ? "text-success" : undefined,
+        },
+        {
+          label: "Spent",
+          value: spent > 0 ? formatBytesNum(spent) : "—",
+          colorClass: spent > 0 ? "text-warn" : undefined,
+        },
       ],
       total: { label: "Net", value: formatBytesNum(earned - spent) },
       accentColor,
@@ -343,7 +361,11 @@ const gazelleCommentsSlot: SlotDefinition<StatCardStackedProps> = {
     const gazMeta = meta as GazellePlatformMeta
     if (!gazMeta.community) return null
     const c = gazMeta.community
-    const total = (c.torrentComments ?? 0) + (c.artistComments ?? 0) + (c.collageComments ?? 0) + (c.requestComments ?? 0)
+    const total =
+      (c.torrentComments ?? 0) +
+      (c.artistComments ?? 0) +
+      (c.collageComments ?? 0) +
+      (c.requestComments ?? 0)
     if (!total || total <= 0) return null
     return {
       type: "stacked" as const,
@@ -459,7 +481,7 @@ const ggnIrcBadgeSlot: SlotDefinition<SlotBadgeProps> = {
       "span",
       { className: "inline-flex items-center gap-1.5" },
       createElement(PulseDot, { status: "healthy", size: "sm" }),
-      "IRC",
+      "IRC"
     )
     return { variant: "default", children }
   },

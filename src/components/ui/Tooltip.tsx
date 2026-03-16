@@ -29,9 +29,12 @@ function Tooltip({ content, children, className }: TooltipProps) {
     timeout.current = setTimeout(() => setVisible(false), 150)
   }
 
-  useEffect(() => () => {
-    if (timeout.current) clearTimeout(timeout.current)
-  }, [])
+  useEffect(
+    () => () => {
+      if (timeout.current) clearTimeout(timeout.current)
+    },
+    []
+  )
 
   useEffect(() => {
     if (!visible || !triggerRef.current) return
@@ -52,19 +55,20 @@ function Tooltip({ content, children, className }: TooltipProps) {
       >
         {children}
       </span>
-      {visible && createPortal(
-        <div
-          ref={tooltipRef}
-          role="tooltip"
-          className="fixed z-[9999] px-3 py-2 text-[11px] font-sans font-normal normal-case tracking-normal text-secondary leading-relaxed whitespace-normal bg-overlay nm-raised-sm rounded-nm-sm"
-          style={{ top: pos.top, left: pos.left }}
-          onMouseEnter={show}
-          onMouseLeave={hide}
-        >
-          {content}
-        </div>,
-        document.body,
-      )}
+      {visible &&
+        createPortal(
+          <div
+            ref={tooltipRef}
+            role="tooltip"
+            className="fixed z-[9999] px-3 py-2 text-[11px] font-sans font-normal normal-case tracking-normal text-secondary leading-relaxed whitespace-normal bg-overlay nm-raised-sm rounded-nm-sm"
+            style={{ top: pos.top, left: pos.left }}
+            onMouseEnter={show}
+            onMouseLeave={hide}
+          >
+            {content}
+          </div>,
+          document.body
+        )}
     </>
   )
 }

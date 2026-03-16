@@ -58,10 +58,7 @@ function serializeStats(stats: TrackerStats): Record<string, unknown> {
   }
 }
 
-export async function POST(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -150,7 +147,8 @@ export async function POST(
     try {
       const raw = await adapter.fetchRaw(tracker.baseUrl, apiToken, tracker.apiPath, fetchOptions)
       rawResponse = scrubObject(raw) as Record<string, unknown>
-    } catch (err) { // security-audit-ignore: error captured in rawError for debug response
+    } catch (err) {
+      // security-audit-ignore: error captured in rawError for debug response
       rawError = err instanceof Error ? err.message : "Raw fetch failed"
     }
   } else {

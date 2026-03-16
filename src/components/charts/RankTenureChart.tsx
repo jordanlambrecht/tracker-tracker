@@ -234,9 +234,7 @@ function buildRankTenureOption(
                 }
               : null
 
-          const children = textEl
-            ? [rectEl, textEl]
-            : [rectEl]
+          const children = textEl ? [rectEl, textEl] : [rectEl]
 
           return {
             type: "group" as const,
@@ -279,5 +277,5 @@ function RankTenureChart({ trackerData, height = 300 }: RankTenureChartProps) {
   )
 }
 
-export { RankTenureChart, computeRankPeriods }
 export type { RankTenureChartProps }
+export { computeRankPeriods, RankTenureChart }
