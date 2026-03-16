@@ -6,12 +6,15 @@
 
 import { H2 } from "@typography"
 import { useCallback, useEffect, useState } from "react"
+import { CrossSeedNetwork } from "@/components/charts/CrossSeedNetwork"
 import { FleetActivityHeatmap } from "@/components/charts/FleetActivityHeatmap"
 import { FleetAgeTimeline } from "@/components/charts/FleetAgeTimeline"
+import { FleetCategoryBreakdown } from "@/components/charts/FleetCategoryBreakdown"
 import { FleetCategoryTimeline } from "@/components/charts/FleetCategoryTimeline"
 import { FleetCrossSeedDonut } from "@/components/charts/FleetCrossSeedDonut"
 import { FleetRatioDistribution } from "@/components/charts/FleetRatioDistribution"
 import { FleetSeedTimeDistribution } from "@/components/charts/FleetSeedTimeDistribution"
+import { FleetSizeJitter } from "@/components/charts/FleetSizeJitter"
 
 import { FleetSpeedSparklines } from "@/components/charts/FleetSpeedSparklines"
 import { FleetStorageTreemap } from "@/components/charts/FleetStorageTreemap"
@@ -171,6 +174,8 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
         return <FleetRatioDistribution torrents={torrents} />
       case "fleet-cross-seed-donut":
         return <FleetCrossSeedDonut torrents={torrents} crossSeedTags={crossSeedTags} />
+      case "cross-seed-network":
+        return <CrossSeedNetwork torrents={torrents} trackerTags={trackerTags} crossSeedTags={crossSeedTags} height={400} />
       case "tracker-health-radar":
         return <TrackerHealthRadar torrents={torrents} trackerTags={trackerTags} />
       case "fleet-activity-heatmap":
@@ -183,6 +188,10 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
         return <FleetAgeTimeline torrents={torrents} trackerTags={trackerTags} />
       case "fleet-category-timeline":
         return <FleetCategoryTimeline torrents={torrents} />
+      case "fleet-size-jitter":
+        return <FleetSizeJitter torrents={torrents} trackerTags={trackerTags} height={360} />
+      case "fleet-category-breakdown":
+        return <FleetCategoryBreakdown torrents={torrents} trackerTags={trackerTags} height={360} />
       default:
         return null
     }

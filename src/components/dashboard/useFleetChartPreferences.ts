@@ -25,12 +25,15 @@ export const FLEET_CHARTS: FleetChartDef[] = [
   { id: "fleet-stat-cards", label: "Fleet Stats", description: "Aggregate fleet metrics" },
   { id: "fleet-ratio-distribution", label: "Ratio Distribution", description: "Fleet-wide ratio histogram" },
   { id: "fleet-cross-seed-donut", label: "Cross-Seed Coverage", description: "Cross-seeded vs unique torrents" },
+  { id: "cross-seed-network", label: "Cross-Seed Network", description: "Force-directed graph showing cross-seed relationships between trackers" },
   { id: "tracker-health-radar", label: "Tracker Health", description: "Per-tracker health comparison radar" },
   { id: "fleet-activity-heatmap", label: "Activity Heatmap", description: "When torrents are added (day x hour)" },
   { id: "fleet-storage-treemap", label: "Storage Breakdown", description: "Storage by tracker and category" },
   { id: "fleet-seed-time-distribution", label: "Seed Time Distribution", description: "Seed time histogram" },
   { id: "fleet-age-timeline", label: "Library Growth", description: "Cumulative torrent count over time" },
   { id: "fleet-category-timeline", label: "Categories Over Time", description: "Cumulative torrents per qBT category" },
+  { id: "fleet-size-jitter", label: "Size Scatter", description: "Torrent size distribution per tracker — jittered scatter plot" },
+  { id: "fleet-category-breakdown", label: "Category Mix", description: "Normalized category breakdown per tracker — stacked percentage bars" },
 ]
 
 const STORAGE_KEY = "tracker-tracker:fleet-chart-preferences"
