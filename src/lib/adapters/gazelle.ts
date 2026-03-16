@@ -3,7 +3,13 @@
 // Functions: GazelleAdapter, GazelleAdapter.fetchStats, GazelleAdapter.fetchRaw
 
 import { adapterFetch } from "./adapter-fetch"
-import type { FetchOptions, GazellePlatformMeta, TrackerAdapter, TrackerStats } from "./types"
+import type {
+  DebugApiCall,
+  FetchOptions,
+  GazellePlatformMeta,
+  TrackerAdapter,
+  TrackerStats,
+} from "./types"
 
 interface GazelleUserStats {
   uploaded: number
@@ -202,43 +208,67 @@ export class GazelleAdapter implements TrackerAdapter {
     apiToken: string,
     apiPath: string,
     options?: FetchOptions
-  ): Promise<Record<string, unknown>> {
-    const url = new URL(apiPath, baseUrl)
-    url.searchParams.set("action", "index")
-
+  ): Promise<DebugApiCall[]> {
     const hostname = new URL(baseUrl).hostname
     const authHeader = options?.authStyle === "raw" ? apiToken : `token ${apiToken}`
+    const calls: DebugApiCall[] = []
 
-    const indexData = await adapterFetch<Record<string, unknown>>(
-      url.toString(),
-      hostname,
-      options,
-      { Authorization: authHeader }
-    )
+    // Call 1: Index
+    const indexUrl = new URL(apiPath, baseUrl)
+    indexUrl.searchParams.set("action", "index")
+    let indexData: Record<string, unknown> | null = null
 
-    const result: Record<string, unknown> = { index: indexData }
+    try {
+      indexData = await adapterFetch<Record<string, unknown>>(
+        indexUrl.toString(),
+        hostname,
+        options,
+        { Authorization: authHeader }
+      )
+      calls.push({
+        label: "Index",
+        endpoint: `${apiPath}?action=index`,
+        data: indexData,
+        error: null,
+      })
+    } catch (err) {
+      calls.push({
+        label: "Index",
+        endpoint: `${apiPath}?action=index`,
+        data: null,
+        error: err instanceof Error ? err.message : "Request failed",
+      })
+      return calls
+    }
 
-    // If we have a remoteUserId, also fetch the user profile
-    const indexResponse = indexData.response as { id?: number } | undefined
+    // Call 2: User Profile (enrichment)
+    const indexResponse = indexData?.response as { id?: number } | undefined
     const userId = options?.remoteUserId ?? indexResponse?.id
     if (userId) {
+      const userUrl = new URL(apiPath, baseUrl)
+      userUrl.searchParams.set("action", "user")
+      userUrl.searchParams.set("id", String(userId))
+      const endpoint = `${apiPath}?action=user&id=${userId}`
+
       try {
-        const userUrl = new URL(apiPath, baseUrl)
-        userUrl.searchParams.set("action", "user")
-        userUrl.searchParams.set("id", String(userId))
         const userData = await adapterFetch<Record<string, unknown>>(
           userUrl.toString(),
           hostname,
           options,
           { Authorization: authHeader }
         )
-        result.user = userData
-      } catch {
-        // user profile fetch is non-fatal for raw debug
+        calls.push({ label: "User Profile", endpoint, data: userData, error: null })
+      } catch (err) {
+        calls.push({
+          label: "User Profile",
+          endpoint,
+          data: null,
+          error: err instanceof Error ? err.message : "Request failed",
+        })
       }
     }
 
-    return result
+    return calls
   }
 
   private async fetchUserProfile(

@@ -9,7 +9,13 @@
 // Functions: NebulanceAdapter, NebulanceAdapter.fetchStats, NebulanceAdapter.fetchRaw
 
 import { proxyFetch } from "@/lib/proxy"
-import type { FetchOptions, NebulancePlatformMeta, TrackerAdapter, TrackerStats } from "./types"
+import type {
+  DebugApiCall,
+  FetchOptions,
+  NebulancePlatformMeta,
+  TrackerAdapter,
+  TrackerStats,
+} from "./types"
 
 interface NebulanceUserData {
   ID: number
@@ -47,7 +53,7 @@ export class NebulanceAdapter implements TrackerAdapter {
     apiToken: string,
     apiPath: string,
     options?: FetchOptions
-  ): Promise<Record<string, unknown>> {
+  ): Promise<DebugApiCall[]> {
     const hostname = new URL(baseUrl).hostname
     const userId = options?.remoteUserId ?? 1
 
@@ -61,18 +67,34 @@ export class NebulanceAdapter implements TrackerAdapter {
     url.searchParams.set("type", "id")
     url.searchParams.set("user", String(userId))
 
-    const headers = { Accept: "application/json" }
-    let data: unknown
+    const endpoint = `${apiPath}?action=user&method=getuserinfo&user=${userId}`
 
-    if (options?.proxyAgent) {
-      const result = await proxyFetch(url.toString(), options.proxyAgent, { headers })
-      data = await result.json()
-    } else {
-      const response = await fetch(url.toString(), { headers, signal: AbortSignal.timeout(15000) })
-      data = await response.json()
+    try {
+      const headers = { Accept: "application/json" }
+      let data: unknown
+
+      if (options?.proxyAgent) {
+        const result = await proxyFetch(url.toString(), options.proxyAgent, { headers })
+        data = await result.json()
+      } else {
+        const response = await fetch(url.toString(), {
+          headers,
+          signal: AbortSignal.timeout(15000),
+        })
+        data = await response.json()
+      }
+
+      return [{ label: "User Info", endpoint, data, error: null }]
+    } catch (err) {
+      return [
+        {
+          label: "User Info",
+          endpoint,
+          data: null,
+          error: err instanceof Error ? err.message : "Request failed",
+        },
+      ]
     }
-
-    return data as Record<string, unknown>
   }
 
   async fetchStats(

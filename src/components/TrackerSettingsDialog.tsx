@@ -109,6 +109,33 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
     setErrors({})
     setSaving(true)
 
+    const trimmedToken = newApiToken.trim()
+
+    // Test the new API key before saving
+    if (changingKey && trimmedToken) {
+      try {
+        const testRes = await fetch("/api/trackers/test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            baseUrl: baseUrl.trim(),
+            apiToken: trimmedToken,
+            platformType: tracker.platformType,
+          }),
+        })
+        if (!testRes.ok) {
+          const testData = await testRes.json().catch(() => ({ error: "Connection failed" }))
+          setErrors({ apiToken: (testData as { error?: string }).error ?? "Connection failed" })
+          setSaving(false)
+          return
+        }
+      } catch {
+        setErrors({ apiToken: "Could not verify API key — check your connection" })
+        setSaving(false)
+        return
+      }
+    }
+
     const payload: Record<string, unknown> = {
       name: name.trim(),
       color,
@@ -119,8 +146,8 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
       countCrossSeedUnsatisfied,
     }
 
-    if (changingKey && newApiToken.trim()) {
-      payload.apiToken = newApiToken
+    if (changingKey && trimmedToken) {
+      payload.apiToken = trimmedToken
     }
 
     try {
@@ -216,6 +243,8 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
               <div className="flex flex-col gap-2">
                 <Input
                   type="password"
+                  autoComplete="off"
+                  data-1p-ignore
                   value={newApiToken}
                   onChange={(e) => setNewApiToken(e.target.value)}
                   placeholder="Paste API token"
