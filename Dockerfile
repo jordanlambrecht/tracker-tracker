@@ -46,7 +46,8 @@ RUN pnpm prune --prod
 # Stage 4 — Production runner
 # ---------------------------------------------------------------------------
 FROM node:24-alpine AS runner
-RUN apk upgrade --no-cache && apk add --no-cache libc6-compat bash
+# Targeted upgrade for CVE-2026-22184 (zlib). Remove once node:24-alpine ships zlib >= 1.3.2-r0.
+RUN apk add --no-cache libc6-compat bash && apk upgrade --no-cache zlib
 WORKDIR /app
 
 ENV NODE_ENV=production
