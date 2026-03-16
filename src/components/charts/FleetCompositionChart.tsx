@@ -5,11 +5,12 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
+import { buildAxisPointer, buildGlowAreaStyle } from "./chart-helpers"
+import { buildUnifiedTimestampAxis } from "./chart-transforms"
 import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
 
 interface FleetCompositionChartProps {
@@ -19,25 +20,7 @@ interface FleetCompositionChartProps {
 
 function buildFleetOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
   // Build unified time axis from the union of all polledAt timestamps
-  const allTimestamps = new Set<string>()
-  for (const tracker of trackerData) {
-    for (const snap of tracker.snapshots) {
-      allTimestamps.add(snap.polledAt)
-    }
-  }
-  const sortedTimestamps = Array.from(allTimestamps).sort(
-    (a, b) => new Date(a).getTime() - new Date(b).getTime()
-  )
-
-  const labels = sortedTimestamps.map((ts) =>
-    new Date(ts).toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    })
-  )
+  const { timestamps: sortedTimestamps, labels } = buildUnifiedTimestampAxis(trackerData)
 
   const series: EChartsOption["series"] = trackerData.map((tracker) => {
     const snapByTs = new Map<string, Snapshot>()
@@ -65,19 +48,7 @@ function buildFleetOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
         width: 1.5,
       },
       itemStyle: { color: tracker.color },
-      areaStyle: {
-        color: {
-          type: "linear",
-          x: 0,
-          y: 0,
-          x2: 0,
-          y2: 1,
-          colorStops: [
-            { offset: 0, color: hexToRgba(tracker.color, 0.6) },
-            { offset: 1, color: hexToRgba(tracker.color, 0.05) },
-          ],
-        },
-      },
+      areaStyle: buildGlowAreaStyle(tracker.color, 0.6, 0.05),
     }
   })
 
@@ -86,15 +57,7 @@ function buildFleetOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
     grid: chartGrid({ right: 16, left: 64 }),
     legend: chartLegend(),
     tooltip: chartTooltip("axis", {
-      axisPointer: {
-        type: "line",
-        lineStyle: {
-          color: CHART_THEME.borderMid,
-          opacity: 0.8,
-          width: 1,
-          type: "dashed",
-        },
-      },
+      axisPointer: buildAxisPointer(CHART_THEME.borderMid, 0.8, 1),
       formatter: (params: unknown) => {
         const items = params as Array<{
           seriesName: string

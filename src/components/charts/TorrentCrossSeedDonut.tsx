@@ -4,7 +4,7 @@
 
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
-import { CHART_THEME, escHtml } from "@/components/charts/theme"
+import { CHART_THEME, chartTooltip, escHtml } from "@/components/charts/theme"
 import { getComplementaryColor, hexToRgba } from "@/lib/formatters"
 
 // ---------------------------------------------------------------------------
@@ -27,17 +27,7 @@ export function TorrentCrossSeedDonut({
 
   const option: EChartsOption = {
     backgroundColor: "transparent",
-    tooltip: {
-      trigger: "item",
-      backgroundColor: CHART_THEME.tooltipBg,
-      borderColor: CHART_THEME.tooltipBorder,
-      borderWidth: 1,
-      textStyle: {
-        color: CHART_THEME.textPrimary,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
-      },
-    },
+    tooltip: chartTooltip("item"),
     series: [
       {
         type: "pie",

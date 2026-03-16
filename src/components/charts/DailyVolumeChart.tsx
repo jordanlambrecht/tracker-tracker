@@ -1,17 +1,17 @@
 // src/components/charts/DailyVolumeChart.tsx
 //
-// Functions: computePerTrackerDailyDeltas, buildDailyVolumeOption, buildRiverOption, DailyVolumeChart
+// Functions: buildDailyVolumeOption, buildRiverOption, DailyVolumeChart
 
 "use client"
 
 import clsx from "clsx"
 import type { EChartsOption } from "echarts"
 import { useState } from "react"
-import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { fmtNum } from "./chart-helpers"
+import { autoByteScale, buildAxisPointer, buildThemeRiverSingleAxis, fmtNum, formatDateLabel } from "./chart-helpers"
+import { computeDailyDeltas } from "./chart-transforms"
 import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
 
 // ---------------------------------------------------------------------------
@@ -25,51 +25,6 @@ interface DailyVolumeChartProps {
   height?: number
 }
 
-interface DailyDelta {
-  day: string // YYYY-MM-DD
-  uploadGiB: number
-  downloadGiB: number
-}
-
-// ---------------------------------------------------------------------------
-// Computation
-// ---------------------------------------------------------------------------
-
-function computePerTrackerDailyDeltas(snapshots: Snapshot[]): DailyDelta[] {
-  if (snapshots.length === 0) return []
-
-  const sorted = [...snapshots].sort(
-    (a, b) => new Date(a.polledAt).getTime() - new Date(b.polledAt).getTime()
-  )
-
-  const dayMap = new Map<string, Snapshot>()
-  for (const snap of sorted) {
-    const day = new Date(snap.polledAt).toISOString().slice(0, 10)
-    dayMap.set(day, snap)
-  }
-
-  const days = Array.from(dayMap.keys()).sort()
-  const deltas: DailyDelta[] = []
-
-  for (let i = 1; i < days.length; i++) {
-    const prev = dayMap.get(days[i - 1])
-    const curr = dayMap.get(days[i])
-
-    if (!prev || !curr) continue
-
-    const uploadDelta = Number(BigInt(curr.uploadedBytes) - BigInt(prev.uploadedBytes))
-    const downloadDelta = Number(BigInt(curr.downloadedBytes) - BigInt(prev.downloadedBytes))
-
-    deltas.push({
-      day: days[i],
-      uploadGiB: Math.max(0, uploadDelta / 1024 ** 3),
-      downloadGiB: Math.max(0, downloadDelta / 1024 ** 3),
-    })
-  }
-
-  return deltas
-}
-
 // ---------------------------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------------------------
@@ -78,24 +33,23 @@ function computeTrackerDeltas(trackerData: TrackerSnapshotSeries[]) {
   const trackerDeltas = trackerData.map((t) => ({
     name: t.name,
     color: t.color,
-    deltas: computePerTrackerDailyDeltas(t.snapshots),
+    deltas: computeDailyDeltas(t.snapshots),
   }))
 
   const allDays = new Set<string>()
   for (const t of trackerDeltas) {
-    for (const d of t.deltas) allDays.add(d.day)
+    for (const d of t.deltas) allDays.add(d.label)
   }
   const sortedDays = Array.from(allDays).sort()
 
   let maxVal = 0
   for (const t of trackerDeltas) {
     for (const d of t.deltas) {
-      maxVal = Math.max(maxVal, d.uploadGiB, d.downloadGiB)
+      // Use abs so negative deltas (tracker corrections) still inform the scale
+      maxVal = Math.max(maxVal, Math.abs(d.uploadDelta), Math.abs(d.downloadDelta))
     }
   }
-  const useTiB = maxVal >= 1024
-  const divisor = useTiB ? 1024 : 1
-  const unit = useTiB ? "TiB" : "GiB"
+  const { divisor, unit } = autoByteScale(maxVal)
 
   return { trackerDeltas, sortedDays, divisor, unit }
 }
@@ -111,16 +65,13 @@ function buildDailyVolumeOption(
 
   if (sortedDays.length === 0) return {}
 
-  const labels = sortedDays.map((d) => {
-    const date = new Date(`${d}T12:00:00`)
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
-  })
+  const labels = sortedDays.map(formatDateLabel)
 
   const series: NonNullable<EChartsOption["series"]> = []
 
   for (const tracker of trackerDeltas) {
-    const deltaMap = new Map<string, DailyDelta>()
-    for (const d of tracker.deltas) deltaMap.set(d.day, d)
+    const deltaMap = new Map<string, { uploadDelta: number; downloadDelta: number }>()
+    for (const d of tracker.deltas) deltaMap.set(d.label, d)
 
     series.push({
       name: `${tracker.name}`,
@@ -128,7 +79,8 @@ function buildDailyVolumeOption(
       stack: "upload",
       data: sortedDays.map((day) => {
         const d = deltaMap.get(day)
-        return d ? Number((d.uploadGiB / divisor).toFixed(3)) : 0
+        // Clamp for stacked bar display — raw data may have negatives from tracker corrections
+        return d ? Number((Math.max(0, d.uploadDelta) / divisor).toFixed(3)) : 0
       }),
       itemStyle: { color: tracker.color, borderRadius: [2, 2, 0, 0] },
       emphasis: { itemStyle: { shadowBlur: 8, shadowColor: tracker.color } },
@@ -140,7 +92,8 @@ function buildDailyVolumeOption(
       stack: "download",
       data: sortedDays.map((day) => {
         const d = deltaMap.get(day)
-        return d ? -Number((d.downloadGiB / divisor).toFixed(3)) : 0
+        // Clamp for stacked bar display — raw data may have negatives from tracker corrections
+        return d ? -Number((Math.max(0, d.downloadDelta) / divisor).toFixed(3)) : 0
       }),
       itemStyle: {
         color: tracker.color,
@@ -242,8 +195,8 @@ function buildRiverOption(
 
   // Build maps once per tracker, outside the day loop
   const trackerDeltaMaps = trackerDeltas.map((tracker) => {
-    const m = new Map<string, DailyDelta>()
-    for (const d of tracker.deltas) m.set(d.day, d)
+    const m = new Map<string, { uploadDelta: number; downloadDelta: number }>()
+    for (const d of tracker.deltas) m.set(d.label, d)
     return m
   })
 
@@ -254,7 +207,8 @@ function buildRiverOption(
   for (const day of sortedDays) {
     for (let ti = 0; ti < trackerDeltas.length; ti++) {
       const d = trackerDeltaMaps[ti].get(day)
-      const val = d ? Number((d.uploadGiB / divisor).toFixed(3)) : 0
+      // Clamp for stacked bar display — raw data may have negatives from tracker corrections
+      const val = d ? Number((Math.max(0, d.uploadDelta) / divisor).toFixed(3)) : 0
       riverData.push([day, val, trackerDeltas[ti].name])
     }
   }
@@ -265,10 +219,7 @@ function buildRiverOption(
     backgroundColor: "transparent",
     color: colors,
     tooltip: chartTooltip("axis", {
-      axisPointer: {
-        type: "line",
-        lineStyle: { color: CHART_THEME.borderMid, type: "dashed" },
-      },
+      axisPointer: buildAxisPointer(),
       formatter: (params: unknown) => {
         const items = params as Array<{
           value: [string, number, string]
@@ -277,10 +228,7 @@ function buildRiverOption(
         if (!items?.length) return ""
 
         const day = items[0].value[0]
-        const dateLabel = new Date(`${day}T12:00:00`).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        })
+        const dateLabel = formatDateLabel(day)
 
         const rows = items
           .filter((item) => item.value[1] > 0)
@@ -293,14 +241,7 @@ function buildRiverOption(
         return `${chartTooltipHeader(dateLabel)}${rows}`
       },
     }),
-    singleAxis: {
-      type: "time",
-      bottom: 40,
-      top: 32,
-      axisLabel: chartAxisLabel(),
-      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
-      axisTick: { show: false },
-    },
+    singleAxis: buildThemeRiverSingleAxis({ top: 32 }),
     series: [
       {
         type: "themeRiver",
@@ -376,4 +317,4 @@ function DailyVolumeChart({ trackerData, height = 360 }: DailyVolumeChartProps) 
 }
 
 export type { DailyVolumeChartProps }
-export { computePerTrackerDailyDeltas, DailyVolumeChart }
+export { DailyVolumeChart }

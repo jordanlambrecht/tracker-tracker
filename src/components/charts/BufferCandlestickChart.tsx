@@ -11,7 +11,7 @@ import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { fmtNum } from "./chart-helpers"
+import { autoByteScale, fmtNum, formatDateLabel } from "./chart-helpers"
 import { LogScaleToggle } from "./LogScaleToggle"
 import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
 
@@ -85,9 +85,7 @@ function buildCandlestickOption(
       if (gib > maxGiB) maxGiB = gib
     }
   }
-  const useTiB = maxGiB >= 1024
-  const divisor = useTiB ? 1024 : 1
-  const unit = useTiB ? "TiB" : "GiB"
+  const { divisor, unit } = autoByteScale(maxGiB)
 
   // Build per-tracker candlestick data
   const trackerResults = trackerData.map((tracker) =>
@@ -222,10 +220,7 @@ function buildCandlestickOption(
     }),
     xAxis: {
       type: "category",
-      data: allDays.map((d) => {
-        const date = new Date(`${d}T12:00:00`)
-        return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
-      }),
+      data: allDays.map(formatDateLabel),
       boundaryGap: true,
       axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
       axisTick: { show: false },

@@ -8,7 +8,9 @@ import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartAxisLabel, chartDot, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
+import { buildAxisPointer, buildThemeRiverSingleAxis } from "./chart-helpers"
+import { formatSnapshotLabel } from "./chart-transforms"
+import { CHART_THEME, chartDot, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -84,13 +86,7 @@ function buildRiverOption(
     backgroundColor: "transparent",
     color: colors,
     tooltip: chartTooltip("axis", {
-      axisPointer: {
-        type: "line",
-        lineStyle: {
-          color: CHART_THEME.borderMid,
-          type: "dashed",
-        },
-      },
+      axisPointer: buildAxisPointer(),
       formatter: (params: unknown) => {
         // ThemeRiver tooltip params is an array of items, one per tracker stream
         const items = params as Array<{
@@ -103,15 +99,7 @@ function buildRiverOption(
 
         // The timestamp comes from the first item's value[0]
         const rawDate = items[0]?.value?.[0]
-        const formattedDate = rawDate
-          ? new Date(rawDate).toLocaleString("en-US", {
-              month: "short",
-              day: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: false,
-            })
-          : ""
+        const formattedDate = rawDate ? formatSnapshotLabel(rawDate) : ""
 
         const rows = items
           .filter((item) => item.value && item.value[1] !== undefined)
@@ -131,15 +119,7 @@ function buildRiverOption(
         return chartTooltipHeader(formattedDate) + rows
       },
     }),
-    singleAxis: {
-      type: "time",
-      bottom: 40,
-      axisLabel: chartAxisLabel(),
-      axisLine: {
-        lineStyle: { color: CHART_THEME.gridLine },
-      },
-      axisTick: { show: false },
-    },
+    singleAxis: buildThemeRiverSingleAxis(),
     series: [
       {
         type: "themeRiver",

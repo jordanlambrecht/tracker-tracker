@@ -9,7 +9,7 @@ import { useState } from "react"
 import { bytesToGiB, hexToRgba } from "@/lib/formatters"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { fmtNum } from "./chart-helpers"
+import { autoByteScale, fmtNum } from "./chart-helpers"
 import { LogScaleToggle } from "./LogScaleToggle"
 import { CHART_THEME, chartAxisLabel, chartGrid, chartLegend, chartTooltip, escHtml, shouldUseLogScale } from "./theme"
 
@@ -60,9 +60,7 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
 
   // Determine scale: GiB or TiB
   const maxGiB = Math.max(...allGiB.map((d) => Math.max(d.uploadGiB, d.downloadGiB)), 0)
-  const useTiB = maxGiB >= 1024
-  const divisor = useTiB ? 1024 : 1
-  const unit = useTiB ? "TiB" : "GiB"
+  const { divisor, unit } = autoByteScale(maxGiB)
 
   // Scale all values to the chosen unit
   const scaled = allGiB.map((d) => ({

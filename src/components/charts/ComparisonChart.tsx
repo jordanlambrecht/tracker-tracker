@@ -11,7 +11,8 @@ import { bytesToGiB } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./ChartECharts"
-import { fmtNum, yAxisPad } from "./chart-helpers"
+import { adaptiveDotSize, autoByteScale, buildAxisPointer, fmtNum, yAxisAutoRange } from "./chart-helpers"
+import { buildUnifiedTimestampAxis } from "./chart-transforms"
 import { LogScaleToggle } from "./LogScaleToggle"
 import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
 
@@ -114,25 +115,7 @@ function buildComparisonOption(
   const useAvg = opts?.averageMode ?? false
 
   // Build unified time axis from the union of all polledAt timestamps
-  const allTimestamps = new Set<string>()
-  for (const tracker of trackerData) {
-    for (const snap of tracker.snapshots) {
-      allTimestamps.add(snap.polledAt)
-    }
-  }
-  const sortedTimestamps = Array.from(allTimestamps).sort(
-    (a, b) => new Date(a).getTime() - new Date(b).getTime()
-  )
-
-  const labels = sortedTimestamps.map((ts) =>
-    new Date(ts).toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    })
-  )
+  const { timestamps: sortedTimestamps, labels } = buildUnifiedTimestampAxis(trackerData)
 
   // Determine unit and divisor per metric type
   let unit = "×"
@@ -150,14 +133,10 @@ function buildComparisonOption(
       }
     }
     const maxGiB = Math.max(...allGiB, 0)
-    const useTiB = maxGiB >= 1024
-    divisor = useTiB ? 1024 : 1
-    unit = useTiB ? "TiB" : "GiB"
+    ;({ divisor, unit } = autoByteScale(maxGiB))
   }
 
-  // Total data points across all trackers — drives adaptive dot size
-  const totalPoints = trackerData.reduce((sum, t) => sum + t.snapshots.length, 0)
-  const dotSize = totalPoints > 100 ? 2 : totalPoints > 30 ? 4 : 6
+  const dotSize = adaptiveDotSize(sortedTimestamps.length)
 
   // Build series — either per-tracker or single average line
   let series: EChartsOption["series"]
@@ -230,10 +209,7 @@ function buildComparisonOption(
         type: "value",
         name: unit,
         scale: true,
-        min: ((value: { min: number; max: number }) =>
-          Math.max(0, Math.floor((value.min - yAxisPad(value)) * 100) / 100)) as unknown as number,
-        max: ((value: { min: number; max: number }) =>
-          Math.ceil((value.max + yAxisPad(value)) * 100) / 100) as unknown as number,
+        ...yAxisAutoRange(),
         nameTextStyle: {
           color: CHART_THEME.textTertiary,
           fontFamily: CHART_THEME.fontMono,
@@ -253,15 +229,7 @@ function buildComparisonOption(
     backgroundColor: "transparent",
     grid: chartGrid({ right: 16, left: 64 }),
     tooltip: chartTooltip("axis", {
-      axisPointer: {
-        type: "line",
-        lineStyle: {
-          color: CHART_THEME.borderMid,
-          opacity: 0.8,
-          width: 1,
-          type: "dashed",
-        },
-      },
+      axisPointer: buildAxisPointer(CHART_THEME.borderMid, 0.8, 1),
       formatter: (params: unknown) => {
         const items = params as Array<{
           seriesName: string

@@ -4,9 +4,10 @@
 
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
-import { CHART_THEME, escHtml } from "@/components/charts/theme"
+import { CHART_THEME, chartDot, chartTooltip, escHtml } from "@/components/charts/theme"
 import { formatBytesNum, generatePalette } from "@/lib/formatters"
 import type { CategoryStats } from "@/lib/torrent-utils"
+import { ChartEmptyState } from "./ChartEmptyState"
 
 // ---------------------------------------------------------------------------
 // Component
@@ -22,7 +23,7 @@ export function TorrentSizeBreakdown({
   accentColor,
 }: TorrentSizeBreakdownProps) {
   if (categories.length === 0) {
-    return <p className="text-sm text-muted font-mono py-4">No category data</p>
+    return <ChartEmptyState height={160} message="No category data" />
   }
 
   const top = categories.slice(0, 8)
@@ -30,28 +31,19 @@ export function TorrentSizeBreakdown({
 
   const option: EChartsOption = {
     backgroundColor: "transparent",
-    tooltip: {
-      trigger: "axis",
+    tooltip: chartTooltip("axis", {
       axisPointer: { type: "shadow" },
-      backgroundColor: CHART_THEME.tooltipBg,
-      borderColor: CHART_THEME.tooltipBorder,
-      borderWidth: 1,
-      textStyle: {
-        color: CHART_THEME.textPrimary,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
-      },
       formatter: (params: unknown) => {
         const p = (params as { name: string; value: number; color: string }[])[0]
         if (!p) return ""
         const cat = top.find((c) => c.name === p.name)
         return [
-          `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color};margin-right:6px;box-shadow:0 0 6px ${p.color};"></span><span style="font-weight:600;color:${p.color}">${escHtml(p.name)}</span>`,
+          `${chartDot(p.color)}<span style="font-weight:600;color:${p.color}">${escHtml(p.name)}</span>`,
           `Size: ${formatBytesNum(p.value)}`,
           cat ? `Torrents: ${cat.count}` : "",
         ].filter(Boolean).join("<br/>")
       },
-    },
+    }),
     grid: { left: 100, right: 24, top: 8, bottom: 8 },
     xAxis: {
       type: "value",

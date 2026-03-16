@@ -11,7 +11,8 @@ import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { fmtNum, yAxisPad } from "./chart-helpers"
+import { fmtNum, yAxisAutoRange } from "./chart-helpers"
+import { buildUnifiedTimestampAxis } from "./chart-transforms"
 import { LogScaleToggle } from "./LogScaleToggle"
 import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
 
@@ -82,27 +83,7 @@ function buildRatioStabilityOption(
   forceLog: boolean | null = null
 ): EChartsOption {
   // Build unified time axis from union of all polledAt timestamps
-  const allTimestamps = new Set<string>()
-  for (const tracker of trackerData) {
-    for (const snap of tracker.snapshots) {
-      if (snap.ratio !== null) {
-        allTimestamps.add(snap.polledAt)
-      }
-    }
-  }
-  const sortedTimestamps = Array.from(allTimestamps).sort(
-    (a, b) => new Date(a).getTime() - new Date(b).getTime()
-  )
-
-  const labels = sortedTimestamps.map((ts) =>
-    new Date(ts).toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    })
-  )
+  const { timestamps: sortedTimestamps, labels } = buildUnifiedTimestampAxis(trackerData)
 
   // Log scale detection
   const allRatioValues: number[] = []
@@ -284,14 +265,7 @@ function buildRatioStabilityOption(
       type: useLog ? "log" : "value",
       name: useLog ? "Ratio (log)" : "Ratio",
       scale: true,
-      ...(useLog
-        ? {}
-        : {
-            min: ((value: { min: number; max: number }) =>
-              Math.max(0, Math.floor((value.min - yAxisPad(value)) * 100) / 100)) as unknown as number,
-            max: ((value: { min: number; max: number }) =>
-              Math.ceil((value.max + yAxisPad(value)) * 100) / 100) as unknown as number,
-          }),
+      ...(useLog ? {} : yAxisAutoRange()),
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,

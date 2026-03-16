@@ -1,19 +1,20 @@
 // src/components/charts/MetricChart.tsx
 //
-// Functions: computeDailyDeltas, buildLineOption, buildDailyDeltaOption, MetricChart
+// Functions: buildLineOption, buildDailyDeltaOption, MetricChart
 
 "use client"
 
 import clsx from "clsx"
 import type { EChartsOption } from "echarts"
 import { useState } from "react"
-import { bytesToGiB, getComplementaryColor, hexToRgba } from "@/lib/formatters"
+import { bytesToGiB, getComplementaryColor } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { fmtNum, yAxisPad } from "./chart-helpers"
+import { adaptiveDotSize, autoByteScale, buildAxisPointer, buildGlowAreaStyle, fmtNum, yAxisAutoRange } from "./chart-helpers"
+import { computeDailyDeltas, formatSnapshotLabel } from "./chart-transforms"
 import { LogScaleToggle } from "./LogScaleToggle"
-import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
+import { CHART_THEME, chartAxisLabel, chartDataZoom, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
 
 // ── Types ──
 
@@ -33,12 +34,6 @@ export interface MetricChartProps {
   accentColor?: string
   height?: number
   baselineValue?: number
-}
-
-interface DailyBucket {
-  label: string
-  uploadDelta: number
-  downloadDelta: number
 }
 
 // ── Metric configuration map ──
@@ -77,37 +72,6 @@ const METRIC_CONFIGS: Record<Exclude<Metric, "dailyDelta">, MetricConfig> = {
 const BORDER_SOFT = CHART_THEME.gridLine
 const TERTIARY_COLOR = CHART_THEME.textTertiary
 
-// ── Daily delta computation ──
-
-export function computeDailyDeltas(snapshots: Snapshot[]): DailyBucket[] {
-  if (snapshots.length < 2) return []
-
-  const sorted = [...snapshots].sort((a, b) => new Date(a.polledAt).getTime() - new Date(b.polledAt).getTime())
-
-  const bucketMap = new Map<string, { upload: number; download: number }>()
-
-  for (let i = 1; i < sorted.length; i++) {
-    const prev = sorted[i - 1]
-    const curr = sorted[i]
-
-    const uploadDiff = Number(BigInt(curr.uploadedBytes) - BigInt(prev.uploadedBytes))
-    const downloadDiff = Number(BigInt(curr.downloadedBytes) - BigInt(prev.downloadedBytes))
-
-    const dayKey = new Date(curr.polledAt).toISOString().slice(0, 10)
-
-    const existing = bucketMap.get(dayKey) ?? { upload: 0, download: 0 }
-    existing.upload += uploadDiff
-    existing.download += downloadDiff
-    bucketMap.set(dayKey, existing)
-  }
-
-  return Array.from(bucketMap.entries()).map(([label, { upload, download }]) => ({
-    label,
-    uploadDelta: upload / 1024 ** 3,
-    downloadDelta: download / 1024 ** 3,
-  }))
-}
-
 // ── Build option for line metrics ──
 
 function buildLineOption(
@@ -117,15 +81,7 @@ function buildLineOption(
   baselineValue?: number,
   useLog?: boolean
 ): EChartsOption {
-  const labels = snapshots.map((s) =>
-    new Date(s.polledAt).toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    })
-  )
+  const labels = snapshots.map((s) => formatSnapshotLabel(s.polledAt))
 
   const rawData = snapshots.map((s) => config.getValue(s))
 
@@ -134,54 +90,21 @@ function buildLineOption(
   let divisor = 1
   if (unit === "GiB") {
     const maxGiB = Math.max(...rawData.filter((v): v is number => v !== null), 0)
-    if (maxGiB >= 1024) {
-      divisor = 1024
-      unit = "TiB"
-    }
+    ;({ divisor, unit } = autoByteScale(maxGiB))
   }
 
   const data = rawData.map((v) => (v !== null ? Number((v / divisor).toFixed(3)) : null))
-  const dotSize = snapshots.length > 100 ? 2 : snapshots.length > 30 ? 4 : 6
+  const dotSize = adaptiveDotSize(snapshots.length)
 
   const showSlider = snapshots.length >= 30
-  const dataZoom: EChartsOption["dataZoom"] = []
-  if (showSlider) {
-    dataZoom.push({
-      type: "slider",
-      bottom: 8,
-      height: 24,
-      borderColor: BORDER_SOFT,
-      backgroundColor: CHART_THEME.surfaceSemi,
-      fillerColor: hexToRgba(safeAccent, 0.06),
-      handleStyle: { color: safeAccent, borderColor: safeAccent },
-      moveHandleStyle: { color: safeAccent },
-      handleLabel: { show: false },
-      selectedDataBackground: {
-        lineStyle: { color: safeAccent, opacity: 0.3 },
-        areaStyle: { color: safeAccent, opacity: 0.05 },
-      },
-      textStyle: {
-        color: TERTIARY_COLOR,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
-      },
-    })
-  }
+  const dataZoom: EChartsOption["dataZoom"] = showSlider ? chartDataZoom(safeAccent) as EChartsOption["dataZoom"] : []
 
   return {
     backgroundColor: "transparent",
     grid: chartGrid({ top: 16, right: 16, bottom: showSlider ? 80 : 40, left: 64 }),
     tooltip: chartTooltip("axis", {
       borderColor: safeAccent,
-      axisPointer: {
-        type: "line",
-        lineStyle: {
-          color: safeAccent,
-          opacity: 0.3,
-          width: 1,
-          type: "dashed",
-        },
-      },
+      axisPointer: buildAxisPointer(safeAccent, 0.3, 1),
       formatter: (params: unknown) => {
         const items = params as Array<{
           value: number | null
@@ -214,18 +137,7 @@ function buildLineOption(
       scale: true,
       ...(useLog
         ? {}
-        : {
-            min: config.allowNegative
-              ? undefined
-              : ((value: { min: number; max: number }) => {
-                  const dataMin = Math.max(0, Math.floor((value.min - yAxisPad(value)) * 100) / 100)
-                  return baselineValue != null && baselineValue > 0
-                    ? Math.min(dataMin, Math.floor(baselineValue * 0.8 * 100) / 100)
-                    : dataMin
-                }) as unknown as number,
-            max: ((value: { min: number; max: number }) =>
-              Math.ceil((value.max + yAxisPad(value)) * 100) / 100) as unknown as number,
-          }),
+        : yAxisAutoRange({ allowNegative: config.allowNegative, baselineValue })),
       nameTextStyle: {
         color: TERTIARY_COLOR,
         fontFamily: CHART_THEME.fontMono,
@@ -257,19 +169,7 @@ function buildLineOption(
           shadowColor: safeAccent,
           shadowBlur: 8,
         },
-        areaStyle: {
-          color: {
-            type: "linear",
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
-            colorStops: [
-              { offset: 0, color: hexToRgba(safeAccent, 0.25) },
-              { offset: 1, color: hexToRgba(safeAccent, 0) },
-            ],
-          },
-        },
+        areaStyle: buildGlowAreaStyle(safeAccent),
         emphasis: {
           lineStyle: { shadowBlur: 16, shadowColor: safeAccent },
         },
@@ -309,14 +209,13 @@ function buildDailyDeltaOption(
   const downloadData = buckets.map((b) => Number(b.downloadDelta.toFixed(3)))
 
   const maxGiB = Math.max(...uploadData, ...downloadData, 0)
-  const useTiB = maxGiB >= 1024
-  const divisor = useTiB ? 1024 : 1
-  const unit = useTiB ? "TiB" : "GiB"
+  const { divisor, unit } = autoByteScale(maxGiB)
 
   const finalUpload = uploadData.map((v) => Number((v / divisor).toFixed(3)))
   const finalDownload = downloadData.map((v) => Number((v / divisor).toFixed(3)))
 
   const complementColor = getComplementaryColor(safeAccent)
+  const deltaDotSize = adaptiveDotSize(buckets.length, [30, 14])
 
   return {
     backgroundColor: "transparent",
@@ -375,19 +274,10 @@ function buildDailyDeltaOption(
             data: finalUpload,
             smooth: true,
             symbol: "circle",
-            symbolSize: buckets.length > 30 ? 2 : buckets.length > 14 ? 4 : 6,
+            symbolSize: deltaDotSize,
             itemStyle: { color: safeAccent },
             lineStyle: { color: safeAccent, width: 2, shadowColor: safeAccent, shadowBlur: 8 },
-            areaStyle: {
-              color: {
-                type: "linear",
-                x: 0, y: 0, x2: 0, y2: 1,
-                colorStops: [
-                  { offset: 0, color: hexToRgba(safeAccent, 0.25) },
-                  { offset: 1, color: hexToRgba(safeAccent, 0) },
-                ],
-              },
-            },
+            areaStyle: buildGlowAreaStyle(safeAccent),
             emphasis: { lineStyle: { shadowBlur: 16, shadowColor: safeAccent } },
           },
           {
@@ -396,19 +286,10 @@ function buildDailyDeltaOption(
             data: finalDownload,
             smooth: true,
             symbol: "circle",
-            symbolSize: buckets.length > 30 ? 2 : buckets.length > 14 ? 4 : 6,
+            symbolSize: deltaDotSize,
             itemStyle: { color: complementColor },
             lineStyle: { color: complementColor, width: 2, shadowColor: complementColor, shadowBlur: 8 },
-            areaStyle: {
-              color: {
-                type: "linear",
-                x: 0, y: 0, x2: 0, y2: 1,
-                colorStops: [
-                  { offset: 0, color: hexToRgba(complementColor, 0.2) },
-                  { offset: 1, color: hexToRgba(complementColor, 0) },
-                ],
-              },
-            },
+            areaStyle: buildGlowAreaStyle(complementColor, 0.2),
             emphasis: { lineStyle: { shadowBlur: 16, shadowColor: complementColor } },
           },
         ]
@@ -534,5 +415,5 @@ function MetricChart({
   )
 }
 
-export type { DailyBucket, MetricConfig }
+export type { MetricConfig }
 export { METRIC_CONFIGS, MetricChart }

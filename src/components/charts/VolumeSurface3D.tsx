@@ -9,7 +9,7 @@ import "echarts-gl"
 import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { fmtNum } from "./chart-helpers"
+import { autoByteScale, fmtNum } from "./chart-helpers"
 import { CHART_THEME, chartAxisLabel, chartTooltip, escHtml } from "./theme"
 
 // ---------------------------------------------------------------------------
@@ -204,9 +204,7 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
   for (const row of grid.uploadGrid) {
     for (const v of row) maxVal = Math.max(maxVal, v)
   }
-  const useTiB = maxVal >= 1024
-  const divisor = useTiB ? 1024 : 1
-  const unit = useTiB ? "TiB" : "GiB"
+  const { divisor, unit } = autoByteScale(maxVal)
 
   // Build bar3D data: [bucketIndex, trackerIndex, value]
   const barData: [number, number, number][] = []

@@ -10,7 +10,8 @@ import type { FleetSnapshot } from "@/lib/fleet"
 import { extractTagsFromSnapshots } from "@/lib/fleet"
 import { formatBytesNum } from "@/lib/formatters"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { buildTagColors, CHART_THEME, chartAxisLabel, chartDot, chartTooltip, chartTooltipHeader, escHtml, formatChartTimestamp } from "./theme"
+import { buildAxisPointer, buildThemeRiverSingleAxis } from "./chart-helpers"
+import { buildTagColors, CHART_THEME, chartDot, chartTooltip, chartTooltipHeader, escHtml, formatChartTimestamp } from "./theme"
 
 interface SpeedThemeRiverProps {
   snapshots: FleetSnapshot[]
@@ -65,10 +66,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
     backgroundColor: "transparent",
     color: colors,
     tooltip: chartTooltip("axis", {
-      axisPointer: {
-        type: "line",
-        lineStyle: { color: CHART_THEME.borderMid, type: "dashed" },
-      },
+      axisPointer: buildAxisPointer(),
       formatter: (params: unknown) => {
         const items = params as Array<{
           value: [number, number, string]
@@ -92,14 +90,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
         return `${chartTooltipHeader(dateLabel)}${rows}`
       },
     }),
-    singleAxis: {
-      type: "time",
-      bottom: 40,
-      top: 32,
-      axisLabel: chartAxisLabel(),
-      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
-      axisTick: { show: false },
-    },
+    singleAxis: buildThemeRiverSingleAxis({ top: 32 }),
     series: [
       {
         type: "themeRiver",

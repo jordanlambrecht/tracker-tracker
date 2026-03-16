@@ -21,7 +21,7 @@ const GOLDEN_ANGLE = 137.508
 
 function goldenAngleColor(index: number): string {
   const hue = (index * GOLDEN_ANGLE) % 360
-  return `hsl(${hue.toFixed(1)}, 65%, 55%)`
+  return `hsl(${hue.toFixed(1)}, 70%, 55%)`
 }
 
 interface TreemapNode {

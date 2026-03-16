@@ -1,12 +1,14 @@
 // src/components/charts/FleetActivityHeatmap.tsx
 //
-// Functions: buildHourLabel, buildActivityMatrix, buildFleetActivityHeatmapOption, FleetActivityHeatmap
+// Functions: buildFleetActivityHeatmapOption, FleetActivityHeatmap
 
 "use client"
 
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
 import { ChartEmptyState } from "./ChartEmptyState"
+import { DAY_LABELS, HOUR_LABELS } from "./chart-helpers"
+import { buildActivityMatrix } from "./chart-transforms"
 import { CHART_THEME, chartAxisLabel, chartTooltip, escHtml } from "./theme"
 
 interface FleetActivityHeatmapProps {
@@ -14,40 +16,6 @@ interface FleetActivityHeatmapProps {
   height?: number
 }
 
-const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-
-function buildHourLabel(hour: number): string {
-  if (hour === 0) return "12a"
-  if (hour < 12) return `${hour}a`
-  if (hour === 12) return "12p"
-  return `${hour - 12}p`
-}
-
-const HOUR_LABELS = Array.from({ length: 24 }, (_, i) => buildHourLabel(i))
-
-function buildActivityMatrix(
-  torrents: { added_on: number }[]
-): [number, number, number][] {
-  const counts: number[][] = Array.from({ length: 24 }, () =>
-    Array.from({ length: 7 }, () => 0)
-  )
-
-  for (const torrent of torrents) {
-    if (!torrent.added_on || torrent.added_on <= 0) continue
-    const date = new Date(torrent.added_on * 1000)
-    const hour = date.getHours()
-    const day = date.getDay()
-    counts[hour][day]++
-  }
-
-  const data: [number, number, number][] = []
-  for (let hour = 0; hour < 24; hour++) {
-    for (let day = 0; day < 7; day++) {
-      data.push([hour, day, counts[hour][day]])
-    }
-  }
-  return data
-}
 
 function buildFleetActivityHeatmapOption(
   data: [number, number, number][],
@@ -134,8 +102,8 @@ function FleetActivityHeatmap({
     return <ChartEmptyState height={height} message="No torrent data available" />
   }
 
-  const data = buildActivityMatrix(torrents)
-  const maxCount = Math.max(...data.map(([, , c]) => c), 0)
+  const validTimestamps = torrents.map((t) => t.added_on).filter((ts) => ts > 0)
+  const { data, maxCount } = buildActivityMatrix(validTimestamps)
 
   return (
     <ReactECharts
@@ -149,4 +117,4 @@ function FleetActivityHeatmap({
 }
 
 export type { FleetActivityHeatmapProps }
-export { buildActivityMatrix, buildHourLabel, FleetActivityHeatmap }
+export { FleetActivityHeatmap }

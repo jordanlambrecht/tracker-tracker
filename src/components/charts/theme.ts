@@ -15,6 +15,9 @@
 //   chartTooltip        - standard tooltip configuration
 //   chartGrid           - standard grid margins
 //   chartAxisLabel      - standard axis label styling
+//   chartDataZoom       - standard slider dataZoom configuration
+
+import { hexToRgba } from "@/lib/formatters"
 
 export const CHART_THEME = {
   // ── Surfaces ──
@@ -213,4 +216,26 @@ export function chartAxisLabel(overrides?: Record<string, unknown>): Record<stri
   }
 }
 
-
+/**
+ * Standard slider dataZoom configuration.
+ * @param accentColor - The accent hex color for handles and filler
+ */
+export function chartDataZoom(accentColor: string): Record<string, unknown>[] {
+  return [
+    {
+      type: "slider",
+      borderColor: CHART_THEME.gridLine,
+      backgroundColor: CHART_THEME.surface,
+      fillerColor: hexToRgba(accentColor, 0.094),
+      handleStyle: { color: accentColor, borderColor: accentColor },
+      moveHandleStyle: { color: accentColor },
+      selectedDataBackground: {
+        lineStyle: { color: accentColor },
+        areaStyle: { color: hexToRgba(accentColor, 0.188) },
+      },
+      textStyle: { color: CHART_THEME.textTertiary, fontFamily: CHART_THEME.fontMono, fontSize: 10 },
+      height: 24,
+      bottom: 8,
+    },
+  ]
+}
