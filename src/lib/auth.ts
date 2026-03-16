@@ -1,7 +1,7 @@
 // src/lib/auth.ts
 //
 // Functions: hashPassword, verifyPassword, createSession, getSession,
-//            clearSession, requireAuth, createPendingToken, verifyPendingToken,
+//            clearSession, createPendingToken, verifyPendingToken,
 //            createSetupToken, verifySetupToken
 
 import argon2 from "argon2"
@@ -88,14 +88,6 @@ export async function clearSession(): Promise<void> {
   const cookieStore = await cookies()
   cookieStore.delete(SESSION_COOKIE)
   cookieStore.delete(MAX_AGE_COOKIE)
-}
-
-export async function requireAuth(): Promise<{ encryptionKey: string }> {
-  const session = await getSession()
-  if (!session) {
-    throw new Error("Unauthorized")
-  }
-  return session
 }
 
 // ---------------------------------------------------------------------------

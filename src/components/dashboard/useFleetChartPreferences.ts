@@ -17,7 +17,7 @@ export interface FleetChartDef {
 
 export const FLEET_CHARTS: FleetChartDef[] = [
   { id: "fleet-speed-sparklines", label: "Live Speeds", description: "Real-time per-client upload/download sparklines" },
-  { id: "fleet-speed-gauges", label: "Speed Gauges", description: "Upload and download speed gauge meters" },
+
   { id: "speed-theme-river", label: "Speed River", description: "Upload speed flow per tracker over time" },
   { id: "seeding-count-trends", label: "Seeding Trends", description: "Stacked seeding count per tracker over time" },
   { id: "leeching-trends", label: "Leeching Trends", description: "Leeching activity per tracker over time" },

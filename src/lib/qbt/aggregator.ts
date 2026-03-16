@@ -1,26 +1,9 @@
 // src/lib/qbt/aggregator.ts
 //
-// Functions: filterAndDedup, aggregateByTag
+// Functions: aggregateByTag
 
 import { LEECHING_STATES, parseTorrentTags, SEEDING_STATES } from "@/lib/fleet"
 import type { ClientStats, QbtTorrent, TagStats } from "./types"
-
-export function filterAndDedup(allTorrents: QbtTorrent[], knownTags: string[]): QbtTorrent[] {
-  const seen = new Set<string>()
-  const result: QbtTorrent[] = []
-  const tagSet = new Set(knownTags.map((t) => t.toLowerCase()))
-
-  for (const torrent of allTorrents) {
-    if (!torrent.isPrivate) continue
-    if (seen.has(torrent.hash)) continue
-    const torrentTags = parseTorrentTags(torrent.tags)
-    if (torrentTags.some((t) => tagSet.has(t))) {
-      seen.add(torrent.hash)
-      result.push(torrent)
-    }
-  }
-  return result
-}
 
 export function aggregateByTag(
   torrents: QbtTorrent[],

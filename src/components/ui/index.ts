@@ -1,7 +1,7 @@
 // src/components/ui/index.ts
 
 export { Badge } from "./Badge"
-export { Button, buttonRadii, buttonVariants } from "./Button"
+export { Button, buttonVariants } from "./Button"
 export { Card } from "./Card"
 export { Checkbox } from "./Checkbox"
 export { ChevronToggle } from "./ChevronToggle"

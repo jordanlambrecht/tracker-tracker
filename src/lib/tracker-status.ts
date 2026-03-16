@@ -70,10 +70,6 @@ function getTrackerHealth(tracker: TrackerSummary): TrackerHealth {
   return status
 }
 
-function getHealthMeta(status: TrackerHealth): HealthMeta {
-  return HEALTH_META[status]
-}
-
 function getHealthBadgeVariant(status: TrackerHealth): BadgeVariant {
   return HEALTH_META[status].badge
 }

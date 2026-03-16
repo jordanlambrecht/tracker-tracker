@@ -47,13 +47,6 @@ export function parseTorrentTags(rawTags: string): string[] {
     .filter((t) => t.length > 0)
 }
 
-/** Speed snapshot from in-memory ring buffer */
-export interface ClientSpeedData {
-  clientId: number
-  clientName: string
-  snapshots: { timestamp: number; uploadSpeed: number; downloadSpeed: number }[]
-}
-
 /** Parsed clientSnapshot row for fleet historical charts */
 export interface FleetSnapshot {
   clientId: number

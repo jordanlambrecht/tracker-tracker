@@ -12,7 +12,7 @@ import { FleetCategoryTimeline } from "@/components/charts/FleetCategoryTimeline
 import { FleetCrossSeedDonut } from "@/components/charts/FleetCrossSeedDonut"
 import { FleetRatioDistribution } from "@/components/charts/FleetRatioDistribution"
 import { FleetSeedTimeDistribution } from "@/components/charts/FleetSeedTimeDistribution"
-import { FleetSpeedGauges } from "@/components/charts/FleetSpeedGauges"
+
 import { FleetSpeedSparklines } from "@/components/charts/FleetSpeedSparklines"
 import { FleetStorageTreemap } from "@/components/charts/FleetStorageTreemap"
 import { SpeedHistoryChart } from "@/components/charts/SpeedHistoryChart"
@@ -28,7 +28,7 @@ import {
 import {
   BoxIcon,
   ChevronUpIcon,
-  ClockIcon,
+
   DownloadArrowIcon,
   LeechingIcon,
   SeedingIcon,
@@ -40,6 +40,16 @@ import type { FleetSnapshot, TorrentRaw, TrackerTag } from "@/lib/fleet"
 import { computeFleetStats } from "@/lib/fleet"
 import { formatBytesNum } from "@/lib/formatters"
 import type { TrackerSummary } from "@/types/api"
+
+function splitBytes(bytes: number, suffix = ""): { value: string; unit: string } {
+  const formatted = formatBytesNum(bytes)
+  const idx = formatted.lastIndexOf(" ")
+  return { value: formatted.slice(0, idx), unit: `${formatted.slice(idx + 1)}${suffix}` }
+}
+
+function splitSpeed(bytes: number): { value: string; unit: string } {
+  return splitBytes(bytes, "/s")
+}
 
 interface FleetTorrentsResponse {
   torrents: TorrentRaw[]
@@ -149,8 +159,6 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
         return clientList.length > 0
           ? <FleetSpeedSparklines clients={clientList} />
           : null
-      case "fleet-speed-gauges":
-        return <FleetSpeedGauges uploadSpeed={stats.fleetUploadSpeed} downloadSpeed={stats.fleetDownloadSpeed} />
       case "speed-theme-river":
         return <SpeedThemeRiver snapshots={snapshots} />
       case "seeding-count-trends":
@@ -189,11 +197,10 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
           <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
             <StatCard label="Seeding" value={stats.totalSeeding.toLocaleString()} icon={<SeedingIcon width="16" height="16" />} />
             <StatCard label="Leeching" value={stats.totalLeeching.toLocaleString()} icon={<LeechingIcon width="16" height="16" />} />
-            <StatCard label="Upload" value={formatBytesNum(stats.fleetUploadSpeed)} unit="/s" icon={<UploadArrowIcon width="16" height="16" />} />
-            <StatCard label="Download" value={formatBytesNum(stats.fleetDownloadSpeed)} unit="/s" icon={<DownloadArrowIcon width="16" height="16" />} />
-            <StatCard label="Library" value={formatBytesNum(stats.totalLibrarySize)} icon={<BoxIcon width="16" height="16" />} />
+            <StatCard label="Upload" {...splitSpeed(stats.fleetUploadSpeed)} icon={<UploadArrowIcon width="16" height="16" />} />
+            <StatCard label="Download" {...splitSpeed(stats.fleetDownloadSpeed)} icon={<DownloadArrowIcon width="16" height="16" />} />
+            <StatCard label="Library" {...splitBytes(stats.totalLibrarySize)} icon={<BoxIcon width="16" height="16" />} />
             <StatCard label="Cross-Seed" value={`${stats.crossSeedPercent.toFixed(1)}%`} icon={<TagIcon width="16" height="16" />} />
-            <StatCard label="Stale (30d+)" value={stats.staleCount.toLocaleString()} icon={<ClockIcon width="16" height="16" />} />
           </div>
         </div>
       )}

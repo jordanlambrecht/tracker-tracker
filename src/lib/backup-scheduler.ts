@@ -1,6 +1,6 @@
 // src/lib/backup-scheduler.ts
 //
-// Functions: startBackupScheduler, stopBackupScheduler, isBackupSchedulerRunning, runScheduledBackup
+// Functions: startBackupScheduler, stopBackupScheduler, runScheduledBackup
 
 import { mkdir, writeFile } from "node:fs/promises"
 import path from "node:path"
@@ -136,6 +136,3 @@ export function stopBackupScheduler(): void {
   }
 }
 
-export function isBackupSchedulerRunning(): boolean {
-  return getBackupTask() !== null
-}

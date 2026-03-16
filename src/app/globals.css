@@ -268,6 +268,16 @@
   animation-play-state: paused;
 }
 
+/* Carousel slide animations — used by ClientStatusWidget */
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
 /* Hide native number input spinners — we use custom NumberInput controls */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {

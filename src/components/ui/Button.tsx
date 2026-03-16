@@ -40,12 +40,6 @@ const button = cva(
   },
 )
 
-const sizeRadii: Record<ButtonSize, string> = {
-  sm: "var(--radius-sm)",
-  md: "var(--radius-md)",
-  lg: "var(--radius-md)",
-}
-
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   (
     {
@@ -76,4 +70,4 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 Button.displayName = "Button"
 
 export type { ButtonProps, ButtonSize, ButtonVariant }
-export { Button, button as buttonVariants, sizeRadii as buttonRadii }
+export { Button, button as buttonVariants }
