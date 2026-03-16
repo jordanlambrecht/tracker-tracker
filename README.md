@@ -1,7 +1,5 @@
 ![CI](https://github.com/jordanlambrecht/tracker-tracker/actions/workflows/ci.yml/badge.svg)
 ![Version](https://img.shields.io/github/package-json/v/jordanlambrecht/tracker-tracker)
-![License](https://img.shields.io/github/license/jordanlambrecht/tracker-tracker)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6)
 ![Self-Hosted](https://img.shields.io/badge/self--hosted-Docker-2496ed)
 
 <p align="center">
