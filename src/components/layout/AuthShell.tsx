@@ -3,6 +3,7 @@
 
 import clsx from "clsx"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
+import Image from "next/image"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { BackToTop } from "@/components/ui/BackToTop"
 import { HamburgerIcon } from "@/components/ui/Icons"
@@ -75,6 +76,16 @@ export function AuthShell({ children }: { children: ReactNode }) {
           )}
         >
           {children}
+          <footer className="flex justify-center pt-16 pb-8">
+            <Image
+              src="/img/trackerTracker_logo_nm.svg"
+              alt="Tracker Tracker"
+              width={240}
+              height={73}
+              className="select-none pointer-events-none"
+              draggable={false}
+            />
+          </footer>
         </div>
         <BackToTop scrollRef={mainRef} />
       </main>
