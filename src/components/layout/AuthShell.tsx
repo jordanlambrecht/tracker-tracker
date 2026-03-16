@@ -2,8 +2,8 @@
 "use client"
 
 import clsx from "clsx"
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import Image from "next/image"
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { BackToTop } from "@/components/ui/BackToTop"
 import { HamburgerIcon } from "@/components/ui/Icons"

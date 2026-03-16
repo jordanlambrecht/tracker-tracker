@@ -20,7 +20,9 @@ const settingsColumns = {
   storeUsernames: appSettings.storeUsernames,
   username: appSettings.username,
   sessionTimeoutMinutes: appSettings.sessionTimeoutMinutes,
-  autoWipeThreshold: appSettings.autoWipeThreshold,
+  lockoutEnabled: appSettings.lockoutEnabled,
+  lockoutThreshold: appSettings.lockoutThreshold,
+  lockoutDurationMinutes: appSettings.lockoutDurationMinutes,
   snapshotRetentionDays: appSettings.snapshotRetentionDays,
   trackerPollIntervalMinutes: appSettings.trackerPollIntervalMinutes,
   proxyEnabled: appSettings.proxyEnabled,
@@ -50,7 +52,9 @@ function serializeSettingsResponse(row: SettingsRow) {
     storeUsernames: row.storeUsernames,
     username: row.username,
     sessionTimeoutMinutes: row.sessionTimeoutMinutes,
-    autoWipeThreshold: row.autoWipeThreshold,
+    lockoutEnabled: row.lockoutEnabled,
+    lockoutThreshold: row.lockoutThreshold,
+    lockoutDurationMinutes: row.lockoutDurationMinutes,
     snapshotRetentionDays: row.snapshotRetentionDays,
     trackerPollIntervalMinutes: row.trackerPollIntervalMinutes,
     proxyEnabled: row.proxyEnabled,
@@ -134,28 +138,45 @@ export async function PATCH(request: Request) {
     }
   }
 
-  // --- Auto-wipe threshold ---
-  if (body.autoWipeThreshold !== undefined) {
-    if (body.autoWipeThreshold === null || body.autoWipeThreshold === 0) {
-      updates.autoWipeThreshold = null
-      // Also reset the counter when disabling
-      updates.failedLoginAttempts = 0
-    } else if (
-      typeof body.autoWipeThreshold === "number" &&
-      Number.isInteger(body.autoWipeThreshold)
-    ) {
-      if (body.autoWipeThreshold < 1 || body.autoWipeThreshold > 99) {
-        return NextResponse.json(
-          { error: "Auto-wipe threshold must be between 1 and 99" },
-          { status: 400 }
-        )
-      }
-      updates.autoWipeThreshold = body.autoWipeThreshold
-      // Reset counter when changing threshold
-      updates.failedLoginAttempts = 0
-    } else {
-      return NextResponse.json({ error: "Invalid auto-wipe threshold" }, { status: 400 })
+  // --- Lockout settings ---
+  if (body.lockoutEnabled !== undefined) {
+    if (typeof body.lockoutEnabled !== "boolean") {
+      return NextResponse.json({ error: "lockoutEnabled must be a boolean" }, { status: 400 })
     }
+    updates.lockoutEnabled = body.lockoutEnabled
+    if (!body.lockoutEnabled) {
+      updates.lockedUntil = null
+      updates.failedLoginAttempts = 0
+    }
+  }
+
+  if (body.lockoutThreshold !== undefined) {
+    if (typeof body.lockoutThreshold !== "number" || !Number.isInteger(body.lockoutThreshold)) {
+      return NextResponse.json({ error: "Invalid lockout threshold" }, { status: 400 })
+    }
+    if (body.lockoutThreshold < 1 || body.lockoutThreshold > 99) {
+      return NextResponse.json(
+        { error: "Lockout threshold must be between 1 and 99" },
+        { status: 400 }
+      )
+    }
+    updates.lockoutThreshold = body.lockoutThreshold
+  }
+
+  if (body.lockoutDurationMinutes !== undefined) {
+    if (
+      typeof body.lockoutDurationMinutes !== "number" ||
+      !Number.isInteger(body.lockoutDurationMinutes)
+    ) {
+      return NextResponse.json({ error: "Invalid lockout duration" }, { status: 400 })
+    }
+    if (body.lockoutDurationMinutes < 1 || body.lockoutDurationMinutes > 1440) {
+      return NextResponse.json(
+        { error: "Lockout duration must be between 1 minute and 24 hours" },
+        { status: 400 }
+      )
+    }
+    updates.lockoutDurationMinutes = body.lockoutDurationMinutes
   }
 
   // --- Snapshot retention ---

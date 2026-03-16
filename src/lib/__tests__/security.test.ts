@@ -94,12 +94,14 @@ vi.mock("@/lib/logger", () => ({
   },
 }))
 
-vi.mock("@/lib/wipe", () => ({
+vi.mock("@/lib/lockout", () => ({
   checkLockout: vi.fn().mockReturnValue(null),
   recordFailedAttempt: vi.fn(),
   resetFailedAttempts: vi.fn(),
+}))
+
+vi.mock("@/lib/nuke", () => ({
   scrubAndDeleteAll: vi.fn(),
-  WIPE_MESSAGE: "wiped",
 }))
 
 vi.mock("@/lib/client-scheduler", () => ({
@@ -371,7 +373,8 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
   })
 
   it("POST /api/settings/lockdown returns 401", async () => {
-    const res = await LockdownPOST()
+    const req = makeRequest("http://localhost/api/settings/lockdown", { password: "test" }, "POST")
+    const res = await LockdownPOST(req)
     expect(res.status).toBe(401)
   })
 
@@ -581,7 +584,12 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
   })
 
   it("POST /api/settings/reset-stats returns 401", async () => {
-    const res = await ResetStatsPOST()
+    const req = makeRequest(
+      "http://localhost/api/settings/reset-stats",
+      { password: "test" },
+      "POST"
+    )
+    const res = await ResetStatsPOST(req)
     expect(res.status).toBe(401)
   })
 
@@ -1219,10 +1227,10 @@ describe("Backup restore authenticated flows", () => {
     )
   })
 
-  it("POST /api/settings/backup/restore returns wipe message after threshold breach", async () => {
+  it("POST /api/settings/backup/restore records failed attempt on wrong password", async () => {
     const { POST } = await import("@/app/api/settings/backup/restore/route")
     const { verifyPassword } = await import("@/lib/auth")
-    const { recordFailedAttempt, WIPE_MESSAGE } = await import("@/lib/wipe")
+    const { recordFailedAttempt } = await import("@/lib/lockout")
 
     vi.mocked(authenticate).mockResolvedValue({
       encryptionKey: "a".repeat(64),
@@ -1235,7 +1243,6 @@ describe("Backup restore authenticated flows", () => {
             id: 1,
             passwordHash: "hashed_password",
             encryptionSalt: "a".repeat(64),
-            autoWipeThreshold: 1,
             lockedUntil: null,
           },
         ]),
@@ -1243,13 +1250,13 @@ describe("Backup restore authenticated flows", () => {
     } as unknown as ReturnType<typeof db.select>)
 
     vi.mocked(verifyPassword).mockResolvedValue(false)
-    vi.mocked(recordFailedAttempt).mockResolvedValue(true)
 
     const req = createRestoreRequest(JSON.stringify(VALID_BACKUP), "wrong_master_password")
     const res = await POST(req)
 
-    expect(res.status).toBe(403)
-    await expect(res.json()).resolves.toEqual({ error: WIPE_MESSAGE })
+    expect(res.status).toBe(401)
+    await expect(res.json()).resolves.toEqual({ error: "Invalid master password" })
+    expect(recordFailedAttempt).toHaveBeenCalledWith(1, expect.any(Object))
   })
 
   it("POST /api/settings/backup/restore with invalid JSON returns 400", async () => {

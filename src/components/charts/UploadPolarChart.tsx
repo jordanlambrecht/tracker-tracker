@@ -10,7 +10,7 @@ import { formatBytesNum, hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import { ChartEmptyState } from "./ChartEmptyState"
 import { DAY_LABELS, HOUR_LABELS } from "./chart-helpers"
-import { CHART_THEME, chartTooltip } from "./theme"
+import { CHART_THEME, chartTooltip, escHtml } from "./theme"
 
 // ── Types ──
 
@@ -91,19 +91,18 @@ function buildPolarOption(buckets: HourDayBucket[], accentColor: string): EChart
     backgroundColor: "transparent",
     tooltip: chartTooltip("item", {
       formatter: (params: unknown) => {
-        const p = params as { data: number[] }
-        const hour = p.data[0]
-        const day = p.data[1]
-        const val = p.data[2]
-        if (val <= 0) return ""
-        const dayName = DAY_LABELS[day]
-        const hourLabel = HOUR_LABELS[hour]
+        const p = params as { seriesIndex: number; dataIndex: number; data: number; value: number }
+        const dayIdx = p.seriesIndex
+        const hourIdx = p.dataIndex
+        const val = p.value ?? p.data
+        if (!val || val <= 0) return ""
+        const dayName = escHtml(DAY_LABELS[dayIdx] ?? "")
+        const hourLabel = escHtml(HOUR_LABELS[hourIdx] ?? "")
         const formatted = formatBytesNum(val)
         return (
           `<div style="font-family:var(--font-mono),monospace;font-size:11px;` +
-          `color:${CHART_THEME.textTertiary};margin-bottom:4px;">${dayName} ${hourLabel}</div>` +
-          `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">` +
-          `Avg upload delta: ${formatted}</span>`
+          `color:${CHART_THEME.textTertiary};margin-bottom:4px;">${dayName} at ${hourLabel}</div>` +
+          `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(formatted)}/hr</span>`
         )
       },
     }),

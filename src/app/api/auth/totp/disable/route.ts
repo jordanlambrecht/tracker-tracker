@@ -11,9 +11,9 @@ import { verifyPassword } from "@/lib/auth"
 import { decrypt, encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import type { BackupCodeEntry } from "@/lib/totp"
 import { BACKUP_CODE_PATTERN, verifyAndConsumeBackupCode, verifyTotpCode } from "@/lib/totp"
-import { recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"
 
 export async function POST(request: Request) {
   const auth = await authenticate()
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   }
 
   // Password re-verification required to disable 2FA
-  if (!password || typeof password !== "string") {
+  if (!password || typeof password !== "string" || password.length > 128) {
     return NextResponse.json(
       { error: "Master password is required to disable 2FA" },
       { status: 400 }
@@ -49,8 +49,7 @@ export async function POST(request: Request) {
 
   const passwordValid = await verifyPassword(settings.passwordHash, password)
   if (!passwordValid) {
-    const wiped = await recordFailedAttempt(settings.id, settings.autoWipeThreshold)
-    if (wiped) return NextResponse.json({ error: WIPE_MESSAGE }, { status: 403 })
+    await recordFailedAttempt(settings.id, settings)
     return NextResponse.json({ error: "Incorrect password" }, { status: 401 })
   }
 
@@ -59,8 +58,7 @@ export async function POST(request: Request) {
 
   if (isBackupCode) {
     if (!BACKUP_CODE_PATTERN.test(code)) {
-      const wiped = await recordFailedAttempt(settings.id, settings.autoWipeThreshold)
-      if (wiped) return NextResponse.json({ error: WIPE_MESSAGE }, { status: 403 })
+      await recordFailedAttempt(settings.id, settings)
       return NextResponse.json({ error: "Invalid backup code format" }, { status: 400 })
     }
     if (!settings.totpBackupCodes) {
@@ -83,8 +81,7 @@ export async function POST(request: Request) {
     }
   } else {
     if (code.length !== 6 || !/^\d{6}$/.test(code)) {
-      const wiped = await recordFailedAttempt(settings.id, settings.autoWipeThreshold)
-      if (wiped) return NextResponse.json({ error: WIPE_MESSAGE }, { status: 403 })
+      await recordFailedAttempt(settings.id, settings)
       return NextResponse.json({ error: "Invalid TOTP code — must be 6 digits" }, { status: 400 })
     }
     let totpSecret: string
@@ -97,8 +94,7 @@ export async function POST(request: Request) {
   }
 
   if (!verified) {
-    const wiped = await recordFailedAttempt(settings.id, settings.autoWipeThreshold)
-    if (wiped) return NextResponse.json({ error: WIPE_MESSAGE }, { status: 403 })
+    await recordFailedAttempt(settings.id, settings)
     return NextResponse.json({ error: "Invalid code" }, { status: 401 })
   }
 

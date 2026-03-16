@@ -110,14 +110,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   if (typeof body.apiToken === "string") {
-    if (body.apiToken.length > 500) {
+    const trimmedToken = (body.apiToken as string).trim()
+    if (trimmedToken.length > 500) {
       return NextResponse.json(
         { error: "API token must be 500 characters or fewer" },
         { status: 400 }
       )
     }
     const key = decodeKey(auth)
-    updates.encryptedApiToken = encrypt(body.apiToken, key)
+    updates.encryptedApiToken = encrypt(trimmedToken, key)
   }
 
   await db.update(trackers).set(updates).where(eq(trackers.id, trackerId))

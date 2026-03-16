@@ -4,13 +4,13 @@
 
 import { NextResponse } from "next/server"
 import { parseJsonBody } from "@/lib/api-helpers"
-import { log } from "@/lib/logger"
 import { createPendingToken, createSession, verifyPassword } from "@/lib/auth"
 import { deriveKey } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { checkLockout, recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
+import { log } from "@/lib/logger"
 import { startScheduler } from "@/lib/scheduler"
-import { checkLockout, recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"
 
 export async function POST(request: Request) {
   const [settings] = await db.select().from(appSettings).limit(1)
@@ -41,9 +41,8 @@ export async function POST(request: Request) {
   const passwordOk = await verifyPassword(settings.passwordHash, password)
 
   if (!usernameOk || !passwordOk) {
-    const wiped = await recordFailedAttempt(settings.id, settings.autoWipeThreshold)
+    await recordFailedAttempt(settings.id, settings)
     log.warn({ event: "login_failed" }, "Failed login attempt")
-    if (wiped) return NextResponse.json({ error: WIPE_MESSAGE }, { status: 403 })
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
   }
 

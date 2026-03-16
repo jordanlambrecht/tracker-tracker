@@ -8,11 +8,12 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { CheckLargeIcon, CopyIcon, XIcon } from "@/components/ui/Icons"
 import { TabBar } from "@/components/ui/TabBar"
+import type { DebugApiCall } from "@/lib/adapters/types"
 
 type DebugTab = "raw" | "normalized"
 
 export interface DebugData {
-  raw: Record<string, unknown> | null
+  apiCalls: DebugApiCall[] | null
   rawError: string | null
   normalized: Record<string, unknown> | null
   normalizedError: string | null
@@ -64,7 +65,14 @@ export function DebugResponseDialog({
     if (!data) return ""
     if (activeTab === "raw") {
       if (data.rawError) return `Error: ${data.rawError}`
-      return JSON.stringify(data.raw, null, 2)
+      if (!data.apiCalls?.length) return "(no API calls recorded)"
+      return data.apiCalls
+        .map((call) => {
+          const header = `── ${call.label} ── ${call.endpoint}`
+          if (call.error) return `${header}\nError: ${call.error}`
+          return `${header}\n${JSON.stringify(call.data, null, 2)}`
+        })
+        .join("\n\n")
     }
     if (data.normalizedError) return `Error: ${data.normalizedError}`
     return JSON.stringify(data.normalized, null, 2)
@@ -83,9 +91,9 @@ export function DebugResponseDialog({
   }
 
   const content = getActiveContent()
+  const hasRawError = !!data?.rawError || (data?.apiCalls?.some((c) => c.error != null) ?? false)
   const isError =
-    (activeTab === "raw" && !!data?.rawError) ||
-    (activeTab === "normalized" && !!data?.normalizedError)
+    (activeTab === "raw" && hasRawError) || (activeTab === "normalized" && !!data?.normalizedError)
 
   return (
     <div

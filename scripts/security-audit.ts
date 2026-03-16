@@ -119,7 +119,8 @@ const SECRET_PATTERNS: Array<{ re: RegExp; name: string }> = [
 const SECURITY_FILES = [
   "src/lib/auth.ts",
   "src/lib/crypto.ts",
-  "src/lib/wipe.ts",
+  "src/lib/lockout.ts",
+  "src/lib/nuke.ts",
   "src/lib/totp.ts",
   "src/lib/privacy.ts",
   "src/lib/proxy.ts",
@@ -214,7 +215,8 @@ function filterIgnoredFindings(results: CheckResult[]): CheckResult[] {
 
       const lineIdx = finding.line - 1
 
-      for (const checkIdx of [lineIdx, lineIdx - 1]) {
+      // Check flagged line, one above, and two below (catch blocks have ignore comments inside the block body)
+      for (const checkIdx of [lineIdx, lineIdx - 1, lineIdx + 1, lineIdx + 2]) {
         if (checkIdx < 0 || checkIdx >= lines.length) continue
         const checkLine = lines[checkIdx]
 
@@ -629,7 +631,7 @@ function checkTodoInSecurityFiles(): CheckResult {
 
 // Hardcoded-safe SQL literals permitted in route files.
 // These are DB connectivity checks with no user input — identical in safety
-// to the VACUUM FULL in wipe.ts.
+// to the scrub operations in nuke.ts.
 const SAFE_RAW_SQL_RE = /db\.execute\s*\(\s*sql`SELECT\s+1`\s*\)/
 
 function checkRawSqlInRoutes(): CheckResult {
@@ -643,7 +645,7 @@ function checkRawSqlInRoutes(): CheckResult {
     for (const line of lineNums) {
       const lineContent = content.split("\n")[line - 1]?.trim()
       if (lineContent?.startsWith("//")) continue
-      // Allow hardcoded DB ping (SELECT 1) — no user input, same category as wipe.ts
+      // Allow hardcoded DB ping (SELECT 1) — no user input, same category as nuke.ts
       if (lineContent && SAFE_RAW_SQL_RE.test(lineContent)) continue
       findings.push({
         file: relativePath(file),
@@ -1776,7 +1778,7 @@ function checkBackupRestoreIntegrity(): CheckResult {
   if (!/failedLoginAttempts\s*:\s*0/.test(content)) {
     findings.push({
       file: rel,
-      detail: "Restore must reset failedLoginAttempts to 0 (prevent backup-triggered auto-wipe)",
+      detail: "Restore must reset failedLoginAttempts to 0 (clear lockout state)",
     })
   }
   // Must use a transaction

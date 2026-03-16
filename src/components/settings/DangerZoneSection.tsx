@@ -18,12 +18,14 @@ export function DangerZoneSection() {
 
   // --- Reset Stats ---
   const [confirmResetStats, setConfirmResetStats] = useState(false)
+  const [resetStatsPassword, setResetStatsPassword] = useState("")
   const [resetStatsSubmitting, setResetStatsSubmitting] = useState(false)
   const [resetStatsError, setResetStatsError] = useState<string | null>(null)
   const [resetStatsSuccess, setResetStatsSuccess] = useState(false)
 
   // --- Emergency Lockdown ---
   const [confirmLockdown, setConfirmLockdown] = useState(false)
+  const [lockdownPassword, setLockdownPassword] = useState("")
   const [lockdownChecks, setLockdownChecks] = useState({
     sessions: false,
     tokens: false,
@@ -42,12 +44,17 @@ export function DangerZoneSection() {
     setResetStatsSubmitting(true)
     setResetStatsError(null)
     try {
-      const res = await fetch("/api/settings/reset-stats", { method: "POST" })
+      const res = await fetch("/api/settings/reset-stats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: resetStatsPassword }),
+      })
       if (!res.ok) {
         throw new Error(await extractApiError(res, "Reset failed"))
       }
       setResetStatsSuccess(true)
       setConfirmResetStats(false)
+      setResetStatsPassword("")
     } catch (err) {
       setResetStatsError(err instanceof Error ? err.message : "Network error")
     } finally {
@@ -59,7 +66,11 @@ export function DangerZoneSection() {
     setLockdownSubmitting(true)
     setLockdownError(null)
     try {
-      const res = await fetch("/api/settings/lockdown", { method: "POST" })
+      const res = await fetch("/api/settings/lockdown", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: lockdownPassword }),
+      })
       if (!res.ok) {
         throw new Error(await extractApiError(res, "Lockdown failed"))
       }
@@ -113,16 +124,25 @@ export function DangerZoneSection() {
                 This will permanently delete all snapshot history for every tracker and download
                 client. This cannot be undone.
               </p>
-              {resetStatsError && (
-                <p className="text-xs font-sans text-danger" role="alert">
-                  {resetStatsError}
-                </p>
-              )}
+              <Input
+                type="password"
+                autoComplete="off"
+                data-1p-ignore
+                label="Master Password"
+                value={resetStatsPassword}
+                onChange={(e) => {
+                  setResetStatsPassword(e.target.value)
+                  setResetStatsError(null)
+                }}
+                placeholder="Enter your master password to confirm"
+                disabled={resetStatsSubmitting}
+                error={resetStatsError ?? undefined}
+              />
               <div className="flex gap-3">
                 <Button
                   size="sm"
                   variant="danger"
-                  disabled={resetStatsSubmitting}
+                  disabled={resetStatsSubmitting || !resetStatsPassword.trim()}
                   onClick={handleResetStats}
                 >
                   {resetStatsSubmitting ? "Resetting…" : "Confirm Reset"}
@@ -132,6 +152,7 @@ export function DangerZoneSection() {
                   variant="ghost"
                   onClick={() => {
                     setConfirmResetStats(false)
+                    setResetStatsPassword("")
                     setResetStatsError(null)
                   }}
                 >
@@ -196,11 +217,20 @@ export function DangerZoneSection() {
                   Two-factor authentication and username will be removed
                 </Checkbox>
               </div>
-              {lockdownError && (
-                <p className="text-xs font-sans text-danger" role="alert">
-                  {lockdownError}
-                </p>
-              )}
+              <Input
+                type="password"
+                autoComplete="off"
+                data-1p-ignore
+                label="Master Password"
+                value={lockdownPassword}
+                onChange={(e) => {
+                  setLockdownPassword(e.target.value)
+                  setLockdownError(null)
+                }}
+                placeholder="Enter your master password to confirm"
+                disabled={lockdownSubmitting}
+                error={lockdownError ?? undefined}
+              />
               <div className="flex gap-3">
                 <Button
                   size="sm"
@@ -209,7 +239,8 @@ export function DangerZoneSection() {
                     lockdownSubmitting ||
                     !lockdownChecks.sessions ||
                     !lockdownChecks.tokens ||
-                    !lockdownChecks.totp
+                    !lockdownChecks.totp ||
+                    !lockdownPassword.trim()
                   }
                   onClick={handleLockdown}
                 >
@@ -220,6 +251,7 @@ export function DangerZoneSection() {
                   variant="ghost"
                   onClick={() => {
                     setConfirmLockdown(false)
+                    setLockdownPassword("")
                     setLockdownChecks({ sessions: false, tokens: false, totp: false })
                     setLockdownError(null)
                   }}
@@ -257,6 +289,8 @@ export function DangerZoneSection() {
               </p>
               <Input
                 type="password"
+                autoComplete="off"
+                data-1p-ignore
                 label="Master Password"
                 value={nukePassword}
                 onChange={(e) => {

@@ -420,13 +420,14 @@ function TwoFactorSetup() {
           <Input
             label="Master Password"
             type="password"
+            autoComplete="off"
+            data-1p-ignore
             value={disablePassword}
             onChange={(e) => {
               setDisablePassword(e.target.value)
               setError(null)
             }}
             placeholder="Enter your master password"
-            autoComplete="current-password"
           />
 
           {useBackupCode ? (

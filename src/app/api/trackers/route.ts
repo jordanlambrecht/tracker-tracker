@@ -5,7 +5,7 @@
 import { sql } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { CHART_THEME } from "@/components/charts/theme"
-import { DEFAULT_API_PATHS } from "@/lib/adapters"
+import { DEFAULT_API_PATHS, VALID_PLATFORM_TYPES } from "@/lib/adapters"
 import {
   authenticate,
   decodeKey,
@@ -90,22 +90,26 @@ export async function POST(request: Request) {
     )
   }
 
-  if (name.length > 100) {
+  const trimmedName = name.trim()
+  const trimmedBaseUrl = baseUrl.trim()
+  const trimmedApiToken = apiToken.trim()
+
+  if (trimmedName.length > 100) {
     return NextResponse.json({ error: "Name must be 100 characters or fewer" }, { status: 400 })
   }
 
-  if (baseUrl.length > 500) {
+  if (trimmedBaseUrl.length > 500) {
     return NextResponse.json({ error: "URL must be 500 characters or fewer" }, { status: 400 })
   }
 
-  if (apiToken.length > 500) {
+  if (trimmedApiToken.length > 500) {
     return NextResponse.json(
       { error: "API token must be 500 characters or fewer" },
       { status: 400 }
     )
   }
 
-  const urlErr = validateHttpUrl(baseUrl)
+  const urlErr = validateHttpUrl(trimmedBaseUrl)
   if (urlErr) return urlErr
 
   if (typeof color === "string") {
@@ -120,28 +124,28 @@ export async function POST(request: Request) {
     )
   }
 
-  if (
-    typeof joinedAt === "string" &&
-    joinedAt &&
-    joinedAt > new Date().toISOString().split("T")[0]
-  ) {
-    return NextResponse.json({ error: "Join date cannot be in the future" }, { status: 400 })
+  if (typeof joinedAt === "string" && joinedAt) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(joinedAt)) {
+      return NextResponse.json({ error: "joinedAt must be YYYY-MM-DD" }, { status: 400 })
+    }
+    if (joinedAt > new Date().toISOString().split("T")[0]) {
+      return NextResponse.json({ error: "Join date cannot be in the future" }, { status: 400 })
+    }
   }
 
-  const validPlatforms = ["unit3d", "gazelle", "ggn", "nebulance"]
   const platform = typeof platformType === "string" ? platformType : "unit3d"
-  if (!validPlatforms.includes(platform)) {
+  if (!VALID_PLATFORM_TYPES.includes(platform as (typeof VALID_PLATFORM_TYPES)[number])) {
     return NextResponse.json({ error: "Invalid platform type" }, { status: 400 })
   }
 
   const key = decodeKey(auth)
-  const encryptedApiToken = encrypt(apiToken, key)
+  const encryptedApiToken = encrypt(trimmedApiToken, key)
 
   const [tracker] = await db
     .insert(trackers)
     .values({
-      name: name.trim(),
-      baseUrl: baseUrl.trim(),
+      name: trimmedName,
+      baseUrl: trimmedBaseUrl,
       apiPath: DEFAULT_API_PATHS[platform] ?? "/api/user",
       encryptedApiToken,
       platformType: platform,

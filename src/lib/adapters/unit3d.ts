@@ -1,7 +1,7 @@
 // src/lib/adapters/unit3d.ts
 import { parseBytes } from "@/lib/parser"
 import { adapterFetch } from "./adapter-fetch"
-import type { FetchOptions, TrackerAdapter, TrackerStats } from "./types"
+import type { DebugApiCall, FetchOptions, TrackerAdapter, TrackerStats } from "./types"
 
 interface Unit3dApiResponse {
   username: string
@@ -52,12 +52,23 @@ export class Unit3dAdapter implements TrackerAdapter {
     apiToken: string,
     apiPath: string,
     options?: FetchOptions
-  ): Promise<Record<string, unknown>> {
+  ): Promise<DebugApiCall[]> {
     const url = new URL(apiPath, baseUrl)
     url.searchParams.set("api_token", apiToken)
-
     const hostname = new URL(baseUrl).hostname
-    const data = await adapterFetch<Record<string, unknown>>(url.toString(), hostname, options)
-    return data
+
+    try {
+      const data = await adapterFetch<Record<string, unknown>>(url.toString(), hostname, options)
+      return [{ label: "User Stats", endpoint: apiPath, data, error: null }]
+    } catch (err) {
+      return [
+        {
+          label: "User Stats",
+          endpoint: apiPath,
+          data: null,
+          error: err instanceof Error ? err.message : "Request failed",
+        },
+      ]
+    }
   }
 }
