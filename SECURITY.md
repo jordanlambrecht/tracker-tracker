@@ -249,7 +249,7 @@ The backup/restore system (`src/lib/backup.ts`, `src/app/api/settings/backup/`) 
 #### Authentication
 
 - All four backup routes (`export`, `restore`, `history`, `delete`) require a valid session via `authenticate()`.
-- **Restore requires master password re-confirmation** — failed verification increments the auto-wipe counter and triggers progressive lockout.
+- **Restore requires master password re-confirmation** — failed verification increments the failed login counter and triggers lockout.
 
 #### Optional Encryption Layer
 
@@ -368,7 +368,7 @@ The security audit (`scripts/security-audit.ts`) performs 28 automated checks on
 | 24  | TOTP flow integrity      | Critical | 2FA routes enforce correct auth patterns, token flows, and single-use backup codes           |
 | 25  | Lockdown flow integrity  | Critical | Emergency lockdown stops scheduler, revokes tokens, rotates salt, clears TOTP                |
 | 26  | Nuke flow integrity      | Critical | Scrub & delete requires session + password, uses `scrubAndDeleteAll()`                       |
-| 27  | Backup restore integrity | Critical | Restore requires session + password (no auto-wipe), resets failed attempts, uses transaction |
+| 27  | Backup restore integrity | Critical | Restore requires session + password, resets failed attempts, uses transaction                 |
 | 28  | Login flow integrity     | Critical | Login uses Argon2, atomic failed attempts, key derivation, TOTP pending token support        |
 
 Critical failures block the build. Warnings are reported but don't block.
