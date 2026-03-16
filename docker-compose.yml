@@ -1,7 +1,7 @@
 services:
   tracker-tracker-app:
-    # image: ghcr.io/jordanlambrecht/tracker-tracker:latest
-    build: .
+    image: ghcr.io/jordanlambrecht/tracker-tracker:latest
+    # build: .
     restart: unless-stopped
     container_name: tracker-tracker-app
     ports:
