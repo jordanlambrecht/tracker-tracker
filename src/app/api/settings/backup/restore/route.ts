@@ -26,9 +26,9 @@ import {
   trackerSnapshots,
   trackers,
 } from "@/lib/db/schema"
+import { checkLockout, recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import { log } from "@/lib/logger"
 import { stopScheduler } from "@/lib/scheduler"
-import { checkLockout, recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"
 
 const BATCH_SIZE = 500
 
@@ -92,7 +92,12 @@ export async function POST(request: Request) {
   }
 
   // Step 3: Verify master password is present before parsing the backup payload.
-  if (!masterPassword || typeof masterPassword !== "string" || masterPassword.length === 0) {
+  if (
+    !masterPassword ||
+    typeof masterPassword !== "string" ||
+    masterPassword.length === 0 ||
+    masterPassword.length > 128
+  ) {
     return NextResponse.json(
       { error: "Master password is required to restore backups" },
       { status: 400 }
@@ -157,7 +162,7 @@ export async function POST(request: Request) {
 
   const isPasswordValid = await verifyPassword(currentSettings.passwordHash, masterPassword)
   if (!isPasswordValid) {
-    const wiped = await recordFailedAttempt(currentSettings.id, currentSettings.autoWipeThreshold)
+    await recordFailedAttempt(currentSettings.id, currentSettings)
 
     const fileName = file instanceof File ? file.name : "unknown"
     log.warn(
@@ -166,14 +171,9 @@ export async function POST(request: Request) {
         reason: "invalid_master_password",
         fileNameHash: hashFileName(fileName),
         encrypted: isEncrypted,
-        wiped,
       },
       "Restore attempt with invalid master password"
     )
-
-    if (wiped) {
-      return NextResponse.json({ error: WIPE_MESSAGE }, { status: 403 })
-    }
 
     return NextResponse.json({ error: "Invalid master password" }, { status: 401 })
   }
@@ -511,7 +511,9 @@ export async function POST(request: Request) {
           totpSecret,
           totpBackupCodes,
           sessionTimeoutMinutes: (payload.settings.sessionTimeoutMinutes as number | null) ?? null,
-          autoWipeThreshold: (payload.settings.autoWipeThreshold as number | null) ?? null,
+          lockoutEnabled: (payload.settings.lockoutEnabled as boolean) ?? true,
+          lockoutThreshold: (payload.settings.lockoutThreshold as number) ?? 5,
+          lockoutDurationMinutes: (payload.settings.lockoutDurationMinutes as number) ?? 15,
           failedLoginAttempts: 0,
           lockedUntil: null,
           snapshotRetentionDays: (payload.settings.snapshotRetentionDays as number | null) ?? null,
