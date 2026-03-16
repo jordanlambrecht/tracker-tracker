@@ -30,6 +30,9 @@ export interface ProxySectionProps {
 
 export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
   const [proxyEnabled, setProxyEnabled] = useState(initialProxy.enabled)
+  const defaultPortForType = (type: string) =>
+    type === "https" ? 443 : type === "http" ? 8080 : 1080
+
   const [proxyType, setProxyType] = useState(initialProxy.type || "socks5")
   const [proxyHost, setProxyHost] = useState(initialProxy.host)
   const [proxyPort, setProxyPort] = useState(initialProxy.port)
@@ -173,7 +176,14 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
                 <Select
                   label="Type"
                   value={proxyType}
-                  onChange={setProxyType}
+                  onChange={(newType) => {
+                    const oldDefault = defaultPortForType(proxyType)
+                    setProxyType(newType)
+                    // Auto-fill port if user hasn't customized it from the current type's default
+                    if (proxyPort === oldDefault) {
+                      setProxyPort(defaultPortForType(newType))
+                    }
+                  }}
                   ariaLabel="Proxy type"
                   size="md"
                   options={[
