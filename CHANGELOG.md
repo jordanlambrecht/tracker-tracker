@@ -1,5 +1,68 @@
 # Changelog
 
+## [1.10.3](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.10.0...v1.10.3) (2026-03-16)
+
+
+### Bug Fixes
+
+* add --ignore-scripts option to pnpm prune in Dockerfile ([259ed39](https://github.com/jordanlambrecht/tracker-tracker/commit/259ed39e418080652e410227a227399c2444275c))
+* **ci:** update codeql-action to v4, pin sbom-action version ([16082b8](https://github.com/jordanlambrecht/tracker-tracker/commit/16082b8694a7004f7a67cf2c2e970bd351455c43))
+* reduce CVE surface in Docker image ([d1196fc](https://github.com/jordanlambrecht/tracker-tracker/commit/d1196fc6487dce16bba46e05d2e39f5ab426596e))
+* update jsdom to v29.0.0 and dom-selector to v7.0.3 ([6565f35](https://github.com/jordanlambrecht/tracker-tracker/commit/6565f355c5cf6a1bb792a76ee8ab3b955701d0ae))
+
+## [1.10.2](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.10.0...v1.10.2) (2026-03-16)
+
+
+### Bug Fixes
+
+* **ci:** update codeql-action to v4, pin sbom-action version ([16082b8](https://github.com/jordanlambrecht/tracker-tracker/commit/16082b8694a7004f7a67cf2c2e970bd351455c43))
+* reduce CVE surface in Docker image ([d1196fc](https://github.com/jordanlambrecht/tracker-tracker/commit/d1196fc6487dce16bba46e05d2e39f5ab426596e))
+* update jsdom to v29.0.0 and dom-selector to v7.0.3 ([6565f35](https://github.com/jordanlambrecht/tracker-tracker/commit/6565f355c5cf6a1bb792a76ee8ab3b955701d0ae))
+
+## [1.10.1](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.10.0...v1.10.1) (2026-03-16)
+
+
+### Features
+
+* add area and totals modes to daily volume chart ([8c6636c](https://github.com/jordanlambrecht/tracker-tracker/commit/8c6636c3f0b0f99c6e88e47bba1f56aa92bb9983))
+* add cross-seed network, size scatter, and category breakdown to fleet dashboard ([7e6bd67](https://github.com/jordanlambrecht/tracker-tracker/commit/7e6bd67998b14e4c221a9b1a50f120631b22c847))
+* add sankey flow and parallel views to distribution chart ([58e2d7c](https://github.com/jordanlambrecht/tracker-tracker/commit/58e2d7c218dbb29743a94e0ea68954e752bede23))
+* add stacked and total view modes to comparison charts ([cdf0f73](https://github.com/jordanlambrecht/tracker-tracker/commit/cdf0f732a82c675c07fcdd21c334603bce937298))
+* add volume heatmap and calendar charts ([7848e89](https://github.com/jordanlambrecht/tracker-tracker/commit/7848e89ca8462afcb1fcc5808c817b5c0533d91d))
+* added logo to footer ([1270099](https://github.com/jordanlambrecht/tracker-tracker/commit/1270099c6ad49de2d09b0f6c768789b457e7c521))
+* added timestamp to dl client disconnect error ([0cfabe2](https://github.com/jordanlambrecht/tracker-tracker/commit/0cfabe26f4740ca8dd9e9cbef3c3e3b15be5818d))
+* auto-fill proxy port based on selected type in ProxySection ([0e2f30e](https://github.com/jordanlambrecht/tracker-tracker/commit/0e2f30efdfbe544924cb2d2b9c16282acc6e70ac))
+* encrypt scheduled and manual backups with stored password ([e514f9c](https://github.com/jordanlambrecht/tracker-tracker/commit/e514f9c5f8771690eb3ed6f623bf6881ab653a9e))
+
+
+### Bug Fixes
+
+* add .trivyignore file with CVE entries for vulnerability scanning ([e78d5e9](https://github.com/jordanlambrecht/tracker-tracker/commit/e78d5e9939f81349e2e82f5caa89510f850f0bc7))
+* add missing alias for typography in vitest configuration ([e7a7e34](https://github.com/jordanlambrecht/tracker-tracker/commit/e7a7e3498f199b1e3d99e6dd211183d486379a9e))
+* add missing permissions for actions in CodeQL workflow ([c1210df](https://github.com/jordanlambrecht/tracker-tracker/commit/c1210df290cccff1c7f333c6ee5df0cbb4d0e35e))
+* **ci:** update codeql-action to v4, pin sbom-action version ([16082b8](https://github.com/jordanlambrecht/tracker-tracker/commit/16082b8694a7004f7a67cf2c2e970bd351455c43))
+* commit-msg hook ([e8c81d1](https://github.com/jordanlambrecht/tracker-tracker/commit/e8c81d1cbbb077c2e3e385270d83f2443740b819))
+* construct DATABASE_URL from POSTGRES env vars when not set ([c8c473a](https://github.com/jordanlambrecht/tracker-tracker/commit/c8c473a718bd47c50498a744c5b9c49572d38579))
+* re-encrypt backup password on password change, clear on lockdown ([cf7a3dc](https://github.com/jordanlambrecht/tracker-tracker/commit/cf7a3dca1e242501cbafde491e9f8654e7e8e78f))
+* reduce CVE surface in Docker image ([d1196fc](https://github.com/jordanlambrecht/tracker-tracker/commit/d1196fc6487dce16bba46e05d2e39f5ab426596e))
+* remove redundant comment ([18688d5](https://github.com/jordanlambrecht/tracker-tracker/commit/18688d5f1dc4cc1f7c78bb4825b1e9892a344dbf))
+* update .trivyignore with additional CVE entries ([88142b5](https://github.com/jordanlambrecht/tracker-tracker/commit/88142b5ad8a6cfe819b1611aa8760454b20ef7aa))
+* update tracker file detection method and enhance session secret length ([5a23ccd](https://github.com/jordanlambrecht/tracker-tracker/commit/5a23ccdcade32f17fbd4a9d495ee65bce9e2df24))
+* update Trivy to version 0.35.0 in CI and release workflows ([88877f4](https://github.com/jordanlambrecht/tracker-tracker/commit/88877f4cace97937a50d07218333f7b19b0d9b1e))
+
+
+### Performance
+
+* batch snapshot queries and eliminate redundant DB round-trip ([ec4f77b](https://github.com/jordanlambrecht/tracker-tracker/commit/ec4f77b9eb7d813e88304ade53faad01b731a00d))
+
+
+### Refactoring
+
+* consolidate chart utilities and wire into 25+ chart files ([426b017](https://github.com/jordanlambrecht/tracker-tracker/commit/426b01747095147cc970708b57cff61a4871a95e))
+* extract shared server helpers and wire into consumers ([07c80d4](https://github.com/jordanlambrecht/tracker-tracker/commit/07c80d4e59863d0d15310841e57a3f558316b47d))
+* merge TopTorrentsTable and ElderTorrentsTable into TorrentRankingTable ([003b01c](https://github.com/jordanlambrecht/tracker-tracker/commit/003b01ce9a002c30e0e1e5b91b61804656503023))
+* streamline request creation in tracker routes tests ([13a42f7](https://github.com/jordanlambrecht/tracker-tracker/commit/13a42f793dd128f8d523ddebfa6953830dff09cb))
+
 ## [1.10.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.8.4...v1.10.0) (2026-03-16)
 
 
