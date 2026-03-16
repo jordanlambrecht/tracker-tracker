@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.10.1](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.8.4...v1.10.1) (2026-03-16)
+## [1.10.1](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.10.0...v1.10.1) (2026-03-16)
 
 
 ### Features
