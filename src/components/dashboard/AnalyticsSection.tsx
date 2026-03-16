@@ -10,6 +10,8 @@ import { BufferCandlestickChart } from "@/components/charts/BufferCandlestickCha
 import { BufferVelocityChart } from "@/components/charts/BufferVelocityChart"
 import { ComparisonChart } from "@/components/charts/ComparisonChart"
 import { DailyVolumeChart } from "@/components/charts/DailyVolumeChart"
+import { FleetVolumeCalendar } from "@/components/charts/FleetVolumeCalendar"
+import { FleetVolumeHeatmap } from "@/components/charts/FleetVolumeHeatmap"
 import { DistributionChart } from "@/components/charts/DistributionChart"
 import { FleetCompositionChart } from "@/components/charts/FleetCompositionChart"
 import { RankTenureChart } from "@/components/charts/RankTenureChart"
@@ -61,7 +63,9 @@ function AnalyticsSection({ trackerSeries, trackers }: AnalyticsSectionProps) {
           />
         )
       case "comparison-uploaded":
-        return <ComparisonChart metric="uploaded" trackerData={trackerSeries} height={320} enableLogScale />
+        return <ComparisonChart metric="uploaded" trackerData={trackerSeries} height={320} enableLogScale enableStacked />
+      case "comparison-downloaded":
+        return <ComparisonChart metric="downloaded" trackerData={trackerSeries} height={320} enableLogScale enableStacked />
       case "comparison-ratio":
         return <ComparisonChart metric="ratio" trackerData={trackerSeries} height={320} enableLogScale enableAverage />
       case "comparison-buffer":
@@ -69,7 +73,7 @@ function AnalyticsSection({ trackerSeries, trackers }: AnalyticsSectionProps) {
       case "comparison-seedbonus":
         return <ComparisonChart metric="seedbonus" trackerData={trackerSeries} height={320} enableLogScale />
       case "comparison-active":
-        return <ComparisonChart metric="active" trackerData={trackerSeries} height={320} enableLogScale />
+        return <ComparisonChart metric="active" trackerData={trackerSeries} height={320} enableLogScale enableStacked />
       case "ratio-stability":
         return <RatioStabilityChart trackerData={trackerSeries} height={360} />
       case "fleet-composition":
@@ -95,6 +99,10 @@ function AnalyticsSection({ trackerSeries, trackers }: AnalyticsSectionProps) {
         )
       case "seedbonus-flow":
         return <SeedbonusRiverChart trackerData={trackerSeries} height={320} />
+      case "volume-heatmap":
+        return <FleetVolumeHeatmap trackerData={trackerSeries} height={260} />
+      case "volume-calendar":
+        return <FleetVolumeCalendar trackerData={trackerSeries} height={200} />
       default:
         return null
     }

@@ -29,13 +29,26 @@ interface ChartPrefs {
 const DASHBOARD_CHARTS: ChartDef[] = [
   { id: "daily-volume", label: "Daily Volume", category: "analytics" },
   {
+    id: "volume-calendar",
+    label: "Volume Calendar",
+    description: "GitHub-style calendar showing daily upload or download volume over time",
+    category: "analytics",
+  },
+  {
     id: "upload-landscape",
     label: "Upload Landscape",
     description: "Daily upload volume per tracker — drag to rotate, scroll to zoom",
     category: "analytics",
   },
   { id: "distribution", label: "Distribution", category: "analytics" },
+  {
+    id: "volume-heatmap",
+    label: "Volume Heatmap",
+    description: "Upload or download volume by day of week and hour — reveals activity patterns",
+    category: "analytics",
+  },
   { id: "comparison-uploaded", label: "Total Uploaded", category: "analytics" },
+  { id: "comparison-downloaded", label: "Total Downloaded", category: "analytics" },
   { id: "comparison-ratio", label: "Ratio", category: "analytics" },
   { id: "comparison-buffer", label: "Buffer", category: "analytics" },
   { id: "comparison-seedbonus", label: "Seedbonus", category: "analytics" },
