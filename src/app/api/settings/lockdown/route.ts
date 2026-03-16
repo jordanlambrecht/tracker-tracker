@@ -37,13 +37,15 @@ export async function POST() {
   // 3. Rotate encryption salt — orphans any remaining ciphertext
   const newSalt = generateSalt()
 
-  // 4. Wipe TOTP secrets (encrypted with old key, now unrecoverable anyway)
+  // 4. Wipe all encrypted fields (encrypted with old key, now unrecoverable anyway)
   await db
     .update(appSettings)
     .set({
       encryptionSalt: newSalt,
       totpSecret: null,
       totpBackupCodes: null,
+      encryptedProxyPassword: null,
+      encryptedBackupPassword: null,
       username: null,
     })
     .where(eq(appSettings.id, settings.id))

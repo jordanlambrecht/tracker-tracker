@@ -4,7 +4,7 @@
 //
 // Changes the master password and re-encrypts all encrypted fields
 // (tracker API tokens, download client credentials, proxy password,
-// TOTP secrets) inside a single transaction.
+// backup password, TOTP secrets) inside a single transaction.
 // Requires an active session and the current password for verification.
 
 import { eq } from "drizzle-orm"
@@ -123,6 +123,21 @@ export async function POST(request: Request) {
       settingsUpdates.encryptedProxyPassword = null
       warnings.push(
         "Proxy password could not be re-encrypted and was cleared. Re-enter it in settings."
+      )
+    }
+  }
+
+  if (settings.encryptedBackupPassword) {
+    try {
+      settingsUpdates.encryptedBackupPassword = reencrypt(
+        settings.encryptedBackupPassword,
+        oldKey,
+        newKey
+      )
+    } catch {
+      settingsUpdates.encryptedBackupPassword = null
+      warnings.push(
+        "Backup password could not be re-encrypted and was cleared. Re-set it in backup settings."
       )
     }
   }
