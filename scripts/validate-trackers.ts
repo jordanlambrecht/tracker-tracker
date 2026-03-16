@@ -206,7 +206,7 @@ function checkBarrelInclusion(): string[] {
   const barrelContent = fs.readFileSync(barrelPath, "utf8")
   const files = fs
     .readdirSync(TRACKER_DIR)
-    .filter((f) => f.endsWith(".ts") && f !== "index.ts")
+    .filter((f) => f.endsWith(".ts") && f !== "index.ts" && !f.startsWith("_"))
     .map((f) => f.replace(/\.ts$/, ""))
   return files
     .filter((f) => !barrelContent.includes(`./${f}`))
