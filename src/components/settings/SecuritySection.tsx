@@ -13,39 +13,35 @@ import { Checkbox } from "@/components/ui/Checkbox"
 import { NumberInput } from "@/components/ui/NumberInput"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 
+interface LockoutConfig {
+  enabled: boolean
+  threshold: number
+  durationMinutes: number
+}
+
 export interface SecuritySectionProps {
-  initialAutoWipeThreshold: number | null
+  initialLockout: LockoutConfig
   initialSnapshotRetentionDays: number | null
   initialSessionTimeoutMinutes: number | null
 }
 
 export function SecuritySection({
-  initialAutoWipeThreshold,
+  initialLockout,
   initialSnapshotRetentionDays,
   initialSessionTimeoutMinutes,
 }: SecuritySectionProps) {
-  // ── Auto-wipe ──────────────────────────────────────────────────────
-  const [autoWipeEnabled, setAutoWipeEnabled] = useState(
-    initialAutoWipeThreshold !== null && initialAutoWipeThreshold > 0
-  )
-  const [autoWipeThreshold, setAutoWipeThreshold] = useState(
-    initialAutoWipeThreshold && initialAutoWipeThreshold > 0 ? initialAutoWipeThreshold : 5
-  )
-  const [savedAutoWipe, setSavedAutoWipe] = useState<{
-    enabled: boolean
-    threshold: number
-  }>({
-    enabled: initialAutoWipeThreshold !== null && initialAutoWipeThreshold > 0,
-    threshold:
-      initialAutoWipeThreshold && initialAutoWipeThreshold > 0 ? initialAutoWipeThreshold : 5,
-  })
+  // ── Auto-lockout ───────────────────────────────────────────────────
+  const [lockoutEnabled, setLockoutEnabled] = useState(initialLockout.enabled)
+  const [lockoutThreshold, setLockoutThreshold] = useState(initialLockout.threshold)
+  const [lockoutDuration, setLockoutDuration] = useState(initialLockout.durationMinutes)
+  const [savedLockout, setSavedLockout] = useState<LockoutConfig>({ ...initialLockout })
 
   const {
-    saving: savingAutoWipe,
-    error: autoWipeError,
-    success: autoWipeSuccess,
-    patch: patchAutoWipe,
-    clearSuccess: clearAutoWipeSuccess,
+    saving: savingLockout,
+    error: lockoutError,
+    success: lockoutSuccess,
+    patch: patchLockout,
+    clearSuccess: clearLockoutSuccess,
   } = usePatchSettings()
 
   // ── Snapshot retention ─────────────────────────────────────────────
@@ -110,14 +106,22 @@ export function SecuritySection({
   } = usePatchSettings()
 
   // ── Handlers ───────────────────────────────────────────────────────
-  async function handleSaveAutoWipe() {
-    const value = autoWipeEnabled ? autoWipeThreshold : null
-    const result = await patchAutoWipe({ autoWipeThreshold: value })
+  async function handleSaveLockout() {
+    const result = await patchLockout({
+      lockoutEnabled,
+      lockoutThreshold,
+      lockoutDurationMinutes: lockoutDuration,
+    })
     if (result !== null) {
-      const saved = (result as { autoWipeThreshold?: number | null }).autoWipeThreshold ?? null
-      setSavedAutoWipe({
-        enabled: saved !== null && saved > 0,
-        threshold: saved ?? 5,
+      const r = result as {
+        lockoutEnabled: boolean
+        lockoutThreshold: number
+        lockoutDurationMinutes: number
+      }
+      setSavedLockout({
+        enabled: r.lockoutEnabled,
+        threshold: r.lockoutThreshold,
+        durationMinutes: r.lockoutDurationMinutes,
       })
     }
   }
@@ -149,9 +153,10 @@ export function SecuritySection({
   }
 
   // ── Dirty checks ───────────────────────────────────────────────────
-  const autoWipeDirty =
-    autoWipeEnabled !== savedAutoWipe.enabled ||
-    (autoWipeEnabled && autoWipeThreshold !== savedAutoWipe.threshold)
+  const lockoutDirty =
+    lockoutEnabled !== savedLockout.enabled ||
+    lockoutThreshold !== savedLockout.threshold ||
+    lockoutDuration !== savedLockout.durationMinutes
 
   const retentionDirty =
     retentionEnabled !== savedRetention.enabled ||
@@ -183,51 +188,57 @@ export function SecuritySection({
         </H2>
 
         <Card elevation="raised" className="flex flex-col gap-5">
-          {/* Auto-wipe on failed logins */}
+          {/* Auto-lockout */}
           <div className="flex flex-col gap-3">
             <Checkbox
-              checked={autoWipeEnabled}
+              checked={lockoutEnabled}
               onChange={(v) => {
-                setAutoWipeEnabled(v)
-                clearAutoWipeSuccess()
+                setLockoutEnabled(v)
+                clearLockoutSuccess()
               }}
             >
-              Delete all data after{" "}
+              Lock account after{" "}
               <NumberInput
-                value={autoWipeThreshold}
+                value={lockoutThreshold}
                 onChange={(v) => {
-                  setAutoWipeThreshold(v)
-                  clearAutoWipeSuccess()
+                  setLockoutThreshold(v)
+                  clearLockoutSuccess()
                 }}
                 min={1}
                 max={99}
-                disabled={!autoWipeEnabled}
+                disabled={!lockoutEnabled}
                 className="mx-1 inline-flex align-middle"
               />{" "}
-              failed login attempts
+              failed attempts for{" "}
+              <NumberInput
+                value={lockoutDuration}
+                onChange={(v) => {
+                  setLockoutDuration(v)
+                  clearLockoutSuccess()
+                }}
+                min={1}
+                max={1440}
+                disabled={!lockoutEnabled}
+                className="mx-1 inline-flex align-middle"
+              />{" "}
+              minutes
             </Checkbox>
             <Paragraph className="ml-8">
-              Automatically scrubs and deletes all trackers, snapshots, and settings after
-              consecutive failed login attempts. The application resets to first-run setup.
+              Temporarily locks the login page after consecutive failed attempts. Protects against
+              brute-force attacks. The lockout resets on successful login.
             </Paragraph>
-            {autoWipeEnabled && (
-              <p className="text-xs font-sans leading-relaxed ml-8 text-warn">
-                Mistyping your password {autoWipeThreshold} time
-                {autoWipeThreshold === 1 ? "" : "s"} in a row will permanently destroy all data.
-              </p>
-            )}
-            {autoWipeError && (
+            {lockoutError && (
               <p className="text-xs font-sans text-danger ml-8" role="alert">
-                {autoWipeError}
+                {lockoutError}
               </p>
             )}
-            {autoWipeSuccess && (
-              <p className="text-xs font-sans text-success ml-8">Auto-wipe setting saved.</p>
+            {lockoutSuccess && (
+              <p className="text-xs font-sans text-success ml-8">Lockout setting saved.</p>
             )}
-            {autoWipeDirty && (
+            {lockoutDirty && (
               <div className="flex justify-end">
-                <Button size="sm" disabled={savingAutoWipe} onClick={handleSaveAutoWipe}>
-                  {savingAutoWipe ? "Saving…" : "Save Auto-Wipe"}
+                <Button size="sm" disabled={savingLockout} onClick={handleSaveLockout}>
+                  {savingLockout ? "Saving…" : "Save Lockout"}
                 </Button>
               </div>
             )}
@@ -260,7 +271,7 @@ export function SecuritySection({
             </Checkbox>
             <Paragraph className="ml-8">
               Automatically prunes historical snapshot data older than the configured period.
-              Reduces what&apos;s stored on disk. Disabled means data is kept indefinitely.
+              Reduces what&apos;s stored on disk.
             </Paragraph>
             {retentionError && (
               <p className="text-xs font-sans text-danger ml-8" role="alert">
@@ -329,8 +340,7 @@ export function SecuritySection({
               minutes
             </Checkbox>
             <Paragraph className="ml-8">
-              Automatically ends your session after a period of inactivity. You will need to log in
-              again with your master password.
+              Automatically ends your session after a period of inactivity.
             </Paragraph>
             {autoLogoutEnabled &&
               autoLogoutDays === 0 &&

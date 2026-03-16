@@ -14,8 +14,8 @@ import { clearSession, hashPassword, verifyPassword } from "@/lib/auth"
 import { decrypt, deriveKey, encrypt, reencrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings, downloadClients, trackers } from "@/lib/db/schema"
+import { recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import { stopScheduler } from "@/lib/scheduler"
-import { recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"
 
 export async function POST(request: Request) {
   const auth = await authenticate()
@@ -51,8 +51,7 @@ export async function POST(request: Request) {
 
   const valid = await verifyPassword(settings.passwordHash, currentPassword)
   if (!valid) {
-    const wiped = await recordFailedAttempt(settings.id, settings.autoWipeThreshold)
-    if (wiped) return NextResponse.json({ error: WIPE_MESSAGE }, { status: 403 })
+    await recordFailedAttempt(settings.id, settings)
     return NextResponse.json({ error: "Current password is incorrect" }, { status: 401 })
   }
   await resetFailedAttempts(settings.id)

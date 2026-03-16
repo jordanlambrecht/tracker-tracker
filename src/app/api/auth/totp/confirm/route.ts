@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     enableBackupCodes?: boolean
   }
 
-  if (!setupToken || typeof setupToken !== "string") {
+  if (!setupToken || typeof setupToken !== "string" || setupToken.length > 2048) {
     return NextResponse.json({ error: "Missing setup token" }, { status: 400 })
   }
   if (!code || typeof code !== "string" || code.length !== 6 || !/^\d{6}$/.test(code)) {

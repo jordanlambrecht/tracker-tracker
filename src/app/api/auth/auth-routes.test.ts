@@ -38,12 +38,10 @@ vi.mock("@/lib/scheduler", () => ({
   stopScheduler: vi.fn(),
 }))
 
-vi.mock("@/lib/wipe", () => ({
+vi.mock("@/lib/lockout", () => ({
   checkLockout: vi.fn().mockReturnValue(null),
-  recordFailedAttempt: vi.fn().mockResolvedValue(false),
+  recordFailedAttempt: vi.fn().mockResolvedValue(undefined),
   resetFailedAttempts: vi.fn().mockResolvedValue(undefined),
-  WIPE_MESSAGE: "Too many failed attempts. All data has been deleted.",
-  scrubAndDeleteAll: vi.fn().mockResolvedValue(undefined),
 }))
 
 function makeSelectChain(resolvedValue: unknown) {
@@ -312,7 +310,6 @@ describe("POST /api/auth/login", () => {
       passwordHash: "hash",
       encryptionSalt: "salt",
       failedLoginAttempts: 0,
-      autoWipeThreshold: null,
     }
     makeSelectChain([fakeSettings])
     ;(verifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue(true)
@@ -342,7 +339,6 @@ describe("POST /api/auth/login", () => {
       passwordHash: "hash",
       encryptionSalt: "salt",
       failedLoginAttempts: 0,
-      autoWipeThreshold: null,
       username: "admin",
     }
     makeSelectChain([fakeSettings])
@@ -366,7 +362,6 @@ describe("POST /api/auth/login", () => {
       passwordHash: "hash",
       encryptionSalt: "salt",
       failedLoginAttempts: 0,
-      autoWipeThreshold: null,
       username: "admin",
     }
     makeSelectChain([fakeSettings])
@@ -390,7 +385,6 @@ describe("POST /api/auth/login", () => {
       passwordHash: "hash",
       encryptionSalt: "salt",
       failedLoginAttempts: 0,
-      autoWipeThreshold: null,
       username: "Admin",
     }
     makeSelectChain([fakeSettings])
@@ -484,7 +478,6 @@ describe("POST /api/auth/login", () => {
       passwordHash: "hash",
       encryptionSalt: "salt",
       failedLoginAttempts: 0,
-      autoWipeThreshold: null,
     }
     makeSelectChain([fakeSettings])
     ;(verifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue(false)

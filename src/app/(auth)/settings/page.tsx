@@ -27,7 +27,9 @@ interface SettingsData {
   storeUsernames: boolean
   username: string | null
   sessionTimeoutMinutes: number | null
-  autoWipeThreshold: number | null
+  lockoutEnabled: boolean
+  lockoutThreshold: number
+  lockoutDurationMinutes: number
   snapshotRetentionDays: number | null
   proxyEnabled: boolean
   proxyType: string
@@ -152,7 +154,11 @@ export default function SettingsPage() {
           <DataSection initialPollInterval={settings.trackerPollIntervalMinutes ?? 60} />
 
           <SecuritySection
-            initialAutoWipeThreshold={settings.autoWipeThreshold}
+            initialLockout={{
+              enabled: settings.lockoutEnabled,
+              threshold: settings.lockoutThreshold,
+              durationMinutes: settings.lockoutDurationMinutes,
+            }}
             initialSnapshotRetentionDays={settings.snapshotRetentionDays}
             initialSessionTimeoutMinutes={settings.sessionTimeoutMinutes}
           />

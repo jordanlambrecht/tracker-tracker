@@ -61,7 +61,6 @@ function mockSettingsSelect() {
     storeUsernames: true,
     username: null,
     sessionTimeoutMinutes: null,
-    autoWipeThreshold: null,
     snapshotRetentionDays: null,
     trackerPollIntervalMinutes: 60,
     proxyEnabled: false,

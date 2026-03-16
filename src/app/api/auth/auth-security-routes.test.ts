@@ -6,9 +6,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { createPendingToken, createSession, verifyPassword, verifyPendingToken } from "@/lib/auth"
 import { decrypt, deriveKey } from "@/lib/crypto"
 import { db } from "@/lib/db"
+import { checkLockout, recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import { startScheduler } from "@/lib/scheduler"
 import { verifyAndConsumeBackupCode, verifyTotpCode } from "@/lib/totp"
-import { checkLockout, recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"
 
 vi.mock("@/lib/db", () => ({
   db: {
@@ -47,11 +47,10 @@ vi.mock("@/lib/totp", async (importOriginal) => {
   }
 })
 
-vi.mock("@/lib/wipe", () => ({
+vi.mock("@/lib/lockout", () => ({
   checkLockout: vi.fn().mockReturnValue(null),
-  recordFailedAttempt: vi.fn().mockResolvedValue(false),
+  recordFailedAttempt: vi.fn().mockResolvedValue(undefined),
   resetFailedAttempts: vi.fn().mockResolvedValue(undefined),
-  WIPE_MESSAGE: "Too many failed attempts. All data has been deleted.",
 }))
 
 function makeSelectChain(result: unknown) {
@@ -70,7 +69,7 @@ function makeUpdateChain() {
 describe("auth abuse defenses", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(recordFailedAttempt as ReturnType<typeof vi.fn>).mockResolvedValue(false)
+    ;(recordFailedAttempt as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
     ;(resetFailedAttempts as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
   })
 
@@ -80,7 +79,6 @@ describe("auth abuse defenses", () => {
       username: "admin",
       passwordHash: "hash",
       encryptionSalt: "salt",
-      autoWipeThreshold: null,
       lockedUntil: null,
       totpSecret: null,
       sessionTimeoutMinutes: null,
@@ -119,7 +117,6 @@ describe("auth abuse defenses", () => {
       id: 1,
       passwordHash: "hash",
       encryptionSalt: "salt",
-      autoWipeThreshold: 5,
       lockedUntil: null,
       totpSecret: "encrypted-secret",
       sessionTimeoutMinutes: 90,
@@ -153,7 +150,6 @@ describe("auth abuse defenses", () => {
       {
         id: 1,
         totpSecret: "encrypted-secret",
-        autoWipeThreshold: 3,
         lockedUntil: null,
         sessionTimeoutMinutes: 30,
       },
@@ -175,7 +171,7 @@ describe("auth abuse defenses", () => {
 
     expect(response.status).toBe(401)
     await expect(response.json()).resolves.toEqual({ error: "Invalid TOTP code" })
-    expect(recordFailedAttempt).toHaveBeenCalledWith(1, 3)
+    expect(recordFailedAttempt).toHaveBeenCalledWith(1, expect.any(Object))
     expect(createSession).not.toHaveBeenCalled()
   })
 
@@ -185,7 +181,6 @@ describe("auth abuse defenses", () => {
         id: 1,
         totpSecret: "encrypted-secret",
         totpBackupCodes: "encrypted-codes",
-        autoWipeThreshold: 3,
         lockedUntil: null,
         sessionTimeoutMinutes: 45,
       },
@@ -225,35 +220,6 @@ describe("auth abuse defenses", () => {
     expect(startScheduler).toHaveBeenCalledWith(Buffer.from("b".repeat(64), "hex"))
   })
 
-  it("returns the wipe message when TOTP failures reach the threshold", async () => {
-    makeSelectChain([
-      {
-        id: 1,
-        totpSecret: "encrypted-secret",
-        autoWipeThreshold: 1,
-        lockedUntil: null,
-      },
-    ])
-    ;(verifyPendingToken as ReturnType<typeof vi.fn>).mockResolvedValue({
-      encryptionKey: "c".repeat(64),
-    })
-    ;(decrypt as ReturnType<typeof vi.fn>).mockReturnValue("totp-secret")
-    ;(verifyTotpCode as ReturnType<typeof vi.fn>).mockReturnValue(false)
-    ;(recordFailedAttempt as ReturnType<typeof vi.fn>).mockResolvedValue(true)
-
-    const { POST } = await import("./totp/verify/route")
-    const response = await POST(
-      new Request("http://localhost/api/auth/totp/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pendingToken: "pending-token", code: "654321" }),
-      })
-    )
-
-    expect(response.status).toBe(403)
-    await expect(response.json()).resolves.toEqual({ error: WIPE_MESSAGE })
-  })
-
   it("returns 429 when lockedUntil is in the future (login)", async () => {
     const futureDate = new Date(Date.now() + 60_000)
     const retryAfterSecs = Math.ceil((futureDate.getTime() - Date.now()) / 1000)
@@ -262,7 +228,6 @@ describe("auth abuse defenses", () => {
       username: "admin",
       passwordHash: "hash",
       encryptionSalt: "salt",
-      autoWipeThreshold: null,
       lockedUntil: futureDate,
       totpSecret: null,
       sessionTimeoutMinutes: null,
@@ -306,7 +271,6 @@ describe("auth abuse defenses", () => {
         id: 1,
         passwordHash: "hash",
         encryptionSalt: "salt",
-        autoWipeThreshold: 5,
         lockedUntil: futureDate,
         totpSecret: "encrypted-secret",
         sessionTimeoutMinutes: 90,
