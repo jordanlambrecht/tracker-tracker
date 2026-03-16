@@ -4,6 +4,7 @@
 
 import { NextResponse } from "next/server"
 import { parseJsonBody } from "@/lib/api-helpers"
+import { log } from "@/lib/logger"
 import { createPendingToken, createSession, verifyPassword } from "@/lib/auth"
 import { deriveKey } from "@/lib/crypto"
 import { db } from "@/lib/db"
@@ -41,6 +42,7 @@ export async function POST(request: Request) {
 
   if (!usernameOk || !passwordOk) {
     const wiped = await recordFailedAttempt(settings.id, settings.autoWipeThreshold)
+    log.warn({ event: "login_failed" }, "Failed login attempt")
     if (wiped) return NextResponse.json({ error: WIPE_MESSAGE }, { status: 403 })
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
   }
@@ -52,6 +54,7 @@ export async function POST(request: Request) {
   // If TOTP is enrolled, return a pending token instead of a full session.
   // Don't reset the counter yet — TOTP verification is still pending.
   if (settings.totpSecret) {
+    log.info({ event: "login_totp_pending" }, "Password verified, awaiting TOTP")
     const pendingToken = await createPendingToken(keyHex)
     return NextResponse.json({ requiresTotp: true, pendingToken })
   }
@@ -60,6 +63,7 @@ export async function POST(request: Request) {
   await resetFailedAttempts(settings.id)
   await createSession(keyHex, settings.sessionTimeoutMinutes)
   startScheduler(key)
+  log.info({ event: "login_success" }, "Login successful")
 
   return NextResponse.json({ success: true })
 }

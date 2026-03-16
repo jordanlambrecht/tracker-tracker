@@ -9,6 +9,7 @@
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { parseJsonBody } from "@/lib/api-helpers"
+import { log } from "@/lib/logger"
 import { createSession, verifyPendingToken } from "@/lib/auth"
 import { decrypt, encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
@@ -75,6 +76,7 @@ export async function POST(request: Request) {
 
     if (!valid) {
       const wiped = await recordFailedAttempt(settings.id, settings.autoWipeThreshold)
+      log.warn({ event: "totp_failed", method: "backup_code" }, "Failed backup code attempt")
       if (wiped) return NextResponse.json({ error: WIPE_MESSAGE }, { status: 403 })
       return NextResponse.json({ error: "Invalid backup code" }, { status: 401 })
     }
@@ -89,6 +91,7 @@ export async function POST(request: Request) {
     const totpSecret = decrypt(settings.totpSecret, key)
     if (!verifyTotpCode(totpSecret, code)) {
       const wiped = await recordFailedAttempt(settings.id, settings.autoWipeThreshold)
+      log.warn({ event: "totp_failed", method: "totp" }, "Failed TOTP code attempt")
       if (wiped) return NextResponse.json({ error: WIPE_MESSAGE }, { status: 403 })
       return NextResponse.json({ error: "Invalid TOTP code" }, { status: 401 })
     }
@@ -99,6 +102,7 @@ export async function POST(request: Request) {
 
   await createSession(pending.encryptionKey, settings.sessionTimeoutMinutes)
   startScheduler(key)
+  log.info({ event: "login_success", method: isBackupCode ? "backup_code" : "totp" }, "Login successful (2FA verified)")
 
   return NextResponse.json({ success: true })
 }
