@@ -1,0 +1,12 @@
+# esbuild Go stdlib — build tool binary, not runtime. Cannot fix until esbuild releases with newer Go.
+CVE-2024-24790
+CVE-2025-68121
+CVE-2023-39325
+CVE-2023-45283
+CVE-2023-45288
+CVE-2024-34156
+CVE-2025-47907
+CVE-2025-58183
+CVE-2025-61726
+CVE-2025-61728
+CVE-2025-61729
