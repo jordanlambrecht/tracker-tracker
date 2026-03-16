@@ -86,6 +86,7 @@ jobs:
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+          trivyignores: .trivyignore
 
       - name: Upload Trivy results to GitHub Security
         if: steps.tag.outputs.should_release == 'true'
