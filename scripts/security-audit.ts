@@ -119,7 +119,8 @@ const SECRET_PATTERNS: Array<{ re: RegExp; name: string }> = [
 const SECURITY_FILES = [
   "src/lib/auth.ts",
   "src/lib/crypto.ts",
-  "src/lib/wipe.ts",
+  "src/lib/lockout.ts",
+  "src/lib/nuke.ts",
   "src/lib/totp.ts",
   "src/lib/privacy.ts",
   "src/lib/proxy.ts",
@@ -214,7 +215,8 @@ function filterIgnoredFindings(results: CheckResult[]): CheckResult[] {
 
       const lineIdx = finding.line - 1
 
-      for (const checkIdx of [lineIdx, lineIdx - 1]) {
+      // Check flagged line, one above, and two below (catch blocks have ignore comments inside the block body)
+      for (const checkIdx of [lineIdx, lineIdx - 1, lineIdx + 1, lineIdx + 2]) {
         if (checkIdx < 0 || checkIdx >= lines.length) continue
         const checkLine = lines[checkIdx]
 
@@ -1776,7 +1778,7 @@ function checkBackupRestoreIntegrity(): CheckResult {
   if (!/failedLoginAttempts\s*:\s*0/.test(content)) {
     findings.push({
       file: rel,
-      detail: "Restore must reset failedLoginAttempts to 0 (prevent backup-triggered auto-wipe)",
+      detail: "Restore must reset failedLoginAttempts to 0 (clear lockout state)",
     })
   }
   // Must use a transaction
