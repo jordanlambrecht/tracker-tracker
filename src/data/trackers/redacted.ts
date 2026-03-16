@@ -11,7 +11,7 @@ export const redacted: TrackerRegistryEntry = {
     "The largest general music tracker (also has some software). Has an interview to join, although the wait can be notoriously long.",
   platform: "gazelle",
   apiPath: "/ajax.php",
-  gazelleAuthStyle: "raw",
+  gazelleAuthStyle: "token",
   gazelleEnrich: true,
   specialty: "Music",
   contentCategories: ["Music", "Apps"],
@@ -39,15 +39,15 @@ export const redacted: TrackerRegistryEntry = {
 
 | Amount Downloaded | Required Ratio |
 |---|---|
-| 0–5 GB | 0.00 |
-| 5–10 GB | 0.15 |
-| 10–20 GB | 0.20 |
-| 20–30 GB | 0.30 |
-| 30–40 GB | 0.35 |
-| 40–50 GB | 0.40 |
-| 50–60 GB | 0.45 |
-| 60–80 GB | 0.50 |
-| 80–100 GB | 0.60 |
+| 0-5 GB | 0.00 |
+| 5-10 GB | 0.15 |
+| 10-20 GB | 0.20 |
+| 20-30 GB | 0.30 |
+| 30-40 GB | 0.35 |
+| 40-50 GB | 0.40 |
+| 50-60 GB | 0.45 |
+| 60-80 GB | 0.50 |
+| 80-100 GB | 0.60 |
 | 100+ GB | 0.60 |
 
 ## Seeding Rules
