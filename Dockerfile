@@ -40,7 +40,7 @@ RUN pnpm build
 # ---------------------------------------------------------------------------
 FROM deps AS prod-deps
 WORKDIR /app
-RUN pnpm prune --prod
+RUN pnpm prune --prod --ignore-scripts
 
 # ---------------------------------------------------------------------------
 # Stage 4 — Production runner
