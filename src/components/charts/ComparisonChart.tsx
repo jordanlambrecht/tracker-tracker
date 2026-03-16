@@ -16,7 +16,7 @@ import { buildUnifiedTimestampAxis } from "./chart-transforms"
 import { LogScaleToggle } from "./LogScaleToggle"
 import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
 
-type ChartMetric = "uploaded" | "ratio" | "buffer" | "seedbonus" | "active"
+type ChartMetric = "uploaded" | "downloaded" | "ratio" | "buffer" | "seedbonus" | "active"
 
 interface ComparisonChartProps {
   metric: ChartMetric
@@ -24,12 +24,15 @@ interface ComparisonChartProps {
   height?: number
   enableLogScale?: boolean
   enableAverage?: boolean
+  enableStacked?: boolean
 }
 
 function getValue(snapshot: Snapshot, metric: ChartMetric): number | null {
   switch (metric) {
     case "uploaded":
       return bytesToGiB(snapshot.uploadedBytes)
+    case "downloaded":
+      return bytesToGiB(snapshot.downloadedBytes)
     case "ratio":
       return snapshot.ratio
     case "buffer":
@@ -109,10 +112,12 @@ function buildAverageSeries(
 function buildComparisonOption(
   metric: ChartMetric,
   trackerData: TrackerSnapshotSeries[],
-  opts?: { logScale?: boolean; averageMode?: boolean }
+  opts?: { logScale?: boolean; averageMode?: boolean; stacked?: boolean; totalOnly?: boolean }
 ): EChartsOption {
   const useLog = opts?.logScale ?? false
   const useAvg = opts?.averageMode ?? false
+  const useStacked = opts?.stacked ?? false
+  const useTotalOnly = opts?.totalOnly ?? false
 
   // Build unified time axis from the union of all polledAt timestamps
   const { timestamps: sortedTimestamps, labels } = buildUnifiedTimestampAxis(trackerData)
@@ -141,7 +146,57 @@ function buildComparisonOption(
   // Build series — either per-tracker or single average line
   let series: EChartsOption["series"]
 
-  if (useAvg) {
+  if (useTotalOnly) {
+    // Sum all trackers at each timestamp, carry forward per-tracker last-known values
+    const trackerLastValues = trackerData.map(() => 0)
+    const trackerMaps = trackerData.map((tracker) => {
+      const m = new Map<string, Snapshot>()
+      for (const snap of tracker.snapshots) m.set(snap.polledAt, snap)
+      return m
+    })
+
+    const data = sortedTimestamps.map((ts) => {
+      for (let i = 0; i < trackerData.length; i++) {
+        const snap = trackerMaps[i].get(ts)
+        if (snap) {
+          const raw = getValue(snap, metric)
+          if (raw !== null) trackerLastValues[i] = raw / divisor
+        }
+      }
+      return Number(trackerLastValues.reduce((a, b) => a + b, 0).toFixed(3))
+    })
+
+    series = [
+      {
+        name: "Fleet Total",
+        type: "line",
+        data,
+        smooth: true,
+        symbol: "circle",
+        symbolSize: dotSize,
+        areaStyle: {
+          color: {
+            type: "linear",
+            x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: CHART_THEME.accentDim },
+              { offset: 1, color: "rgba(0, 212, 255, 0)" },
+            ],
+          } as unknown as string,
+        },
+        itemStyle: { color: CHART_THEME.accent },
+        lineStyle: {
+          color: CHART_THEME.accent,
+          width: 3,
+          shadowColor: CHART_THEME.accent,
+          shadowBlur: 12,
+        },
+        emphasis: {
+          lineStyle: { shadowBlur: 20, shadowColor: CHART_THEME.accent },
+        },
+      },
+    ]
+  } else if (useAvg) {
     series = buildAverageSeries(trackerData, sortedTimestamps, metric, divisor, dotSize, useLog)
   } else {
     series = trackerData.map((tracker) => {
@@ -150,14 +205,20 @@ function buildComparisonOption(
         snapByTs.set(snap.polledAt, snap)
       }
 
+      let lastValue: number | null = null
       const data = sortedTimestamps.map((ts) => {
         const snap = snapByTs.get(ts)
-        if (!snap) return null
+        if (!snap) {
+          // For stacked mode, carry forward the last known value to avoid spike artifacts
+          // For line mode, keep null so connectNulls draws a straight line
+          return useStacked ? lastValue : null
+        }
         const raw = getValue(snap, metric)
-        if (raw === null) return null
+        if (raw === null) return useStacked ? lastValue : null
         const scaled = raw / divisor
-        if (useLog && scaled <= 0) return null
-        return Number(scaled.toFixed(3))
+        if (useLog && scaled <= 0) return useStacked ? lastValue : null
+        lastValue = Number(scaled.toFixed(3))
+        return lastValue
       })
 
       return {
@@ -166,21 +227,18 @@ function buildComparisonOption(
         data,
         smooth: true,
         connectNulls: true,
-        symbol: "circle",
+        symbol: useStacked ? "none" : "circle",
         symbolSize: dotSize,
+        ...(useStacked ? { stack: "total", areaStyle: { opacity: 0.7 }, step: false } : {}),
         itemStyle: { color: tracker.color },
         lineStyle: {
           color: tracker.color,
-          width: 2,
-          shadowColor: tracker.color,
-          shadowBlur: 8,
+          width: useStacked ? 1 : 2,
+          ...(useStacked ? {} : { shadowColor: tracker.color, shadowBlur: 8 }),
         },
-        emphasis: {
-          lineStyle: {
-            shadowBlur: 16,
-            shadowColor: tracker.color,
-          },
-        },
+        emphasis: useStacked
+          ? { focus: "series" as const }
+          : { lineStyle: { shadowBlur: 16, shadowColor: tracker.color } },
       }
     })
   }
@@ -257,7 +315,7 @@ function buildComparisonOption(
         return chartTooltipHeader(time) + rows
       },
     }),
-    legend: useAvg ? { show: false } : chartLegend(),
+    legend: useAvg || useTotalOnly ? { show: false } : chartLegend(),
     xAxis: {
       type: "category",
       data: labels,
@@ -281,9 +339,11 @@ function ComparisonChart({
   height = 500,
   enableLogScale = false,
   enableAverage = false,
+  enableStacked = false,
 }: ComparisonChartProps) {
   const [logOverride, setLogOverride] = useState<boolean | null>(null)
   const [averageMode, setAverageMode] = useState(false)
+  const [viewMode, setViewMode] = useState<"lines" | "stacked" | "total">("lines")
 
   const hasData = trackerData.some((t) => t.snapshots.length > 0)
 
@@ -300,7 +360,10 @@ function ComparisonChart({
   const autoLog = enableLogScale ? shouldUseLogScale(allValues) : false
   const effectiveLog = logOverride ?? autoLog
 
-  const showToolbar = enableLogScale || enableAverage
+  const isStacked = viewMode === "stacked"
+  const isTotalOnly = viewMode === "total"
+  const isNonLineMode = isStacked || isTotalOnly
+  const showToolbar = enableLogScale || enableAverage || enableStacked
 
   if (!hasData) {
     return (
@@ -313,11 +376,15 @@ function ComparisonChart({
     )
   }
 
+  const viewModes = enableStacked
+    ? (["lines", "stacked", "total"] as const)
+    : ([] as const)
+
   return (
     <div className="flex flex-col gap-2">
       {showToolbar && (
         <div className="flex justify-end gap-2">
-          {enableAverage && (
+          {enableAverage && !isNonLineMode && (
             <Tooltip content={averageMode ? "Showing fleet average. Click for per-tracker." : "Showing per-tracker. Click for fleet average."}>
               <button
                 type="button"
@@ -335,12 +402,32 @@ function ComparisonChart({
               onToggle={() => setLogOverride(logOverride === null ? !autoLog : null)}
             />
           )}
+          {viewModes.length > 0 && !averageMode && (
+            <div className="nm-inset-sm p-1 flex gap-0.5 rounded-nm-sm">
+              {viewModes.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setViewMode(m)}
+                  className={`px-2.5 py-1 text-xs font-mono transition-all duration-150 cursor-pointer rounded-nm-sm ${
+                    viewMode === m
+                      ? "nm-raised-sm text-primary font-semibold"
+                      : "text-tertiary hover:text-secondary"
+                  }`}
+                >
+                  {m === "lines" ? "Per-Tracker" : m === "stacked" ? "Stacked" : "Total"}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
       <ChartECharts
         option={buildComparisonOption(metric, trackerData, {
           logScale: enableLogScale ? effectiveLog : undefined,
-          averageMode,
+          averageMode: averageMode && !isNonLineMode,
+          stacked: isStacked,
+          totalOnly: isTotalOnly,
         })}
         style={{ height, width: "100%" }}
         opts={{ renderer: "canvas" }}
