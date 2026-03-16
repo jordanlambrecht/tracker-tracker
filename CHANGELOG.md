@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.9.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.8.4...v1.9.0) (2026-03-16)
+
+
+### Features
+
+* add area and totals modes to daily volume chart ([8c6636c](https://github.com/jordanlambrecht/tracker-tracker/commit/8c6636c3f0b0f99c6e88e47bba1f56aa92bb9983))
+* add cross-seed network, size scatter, and category breakdown to fleet dashboard ([7e6bd67](https://github.com/jordanlambrecht/tracker-tracker/commit/7e6bd67998b14e4c221a9b1a50f120631b22c847))
+* add sankey flow and parallel views to distribution chart ([58e2d7c](https://github.com/jordanlambrecht/tracker-tracker/commit/58e2d7c218dbb29743a94e0ea68954e752bede23))
+* add stacked and total view modes to comparison charts ([cdf0f73](https://github.com/jordanlambrecht/tracker-tracker/commit/cdf0f732a82c675c07fcdd21c334603bce937298))
+* add volume heatmap and calendar charts ([7848e89](https://github.com/jordanlambrecht/tracker-tracker/commit/7848e89ca8462afcb1fcc5808c817b5c0533d91d))
+* added timestamp to dl client disconnect error ([0cfabe2](https://github.com/jordanlambrecht/tracker-tracker/commit/0cfabe26f4740ca8dd9e9cbef3c3e3b15be5818d))
+
+
+### Bug Fixes
+
+* add missing alias for typography in vitest configuration ([e7a7e34](https://github.com/jordanlambrecht/tracker-tracker/commit/e7a7e3498f199b1e3d99e6dd211183d486379a9e))
+* commit-msg hook ([e8c81d1](https://github.com/jordanlambrecht/tracker-tracker/commit/e8c81d1cbbb077c2e3e385270d83f2443740b819))
+* construct DATABASE_URL from POSTGRES env vars when not set ([c8c473a](https://github.com/jordanlambrecht/tracker-tracker/commit/c8c473a718bd47c50498a744c5b9c49572d38579))
+* remove redundant comment ([18688d5](https://github.com/jordanlambrecht/tracker-tracker/commit/18688d5f1dc4cc1f7c78bb4825b1e9892a344dbf))
+
+
+### Performance
+
+* batch snapshot queries and eliminate redundant DB round-trip ([ec4f77b](https://github.com/jordanlambrecht/tracker-tracker/commit/ec4f77b9eb7d813e88304ade53faad01b731a00d))
+
+
+### Refactoring
+
+* consolidate chart utilities and wire into 25+ chart files ([426b017](https://github.com/jordanlambrecht/tracker-tracker/commit/426b01747095147cc970708b57cff61a4871a95e))
+* extract shared server helpers and wire into consumers ([07c80d4](https://github.com/jordanlambrecht/tracker-tracker/commit/07c80d4e59863d0d15310841e57a3f558316b47d))
+* merge TopTorrentsTable and ElderTorrentsTable into TorrentRankingTable ([003b01c](https://github.com/jordanlambrecht/tracker-tracker/commit/003b01ce9a002c30e0e1e5b91b61804656503023))
+* streamline request creation in tracker routes tests ([13a42f7](https://github.com/jordanlambrecht/tracker-tracker/commit/13a42f793dd128f8d523ddebfa6953830dff09cb))
+
 ## [1.8.5](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.8.4...v1.8.5) (2026-03-15)
 
 ### Bug Fixes
