@@ -1,7 +1,7 @@
 // src/app/api/trackers/test/route.ts
 import { NextResponse } from "next/server"
 import { findRegistryEntry } from "@/data/tracker-registry"
-import { DEFAULT_API_PATHS, getAdapter } from "@/lib/adapters"
+import { DEFAULT_API_PATHS, getAdapter, VALID_PLATFORM_TYPES } from "@/lib/adapters"
 import { authenticate, parseJsonBody, validateHttpUrl } from "@/lib/api-helpers"
 
 export async function POST(request: Request) {
@@ -22,6 +22,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "baseUrl and apiToken are required" }, { status: 400 })
   }
 
+  if (apiToken.length > 500) {
+    return NextResponse.json({ error: "API token must be 500 characters or fewer" }, { status: 400 })
+  }
+
   if (baseUrl.length > 500) {
     return NextResponse.json({ error: "URL must be 500 characters or fewer" }, { status: 400 })
   }
@@ -30,6 +34,9 @@ export async function POST(request: Request) {
   if (urlErr) return urlErr
 
   const platform = typeof platformType === "string" ? platformType : "unit3d"
+  if (!VALID_PLATFORM_TYPES.includes(platform as (typeof VALID_PLATFORM_TYPES)[number])) {
+    return NextResponse.json({ error: "Invalid platform type" }, { status: 400 })
+  }
 
   try {
     const adapter = getAdapter(platform)

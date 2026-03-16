@@ -5,7 +5,7 @@
 import { sql } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { CHART_THEME } from "@/components/charts/theme"
-import { DEFAULT_API_PATHS } from "@/lib/adapters"
+import { DEFAULT_API_PATHS, VALID_PLATFORM_TYPES } from "@/lib/adapters"
 import {
   authenticate,
   decodeKey,
@@ -120,22 +120,22 @@ export async function POST(request: Request) {
     )
   }
 
-  if (
-    typeof joinedAt === "string" &&
-    joinedAt &&
-    joinedAt > new Date().toISOString().split("T")[0]
-  ) {
-    return NextResponse.json({ error: "Join date cannot be in the future" }, { status: 400 })
+  if (typeof joinedAt === "string" && joinedAt) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(joinedAt)) {
+      return NextResponse.json({ error: "joinedAt must be YYYY-MM-DD" }, { status: 400 })
+    }
+    if (joinedAt > new Date().toISOString().split("T")[0]) {
+      return NextResponse.json({ error: "Join date cannot be in the future" }, { status: 400 })
+    }
   }
 
-  const validPlatforms = ["unit3d", "gazelle", "ggn", "nebulance"]
   const platform = typeof platformType === "string" ? platformType : "unit3d"
-  if (!validPlatforms.includes(platform)) {
+  if (!VALID_PLATFORM_TYPES.includes(platform as (typeof VALID_PLATFORM_TYPES)[number])) {
     return NextResponse.json({ error: "Invalid platform type" }, { status: 400 })
   }
 
   const key = decodeKey(auth)
-  const encryptedApiToken = encrypt(apiToken, key)
+  const encryptedApiToken = encrypt(apiToken.trim(), key)
 
   const [tracker] = await db
     .insert(trackers)
