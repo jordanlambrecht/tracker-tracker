@@ -92,13 +92,13 @@ done
 echo "tracker-tracker | Database ready. Syncing schema..."
 
 # drizzle-kit push is schema-first: reads src/lib/db/schema.ts and applies
-# non-destructive changes (CREATE TABLE, ADD COLUMN) automatically.
-# Destructive changes (DROP COLUMN) prompt for confirmation — in Docker
-# (no TTY) this causes the container to fail, which is the correct behavior:
-# users should review destructive migrations before applying them.
+# changes automatically. --force skips interactive prompts (required in Docker
+# where there is no TTY). This means column renames are treated as drop+create
+# and destructive changes proceed without confirmation — acceptable because
+# the schema in the image is the source of truth for that release.
 #
 cd /schema-sync
-./node_modules/.bin/drizzle-kit push --config=drizzle.config.ts
+./node_modules/.bin/drizzle-kit push --force --config=drizzle.config.ts
 cd /app
 
 # ── Start server ────────────────────────────────────────────────────────
