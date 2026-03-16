@@ -257,6 +257,8 @@ export function DangerZoneSection() {
               </p>
               <Input
                 type="password"
+                autoComplete="off"
+                data-1p-ignore
                 label="Master Password"
                 value={nukePassword}
                 onChange={(e) => {

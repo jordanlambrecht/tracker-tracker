@@ -224,6 +224,8 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
               <div className="flex-1">
                 <Input
                   type="password"
+                  autoComplete="off"
+                  data-1p-ignore
                   label="Password"
                   value={proxyPassword}
                   onChange={(e) => {
