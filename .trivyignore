@@ -11,8 +11,8 @@ CVE-2026-26960
 CVE-2026-29786
 CVE-2026-31802
 
-# esbuild 0.25.12 Go stdlib (v1.23.12) — build tool binary, not runtime.
-# Cannot fix until esbuild releases a version compiled with Go >= 1.25.8.
+# esbuild Go stdlib — build tool binary, not runtime; CVEs apply to the Go runtime bundled in esbuild (transitive via drizzle-kit).
+# Cannot fix until esbuild releases a version compiled with a patched Go toolchain.
 CVE-2025-47912
 CVE-2025-58185
 CVE-2025-58186
