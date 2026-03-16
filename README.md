@@ -16,6 +16,16 @@ Self-hosted dashboard for monitoring private tracker stats over time. Track uplo
 - Configurable polling intervals, snapshot retention, and scheduled backups
 - Everything stays on your machine. No telemetry, no phoning home.
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/trackerTracker_screenshot_dashboard.png" alt="Tracker Tracker Dashboard" width="1080" />
+</p>
+
+<p align="center">
+  <img src="docs/trackerTracker_screenshot_trackerPage.png" alt="Tracker Tracker Dashboard" width="1080" />
+</p>
+
 ## Supported Trackers
 
 | Tracker               | Platform  | Status                 | Note                                              |
