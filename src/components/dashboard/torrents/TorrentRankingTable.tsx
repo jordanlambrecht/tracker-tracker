@@ -1,4 +1,4 @@
-// src/components/dashboard/torrents/ElderTorrentsTable.tsx
+// src/components/dashboard/torrents/TorrentRankingTable.tsx
 
 "use client"
 
@@ -9,16 +9,58 @@ import { Tooltip } from "@/components/ui/Tooltip"
 import { formatBytesNum, formatDuration } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 
-interface ElderTorrentsTableProps {
+type TorrentTableVariant = "top-seeded" | "elder"
+
+interface TorrentRankingTableProps {
   torrents: TorrentInfo[]
-  accentColor: string
+  variant: TorrentTableVariant
 }
 
-export function ElderTorrentsTable({
+const seedTimeCol: Column<TorrentInfo> = {
+  key: "seedTime",
+  header: "Seed",
+  align: "right",
+  width: "8%",
+  render: (t) => <span className="text-[11px] font-mono text-muted">{formatDuration(t.seedingTime)}</span>,
+}
+
+const seedTimeColLast: Column<TorrentInfo> = {
+  key: "seedTime",
+  header: "Seed",
+  align: "right",
+  width: "8%",
+  render: (t) => <span className="text-[11px] font-mono text-muted pr-2">{formatDuration(t.seedingTime)}</span>,
+}
+
+const swarmCol: Column<TorrentInfo> = {
+  key: "swarm",
+  header: "S/L",
+  align: "right",
+  width: "7%",
+  render: (t) => <span className="text-[11px] font-mono text-muted pr-2">{t.numComplete}/{t.numIncomplete}</span>,
+}
+
+const addedCol: Column<TorrentInfo> = {
+  key: "added",
+  header: "Added",
+  align: "right",
+  width: "9%",
+  render: (t) => {
+    const d = new Date(t.addedOn * 1000)
+    return <span className="text-[11px] font-mono text-muted">{d.toLocaleDateString("en-US", { month: "short", year: "2-digit" })}</span>
+  },
+}
+
+const variantColumns: Record<TorrentTableVariant, Column<TorrentInfo>[]> = {
+  "top-seeded": [seedTimeCol, swarmCol],
+  "elder": [addedCol, seedTimeColLast],
+}
+
+export function TorrentRankingTable({
   torrents,
-  accentColor: _accentColor,
-}: ElderTorrentsTableProps) {
-  const columns: Column<TorrentInfo>[] = [
+  variant,
+}: TorrentRankingTableProps) {
+  const sharedColumns: Column<TorrentInfo>[] = [
     {
       key: "rank",
       header: "#",
@@ -64,24 +106,9 @@ export function ElderTorrentsTable({
       width: "8%",
       render: (t) => <span className="text-[11px] font-mono text-muted">{t.ratio.toFixed(2)}</span>,
     },
-    {
-      key: "added",
-      header: "Added",
-      align: "right",
-      width: "9%",
-      render: (t) => {
-        const d = new Date(t.addedOn * 1000)
-        return <span className="text-[11px] font-mono text-muted">{d.toLocaleDateString("en-US", { month: "short", year: "2-digit" })}</span>
-      },
-    },
-    {
-      key: "seedTime",
-      header: "Seed",
-      align: "right",
-      width: "8%",
-      render: (t) => <span className="text-[11px] font-mono text-muted pr-2">{formatDuration(t.seedingTime)}</span>,
-    },
   ]
+
+  const columns = [...sharedColumns, ...variantColumns[variant]]
 
   return (
     <Table<TorrentInfo>
@@ -96,3 +123,5 @@ export function ElderTorrentsTable({
     />
   )
 }
+
+export type { TorrentTableVariant }

@@ -19,10 +19,9 @@ import { TorrentSizeBreakdown } from "@/components/charts/TorrentSizeBreakdown"
 import {
   ActiveTransfersTable,
   CategoryCard,
-  ElderTorrentsTable,
   NoClientState,
   NoTagState,
-  TopTorrentsTable,
+  TorrentRankingTable,
   TorrentStatCards,
   UnsatisfiedTorrentsTable,
 } from "@/components/dashboard/torrents"
@@ -248,7 +247,7 @@ function TorrentsTab({ trackerId, trackerName, qbtTag, accentColor, rules, tagGr
       {/* Top Seeded */}
       <div className="flex flex-col gap-3">
         <H2 className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">Top Seeded Torrents</H2>
-        <TopTorrentsTable torrents={data.topBySeeding} accentColor={accentColor} />
+        <TorrentRankingTable variant="top-seeded" torrents={data.topBySeeding} />
       </div>
 
       {/* Parallel Coordinates */}
@@ -267,7 +266,7 @@ function TorrentsTab({ trackerId, trackerName, qbtTag, accentColor, rules, tagGr
       {/* Elder Torrents */}
       <div className="flex flex-col gap-3">
         <H2 className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">Elder Torrents</H2>
-        <ElderTorrentsTable torrents={data.elderTorrents} accentColor={accentColor} />
+        <TorrentRankingTable variant="elder" torrents={data.elderTorrents} />
       </div>
     </div>
   )
