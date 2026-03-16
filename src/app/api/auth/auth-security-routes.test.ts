@@ -139,7 +139,10 @@ describe("auth abuse defenses", () => {
     )
 
     expect(response.status).toBe(200)
-    await expect(response.json()).resolves.toEqual({ requiresTotp: true, pendingToken: "pending-token" })
+    await expect(response.json()).resolves.toEqual({
+      requiresTotp: true,
+      pendingToken: "pending-token",
+    })
     expect(createSession).not.toHaveBeenCalled()
     expect(startScheduler).not.toHaveBeenCalled()
     expect(resetFailedAttempts).not.toHaveBeenCalled()
@@ -155,7 +158,9 @@ describe("auth abuse defenses", () => {
         sessionTimeoutMinutes: 30,
       },
     ])
-    ;(verifyPendingToken as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: "a".repeat(64) })
+    ;(verifyPendingToken as ReturnType<typeof vi.fn>).mockResolvedValue({
+      encryptionKey: "a".repeat(64),
+    })
     ;(decrypt as ReturnType<typeof vi.fn>).mockReturnValue("totp-secret")
     ;(verifyTotpCode as ReturnType<typeof vi.fn>).mockReturnValue(false)
 
@@ -186,8 +191,12 @@ describe("auth abuse defenses", () => {
       },
     ])
     const { set } = makeUpdateChain()
-    ;(verifyPendingToken as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: "b".repeat(64) })
-    ;(decrypt as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify([{ hash: "x", salt: "y", used: false }]))
+    ;(verifyPendingToken as ReturnType<typeof vi.fn>).mockResolvedValue({
+      encryptionKey: "b".repeat(64),
+    })
+    ;(decrypt as ReturnType<typeof vi.fn>).mockReturnValue(
+      JSON.stringify([{ hash: "x", salt: "y", used: false }])
+    )
     ;(verifyAndConsumeBackupCode as ReturnType<typeof vi.fn>).mockReturnValue({
       valid: true,
       updatedEntries: [{ hash: "x", salt: "y", used: true }],
@@ -198,13 +207,19 @@ describe("auth abuse defenses", () => {
       new Request("http://localhost/api/auth/totp/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pendingToken: "pending-token", code: "ABCD-1234", isBackupCode: true }),
+        body: JSON.stringify({
+          pendingToken: "pending-token",
+          code: "ABCD-1234",
+          isBackupCode: true,
+        }),
       })
     )
 
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({ success: true })
-    expect(set).toHaveBeenCalledWith({ totpBackupCodes: "encrypted:[{\"hash\":\"x\",\"salt\":\"y\",\"used\":true}]" })
+    expect(set).toHaveBeenCalledWith({
+      totpBackupCodes: 'encrypted:[{"hash":"x","salt":"y","used":true}]',
+    })
     expect(resetFailedAttempts).toHaveBeenCalledWith(1)
     expect(createSession).toHaveBeenCalledWith("b".repeat(64), 45)
     expect(startScheduler).toHaveBeenCalledWith(Buffer.from("b".repeat(64), "hex"))
@@ -219,7 +234,9 @@ describe("auth abuse defenses", () => {
         lockedUntil: null,
       },
     ])
-    ;(verifyPendingToken as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: "c".repeat(64) })
+    ;(verifyPendingToken as ReturnType<typeof vi.fn>).mockResolvedValue({
+      encryptionKey: "c".repeat(64),
+    })
     ;(decrypt as ReturnType<typeof vi.fn>).mockReturnValue("totp-secret")
     ;(verifyTotpCode as ReturnType<typeof vi.fn>).mockReturnValue(false)
     ;(recordFailedAttempt as ReturnType<typeof vi.fn>).mockResolvedValue(true)
@@ -253,8 +270,14 @@ describe("auth abuse defenses", () => {
     makeSelectChain([settings])
     ;(checkLockout as ReturnType<typeof vi.fn>).mockReturnValueOnce(
       new Response(
-        JSON.stringify({ error: "Too many failed attempts. Try again later.", retryAfter: retryAfterSecs }),
-        { status: 429, headers: { "Retry-After": String(retryAfterSecs), "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: "Too many failed attempts. Try again later.",
+          retryAfter: retryAfterSecs,
+        }),
+        {
+          status: 429,
+          headers: { "Retry-After": String(retryAfterSecs), "Content-Type": "application/json" },
+        }
       )
     )
 
@@ -289,12 +312,20 @@ describe("auth abuse defenses", () => {
         sessionTimeoutMinutes: 90,
       },
     ]
-    ;(verifyPendingToken as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: "c".repeat(64) })
+    ;(verifyPendingToken as ReturnType<typeof vi.fn>).mockResolvedValue({
+      encryptionKey: "c".repeat(64),
+    })
     makeSelectChain(settings)
     ;(checkLockout as ReturnType<typeof vi.fn>).mockReturnValueOnce(
       new Response(
-        JSON.stringify({ error: "Too many failed attempts. Try again later.", retryAfter: retryAfterSecs }),
-        { status: 429, headers: { "Retry-After": String(retryAfterSecs), "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: "Too many failed attempts. Try again later.",
+          retryAfter: retryAfterSecs,
+        }),
+        {
+          status: 429,
+          headers: { "Retry-After": String(retryAfterSecs), "Content-Type": "application/json" },
+        }
       )
     )
 

@@ -7,8 +7,6 @@ vi.mock("@/lib/crypto", () => ({
 }))
 
 import { decrypt } from "@/lib/crypto"
-
-// Must import AFTER mock setup
 const { decryptClientCredentials } = await import("@/lib/client-decrypt")
 
 describe("decryptClientCredentials", () => {
