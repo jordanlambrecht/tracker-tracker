@@ -12,8 +12,7 @@ Self-hosted dashboard for monitoring private tracker stats over time. Track uplo
 
 - Per-tracker and fleet-wide stats with 30+ charts
 - UNIT3D, Gazelle, GGn, and Nebulance support out of the box
-- qBittorrent integration — cross-seed tracking, activity heatmaps, speed history
-- Configurable polling intervals, snapshot retention, and scheduled backups
+- qBittorrent integration - cross-seed tracking, activity heatmaps, speed history, etc
 - Everything stays on your machine. No telemetry, no phoning home.
 
 ## Screenshots
