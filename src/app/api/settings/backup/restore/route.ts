@@ -454,6 +454,21 @@ export async function POST(request: Request) {
         }
       }
 
+      // Re-encrypt backup password if possible
+      let backupPasswordEncrypted: string | null = null
+      if (payload.settings.encryptedBackupPassword) {
+        if (sameSalt) {
+          backupPasswordEncrypted = payload.settings.encryptedBackupPassword as string
+        } else if (canReencrypt) {
+          const result = reencryptField(
+            payload.settings.encryptedBackupPassword as string,
+            backupKey,
+            currentKey
+          )
+          backupPasswordEncrypted = result || null
+        }
+      }
+
       // Re-encrypt TOTP secret if possible
       let totpSecret: string | null = null
       let totpBackupCodes: string | null = null
@@ -507,6 +522,7 @@ export async function POST(request: Request) {
           backupScheduleFrequency: payload.settings.backupScheduleFrequency as string,
           backupRetentionCount: payload.settings.backupRetentionCount as number,
           backupEncryptionEnabled: payload.settings.backupEncryptionEnabled as boolean,
+          encryptedBackupPassword: backupPasswordEncrypted,
           backupStoragePath: (payload.settings.backupStoragePath as string | null) ?? null,
           draftQuicklinks: (payload.settings.draftQuicklinks as string | null) ?? null,
           dashboardSettings: (payload.settings.dashboardSettings as string | null) ?? null,

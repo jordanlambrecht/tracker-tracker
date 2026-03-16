@@ -39,6 +39,7 @@ interface SettingsData {
   backupScheduleFrequency: string
   backupRetentionCount: number
   backupEncryptionEnabled: boolean
+  hasBackupPassword: boolean
   backupStoragePath: string | null
   trackerPollIntervalMinutes: number | null
 }
@@ -230,6 +231,7 @@ export default function SettingsPage() {
         <BackupsSection
           initialConfig={{
             encryptBackups: settings.backupEncryptionEnabled,
+            hasBackupPassword: settings.hasBackupPassword,
             scheduleEnabled: settings.backupScheduleEnabled,
             scheduleFrequency: settings.backupScheduleFrequency,
             backupRetentionCount: settings.backupRetentionCount,

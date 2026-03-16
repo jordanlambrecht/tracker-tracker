@@ -35,6 +35,7 @@ const settingsColumns = {
   backupScheduleFrequency: appSettings.backupScheduleFrequency,
   backupRetentionCount: appSettings.backupRetentionCount,
   backupEncryptionEnabled: appSettings.backupEncryptionEnabled,
+  hasBackupPassword: appSettings.encryptedBackupPassword,
   backupStoragePath: appSettings.backupStoragePath,
 }
 
@@ -64,6 +65,7 @@ function serializeSettingsResponse(row: SettingsRow) {
     backupScheduleFrequency: row.backupScheduleFrequency,
     backupRetentionCount: row.backupRetentionCount,
     backupEncryptionEnabled: row.backupEncryptionEnabled,
+    hasBackupPassword: !!row.hasBackupPassword,
     backupStoragePath: row.backupStoragePath,
   }
 }
@@ -400,6 +402,27 @@ export async function PATCH(request: Request) {
       )
     }
     updates.backupEncryptionEnabled = body.backupEncryptionEnabled
+    // When disabling encryption, clear the stored backup password
+    if (!body.backupEncryptionEnabled) {
+      updates.encryptedBackupPassword = null
+    }
+  }
+
+  if (body.backupPassword !== undefined) {
+    if (body.backupPassword === null || body.backupPassword === "") {
+      updates.encryptedBackupPassword = null
+    } else if (typeof body.backupPassword === "string") {
+      if (body.backupPassword.length > 255) {
+        return NextResponse.json(
+          { error: "Backup password must be 255 characters or fewer" },
+          { status: 400 }
+        )
+      }
+      const key = decodeKey(auth)
+      updates.encryptedBackupPassword = encrypt(body.backupPassword, key)
+    } else {
+      return NextResponse.json({ error: "Invalid backup password" }, { status: 400 })
+    }
   }
 
   if (body.backupStoragePath !== undefined) {

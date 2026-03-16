@@ -35,6 +35,7 @@ export interface BackupRecord {
 interface BackupsSectionProps {
   initialConfig: {
     encryptBackups: boolean
+    hasBackupPassword: boolean
     scheduleEnabled: boolean
     scheduleFrequency: string
     backupRetentionCount: number
@@ -45,7 +46,9 @@ interface BackupsSectionProps {
 
 export function BackupsSection({ initialConfig, initialHistory }: BackupsSectionProps) {
   const [encryptBackups, setEncryptBackups] = useState(initialConfig.encryptBackups)
-  const [exportPassword, setExportPassword] = useState("")
+  const [hasStoredPassword, setHasStoredPassword] = useState(initialConfig.hasBackupPassword)
+  const [newBackupPassword, setNewBackupPassword] = useState("")
+  const [savingPassword, setSavingPassword] = useState(false)
   const [scheduleEnabled, setScheduleEnabled] = useState(initialConfig.scheduleEnabled)
   const [scheduleFrequency, setScheduleFrequency] = useState(initialConfig.scheduleFrequency)
   const [backupRetentionCount, setBackupRetentionCount] = useState(
@@ -83,20 +86,16 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
     backupStoragePath !== savedBackupConfig.backupStoragePath
 
   async function handleBackupNow() {
-    if (encryptBackups && !exportPassword) {
-      setBackupError("Backup password is required when password protection is enabled")
+    if (encryptBackups && !hasStoredPassword) {
+      setBackupError("Set a backup password in Configuration before exporting")
       return
     }
     setBackingUp(true)
     setBackupError(null)
     try {
-      const formData = new FormData()
-      if (encryptBackups && exportPassword) {
-        formData.append("backupPassword", exportPassword)
-      }
       const res = await fetch("/api/settings/backup/export", {
         method: "POST",
-        body: formData,
+        body: new FormData(),
       })
       if (!res.ok) {
         throw new Error(await extractApiError(res, "Export failed"))
@@ -107,13 +106,45 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
         await downloadResponseBlob(res, `tracker-tracker-backup-${Date.now()}.json`)
       }
 
-      setExportPassword("")
       const histRes = await fetch("/api/settings/backup/history")
       if (histRes.ok) setBackupHistory(await histRes.json())
     } catch (err) {
       setBackupError(err instanceof Error ? err.message : "Export failed")
     } finally {
       setBackingUp(false)
+    }
+  }
+
+  async function handleSaveBackupPassword() {
+    if (!newBackupPassword) return
+    setSavingPassword(true)
+    setBackupError(null)
+    try {
+      const result = await patchSettings({ backupPassword: newBackupPassword })
+      if (result !== null) {
+        setHasStoredPassword(true)
+        setNewBackupPassword("")
+      }
+    } catch (err) {
+      setBackupError(err instanceof Error ? err.message : "Failed to save password")
+    } finally {
+      setSavingPassword(false)
+    }
+  }
+
+  async function handleClearBackupPassword() {
+    setSavingPassword(true)
+    setBackupError(null)
+    try {
+      const result = await patchSettings({ backupPassword: null })
+      if (result !== null) {
+        setHasStoredPassword(false)
+        setNewBackupPassword("")
+      }
+    } catch (err) {
+      setBackupError(err instanceof Error ? err.message : "Failed to clear password")
+    } finally {
+      setSavingPassword(false)
     }
   }
 
@@ -285,17 +316,6 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
         </H2>
 
         <Card elevation="raised" className="flex flex-col gap-4">
-          {encryptBackups && (
-            <Input
-              label="Backup password"
-              type="password"
-              value={exportPassword}
-              onChange={(e) => setExportPassword(e.target.value)}
-              placeholder="Required for password-protected export"
-              data-1p-ignore
-              autoComplete="off"
-            />
-          )}
           <div className="flex gap-3 items-center">
             <Button size="sm" onClick={handleBackupNow} disabled={backingUp || backupConfigDirty}>
               {backingUp ? "Creating Backup…" : "Backup Now"}
@@ -303,8 +323,11 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
             {backupConfigDirty && (
               <span className="text-xs text-warn">Save configuration before exporting</span>
             )}
-            {!backupConfigDirty && encryptBackups && !exportPassword && (
-              <span className="text-xs text-tertiary">Enter a password to enable export</span>
+            {!backupConfigDirty && encryptBackups && !hasStoredPassword && (
+              <span className="text-xs text-warn">Set a backup password in Configuration first</span>
+            )}
+            {!backupConfigDirty && encryptBackups && hasStoredPassword && (
+              <span className="text-xs text-success">Password-protected</span>
             )}
           </div>
           <Paragraph>
@@ -464,9 +487,57 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
           <Toggle
             label="Password-protect backups"
             checked={encryptBackups}
-            onChange={setEncryptBackups}
-            description="Protect manual backup exports with a password. You'll need this password to restore from a protected backup."
+            onChange={(val) => {
+              setEncryptBackups(val)
+              if (!val) {
+                setHasStoredPassword(false)
+                setNewBackupPassword("")
+              }
+            }}
+            description="Encrypt all backups (manual and scheduled) with a password. You'll need this password to restore from a protected backup."
           />
+
+          {encryptBackups && (
+            <div className="flex flex-col gap-3">
+              {hasStoredPassword ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-success font-mono">Password is set</span>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={handleClearBackupPassword}
+                    disabled={savingPassword}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              ) : (
+                <Subtext className="text-warn">
+                  No password set. Backups will not be encrypted until a password is saved.
+                </Subtext>
+              )}
+              <div className="flex items-end gap-3">
+                <div className="flex-1">
+                  <Input
+                    label={hasStoredPassword ? "Change password" : "Set password"}
+                    type="password"
+                    value={newBackupPassword}
+                    onChange={(e) => setNewBackupPassword(e.target.value)}
+                    placeholder={hasStoredPassword ? "Enter new password" : "Enter backup password"}
+                    data-1p-ignore
+                    autoComplete="off"
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  onClick={handleSaveBackupPassword}
+                  disabled={!newBackupPassword || savingPassword}
+                >
+                  {savingPassword ? "Saving…" : "Save Password"}
+                </Button>
+              </div>
+            </div>
+          )}
 
           <div className="border-t border-border" />
 

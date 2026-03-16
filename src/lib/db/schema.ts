@@ -44,6 +44,7 @@ export const appSettings = pgTable("app_settings", {
     .notNull(),
   backupRetentionCount: integer("backup_retention_count").default(14).notNull(),
   backupEncryptionEnabled: boolean("backup_encryption_enabled").default(false).notNull(),
+  encryptedBackupPassword: text("encrypted_backup_password"),
   backupStoragePath: varchar("backup_storage_path", { length: 500 }),
   draftQuicklinks: text("draft_quicklinks"),
   dashboardSettings: text("dashboard_settings"),
