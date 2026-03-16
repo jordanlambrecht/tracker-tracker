@@ -310,6 +310,18 @@
   }
 }
 
+/* Override browser/password-manager autofill background */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px oklch(24.55% 0.0174 275.22) inset; /* surface-800 / control-bg */
+  -webkit-text-fill-color: oklch(92.88% 0.0126 255.51); /* gray-50 / primary text */
+  caret-color: oklch(92.88% 0.0126 255.51);
+  transition: background-color 5000s ease-in-out 0s;
+}
+
 /* Hide native number input spinners — we use custom NumberInput controls */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
