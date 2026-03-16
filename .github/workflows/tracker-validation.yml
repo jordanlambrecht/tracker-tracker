@@ -54,7 +54,7 @@ jobs:
         id: tracker-validation
         continue-on-error: true
         run: |
-          npx tsx scripts/validate-trackers.ts $SLUGS > /tmp/tracker-results.json 2>/dev/null
+          pnpm exec tsx scripts/validate-trackers.ts $SLUGS > /tmp/tracker-results.json
           echo "exit_code=$?" >> "$GITHUB_OUTPUT"
           cat /tmp/tracker-results.json
         env:

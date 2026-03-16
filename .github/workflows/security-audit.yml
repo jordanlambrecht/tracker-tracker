@@ -46,7 +46,7 @@ jobs:
         id: security-audit
         continue-on-error: true
         run: |
-          npx tsx scripts/security-audit.ts > /tmp/security-results.json 2>/dev/null
+          pnpm exec tsx scripts/security-audit.ts > /tmp/security-results.json
           echo "exit_code=$?" >> "$GITHUB_OUTPUT"
           cat /tmp/security-results.json
 
