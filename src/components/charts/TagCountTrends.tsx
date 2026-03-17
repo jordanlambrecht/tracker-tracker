@@ -9,6 +9,7 @@ import type { FleetSnapshot } from "@/lib/fleet"
 import { extractTagsFromSnapshots } from "@/lib/fleet"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
+import { buildAxisPointer } from "./chart-helpers"
 import {
   buildTagColors,
   CHART_THEME,
@@ -76,31 +77,27 @@ function buildOption(snapshots: FleetSnapshot[], mode: TagCountMode): EChartsOpt
 
   const isSeeding = mode === "seeding"
 
-  const series: NonNullable<EChartsOption["series"]> = tags.map((tag) => ({
-    name: tag,
-    type: "line",
-    ...(isSeeding ? { stack: "seeding" } : {}),
-    data: seriesMap.get(tag) ?? [],
-    smooth: true,
-    symbol: isSeeding ? "none" : "circle",
-    ...(isSeeding ? {} : { symbolSize: 3 }),
-    ...(isSeeding ? { areaStyle: { opacity: 0.3 } } : {}),
-    lineStyle: {
-      width: isSeeding ? 2 : 1.5,
-      color: colorMap.get(tag) ?? CHART_THEME.chartFallback,
-    },
-    itemStyle: { color: colorMap.get(tag) ?? CHART_THEME.chartFallback },
-  }))
+  const series: NonNullable<EChartsOption["series"]> = tags.map((tag) => {
+    const color = colorMap.get(tag) ?? CHART_THEME.chartFallback
+    return {
+      name: tag,
+      type: "line",
+      data: seriesMap.get(tag) ?? [],
+      smooth: true,
+      lineStyle: { width: isSeeding ? 2 : 1.5, color },
+      itemStyle: { color },
+      ...(isSeeding
+        ? { stack: "seeding", symbol: "none", areaStyle: { opacity: 0.3 } }
+        : { symbol: "circle", symbolSize: 3 }),
+    }
+  })
 
   return {
     backgroundColor: "transparent",
     color: tags.map((t) => colorMap.get(t) ?? CHART_THEME.chartFallback),
     legend: chartLegend(),
     tooltip: chartTooltip("axis", {
-      axisPointer: {
-        type: "line",
-        lineStyle: { color: CHART_THEME.borderMid, type: "dashed" },
-      },
+      axisPointer: buildAxisPointer(),
       formatter: (params: unknown) => {
         const items = params as Array<{
           seriesName: string

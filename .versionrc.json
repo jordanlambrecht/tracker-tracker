@@ -3,6 +3,9 @@
   "skip": {
     "tag": true
   },
+  "writerOpts": {
+    "commitPartial": "- {{#if scope}}**{{scope}}:** {{/if}}{{#if subject}}{{{subject}}}{{else}}{{{header}}}{{/if}}{{~#if hash}} ({{#if @root.linkReferences}}[{{shortHash}}]({{@root.host}}/{{@root.owner}}/{{@root.repository}}/commit/{{hash}}){{else}}{{shortHash}}{{/if}}){{/if}}{{~#each references}}, closes {{#if @root.linkReferences}}[{{prefix}}{{issue}}]({{@root.host}}/{{@root.owner}}/{{@root.repository}}/issues/{{issue}}){{else}}{{prefix}}{{issue}}{{/if}}{{/each}}\n"
+  },
   "types": [
     { "type": "feat", "section": "Features" },
     { "type": "fix", "section": "Bug Fixes" },

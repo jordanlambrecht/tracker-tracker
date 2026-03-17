@@ -2,153 +2,141 @@
 
 ## [1.11.3](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.10.0...v1.11.3) (2026-03-16)
 
-
 ### Features
 
-* add logging for login, logout, and TOTP verification events ([4bce6da](https://github.com/jordanlambrecht/tracker-tracker/commit/4bce6da45face537047df79d394686af49398360))
-* enhance api error handling for multiple adapters ([1891cef](https://github.com/jordanlambrecht/tracker-tracker/commit/1891cef6735e7ef0cf28bed1448a1ba0f35fb0da))
-* ip ban check for tracker api calls ([39e9554](https://github.com/jordanlambrecht/tracker-tracker/commit/39e95548f89689b17eb0308255c9d1c204ac3254))
-* log auth events for login, TOTP, and logout ([de3c0ce](https://github.com/jordanlambrecht/tracker-tracker/commit/de3c0cec82bc5d05444fb3e3a804c4cc1878e2ba))
-* show last seen and error state on download client cards ([#35](https://github.com/jordanlambrecht/tracker-tracker/issues/35)) ([36c07e6](https://github.com/jordanlambrecht/tracker-tracker/commit/36c07e689fc93fd7f1d9589d0f72bd506102e92c))
-* show per-endpoint debug info in tracker debug poll ([f088582](https://github.com/jordanlambrecht/tracker-tracker/commit/f088582119b1a9c0bb4e40c3088ecaf05aa12dbb))
-* update UploadPolarChart with html escaping ([9720759](https://github.com/jordanlambrecht/tracker-tracker/commit/972075966b8ab6e3d092c06c725d407857c4fccc))
-
+- add logging for login, logout, and TOTP verification events ([4bce6da](https://github.com/jordanlambrecht/tracker-tracker/commit/4bce6da45face537047df79d394686af49398360))
+- enhance api error handling for multiple adapters ([1891cef](https://github.com/jordanlambrecht/tracker-tracker/commit/1891cef6735e7ef0cf28bed1448a1ba0f35fb0da))
+- ip ban check for tracker api calls ([39e9554](https://github.com/jordanlambrecht/tracker-tracker/commit/39e95548f89689b17eb0308255c9d1c204ac3254))
+- log auth events for login, TOTP, and logout ([de3c0ce](https://github.com/jordanlambrecht/tracker-tracker/commit/de3c0cec82bc5d05444fb3e3a804c4cc1878e2ba))
+- show last seen and error state on download client cards ([#35](https://github.com/jordanlambrecht/tracker-tracker/issues/35)) ([36c07e6](https://github.com/jordanlambrecht/tracker-tracker/commit/36c07e689fc93fd7f1d9589d0f72bd506102e92c))
+- show per-endpoint debug info in tracker debug poll ([f088582](https://github.com/jordanlambrecht/tracker-tracker/commit/f088582119b1a9c0bb4e40c3088ecaf05aa12dbb))
+- update UploadPolarChart with html escaping ([9720759](https://github.com/jordanlambrecht/tracker-tracker/commit/972075966b8ab6e3d092c06c725d407857c4fccc))
 
 ### Bug Fixes
 
-* add --ignore-scripts option to pnpm prune in Dockerfile ([259ed39](https://github.com/jordanlambrecht/tracker-tracker/commit/259ed39e418080652e410227a227399c2444275c))
-* **ci:** add tsx as devDep and use pnpm exec instead of npx ([e9c25eb](https://github.com/jordanlambrecht/tracker-tracker/commit/e9c25eb7d0e4431f4a897c55e277eb6eaed5afed))
-* **ci:** exclude template files from tracker barrel validation ([7f6d4f4](https://github.com/jordanlambrecht/tracker-tracker/commit/7f6d4f4f17ed4e893461def6ded4f12b64482658))
-* **ci:** update codeql-action to v4, pin sbom-action version ([16082b8](https://github.com/jordanlambrecht/tracker-tracker/commit/16082b8694a7004f7a67cf2c2e970bd351455c43))
-* disable clients with cleared credentials on restore ([14ee232](https://github.com/jordanlambrecht/tracker-tracker/commit/14ee232e1800e6e46ed89f57dcfb4a0e3a4f50a2))
-* favicon wasnt showing in production ([d21622d](https://github.com/jordanlambrecht/tracker-tracker/commit/d21622d34063a0d0f88ff5fadcc335ac897e926f))
-* override browser autofill background styles for better UI consistency ([999ca5a](https://github.com/jordanlambrecht/tracker-tracker/commit/999ca5ab9326cdb40ba7a6a1c1ae74ae932ed626))
-* reduce CVE surface in Docker image ([d1196fc](https://github.com/jordanlambrecht/tracker-tracker/commit/d1196fc6487dce16bba46e05d2e39f5ab426596e))
-* sanitize error message in backup restore response ([b0fabc6](https://github.com/jordanlambrecht/tracker-tracker/commit/b0fabc62bfaa3ed90d82cdd0ac0c6e8f36a12f5d))
-* sec audit checks catch block for ignore comments ([#45](https://github.com/jordanlambrecht/tracker-tracker/issues/45)) ([1504166](https://github.com/jordanlambrecht/tracker-tracker/commit/1504166aa22db59f4de7b400ce2e22d93088f33f))
-* security audit now checks catch block body for ignore comments. Closes [#45](https://github.com/jordanlambrecht/tracker-tracker/issues/45) ([19f1cb7](https://github.com/jordanlambrecht/tracker-tracker/commit/19f1cb74258f923b1960b01de40c800ada840e8e))
-* suppress 1Password autofill on non-login password fields ([c987318](https://github.com/jordanlambrecht/tracker-tracker/commit/c987318b2b1ae3d87a9d7a9de339d574f8a08240))
-* update gazelleAuthStyle to use token ([96ca1f7](https://github.com/jordanlambrecht/tracker-tracker/commit/96ca1f78e31dcd6cb922fef39b8ce9824c806129))
-* update jsdom to v29.0.0 and dom-selector to v7.0.3 ([6565f35](https://github.com/jordanlambrecht/tracker-tracker/commit/6565f355c5cf6a1bb792a76ee8ab3b955701d0ae))
-* update PUBLIC_PREFIX to include additional paths for image loading ([8d8709a](https://github.com/jordanlambrecht/tracker-tracker/commit/8d8709acfb5c5e8c50baf90b9ef7fb6b562b2b1e))
-* validate and trim inputs on tracker test and create routes ([0c9e27f](https://github.com/jordanlambrecht/tracker-tracker/commit/0c9e27f487d707da9ddcfd9c5f912bc7cbb47cf5))
-* wrap scrub-and-delete in a transaction ([5378274](https://github.com/jordanlambrecht/tracker-tracker/commit/5378274637850e65c00c9a53c78f8a4ff115e59d))
-
+- add --ignore-scripts option to pnpm prune in Dockerfile ([259ed39](https://github.com/jordanlambrecht/tracker-tracker/commit/259ed39e418080652e410227a227399c2444275c))
+- **ci:** add tsx as devDep and use pnpm exec instead of npx ([e9c25eb](https://github.com/jordanlambrecht/tracker-tracker/commit/e9c25eb7d0e4431f4a897c55e277eb6eaed5afed))
+- **ci:** exclude template files from tracker barrel validation ([7f6d4f4](https://github.com/jordanlambrecht/tracker-tracker/commit/7f6d4f4f17ed4e893461def6ded4f12b64482658))
+- **ci:** update codeql-action to v4, pin sbom-action version ([16082b8](https://github.com/jordanlambrecht/tracker-tracker/commit/16082b8694a7004f7a67cf2c2e970bd351455c43))
+- disable clients with cleared credentials on restore ([14ee232](https://github.com/jordanlambrecht/tracker-tracker/commit/14ee232e1800e6e46ed89f57dcfb4a0e3a4f50a2))
+- favicon wasnt showing in production ([d21622d](https://github.com/jordanlambrecht/tracker-tracker/commit/d21622d34063a0d0f88ff5fadcc335ac897e926f))
+- override browser autofill background styles for better UI consistency ([999ca5a](https://github.com/jordanlambrecht/tracker-tracker/commit/999ca5ab9326cdb40ba7a6a1c1ae74ae932ed626))
+- reduce CVE surface in Docker image ([d1196fc](https://github.com/jordanlambrecht/tracker-tracker/commit/d1196fc6487dce16bba46e05d2e39f5ab426596e))
+- sanitize error message in backup restore response ([b0fabc6](https://github.com/jordanlambrecht/tracker-tracker/commit/b0fabc62bfaa3ed90d82cdd0ac0c6e8f36a12f5d))
+- sec audit checks catch block for ignore comments ([#45](https://github.com/jordanlambrecht/tracker-tracker/issues/45)) ([1504166](https://github.com/jordanlambrecht/tracker-tracker/commit/1504166aa22db59f4de7b400ce2e22d93088f33f))
+- security audit now checks catch block body for ignore comments. Closes [#45](https://github.com/jordanlambrecht/tracker-tracker/issues/45) ([19f1cb7](https://github.com/jordanlambrecht/tracker-tracker/commit/19f1cb74258f923b1960b01de40c800ada840e8e))
+- suppress 1Password autofill on non-login password fields ([c987318](https://github.com/jordanlambrecht/tracker-tracker/commit/c987318b2b1ae3d87a9d7a9de339d574f8a08240))
+- update gazelleAuthStyle to use token ([96ca1f7](https://github.com/jordanlambrecht/tracker-tracker/commit/96ca1f78e31dcd6cb922fef39b8ce9824c806129))
+- update jsdom to v29.0.0 and dom-selector to v7.0.3 ([6565f35](https://github.com/jordanlambrecht/tracker-tracker/commit/6565f355c5cf6a1bb792a76ee8ab3b955701d0ae))
+- update PUBLIC_PREFIX to include additional paths for image loading ([8d8709a](https://github.com/jordanlambrecht/tracker-tracker/commit/8d8709acfb5c5e8c50baf90b9ef7fb6b562b2b1e))
+- validate and trim inputs on tracker test and create routes ([0c9e27f](https://github.com/jordanlambrecht/tracker-tracker/commit/0c9e27f487d707da9ddcfd9c5f912bc7cbb47cf5))
+- wrap scrub-and-delete in a transaction ([5378274](https://github.com/jordanlambrecht/tracker-tracker/commit/5378274637850e65c00c9a53c78f8a4ff115e59d))
 
 ### Refactoring
 
-* replace auto-wipe with configurable account lockout ([1bab0c5](https://github.com/jordanlambrecht/tracker-tracker/commit/1bab0c5086cdd74c4bb8a1eea93adaf6ce4e0845))
+- replace auto-wipe with configurable account lockout ([1bab0c5](https://github.com/jordanlambrecht/tracker-tracker/commit/1bab0c5086cdd74c4bb8a1eea93adaf6ce4e0845))
 
 ## [1.11.2](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.10.0...v1.11.2) (2026-03-16)
 
-
 ### Features
 
-* add logging for login, logout, and TOTP verification events ([4bce6da](https://github.com/jordanlambrecht/tracker-tracker/commit/4bce6da45face537047df79d394686af49398360))
-* enhance api error handling for multiple adapters ([1891cef](https://github.com/jordanlambrecht/tracker-tracker/commit/1891cef6735e7ef0cf28bed1448a1ba0f35fb0da))
-* ip ban check for tracker api calls ([39e9554](https://github.com/jordanlambrecht/tracker-tracker/commit/39e95548f89689b17eb0308255c9d1c204ac3254))
-* log auth events for login, TOTP, and logout ([de3c0ce](https://github.com/jordanlambrecht/tracker-tracker/commit/de3c0cec82bc5d05444fb3e3a804c4cc1878e2ba))
-* show last seen and error state on download client cards ([#35](https://github.com/jordanlambrecht/tracker-tracker/issues/35)) ([36c07e6](https://github.com/jordanlambrecht/tracker-tracker/commit/36c07e689fc93fd7f1d9589d0f72bd506102e92c))
-* show per-endpoint debug info in tracker debug poll ([f088582](https://github.com/jordanlambrecht/tracker-tracker/commit/f088582119b1a9c0bb4e40c3088ecaf05aa12dbb))
-* update UploadPolarChart with html escaping ([9720759](https://github.com/jordanlambrecht/tracker-tracker/commit/972075966b8ab6e3d092c06c725d407857c4fccc))
-
+- add logging for login, logout, and TOTP verification events ([4bce6da](https://github.com/jordanlambrecht/tracker-tracker/commit/4bce6da45face537047df79d394686af49398360))
+- enhance api error handling for multiple adapters ([1891cef](https://github.com/jordanlambrecht/tracker-tracker/commit/1891cef6735e7ef0cf28bed1448a1ba0f35fb0da))
+- ip ban check for tracker api calls ([39e9554](https://github.com/jordanlambrecht/tracker-tracker/commit/39e95548f89689b17eb0308255c9d1c204ac3254))
+- log auth events for login, TOTP, and logout ([de3c0ce](https://github.com/jordanlambrecht/tracker-tracker/commit/de3c0cec82bc5d05444fb3e3a804c4cc1878e2ba))
+- show last seen and error state on download client cards ([#35](https://github.com/jordanlambrecht/tracker-tracker/issues/35)) ([36c07e6](https://github.com/jordanlambrecht/tracker-tracker/commit/36c07e689fc93fd7f1d9589d0f72bd506102e92c))
+- show per-endpoint debug info in tracker debug poll ([f088582](https://github.com/jordanlambrecht/tracker-tracker/commit/f088582119b1a9c0bb4e40c3088ecaf05aa12dbb))
+- update UploadPolarChart with html escaping ([9720759](https://github.com/jordanlambrecht/tracker-tracker/commit/972075966b8ab6e3d092c06c725d407857c4fccc))
 
 ### Bug Fixes
 
-* add --ignore-scripts option to pnpm prune in Dockerfile ([259ed39](https://github.com/jordanlambrecht/tracker-tracker/commit/259ed39e418080652e410227a227399c2444275c))
-* **ci:** add tsx as devDep and use pnpm exec instead of npx ([e9c25eb](https://github.com/jordanlambrecht/tracker-tracker/commit/e9c25eb7d0e4431f4a897c55e277eb6eaed5afed))
-* **ci:** exclude template files from tracker barrel validation ([7f6d4f4](https://github.com/jordanlambrecht/tracker-tracker/commit/7f6d4f4f17ed4e893461def6ded4f12b64482658))
-* **ci:** update codeql-action to v4, pin sbom-action version ([16082b8](https://github.com/jordanlambrecht/tracker-tracker/commit/16082b8694a7004f7a67cf2c2e970bd351455c43))
-* disable clients with cleared credentials on restore ([14ee232](https://github.com/jordanlambrecht/tracker-tracker/commit/14ee232e1800e6e46ed89f57dcfb4a0e3a4f50a2))
-* favicon wasnt showing in production ([d21622d](https://github.com/jordanlambrecht/tracker-tracker/commit/d21622d34063a0d0f88ff5fadcc335ac897e926f))
-* override browser autofill background styles for better UI consistency ([999ca5a](https://github.com/jordanlambrecht/tracker-tracker/commit/999ca5ab9326cdb40ba7a6a1c1ae74ae932ed626))
-* reduce CVE surface in Docker image ([d1196fc](https://github.com/jordanlambrecht/tracker-tracker/commit/d1196fc6487dce16bba46e05d2e39f5ab426596e))
-* sanitize error message in backup restore response ([b0fabc6](https://github.com/jordanlambrecht/tracker-tracker/commit/b0fabc62bfaa3ed90d82cdd0ac0c6e8f36a12f5d))
-* sec audit checks catch block for ignore comments ([#45](https://github.com/jordanlambrecht/tracker-tracker/issues/45)) ([1504166](https://github.com/jordanlambrecht/tracker-tracker/commit/1504166aa22db59f4de7b400ce2e22d93088f33f))
-* security audit now checks catch block body for ignore comments. Closes [#45](https://github.com/jordanlambrecht/tracker-tracker/issues/45) ([19f1cb7](https://github.com/jordanlambrecht/tracker-tracker/commit/19f1cb74258f923b1960b01de40c800ada840e8e))
-* suppress 1Password autofill on non-login password fields ([c987318](https://github.com/jordanlambrecht/tracker-tracker/commit/c987318b2b1ae3d87a9d7a9de339d574f8a08240))
-* update gazelleAuthStyle to use token ([96ca1f7](https://github.com/jordanlambrecht/tracker-tracker/commit/96ca1f78e31dcd6cb922fef39b8ce9824c806129))
-* update jsdom to v29.0.0 and dom-selector to v7.0.3 ([6565f35](https://github.com/jordanlambrecht/tracker-tracker/commit/6565f355c5cf6a1bb792a76ee8ab3b955701d0ae))
-* update PUBLIC_PREFIX to include additional paths for image loading ([8d8709a](https://github.com/jordanlambrecht/tracker-tracker/commit/8d8709acfb5c5e8c50baf90b9ef7fb6b562b2b1e))
-* validate and trim inputs on tracker test and create routes ([0c9e27f](https://github.com/jordanlambrecht/tracker-tracker/commit/0c9e27f487d707da9ddcfd9c5f912bc7cbb47cf5))
-
+- add --ignore-scripts option to pnpm prune in Dockerfile ([259ed39](https://github.com/jordanlambrecht/tracker-tracker/commit/259ed39e418080652e410227a227399c2444275c))
+- **ci:** add tsx as devDep and use pnpm exec instead of npx ([e9c25eb](https://github.com/jordanlambrecht/tracker-tracker/commit/e9c25eb7d0e4431f4a897c55e277eb6eaed5afed))
+- **ci:** exclude template files from tracker barrel validation ([7f6d4f4](https://github.com/jordanlambrecht/tracker-tracker/commit/7f6d4f4f17ed4e893461def6ded4f12b64482658))
+- **ci:** update codeql-action to v4, pin sbom-action version ([16082b8](https://github.com/jordanlambrecht/tracker-tracker/commit/16082b8694a7004f7a67cf2c2e970bd351455c43))
+- disable clients with cleared credentials on restore ([14ee232](https://github.com/jordanlambrecht/tracker-tracker/commit/14ee232e1800e6e46ed89f57dcfb4a0e3a4f50a2))
+- favicon wasnt showing in production ([d21622d](https://github.com/jordanlambrecht/tracker-tracker/commit/d21622d34063a0d0f88ff5fadcc335ac897e926f))
+- override browser autofill background styles for better UI consistency ([999ca5a](https://github.com/jordanlambrecht/tracker-tracker/commit/999ca5ab9326cdb40ba7a6a1c1ae74ae932ed626))
+- reduce CVE surface in Docker image ([d1196fc](https://github.com/jordanlambrecht/tracker-tracker/commit/d1196fc6487dce16bba46e05d2e39f5ab426596e))
+- sanitize error message in backup restore response ([b0fabc6](https://github.com/jordanlambrecht/tracker-tracker/commit/b0fabc62bfaa3ed90d82cdd0ac0c6e8f36a12f5d))
+- sec audit checks catch block for ignore comments ([#45](https://github.com/jordanlambrecht/tracker-tracker/issues/45)) ([1504166](https://github.com/jordanlambrecht/tracker-tracker/commit/1504166aa22db59f4de7b400ce2e22d93088f33f))
+- security audit now checks catch block body for ignore comments. Closes [#45](https://github.com/jordanlambrecht/tracker-tracker/issues/45) ([19f1cb7](https://github.com/jordanlambrecht/tracker-tracker/commit/19f1cb74258f923b1960b01de40c800ada840e8e))
+- suppress 1Password autofill on non-login password fields ([c987318](https://github.com/jordanlambrecht/tracker-tracker/commit/c987318b2b1ae3d87a9d7a9de339d574f8a08240))
+- update gazelleAuthStyle to use token ([96ca1f7](https://github.com/jordanlambrecht/tracker-tracker/commit/96ca1f78e31dcd6cb922fef39b8ce9824c806129))
+- update jsdom to v29.0.0 and dom-selector to v7.0.3 ([6565f35](https://github.com/jordanlambrecht/tracker-tracker/commit/6565f355c5cf6a1bb792a76ee8ab3b955701d0ae))
+- update PUBLIC_PREFIX to include additional paths for image loading ([8d8709a](https://github.com/jordanlambrecht/tracker-tracker/commit/8d8709acfb5c5e8c50baf90b9ef7fb6b562b2b1e))
+- validate and trim inputs on tracker test and create routes ([0c9e27f](https://github.com/jordanlambrecht/tracker-tracker/commit/0c9e27f487d707da9ddcfd9c5f912bc7cbb47cf5))
 
 ### Refactoring
 
-* replace auto-wipe with configurable account lockout ([1bab0c5](https://github.com/jordanlambrecht/tracker-tracker/commit/1bab0c5086cdd74c4bb8a1eea93adaf6ce4e0845))
+- replace auto-wipe with configurable account lockout ([1bab0c5](https://github.com/jordanlambrecht/tracker-tracker/commit/1bab0c5086cdd74c4bb8a1eea93adaf6ce4e0845))
 
 ## [1.11.1](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.10.0...v1.11.1) (2026-03-16)
 
-
 ### Features
 
-* add logging for login, logout, and TOTP verification events ([4bce6da](https://github.com/jordanlambrecht/tracker-tracker/commit/4bce6da45face537047df79d394686af49398360))
-* enhance api error handling for multiple adapters ([1891cef](https://github.com/jordanlambrecht/tracker-tracker/commit/1891cef6735e7ef0cf28bed1448a1ba0f35fb0da))
-* ip ban check for tracker api calls ([39e9554](https://github.com/jordanlambrecht/tracker-tracker/commit/39e95548f89689b17eb0308255c9d1c204ac3254))
-* log auth events for login, TOTP, and logout ([de3c0ce](https://github.com/jordanlambrecht/tracker-tracker/commit/de3c0cec82bc5d05444fb3e3a804c4cc1878e2ba))
-* show last seen and error state on download client cards ([#35](https://github.com/jordanlambrecht/tracker-tracker/issues/35)) ([36c07e6](https://github.com/jordanlambrecht/tracker-tracker/commit/36c07e689fc93fd7f1d9589d0f72bd506102e92c))
-* show per-endpoint debug info in tracker debug poll ([f088582](https://github.com/jordanlambrecht/tracker-tracker/commit/f088582119b1a9c0bb4e40c3088ecaf05aa12dbb))
-* update UploadPolarChart with html escaping ([9720759](https://github.com/jordanlambrecht/tracker-tracker/commit/972075966b8ab6e3d092c06c725d407857c4fccc))
-
+- add logging for login, logout, and TOTP verification events ([4bce6da](https://github.com/jordanlambrecht/tracker-tracker/commit/4bce6da45face537047df79d394686af49398360))
+- enhance api error handling for multiple adapters ([1891cef](https://github.com/jordanlambrecht/tracker-tracker/commit/1891cef6735e7ef0cf28bed1448a1ba0f35fb0da))
+- ip ban check for tracker api calls ([39e9554](https://github.com/jordanlambrecht/tracker-tracker/commit/39e95548f89689b17eb0308255c9d1c204ac3254))
+- log auth events for login, TOTP, and logout ([de3c0ce](https://github.com/jordanlambrecht/tracker-tracker/commit/de3c0cec82bc5d05444fb3e3a804c4cc1878e2ba))
+- show last seen and error state on download client cards ([#35](https://github.com/jordanlambrecht/tracker-tracker/issues/35)) ([36c07e6](https://github.com/jordanlambrecht/tracker-tracker/commit/36c07e689fc93fd7f1d9589d0f72bd506102e92c))
+- show per-endpoint debug info in tracker debug poll ([f088582](https://github.com/jordanlambrecht/tracker-tracker/commit/f088582119b1a9c0bb4e40c3088ecaf05aa12dbb))
+- update UploadPolarChart with html escaping ([9720759](https://github.com/jordanlambrecht/tracker-tracker/commit/972075966b8ab6e3d092c06c725d407857c4fccc))
 
 ### Bug Fixes
 
-* add --ignore-scripts option to pnpm prune in Dockerfile ([259ed39](https://github.com/jordanlambrecht/tracker-tracker/commit/259ed39e418080652e410227a227399c2444275c))
-* **ci:** add tsx as devDep and use pnpm exec instead of npx ([e9c25eb](https://github.com/jordanlambrecht/tracker-tracker/commit/e9c25eb7d0e4431f4a897c55e277eb6eaed5afed))
-* **ci:** update codeql-action to v4, pin sbom-action version ([16082b8](https://github.com/jordanlambrecht/tracker-tracker/commit/16082b8694a7004f7a67cf2c2e970bd351455c43))
-* disable clients with cleared credentials on restore ([14ee232](https://github.com/jordanlambrecht/tracker-tracker/commit/14ee232e1800e6e46ed89f57dcfb4a0e3a4f50a2))
-* favicon wasnt showing in production ([d21622d](https://github.com/jordanlambrecht/tracker-tracker/commit/d21622d34063a0d0f88ff5fadcc335ac897e926f))
-* override browser autofill background styles for better UI consistency ([999ca5a](https://github.com/jordanlambrecht/tracker-tracker/commit/999ca5ab9326cdb40ba7a6a1c1ae74ae932ed626))
-* reduce CVE surface in Docker image ([d1196fc](https://github.com/jordanlambrecht/tracker-tracker/commit/d1196fc6487dce16bba46e05d2e39f5ab426596e))
-* sanitize error message in backup restore response ([b0fabc6](https://github.com/jordanlambrecht/tracker-tracker/commit/b0fabc62bfaa3ed90d82cdd0ac0c6e8f36a12f5d))
-* sec audit checks catch block for ignore comments ([#45](https://github.com/jordanlambrecht/tracker-tracker/issues/45)) ([1504166](https://github.com/jordanlambrecht/tracker-tracker/commit/1504166aa22db59f4de7b400ce2e22d93088f33f))
-* security audit now checks catch block body for ignore comments. Closes [#45](https://github.com/jordanlambrecht/tracker-tracker/issues/45) ([19f1cb7](https://github.com/jordanlambrecht/tracker-tracker/commit/19f1cb74258f923b1960b01de40c800ada840e8e))
-* suppress 1Password autofill on non-login password fields ([c987318](https://github.com/jordanlambrecht/tracker-tracker/commit/c987318b2b1ae3d87a9d7a9de339d574f8a08240))
-* update gazelleAuthStyle to use token ([96ca1f7](https://github.com/jordanlambrecht/tracker-tracker/commit/96ca1f78e31dcd6cb922fef39b8ce9824c806129))
-* update jsdom to v29.0.0 and dom-selector to v7.0.3 ([6565f35](https://github.com/jordanlambrecht/tracker-tracker/commit/6565f355c5cf6a1bb792a76ee8ab3b955701d0ae))
-* update PUBLIC_PREFIX to include additional paths for image loading ([8d8709a](https://github.com/jordanlambrecht/tracker-tracker/commit/8d8709acfb5c5e8c50baf90b9ef7fb6b562b2b1e))
-* validate and trim inputs on tracker test and create routes ([0c9e27f](https://github.com/jordanlambrecht/tracker-tracker/commit/0c9e27f487d707da9ddcfd9c5f912bc7cbb47cf5))
-
+- add --ignore-scripts option to pnpm prune in Dockerfile ([259ed39](https://github.com/jordanlambrecht/tracker-tracker/commit/259ed39e418080652e410227a227399c2444275c))
+- **ci:** add tsx as devDep and use pnpm exec instead of npx ([e9c25eb](https://github.com/jordanlambrecht/tracker-tracker/commit/e9c25eb7d0e4431f4a897c55e277eb6eaed5afed))
+- **ci:** update codeql-action to v4, pin sbom-action version ([16082b8](https://github.com/jordanlambrecht/tracker-tracker/commit/16082b8694a7004f7a67cf2c2e970bd351455c43))
+- disable clients with cleared credentials on restore ([14ee232](https://github.com/jordanlambrecht/tracker-tracker/commit/14ee232e1800e6e46ed89f57dcfb4a0e3a4f50a2))
+- favicon wasnt showing in production ([d21622d](https://github.com/jordanlambrecht/tracker-tracker/commit/d21622d34063a0d0f88ff5fadcc335ac897e926f))
+- override browser autofill background styles for better UI consistency ([999ca5a](https://github.com/jordanlambrecht/tracker-tracker/commit/999ca5ab9326cdb40ba7a6a1c1ae74ae932ed626))
+- reduce CVE surface in Docker image ([d1196fc](https://github.com/jordanlambrecht/tracker-tracker/commit/d1196fc6487dce16bba46e05d2e39f5ab426596e))
+- sanitize error message in backup restore response ([b0fabc6](https://github.com/jordanlambrecht/tracker-tracker/commit/b0fabc62bfaa3ed90d82cdd0ac0c6e8f36a12f5d))
+- sec audit checks catch block for ignore comments ([#45](https://github.com/jordanlambrecht/tracker-tracker/issues/45)) ([1504166](https://github.com/jordanlambrecht/tracker-tracker/commit/1504166aa22db59f4de7b400ce2e22d93088f33f))
+- security audit now checks catch block body for ignore comments. Closes [#45](https://github.com/jordanlambrecht/tracker-tracker/issues/45) ([19f1cb7](https://github.com/jordanlambrecht/tracker-tracker/commit/19f1cb74258f923b1960b01de40c800ada840e8e))
+- suppress 1Password autofill on non-login password fields ([c987318](https://github.com/jordanlambrecht/tracker-tracker/commit/c987318b2b1ae3d87a9d7a9de339d574f8a08240))
+- update gazelleAuthStyle to use token ([96ca1f7](https://github.com/jordanlambrecht/tracker-tracker/commit/96ca1f78e31dcd6cb922fef39b8ce9824c806129))
+- update jsdom to v29.0.0 and dom-selector to v7.0.3 ([6565f35](https://github.com/jordanlambrecht/tracker-tracker/commit/6565f355c5cf6a1bb792a76ee8ab3b955701d0ae))
+- update PUBLIC_PREFIX to include additional paths for image loading ([8d8709a](https://github.com/jordanlambrecht/tracker-tracker/commit/8d8709acfb5c5e8c50baf90b9ef7fb6b562b2b1e))
+- validate and trim inputs on tracker test and create routes ([0c9e27f](https://github.com/jordanlambrecht/tracker-tracker/commit/0c9e27f487d707da9ddcfd9c5f912bc7cbb47cf5))
 
 ### Refactoring
 
-* replace auto-wipe with configurable account lockout ([1bab0c5](https://github.com/jordanlambrecht/tracker-tracker/commit/1bab0c5086cdd74c4bb8a1eea93adaf6ce4e0845))
+- replace auto-wipe with configurable account lockout ([1bab0c5](https://github.com/jordanlambrecht/tracker-tracker/commit/1bab0c5086cdd74c4bb8a1eea93adaf6ce4e0845))
 
 ## [1.11.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.10.0...v1.11.0) (2026-03-16)
 
-
 ### Features
 
-* add logging for login, logout, and TOTP verification events ([4bce6da](https://github.com/jordanlambrecht/tracker-tracker/commit/4bce6da45face537047df79d394686af49398360))
-* enhance api error handling for multiple adapters ([1891cef](https://github.com/jordanlambrecht/tracker-tracker/commit/1891cef6735e7ef0cf28bed1448a1ba0f35fb0da))
-* ip ban check for tracker api calls ([39e9554](https://github.com/jordanlambrecht/tracker-tracker/commit/39e95548f89689b17eb0308255c9d1c204ac3254))
-* log auth events for login, TOTP, and logout ([de3c0ce](https://github.com/jordanlambrecht/tracker-tracker/commit/de3c0cec82bc5d05444fb3e3a804c4cc1878e2ba))
-* show last seen and error state on download client cards ([#35](https://github.com/jordanlambrecht/tracker-tracker/issues/35)) ([36c07e6](https://github.com/jordanlambrecht/tracker-tracker/commit/36c07e689fc93fd7f1d9589d0f72bd506102e92c))
-* show per-endpoint debug info in tracker debug poll ([f088582](https://github.com/jordanlambrecht/tracker-tracker/commit/f088582119b1a9c0bb4e40c3088ecaf05aa12dbb))
-* update UploadPolarChart with html escaping ([9720759](https://github.com/jordanlambrecht/tracker-tracker/commit/972075966b8ab6e3d092c06c725d407857c4fccc))
-
+- add logging for login, logout, and TOTP verification events ([4bce6da](https://github.com/jordanlambrecht/tracker-tracker/commit/4bce6da45face537047df79d394686af49398360))
+- enhance api error handling for multiple adapters ([1891cef](https://github.com/jordanlambrecht/tracker-tracker/commit/1891cef6735e7ef0cf28bed1448a1ba0f35fb0da))
+- ip ban check for tracker api calls ([39e9554](https://github.com/jordanlambrecht/tracker-tracker/commit/39e95548f89689b17eb0308255c9d1c204ac3254))
+- log auth events for login, TOTP, and logout ([de3c0ce](https://github.com/jordanlambrecht/tracker-tracker/commit/de3c0cec82bc5d05444fb3e3a804c4cc1878e2ba))
+- show last seen and error state on download client cards ([#35](https://github.com/jordanlambrecht/tracker-tracker/issues/35)) ([36c07e6](https://github.com/jordanlambrecht/tracker-tracker/commit/36c07e689fc93fd7f1d9589d0f72bd506102e92c))
+- show per-endpoint debug info in tracker debug poll ([f088582](https://github.com/jordanlambrecht/tracker-tracker/commit/f088582119b1a9c0bb4e40c3088ecaf05aa12dbb))
+- update UploadPolarChart with html escaping ([9720759](https://github.com/jordanlambrecht/tracker-tracker/commit/972075966b8ab6e3d092c06c725d407857c4fccc))
 
 ### Bug Fixes
 
-* add --ignore-scripts option to pnpm prune in Dockerfile ([259ed39](https://github.com/jordanlambrecht/tracker-tracker/commit/259ed39e418080652e410227a227399c2444275c))
-* **ci:** update codeql-action to v4, pin sbom-action version ([16082b8](https://github.com/jordanlambrecht/tracker-tracker/commit/16082b8694a7004f7a67cf2c2e970bd351455c43))
-* disable clients with cleared credentials on restore ([14ee232](https://github.com/jordanlambrecht/tracker-tracker/commit/14ee232e1800e6e46ed89f57dcfb4a0e3a4f50a2))
-* favicon wasnt showing in production ([d21622d](https://github.com/jordanlambrecht/tracker-tracker/commit/d21622d34063a0d0f88ff5fadcc335ac897e926f))
-* override browser autofill background styles for better UI consistency ([999ca5a](https://github.com/jordanlambrecht/tracker-tracker/commit/999ca5ab9326cdb40ba7a6a1c1ae74ae932ed626))
-* reduce CVE surface in Docker image ([d1196fc](https://github.com/jordanlambrecht/tracker-tracker/commit/d1196fc6487dce16bba46e05d2e39f5ab426596e))
-* sanitize error message in backup restore response ([b0fabc6](https://github.com/jordanlambrecht/tracker-tracker/commit/b0fabc62bfaa3ed90d82cdd0ac0c6e8f36a12f5d))
-* sec audit checks catch block for ignore comments ([#45](https://github.com/jordanlambrecht/tracker-tracker/issues/45)) ([1504166](https://github.com/jordanlambrecht/tracker-tracker/commit/1504166aa22db59f4de7b400ce2e22d93088f33f))
-* security audit now checks catch block body for ignore comments. Closes [#45](https://github.com/jordanlambrecht/tracker-tracker/issues/45) ([19f1cb7](https://github.com/jordanlambrecht/tracker-tracker/commit/19f1cb74258f923b1960b01de40c800ada840e8e))
-* suppress 1Password autofill on non-login password fields ([c987318](https://github.com/jordanlambrecht/tracker-tracker/commit/c987318b2b1ae3d87a9d7a9de339d574f8a08240))
-* update gazelleAuthStyle to use token ([96ca1f7](https://github.com/jordanlambrecht/tracker-tracker/commit/96ca1f78e31dcd6cb922fef39b8ce9824c806129))
-* update jsdom to v29.0.0 and dom-selector to v7.0.3 ([6565f35](https://github.com/jordanlambrecht/tracker-tracker/commit/6565f355c5cf6a1bb792a76ee8ab3b955701d0ae))
-* update PUBLIC_PREFIX to include additional paths for image loading ([8d8709a](https://github.com/jordanlambrecht/tracker-tracker/commit/8d8709acfb5c5e8c50baf90b9ef7fb6b562b2b1e))
-* validate and trim inputs on tracker test and create routes ([0c9e27f](https://github.com/jordanlambrecht/tracker-tracker/commit/0c9e27f487d707da9ddcfd9c5f912bc7cbb47cf5))
-
+- add --ignore-scripts option to pnpm prune in Dockerfile ([259ed39](https://github.com/jordanlambrecht/tracker-tracker/commit/259ed39e418080652e410227a227399c2444275c))
+- **ci:** update codeql-action to v4, pin sbom-action version ([16082b8](https://github.com/jordanlambrecht/tracker-tracker/commit/16082b8694a7004f7a67cf2c2e970bd351455c43))
+- disable clients with cleared credentials on restore ([14ee232](https://github.com/jordanlambrecht/tracker-tracker/commit/14ee232e1800e6e46ed89f57dcfb4a0e3a4f50a2))
+- favicon wasnt showing in production ([d21622d](https://github.com/jordanlambrecht/tracker-tracker/commit/d21622d34063a0d0f88ff5fadcc335ac897e926f))
+- override browser autofill background styles for better UI consistency ([999ca5a](https://github.com/jordanlambrecht/tracker-tracker/commit/999ca5ab9326cdb40ba7a6a1c1ae74ae932ed626))
+- reduce CVE surface in Docker image ([d1196fc](https://github.com/jordanlambrecht/tracker-tracker/commit/d1196fc6487dce16bba46e05d2e39f5ab426596e))
+- sanitize error message in backup restore response ([b0fabc6](https://github.com/jordanlambrecht/tracker-tracker/commit/b0fabc62bfaa3ed90d82cdd0ac0c6e8f36a12f5d))
+- sec audit checks catch block for ignore comments ([#45](https://github.com/jordanlambrecht/tracker-tracker/issues/45)) ([1504166](https://github.com/jordanlambrecht/tracker-tracker/commit/1504166aa22db59f4de7b400ce2e22d93088f33f))
+- security audit now checks catch block body for ignore comments. Closes [#45](https://github.com/jordanlambrecht/tracker-tracker/issues/45) ([19f1cb7](https://github.com/jordanlambrecht/tracker-tracker/commit/19f1cb74258f923b1960b01de40c800ada840e8e))
+- suppress 1Password autofill on non-login password fields ([c987318](https://github.com/jordanlambrecht/tracker-tracker/commit/c987318b2b1ae3d87a9d7a9de339d574f8a08240))
+- update gazelleAuthStyle to use token ([96ca1f7](https://github.com/jordanlambrecht/tracker-tracker/commit/96ca1f78e31dcd6cb922fef39b8ce9824c806129))
+- update jsdom to v29.0.0 and dom-selector to v7.0.3 ([6565f35](https://github.com/jordanlambrecht/tracker-tracker/commit/6565f355c5cf6a1bb792a76ee8ab3b955701d0ae))
+- update PUBLIC_PREFIX to include additional paths for image loading ([8d8709a](https://github.com/jordanlambrecht/tracker-tracker/commit/8d8709acfb5c5e8c50baf90b9ef7fb6b562b2b1e))
+- validate and trim inputs on tracker test and create routes ([0c9e27f](https://github.com/jordanlambrecht/tracker-tracker/commit/0c9e27f487d707da9ddcfd9c5f912bc7cbb47cf5))
 
 ### Refactoring
 
-* replace auto-wipe with configurable account lockout ([1bab0c5](https://github.com/jordanlambrecht/tracker-tracker/commit/1bab0c5086cdd74c4bb8a1eea93adaf6ce4e0845))
+- replace auto-wipe with configurable account lockout ([1bab0c5](https://github.com/jordanlambrecht/tracker-tracker/commit/1bab0c5086cdd74c4bb8a1eea93adaf6ce4e0845))
 
 ## [1.10.4](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.10.0...v1.10.4) (2026-03-16)
 
@@ -463,7 +451,7 @@
 - Tracker detail pages with upload/download history, ratio, buffer, seedbonus, and seeding charts
 - UNIT3D platform adapter with encrypted API token storage
 - Master password auth with Argon2 hash + AES-256-GCM encryption
-- Global polling interval (15 min – 24 hours) with unified batch timestamps
+- Global polling interval (15 min - 24 hours) with unified batch timestamps
 - Dark neumorphic UI with per-tracker accent colors
 - Sidebar with drag-and-drop reorder, stat modes, and sort options
 - Tracker registry with detailed data for Aither, Blutopia, FearNoPeer, OnlyEncodes, and Upload.cx

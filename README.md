@@ -185,8 +185,8 @@ PRs welcome. Areas where help matters most:
 - **Download client adapters** — only qBittorrent is supported. Deluge, Transmission, and rTorrent all need adapters. See `src/lib/qbt/` for the pattern.
 - **Tracker verification** — if you belong to a tracker marked 🟡 above, testing and confirming it works helps greatly.
 - **Security auditing** — Check out SECURITY.md for threat surfice info.
-- **Responsiveness** – I only have my 16" MBP to work off of, so feedback of different screen experiences is much appreciated
-- **Data Visualization** – I ain't no math wizard, so any contributions for data viz, charts/graphs, etc.
+- **Responsiveness** - I only have my 16" MBP to work off of, so feedback of different screen experiences is much appreciated
+- **Data Visualization** - I ain't no math wizard, so any contributions for data viz, charts/graphs, etc.
 - **Custom platform adapters** — trackers marked "Custom" need bespoke adapters since they don't run UNIT3D or Gazelle.
 - **HawkeUno lobbying** — convince the Hawke mods to add a `/users` endpoint so the adapter can work
 

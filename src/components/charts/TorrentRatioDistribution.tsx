@@ -3,9 +3,9 @@
 "use client"
 
 import ReactECharts from "echarts-for-react"
-import { buildBucketedBarOption } from "@/components/charts/chart-helpers"
-import { CHART_THEME } from "@/components/charts/theme"
 import type { TorrentInfo } from "@/lib/torrent-utils"
+import { buildBucketedBarOption } from "./chart-helpers"
+import { CHART_THEME } from "./theme"
 
 // ---------------------------------------------------------------------------
 // Bucket definitions

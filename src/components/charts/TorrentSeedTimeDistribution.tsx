@@ -3,10 +3,10 @@
 "use client"
 
 import ReactECharts from "echarts-for-react"
-import { buildBucketedBarOption } from "@/components/charts/chart-helpers"
-import { CHART_THEME } from "@/components/charts/theme"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 import { SEEDING_STATES } from "@/lib/torrent-utils"
+import { buildBucketedBarOption } from "./chart-helpers"
+import { CHART_THEME } from "./theme"
 
 // ---------------------------------------------------------------------------
 // Bucket definitions
@@ -46,20 +46,17 @@ export function TorrentSeedTimeDistribution({
   const seeding = torrents.filter((t) => SEEDING_STATES.has(t.state))
   const buckets = getSeedTimeBuckets(accentColor)
 
-  const thresholdSeconds = seedTimeHours != null && seedTimeHours > 0 ? seedTimeHours * 3600 : null
-
   let markLine: { thresholdIdx: number; label: string; color: string } | undefined
-  if (thresholdSeconds !== null) {
+  if (seedTimeHours != null && seedTimeHours > 0) {
+    const thresholdSeconds = seedTimeHours * 3600
     const idx = buckets.findIndex((b, i) => {
       const prevMax = i === 0 ? 0 : buckets[i - 1].max
       return thresholdSeconds >= prevMax && thresholdSeconds < b.max
     })
     if (idx !== -1) {
-      const labelStr =
-        seedTimeHours != null && seedTimeHours > 0
-          ? `Min: ${seedTimeHours % 24 === 0 ? `${seedTimeHours / 24}d` : `${seedTimeHours}h`}`
-          : "Min"
-      markLine = { thresholdIdx: idx, label: labelStr, color: CHART_THEME.warn }
+      const label =
+        seedTimeHours % 24 === 0 ? `Min: ${seedTimeHours / 24}d` : `Min: ${seedTimeHours}h`
+      markLine = { thresholdIdx: idx, label, color: CHART_THEME.warn }
     }
   }
 
