@@ -49,27 +49,35 @@ export async function POST(request: Request) {
 
   const { key, type } = body
 
-  if (typeof key !== "string" || key.trim().length === 0) {
+  if (typeof key !== "string") {
     return NextResponse.json({ error: "key must be a non-empty string" }, { status: 400 })
   }
-  if (key.length > 255) {
+  const normalizedKey = key.trim()
+  if (normalizedKey.length === 0) {
+    return NextResponse.json({ error: "key must be a non-empty string" }, { status: 400 })
+  }
+  if (normalizedKey.length > 255) {
     return NextResponse.json({ error: "key must be 255 characters or fewer" }, { status: 400 })
   }
 
-  if (typeof type !== "string" || type.trim().length === 0) {
+  if (typeof type !== "string") {
     return NextResponse.json({ error: "type must be a non-empty string" }, { status: 400 })
   }
-  if (type.length > 30) {
+  const normalizedType = type.trim()
+  if (normalizedType.length === 0) {
+    return NextResponse.json({ error: "type must be a non-empty string" }, { status: 400 })
+  }
+  if (normalizedType.length > 30) {
     return NextResponse.json({ error: "type must be 30 characters or fewer" }, { status: 400 })
   }
 
-  if (NON_DISMISSIBLE_ALERT_TYPES.has(type)) {
+  if (NON_DISMISSIBLE_ALERT_TYPES.has(normalizedType)) {
     return NextResponse.json({ error: "This alert type cannot be dismissed" }, { status: 400 })
   }
 
   await db
     .insert(dismissedAlerts)
-    .values({ alertKey: key.trim(), alertType: type.trim() })
+    .values({ alertKey: normalizedKey, alertType: normalizedType })
     .onConflictDoNothing()
 
   return NextResponse.json({ success: true })
