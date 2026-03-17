@@ -21,7 +21,7 @@ import { TabBar } from "@/components/ui/TabBar"
 import { extractApiError } from "@/lib/client-helpers"
 import type { TrackerSummary } from "@/types/api"
 
-type SettingsTab = "general" | "clients" | "tag-groups" | "backups"
+type SettingsTab = "general" | "clients" | "backups"
 
 interface SettingsData {
   storeUsernames: boolean
@@ -115,7 +115,6 @@ export default function SettingsPage() {
   const tabs: { key: SettingsTab; label: string }[] = [
     { key: "general", label: "General" },
     { key: "clients", label: "Download Clients" },
-    { key: "tag-groups", label: "Tag Groups" },
     { key: "backups", label: "Backups" },
   ]
 
@@ -238,10 +237,9 @@ export default function SettingsPage() {
         <>
           <DownloadClients />
           <QbitmanageSettings />
+          <TagGroups />
         </>
       )}
-
-      {activeTab === "tag-groups" && <TagGroups />}
 
       {activeTab === "backups" && (
         <BackupsSection
