@@ -2,7 +2,7 @@
 
 # Security Architecture
 
-Last audited: `2026-03-16`
+Last audited: `2026-03-17`
 
 - [Security Architecture](#security-architecture)
   - [For Users](#for-users)
@@ -216,10 +216,9 @@ The test-connection flow (`POST /api/trackers/test`) always returns the real use
 2. **API token in URL parameter**: UNIT3D (`?api_token=TOKEN`) and GGn (`?key=TOKEN`) pass tokens in the query string, which may appear in the tracker's server access logs. Gazelle trackers use `Authorization` headers (not logged by default). Upstream limitation.
 3. **No CSP header**: Content Security Policy is not yet configured due to ECharts canvas rendering complexity. Basic headers (X-Frame-Options, X-Content-Type-Options) are in place.
 4. **Optional 2FA**: TOTP is available but not required. Backup codes use SHA-256 + random salt (not Argon2 — high-entropy generated codes don't need memory-hard KDF).
-5. **SESSION_SECRET truncation**: Only the first 32 bytes of `SESSION_SECRET` are used for the session key. Longer secrets work but entropy beyond 32 characters is unused.
-6. **DNS rebinding not mitigated at fetch time**: SSRF protection validates hostnames when tracker URLs are saved, not when outbound requests are made. See [Unmitigated Attack Vectors](#6-dns-rebinding) for details.
-7. **Scheduler key persisted in DB**: The encryption key is wrapped with an HKDF-derived key from `SESSION_SECRET` and stored in `appSettings` to enable 24/7 polling. An attacker with both database access and `SESSION_SECRET` could unwrap the key and decrypt all API tokens. For Docker Compose deployments, `SESSION_SECRET` is in the same trust boundary as DB credentials. Deploy on an encrypted filesystem for defense against disk seizure. Rotating `SESSION_SECRET` invalidates the stored key — polling resumes after the next login.
-8. **Client IP in auth logs**: Failed and successful login attempts include the client IP (from `CF-Connecting-IP` or the rightmost `X-Forwarded-For` entry) in server log lines. IPs are never stored in the database. To suppress, configure your reverse proxy to strip these headers before forwarding to the app, or set `LOG_LEVEL=error` to disable info/warn log events entirely.
+5. **DNS rebinding not mitigated at fetch time**: SSRF protection validates hostnames when tracker URLs are saved, not when outbound requests are made. See [Unmitigated Attack Vectors](#6-dns-rebinding) for details.
+6. **Scheduler key persisted in DB**: The encryption key is wrapped with an HKDF-derived key from `SESSION_SECRET` and stored in `appSettings` to enable 24/7 polling. An attacker with both database access and `SESSION_SECRET` could unwrap the key and decrypt all API tokens. For Docker Compose deployments, `SESSION_SECRET` is in the same trust boundary as DB credentials. Deploy on an encrypted filesystem for defense against disk seizure. Rotating `SESSION_SECRET` invalidates the stored key — polling resumes after the next login.
+7. **Client IP in auth logs**: Failed and successful login attempts include the client IP (from `CF-Connecting-IP` or the rightmost `X-Forwarded-For` entry) in server log lines. IPs are never stored in the database. To suppress, configure your reverse proxy to strip these headers before forwarding to the app, or set `LOG_LEVEL=error` to disable info/warn log events entirely.
 
 ---
 
@@ -237,7 +236,7 @@ These vectors are not fully mitigated at the application layer. Apply the recomm
 
 **Risk:** Root access to a running host allows process memory dumps. The scrypt-derived encryption key is held in scheduler memory for the session duration. With this key, all encrypted API tokens can be decrypted.
 
-**Countermeasure:** On logout or scheduler stop, the encryption key buffer is explicitly zero-filled (`Buffer.fill(0)`). This eliminates the most direct copy — V8 may have created internal copies during GC compaction, but those are not directly inspectable. Standard server hardening also applies: patched OS, SSH key auth, non-root container.
+**Countermeasure:** On scheduler stop (triggered by lockdown, nuke, password change, or restore), the encryption key buffer is explicitly zero-filled (`Buffer.fill(0)`). Logout does not zero the key — the scheduler persists through logout for 24/7 polling. V8 may have created internal copies during GC compaction, but those are not directly inspectable. Standard server hardening also applies: patched OS, SSH key auth, non-root container.
 
 #### 3. Correlation Attack on Masked Usernames
 
@@ -477,7 +476,7 @@ npx tsx scripts/security-audit.ts     # Static security audit (28 checks)
 
 - [ ] Session cookie set with: `httpOnly: true`, `sameSite: "strict"`, `secure: NODE_ENV === "production"`, `path: "/"`
 - [ ] Session has hard expiry (7 days) encoded in the JWE payload — not just cookie `maxAge`
-- [ ] Logout zero-fills the encryption key buffer before destroying the session
+- [ ] Destructive operations (lockdown, nuke, password change, restore) zero-fill the encryption key buffer and stop the scheduler. Logout preserves the scheduler for 24/7 polling.
 - [ ] Login returns the encryption key only inside the JWE session — never in the response body
 - [ ] Failed login attempts increment atomically via `recordFailedAttempt()` in `src/lib/wipe.ts`
 

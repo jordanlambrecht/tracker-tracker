@@ -6,21 +6,26 @@
 
 // @vitest-environment node
 
+import { hkdfSync } from "node:crypto"
 import { EncryptJWT } from "jose"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
+
+// Stub SESSION_SECRET before any module that depends on it can be loaded
+const TEST_SECRET = "test-session-secret-at-least-32ch" // 34 chars
+vi.stubEnv("SESSION_SECRET", TEST_SECRET)
 
 // ---------------------------------------------------------------------------
 // Constants — must match the values in src/lib/auth.ts
 // ---------------------------------------------------------------------------
 const SESSION_COOKIE = "tt_session"
-const TEST_SECRET = "test-session-secret-at-least-32ch" // 34 chars
 
 /**
  * Derive the same key that auth.ts produces from SESSION_SECRET.
  * Duplicated here intentionally so the test doesn't import the private helper.
+ * Must match the HKDF derivation in getSessionKey().
  */
 function deriveKey(secret: string): Uint8Array {
-  return new TextEncoder().encode(secret.slice(0, 32))
+  return new Uint8Array(hkdfSync("sha256", secret, "", "tracker-tracker:session-v1", 32))
 }
 
 // ---------------------------------------------------------------------------
