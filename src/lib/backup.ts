@@ -4,7 +4,7 @@
 
 import { unlink } from "node:fs/promises"
 import path from "node:path"
-import { desc, eq, isNotNull } from "drizzle-orm"
+import { desc, inArray, isNotNull } from "drizzle-orm"
 import { decrypt, deriveKey, encrypt, generateSalt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import {
@@ -96,10 +96,16 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     }
   }
 
-  // trackers — exclude: lastPolledAt, lastError
+  // trackers — exclude transient runtime state
   const rawTrackers = await db.select().from(trackers).orderBy(trackers.id)
   const trackersPayload = rawTrackers.map((t) => {
-    const { lastPolledAt: _lpa, lastError: _le, ...rest } = t
+    const {
+      lastPolledAt: _lpa,
+      lastError: _le,
+      consecutiveFailures: _cf,
+      pausedAt: _pa,
+      ...rest
+    } = t
     return serializeRow(rest as Record<string, unknown>)
   })
 
@@ -452,7 +458,6 @@ export async function pruneOldBackups(retentionCount: number, basePath: string):
   }
 
   const toDelete = allStored.slice(retentionCount)
-  let deleted = 0
 
   for (const row of toDelete) {
     if (row.storagePath !== null) {
@@ -468,10 +473,12 @@ export async function pruneOldBackups(retentionCount: number, basePath: string):
         }
       }
     }
-
-    await db.delete(backupHistory).where(eq(backupHistory.id, row.id))
-    deleted++
   }
 
-  return deleted
+  const idsToDelete = toDelete.map((row) => row.id)
+  if (idsToDelete.length > 0) {
+    await db.delete(backupHistory).where(inArray(backupHistory.id, idsToDelete))
+  }
+
+  return idsToDelete.length
 }

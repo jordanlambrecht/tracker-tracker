@@ -20,6 +20,7 @@ import {
   getAnniversaryMilestone,
   postDismissAlert,
 } from "@/lib/dashboard"
+import { getTrackerHealth } from "@/lib/tracker-status"
 
 const mockFindRegistryEntry = vi.mocked(findRegistryEntry)
 
@@ -36,6 +37,8 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     isActive: true,
     lastPolledAt: new Date().toISOString(),
     lastError: null,
+    consecutiveFailures: 0,
+    pausedAt: null,
     color: "#00d4ff",
     qbtTag: null,
     sortOrder: 0,
@@ -602,6 +605,61 @@ describe("computeAlerts", () => {
     const alerts = computeAlerts([tracker])
     expect(alerts.find((a) => a.type === "zero-seeding")).toBeUndefined()
   })
+
+  it("generates poll-paused alert when pausedAt is set", () => {
+    const trackers = [
+      makeTracker({
+        pausedAt: "2026-03-17T00:00:00Z",
+        consecutiveFailures: 4,
+        lastError: "Bad API key",
+      }),
+    ]
+    const alerts = computeAlerts(trackers)
+    const paused = alerts.find((a) => a.type === "poll-paused")
+    expect(paused).toBeDefined()
+    expect(paused?.dismissible).toBe(false)
+    expect(paused?.message).toContain("Polling paused after repeated failures")
+  })
+
+  it("suppresses error alert when tracker is paused", () => {
+    const trackers = [
+      makeTracker({
+        pausedAt: "2026-03-17T00:00:00Z",
+        consecutiveFailures: 4,
+        lastError: "Bad API key",
+      }),
+    ]
+    const alerts = computeAlerts(trackers)
+    const errorAlerts = alerts.filter((a) => a.type === "error")
+    expect(errorAlerts).toHaveLength(0)
+  })
+
+  it("suppresses stale-data alert when tracker is paused", () => {
+    const staleDate = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
+    const trackers = [
+      makeTracker({
+        pausedAt: "2026-03-17T00:00:00Z",
+        consecutiveFailures: 4,
+        lastPolledAt: staleDate,
+      }),
+    ]
+    const alerts = computeAlerts(trackers)
+    const staleAlerts = alerts.filter((a) => a.type === "stale-data")
+    expect(staleAlerts).toHaveLength(0)
+  })
+
+  it("still fires error alert when tracker is not paused", () => {
+    const trackers = [
+      makeTracker({
+        lastError: "Connection refused",
+        pausedAt: null,
+        consecutiveFailures: 1,
+      }),
+    ]
+    const alerts = computeAlerts(trackers)
+    expect(alerts.find((a) => a.type === "error")).toBeDefined()
+    expect(alerts.find((a) => a.type === "poll-paused")).toBeUndefined()
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -913,5 +971,102 @@ describe("getAnniversaryMilestone", () => {
     const tracker = makeTracker({ joinedAt: null })
     const alerts = computeAlerts([tracker])
     expect(alerts.find((a) => a.type === "anniversary")).toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// getTrackerHealth
+// ---------------------------------------------------------------------------
+
+describe("getTrackerHealth", () => {
+  it("returns paused when pausedAt is set", () => {
+    const health = getTrackerHealth(makeTracker({ pausedAt: "2026-03-17T00:00:00Z" }))
+    expect(health).toBe("paused")
+  })
+
+  it("paused takes priority over error", () => {
+    const health = getTrackerHealth(
+      makeTracker({ pausedAt: "2026-03-17T00:00:00Z", lastError: "Bad key" })
+    )
+    expect(health).toBe("paused")
+  })
+
+  it("paused takes priority over healthy stats", () => {
+    const health = getTrackerHealth(
+      makeTracker({
+        pausedAt: "2026-03-17T00:00:00Z",
+        latestStats: {
+          ratio: 5.0,
+          uploadedBytes: "5000",
+          downloadedBytes: "1000",
+          seedingCount: 10,
+          leechingCount: 0,
+          requiredRatio: null,
+          warned: null,
+          freeleechTokens: null,
+          username: "u",
+          group: null,
+        },
+      })
+    )
+    expect(health).toBe("paused")
+  })
+
+  it("returns error when lastError is set and not paused", () => {
+    const health = getTrackerHealth(
+      makeTracker({ pausedAt: null, lastError: "Connection refused" })
+    )
+    expect(health).toBe("error")
+  })
+
+  it("returns offline when no latestStats and not paused or error", () => {
+    const health = getTrackerHealth(
+      makeTracker({ pausedAt: null, lastError: null, latestStats: null })
+    )
+    expect(health).toBe("offline")
+  })
+
+  it("returns healthy when ratio >= 2 and seeding > 0", () => {
+    const health = getTrackerHealth(
+      makeTracker({
+        pausedAt: null,
+        lastError: null,
+        latestStats: {
+          ratio: 3.0,
+          uploadedBytes: "3000",
+          downloadedBytes: "1000",
+          seedingCount: 5,
+          leechingCount: 0,
+          requiredRatio: null,
+          warned: null,
+          freeleechTokens: null,
+          username: "u",
+          group: null,
+        },
+      })
+    )
+    expect(health).toBe("healthy")
+  })
+
+  it("returns critical when ratio < 1", () => {
+    const health = getTrackerHealth(
+      makeTracker({
+        pausedAt: null,
+        lastError: null,
+        latestStats: {
+          ratio: 0.3,
+          uploadedBytes: "300",
+          downloadedBytes: "1000",
+          seedingCount: 2,
+          leechingCount: 0,
+          requiredRatio: null,
+          warned: null,
+          freeleechTokens: null,
+          username: "u",
+          group: null,
+        },
+      })
+    )
+    expect(health).toBe("critical")
   })
 })
