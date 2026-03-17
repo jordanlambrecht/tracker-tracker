@@ -220,6 +220,16 @@ export default function SettingsPage() {
             </Card>
           </section>
 
+          {/* ── Webhooks (coming soon) ─────────────────────────── */}
+          <section aria-labelledby="webhooks-heading">
+            <H2 id="webhooks-heading" className="mb-4 opacity-40">
+              Webhooks
+            </H2>
+            <Card elevation="raised" className="opacity-40 pointer-events-none select-none">
+              <p className="text-sm font-mono text-muted text-center py-6">Coming soon</p>
+            </Card>
+          </section>
+
           <DangerZoneSection />
         </>
       )}

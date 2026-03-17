@@ -21,6 +21,9 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon.png",
   },
+  ...(process.env.BASE_URL && {
+    metadataBase: new URL(process.env.BASE_URL),
+  }),
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {

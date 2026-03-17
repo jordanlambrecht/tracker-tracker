@@ -1,4 +1,5 @@
 // src/lib/__tests__/dashboard.test.ts
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import type { Snapshot, TrackerSummary } from "@/types/api"
