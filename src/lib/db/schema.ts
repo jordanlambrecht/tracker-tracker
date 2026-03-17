@@ -1,6 +1,6 @@
 // src/lib/db/schema.ts
 //
-// Tables: appSettings, trackers, trackerSnapshots, trackerRoles, downloadClients, tagGroups, tagGroupMembers, clientSnapshots, backupHistory, draftQuicklinks (column on appSettings)
+// Tables: appSettings, trackers, trackerSnapshots, trackerRoles, downloadClients, tagGroups, tagGroupMembers, clientSnapshots, backupHistory, dismissedAlerts, draftQuicklinks (column on appSettings)
 import {
   bigint,
   boolean,
@@ -50,6 +50,7 @@ export const appSettings = pgTable("app_settings", {
   backupStoragePath: varchar("backup_storage_path", { length: 500 }),
   draftQuicklinks: text("draft_quicklinks"),
   dashboardSettings: text("dashboard_settings"),
+  encryptedSchedulerKey: text("encrypted_scheduler_key"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 
@@ -197,3 +198,14 @@ export const backupHistory = pgTable("backup_history", {
   storagePath: text("storage_path"),
   notes: text("notes"),
 })
+
+export const dismissedAlerts = pgTable(
+  "dismissed_alerts",
+  {
+    id: serial("id").primaryKey(),
+    alertKey: varchar("alert_key", { length: 255 }).notNull(),
+    alertType: varchar("alert_type", { length: 30 }).notNull(),
+    dismissedAt: timestamp("dismissed_at").defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("uq_dismissed_alert_key").on(table.alertKey)]
+)
