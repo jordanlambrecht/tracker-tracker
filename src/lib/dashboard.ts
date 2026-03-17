@@ -21,6 +21,7 @@ export interface AggregateStats {
 
 export type AlertType =
   | "error"
+  | "poll-paused"
   | "ratio-danger"
   | "stale-data"
   | "rank-change"
@@ -135,8 +136,19 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
   const alerts: DashboardAlert[] = []
 
   for (const tracker of trackers) {
-    // --- Error alert ---
-    if (tracker.lastError) {
+    // --- Poll paused (suppresses error alert when paused) ---
+    if (tracker.pausedAt) {
+      alerts.push({
+        key: `poll-paused-${tracker.id}`,
+        type: "poll-paused",
+        trackerId: tracker.id,
+        trackerName: tracker.name,
+        trackerColor: tracker.color,
+        message: "Polling paused after repeated failures — check API key and resume",
+        timestamp: tracker.pausedAt ?? undefined,
+        dismissible: false,
+      })
+    } else if (tracker.lastError) {
       const snippet = tracker.lastError.slice(0, 20).replace(/\s+/g, "_")
       alerts.push({
         key: `error-${tracker.id}-${snippet}`,
@@ -172,8 +184,8 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
       }
     }
 
-    // --- Stale data ---
-    if (tracker.lastPolledAt) {
+    // --- Stale data (skip if paused — staleness is expected) ---
+    if (!tracker.pausedAt && tracker.lastPolledAt) {
       const lastPolled = new Date(tracker.lastPolledAt)
       const thresholdMs = 2 * 60 * 60 * 1000 // 2 hours — stale if no poll in this window
       const ageMs = Date.now() - lastPolled.getTime()
@@ -363,7 +375,7 @@ export function computeSystemAlerts(data: SystemAlertData): DashboardAlert[] {
       type: "update-available",
       trackerId: null,
       trackerName: "System",
-      trackerColor: "#00d4ff",
+      trackerColor: "var(--color-accent)",
       message: `Version ${data.latestVersion} is available (current: ${data.currentVersion})`,
       dismissible: true,
     })
@@ -377,7 +389,7 @@ export function computeSystemAlerts(data: SystemAlertData): DashboardAlert[] {
       type: "backup-failed",
       trackerId: null,
       trackerName: "Backups",
-      trackerColor: "#ef4444",
+      trackerColor: "var(--color-danger)",
       message: `Scheduled backup failed at ${new Date(latest.createdAt).toLocaleString()}`,
       timestamp: latest.createdAt,
       dismissible: true,
@@ -392,7 +404,7 @@ export function computeSystemAlerts(data: SystemAlertData): DashboardAlert[] {
         type: "client-error",
         trackerId: null,
         trackerName: client.name,
-        trackerColor: "#ef4444",
+        trackerColor: "var(--color-danger)",
         message: client.lastError,
         dismissible: false,
       })

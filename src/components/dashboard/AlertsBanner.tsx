@@ -24,6 +24,7 @@ const typeConfig: Record<string, { borderColor: string; icon: string; label: str
   "update-available": { borderColor: "var(--color-accent)", icon: "⬆", label: "Update" },
   "backup-failed": { borderColor: "var(--color-warn)", icon: "⚠", label: "Backup" },
   "client-error": { borderColor: "var(--color-danger)", icon: "⏹", label: "Client" },
+  "poll-paused": { borderColor: "var(--color-danger)", icon: "⏸", label: "Paused" },
 }
 
 function AlertsBanner({ alerts, onDismiss, onDismissAll }: AlertsBannerProps) {
