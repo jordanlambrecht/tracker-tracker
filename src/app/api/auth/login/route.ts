@@ -5,12 +5,14 @@
 import { NextResponse } from "next/server"
 import { parseJsonBody } from "@/lib/api-helpers"
 import { createPendingToken, createSession, verifyPassword } from "@/lib/auth"
+import { extractClientIp } from "@/lib/client-ip"
 import { deriveKey } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
 import { checkLockout, recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import { log } from "@/lib/logger"
 import { startScheduler } from "@/lib/scheduler"
+import { persistSchedulerKey } from "@/lib/scheduler-key-store"
 
 export async function POST(request: Request) {
   const [settings] = await db.select().from(appSettings).limit(1)
@@ -23,6 +25,8 @@ export async function POST(request: Request) {
 
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
+
+  const clientIp = extractClientIp(request.headers)
 
   const password = body.password as string | undefined
   if (!password || typeof password !== "string" || password.length > 128) {
@@ -42,7 +46,7 @@ export async function POST(request: Request) {
 
   if (!usernameOk || !passwordOk) {
     await recordFailedAttempt(settings.id, settings)
-    log.warn({ event: "login_failed" }, "Failed login attempt")
+    log.warn({ event: "login_failed", ip: clientIp }, "Failed login attempt")
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
   }
 
@@ -53,7 +57,7 @@ export async function POST(request: Request) {
   // If TOTP is enrolled, return a pending token instead of a full session.
   // Don't reset the counter yet — TOTP verification is still pending.
   if (settings.totpSecret) {
-    log.info({ event: "login_totp_pending" }, "Password verified, awaiting TOTP")
+    log.info({ event: "login_totp_pending", ip: clientIp }, "Password verified, awaiting TOTP")
     const pendingToken = await createPendingToken(keyHex)
     return NextResponse.json({ requiresTotp: true, pendingToken })
   }
@@ -61,8 +65,9 @@ export async function POST(request: Request) {
   // No TOTP — login fully successful, reset failed attempts
   await resetFailedAttempts(settings.id)
   await createSession(keyHex, settings.sessionTimeoutMinutes)
+  await persistSchedulerKey(key, settings.id)
   startScheduler(key)
-  log.info({ event: "login_success" }, "Login successful")
+  log.info({ event: "login_success", ip: clientIp }, "Login successful")
 
   return NextResponse.json({ success: true })
 }

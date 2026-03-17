@@ -38,6 +38,11 @@ vi.mock("@/lib/scheduler", () => ({
   stopScheduler: vi.fn(),
 }))
 
+vi.mock("@/lib/scheduler-key-store", () => ({
+  persistSchedulerKey: vi.fn().mockResolvedValue(undefined),
+  clearSchedulerKey: vi.fn().mockResolvedValue(undefined),
+}))
+
 vi.mock("@/lib/lockout", () => ({
   checkLockout: vi.fn().mockReturnValue(null),
   recordFailedAttempt: vi.fn().mockResolvedValue(undefined),
@@ -501,9 +506,8 @@ describe("POST /api/auth/logout", () => {
     vi.restoreAllMocks()
   })
 
-  it("calls stopScheduler and clearSession and returns 200", async () => {
+  it("clears the session and returns 200 (scheduler keeps running)", async () => {
     ;(getSession as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: "abc123" })
-    ;(stopScheduler as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
     ;(clearSession as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
 
     const { POST } = await import("./logout/route")
@@ -512,7 +516,7 @@ describe("POST /api/auth/logout", () => {
 
     expect(response.status).toBe(200)
     expect(body).toEqual({ success: true })
-    expect(stopScheduler).toHaveBeenCalledOnce()
+    expect(stopScheduler).not.toHaveBeenCalled()
     expect(clearSession).toHaveBeenCalledOnce()
   })
 
