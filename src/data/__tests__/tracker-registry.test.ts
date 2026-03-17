@@ -92,13 +92,14 @@ describe("tracker registry", () => {
     for (const tracker of ALL_TRACKERS) {
       expect(
         typeof tracker.draft === "boolean",
-        `${tracker.slug} is missing an explicit draft: true/false field`,
+        `${tracker.slug} is missing an explicit draft: true/false field`
       ).toBe(true)
     }
   })
 
   it("every tracker file in src/data/trackers/ is registered in the barrel", () => {
-    const files = fs.readdirSync(TRACKER_DIR)
+    const files = fs
+      .readdirSync(TRACKER_DIR)
       .filter((f) => f.endsWith(".ts") && f !== "index.ts" && !f.startsWith("_"))
       .map((f) => f.replace(/\.ts$/, ""))
     // Read barrel to get actual imported filenames
@@ -106,7 +107,7 @@ describe("tracker registry", () => {
     const unregistered = files.filter((f) => !barrelContent.includes(`./${f}`))
     expect(
       unregistered,
-      `Tracker files not imported in index.ts: ${unregistered.join(", ")}. Did you forget to add them to the barrel?`,
+      `Tracker files not imported in index.ts: ${unregistered.join(", ")}. Did you forget to add them to the barrel?`
     ).toEqual([])
   })
 
@@ -140,7 +141,7 @@ describe("tracker registry", () => {
         it("has a valid slug format", () => {
           expect(
             tracker.slug,
-            `"${tracker.slug}" must be lowercase alphanumeric with hyphens`,
+            `"${tracker.slug}" must be lowercase alphanumeric with hyphens`
           ).toMatch(SLUG_RE)
         })
 
@@ -157,7 +158,7 @@ describe("tracker registry", () => {
           const expected = DEFAULT_API_PATHS[tracker.platform]
           expect(
             tracker.apiPath,
-            `${tracker.name} is platform "${tracker.platform}" but uses apiPath "${tracker.apiPath}" — expected "${expected}"`,
+            `${tracker.name} is platform "${tracker.platform}" but uses apiPath "${tracker.apiPath}" — expected "${expected}"`
           ).toBe(expected)
         })
 
@@ -171,18 +172,17 @@ describe("tracker registry", () => {
         })
 
         it("uses only allowed content categories", () => {
-          const invalid = tracker.contentCategories.filter((c: string) => !VALID_CONTENT_CATEGORIES.has(c))
+          const invalid = tracker.contentCategories.filter(
+            (c: string) => !VALID_CONTENT_CATEGORIES.has(c)
+          )
           expect(
             invalid,
-            `Invalid categories: ${invalid.join(", ")}. Allowed: ${[...VALID_CONTENT_CATEGORIES].join(", ")}`,
+            `Invalid categories: ${invalid.join(", ")}. Allowed: ${[...VALID_CONTENT_CATEGORIES].join(", ")}`
           ).toEqual([])
         })
 
         it("has a language", () => {
-          expect(
-            tracker.language?.trim().length,
-            "language is required",
-          ).toBeGreaterThan(0)
+          expect(tracker.language?.trim().length, "language is required").toBeGreaterThan(0)
         })
 
         it("has rules.minimumRatio as a non-negative number", () => {
@@ -211,7 +211,7 @@ describe("tracker registry", () => {
         it("has a non-placeholder description", () => {
           expect(
             PLACEHOLDER_RE.test(tracker.description.trim()),
-            `description is still "TODO" — fill it in before removing draft`,
+            `description is still "TODO" — fill it in before removing draft`
           ).toBe(false)
         })
 
@@ -237,17 +237,14 @@ describe("tracker registry", () => {
           it("logo follows naming convention (lowercase_logo.svg|png)", () => {
             expect(
               tracker.logo,
-              `Logo "${tracker.logo}" must match pattern /tracker-logos/<name>_logo.(svg|png)`,
+              `Logo "${tracker.logo}" must match pattern /tracker-logos/<name>_logo.(svg|png)`
             ).toMatch(LOGO_NAME_RE)
           })
 
           it("logo file exists on disk", () => {
             // biome-ignore lint/style/noNonNullAssertion: test only runs for trackers with logos
             const logoFile = path.join(LOGO_DIR, path.basename(tracker.logo!))
-            expect(
-              fs.existsSync(logoFile),
-              `Logo file not found: public${tracker.logo}`,
-            ).toBe(true)
+            expect(fs.existsSync(logoFile), `Logo file not found: public${tracker.logo}`).toBe(true)
           })
         }
 

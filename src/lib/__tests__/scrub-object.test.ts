@@ -1,7 +1,7 @@
 // src/lib/__tests__/scrub-object.test.ts
 
 import { describe, expect, it } from "vitest"
-import { scrubObject, SCRUB_KEYS } from "@/lib/scrub-object"
+import { SCRUB_KEYS, scrubObject } from "@/lib/scrub-object"
 
 // ---------------------------------------------------------------------------
 // SCRUB_KEYS contract

@@ -29,7 +29,8 @@ export const phoenixproject: TrackerRegistryEntry = {
     },
     {
       name: "Power User",
-      requirements: "Uploader: 50 GiB up, 1.05 ratio, 2 weeks, 5 uploads — OR Seeder: 1 TiB up, 1.05 ratio, 3 weeks",
+      requirements:
+        "Uploader: 50 GiB up, 1.05 ratio, 2 weeks, 5 uploads — OR Seeder: 1 TiB up, 1.05 ratio, 3 weeks",
       perks: [
         { type: "custom", label: "Torrent notifications, collage creation, PU forums" },
         { type: "hnr-immune", label: "Immune to inactivity pruning" },
@@ -37,25 +38,25 @@ export const phoenixproject: TrackerRegistryEntry = {
     },
     {
       name: "Elite",
-      requirements: "Uploader: 250 GiB up, 1.05 ratio, 4 weeks, 25 uploads — OR Seeder: 5 TiB up, 1.05 ratio, 6 weeks",
-      perks: [
-        { type: "custom", label: "Elite forums, view user stat graphs, rename collages" },
-      ],
+      requirements:
+        "Uploader: 250 GiB up, 1.05 ratio, 4 weeks, 25 uploads — OR Seeder: 5 TiB up, 1.05 ratio, 6 weeks",
+      perks: [{ type: "custom", label: "Elite forums, view user stat graphs, rename collages" }],
     },
     {
       name: "Torrent Master",
-      requirements: "Uploader: 500 GiB up, 1.05 ratio, 6 weeks, 125 uploads — OR Seeder: 25 TiB up, 1.05 ratio, 9 weeks",
-      perks: [
-        { type: "custom", label: "TM forums, custom title" },
-      ],
+      requirements:
+        "Uploader: 500 GiB up, 1.05 ratio, 6 weeks, 125 uploads — OR Seeder: 25 TiB up, 1.05 ratio, 9 weeks",
+      perks: [{ type: "custom", label: "TM forums, custom title" }],
     },
     {
       name: "Power Torrent Master",
-      requirements: "Uploader: 5 TiB up, 1.05 ratio, 8 weeks, 250 uploads — OR Seeder: 50 TiB up, 1.05 ratio, 12 weeks",
+      requirements:
+        "Uploader: 5 TiB up, 1.05 ratio, 8 weeks, 250 uploads — OR Seeder: 50 TiB up, 1.05 ratio, 12 weeks",
     },
     {
       name: "Elite Torrent Master",
-      requirements: "Uploader: 10 TiB up, 1.05 ratio, 10 weeks, 500 uploads — OR Seeder: 125 TiB up, 1.05 ratio, 15 weeks",
+      requirements:
+        "Uploader: 10 TiB up, 1.05 ratio, 10 weeks, 500 uploads — OR Seeder: 125 TiB up, 1.05 ratio, 15 weeks",
       perks: [
         { type: "custom", label: "ETM forums" },
         { type: "invite", label: "Unlimited invites" },
@@ -63,13 +64,15 @@ export const phoenixproject: TrackerRegistryEntry = {
     },
     {
       name: "Ultimate Torrent Master",
-      requirements: "Uploader: 25 TiB up, 1.05 ratio, 14 weeks, 1000 uploads — OR Seeder: 250 TiB up, 1.05 ratio, 20 weeks",
-      perks: [
-        { type: "custom", label: "Search past page 20" },
-      ],
+      requirements:
+        "Uploader: 25 TiB up, 1.05 ratio, 14 weeks, 1000 uploads — OR Seeder: 250 TiB up, 1.05 ratio, 20 weeks",
+      perks: [{ type: "custom", label: "Search past page 20" }],
     },
     // Special classes — staff-assigned
-    { name: "Interviewer", requirements: "Staff — selected to conduct interviews and invite new members" },
+    {
+      name: "Interviewer",
+      requirements: "Staff — selected to conduct interviews and invite new members",
+    },
     { name: "VIP", requirements: "Staff — extraordinary contributions to the site" },
     { name: "Legend", requirements: "Staff — extraordinary contributions to the site" },
     { name: "Alpha Team", requirements: "Staff — special team" },
@@ -83,7 +86,10 @@ export const phoenixproject: TrackerRegistryEntry = {
     { name: "Developer", requirements: "Staff — designs and writes site code" },
     { name: "Forum Moderator", requirements: "Staff — moderates forums and comments" },
     { name: "Moderator", requirements: "Staff — moderates torrents and general site content" },
-    { name: "Administrator", requirements: "Staff — overall site maintenance, management, and security" },
+    {
+      name: "Administrator",
+      requirements: "Staff — overall site maintenance, management, and security",
+    },
     { name: "Sysop", requirements: "Staff — in charge of everything" },
   ],
   releaseGroups: [],
@@ -108,15 +114,15 @@ export const phoenixproject: TrackerRegistryEntry = {
       "",
       "| Amount Downloaded | Required Ratio (0% seeded) | Required Ratio (100% seeded) |",
       "|---|---|---|",
-      "| 0–5 GB | 0.00 | 0.00 |",
-      "| 5–10 GB | 0.15 | 0.00 |",
-      "| 10–20 GB | 0.20 | 0.00 |",
-      "| 20–30 GB | 0.30 | 0.05 |",
-      "| 30–40 GB | 0.40 | 0.10 |",
-      "| 40–50 GB | 0.50 | 0.20 |",
-      "| 50–60 GB | 0.60 | 0.30 |",
-      "| 60–80 GB | 0.60 | 0.40 |",
-      "| 80–100 GB | 0.60 | 0.50 |",
+      "| 0-5 GB | 0.00 | 0.00 |",
+      "| 5-10 GB | 0.15 | 0.00 |",
+      "| 10-20 GB | 0.20 | 0.00 |",
+      "| 20-30 GB | 0.30 | 0.05 |",
+      "| 30-40 GB | 0.40 | 0.10 |",
+      "| 40-50 GB | 0.50 | 0.20 |",
+      "| 50-60 GB | 0.60 | 0.30 |",
+      "| 60-80 GB | 0.60 | 0.40 |",
+      "| 80-100 GB | 0.60 | 0.50 |",
       "| 100+ GB | 0.60 | 0.60 |",
       "",
       "**Formula:** `required ratio = (max ratio) × (1 − (seeding / snatched))`",

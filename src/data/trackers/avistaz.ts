@@ -7,8 +7,7 @@ export const avistaz: TrackerRegistryEntry = {
   name: "AvistaZ",
   abbreviation: "AvZ",
   url: "https://avistaz.to",
-  description:
-    "Very good Asian movie and TV tracker, part of the AvistaZ network.",
+  description: "Very good Asian movie and TV tracker, part of the AvistaZ network.",
   platform: "custom",
   apiPath: "/api/user",
   specialty: "Asian Movies / TV",
