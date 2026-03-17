@@ -42,7 +42,7 @@
     "argon2": "^0.44.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "drizzle-kit": "^0.31.9",
+    "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.1",
     "echarts": "^6.0.0",
     "echarts-for-react": "^3.0.6",
