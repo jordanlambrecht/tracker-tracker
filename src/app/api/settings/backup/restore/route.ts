@@ -19,6 +19,7 @@ import {
   appSettings,
   clientSnapshots,
   clientUptimeBuckets,
+  dismissedAlerts,
   downloadClients,
   tagGroupMembers,
   tagGroups,
@@ -226,6 +227,7 @@ export async function POST(request: Request) {
   try {
     await db.transaction(async (tx) => {
       // Delete all existing data — FK-safe order (children before parents)
+      await tx.delete(dismissedAlerts)
       await tx.delete(clientUptimeBuckets)
       await tx.delete(clientSnapshots)
       await tx.delete(trackerSnapshots)
@@ -445,6 +447,26 @@ export async function POST(request: Request) {
         }
       }
 
+      // Insert dismissedAlerts (optional — absent in older backups)
+      if (Array.isArray(payload.dismissedAlerts) && payload.dismissedAlerts.length > 0) {
+        const alertRows: { alertKey: string; alertType: string; dismissedAt: Date }[] = []
+        for (const a of payload.dismissedAlerts) {
+          const fields = a as Record<string, unknown>
+          if (typeof fields.alertKey !== "string" || typeof fields.alertType !== "string") continue
+          alertRows.push({
+            alertKey: fields.alertKey,
+            alertType: fields.alertType,
+            dismissedAt: fields.dismissedAt ? new Date(fields.dismissedAt as string) : new Date(),
+          })
+        }
+        for (let i = 0; i < alertRows.length; i += BATCH_SIZE) {
+          const batch = alertRows.slice(i, i + BATCH_SIZE)
+          if (batch.length > 0) {
+            await tx.insert(dismissedAlerts).values(batch).onConflictDoNothing()
+          }
+        }
+      }
+
       // Re-encrypt proxy password if possible
       let proxyPassword: string | null = null
       if (payload.settings.encryptedProxyPassword) {
@@ -536,6 +558,7 @@ export async function POST(request: Request) {
           dashboardSettings: (payload.settings.dashboardSettings as string | null) ?? null,
           // passwordHash: NEVER updated from backup
           // encryptionSalt: NEVER updated from backup
+          encryptedSchedulerKey: null,
         })
         .where(eq(appSettings.id, currentSettingsId))
     })
@@ -580,6 +603,9 @@ export async function POST(request: Request) {
         trackerRoles: payload.trackerRoles.length,
         downloadClients: payload.downloadClients.length,
         tagGroups: payload.tagGroups.length,
+        dismissedAlerts: Array.isArray(payload.dismissedAlerts)
+          ? payload.dismissedAlerts.length
+          : 0,
       },
     },
     "Restore operation completed successfully"
@@ -598,6 +624,7 @@ export async function POST(request: Request) {
       clientUptimeBuckets: Array.isArray(payload.clientUptimeBuckets)
         ? payload.clientUptimeBuckets.length
         : 0,
+      dismissedAlerts: Array.isArray(payload.dismissedAlerts) ? payload.dismissedAlerts.length : 0,
     },
     tokensPreserved,
     tokensCleared,

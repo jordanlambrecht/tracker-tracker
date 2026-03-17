@@ -13,6 +13,7 @@ import { generateSalt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
 import { stopScheduler } from "@/lib/scheduler"
+import { clearSchedulerKey } from "@/lib/scheduler-key-store"
 
 export async function POST(request: Request) {
   const auth = await authenticate()
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
 
   // 1. Stop all polling immediately
   stopScheduler()
+  await clearSchedulerKey(settings.id)
 
   // 2. Nullify all tracker API tokens — they're now useless
   await db.update(trackers).set({

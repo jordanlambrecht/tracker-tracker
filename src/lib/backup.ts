@@ -12,6 +12,7 @@ import {
   backupHistory,
   clientSnapshots,
   clientUptimeBuckets,
+  dismissedAlerts,
   downloadClients,
   tagGroupMembers,
   tagGroups,
@@ -27,6 +28,7 @@ export const CURRENT_BACKUP_VERSION = 1
 export interface BackupManifest {
   version: number
   appVersion: string
+  instanceUrl: string | null
   createdAt: string
   encrypted: boolean
   counts: Record<string, number>
@@ -43,6 +45,7 @@ export interface BackupPayload {
   tagGroupMembers: Record<string, unknown>[]
   clientSnapshots: Record<string, unknown>[]
   clientUptimeBuckets?: Record<string, unknown>[]
+  dismissedAlerts?: Record<string, unknown>[]
 }
 
 export interface EncryptedBackupEnvelope {
@@ -76,7 +79,7 @@ function serializeRow(row: Record<string, unknown>): Record<string, unknown> {
 export async function generateBackupPayload(): Promise<BackupPayload> {
   const now = new Date().toISOString()
 
-  // appSettings — exclude: id, passwordHash, failedLoginAttempts, createdAt
+  // appSettings — exclude: id, passwordHash, failedLoginAttempts, encryptedSchedulerKey, createdAt
   const [rawSettings] = await db.select().from(appSettings).limit(1)
   const settingsPayload: Record<string, unknown> = {}
   if (rawSettings) {
@@ -84,6 +87,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
       id: _id,
       passwordHash: _passwordHash,
       failedLoginAttempts: _failedLoginAttempts,
+      encryptedSchedulerKey: _encryptedSchedulerKey,
       createdAt: _createdAt,
       ...rest
     } = rawSettings
@@ -145,6 +149,12 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     serializeRow(ub as Record<string, unknown>)
   )
 
+  // dismissedAlerts — include all columns
+  const rawDismissedAlerts = await db.select().from(dismissedAlerts).orderBy(dismissedAlerts.id)
+  const dismissedAlertsPayload = rawDismissedAlerts.map((a) =>
+    serializeRow(a as Record<string, unknown>)
+  )
+
   const counts: Record<string, number> = {
     trackers: trackersPayload.length,
     trackerSnapshots: snapshotsPayload.length,
@@ -154,11 +164,13 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     tagGroupMembers: tagGroupMembersPayload.length,
     clientSnapshots: clientSnapshotsPayload.length,
     clientUptimeBuckets: uptimeBucketsPayload.length,
+    dismissedAlerts: dismissedAlertsPayload.length,
   }
 
   const manifest: BackupManifest = {
     version: CURRENT_BACKUP_VERSION,
     appVersion: packageJson.version,
+    instanceUrl: process.env.BASE_URL || null,
     createdAt: now,
     encrypted: false,
     counts,
@@ -175,6 +187,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     tagGroupMembers: tagGroupMembersPayload,
     clientSnapshots: clientSnapshotsPayload,
     clientUptimeBuckets: uptimeBucketsPayload,
+    dismissedAlerts: dismissedAlertsPayload,
   }
 }
 
@@ -298,6 +311,10 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
       assertNumber(ub.ok, `${prefix}.ok`)
       assertNumber(ub.fail, `${prefix}.fail`)
     }
+  }
+  // dismissedAlerts is optional for backward compatibility with older backups
+  if (p.dismissedAlerts !== undefined) {
+    assertArray(p.dismissedAlerts, "dismissedAlerts")
   }
 
   // tracker entries
