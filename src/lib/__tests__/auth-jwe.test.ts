@@ -80,7 +80,7 @@ describe("auth JWE real crypto", () => {
 
     const session = await getSession()
     expect(session).not.toBeNull()
-    expect(session!.encryptionKey).toBe(SAMPLE_KEY)
+    expect(session?.encryptionKey).toBe(SAMPLE_KEY)
   })
 
   it("should round-trip with default maxAge when timeoutMinutes is null", async () => {
@@ -90,7 +90,7 @@ describe("auth JWE real crypto", () => {
 
     const session = await getSession()
     expect(session).not.toBeNull()
-    expect(session!.encryptionKey).toBe(SAMPLE_KEY)
+    expect(session?.encryptionKey).toBe(SAMPLE_KEY)
   })
 
   // ---- 2. Token is not plain JSON ----------------------------------------
@@ -140,7 +140,7 @@ describe("auth JWE real crypto", () => {
 
     const result = await verifyPendingToken(token)
     expect(result).not.toBeNull()
-    expect(result!.encryptionKey).toBe(SAMPLE_KEY)
+    expect(result?.encryptionKey).toBe(SAMPLE_KEY)
   })
 
   it("should reject a pending token when purpose does not match", async () => {
@@ -175,8 +175,8 @@ describe("auth JWE real crypto", () => {
 
     const result = await verifySetupToken(token)
     expect(result).not.toBeNull()
-    expect(result!.totpSecret).toBe(totpSecret)
-    expect(result!.backupCodesJson).toBe(backupCodes)
+    expect(result?.totpSecret).toBe(totpSecret)
+    expect(result?.backupCodesJson).toBe(backupCodes)
   })
 
   it("should reject a pending token when verified as a setup token", async () => {
