@@ -61,6 +61,7 @@ let getSession: typeof import("@/lib/auth").getSession
 beforeAll(async () => {
   vi.stubEnv("SESSION_SECRET", TEST_SECRET)
   vi.stubEnv("NODE_ENV", "test")
+  vi.resetModules() // Discard any cached auth module from prior test files in the same worker
 
   const apiHelpers = await import("@/lib/api-helpers")
   const auth = await import("@/lib/auth")
