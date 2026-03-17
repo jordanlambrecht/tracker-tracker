@@ -272,12 +272,18 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                 </a>
               </div>
 
-              {/* Row 2: Class/rank */}
-              <RedactedText
-                value={t.latestStats?.group ?? null}
-                color={t.color}
-                className="font-mono text-xs text-accent ml-4.5"
-              />
+              {/* Row 2: Class/rank or paused indicator */}
+              {t.pausedAt ? (
+                <span className="font-mono text-[10px] text-danger uppercase tracking-wider ml-4.5">
+                  ⏸ Polling paused
+                </span>
+              ) : (
+                <RedactedText
+                  value={t.latestStats?.group ?? null}
+                  color={t.color}
+                  className="font-mono text-xs text-accent ml-4.5"
+                />
+              )}
 
               {/* Row 3: Account age + join date */}
               {t.joinedAt ? (

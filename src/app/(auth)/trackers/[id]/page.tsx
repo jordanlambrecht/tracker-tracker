@@ -140,6 +140,22 @@ export default function TrackerDetailPage() {
     }
   }, [scrollbarColor])
 
+  async function handleResume() {
+    setPollError(null)
+    try {
+      const res = await fetch(`/api/trackers/${id}/resume`, { method: "POST" })
+      if (res.ok) {
+        const trackerRes = await fetch(`/api/trackers/${id}`)
+        if (trackerRes.ok) setTracker(await trackerRes.json())
+      } else {
+        const body = await res.json().catch(() => ({ error: "Resume failed" }))
+        setPollError((body as { error?: string }).error ?? "Failed to resume polling")
+      }
+    } catch {
+      setPollError("Network error while resuming polling")
+    }
+  }
+
   async function handlePollNow() {
     setPolling(true)
     setPollError(null)
@@ -288,7 +304,9 @@ export default function TrackerDetailPage() {
         pollError={pollError}
         lastError={tracker.lastError}
         lastPolledAt={tracker.lastPolledAt}
+        pausedAt={tracker.pausedAt}
         onDismissPollError={() => setPollError(null)}
+        onResume={handleResume}
       />
 
       {/* ── Tabs ── */}
