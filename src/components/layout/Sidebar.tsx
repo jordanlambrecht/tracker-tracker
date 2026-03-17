@@ -43,6 +43,7 @@ import {
   hexToRgba,
   type StatMode,
 } from "@/lib/formatters"
+import { STORAGE_KEYS } from "@/lib/storage-keys"
 import { getHealthPulseDot, getTrackerHealth } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
 
@@ -304,12 +305,12 @@ function ClientStatusWidget() {
   const [activeIndex, setActiveIndex] = useState(0)
   const [direction, setDirection] = useState<"left" | "right">("left")
   const [animating, setAnimating] = useState(false)
-  const [expanded, setExpanded] = useLocalStorage("tracker-tracker:client-widget-expanded", false)
+  const [expanded, setExpanded] = useLocalStorage(STORAGE_KEYS.CLIENT_WIDGET_EXPANDED, false)
 
   // Set height-based default on first visit (when no preference is stored)
   useEffect(() => {
     try {
-      if (localStorage.getItem("tracker-tracker:client-widget-expanded") === null) {
+      if (localStorage.getItem(STORAGE_KEYS.CLIENT_WIDGET_EXPANDED) === null) {
         setExpanded(window.innerHeight >= 800)
       }
     } catch {}
@@ -577,9 +578,9 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
   // Hydrate preferences from localStorage after mount (avoids SSR mismatch)
   useEffect(() => {
     try {
-      const savedStat = localStorage.getItem("sidebar-stat-mode") as StatMode | null
+      const savedStat = localStorage.getItem(STORAGE_KEYS.SIDEBAR_STAT_MODE) as StatMode | null
       if (savedStat) setStatMode(savedStat)
-      const savedSort = localStorage.getItem("sidebar-sort-mode") as SortMode | null
+      const savedSort = localStorage.getItem(STORAGE_KEYS.SIDEBAR_SORT_MODE) as SortMode | null
       if (savedSort) setSortMode(savedSort)
     } catch {
       // ignore
@@ -601,7 +602,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
 
           // Auto-detect custom sort on first load if no preference saved
           if (
-            !localStorage.getItem("sidebar-sort-mode") &&
+            !localStorage.getItem(STORAGE_KEYS.SIDEBAR_SORT_MODE) &&
             data.some((t) => t.sortOrder !== null)
           ) {
             setSortMode("custom")
@@ -677,7 +678,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
     // Switch to custom sort and persist
     setSortMode("custom")
     try {
-      localStorage.setItem("sidebar-sort-mode", "custom")
+      localStorage.setItem(STORAGE_KEYS.SIDEBAR_SORT_MODE, "custom")
     } catch {
       // ignore
     }
@@ -686,14 +687,14 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
   function updateStatMode(mode: StatMode) {
     setStatMode(mode)
     try {
-      localStorage.setItem("sidebar-stat-mode", mode)
+      localStorage.setItem(STORAGE_KEYS.SIDEBAR_STAT_MODE, mode)
     } catch {}
   }
 
   function updateSortMode(mode: SortMode) {
     setSortMode(mode)
     try {
-      localStorage.setItem("sidebar-sort-mode", mode)
+      localStorage.setItem(STORAGE_KEYS.SIDEBAR_SORT_MODE, mode)
     } catch {}
   }
 
