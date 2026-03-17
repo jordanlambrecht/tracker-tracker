@@ -31,6 +31,8 @@ export function serializeTrackerResponse(
     isActive: tracker.isActive,
     lastPolledAt: tracker.lastPolledAt,
     lastError: tracker.lastError,
+    consecutiveFailures: tracker.consecutiveFailures,
+    pausedAt: tracker.pausedAt,
     color: tracker.color,
     qbtTag: tracker.qbtTag,
     useProxy: tracker.useProxy,
