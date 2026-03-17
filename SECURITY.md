@@ -4,28 +4,53 @@
 
 Last audited: `2026-03-16`
 
-- [For Users](#for-users)
-  - [Authentication](#authentication)
-  - [Data Classification](#data-classification)
-  - [Encryption at Rest](#encryption-at-rest)
-  - [Route Protection](#route-protection)
-  - [Data Protection](#data-protection)
-  - [Input Validation](#input-validation)
-  - [Security Response Headers](#security-response-headers)
-  - [Threat Model](#threat-model)
-  - [Is There Any Telemetry Baked In?](#is-there-any-telemetry-baked-in)
-  - [Username Privacy Mode](#username-privacy-mode)
-  - [Known Limitations](#known-limitations)
-  - [Unmitigated Attack Vectors](#unmitigated-attack-vectors)
-  - [Backup Security](#backup-security)
-  - [Deployment Hardening](#deployment-hardening)
-  - [Vulnerability Reporting](#vulnerability-reporting)
-- [For Contributors](#for-contributors)
-  - [Security Testing](#security-testing)
-  - [CI Integration](#ci-integration)
-  - [Static Security Audit](#static-security-audit)
-  - [Security Review Checklist](#security-review-checklist)
-  - [Huntarr Anti-Pattern Checklist](#huntarr-anti-pattern-checklist)
+- [Security Architecture](#security-architecture)
+  - [For Users](#for-users)
+    - [Authentication](#authentication)
+    - [Data Classification](#data-classification)
+    - [Encryption at Rest](#encryption-at-rest)
+    - [Route Protection](#route-protection)
+    - [Data Protection](#data-protection)
+    - [Input Validation](#input-validation)
+    - [Security Response Headers](#security-response-headers)
+    - [Threat Model](#threat-model)
+    - [Is There Any Telemetry Baked In?](#is-there-any-telemetry-baked-in)
+    - [Username Privacy Mode](#username-privacy-mode)
+    - [Known Limitations](#known-limitations)
+    - [Unmitigated Attack Vectors](#unmitigated-attack-vectors)
+      - [1. Disk Seizure / Physical Access](#1-disk-seizure--physical-access)
+      - [2. Compromised Host / Memory Dump](#2-compromised-host--memory-dump)
+      - [3. Correlation Attack on Masked Usernames](#3-correlation-attack-on-masked-usernames)
+      - [4. Network Traffic Analysis](#4-network-traffic-analysis)
+      - [5. Tracker-Side Logging](#5-tracker-side-logging)
+      - [6. DNS Rebinding](#6-dns-rebinding)
+    - [Backup Security](#backup-security)
+      - [Data Handling](#data-handling)
+      - [Authentication](#authentication-1)
+      - [Optional Encryption Layer](#optional-encryption-layer)
+      - [Restore Safety](#restore-safety)
+      - [File Security](#file-security)
+    - [Deployment Hardening](#deployment-hardening)
+    - [Vulnerability Reporting](#vulnerability-reporting)
+  - [For Contributors](#for-contributors)
+    - [Security Testing](#security-testing)
+    - [CI Integration](#ci-integration)
+    - [Static Security Audit](#static-security-audit)
+      - [Inline Suppression](#inline-suppression)
+    - [Security Review Checklist](#security-review-checklist)
+      - [Pre-Flight (run every PR)](#pre-flight-run-every-pr)
+      - [1. Authentication \& Authorization](#1-authentication--authorization)
+      - [2. Input Validation](#2-input-validation)
+      - [3. XSS Prevention](#3-xss-prevention)
+      - [4. Encryption \& Secrets](#4-encryption--secrets)
+      - [5. Session Security](#5-session-security)
+      - [6. External Requests](#6-external-requests)
+      - [7. Database Operations](#7-database-operations)
+      - [8. File Operations](#8-file-operations)
+      - [9. Security Headers](#9-security-headers)
+      - [10. Docker \& Deployment](#10-docker--deployment)
+      - [Quick Verification Commands](#quick-verification-commands)
+    - [Huntarr Anti-Pattern Checklist](#huntarr-anti-pattern-checklist)
 
 ---
 
@@ -38,8 +63,8 @@ Last audited: `2026-03-16`
 - **Password hashing**: Argon2 (memory-hard KDF) — `src/lib/auth.ts`
 - **Session tokens**: Encrypted JWE (A256GCM) via `jose` — `src/lib/auth.ts`
 - **Cookie security**: httpOnly, secure (in production), sameSite=strict, 7-day hard expiry
-- **Password policy**: 8–128 characters enforced on setup and login
-- **Username**: Optional login username (6–100 chars), case-insensitive
+- **Password policy**: 8-128 characters enforced on setup and login
+- **Username**: Optional login username (6-100 chars), case-insensitive
 - **TOTP 2FA**: Optional TOTP via `otpauth` (SHA1, 6 digits, 30s period, ±1 window). Secret encrypted at rest with AES-256-GCM. Stateless enrollment via JWE setup tokens (5min TTL).
 - **Backup codes**: 8 codes in XXXX-XXXX hex format, hashed with SHA-256 + random salt, encrypted at rest. Each code is single-use.
 - **Two-step login**: When TOTP is enabled, login returns a pending token (60s JWE). The client sends the pending token + TOTP code to complete authentication.
@@ -49,23 +74,24 @@ Last audited: `2026-03-16`
 
 ### Data Classification
 
-| Data                   | Storage                                 | Encrypted                  | Justification                                              |
-| ---------------------- | --------------------------------------- | -------------------------- | ---------------------------------------------------------- |
-| Master password        | `app_settings.password_hash`            | Argon2 hash (irreversible) | Memory-hard KDF; cannot be reversed                        |
-| Tracker API tokens     | `trackers.encrypted_api_token`          | AES-256-GCM                | Most sensitive field; provides account access              |
-| Encryption key         | JWE session cookie + scheduler memory   | JWE (A256GCM)              | Never written to disk in plaintext; zero-filled on logout  |
-| Encryption salt        | `app_settings.encryption_salt`          | No                         | Salt is not secret; useless without master password        |
-| Tracker names          | `trackers.name`                         | No                         | User-assigned label; not inherently identifying            |
-| Tracker base URLs      | `trackers.base_url`                     | No                         | Reveals which trackers the user monitors                   |
-| Tracker usernames      | `tracker_snapshots.username`            | No                         | Fetched fresh from tracker API on each poll                |
-| User class/group       | `tracker_snapshots.group_name`          | No                         | Fetched fresh from tracker API on each poll                |
-| Upload/download stats  | `tracker_snapshots.*_bytes`             | No                         | Numeric time-series; meaningful only with context          |
-| Ratio, seedbonus, H&Rs | `tracker_snapshots.*`                   | No                         | Numeric time-series; meaningful only with context          |
-| Session cookie         | Browser (`tt_session`)                  | JWE (A256GCM)              | httpOnly, secure, sameSite=strict                          |
-| TOTP secret            | `app_settings.totp_secret`              | AES-256-GCM                | TOTP enrollment secret; compromised = account takeover     |
-| Proxy password         | `app_settings.encrypted_proxy_password` | AES-256-GCM                | Proxy service credential                                   |
-| qBT credentials        | `download_clients.encrypted_*`          | AES-256-GCM                | Download client authentication                             |
-| Backup files           | Filesystem (optional)                   | AES-256-GCM (optional)     | Contains all data including encrypted fields as ciphertext |
+| Data                   | Storage                                 | Encrypted                                                       | Justification                                                                                        |
+| ---------------------- | --------------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Master password        | `app_settings.password_hash`            | Argon2 hash (irreversible)                                      | Memory-hard KDF; cannot be reversed                                                                  |
+| Tracker API tokens     | `trackers.encrypted_api_token`          | AES-256-GCM                                                     | Most sensitive field; provides account access                                                        |
+| Encryption key         | JWE session cookie + scheduler memory   | JWE (A256GCM)                                                   | In-memory copy zero-filled on destructive operations; wrapped copy persisted in DB for boot recovery |
+| Scheduler key          | `app_settings.encrypted_scheduler_key`  | AES-256-GCM (wrapped with HKDF-derived key from SESSION_SECRET) | Enables 24/7 polling; persists through logout; cleared on lockdown/nuke/password-change              |
+| Encryption salt        | `app_settings.encryption_salt`          | No                                                              | Salt is not secret; useless without master password                                                  |
+| Tracker names          | `trackers.name`                         | No                                                              | User-assigned label; not inherently identifying                                                      |
+| Tracker base URLs      | `trackers.base_url`                     | No                                                              | Reveals which trackers the user monitors                                                             |
+| Tracker usernames      | `tracker_snapshots.username`            | No                                                              | Fetched fresh from tracker API on each poll                                                          |
+| User class/group       | `tracker_snapshots.group_name`          | No                                                              | Fetched fresh from tracker API on each poll                                                          |
+| Upload/download stats  | `tracker_snapshots.*_bytes`             | No                                                              | Numeric time-series; meaningful only with context                                                    |
+| Ratio, seedbonus, H&Rs | `tracker_snapshots.*`                   | No                                                              | Numeric time-series; meaningful only with context                                                    |
+| Session cookie         | Browser (`tt_session`)                  | JWE (A256GCM)                                                   | httpOnly, secure, sameSite=strict                                                                    |
+| TOTP secret            | `app_settings.totp_secret`              | AES-256-GCM                                                     | TOTP enrollment secret; compromised = account takeover                                               |
+| Proxy password         | `app_settings.encrypted_proxy_password` | AES-256-GCM                                                     | Proxy service credential                                                                             |
+| qBT credentials        | `download_clients.encrypted_*`          | AES-256-GCM                                                     | Download client authentication                                                                       |
+| Backup files           | Filesystem (optional)                   | AES-256-GCM (optional)                                          | Contains all data including encrypted fields as ciphertext                                           |
 
 **Disk seizure note:** If an adversary accesses the raw database files, all unencrypted fields above are readable. Deploy on an encrypted filesystem (LUKS, dm-crypt, or equivalent). See [Known Limitations](#known-limitations).
 
@@ -84,6 +110,8 @@ All tracker API tokens are encrypted before database storage — `src/lib/crypto
 | Salt           | 32 bytes random, stored in `app_settings.encryption_salt` |
 
 The encryption key is derived from the master password on login and stored in the encrypted JWE session. It is never persisted to disk in plaintext.
+
+The scheduler key (used to decrypt API tokens during background polling) is wrapped with a separate HKDF-derived key from `SESSION_SECRET` and stored in `appSettings.encryptedSchedulerKey`. This enables polling to run 24/7, surviving both container restarts and user logouts. The key is only cleared on destructive operations: lockdown, nuke, password change, and restore. If `SESSION_SECRET` is rotated, the stored key becomes undecryptable and polling will resume after the next login.
 
 ---
 
@@ -123,10 +151,10 @@ All API routes validate inputs — `src/app/api/trackers/route.ts`, `src/app/api
 | API token       | string, max 500 chars                                                                          |
 | Color           | hex color format only (`#[0-9a-fA-F]{3,8}`), rejects arbitrary strings                         |
 | qBittorrent tag | string, max 100 chars, trimmed                                                                 |
-| Poll interval   | integer, clamped to 15–1440 minutes                                                            |
+| Poll interval   | integer, clamped to 15-1440 minutes                                                            |
 | Tracker ID      | parsed as integer, NaN rejected                                                                |
 | Platform type   | allowlist: `["unit3d", "gazelle", "ggn", "nebulance"]`                                         |
-| Password        | string, 8–128 chars                                                                            |
+| Password        | string, 8-128 chars                                                                            |
 | Role name       | string, max 255 chars                                                                          |
 | joinedAt        | regex-validated YYYY-MM-DD or null                                                             |
 | Notes (roles)   | string, max 2000 chars                                                                         |
@@ -190,6 +218,8 @@ The test-connection flow (`POST /api/trackers/test`) always returns the real use
 4. **Optional 2FA**: TOTP is available but not required. Backup codes use SHA-256 + random salt (not Argon2 — high-entropy generated codes don't need memory-hard KDF).
 5. **SESSION_SECRET truncation**: Only the first 32 bytes of `SESSION_SECRET` are used for the session key. Longer secrets work but entropy beyond 32 characters is unused.
 6. **DNS rebinding not mitigated at fetch time**: SSRF protection validates hostnames when tracker URLs are saved, not when outbound requests are made. See [Unmitigated Attack Vectors](#6-dns-rebinding) for details.
+7. **Scheduler key persisted in DB**: The encryption key is wrapped with an HKDF-derived key from `SESSION_SECRET` and stored in `appSettings` to enable 24/7 polling. An attacker with both database access and `SESSION_SECRET` could unwrap the key and decrypt all API tokens. For Docker Compose deployments, `SESSION_SECRET` is in the same trust boundary as DB credentials. Deploy on an encrypted filesystem for defense against disk seizure. Rotating `SESSION_SECRET` invalidates the stored key — polling resumes after the next login.
+8. **Client IP in auth logs**: Failed and successful login attempts include the client IP (from `CF-Connecting-IP` or the rightmost `X-Forwarded-For` entry) in server log lines. IPs are never stored in the database. To suppress, configure your reverse proxy to strip these headers before forwarding to the app, or set `LOG_LEVEL=error` to disable info/warn log events entirely.
 
 ---
 
@@ -416,7 +446,7 @@ npx tsx scripts/security-audit.ts     # Static security audit (28 checks)
 - [ ] All user-supplied strings have a maximum length (`str.length > N` -> 400)
 - [ ] URL inputs validated with `new URL()` + scheme restricted to `http://` or `https://`
 - [ ] Color inputs validated against hex pattern (`/^#[0-9a-fA-F]{3,8}$/`)
-- [ ] Numeric inputs parsed and bounds-checked (poll interval clamped to 15–1440)
+- [ ] Numeric inputs parsed and bounds-checked (poll interval clamped to 15-1440)
 - [ ] Date inputs regex-validated (`/^\d{4}-\d{2}-\d{2}$/`) or null
 - [ ] ID parameters parsed as integers with `Number()` + `Number.isNaN()` check
 - [ ] Platform type validated against allowlist, not open string
