@@ -7,6 +7,7 @@ import { eq, lt } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { getAdapter } from "@/lib/adapters"
+import { pruneDismissedAlerts } from "@/lib/alert-pruning"
 import { startBackupScheduler, stopBackupScheduler } from "@/lib/backup-scheduler"
 import {
   ensureClientSchedulerRunning,
@@ -216,6 +217,13 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
     } catch (error) {
       log.error(error, "Snapshot pruning failed")
     }
+  }
+
+  // Prune expired dismissed alerts (stale-data and zero-seeding types expire after 24h)
+  try {
+    await pruneDismissedAlerts()
+  } catch (error) {
+    log.error(error, "Dismissed alerts pruning failed")
   }
 }
 

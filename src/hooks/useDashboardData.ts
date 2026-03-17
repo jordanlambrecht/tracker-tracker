@@ -6,12 +6,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { DayRange } from "@/components/dashboard/DayRangeSidebar"
+import { useUpdateCheck } from "@/hooks/useUpdateCheck"
 import type { DashboardAlert } from "@/lib/dashboard"
 import {
   computeAlerts,
+  computeSystemAlerts,
+  deleteAllDismissed,
   detectRankChanges,
-  getDismissedAlerts,
-  dismissAlert as persistDismiss,
+  fetchDismissedKeys,
+  postDismissAlert as persistDismiss,
 } from "@/lib/dashboard"
 import type { Snapshot, TrackerSummary } from "@/types/api"
 
@@ -22,7 +25,7 @@ interface DashboardData {
   alerts: DashboardAlert[]
   dayRange: DayRange
   setDayRange: (range: DayRange) => void
-  dismissAlert: (key: string) => void
+  dismissAlert: (key: string, type: string) => void
   dismissAllAlerts: () => void
   refresh: () => Promise<void>
 }
@@ -33,6 +36,9 @@ function useDashboardData(): DashboardData {
   const [dayRange, setDayRange] = useState<DayRange>(30)
   const [loading, setLoading] = useState(true)
   const [visibleAlerts, setVisibleAlerts] = useState<DashboardAlert[]>([])
+  const updateCheck = useUpdateCheck()
+  const latestVersionRef = useRef(updateCheck.latestVersion)
+  latestVersionRef.current = updateCheck.latestVersion
 
   const abortRef = useRef<AbortController | null>(null)
   const lastFetchRef = useRef(0)
@@ -74,10 +80,28 @@ function useDashboardData(): DashboardData {
       setTrackers(fetchedTrackers)
       setSnapshotMap(newMap)
 
+      // Fetch system data for additional alert types (best-effort, don't block on failure)
+      const [clientsRes, backupHistoryRes] = await Promise.all([
+        fetch("/api/clients", { signal: controller.signal }).catch(() => null),
+        fetch("/api/settings/backup/history", { signal: controller.signal }).catch(() => null),
+      ])
+
+      const clients: { id: number; name: string; enabled: boolean; lastError: string | null }[] =
+        clientsRes?.ok ? await clientsRes.json() : []
+      const backupHistory: { createdAt: string; status: string }[] = backupHistoryRes?.ok
+        ? await backupHistoryRes.json()
+        : []
+
       const allAlerts = computeAlerts(fetchedTrackers)
       const rankAlerts = detectRankChanges(fetchedTrackers, newMap, 7)
-      const combined = [...allAlerts, ...rankAlerts]
-      const dismissed = getDismissedAlerts()
+      const systemAlerts = computeSystemAlerts({
+        latestVersion: latestVersionRef.current ?? undefined,
+        currentVersion: process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0",
+        failedBackups: backupHistory.filter((b) => b.status === "failed"),
+        clients,
+      })
+      const combined = [...allAlerts, ...rankAlerts, ...systemAlerts]
+      const dismissed = await fetchDismissedKeys()
       setVisibleAlerts(combined.filter((a) => !dismissed.has(a.key)))
       lastFetchRef.current = Date.now()
     } catch (err) {
@@ -109,16 +133,14 @@ function useDashboardData(): DashboardData {
     }
   }, [loadData])
 
-  const dismissAlert = useCallback((key: string) => {
-    persistDismiss(key)
+  const dismissAlert = useCallback((key: string, type: string) => {
+    persistDismiss(key, type)
     setVisibleAlerts((prev) => prev.filter((a) => a.key !== key))
   }, [])
 
   const dismissAllAlerts = useCallback(() => {
-    setVisibleAlerts((prev) => {
-      for (const alert of prev) persistDismiss(alert.key)
-      return []
-    })
+    deleteAllDismissed()
+    setVisibleAlerts((prev) => prev.filter((a) => a.dismissible === false))
   }, [])
 
   return {

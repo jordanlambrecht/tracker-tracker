@@ -75,6 +75,7 @@ vi.mock("@/lib/db/schema", () => ({
   tagGroupMembers: {},
   clientSnapshots: {},
   backupHistory: {},
+  dismissedAlerts: {},
 }))
 
 vi.mock("@/lib/backup", () => ({
@@ -159,6 +160,11 @@ vi.mock("@/data/tracker-registry", () => ({
 // Route imports
 // ---------------------------------------------------------------------------
 
+import {
+  DELETE as AlertDismissedDELETE,
+  GET as AlertDismissedGET,
+  POST as AlertDismissedPOST,
+} from "@/app/api/alerts/dismissed/route"
 import { POST as ChangePasswordPOST } from "@/app/api/auth/change-password/route"
 import { POST as LogoutPOST } from "@/app/api/auth/logout/route"
 import { POST as TotpConfirmPOST } from "@/app/api/auth/totp/confirm/route"
@@ -619,6 +625,27 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
     const res = await BackupGetGET(req, {
       params: Promise.resolve({ id: "1" }),
     })
+    expect(res.status).toBe(401)
+  })
+
+  it("GET /api/alerts/dismissed returns 401", async () => {
+    const res = await AlertDismissedGET()
+    expect(res.status).toBe(401)
+  })
+
+  it("POST /api/alerts/dismissed returns 401", async () => {
+    const req = makeRequest(
+      "http://localhost/api/alerts/dismissed",
+      { key: "test", type: "error" },
+      "POST"
+    )
+    const res = await AlertDismissedPOST(req)
+    expect(res.status).toBe(401)
+  })
+
+  it("DELETE /api/alerts/dismissed returns 401", async () => {
+    const req = makeRequest("http://localhost/api/alerts/dismissed", undefined, "DELETE")
+    const res = await AlertDismissedDELETE(req)
     expect(res.status).toBe(401)
   })
 })

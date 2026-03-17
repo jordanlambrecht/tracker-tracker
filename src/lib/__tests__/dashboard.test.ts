@@ -10,13 +10,14 @@ vi.mock("@/data/tracker-registry", () => ({
 
 import { findRegistryEntry } from "@/data/tracker-registry"
 import {
-  clearDismissedAlerts,
   computeAggregateStats,
   computeAlerts,
+  computeSystemAlerts,
+  deleteAllDismissed,
   detectRankChanges,
-  dismissAlert,
+  fetchDismissedKeys,
   getAnniversaryMilestone,
-  getDismissedAlerts,
+  postDismissAlert,
 } from "@/lib/dashboard"
 
 const mockFindRegistryEntry = vi.mocked(findRegistryEntry)
@@ -603,79 +604,181 @@ describe("computeAlerts", () => {
 })
 
 // ---------------------------------------------------------------------------
-// localStorage dismissal helpers
+// API dismissal helpers
 // ---------------------------------------------------------------------------
 
-describe("getDismissedAlerts / dismissAlert / clearDismissedAlerts", () => {
-  const store: Record<string, string> = {}
-
-  beforeEach(() => {
-    for (const key in store) delete store[key]
-    vi.stubGlobal("localStorage", {
-      getItem: (key: string) => store[key] ?? null,
-      setItem: (key: string, value: string) => {
-        store[key] = value
-      },
-      removeItem: (key: string) => {
-        delete store[key]
-      },
-    })
-  })
-
+describe("fetchDismissedKeys / postDismissAlert / deleteAllDismissed", () => {
   afterEach(() => {
     vi.restoreAllMocks()
-    vi.unstubAllGlobals()
   })
 
-  it("returns empty set when nothing has been dismissed", () => {
-    const dismissed = getDismissedAlerts()
-    expect(dismissed.size).toBe(0)
-  })
-
-  it("dismissAlert persists a key and getDismissedAlerts returns it", () => {
-    dismissAlert("error-1-Timeout")
-    const dismissed = getDismissedAlerts()
+  it("fetchDismissedKeys returns a Set of keys from the API", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ keys: ["error-1-Timeout", "ratio-danger-2"] }),
+      })
+    )
+    const dismissed = await fetchDismissedKeys()
+    expect(dismissed.size).toBe(2)
     expect(dismissed.has("error-1-Timeout")).toBe(true)
-  })
-
-  it("dismissing multiple keys keeps all of them", () => {
-    dismissAlert("error-1-foo")
-    dismissAlert("ratio-danger-2")
-    dismissAlert("stale-data-3")
-    const dismissed = getDismissedAlerts()
-    expect(dismissed.size).toBe(3)
     expect(dismissed.has("ratio-danger-2")).toBe(true)
   })
 
-  it("clearDismissedAlerts removes all dismissed keys", () => {
-    dismissAlert("error-1-foo")
-    dismissAlert("ratio-danger-2")
-    clearDismissedAlerts()
-    const dismissed = getDismissedAlerts()
+  it("fetchDismissedKeys returns empty set when response is not ok", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }))
+    const dismissed = await fetchDismissedKeys()
     expect(dismissed.size).toBe(0)
   })
 
-  it("getDismissedAlerts returns empty set when localStorage throws (SSR safety)", () => {
-    vi.stubGlobal("localStorage", {
-      getItem: () => {
-        throw new Error("localStorage unavailable")
-      },
-      setItem: () => {},
-      removeItem: () => {},
-    })
-    const dismissed = getDismissedAlerts()
+  it("fetchDismissedKeys returns empty set when fetch throws", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network error")))
+    const dismissed = await fetchDismissedKeys()
     expect(dismissed.size).toBe(0)
   })
 
-  it("dismissAlert silently fails when localStorage throws (SSR safety)", () => {
-    vi.stubGlobal("localStorage", {
-      getItem: () => null,
-      setItem: () => {
-        throw new Error("localStorage unavailable")
-      },
-      removeItem: () => {},
+  it("postDismissAlert sends POST with key and type", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true })
+    vi.stubGlobal("fetch", mockFetch)
+    await postDismissAlert("error-1-Timeout", "error")
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/api/alerts/dismissed",
+      expect.objectContaining({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "error-1-Timeout", type: "error" }),
+      })
+    )
+  })
+
+  it("postDismissAlert silently swallows fetch errors (best-effort)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network error")))
+    await expect(postDismissAlert("some-key", "error")).resolves.toBeUndefined()
+  })
+
+  it("deleteAllDismissed sends DELETE request", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true })
+    vi.stubGlobal("fetch", mockFetch)
+    await deleteAllDismissed()
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/api/alerts/dismissed",
+      expect.objectContaining({ method: "DELETE" })
+    )
+  })
+
+  it("deleteAllDismissed silently swallows fetch errors (best-effort)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network error")))
+    await expect(deleteAllDismissed()).resolves.toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// computeSystemAlerts
+// ---------------------------------------------------------------------------
+
+describe("computeSystemAlerts", () => {
+  it("returns empty array when no conditions are met", () => {
+    const result = computeSystemAlerts({
+      currentVersion: "1.0.0",
+      failedBackups: [],
+      clients: [],
     })
-    expect(() => dismissAlert("some-key")).not.toThrow()
+    expect(result).toHaveLength(0)
+  })
+
+  it("generates update-available alert when versions differ", () => {
+    const result = computeSystemAlerts({
+      latestVersion: "1.1.0",
+      currentVersion: "1.0.0",
+      failedBackups: [],
+      clients: [],
+    })
+    expect(result).toHaveLength(1)
+    expect(result[0].type).toBe("update-available")
+    expect(result[0].key).toBe("update-available-1.1.0")
+    expect(result[0].trackerId).toBeNull()
+    expect(result[0].trackerName).toBe("System")
+    expect(result[0].message).toContain("1.1.0")
+    expect(result[0].message).toContain("1.0.0")
+    expect(result[0].dismissible).toBe(true)
+  })
+
+  it("does not generate update-available alert when versions match", () => {
+    const result = computeSystemAlerts({
+      latestVersion: "1.0.0",
+      currentVersion: "1.0.0",
+      failedBackups: [],
+      clients: [],
+    })
+    expect(result.find((a) => a.type === "update-available")).toBeUndefined()
+  })
+
+  it("does not generate update-available alert when latestVersion is absent", () => {
+    const result = computeSystemAlerts({
+      currentVersion: "1.0.0",
+      failedBackups: [],
+      clients: [],
+    })
+    expect(result.find((a) => a.type === "update-available")).toBeUndefined()
+  })
+
+  it("generates backup-failed alert from the most recent failed backup", () => {
+    const createdAt = "2026-01-15T03:00:00.000Z"
+    const result = computeSystemAlerts({
+      currentVersion: "1.0.0",
+      failedBackups: [{ createdAt }, { createdAt: "2026-01-14T03:00:00.000Z" }],
+      clients: [],
+    })
+    const backupAlert = result.find((a) => a.type === "backup-failed")
+    expect(backupAlert).toBeDefined()
+    expect(backupAlert?.key).toBe(`backup-failed-${createdAt}`)
+    expect(backupAlert?.trackerId).toBeNull()
+    expect(backupAlert?.trackerName).toBe("Backups")
+    expect(backupAlert?.timestamp).toBe(createdAt)
+    expect(backupAlert?.dismissible).toBe(true)
+  })
+
+  it("generates client-error alerts for enabled clients with errors", () => {
+    const result = computeSystemAlerts({
+      currentVersion: "1.0.0",
+      failedBackups: [],
+      clients: [
+        { id: 1, name: "qBittorrent", enabled: true, lastError: "Connection refused" },
+        { id: 2, name: "Deluge", enabled: false, lastError: "Timed out" },
+        { id: 3, name: "Transmission", enabled: true, lastError: null },
+      ],
+    })
+    expect(result).toHaveLength(1)
+    const clientAlert = result[0]
+    expect(clientAlert.type).toBe("client-error")
+    expect(clientAlert.key).toBe("client-error-1")
+    expect(clientAlert.trackerId).toBeNull()
+    expect(clientAlert.trackerName).toBe("qBittorrent")
+    expect(clientAlert.message).toBe("Connection refused")
+    expect(clientAlert.dismissible).toBe(false)
+  })
+
+  it("client-error alerts are non-dismissible", () => {
+    const result = computeSystemAlerts({
+      currentVersion: "1.0.0",
+      failedBackups: [],
+      clients: [{ id: 5, name: "Client", enabled: true, lastError: "Unreachable" }],
+    })
+    expect(result[0].dismissible).toBe(false)
+  })
+
+  it("generates all three alert types together", () => {
+    const result = computeSystemAlerts({
+      latestVersion: "2.0.0",
+      currentVersion: "1.0.0",
+      failedBackups: [{ createdAt: "2026-01-15T03:00:00.000Z" }],
+      clients: [{ id: 1, name: "qBt", enabled: true, lastError: "Unreachable" }],
+    })
+    expect(result).toHaveLength(3)
+    expect(result.map((a) => a.type)).toEqual(
+      expect.arrayContaining(["update-available", "backup-failed", "client-error"])
+    )
   })
 })
 
