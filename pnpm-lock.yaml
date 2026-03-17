@@ -130,8 +130,8 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.14)
       commit-and-tag-version:
-        specifier: ^12.6.1
-        version: 12.6.1
+        specifier: ^12.7.0
+        version: 12.7.0
       dotenv:
         specifier: ^17.3.1
         version: 17.3.1
@@ -193,6 +193,10 @@ packages:
 
   '@babel/runtime@7.28.6':
     resolution: {integrity: sha512-05WQkdpL9COIMz4LjTxGpPNCdlpyimKppYNoJ5Di5EUObifl8t4tuLuUBBZEpoLYOmfvIWrsp9fCl0HoPRVTdA==}
+    engines: {node: '>=6.9.0'}
+
+  '@babel/runtime@7.29.2':
+    resolution: {integrity: sha512-JiDShH45zKHWyGe4ZNVRrCjBz8Nh9TMmZG1kh4QTK8hCBTWBi8Da+i7s1fJw7/lYpM4ccepSNfqzZ/QvABBi5g==}
     engines: {node: '>=6.9.0'}
 
   '@biomejs/biome@2.4.7':
@@ -863,11 +867,6 @@ packages:
     cpu: [arm]
     os: [linux]
 
-  '@oxc-resolver/binding-linux-arm-musleabihf@11.19.1':
-    resolution: {integrity: sha512-veG1kKsuK5+t2IsO9q0DErYVSw2azvCVvWHnfTOS73WE0STdLLB7Q1bB9WR+yHPQM76ASkFyRbogWo1GR1+WbQ==}
-    cpu: [arm]
-    os: [linux]
-
   '@oxc-resolver/binding-linux-arm64-gnu@11.19.1':
     resolution: {integrity: sha512-heV2+jmXyYnUrpUXSPugqWDRpnsQcDm2AX4wzTuvgdlZfoNYO0O3W2AVpJYaDn9AG4JdM6Kxom8+foE7/BcSig==}
     cpu: [arm64]
@@ -1468,8 +1467,8 @@ packages:
   comma-separated-tokens@2.0.3:
     resolution: {integrity: sha512-Fu4hJdvzeylCfQPp9SGWidpzrMs7tTrlu6Vb8XGaRGck8QSNZJJp538Wrb60Lax4fPwR64ViY468OIUTbRlGZg==}
 
-  commit-and-tag-version@12.6.1:
-    resolution: {integrity: sha512-QNwgDDrg44oFAiLwXChOGabeGlkuaEvD7lUbLYleWLmOVYqFidek0G6xUE1NbRtitkOrDx8fuFh8w17+nUCOYg==}
+  commit-and-tag-version@12.7.0:
+    resolution: {integrity: sha512-uICrirNtf1FvNydqHLrTPsX7zp74pStCJUuenrxlQSwjrriAYeIPIuIl8z7no3fiQEtvQxjJ/A48rMLY5gqOxQ==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -3347,6 +3346,8 @@ snapshots:
 
   '@babel/runtime@7.28.6': {}
 
+  '@babel/runtime@7.29.2': {}
+
   '@biomejs/biome@2.4.7':
     optionalDependencies:
       '@biomejs/cli-darwin-arm64': 2.4.7
@@ -3854,9 +3855,6 @@ snapshots:
   '@oxc-resolver/binding-linux-arm-gnueabihf@11.19.1':
     optional: true
 
-  '@oxc-resolver/binding-linux-arm-musleabihf@11.19.1':
-    optional: true
-
   '@oxc-resolver/binding-linux-arm64-gnu@11.19.1':
     optional: true
 
@@ -4066,7 +4064,7 @@ snapshots:
   '@testing-library/dom@10.4.1':
     dependencies:
       '@babel/code-frame': 7.29.0
-      '@babel/runtime': 7.28.6
+      '@babel/runtime': 7.29.2
       '@types/aria-query': 5.0.4
       aria-query: 5.3.0
       dom-accessibility-api: 0.5.16
@@ -4332,7 +4330,7 @@ snapshots:
 
   comma-separated-tokens@2.0.3: {}
 
-  commit-and-tag-version@12.6.1:
+  commit-and-tag-version@12.7.0:
     dependencies:
       chalk: 2.4.2
       conventional-changelog: 4.0.0
@@ -5560,7 +5558,6 @@ snapshots:
       '@oxc-resolver/binding-darwin-x64': 11.19.1
       '@oxc-resolver/binding-freebsd-x64': 11.19.1
       '@oxc-resolver/binding-linux-arm-gnueabihf': 11.19.1
-      '@oxc-resolver/binding-linux-arm-musleabihf': 11.19.1
       '@oxc-resolver/binding-linux-arm64-gnu': 11.19.1
       '@oxc-resolver/binding-linux-arm64-musl': 11.19.1
       '@oxc-resolver/binding-linux-ppc64-gnu': 11.19.1
