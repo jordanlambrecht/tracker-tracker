@@ -130,8 +130,8 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.14)
       commit-and-tag-version:
-        specifier: ^12.7.0
-        version: 12.7.0
+        specifier: ^12.7.1
+        version: 12.7.1
       dotenv:
         specifier: ^17.3.1
         version: 17.3.1
@@ -1468,8 +1468,8 @@ packages:
   comma-separated-tokens@2.0.3:
     resolution: {integrity: sha512-Fu4hJdvzeylCfQPp9SGWidpzrMs7tTrlu6Vb8XGaRGck8QSNZJJp538Wrb60Lax4fPwR64ViY468OIUTbRlGZg==}
 
-  commit-and-tag-version@12.7.0:
-    resolution: {integrity: sha512-uICrirNtf1FvNydqHLrTPsX7zp74pStCJUuenrxlQSwjrriAYeIPIuIl8z7no3fiQEtvQxjJ/A48rMLY5gqOxQ==}
+  commit-and-tag-version@12.7.1:
+    resolution: {integrity: sha512-18+iV9VMPWQ5rryn1nKprvkwqFMx1eOcEwIprjgyGm8Blhsw7WnsFXgyYLIlBF4uG2fcbbps8P7fBZARvaA0VA==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -4327,7 +4327,7 @@ snapshots:
 
   comma-separated-tokens@2.0.3: {}
 
-  commit-and-tag-version@12.7.0:
+  commit-and-tag-version@12.7.1:
     dependencies:
       chalk: 2.4.2
       conventional-changelog: 4.0.0
