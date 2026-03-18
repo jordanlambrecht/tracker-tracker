@@ -37,6 +37,7 @@ export async function GET() {
   // Batch-fetch the latest snapshot per tracker using DISTINCT ON.
   // PG18's enable_distinct_reordering planner flag optimises exactly this pattern.
   // Drizzle has no native DISTINCT ON support, so we use db.execute with a raw sql tag.
+  // security-audit-ignore: static SQL string with zero user input — no injection risk
   const latestSnapshots = (await db.execute(sql`
     SELECT DISTINCT ON (tracker_id)
       id,
