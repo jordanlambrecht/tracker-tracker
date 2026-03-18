@@ -47,7 +47,13 @@ vi.mock("@/lib/qbt", () => ({
   getTorrents: vi.fn(),
   getTransferInfo: vi.fn(),
   aggregateByTag: vi.fn(),
-  parseCrossSeedTags: vi.fn((raw: string[] | null) => raw ?? []),
+  parseCrossSeedTags: vi.fn((raw: string) => {
+    try {
+      return JSON.parse(raw) as string[]
+    } catch {
+      return []
+    }
+  }),
   stripSensitiveTorrentFields: vi.fn((t: Record<string, unknown>) => {
     const { tracker: _t, content_path: _cp, save_path: _sp, ...rest } = t
     return rest
@@ -80,7 +86,7 @@ const MOCK_CLIENT = {
   encryptedPassword: "enc-secret",
   pollIntervalSeconds: 30,
   isDefault: true,
-  crossSeedTags: ["cross-seed"],
+  crossSeedTags: '["cross-seed"]',
   lastPolledAt: null,
   lastError: null,
   createdAt: new Date(),
@@ -201,7 +207,7 @@ describe("deepPollClient per-tag optimization", () => {
     // ["aither","shared-tag"] ∪ ["cross-seed","shared-tag"] = 3 unique tags = 3 getTorrents calls
     const clientWithOverlap = {
       ...MOCK_CLIENT,
-      crossSeedTags: ["cross-seed", "shared-tag"],
+      crossSeedTags: '["cross-seed", "shared-tag"]',
     }
     mockDbSelectSequence(clientWithOverlap, ["aither", "shared-tag"])
     ;(decrypt as ReturnType<typeof vi.fn>)
@@ -227,7 +233,7 @@ describe("deepPollClient per-tag optimization", () => {
   // -------------------------------------------------------------------------
 
   it("handles zero configured tags gracefully", async () => {
-    const clientNoTags = { ...MOCK_CLIENT, crossSeedTags: [] as string[] }
+    const clientNoTags = { ...MOCK_CLIENT, crossSeedTags: "[]" }
     mockDbSelectSequence(clientNoTags, [])
     ;(decrypt as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce("admin")
@@ -468,7 +474,7 @@ describe("deepPollClient per-tag optimization", () => {
     // One of the update calls should contain the cached torrents
     const cacheUpdate = updateCalls.find((c) => "cachedTorrents" in c)
     expect(cacheUpdate).toBeDefined()
-    expect(cacheUpdate?.cachedTorrents).toEqual(filteredTorrents)
+    expect(cacheUpdate?.cachedTorrents).toBe(JSON.stringify(filteredTorrents))
     expect(cacheUpdate?.cachedTorrentsAt).toBeInstanceOf(Date)
   })
 
@@ -511,7 +517,7 @@ describe("deepPollClient per-tag optimization", () => {
     const cacheUpdate = updateCalls.find((c) => "cachedTorrents" in c)
     expect(cacheUpdate).toBeDefined()
 
-    const cached = cacheUpdate?.cachedTorrents as Record<string, unknown>[]
+    const cached = JSON.parse(cacheUpdate?.cachedTorrents as string) as Record<string, unknown>[]
     expect(cached).toHaveLength(1)
 
     // Sensitive fields must be stripped

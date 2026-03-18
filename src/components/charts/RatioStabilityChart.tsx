@@ -11,7 +11,7 @@ import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { buildAxisPointer, fmtNum, yAxisAutoRange } from "./chart-helpers"
+import { fmtNum, yAxisAutoRange } from "./chart-helpers"
 import { buildUnifiedTimestampAxis } from "./chart-transforms"
 import { LogScaleToggle } from "./LogScaleToggle"
 import {
@@ -145,7 +145,7 @@ function buildRatioStabilityOption(
     const upperData = sortedTimestamps.map((ts) => {
       const u = upperByTs.get(ts)
       const l = lowerByTs.get(ts)
-      if (u == null || l == null) return null
+      if (u === null || u === undefined || l === null || l === undefined) return null
       return u - l
     })
 
@@ -200,7 +200,15 @@ function buildRatioStabilityOption(
     grid: chartGrid({ right: 16, left: 64 }),
     legend: chartLegend({ data: legendData }),
     tooltip: chartTooltip("axis", {
-      axisPointer: buildAxisPointer(CHART_THEME.borderMid, 0.8, 1),
+      axisPointer: {
+        type: "line",
+        lineStyle: {
+          color: CHART_THEME.borderMid,
+          opacity: 0.8,
+          width: 1,
+          type: "dashed",
+        },
+      },
       formatter: (params: unknown) => {
         const items = params as Array<{
           seriesName: string

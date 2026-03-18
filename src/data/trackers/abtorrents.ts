@@ -7,7 +7,8 @@ export const abtorrents: TrackerRegistryEntry = {
   name: "AB Torrents",
   abbreviation: "ABT",
   url: "https://abtorrents.me",
-  description: "Audiobook and ebook tracker.",
+  description:
+    "Audiobook and ebook tracker.",
   platform: "custom",
   apiPath: "/api/user",
   specialty: "Audiobooks / Books",

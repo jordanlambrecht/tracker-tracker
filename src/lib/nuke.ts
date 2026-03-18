@@ -8,7 +8,6 @@ import {
   appSettings,
   clientSnapshots,
   clientUptimeBuckets,
-  dismissedAlerts,
   downloadClients,
   tagGroupMembers,
   tagGroups,
@@ -47,7 +46,6 @@ export async function scrubAndDeleteAll(): Promise<void> {
     await tx.update(appSettings).set({
       passwordHash: randomHex(32),
       encryptionSalt: randomHex(32),
-      encryptedSchedulerKey: null,
       username: null,
       totpSecret: null,
       totpBackupCodes: null,
@@ -63,7 +61,6 @@ export async function scrubAndDeleteAll(): Promise<void> {
       lastError: null,
     })
 
-    await tx.delete(dismissedAlerts)
     await tx.delete(clientUptimeBuckets)
     await tx.delete(clientSnapshots)
     await tx.delete(trackerSnapshots)

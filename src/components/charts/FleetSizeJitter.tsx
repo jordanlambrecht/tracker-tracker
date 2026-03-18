@@ -9,9 +9,10 @@ import ReactECharts from "echarts-for-react"
 import { useMemo } from "react"
 import type { TorrentRaw, TrackerTag } from "@/lib/fleet"
 import { parseTorrentTags } from "@/lib/fleet"
+import { hexToRgba } from "@/lib/formatters"
 import { ChartEmptyState } from "./ChartEmptyState"
 import { autoByteScale, fmtNum } from "./chart-helpers"
-import { CHART_THEME, chartAxisLabel, chartDataZoom, chartTooltip, escHtml } from "./theme"
+import { CHART_THEME, chartAxisLabel, chartTooltip, escHtml } from "./theme"
 
 interface FleetSizeJitterProps {
   torrents: TorrentRaw[]
@@ -112,11 +113,8 @@ function buildFleetSizeJitterOption(
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: chartAxisLabel({
-        formatter: (val: number) => {
-          if (val >= 1) return fmtNum(val, 0)
-          if (val >= 0.01) return fmtNum(val, 2)
-          return fmtNum(val, 3)
-        },
+        formatter: (val: number) =>
+          val >= 1 ? fmtNum(val, 0) : val >= 0.01 ? fmtNum(val, 2) : fmtNum(val, 3),
       }),
       splitLine: {
         lineStyle: { color: CHART_THEME.gridLine, width: 1 },
@@ -126,7 +124,22 @@ function buildFleetSizeJitterOption(
     dataZoom:
       trackerNames.length > 10
         ? [
-            ...chartDataZoom(CHART_THEME.accent).map((z) => ({ ...z, startValue: 0, endValue: 9 })),
+            {
+              type: "slider",
+              xAxisIndex: 0,
+              startValue: 0,
+              endValue: 9,
+              height: 20,
+              bottom: 4,
+              borderColor: CHART_THEME.gridLine,
+              fillerColor: hexToRgba(CHART_THEME.accent, 0.09),
+              handleStyle: { color: CHART_THEME.accent },
+              textStyle: {
+                color: CHART_THEME.textTertiary,
+                fontFamily: CHART_THEME.fontMono,
+                fontSize: 9,
+              },
+            },
             { type: "inside", xAxisIndex: 0 },
           ]
         : undefined,

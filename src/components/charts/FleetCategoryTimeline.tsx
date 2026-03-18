@@ -7,7 +7,7 @@
 import type { EChartsOption } from "echarts"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { buildAxisPointer, formatDateLabel } from "./chart-helpers"
+import { formatDateLabel } from "./chart-helpers"
 import {
   buildTagColors,
   CHART_THEME,
@@ -44,11 +44,8 @@ function groupByCategory(torrents: { added_on: number; category: string }[]): {
     allDates.add(date)
 
     const cat = torrent.category?.trim() || "Uncategorized"
-    let dateMap = categoryMaps.get(cat)
-    if (!dateMap) {
-      dateMap = new Map<string, number>()
-      categoryMaps.set(cat, dateMap)
-    }
+    if (!categoryMaps.has(cat)) categoryMaps.set(cat, new Map())
+    const dateMap = categoryMaps.get(cat) ?? new Map<string, number>()
     dateMap.set(date, (dateMap.get(date) ?? 0) + 1)
   }
 
@@ -104,7 +101,10 @@ function buildCategoryTimelineOption(
     backgroundColor: "transparent",
     grid: chartGrid({ right: 16, bottom: 48, left: 56 }),
     tooltip: chartTooltip("axis", {
-      axisPointer: buildAxisPointer(),
+      axisPointer: {
+        type: "line",
+        lineStyle: { color: CHART_THEME.borderMid, type: "dashed" },
+      },
       formatter: (params: unknown) => {
         const items = params as Array<{
           seriesName: string

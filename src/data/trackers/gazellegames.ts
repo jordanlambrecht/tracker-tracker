@@ -7,42 +7,20 @@ export const gazellegames: TrackerRegistryEntry = {
   name: "GazelleGames",
   abbreviation: "GGn",
   url: "https://gazellegames.net",
-  description: "The largest gaming tracker, featuring console and PC content.",
+  description:
+    "The largest gaming tracker, featuring console and PC content.",
   platform: "ggn",
   apiPath: "/api.php",
   specialty: "Games",
   contentCategories: ["Games"],
   userClasses: [
     { name: "Amateur", requirements: "Default starting class" },
-    {
-      name: "Gamer",
-      requirements:
-        "600 achievement points. Invites, requests, collections, Top 10, peerlists, mass downloader",
-    },
-    {
-      name: "Pro Gamer",
-      requirements:
-        "1,200 achievement points. Edit unchecked groups, external links, item trading, inactivity immunity",
-    },
-    {
-      name: "Elite Gamer",
-      requirements:
-        "2,100 achievement points. Edit any group/torrent/collection, delete tags, H&R immunity, contests",
-    },
-    {
-      name: "Legendary Gamer",
-      requirements: "3,000 achievement points. Full site log, site statistics, 2 invites/month",
-    },
-    {
-      name: "Master Gamer",
-      requirements:
-        "4,200 achievement points. Delete/recover collections, re-seed requests, item statistics, 2 invites/month (max 4)",
-    },
-    {
-      name: "Gaming God",
-      requirements:
-        "6,000 achievement points. Unlimited invites, torrent bump tool, IRC auto-voice",
-    },
+    { name: "Gamer", requirements: "600 achievement points. Invites, requests, collections, Top 10, peerlists, mass downloader" },
+    { name: "Pro Gamer", requirements: "1,200 achievement points. Edit unchecked groups, external links, item trading, inactivity immunity" },
+    { name: "Elite Gamer", requirements: "2,100 achievement points. Edit any group/torrent/collection, delete tags, H&R immunity, contests" },
+    { name: "Legendary Gamer", requirements: "3,000 achievement points. Full site log, site statistics, 2 invites/month" },
+    { name: "Master Gamer", requirements: "4,200 achievement points. Delete/recover collections, re-seed requests, item statistics, 2 invites/month (max 4)" },
+    { name: "Gaming God", requirements: "6,000 achievement points. Unlimited invites, torrent bump tool, IRC auto-voice" },
   ],
   releaseGroups: [],
   notableMembers: [],
@@ -77,15 +55,15 @@ export const gazellegames: TrackerRegistryEntry = {
       "",
       "| Downloaded | Req. Ratio (0 SS) | Req. Ratio (5 SS) | Req. Ratio (12 SS) |",
       "|---|---|---|---|",
-      "| 0-10 GB | 0.00 | 0.00 | 0.00 |",
-      "| 10-25 GB | 0.15 | 0.00 | 0.00 |",
-      "| 25-50 GB | 0.20 | 0.00 | 0.00 |",
-      "| 50-75 GB | 0.30 | 0.05 | 0.00 |",
-      "| 75-100 GB | 0.40 | 0.10 | 0.00 |",
-      "| 100-140 GB | 0.50 | 0.20 | 0.00 |",
-      "| 140-180 GB | 0.60 | 0.30 | 0.00 |",
-      "| 180-220 GB | 0.60 | 0.40 | 0.00 |",
-      "| 220-260 GB | 0.60 | 0.50 | 0.00 |",
+      "| 0–10 GB | 0.00 | 0.00 | 0.00 |",
+      "| 10–25 GB | 0.15 | 0.00 | 0.00 |",
+      "| 25–50 GB | 0.20 | 0.00 | 0.00 |",
+      "| 50–75 GB | 0.30 | 0.05 | 0.00 |",
+      "| 75–100 GB | 0.40 | 0.10 | 0.00 |",
+      "| 100–140 GB | 0.50 | 0.20 | 0.00 |",
+      "| 140–180 GB | 0.60 | 0.30 | 0.00 |",
+      "| 180–220 GB | 0.60 | 0.40 | 0.00 |",
+      "| 220–260 GB | 0.60 | 0.50 | 0.00 |",
       "| 260+ GB | 0.60 | 0.60 | 0.00 |",
       "",
       "**Ratio watch:** Triggered when ratio falls below required ratio (after first 5 GB downloaded). 2-week grace period. Downloading 10 GB while on ratio watch auto-disables leeching. To recover: upload more or seed more to lower required ratio; must seed 72 hours within a week, then leeching restored once ratio ≥ required (checked daily).",

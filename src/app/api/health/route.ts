@@ -10,22 +10,11 @@ import { sql } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 
-let cachedResult: { ok: boolean; at: number } | null = null
-const CACHE_TTL = 10_000
-
 export async function GET() {
-  if (cachedResult && Date.now() - cachedResult.at < CACHE_TTL) {
-    return cachedResult.ok
-      ? NextResponse.json({ status: "ok", db: "connected" })
-      : NextResponse.json({ status: "degraded", db: "unreachable" }, { status: 503 })
-  }
-
   try {
     await db.execute(sql`SELECT 1`)
-    cachedResult = { ok: true, at: Date.now() }
-    return NextResponse.json({ status: "ok", db: "connected" })
+    return NextResponse.json({ status: "ok" })
   } catch {
-    cachedResult = { ok: false, at: Date.now() }
-    return NextResponse.json({ status: "degraded", db: "unreachable" }, { status: 503 })
+    return NextResponse.json({ status: "error" }, { status: 503 })
   }
 }

@@ -10,7 +10,8 @@
 
 import { useCallback } from "react"
 import { useChartPreferencesBase } from "@/hooks/useChartPreferencesBase"
-import { STORAGE_KEYS } from "@/lib/storage-keys"
+
+const STORAGE_KEY = "tracker-tracker:chart-preferences"
 
 interface ChartDef {
   id: string
@@ -104,7 +105,7 @@ const DASHBOARD_CHARTS: ChartDef[] = [
 const EMPTY_PREFS: ChartPrefs = { hidden: [], collapsed: [], order: [] }
 
 function useChartPreferences() {
-  const base = useChartPreferencesBase<ChartPrefs>(STORAGE_KEYS.CHART_PREFERENCES, EMPTY_PREFS)
+  const base = useChartPreferencesBase<ChartPrefs>(STORAGE_KEY, EMPTY_PREFS)
   const { prefs, setPrefs, hydrated } = base
 
   const reorder = useCallback(

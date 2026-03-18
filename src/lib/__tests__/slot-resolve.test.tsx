@@ -23,8 +23,6 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     isActive: true,
     lastPolledAt: null,
     lastError: null,
-    consecutiveFailures: 0,
-    pausedAt: null,
     color: "#00d4ff",
     qbtTag: null,
     useProxy: false,

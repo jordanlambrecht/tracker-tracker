@@ -363,12 +363,12 @@ describe("GazelleAdapter - security", () => {
       statusText: "Forbidden",
     } as Response)
 
-    await expect(
-      adapter.fetchStats("https://example.com", secretToken, "/ajax.php")
-    ).rejects.toSatisfy((err: Error) => {
-      expect(err.message).not.toContain(secretToken)
-      return true
-    })
+    try {
+      await adapter.fetchStats("https://example.com", secretToken, "/ajax.php")
+    } catch (error) {
+      const errorMessage = (error as Error).message
+      expect(errorMessage).not.toContain(secretToken)
+    }
   })
 
   it("does not expose the API token on network failure", async () => {

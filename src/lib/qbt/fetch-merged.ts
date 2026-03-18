@@ -22,7 +22,7 @@ export interface ClientRow {
   useSsl: boolean
   encryptedUsername: string
   encryptedPassword: string
-  crossSeedTags: string[] | null
+  crossSeedTags: string
 }
 
 export interface MergedResult {

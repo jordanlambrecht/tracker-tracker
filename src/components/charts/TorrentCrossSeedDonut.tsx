@@ -4,8 +4,8 @@
 
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
+import { CHART_THEME, chartTooltip, escHtml } from "@/components/charts/theme"
 import { getComplementaryColor, hexToRgba } from "@/lib/formatters"
-import { CHART_THEME, chartTooltip, escHtml } from "./theme"
 
 // ---------------------------------------------------------------------------
 // Component

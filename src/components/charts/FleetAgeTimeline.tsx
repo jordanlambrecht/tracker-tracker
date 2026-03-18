@@ -8,7 +8,7 @@ import type { EChartsOption } from "echarts"
 import type { TrackerTag } from "@/lib/fleet"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { buildAxisPointer, formatDateLabel } from "./chart-helpers"
+import { formatDateLabel } from "./chart-helpers"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -115,7 +115,10 @@ function buildFleetAgeTimelineOption(sortedDates: string[], series: SeriesData[]
     backgroundColor: "transparent",
     grid: chartGrid({ right: 16, bottom: 48, left: 56 }),
     tooltip: chartTooltip("axis", {
-      axisPointer: buildAxisPointer(),
+      axisPointer: {
+        type: "line",
+        lineStyle: { color: CHART_THEME.borderMid, type: "dashed" },
+      },
       formatter: (params: unknown) => {
         const items = params as Array<{
           seriesName: string

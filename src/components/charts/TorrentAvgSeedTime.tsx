@@ -4,10 +4,10 @@
 
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
+import { CHART_THEME, chartTooltip, escHtml } from "@/components/charts/theme"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 import { ChartEmptyState } from "./ChartEmptyState"
 import { buildGlowAreaStyle } from "./chart-helpers"
-import { CHART_THEME, chartTooltip, escHtml } from "./theme"
 
 // ---------------------------------------------------------------------------
 // Props

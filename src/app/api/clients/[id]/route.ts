@@ -111,7 +111,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         { status: 400 }
       )
     }
-    updates.crossSeedTags = body.crossSeedTags
+    updates.crossSeedTags = JSON.stringify(body.crossSeedTags)
   }
 
   if (typeof body.username === "string") {

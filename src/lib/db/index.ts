@@ -20,13 +20,7 @@ const connectionString = buildConnectionString()
 
 // Reuse the Postgres connection across HMR reloads in development
 const g = globalThis as typeof globalThis & { __dbClient?: ReturnType<typeof postgres> }
-const client =
-  g.__dbClient ??
-  postgres(connectionString, {
-    max: 5,
-    idle_timeout: 30,
-    connect_timeout: 10,
-  })
+const client = g.__dbClient ?? postgres(connectionString)
 if (process.env.NODE_ENV !== "production") {
   g.__dbClient = client
 }

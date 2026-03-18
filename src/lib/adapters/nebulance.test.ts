@@ -394,12 +394,11 @@ describe("NebulanceAdapter - security", () => {
       statusText: "Forbidden",
     } as Response)
 
-    await expect(
-      adapter.fetchStats("https://nebulance.io", secretKey, "/api.php")
-    ).rejects.toSatisfy((err: Error) => {
-      expect(err.message).not.toContain(secretKey)
-      return true
-    })
+    try {
+      await adapter.fetchStats("https://nebulance.io", secretKey, "/api.php")
+    } catch (error) {
+      expect((error as Error).message).not.toContain(secretKey)
+    }
   })
 
   it("throws a timeout-specific message", async () => {

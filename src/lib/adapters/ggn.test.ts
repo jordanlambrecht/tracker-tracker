@@ -256,12 +256,11 @@ describe("GGnAdapter - security", () => {
       statusText: "Forbidden",
     } as Response)
 
-    await expect(
-      adapter.fetchStats("https://gazellegames.net", secretKey, "/api.php")
-    ).rejects.toSatisfy((err: Error) => {
-      expect(err.message).not.toContain(secretKey)
-      return true
-    })
+    try {
+      await adapter.fetchStats("https://gazellegames.net", secretKey, "/api.php")
+    } catch (error) {
+      expect((error as Error).message).not.toContain(secretKey)
+    }
   })
 
   it("does not expose the API key in error messages on network failure", async () => {

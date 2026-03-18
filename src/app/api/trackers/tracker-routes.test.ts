@@ -27,7 +27,6 @@ vi.mock("@/lib/db", () => ({
     insert: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
-    execute: vi.fn(),
   },
 }))
 
@@ -110,12 +109,14 @@ describe("GET /api/trackers", () => {
     // Call 2: db.select({storeUsernames}).from(appSettings).limit(1)
     const mockSettingsLimit = vi.fn().mockResolvedValue([{ storeUsernames: true }])
     const mockSettingsFrom = vi.fn().mockReturnValue({ limit: mockSettingsLimit })
+    // Call 3: db.select().from(trackerSnapshots).where(sql`...`)
+    const mockSnapshotWhere = vi.fn().mockResolvedValue([snapshot])
+    const mockSnapshotFrom = vi.fn().mockReturnValue({ where: mockSnapshotWhere })
 
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFromTrackers })
       .mockReturnValueOnce({ from: mockSettingsFrom })
-    // DISTINCT ON query via db.execute
-    ;(db.execute as ReturnType<typeof vi.fn>).mockResolvedValueOnce([snapshot])
+      .mockReturnValueOnce({ from: mockSnapshotFrom })
 
     const response = await GET()
     const data = await response.json()
@@ -135,12 +136,14 @@ describe("GET /api/trackers", () => {
     // Call 2: db.select({storeUsernames}).from(appSettings).limit(1)
     const mockSettingsLimit = vi.fn().mockResolvedValue([{ storeUsernames: true }])
     const mockSettingsFrom = vi.fn().mockReturnValue({ limit: mockSettingsLimit })
+    // Call 3: db.select().from(trackerSnapshots).where(sql`...`)
+    const mockSnapshotWhere = vi.fn().mockResolvedValue([])
+    const mockSnapshotFrom = vi.fn().mockReturnValue({ where: mockSnapshotWhere })
 
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFrom })
       .mockReturnValueOnce({ from: mockSettingsFrom })
-    // DISTINCT ON query via db.execute
-    ;(db.execute as ReturnType<typeof vi.fn>).mockResolvedValueOnce([])
+      .mockReturnValueOnce({ from: mockSnapshotFrom })
 
     const response = await GET()
     const data = await response.json()
@@ -177,12 +180,14 @@ describe("GET /api/trackers", () => {
     // Call 2: db.select({storeUsernames}).from(appSettings).limit(1)
     const mockSettingsLimit = vi.fn().mockResolvedValue([{ storeUsernames: true }])
     const mockSettingsFrom = vi.fn().mockReturnValue({ limit: mockSettingsLimit })
+    // Call 3: db.select().from(trackerSnapshots).where(sql`...`)
+    const mockSnapshotWhere = vi.fn().mockResolvedValue([])
+    const mockSnapshotFrom = vi.fn().mockReturnValue({ where: mockSnapshotWhere })
 
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFromTrackers })
       .mockReturnValueOnce({ from: mockSettingsFrom })
-    // DISTINCT ON query via db.execute
-    ;(db.execute as ReturnType<typeof vi.fn>).mockResolvedValueOnce([])
+      .mockReturnValueOnce({ from: mockSnapshotFrom })
 
     const response = await GET()
     const data = await response.json()

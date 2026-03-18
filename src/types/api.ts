@@ -34,8 +34,6 @@ export interface TrackerSummary {
   isActive: boolean
   lastPolledAt: string | null
   lastError: string | null
-  consecutiveFailures: number
-  pausedAt: string | null
   color: string
   qbtTag: string | null
   useProxy: boolean
