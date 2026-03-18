@@ -7,8 +7,7 @@ export const empornium: TrackerRegistryEntry = {
   name: "Empornium",
   abbreviation: "EMP",
   url: "https://empornium.is",
-  description:
-    "The top general porn tracker.",
+  description: "The top general porn tracker.",
   platform: "gazelle",
   apiPath: "/ajax.php",
   specialty: "Porn",
@@ -18,6 +17,7 @@ export const empornium: TrackerRegistryEntry = {
   notableMembers: [],
   language: "English",
   color: "#ab47bc",
+  trackerHubSlug: "empornium",
   warning: true,
   warningNote: "Unvalidated",
   rules: {
@@ -25,4 +25,5 @@ export const empornium: TrackerRegistryEntry = {
     seedTimeHours: 72,
     loginIntervalDays: 90,
   },
+  draft: false,
 }

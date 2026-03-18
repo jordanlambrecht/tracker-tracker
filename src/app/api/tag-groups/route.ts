@@ -8,6 +8,7 @@ import { authenticate, parseJsonBody } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { tagGroupMembers, tagGroups } from "@/lib/db/schema"
 import type { TagGroup, TagGroupChartType } from "@/types/api"
+import { VALID_CHART_TYPES } from "@/types/api"
 
 export async function GET() {
   const auth = await authenticate()
@@ -57,8 +58,6 @@ export async function POST(request: Request) {
     countUnmatched?: boolean
   }
 
-  const validChartTypes = ["bar", "donut", "treemap", "numbers"]
-
   if (!name || typeof name !== "string" || name.trim().length === 0) {
     return NextResponse.json({ error: "name is required" }, { status: 400 })
   }
@@ -68,11 +67,20 @@ export async function POST(request: Request) {
   }
 
   if (typeof description === "string" && description.length > 500) {
-    return NextResponse.json({ error: "Description must be 500 characters or fewer" }, { status: 400 })
+    return NextResponse.json(
+      { error: "Description must be 500 characters or fewer" },
+      { status: 400 }
+    )
   }
 
-  if (typeof chartType === "string" && !validChartTypes.includes(chartType)) {
-    return NextResponse.json({ error: `chartType must be one of: ${validChartTypes.join(", ")}` }, { status: 400 })
+  if (
+    typeof chartType === "string" &&
+    !(VALID_CHART_TYPES as readonly string[]).includes(chartType)
+  ) {
+    return NextResponse.json(
+      { error: `chartType must be one of: ${VALID_CHART_TYPES.join(", ")}` },
+      { status: 400 }
+    )
   }
 
   if (typeof emoji === "string" && emoji.length > 10) {

@@ -47,6 +47,7 @@ function validPayload() {
       appVersion: "0.1.0",
       createdAt: "2026-03-09T08:00:00.000Z",
       encrypted: false,
+      instanceUrl: null,
       counts: {
         trackers: 1,
         trackerSnapshots: 1,
@@ -108,6 +109,7 @@ function validPayload() {
     tagGroups: [],
     tagGroupMembers: [],
     clientSnapshots: [],
+    clientUptimeBuckets: [],
   }
 }
 
@@ -300,6 +302,12 @@ describe("Backup security invariants", () => {
     const p = validPayload()
     expect(p.settings).not.toHaveProperty("failedLoginAttempts")
     expect(p.settings).not.toHaveProperty("failed_login_attempts")
+  })
+
+  it("encryptedSchedulerKey must not appear in a valid backup payload", () => {
+    const p = validPayload()
+    expect(p.settings).not.toHaveProperty("encryptedSchedulerKey")
+    expect(p.settings).not.toHaveProperty("encrypted_scheduler_key")
   })
 
   it("encryptionSalt must be present in settings", () => {

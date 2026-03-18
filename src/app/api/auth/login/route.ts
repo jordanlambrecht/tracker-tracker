@@ -5,11 +5,14 @@
 import { NextResponse } from "next/server"
 import { parseJsonBody } from "@/lib/api-helpers"
 import { createPendingToken, createSession, verifyPassword } from "@/lib/auth"
+import { extractClientIp } from "@/lib/client-ip"
 import { deriveKey } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { checkLockout, recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
+import { log } from "@/lib/logger"
 import { startScheduler } from "@/lib/scheduler"
-import { recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"
+import { persistSchedulerKey } from "@/lib/scheduler-key-store"
 
 export async function POST(request: Request) {
   const [settings] = await db.select().from(appSettings).limit(1)
@@ -17,16 +20,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not configured. Run setup first." }, { status: 400 })
   }
 
-  if (settings.lockedUntil && settings.lockedUntil > new Date()) {
-    const retryAfter = Math.ceil((settings.lockedUntil.getTime() - Date.now()) / 1000)
-    return NextResponse.json(
-      { error: "Too many failed attempts. Try again later.", retryAfter },
-      { status: 429, headers: { "Retry-After": String(retryAfter) } }
-    )
-  }
+  const lockout = checkLockout(settings)
+  if (lockout) return lockout
 
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
+
+  const clientIp = extractClientIp(request.headers)
 
   const password = body.password as string | undefined
   if (!password || typeof password !== "string" || password.length > 128) {
@@ -38,16 +38,15 @@ export async function POST(request: Request) {
   if (settings.username) {
     const username = body.username as string | undefined
     usernameOk =
-      typeof username === "string" &&
-      username.toLowerCase() === settings.username.toLowerCase()
+      typeof username === "string" && username.toLowerCase() === settings.username.toLowerCase()
   }
 
   // Always run Argon2 to normalize timing — prevents username oracle
   const passwordOk = await verifyPassword(settings.passwordHash, password)
 
   if (!usernameOk || !passwordOk) {
-    const wiped = await recordFailedAttempt(settings.id, settings.autoWipeThreshold)
-    if (wiped) return NextResponse.json({ error: WIPE_MESSAGE }, { status: 403 })
+    await recordFailedAttempt(settings.id, settings)
+    log.warn({ event: "login_failed", ip: clientIp }, "Failed login attempt")
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
   }
 
@@ -58,6 +57,7 @@ export async function POST(request: Request) {
   // If TOTP is enrolled, return a pending token instead of a full session.
   // Don't reset the counter yet — TOTP verification is still pending.
   if (settings.totpSecret) {
+    log.info({ event: "login_totp_pending", ip: clientIp }, "Password verified, awaiting TOTP")
     const pendingToken = await createPendingToken(keyHex)
     return NextResponse.json({ requiresTotp: true, pendingToken })
   }
@@ -65,7 +65,9 @@ export async function POST(request: Request) {
   // No TOTP — login fully successful, reset failed attempts
   await resetFailedAttempts(settings.id)
   await createSession(keyHex, settings.sessionTimeoutMinutes)
+  await persistSchedulerKey(key, settings.id)
   startScheduler(key)
+  log.info({ event: "login_success", ip: clientIp }, "Login successful")
 
   return NextResponse.json({ success: true })
 }

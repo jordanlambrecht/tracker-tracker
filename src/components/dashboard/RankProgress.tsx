@@ -9,15 +9,30 @@ import { CHART_THEME } from "@/components/charts/theme"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { RedactedText } from "@/components/ui/RedactedText"
 import type { TrackerUserClass } from "@/data/tracker-registry"
+import { getAnniversaryMilestone } from "@/lib/dashboard"
 import { hexToRgba } from "@/lib/formatters"
 import { isRedacted } from "@/lib/privacy"
 import type { Snapshot } from "@/types/api"
+
+// ── Types ──
 
 interface RankChange {
   from: string
   to: string
   date: string
 }
+
+type TimelineEvent =
+  | {
+      kind: "rank"
+      from: string
+      to: string
+      date: string
+      direction: "promotion" | "demotion" | "unknown"
+    }
+  | { kind: "anniversary"; label: string }
+
+// ── Helpers ──
 
 function extractRankHistory(snapshots: Snapshot[]): RankChange[] {
   const changes: RankChange[] = []
@@ -26,8 +41,6 @@ function extractRankHistory(snapshots: Snapshot[]): RankChange[] {
     const curr = snapshots[i]
     if (!prev.group || !curr.group) continue
     if (prev.group === curr.group) continue
-    // Skip noise from privacy mode toggling — redacted markers changing
-    // (i.e "▓8" → "▓9") aren't real rank changes
     if (isRedacted(prev.group) || isRedacted(curr.group)) continue
     changes.push({
       from: prev.group,
@@ -36,6 +49,18 @@ function extractRankHistory(snapshots: Snapshot[]): RankChange[] {
     })
   }
   return changes
+}
+
+function classifyDirection(
+  from: string,
+  to: string,
+  userClasses: TrackerUserClass[]
+): "promotion" | "demotion" | "unknown" {
+  if (userClasses.length === 0) return "unknown"
+  const fromIdx = userClasses.findIndex((uc) => uc.name.toLowerCase() === from.toLowerCase())
+  const toIdx = userClasses.findIndex((uc) => uc.name.toLowerCase() === to.toLowerCase())
+  if (fromIdx === -1 || toIdx === -1) return "unknown"
+  return toIdx > fromIdx ? "promotion" : "demotion"
 }
 
 // ── Progress Bar ──
@@ -67,9 +92,7 @@ function RankProgressBar({ userClasses, currentRank, accentColor }: RankProgress
                 className="w-4 h-px shrink-0"
                 style={{
                   backgroundColor:
-                    isPast || isCurrent
-                      ? hexToRgba(accentColor, 0.5)
-                      : CHART_THEME.borderEmphasis,
+                    isPast || isCurrent ? hexToRgba(accentColor, 0.5) : CHART_THEME.borderEmphasis,
                 }}
               />
             )}
@@ -109,50 +132,70 @@ function RankProgressBar({ userClasses, currentRank, accentColor }: RankProgress
 // ── Timeline ──
 
 interface RankTimelineProps {
-  rankHistory: RankChange[]
+  events: TimelineEvent[]
   accentColor: string
 }
 
-function RankTimeline({ rankHistory, accentColor }: RankTimelineProps) {
-  if (rankHistory.length === 0) return null
+function RankTimeline({ events, accentColor }: RankTimelineProps) {
+  if (events.length === 0) return null
 
   return (
-    <div className="flex flex-col gap-0">
-      {[...rankHistory].reverse().map((change, i) => {
-        const dateStr = new Date(change.date).toLocaleDateString("en-US", {
+    <div className="flex items-start gap-4 overflow-x-auto pb-2 styled-scrollbar">
+      {events.map((event) => {
+        if (event.kind === "anniversary") {
+          return (
+            <div
+              key={`anniv-${event.label}`}
+              className="flex flex-col items-center gap-1.5 shrink-0"
+            >
+              <div
+                className="w-2.5 h-2.5 rounded-full shrink-0"
+                style={{
+                  backgroundColor: CHART_THEME.accent,
+                  boxShadow: `0 0 8px ${hexToRgba(CHART_THEME.accent, 0.4)}`,
+                }}
+              />
+              <span className="text-[10px] font-mono text-accent whitespace-nowrap">
+                {event.label}
+              </span>
+            </div>
+          )
+        }
+
+        const dirColor =
+          event.direction === "promotion"
+            ? CHART_THEME.success
+            : event.direction === "demotion"
+              ? CHART_THEME.danger
+              : accentColor
+        const dirIcon =
+          event.direction === "promotion" ? "▲" : event.direction === "demotion" ? "▼" : "→"
+
+        const dateStr = new Date(event.date).toLocaleDateString("en-US", {
           month: "short",
           day: "numeric",
           year: "numeric",
         })
 
         return (
-          <div key={`${change.date}-${change.to}`} className="flex items-start gap-3 relative">
-            {/* Timeline line */}
-            <div className="flex flex-col items-center shrink-0 w-4">
-              <div
-                className="w-2 h-2 rounded-full mt-1.5 shrink-0"
-                style={{
-                  backgroundColor: i === 0 ? accentColor : hexToRgba(accentColor, 0.4),
-                  boxShadow: i === 0 ? `0 0 8px ${hexToRgba(accentColor, 0.4)}` : "none",
-                }}
-              />
-              {i < rankHistory.length - 1 && (
-                <div
-                  className="w-px flex-1 min-h-[24px]"
-                  style={{ backgroundColor: hexToRgba(accentColor, 0.15) }}
+          <div key={`${event.date}-${event.to}`} className="flex flex-col gap-0.5 shrink-0">
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
+              <span className="text-[9px] leading-none shrink-0" style={{ color: dirColor }}>
+                {dirIcon}
+              </span>
+              <span className="text-xs font-mono text-secondary">
+                <RedactedText
+                  value={event.from}
+                  color="var(--color-tertiary)"
+                  className="text-tertiary"
                 />
-              )}
-            </div>
-
-            {/* Content */}
-            <div className="flex flex-col gap-0.5 pb-4">
-              <span className="text-[11px] font-mono text-muted">{dateStr}</span>
-              <span className="text-sm font-mono text-secondary">
-                <RedactedText value={change.from} color="var(--color-tertiary)" className="text-tertiary" />
-                <span className="text-muted mx-1.5">→</span>
-                <RedactedText value={change.to} color={accentColor} className="font-semibold" />
+                <span className="text-muted mx-1">→</span>
+                <RedactedText value={event.to} color={dirColor} className="font-semibold" />
               </span>
             </div>
+            <span className="text-[10px] font-mono text-muted whitespace-nowrap pl-4">
+              {dateStr}
+            </span>
           </div>
         )
       })}
@@ -167,14 +210,38 @@ interface RankProgressProps {
   currentRank: string | null
   snapshots: Snapshot[]
   accentColor: string
+  joinedAt?: string | null
 }
 
-function RankProgress({ userClasses, currentRank, snapshots, accentColor }: RankProgressProps) {
+function RankProgress({
+  userClasses,
+  currentRank,
+  snapshots,
+  accentColor,
+  joinedAt,
+}: RankProgressProps) {
   const [expanded, setExpanded] = useState(true)
   const rankHistory = extractRankHistory(snapshots)
+
+  // Build timeline events: rank changes + anniversary milestone
+  const events: TimelineEvent[] = [...rankHistory].reverse().map((change) => ({
+    kind: "rank" as const,
+    from: change.from,
+    to: change.to,
+    date: change.date,
+    direction: classifyDirection(change.from, change.to, userClasses),
+  }))
+
+  if (joinedAt) {
+    const milestone = getAnniversaryMilestone(joinedAt)
+    if (milestone) {
+      events.push({ kind: "anniversary", label: milestone.label })
+    }
+  }
+
   const hasProgressBar = userClasses.length > 0 && currentRank
 
-  if (!hasProgressBar && rankHistory.length === 0) return null
+  if (!hasProgressBar && events.length === 0) return null
 
   return (
     <div className="flex flex-col gap-4">
@@ -197,15 +264,12 @@ function RankProgress({ userClasses, currentRank, snapshots, accentColor }: Rank
             />
           )}
 
-          <RankTimeline
-            rankHistory={rankHistory}
-            accentColor={accentColor}
-          />
+          <RankTimeline events={events} accentColor={accentColor} />
         </>
       )}
     </div>
   )
 }
 
-export { RankProgress, extractRankHistory }
-export type { RankChange, RankProgressProps }
+export type { RankChange, RankProgressProps, TimelineEvent }
+export { extractRankHistory, RankProgress }

@@ -1,15 +1,14 @@
 // src/components/layout/Sidebar.tsx
-"use client"
-
-// src/components/layout/Sidebar.tsx
 //
 // Functions:
-//   sortTrackers        — sorts a TrackerSummary[] by the given sort mode
-//   SortableTrackerItem — drag-and-drop sortable list item for a single tracker
-//   Sparkline           — pure SVG sparkline (no chart library)
-//   ClientStatusWidget  — download client connection status + speed sparklines
-//   formatSidebarSpeed  — compact speed formatter for sidebar
-//   Sidebar             — main sidebar component with stat/sort controls, tracker list, and settings
+//   sortTrackers
+//   SortableTrackerItem
+//   Sparkline
+//   ClientStatusWidget
+//   formatSidebarSpeed
+//   Sidebar
+
+"use client"
 
 import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core"
 import {
@@ -19,10 +18,13 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
+import { H2 } from "@typography"
 import clsx from "clsx"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { type CSSProperties, useCallback, useEffect, useRef, useState } from "react"
+import Markdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import { AddTrackerDialog } from "@/components/AddTrackerDialog"
 import { CHART_THEME } from "@/components/charts/theme"
 import { Button } from "@/components/ui/Button"
@@ -31,10 +33,17 @@ import { DownloadArrowIcon, EyeIcon, EyeOffIcon, UploadArrowIcon } from "@/compo
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import { PulseDot } from "@/components/ui/PulseDot"
 import { Select } from "@/components/ui/Select"
-import { H2 } from "@/components/ui/Typography"
+import { Tooltip } from "@/components/ui/Tooltip"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
 import { useUpdateCheck } from "@/hooks/useUpdateCheck"
-import { formatStatValue, hexToRgba, type StatMode } from "@/lib/formatters"
+import {
+  formatBytesNum,
+  formatStatValue,
+  formatTimeAgo,
+  hexToRgba,
+  type StatMode,
+} from "@/lib/formatters"
+import { STORAGE_KEYS } from "@/lib/storage-keys"
 import { getHealthPulseDot, getTrackerHealth } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
 
@@ -150,8 +159,10 @@ function SortableTrackerItem({
           {archived ? "Archived" : stat}
         </span>
         {!unlocked && (
-          <button
-            type="button"
+          // biome-ignore lint/a11y/useSemanticElements: Star must be inside parent button for visual layout. I know this is sloppy please don't sue me.
+          <span
+            role="button"
+            tabIndex={0}
             aria-pressed={tracker.isFavorite}
             onClick={(e) => {
               e.stopPropagation()
@@ -173,7 +184,7 @@ function SortableTrackerItem({
             aria-label={tracker.isFavorite ? "Remove from favorites" : "Add to favorites"}
           >
             {tracker.isFavorite ? "★" : "☆"}
-          </button>
+          </span>
         )}
       </button>
     </li>
@@ -225,6 +236,7 @@ interface ClientInfo {
   name: string
   enabled: boolean
   lastError: string | null
+  errorSince: string | null
   lastPolledAt: string | null
 }
 
@@ -254,6 +266,7 @@ function ClientSlide({
     <button
       type="button"
       onClick={onToggle}
+      onPointerDown={(e) => e.stopPropagation()}
       className="flex items-center gap-2 cursor-pointer w-full text-left"
     >
       <span
@@ -263,7 +276,22 @@ function ClientSlide({
       <div className="flex flex-col flex-1 min-w-0">
         <MarqueeText className="text-xs font-mono text-secondary">{client.name}</MarqueeText>
         <span className="text-[10px] font-mono text-tertiary">
-          {hasError ? "Error" : "Connected"}
+          {hasError ? (
+            <span className="text-danger">
+              Down{client.errorSince ? ` ${formatTimeAgo(client.errorSince)}` : ""}
+            </span>
+          ) : !expanded && entry.speeds.length > 0 ? (
+            <span className="flex items-center gap-1.5">
+              <span className="text-accent">
+                {formatSidebarSpeed(entry.speeds[entry.speeds.length - 1].up)}↑
+              </span>
+              <span className="text-warn">
+                {formatSidebarSpeed(entry.speeds[entry.speeds.length - 1].down)}↓
+              </span>
+            </span>
+          ) : (
+            "Connected"
+          )}
         </span>
       </div>
       <ChevronToggle expanded={expanded} variant="flip" />
@@ -277,12 +305,12 @@ function ClientStatusWidget() {
   const [activeIndex, setActiveIndex] = useState(0)
   const [direction, setDirection] = useState<"left" | "right">("left")
   const [animating, setAnimating] = useState(false)
-  const [expanded, setExpanded] = useLocalStorage("tracker-tracker:client-widget-expanded", false)
+  const [expanded, setExpanded] = useLocalStorage(STORAGE_KEYS.CLIENT_WIDGET_EXPANDED, false)
 
   // Set height-based default on first visit (when no preference is stored)
   useEffect(() => {
     try {
-      if (localStorage.getItem("tracker-tracker:client-widget-expanded") === null) {
+      if (localStorage.getItem(STORAGE_KEYS.CLIENT_WIDGET_EXPANDED) === null) {
         setExpanded(window.innerHeight >= 800)
       }
     } catch {}
@@ -364,13 +392,65 @@ function ClientStatusWidget() {
     }
   }, [])
 
+  // Swipe/drag gesture for carousel (touch + pointer for desktop)
+  const swipeStartX = useRef(0)
+  const swipeStartY = useRef(0)
+  const pointerDown = useRef(false)
+
+  const handleSwipeStart = useCallback((x: number, y: number) => {
+    swipeStartX.current = x
+    swipeStartY.current = y
+  }, [])
+
+  const handleSwipeEnd = useCallback(
+    (x: number, y: number) => {
+      if (entries.length <= 1) return
+      const dx = x - swipeStartX.current
+      const dy = y - swipeStartY.current
+      if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return
+      if (dx < 0) goTo((activeIndex + 1) % entries.length)
+      else goTo((activeIndex - 1 + entries.length) % entries.length)
+    },
+    [entries.length, activeIndex, goTo]
+  )
+
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      pointerDown.current = true
+      handleSwipeStart(e.clientX, e.clientY)
+    },
+    [handleSwipeStart]
+  )
+
+  const onPointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      if (!pointerDown.current) return
+      pointerDown.current = false
+      handleSwipeEnd(e.clientX, e.clientY)
+    },
+    [handleSwipeEnd]
+  )
+
+  // Capture pointer so up fires even if cursor leaves the element
+  const onPointerDownCapture = useCallback(
+    (e: React.PointerEvent) => {
+      ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+      onPointerDown(e)
+    },
+    [onPointerDown]
+  )
+
   if (!loaded || entries.length === 0) return null
 
   const current = entries[activeIndex]
 
   return (
     <div className="px-3 py-3 border-t border-border shrink-0">
-      <div className="nm-inset-sm bg-control-bg px-3 pt-2.5 pb-3.5 flex flex-col gap-1.5 rounded-nm-md">
+      <div
+        className="nm-inset-sm bg-control-bg px-3 pt-2.5 pb-3.5 flex flex-col gap-1.5 rounded-nm-md touch-pan-y"
+        onPointerDown={onPointerDownCapture}
+        onPointerUp={onPointerUp}
+      >
         <div
           key={activeIndex}
           className="overflow-hidden"
@@ -387,44 +467,54 @@ function ClientStatusWidget() {
           />
 
           {/* Collapsible sparklines */}
-          {expanded && current.speeds.length >= 2 && (
-            <div className="flex items-center gap-3 pt-1.5">
-              <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <UploadArrowIcon
-                    width="10"
-                    height="10"
-                    stroke="var(--color-accent)"
-                    strokeWidth={2.5}
-                    className="shrink-0"
-                  />
-                  <Sparkline
-                    data={current.speeds.map((s) => s.up)}
-                    color="var(--color-accent)"
-                    width={160}
-                    height={16}
-                  />
-                  <span className="text-xs font-mono text-accent tabular-nums shrink-0">
-                    {formatSidebarSpeed(current.speeds[current.speeds.length - 1].up)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <DownloadArrowIcon
-                    width="10"
-                    height="10"
-                    stroke="var(--color-warn)"
-                    strokeWidth={2.5}
-                    className="shrink-0"
-                  />
-                  <Sparkline
-                    data={current.speeds.map((s) => s.down)}
-                    color="var(--color-warn)"
-                    width={160}
-                    height={16}
-                  />
-                  <span className="text-xs font-mono text-warn tabular-nums shrink-0">
-                    {formatSidebarSpeed(current.speeds[current.speeds.length - 1].down)}
-                  </span>
+          {current.speeds.length >= 2 && (
+            <div
+              className="grid transition-[grid-template-rows,opacity] duration-200 ease-out"
+              style={{
+                gridTemplateRows: expanded ? "1fr" : "0fr",
+                opacity: expanded ? 1 : 0,
+              }}
+            >
+              <div className="overflow-hidden">
+                <div className="flex items-center gap-3 pt-1.5">
+                  <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <UploadArrowIcon
+                        width="10"
+                        height="10"
+                        stroke="var(--color-accent)"
+                        strokeWidth={2.5}
+                        className="shrink-0"
+                      />
+                      <Sparkline
+                        data={current.speeds.map((s) => s.up)}
+                        color="var(--color-accent)"
+                        width={160}
+                        height={16}
+                      />
+                      <span className="text-xs font-mono text-accent tabular-nums shrink-0">
+                        {formatSidebarSpeed(current.speeds[current.speeds.length - 1].up)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <DownloadArrowIcon
+                        width="10"
+                        height="10"
+                        stroke="var(--color-warn)"
+                        strokeWidth={2.5}
+                        className="shrink-0"
+                      />
+                      <Sparkline
+                        data={current.speeds.map((s) => s.down)}
+                        color="var(--color-warn)"
+                        width={160}
+                        height={16}
+                      />
+                      <span className="text-xs font-mono text-warn tabular-nums shrink-0">
+                        {formatSidebarSpeed(current.speeds[current.speeds.length - 1].down)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -455,10 +545,7 @@ function ClientStatusWidget() {
 
 function formatSidebarSpeed(bytesPerSec: number): string {
   if (!bytesPerSec || bytesPerSec <= 0) return "0 B/s"
-  const units = ["B/s", "KiB/s", "MiB/s", "GiB/s"]
-  const i = Math.min(Math.floor(Math.log(bytesPerSec) / Math.log(1024)), units.length - 1)
-  const val = bytesPerSec / 1024 ** i
-  return `${val < 10 ? val.toFixed(1) : Math.round(val)} ${units[i]}`
+  return `${formatBytesNum(bytesPerSec)}/s`
 }
 
 // ---------------------------------------------------------------------------
@@ -491,9 +578,9 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
   // Hydrate preferences from localStorage after mount (avoids SSR mismatch)
   useEffect(() => {
     try {
-      const savedStat = localStorage.getItem("sidebar-stat-mode") as StatMode | null
+      const savedStat = localStorage.getItem(STORAGE_KEYS.SIDEBAR_STAT_MODE) as StatMode | null
       if (savedStat) setStatMode(savedStat)
-      const savedSort = localStorage.getItem("sidebar-sort-mode") as SortMode | null
+      const savedSort = localStorage.getItem(STORAGE_KEYS.SIDEBAR_SORT_MODE) as SortMode | null
       if (savedSort) setSortMode(savedSort)
     } catch {
       // ignore
@@ -515,7 +602,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
 
           // Auto-detect custom sort on first load if no preference saved
           if (
-            !localStorage.getItem("sidebar-sort-mode") &&
+            !localStorage.getItem(STORAGE_KEYS.SIDEBAR_SORT_MODE) &&
             data.some((t) => t.sortOrder !== null)
           ) {
             setSortMode("custom")
@@ -582,7 +669,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids }),
       }).catch(() => {
-        // ignore network errors — optimistic update stays in place
+        // ignore network errors
       })
 
       return reordered
@@ -591,7 +678,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
     // Switch to custom sort and persist
     setSortMode("custom")
     try {
-      localStorage.setItem("sidebar-sort-mode", "custom")
+      localStorage.setItem(STORAGE_KEYS.SIDEBAR_SORT_MODE, "custom")
     } catch {
       // ignore
     }
@@ -600,14 +687,14 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
   function updateStatMode(mode: StatMode) {
     setStatMode(mode)
     try {
-      localStorage.setItem("sidebar-stat-mode", mode)
+      localStorage.setItem(STORAGE_KEYS.SIDEBAR_STAT_MODE, mode)
     } catch {}
   }
 
   function updateSortMode(mode: SortMode) {
     setSortMode(mode)
     try {
-      localStorage.setItem("sidebar-sort-mode", mode)
+      localStorage.setItem(STORAGE_KEYS.SIDEBAR_SORT_MODE, mode)
     } catch {}
   }
 
@@ -653,7 +740,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
               aria-current={pathname === "/" ? "page" : undefined}
             >
               <Image
-                src="/trackerTracker_logo.svg"
+                src="/img/trackerTracker_logo.svg"
                 alt="Tracker Tracker"
                 width={140}
                 height={40}
@@ -717,9 +804,12 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
                     showFavoritesOnly ? "text-warn" : "text-tertiary hover:text-secondary"
                   )}
                   aria-label={showFavoritesOnly ? "Show all trackers" : "Show favorites only"}
-                  title={showFavoritesOnly ? "Show all trackers" : "Show favorites only"}
                 >
-                  {showFavoritesOnly ? "★" : "☆"}
+                  <Tooltip
+                    content={showFavoritesOnly ? "Show all trackers" : "Show favorites only"}
+                  >
+                    <span>{showFavoritesOnly ? "★" : "☆"}</span>
+                  </Tooltip>
                 </button>
 
                 {/* Lock/unlock drag-and-drop */}
@@ -728,9 +818,10 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
                   onClick={() => setUnlocked((u) => !u)}
                   className="text-tertiary hover:text-secondary transition-colors duration-150 cursor-pointer px-2 py-1.5 shrink-0 rounded-nm-sm"
                   aria-label={unlocked ? "Lock order" : "Unlock to reorder"}
-                  title={unlocked ? "Lock order" : "Unlock to reorder"}
                 >
-                  {unlocked ? "🔓" : "🔒"}
+                  <Tooltip content={unlocked ? "Lock order" : "Unlock to reorder"}>
+                    <span>{unlocked ? "🔓" : "🔒"}</span>
+                  </Tooltip>
                 </button>
               </div>
             )}
@@ -834,10 +925,13 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-1.5 py-0.5 text-[9px] font-mono text-accent hover:bg-accent/25 transition-colors duration-150"
-                  title={`Update available: v${latestVersion}`}
                 >
-                  v{latestVersion}
-                  <span aria-hidden="true">↑</span>
+                  <Tooltip content={`Update available: v${latestVersion}`}>
+                    <span className="flex items-center gap-1">
+                      v{latestVersion}
+                      <span aria-hidden="true">↑</span>
+                    </span>
+                  </Tooltip>
                 </a>
               )}
               {/* biome-ignore lint/a11y/useAnchorContent: aria-label provides accessible content */}
@@ -909,10 +1003,12 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
               ✕
             </button>
           </div>
-          <div className="overflow-y-auto px-6 py-5 styled-scrollbar">
-            <pre className="text-sm font-mono text-secondary whitespace-pre-wrap leading-relaxed">
-              {changelogContent ?? "Loading..."}
-            </pre>
+          <div className="overflow-y-auto px-6 py-5 styled-scrollbar prose prose-invert prose-sm max-w-none prose-headings:font-mono prose-headings:text-primary prose-h1:text-lg prose-h2:text-base prose-h2:text-white prose-h2:border-b prose-h2:border-border prose-h2:pb-2 prose-h3:text-sm prose-li:text-secondary prose-p:text-secondary prose-strong:text-primary prose-a:text-accent">
+            {changelogContent ? (
+              <Markdown remarkPlugins={[remarkGfm]}>{changelogContent}</Markdown>
+            ) : (
+              <p className="text-muted">Loading...</p>
+            )}
           </div>
         </dialog>
       )}

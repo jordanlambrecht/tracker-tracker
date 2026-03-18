@@ -28,4 +28,5 @@ export const oldtoons: TrackerRegistryEntry = {
     seedTimeHours: 72,
     loginIntervalDays: 90,
   },
+  draft: false,
 }

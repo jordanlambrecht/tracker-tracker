@@ -1,9 +1,10 @@
 // src/lib/auth.ts
 //
 // Functions: hashPassword, verifyPassword, createSession, getSession,
-//            clearSession, requireAuth, createPendingToken, verifyPendingToken,
+//            clearSession, createPendingToken, verifyPendingToken,
 //            createSetupToken, verifySetupToken
 
+import { hkdfSync } from "node:crypto"
 import argon2 from "argon2"
 import { EncryptJWT, jwtDecrypt } from "jose"
 import { cookies } from "next/headers"
@@ -18,8 +19,8 @@ function getSessionKey(): Uint8Array {
   const secret = process.env.SESSION_SECRET
   if (!secret) throw new Error("SESSION_SECRET environment variable is not set")
   if (secret.length < 32) throw new Error("SESSION_SECRET must be at least 32 characters")
-  // Use first 32 bytes as AES-256 key
-  return new TextEncoder().encode(secret.slice(0, 32))
+  // HKDF-derived key with domain separation — distinct from scheduler wrapping key
+  return new Uint8Array(hkdfSync("sha256", secret, "", "tracker-tracker:session-v1", 32))
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -34,9 +35,7 @@ export async function createSession(
   encryptionKey: string,
   timeoutMinutes?: number | null
 ): Promise<string> {
-  const cookieMaxAge = timeoutMinutes && timeoutMinutes > 0
-    ? timeoutMinutes * 60
-    : SESSION_MAX_AGE
+  const cookieMaxAge = timeoutMinutes && timeoutMinutes > 0 ? timeoutMinutes * 60 : SESSION_MAX_AGE
 
   // JWE expiry is a generous safety net — the real timeout is controlled by
   // cookie maxAge + middleware sliding window refresh.
@@ -88,14 +87,6 @@ export async function clearSession(): Promise<void> {
   const cookieStore = await cookies()
   cookieStore.delete(SESSION_COOKIE)
   cookieStore.delete(MAX_AGE_COOKIE)
-}
-
-export async function requireAuth(): Promise<{ encryptionKey: string }> {
-  const session = await getSession()
-  if (!session) {
-    throw new Error("Unauthorized")
-  }
-  return session
 }
 
 // ---------------------------------------------------------------------------

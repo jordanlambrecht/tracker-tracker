@@ -34,7 +34,11 @@ function Checkbox({
   return (
     <label
       htmlFor={checkboxId}
-      className={clsx("flex items-start gap-3 cursor-pointer select-none", disabled && "opacity-40 cursor-not-allowed", className)}
+      className={clsx(
+        "flex items-start gap-3 cursor-pointer select-none",
+        disabled && "opacity-40 cursor-not-allowed",
+        className
+      )}
     >
       <span className="relative shrink-0 w-5 h-5 mt-0.5">
         <input
@@ -49,7 +53,7 @@ function Checkbox({
           className={clsx(
             "absolute inset-0 block rounded-nm-sm transition-all duration-150",
             "peer-focus-visible:ring-2 peer-focus-visible:ring-[color:var(--color-control-focus)] peer-focus-visible:ring-offset-1 peer-focus-visible:ring-offset-base",
-            checked ? "nm-raised-sm bg-accent-dim" : "nm-inset-sm bg-control-bg",
+            checked ? "nm-raised-sm bg-accent-dim" : "nm-inset-sm bg-control-bg"
           )}
         >
           {checked && (
@@ -63,13 +67,11 @@ function Checkbox({
         </span>
       </span>
       {(label || children) && (
-        <span className="text-sm font-sans text-primary leading-relaxed">
-          {children ?? label}
-        </span>
+        <span className="text-sm font-sans text-primary leading-relaxed">{children ?? label}</span>
       )}
     </label>
   )
 }
 
-export { Checkbox }
 export type { CheckboxProps }
+export { Checkbox }

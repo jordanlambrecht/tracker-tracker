@@ -5,7 +5,7 @@
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
-import { formatBytesFromNumber } from "@/lib/formatters"
+import { formatBytesNum } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 
 interface ActiveTransfersTableProps {
@@ -23,11 +23,13 @@ export function ActiveTransfersTable({
 }: ActiveTransfersTableProps) {
   if (torrents.length === 0) {
     return (
-      <div
-        className="nm-inset-sm bg-control-bg flex flex-1 items-center justify-center rounded-nm-md min-h-[72px]"
-      >
-        <p className="text-xs text-muted font-mono">No active {mode === "downloading" ? "downloads" : "uploads"}</p>
-      </div>
+      <Table<TorrentInfo>
+        columns={[]}
+        data={[]}
+        keyExtractor={(t) => t.hash}
+        emptyMessage={`No active ${mode === "downloading" ? "downloads" : "uploads"}`}
+        surface="inset"
+      />
     )
   }
 
@@ -64,13 +66,14 @@ export function ActiveTransfersTable({
       align: "right",
       width: 48,
       render: (t) => {
-        const formatted = formatBytesFromNumber(t.size)
+        const formatted = formatBytesNum(t.size)
         const spaceIdx = formatted.indexOf(" ")
         const num = spaceIdx > -1 ? formatted.slice(0, spaceIdx) : formatted
         const unit = spaceIdx > -1 ? formatted.slice(spaceIdx + 1) : ""
         return (
           <span className="text-[11px] font-mono text-muted text-right leading-none">
-            {num}<span className="block text-[9px] mt-px">{unit}</span>
+            {num}
+            <span className="block text-[9px] mt-px">{unit}</span>
           </span>
         )
       },
@@ -93,13 +96,17 @@ export function ActiveTransfersTable({
       width: 48,
       render: (t) => {
         const raw = isDownload ? t.dlspeed : t.upspeed
-        const formatted = formatBytesFromNumber(raw)
+        const formatted = formatBytesNum(raw)
         const spaceIdx = formatted.indexOf(" ")
         const num = spaceIdx > -1 ? formatted.slice(0, spaceIdx) : formatted
         const unit = spaceIdx > -1 ? `${formatted.slice(spaceIdx + 1)}/s` : "/s"
         return (
-          <span className="text-[11px] font-mono text-right leading-none" style={{ color: accentColor }}>
-            {num}<span className="block text-[9px] text-muted mt-px">{unit}</span>
+          <span
+            className="text-[11px] font-mono text-right leading-none"
+            style={{ color: accentColor }}
+          >
+            {num}
+            <span className="block text-[9px] text-muted mt-px">{unit}</span>
           </span>
         )
       },
@@ -112,7 +119,14 @@ export function ActiveTransfersTable({
       render: (t) => {
         if (t.lastActivity <= 0) return <span className="text-[11px] font-mono text-muted">—</span>
         const diff = Math.floor(Date.now() / 1000 - t.lastActivity)
-        const val = diff < 60 ? `${diff}s` : diff < 3600 ? `${Math.floor(diff / 60)}m` : diff < 86400 ? `${Math.floor(diff / 3600)}h` : `${Math.floor(diff / 86400)}d`
+        const val =
+          diff < 60
+            ? `${diff}s`
+            : diff < 3600
+              ? `${Math.floor(diff / 60)}m`
+              : diff < 86400
+                ? `${Math.floor(diff / 3600)}h`
+                : `${Math.floor(diff / 86400)}d`
         return <span className="text-[11px] font-mono text-muted">{val}</span>
       },
     },

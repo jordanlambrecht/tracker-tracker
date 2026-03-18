@@ -1,0 +1,115 @@
+name: Knip Report
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  knip:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Knip
+        id: knip
+        continue-on-error: true
+        run: |
+          pnpm --silent knip --reporter json --no-exit-code > knip-raw.json
+
+          node -e "
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('knip-raw.json', 'utf8'));
+
+          const counts = {
+            files: data.files?.length || 0,
+            dependencies: 0,
+            devDependencies: 0,
+            unlisted: 0,
+            exports: 0,
+            types: 0,
+            enumMembers: 0,
+            duplicates: 0
+          };
+
+          (data.issues || []).forEach(pkg => {
+            counts.dependencies += pkg.dependencies?.length || 0;
+            counts.devDependencies += pkg.devDependencies?.length || 0;
+            counts.unlisted += pkg.unlisted?.length || 0;
+            counts.exports += pkg.exports?.length || 0;
+            counts.types += pkg.types?.length || 0;
+            counts.enumMembers += Object.keys(pkg.enumMembers || {}).length;
+            counts.duplicates += pkg.duplicates?.length || 0;
+          });
+
+          const total = Object.values(counts).reduce((a, b) => a + b, 0);
+
+          let summary = '## Knip Code Analysis\n\n';
+
+          if (total === 0) {
+            summary += 'No issues found. Codebase is clean.\n';
+          } else {
+            summary += 'Found ' + total + ' total issues\n\n';
+            summary += '| Category | Count |\n';
+            summary += '|----------|-------|\n';
+
+            if (counts.files > 0) summary += '| Unused Files | ' + counts.files + ' |\n';
+            if (counts.dependencies > 0) summary += '| Unused Dependencies | ' + counts.dependencies + ' |\n';
+            if (counts.devDependencies > 0) summary += '| Unused Dev Dependencies | ' + counts.devDependencies + ' |\n';
+            if (counts.unlisted > 0) summary += '| Unlisted Dependencies | ' + counts.unlisted + ' |\n';
+            if (counts.exports > 0) summary += '| Unused Exports | ' + counts.exports + ' |\n';
+            if (counts.types > 0) summary += '| Unused Types | ' + counts.types + ' |\n';
+            if (counts.enumMembers > 0) summary += '| Unused Enum Members | ' + counts.enumMembers + ' |\n';
+            if (counts.duplicates > 0) summary += '| Duplicates | ' + counts.duplicates + ' |\n';
+
+            summary += '\n<details>\n';
+            summary += '<summary>View details</summary>\n\n';
+            summary += '> Run \`pnpm knip\` locally to see the full report.\n\n';
+            summary += '> Use \`pnpm knip:filter pattern\` to filter results by file path.\n\n';
+            summary += '</details>\n';
+
+            summary += '\n---\n';
+            summary += '*Use \`/** @public */\` JSDoc tags to mark intentionally exported symbols.*\n';
+          }
+
+          fs.writeFileSync('knip-report.md', summary);
+          console.log(total > 0 ? 'has_issues=true' : 'has_issues=false');
+          " > knip_output.txt
+
+          if grep -q 'has_issues=true' knip_output.txt; then
+            echo 'has_issues=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'has_issues=false' >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ ! -f knip-report.md ]; then
+            echo '## Knip Code Analysis' > knip-report.md
+            echo '' >> knip-report.md
+            echo 'Report generation failed. Run `pnpm knip` locally.' >> knip-report.md
+          fi
+
+      - name: Post PR Comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: knip-report
+          path: knip-report.md
+
+      - name: Log result
+        if: steps.knip.outputs.has_issues == 'true'
+        run: echo "Knip found issues. See PR comment for details."

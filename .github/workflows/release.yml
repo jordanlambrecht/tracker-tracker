@@ -2,11 +2,12 @@ name: Release
 
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
 
 permissions:
   contents: write
   packages: write
+  security-events: write
 
 env:
   REGISTRY: ghcr.io
@@ -19,24 +20,34 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
-      - name: Extract version from tag
-        id: version
+      - name: Check for unreleased version
+        id: tag
         run: |
-          TAG_NAME="${GITHUB_REF_NAME}"
-          echo "version=${TAG_NAME#v}" >> "$GITHUB_OUTPUT"
-
-      - name: Verify tag matches package.json
-        id: verify
-        run: |
-          PKG_VERSION=$(node -p "require('./package.json').version")
-          TAG_VERSION="${{ steps.version.outputs.version }}"
-          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
-            echo "::error::Tag does not match package.json version $PKG_VERSION"
-            exit 1
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v${VERSION}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists — nothing to release."
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "New version ${VERSION} detected — will create tag and release."
           fi
 
+      - name: Create version tag
+        if: steps.tag.outputs.should_release == 'true'
+        env:
+          TAG_VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          git tag "v${TAG_VERSION}"
+          git push origin "v${TAG_VERSION}"
+
       - name: Log in to GHCR
+        if: steps.tag.outputs.should_release == 'true'
         uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
@@ -44,31 +55,60 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up QEMU (for arm64 cross-compilation)
+        if: steps.tag.outputs.should_release == 'true'
         uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
+        if: steps.tag.outputs.should_release == 'true'
         uses: docker/setup-buildx-action@v4
 
       - name: Build and push Docker image
+        if: steps.tag.outputs.should_release == 'true'
         uses: docker/build-push-action@v7
         with:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.version }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           cache-from: |
             type=gha,scope=buildx-amd64
             type=gha,scope=buildx-arm64
-          cache-to: type=gha,mode=max,scope=buildx-${{ steps.version.outputs.version }}
+          cache-to: type=gha,mode=max,scope=buildx-${{ steps.tag.outputs.version }}
+
+      - name: Run Trivy vulnerability scanner
+        if: steps.tag.outputs.should_release == 'true'
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.version }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          trivyignores: .trivyignore
+
+      - name: Upload Trivy results to GitHub Security
+        if: steps.tag.outputs.should_release == 'true'
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Generate SBOM
+        if: steps.tag.outputs.should_release == 'true'
+        uses: anchore/sbom-action@v0.23.1
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.version }}
+          artifact-name: sbom-tracker-tracker.spdx.json
+          output-file: sbom-tracker-tracker.spdx.json
 
       - name: Extract changelog for this version
+        if: steps.tag.outputs.should_release == 'true'
         id: changelog
         env:
-          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+          RELEASE_VERSION: ${{ steps.tag.outputs.version }}
         run: |
-          NOTES=$(sed -n "/^## v${RELEASE_VERSION}/,/^## /{/^## v${RELEASE_VERSION}/d;/^## /d;p}" CHANGELOG.md | sed '/^$/N;/^\n$/d')
+          NOTES=$(sed -n "/^## \[${RELEASE_VERSION}\]/,/^## /{/^## \[${RELEASE_VERSION}\]/d;/^## /d;p}" CHANGELOG.md | sed '/^$/N;/^\n$/d')
           if [ -z "$NOTES" ]; then
             NOTES="Release v${RELEASE_VERSION}"
           fi
@@ -77,8 +117,11 @@ jobs:
           echo "CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
+        if: steps.tag.outputs.should_release == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          name: v${{ steps.version.outputs.version }}
+          tag_name: v${{ steps.tag.outputs.version }}
+          name: v${{ steps.tag.outputs.version }}
           body: ${{ steps.changelog.outputs.notes }}
           generate_release_notes: false
+          files: sbom-tracker-tracker.spdx.json

@@ -6,7 +6,7 @@
 
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
-import { formatBytesFromNumber, generatePalette, hexToHsl, hslToHex } from "@/lib/formatters"
+import { formatBytesNum, generatePalette, hexToHsl, hslToHex } from "@/lib/formatters"
 import { ChartEmptyState } from "./ChartEmptyState"
 import { CHART_THEME, chartDot, chartTooltip, escHtml } from "./theme"
 
@@ -24,11 +24,7 @@ interface StorageSunburstProps {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function sliceColor(
-  categoryColor: string,
-  index: number,
-  total: number
-): string {
+function sliceColor(categoryColor: string, index: number, total: number): string {
   const [h, s, l] = hexToHsl(categoryColor)
   const spread = total > 1 ? 0.2 / (total - 1) : 0
   const offset = total > 1 ? index * spread - 0.1 : 0
@@ -43,10 +39,7 @@ function buildOption(
   torrents: StorageSunburstProps["torrents"],
   accentColor: string
 ): EChartsOption {
-  const categoryMap = new Map<
-    string,
-    { total: number; items: { name: string; size: number }[] }
-  >()
+  const categoryMap = new Map<string, { total: number; items: { name: string; size: number }[] }>()
 
   for (const t of torrents) {
     const key = t.category || "(no category)"
@@ -56,9 +49,7 @@ function buildOption(
     categoryMap.set(key, entry)
   }
 
-  const sortedCategories = [...categoryMap.entries()].sort(
-    ([, a], [, b]) => b.total - a.total
-  )
+  const sortedCategories = [...categoryMap.entries()].sort(([, a], [, b]) => b.total - a.total)
 
   const categoryColors = generatePalette(sortedCategories.length, accentColor)
 
@@ -108,7 +99,7 @@ function buildOption(
             `${swatch}` +
             `<span style="color:${CHART_THEME.textTertiary};font-size:10px;">${escHtml(catName)}</span><br/>` +
             `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(p.name)}</span><br/>` +
-            `<span style="color:${CHART_THEME.textSecondary};">${formatBytesFromNumber(p.value)}</span>`
+            `<span style="color:${CHART_THEME.textSecondary};">${formatBytesNum(p.value)}</span>`
           )
         }
 
@@ -118,12 +109,12 @@ function buildOption(
           return (
             `${swatch}` +
             `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(p.name)}</span><br/>` +
-            `<span style="color:${CHART_THEME.textSecondary};">${formatBytesFromNumber(p.value)}</span>` +
+            `<span style="color:${CHART_THEME.textSecondary};">${formatBytesNum(p.value)}</span>` +
             `<span style="color:${CHART_THEME.textTertiary};font-size:10px;"> · ${childCount} torrent${childCount !== 1 ? "s" : ""}</span>`
           )
         }
 
-        return `<span style="color:${CHART_THEME.textPrimary};">${escHtml(p.name)}: ${formatBytesFromNumber(p.value)}</span>`
+        return `<span style="color:${CHART_THEME.textPrimary};">${escHtml(p.name)}: ${formatBytesNum(p.value)}</span>`
       },
     }),
     series: [
@@ -157,7 +148,7 @@ function buildOption(
           fontWeight: "bold" as const,
           formatter: (params: unknown) => {
             const p = params as { name: string; value: number }
-            return `${p.name}  ${formatBytesFromNumber(p.value)}`
+            return `${p.name}  ${formatBytesNum(p.value)}`
           },
         },
         label: {
@@ -210,11 +201,7 @@ function buildOption(
 // Component
 // ---------------------------------------------------------------------------
 
-function StorageSunburst({
-  torrents,
-  accentColor,
-  height = 480,
-}: StorageSunburstProps) {
+function StorageSunburst({ torrents, accentColor, height = 480 }: StorageSunburstProps) {
   if (torrents.length === 0) {
     return <ChartEmptyState height={height} message="No torrent data available" />
   }
@@ -239,5 +226,5 @@ function StorageSunburst({
 // Exports
 // ---------------------------------------------------------------------------
 
-export { StorageSunburst }
 export type { StorageSunburstProps }
+export { StorageSunburst }

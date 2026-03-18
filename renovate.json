@@ -1,0 +1,45 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":separateMajorReleases"],
+  "schedule": ["before 6am on Monday"],
+  "labels": ["dependencies"],
+  "rangeStrategy": "bump",
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["patch"],
+      "automerge": true
+    },
+    {
+      "matchPackagePatterns": ["@types/*"],
+      "groupName": "type definitions"
+    },
+    {
+      "matchPackagePatterns": ["@commitlint/*"],
+      "groupName": "commitlint"
+    },
+    {
+      "matchPackagePatterns": ["@dnd-kit/*"],
+      "groupName": "dnd-kit"
+    },
+    {
+      "matchPackagePatterns": ["@tailwindcss/*", "tailwindcss"],
+      "groupName": "tailwind"
+    },
+    {
+      "matchPackagePatterns": ["@testing-library/*"],
+      "groupName": "testing-library"
+    },
+    {
+      "matchPackagePatterns": ["drizzle-orm", "drizzle-kit"],
+      "groupName": "drizzle"
+    },
+    {
+      "matchPackagePatterns": ["echarts*"],
+      "groupName": "echarts"
+    },
+    {
+      "matchPackagePatterns": ["react", "react-dom", "@types/react", "@types/react-dom"],
+      "groupName": "react"
+    }
+  ]
+}

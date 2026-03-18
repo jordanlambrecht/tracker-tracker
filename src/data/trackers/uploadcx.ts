@@ -46,7 +46,8 @@ export const uploadcx: TrackerRegistryEntry = {
     },
     {
       name: "Elite",
-      requirements: "Upload ≥ 10 TiB, ratio ≥ 1.05, age ≥ 1 month. 25 download slots, torrent mod bypass",
+      requirements:
+        "Upload ≥ 10 TiB, ratio ≥ 1.05, age ≥ 1 month. 25 download slots, torrent mod bypass",
       perks: [
         { type: "download-slots", label: "DL Slots: 25" },
         { type: "upload", label: "Upload Torrents" },
@@ -56,7 +57,8 @@ export const uploadcx: TrackerRegistryEntry = {
     },
     {
       name: "Master",
-      requirements: "Upload ≥ 50 TiB, ratio ≥ 1.1, age ≥ 4 months, avg seedtime ≥ 3 months, seed size ≥ 20 TiB. Unlimited download slots, freeleech, H&R immune",
+      requirements:
+        "Upload ≥ 50 TiB, ratio ≥ 1.1, age ≥ 4 months, avg seedtime ≥ 3 months, seed size ≥ 20 TiB. Unlimited download slots, freeleech, H&R immune",
       perks: [
         { type: "download-slots", label: "DL Slots: ∞" },
         { type: "upload", label: "Upload Torrents" },
@@ -68,7 +70,8 @@ export const uploadcx: TrackerRegistryEntry = {
     },
     {
       name: "Veteran",
-      requirements: "Upload ≥ 100 TiB, ratio ≥ 1.1, age ≥ 5 months, avg seedtime ≥ 4 months, seed size ≥ 30 TiB. Unlimited download slots, freeleech, H&R immune",
+      requirements:
+        "Upload ≥ 100 TiB, ratio ≥ 1.1, age ≥ 5 months, avg seedtime ≥ 4 months, seed size ≥ 30 TiB. Unlimited download slots, freeleech, H&R immune",
       perks: [
         { type: "download-slots", label: "DL Slots: ∞" },
         { type: "upload", label: "Upload Torrents" },
@@ -81,7 +84,8 @@ export const uploadcx: TrackerRegistryEntry = {
     // Dynamic — seed-based
     {
       name: "Seeder",
-      requirements: "Ratio ≥ 1.0, age ≥ 2 months, avg seedtime ≥ 1 month, seed size ≥ 5 TiB. 25 download slots, H&R immune, torrent mod bypass",
+      requirements:
+        "Ratio ≥ 1.0, age ≥ 2 months, avg seedtime ≥ 1 month, seed size ≥ 5 TiB. 25 download slots, H&R immune, torrent mod bypass",
       perks: [
         { type: "download-slots", label: "DL Slots: 25" },
         { type: "hnr-immune", label: "H&R Immune" },
@@ -90,7 +94,8 @@ export const uploadcx: TrackerRegistryEntry = {
     },
     {
       name: "Archivist",
-      requirements: "Ratio ≥ 1.0, age ≥ 3 months, avg seedtime ≥ 2 months, seed size ≥ 10 TiB. Unlimited download slots, freeleech, H&R immune",
+      requirements:
+        "Ratio ≥ 1.0, age ≥ 3 months, avg seedtime ≥ 2 months, seed size ≥ 10 TiB. Unlimited download slots, freeleech, H&R immune",
       perks: [
         { type: "download-slots", label: "DL Slots: ∞" },
         { type: "freeleech", label: "Freeleech" },
@@ -101,29 +106,87 @@ export const uploadcx: TrackerRegistryEntry = {
     {
       name: "Parked",
       requirements: "Staff-assigned — H&R immune, no download slots",
-      perks: [
-        { type: "hnr-immune", label: "H&R Immune" },
-      ],
+      perks: [{ type: "hnr-immune", label: "H&R Immune" }],
     },
     // Staff-assigned
-    { name: "Junior Uploader", requirements: "Staff — H&R immune, torrent mod bypass. Unlimited download slots" },
-    { name: "Uploader", requirements: "Staff — freeleech, H&R immune, torrent mod bypass. Unlimited download slots" },
-    { name: "Internal", requirements: "Staff — internal release group members. Freeleech, H&R immune, torrent mod bypass" },
-    { name: "Network Affiliate", requirements: "Staff — network affiliate. Unlimited download slots" },
-    { name: "Trustee", requirements: "Staff — freeleech, H&R immune, torrent mod bypass. Unlimited download slots" },
-    { name: "Editor", requirements: "Staff — freeleech, H&R immune, torrent mod bypass. Unlimited download slots" },
-    { name: "Torrent Moderator", requirements: "Staff — freeleech, H&R immune, torrent mod bypass. Unlimited download slots" },
+    {
+      name: "Junior Uploader",
+      requirements: "Staff — H&R immune, torrent mod bypass. Unlimited download slots",
+    },
+    {
+      name: "Uploader",
+      requirements: "Staff — freeleech, H&R immune, torrent mod bypass. Unlimited download slots",
+    },
+    {
+      name: "Internal",
+      requirements:
+        "Staff — internal release group members. Freeleech, H&R immune, torrent mod bypass",
+    },
+    {
+      name: "Network Affiliate",
+      requirements: "Staff — network affiliate. Unlimited download slots",
+    },
+    {
+      name: "Trustee",
+      requirements: "Staff — freeleech, H&R immune, torrent mod bypass. Unlimited download slots",
+    },
+    {
+      name: "Editor",
+      requirements: "Staff — freeleech, H&R immune, torrent mod bypass. Unlimited download slots",
+    },
+    {
+      name: "Torrent Moderator",
+      requirements: "Staff — freeleech, H&R immune, torrent mod bypass. Unlimited download slots",
+    },
   ],
   releaseGroups: ["BLOOM", "Xewdy"],
   notableMembers: ["vandaag", "Xewdy", "Zips"],
   bannedGroups: [
-    "4K4U", "Alcaide_Kira", "AROMA", "d3g", "EDGE2020", "EMBER", "FGT",
-    "FnP", "FRDS", "Grym", "HDT", "Hi10", "iAHD", "INFINITY", "ION10",
-    "iVy", "Judas", "LAMA", "MeGusta", "NAHOM", "Niblets", "nikt0",
-    "NuBz", "OFT", "PHOCiS", "QxR", "R&H", "Ralphy", "RARBG",
-    "seedpool", "Sicario", "SM737", "SPDVD", "SPx", "SWTYBLZ", "TAoE",
-    "TGx", "Tigole", "TSP", "TSPxL", "VXT", "Vyndros", "Will1869",
-    "x0r", "YIFY",
+    "4K4U",
+    "Alcaide_Kira",
+    "AROMA",
+    "d3g",
+    "EDGE2020",
+    "EMBER",
+    "FGT",
+    "FnP",
+    "FRDS",
+    "Grym",
+    "HDT",
+    "Hi10",
+    "iAHD",
+    "INFINITY",
+    "ION10",
+    "iVy",
+    "Judas",
+    "LAMA",
+    "MeGusta",
+    "NAHOM",
+    "Niblets",
+    "nikt0",
+    "NuBz",
+    "OFT",
+    "PHOCiS",
+    "QxR",
+    "R&H",
+    "Ralphy",
+    "RARBG",
+    "seedpool",
+    "Sicario",
+    "SM737",
+    "SPDVD",
+    "SPx",
+    "SWTYBLZ",
+    "TAoE",
+    "TGx",
+    "Tigole",
+    "TSP",
+    "TSPxL",
+    "VXT",
+    "Vyndros",
+    "Will1869",
+    "x0r",
+    "YIFY",
   ],
   stats: {
     userCount: undefined,
@@ -150,7 +213,7 @@ export const uploadcx: TrackerRegistryEntry = {
       "• H&R warning issued after 72h disconnected without meeting seed time",
       "• Warnings last 30 days but remain on record permanently",
       "• Warnings expire after 30 days or when torrent is seeded for ≥ 2 days",
-      "• 1–2 active warnings: no consequences",
+      "• 1-2 active warnings: no consequences",
       "• 3 active warnings: download and request privileges disabled",
       "",
       "Upload Rules — General",
@@ -227,4 +290,5 @@ export const uploadcx: TrackerRegistryEntry = {
   language: "English",
   color: "#538dab",
   logo: "/tracker-logos/ulcx_logo.png",
+  draft: false,
 }

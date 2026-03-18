@@ -33,7 +33,9 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
   const [joinedAt, setJoinedAt] = useState(tracker.joinedAt ?? "")
   const [baseUrl, setBaseUrl] = useState(tracker.baseUrl)
   const [useProxy, setUseProxy] = useState(tracker.useProxy ?? false)
-  const [countCrossSeedUnsatisfied, setCountCrossSeedUnsatisfied] = useState(tracker.countCrossSeedUnsatisfied ?? false)
+  const [countCrossSeedUnsatisfied, setCountCrossSeedUnsatisfied] = useState(
+    tracker.countCrossSeedUnsatisfied ?? false
+  )
 
   useEffect(() => {
     setName(tracker.name)
@@ -52,8 +54,10 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
   useEffect(() => {
     if (!open) return
     fetch("/api/settings")
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => { if (data) setProxyAvailable(!!data.proxyEnabled) })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) setProxyAvailable(!!data.proxyEnabled)
+      })
       .catch(() => {})
   }, [open])
 
@@ -87,7 +91,11 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
     if (!baseUrl.trim()) {
       validationErrors.baseUrl = "Base URL is required"
     } else {
-      try { new URL(baseUrl) } catch { validationErrors.baseUrl = "Invalid URL" }
+      try {
+        new URL(baseUrl)
+      } catch {
+        validationErrors.baseUrl = "Invalid URL"
+      }
     }
     if (changingKey && !newApiToken.trim()) {
       validationErrors.apiToken = "API token cannot be empty"
@@ -101,6 +109,33 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
     setErrors({})
     setSaving(true)
 
+    const trimmedToken = newApiToken.trim()
+
+    // Test the new API key before saving
+    if (changingKey && trimmedToken) {
+      try {
+        const testRes = await fetch("/api/trackers/test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            baseUrl: baseUrl.trim(),
+            apiToken: trimmedToken,
+            platformType: tracker.platformType,
+          }),
+        })
+        if (!testRes.ok) {
+          const testData = await testRes.json().catch(() => ({ error: "Connection failed" }))
+          setErrors({ apiToken: (testData as { error?: string }).error ?? "Connection failed" })
+          setSaving(false)
+          return
+        }
+      } catch {
+        setErrors({ apiToken: "Could not verify API key — check your connection" })
+        setSaving(false)
+        return
+      }
+    }
+
     const payload: Record<string, unknown> = {
       name: name.trim(),
       color,
@@ -111,8 +146,8 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
       countCrossSeedUnsatisfied,
     }
 
-    if (changingKey && newApiToken.trim()) {
-      payload.apiToken = newApiToken
+    if (changingKey && trimmedToken) {
+      payload.apiToken = trimmedToken
     }
 
     try {
@@ -208,6 +243,8 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
               <div className="flex flex-col gap-2">
                 <Input
                   type="password"
+                  autoComplete="off"
+                  data-1p-ignore
                   value={newApiToken}
                   onChange={(e) => setNewApiToken(e.target.value)}
                   placeholder="Paste API token"
@@ -215,7 +252,11 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
                 />
                 <button
                   type="button"
-                  onClick={() => { setChangingKey(false); setNewApiToken(""); setErrors({}) }}
+                  onClick={() => {
+                    setChangingKey(false)
+                    setNewApiToken("")
+                    setErrors({})
+                  }}
                   className="text-xs font-mono text-tertiary hover:text-secondary transition-colors cursor-pointer self-start"
                 >
                   Cancel
@@ -255,7 +296,7 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
                 className={clsx(
                   "w-full font-mono text-sm text-primary cursor-pointer border-0",
                   "bg-control-bg px-4 py-3 nm-inset focus:outline-none rounded-nm-md",
-                  !joinedAt && "text-muted",
+                  !joinedAt && "text-muted"
                 )}
                 style={{ colorScheme: "dark" }}
               />
@@ -267,9 +308,10 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
             checked={useProxy}
             onChange={setUseProxy}
             disabled={!proxyAvailable}
-            description={proxyAvailable
-              ? "Route API requests for this tracker through the global proxy configured in Settings."
-              : "No proxy configured. Enable a proxy in Settings first."
+            description={
+              proxyAvailable
+                ? "Route API requests for this tracker through the global proxy configured in Settings."
+                : "No proxy configured. Enable a proxy in Settings first."
             }
           />
 
@@ -288,11 +330,7 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
 
           {/* Save / Cancel */}
           <div className="flex gap-3 pt-1 justify-end">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={handleClose}
-            >
+            <Button type="button" variant="ghost" onClick={handleClose}>
               Cancel
             </Button>
             <Button type="submit" disabled={saving}>

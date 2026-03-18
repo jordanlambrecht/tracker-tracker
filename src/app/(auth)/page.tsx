@@ -4,6 +4,7 @@
 
 "use client"
 
+import { H1, H2 } from "@typography"
 import { useMemo, useState } from "react"
 import { CHART_THEME } from "@/components/charts/theme"
 import { AlertsBanner } from "@/components/dashboard/AlertsBanner"
@@ -12,6 +13,7 @@ import { DashboardSettingsSheet } from "@/components/dashboard/DashboardSettings
 import { DayRangeSidebar } from "@/components/dashboard/DayRangeSidebar"
 import { EcosystemStatsSection } from "@/components/dashboard/EcosystemStatsSection"
 import { FleetDashboard } from "@/components/dashboard/FleetDashboard"
+import { LoginTimers } from "@/components/dashboard/LoginTimers"
 import { PollAllButton } from "@/components/dashboard/PollAllButton"
 import { TrackerLeaderboard } from "@/components/dashboard/TrackerLeaderboard"
 import { TrackerOverviewGrid } from "@/components/dashboard/TrackerOverviewGrid"
@@ -19,7 +21,6 @@ import { useDashboardSettings } from "@/components/dashboard/useDashboardSetting
 import { Button } from "@/components/ui/Button"
 import { GearIcon } from "@/components/ui/Icons"
 import { TabBar } from "@/components/ui/TabBar"
-import { H1, H2 } from "@/components/ui/Typography"
 import { useDashboardData } from "@/hooks/useDashboardData"
 import { computeAggregateStats } from "@/lib/dashboard"
 import type { Snapshot, TrackerSummary } from "@/types/api"
@@ -40,7 +41,9 @@ export default function DashboardPage() {
   const data = useDashboardData()
   const dashSettings = useDashboardSettings()
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [dashboardTab, setDashboardTab] = useState<"tracker-stats" | "torrent-fleet">("tracker-stats")
+  const [dashboardTab, setDashboardTab] = useState<"tracker-stats" | "torrent-fleet">(
+    "tracker-stats"
+  )
 
   const aggregateStats = useMemo(() => computeAggregateStats(data.trackers), [data.trackers])
   const trackerSeries = useMemo(
@@ -51,7 +54,9 @@ export default function DashboardPage() {
   if (data.loading) {
     return (
       <div className="flex h-full min-h-[calc(100vh-6rem)] items-center justify-center">
-        <p className="text-secondary text-sm font-mono animate-loading-breathe">Loading dashboard...</p>
+        <p className="text-secondary text-sm font-mono animate-loading-breathe">
+          Loading dashboard...
+        </p>
       </div>
     )
   }
@@ -98,10 +103,17 @@ export default function DashboardPage() {
 
       {/* ── Section 2: Alerts ── */}
       {data.alerts.length > 0 && (
-        <AlertsBanner alerts={data.alerts} onDismiss={data.dismissAlert} />
+        <AlertsBanner
+          alerts={data.alerts}
+          onDismiss={data.dismissAlert}
+          onDismissAll={data.dismissAllAlerts}
+        />
       )}
 
-      {/* ── Section 3: Leaderboard ── */}
+      {/* ── Section 3: Login Timers ── */}
+      {dashSettings.settings.showLoginTimers && <LoginTimers trackers={data.trackers} />}
+
+      {/* ── Section 4: Leaderboard ── */}
       <div className="flex flex-col gap-4">
         <H2>Leaderboard</H2>
         <TrackerLeaderboard trackers={data.trackers} />
@@ -110,7 +122,9 @@ export default function DashboardPage() {
       {/* ── Divider ── */}
       <div
         className="h-px"
-        style={{ background: `linear-gradient(90deg, transparent, ${CHART_THEME.borderEmphasis}, transparent)` }}
+        style={{
+          background: `linear-gradient(90deg, transparent, ${CHART_THEME.borderEmphasis}, transparent)`,
+        }}
       />
 
       {/* ── Section 4: Ecosystem (Aggregate Stats) ── */}
@@ -119,7 +133,9 @@ export default function DashboardPage() {
       {/* ── Divider ── */}
       <div
         className="h-px"
-        style={{ background: `linear-gradient(90deg, transparent, ${CHART_THEME.borderEmphasis}, transparent)` }}
+        style={{
+          background: `linear-gradient(90deg, transparent, ${CHART_THEME.borderEmphasis}, transparent)`,
+        }}
       />
 
       {/* ── Tab Switcher ── */}
@@ -136,21 +152,26 @@ export default function DashboardPage() {
       <div className="flex flex-col md:flex-row gap-4 md:gap-8">
         <div className="flex-1 min-w-0">
           {dashboardTab === "torrent-fleet" ? (
-            <FleetDashboard
-              dayRange={data.dayRange}
-              trackers={data.trackers}
-            />
+            <FleetDashboard dayRange={data.dayRange} trackers={data.trackers} />
           ) : (
             <AnalyticsSection trackerSeries={trackerSeries} trackers={data.trackers} />
           )}
         </div>
 
         {/* Sticky sidebar — shared by both tabs */}
-        <DayRangeSidebar days={data.dayRange} onChange={data.setDayRange} accentColor={CHART_THEME.accent} />
+        <DayRangeSidebar
+          days={data.dayRange}
+          onChange={data.setDayRange}
+          accentColor={CHART_THEME.accent}
+        />
       </div>
 
       {/* ── Settings Sheet ── */}
-      <DashboardSettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <DashboardSettingsSheet
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        dashSettings={dashSettings}
+      />
     </div>
   )
 }

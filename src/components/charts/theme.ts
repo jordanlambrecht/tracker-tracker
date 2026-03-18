@@ -15,67 +15,73 @@
 //   chartTooltip        - standard tooltip configuration
 //   chartGrid           - standard grid margins
 //   chartAxisLabel      - standard axis label styling
+//   chartDataZoom       - standard slider dataZoom configuration
+
+import { hexToRgba } from "@/lib/formatters"
 
 export const CHART_THEME = {
   // ── Surfaces ──
-  surface:    "#282a36",   // --color-base
-  elevated:   "#2e3042",   // --color-elevated
-  overlay:    "#343648",   // --color-overlay
-  controlBg:  "#1e2029",   // --color-control-bg
-  tooltipBg:  "#2e3042",   // same as elevated
+  surface: "#282a36", // --color-base
+  elevated: "#2e3042", // --color-elevated
+  overlay: "#343648", // --color-overlay
+  controlBg: "#1e2029", // --color-control-bg
+  tooltipBg: "#2e3042", // same as elevated
   surfaceSemi: "rgba(40, 42, 54, 0.6)", // semi-transparent base for slider backgrounds
 
   // ── Text ──
-  textPrimary:   "#e2e8f0",   // --color-primary
-  textSecondary: "#94a3b8",   // --color-secondary
-  textTertiary:  "#64748b",   // --color-tertiary
+  textPrimary: "#e2e8f0", // --color-primary
+  textSecondary: "#94a3b8", // --color-secondary
+  textTertiary: "#64748b", // --color-tertiary
   fontMono: "var(--font-mono), monospace",
 
   // ── Borders ──
-  tooltipBorder:   "rgba(148, 163, 184, 0.2)",
-  gridLine:        "rgba(148, 163, 184, 0.08)",  // --color-border
-  borderEmphasis:  "rgba(148, 163, 184, 0.15)",  // --color-border-emphasis
-  borderMid:       "rgba(148, 163, 184, 0.3)",   // axis pointers, label lines
+  tooltipBorder: "rgba(148, 163, 184, 0.2)",
+  gridLine: "rgba(148, 163, 184, 0.08)", // --color-border
+  borderEmphasis: "rgba(148, 163, 184, 0.15)", // --color-border-emphasis
+  borderMid: "rgba(148, 163, 184, 0.3)", // axis pointers, label lines
 
   // ── Layer 1: Raw colors ──
-  cyan:   "#00d4ff",
-  amber:  "#f59e0b",
-  red:    "#ef4444",
-  green:  "#10b981",
-  lime:   "#22c55e",
+  cyan: "#00d4ff",
+  amber: "#f59e0b",
+  red: "#ef4444",
+  green: "#10b981",
+  lime: "#22c55e",
   violet: "#8b5cf6",
-  sky:    "#06b6d4",
+  sky: "#06b6d4",
 
   // ── Layer 2: Semantic ──
-  accent:  "#00d4ff",
-  warn:    "#f59e0b",
-  danger:  "#ef4444",
+  accent: "#00d4ff",
+  warn: "#f59e0b",
+  danger: "#ef4444",
   success: "#10b981",
 
   // ── Layer 3: Purpose ──
-  upload:   "#00d4ff",
+  upload: "#00d4ff",
   download: "#f59e0b",
   positive: "#22c55e",
   negative: "#ef4444",
-  neutral:  "#94a3b8",
-  chartFallback: "#6b7280",  // gray-500, replaces "#888" in multi-series charts
+  neutral: "#94a3b8",
+  chartFallback: "#6b7280", // gray-500, replaces "#888" in multi-series charts
 
   // Ordinal scale for ratio/seed-time distribution buckets
   scale: ["#ef4444", "#f59e0b", "#10b981", "#00d4ff", "#8b5cf6", "#06b6d4"] as const,
 
   // ── Glow variants (for areaStyle fills, shadows) ──
-  accentDim:    "rgba(0, 212, 255, 0.15)",
-  accentGlow:   "rgba(0, 212, 255, 0.3)",
+  accentDim: "rgba(0, 212, 255, 0.15)",
+  accentGlow: "rgba(0, 212, 255, 0.3)",
   accentGlow40: "rgba(0, 212, 255, 0.4)",
   accentGlow60: "rgba(0, 212, 255, 0.6)",
-  warnDim:      "rgba(245, 158, 11, 0.15)",
-  warnGlow:     "rgba(245, 158, 11, 0.3)",
+  warnDim: "rgba(245, 158, 11, 0.15)",
+  warnGlow: "rgba(245, 158, 11, 0.3)",
 } as const
-
 
 /** Escape HTML entities in untrusted strings before injecting into ECharts tooltip HTML */
 export function escHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
 }
 
 /** Glowing dot swatch for tooltip rows */
@@ -213,3 +219,30 @@ export function chartAxisLabel(overrides?: Record<string, unknown>): Record<stri
   }
 }
 
+/**
+ * Standard slider dataZoom configuration.
+ * @param accentColor - The accent hex color for handles and filler
+ */
+export function chartDataZoom(accentColor: string): Record<string, unknown>[] {
+  return [
+    {
+      type: "slider",
+      borderColor: CHART_THEME.gridLine,
+      backgroundColor: CHART_THEME.surface,
+      fillerColor: hexToRgba(accentColor, 0.094),
+      handleStyle: { color: accentColor, borderColor: accentColor },
+      moveHandleStyle: { color: accentColor },
+      selectedDataBackground: {
+        lineStyle: { color: accentColor },
+        areaStyle: { color: hexToRgba(accentColor, 0.188) },
+      },
+      textStyle: {
+        color: CHART_THEME.textTertiary,
+        fontFamily: CHART_THEME.fontMono,
+        fontSize: 10,
+      },
+      height: 24,
+      bottom: 8,
+    },
+  ]
+}

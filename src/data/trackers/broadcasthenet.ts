@@ -18,6 +18,8 @@ export const broadcasthenet: TrackerRegistryEntry = {
   notableMembers: [],
   language: "English",
   color: "#ff9800",
+  trackerHubSlug: "broadcas-the-net",
+  statusPageUrl: "https://btn.trackerstatus.info/",
   warning: true,
   warningNote: "Unvalidated",
   rules: {
@@ -25,4 +27,5 @@ export const broadcasthenet: TrackerRegistryEntry = {
     seedTimeHours: 24,
     loginIntervalDays: 60,
   },
+  draft: false,
 }

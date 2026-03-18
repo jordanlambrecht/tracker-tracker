@@ -3,7 +3,7 @@
 import { hexToRgba } from "@/lib/formatters"
 import type { GGnPlatformMeta } from "@/types/api"
 
-interface GgnAchievementProgressProps {
+export interface GgnAchievementProgressProps {
   ggMeta: GGnPlatformMeta | null
   accentColor: string
 }

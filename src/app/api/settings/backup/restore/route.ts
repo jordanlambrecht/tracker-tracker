@@ -18,6 +18,8 @@ import { db } from "@/lib/db"
 import {
   appSettings,
   clientSnapshots,
+  clientUptimeBuckets,
+  dismissedAlerts,
   downloadClients,
   tagGroupMembers,
   tagGroups,
@@ -25,9 +27,9 @@ import {
   trackerSnapshots,
   trackers,
 } from "@/lib/db/schema"
+import { checkLockout, recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import { log } from "@/lib/logger"
 import { stopScheduler } from "@/lib/scheduler"
-import { recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"
 
 const BATCH_SIZE = 500
 
@@ -52,11 +54,7 @@ async function batchInsert<T extends Record<string, unknown>>(
 
 // Attempt to decrypt a field with the backup key and re-encrypt with the current key.
 // Returns the re-encrypted ciphertext, or "" if the field is empty or re-encryption fails.
-function reencryptField(
-  ciphertext: string,
-  backupKey: Buffer,
-  currentKey: Buffer
-): string {
+function reencryptField(ciphertext: string, backupKey: Buffer, currentKey: Buffer): string {
   if (!ciphertext) return ""
   try {
     return reencrypt(ciphertext, backupKey, currentKey)
@@ -95,7 +93,12 @@ export async function POST(request: Request) {
   }
 
   // Step 3: Verify master password is present before parsing the backup payload.
-  if (!masterPassword || typeof masterPassword !== "string" || masterPassword.length === 0) {
+  if (
+    !masterPassword ||
+    typeof masterPassword !== "string" ||
+    masterPassword.length === 0 ||
+    masterPassword.length > 128
+  ) {
     return NextResponse.json(
       { error: "Master password is required to restore backups" },
       { status: 400 }
@@ -155,17 +158,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not configured" }, { status: 400 })
   }
 
-  if (currentSettings.lockedUntil && currentSettings.lockedUntil > new Date()) {
-    const retryAfter = Math.ceil((currentSettings.lockedUntil.getTime() - Date.now()) / 1000)
-    return NextResponse.json(
-      { error: "Too many failed attempts. Try again later.", retryAfter },
-      { status: 429, headers: { "Retry-After": String(retryAfter) } }
-    )
-  }
+  const lockout = checkLockout(currentSettings)
+  if (lockout) return lockout
 
   const isPasswordValid = await verifyPassword(currentSettings.passwordHash, masterPassword)
   if (!isPasswordValid) {
-    const wiped = await recordFailedAttempt(currentSettings.id, currentSettings.autoWipeThreshold)
+    await recordFailedAttempt(currentSettings.id, currentSettings)
 
     const fileName = file instanceof File ? file.name : "unknown"
     log.warn(
@@ -174,14 +172,9 @@ export async function POST(request: Request) {
         reason: "invalid_master_password",
         fileNameHash: hashFileName(fileName),
         encrypted: isEncrypted,
-        wiped,
       },
       "Restore attempt with invalid master password"
     )
-
-    if (wiped) {
-      return NextResponse.json({ error: WIPE_MESSAGE }, { status: 403 })
-    }
 
     return NextResponse.json({ error: "Invalid master password" }, { status: 401 })
   }
@@ -213,8 +206,8 @@ export async function POST(request: Request) {
   try {
     backupKey = await deriveKey(masterPassword, backupSalt)
     currentKey = sameSalt ? backupKey : await deriveKey(masterPassword, currentSalt)
-  } catch {
-    // If key derivation fails, fall back to clearing encrypted fields
+  } catch (err) {
+    log.warn({ err }, "Backup restore: key derivation failed, encrypted fields will be cleared")
     backupKey = Buffer.alloc(0)
     currentKey = Buffer.alloc(0)
   }
@@ -228,11 +221,14 @@ export async function POST(request: Request) {
   const currentSettingsId = currentSettings.id
   let tokensPreserved = 0
   let tokensCleared = 0
+  let clientCredentialsCleared = 0
   let totpDisabledOnRestore = false
 
   try {
     await db.transaction(async (tx) => {
       // Delete all existing data — FK-safe order (children before parents)
+      await tx.delete(dismissedAlerts)
+      await tx.delete(clientUptimeBuckets)
       await tx.delete(clientSnapshots)
       await tx.delete(trackerSnapshots)
       await tx.delete(trackerRoles)
@@ -307,12 +303,13 @@ export async function POST(request: Request) {
           encPassword = ""
         }
 
+        const credentialsCleared = !encUsername || !encPassword
         const [inserted] = await tx
           .insert(downloadClients)
           .values({
             name: fields.name as string,
             type: fields.type as string,
-            enabled: fields.enabled as boolean,
+            enabled: credentialsCleared ? false : (fields.enabled as boolean),
             host: fields.host as string,
             port: fields.port as number,
             useSsl: fields.useSsl as boolean,
@@ -320,12 +317,24 @@ export async function POST(request: Request) {
             encryptedPassword: encPassword,
             pollIntervalSeconds: fields.pollIntervalSeconds as number,
             isDefault: fields.isDefault as boolean,
-            crossSeedTags: (fields.crossSeedTags as string) ?? "[]",
+            crossSeedTags: Array.isArray(fields.crossSeedTags)
+              ? (fields.crossSeedTags as string[])
+              : (() => {
+                  try {
+                    return JSON.parse(fields.crossSeedTags as string) as string[]
+                  } catch {
+                    return []
+                  }
+                })(),
+            lastError: credentialsCleared
+              ? "Credentials cleared during restore — re-enter and re-enable"
+              : null,
             createdAt: new Date(fields.createdAt as string),
             updatedAt: new Date(fields.updatedAt as string),
           })
           .returning({ id: downloadClients.id })
         clientIdMap.set(oldId, inserted.id)
+        if (credentialsCleared) clientCredentialsCleared++
       }
 
       // Insert tagGroups
@@ -424,6 +433,48 @@ export async function POST(request: Request) {
       }
       await batchInsert(tx, clientSnapshots, clientSnapshotRows)
 
+      // Batch insert clientUptimeBuckets (remap clientId, optional for older backups)
+      if (Array.isArray(payload.clientUptimeBuckets) && payload.clientUptimeBuckets.length > 0) {
+        const uptimeRows: { clientId: number; bucketTs: Date; ok: number; fail: number }[] = []
+        for (const ub of payload.clientUptimeBuckets) {
+          const fields = ub as Record<string, unknown>
+          const newClientId = clientIdMap.get(fields.clientId as number)
+          if (!newClientId) continue
+          uptimeRows.push({
+            clientId: newClientId,
+            bucketTs: new Date(fields.bucketTs as string),
+            ok: (fields.ok as number) ?? 0,
+            fail: (fields.fail as number) ?? 0,
+          })
+        }
+        for (let i = 0; i < uptimeRows.length; i += BATCH_SIZE) {
+          const batch = uptimeRows.slice(i, i + BATCH_SIZE)
+          if (batch.length > 0) {
+            await tx.insert(clientUptimeBuckets).values(batch).onConflictDoNothing()
+          }
+        }
+      }
+
+      // Insert dismissedAlerts (optional — absent in older backups)
+      if (Array.isArray(payload.dismissedAlerts) && payload.dismissedAlerts.length > 0) {
+        const alertRows: { alertKey: string; alertType: string; dismissedAt: Date }[] = []
+        for (const a of payload.dismissedAlerts) {
+          const fields = a as Record<string, unknown>
+          if (typeof fields.alertKey !== "string" || typeof fields.alertType !== "string") continue
+          alertRows.push({
+            alertKey: fields.alertKey,
+            alertType: fields.alertType,
+            dismissedAt: fields.dismissedAt ? new Date(fields.dismissedAt as string) : new Date(),
+          })
+        }
+        for (let i = 0; i < alertRows.length; i += BATCH_SIZE) {
+          const batch = alertRows.slice(i, i + BATCH_SIZE)
+          if (batch.length > 0) {
+            await tx.insert(dismissedAlerts).values(batch).onConflictDoNothing()
+          }
+        }
+      }
+
       // Re-encrypt proxy password if possible
       let proxyPassword: string | null = null
       if (payload.settings.encryptedProxyPassword) {
@@ -436,6 +487,21 @@ export async function POST(request: Request) {
             currentKey
           )
           proxyPassword = result || null
+        }
+      }
+
+      // Re-encrypt backup password if possible
+      let backupPasswordEncrypted: string | null = null
+      if (payload.settings.encryptedBackupPassword) {
+        if (sameSalt) {
+          backupPasswordEncrypted = payload.settings.encryptedBackupPassword as string
+        } else if (canReencrypt) {
+          const result = reencryptField(
+            payload.settings.encryptedBackupPassword as string,
+            backupKey,
+            currentKey
+          )
+          backupPasswordEncrypted = result || null
         }
       }
 
@@ -455,7 +521,8 @@ export async function POST(request: Request) {
           if (reencryptedSecret) {
             totpSecret = reencryptedSecret
             totpBackupCodes = payload.settings.totpBackupCodes
-              ? reencryptField(payload.settings.totpBackupCodes as string, backupKey, currentKey) || null
+              ? reencryptField(payload.settings.totpBackupCodes as string, backupKey, currentKey) ||
+                null
               : null
           } else {
             totpDisabledOnRestore = true
@@ -474,12 +541,13 @@ export async function POST(request: Request) {
           totpSecret,
           totpBackupCodes,
           sessionTimeoutMinutes: (payload.settings.sessionTimeoutMinutes as number | null) ?? null,
-          autoWipeThreshold: (payload.settings.autoWipeThreshold as number | null) ?? null,
+          lockoutEnabled: (payload.settings.lockoutEnabled as boolean) ?? true,
+          lockoutThreshold: (payload.settings.lockoutThreshold as number) ?? 5,
+          lockoutDurationMinutes: (payload.settings.lockoutDurationMinutes as number) ?? 15,
           failedLoginAttempts: 0,
           lockedUntil: null,
           snapshotRetentionDays: (payload.settings.snapshotRetentionDays as number | null) ?? null,
-          trackerPollIntervalMinutes:
-            (payload.settings.trackerPollIntervalMinutes as number) ?? 60,
+          trackerPollIntervalMinutes: (payload.settings.trackerPollIntervalMinutes as number) ?? 60,
           proxyEnabled: payload.settings.proxyEnabled as boolean,
           proxyType: payload.settings.proxyType as string,
           proxyHost: (payload.settings.proxyHost as string | null) ?? null,
@@ -492,11 +560,13 @@ export async function POST(request: Request) {
           backupScheduleFrequency: payload.settings.backupScheduleFrequency as string,
           backupRetentionCount: payload.settings.backupRetentionCount as number,
           backupEncryptionEnabled: payload.settings.backupEncryptionEnabled as boolean,
+          encryptedBackupPassword: backupPasswordEncrypted,
           backupStoragePath: (payload.settings.backupStoragePath as string | null) ?? null,
           draftQuicklinks: (payload.settings.draftQuicklinks as string | null) ?? null,
           dashboardSettings: (payload.settings.dashboardSettings as string | null) ?? null,
           // passwordHash: NEVER updated from backup
           // encryptionSalt: NEVER updated from backup
+          encryptedSchedulerKey: null,
         })
         .where(eq(appSettings.id, currentSettingsId))
     })
@@ -512,7 +582,10 @@ export async function POST(request: Request) {
       "Restore operation failed"
     )
 
-    return NextResponse.json({ error: `Restore failed: ${message}` }, { status: 409 })
+    return NextResponse.json(
+      { error: "Restore failed. Check server logs for details." },
+      { status: 409 }
+    )
   } finally {
     if (backupKey.length > 0) backupKey.fill(0)
     if (currentKey !== backupKey && currentKey.length > 0) currentKey.fill(0)
@@ -538,6 +611,9 @@ export async function POST(request: Request) {
         trackerRoles: payload.trackerRoles.length,
         downloadClients: payload.downloadClients.length,
         tagGroups: payload.tagGroups.length,
+        dismissedAlerts: Array.isArray(payload.dismissedAlerts)
+          ? payload.dismissedAlerts.length
+          : 0,
       },
     },
     "Restore operation completed successfully"
@@ -553,9 +629,14 @@ export async function POST(request: Request) {
       tagGroups: payload.tagGroups.length,
       tagGroupMembers: payload.tagGroupMembers.length,
       clientSnapshots: payload.clientSnapshots.length,
+      clientUptimeBuckets: Array.isArray(payload.clientUptimeBuckets)
+        ? payload.clientUptimeBuckets.length
+        : 0,
+      dismissedAlerts: Array.isArray(payload.dismissedAlerts) ? payload.dismissedAlerts.length : 0,
     },
     tokensPreserved,
     tokensCleared,
+    clientCredentialsCleared,
     totpDisabledOnRestore,
     requiresRelogin: false,
   })

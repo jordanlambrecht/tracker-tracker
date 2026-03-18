@@ -7,11 +7,9 @@ import { NextResponse } from "next/server"
 import { authenticate, parseJsonBody, parseRouteId } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { tagGroups } from "@/lib/db/schema"
+import { VALID_CHART_TYPES } from "@/types/api"
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -21,7 +19,6 @@ export async function PATCH(
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const validChartTypes = ["bar", "donut", "treemap", "numbers"]
   const updates: Record<string, unknown> = { updatedAt: new Date() }
 
   if (typeof body.name === "string") {
@@ -36,7 +33,10 @@ export async function PATCH(
 
   if (typeof body.description === "string") {
     if (body.description.length > 500) {
-      return NextResponse.json({ error: "Description must be 500 characters or fewer" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Description must be 500 characters or fewer" },
+        { status: 400 }
+      )
     }
     updates.description = body.description.trim()
   } else if (body.description === null) {
@@ -53,8 +53,11 @@ export async function PATCH(
   }
 
   if (typeof body.chartType === "string") {
-    if (!validChartTypes.includes(body.chartType)) {
-      return NextResponse.json({ error: `chartType must be one of: ${validChartTypes.join(", ")}` }, { status: 400 })
+    if (!(VALID_CHART_TYPES as readonly string[]).includes(body.chartType)) {
+      return NextResponse.json(
+        { error: `chartType must be one of: ${VALID_CHART_TYPES.join(", ")}` },
+        { status: 400 }
+      )
     }
     updates.chartType = body.chartType
   }
@@ -86,10 +89,7 @@ export async function PATCH(
   return NextResponse.json({ success: true })
 }
 
-export async function DELETE(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 

@@ -62,12 +62,19 @@ export async function POST() {
           polled++
           try {
             controller.enqueue(encoder.encode(`${JSON.stringify({ trackerId: t.id, ok: true })}\n`))
-          } catch { /* security-audit-ignore: stream closed by client disconnect — nothing to recover */ }
-        } catch { // security-audit-ignore: poll failure tracked via failed++ counter and streamed to client
+          } catch {
+            /* security-audit-ignore: stream closed by client disconnect — nothing to recover */
+          }
+        } catch {
+          // security-audit-ignore: poll failure tracked via failed++ counter and streamed to client
           failed++
           try {
-            controller.enqueue(encoder.encode(`${JSON.stringify({ trackerId: t.id, ok: false })}\n`))
-          } catch { /* security-audit-ignore: stream closed by client disconnect — nothing to recover */ }
+            controller.enqueue(
+              encoder.encode(`${JSON.stringify({ trackerId: t.id, ok: false })}\n`)
+            )
+          } catch {
+            /* security-audit-ignore: stream closed by client disconnect — nothing to recover */
+          }
         }
       })
 
@@ -76,7 +83,9 @@ export async function POST() {
       try {
         controller.enqueue(encoder.encode(`${JSON.stringify({ done: true, polled, failed })}\n`))
         controller.close()
-      } catch { /* security-audit-ignore: stream closed by client disconnect — nothing to recover */ }
+      } catch {
+        /* security-audit-ignore: stream closed by client disconnect — nothing to recover */
+      }
     },
   })
 

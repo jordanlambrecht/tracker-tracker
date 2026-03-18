@@ -4,6 +4,7 @@
 
 "use client"
 
+import { H2, H3, Paragraph, Subtext } from "@typography"
 import { useState } from "react"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
@@ -12,7 +13,6 @@ import { Input } from "@/components/ui/Input"
 import { NumberInput } from "@/components/ui/NumberInput"
 import { Select } from "@/components/ui/Select"
 import { Toggle } from "@/components/ui/Toggle"
-import { H2, H3, Paragraph, Subtext } from "@/components/ui/Typography"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 import { extractApiError } from "@/lib/client-helpers"
 
@@ -30,13 +30,18 @@ export interface ProxySectionProps {
 
 export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
   const [proxyEnabled, setProxyEnabled] = useState(initialProxy.enabled)
+  const defaultPortForType = (type: string) =>
+    type === "https" ? 443 : type === "http" ? 8080 : 1080
+
   const [proxyType, setProxyType] = useState(initialProxy.type || "socks5")
   const [proxyHost, setProxyHost] = useState(initialProxy.host)
   const [proxyPort, setProxyPort] = useState(initialProxy.port)
   const [proxyUsername, setProxyUsername] = useState(initialProxy.username)
   const [proxyPassword, setProxyPassword] = useState("")
   const [proxyPasswordPlaceholder, setProxyPasswordPlaceholder] = useState(initialProxy.hasPassword)
-  const [proxyTestStatus, setProxyTestStatus] = useState<"idle" | "testing" | "success" | "failed">("idle")
+  const [proxyTestStatus, setProxyTestStatus] = useState<"idle" | "testing" | "success" | "failed">(
+    "idle"
+  )
   const [proxyTestIp, setProxyTestIp] = useState<string | null>(null)
   const [proxyTestError, setProxyTestError] = useState<string | null>(null)
   const [savedProxy, setSavedProxy] = useState({
@@ -48,7 +53,13 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
     hasPassword: initialProxy.hasPassword,
   })
 
-  const { saving: savingProxy, error: proxyError, success: proxySuccess, patch, clearSuccess: clearProxySuccess } = usePatchSettings()
+  const {
+    saving: savingProxy,
+    error: proxyError,
+    success: proxySuccess,
+    patch,
+    clearSuccess: clearProxySuccess,
+  } = usePatchSettings()
 
   const proxyHasChanges =
     proxyEnabled !== savedProxy.enabled ||
@@ -136,7 +147,9 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
 
   return (
     <section aria-labelledby="proxy-heading">
-      <H2 id="proxy-heading" className="mb-4">Proxy</H2>
+      <H2 id="proxy-heading" className="mb-4">
+        Proxy
+      </H2>
 
       <div className="flex items-center gap-2 mb-3 px-1 text-warn text-xs font-mono">
         <span aria-hidden="true">⚠</span>
@@ -147,7 +160,10 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
         <Toggle
           label="Route tracker requests through a proxy"
           checked={proxyEnabled}
-          onChange={(v) => { setProxyEnabled(v); clearProxySuccess() }}
+          onChange={(v) => {
+            setProxyEnabled(v)
+            clearProxySuccess()
+          }}
           description="When enabled, all API polling requests to trackers are routed through the configured proxy server instead of your direct IP."
         />
 
@@ -160,7 +176,14 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
                 <Select
                   label="Type"
                   value={proxyType}
-                  onChange={setProxyType}
+                  onChange={(newType) => {
+                    const oldDefault = defaultPortForType(proxyType)
+                    setProxyType(newType)
+                    // Auto-fill port if user hasn't customized it from the current type's default
+                    if (proxyPort === oldDefault) {
+                      setProxyPort(defaultPortForType(newType))
+                    }
+                  }}
                   ariaLabel="Proxy type"
                   size="md"
                   options={[
@@ -201,6 +224,8 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
               <div className="flex-1">
                 <Input
                   type="password"
+                  autoComplete="off"
+                  data-1p-ignore
                   label="Password"
                   value={proxyPassword}
                   onChange={(e) => {
@@ -213,15 +238,17 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
             </div>
 
             <Subtext>
-              Credentials are only required if your proxy server uses authentication.
-              They are encrypted at rest alongside your API tokens.
+              Credentials are only required if your proxy server uses authentication. They are
+              encrypted at rest alongside your API tokens.
             </Subtext>
 
             <div className="border-t border-border" />
 
             {/* Save proxy */}
             {proxyError && (
-              <p className="text-xs font-sans text-danger" role="alert">{proxyError}</p>
+              <p className="text-xs font-sans text-danger" role="alert">
+                {proxyError}
+              </p>
             )}
             {proxySuccess && (
               <p className="text-xs font-sans text-success">Proxy settings saved.</p>
@@ -286,13 +313,13 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
             </div>
           ) : (
             <Paragraph>
-              No trackers are using the proxy. Enable it per-tracker in each
-              tracker&apos;s settings dialog.
+              No trackers are using the proxy. Enable it per-tracker in each tracker&apos;s settings
+              dialog.
             </Paragraph>
           )}
           <Subtext>
-            Toggle proxy usage for individual trackers via their settings dialog
-            on the tracker detail page.
+            Toggle proxy usage for individual trackers via their settings dialog on the tracker
+            detail page.
           </Subtext>
         </div>
       </Card>

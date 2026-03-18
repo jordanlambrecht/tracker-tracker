@@ -18,13 +18,15 @@ const spaceMono = Space_Mono({
 export const metadata: Metadata = {
   title: "Tracker Tracker",
   description: "Monitor your private tracker stats",
+  icons: {
+    icon: "/favicon.png",
+  },
+  ...(process.env.BASE_URL && {
+    metadataBase: new URL(process.env.BASE_URL),
+  }),
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: ReactNode
-}) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className="dark">
       <body

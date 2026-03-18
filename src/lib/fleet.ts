@@ -47,13 +47,6 @@ export function parseTorrentTags(rawTags: string): string[] {
     .filter((t) => t.length > 0)
 }
 
-/** Speed snapshot from in-memory ring buffer */
-export interface ClientSpeedData {
-  clientId: number
-  clientName: string
-  snapshots: { timestamp: number; uploadSpeed: number; downloadSpeed: number }[]
-}
-
 /** Parsed clientSnapshot row for fleet historical charts */
 export interface FleetSnapshot {
   clientId: number
@@ -63,7 +56,15 @@ export interface FleetSnapshot {
   totalLeechingCount: number | null
   uploadSpeedBytes: string | null
   downloadSpeedBytes: string | null
-  tagStats: { tag: string; seedingCount: number; leechingCount: number; uploadSpeed: number; downloadSpeed: number }[] | null
+  tagStats:
+    | {
+        tag: string
+        seedingCount: number
+        leechingCount: number
+        uploadSpeed: number
+        downloadSpeed: number
+      }[]
+    | null
 }
 
 /** Extract sorted unique tag names from fleet snapshots */
@@ -81,19 +82,19 @@ export function extractTagsFromSnapshots(snapshots: FleetSnapshot[]): string[] {
 /** Ratio bucket definitions — shared with TorrentsTab */
 export const RATIO_BUCKETS = [
   { label: "<0.5", max: 0.5, color: CHART_THEME.scale[0] },
-  { label: "0.5–1", max: 1, color: CHART_THEME.scale[1] },
-  { label: "1–2", max: 2, color: CHART_THEME.scale[2] },
-  { label: "2–5", max: 5, color: CHART_THEME.scale[3] },
-  { label: "5–10", max: 10, color: CHART_THEME.scale[4] },
+  { label: "0.5-1", max: 1, color: CHART_THEME.scale[1] },
+  { label: "1-2", max: 2, color: CHART_THEME.scale[2] },
+  { label: "2-5", max: 5, color: CHART_THEME.scale[3] },
+  { label: "5-10", max: 10, color: CHART_THEME.scale[4] },
   { label: "10+", max: Infinity, color: CHART_THEME.scale[5] },
 ] as const
 
 /** Seed time bucket definitions — shared with TorrentsTab */
 export const SEED_TIME_BUCKETS = [
   { label: "<1d", maxSeconds: 86_400, color: CHART_THEME.scale[0] },
-  { label: "1–7d", maxSeconds: 604_800, color: CHART_THEME.scale[1] },
-  { label: "7–30d", maxSeconds: 2_592_000, color: CHART_THEME.scale[2] },
-  { label: "30–90d", maxSeconds: 7_776_000, color: CHART_THEME.scale[3] },
+  { label: "1-7d", maxSeconds: 604_800, color: CHART_THEME.scale[1] },
+  { label: "7-30d", maxSeconds: 2_592_000, color: CHART_THEME.scale[2] },
+  { label: "30-90d", maxSeconds: 7_776_000, color: CHART_THEME.scale[3] },
   { label: "90d+", maxSeconds: Infinity, color: CHART_THEME.scale[4] },
 ] as const
 
@@ -107,12 +108,31 @@ export interface FleetStats {
   staleCount: number
 }
 
-export const SEEDING_STATES = new Set(["uploading", "stalledUP", "forcedUP", "queuedUP", "pausedUP"])
-export const LEECHING_STATES = new Set(["downloading", "stalledDL", "forcedDL", "queuedDL", "metaDL"])
+export const SEEDING_STATES = new Set([
+  "uploading",
+  "stalledUP",
+  "forcedUP",
+  "queuedUP",
+  "pausedUP",
+])
+export const LEECHING_STATES = new Set([
+  "downloading",
+  "stalledDL",
+  "forcedDL",
+  "queuedDL",
+  "metaDL",
+])
 const STALE_THRESHOLD_MS = 30 * 24 * 60 * 60 * 1000
 
 export function computeFleetStats(
-  torrents: { state: string; upspeed: number; dlspeed: number; size: number; last_activity: number; tags: string }[],
+  torrents: {
+    state: string
+    upspeed: number
+    dlspeed: number
+    size: number
+    last_activity: number
+    tags: string
+  }[],
   crossSeedTags: string[]
 ): FleetStats {
   const csTagSet = new Set(crossSeedTags.map((t) => t.toLowerCase()))

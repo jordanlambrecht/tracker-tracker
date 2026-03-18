@@ -1,12 +1,13 @@
 // src/components/ui/ErrorDisplay.tsx
 "use client"
 
+import { H1 } from "@typography"
 import clsx from "clsx"
 import Link from "next/link"
 import { useState } from "react"
 import { Button, buttonVariants } from "@/components/ui/Button"
 import { CheckLargeIcon, CopyIcon } from "@/components/ui/Icons"
-import { H1 } from "@/components/ui/Typography"
+import { Tooltip } from "@/components/ui/Tooltip"
 
 export function ErrorDisplay({
   message,
@@ -31,33 +32,28 @@ export function ErrorDisplay({
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-base px-4">
-      <div
-        className="w-full max-w-md bg-elevated p-8 nm-raised-lg rounded-nm-xl"
-      >
+      <div className="w-full max-w-md bg-elevated p-8 nm-raised-lg rounded-nm-xl">
         <p className="mb-1 font-mono text-xs uppercase tracking-widest text-danger">
           Runtime Error
         </p>
-        <H1 className="mb-4 text-xl font-semibold">
-          Something went wrong
-        </H1>
+        <H1 className="mb-4 text-xl font-semibold">Something went wrong</H1>
         <div className="relative mb-6">
-          <pre
-            className="bg-control-bg p-3 pr-10 font-mono text-xs text-secondary nm-inset whitespace-pre-wrap break-all rounded-nm-md"
-          >
+          <pre className="bg-control-bg p-3 pr-10 font-mono text-xs text-secondary nm-inset whitespace-pre-wrap break-all rounded-nm-md">
             {errorText}
           </pre>
-          <button
-            type="button"
-            onClick={handleCopy}
-            className="absolute top-2 right-2 p-1.5 text-muted hover:text-secondary transition-colors duration-150 cursor-pointer"
-            title="Copy error message"
-          >
-            {copied ? (
-              <CheckLargeIcon width="14" height="14" />
-            ) : (
-              <CopyIcon width="14" height="14" />
-            )}
-          </button>
+          <Tooltip content="Copy error message">
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="absolute top-2 right-2 p-1.5 text-muted hover:text-secondary transition-colors duration-150 cursor-pointer"
+            >
+              {copied ? (
+                <CheckLargeIcon width="14" height="14" />
+              ) : (
+                <CopyIcon width="14" height="14" />
+              )}
+            </button>
+          </Tooltip>
         </div>
         <div className="flex gap-3">
           <Button variant="primary" size="sm" onClick={onRetry}>

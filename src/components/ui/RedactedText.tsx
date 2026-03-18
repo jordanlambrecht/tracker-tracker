@@ -5,6 +5,7 @@
 "use client"
 
 import clsx from "clsx"
+import { Tooltip } from "@/components/ui/Tooltip"
 import { redactedLength } from "@/lib/privacy"
 
 interface RedactedTextProps {
@@ -39,25 +40,26 @@ function RedactedText({ value, color = "var(--color-tertiary)", className }: Red
   }
 
   return (
-    <span
-      role="img"
-      className={clsx("inline-flex items-center gap-px", className)}
-      title="Redacted — username privacy mode is enabled"
-      aria-label={`Redacted text, ${charCount} characters`}
-    >
-      {blocks.map((block) => (
-        <span
-          key={block.id}
-          className="inline-block rounded-sm w-[0.55em] h-[1em]"
-          style={{
-            backgroundColor: color,
-            opacity: block.opacity,
-          }}
-        />
-      ))}
-    </span>
+    <Tooltip content="Redacted — username privacy mode is enabled">
+      <span
+        role="img"
+        className={clsx("inline-flex items-center gap-px", className)}
+        aria-label={`Redacted text, ${charCount} characters`}
+      >
+        {blocks.map((block) => (
+          <span
+            key={block.id}
+            className="inline-block rounded-sm w-[0.55em] h-[1em]"
+            style={{
+              backgroundColor: color,
+              opacity: block.opacity,
+            }}
+          />
+        ))}
+      </span>
+    </Tooltip>
   )
 }
 
-export { RedactedText }
 export type { RedactedTextProps }
+export { RedactedText }

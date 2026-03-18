@@ -1,6 +1,6 @@
 // src/components/TrackerHubStatus.tsx
 //
-// Functions: getRecentIncident, formatIncidentDate, formatDowntime, formatRelativeTime, TrackerHubStatus
+// Functions: getRecentIncident, formatIncidentDate, formatDowntime, TrackerHubStatus
 
 "use client"
 
@@ -9,8 +9,10 @@ import Image from "next/image"
 import { useEffect, useState } from "react"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
+import { formatTimeAgo } from "@/lib/formatters"
 
-const TRACKERHUB_SUMMARY = "https://raw.githubusercontent.com/HDVinnie/TrackerHub/HEAD/history/summary.json"
+const TRACKERHUB_SUMMARY =
+  "https://raw.githubusercontent.com/HDVinnie/TrackerHub/HEAD/history/summary.json"
 const TRACKERHUB_HISTORY = "https://hdvinnie.github.io/TrackerHub/history"
 
 interface TrackerHubEntry {
@@ -64,20 +66,17 @@ function formatDowntime(minutes: number): string {
   return `${minutes}m`
 }
 
-function formatRelativeTime(date: Date): string {
-  const seconds = Math.floor((Date.now() - date.getTime()) / 1000)
-  if (seconds < 60) return "just now"
-  const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes}m ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
-  return `${Math.floor(hours / 24)}d ago`
-}
-
-function TrackerHubStatus({ trackerHubSlug, statusPageUrl, defaultExpanded = true }: TrackerHubStatusProps) {
+function TrackerHubStatus({
+  trackerHubSlug,
+  statusPageUrl,
+  defaultExpanded = true,
+}: TrackerHubStatusProps) {
   const [data, setData] = useState<TrackerHubEntry | null>(null)
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null)
-  const [expanded, setExpanded] = useLocalStorage("tracker-tracker:hub-status-expanded", defaultExpanded)
+  const [expanded, setExpanded] = useLocalStorage(
+    "tracker-tracker:hub-status-expanded",
+    defaultExpanded
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -98,7 +97,9 @@ function TrackerHubStatus({ trackerHubSlug, statusPageUrl, defaultExpanded = tru
     }
 
     fetchStatus()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [trackerHubSlug])
 
   if (!data) return null
@@ -108,9 +109,7 @@ function TrackerHubStatus({ trackerHubSlug, statusPageUrl, defaultExpanded = tru
   const trackerHubUrl = `${TRACKERHUB_HISTORY}/${trackerHubSlug}`
 
   return (
-    <div
-      className="nm-inset-sm bg-control-bg flex flex-col px-4 py-3.5 min-w-[320px] max-w-md rounded-nm-md"
-    >
+    <div className="nm-inset-sm bg-control-bg flex flex-col px-4 py-3.5 min-w-[320px] max-w-md rounded-nm-md">
       {/* Header row — always visible */}
       <div className="flex items-center justify-between gap-6 w-full">
         <button
@@ -122,20 +121,20 @@ function TrackerHubStatus({ trackerHubSlug, statusPageUrl, defaultExpanded = tru
           <span
             className={clsx(
               "inline-block w-2 h-2 rounded-full shrink-0",
-              isUp ? "bg-success animate-pulse-glow text-success" : "bg-danger text-danger",
+              isUp ? "bg-success animate-pulse-glow text-success" : "bg-danger text-danger"
             )}
           />
           <span
             className={clsx(
               "text-sm font-mono font-semibold tracking-wider uppercase",
-              isUp ? "text-success" : "text-danger",
+              isUp ? "text-success" : "text-danger"
             )}
           >
             {isUp ? "Up" : "Down"}
           </span>
           {fetchedAt && (
             <span className="text-xs font-mono text-muted ml-1">
-              · Checked {formatRelativeTime(fetchedAt)}
+              · Checked {formatTimeAgo(fetchedAt)}
             </span>
           )}
         </button>
@@ -205,7 +204,13 @@ function TrackerHubStatus({ trackerHubSlug, statusPageUrl, defaultExpanded = tru
               rel="noopener noreferrer"
               className="flex items-center gap-1 text-muted hover:text-tertiary transition-colors duration-150 shrink-0"
             >
-              <Image src="/trackerHub_logo.svg" alt="" width={12} height={12} aria-hidden="true" />
+              <Image
+                src="/img/trackerHub_logo.svg"
+                alt=""
+                width={12}
+                height={12}
+                aria-hidden="true"
+              />
               <span className="text-[10px] font-mono">Powered by TrackerHub</span>
             </a>
           </div>

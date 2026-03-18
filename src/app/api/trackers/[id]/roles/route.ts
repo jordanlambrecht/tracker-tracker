@@ -5,10 +5,7 @@ import { authenticate, parseJsonBody, parseTrackerId } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { trackerRoles } from "@/lib/db/schema"
 
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -24,10 +21,7 @@ export async function GET(
   return NextResponse.json(roles)
 }
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -48,7 +42,10 @@ export async function POST(
   }
 
   if (roleName.length > 255) {
-    return NextResponse.json({ error: "Role name must be 255 characters or fewer" }, { status: 400 })
+    return NextResponse.json(
+      { error: "Role name must be 255 characters or fewer" },
+      { status: 400 }
+    )
   }
 
   if (achievedAt !== undefined) {

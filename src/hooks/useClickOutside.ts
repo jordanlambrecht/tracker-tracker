@@ -1,11 +1,7 @@
 // src/hooks/useClickOutside.ts
 import { type RefObject, useEffect, useRef } from "react"
 
-function useClickOutside(
-  ref: RefObject<HTMLElement | null>,
-  handler: () => void,
-  enabled = true
-) {
+function useClickOutside(ref: RefObject<HTMLElement | null>, handler: () => void, enabled = true) {
   const handlerRef = useRef(handler)
   useEffect(() => {
     handlerRef.current = handler

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { aggregateByTag } from "./aggregator"
 import { buildBaseUrl, getTorrents, getTransferInfo, login } from "./client"
 import type { QbtTorrent } from "./types"
+import { parseCrossSeedTags } from "./utils"
 
 // ---------------------------------------------------------------------------
 // buildBaseUrl
@@ -210,9 +211,7 @@ describe("getTorrents", () => {
 
     await getTorrents("http://localhost:8080", "sid", "aither")
 
-    expect(fetchSpy.mock.calls[0][0]).toBe(
-      "http://localhost:8080/api/v2/torrents/info?tag=aither"
-    )
+    expect(fetchSpy.mock.calls[0][0]).toBe("http://localhost:8080/api/v2/torrents/info?tag=aither")
   })
 
   it("encodes special characters in tag parameter", async () => {
@@ -235,9 +234,7 @@ describe("getTorrents", () => {
       statusText: "Forbidden",
     } as Response)
 
-    await expect(getTorrents("http://localhost:8080", "sid")).rejects.toThrow(
-      "Session expired"
-    )
+    await expect(getTorrents("http://localhost:8080", "sid")).rejects.toThrow("Session expired")
   })
 
   it("throws on non-ok response", async () => {
@@ -253,7 +250,9 @@ describe("getTorrents", () => {
   })
 
   it("throws a timeout message when AbortSignal fires", async () => {
-    vi.spyOn(global, "fetch").mockRejectedValueOnce(new DOMException("signal timed out", "TimeoutError"))
+    vi.spyOn(global, "fetch").mockRejectedValueOnce(
+      new DOMException("signal timed out", "TimeoutError")
+    )
 
     await expect(getTorrents("http://localhost:8080", "sid")).rejects.toThrow(
       "Request to localhost timed out after 15s"
@@ -411,9 +410,7 @@ describe("aggregateByTag", () => {
   })
 
   it("handles torrents with multiple tags, crediting all matched buckets", () => {
-    const torrents = [
-      makeTorrent({ state: "uploading", tags: "aither, cross-seed", upspeed: 300 }),
-    ]
+    const torrents = [makeTorrent({ state: "uploading", tags: "aither, cross-seed", upspeed: 300 })]
     const result = aggregateByTag(torrents, ["aither"], ["cross-seed"])
 
     const aitherStats = result.tagStats.find((t) => t.tag === "aither")
@@ -508,5 +505,15 @@ describe("aggregateByTag", () => {
     expect(crossSeedStats?.seedingCount).toBe(1)
     const untagged = result.tagStats.find((t) => t.tag === "untagged")
     expect(untagged).toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// parseCrossSeedTags
+// ---------------------------------------------------------------------------
+
+describe("parseCrossSeedTags", () => {
+  it("returns an empty array for null", () => {
+    expect(parseCrossSeedTags(null)).toEqual([])
   })
 })

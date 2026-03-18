@@ -10,11 +10,7 @@ import { ensureSchedulerRunning } from "@/lib/scheduler"
 
 export const dynamic = "force-dynamic"
 
-export default async function AuthLayout({
-  children,
-}: {
-  children: ReactNode
-}) {
+export default async function AuthLayout({ children }: { children: ReactNode }) {
   const [settings] = await db.select().from(appSettings).limit(1)
   if (!settings) {
     redirect("/setup")

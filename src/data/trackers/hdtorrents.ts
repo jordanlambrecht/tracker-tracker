@@ -7,8 +7,7 @@ export const hdtorrents: TrackerRegistryEntry = {
   name: "HD-Torrents",
   abbreviation: "HDT",
   url: "https://hd-torrents.org",
-  description:
-    "Entry-level HD site with activity requirements and no H&R.",
+  description: "Entry-level HD site with activity requirements and no H&R.",
   platform: "custom",
   apiPath: "/api/user",
   specialty: "HD Movies / TV",

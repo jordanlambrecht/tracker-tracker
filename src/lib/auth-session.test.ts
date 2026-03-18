@@ -138,10 +138,13 @@ describe("auth session cookies", () => {
   })
 
   it("returns null when session decryption fails and verifies pending tokens separately", async () => {
-    const { createPendingToken, createSession, getSession, verifyPendingToken } = await loadAuthModule()
+    const { createPendingToken, createSession, getSession, verifyPendingToken } =
+      await loadAuthModule()
 
     const pendingToken = await createPendingToken("d".repeat(64))
-    await expect(verifyPendingToken(pendingToken)).resolves.toEqual({ encryptionKey: "d".repeat(64) })
+    await expect(verifyPendingToken(pendingToken)).resolves.toEqual({
+      encryptionKey: "d".repeat(64),
+    })
 
     await createSession("e".repeat(64), 10)
     cookieState.set("tt_session", { value: "not-a-real-jwe" })

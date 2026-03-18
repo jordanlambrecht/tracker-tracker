@@ -7,12 +7,60 @@
 # 4. Start the Next.js standalone server
 set -e
 
-# ── Validate environment ────────────────────────────────────────────────
+# ── Banner ────────────────────────────────────────────────────────────
+echo ".----------------------------------------------.";
+echo "|                                              |";
+echo "|       ██╗ ██████╗ ██████╗ ██████╗ ██╗   ██╗  |";
+echo "|       ██║██╔═══██╗██╔══██╗██╔══██╗╚██╗ ██╔╝  |";
+echo "|       ██║██║   ██║██████╔╝██║  ██║ ╚████╔╝   |";
+echo "|  ██   ██║██║   ██║██╔══██╗██║  ██║  ╚██╔╝    |";
+echo "|  ╚█████╔╝╚██████╔╝██║  ██║██████╔╝   ██║     |";
+echo "|   ╚════╝  ╚═════╝ ╚═╝  ╚═╝╚═════╝    ╚═╝     |";
+echo "|                                              |";
+echo "'----------------------------------------------'";
+echo ""
+echo ""
+APP_VERSION=$(node -e "process.stdout.write(require('./package.json').version)" 2>/dev/null || echo "unknown")
+VERSION_STR="v${APP_VERSION}"
+TOTAL_WIDTH=48
+STR_LEN=$(printf '%s' "$VERSION_STR" | wc -c | tr -d ' ')
+PAD_TOTAL=$((TOTAL_WIDTH - STR_LEN - 2))
+PAD_LEFT=$((PAD_TOTAL / 2))
+PAD_RIGHT=$((PAD_TOTAL - PAD_LEFT))
+LEFT_DASHES=$(printf '%*s' "$PAD_LEFT" '' | tr ' ' '-')
+RIGHT_DASHES=$(printf '%*s' "$PAD_RIGHT" '' | tr ' ' '-')
+echo "${LEFT_DASHES} ${VERSION_STR} ${RIGHT_DASHES}"
+echo ""
+echo ""
+echo "Found a bug or need help? https://github.com/jordanlambrecht/tracker-tracker"
+echo ""
+echo ""
+
+# ── Build DATABASE_URL if not provided ──────────────────────────────────
+# Users can either set DATABASE_URL directly (external DB) or let us
+# construct it from the simpler POSTGRES_* variables (bundled DB).
 if [ -z "$DATABASE_URL" ]; then
-  echo "tracker-tracker | FATAL: DATABASE_URL is not set" >&2
-  exit 1
+  if [ -z "$POSTGRES_PASSWORD" ]; then
+    echo "tracker-tracker | FATAL: Set either DATABASE_URL or POSTGRES_PASSWORD" >&2
+    echo "tracker-tracker |   Generate a password with: openssl rand -base64 24" >&2
+    exit 1
+  fi
+  DB_USER="${POSTGRES_USER:-postgres}"
+  DB_NAME="${POSTGRES_DB:-tracker_tracker}"
+  DB_HOST="${POSTGRES_HOST:-db}"
+  DB_PORT="${POSTGRES_PORT:-5432}"
+  ENCODED_PASSWORD=$(node -e "process.stdout.write(encodeURIComponent(process.argv[1]))" "$POSTGRES_PASSWORD")
+  DATABASE_URL="postgresql://${DB_USER}:${ENCODED_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+  export DATABASE_URL
+else
+  # Parse host/port from the explicit URL for the TCP check below
+  DB_HOST=$(echo "$DATABASE_URL" | sed -n 's|.*@\([^:/]*\).*|\1|p')
+  DB_PORT=$(echo "$DATABASE_URL" | sed -n 's|.*:\([0-9]*\)/.*|\1|p')
+  DB_HOST="${DB_HOST:-localhost}"
+  DB_PORT="${DB_PORT:-5432}"
 fi
 
+# ── Validate environment ────────────────────────────────────────────────
 if [ -z "$SESSION_SECRET" ]; then
   echo "tracker-tracker | FATAL: SESSION_SECRET is not set." >&2
   echo "tracker-tracker |   Generate one with: openssl rand -base64 48" >&2
@@ -29,14 +77,6 @@ fi
 # ── Wait for PostgreSQL ─────────────────────────────────────────────────
 echo "tracker-tracker | Waiting for database..."
 
-# Parse host and port from DATABASE_URL for a lightweight TCP check.
-# The postgres package is bundled into server chunks by Turbopack and isn't
-# available as a standalone require(), so we use a raw TCP probe instead.
-DB_HOST=$(echo "$DATABASE_URL" | sed -n 's|.*@\([^:/]*\).*|\1|p')
-DB_PORT=$(echo "$DATABASE_URL" | sed -n 's|.*:\([0-9]*\)/.*|\1|p')
-DB_HOST="${DB_HOST:-localhost}"
-DB_PORT="${DB_PORT:-5432}"
-
 until node -e "
   const net = require('net');
   const s = new net.Socket();
@@ -52,13 +92,13 @@ done
 echo "tracker-tracker | Database ready. Syncing schema..."
 
 # drizzle-kit push is schema-first: reads src/lib/db/schema.ts and applies
-# non-destructive changes (CREATE TABLE, ADD COLUMN) automatically.
-# Destructive changes (DROP COLUMN) prompt for confirmation — in Docker
-# (no TTY) this causes the container to fail, which is the correct behavior:
-# users should review destructive migrations before applying them.
+# changes automatically. --force skips interactive prompts (required in Docker
+# where there is no TTY). This means column renames are treated as drop+create
+# and destructive changes proceed without confirmation — acceptable because
+# the schema in the image is the source of truth for that release.
 #
 cd /schema-sync
-./node_modules/.bin/drizzle-kit push --config=drizzle.config.ts
+./node_modules/.bin/drizzle-kit push --force --config=drizzle.config.ts
 cd /app
 
 # ── Start server ────────────────────────────────────────────────────────

@@ -9,7 +9,7 @@ import type { BadgeVariant } from "@/components/ui/Badge"
 import type { PulseDotStatus } from "@/components/ui/PulseDot"
 import type { TrackerSummary } from "@/types/api"
 
-type TrackerHealth = "healthy" | "warning" | "critical" | "error" | "offline"
+type TrackerHealth = "healthy" | "warning" | "critical" | "error" | "paused" | "offline"
 
 interface HealthMeta {
   label: string
@@ -37,6 +37,12 @@ const HEALTH_META: Record<TrackerHealth, HealthMeta> = {
     pulseDot: "critical",
     badge: "danger",
   },
+  paused: {
+    label: "Paused",
+    description: "Polling paused after consecutive failures",
+    pulseDot: "paused",
+    badge: "danger",
+  },
   error: {
     label: "Error",
     description: "Last poll returned an error",
@@ -52,6 +58,7 @@ const HEALTH_META: Record<TrackerHealth, HealthMeta> = {
 }
 
 function getTrackerHealth(tracker: TrackerSummary): TrackerHealth {
+  if (tracker.pausedAt) return "paused"
   if (tracker.lastError) return "error"
   if (!tracker.latestStats) return "offline"
   const { ratio, seedingCount } = tracker.latestStats
@@ -70,10 +77,6 @@ function getTrackerHealth(tracker: TrackerSummary): TrackerHealth {
   return status
 }
 
-function getHealthMeta(status: TrackerHealth): HealthMeta {
-  return HEALTH_META[status]
-}
-
 function getHealthBadgeVariant(status: TrackerHealth): BadgeVariant {
   return HEALTH_META[status].badge
 }
@@ -90,13 +93,11 @@ function getHealthPulseDot(status: TrackerHealth): PulseDotStatus {
   return HEALTH_META[status].pulseDot
 }
 
-export {
-  getTrackerHealth,
-  getHealthMeta,
-  getHealthBadgeVariant,
-  getHealthLabel,
-  getHealthDescription,
-  getHealthPulseDot,
-  HEALTH_META,
-}
 export type { TrackerHealth }
+export {
+  getHealthBadgeVariant,
+  getHealthDescription,
+  getHealthLabel,
+  getHealthPulseDot,
+  getTrackerHealth,
+}

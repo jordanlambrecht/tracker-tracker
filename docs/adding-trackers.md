@@ -25,8 +25,8 @@ export const mytracker: TrackerRegistryEntry = {
   abbreviation: "MT",
   url: "https://mytracker.org",
   description: "Brief description of what the tracker is known for.",
-  platform: "unit3d",          // "unit3d" | "gazelle" | "ggn" | "custom"
-  apiPath: "/api/user",        // UNIT3D default; Gazelle uses "/ajax.php"
+  platform: "unit3d", // "unit3d" | "gazelle" | "ggn" | "custom"
+  apiPath: "/api/user", // UNIT3D default; Gazelle uses "/ajax.php"
   specialty: "General / HD",
   contentCategories: ["Movies", "TV"],
   userClasses: [
@@ -36,12 +36,12 @@ export const mytracker: TrackerRegistryEntry = {
   releaseGroups: ["GroupA", "GroupB"],
   notableMembers: [],
   rules: {
-    minimumRatio: 0.6,         // 0 = no minimum
-    seedTimeHours: 72,         // 0 = no minimum
-    loginIntervalDays: 90,     // days before account prune/disable
+    minimumRatio: 0.6, // 0 = no minimum
+    seedTimeHours: 72, // 0 = no minimum
+    loginIntervalDays: 90, // days before account prune/disable
   },
   language: "English",
-  color: "#00d4ff",            // hex color used as the tracker's accent throughout the UI
+  color: "#00d4ff", // hex color used as the tracker's accent throughout the UI
 }
 ```
 
@@ -63,40 +63,40 @@ That's it. The tracker will appear in the Add Tracker dialog and use the existin
 
 ### Field reference
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `slug` | Yes | Unique lowercase identifier, used in URLs |
-| `name` | Yes | Display name |
-| `abbreviation` | No | Short form (i.e "RED", "OPS") |
-| `url` | Yes | Tracker homepage URL |
-| `description` | Yes | What the tracker is known for |
-| `platform` | Yes | `"unit3d"`, `"gazelle"`, `"ggn"`, or `"custom"` |
-| `apiPath` | Yes | API endpoint path. UNIT3D: `/api/user`, Gazelle: `/ajax.php`, GGn: `/api.php` |
-| `specialty` | Yes | Content focus (i.e "Anime", "Music", "General / HD") |
-| `contentCategories` | Yes | Array of content types |
-| `userClasses` | Yes | Array of `{ name, requirements? }` — the tracker's user class ladder |
-| `releaseGroups` | Yes | Array of group names or `{ name, description }` objects |
-| `notableMembers` | Yes | Array of notable community members (can be empty) |
-| `bannedGroups` | No | Groups banned from uploading |
-| `rules` | No | See TrackerRules below |
-| `stats` | No | `{ userCount?, torrentCount?, seedSize?, statsUpdatedAt? }` |
-| `language` | No | Primary language |
-| `color` | Yes | Hex color for the tracker's accent theme |
-| `logo` | No | Path to logo file in `public/tracker-logos/` |
-| `trackerHubSlug` | No | Slug on TrackerHub for status monitoring |
-| `statusPageUrl` | No | External status page URL |
-| `draft` | No | Set `true` if the platform adapter doesn't exist yet |
+| Field               | Required | Description                                                                   |
+| ------------------- | -------- | ----------------------------------------------------------------------------- |
+| `slug`              | Yes      | Unique lowercase identifier, used in URLs                                     |
+| `name`              | Yes      | Display name                                                                  |
+| `abbreviation`      | No       | Short form (i.e "RED", "OPS")                                                 |
+| `url`               | Yes      | Tracker homepage URL                                                          |
+| `description`       | Yes      | What the tracker is known for                                                 |
+| `platform`          | Yes      | `"unit3d"`, `"gazelle"`, `"ggn"`, or `"custom"`                               |
+| `apiPath`           | Yes      | API endpoint path. UNIT3D: `/api/user`, Gazelle: `/ajax.php`, GGn: `/api.php` |
+| `specialty`         | Yes      | Content focus (i.e "Anime", "Music", "General / HD")                          |
+| `contentCategories` | Yes      | Array of content types                                                        |
+| `userClasses`       | Yes      | Array of `{ name, requirements? }` — the tracker's user class ladder          |
+| `releaseGroups`     | Yes      | Array of group names or `{ name, description }` objects                       |
+| `notableMembers`    | Yes      | Array of notable community members (can be empty)                             |
+| `bannedGroups`      | No       | Groups banned from uploading                                                  |
+| `rules`             | No       | See TrackerRules below                                                        |
+| `stats`             | No       | `{ userCount?, torrentCount?, seedSize?, statsUpdatedAt? }`                   |
+| `language`          | No       | Primary language                                                              |
+| `color`             | Yes      | Hex color for the tracker's accent theme                                      |
+| `logo`              | No       | Path to logo file in `public/tracker-logos/`                                  |
+| `trackerHubSlug`    | No       | Slug on TrackerHub for status monitoring                                      |
+| `statusPageUrl`     | No       | External status page URL                                                      |
+| `draft`             | No       | Set `true` if the platform adapter doesn't exist yet                          |
 
 ### TrackerRules
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `minimumRatio` | `number` | Minimum ratio before penalties. 0 = no minimum |
-| `seedTimeHours` | `number` | Required seed time per torrent in hours. 0 = no minimum |
-| `loginIntervalDays` | `number` | Days of inactivity before account prune/disable |
-| `fulfillmentPeriodHours` | `number?` | Time allowed to complete seeding requirement |
-| `hnrBanLimit` | `number?` | Number of H&R warnings before ban |
-| `fullRulesMarkdown` | `string?` | Detailed rules text (shown in tracker detail page) |
+| Field                    | Type      | Description                                             |
+| ------------------------ | --------- | ------------------------------------------------------- |
+| `minimumRatio`           | `number`  | Minimum ratio before penalties. 0 = no minimum          |
+| `seedTimeHours`          | `number`  | Required seed time per torrent in hours. 0 = no minimum |
+| `loginIntervalDays`      | `number`  | Days of inactivity before account prune/disable         |
+| `fulfillmentPeriodHours` | `number?` | Time allowed to complete seeding requirement            |
+| `hnrBanLimit`            | `number?` | Number of H&R warnings before ban                       |
+| `fullRulesMarkdown`      | `string?` | Detailed rules text (shown in tracker detail page)      |
 
 ---
 
@@ -150,9 +150,9 @@ export class MyPlatformAdapter implements TrackerAdapter {
       leechingCount: data.leeching ?? 0,
       seedbonus: data.bonus ?? 0,
       hitAndRuns: data.hnrs ?? 0,
-      requiredRatio: null,       // set if the API provides it
-      warned: null,              // set if the API provides it
-      freeleechTokens: null,     // set if the API provides it
+      requiredRatio: null, // set if the API provides it
+      warned: null, // set if the API provides it
+      freeleechTokens: null, // set if the API provides it
     }
   }
 }
@@ -162,21 +162,21 @@ export class MyPlatformAdapter implements TrackerAdapter {
 
 Every adapter must return all 13 fields. Use `null` for fields the API doesn't provide.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `username` | `string` | Current username |
-| `group` | `string` | User class / rank name |
-| `uploadedBytes` | `bigint` | Total uploaded in bytes |
-| `downloadedBytes` | `bigint` | Total downloaded in bytes |
-| `ratio` | `number` | Upload/download ratio |
-| `bufferBytes` | `bigint` | uploaded - downloaded |
-| `seedingCount` | `number` | Active seeding torrents |
-| `leechingCount` | `number` | Active leeching torrents |
-| `seedbonus` | `number` | Bonus points / freeleech tokens |
-| `hitAndRuns` | `number` | Active H&R warnings |
-| `requiredRatio` | `number \| null` | Required ratio (Gazelle-specific) |
-| `warned` | `boolean \| null` | Whether the user has a ratio warning |
-| `freeleechTokens` | `number \| null` | Available freeleech tokens |
+| Field             | Type              | Description                          |
+| ----------------- | ----------------- | ------------------------------------ |
+| `username`        | `string`          | Current username                     |
+| `group`           | `string`          | User class / rank name               |
+| `uploadedBytes`   | `bigint`          | Total uploaded in bytes              |
+| `downloadedBytes` | `bigint`          | Total downloaded in bytes            |
+| `ratio`           | `number`          | Upload/download ratio                |
+| `bufferBytes`     | `bigint`          | uploaded - downloaded                |
+| `seedingCount`    | `number`          | Active seeding torrents              |
+| `leechingCount`   | `number`          | Active leeching torrents             |
+| `seedbonus`       | `number`          | Bonus points / freeleech tokens      |
+| `hitAndRuns`      | `number`          | Active H&R warnings                  |
+| `requiredRatio`   | `number \| null`  | Required ratio (Gazelle-specific)    |
+| `warned`          | `boolean \| null` | Whether the user has a ratio warning |
+| `freeleechTokens` | `number \| null`  | Available freeleech tokens           |
 
 ### 2. Register the adapter
 
@@ -189,14 +189,14 @@ const adapters: Record<string, TrackerAdapter> = {
   gazelle: new GazelleAdapter(),
   ggn: new GGnAdapter(),
   unit3d: new Unit3dAdapter(),
-  myplatform: new MyPlatformAdapter(),  // add here
+  myplatform: new MyPlatformAdapter(), // add here
 }
 
 export const DEFAULT_API_PATHS: Record<string, string> = {
   unit3d: "/api/user",
   gazelle: "/ajax.php",
   ggn: "/api.php",
-  myplatform: "/api/endpoint",          // add here
+  myplatform: "/api/endpoint", // add here
 }
 ```
 

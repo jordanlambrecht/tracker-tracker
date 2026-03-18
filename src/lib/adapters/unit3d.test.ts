@@ -48,17 +48,17 @@ describe("Unit3dAdapter", () => {
       statusText: "Unauthorized",
     } as Response)
 
-    await expect(
-      adapter.fetchStats("https://aither.cc", "bad-token", "/api/user")
-    ).rejects.toThrow("401")
+    await expect(adapter.fetchStats("https://aither.cc", "bad-token", "/api/user")).rejects.toThrow(
+      "401"
+    )
   })
 
   it("throws a sanitized error on network failure", async () => {
     vi.spyOn(global, "fetch").mockRejectedValueOnce(new Error("fetch failed"))
 
-    await expect(
-      adapter.fetchStats("https://aither.cc", "token", "/api/user")
-    ).rejects.toThrow("Failed to connect to aither.cc")
+    await expect(adapter.fetchStats("https://aither.cc", "token", "/api/user")).rejects.toThrow(
+      "Failed to connect to aither.cc"
+    )
   })
 
   it("constructs URL correctly with api_token query param", async () => {
@@ -102,12 +102,12 @@ describe("Unit3dAdapter - security", () => {
       statusText: "Forbidden",
     } as Response)
 
-    try {
-      await adapter.fetchStats("https://example.com", secretToken, "/api/user")
-    } catch (error) {
-      const errorMessage = (error as Error).message
-      expect(errorMessage).not.toContain(secretToken)
-    }
+    await expect(
+      adapter.fetchStats("https://example.com", secretToken, "/api/user")
+    ).rejects.toSatisfy((err: Error) => {
+      expect(err.message).not.toContain(secretToken)
+      return true
+    })
   })
 
   it("does not expose the API token when fetch itself throws with a URL in the message", async () => {
@@ -131,9 +131,9 @@ describe("Unit3dAdapter - security", () => {
     const timeoutError = new DOMException("signal timed out", "TimeoutError")
     vi.spyOn(global, "fetch").mockRejectedValueOnce(timeoutError)
 
-    await expect(
-      adapter.fetchStats("https://example.com", "token", "/api/user")
-    ).rejects.toThrow("Request to example.com timed out")
+    await expect(adapter.fetchStats("https://example.com", "token", "/api/user")).rejects.toThrow(
+      "Request to example.com timed out"
+    )
   })
 
   it("uses AbortSignal for timeout protection", async () => {

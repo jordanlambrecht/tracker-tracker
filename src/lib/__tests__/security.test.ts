@@ -27,7 +27,7 @@ vi.mock("@/lib/db", () => ({
     insert: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
-    execute: vi.fn().mockResolvedValue(undefined),
+    execute: vi.fn().mockResolvedValue([]),
   },
 }))
 
@@ -75,6 +75,7 @@ vi.mock("@/lib/db/schema", () => ({
   tagGroupMembers: {},
   clientSnapshots: {},
   backupHistory: {},
+  dismissedAlerts: {},
 }))
 
 vi.mock("@/lib/backup", () => ({
@@ -94,11 +95,14 @@ vi.mock("@/lib/logger", () => ({
   },
 }))
 
-vi.mock("@/lib/wipe", () => ({
+vi.mock("@/lib/lockout", () => ({
+  checkLockout: vi.fn().mockReturnValue(null),
   recordFailedAttempt: vi.fn(),
   resetFailedAttempts: vi.fn(),
+}))
+
+vi.mock("@/lib/nuke", () => ({
   scrubAndDeleteAll: vi.fn(),
-  WIPE_MESSAGE: "wiped",
 }))
 
 vi.mock("@/lib/client-scheduler", () => ({
@@ -133,7 +137,6 @@ vi.mock("@/lib/qbt", () => ({
   login: vi.fn().mockResolvedValue("sid"),
   withSessionRetry: vi.fn().mockResolvedValue([]),
   aggregateByTag: vi.fn().mockReturnValue({}),
-  filterAndDedup: vi.fn().mockReturnValue([]),
   getSpeedSnapshots: vi.fn().mockReturnValue([]),
   pushSpeedSnapshot: vi.fn(),
   clearSpeedCache: vi.fn(),
@@ -144,6 +147,11 @@ vi.mock("@/lib/qbt/merge", () => ({
   aggregateCrossSeedTags: vi.fn().mockReturnValue([]),
 }))
 
+vi.mock("@/lib/privacy-db", () => ({
+  createPrivacyMask: vi.fn(async () => (v: string | null | undefined) => v ?? null),
+  createPrivacyMaskSync: vi.fn().mockReturnValue((v: string | null | undefined) => v ?? null),
+}))
+
 vi.mock("@/data/tracker-registry", () => ({
   findRegistryEntry: vi.fn(),
 }))
@@ -152,6 +160,11 @@ vi.mock("@/data/tracker-registry", () => ({
 // Route imports
 // ---------------------------------------------------------------------------
 
+import {
+  DELETE as AlertDismissedDELETE,
+  GET as AlertDismissedGET,
+  POST as AlertDismissedPOST,
+} from "@/app/api/alerts/dismissed/route"
 import { POST as ChangePasswordPOST } from "@/app/api/auth/change-password/route"
 import { POST as LogoutPOST } from "@/app/api/auth/logout/route"
 import { POST as TotpConfirmPOST } from "@/app/api/auth/totp/confirm/route"
@@ -189,9 +202,11 @@ import { GET as MembersGET, POST as MembersPOST } from "@/app/api/tag-groups/[id
 import { DELETE as TagGroupDELETE, PATCH as TagGroupPATCH } from "@/app/api/tag-groups/[id]/route"
 import { GET as TagGroupsGET, POST as TagGroupsPOST } from "@/app/api/tag-groups/route"
 import { GET as TrackerAvatarGET } from "@/app/api/trackers/[id]/avatar/route"
+import { POST as DebugPOST } from "@/app/api/trackers/[id]/debug/route"
 import { POST as PollPOST } from "@/app/api/trackers/[id]/poll/route"
+import { POST as ResumePOST } from "@/app/api/trackers/[id]/resume/route"
 import { GET as RolesGET, POST as RolesPOST } from "@/app/api/trackers/[id]/roles/route"
-import { DELETE, PATCH } from "@/app/api/trackers/[id]/route"
+import { DELETE, PATCH, GET as TrackerDetailGET } from "@/app/api/trackers/[id]/route"
 import { GET as SnapshotsGET } from "@/app/api/trackers/[id]/snapshots/route"
 import { GET as TrackerTorrentsGET } from "@/app/api/trackers/[id]/torrents/route"
 import { POST as PollAllPOST } from "@/app/api/trackers/poll-all/route"
@@ -270,9 +285,27 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
     expect(res.status).toBe(401)
   })
 
+  it("GET /api/trackers/[id] returns 401", async () => {
+    const req = makeRequest("http://localhost/api/trackers/1")
+    const res = await TrackerDetailGET(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(401)
+  })
+
+  it("POST /api/trackers/[id]/debug returns 401", async () => {
+    const req = makeRequest("http://localhost/api/trackers/1/debug", undefined, "POST")
+    const res = await DebugPOST(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(401)
+  })
+
   it("POST /api/trackers/[id]/poll returns 401", async () => {
     const req = makeRequest("http://localhost/api/trackers/1/poll", undefined, "POST")
     const res = await PollPOST(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(401)
+  })
+
+  it("POST /api/trackers/[id]/resume returns 401", async () => {
+    const req = makeRequest("http://localhost/api/trackers/1/resume", undefined, "POST")
+    const res = await ResumePOST(req, { params: MOCK_PARAMS })
     expect(res.status).toBe(401)
   })
 
@@ -353,7 +386,8 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
   })
 
   it("POST /api/settings/lockdown returns 401", async () => {
-    const res = await LockdownPOST()
+    const req = makeRequest("http://localhost/api/settings/lockdown", { password: "test" }, "POST")
+    const res = await LockdownPOST(req)
     expect(res.status).toBe(401)
   })
 
@@ -563,7 +597,12 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
   })
 
   it("POST /api/settings/reset-stats returns 401", async () => {
-    const res = await ResetStatsPOST()
+    const req = makeRequest(
+      "http://localhost/api/settings/reset-stats",
+      { password: "test" },
+      "POST"
+    )
+    const res = await ResetStatsPOST(req)
     expect(res.status).toBe(401)
   })
 
@@ -593,6 +632,27 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
     const res = await BackupGetGET(req, {
       params: Promise.resolve({ id: "1" }),
     })
+    expect(res.status).toBe(401)
+  })
+
+  it("GET /api/alerts/dismissed returns 401", async () => {
+    const res = await AlertDismissedGET()
+    expect(res.status).toBe(401)
+  })
+
+  it("POST /api/alerts/dismissed returns 401", async () => {
+    const req = makeRequest(
+      "http://localhost/api/alerts/dismissed",
+      { key: "test", type: "error" },
+      "POST"
+    )
+    const res = await AlertDismissedPOST(req)
+    expect(res.status).toBe(401)
+  })
+
+  it("DELETE /api/alerts/dismissed returns 401", async () => {
+    const req = makeRequest("http://localhost/api/alerts/dismissed", undefined, "DELETE")
+    const res = await AlertDismissedDELETE(req)
     expect(res.status).toBe(401)
   })
 })
@@ -626,23 +686,17 @@ describe("Token leakage prevention", () => {
       encryptedApiToken: "SUPER_SECRET_SHOULD_NOT_APPEAR",
     }
 
+    // Call 1: db.select().from(trackers).orderBy(trackers.createdAt)
     const mockOrderBy = vi.fn().mockResolvedValue([tracker])
     const mockFrom = vi.fn().mockReturnValue({ orderBy: mockOrderBy })
-    // settings query: db.select({storeUsernames}).from(appSettings).limit(1)
+    // Call 2: db.select({storeUsernames}).from(appSettings).limit(1)
     const mockSettingsLimit = vi.fn().mockResolvedValue([{ storeUsernames: true }])
     const mockSettingsFrom = vi.fn().mockReturnValue({ limit: mockSettingsLimit })
+
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFrom })
       .mockReturnValueOnce({ from: mockSettingsFrom })
-      .mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            orderBy: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue([]),
-            }),
-          }),
-        }),
-      })
+    // DISTINCT ON query via db.execute — default mock resolves []
 
     const res = await GET()
     const body = await res.json()
@@ -650,6 +704,70 @@ describe("Token leakage prevention", () => {
 
     expect(json).not.toContain("SUPER_SECRET_SHOULD_NOT_APPEAR")
     expect(json).not.toContain("encryptedApiToken")
+  })
+
+  it("GET /api/trackers/[id] does not include encryptedApiToken or apiPath in response", async () => {
+    ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
+
+    // DB row with secrets present — the route's .select() projection must strip them
+    const trackerRow = {
+      id: 1,
+      name: "TestTracker",
+      baseUrl: "https://test.example.com",
+      platformType: "unit3d",
+      isActive: true,
+      lastPolledAt: null,
+      lastError: null,
+      color: "#00d4ff",
+      qbtTag: null,
+      useProxy: false,
+      countCrossSeedUnsatisfied: false,
+      isFavorite: false,
+      sortOrder: 0,
+      joinedAt: null,
+      lastAccessAt: null,
+      remoteUserId: null,
+      platformMeta: null,
+      createdAt: new Date(),
+      // Secrets that MUST NOT appear in the response
+      encryptedApiToken: "SECRET_API_TOKEN_CIPHERTEXT",
+      apiPath: "/api/user",
+    }
+
+    // Call 1: tracker detail with explicit column allowlist
+    const mockTrackerWhere = vi
+      .fn()
+      .mockReturnValue({ limit: vi.fn().mockResolvedValue([trackerRow]) })
+    const mockTrackerFrom = vi.fn().mockReturnValue({ where: mockTrackerWhere })
+
+    // Call 2: latest snapshot
+    const mockSnapshotWhere = vi.fn().mockReturnValue({
+      orderBy: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue([]) }),
+    })
+    const mockSnapshotFrom = vi.fn().mockReturnValue({ where: mockSnapshotWhere })
+
+    // Call 3: appSettings for privacy
+    const mockSettingsLimit = vi.fn().mockResolvedValue([{ storeUsernames: true }])
+    const mockSettingsFrom = vi.fn().mockReturnValue({ limit: mockSettingsLimit })
+
+    ;(db.select as ReturnType<typeof vi.fn>)
+      .mockReturnValueOnce({ from: mockTrackerFrom })
+      .mockReturnValueOnce({ from: mockSnapshotFrom })
+      .mockReturnValueOnce({ from: mockSettingsFrom })
+
+    const req = makeRequest("http://localhost/api/trackers/1")
+    const res = await TrackerDetailGET(req, { params: MOCK_PARAMS })
+    const body = await res.json()
+    const json = JSON.stringify(body)
+
+    expect(res.status).toBe(200)
+    expect(json).not.toContain("SECRET_API_TOKEN_CIPHERTEXT")
+    expect(json).not.toContain("encryptedApiToken")
+    expect(json).not.toContain("apiPath")
+    // Verify slot-critical fields ARE present
+    expect(body).toHaveProperty("lastAccessAt")
+    expect(body).toHaveProperty("platformMeta")
+    expect(body).toHaveProperty("platformType")
   })
 })
 
@@ -1140,10 +1258,10 @@ describe("Backup restore authenticated flows", () => {
     )
   })
 
-  it("POST /api/settings/backup/restore returns wipe message after threshold breach", async () => {
+  it("POST /api/settings/backup/restore records failed attempt on wrong password", async () => {
     const { POST } = await import("@/app/api/settings/backup/restore/route")
     const { verifyPassword } = await import("@/lib/auth")
-    const { recordFailedAttempt, WIPE_MESSAGE } = await import("@/lib/wipe")
+    const { recordFailedAttempt } = await import("@/lib/lockout")
 
     vi.mocked(authenticate).mockResolvedValue({
       encryptionKey: "a".repeat(64),
@@ -1156,7 +1274,6 @@ describe("Backup restore authenticated flows", () => {
             id: 1,
             passwordHash: "hashed_password",
             encryptionSalt: "a".repeat(64),
-            autoWipeThreshold: 1,
             lockedUntil: null,
           },
         ]),
@@ -1164,13 +1281,13 @@ describe("Backup restore authenticated flows", () => {
     } as unknown as ReturnType<typeof db.select>)
 
     vi.mocked(verifyPassword).mockResolvedValue(false)
-    vi.mocked(recordFailedAttempt).mockResolvedValue(true)
 
     const req = createRestoreRequest(JSON.stringify(VALID_BACKUP), "wrong_master_password")
     const res = await POST(req)
 
-    expect(res.status).toBe(403)
-    await expect(res.json()).resolves.toEqual({ error: WIPE_MESSAGE })
+    expect(res.status).toBe(401)
+    await expect(res.json()).resolves.toEqual({ error: "Invalid master password" })
+    expect(recordFailedAttempt).toHaveBeenCalledWith(1, expect.any(Object))
   })
 
   it("POST /api/settings/backup/restore with invalid JSON returns 400", async () => {

@@ -7,8 +7,7 @@ export const greatposterwall: TrackerRegistryEntry = {
   name: "Great Poster Wall",
   abbreviation: "GPW",
   url: "https://greatposterwall.com",
-  description:
-    "A Chinese Gazelle-based tracker with movies and some TV.",
+  description: "A Chinese Gazelle-based tracker with movies and some TV.",
   platform: "gazelle",
   apiPath: "/ajax.php",
   specialty: "Movies",
@@ -18,6 +17,7 @@ export const greatposterwall: TrackerRegistryEntry = {
   notableMembers: [],
   language: "Chinese",
   color: "#c0392b",
+  trackerHubSlug: "great-poster-wall",
   warning: true,
   warningNote: "Unvalidated",
   rules: {
@@ -25,4 +25,5 @@ export const greatposterwall: TrackerRegistryEntry = {
     seedTimeHours: 72,
     loginIntervalDays: 90,
   },
+  draft: false,
 }

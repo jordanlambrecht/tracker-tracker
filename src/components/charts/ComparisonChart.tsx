@@ -6,14 +6,34 @@
 
 import type { EChartsOption } from "echarts"
 import { useState } from "react"
-import { bytesToGiB } from "@/lib/formatters"
+import { Tooltip } from "@/components/ui/Tooltip"
+import { bytesToGiB, hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./ChartECharts"
+import { ChartEmptyState } from "./ChartEmptyState"
+import {
+  adaptiveDotSize,
+  autoByteScale,
+  buildAxisPointer,
+  fmtNum,
+  yAxisAutoRange,
+} from "./chart-helpers"
+import { buildUnifiedTimestampAxis } from "./chart-transforms"
 import { LogScaleToggle } from "./LogScaleToggle"
-import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, shouldUseLogScale } from "./theme"
+import {
+  CHART_THEME,
+  chartAxisLabel,
+  chartDot,
+  chartGrid,
+  chartLegend,
+  chartTooltip,
+  chartTooltipHeader,
+  escHtml,
+  shouldUseLogScale,
+} from "./theme"
 
-type ChartMetric = "uploaded" | "ratio" | "buffer" | "seedbonus" | "active"
+type ChartMetric = "uploaded" | "downloaded" | "ratio" | "buffer" | "seedbonus" | "active"
 
 interface ComparisonChartProps {
   metric: ChartMetric
@@ -21,12 +41,15 @@ interface ComparisonChartProps {
   height?: number
   enableLogScale?: boolean
   enableAverage?: boolean
+  enableStacked?: boolean
 }
 
 function getValue(snapshot: Snapshot, metric: ChartMetric): number | null {
   switch (metric) {
     case "uploaded":
       return bytesToGiB(snapshot.uploadedBytes)
+    case "downloaded":
+      return bytesToGiB(snapshot.downloadedBytes)
     case "ratio":
       return snapshot.ratio
     case "buffer":
@@ -92,10 +115,13 @@ function buildAverageSeries(
       areaStyle: {
         color: {
           type: "linear",
-          x: 0, y: 0, x2: 0, y2: 1,
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
           colorStops: [
             { offset: 0, color: CHART_THEME.accentDim },
-            { offset: 1, color: "rgba(0, 212, 255, 0)" },
+            { offset: 1, color: hexToRgba(CHART_THEME.accent, 0) },
           ],
         } as unknown as string,
       },
@@ -106,31 +132,15 @@ function buildAverageSeries(
 function buildComparisonOption(
   metric: ChartMetric,
   trackerData: TrackerSnapshotSeries[],
-  opts?: { logScale?: boolean; averageMode?: boolean }
+  opts?: { logScale?: boolean; averageMode?: boolean; stacked?: boolean; totalOnly?: boolean }
 ): EChartsOption {
   const useLog = opts?.logScale ?? false
   const useAvg = opts?.averageMode ?? false
+  const useStacked = opts?.stacked ?? false
+  const useTotalOnly = opts?.totalOnly ?? false
 
   // Build unified time axis from the union of all polledAt timestamps
-  const allTimestamps = new Set<string>()
-  for (const tracker of trackerData) {
-    for (const snap of tracker.snapshots) {
-      allTimestamps.add(snap.polledAt)
-    }
-  }
-  const sortedTimestamps = Array.from(allTimestamps).sort(
-    (a, b) => new Date(a).getTime() - new Date(b).getTime()
-  )
-
-  const labels = sortedTimestamps.map((ts) =>
-    new Date(ts).toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    })
-  )
+  const { timestamps: sortedTimestamps, labels } = buildUnifiedTimestampAxis(trackerData)
 
   // Determine unit and divisor per metric type
   let unit = "×"
@@ -148,30 +158,68 @@ function buildComparisonOption(
       }
     }
     const maxGiB = Math.max(...allGiB, 0)
-    const useTiB = maxGiB >= 1024
-    divisor = useTiB ? 1024 : 1
-    unit = useTiB ? "TiB" : "GiB"
+    ;({ divisor, unit } = autoByteScale(maxGiB))
   }
 
-  // Total data points across all trackers — drives adaptive dot size
-  const totalPoints = trackerData.reduce((sum, t) => sum + t.snapshots.length, 0)
-  const dotSize = totalPoints > 100 ? 2 : totalPoints > 30 ? 4 : 6
-
-  const fmtNum = (v: number, decimals = 2): string =>
-    v.toLocaleString(undefined, {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    })
-
-  const yAxisPad = (value: { min: number; max: number }) => {
-    const range = value.max - value.min
-    return Math.max(range * 0.15, (value.max || 1) * 0.001)
-  }
+  const dotSize = adaptiveDotSize(sortedTimestamps.length)
 
   // Build series — either per-tracker or single average line
   let series: EChartsOption["series"]
 
-  if (useAvg) {
+  if (useTotalOnly) {
+    // Sum all trackers at each timestamp, carry forward per-tracker last-known values
+    const trackerLastValues = trackerData.map(() => 0)
+    const trackerMaps = trackerData.map((tracker) => {
+      const m = new Map<string, Snapshot>()
+      for (const snap of tracker.snapshots) m.set(snap.polledAt, snap)
+      return m
+    })
+
+    const data = sortedTimestamps.map((ts) => {
+      for (let i = 0; i < trackerData.length; i++) {
+        const snap = trackerMaps[i].get(ts)
+        if (snap) {
+          const raw = getValue(snap, metric)
+          if (raw !== null) trackerLastValues[i] = raw / divisor
+        }
+      }
+      return Number(trackerLastValues.reduce((a, b) => a + b, 0).toFixed(3))
+    })
+
+    series = [
+      {
+        name: "Fleet Total",
+        type: "line",
+        data,
+        smooth: true,
+        symbol: "circle",
+        symbolSize: dotSize,
+        areaStyle: {
+          color: {
+            type: "linear",
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [
+              { offset: 0, color: CHART_THEME.accentDim },
+              { offset: 1, color: hexToRgba(CHART_THEME.accent, 0) },
+            ],
+          } as unknown as string,
+        },
+        itemStyle: { color: CHART_THEME.accent },
+        lineStyle: {
+          color: CHART_THEME.accent,
+          width: 3,
+          shadowColor: CHART_THEME.accent,
+          shadowBlur: 12,
+        },
+        emphasis: {
+          lineStyle: { shadowBlur: 20, shadowColor: CHART_THEME.accent },
+        },
+      },
+    ]
+  } else if (useAvg) {
     series = buildAverageSeries(trackerData, sortedTimestamps, metric, divisor, dotSize, useLog)
   } else {
     series = trackerData.map((tracker) => {
@@ -180,14 +228,20 @@ function buildComparisonOption(
         snapByTs.set(snap.polledAt, snap)
       }
 
+      let lastValue: number | null = null
       const data = sortedTimestamps.map((ts) => {
         const snap = snapByTs.get(ts)
-        if (!snap) return null
+        if (!snap) {
+          // For stacked mode, carry forward the last known value to avoid spike artifacts
+          // For line mode, keep null so connectNulls draws a straight line
+          return useStacked ? lastValue : null
+        }
         const raw = getValue(snap, metric)
-        if (raw === null) return null
+        if (raw === null) return useStacked ? lastValue : null
         const scaled = raw / divisor
-        if (useLog && scaled <= 0) return null
-        return Number(scaled.toFixed(3))
+        if (useLog && scaled <= 0) return useStacked ? lastValue : null
+        lastValue = Number(scaled.toFixed(3))
+        return lastValue
       })
 
       return {
@@ -196,81 +250,47 @@ function buildComparisonOption(
         data,
         smooth: true,
         connectNulls: true,
-        symbol: "circle",
+        symbol: useStacked ? "none" : "circle",
         symbolSize: dotSize,
+        ...(useStacked ? { stack: "total", areaStyle: { opacity: 0.7 }, step: false } : {}),
         itemStyle: { color: tracker.color },
         lineStyle: {
           color: tracker.color,
-          width: 2,
-          shadowColor: tracker.color,
-          shadowBlur: 8,
+          width: useStacked ? 1 : 2,
+          ...(useStacked ? {} : { shadowColor: tracker.color, shadowBlur: 8 }),
         },
-        emphasis: {
-          lineStyle: {
-            shadowBlur: 16,
-            shadowColor: tracker.color,
-          },
-        },
+        emphasis: useStacked
+          ? { focus: "series" as const }
+          : { lineStyle: { shadowBlur: 16, shadowColor: tracker.color } },
       }
     })
   }
 
-  // yAxis config — log vs linear
-  const yAxis: EChartsOption["yAxis"] = useLog
-    ? {
-        type: "log",
-        name: unit,
-        logBase: 10,
-        nameTextStyle: {
-          color: CHART_THEME.textTertiary,
-          fontFamily: CHART_THEME.fontMono,
-          fontSize: 10,
-        },
-        axisLine: { show: false },
-        axisTick: { show: false },
-        axisLabel: chartAxisLabel({
-          formatter: (val: number) => fmtNum(val, 1),
-        }),
-        splitLine: {
-          lineStyle: { color: CHART_THEME.gridLine, width: 1 },
-        },
-      }
-    : {
-        type: "value",
-        name: unit,
-        scale: true,
-        min: ((value: { min: number; max: number }) =>
-          Math.max(0, Math.floor((value.min - yAxisPad(value)) * 100) / 100)) as unknown as number,
-        max: ((value: { min: number; max: number }) =>
-          Math.ceil((value.max + yAxisPad(value)) * 100) / 100) as unknown as number,
-        nameTextStyle: {
-          color: CHART_THEME.textTertiary,
-          fontFamily: CHART_THEME.fontMono,
-          fontSize: 10,
-        },
-        axisLine: { show: false },
-        axisTick: { show: false },
-        axisLabel: chartAxisLabel({
-          formatter: (val: number) => fmtNum(val, 1),
-        }),
-        splitLine: {
-          lineStyle: { color: CHART_THEME.gridLine, width: 1 },
-        },
-      }
+  // yAxis config — shared base with log/linear specifics
+  const yAxis: EChartsOption["yAxis"] = {
+    type: useLog ? "log" : "value",
+    name: unit,
+    ...(useLog ? { logBase: 10 } : { scale: true, ...yAxisAutoRange() }),
+    nameTextStyle: {
+      color: CHART_THEME.textTertiary,
+      fontFamily: CHART_THEME.fontMono,
+      fontSize: 10,
+    },
+    axisLine: { show: false },
+    axisTick: { show: false },
+    axisLabel: chartAxisLabel({
+      formatter: (val: number) => fmtNum(val, 1),
+    }),
+    splitLine: {
+      lineStyle: { color: CHART_THEME.gridLine, width: 1 },
+    },
+  }
 
   return {
     backgroundColor: "transparent",
     grid: chartGrid({ right: 16, left: 64 }),
     tooltip: chartTooltip("axis", {
-      axisPointer: {
-        type: "line",
-        lineStyle: {
-          color: CHART_THEME.borderMid,
-          opacity: 0.8,
-          width: 1,
-          type: "dashed",
-        },
-      },
+      axisPointer: buildAxisPointer(CHART_THEME.borderMid, 0.8, 1),
       formatter: (params: unknown) => {
         const items = params as Array<{
           seriesName: string
@@ -284,10 +304,7 @@ function buildComparisonOption(
           .filter((item) => item.value !== null && item.value !== undefined)
           .map((item) => {
             const val = item.value as number
-            const display =
-              metric === "ratio"
-                ? `${fmtNum(val)} ×`
-                : `${fmtNum(val)} ${unit}`
+            const display = metric === "ratio" ? `${fmtNum(val)} ×` : `${fmtNum(val)} ${unit}`
             return (
               chartDot(item.color) +
               `<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> ` +
@@ -298,7 +315,7 @@ function buildComparisonOption(
         return chartTooltipHeader(time) + rows
       },
     }),
-    legend: useAvg ? { show: false } : chartLegend(),
+    legend: useAvg || useTotalOnly ? { show: false } : chartLegend(),
     xAxis: {
       type: "category",
       data: labels,
@@ -309,9 +326,7 @@ function buildComparisonOption(
       splitLine: { show: false },
     },
     yAxis,
-    dataZoom: [
-      { type: "inside", zoomOnMouseWheel: true, moveOnMouseMove: true },
-    ],
+    dataZoom: [{ type: "inside", zoomOnMouseWheel: true, moveOnMouseMove: true }],
     series,
   }
 }
@@ -322,9 +337,11 @@ function ComparisonChart({
   height = 500,
   enableLogScale = false,
   enableAverage = false,
+  enableStacked = false,
 }: ComparisonChartProps) {
   const [logOverride, setLogOverride] = useState<boolean | null>(null)
   const [averageMode, setAverageMode] = useState(false)
+  const [viewMode, setViewMode] = useState<"lines" | "stacked" | "total">("lines")
 
   const hasData = trackerData.some((t) => t.snapshots.length > 0)
 
@@ -341,32 +358,39 @@ function ComparisonChart({
   const autoLog = enableLogScale ? shouldUseLogScale(allValues) : false
   const effectiveLog = logOverride ?? autoLog
 
-  const showToolbar = enableLogScale || enableAverage
+  const isStacked = viewMode === "stacked"
+  const isTotalOnly = viewMode === "total"
+  const isNonLineMode = isStacked || isTotalOnly
+  const showToolbar = enableLogScale || enableAverage || enableStacked
 
   if (!hasData) {
     return (
-      <div
-        className="flex items-center justify-center text-tertiary font-mono text-sm"
-        style={{ height }}
-      >
-        No snapshot data yet. Waiting for first polls...
-      </div>
+      <ChartEmptyState height={height} message="No snapshot data yet. Waiting for first polls..." />
     )
   }
+
+  const viewModes = enableStacked ? (["lines", "stacked", "total"] as const) : ([] as const)
 
   return (
     <div className="flex flex-col gap-2">
       {showToolbar && (
         <div className="flex justify-end gap-2">
-          {enableAverage && (
-            <button
-              type="button"
-              onClick={() => setAverageMode((v) => !v)}
-              className="nm-raised-sm bg-raised px-2.5 py-1 text-[10px] font-mono text-muted hover:text-secondary active:nm-inset-sm active:scale-[0.97] transition-all duration-150 cursor-pointer flex items-center gap-1.5 rounded-nm-sm"
-              title={averageMode ? "Showing fleet average. Click for per-tracker." : "Showing per-tracker. Click for fleet average."}
+          {enableAverage && !isNonLineMode && (
+            <Tooltip
+              content={
+                averageMode
+                  ? "Showing fleet average. Click for per-tracker."
+                  : "Showing per-tracker. Click for fleet average."
+              }
             >
-              {averageMode ? "Avg" : "Per-Tracker"}
-            </button>
+              <button
+                type="button"
+                onClick={() => setAverageMode((v) => !v)}
+                className="nm-raised-sm bg-raised px-2.5 py-1 text-[10px] font-mono text-muted hover:text-secondary active:nm-inset-sm active:scale-[0.97] transition-all duration-150 cursor-pointer flex items-center gap-1.5 rounded-nm-sm"
+              >
+                {averageMode ? "Avg" : "Per-Tracker"}
+              </button>
+            </Tooltip>
           )}
           {enableLogScale && (
             <LogScaleToggle
@@ -375,12 +399,32 @@ function ComparisonChart({
               onToggle={() => setLogOverride(logOverride === null ? !autoLog : null)}
             />
           )}
+          {viewModes.length > 0 && !averageMode && (
+            <div className="nm-inset-sm p-1 flex gap-0.5 rounded-nm-sm">
+              {viewModes.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setViewMode(m)}
+                  className={`px-2.5 py-1 text-xs font-mono transition-all duration-150 cursor-pointer rounded-nm-sm ${
+                    viewMode === m
+                      ? "nm-raised-sm text-primary font-semibold"
+                      : "text-tertiary hover:text-secondary"
+                  }`}
+                >
+                  {{ lines: "Per-Tracker", stacked: "Stacked", total: "Total" }[m]}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
       <ChartECharts
         option={buildComparisonOption(metric, trackerData, {
           logScale: enableLogScale ? effectiveLog : undefined,
-          averageMode,
+          averageMode: averageMode && !isNonLineMode,
+          stacked: isStacked,
+          totalOnly: isTotalOnly,
         })}
         style={{ height, width: "100%" }}
         opts={{ renderer: "canvas" }}
@@ -391,5 +435,5 @@ function ComparisonChart({
   )
 }
 
-export { ComparisonChart, buildComparisonOption }
 export type { ChartMetric, ComparisonChartProps }
+export { buildComparisonOption, ComparisonChart }

@@ -4,20 +4,23 @@
 
 "use client"
 
+import { H2 } from "@typography"
 import { useCallback, useEffect, useState } from "react"
+import { CrossSeedNetwork } from "@/components/charts/CrossSeedNetwork"
 import { FleetActivityHeatmap } from "@/components/charts/FleetActivityHeatmap"
 import { FleetAgeTimeline } from "@/components/charts/FleetAgeTimeline"
+import { FleetCategoryBreakdown } from "@/components/charts/FleetCategoryBreakdown"
 import { FleetCategoryTimeline } from "@/components/charts/FleetCategoryTimeline"
 import { FleetCrossSeedDonut } from "@/components/charts/FleetCrossSeedDonut"
 import { FleetRatioDistribution } from "@/components/charts/FleetRatioDistribution"
 import { FleetSeedTimeDistribution } from "@/components/charts/FleetSeedTimeDistribution"
-import { FleetSpeedGauges } from "@/components/charts/FleetSpeedGauges"
+import { FleetSizeJitter } from "@/components/charts/FleetSizeJitter"
+
 import { FleetSpeedSparklines } from "@/components/charts/FleetSpeedSparklines"
 import { FleetStorageTreemap } from "@/components/charts/FleetStorageTreemap"
-import { LeechingTrends } from "@/components/charts/LeechingTrends"
-import { SeedingCountTrends } from "@/components/charts/SeedingCountTrends"
 import { SpeedHistoryChart } from "@/components/charts/SpeedHistoryChart"
 import { SpeedThemeRiver } from "@/components/charts/SpeedThemeRiver"
+import { TagCountTrends } from "@/components/charts/TagCountTrends"
 import { TrackerHealthRadar } from "@/components/charts/TrackerHealthRadar"
 import { CHART_THEME } from "@/components/charts/theme"
 import { ChartCard } from "@/components/dashboard/ChartCard"
@@ -28,7 +31,6 @@ import {
 import {
   BoxIcon,
   ChevronUpIcon,
-  ClockIcon,
   DownloadArrowIcon,
   LeechingIcon,
   SeedingIcon,
@@ -36,11 +38,20 @@ import {
   UploadArrowIcon,
 } from "@/components/ui/Icons"
 import { StatCard } from "@/components/ui/StatCard"
-import { H2 } from "@/components/ui/Typography"
 import type { FleetSnapshot, TorrentRaw, TrackerTag } from "@/lib/fleet"
 import { computeFleetStats } from "@/lib/fleet"
-import { formatBytesFromNumber } from "@/lib/formatters"
+import { formatBytesNum } from "@/lib/formatters"
 import type { TrackerSummary } from "@/types/api"
+
+function splitBytes(bytes: number, suffix = ""): { value: string; unit: string } {
+  const formatted = formatBytesNum(bytes)
+  const idx = formatted.lastIndexOf(" ")
+  return { value: formatted.slice(0, idx), unit: `${formatted.slice(idx + 1)}${suffix}` }
+}
+
+function splitSpeed(bytes: number): { value: string; unit: string } {
+  return splitBytes(bytes, "/s")
+}
 
 interface FleetTorrentsResponse {
   torrents: TorrentRaw[]
@@ -98,7 +109,11 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
         setTrackerTags(
           trackersProp
             .filter((t): t is typeof t & { qbtTag: string } => !!t.qbtTag?.trim())
-            .map((t) => ({ tag: t.qbtTag.trim(), name: t.name, color: t.color ?? CHART_THEME.accent }))
+            .map((t) => ({
+              tag: t.qbtTag.trim(),
+              name: t.name,
+              color: t.color ?? CHART_THEME.accent,
+            }))
         )
       } else if (trackersRes?.ok) {
         const data: { id: number; name: string; color: string; qbtTag: string | null }[] =
@@ -106,7 +121,11 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
         setTrackerTags(
           data
             .filter((t): t is typeof t & { qbtTag: string } => !!t.qbtTag?.trim())
-            .map((t) => ({ tag: t.qbtTag.trim(), name: t.name, color: t.color ?? CHART_THEME.accent }))
+            .map((t) => ({
+              tag: t.qbtTag.trim(),
+              name: t.name,
+              color: t.color ?? CHART_THEME.accent,
+            }))
         )
       }
     } catch {
@@ -123,7 +142,9 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
   if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <p className="text-secondary text-sm font-mono animate-loading-breathe">Loading fleet data...</p>
+        <p className="text-secondary text-sm font-mono animate-loading-breathe">
+          Loading fleet data...
+        </p>
       </div>
     )
   }
@@ -131,9 +152,7 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
   if (torrents.length === 0 && snapshots.length === 0) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center flex-col gap-2">
-        <p className="text-secondary text-sm font-mono">
-          No torrent data available.
-        </p>
+        <p className="text-secondary text-sm font-mono">No torrent data available.</p>
         <p className="text-tertiary text-xs font-mono">
           Make sure download clients are configured and trackers have qBT tags set.
         </p>
@@ -142,40 +161,52 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
   }
 
   const stats = computeFleetStats(torrents, crossSeedTags)
-  const hiddenCount = FLEET_CHARTS.length - FLEET_CHARTS.filter((c) => !chartPrefs.isHidden(c.id)).length
+  const hiddenCount =
+    FLEET_CHARTS.length - FLEET_CHARTS.filter((c) => !chartPrefs.isHidden(c.id)).length
 
   function renderChart(id: string) {
     switch (id) {
       case "fleet-speed-sparklines":
-        return clientList.length > 0
-          ? <FleetSpeedSparklines clients={clientList} />
-          : null
-      case "fleet-speed-gauges":
-        return <FleetSpeedGauges uploadSpeed={stats.fleetUploadSpeed} downloadSpeed={stats.fleetDownloadSpeed} />
+        return clientList.length > 0 ? <FleetSpeedSparklines clients={clientList} /> : null
       case "speed-theme-river":
         return <SpeedThemeRiver snapshots={snapshots} />
       case "seeding-count-trends":
-        return <SeedingCountTrends snapshots={snapshots} />
+        return <TagCountTrends snapshots={snapshots} mode="seeding" />
       case "leeching-trends":
-        return <LeechingTrends snapshots={snapshots} />
+        return <TagCountTrends snapshots={snapshots} mode="leeching" />
       case "speed-history":
         return <SpeedHistoryChart snapshots={snapshots} />
       case "fleet-ratio-distribution":
         return <FleetRatioDistribution torrents={torrents} />
       case "fleet-cross-seed-donut":
         return <FleetCrossSeedDonut torrents={torrents} crossSeedTags={crossSeedTags} />
+      case "cross-seed-network":
+        return (
+          <CrossSeedNetwork
+            torrents={torrents}
+            trackerTags={trackerTags}
+            crossSeedTags={crossSeedTags}
+            height={400}
+          />
+        )
       case "tracker-health-radar":
         return <TrackerHealthRadar torrents={torrents} trackerTags={trackerTags} />
       case "fleet-activity-heatmap":
         return <FleetActivityHeatmap torrents={torrents} />
       case "fleet-storage-treemap":
-        return <FleetStorageTreemap torrents={torrents} trackerTags={trackerTags.map((t) => t.tag)} />
+        return (
+          <FleetStorageTreemap torrents={torrents} trackerTags={trackerTags.map((t) => t.tag)} />
+        )
       case "fleet-seed-time-distribution":
         return <FleetSeedTimeDistribution torrents={torrents} />
       case "fleet-age-timeline":
         return <FleetAgeTimeline torrents={torrents} trackerTags={trackerTags} />
       case "fleet-category-timeline":
         return <FleetCategoryTimeline torrents={torrents} />
+      case "fleet-size-jitter":
+        return <FleetSizeJitter torrents={torrents} trackerTags={trackerTags} height={360} />
+      case "fleet-category-breakdown":
+        return <FleetCategoryBreakdown torrents={torrents} trackerTags={trackerTags} height={360} />
       default:
         return null
     }
@@ -188,13 +219,36 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
         <div className="flex flex-col gap-4">
           <H2>Fleet Overview</H2>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
-            <StatCard label="Seeding" value={stats.totalSeeding.toLocaleString()} icon={<SeedingIcon width="16" height="16" />} />
-            <StatCard label="Leeching" value={stats.totalLeeching.toLocaleString()} icon={<LeechingIcon width="16" height="16" />} />
-            <StatCard label="Upload" value={formatBytesFromNumber(stats.fleetUploadSpeed)} unit="/s" icon={<UploadArrowIcon width="16" height="16" />} />
-            <StatCard label="Download" value={formatBytesFromNumber(stats.fleetDownloadSpeed)} unit="/s" icon={<DownloadArrowIcon width="16" height="16" />} />
-            <StatCard label="Library" value={formatBytesFromNumber(stats.totalLibrarySize)} icon={<BoxIcon width="16" height="16" />} />
-            <StatCard label="Cross-Seed" value={`${stats.crossSeedPercent.toFixed(1)}%`} icon={<TagIcon width="16" height="16" />} />
-            <StatCard label="Stale (30d+)" value={stats.staleCount.toLocaleString()} icon={<ClockIcon width="16" height="16" />} />
+            <StatCard
+              label="Seeding"
+              value={stats.totalSeeding.toLocaleString()}
+              icon={<SeedingIcon width="16" height="16" />}
+            />
+            <StatCard
+              label="Leeching"
+              value={stats.totalLeeching.toLocaleString()}
+              icon={<LeechingIcon width="16" height="16" />}
+            />
+            <StatCard
+              label="Upload"
+              {...splitSpeed(stats.fleetUploadSpeed)}
+              icon={<UploadArrowIcon width="16" height="16" />}
+            />
+            <StatCard
+              label="Download"
+              {...splitSpeed(stats.fleetDownloadSpeed)}
+              icon={<DownloadArrowIcon width="16" height="16" />}
+            />
+            <StatCard
+              label="Library"
+              {...splitBytes(stats.totalLibrarySize)}
+              icon={<BoxIcon width="16" height="16" />}
+            />
+            <StatCard
+              label="Cross-Seed"
+              value={`${stats.crossSeedPercent.toFixed(1)}%`}
+              icon={<TagIcon width="16" height="16" />}
+            />
           </div>
         </div>
       )}
@@ -218,7 +272,9 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
               height="12"
               className="transition-transform duration-200"
               style={{
-                transform: chartPrefs.allVisibleCollapsed(allChartIds) ? "rotate(180deg)" : "rotate(0deg)",
+                transform: chartPrefs.allVisibleCollapsed(allChartIds)
+                  ? "rotate(180deg)"
+                  : "rotate(0deg)",
               }}
             />
             {chartPrefs.allVisibleCollapsed(allChartIds) ? "Expand All" : "Collapse All"}

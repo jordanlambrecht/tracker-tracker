@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     enableBackupCodes?: boolean
   }
 
-  if (!setupToken || typeof setupToken !== "string") {
+  if (!setupToken || typeof setupToken !== "string" || setupToken.length > 2048) {
     return NextResponse.json({ error: "Missing setup token" }, { status: 400 })
   }
   if (!code || typeof code !== "string" || code.length !== 6 || !/^\d{6}$/.test(code)) {
@@ -35,7 +35,10 @@ export async function POST(request: Request) {
 
   const setup = await verifySetupToken(setupToken)
   if (!setup) {
-    return NextResponse.json({ error: "Setup token expired or invalid. Please restart enrollment." }, { status: 400 })
+    return NextResponse.json(
+      { error: "Setup token expired or invalid. Please restart enrollment." },
+      { status: 400 }
+    )
   }
 
   if (!verifyTotpCode(setup.totpSecret, code)) {

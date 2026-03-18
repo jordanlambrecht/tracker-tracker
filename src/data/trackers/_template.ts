@@ -19,36 +19,36 @@ import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 
 export const mytracker: TrackerRegistryEntry = {
   // ── Required ────────────────────────────────────────────────────────
-  slug: "mytracker",                     // lowercase, hyphens only (e.g. "my-tracker")
-  name: "My Tracker",                    // display name
-  url: "https://mytracker.example",      // base URL (https only)
-  description: "TODO",                   // 1–2 sentence overview
-  platform: "unit3d",                    // "unit3d" | "gazelle" | "ggn" | "nebulance" | "custom"
-  apiPath: "/api/user",                  // must match platform default (unit3d: "/api/user", gazelle: "/ajax.php")
-  specialty: "",                         // what the tracker is known for (e.g. "HD Movies", "Anime")
-  contentCategories: [],                 // see allowed list above
-  color: "#00d4ff",                      // hex accent color for the tracker's detail page
+  slug: "mytracker", // lowercase, hyphens only (e.g. "my-tracker")
+  name: "My Tracker", // display name
+  url: "https://mytracker.example", // base URL (https only)
+  description: "TODO", // 1-2 sentence overview
+  platform: "unit3d", // "unit3d" | "gazelle" | "ggn" | "nebulance" | "custom"
+  apiPath: "/api/user", // must match platform default (unit3d: "/api/user", gazelle: "/ajax.php")
+  specialty: "", // what the tracker is known for (e.g. "HD Movies", "Anime")
+  contentCategories: [], // see allowed list above
+  color: "#00d4ff", // hex accent color for the tracker's detail page
 
   // ── Optional (fill in what you know) ────────────────────────────────
-  abbreviation: undefined,               // short code (e.g. "ATH", "RED")
+  abbreviation: undefined, // short code (e.g. "ATH", "RED")
   language: "English",
-  logo: undefined,                       // "/tracker-logos/mytracker_logo.svg" — file must exist in public/
-  trackerHubSlug: undefined,             // slug on trackerhub.xyz, if listed
-  statusPageUrl: undefined,              // external status page URL
+  logo: undefined, // "/tracker-logos/mytracker_logo.svg" — file must exist in public/
+  trackerHubSlug: undefined, // slug on trackerhub.xyz, if listed
+  statusPageUrl: undefined, // external status page URL
 
   // ── Rules ───────────────────────────────────────────────────────────
   rules: {
-    minimumRatio: 0,                     // 0 = no minimum
-    seedTimeHours: 0,                    // 0 = no minimum
-    loginIntervalDays: 0,                // 0 = no login interval policy
+    minimumRatio: 0, // 0 = no minimum
+    seedTimeHours: 0, // 0 = no minimum
+    loginIntervalDays: 0, // 0 = no login interval policy
     // fulfillmentPeriodHours: undefined, // hours to complete H&R seeding
     // hnrBanLimit: undefined,            // number of H&Rs before ban
     // fullRulesMarkdown: undefined,      // detailed rules as markdown string
   },
 
   // ── Community data (arrays can be empty) ────────────────────────────
-  userClasses: [],                       // [{ name: "Power User", requirements: "Upload ≥ 100 GiB" }]
-  releaseGroups: [],                     // [{ name: "GrpName", description: "Encodes" }] or ["GrpName"]
+  userClasses: [], // [{ name: "Power User", requirements: "Upload ≥ 100 GiB" }]
+  releaseGroups: [], // [{ name: "GrpName", description: "Encodes" }] or ["GrpName"]
   notableMembers: [],
   bannedGroups: [],
 
@@ -59,5 +59,5 @@ export const mytracker: TrackerRegistryEntry = {
   },
 
   // ── Flags ───────────────────────────────────────────────────────────
-  draft: true,                           // remove once all required fields are filled in
+  draft: true, // remove once all required fields are filled in
 }

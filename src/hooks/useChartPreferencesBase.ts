@@ -155,5 +155,5 @@ function useChartPreferencesBase<T extends BaseChartPrefs>(
   }
 }
 
-export { useChartPreferencesBase }
 export type { BaseChartPrefs, ChartPreferencesBase }
+export { useChartPreferencesBase }

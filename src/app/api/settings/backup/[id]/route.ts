@@ -108,9 +108,7 @@ export async function DELETE(
           // Continue with DB record deletion even if file deletion fails
         }
       } else {
-        log.error(
-          `Backup delete rejected: path ${resolved} outside base ${base}`
-        )
+        log.error(`Backup delete rejected: path ${resolved} outside base ${base}`)
       }
     }
   }

@@ -4,13 +4,13 @@
 
 "use client"
 
+import { H2, H3, Paragraph } from "@typography"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { Checkbox } from "@/components/ui/Checkbox"
 import { Input } from "@/components/ui/Input"
-import { H2, H3, Paragraph } from "@/components/ui/Typography"
 import { extractApiError } from "@/lib/client-helpers"
 
 export function DangerZoneSection() {
@@ -18,13 +18,19 @@ export function DangerZoneSection() {
 
   // --- Reset Stats ---
   const [confirmResetStats, setConfirmResetStats] = useState(false)
+  const [resetStatsPassword, setResetStatsPassword] = useState("")
   const [resetStatsSubmitting, setResetStatsSubmitting] = useState(false)
   const [resetStatsError, setResetStatsError] = useState<string | null>(null)
   const [resetStatsSuccess, setResetStatsSuccess] = useState(false)
 
   // --- Emergency Lockdown ---
   const [confirmLockdown, setConfirmLockdown] = useState(false)
-  const [lockdownChecks, setLockdownChecks] = useState({ sessions: false, tokens: false, totp: false })
+  const [lockdownPassword, setLockdownPassword] = useState("")
+  const [lockdownChecks, setLockdownChecks] = useState({
+    sessions: false,
+    tokens: false,
+    totp: false,
+  })
   const [lockdownSubmitting, setLockdownSubmitting] = useState(false)
   const [lockdownError, setLockdownError] = useState<string | null>(null)
 
@@ -38,12 +44,17 @@ export function DangerZoneSection() {
     setResetStatsSubmitting(true)
     setResetStatsError(null)
     try {
-      const res = await fetch("/api/settings/reset-stats", { method: "POST" })
+      const res = await fetch("/api/settings/reset-stats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: resetStatsPassword }),
+      })
       if (!res.ok) {
         throw new Error(await extractApiError(res, "Reset failed"))
       }
       setResetStatsSuccess(true)
       setConfirmResetStats(false)
+      setResetStatsPassword("")
     } catch (err) {
       setResetStatsError(err instanceof Error ? err.message : "Network error")
     } finally {
@@ -55,7 +66,11 @@ export function DangerZoneSection() {
     setLockdownSubmitting(true)
     setLockdownError(null)
     try {
-      const res = await fetch("/api/settings/lockdown", { method: "POST" })
+      const res = await fetch("/api/settings/lockdown", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: lockdownPassword }),
+      })
       if (!res.ok) {
         throw new Error(await extractApiError(res, "Lockdown failed"))
       }
@@ -87,7 +102,9 @@ export function DangerZoneSection() {
 
   return (
     <section aria-labelledby="danger-heading">
-      <H2 id="danger-heading" className="mb-4 !text-danger">Danger Zone</H2>
+      <H2 id="danger-heading" className="mb-4 !text-danger">
+        Danger Zone
+      </H2>
 
       <Card elevation="raised" className="flex flex-col gap-6">
         {/* Reset All Stats */}
@@ -95,25 +112,37 @@ export function DangerZoneSection() {
           <div className="flex flex-col gap-1">
             <H3>Reset All Tracker Stats</H3>
             <Paragraph>
-              Deletes all tracker snapshots and client snapshots from the database.
-              Trackers and their settings are preserved — only historical data is removed.
-              Trackers will re-poll on their next scheduled interval.
+              Deletes all tracker snapshots and client snapshots from the database. Trackers and
+              their settings are preserved — only historical data is removed. Trackers will re-poll
+              on their next scheduled interval.
             </Paragraph>
           </div>
 
           {confirmResetStats ? (
             <div className="nm-inset-sm p-4 flex flex-col gap-3 rounded-nm-md bg-danger-dim">
               <p className="text-sm font-sans text-primary leading-relaxed">
-                This will permanently delete all snapshot history for every tracker and download client. This cannot be undone.
+                This will permanently delete all snapshot history for every tracker and download
+                client. This cannot be undone.
               </p>
-              {resetStatsError && (
-                <p className="text-xs font-sans text-danger" role="alert">{resetStatsError}</p>
-              )}
+              <Input
+                type="password"
+                autoComplete="off"
+                data-1p-ignore
+                label="Master Password"
+                value={resetStatsPassword}
+                onChange={(e) => {
+                  setResetStatsPassword(e.target.value)
+                  setResetStatsError(null)
+                }}
+                placeholder="Enter your master password to confirm"
+                disabled={resetStatsSubmitting}
+                error={resetStatsError ?? undefined}
+              />
               <div className="flex gap-3">
                 <Button
                   size="sm"
                   variant="danger"
-                  disabled={resetStatsSubmitting}
+                  disabled={resetStatsSubmitting || !resetStatsPassword.trim()}
                   onClick={handleResetStats}
                 >
                   {resetStatsSubmitting ? "Resetting…" : "Confirm Reset"}
@@ -123,6 +152,7 @@ export function DangerZoneSection() {
                   variant="ghost"
                   onClick={() => {
                     setConfirmResetStats(false)
+                    setResetStatsPassword("")
                     setResetStatsError(null)
                   }}
                 >
@@ -135,7 +165,10 @@ export function DangerZoneSection() {
               <Button
                 size="sm"
                 variant="danger"
-                onClick={() => { setConfirmResetStats(true); setResetStatsSuccess(false) }}
+                onClick={() => {
+                  setConfirmResetStats(true)
+                  setResetStatsSuccess(false)
+                }}
               >
                 Reset All Stats
               </Button>
@@ -153,9 +186,9 @@ export function DangerZoneSection() {
           <div className="flex flex-col gap-1">
             <H3>Emergency Lockdown</H3>
             <Paragraph>
-              Immediately revokes all sessions, stops all tracker polling, and rotates
-              the encryption key. You will need to re-enter your master password and
-              re-add all tracker API tokens.
+              Immediately revokes all sessions, stops all tracker polling, and rotates the
+              encryption key. You will need to re-enter your master password and re-add all tracker
+              API tokens.
             </Paragraph>
           </div>
 
@@ -184,9 +217,20 @@ export function DangerZoneSection() {
                   Two-factor authentication and username will be removed
                 </Checkbox>
               </div>
-              {lockdownError && (
-                <p className="text-xs font-sans text-danger" role="alert">{lockdownError}</p>
-              )}
+              <Input
+                type="password"
+                autoComplete="off"
+                data-1p-ignore
+                label="Master Password"
+                value={lockdownPassword}
+                onChange={(e) => {
+                  setLockdownPassword(e.target.value)
+                  setLockdownError(null)
+                }}
+                placeholder="Enter your master password to confirm"
+                disabled={lockdownSubmitting}
+                error={lockdownError ?? undefined}
+              />
               <div className="flex gap-3">
                 <Button
                   size="sm"
@@ -195,7 +239,8 @@ export function DangerZoneSection() {
                     lockdownSubmitting ||
                     !lockdownChecks.sessions ||
                     !lockdownChecks.tokens ||
-                    !lockdownChecks.totp
+                    !lockdownChecks.totp ||
+                    !lockdownPassword.trim()
                   }
                   onClick={handleLockdown}
                 >
@@ -206,6 +251,7 @@ export function DangerZoneSection() {
                   variant="ghost"
                   onClick={() => {
                     setConfirmLockdown(false)
+                    setLockdownPassword("")
                     setLockdownChecks({ sessions: false, tokens: false, totp: false })
                     setLockdownError(null)
                   }}
@@ -216,11 +262,7 @@ export function DangerZoneSection() {
             </div>
           ) : (
             <div>
-              <Button
-                size="sm"
-                variant="danger"
-                onClick={() => setConfirmLockdown(true)}
-              >
+              <Button size="sm" variant="danger" onClick={() => setConfirmLockdown(true)}>
                 Initiate Lockdown
               </Button>
             </div>
@@ -234,9 +276,9 @@ export function DangerZoneSection() {
           <div className="flex flex-col gap-1">
             <H3>Scrub &amp; Delete All Data</H3>
             <Paragraph>
-              Permanently deletes all trackers, snapshots, roles, and settings from
-              the database. Scrubs all stored API tokens and usernames before deletion.
-              The application will reset to first-run setup.
+              Permanently deletes all trackers, snapshots, roles, and settings from the database.
+              Scrubs all stored API tokens and usernames before deletion. The application will reset
+              to first-run setup.
             </Paragraph>
           </div>
 
@@ -247,6 +289,8 @@ export function DangerZoneSection() {
               </p>
               <Input
                 type="password"
+                autoComplete="off"
+                data-1p-ignore
                 label="Master Password"
                 value={nukePassword}
                 onChange={(e) => {
@@ -281,11 +325,7 @@ export function DangerZoneSection() {
             </div>
           ) : (
             <div>
-              <Button
-                size="sm"
-                variant="danger"
-                onClick={() => setConfirmNuke(true)}
-              >
+              <Button size="sm" variant="danger" onClick={() => setConfirmNuke(true)}>
                 Scrub &amp; Delete
               </Button>
             </div>

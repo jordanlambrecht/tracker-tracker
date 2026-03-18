@@ -4,9 +4,10 @@
 
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
-import { CHART_THEME, escHtml } from "@/components/charts/theme"
-import { formatBytesFromNumber, generatePalette } from "@/lib/formatters"
+import { formatBytesNum, generatePalette } from "@/lib/formatters"
 import type { CategoryStats } from "@/lib/torrent-utils"
+import { ChartEmptyState } from "./ChartEmptyState"
+import { CHART_THEME, chartDot, chartTooltip, escHtml } from "./theme"
 
 // ---------------------------------------------------------------------------
 // Component
@@ -17,12 +18,9 @@ export interface TorrentSizeBreakdownProps {
   accentColor: string
 }
 
-export function TorrentSizeBreakdown({
-  categories,
-  accentColor,
-}: TorrentSizeBreakdownProps) {
+export function TorrentSizeBreakdown({ categories, accentColor }: TorrentSizeBreakdownProps) {
   if (categories.length === 0) {
-    return <p className="text-sm text-muted font-mono py-4">No category data</p>
+    return <ChartEmptyState height={160} message="No category data" />
   }
 
   const top = categories.slice(0, 8)
@@ -30,28 +28,21 @@ export function TorrentSizeBreakdown({
 
   const option: EChartsOption = {
     backgroundColor: "transparent",
-    tooltip: {
-      trigger: "axis",
+    tooltip: chartTooltip("axis", {
       axisPointer: { type: "shadow" },
-      backgroundColor: CHART_THEME.tooltipBg,
-      borderColor: CHART_THEME.tooltipBorder,
-      borderWidth: 1,
-      textStyle: {
-        color: CHART_THEME.textPrimary,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
-      },
       formatter: (params: unknown) => {
         const p = (params as { name: string; value: number; color: string }[])[0]
         if (!p) return ""
         const cat = top.find((c) => c.name === p.name)
         return [
-          `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color};margin-right:6px;box-shadow:0 0 6px ${p.color};"></span><span style="font-weight:600;color:${p.color}">${escHtml(p.name)}</span>`,
-          `Size: ${formatBytesFromNumber(p.value)}`,
+          `${chartDot(p.color)}<span style="font-weight:600;color:${p.color}">${escHtml(p.name)}</span>`,
+          `Size: ${formatBytesNum(p.value)}`,
           cat ? `Torrents: ${cat.count}` : "",
-        ].filter(Boolean).join("<br/>")
+        ]
+          .filter(Boolean)
+          .join("<br/>")
       },
-    },
+    }),
     grid: { left: 100, right: 24, top: 8, bottom: 8 },
     xAxis: {
       type: "value",
@@ -59,7 +50,7 @@ export function TorrentSizeBreakdown({
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
         fontSize: 10,
-        formatter: (val: number) => formatBytesFromNumber(val),
+        formatter: (val: number) => formatBytesNum(val),
       },
       splitLine: { lineStyle: { color: CHART_THEME.gridLine } },
     },
@@ -79,11 +70,13 @@ export function TorrentSizeBreakdown({
     series: [
       {
         type: "bar",
-        data: top.map((c, i) => ({
-          value: c.totalSize,
-          itemStyle: { color: palette[i % palette.length], borderRadius: [0, 4, 4, 0] },
-          emphasis: { itemStyle: { shadowBlur: 8, shadowColor: palette[i % palette.length] } },
-        })).reverse(),
+        data: top
+          .map((c, i) => ({
+            value: c.totalSize,
+            itemStyle: { color: palette[i % palette.length], borderRadius: [0, 4, 4, 0] },
+            emphasis: { itemStyle: { shadowBlur: 8, shadowColor: palette[i % palette.length] } },
+          }))
+          .reverse(),
         barWidth: "60%",
       },
     ],

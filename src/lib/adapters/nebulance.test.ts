@@ -2,22 +2,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { NebulanceAdapter } from "./nebulance"
 
-function mockNebulanceResponse(overrides?: Partial<{
-  ID: number
-  Username: string
-  Uploaded: number
-  Downloaded: number
-  SeedCount: number
-  HnR: number
-  Invites: number
-  Class: string
-  SubClass: string | null
-  JoinDate: string
-  Grabbed: number
-  Snatched: number
-  ForumPosts: number
-  LastAccess: string
-}>) {
+function mockNebulanceResponse(
+  overrides?: Partial<{
+    ID: number
+    Username: string
+    Uploaded: number
+    Downloaded: number
+    SeedCount: number
+    HnR: number
+    Invites: number
+    Class: string
+    SubClass: string | null
+    JoinDate: string
+    Grabbed: number
+    Snatched: number
+    ForumPosts: number
+    LastAccess: string
+  }>
+) {
   return {
     status: "success",
     response: {
@@ -53,11 +55,7 @@ describe("NebulanceAdapter", () => {
       json: async () => mockNebulanceResponse(),
     } as Response)
 
-    const stats = await adapter.fetchStats(
-      "https://nebulance.io",
-      "fake-api-key",
-      "/api.php"
-    )
+    const stats = await adapter.fetchStats("https://nebulance.io", "fake-api-key", "/api.php")
 
     expect(stats.username).toBe("seedqueen")
     expect(stats.group).toBe("Power User")
@@ -82,14 +80,15 @@ describe("NebulanceAdapter", () => {
       json: async () => mockNebulanceResponse(),
     } as Response)
 
-    const stats = await adapter.fetchStats(
-      "https://nebulance.io",
-      "fake-api-key",
-      "/api.php"
-    )
+    const stats = await adapter.fetchStats("https://nebulance.io", "fake-api-key", "/api.php")
 
     expect(stats.platformMeta).toBeDefined()
-    const meta = stats.platformMeta as { snatched: number; grabbed: number; forumPosts: number; invites: number }
+    const meta = stats.platformMeta as {
+      snatched: number
+      grabbed: number
+      forumPosts: number
+      invites: number
+    }
     expect(meta.snatched).toBe(280)
     expect(meta.grabbed).toBe(300)
     expect(meta.forumPosts).toBe(17)
@@ -102,11 +101,7 @@ describe("NebulanceAdapter", () => {
       json: async () => mockNebulanceResponse({ Class: "Elite", SubClass: "VIP" }),
     } as Response)
 
-    const stats = await adapter.fetchStats(
-      "https://nebulance.io",
-      "fake-api-key",
-      "/api.php"
-    )
+    const stats = await adapter.fetchStats("https://nebulance.io", "fake-api-key", "/api.php")
 
     expect(stats.group).toBe("Elite / VIP")
   })
@@ -117,11 +112,7 @@ describe("NebulanceAdapter", () => {
       json: async () => mockNebulanceResponse({ Class: "Member" }),
     } as Response)
 
-    const stats = await adapter.fetchStats(
-      "https://nebulance.io",
-      "fake-api-key",
-      "/api.php"
-    )
+    const stats = await adapter.fetchStats("https://nebulance.io", "fake-api-key", "/api.php")
 
     expect(stats.group).toBe("Member")
   })
@@ -132,11 +123,7 @@ describe("NebulanceAdapter", () => {
       json: async () => mockNebulanceResponse({ Uploaded: 100, Downloaded: 200 }),
     } as Response)
 
-    const stats = await adapter.fetchStats(
-      "https://nebulance.io",
-      "fake-api-key",
-      "/api.php"
-    )
+    const stats = await adapter.fetchStats("https://nebulance.io", "fake-api-key", "/api.php")
 
     expect(stats.bufferBytes).toBe(0n)
   })
@@ -147,11 +134,7 @@ describe("NebulanceAdapter", () => {
       json: async () => mockNebulanceResponse({ Uploaded: 1000, Downloaded: 0 }),
     } as Response)
 
-    const stats = await adapter.fetchStats(
-      "https://nebulance.io",
-      "fake-api-key",
-      "/api.php"
-    )
+    const stats = await adapter.fetchStats("https://nebulance.io", "fake-api-key", "/api.php")
 
     expect(stats.ratio).toBe(Infinity)
   })
@@ -162,11 +145,7 @@ describe("NebulanceAdapter", () => {
       json: async () => mockNebulanceResponse({ Uploaded: 0, Downloaded: 0 }),
     } as Response)
 
-    const stats = await adapter.fetchStats(
-      "https://nebulance.io",
-      "fake-api-key",
-      "/api.php"
-    )
+    const stats = await adapter.fetchStats("https://nebulance.io", "fake-api-key", "/api.php")
 
     expect(stats.ratio).toBe(0)
   })
@@ -177,11 +156,7 @@ describe("NebulanceAdapter", () => {
       json: async () => mockNebulanceResponse({ HnR: 2 }),
     } as Response)
 
-    const stats = await adapter.fetchStats(
-      "https://nebulance.io",
-      "fake-api-key",
-      "/api.php"
-    )
+    const stats = await adapter.fetchStats("https://nebulance.io", "fake-api-key", "/api.php")
 
     expect(stats.hitAndRuns).toBe(2)
   })
@@ -204,12 +179,9 @@ describe("NebulanceAdapter", () => {
       json: async () => mockNebulanceResponse(),
     } as Response)
 
-    await adapter.fetchStats(
-      "https://nebulance.io",
-      "fake-api-key",
-      "/api.php",
-      { remoteUserId: 9001 }
-    )
+    await adapter.fetchStats("https://nebulance.io", "fake-api-key", "/api.php", {
+      remoteUserId: 9001,
+    })
 
     const calledUrl = fetchSpy.mock.calls[0][0] as string
     expect(calledUrl).toContain("user=9001")
@@ -222,9 +194,9 @@ describe("NebulanceAdapter", () => {
       json: async () => ({ error: { code: 401, message: "Invalid API key" } }),
     } as Response)
 
-    await expect(
-      adapter.fetchStats("https://nebulance.io", "bad-key", "/api.php")
-    ).rejects.toThrow("Invalid API key")
+    await expect(adapter.fetchStats("https://nebulance.io", "bad-key", "/api.php")).rejects.toThrow(
+      "Invalid API key"
+    )
   })
 
   it("throws when response wrapper is missing response field", async () => {
@@ -234,9 +206,9 @@ describe("NebulanceAdapter", () => {
       json: async () => ({ status: "success" }),
     } as Response)
 
-    await expect(
-      adapter.fetchStats("https://nebulance.io", "bad-key", "/api.php")
-    ).rejects.toThrow("missing user data")
+    await expect(adapter.fetchStats("https://nebulance.io", "bad-key", "/api.php")).rejects.toThrow(
+      "missing user data"
+    )
   })
 
   it("throws on non-ok HTTP response with error body", async () => {
@@ -304,20 +276,22 @@ describe("NebulanceAdapter - Anthelion compatibility", () => {
     vi.restoreAllMocks()
   })
 
-  function mockAnthelionResponse(overrides?: Partial<{
-    ID: number
-    Username: string
-    Uploaded: number
-    Downloaded: number
-    SeedCount: number
-    Invites: number
-    Class: string
-    SubClasses: string | null
-    JoinDate: string
-    Grabbed: number
-    Snatched: number
-    ForumPosts: number
-  }>) {
+  function mockAnthelionResponse(
+    overrides?: Partial<{
+      ID: number
+      Username: string
+      Uploaded: number
+      Downloaded: number
+      SeedCount: number
+      Invites: number
+      Class: string
+      SubClasses: string | null
+      JoinDate: string
+      Grabbed: number
+      Snatched: number
+      ForumPosts: number
+    }>
+  ) {
     return {
       status: "success",
       response: {
@@ -363,7 +337,7 @@ describe("NebulanceAdapter - Anthelion compatibility", () => {
     expect(stats.group).toBe("Power User")
     expect(stats.uploadedBytes).toBe(BigInt(5368709120))
     expect(stats.seedingCount).toBe(88)
-    expect(stats.hitAndRuns).toBe(0) // No HnR field → defaults to 0
+    expect(stats.hitAndRuns).toBeNull() // No HnR field → null
     expect(stats.remoteUserId).toBe(1646)
   })
 
@@ -420,20 +394,21 @@ describe("NebulanceAdapter - security", () => {
       statusText: "Forbidden",
     } as Response)
 
-    try {
-      await adapter.fetchStats("https://nebulance.io", secretKey, "/api.php")
-    } catch (error) {
-      expect((error as Error).message).not.toContain(secretKey)
-    }
+    await expect(
+      adapter.fetchStats("https://nebulance.io", secretKey, "/api.php")
+    ).rejects.toSatisfy((err: Error) => {
+      expect(err.message).not.toContain(secretKey)
+      return true
+    })
   })
 
   it("throws a timeout-specific message", async () => {
     const timeoutError = new DOMException("signal timed out", "TimeoutError")
     vi.spyOn(global, "fetch").mockRejectedValueOnce(timeoutError)
 
-    await expect(
-      adapter.fetchStats("https://nebulance.io", "key", "/api.php")
-    ).rejects.toThrow("Request to nebulance.io timed out")
+    await expect(adapter.fetchStats("https://nebulance.io", "key", "/api.php")).rejects.toThrow(
+      "Request to nebulance.io timed out"
+    )
   })
 
   it("uses AbortSignal for timeout protection", async () => {

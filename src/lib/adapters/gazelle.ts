@@ -3,7 +3,13 @@
 // Functions: GazelleAdapter, GazelleAdapter.fetchStats, GazelleAdapter.fetchRaw
 
 import { adapterFetch } from "./adapter-fetch"
-import type { FetchOptions, GazellePlatformMeta, TrackerAdapter, TrackerStats } from "./types"
+import type {
+  DebugApiCall,
+  FetchOptions,
+  GazellePlatformMeta,
+  TrackerAdapter,
+  TrackerStats,
+} from "./types"
 
 interface GazelleUserStats {
   uploaded: number
@@ -49,6 +55,7 @@ interface GazelleUserResponse {
       uploaded: number
       downloaded: number
       ratio: number
+      buffer: number
       requiredRatio: number
     }
     ranks: {
@@ -72,6 +79,9 @@ interface GazelleUserResponse {
     community: {
       posts: number
       torrentComments: number
+      artistComments?: number
+      collageComments?: number
+      requestComments?: number
       collagesStarted: number
       collagesContrib: number
       requestsFilled: number
@@ -83,6 +93,8 @@ interface GazelleUserResponse {
       leeching: number
       snatched: number
       invited: number
+      bountyEarned: number | null
+      bountySpent: number | null
     }
   }
 }
@@ -100,12 +112,9 @@ export class GazelleAdapter implements TrackerAdapter {
     const hostname = new URL(baseUrl).hostname
     const authHeader = options?.authStyle === "raw" ? apiToken : `token ${apiToken}`
 
-    const data = await adapterFetch<GazelleIndexResponse>(
-      url.toString(),
-      hostname,
-      options,
-      { Authorization: authHeader }
-    )
+    const data = await adapterFetch<GazelleIndexResponse>(url.toString(), hostname, options, {
+      Authorization: authHeader,
+    })
 
     if (data.status !== "success") {
       throw new Error(data.error ?? `Gazelle API returned status: ${data.status}`)
@@ -133,15 +142,16 @@ export class GazelleAdapter implements TrackerAdapter {
       bufferBytes: uploaded > downloaded ? uploaded - downloaded : BigInt(0),
       seedingCount: userStats.seedingcount ?? 0,
       leechingCount: userStats.leechingcount ?? 0,
-      seedbonus: userStats.bonusPoints ?? userStats.bonuspoints ?? 0,
-      hitAndRuns: 0,
+      seedbonus: userStats.bonusPoints ?? userStats.bonuspoints ?? null,
+      hitAndRuns: null,
       requiredRatio: typeof userStats.requiredratio === "number" ? userStats.requiredratio : null,
       warned: false,
-      freeleechTokens: typeof userStats.freeleechTokens === "number"
-        ? userStats.freeleechTokens
-        : typeof response.giftTokens === "number"
-          ? response.giftTokens
-          : null,
+      freeleechTokens:
+        typeof userStats.freeleechTokens === "number"
+          ? userStats.freeleechTokens
+          : typeof response.giftTokens === "number"
+            ? response.giftTokens
+            : null,
     }
 
     // Cache the remote user ID from the index response
@@ -154,17 +164,29 @@ export class GazelleAdapter implements TrackerAdapter {
       const userId = options.remoteUserId ?? response.id
       if (userId) {
         try {
-          const enriched = await this.fetchUserProfile(baseUrl, apiPath, authHeader, userId, hostname, options)
+          const enriched = await this.fetchUserProfile(
+            baseUrl,
+            apiPath,
+            authHeader,
+            userId,
+            hostname,
+            options
+          )
           if (enriched) {
             // Override core stats with richer data from user profile
             if (typeof enriched.warned === "boolean") stats.warned = enriched.warned
             if (enriched.joinedDate) stats.joinedDate = enriched.joinedDate
-            if (typeof enriched.seedingCount === "number") stats.seedingCount = enriched.seedingCount
-            if (typeof enriched.leechingCount === "number") stats.leechingCount = enriched.leechingCount
+            if (enriched.lastAccessDate) stats.lastAccessDate = enriched.lastAccessDate
+            if (enriched.bufferBytes != null) stats.bufferBytes = enriched.bufferBytes
+            if (typeof enriched.seedingCount === "number")
+              stats.seedingCount = enriched.seedingCount
+            if (typeof enriched.leechingCount === "number")
+              stats.leechingCount = enriched.leechingCount
             if (enriched.avatarUrl) stats.avatarUrl = enriched.avatarUrl
             stats.platformMeta = enriched.platformMeta
           }
-        } catch { // security-audit-ignore: enrichment failure is non-fatal — core stats from index are still valid
+        } catch {
+          // security-audit-ignore: enrichment failure is non-fatal — core stats from index are still valid
         }
       }
     }
@@ -186,43 +208,67 @@ export class GazelleAdapter implements TrackerAdapter {
     apiToken: string,
     apiPath: string,
     options?: FetchOptions
-  ): Promise<Record<string, unknown>> {
-    const url = new URL(apiPath, baseUrl)
-    url.searchParams.set("action", "index")
-
+  ): Promise<DebugApiCall[]> {
     const hostname = new URL(baseUrl).hostname
     const authHeader = options?.authStyle === "raw" ? apiToken : `token ${apiToken}`
+    const calls: DebugApiCall[] = []
 
-    const indexData = await adapterFetch<Record<string, unknown>>(
-      url.toString(),
-      hostname,
-      options,
-      { Authorization: authHeader }
-    )
+    // Call 1: Index
+    const indexUrl = new URL(apiPath, baseUrl)
+    indexUrl.searchParams.set("action", "index")
+    let indexData: Record<string, unknown> | null = null
 
-    const result: Record<string, unknown> = { index: indexData }
+    try {
+      indexData = await adapterFetch<Record<string, unknown>>(
+        indexUrl.toString(),
+        hostname,
+        options,
+        { Authorization: authHeader }
+      )
+      calls.push({
+        label: "Index",
+        endpoint: `${apiPath}?action=index`,
+        data: indexData,
+        error: null,
+      })
+    } catch (err) {
+      calls.push({
+        label: "Index",
+        endpoint: `${apiPath}?action=index`,
+        data: null,
+        error: err instanceof Error ? err.message : "Request failed",
+      })
+      return calls
+    }
 
-    // If we have a remoteUserId, also fetch the user profile
-    const indexResponse = indexData.response as { id?: number } | undefined
+    // Call 2: User Profile (enrichment)
+    const indexResponse = indexData?.response as { id?: number } | undefined
     const userId = options?.remoteUserId ?? indexResponse?.id
     if (userId) {
+      const userUrl = new URL(apiPath, baseUrl)
+      userUrl.searchParams.set("action", "user")
+      userUrl.searchParams.set("id", String(userId))
+      const endpoint = `${apiPath}?action=user&id=${userId}`
+
       try {
-        const userUrl = new URL(apiPath, baseUrl)
-        userUrl.searchParams.set("action", "user")
-        userUrl.searchParams.set("id", String(userId))
         const userData = await adapterFetch<Record<string, unknown>>(
           userUrl.toString(),
           hostname,
           options,
           { Authorization: authHeader }
         )
-        result.user = userData
-      } catch {
-        // user profile fetch is non-fatal for raw debug
+        calls.push({ label: "User Profile", endpoint, data: userData, error: null })
+      } catch (err) {
+        calls.push({
+          label: "User Profile",
+          endpoint,
+          data: null,
+          error: err instanceof Error ? err.message : "Request failed",
+        })
       }
     }
 
-    return result
+    return calls
   }
 
   private async fetchUserProfile(
@@ -235,6 +281,8 @@ export class GazelleAdapter implements TrackerAdapter {
   ): Promise<{
     warned: boolean
     joinedDate?: string
+    lastAccessDate?: string
+    bufferBytes?: bigint
     seedingCount?: number
     leechingCount?: number
     avatarUrl?: string
@@ -244,12 +292,9 @@ export class GazelleAdapter implements TrackerAdapter {
     userUrl.searchParams.set("action", "user")
     userUrl.searchParams.set("id", String(userId))
 
-    const data = await adapterFetch<GazelleUserResponse>(
-      userUrl.toString(),
-      hostname,
-      options,
-      { Authorization: authHeader }
-    )
+    const data = await adapterFetch<GazelleUserResponse>(userUrl.toString(), hostname, options, {
+      Authorization: authHeader,
+    })
 
     if (data.status !== "success" || !data.response) return null
 
@@ -278,6 +323,9 @@ export class GazelleAdapter implements TrackerAdapter {
       meta.community = {
         posts: resp.community.posts,
         torrentComments: resp.community.torrentComments,
+        artistComments: resp.community.artistComments ?? 0,
+        collageComments: resp.community.collageComments ?? 0,
+        requestComments: resp.community.requestComments ?? 0,
         collagesStarted: resp.community.collagesStarted,
         collagesContrib: resp.community.collagesContrib,
         requestsFilled: resp.community.requestsFilled,
@@ -287,12 +335,16 @@ export class GazelleAdapter implements TrackerAdapter {
         groups: resp.community.groups,
         snatched: resp.community.snatched,
         invited: resp.community.invited,
+        bountyEarned: resp.community.bountyEarned ?? null,
+        bountySpent: resp.community.bountySpent ?? null,
       }
     }
 
     return {
       warned: resp.personal?.warned ?? false,
       joinedDate: resp.stats?.joinedDate ?? undefined,
+      lastAccessDate: resp.stats?.lastAccess ?? undefined,
+      bufferBytes: resp.stats?.buffer != null ? BigInt(Math.floor(resp.stats.buffer)) : undefined,
       seedingCount: resp.community?.seeding,
       leechingCount: resp.community?.leeching,
       avatarUrl: resp.avatar || undefined,

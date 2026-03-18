@@ -22,10 +22,14 @@ const button = cva(
   {
     variants: {
       variant: {
-        primary: "bg-accent-dim text-accent nm-raised-sm hover:nm-raised active:nm-pressed active:scale-[0.93]",
-        secondary: "bg-raised text-primary nm-raised-sm hover:nm-raised active:nm-pressed active:scale-[0.93]",
-        ghost: "bg-transparent text-secondary hover:bg-raised hover:text-primary hover:nm-raised-sm active:scale-[0.96]",
-        danger: "bg-danger-dim text-danger nm-raised-sm hover:nm-raised active:nm-pressed active:scale-[0.93]",
+        primary:
+          "bg-accent-dim text-accent nm-raised-sm hover:nm-raised active:nm-pressed active:scale-[0.93]",
+        secondary:
+          "bg-raised text-primary nm-raised-sm hover:nm-raised active:nm-pressed active:scale-[0.93]",
+        ghost:
+          "bg-transparent text-secondary hover:bg-raised hover:text-primary hover:nm-raised-sm active:scale-[0.96]",
+        danger:
+          "bg-danger-dim text-danger nm-raised-sm hover:nm-raised active:nm-pressed active:scale-[0.93]",
       },
       size: {
         sm: "px-4 py-2 text-xs gap-2 rounded-nm-sm",
@@ -37,28 +41,11 @@ const button = cva(
       variant: "primary",
       size: "md",
     },
-  },
+  }
 )
 
-const sizeRadii: Record<ButtonSize, string> = {
-  sm: "var(--radius-sm)",
-  md: "var(--radius-md)",
-  lg: "var(--radius-md)",
-}
-
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  (
-    {
-      variant = "primary",
-      size = "md",
-      className,
-      disabled,
-      children,
-      style,
-      ...props
-    },
-    ref,
-  ) => {
+  ({ variant = "primary", size = "md", className, disabled, children, style, ...props }, ref) => {
     return (
       <button
         ref={ref}
@@ -70,10 +57,10 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         {children}
       </button>
     )
-  },
+  }
 )
 
 Button.displayName = "Button"
 
-export { Button, button as buttonVariants, sizeRadii as buttonRadii }
-export type { ButtonProps, ButtonVariant, ButtonSize }
+export type { ButtonProps, ButtonSize, ButtonVariant }
+export { Button, button as buttonVariants }

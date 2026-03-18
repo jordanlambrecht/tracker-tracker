@@ -9,6 +9,7 @@ import "echarts-gl"
 import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartEmptyState } from "./ChartEmptyState"
+import { autoByteScale, fmtNum } from "./chart-helpers"
 import { CHART_THEME, chartAxisLabel, chartTooltip, escHtml } from "./theme"
 
 // ---------------------------------------------------------------------------
@@ -203,9 +204,7 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
   for (const row of grid.uploadGrid) {
     for (const v of row) maxVal = Math.max(maxVal, v)
   }
-  const useTiB = maxVal >= 1024
-  const divisor = useTiB ? 1024 : 1
-  const unit = useTiB ? "TiB" : "GiB"
+  const { divisor, unit } = autoByteScale(maxVal)
 
   // Build bar3D data: [bucketIndex, trackerIndex, value]
   const barData: [number, number, number][] = []
@@ -235,14 +234,13 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
         const [bi, ti, val] = params.value
         const bucketLabel = displayLabels[bi] ?? "?"
         const tracker = grid.trackerNames[ti] ?? "?"
-        const formatted = Math.abs(val).toLocaleString(undefined, {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })
-        return `<div style="font-family:var(--font-mono),monospace">` +
+        const formatted = fmtNum(Math.abs(val))
+        return (
+          `<div style="font-family:var(--font-mono),monospace">` +
           `<div style="color:${CHART_THEME.textTertiary};font-size:11px;margin-bottom:2px">${escHtml(bucketLabel)}</div>` +
           `<div><span style="color:${CHART_THEME.textSecondary}">${escHtml(tracker)}:</span> <b>${formatted} ${unit}</b></div>` +
           `</div>`
+        )
       },
     }),
     xAxis3D: {
@@ -313,13 +311,10 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
       min: 0,
       max: maxVal / divisor,
       inRange: {
-        color: grid.trackerColors.length > 1
-          ? grid.trackerColors
-          : [
-              CHART_THEME.accentGlow,
-              CHART_THEME.accentGlow60,
-              CHART_THEME.accent,
-            ],
+        color:
+          grid.trackerColors.length > 1
+            ? grid.trackerColors
+            : [CHART_THEME.accentGlow, CHART_THEME.accentGlow60, CHART_THEME.accent],
       },
       dimension: 2,
     },
@@ -353,10 +348,7 @@ function VolumeSurface3D({ trackerData, height = 480 }: VolumeSurface3DProps) {
 
   if (!hasData) {
     return (
-      <ChartEmptyState
-        height={height}
-        message="Need at least 2 days of data across trackers."
-      />
+      <ChartEmptyState height={height} message="Need at least 2 days of data across trackers." />
     )
   }
 
@@ -365,12 +357,7 @@ function VolumeSurface3D({ trackerData, height = 480 }: VolumeSurface3DProps) {
   const option = buildSurfaceOption(grid)
 
   if (!option.series) {
-    return (
-      <ChartEmptyState
-        height={height}
-        message="No daily volume data to display."
-      />
-    )
+    return <ChartEmptyState height={height} message="No daily volume data to display." />
   }
 
   return (
@@ -384,5 +371,5 @@ function VolumeSurface3D({ trackerData, height = 480 }: VolumeSurface3DProps) {
   )
 }
 
-export { VolumeSurface3D, computeDailyGrid }
 export type { VolumeSurface3DProps }
+export { computeDailyGrid, VolumeSurface3D }

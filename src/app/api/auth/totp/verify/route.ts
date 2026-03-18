@@ -10,17 +10,22 @@ import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { parseJsonBody } from "@/lib/api-helpers"
 import { createSession, verifyPendingToken } from "@/lib/auth"
+import { extractClientIp } from "@/lib/client-ip"
 import { decrypt, encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { checkLockout, recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
+import { log } from "@/lib/logger"
 import { startScheduler } from "@/lib/scheduler"
+import { persistSchedulerKey } from "@/lib/scheduler-key-store"
 import type { BackupCodeEntry } from "@/lib/totp"
 import { BACKUP_CODE_PATTERN, verifyAndConsumeBackupCode, verifyTotpCode } from "@/lib/totp"
-import { recordFailedAttempt, resetFailedAttempts, WIPE_MESSAGE } from "@/lib/wipe"
 
 export async function POST(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
+
+  const clientIp = extractClientIp(request.headers)
 
   const { pendingToken, code, isBackupCode } = body as {
     pendingToken?: string
@@ -28,7 +33,7 @@ export async function POST(request: Request) {
     isBackupCode?: boolean
   }
 
-  if (!pendingToken || typeof pendingToken !== "string") {
+  if (!pendingToken || typeof pendingToken !== "string" || pendingToken.length > 2048) {
     return NextResponse.json({ error: "Missing pending token" }, { status: 400 })
   }
   if (!code || typeof code !== "string") {
@@ -54,13 +59,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "TOTP is not enabled" }, { status: 400 })
   }
 
-  if (settings.lockedUntil && settings.lockedUntil > new Date()) {
-    const retryAfter = Math.ceil((settings.lockedUntil.getTime() - Date.now()) / 1000)
-    return NextResponse.json(
-      { error: "Too many failed attempts. Try again later.", retryAfter },
-      { status: 429, headers: { "Retry-After": String(retryAfter) } }
-    )
-  }
+  const lockout = checkLockout(settings)
+  if (lockout) return lockout
 
   const key = Buffer.from(pending.encryptionKey, "hex")
 
@@ -71,14 +71,19 @@ export async function POST(request: Request) {
     }
 
     let entries: BackupCodeEntry[]
-    try { entries = JSON.parse(decrypt(settings.totpBackupCodes, key)) } catch {
+    try {
+      entries = JSON.parse(decrypt(settings.totpBackupCodes, key))
+    } catch {
       return NextResponse.json({ error: "Corrupted backup codes" }, { status: 500 })
     }
     const { valid, updatedEntries } = verifyAndConsumeBackupCode(code, entries)
 
     if (!valid) {
-      const wiped = await recordFailedAttempt(settings.id, settings.autoWipeThreshold)
-      if (wiped) return NextResponse.json({ error: WIPE_MESSAGE }, { status: 403 })
+      await recordFailedAttempt(settings.id, settings)
+      log.warn(
+        { event: "totp_failed", method: "backup_code", ip: clientIp },
+        "Failed backup code attempt"
+      )
       return NextResponse.json({ error: "Invalid backup code" }, { status: 401 })
     }
 
@@ -91,8 +96,8 @@ export async function POST(request: Request) {
     // Verify TOTP code
     const totpSecret = decrypt(settings.totpSecret, key)
     if (!verifyTotpCode(totpSecret, code)) {
-      const wiped = await recordFailedAttempt(settings.id, settings.autoWipeThreshold)
-      if (wiped) return NextResponse.json({ error: WIPE_MESSAGE }, { status: 403 })
+      await recordFailedAttempt(settings.id, settings)
+      log.warn({ event: "totp_failed", method: "totp", ip: clientIp }, "Failed TOTP code attempt")
       return NextResponse.json({ error: "Invalid TOTP code" }, { status: 401 })
     }
   }
@@ -101,7 +106,12 @@ export async function POST(request: Request) {
   await resetFailedAttempts(settings.id)
 
   await createSession(pending.encryptionKey, settings.sessionTimeoutMinutes)
+  await persistSchedulerKey(key, settings.id)
   startScheduler(key)
+  log.info(
+    { event: "login_success", method: isBackupCode ? "backup_code" : "totp", ip: clientIp },
+    "Login successful (2FA verified)"
+  )
 
   return NextResponse.json({ success: true })
 }

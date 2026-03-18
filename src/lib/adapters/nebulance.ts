@@ -9,7 +9,13 @@
 // Functions: NebulanceAdapter, NebulanceAdapter.fetchStats, NebulanceAdapter.fetchRaw
 
 import { proxyFetch } from "@/lib/proxy"
-import type { FetchOptions, NebulancePlatformMeta, TrackerAdapter, TrackerStats } from "./types"
+import type {
+  DebugApiCall,
+  FetchOptions,
+  NebulancePlatformMeta,
+  TrackerAdapter,
+  TrackerStats,
+} from "./types"
 
 interface NebulanceUserData {
   ID: number
@@ -47,7 +53,7 @@ export class NebulanceAdapter implements TrackerAdapter {
     apiToken: string,
     apiPath: string,
     options?: FetchOptions
-  ): Promise<Record<string, unknown>> {
+  ): Promise<DebugApiCall[]> {
     const hostname = new URL(baseUrl).hostname
     const userId = options?.remoteUserId ?? 1
 
@@ -61,18 +67,34 @@ export class NebulanceAdapter implements TrackerAdapter {
     url.searchParams.set("type", "id")
     url.searchParams.set("user", String(userId))
 
-    const headers = { Accept: "application/json" }
-    let data: unknown
+    const endpoint = `${apiPath}?action=user&method=getuserinfo&user=${userId}`
 
-    if (options?.proxyAgent) {
-      const result = await proxyFetch(url.toString(), options.proxyAgent, { headers })
-      data = await result.json()
-    } else {
-      const response = await fetch(url.toString(), { headers, signal: AbortSignal.timeout(15000) })
-      data = await response.json()
+    try {
+      const headers = { Accept: "application/json" }
+      let data: unknown
+
+      if (options?.proxyAgent) {
+        const result = await proxyFetch(url.toString(), options.proxyAgent, { headers })
+        data = await result.json()
+      } else {
+        const response = await fetch(url.toString(), {
+          headers,
+          signal: AbortSignal.timeout(15000),
+        })
+        data = await response.json()
+      }
+
+      return [{ label: "User Info", endpoint, data, error: null }]
+    } catch (err) {
+      return [
+        {
+          label: "User Info",
+          endpoint,
+          data: null,
+          error: err instanceof Error ? err.message : "Request failed",
+        },
+      ]
     }
-
-    return data as Record<string, unknown>
   }
 
   async fetchStats(
@@ -114,21 +136,34 @@ export class NebulanceAdapter implements TrackerAdapter {
         status = result.status
         data = (await result.json()) as NebulanceResponse
       } else {
-        const response = await fetch(url.toString(), { headers, signal: AbortSignal.timeout(15000) })
+        const response = await fetch(url.toString(), {
+          headers,
+          signal: AbortSignal.timeout(15000),
+        })
         ok = response.ok
         status = response.status
         data = (await response.json()) as NebulanceResponse
       }
     } catch (err) {
-      if (err instanceof DOMException && (err.name === "TimeoutError" || err.name === "AbortError")) {
+      if (
+        err instanceof DOMException &&
+        (err.name === "TimeoutError" || err.name === "AbortError")
+      ) {
         throw new Error(`Request to ${hostname} timed out`)
       }
-      throw new Error(`Failed to connect to ${hostname}: ${err instanceof Error ? err.message : "Unknown"}`)
+      throw new Error(
+        `Failed to connect to ${hostname}: ${err instanceof Error ? err.message : "Unknown"}`
+      )
     }
 
     if (!ok || "error" in data) {
       const err = "error" in data ? data.error : undefined
-      const errMsg = typeof err === "object" && err !== null ? err.message : typeof err === "string" ? err : `HTTP ${status}`
+      const errMsg =
+        typeof err === "object" && err !== null
+          ? err.message
+          : typeof err === "string"
+            ? err
+            : `HTTP ${status}`
       throw new Error(`${hostname} API error: ${errMsg}`)
     }
 
@@ -161,7 +196,10 @@ export class NebulanceAdapter implements TrackerAdapter {
 
     return {
       username: resp.Username,
-      group: (resp.SubClasses ?? resp.SubClass) ? `${resp.Class} / ${resp.SubClasses ?? resp.SubClass}` : (resp.Class ?? "Unknown"),
+      group:
+        (resp.SubClasses ?? resp.SubClass)
+          ? `${resp.Class} / ${resp.SubClasses ?? resp.SubClass}`
+          : (resp.Class ?? "Unknown"),
       remoteUserId: resp.ID,
       uploadedBytes: uploaded,
       downloadedBytes: downloaded,
@@ -170,7 +208,7 @@ export class NebulanceAdapter implements TrackerAdapter {
       seedingCount: resp.SeedCount ?? 0,
       leechingCount: 0, // Not available from Nebulance API
       seedbonus: null, // Not available from Nebulance API
-      hitAndRuns: resp.HnR ?? 0,
+      hitAndRuns: resp.HnR ?? null,
       requiredRatio: null, // Not available from Nebulance API
       warned: null, // Not available from Nebulance API
       freeleechTokens: null, // Not available from Nebulance API

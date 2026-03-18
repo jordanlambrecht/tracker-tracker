@@ -119,7 +119,8 @@ const SECRET_PATTERNS: Array<{ re: RegExp; name: string }> = [
 const SECURITY_FILES = [
   "src/lib/auth.ts",
   "src/lib/crypto.ts",
-  "src/lib/wipe.ts",
+  "src/lib/lockout.ts",
+  "src/lib/nuke.ts",
   "src/lib/totp.ts",
   "src/lib/privacy.ts",
   "src/lib/proxy.ts",
@@ -214,7 +215,8 @@ function filterIgnoredFindings(results: CheckResult[]): CheckResult[] {
 
       const lineIdx = finding.line - 1
 
-      for (const checkIdx of [lineIdx, lineIdx - 1]) {
+      // Check flagged line, one above, and two below (catch blocks have ignore comments inside the block body)
+      for (const checkIdx of [lineIdx, lineIdx - 1, lineIdx + 1, lineIdx + 2]) {
         if (checkIdx < 0 || checkIdx >= lines.length) continue
         const checkLine = lines[checkIdx]
 
@@ -264,8 +266,7 @@ function filterIgnoredFindings(results: CheckResult[]): CheckResult[] {
 function checkAuthEnforcement(): CheckResult {
   const findings: Finding[] = []
   const routeFiles = walkFiles(API_DIR, "route.ts")
-  const EXPORTED_HANDLERS =
-    /export\s+(?:async\s+)?function\s+(GET|POST|PATCH|PUT|DELETE)\b/g
+  const EXPORTED_HANDLERS = /export\s+(?:async\s+)?function\s+(GET|POST|PATCH|PUT|DELETE)\b/g
 
   for (const file of routeFiles) {
     const routePath = routePathFromFile(file)
@@ -301,8 +302,7 @@ function checkAuthEnforcement(): CheckResult {
 
 function checkDangerousFunctions(files?: string[]): CheckResult {
   const findings: Finding[] = []
-  const targetFiles =
-    files ?? walkFiles(SRC_DIR, ".ts").concat(walkFiles(SRC_DIR, ".tsx"))
+  const targetFiles = files ?? walkFiles(SRC_DIR, ".ts").concat(walkFiles(SRC_DIR, ".tsx"))
 
   for (const file of targetFiles) {
     if (isTestFile(file)) continue
@@ -313,8 +313,7 @@ function checkDangerousFunctions(files?: string[]): CheckResult {
       for (const line of lineNums) {
         // Skip commented-out lines
         const lineContent = content.split("\n")[line - 1]?.trim()
-        if (lineContent?.startsWith("//") || lineContent?.startsWith("*"))
-          continue
+        if (lineContent?.startsWith("//") || lineContent?.startsWith("*")) continue
 
         findings.push({
           file: relativePath(file),
@@ -338,8 +337,7 @@ function checkDangerousFunctions(files?: string[]): CheckResult {
 
 function checkHardcodedSecrets(files?: string[]): CheckResult {
   const findings: Finding[] = []
-  const targetFiles =
-    files ?? walkFiles(SRC_DIR, ".ts").concat(walkFiles(SRC_DIR, ".tsx"))
+  const targetFiles = files ?? walkFiles(SRC_DIR, ".ts").concat(walkFiles(SRC_DIR, ".tsx"))
 
   for (const file of targetFiles) {
     if (isTestFile(file)) continue
@@ -350,8 +348,7 @@ function checkHardcodedSecrets(files?: string[]): CheckResult {
       for (const line of lineNums) {
         // Skip commented-out lines
         const lineContent = content.split("\n")[line - 1]?.trim()
-        if (lineContent?.startsWith("//") || lineContent?.startsWith("*"))
-          continue
+        if (lineContent?.startsWith("//") || lineContent?.startsWith("*")) continue
 
         findings.push({
           file: relativePath(file),
@@ -420,20 +417,14 @@ function checkCookieSecurity(): CheckResult {
 
     const rel = relativePath(file)
 
-    if (
-      !content.includes("httpOnly: true") &&
-      !content.includes("httpOnly:true")
-    ) {
+    if (!content.includes("httpOnly: true") && !content.includes("httpOnly:true")) {
       findings.push({
         file: rel,
         detail: "Cookie set without httpOnly: true",
       })
     }
 
-    if (
-      !content.includes('sameSite: "strict"') &&
-      !content.includes("sameSite: 'strict'")
-    ) {
+    if (!content.includes('sameSite: "strict"') && !content.includes("sameSite: 'strict'")) {
       findings.push({
         file: rel,
         detail: 'Cookie set without sameSite: "strict"',
@@ -591,8 +582,7 @@ function checkConsoleLogInRoutes(files?: string[]): CheckResult {
       findings.push({
         file: relativePath(file),
         line,
-        detail:
-          "console.log/debug/info in API route — may leak sensitive data in production",
+        detail: "console.log/debug/info in API route — may leak sensitive data in production",
       })
     }
   }
@@ -641,7 +631,7 @@ function checkTodoInSecurityFiles(): CheckResult {
 
 // Hardcoded-safe SQL literals permitted in route files.
 // These are DB connectivity checks with no user input — identical in safety
-// to the VACUUM FULL in wipe.ts.
+// to the scrub operations in nuke.ts.
 const SAFE_RAW_SQL_RE = /db\.execute\s*\(\s*sql`SELECT\s+1`\s*\)/
 
 function checkRawSqlInRoutes(): CheckResult {
@@ -655,7 +645,7 @@ function checkRawSqlInRoutes(): CheckResult {
     for (const line of lineNums) {
       const lineContent = content.split("\n")[line - 1]?.trim()
       if (lineContent?.startsWith("//")) continue
-      // Allow hardcoded DB ping (SELECT 1) — no user input, same category as wipe.ts
+      // Allow hardcoded DB ping (SELECT 1) — no user input, same category as nuke.ts
       if (lineContent && SAFE_RAW_SQL_RE.test(lineContent)) continue
       findings.push({
         file: relativePath(file),
@@ -678,8 +668,7 @@ function checkRawSqlInRoutes(): CheckResult {
 
 function checkUnvalidatedJsonParse(files?: string[]): CheckResult {
   const findings: Finding[] = []
-  const targetFiles =
-    files ?? walkFiles(SRC_DIR, ".ts").concat(walkFiles(SRC_DIR, ".tsx"))
+  const targetFiles = files ?? walkFiles(SRC_DIR, ".ts").concat(walkFiles(SRC_DIR, ".tsx"))
 
   for (const file of targetFiles) {
     if (isTestFile(file)) continue
@@ -781,8 +770,7 @@ function checkUnsafeRedirectFetch(): CheckResult {
   // A fetch URL is suspicious when it contains a variable (not a pure string literal
   // and not exclusively a process.env reference)
   const VARIABLE_FETCH_RE = /\bfetch\s*\(\s*(?!['"`]\/api\/)(?![`'"])[^,)]+/
-  const REDIRECT_VAR_RE =
-    /\b(?:redirect|Response\.redirect)\s*\(\s*(?![`'"])[^,)]+/
+  const REDIRECT_VAR_RE = /\b(?:redirect|Response\.redirect)\s*\(\s*(?![`'"])[^,)]+/
   const USER_INPUT_RE = /request\.json\(\)|searchParams\b/
   const ENV_ONLY_RE = /^`?\s*process\.env\.\w+/
 
@@ -854,8 +842,7 @@ function checkRequestBodySize(files?: string[]): CheckResult {
     if (lines.length < 30) continue
 
     // Only flag POST/PATCH/PUT handlers that parse the body
-    const hasMutableHandler =
-      /export\s+(?:async\s+)?function\s+(?:POST|PATCH|PUT)\b/.test(content)
+    const hasMutableHandler = /export\s+(?:async\s+)?function\s+(?:POST|PATCH|PUT)\b/.test(content)
     if (!hasMutableHandler) continue
 
     if (!BODY_PARSE_RE.test(content)) continue
@@ -863,8 +850,7 @@ function checkRequestBodySize(files?: string[]): CheckResult {
 
     findings.push({
       file: relativePath(file),
-      detail:
-        "POST/PATCH/PUT handler parses request body without a size/length check",
+      detail: "POST/PATCH/PUT handler parses request body without a size/length check",
     })
   }
 
@@ -894,10 +880,7 @@ function checkTimingSafeComparison(): CheckResult {
 
   // Scan all non-test .ts files in src/lib/ and src/app/api/
   const libDir = path.resolve(SRC_DIR, "lib")
-  const scanFiles = [
-    ...walkFiles(libDir, ".ts"),
-    ...walkFiles(API_DIR, ".ts"),
-  ]
+  const scanFiles = [...walkFiles(libDir, ".ts"), ...walkFiles(API_DIR, ".ts")]
 
   for (const absPath of scanFiles) {
     if (isTestFile(absPath)) continue
@@ -994,17 +977,13 @@ function checkNoRawMigrations(): CheckResult {
   // Check CI workflow files for drizzle-kit generate or migrate
   const workflowDir = path.join(ROOT, ".github/workflows")
   if (fs.existsSync(workflowDir)) {
-    const yamlFiles = [
-      ...walkFiles(workflowDir, ".yml"),
-      ...walkFiles(workflowDir, ".yaml"),
-    ]
+    const yamlFiles = [...walkFiles(workflowDir, ".yml"), ...walkFiles(workflowDir, ".yaml")]
     for (const f of yamlFiles) {
       const content = fs.readFileSync(f, "utf8")
       if (/drizzle-kit\s+(generate|migrate)\b/.test(content)) {
         findings.push({
           file: relativePath(f),
-          detail:
-            "CI workflow uses drizzle-kit generate/migrate — use drizzle-kit push instead",
+          detail: "CI workflow uses drizzle-kit generate/migrate — use drizzle-kit push instead",
         })
       }
     }
@@ -1034,16 +1013,13 @@ function checkFetchTimeout(): CheckResult {
   // Collect all .ts files from adapters/ and qbt/ (recursive via walkFiles),
   // plus direct .ts files in lib/ root only (not recursive into subdirs).
   const libRootFiles = fs.existsSync(libDir)
-    ? fs.readdirSync(libDir, { withFileTypes: true })
+    ? fs
+        .readdirSync(libDir, { withFileTypes: true })
         .filter((e) => e.isFile() && e.name.endsWith(".ts"))
         .map((e) => path.join(libDir, e.name))
     : []
 
-  const scanFiles = [
-    ...walkFiles(adaptersDir, ".ts"),
-    ...walkFiles(qbtDir, ".ts"),
-    ...libRootFiles,
-  ]
+  const scanFiles = [...walkFiles(adaptersDir, ".ts"), ...walkFiles(qbtDir, ".ts"), ...libRootFiles]
 
   for (const absPath of scanFiles) {
     if (isTestFile(absPath)) continue
@@ -1072,8 +1048,7 @@ function checkFetchTimeout(): CheckResult {
         findings.push({
           file: relFile,
           line: i + 1,
-          detail:
-            "fetch() call without a timeout signal — add signal: AbortSignal.timeout(ms)",
+          detail: "fetch() call without a timeout signal — add signal: AbortSignal.timeout(ms)",
         })
       }
     }
@@ -1203,9 +1178,7 @@ function checkProxyAllowlistSync(): CheckResult {
   // A route is proxy-public if it matches an exact entry or starts with a prefix
   function isCoveredByProxy(normalizedRoute: string): boolean {
     if (proxyExact.has(normalizedRoute)) return true
-    return proxyPrefixes.some((prefix) =>
-      normalizedRoute.startsWith(normalizeRoute(prefix))
-    )
+    return proxyPrefixes.some((prefix) => normalizedRoute.startsWith(normalizeRoute(prefix)))
   }
 
   // Every NO_AUTH_ROUTES entry must be reachable through the proxy allowlist
@@ -1259,9 +1232,7 @@ function checkBigIntSafety(files?: string[]): CheckResult {
     : walkFiles(API_DIR, "route.ts")
 
   const BIGINT_COL_PATTERN = BIGINT_COLUMNS.join("|")
-  const UNSAFE_RE = new RegExp(
-    `\\b(?:Number|parseInt)\\s*\\([^)]*\\b(${BIGINT_COL_PATTERN})\\b`
-  )
+  const UNSAFE_RE = new RegExp(`\\b(?:Number|parseInt)\\s*\\([^)]*\\b(${BIGINT_COL_PATTERN})\\b`)
 
   for (const file of targetFiles) {
     if (isTestFile(file)) continue
@@ -1305,10 +1276,7 @@ function checkPathTraversalDefense(): CheckResult {
   const PATH_DEFENSE_RE = /path\.resolve\b/
   const STARTS_WITH_RE = /\.startsWith\s*\(/
 
-  const scanDirs = [
-    path.resolve(SRC_DIR, "app/api"),
-    path.resolve(SRC_DIR, "lib"),
-  ]
+  const scanDirs = [path.resolve(SRC_DIR, "app/api"), path.resolve(SRC_DIR, "lib")]
 
   for (const dir of scanDirs) {
     const files = walkFiles(dir, ".ts")
@@ -1465,7 +1433,13 @@ function checkTotpFlowIntegrity(): CheckResult {
   const TOTP_DIR = path.resolve(API_DIR, "auth/totp")
   if (!fs.existsSync(TOTP_DIR)) {
     findings.push({ file: "src/app/api/auth/totp/", detail: "TOTP route directory not found" })
-    return { id: "totp-flow-integrity", name: "TOTP 2FA flow integrity", severity: "critical", status: "fail", findings }
+    return {
+      id: "totp-flow-integrity",
+      name: "TOTP 2FA flow integrity",
+      severity: "critical",
+      status: "fail",
+      findings,
+    }
   }
 
   // ── verify route: must use pendingToken, NOT authenticate() ──
@@ -1475,25 +1449,48 @@ function checkTotpFlowIntegrity(): CheckResult {
     const rel = relativePath(verifyPath)
 
     if (!/\bpendingToken\b/.test(content) || !/\bverifyPendingToken\b/.test(content)) {
-      findings.push({ file: rel, detail: "TOTP verify must use pendingToken pattern (two-step login), not direct session" })
+      findings.push({
+        file: rel,
+        detail: "TOTP verify must use pendingToken pattern (two-step login), not direct session",
+      })
     }
     if (/\bauthenticate\s*\(/.test(content)) {
-      findings.push({ file: rel, detail: "TOTP verify should NOT call authenticate() — it uses pendingToken for mid-login auth" })
+      findings.push({
+        file: rel,
+        detail:
+          "TOTP verify should NOT call authenticate() — it uses pendingToken for mid-login auth",
+      })
     }
     if (!/\brecordFailedAttempt\b/.test(content)) {
-      findings.push({ file: rel, detail: "TOTP verify must increment failed attempts on invalid code (auto-wipe defense)" })
+      findings.push({
+        file: rel,
+        detail: "TOTP verify must increment failed attempts on invalid code (auto-wipe defense)",
+      })
     }
     if (!/BACKUP_CODE_PATTERN/.test(content)) {
-      findings.push({ file: rel, detail: "TOTP verify must validate backup code format before crypto operations" })
+      findings.push({
+        file: rel,
+        detail: "TOTP verify must validate backup code format before crypto operations",
+      })
     }
     if (!/\bverifyAndConsumeBackupCode\b/.test(content)) {
-      findings.push({ file: rel, detail: "TOTP verify must use single-use backup code consumption (verifyAndConsumeBackupCode)" })
+      findings.push({
+        file: rel,
+        detail:
+          "TOTP verify must use single-use backup code consumption (verifyAndConsumeBackupCode)",
+      })
     }
     if (!/\bcreateSession\b/.test(content)) {
-      findings.push({ file: rel, detail: "TOTP verify must issue session only after successful code verification" })
+      findings.push({
+        file: rel,
+        detail: "TOTP verify must issue session only after successful code verification",
+      })
     }
   } else {
-    findings.push({ file: "src/app/api/auth/totp/verify/route.ts", detail: "TOTP verify route not found" })
+    findings.push({
+      file: "src/app/api/auth/totp/verify/route.ts",
+      detail: "TOTP verify route not found",
+    })
   }
 
   // ── setup route: must require session, must use setupToken ──
@@ -1503,16 +1500,29 @@ function checkTotpFlowIntegrity(): CheckResult {
     const rel = relativePath(setupPath)
 
     if (!/\bauthenticate\s*\(/.test(content)) {
-      findings.push({ file: rel, detail: "TOTP setup must require active session via authenticate()" })
+      findings.push({
+        file: rel,
+        detail: "TOTP setup must require active session via authenticate()",
+      })
     }
     if (!/\bcreateSetupToken\b/.test(content)) {
-      findings.push({ file: rel, detail: "TOTP setup must use a short-lived setup token (createSetupToken), not store secret directly" })
+      findings.push({
+        file: rel,
+        detail:
+          "TOTP setup must use a short-lived setup token (createSetupToken), not store secret directly",
+      })
     }
     if (!/\bgenerateBackupCodes\b/.test(content)) {
-      findings.push({ file: rel, detail: "TOTP setup must generate backup codes during enrollment" })
+      findings.push({
+        file: rel,
+        detail: "TOTP setup must generate backup codes during enrollment",
+      })
     }
   } else {
-    findings.push({ file: "src/app/api/auth/totp/setup/route.ts", detail: "TOTP setup route not found" })
+    findings.push({
+      file: "src/app/api/auth/totp/setup/route.ts",
+      detail: "TOTP setup route not found",
+    })
   }
 
   // ── confirm route: must require session + setupToken + code verification ──
@@ -1522,19 +1532,31 @@ function checkTotpFlowIntegrity(): CheckResult {
     const rel = relativePath(confirmPath)
 
     if (!/\bauthenticate\s*\(/.test(content)) {
-      findings.push({ file: rel, detail: "TOTP confirm must require active session via authenticate()" })
+      findings.push({
+        file: rel,
+        detail: "TOTP confirm must require active session via authenticate()",
+      })
     }
     if (!/\bverifySetupToken\b/.test(content)) {
-      findings.push({ file: rel, detail: "TOTP confirm must verify the setup token (verifySetupToken)" })
+      findings.push({
+        file: rel,
+        detail: "TOTP confirm must verify the setup token (verifySetupToken)",
+      })
     }
     if (!/\bverifyTotpCode\b/.test(content)) {
-      findings.push({ file: rel, detail: "TOTP confirm must verify a TOTP code before saving the secret" })
+      findings.push({
+        file: rel,
+        detail: "TOTP confirm must verify a TOTP code before saving the secret",
+      })
     }
     if (!/\bencrypt\s*\(/.test(content)) {
       findings.push({ file: rel, detail: "TOTP confirm must encrypt the secret before DB storage" })
     }
   } else {
-    findings.push({ file: "src/app/api/auth/totp/confirm/route.ts", detail: "TOTP confirm route not found" })
+    findings.push({
+      file: "src/app/api/auth/totp/confirm/route.ts",
+      detail: "TOTP confirm route not found",
+    })
   }
 
   // ── disable route: must require session + password + code ──
@@ -1544,19 +1566,34 @@ function checkTotpFlowIntegrity(): CheckResult {
     const rel = relativePath(disablePath)
 
     if (!/\bauthenticate\s*\(/.test(content)) {
-      findings.push({ file: rel, detail: "TOTP disable must require active session via authenticate()" })
+      findings.push({
+        file: rel,
+        detail: "TOTP disable must require active session via authenticate()",
+      })
     }
     if (!/\bverifyPassword\b/.test(content)) {
-      findings.push({ file: rel, detail: "TOTP disable must require master password re-verification" })
+      findings.push({
+        file: rel,
+        detail: "TOTP disable must require master password re-verification",
+      })
     }
     if (!/\bverifyTotpCode\b/.test(content) && !/\bverifyAndConsumeBackupCode\b/.test(content)) {
-      findings.push({ file: rel, detail: "TOTP disable must require a valid TOTP or backup code as proof of possession" })
+      findings.push({
+        file: rel,
+        detail: "TOTP disable must require a valid TOTP or backup code as proof of possession",
+      })
     }
     if (!/\brecordFailedAttempt\b/.test(content)) {
-      findings.push({ file: rel, detail: "TOTP disable must increment failed attempts on invalid code/password" })
+      findings.push({
+        file: rel,
+        detail: "TOTP disable must increment failed attempts on invalid code/password",
+      })
     }
   } else {
-    findings.push({ file: "src/app/api/auth/totp/disable/route.ts", detail: "TOTP disable route not found" })
+    findings.push({
+      file: "src/app/api/auth/totp/disable/route.ts",
+      detail: "TOTP disable route not found",
+    })
   }
 
   // ── totp.ts library: must use timing-safe comparison for backup codes ──
@@ -1566,10 +1603,16 @@ function checkTotpFlowIntegrity(): CheckResult {
     const rel = relativePath(totpLibPath)
 
     if (!/\btimingSafeEqual\b/.test(content)) {
-      findings.push({ file: rel, detail: "Backup code verification must use timingSafeEqual for comparison" })
+      findings.push({
+        file: rel,
+        detail: "Backup code verification must use timingSafeEqual for comparison",
+      })
     }
     if (!/\bused\s*:\s*true\b/.test(content)) {
-      findings.push({ file: rel, detail: "Backup code consumption must mark codes as used (single-use enforcement)" })
+      findings.push({
+        file: rel,
+        detail: "Backup code consumption must mark codes as used (single-use enforcement)",
+      })
     }
   } else {
     findings.push({ file: "src/lib/totp.ts", detail: "TOTP library not found" })
@@ -1591,8 +1634,17 @@ function checkLockdownFlowIntegrity(): CheckResult {
   const lockdownPath = path.join(API_DIR, "settings/lockdown/route.ts")
 
   if (!fs.existsSync(lockdownPath)) {
-    findings.push({ file: "src/app/api/settings/lockdown/route.ts", detail: "Lockdown route not found" })
-    return { id: "lockdown-flow-integrity", name: "Emergency lockdown flow integrity", severity: "critical", status: "fail", findings }
+    findings.push({
+      file: "src/app/api/settings/lockdown/route.ts",
+      detail: "Lockdown route not found",
+    })
+    return {
+      id: "lockdown-flow-integrity",
+      name: "Emergency lockdown flow integrity",
+      severity: "critical",
+      status: "fail",
+      findings,
+    }
   }
 
   const content = fs.readFileSync(lockdownPath, "utf8")
@@ -1602,13 +1654,19 @@ function checkLockdownFlowIntegrity(): CheckResult {
     findings.push({ file: rel, detail: "Lockdown must require active session via authenticate()" })
   }
   if (!/\bstopScheduler\b/.test(content)) {
-    findings.push({ file: rel, detail: "Lockdown must stop the scheduler (key zeroing + poll termination)" })
+    findings.push({
+      file: rel,
+      detail: "Lockdown must stop the scheduler (key zeroing + poll termination)",
+    })
   }
   if (!/encryptedApiToken/.test(content)) {
     findings.push({ file: rel, detail: "Lockdown must revoke all tracker API tokens" })
   }
   if (!/\bgenerateSalt\b/.test(content) && !/encryptionSalt/.test(content)) {
-    findings.push({ file: rel, detail: "Lockdown must rotate encryption salt (orphan existing ciphertext)" })
+    findings.push({
+      file: rel,
+      detail: "Lockdown must rotate encryption salt (orphan existing ciphertext)",
+    })
   }
   if (!/totpSecret\s*:\s*null/.test(content)) {
     findings.push({ file: rel, detail: "Lockdown must clear TOTP secret" })
@@ -1631,7 +1689,13 @@ function checkNukeFlowIntegrity(): CheckResult {
 
   if (!fs.existsSync(nukePath)) {
     findings.push({ file: "src/app/api/settings/nuke/route.ts", detail: "Nuke route not found" })
-    return { id: "nuke-flow-integrity", name: "Scrub & delete (nuke) flow integrity", severity: "critical", status: "fail", findings }
+    return {
+      id: "nuke-flow-integrity",
+      name: "Scrub & delete (nuke) flow integrity",
+      severity: "critical",
+      status: "fail",
+      findings,
+    }
   }
 
   const content = fs.readFileSync(nukePath, "utf8")
@@ -1641,10 +1705,16 @@ function checkNukeFlowIntegrity(): CheckResult {
     findings.push({ file: rel, detail: "Nuke must require active session via authenticate()" })
   }
   if (!/\bverifyPassword\b/.test(content)) {
-    findings.push({ file: rel, detail: "Nuke must require master password re-verification (intent confirmation)" })
+    findings.push({
+      file: rel,
+      detail: "Nuke must require master password re-verification (intent confirmation)",
+    })
   }
   if (!/\bscrubAndDeleteAll\b/.test(content)) {
-    findings.push({ file: rel, detail: "Nuke must use scrubAndDeleteAll() for forensic-resistant deletion" })
+    findings.push({
+      file: rel,
+      detail: "Nuke must use scrubAndDeleteAll() for forensic-resistant deletion",
+    })
   }
 
   return {
@@ -1663,8 +1733,17 @@ function checkBackupRestoreIntegrity(): CheckResult {
   const restorePath = path.join(API_DIR, "settings/backup/restore/route.ts")
 
   if (!fs.existsSync(restorePath)) {
-    findings.push({ file: "src/app/api/settings/backup/restore/route.ts", detail: "Restore route not found" })
-    return { id: "backup-restore-integrity", name: "Backup restore flow integrity", severity: "critical", status: "fail", findings }
+    findings.push({
+      file: "src/app/api/settings/backup/restore/route.ts",
+      detail: "Restore route not found",
+    })
+    return {
+      id: "backup-restore-integrity",
+      name: "Backup restore flow integrity",
+      severity: "critical",
+      status: "fail",
+      findings,
+    }
   }
 
   const content = fs.readFileSync(restorePath, "utf8")
@@ -1674,35 +1753,57 @@ function checkBackupRestoreIntegrity(): CheckResult {
     findings.push({ file: rel, detail: "Restore must require active session via authenticate()" })
   }
   if (!/\bverifyPassword\b/.test(content)) {
-    findings.push({ file: rel, detail: "Restore must require master password re-verification (intent confirmation)" })
+    findings.push({
+      file: rel,
+      detail: "Restore must require master password re-verification (intent confirmation)",
+    })
   }
   if (!/\bstopScheduler\b/.test(content)) {
     findings.push({ file: rel, detail: "Restore must stop the scheduler before modifying data" })
   }
   // passwordHash must never be overwritten from backup
-  if (/passwordHash\s*:(?!\s*(?:undefined|null))/.test(content) && !/passwordHash.*exclude|exclude.*passwordHash/i.test(content)) {
+  if (
+    /passwordHash\s*:(?!\s*(?:undefined|null))/.test(content) &&
+    !/passwordHash.*exclude|exclude.*passwordHash/i.test(content)
+  ) {
     // More specific: check that passwordHash is not in any .set() or .values() call
     if (/\.(?:set|values)\s*\([^)]*passwordHash/.test(content)) {
-      findings.push({ file: rel, detail: "Restore must NEVER overwrite passwordHash from backup data" })
+      findings.push({
+        file: rel,
+        detail: "Restore must NEVER overwrite passwordHash from backup data",
+      })
     }
   }
   // failedLoginAttempts must be reset to 0
   if (!/failedLoginAttempts\s*:\s*0/.test(content)) {
-    findings.push({ file: rel, detail: "Restore must reset failedLoginAttempts to 0 (prevent backup-triggered auto-wipe)" })
+    findings.push({
+      file: rel,
+      detail: "Restore must reset failedLoginAttempts to 0 (clear lockout state)",
+    })
   }
   // Must use a transaction
   if (!/\btransaction\b/.test(content) && !/\.transaction\s*\(/.test(content)) {
-    findings.push({ file: rel, detail: "Restore must run inside a database transaction (rollback on failure)" })
+    findings.push({
+      file: rel,
+      detail: "Restore must run inside a database transaction (rollback on failure)",
+    })
   }
   // Restore SHOULD call recordFailedAttempt — a wrong password on restore is a
   // brute-force vector (attacker with backup file guessing the master password).
   // The restore route also checks lockedUntil, so progressive lockout applies.
   if (!/\brecordFailedAttempt\s*\(/.test(content)) {
-    findings.push({ file: rel, detail: "Restore must call recordFailedAttempt() on invalid password (brute-force protection)" })
+    findings.push({
+      file: rel,
+      detail:
+        "Restore must call recordFailedAttempt() on invalid password (brute-force protection)",
+    })
   }
   // Must validate backup before destructive operations
   if (!/\bvalidateBackupJson\b/.test(content) && !/\bvalidateBackup\b/.test(content)) {
-    findings.push({ file: rel, detail: "Restore must validate backup structure before any destructive operations" })
+    findings.push({
+      file: rel,
+      detail: "Restore must validate backup structure before any destructive operations",
+    })
   }
 
   return {
@@ -1722,7 +1823,13 @@ function checkLoginFlowIntegrity(): CheckResult {
 
   if (!fs.existsSync(loginPath)) {
     findings.push({ file: "src/app/api/auth/login/route.ts", detail: "Login route not found" })
-    return { id: "login-flow-integrity", name: "Login flow integrity", severity: "critical", status: "fail", findings }
+    return {
+      id: "login-flow-integrity",
+      name: "Login flow integrity",
+      severity: "critical",
+      status: "fail",
+      findings,
+    }
   }
 
   const content = fs.readFileSync(loginPath, "utf8")
@@ -1730,29 +1837,47 @@ function checkLoginFlowIntegrity(): CheckResult {
 
   // Login must NOT call authenticate() — it IS the auth entry point
   if (/\bauthenticate\s*\(/.test(content)) {
-    findings.push({ file: rel, detail: "Login must NOT call authenticate() — it is the public auth entry point" })
+    findings.push({
+      file: rel,
+      detail: "Login must NOT call authenticate() — it is the public auth entry point",
+    })
   }
   if (!/\bverifyPassword\b/.test(content)) {
     findings.push({ file: rel, detail: "Login must verify password via verifyPassword() (Argon2)" })
   }
   if (!/\brecordFailedAttempt\b/.test(content)) {
-    findings.push({ file: rel, detail: "Login must increment failed attempts on invalid password (auto-wipe defense)" })
+    findings.push({
+      file: rel,
+      detail: "Login must increment failed attempts on invalid password (auto-wipe defense)",
+    })
   }
   if (!/\bresetFailedAttempts\b/.test(content)) {
-    findings.push({ file: rel, detail: "Login must reset failed attempts counter on successful authentication" })
+    findings.push({
+      file: rel,
+      detail: "Login must reset failed attempts counter on successful authentication",
+    })
   }
   if (!/\bderiveKey\b/.test(content)) {
-    findings.push({ file: rel, detail: "Login must derive encryption key from password via deriveKey() (scrypt)" })
+    findings.push({
+      file: rel,
+      detail: "Login must derive encryption key from password via deriveKey() (scrypt)",
+    })
   }
   if (!/\bcreateSession\b/.test(content)) {
     findings.push({ file: rel, detail: "Login must issue session via createSession()" })
   }
   // Must support TOTP two-step flow
   if (!/\bpendingToken\b/i.test(content) && !/\bcreatePendingToken\b/.test(content)) {
-    findings.push({ file: rel, detail: "Login must support TOTP two-step flow via pending token when 2FA is enabled" })
+    findings.push({
+      file: rel,
+      detail: "Login must support TOTP two-step flow via pending token when 2FA is enabled",
+    })
   }
   if (!/\bstartScheduler\b/.test(content)) {
-    findings.push({ file: rel, detail: "Login must start the scheduler with the derived encryption key" })
+    findings.push({
+      file: rel,
+      detail: "Login must start the scheduler with the derived encryption key",
+    })
   }
 
   return {
@@ -1767,9 +1892,7 @@ function checkLoginFlowIntegrity(): CheckResult {
 // ── Run all checks ──────────────────────────────────────────────────────
 
 function runAudit(changedFiles?: string[]): AuditOutput {
-  const absChangedFiles = changedFiles?.map((f) =>
-    path.isAbsolute(f) ? f : path.resolve(ROOT, f)
-  )
+  const absChangedFiles = changedFiles?.map((f) => (path.isAbsolute(f) ? f : path.resolve(ROOT, f)))
 
   const results: CheckResult[] = [
     // Critical — fail the PR
@@ -1809,9 +1932,7 @@ function runAudit(changedFiles?: string[]): AuditOutput {
   const critical = finalResults.filter(
     (r) => r.severity === "critical" && r.status === "fail"
   ).length
-  const warning = finalResults.filter(
-    (r) => r.severity === "warning" && r.status === "fail"
-  ).length
+  const warning = finalResults.filter((r) => r.severity === "warning" && r.status === "fail").length
   const passed = finalResults.filter((r) => r.status === "pass").length
 
   return {
@@ -1824,8 +1945,7 @@ function runAudit(changedFiles?: string[]): AuditOutput {
 
 const args = process.argv.slice(2)
 const changedOnlyIdx = args.indexOf("--changed-only")
-const changedFiles =
-  changedOnlyIdx >= 0 ? args.slice(changedOnlyIdx + 1) : undefined
+const changedFiles = changedOnlyIdx >= 0 ? args.slice(changedOnlyIdx + 1) : undefined
 
 const output = runAudit(changedFiles)
 

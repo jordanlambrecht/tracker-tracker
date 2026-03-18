@@ -38,11 +38,15 @@ vi.mock("@/lib/scheduler", () => ({
   stopScheduler: vi.fn(),
 }))
 
-vi.mock("@/lib/wipe", () => ({
-  recordFailedAttempt: vi.fn().mockResolvedValue(false),
+vi.mock("@/lib/scheduler-key-store", () => ({
+  persistSchedulerKey: vi.fn().mockResolvedValue(undefined),
+  clearSchedulerKey: vi.fn().mockResolvedValue(undefined),
+}))
+
+vi.mock("@/lib/lockout", () => ({
+  checkLockout: vi.fn().mockReturnValue(null),
+  recordFailedAttempt: vi.fn().mockResolvedValue(undefined),
   resetFailedAttempts: vi.fn().mockResolvedValue(undefined),
-  WIPE_MESSAGE: "Too many failed attempts. All data has been deleted.",
-  scrubAndDeleteAll: vi.fn().mockResolvedValue(undefined),
 }))
 
 function makeSelectChain(resolvedValue: unknown) {
@@ -306,7 +310,12 @@ describe("POST /api/auth/login", () => {
   })
 
   it("returns 200 and calls createSession and startScheduler on success", async () => {
-    const fakeSettings = { id: 1, passwordHash: "hash", encryptionSalt: "salt", failedLoginAttempts: 0, autoWipeThreshold: null }
+    const fakeSettings = {
+      id: 1,
+      passwordHash: "hash",
+      encryptionSalt: "salt",
+      failedLoginAttempts: 0,
+    }
     makeSelectChain([fakeSettings])
     ;(verifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue(true)
     const fakeKey = Buffer.from("a".repeat(32))
@@ -330,7 +339,13 @@ describe("POST /api/auth/login", () => {
   })
 
   it("returns 401 when username is set but not provided", async () => {
-    const fakeSettings = { id: 1, passwordHash: "hash", encryptionSalt: "salt", failedLoginAttempts: 0, autoWipeThreshold: null, username: "admin" }
+    const fakeSettings = {
+      id: 1,
+      passwordHash: "hash",
+      encryptionSalt: "salt",
+      failedLoginAttempts: 0,
+      username: "admin",
+    }
     makeSelectChain([fakeSettings])
     ;(verifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue(true)
 
@@ -347,7 +362,13 @@ describe("POST /api/auth/login", () => {
   })
 
   it("returns 401 when username is set but wrong", async () => {
-    const fakeSettings = { id: 1, passwordHash: "hash", encryptionSalt: "salt", failedLoginAttempts: 0, autoWipeThreshold: null, username: "admin" }
+    const fakeSettings = {
+      id: 1,
+      passwordHash: "hash",
+      encryptionSalt: "salt",
+      failedLoginAttempts: 0,
+      username: "admin",
+    }
     makeSelectChain([fakeSettings])
     ;(verifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue(true)
 
@@ -364,7 +385,13 @@ describe("POST /api/auth/login", () => {
   })
 
   it("returns 200 when correct username and password provided (case-insensitive)", async () => {
-    const fakeSettings = { id: 1, passwordHash: "hash", encryptionSalt: "salt", failedLoginAttempts: 0, autoWipeThreshold: null, username: "Admin" }
+    const fakeSettings = {
+      id: 1,
+      passwordHash: "hash",
+      encryptionSalt: "salt",
+      failedLoginAttempts: 0,
+      username: "Admin",
+    }
     makeSelectChain([fakeSettings])
     ;(verifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue(true)
     const fakeKey = Buffer.from("a".repeat(32))
@@ -451,7 +478,12 @@ describe("POST /api/auth/login", () => {
   })
 
   it("returns 401 for wrong password", async () => {
-    const fakeSettings = { id: 1, passwordHash: "hash", encryptionSalt: "salt", failedLoginAttempts: 0, autoWipeThreshold: null }
+    const fakeSettings = {
+      id: 1,
+      passwordHash: "hash",
+      encryptionSalt: "salt",
+      failedLoginAttempts: 0,
+    }
     makeSelectChain([fakeSettings])
     ;(verifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue(false)
 
@@ -474,9 +506,8 @@ describe("POST /api/auth/logout", () => {
     vi.restoreAllMocks()
   })
 
-  it("calls stopScheduler and clearSession and returns 200", async () => {
+  it("clears the session and returns 200 (scheduler keeps running)", async () => {
     ;(getSession as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: "abc123" })
-    ;(stopScheduler as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
     ;(clearSession as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
 
     const { POST } = await import("./logout/route")
@@ -485,7 +516,7 @@ describe("POST /api/auth/logout", () => {
 
     expect(response.status).toBe(200)
     expect(body).toEqual({ success: true })
-    expect(stopScheduler).toHaveBeenCalledOnce()
+    expect(stopScheduler).not.toHaveBeenCalled()
     expect(clearSession).toHaveBeenCalledOnce()
   })
 
@@ -513,7 +544,12 @@ describe("GET /api/auth/status", () => {
     const body = await response.json()
 
     expect(response.status).toBe(200)
-    expect(body).toEqual({ configured: false, authenticated: false, totpEnabled: false, hasUsername: false })
+    expect(body).toEqual({
+      configured: false,
+      authenticated: false,
+      totpEnabled: false,
+      hasUsername: false,
+    })
   })
 
   it("returns configured true and authenticated false when configured but no session", async () => {
@@ -525,7 +561,12 @@ describe("GET /api/auth/status", () => {
     const body = await response.json()
 
     expect(response.status).toBe(200)
-    expect(body).toEqual({ configured: true, authenticated: false, totpEnabled: false, hasUsername: false })
+    expect(body).toEqual({
+      configured: true,
+      authenticated: false,
+      totpEnabled: false,
+      hasUsername: false,
+    })
   })
 
   it("returns configured true and authenticated true when both are set", async () => {
@@ -537,6 +578,11 @@ describe("GET /api/auth/status", () => {
     const body = await response.json()
 
     expect(response.status).toBe(200)
-    expect(body).toEqual({ configured: true, authenticated: true, totpEnabled: false, hasUsername: false })
+    expect(body).toEqual({
+      configured: true,
+      authenticated: true,
+      totpEnabled: false,
+      hasUsername: false,
+    })
   })
 })

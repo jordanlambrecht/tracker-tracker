@@ -17,9 +17,7 @@ interface PollLogProps {
 export function PollLog({ snapshots, lastPolledAt, lastError }: PollLogProps) {
   const [open, setOpen] = useState(false)
 
-  const lastPolledLabel = lastPolledAt
-    ? new Date(lastPolledAt).toLocaleString()
-    : "Never"
+  const lastPolledLabel = lastPolledAt ? new Date(lastPolledAt).toLocaleString() : "Never"
 
   return (
     <div className="flex flex-col gap-2">
@@ -51,7 +49,7 @@ export function PollLog({ snapshots, lastPolledAt, lastError }: PollLogProps) {
                   key={snap.polledAt}
                   className={clsx(
                     "flex items-center gap-4 px-4 py-2 text-xs font-mono whitespace-nowrap min-w-fit",
-                    i % 2 === 0 ? "" : "bg-elevated",
+                    i % 2 === 0 ? "" : "bg-elevated"
                   )}
                 >
                   <span className="text-success shrink-0">✓</span>

@@ -4,6 +4,7 @@
 
 "use client"
 
+import { H2 } from "@typography"
 import type { ReactNode } from "react"
 import {
   DownloadArrowIcon,
@@ -15,9 +16,8 @@ import {
   UploadArrowIcon,
 } from "@/components/ui/Icons"
 import { StatCard } from "@/components/ui/StatCard"
-import { H2 } from "@/components/ui/Typography"
 import type { AggregateStats } from "@/lib/dashboard"
-import { formatBytesFromString, formatRatio } from "@/lib/formatters"
+import { formatBytesFromString, formatRatio, splitValueUnit } from "@/lib/formatters"
 import type { TrackerSummary } from "@/types/api"
 
 const AGGREGATE_ICONS: Record<string, ReactNode> = {
@@ -36,6 +36,10 @@ interface EcosystemStatsSectionProps {
 }
 
 function EcosystemStatsSection({ trackers, aggregateStats }: EcosystemStatsSectionProps) {
+  const uploadedParts = splitValueUnit(formatBytesFromString(aggregateStats.totalUploaded))
+  const downloadedParts = splitValueUnit(formatBytesFromString(aggregateStats.totalDownloaded))
+  const bufferParts = splitValueUnit(formatBytesFromString(aggregateStats.totalBuffer))
+
   return (
     <div className="flex flex-col gap-4">
       <H2>Ecosystem</H2>
@@ -47,17 +51,20 @@ function EcosystemStatsSection({ trackers, aggregateStats }: EcosystemStatsSecti
         />
         <StatCard
           label="Total Uploaded"
-          value={formatBytesFromString(aggregateStats.totalUploaded)}
+          value={uploadedParts.num}
+          unit={uploadedParts.unit}
           icon={AGGREGATE_ICONS.uploaded}
         />
         <StatCard
           label="Total Downloaded"
-          value={formatBytesFromString(aggregateStats.totalDownloaded)}
+          value={downloadedParts.num}
+          unit={downloadedParts.unit}
           icon={AGGREGATE_ICONS.downloaded}
         />
         <StatCard
           label="Total Buffer"
-          value={formatBytesFromString(aggregateStats.totalBuffer)}
+          value={bufferParts.num}
+          unit={bufferParts.unit}
           icon={AGGREGATE_ICONS.buffer}
         />
         <StatCard

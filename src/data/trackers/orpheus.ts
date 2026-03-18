@@ -19,9 +19,12 @@ export const orpheus: TrackerRegistryEntry = {
   language: "English",
   color: "#1daf8b",
   logo: "/tracker-logos/orpheus_logo.png",
+  trackerHubSlug: "orpheus",
+  statusPageUrl: "https://ops.trackerstatus.info/",
   rules: {
     minimumRatio: 0.6,
     seedTimeHours: 72,
     loginIntervalDays: 120,
   },
+  draft: false,
 }

@@ -61,7 +61,6 @@ function mockSettingsSelect() {
     storeUsernames: true,
     username: null,
     sessionTimeoutMinutes: null,
-    autoWipeThreshold: null,
     snapshotRetentionDays: null,
     trackerPollIntervalMinutes: 60,
     proxyEnabled: false,
@@ -93,22 +92,22 @@ describe("PATCH /api/settings route validation", () => {
   })
 
   it("rejects non-integer trackerPollIntervalMinutes", async () => {
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ trackerPollIntervalMinutes: 30.5 })
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      trackerPollIntervalMinutes: 30.5,
+    })
 
-    const response = await PATCH(
-      new Request("http://localhost/api/settings", { method: "PATCH" })
-    )
+    const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
 
     expect(response.status).toBe(400)
     await expect(response.json()).resolves.toEqual({ error: "Invalid poll interval" })
   })
 
   it("rejects trackerPollIntervalMinutes below 15 minutes", async () => {
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ trackerPollIntervalMinutes: 5 })
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      trackerPollIntervalMinutes: 5,
+    })
 
-    const response = await PATCH(
-      new Request("http://localhost/api/settings", { method: "PATCH" })
-    )
+    const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
 
     expect(response.status).toBe(400)
     await expect(response.json()).resolves.toEqual({
@@ -117,11 +116,11 @@ describe("PATCH /api/settings route validation", () => {
   })
 
   it("rejects trackerPollIntervalMinutes above 24 hours", async () => {
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ trackerPollIntervalMinutes: 1441 })
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      trackerPollIntervalMinutes: 1441,
+    })
 
-    const response = await PATCH(
-      new Request("http://localhost/api/settings", { method: "PATCH" })
-    )
+    const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
 
     expect(response.status).toBe(400)
     await expect(response.json()).resolves.toEqual({
@@ -133,11 +132,11 @@ describe("PATCH /api/settings route validation", () => {
     ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue(
       NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     )
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ trackerPollIntervalMinutes: 60 })
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      trackerPollIntervalMinutes: 60,
+    })
 
-    const response = await PATCH(
-      new Request("http://localhost/api/settings", { method: "PATCH" })
-    )
+    const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
 
     expect(response.status).toBe(401)
   })

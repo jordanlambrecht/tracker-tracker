@@ -20,7 +20,13 @@ interface ChartEChartsProps {
   lazyUpdate?: boolean
 }
 
-function ChartECharts({ option, style, opts, notMerge, lazyUpdate }: ChartEChartsProps) {
+function ChartECharts({
+  option,
+  style,
+  opts = { renderer: "canvas" as const },
+  notMerge = true,
+  lazyUpdate = true,
+}: ChartEChartsProps) {
   const chartRef = useRef<ReactECharts | null>(null)
   const [allSelected, setAllSelected] = useState(true)
 
@@ -75,5 +81,5 @@ function ChartECharts({ option, style, opts, notMerge, lazyUpdate }: ChartEChart
   )
 }
 
-export { ChartECharts }
 export type { ChartEChartsProps }
+export { ChartECharts }

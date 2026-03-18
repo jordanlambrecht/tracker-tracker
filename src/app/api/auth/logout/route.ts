@@ -1,7 +1,7 @@
 // src/app/api/auth/logout/route.ts
 import { NextResponse } from "next/server"
 import { clearSession, getSession } from "@/lib/auth"
-import { stopScheduler } from "@/lib/scheduler"
+import { log } from "@/lib/logger"
 
 export async function POST() {
   const session = await getSession()
@@ -9,7 +9,7 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  stopScheduler()
   await clearSession()
+  log.info({ event: "logout" }, "User logged out")
   return NextResponse.json({ success: true })
 }

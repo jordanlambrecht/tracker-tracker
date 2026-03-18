@@ -3,7 +3,13 @@
 // Functions: GGnAdapter, GGnAdapter.fetchStats, GGnAdapter.fetchRaw
 
 import { adapterFetch } from "./adapter-fetch"
-import type { FetchOptions, GGnPlatformMeta, TrackerAdapter, TrackerStats } from "./types"
+import type {
+  DebugApiCall,
+  FetchOptions,
+  GGnPlatformMeta,
+  TrackerAdapter,
+  TrackerStats,
+} from "./types"
 
 interface GGnQuickUserResponse {
   status: string
@@ -27,6 +33,7 @@ interface GGnUserResponse {
       requiredRatio: number
       gold: number
       joinedDate: string | null
+      lastAccess?: string | null
       onIRC: boolean
       shareScore: number | null
     }
@@ -62,41 +69,68 @@ export class GGnAdapter implements TrackerAdapter {
     apiToken: string,
     apiPath: string,
     options?: FetchOptions
-  ): Promise<Record<string, unknown>> {
+  ): Promise<DebugApiCall[]> {
     const hostname = new URL(baseUrl).hostname
-    const result: Record<string, unknown> = {}
+    const calls: DebugApiCall[] = []
 
     let userId: number | undefined = options?.remoteUserId
 
+    // Call 1: Quick User (skip if we already have a cached user ID)
     if (!userId) {
       const quickUrl = new URL(apiPath, baseUrl)
       quickUrl.searchParams.set("request", "quick_user")
       quickUrl.searchParams.set("key", apiToken)
 
-      const quickData = await adapterFetch<GGnQuickUserResponse>(
-        quickUrl.toString(),
-        hostname,
-        options
-      )
-      result.quickUser = quickData
-      userId = quickData.response?.id
+      try {
+        const quickData = await adapterFetch<GGnQuickUserResponse>(
+          quickUrl.toString(),
+          hostname,
+          options
+        )
+        calls.push({
+          label: "Quick User",
+          endpoint: `${apiPath}?request=quick_user`,
+          data: quickData,
+          error: null,
+        })
+        userId = quickData.response?.id
+      } catch (err) {
+        calls.push({
+          label: "Quick User",
+          endpoint: `${apiPath}?request=quick_user`,
+          data: null,
+          error: err instanceof Error ? err.message : "Request failed",
+        })
+        return calls
+      }
     }
 
+    // Call 2: Full User Profile
     if (userId) {
       const userUrl = new URL(apiPath, baseUrl)
       userUrl.searchParams.set("request", "user")
       userUrl.searchParams.set("id", String(userId))
       userUrl.searchParams.set("key", apiToken)
+      const endpoint = `${apiPath}?request=user&id=${userId}`
 
-      const userData = await adapterFetch<Record<string, unknown>>(
-        userUrl.toString(),
-        hostname,
-        options
-      )
-      result.user = userData
+      try {
+        const userData = await adapterFetch<Record<string, unknown>>(
+          userUrl.toString(),
+          hostname,
+          options
+        )
+        calls.push({ label: "User Profile", endpoint, data: userData, error: null })
+      } catch (err) {
+        calls.push({
+          label: "User Profile",
+          endpoint,
+          data: null,
+          error: err instanceof Error ? err.message : "Request failed",
+        })
+      }
     }
 
-    return result
+    return calls
   }
 
   async fetchStats(
@@ -143,11 +177,7 @@ export class GGnAdapter implements TrackerAdapter {
     userUrl.searchParams.set("id", String(userId))
     userUrl.searchParams.set("key", apiToken)
 
-    const userData = await adapterFetch<GGnUserResponse>(
-      userUrl.toString(),
-      hostname,
-      options
-    )
+    const userData = await adapterFetch<GGnUserResponse>(userUrl.toString(), hostname, options)
 
     if (userData.status !== "success") {
       throw new Error(userData.error ?? `GGn API returned status: ${userData.status}`)
@@ -161,9 +191,7 @@ export class GGnAdapter implements TrackerAdapter {
     const uploaded = BigInt(Math.floor(resp.stats.uploaded ?? 0))
     const downloaded = BigInt(Math.floor(resp.stats.downloaded ?? 0))
     const ratio =
-      typeof resp.stats.ratio === "number"
-        ? resp.stats.ratio
-        : parseFloat(resp.stats.ratio) || 0
+      typeof resp.stats.ratio === "number" ? resp.stats.ratio : parseFloat(resp.stats.ratio) || 0
 
     const platformMeta: GGnPlatformMeta = {
       donor: resp.personal?.donor ?? false,
@@ -189,15 +217,14 @@ export class GGnAdapter implements TrackerAdapter {
       seedingCount: resp.community?.seeding ?? 0,
       leechingCount: resp.community?.leeching ?? 0,
       seedbonus: resp.stats.gold ?? 0,
-      hitAndRuns: resp.personal?.hnrs ?? 0,
-      requiredRatio:
-        typeof resp.stats.requiredRatio === "number" ? resp.stats.requiredRatio : null,
+      hitAndRuns: resp.personal?.hnrs ?? null,
+      requiredRatio: typeof resp.stats.requiredRatio === "number" ? resp.stats.requiredRatio : null,
       warned: resp.personal?.warned ?? false,
       freeleechTokens: null,
       joinedDate: resp.stats.joinedDate ?? undefined,
+      lastAccessDate: resp.stats.lastAccess ?? undefined,
       shareScore: resp.stats.shareScore ?? undefined,
       platformMeta,
     }
   }
-
 }

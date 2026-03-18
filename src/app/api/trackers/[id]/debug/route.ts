@@ -8,32 +8,13 @@ import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { getAdapter } from "@/lib/adapters"
-import type { TrackerStats } from "@/lib/adapters/types"
+import type { DebugApiCall, TrackerStats } from "@/lib/adapters/types"
 import { authenticate, decodeKey, parseTrackerId } from "@/lib/api-helpers"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
 import { buildProxyAgentFromSettings } from "@/lib/proxy"
-
-// Top-level keys to scrub from raw response objects (auth tokens, passkeys, IPs)
-const SCRUB_KEYS = new Set(["authkey", "passkey", "ip", "api_token", "key", "torrent_pass"])
-
-function scrubObject(obj: unknown, depth = 0): unknown {
-  if (depth > 10) return obj
-  if (obj === null || typeof obj !== "object") return obj
-  if (Array.isArray(obj)) {
-    return obj.map((item) => scrubObject(item, depth + 1))
-  }
-  const result: Record<string, unknown> = {}
-  for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
-    if (SCRUB_KEYS.has(k.toLowerCase())) {
-      result[k] = "[redacted]"
-    } else {
-      result[k] = scrubObject(v, depth + 1)
-    }
-  }
-  return result
-}
+import { scrubObject } from "@/lib/scrub-object"
 
 function serializeStats(stats: TrackerStats): Record<string, unknown> {
   return {
@@ -58,10 +39,7 @@ function serializeStats(stats: TrackerStats): Record<string, unknown> {
   }
 }
 
-export async function POST(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -143,14 +121,18 @@ export async function POST(
 
   const adapter = getAdapter(tracker.platformType)
 
-  let rawResponse: Record<string, unknown> | null = null
+  let apiCalls: DebugApiCall[] | null = null
   let rawError: string | null = null
 
   if (adapter.fetchRaw) {
     try {
-      const raw = await adapter.fetchRaw(tracker.baseUrl, apiToken, tracker.apiPath, fetchOptions)
-      rawResponse = scrubObject(raw) as Record<string, unknown>
+      const calls = await adapter.fetchRaw(tracker.baseUrl, apiToken, tracker.apiPath, fetchOptions)
+      apiCalls = calls.map((call) => ({
+        ...call,
+        data: call.data ? scrubObject(call.data) : null,
+      }))
     } catch (err) {
+      // security-audit-ignore: error captured in rawError for debug response
       rawError = err instanceof Error ? err.message : "Raw fetch failed"
     }
   } else {
@@ -168,7 +150,7 @@ export async function POST(
   }
 
   return NextResponse.json({
-    raw: rawResponse,
+    apiCalls,
     rawError,
     normalized: normalizedResponse,
     normalizedError,

@@ -1,6 +1,6 @@
 // src/lib/privacy-db.ts
 //
-// Functions: createPrivacyMask, scrubSnapshotUsernames
+// Functions: createPrivacyMask, createPrivacyMaskSync, scrubSnapshotUsernames
 //
 // DB-aware privacy operations. Pure helpers (maskUsername, isRedacted) live
 // in privacy.ts to keep that module free of I/O dependencies.
@@ -16,7 +16,9 @@ import { isRedacted, maskUsername, REDACTED_PREFIX } from "@/lib/privacy"
  * replaces plaintext values with redacted markers. When off, values
  * pass through unchanged. Already-redacted values are never double-masked.
  */
-export async function createPrivacyMask(): Promise<(value: string | null | undefined) => string | null> {
+export async function createPrivacyMask(): Promise<
+  (value: string | null | undefined) => string | null
+> {
   const [settings] = await db
     .select({ storeUsernames: appSettings.storeUsernames })
     .from(appSettings)
@@ -28,6 +30,22 @@ export async function createPrivacyMask(): Promise<(value: string | null | undef
     if (!privacyMode || isRedacted(value)) return value
     return maskUsername(value)
   }
+}
+
+/**
+ * Synchronous variant — accepts a pre-fetched storeUsernames boolean instead of
+ * querying the DB. Use when the caller already has appSettings in scope so the
+ * DB round-trip can be avoided.
+ *
+ * Fallback convention: pass `true` (store usernames = no masking) when the
+ * settings row does not exist, which matches the default column value and the
+ * existing createPrivacyMask() behavior.
+ */
+export function createPrivacyMaskSync(
+  storeUsernames: boolean
+): (val: string | null | undefined) => string | null {
+  if (storeUsernames) return (val) => val ?? null
+  return (val) => (val ? maskUsername(val) : null)
 }
 
 /**
@@ -46,18 +64,18 @@ export async function scrubSnapshotUsernames(): Promise<number> {
     UPDATE tracker_snapshots
     SET
       username = CASE
-        WHEN username IS NOT NULL AND username NOT LIKE ${prefix + "%"}
+        WHEN username IS NOT NULL AND username NOT LIKE ${`${prefix}%`}
         THEN CONCAT(${prefix}, CHAR_LENGTH(username))
         ELSE username
       END,
       group_name = CASE
-        WHEN group_name IS NOT NULL AND group_name NOT LIKE ${prefix + "%"}
+        WHEN group_name IS NOT NULL AND group_name NOT LIKE ${`${prefix}%`}
         THEN CONCAT(${prefix}, CHAR_LENGTH(group_name))
         ELSE group_name
       END
     WHERE
-      (username IS NOT NULL AND username NOT LIKE ${prefix + "%"})
-      OR (group_name IS NOT NULL AND group_name NOT LIKE ${prefix + "%"})
+      (username IS NOT NULL AND username NOT LIKE ${`${prefix}%`})
+      OR (group_name IS NOT NULL AND group_name NOT LIKE ${`${prefix}%`})
   `)
   return (result as { rowCount?: number }).rowCount ?? 0
 }

@@ -7,7 +7,9 @@
 import type { EChartsOption } from "echarts"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { buildTagColors, 
+import { buildAxisPointer, formatDateLabel } from "./chart-helpers"
+import {
+  buildTagColors,
   CHART_THEME,
   chartAxisLabel,
   chartDot,
@@ -15,7 +17,8 @@ import { buildTagColors,
   chartLegend,
   chartTooltip,
   chartTooltipHeader,
-  escHtml,} from "./theme"
+  escHtml,
+} from "./theme"
 
 interface FleetCategoryTimelineProps {
   torrents: { added_on: number; category: string }[]
@@ -28,9 +31,10 @@ interface CategorySeries {
   dateMap: Map<string, number>
 }
 
-function groupByCategory(
-  torrents: { added_on: number; category: string }[]
-): { sortedDates: string[]; series: CategorySeries[] } {
+function groupByCategory(torrents: { added_on: number; category: string }[]): {
+  sortedDates: string[]
+  series: CategorySeries[]
+} {
   const categoryMaps = new Map<string, Map<string, number>>()
   const allDates = new Set<string>()
 
@@ -40,8 +44,11 @@ function groupByCategory(
     allDates.add(date)
 
     const cat = torrent.category?.trim() || "Uncategorized"
-    if (!categoryMaps.has(cat)) categoryMaps.set(cat, new Map())
-    const dateMap = categoryMaps.get(cat) ?? new Map<string, number>()
+    let dateMap = categoryMaps.get(cat)
+    if (!dateMap) {
+      dateMap = new Map<string, number>()
+      categoryMaps.set(cat, dateMap)
+    }
     dateMap.set(date, (dateMap.get(date) ?? 0) + 1)
   }
 
@@ -65,11 +72,6 @@ function groupByCategory(
   }))
 
   return { sortedDates, series }
-}
-
-function formatDateLabel(isoDate: string): string {
-  const date = new Date(`${isoDate}T12:00:00`)
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
 }
 
 function buildCategoryTimelineOption(
@@ -102,10 +104,7 @@ function buildCategoryTimelineOption(
     backgroundColor: "transparent",
     grid: chartGrid({ right: 16, bottom: 48, left: 56 }),
     tooltip: chartTooltip("axis", {
-      axisPointer: {
-        type: "line",
-        lineStyle: { color: CHART_THEME.borderMid, type: "dashed" },
-      },
+      axisPointer: buildAxisPointer(),
       formatter: (params: unknown) => {
         const items = params as Array<{
           seriesName: string
@@ -148,17 +147,12 @@ function buildCategoryTimelineOption(
       axisLabel: chartAxisLabel(),
       splitLine: { lineStyle: { color: CHART_THEME.gridLine } },
     },
-    dataZoom: [
-      { type: "inside", zoomOnMouseWheel: true, moveOnMouseMove: true },
-    ],
+    dataZoom: [{ type: "inside", zoomOnMouseWheel: true, moveOnMouseMove: true }],
     series: eChartsSeries,
   }
 }
 
-function FleetCategoryTimeline({
-  torrents,
-  height = 320,
-}: FleetCategoryTimelineProps) {
+function FleetCategoryTimeline({ torrents, height = 320 }: FleetCategoryTimelineProps) {
   const validTorrents = torrents.filter((t) => t.added_on && t.added_on > 0)
 
   if (validTorrents.length === 0) {
@@ -182,5 +176,5 @@ function FleetCategoryTimeline({
   )
 }
 
-export { FleetCategoryTimeline }
 export type { FleetCategoryTimelineProps }
+export { FleetCategoryTimeline }

@@ -5,8 +5,14 @@
 "use client"
 
 import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core"
-import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
+import { H2 } from "@typography"
 import { useCallback, useState } from "react"
 import { CHART_THEME } from "@/components/charts/theme"
 import type { ChartDef } from "@/components/dashboard/useChartPreferences"
@@ -15,7 +21,6 @@ import { useDashboardSettings } from "@/components/dashboard/useDashboardSetting
 import { Sheet } from "@/components/ui/Sheet"
 import { TabBar } from "@/components/ui/TabBar"
 import { Toggle } from "@/components/ui/Toggle"
-import { H2 } from "@/components/ui/Typography"
 
 interface SortableChartItemProps {
   def: ChartDef
@@ -44,11 +49,7 @@ function SortableChartItem({ def, isHidden, onToggle }: SortableChartItemProps) 
       >
         ⠿
       </button>
-      <Toggle
-        label={def.label}
-        checked={!isHidden}
-        onChange={onToggle}
-      />
+      <Toggle label={def.label} checked={!isHidden} onChange={onToggle} />
     </div>
   )
 }
@@ -56,14 +57,20 @@ function SortableChartItem({ def, isHidden, onToggle }: SortableChartItemProps) 
 interface DashboardSettingsSheetProps {
   open: boolean
   onClose: () => void
+  dashSettings?: ReturnType<typeof useDashboardSettings>
 }
 
-function DashboardSettingsSheet({ open, onClose }: DashboardSettingsSheetProps) {
+function DashboardSettingsSheet({
+  open,
+  onClose,
+  dashSettings: externalSettings,
+}: DashboardSettingsSheetProps) {
+  const internalSettings = useDashboardSettings()
+  const dashSettings = externalSettings ?? internalSettings
   const [chartSettingsTab, setChartSettingsTab] = useState<"analytics" | "torrents">("analytics")
 
   const chartPrefs = useChartPreferences()
   const { orderedCharts, reorder } = chartPrefs
-  const dashSettings = useDashboardSettings()
 
   const handleChartDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -92,6 +99,12 @@ function DashboardSettingsSheet({ open, onClose }: DashboardSettingsSheetProps) 
             description="Display the breathing pulse dot on each tracker card showing connection status."
             checked={dashSettings.settings.showHealthIndicators}
             onChange={(checked) => dashSettings.update("showHealthIndicators", checked)}
+          />
+          <Toggle
+            label="Show login timers"
+            description="Display countdown rings for trackers with login interval requirements."
+            checked={dashSettings.settings.showLoginTimers}
+            onChange={(checked) => dashSettings.update("showLoginTimers", checked)}
           />
         </div>
 

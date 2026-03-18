@@ -3,14 +3,13 @@
 import { hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 
-interface GgnShareScoreProgressProps {
-  platformType: string
+export interface GgnShareScoreProgressProps {
   latestSnapshot: Snapshot | null
   accentColor: string
 }
 
-export function GgnShareScoreProgress({ platformType, latestSnapshot, accentColor }: GgnShareScoreProgressProps) {
-  if (platformType !== "ggn" || latestSnapshot?.shareScore == null) return null
+export function GgnShareScoreProgress({ latestSnapshot, accentColor }: GgnShareScoreProgressProps) {
+  if (latestSnapshot?.shareScore == null) return null
 
   const score = latestSnapshot.shareScore
   const maxScore = 15
@@ -19,8 +18,12 @@ export function GgnShareScoreProgress({ platformType, latestSnapshot, accentColo
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between text-xs font-mono">
-        <span className="text-tertiary uppercase tracking-wider font-sans font-medium text-[10px]">Share Score</span>
-        <span className="text-secondary font-semibold">{score.toFixed(2)} / {maxScore}</span>
+        <span className="text-tertiary uppercase tracking-wider font-sans font-medium text-[10px]">
+          Share Score
+        </span>
+        <span className="text-secondary font-semibold">
+          {score.toFixed(2)} / {maxScore}
+        </span>
       </div>
       <div className="nm-inset h-2 w-full overflow-hidden rounded-nm-pill">
         <div

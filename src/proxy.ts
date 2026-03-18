@@ -2,7 +2,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 
 const PUBLIC_EXACT = ["/login", "/setup", "/api/health"]
-const PUBLIC_PREFIX = ["/api/auth/"]
+const PUBLIC_PREFIX = ["/api/auth/", "/_next/", "/img/", "/favicon"]
 const SESSION_COOKIE = "tt_session"
 const MAX_AGE_COOKIE = "tt_max_age"
 const MAX_COOKIE_AGE = 60 * 60 * 24 * 30 // 30-day hard cap
@@ -10,10 +10,7 @@ const MAX_COOKIE_AGE = 60 * 60 * 24 * 30 // 30-day hard cap
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  if (
-    PUBLIC_EXACT.includes(pathname) ||
-    PUBLIC_PREFIX.some((p) => pathname.startsWith(p))
-  ) {
+  if (PUBLIC_EXACT.includes(pathname) || PUBLIC_PREFIX.some((p) => pathname.startsWith(p))) {
     return NextResponse.next()
   }
 
@@ -55,5 +52,7 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.png|tracker-logos|trackerHub_logo|trackerTracker_logo).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.png|tracker-logos|trackerHub_logo|trackerTracker_logo).*)",
+  ],
 }

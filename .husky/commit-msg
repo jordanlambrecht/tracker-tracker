@@ -1,0 +1,2 @@
+export PATH="$HOME/Library/pnpm:$HOME/.local/share/pnpm:/usr/local/bin:$PATH"
+pnpm exec commitlint --edit "$1"

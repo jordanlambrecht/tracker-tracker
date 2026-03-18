@@ -2,73 +2,74 @@
 //
 // Functions: GET, POST
 
-import { desc, eq } from "drizzle-orm"
+import { sql } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { CHART_THEME } from "@/components/charts/theme"
-import { DEFAULT_API_PATHS } from "@/lib/adapters"
-import { authenticate, decodeKey, parseJsonBody, validateHexColor, validateHttpUrl } from "@/lib/api-helpers"
+import { DEFAULT_API_PATHS, VALID_PLATFORM_TYPES } from "@/lib/adapters"
+import {
+  authenticate,
+  decodeKey,
+  parseJsonBody,
+  validateHexColor,
+  validateHttpUrl,
+} from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { trackerSnapshots, trackers } from "@/lib/db/schema"
-import { createPrivacyMask } from "@/lib/privacy-db"
+import { appSettings, type trackerSnapshots, trackers } from "@/lib/db/schema"
+import { createPrivacyMaskSync } from "@/lib/privacy-db"
+import { serializeTrackerResponse } from "@/lib/tracker-serializer"
 
 export async function GET() {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const allTrackers = await db.select().from(trackers).orderBy(trackers.createdAt)
+  const [allTrackers, [privacySettings]] = await Promise.all([
+    db.select().from(trackers).orderBy(trackers.createdAt),
+    db.select({ storeUsernames: appSettings.storeUsernames }).from(appSettings).limit(1),
+  ])
 
   // Enforce masking at response time — even if DB has plaintext from before
   // privacy was enabled, the API never leaks it when privacy mode is on.
-  const mask = await createPrivacyMask()
+  // Fallback true = "store usernames" = no masking. Matches createPrivacyMask()
+  // behavior when no settings row exists. Do NOT change to false.
+  const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
 
-  // Get latest snapshot for each tracker (for sidebar ratio display)
-  const trackersWithStats = await Promise.all(
-    allTrackers.map(async (tracker) => {
-      const [latest] = await db
-        .select()
-        .from(trackerSnapshots)
-        .where(eq(trackerSnapshots.trackerId, tracker.id))
-        .orderBy(desc(trackerSnapshots.polledAt))
-        .limit(1)
+  // Batch-fetch the latest snapshot per tracker using DISTINCT ON.
+  // PG18's enable_distinct_reordering planner flag optimises exactly this pattern.
+  // Drizzle has no native DISTINCT ON support, so we use db.execute with a raw sql tag.
+  // security-audit-ignore: static SQL string with zero user input — no injection risk
+  const latestSnapshots = (await db.execute(sql`
+    SELECT DISTINCT ON (tracker_id)
+      id,
+      tracker_id        AS "trackerId",
+      polled_at          AS "polledAt",
+      uploaded_bytes     AS "uploadedBytes",
+      downloaded_bytes   AS "downloadedBytes",
+      ratio,
+      buffer_bytes       AS "bufferBytes",
+      seeding_count      AS "seedingCount",
+      leeching_count     AS "leechingCount",
+      seedbonus,
+      hit_and_runs       AS "hitAndRuns",
+      required_ratio     AS "requiredRatio",
+      warned,
+      freeleech_tokens   AS "freeleechTokens",
+      share_score        AS "shareScore",
+      username,
+      group_name         AS "group"
+    FROM tracker_snapshots
+    ORDER BY tracker_id, polled_at DESC
+  `)) as unknown as (typeof trackerSnapshots.$inferSelect)[]
 
-      // SECURITY: Never include encryptedApiToken in response
-      return {
-        id: tracker.id,
-        name: tracker.name,
-        baseUrl: tracker.baseUrl,
-        platformType: tracker.platformType,
-        isActive: tracker.isActive,
-        lastPolledAt: tracker.lastPolledAt,
-        lastError: tracker.lastError,
-        color: tracker.color,
-        qbtTag: tracker.qbtTag,
-        useProxy: tracker.useProxy,
-        countCrossSeedUnsatisfied: tracker.countCrossSeedUnsatisfied,
-        isFavorite: tracker.isFavorite,
-        sortOrder: tracker.sortOrder,
-        joinedAt: tracker.joinedAt,
-        remoteUserId: tracker.remoteUserId ?? null,
-        // security-audit-ignore: malformed platformMeta falls back to null — non-critical display field
-        platformMeta: (() => { try { return tracker.platformMeta ? JSON.parse(tracker.platformMeta) : null } catch { return null } })(),
-        createdAt: tracker.createdAt?.toISOString() ?? new Date().toISOString(),
-        latestStats: latest
-          ? {
-              ratio: latest.ratio,
-              uploadedBytes: latest.uploadedBytes?.toString(),
-              downloadedBytes: latest.downloadedBytes?.toString(),
-              seedingCount: latest.seedingCount,
-              leechingCount: latest.leechingCount,
-              requiredRatio: latest.requiredRatio ?? null,
-              warned: latest.warned ?? null,
-              freeleechTokens: latest.freeleechTokens ?? null,
-              username: mask(latest.username),
-              group: mask(latest.group),
-            }
-          : null,
-      }
-    })
-  )
+  // Build a lookup map for O(1) access
+  const snapshotByTracker = new Map(latestSnapshots.map((s) => [s.trackerId, s]))
+
+  // SECURITY: Never include encryptedApiToken in response
+  // security-audit-ignore: serializeTrackerResponse omits encryptedApiToken by design
+  const trackersWithStats = allTrackers.map((tracker) => {
+    const latest = snapshotByTracker.get(tracker.id) ?? null
+    return serializeTrackerResponse(tracker, latest, mask)
+  })
 
   return NextResponse.json(trackersWithStats)
 }
@@ -90,24 +91,40 @@ export async function POST(request: Request) {
     joinedAt?: string
   }
 
-  if (typeof name !== "string" || typeof baseUrl !== "string" || typeof apiToken !== "string" ||
-      !name.trim() || !baseUrl.trim() || !apiToken.trim()) {
-    return NextResponse.json({ error: "name, baseUrl, and apiToken are required strings" }, { status: 400 })
+  if (
+    typeof name !== "string" ||
+    typeof baseUrl !== "string" ||
+    typeof apiToken !== "string" ||
+    !name.trim() ||
+    !baseUrl.trim() ||
+    !apiToken.trim()
+  ) {
+    return NextResponse.json(
+      { error: "name, baseUrl, and apiToken are required strings" },
+      { status: 400 }
+    )
   }
 
-  if (name.length > 100) {
+  const trimmedName = name.trim()
+  const trimmedBaseUrl = baseUrl.trim()
+  const trimmedApiToken = apiToken.trim()
+
+  if (trimmedName.length > 100) {
     return NextResponse.json({ error: "Name must be 100 characters or fewer" }, { status: 400 })
   }
 
-  if (baseUrl.length > 500) {
+  if (trimmedBaseUrl.length > 500) {
     return NextResponse.json({ error: "URL must be 500 characters or fewer" }, { status: 400 })
   }
 
-  if (apiToken.length > 500) {
-    return NextResponse.json({ error: "API token must be 500 characters or fewer" }, { status: 400 })
+  if (trimmedApiToken.length > 500) {
+    return NextResponse.json(
+      { error: "API token must be 500 characters or fewer" },
+      { status: 400 }
+    )
   }
 
-  const urlErr = validateHttpUrl(baseUrl)
+  const urlErr = validateHttpUrl(trimmedBaseUrl)
   if (urlErr) return urlErr
 
   if (typeof color === "string") {
@@ -116,27 +133,34 @@ export async function POST(request: Request) {
   }
 
   if (typeof qbtTag === "string" && qbtTag.length > 100) {
-    return NextResponse.json({ error: "qBittorrent tag must be 100 characters or fewer" }, { status: 400 })
+    return NextResponse.json(
+      { error: "qBittorrent tag must be 100 characters or fewer" },
+      { status: 400 }
+    )
   }
 
-  if (typeof joinedAt === "string" && joinedAt && joinedAt > new Date().toISOString().split("T")[0]) {
-    return NextResponse.json({ error: "Join date cannot be in the future" }, { status: 400 })
+  if (typeof joinedAt === "string" && joinedAt) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(joinedAt)) {
+      return NextResponse.json({ error: "joinedAt must be YYYY-MM-DD" }, { status: 400 })
+    }
+    if (joinedAt > new Date().toISOString().split("T")[0]) {
+      return NextResponse.json({ error: "Join date cannot be in the future" }, { status: 400 })
+    }
   }
 
-  const validPlatforms = ["unit3d", "gazelle", "ggn", "nebulance"]
   const platform = typeof platformType === "string" ? platformType : "unit3d"
-  if (!validPlatforms.includes(platform)) {
+  if (!VALID_PLATFORM_TYPES.includes(platform as (typeof VALID_PLATFORM_TYPES)[number])) {
     return NextResponse.json({ error: "Invalid platform type" }, { status: 400 })
   }
 
   const key = decodeKey(auth)
-  const encryptedApiToken = encrypt(apiToken, key)
+  const encryptedApiToken = encrypt(trimmedApiToken, key)
 
   const [tracker] = await db
     .insert(trackers)
     .values({
-      name: name.trim(),
-      baseUrl: baseUrl.trim(),
+      name: trimmedName,
+      baseUrl: trimmedBaseUrl,
       apiPath: DEFAULT_API_PATHS[platform] ?? "/api/user",
       encryptedApiToken,
       platformType: platform,

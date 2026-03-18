@@ -2,6 +2,8 @@
 //
 // Functions: AnalyticsCharts
 
+import { H2 } from "@typography"
+import { BufferCandlestickChart } from "@/components/charts/BufferCandlestickChart"
 import { MetricChart } from "@/components/charts/MetricChart"
 import { PercentileRadarChart } from "@/components/charts/PercentileRadarChart"
 import { UploadDownloadChart } from "@/components/charts/UploadDownloadChart"
@@ -9,11 +11,11 @@ import { UploadPolarChart } from "@/components/charts/UploadPolarChart"
 import type { DayRange } from "@/components/dashboard/DayRangeSidebar"
 import { DayRangeSidebar } from "@/components/dashboard/DayRangeSidebar"
 import { Card } from "@/components/ui/Card"
-import { H2 } from "@/components/ui/Typography"
 import { formatBytesFromString } from "@/lib/formatters"
 import type { GazellePlatformMeta, Snapshot } from "@/types/api"
 
 interface AnalyticsChartsProps {
+  trackerName: string
   platformType: string
   snapshots: Snapshot[]
   accentColor: string
@@ -25,6 +27,7 @@ interface AnalyticsChartsProps {
 }
 
 export function AnalyticsCharts({
+  trackerName,
   platformType,
   snapshots,
   accentColor: tc,
@@ -34,6 +37,7 @@ export function AnalyticsCharts({
   gazelleMeta,
   minimumRatio,
 }: AnalyticsChartsProps) {
+  const candlestickData = [{ name: trackerName, color: tc, snapshots }]
   return (
     <div className="flex flex-col md:flex-row gap-8">
       <div className="flex-1 flex flex-col gap-8 min-w-0">
@@ -46,19 +50,34 @@ export function AnalyticsCharts({
               <span className="text-primary">{formatBytesFromString(delta.downloaded)}</span> ↓
             </p>
           )}
-          <UploadDownloadChart snapshots={snapshots} accentColor={tc} showDataZoom={days >= 30 || days === 0} />
+          <UploadDownloadChart
+            snapshots={snapshots}
+            accentColor={tc}
+            showDataZoom={days >= 30 || days === 0}
+          />
         </Card>
 
         {/* Ratio */}
         <Card trackerColor={tc} className="flex flex-col gap-4">
           <H2>Ratio</H2>
-          <MetricChart metric="ratio" snapshots={snapshots} accentColor={tc} baselineValue={minimumRatio} />
+          <MetricChart
+            metric="ratio"
+            snapshots={snapshots}
+            accentColor={tc}
+            baselineValue={minimumRatio}
+          />
         </Card>
 
         {/* Buffer */}
         <Card trackerColor={tc} className="flex flex-col gap-4">
           <H2>Buffer</H2>
           <MetricChart metric="buffer" snapshots={snapshots} accentColor={tc} />
+        </Card>
+
+        {/* Buffer Candlestick */}
+        <Card trackerColor={tc} className="flex flex-col gap-4">
+          <H2>Daily Buffer</H2>
+          <BufferCandlestickChart trackerData={candlestickData} height={320} />
         </Card>
 
         {/* Seedbonus / Gold */}

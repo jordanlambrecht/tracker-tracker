@@ -18,6 +18,7 @@ export const morethantv: TrackerRegistryEntry = {
   notableMembers: [],
   language: "English",
   color: "#27ae60",
+  trackerHubSlug: "morethan-tv",
   warning: true,
   warningNote: "Unvalidated",
   rules: {
@@ -25,4 +26,5 @@ export const morethantv: TrackerRegistryEntry = {
     seedTimeHours: 24,
     loginIntervalDays: 90,
   },
+  draft: false,
 }

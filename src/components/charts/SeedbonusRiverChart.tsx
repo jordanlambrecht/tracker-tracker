@@ -8,7 +8,9 @@ import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartAxisLabel, chartDot, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
+import { buildAxisPointer, buildThemeRiverSingleAxis } from "./chart-helpers"
+import { formatSnapshotLabel } from "./chart-transforms"
+import { CHART_THEME, chartDot, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -23,9 +25,7 @@ interface SeedbonusRiverChartProps {
 // Data builder
 // ---------------------------------------------------------------------------
 
-function buildRiverData(
-  trackerData: TrackerSnapshotSeries[]
-): [string, number, string][] {
+function buildRiverData(trackerData: TrackerSnapshotSeries[]): [string, number, string][] {
   // Collect all timestamps across all trackers (only from non-null seedbonus snaps)
   const allTs = new Set<string>()
   const trackerMaps: Map<string, number>[] = []
@@ -34,9 +34,7 @@ function buildRiverData(
     const map = new Map<string, number>()
     const sorted = [...tracker.snapshots]
       .filter((s) => s.seedbonus !== null)
-      .sort(
-        (a, b) => new Date(a.polledAt).getTime() - new Date(b.polledAt).getTime()
-      )
+      .sort((a, b) => new Date(a.polledAt).getTime() - new Date(b.polledAt).getTime())
     for (const s of sorted) {
       allTs.add(s.polledAt)
       map.set(s.polledAt, s.seedbonus as number)
@@ -44,9 +42,7 @@ function buildRiverData(
     trackerMaps.push(map)
   }
 
-  const sortedTs = [...allTs].sort(
-    (a, b) => new Date(a).getTime() - new Date(b).getTime()
-  )
+  const sortedTs = [...allTs].sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
 
   const data: [string, number, string][] = []
 
@@ -84,13 +80,7 @@ function buildRiverOption(
     backgroundColor: "transparent",
     color: colors,
     tooltip: chartTooltip("axis", {
-      axisPointer: {
-        type: "line",
-        lineStyle: {
-          color: CHART_THEME.borderMid,
-          type: "dashed",
-        },
-      },
+      axisPointer: buildAxisPointer(),
       formatter: (params: unknown) => {
         // ThemeRiver tooltip params is an array of items, one per tracker stream
         const items = params as Array<{
@@ -103,15 +93,7 @@ function buildRiverOption(
 
         // The timestamp comes from the first item's value[0]
         const rawDate = items[0]?.value?.[0]
-        const formattedDate = rawDate
-          ? new Date(rawDate).toLocaleString("en-US", {
-              month: "short",
-              day: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: false,
-            })
-          : ""
+        const formattedDate = rawDate ? formatSnapshotLabel(rawDate) : ""
 
         const rows = items
           .filter((item) => item.value && item.value[1] !== undefined)
@@ -131,15 +113,7 @@ function buildRiverOption(
         return chartTooltipHeader(formattedDate) + rows
       },
     }),
-    singleAxis: {
-      type: "time",
-      bottom: 40,
-      axisLabel: chartAxisLabel(),
-      axisLine: {
-        lineStyle: { color: CHART_THEME.gridLine },
-      },
-      axisTick: { show: false },
-    },
+    singleAxis: buildThemeRiverSingleAxis(),
     series: [
       {
         type: "themeRiver",
@@ -165,13 +139,8 @@ function buildRiverOption(
 // Component
 // ---------------------------------------------------------------------------
 
-function SeedbonusRiverChart({
-  trackerData,
-  height = 320,
-}: SeedbonusRiverChartProps) {
-  const hasData = trackerData.some((t) =>
-    t.snapshots.some((s) => s.seedbonus !== null)
-  )
+function SeedbonusRiverChart({ trackerData, height = 320 }: SeedbonusRiverChartProps) {
+  const hasData = trackerData.some((t) => t.snapshots.some((s) => s.seedbonus !== null))
 
   if (!hasData) {
     return <ChartEmptyState height={height} message="No seedbonus data available" />
@@ -190,5 +159,5 @@ function SeedbonusRiverChart({
   )
 }
 
-export { SeedbonusRiverChart }
 export type { SeedbonusRiverChartProps }
+export { SeedbonusRiverChart }

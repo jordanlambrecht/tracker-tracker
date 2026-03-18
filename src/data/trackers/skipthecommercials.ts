@@ -15,26 +15,64 @@ export const skipthecommercials: TrackerRegistryEntry = {
   contentCategories: ["TV", "Movies", "Anime"],
   userClasses: [
     // System
-    { name: "Pruned", requirements: "System — disabled due to 90+ days inactivity, 30 days to reactivate before deletion" },
+    {
+      name: "Pruned",
+      requirements:
+        "System — disabled due to 90+ days inactivity, 30 days to reactivate before deletion",
+    },
     { name: "Banned", requirements: "System — banned" },
     { name: "Disabled", requirements: "System — disabled" },
     { name: "Validating", requirements: "System — awaiting validation" },
     // Dynamic — upload-based
     { name: "Leech", requirements: "Ratio below 0.4 — download privileges revoked" },
-    { name: "User", requirements: "Upload ≥ 0 B, ratio ≥ 0.40. Starts with 50 GiB upload credit. Upload torrents, send invites" },
+    {
+      name: "User",
+      requirements:
+        "Upload ≥ 0 B, ratio ≥ 0.40. Starts with 50 GiB upload credit. Upload torrents, send invites",
+    },
     { name: "PowerUser", requirements: "Upload ≥ 1 TiB, ratio ≥ 0.40, age ≥ 30 days" },
     { name: "SuperUser", requirements: "Upload ≥ 5 TiB, ratio ≥ 0.40, age ≥ 60 days" },
-    { name: "ExtremeUser", requirements: "Upload ≥ 20 TiB, ratio ≥ 0.40, age ≥ 90 days. Refundable, torrent moderation bypass" },
-    { name: "InsaneUser", requirements: "Upload ≥ 50 TiB, ratio ≥ 0.40, age ≥ 180 days. Double upload, torrent moderation bypass" },
-    { name: "Veteran", requirements: "Upload ≥ 100 TiB, ratio ≥ 0.40, age ≥ 365 days. Freeleech, H&R immune, torrent moderation bypass" },
+    {
+      name: "ExtremeUser",
+      requirements:
+        "Upload ≥ 20 TiB, ratio ≥ 0.40, age ≥ 90 days. Refundable, torrent moderation bypass",
+    },
+    {
+      name: "InsaneUser",
+      requirements:
+        "Upload ≥ 50 TiB, ratio ≥ 0.40, age ≥ 180 days. Double upload, torrent moderation bypass",
+    },
+    {
+      name: "Veteran",
+      requirements:
+        "Upload ≥ 100 TiB, ratio ≥ 0.40, age ≥ 365 days. Freeleech, H&R immune, torrent moderation bypass",
+    },
     // Dynamic — seed-based
-    { name: "Seeder", requirements: "Seed size ≥ 5 TiB, age ≥ 30 days, avg seedtime ≥ 30 days. Refundable" },
-    { name: "Archivist", requirements: "Seed size ≥ 10 TiB, age ≥ 60 days, avg seedtime ≥ 60 days. Freeleech, torrent moderation bypass" },
+    {
+      name: "Seeder",
+      requirements: "Seed size ≥ 5 TiB, age ≥ 30 days, avg seedtime ≥ 30 days. Refundable",
+    },
+    {
+      name: "Archivist",
+      requirements:
+        "Seed size ≥ 10 TiB, age ≥ 60 days, avg seedtime ≥ 60 days. Freeleech, torrent moderation bypass",
+    },
     // Staff-assigned
-    { name: "Trial Uploader", requirements: "Staff — new uploaders, uploads require staff approval. 75 uploads to promote to Uploader" },
+    {
+      name: "Trial Uploader",
+      requirements:
+        "Staff — new uploaders, uploads require staff approval. 75 uploads to promote to Uploader",
+    },
     { name: "Uploader", requirements: "Staff — freeleech, double upload, H&R immune, refundable" },
-    { name: "Internal", requirements: "Staff — internal release group. Freeleech, torrent moderation bypass" },
-    { name: "Trustee", requirements: "Staff — retired staff or staff from respected trackers. Freeleech, H&R immune, torrent moderation bypass" },
+    {
+      name: "Internal",
+      requirements: "Staff — internal release group. Freeleech, torrent moderation bypass",
+    },
+    {
+      name: "Trustee",
+      requirements:
+        "Staff — retired staff or staff from respected trackers. Freeleech, H&R immune, torrent moderation bypass",
+    },
     { name: "Editor", requirements: "Staff — maintains torrent page quality" },
     { name: "Torrent Moderator", requirements: "Staff — moderates torrent queue" },
     { name: "Moderator", requirements: "Staff — day-to-day site moderation" },
@@ -141,4 +179,5 @@ export const skipthecommercials: TrackerRegistryEntry = {
   language: "English",
   color: "#b026ff",
   logo: "/tracker-logos/skipthecommercials_logo.png",
+  draft: false,
 }

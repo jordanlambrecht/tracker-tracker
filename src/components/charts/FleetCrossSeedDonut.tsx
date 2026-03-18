@@ -119,18 +119,9 @@ function buildFleetCrossSeedOption(
   }
 }
 
-function FleetCrossSeedDonut({
-  torrents,
-  crossSeedTags,
-  height = 280,
-}: FleetCrossSeedDonutProps) {
+function FleetCrossSeedDonut({ torrents, crossSeedTags, height = 280 }: FleetCrossSeedDonutProps) {
   if (crossSeedTags.length === 0) {
-    return (
-      <ChartEmptyState
-        height={height}
-        message="No cross-seed tags configured"
-      />
-    )
+    return <ChartEmptyState height={height} message="No cross-seed tags configured" />
   }
 
   if (torrents.length === 0) {
@@ -157,5 +148,5 @@ function FleetCrossSeedDonut({
   )
 }
 
-export { FleetCrossSeedDonut }
 export type { FleetCrossSeedDonutProps }
+export { FleetCrossSeedDonut }

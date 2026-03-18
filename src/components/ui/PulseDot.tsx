@@ -2,7 +2,7 @@
 import { cva } from "class-variance-authority"
 import clsx from "clsx"
 
-type PulseDotStatus = "healthy" | "warning" | "critical" | "error" | "offline"
+type PulseDotStatus = "healthy" | "warning" | "critical" | "error" | "paused" | "offline"
 type PulseDotSize = "sm" | "md"
 
 interface PulseDotProps {
@@ -17,6 +17,7 @@ const statusLabels: Record<PulseDotStatus, string> = {
   healthy: "Healthy",
   warning: "Warning",
   critical: "Critical",
+  paused: "Paused",
   error: "Error",
   offline: "Offline",
 }
@@ -25,6 +26,7 @@ const shouldPulse: Record<PulseDotStatus, boolean> = {
   healthy: true,
   warning: true,
   critical: true,
+  paused: false,
   error: false,
   offline: false,
 }
@@ -35,6 +37,7 @@ const pulseDot = cva("inline-block rounded-full shrink-0", {
       healthy: "text-accent bg-accent",
       warning: "text-warn bg-warn",
       critical: "text-danger bg-danger",
+      paused: "text-danger bg-danger",
       error: "text-secondary bg-secondary",
       offline: "text-muted bg-muted",
     },
@@ -65,16 +68,12 @@ function PulseDot({
       className={clsx(
         pulseDot({ status: useCustomColor ? undefined : status, size }),
         pulse ? "animate-pulse-glow" : "opacity-50",
-        className,
+        className
       )}
-      style={
-        useCustomColor
-          ? { backgroundColor: color, color: color }
-          : undefined
-      }
+      style={useCustomColor ? { backgroundColor: color, color: color } : undefined}
     />
   )
 }
 
+export type { PulseDotProps, PulseDotSize, PulseDotStatus }
 export { PulseDot }
-export type { PulseDotProps, PulseDotStatus, PulseDotSize }

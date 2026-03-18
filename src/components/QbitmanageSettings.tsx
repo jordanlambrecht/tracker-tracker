@@ -4,23 +4,35 @@
 
 "use client"
 
+import { H3, Subtext } from "@typography"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { Checkbox } from "@/components/ui/Checkbox"
 import { Input } from "@/components/ui/Input"
 import { Toggle } from "@/components/ui/Toggle"
-import { H3, Subtext } from "@/components/ui/Typography"
 import { QBITMANAGE_TAG_DEFAULTS } from "@/lib/qbitmanage-defaults"
 import type { QbitmanageTagConfig } from "@/types/api"
 
 const QBITMANAGE_STATUSES = [
   { key: "issue" as const, label: "Issue", defaultTag: "issue" },
-  { key: "minTimeNotReached" as const, label: "Min Time Not Reached", defaultTag: "MinTimeNotReached" },
+  {
+    key: "minTimeNotReached" as const,
+    label: "Min Time Not Reached",
+    defaultTag: "MinTimeNotReached",
+  },
   { key: "noHardlinks" as const, label: "No Hardlinks", defaultTag: "noHL" },
   { key: "minSeedsNotMet" as const, label: "Min Seeds Not Met", defaultTag: "MinSeedsNotMet" },
-  { key: "lastActiveLimitNotReached" as const, label: "Last Active Limit Not Reached", defaultTag: "LastActiveLimitNotReached" },
-  { key: "lastActiveNotReached" as const, label: "Last Active Not Reached", defaultTag: "LastActiveNotReached" },
+  {
+    key: "lastActiveLimitNotReached" as const,
+    label: "Last Active Limit Not Reached",
+    defaultTag: "LastActiveLimitNotReached",
+  },
+  {
+    key: "lastActiveNotReached" as const,
+    label: "Last Active Not Reached",
+    defaultTag: "LastActiveNotReached",
+  },
 ]
 
 function QbitmanageSettings() {
@@ -34,7 +46,7 @@ function QbitmanageSettings() {
   useEffect(() => {
     let cancelled = false
     fetch("/api/settings")
-      .then((res) => res.ok ? res.json() : null)
+      .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!data) return
         if (typeof data.qbitmanageEnabled === "boolean") {
@@ -45,12 +57,14 @@ function QbitmanageSettings() {
         }
       })
       .catch(() => {})
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   function updateEntry(
     key: keyof QbitmanageTagConfig,
-    patch: Partial<QbitmanageTagConfig[typeof key]>,
+    patch: Partial<QbitmanageTagConfig[typeof key]>
   ) {
     setConfig((prev) => ({
       ...prev,
@@ -97,7 +111,10 @@ function QbitmanageSettings() {
       <Toggle
         label="Enable qbitmanage Tag Tracking"
         checked={enabled}
-        onChange={(val) => { setEnabled(val); setDirty(true) }}
+        onChange={(val) => {
+          setEnabled(val)
+          setDirty(true)
+        }}
       />
 
       {enabled && (
@@ -105,15 +122,16 @@ function QbitmanageSettings() {
           <Subtext>Map each qbitmanage status to its qBittorrent tag name.</Subtext>
 
           {QBITMANAGE_STATUSES.map((status) => (
-            <div key={status.key} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+            <div
+              key={status.key}
+              className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3"
+            >
               <div className="flex items-center gap-2 sm:w-56 sm:shrink-0">
                 <Checkbox
                   checked={config[status.key].enabled}
                   onChange={(checked) => updateEntry(status.key, { enabled: checked })}
                 />
-                <span className="text-sm font-sans text-secondary">
-                  {status.label}
-                </span>
+                <span className="text-sm font-sans text-secondary">{status.label}</span>
               </div>
               <Input
                 value={config[status.key].tag}
@@ -130,13 +148,9 @@ function QbitmanageSettings() {
               <Button size="sm" onClick={handleSave} disabled={saving || !dirty}>
                 {saving ? "Saving..." : "Save"}
               </Button>
-              {saved && (
-                <span className="text-xs font-mono text-success">Saved</span>
-              )}
+              {saved && <span className="text-xs font-mono text-success">Saved</span>}
             </div>
-            {saveError && (
-              <span className="text-xs font-mono text-danger">{saveError}</span>
-            )}
+            {saveError && <span className="text-xs font-mono text-danger">{saveError}</span>}
           </div>
         </Card>
       )}

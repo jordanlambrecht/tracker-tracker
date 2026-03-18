@@ -5,6 +5,7 @@
 // Type definitions and public API for the tracker registry.
 // Individual tracker data lives in src/data/trackers/.
 
+import { normalizeUrl } from "@/lib/url"
 import { ALL_TRACKERS } from "./trackers"
 
 export interface ReleaseGroup {
@@ -35,11 +36,11 @@ export interface TrackerUserClass {
 }
 
 export interface TrackerRules {
-  minimumRatio: number              // 0 = no minimum
-  seedTimeHours: number             // 0 = no minimum
-  loginIntervalDays: number         // days until prune/disable
-  fulfillmentPeriodHours?: number   // null = not applicable
-  hnrBanLimit?: number              // null = not applicable
+  minimumRatio: number // 0 = no minimum
+  seedTimeHours: number // 0 = no minimum
+  loginIntervalDays: number // days until prune/disable
+  fulfillmentPeriodHours?: number // null = not applicable
+  hnrBanLimit?: number // null = not applicable
   fullRulesMarkdown?: string
 }
 
@@ -88,8 +89,6 @@ export function getAllTrackers(): TrackerRegistryEntry[] {
 }
 
 export function findRegistryEntry(baseUrl: string): TrackerRegistryEntry | undefined {
-  const normalized = baseUrl.replace(/\/+$/, "").toLowerCase()
-  return TRACKER_REGISTRY.find(
-    (r) => r.url.replace(/\/+$/, "").toLowerCase() === normalized
-  )
+  const normalized = normalizeUrl(baseUrl)
+  return TRACKER_REGISTRY.find((r) => normalizeUrl(r.url) === normalized)
 }

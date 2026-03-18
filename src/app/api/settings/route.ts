@@ -1,7 +1,8 @@
 // src/app/api/settings/route.ts
 //
-// Functions: GET, PATCH
+// Functions: fetchSettings, serializeSettingsResponse, GET, PATCH
 
+import { access, mkdir } from "node:fs/promises"
 import path from "node:path"
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
@@ -10,64 +11,80 @@ import { VALID_BACKUP_FREQUENCIES } from "@/lib/backup"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
 import { scrubSnapshotUsernames } from "@/lib/privacy-db"
 import { PROXY_HOST_PATTERN, VALID_PROXY_TYPES } from "@/lib/proxy"
 import { parseQbitmanageTags, QBITMANAGE_KEYS } from "@/lib/qbitmanage-defaults"
+
+const settingsColumns = {
+  storeUsernames: appSettings.storeUsernames,
+  username: appSettings.username,
+  sessionTimeoutMinutes: appSettings.sessionTimeoutMinutes,
+  lockoutEnabled: appSettings.lockoutEnabled,
+  lockoutThreshold: appSettings.lockoutThreshold,
+  lockoutDurationMinutes: appSettings.lockoutDurationMinutes,
+  snapshotRetentionDays: appSettings.snapshotRetentionDays,
+  trackerPollIntervalMinutes: appSettings.trackerPollIntervalMinutes,
+  proxyEnabled: appSettings.proxyEnabled,
+  proxyType: appSettings.proxyType,
+  proxyHost: appSettings.proxyHost,
+  proxyPort: appSettings.proxyPort,
+  proxyUsername: appSettings.proxyUsername,
+  hasProxyPassword: appSettings.encryptedProxyPassword,
+  qbitmanageEnabled: appSettings.qbitmanageEnabled,
+  qbitmanageTags: appSettings.qbitmanageTags,
+  backupScheduleEnabled: appSettings.backupScheduleEnabled,
+  backupScheduleFrequency: appSettings.backupScheduleFrequency,
+  backupRetentionCount: appSettings.backupRetentionCount,
+  backupEncryptionEnabled: appSettings.backupEncryptionEnabled,
+  hasBackupPassword: appSettings.encryptedBackupPassword,
+  backupStoragePath: appSettings.backupStoragePath,
+}
+
+function fetchSettings() {
+  return db.select(settingsColumns).from(appSettings).limit(1)
+}
+
+type SettingsRow = Awaited<ReturnType<typeof fetchSettings>>[number]
+
+function serializeSettingsResponse(row: SettingsRow) {
+  return {
+    storeUsernames: row.storeUsernames,
+    username: row.username,
+    sessionTimeoutMinutes: row.sessionTimeoutMinutes,
+    lockoutEnabled: row.lockoutEnabled,
+    lockoutThreshold: row.lockoutThreshold,
+    lockoutDurationMinutes: row.lockoutDurationMinutes,
+    snapshotRetentionDays: row.snapshotRetentionDays,
+    trackerPollIntervalMinutes: row.trackerPollIntervalMinutes,
+    proxyEnabled: row.proxyEnabled,
+    proxyType: row.proxyType,
+    proxyHost: row.proxyHost,
+    proxyPort: row.proxyPort,
+    proxyUsername: row.proxyUsername,
+    hasProxyPassword: !!row.hasProxyPassword,
+    qbitmanageEnabled: row.qbitmanageEnabled,
+    qbitmanageTags: parseQbitmanageTags(row.qbitmanageTags),
+    backupScheduleEnabled: row.backupScheduleEnabled,
+    backupScheduleFrequency: row.backupScheduleFrequency,
+    backupRetentionCount: row.backupRetentionCount,
+    backupEncryptionEnabled: row.backupEncryptionEnabled,
+    hasBackupPassword: !!row.hasBackupPassword,
+    backupStoragePath: row.backupStoragePath,
+  }
+}
 
 export async function GET() {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const [settings] = await db
-    .select({
-      storeUsernames: appSettings.storeUsernames,
-      username: appSettings.username,
-      sessionTimeoutMinutes: appSettings.sessionTimeoutMinutes,
-      autoWipeThreshold: appSettings.autoWipeThreshold,
-      snapshotRetentionDays: appSettings.snapshotRetentionDays,
-      trackerPollIntervalMinutes: appSettings.trackerPollIntervalMinutes,
-      proxyEnabled: appSettings.proxyEnabled,
-      proxyType: appSettings.proxyType,
-      proxyHost: appSettings.proxyHost,
-      proxyPort: appSettings.proxyPort,
-      proxyUsername: appSettings.proxyUsername,
-      hasProxyPassword: appSettings.encryptedProxyPassword,
-      qbitmanageEnabled: appSettings.qbitmanageEnabled,
-      qbitmanageTags: appSettings.qbitmanageTags,
-      backupScheduleEnabled: appSettings.backupScheduleEnabled,
-      backupScheduleFrequency: appSettings.backupScheduleFrequency,
-      backupRetentionCount: appSettings.backupRetentionCount,
-      backupEncryptionEnabled: appSettings.backupEncryptionEnabled,
-      backupStoragePath: appSettings.backupStoragePath,
-    })
-    .from(appSettings)
-    .limit(1)
+  const [settings] = await fetchSettings()
 
   if (!settings) {
     return NextResponse.json({ error: "Not configured" }, { status: 400 })
   }
 
-  return NextResponse.json({
-    storeUsernames: settings.storeUsernames,
-    username: settings.username,
-    sessionTimeoutMinutes: settings.sessionTimeoutMinutes,
-    autoWipeThreshold: settings.autoWipeThreshold,
-    snapshotRetentionDays: settings.snapshotRetentionDays,
-    trackerPollIntervalMinutes: settings.trackerPollIntervalMinutes,
-    proxyEnabled: settings.proxyEnabled,
-    proxyType: settings.proxyType,
-    proxyHost: settings.proxyHost,
-    proxyPort: settings.proxyPort,
-    proxyUsername: settings.proxyUsername,
-    hasProxyPassword: !!settings.hasProxyPassword,
-    qbitmanageEnabled: settings.qbitmanageEnabled,
-    qbitmanageTags: parseQbitmanageTags(settings.qbitmanageTags),
-    backupScheduleEnabled: settings.backupScheduleEnabled,
-    backupScheduleFrequency: settings.backupScheduleFrequency,
-    backupRetentionCount: settings.backupRetentionCount,
-    backupEncryptionEnabled: settings.backupEncryptionEnabled,
-    backupStoragePath: settings.backupStoragePath,
-  })
+  return NextResponse.json(serializeSettingsResponse(settings))
 }
 
 export async function PATCH(request: Request) {
@@ -105,7 +122,10 @@ export async function PATCH(request: Request) {
   if (body.sessionTimeoutMinutes !== undefined) {
     if (body.sessionTimeoutMinutes === null || body.sessionTimeoutMinutes === 0) {
       updates.sessionTimeoutMinutes = null
-    } else if (typeof body.sessionTimeoutMinutes === "number" && Number.isInteger(body.sessionTimeoutMinutes)) {
+    } else if (
+      typeof body.sessionTimeoutMinutes === "number" &&
+      Number.isInteger(body.sessionTimeoutMinutes)
+    ) {
       if (body.sessionTimeoutMinutes < 1 || body.sessionTimeoutMinutes > 525960) {
         return NextResponse.json(
           { error: "Session timeout must be between 1 minute and 1 year" },
@@ -118,32 +138,55 @@ export async function PATCH(request: Request) {
     }
   }
 
-  // --- Auto-wipe threshold ---
-  if (body.autoWipeThreshold !== undefined) {
-    if (body.autoWipeThreshold === null || body.autoWipeThreshold === 0) {
-      updates.autoWipeThreshold = null
-      // Also reset the counter when disabling
-      updates.failedLoginAttempts = 0
-    } else if (typeof body.autoWipeThreshold === "number" && Number.isInteger(body.autoWipeThreshold)) {
-      if (body.autoWipeThreshold < 1 || body.autoWipeThreshold > 99) {
-        return NextResponse.json(
-          { error: "Auto-wipe threshold must be between 1 and 99" },
-          { status: 400 }
-        )
-      }
-      updates.autoWipeThreshold = body.autoWipeThreshold
-      // Reset counter when changing threshold
-      updates.failedLoginAttempts = 0
-    } else {
-      return NextResponse.json({ error: "Invalid auto-wipe threshold" }, { status: 400 })
+  // --- Lockout settings ---
+  if (body.lockoutEnabled !== undefined) {
+    if (typeof body.lockoutEnabled !== "boolean") {
+      return NextResponse.json({ error: "lockoutEnabled must be a boolean" }, { status: 400 })
     }
+    updates.lockoutEnabled = body.lockoutEnabled
+    if (!body.lockoutEnabled) {
+      updates.lockedUntil = null
+      updates.failedLoginAttempts = 0
+    }
+  }
+
+  if (body.lockoutThreshold !== undefined) {
+    if (typeof body.lockoutThreshold !== "number" || !Number.isInteger(body.lockoutThreshold)) {
+      return NextResponse.json({ error: "Invalid lockout threshold" }, { status: 400 })
+    }
+    if (body.lockoutThreshold < 1 || body.lockoutThreshold > 99) {
+      return NextResponse.json(
+        { error: "Lockout threshold must be between 1 and 99" },
+        { status: 400 }
+      )
+    }
+    updates.lockoutThreshold = body.lockoutThreshold
+  }
+
+  if (body.lockoutDurationMinutes !== undefined) {
+    if (
+      typeof body.lockoutDurationMinutes !== "number" ||
+      !Number.isInteger(body.lockoutDurationMinutes)
+    ) {
+      return NextResponse.json({ error: "Invalid lockout duration" }, { status: 400 })
+    }
+    if (body.lockoutDurationMinutes < 1 || body.lockoutDurationMinutes > 1440) {
+      return NextResponse.json(
+        { error: "Lockout duration must be between 1 minute and 24 hours" },
+        { status: 400 }
+      )
+    }
+    updates.lockoutDurationMinutes = body.lockoutDurationMinutes
   }
 
   // --- Snapshot retention ---
   if (body.snapshotRetentionDays !== undefined) {
     if (body.snapshotRetentionDays === null || body.snapshotRetentionDays === 0) {
       updates.snapshotRetentionDays = null
-    } else if (typeof body.snapshotRetentionDays === "number" && Number.isInteger(body.snapshotRetentionDays)) {
+    } else if (
+      typeof body.snapshotRetentionDays === "number" &&
+      Number.isInteger(body.snapshotRetentionDays)
+    ) {
       if (body.snapshotRetentionDays < 7 || body.snapshotRetentionDays > 3650) {
         return NextResponse.json(
           { error: "Snapshot retention must be between 7 days and 10 years" },
@@ -158,7 +201,10 @@ export async function PATCH(request: Request) {
 
   // --- Tracker poll interval ---
   if (body.trackerPollIntervalMinutes !== undefined) {
-    if (typeof body.trackerPollIntervalMinutes !== "number" || !Number.isInteger(body.trackerPollIntervalMinutes)) {
+    if (
+      typeof body.trackerPollIntervalMinutes !== "number" ||
+      !Number.isInteger(body.trackerPollIntervalMinutes)
+    ) {
       return NextResponse.json({ error: "Invalid poll interval" }, { status: 400 })
     }
     if (body.trackerPollIntervalMinutes < 15 || body.trackerPollIntervalMinutes > 1440) {
@@ -193,7 +239,10 @@ export async function PATCH(request: Request) {
       updates.proxyHost = null
     } else if (typeof body.proxyHost === "string") {
       if (body.proxyHost.length > 255) {
-        return NextResponse.json({ error: "Proxy host must be 255 characters or fewer" }, { status: 400 })
+        return NextResponse.json(
+          { error: "Proxy host must be 255 characters or fewer" },
+          { status: 400 }
+        )
       }
       if (!PROXY_HOST_PATTERN.test(body.proxyHost)) {
         return NextResponse.json({ error: "Invalid proxy host format" }, { status: 400 })
@@ -209,7 +258,10 @@ export async function PATCH(request: Request) {
       updates.proxyPort = null
     } else if (typeof body.proxyPort === "number" && Number.isInteger(body.proxyPort)) {
       if (body.proxyPort < 1 || body.proxyPort > 65535) {
-        return NextResponse.json({ error: "Proxy port must be between 1 and 65535" }, { status: 400 })
+        return NextResponse.json(
+          { error: "Proxy port must be between 1 and 65535" },
+          { status: 400 }
+        )
       }
       updates.proxyPort = body.proxyPort
     } else {
@@ -222,7 +274,10 @@ export async function PATCH(request: Request) {
       updates.proxyUsername = null
     } else if (typeof body.proxyUsername === "string") {
       if (body.proxyUsername.length > 255) {
-        return NextResponse.json({ error: "Proxy username must be 255 characters or fewer" }, { status: 400 })
+        return NextResponse.json(
+          { error: "Proxy username must be 255 characters or fewer" },
+          { status: 400 }
+        )
       }
       updates.proxyUsername = body.proxyUsername
     } else {
@@ -235,7 +290,10 @@ export async function PATCH(request: Request) {
       updates.encryptedProxyPassword = null
     } else if (typeof body.proxyPassword === "string") {
       if (body.proxyPassword.length > 255) {
-        return NextResponse.json({ error: "Proxy password must be 255 characters or fewer" }, { status: 400 })
+        return NextResponse.json(
+          { error: "Proxy password must be 255 characters or fewer" },
+          { status: 400 }
+        )
       }
       const key = decodeKey(auth)
       updates.encryptedProxyPassword = encrypt(body.proxyPassword, key)
@@ -247,10 +305,7 @@ export async function PATCH(request: Request) {
   // --- Store usernames (privacy toggle) ---
   if (body.storeUsernames !== undefined) {
     if (typeof body.storeUsernames !== "boolean") {
-      return NextResponse.json(
-        { error: "storeUsernames must be a boolean" },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: "storeUsernames must be a boolean" }, { status: 400 })
     }
     updates.storeUsernames = body.storeUsernames
 
@@ -269,7 +324,11 @@ export async function PATCH(request: Request) {
   }
 
   if (body.qbitmanageTags !== undefined) {
-    if (typeof body.qbitmanageTags !== "object" || body.qbitmanageTags === null || Array.isArray(body.qbitmanageTags)) {
+    if (
+      typeof body.qbitmanageTags !== "object" ||
+      body.qbitmanageTags === null ||
+      Array.isArray(body.qbitmanageTags)
+    ) {
       return NextResponse.json({ error: "qbitmanageTags must be an object" }, { status: 400 })
     }
     const incoming = body.qbitmanageTags as Record<string, unknown>
@@ -345,10 +404,7 @@ export async function PATCH(request: Request) {
       typeof body.backupRetentionCount !== "number" ||
       !Number.isInteger(body.backupRetentionCount)
     ) {
-      return NextResponse.json(
-        { error: "Invalid backup retention count" },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: "Invalid backup retention count" }, { status: 400 })
     }
     if (body.backupRetentionCount < 1 || body.backupRetentionCount > 365) {
       return NextResponse.json(
@@ -367,6 +423,27 @@ export async function PATCH(request: Request) {
       )
     }
     updates.backupEncryptionEnabled = body.backupEncryptionEnabled
+    // When disabling encryption, clear the stored backup password
+    if (!body.backupEncryptionEnabled) {
+      updates.encryptedBackupPassword = null
+    }
+  }
+
+  if (body.backupPassword !== undefined) {
+    if (body.backupPassword === null || body.backupPassword === "") {
+      updates.encryptedBackupPassword = null
+    } else if (typeof body.backupPassword === "string") {
+      if (body.backupPassword.length > 255) {
+        return NextResponse.json(
+          { error: "Backup password must be 255 characters or fewer" },
+          { status: 400 }
+        )
+      }
+      const key = decodeKey(auth)
+      updates.encryptedBackupPassword = encrypt(body.backupPassword, key)
+    } else {
+      return NextResponse.json({ error: "Invalid backup password" }, { status: 400 })
+    }
   }
 
   if (body.backupStoragePath !== undefined) {
@@ -386,12 +463,19 @@ export async function PATCH(request: Request) {
           { status: 400 }
         )
       }
+      try {
+        await mkdir(trimmedPath, { recursive: true })
+        await access(trimmedPath)
+      } catch (err) {
+        log.warn(err, `Backup storage path validation failed: ${trimmedPath}`)
+        return NextResponse.json(
+          { error: `Backup storage path is not accessible: ${trimmedPath}` },
+          { status: 400 }
+        )
+      }
       updates.backupStoragePath = trimmedPath
     } else {
-      return NextResponse.json(
-        { error: "Invalid backup storage path" },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: "Invalid backup storage path" }, { status: 400 })
     }
   }
 
@@ -402,30 +486,7 @@ export async function PATCH(request: Request) {
   await db.update(appSettings).set(updates).where(eq(appSettings.id, settings.id))
 
   // Re-fetch to return current state
-  const [updated] = await db
-    .select({
-      storeUsernames: appSettings.storeUsernames,
-      username: appSettings.username,
-      sessionTimeoutMinutes: appSettings.sessionTimeoutMinutes,
-      autoWipeThreshold: appSettings.autoWipeThreshold,
-      snapshotRetentionDays: appSettings.snapshotRetentionDays,
-      trackerPollIntervalMinutes: appSettings.trackerPollIntervalMinutes,
-      proxyEnabled: appSettings.proxyEnabled,
-      proxyType: appSettings.proxyType,
-      proxyHost: appSettings.proxyHost,
-      proxyPort: appSettings.proxyPort,
-      proxyUsername: appSettings.proxyUsername,
-      hasProxyPassword: appSettings.encryptedProxyPassword,
-      qbitmanageEnabled: appSettings.qbitmanageEnabled,
-      qbitmanageTags: appSettings.qbitmanageTags,
-      backupScheduleEnabled: appSettings.backupScheduleEnabled,
-      backupScheduleFrequency: appSettings.backupScheduleFrequency,
-      backupRetentionCount: appSettings.backupRetentionCount,
-      backupEncryptionEnabled: appSettings.backupEncryptionEnabled,
-      backupStoragePath: appSettings.backupStoragePath,
-    })
-    .from(appSettings)
-    .limit(1)
+  const [updated] = await fetchSettings()
   if (!updated) throw new Error("Settings update failed")
 
   // Restart backup scheduler if schedule settings changed
@@ -433,9 +494,7 @@ export async function PATCH(request: Request) {
     updates.backupScheduleEnabled !== undefined ||
     updates.backupScheduleFrequency !== undefined
   ) {
-    const { stopBackupScheduler, startBackupScheduler } = await import(
-      "@/lib/backup-scheduler"
-    )
+    const { stopBackupScheduler, startBackupScheduler } = await import("@/lib/backup-scheduler")
     stopBackupScheduler()
     if (updated.backupScheduleEnabled) {
       const key = decodeKey(auth)
@@ -443,25 +502,5 @@ export async function PATCH(request: Request) {
     }
   }
 
-  return NextResponse.json({
-    storeUsernames: updated.storeUsernames,
-    username: updated.username,
-    sessionTimeoutMinutes: updated.sessionTimeoutMinutes,
-    autoWipeThreshold: updated.autoWipeThreshold,
-    snapshotRetentionDays: updated.snapshotRetentionDays,
-    trackerPollIntervalMinutes: updated.trackerPollIntervalMinutes,
-    proxyEnabled: updated.proxyEnabled,
-    proxyType: updated.proxyType,
-    proxyHost: updated.proxyHost,
-    proxyPort: updated.proxyPort,
-    proxyUsername: updated.proxyUsername,
-    hasProxyPassword: !!updated.hasProxyPassword,
-    qbitmanageEnabled: updated.qbitmanageEnabled,
-    qbitmanageTags: parseQbitmanageTags(updated.qbitmanageTags),
-    backupScheduleEnabled: updated.backupScheduleEnabled,
-    backupScheduleFrequency: updated.backupScheduleFrequency,
-    backupRetentionCount: updated.backupRetentionCount,
-    backupEncryptionEnabled: updated.backupEncryptionEnabled,
-    backupStoragePath: updated.backupStoragePath,
-  })
+  return NextResponse.json(serializeSettingsResponse(updated))
 }

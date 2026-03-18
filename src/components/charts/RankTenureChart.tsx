@@ -10,7 +10,7 @@ import type {
   CustomSeriesRenderItemReturn,
   EChartsOption,
 } from "echarts"
-import { hexToHsl, hslToHex } from "@/lib/formatters"
+import { generatePalette } from "@/lib/formatters"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
@@ -91,32 +91,13 @@ function buildRankColorMap(
   trackerData: TrackerSnapshotSeries[],
   periods: RankPeriod[]
 ): Map<string, string> {
-  const colorMap = new Map<string, string>()
-
-  // Collect all unique rank names
   const allRanks = Array.from(new Set(periods.map((p) => p.rank)))
-  if (allRanks.length === 0) return colorMap
+  if (allRanks.length === 0) return new Map()
 
-  // Use the first tracker's base color as the starting hue
   const baseColor = trackerData[0]?.color ?? CHART_THEME.accent
-  const [baseH, baseS, baseL] = hexToHsl(baseColor)
+  const colors = generatePalette(allRanks.length, baseColor)
 
-  if (allRanks.length === 1) {
-    colorMap.set(allRanks[0], baseColor)
-    return colorMap
-  }
-
-  // Distribute hues evenly around the wheel, starting from base hue
-  const step = 360 / allRanks.length
-  for (let i = 0; i < allRanks.length; i++) {
-    const hue = (baseH + i * step) % 360
-    // Keep saturation vibrant, lightness readable on dark background
-    const s = Math.max(baseS, 0.55)
-    const l = Math.max(0.45, Math.min(0.65, baseL))
-    colorMap.set(allRanks[i], hslToHex(hue, s, l))
-  }
-
-  return colorMap
+  return new Map(allRanks.map((rank, i) => [rank, colors[i]]))
 }
 
 // ---------------------------------------------------------------------------
@@ -253,9 +234,7 @@ function buildRankTenureOption(
                 }
               : null
 
-          const children = textEl
-            ? [rectEl, textEl]
-            : [rectEl]
+          const children = textEl ? [rectEl, textEl] : [rectEl]
 
           return {
             type: "group" as const,
@@ -298,5 +277,5 @@ function RankTenureChart({ trackerData, height = 300 }: RankTenureChartProps) {
   )
 }
 
-export { RankTenureChart, computeRankPeriods }
 export type { RankTenureChartProps }
+export { computeRankPeriods, RankTenureChart }

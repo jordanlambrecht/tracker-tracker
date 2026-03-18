@@ -1,6 +1,12 @@
 // src/lib/formatters.test.ts
 import { describe, expect, it } from "vitest"
-import { bytesToGiB, formatBytesFromString, formatRatio, formatStatValue } from "./formatters"
+import {
+  bytesToGiB,
+  formatBytesFromString,
+  formatBytesNum,
+  formatRatio,
+  formatStatValue,
+} from "./formatters"
 
 describe("formatBytesFromString", () => {
   it("returns — for null", () => {
@@ -28,6 +34,48 @@ describe("bytesToGiB", () => {
   it("converts bytes string to GiB number", () => {
     const bytes = String(BigInt(1024 ** 3))
     expect(bytesToGiB(bytes)).toBeCloseTo(1.0)
+  })
+})
+
+describe("formatBytesNum", () => {
+  it("returns 0 B for zero bytes", () => {
+    expect(formatBytesNum(0)).toBe("0 B")
+  })
+
+  it("formats positive bytes with binary units", () => {
+    expect(formatBytesNum(1024 ** 3)).toBe("1.00 GiB")
+  })
+
+  it("formats positive bytes with decimal units", () => {
+    expect(formatBytesNum(1000 ** 3, false)).toBe("1.00 GB")
+  })
+
+  it("formats negative bytes with sign prefix", () => {
+    const result = formatBytesNum(-(1024 ** 3))
+    expect(result).toBe("-1.00 GiB")
+  })
+
+  it("formats large negative values", () => {
+    const result = formatBytesNum(-15561971655)
+    expect(result).toMatch(/^-/)
+    expect(result).toMatch(/GiB$/)
+  })
+
+  it("uses variable precision (>=100: 0dp, >=10: 1dp, else: 2dp)", () => {
+    expect(formatBytesNum(150 * 1024 ** 3)).toBe("150 GiB")
+    expect(formatBytesNum(15 * 1024 ** 3)).toBe("15.0 GiB")
+    expect(formatBytesNum(1.5 * 1024 ** 3)).toBe("1.50 GiB")
+  })
+
+  it("formats PiB for very large values", () => {
+    const huge = 1024 ** 5
+    expect(formatBytesNum(huge)).toBe("1.00 PiB")
+  })
+
+  it("clamps unit index to array bounds", () => {
+    const huge = 1024 ** 7
+    const result = formatBytesNum(huge)
+    expect(result).toMatch(/PiB$/)
   })
 })
 

@@ -12,40 +12,132 @@ export const fearnopeer: TrackerRegistryEntry = {
   platform: "unit3d",
   apiPath: "/api/user",
   specialty: "General / HD content / FANRES",
-  contentCategories: ["Movies", "TV", "Anime", "Music", "Games", "Apps", "Sports", "Tutorials", "Fanres"],
+  contentCategories: [
+    "Movies",
+    "TV",
+    "Anime",
+    "Music",
+    "Games",
+    "Apps",
+    "Sports",
+    "Tutorials",
+    "Fanres",
+  ],
   userClasses: [
     // Dynamic — upload-based
-    { name: "Leech", requirements: "Ratio below 0.8 — download, request, chat, and forum privileges revoked" },
+    {
+      name: "Leech",
+      requirements: "Ratio below 0.8 — download, request, chat, and forum privileges revoked",
+    },
     { name: "User", requirements: "Ratio ≥ 0.8. 7 download slots" },
-    { name: "PowerUser", requirements: "Upload ≥ 1 TiB, ratio ≥ 0.8, age ≥ 1 month. 13 download slots, invite sending" },
-    { name: "SuperUser", requirements: "Upload ≥ 5 TiB, ratio ≥ 0.8, age ≥ 2 months. 17 download slots, torrent mod bypass" },
-    { name: "ExtremeUser", requirements: "Upload ≥ 20 TiB, ratio ≥ 0.8, age ≥ 3 months, seed size ≥ 1.5 TiB, 5+ uploads. 25 download slots" },
-    { name: "InsaneUser", requirements: "Upload ≥ 50 TiB, ratio ≥ 0.8, age ≥ 6 months, seed size ≥ 1.5 TiB, 5+ uploads. 30 download slots" },
-    { name: "Veteran", requirements: "Upload ≥ 100 TiB, ratio ≥ 0.8, age ≥ 1 year, seed size ≥ 5 TiB, avg seedtime ≥ 30 days. 70 download slots, freeleech, H&R immune" },
+    {
+      name: "PowerUser",
+      requirements: "Upload ≥ 1 TiB, ratio ≥ 0.8, age ≥ 1 month. 13 download slots, invite sending",
+    },
+    {
+      name: "SuperUser",
+      requirements:
+        "Upload ≥ 5 TiB, ratio ≥ 0.8, age ≥ 2 months. 17 download slots, torrent mod bypass",
+    },
+    {
+      name: "ExtremeUser",
+      requirements:
+        "Upload ≥ 20 TiB, ratio ≥ 0.8, age ≥ 3 months, seed size ≥ 1.5 TiB, 5+ uploads. 25 download slots",
+    },
+    {
+      name: "InsaneUser",
+      requirements:
+        "Upload ≥ 50 TiB, ratio ≥ 0.8, age ≥ 6 months, seed size ≥ 1.5 TiB, 5+ uploads. 30 download slots",
+    },
+    {
+      name: "Veteran",
+      requirements:
+        "Upload ≥ 100 TiB, ratio ≥ 0.8, age ≥ 1 year, seed size ≥ 5 TiB, avg seedtime ≥ 30 days. 70 download slots, freeleech, H&R immune",
+    },
     // Dynamic — seed-based
-    { name: "Seeder", requirements: "Seed size ≥ 16 TiB, ratio ≥ 0.8, age ≥ 2 months, avg seedtime ≥ 30 days. 70 download slots, H&R immune" },
-    { name: "Curator", requirements: "Seed size ≥ 16 TiB, ratio ≥ 0.8, age ≥ 2 months, avg seedtime ≥ 60 days. 70 download slots, H&R immune" },
-    { name: "Archivist", requirements: "Seed size ≥ 20 TiB, ratio ≥ 0.8, age ≥ 3 months, avg seedtime ≥ 90 days. 75 download slots, freeleech, 2× upload, H&R immune" },
+    {
+      name: "Seeder",
+      requirements:
+        "Seed size ≥ 16 TiB, ratio ≥ 0.8, age ≥ 2 months, avg seedtime ≥ 30 days. 70 download slots, H&R immune",
+    },
+    {
+      name: "Curator",
+      requirements:
+        "Seed size ≥ 16 TiB, ratio ≥ 0.8, age ≥ 2 months, avg seedtime ≥ 60 days. 70 download slots, H&R immune",
+    },
+    {
+      name: "Archivist",
+      requirements:
+        "Seed size ≥ 20 TiB, ratio ≥ 0.8, age ≥ 3 months, avg seedtime ≥ 90 days. 75 download slots, freeleech, 2× upload, H&R immune",
+    },
     // Donation classes
-    { name: "V.I.P.", requirements: "Donation — freeleech, 2× upload, H&R immune. 35 download slots" },
-    { name: "Diamond V.I.P.", requirements: "Donation — freeleech, 2× upload, H&R immune. 500 download slots" },
-    { name: "Jedi", requirements: "Lifetime VIP — freeleech, 2× upload, H&R immune. 500 download slots" },
-    { name: "Sith", requirements: "Lifetime VIP — freeleech, 2× upload, H&R immune. 500 download slots" },
+    {
+      name: "V.I.P.",
+      requirements: "Donation — freeleech, 2× upload, H&R immune. 35 download slots",
+    },
+    {
+      name: "Diamond V.I.P.",
+      requirements: "Donation — freeleech, 2× upload, H&R immune. 500 download slots",
+    },
+    {
+      name: "Jedi",
+      requirements: "Lifetime VIP — freeleech, 2× upload, H&R immune. 500 download slots",
+    },
+    {
+      name: "Sith",
+      requirements: "Lifetime VIP — freeleech, 2× upload, H&R immune. 500 download slots",
+    },
     // Staff-picked
-    { name: "Trustee", requirements: "Staff — seasoned veterans of other sites. 50 download slots, freeleech, H&R immune" },
-    { name: "Encoders", requirements: "Staff — reputable encoders with personal encoding releases. Freeleech, 2× upload, H&R immune" },
-    { name: "Nova Uploader", requirements: "Staff — first tier hand-selected uploader. Freeleech, 2× upload" },
-    { name: "Pulse Uploader", requirements: "Staff — second tier uploader, continuous contributions. Freeleech, H&R immune" },
-    { name: "Omega Uploader", requirements: "Staff — third tier, peak dedication. 100 download slots, freeleech, 2× upload, H&R immune" },
-    { name: "Internal", requirements: "Staff — in-house release group members. 75 download slots, freeleech, 2× upload, H&R immune" },
+    {
+      name: "Trustee",
+      requirements:
+        "Staff — seasoned veterans of other sites. 50 download slots, freeleech, H&R immune",
+    },
+    {
+      name: "Encoders",
+      requirements:
+        "Staff — reputable encoders with personal encoding releases. Freeleech, 2× upload, H&R immune",
+    },
+    {
+      name: "Nova Uploader",
+      requirements: "Staff — first tier hand-selected uploader. Freeleech, 2× upload",
+    },
+    {
+      name: "Pulse Uploader",
+      requirements: "Staff — second tier uploader, continuous contributions. Freeleech, H&R immune",
+    },
+    {
+      name: "Omega Uploader",
+      requirements:
+        "Staff — third tier, peak dedication. 100 download slots, freeleech, 2× upload, H&R immune",
+    },
+    {
+      name: "Internal",
+      requirements:
+        "Staff — in-house release group members. 75 download slots, freeleech, 2× upload, H&R immune",
+    },
     { name: "Editor", requirements: "Staff — polishes torrent names and metadata" },
     { name: "Torrent Moderator", requirements: "Staff — enforces upload rules, moderates queue" },
   ],
   releaseGroups: ["EiNSTEIN_SiR23", "onlyfaffs", "POLAR", "SM737"],
   notableMembers: [],
   bannedGroups: [
-    "4K4U", "BiTOR", "d3g", "FGT", "FRDS", "FTUApps", "GalaxyRG", "LAMA",
-    "MeGusta", "NeoNoir", "PSA", "RARBG", "YAWNiX", "YTS", "YIFY", "x0r",
+    "4K4U",
+    "BiTOR",
+    "d3g",
+    "FGT",
+    "FRDS",
+    "FTUApps",
+    "GalaxyRG",
+    "LAMA",
+    "MeGusta",
+    "NeoNoir",
+    "PSA",
+    "RARBG",
+    "YAWNiX",
+    "YTS",
+    "YIFY",
+    "x0r",
   ],
   stats: {
     userCount: 42892,
@@ -112,4 +204,5 @@ export const fearnopeer: TrackerRegistryEntry = {
   color: "#f59e0b",
   logo: "/tracker-logos/fearnopeer_logo.png",
   trackerHubSlug: "fear-no-peer",
+  draft: false,
 }

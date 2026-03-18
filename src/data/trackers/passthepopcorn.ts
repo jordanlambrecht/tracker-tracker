@@ -18,6 +18,8 @@ export const passthepopcorn: TrackerRegistryEntry = {
   notableMembers: [],
   language: "English",
   color: "#f1c40f",
+  trackerHubSlug: "pass-the-popcorn",
+  statusPageUrl: "https://ptp.trackerstatus.info/",
   warning: true,
   warningNote: "Unvalidated",
   rules: {
@@ -25,4 +27,5 @@ export const passthepopcorn: TrackerRegistryEntry = {
     seedTimeHours: 48,
     loginIntervalDays: 90,
   },
+  draft: false,
 }

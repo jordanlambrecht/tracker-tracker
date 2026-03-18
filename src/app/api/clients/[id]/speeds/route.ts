@@ -4,10 +4,7 @@ import { NextResponse } from "next/server"
 import { authenticate, parseRouteId } from "@/lib/api-helpers"
 import { getSpeedSnapshots } from "@/lib/qbt"
 
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 

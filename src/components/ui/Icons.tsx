@@ -5,7 +5,7 @@
 //            CheckIcon, CheckLargeIcon, CopyIcon, UploadArrowIcon, DownloadArrowIcon,
 //            UserIcon, PlusIcon, ActivityIcon, ShareScoreIcon, ShieldIcon, StarIcon,
 //            LeechingIcon, SeedingIcon, TriangleWarningIcon, RatioIcon, GridIcon,
-//            BoltIcon, ClockIcon, BoxIcon, ServerIcon, TagIcon, BugIcon, XIcon
+//            ClockIcon, BoxIcon, ServerIcon, TagIcon, BugIcon, XIcon
 
 import type { SVGProps } from "react"
 
@@ -367,7 +367,7 @@ function ShieldIcon(props: IconProps) {
   )
 }
 
-// Star — used as seedbonus icon in AGGREGATE_ICONS/STAT_ICONS
+// Gem/diamond — used as seedbonus icon in AGGREGATE_ICONS/STAT_ICONS
 function StarIcon(props: IconProps) {
   return (
     <svg
@@ -380,7 +380,9 @@ function StarIcon(props: IconProps) {
       aria-hidden="true"
       {...props}
     >
-      <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+      <path d="M6 3h12l4 6-10 12L2 9Z" />
+      <path d="M2 9h20" />
+      <path d="M10 3l-2 6 4 12 4-12-2-6" />
     </svg>
   )
 }
@@ -405,7 +407,7 @@ function LeechingIcon(props: IconProps) {
   )
 }
 
-// Seeding icon — used in AGGREGATE_ICONS/STAT_ICONS
+// Seeding icon (seedling/sprout) — used in AGGREGATE_ICONS/STAT_ICONS
 function SeedingIcon(props: IconProps) {
   return (
     <svg
@@ -418,9 +420,10 @@ function SeedingIcon(props: IconProps) {
       aria-hidden="true"
       {...props}
     >
-      <path d="M12 22V8" />
-      <path d="M5 12H2a10 10 0 0 0 20 0h-3" />
-      <path d="M8 5.2C9.2 4.4 10.6 4 12 4s2.8.4 4 1.2" />
+      <path d="M7 20h10" />
+      <path d="M12 20v-8" />
+      <path d="M12 12c-3.5 0-6-2.5-6-6 3.5 0 6 2.5 6 6Z" />
+      <path d="M12 8c3.5 0 6-2.5 6-6-3.5 0-6 2.5-6 6Z" />
     </svg>
   )
 }
@@ -441,6 +444,28 @@ function TriangleWarningIcon(props: IconProps) {
       <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
       <line x1="12" y1="9" x2="12" y2="13" />
       <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  )
+}
+
+// Required ratio icon (balance scale) — threshold concept
+function RequiredRatioIcon(props: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M12 3v17" />
+      <path d="M5 7h14" />
+      <path d="M5 7L2 14h6L5 7Z" />
+      <path d="M19 7l-3 7h6l-3-7Z" />
+      <path d="M9 20h6" />
     </svg>
   )
 }
@@ -482,24 +507,6 @@ function GridIcon(props: IconProps) {
       <rect x="14" y="3" width="7" height="7" rx="1" />
       <rect x="3" y="14" width="7" height="7" rx="1" />
       <rect x="14" y="14" width="7" height="7" rx="1" />
-    </svg>
-  )
-}
-
-// Bolt / lightning — used in TorrentsTab speed stat
-function BoltIcon(props: IconProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      {...props}
-    >
-      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
     </svg>
   )
 }
@@ -629,36 +636,36 @@ function XIcon(props: IconProps) {
 }
 
 export {
-  ExternalLinkIcon,
-  ExternalLinkSmallIcon,
-  ChevronUpIcon,
-  ChevronUpSmallIcon,
-  ChevronDownSmallIcon,
-  EyeOffIcon,
-  EyeIcon,
-  GearIcon,
-  HamburgerIcon,
+  ActivityIcon,
+  BoxIcon,
+  BugIcon,
   CheckIcon,
   CheckLargeIcon,
+  ChevronDownSmallIcon,
+  ChevronUpIcon,
+  ChevronUpSmallIcon,
+  ClockIcon,
   CopyIcon,
-  UploadArrowIcon,
   DownloadArrowIcon,
-  UserIcon,
+  ExternalLinkIcon,
+  ExternalLinkSmallIcon,
+  EyeIcon,
+  EyeOffIcon,
+  GearIcon,
+  GridIcon,
+  HamburgerIcon,
+  LeechingIcon,
   PlusIcon,
-  ActivityIcon,
+  RatioIcon,
+  RequiredRatioIcon,
+  SeedingIcon,
+  ServerIcon,
   ShareScoreIcon,
   ShieldIcon,
   StarIcon,
-  LeechingIcon,
-  SeedingIcon,
-  TriangleWarningIcon,
-  RatioIcon,
-  GridIcon,
-  BoltIcon,
-  ClockIcon,
-  BoxIcon,
-  ServerIcon,
   TagIcon,
-  BugIcon,
+  TriangleWarningIcon,
+  UploadArrowIcon,
+  UserIcon,
   XIcon,
 }

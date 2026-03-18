@@ -18,6 +18,8 @@ export const alpharatio: TrackerRegistryEntry = {
   notableMembers: [],
   language: "English",
   color: "#9b59b6",
+  trackerHubSlug: "alpha-ratio",
+  statusPageUrl: "https://ar.trackerstatus.info/",
   warning: true,
   warningNote: "Unvalidated",
   rules: {
@@ -25,4 +27,5 @@ export const alpharatio: TrackerRegistryEntry = {
     seedTimeHours: 72,
     loginIntervalDays: 120,
   },
+  draft: false,
 }

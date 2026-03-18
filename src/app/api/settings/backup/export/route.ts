@@ -3,11 +3,9 @@
 import { mkdir, writeFile } from "node:fs/promises"
 import nodePath from "node:path"
 import { NextResponse } from "next/server"
-import { authenticate } from "@/lib/api-helpers"
-import {
-  encryptBackupPayload,
-  generateBackupPayload,
-} from "@/lib/backup"
+import { authenticate, decodeKey } from "@/lib/api-helpers"
+import { encryptBackupPayload, generateBackupPayload } from "@/lib/backup"
+import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings, backupHistory } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
@@ -18,27 +16,38 @@ export async function POST(request: Request) {
 
   try {
     const formData = await request.formData()
-    const backupPassword = formData.get("backupPassword")
+    const formPassword = formData.get("backupPassword")
 
     const [settings] = await db.select().from(appSettings).limit(1)
     const storagePath = settings?.backupStoragePath ?? "/data/backups"
 
     const payload = await generateBackupPayload()
 
+    // Resolve backup password: explicit form value > stored encrypted password
+    let backupPassword: string | null = null
+    if (formPassword && typeof formPassword === "string" && formPassword.length > 0) {
+      backupPassword = formPassword
+    } else if (settings?.backupEncryptionEnabled && settings.encryptedBackupPassword) {
+      try {
+        const key = decodeKey(auth)
+        backupPassword = decrypt(settings.encryptedBackupPassword, key)
+      } catch {
+        log.error("Failed to decrypt stored backup password for manual export")
+      }
+    }
+
     let serialized: string
     let contentType: string
     let ext: string
     let encrypted = false
 
-    if (backupPassword && typeof backupPassword === "string" && backupPassword.length > 0) {
-      // Encrypt with backup password (salt generated per backup)
+    if (backupPassword) {
       const envelope = await encryptBackupPayload(payload, backupPassword)
       serialized = JSON.stringify(envelope)
       contentType = "application/octet-stream"
       ext = "ttbak"
       encrypted = true
     } else {
-      // Plain JSON backup
       serialized = JSON.stringify(payload)
       contentType = "application/json"
       ext = "json"
@@ -68,6 +77,17 @@ export async function POST(request: Request) {
       storagePath: filePath,
     })
 
+    if (filePath) {
+      // Saved to disk — return JSON success (no browser download)
+      return NextResponse.json({
+        success: true,
+        filename,
+        sizeBytes,
+        storagePath: filePath,
+      })
+    }
+
+    // Disk write failed or no storage path — fall through to browser download
     return new Response(serialized, {
       headers: {
         "Content-Type": contentType,
@@ -76,9 +96,6 @@ export async function POST(request: Request) {
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error"
-    return NextResponse.json(
-      { error: `Backup export failed: ${message}` },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: `Backup export failed: ${message}` }, { status: 500 })
   }
 }

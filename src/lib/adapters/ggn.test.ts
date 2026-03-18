@@ -78,11 +78,7 @@ describe("GGnAdapter", () => {
   it("parses a valid two-step GGn response into TrackerStats", async () => {
     mockBothCalls()
 
-    const stats = await adapter.fetchStats(
-      "https://gazellegames.net",
-      "fake-key",
-      "/api.php"
-    )
+    const stats = await adapter.fetchStats("https://gazellegames.net", "fake-key", "/api.php")
 
     expect(stats.username).toBe("thesneakyrobot")
     expect(stats.group).toBe("Elite Gamer")
@@ -93,7 +89,7 @@ describe("GGnAdapter", () => {
     expect(stats.seedbonus).toBe(39781)
     expect(stats.seedingCount).toBe(0) // null → 0
     expect(stats.leechingCount).toBe(0) // null → 0
-    expect(stats.hitAndRuns).toBe(0) // null → 0
+    expect(stats.hitAndRuns).toBeNull() // personal.hnrs not present → null
     expect(stats.requiredRatio).toBeCloseTo(0.012)
     expect(stats.warned).toBe(false)
     expect(stats.freeleechTokens).toBeNull()
@@ -102,11 +98,7 @@ describe("GGnAdapter", () => {
   it("handles numeric ratio from API", async () => {
     mockBothCalls({ stats: { ratio: 2.5 } })
 
-    const stats = await adapter.fetchStats(
-      "https://gazellegames.net",
-      "key",
-      "/api.php"
-    )
+    const stats = await adapter.fetchStats("https://gazellegames.net", "key", "/api.php")
 
     expect(stats.ratio).toBeCloseTo(2.5)
   })
@@ -114,11 +106,7 @@ describe("GGnAdapter", () => {
   it("handles seeding/leeching when paranoia allows", async () => {
     mockBothCalls({ community: { seeding: 150, leeching: 2 } })
 
-    const stats = await adapter.fetchStats(
-      "https://gazellegames.net",
-      "key",
-      "/api.php"
-    )
+    const stats = await adapter.fetchStats("https://gazellegames.net", "key", "/api.php")
 
     expect(stats.seedingCount).toBe(150)
     expect(stats.leechingCount).toBe(2)
@@ -127,11 +115,7 @@ describe("GGnAdapter", () => {
   it("handles warned=true from personal section", async () => {
     mockBothCalls({ personal: { warned: true } })
 
-    const stats = await adapter.fetchStats(
-      "https://gazellegames.net",
-      "key",
-      "/api.php"
-    )
+    const stats = await adapter.fetchStats("https://gazellegames.net", "key", "/api.php")
 
     expect(stats.warned).toBe(true)
   })
@@ -139,11 +123,7 @@ describe("GGnAdapter", () => {
   it("handles non-null hnrs", async () => {
     mockBothCalls({ personal: { hnrs: 3 } })
 
-    const stats = await adapter.fetchStats(
-      "https://gazellegames.net",
-      "key",
-      "/api.php"
-    )
+    const stats = await adapter.fetchStats("https://gazellegames.net", "key", "/api.php")
 
     expect(stats.hitAndRuns).toBe(3)
   })
@@ -151,11 +131,7 @@ describe("GGnAdapter", () => {
   it("calculates positive buffer when uploaded > downloaded", async () => {
     mockBothCalls({ stats: { uploaded: 1000, downloaded: 400 } })
 
-    const stats = await adapter.fetchStats(
-      "https://gazellegames.net",
-      "key",
-      "/api.php"
-    )
+    const stats = await adapter.fetchStats("https://gazellegames.net", "key", "/api.php")
 
     expect(stats.bufferBytes).toBe(BigInt(600))
   })
@@ -163,11 +139,7 @@ describe("GGnAdapter", () => {
   it("returns null for requiredRatio when not a number", async () => {
     mockBothCalls({ stats: { requiredRatio: undefined } })
 
-    const stats = await adapter.fetchStats(
-      "https://gazellegames.net",
-      "key",
-      "/api.php"
-    )
+    const stats = await adapter.fetchStats("https://gazellegames.net", "key", "/api.php")
 
     expect(stats.requiredRatio).toBeNull()
   })
@@ -194,9 +166,9 @@ describe("GGnAdapter", () => {
         json: async () => ({ status: "failure", error: "bad id parameter" }),
       } as Response)
 
-    await expect(
-      adapter.fetchStats("https://gazellegames.net", "key", "/api.php")
-    ).rejects.toThrow("bad id parameter")
+    await expect(adapter.fetchStats("https://gazellegames.net", "key", "/api.php")).rejects.toThrow(
+      "bad id parameter"
+    )
   })
 
   it("throws on non-ok HTTP response", async () => {
@@ -206,17 +178,17 @@ describe("GGnAdapter", () => {
       statusText: "Forbidden",
     } as Response)
 
-    await expect(
-      adapter.fetchStats("https://gazellegames.net", "key", "/api.php")
-    ).rejects.toThrow("403")
+    await expect(adapter.fetchStats("https://gazellegames.net", "key", "/api.php")).rejects.toThrow(
+      "403"
+    )
   })
 
   it("throws a sanitized error on network failure", async () => {
     vi.spyOn(global, "fetch").mockRejectedValueOnce(new Error("fetch failed"))
 
-    await expect(
-      adapter.fetchStats("https://gazellegames.net", "key", "/api.php")
-    ).rejects.toThrow("Failed to connect to gazellegames.net")
+    await expect(adapter.fetchStats("https://gazellegames.net", "key", "/api.php")).rejects.toThrow(
+      "Failed to connect to gazellegames.net"
+    )
   })
 })
 
@@ -228,7 +200,8 @@ describe("GGnAdapter - URL construction", () => {
   })
 
   it("constructs quick_user URL with key param", async () => {
-    const fetchSpy = vi.spyOn(global, "fetch")
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
       .mockResolvedValueOnce({
         ok: true,
         json: async () => mockQuickUserResponse(),
@@ -247,7 +220,8 @@ describe("GGnAdapter - URL construction", () => {
   })
 
   it("constructs user URL with id and key params", async () => {
-    const fetchSpy = vi.spyOn(global, "fetch")
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
       .mockResolvedValueOnce({
         ok: true,
         json: async () => mockQuickUserResponse(),
@@ -282,11 +256,12 @@ describe("GGnAdapter - security", () => {
       statusText: "Forbidden",
     } as Response)
 
-    try {
-      await adapter.fetchStats("https://gazellegames.net", secretKey, "/api.php")
-    } catch (error) {
-      expect((error as Error).message).not.toContain(secretKey)
-    }
+    await expect(
+      adapter.fetchStats("https://gazellegames.net", secretKey, "/api.php")
+    ).rejects.toSatisfy((err: Error) => {
+      expect(err.message).not.toContain(secretKey)
+      return true
+    })
   })
 
   it("does not expose the API key in error messages on network failure", async () => {
@@ -309,13 +284,14 @@ describe("GGnAdapter - security", () => {
     const timeoutError = new DOMException("signal timed out", "TimeoutError")
     vi.spyOn(global, "fetch").mockRejectedValueOnce(timeoutError)
 
-    await expect(
-      adapter.fetchStats("https://gazellegames.net", "key", "/api.php")
-    ).rejects.toThrow("Request to gazellegames.net timed out")
+    await expect(adapter.fetchStats("https://gazellegames.net", "key", "/api.php")).rejects.toThrow(
+      "Request to gazellegames.net timed out"
+    )
   })
 
   it("uses AbortSignal for timeout protection", async () => {
-    const fetchSpy = vi.spyOn(global, "fetch")
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
       .mockResolvedValueOnce({
         ok: true,
         json: async () => mockQuickUserResponse(),

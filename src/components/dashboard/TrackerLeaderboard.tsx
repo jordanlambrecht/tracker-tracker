@@ -10,7 +10,12 @@ import { PulseDot } from "@/components/ui/PulseDot"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
 import { formatAccountAge, formatBytesFromString, formatRatio } from "@/lib/formatters"
-import { getHealthBadgeVariant, getHealthLabel, getHealthPulseDot, getTrackerHealth } from "@/lib/tracker-status"
+import {
+  getHealthBadgeVariant,
+  getHealthLabel,
+  getHealthPulseDot,
+  getTrackerHealth,
+} from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
 
 function getBufferBytes(t: TrackerSummary): bigint {
@@ -34,9 +39,7 @@ const columns: Column<TrackerSummary>[] = [
             size="sm"
             color={health === "healthy" ? t.color : undefined}
           />
-          <span className="font-sans font-semibold text-primary whitespace-nowrap">
-            {t.name}
-          </span>
+          <span className="font-sans font-semibold text-primary whitespace-nowrap">{t.name}</span>
         </div>
       )
     },
@@ -48,7 +51,7 @@ const columns: Column<TrackerSummary>[] = [
     sortable: true,
     sortValue: (t) => t.latestStats?.ratio ?? -1,
     render: (t) => (
-      <span className="font-mono tabular-nums text-secondary">
+      <span className="font-mono tabular-nums text-secondary text-xs">
         {t.latestStats?.ratio != null ? `${formatRatio(t.latestStats.ratio)}×` : "—"}
       </span>
     ),
@@ -58,9 +61,10 @@ const columns: Column<TrackerSummary>[] = [
     header: "Uploaded",
     align: "right",
     sortable: true,
-    sortValue: (t) => t.latestStats?.uploadedBytes ? Number(BigInt(t.latestStats.uploadedBytes)) : -1,
+    sortValue: (t) =>
+      t.latestStats?.uploadedBytes ? Number(BigInt(t.latestStats.uploadedBytes)) : -1,
     render: (t) => (
-      <span className="font-mono tabular-nums text-secondary">
+      <span className="font-mono tabular-nums text-secondary text-xs">
         {t.latestStats?.uploadedBytes ? formatBytesFromString(t.latestStats.uploadedBytes) : "—"}
       </span>
     ),
@@ -70,10 +74,13 @@ const columns: Column<TrackerSummary>[] = [
     header: "Downloaded",
     align: "right",
     sortable: true,
-    sortValue: (t) => t.latestStats?.downloadedBytes ? Number(BigInt(t.latestStats.downloadedBytes)) : -1,
+    sortValue: (t) =>
+      t.latestStats?.downloadedBytes ? Number(BigInt(t.latestStats.downloadedBytes)) : -1,
     render: (t) => (
-      <span className="font-mono tabular-nums text-secondary">
-        {t.latestStats?.downloadedBytes ? formatBytesFromString(t.latestStats.downloadedBytes) : "—"}
+      <span className="font-mono tabular-nums text-secondary text-xs">
+        {t.latestStats?.downloadedBytes
+          ? formatBytesFromString(t.latestStats.downloadedBytes)
+          : "—"}
       </span>
     ),
   },
@@ -84,7 +91,7 @@ const columns: Column<TrackerSummary>[] = [
     sortable: true,
     sortValue: (t) => Number(getBufferBytes(t)),
     render: (t) => (
-      <span className="font-mono tabular-nums text-secondary">
+      <span className="font-mono tabular-nums text-secondary text-xs">
         {t.latestStats?.uploadedBytes && t.latestStats?.downloadedBytes
           ? formatBytesFromString(getBufferBytes(t).toString())
           : "—"}
@@ -98,7 +105,7 @@ const columns: Column<TrackerSummary>[] = [
     sortable: true,
     sortValue: (t) => t.latestStats?.seedingCount ?? -1,
     render: (t) => (
-      <span className="font-mono tabular-nums text-secondary">
+      <span className="font-mono tabular-nums text-secondary text-xs">
         {t.latestStats?.seedingCount != null ? t.latestStats.seedingCount.toLocaleString() : "—"}
       </span>
     ),
@@ -110,7 +117,7 @@ const columns: Column<TrackerSummary>[] = [
     sortable: true,
     sortValue: (t) => (t.joinedAt ? new Date(t.joinedAt).getTime() : Infinity),
     render: (t) => (
-      <span className="font-mono tabular-nums text-secondary whitespace-nowrap">
+      <span className="font-mono tabular-nums text-secondary text-xs whitespace-nowrap">
         {formatAccountAge(t.joinedAt) ?? "—"}
       </span>
     ),
@@ -121,9 +128,7 @@ const columns: Column<TrackerSummary>[] = [
     align: "right",
     render: (t) => {
       const health = getTrackerHealth(t)
-      return (
-        <Badge variant={getHealthBadgeVariant(health)}>{getHealthLabel(health)}</Badge>
-      )
+      return <Badge variant={getHealthBadgeVariant(health)}>{getHealthLabel(health)}</Badge>
     },
   },
 ]

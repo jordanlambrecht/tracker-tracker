@@ -6,10 +6,21 @@
 
 import type { EChartsOption } from "echarts"
 import type { FleetSnapshot } from "@/lib/fleet"
-import { formatBytesFromNumber } from "@/lib/formatters"
+import { formatBytesNum, hexToRgba } from "@/lib/formatters"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartLegend, chartTooltip, chartTooltipHeader, escHtml, formatChartTimestamp } from "./theme"
+import { buildAxisPointer } from "./chart-helpers"
+import {
+  CHART_THEME,
+  chartAxisLabel,
+  chartDot,
+  chartGrid,
+  chartLegend,
+  chartTooltip,
+  chartTooltipHeader,
+  escHtml,
+  formatChartTimestamp,
+} from "./theme"
 
 interface SpeedHistoryChartProps {
   snapshots: FleetSnapshot[]
@@ -47,10 +58,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
     backgroundColor: "transparent",
     legend: chartLegend(),
     tooltip: chartTooltip("axis", {
-      axisPointer: {
-        type: "line",
-        lineStyle: { color: CHART_THEME.borderMid, type: "dashed" },
-      },
+      axisPointer: buildAxisPointer(),
       formatter: (params: unknown) => {
         const items = params as Array<{
           seriesName: string
@@ -66,7 +74,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
         const rows = items
           .map((item) => {
             const dot = chartDot(item.color)
-            const speedLabel = `${formatBytesFromNumber(item.value[1])}/s`
+            const speedLabel = `${formatBytesNum(item.value[1])}/s`
             return `${dot}<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${speedLabel}</span>`
           })
           .join("<br/>")
@@ -95,7 +103,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
         axisTick: { show: false },
         axisLabel: chartAxisLabel({
           color: CYAN,
-          formatter: (val: number) => `${formatBytesFromNumber(val)}/s`,
+          formatter: (val: number) => `${formatBytesNum(val)}/s`,
         }),
         splitLine: {
           lineStyle: { color: CHART_THEME.gridLine, width: 1 },
@@ -114,7 +122,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
         axisTick: { show: false },
         axisLabel: chartAxisLabel({
           color: AMBER,
-          formatter: (val: number) => `${formatBytesFromNumber(val)}/s`,
+          formatter: (val: number) => `${formatBytesNum(val)}/s`,
         }),
         splitLine: { show: false },
       },
@@ -138,7 +146,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
             y2: 1,
             colorStops: [
               { offset: 0, color: CHART_THEME.accentGlow },
-              { offset: 1, color: "rgba(0, 212, 255, 0)" },
+              { offset: 1, color: hexToRgba(CHART_THEME.upload, 0) },
             ],
           },
         },
@@ -161,7 +169,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
             y2: 1,
             colorStops: [
               { offset: 0, color: CHART_THEME.warnGlow },
-              { offset: 1, color: "rgba(245, 158, 11, 0)" },
+              { offset: 1, color: hexToRgba(CHART_THEME.download, 0) },
             ],
           },
         },
@@ -176,12 +184,7 @@ function SpeedHistoryChart({ snapshots, height = 360 }: SpeedHistoryChartProps) 
   )
 
   if (!hasSpeedData) {
-    return (
-      <ChartEmptyState
-        height={height}
-        message="No speed history data available yet."
-      />
-    )
+    return <ChartEmptyState height={height} message="No speed history data available yet." />
   }
 
   return (
@@ -195,5 +198,5 @@ function SpeedHistoryChart({ snapshots, height = 360 }: SpeedHistoryChartProps) 
   )
 }
 
-export { SpeedHistoryChart }
 export type { SpeedHistoryChartProps }
+export { SpeedHistoryChart }

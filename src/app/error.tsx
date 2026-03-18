@@ -14,5 +14,12 @@ export default function GlobalError({
     console.error(error)
   }, [error])
 
-  return <ErrorDisplay message={error.message} onRetry={reset} linkHref="/login" linkText="Back to Login" />
+  return (
+    <ErrorDisplay
+      message={error.message}
+      onRetry={reset}
+      linkHref="/login"
+      linkText="Back to Login"
+    />
+  )
 }

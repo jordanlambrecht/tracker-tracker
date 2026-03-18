@@ -23,7 +23,10 @@ function H2({ className, children, id, ...props }: HTMLAttributes<HTMLHeadingEle
   return (
     <h2
       id={id}
-      className={clsx("text-xs font-sans font-medium text-secondary uppercase tracking-wider", className)}
+      className={clsx(
+        "text-xs font-sans font-medium text-secondary uppercase tracking-wider",
+        className
+      )}
       {...props}
     >
       {children}
@@ -67,4 +70,4 @@ function Subtext({ className, children, ...props }: HTMLAttributes<HTMLParagraph
   )
 }
 
-export { H1, H2, H3, Subheader, Paragraph, Subtext }
+export { H1, H2, H3, Paragraph, Subheader, Subtext }

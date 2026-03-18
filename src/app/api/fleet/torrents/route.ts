@@ -8,33 +8,9 @@
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { authenticate, decodeKey } from "@/lib/api-helpers"
-import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { downloadClients, trackers } from "@/lib/db/schema"
-import { getTorrents, withSessionRetry } from "@/lib/qbt"
-import { aggregateCrossSeedTags, mergeTorrentLists, type RawTorrent } from "@/lib/qbt/merge"
-
-async function fetchClientTorrents(
-  client: typeof downloadClients.$inferSelect,
-  tags: string[],
-  key: Buffer
-): Promise<RawTorrent[]> {
-  const username = decrypt(client.encryptedUsername, key)
-  const password = decrypt(client.encryptedPassword, key)
-  return withSessionRetry(
-    client.host, client.port, client.useSsl, username, password,
-    async (baseUrl, sid) => {
-      const results = await Promise.allSettled(
-        tags.map((tag) => getTorrents(baseUrl, sid, tag) as Promise<RawTorrent[]>)
-      )
-      const allTorrents: RawTorrent[] = []
-      for (const result of results) {
-        if (result.status === "fulfilled") allTorrents.push(...result.value)
-      }
-      return allTorrents
-    }
-  )
-}
+import { fetchAndMergeTorrents } from "@/lib/qbt/fetch-merged"
 
 export async function GET() {
   const auth = await authenticate()
@@ -43,68 +19,29 @@ export async function GET() {
 
   const [allTrackers, clients] = await Promise.all([
     db.select({ qbtTag: trackers.qbtTag }).from(trackers).where(eq(trackers.isActive, true)),
-    db.select().from(downloadClients).where(eq(downloadClients.enabled, true)),
+    db
+      .select({
+        name: downloadClients.name,
+        host: downloadClients.host,
+        port: downloadClients.port,
+        useSsl: downloadClients.useSsl,
+        encryptedUsername: downloadClients.encryptedUsername,
+        encryptedPassword: downloadClients.encryptedPassword,
+        crossSeedTags: downloadClients.crossSeedTags,
+      })
+      .from(downloadClients)
+      .where(eq(downloadClients.enabled, true)),
   ])
 
-  const tags = [...new Set(
-    allTrackers
-      .map((t) => t.qbtTag)
-      .filter((t): t is string => t !== null && t.trim() !== "")
-      .map((t) => t.trim())
-  )]
+  const tags = [
+    ...new Set(
+      allTrackers
+        .map((t) => t.qbtTag)
+        .filter((t): t is string => t !== null && t.trim() !== "")
+        .map((t) => t.trim())
+    ),
+  ]
 
-  if (clients.length === 0 || tags.length === 0) {
-    return NextResponse.json({ torrents: [], crossSeedTags: [], clientErrors: [], clientCount: 0 })
-  }
-
-  const clientErrors: string[] = []
-  const torrentLists: RawTorrent[][] = []
-  const crossSeedClients: { crossSeedTags: string[] }[] = []
-
-  const results = await Promise.allSettled(
-    clients.map(async (client) => ({
-      clientName: client.name,
-      crossSeedTags: (() => { try { return JSON.parse(client.crossSeedTags) as string[] } catch { return [] } })(),
-      torrents: await fetchClientTorrents(client, tags, key),
-    }))
-  )
-
-  for (let i = 0; i < results.length; i++) {
-    const result = results[i]
-    if (result.status === "fulfilled") {
-      torrentLists.push(result.value.torrents)
-      crossSeedClients.push({ crossSeedTags: result.value.crossSeedTags })
-    } else {
-      const message = result.reason instanceof Error ? result.reason.message : "Unknown error"
-      clientErrors.push(`${clients[i].name}: ${message}`)
-    }
-  }
-
-  // Build hash → client name(s) lookup before merge flattens provenance
-  const hashClients = new Map<string, string[]>()
-  for (let i = 0; i < results.length; i++) {
-    const result = results[i]
-    if (result.status === "fulfilled") {
-      for (const torrent of result.value.torrents) {
-        const names = hashClients.get(torrent.hash) ?? []
-        names.push(result.value.clientName)
-        hashClients.set(torrent.hash, names)
-      }
-    }
-  }
-
-  const merged = mergeTorrentLists(torrentLists)
-  const crossSeedTags = aggregateCrossSeedTags(crossSeedClients)
-
-  const stamped = merged.map((t) => ({
-    ...t,
-    client_name: (hashClients.get(t.hash) ?? []).join(", "),
-  }))
-
-  return NextResponse.json({
-    torrents: stamped,
-    crossSeedTags,
-    clientErrors,
-    clientCount: clients.length,
-  })
+  const result = await fetchAndMergeTorrents(clients, tags, key)
+  return NextResponse.json(result)
 }

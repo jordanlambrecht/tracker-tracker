@@ -2,30 +2,33 @@
 //
 // Functions: generateBackupPayload, validateBackupJson, encryptBackupPayload, decryptBackupPayload, pruneOldBackups
 
-import { unlink } from 'node:fs/promises'
-import path from 'node:path'
-import { desc, eq, isNotNull } from 'drizzle-orm'
-import { decrypt, deriveKey, encrypt, generateSalt } from '@/lib/crypto'
-import { db } from '@/lib/db'
+import { unlink } from "node:fs/promises"
+import path from "node:path"
+import { desc, inArray, isNotNull } from "drizzle-orm"
+import { decrypt, deriveKey, encrypt, generateSalt } from "@/lib/crypto"
+import { db } from "@/lib/db"
 import {
   appSettings,
   backupHistory,
   clientSnapshots,
+  clientUptimeBuckets,
+  dismissedAlerts,
   downloadClients,
   tagGroupMembers,
   tagGroups,
   trackerRoles,
   trackerSnapshots,
   trackers,
-} from '@/lib/db/schema'
-import { log } from '@/lib/logger'
-import packageJson from '../../package.json'
+} from "@/lib/db/schema"
+import { log } from "@/lib/logger"
+import packageJson from "../../package.json"
 
 export const CURRENT_BACKUP_VERSION = 1
 
 export interface BackupManifest {
   version: number
   appVersion: string
+  instanceUrl: string | null
   createdAt: string
   encrypted: boolean
   counts: Record<string, number>
@@ -41,10 +44,12 @@ export interface BackupPayload {
   tagGroups: Record<string, unknown>[]
   tagGroupMembers: Record<string, unknown>[]
   clientSnapshots: Record<string, unknown>[]
+  clientUptimeBuckets?: Record<string, unknown>[]
+  dismissedAlerts?: Record<string, unknown>[]
 }
 
 export interface EncryptedBackupEnvelope {
-  format: 'tracker-tracker-encrypted-backup'
+  format: "tracker-tracker-encrypted-backup"
   version: 1
   createdAt: string
   encryptionSalt: string
@@ -53,7 +58,7 @@ export interface EncryptedBackupEnvelope {
 
 // Serialize a single value — converts BigInt to decimal string and Date to ISO 8601.
 function serializeValue(value: unknown): unknown {
-  if (typeof value === 'bigint') {
+  if (typeof value === "bigint") {
     return value.toString()
   }
   if (value instanceof Date) {
@@ -74,7 +79,7 @@ function serializeRow(row: Record<string, unknown>): Record<string, unknown> {
 export async function generateBackupPayload(): Promise<BackupPayload> {
   const now = new Date().toISOString()
 
-  // appSettings — exclude: id, passwordHash, failedLoginAttempts, createdAt
+  // appSettings — exclude: id, passwordHash, failedLoginAttempts, encryptedSchedulerKey, createdAt
   const [rawSettings] = await db.select().from(appSettings).limit(1)
   const settingsPayload: Record<string, unknown> = {}
   if (rawSettings) {
@@ -82,6 +87,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
       id: _id,
       passwordHash: _passwordHash,
       failedLoginAttempts: _failedLoginAttempts,
+      encryptedSchedulerKey: _encryptedSchedulerKey,
       createdAt: _createdAt,
       ...rest
     } = rawSettings
@@ -90,10 +96,16 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     }
   }
 
-  // trackers — exclude: lastPolledAt, lastError
+  // trackers — exclude transient runtime state
   const rawTrackers = await db.select().from(trackers).orderBy(trackers.id)
   const trackersPayload = rawTrackers.map((t) => {
-    const { lastPolledAt: _lpa, lastError: _le, ...rest } = t
+    const {
+      lastPolledAt: _lpa,
+      lastError: _le,
+      consecutiveFailures: _cf,
+      pausedAt: _pa,
+      ...rest
+    } = t
     return serializeRow(rest as Record<string, unknown>)
   })
 
@@ -105,10 +117,16 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
   const rawRoles = await db.select().from(trackerRoles).orderBy(trackerRoles.id)
   const rolesPayload = rawRoles.map((r) => serializeRow(r as Record<string, unknown>))
 
-  // downloadClients — exclude: lastPolledAt, lastError
+  // downloadClients — exclude: lastPolledAt, lastError, cachedTorrents, cachedTorrentsAt
   const rawClients = await db.select().from(downloadClients).orderBy(downloadClients.id)
   const clientsPayload = rawClients.map((c) => {
-    const { lastPolledAt: _lpa, lastError: _le, ...rest } = c
+    const {
+      lastPolledAt: _lpa,
+      lastError: _le,
+      cachedTorrents: _ct,
+      cachedTorrentsAt: _cta,
+      ...rest
+    } = c
     return serializeRow(rest as Record<string, unknown>)
   })
 
@@ -128,6 +146,21 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     serializeRow(cs as Record<string, unknown>)
   )
 
+  // clientUptimeBuckets — heartbeat history
+  const rawUptimeBuckets = await db
+    .select()
+    .from(clientUptimeBuckets)
+    .orderBy(clientUptimeBuckets.id)
+  const uptimeBucketsPayload = rawUptimeBuckets.map((ub) =>
+    serializeRow(ub as Record<string, unknown>)
+  )
+
+  // dismissedAlerts — include all columns
+  const rawDismissedAlerts = await db.select().from(dismissedAlerts).orderBy(dismissedAlerts.id)
+  const dismissedAlertsPayload = rawDismissedAlerts.map((a) =>
+    serializeRow(a as Record<string, unknown>)
+  )
+
   const counts: Record<string, number> = {
     trackers: trackersPayload.length,
     trackerSnapshots: snapshotsPayload.length,
@@ -136,11 +169,14 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     tagGroups: tagGroupsPayload.length,
     tagGroupMembers: tagGroupMembersPayload.length,
     clientSnapshots: clientSnapshotsPayload.length,
+    clientUptimeBuckets: uptimeBucketsPayload.length,
+    dismissedAlerts: dismissedAlertsPayload.length,
   }
 
   const manifest: BackupManifest = {
     version: CURRENT_BACKUP_VERSION,
     appVersion: packageJson.version,
+    instanceUrl: process.env.BASE_URL || null,
     createdAt: now,
     encrypted: false,
     counts,
@@ -156,6 +192,8 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     tagGroups: tagGroupsPayload,
     tagGroupMembers: tagGroupMembersPayload,
     clientSnapshots: clientSnapshotsPayload,
+    clientUptimeBuckets: uptimeBucketsPayload,
+    dismissedAlerts: dismissedAlertsPayload,
   }
 }
 
@@ -163,17 +201,17 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
 
 const ISO_8601_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/
 const HEX_64_RE = /^[0-9a-fA-F]{64}$/
-const HEX_COLOR_RE = /^#[0-9a-fA-F]{3,8}$/
-export const VALID_BACKUP_FREQUENCIES = new Set(['daily', 'weekly', 'monthly'])
+const HEX_COLOR_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
+export const VALID_BACKUP_FREQUENCIES = new Set(["daily", "weekly", "monthly"])
 
 function assertString(value: unknown, label: string): asserts value is string {
-  if (typeof value !== 'string') {
+  if (typeof value !== "string") {
     throw new Error(`Backup validation: ${label} must be a string`)
   }
 }
 
 function assertNumber(value: unknown, label: string): asserts value is number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
     throw new Error(`Backup validation: ${label} must be a number`)
   }
 }
@@ -194,15 +232,15 @@ function assertValidIso(value: unknown, label: string): void {
 // ─── Public validation ────────────────────────────────────────────────────────
 
 export function validateBackupJson(payload: unknown): asserts payload is BackupPayload {
-  if (typeof payload !== 'object' || payload === null) {
-    throw new Error('Backup validation: payload must be an object')
+  if (typeof payload !== "object" || payload === null) {
+    throw new Error("Backup validation: payload must be an object")
   }
 
   const p = payload as Record<string, unknown>
 
   // manifest
-  if (typeof p.manifest !== 'object' || p.manifest === null) {
-    throw new Error('Backup validation: manifest must be an object')
+  if (typeof p.manifest !== "object" || p.manifest === null) {
+    throw new Error("Backup validation: manifest must be an object")
   }
   const manifest = p.manifest as Record<string, unknown>
 
@@ -212,62 +250,78 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
     )
   }
 
-  assertValidIso(manifest.createdAt, 'manifest.createdAt')
+  assertValidIso(manifest.createdAt, "manifest.createdAt")
 
   if (
-    typeof manifest.counts !== 'object' ||
+    typeof manifest.counts !== "object" ||
     manifest.counts === null ||
     Array.isArray(manifest.counts)
   ) {
-    throw new Error('Backup validation: manifest.counts must be an object')
+    throw new Error("Backup validation: manifest.counts must be an object")
   }
   for (const [k, v] of Object.entries(manifest.counts as Record<string, unknown>)) {
-    if (typeof v !== 'number' || !Number.isInteger(v) || v < 0) {
+    if (typeof v !== "number" || !Number.isInteger(v) || v < 0) {
       throw new Error(`Backup validation: manifest.counts.${k} must be a non-negative integer`)
     }
   }
 
   // settings
-  if (typeof p.settings !== 'object' || p.settings === null) {
-    throw new Error('Backup validation: settings must be an object')
+  if (typeof p.settings !== "object" || p.settings === null) {
+    throw new Error("Backup validation: settings must be an object")
   }
   const settings = p.settings as Record<string, unknown>
 
-  assertString(settings.encryptionSalt, 'settings.encryptionSalt')
+  assertString(settings.encryptionSalt, "settings.encryptionSalt")
   if (!HEX_64_RE.test(settings.encryptionSalt)) {
-    throw new Error('Backup validation: settings.encryptionSalt must be exactly 64 hex characters')
+    throw new Error("Backup validation: settings.encryptionSalt must be exactly 64 hex characters")
   }
 
   if (settings.backupScheduleFrequency !== undefined) {
-    assertString(settings.backupScheduleFrequency, 'settings.backupScheduleFrequency')
+    assertString(settings.backupScheduleFrequency, "settings.backupScheduleFrequency")
     if (!VALID_BACKUP_FREQUENCIES.has(settings.backupScheduleFrequency)) {
       throw new Error(
-        `Backup validation: settings.backupScheduleFrequency must be one of: ${[...VALID_BACKUP_FREQUENCIES].join(', ')}`
+        `Backup validation: settings.backupScheduleFrequency must be one of: ${[...VALID_BACKUP_FREQUENCIES].join(", ")}`
       )
     }
   }
 
   if (settings.backupRetentionCount !== undefined) {
-    assertNumber(settings.backupRetentionCount, 'settings.backupRetentionCount')
+    assertNumber(settings.backupRetentionCount, "settings.backupRetentionCount")
     if (
       !Number.isInteger(settings.backupRetentionCount) ||
       settings.backupRetentionCount < 1 ||
       settings.backupRetentionCount > 365
     ) {
       throw new Error(
-        'Backup validation: settings.backupRetentionCount must be an integer between 1 and 365'
+        "Backup validation: settings.backupRetentionCount must be an integer between 1 and 365"
       )
     }
   }
 
   // array fields
-  assertArray(p.trackers, 'trackers')
-  assertArray(p.trackerSnapshots, 'trackerSnapshots')
-  assertArray(p.trackerRoles, 'trackerRoles')
-  assertArray(p.downloadClients, 'downloadClients')
-  assertArray(p.tagGroups, 'tagGroups')
-  assertArray(p.tagGroupMembers, 'tagGroupMembers')
-  assertArray(p.clientSnapshots, 'clientSnapshots')
+  assertArray(p.trackers, "trackers")
+  assertArray(p.trackerSnapshots, "trackerSnapshots")
+  assertArray(p.trackerRoles, "trackerRoles")
+  assertArray(p.downloadClients, "downloadClients")
+  assertArray(p.tagGroups, "tagGroups")
+  assertArray(p.tagGroupMembers, "tagGroupMembers")
+  assertArray(p.clientSnapshots, "clientSnapshots")
+  // clientUptimeBuckets is optional for backward compatibility with older backups
+  if (p.clientUptimeBuckets !== undefined) {
+    assertArray(p.clientUptimeBuckets, "clientUptimeBuckets")
+    for (let i = 0; i < p.clientUptimeBuckets.length; i++) {
+      const ub = p.clientUptimeBuckets[i] as Record<string, unknown>
+      const prefix = `clientUptimeBuckets[${i}]`
+      assertNumber(ub.clientId, `${prefix}.clientId`)
+      assertValidIso(ub.bucketTs, `${prefix}.bucketTs`)
+      assertNumber(ub.ok, `${prefix}.ok`)
+      assertNumber(ub.fail, `${prefix}.fail`)
+    }
+  }
+  // dismissedAlerts is optional for backward compatibility with older backups
+  if (p.dismissedAlerts !== undefined) {
+    assertArray(p.dismissedAlerts, "dismissedAlerts")
+  }
 
   // tracker entries
   for (let i = 0; i < p.trackers.length; i++) {
@@ -360,7 +414,7 @@ export async function encryptBackupPayload(
   const jsonString = JSON.stringify(payload)
   const ciphertext = encrypt(jsonString, encryptionKey)
   return {
-    format: 'tracker-tracker-encrypted-backup',
+    format: "tracker-tracker-encrypted-backup",
     version: 1,
     createdAt: new Date().toISOString(),
     encryptionSalt,
@@ -372,7 +426,7 @@ export function decryptBackupPayload(
   envelope: EncryptedBackupEnvelope,
   encryptionKey: Buffer
 ): BackupPayload {
-  if (envelope.format !== 'tracker-tracker-encrypted-backup') {
+  if (envelope.format !== "tracker-tracker-encrypted-backup") {
     throw new Error(
       `Invalid backup envelope format: expected "tracker-tracker-encrypted-backup", got "${envelope.format}"`
     )
@@ -383,7 +437,7 @@ export function decryptBackupPayload(
     parsed = JSON.parse(jsonString)
   } catch {
     throw new Error(
-      'Failed to parse decrypted backup — data may be corrupted or the wrong key was used'
+      "Failed to parse decrypted backup — data may be corrupted or the wrong key was used"
     )
   }
   validateBackupJson(parsed)
@@ -404,7 +458,6 @@ export async function pruneOldBackups(retentionCount: number, basePath: string):
   }
 
   const toDelete = allStored.slice(retentionCount)
-  let deleted = 0
 
   for (const row of toDelete) {
     if (row.storagePath !== null) {
@@ -420,10 +473,12 @@ export async function pruneOldBackups(retentionCount: number, basePath: string):
         }
       }
     }
-
-    await db.delete(backupHistory).where(eq(backupHistory.id, row.id))
-    deleted++
   }
 
-  return deleted
+  const idsToDelete = toDelete.map((row) => row.id)
+  if (idsToDelete.length > 0) {
+    await db.delete(backupHistory).where(inArray(backupHistory.id, idsToDelete))
+  }
+
+  return idsToDelete.length
 }

@@ -4,9 +4,10 @@
 
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
-import { CHART_THEME, escHtml } from "@/components/charts/theme"
-import { hexToRgba } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
+import { ChartEmptyState } from "./ChartEmptyState"
+import { buildGlowAreaStyle } from "./chart-helpers"
+import { CHART_THEME, chartTooltip, escHtml } from "./theme"
 
 // ---------------------------------------------------------------------------
 // Props
@@ -23,7 +24,7 @@ interface TorrentAvgSeedTimeProps {
 
 export function TorrentAvgSeedTime({ torrents, accentColor }: TorrentAvgSeedTimeProps) {
   const withDates = torrents.filter((t) => t.addedOn > 0 && t.seedingTime > 0)
-  if (withDates.length === 0) return null
+  if (withDates.length === 0) return <ChartEmptyState height={280} message="No seed time data" />
 
   const byMonth = new Map<string, { total: number; count: number }>()
   for (const t of withDates) {
@@ -41,22 +42,13 @@ export function TorrentAvgSeedTime({ torrents, accentColor }: TorrentAvgSeedTime
 
   const option: EChartsOption = {
     backgroundColor: "transparent",
-    tooltip: {
-      trigger: "axis",
-      backgroundColor: CHART_THEME.tooltipBg,
-      borderColor: CHART_THEME.tooltipBorder,
-      borderWidth: 1,
-      textStyle: {
-        color: CHART_THEME.textPrimary,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
-      },
+    tooltip: chartTooltip("axis", {
       formatter: (params: unknown) => {
         const p = (params as { name: string; value: number }[])[0]
         if (!p) return ""
         return `${escHtml(p.name)}<br/>Avg: <b>${p.value}d</b>`
       },
-    },
+    }),
     grid: { top: 16, right: 16, bottom: 32, left: 48 },
     xAxis: {
       type: "category",
@@ -93,16 +85,7 @@ export function TorrentAvgSeedTime({ torrents, accentColor }: TorrentAvgSeedTime
         symbolSize: 4,
         lineStyle: { color: accentColor, width: 2 },
         itemStyle: { color: accentColor },
-        areaStyle: {
-          color: {
-            type: "linear",
-            x: 0, y: 0, x2: 0, y2: 1,
-            colorStops: [
-              { offset: 0, color: hexToRgba(accentColor, 0.3) },
-              { offset: 1, color: hexToRgba(accentColor, 0.02) },
-            ],
-          },
-        },
+        areaStyle: buildGlowAreaStyle(accentColor, 0.3, 0.02),
       },
     ],
   }

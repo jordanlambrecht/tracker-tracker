@@ -8,7 +8,8 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Card } from "@/components/ui/Card"
-import { formatBytesFromNumber } from "@/lib/formatters"
+import { Tooltip } from "@/components/ui/Tooltip"
+import { formatBytesNum } from "@/lib/formatters"
 import { ChartEmptyState } from "./ChartEmptyState"
 import { CHART_THEME } from "./theme"
 
@@ -46,11 +47,7 @@ interface FleetSpeedSparklinesProps {
  * Maps values onto a viewBox of `width` × `height`, with y-axis inverted (SVG top=0).
  * Returns empty string when fewer than 2 points exist.
  */
-function buildPolylinePoints(
-  values: number[],
-  width: number,
-  height: number
-): string {
+function buildPolylinePoints(values: number[], width: number, height: number): string {
   if (values.length < 2) return ""
   const max = Math.max(...values, 1)
   const step = width / (values.length - 1)
@@ -110,11 +107,7 @@ function MiniSparkline({ values, color }: MiniSparklineProps) {
       aria-hidden="true"
       className="overflow-visible"
     >
-      <polygon
-        points={fillPoints}
-        fill={color}
-        fillOpacity={0.12}
-      />
+      <polygon points={fillPoints} fill={color} fillOpacity={0.12} />
       <polyline
         points={points}
         fill="none"
@@ -143,17 +136,12 @@ function ClientSpeedCard({ name, state }: ClientSpeedCardProps) {
 
   return (
     <Card className="flex flex-col gap-2 p-3">
-      <p
-        className="text-xs font-mono truncate text-secondary"
-        title={name}
-      >
-        {name}
-      </p>
+      <Tooltip content={name}>
+        <p className="text-xs font-mono truncate text-secondary">{name}</p>
+      </Tooltip>
 
       {state.error ? (
-        <p className="text-xs font-mono text-warn">
-          fetch error
-        </p>
+        <p className="text-xs font-mono text-warn">fetch error</p>
       ) : (
         <>
           {/* Upload row */}
@@ -164,11 +152,8 @@ function ClientSpeedCard({ name, state }: ClientSpeedCardProps) {
               </span>
               <MiniSparkline values={uploadValues} color={COLOR_UPLOAD} />
             </div>
-            <span
-              className="text-[10px] font-mono tabular-nums"
-              style={{ color: COLOR_UPLOAD }}
-            >
-              {formatBytesFromNumber(currentUpload)}/s
+            <span className="text-[10px] font-mono tabular-nums" style={{ color: COLOR_UPLOAD }}>
+              {formatBytesNum(currentUpload)}/s
             </span>
           </div>
 
@@ -180,11 +165,8 @@ function ClientSpeedCard({ name, state }: ClientSpeedCardProps) {
               </span>
               <MiniSparkline values={downloadValues} color={COLOR_DOWNLOAD} />
             </div>
-            <span
-              className="text-[10px] font-mono tabular-nums"
-              style={{ color: COLOR_DOWNLOAD }}
-            >
-              {formatBytesFromNumber(currentDownload)}/s
+            <span className="text-[10px] font-mono tabular-nums" style={{ color: COLOR_DOWNLOAD }}>
+              {formatBytesNum(currentDownload)}/s
             </span>
           </div>
         </>
@@ -292,5 +274,5 @@ function FleetSpeedSparklines({ clients }: FleetSpeedSparklinesProps) {
   )
 }
 
+export type { FleetSpeedSparklinesProps, SpeedEntry }
 export { FleetSpeedSparklines }
-export type { SpeedEntry, FleetSpeedSparklinesProps }

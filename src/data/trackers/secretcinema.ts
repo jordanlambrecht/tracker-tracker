@@ -18,5 +18,6 @@ export const secretcinema: TrackerRegistryEntry = {
   notableMembers: [],
   language: "English",
   color: "#8e44ad",
+  trackerHubSlug: "secret-cinema",
   draft: true,
 }

@@ -56,3 +56,5 @@ export interface ClientStats {
   downloadSpeedBytes: number
   tagStats: TagStats[]
 }
+
+export const VALID_CLIENT_TYPES = ["qbittorrent"] as const

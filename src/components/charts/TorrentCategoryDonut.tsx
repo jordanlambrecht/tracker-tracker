@@ -4,9 +4,10 @@
 
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
-import { CHART_THEME, escHtml } from "@/components/charts/theme"
-import { formatBytesFromNumber, generatePalette } from "@/lib/formatters"
+import { formatBytesNum, generatePalette } from "@/lib/formatters"
 import type { CategoryStats } from "@/lib/torrent-utils"
+import { ChartEmptyState } from "./ChartEmptyState"
+import { CHART_THEME, chartDot, chartTooltip, escHtml } from "./theme"
 
 // ---------------------------------------------------------------------------
 // Component
@@ -17,12 +18,9 @@ export interface TorrentCategoryDonutProps {
   accentColor: string
 }
 
-export function TorrentCategoryDonut({
-  categories,
-  accentColor,
-}: TorrentCategoryDonutProps) {
+export function TorrentCategoryDonut({ categories, accentColor }: TorrentCategoryDonutProps) {
   if (categories.length === 0) {
-    return <p className="text-sm text-muted font-mono py-4">No category data</p>
+    return <ChartEmptyState height={320} message="No category data" />
   }
 
   const sorted = [...categories].sort((a, b) => b.count - a.count)
@@ -31,28 +29,18 @@ export function TorrentCategoryDonut({
 
   const option: EChartsOption = {
     backgroundColor: "transparent",
-    tooltip: {
-      trigger: "item",
-      backgroundColor: CHART_THEME.tooltipBg,
-      borderColor: CHART_THEME.tooltipBorder,
-      borderWidth: 1,
-      padding: [8, 12],
-      textStyle: {
-        color: CHART_THEME.textPrimary,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
-      },
+    tooltip: chartTooltip("item", {
       formatter: (params: unknown) => {
         const p = params as { name: string; value: number; percent: number; color: string }
         const cat = sorted.find((c) => c.name === p.name)
         if (!cat) return ""
         return [
-          `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color};margin-right:6px;box-shadow:0 0 6px ${p.color};"></span><span style="color:${p.color};font-weight:600;">${escHtml(p.name)}</span>`,
+          `${chartDot(p.color)}<span style="color:${p.color};font-weight:600;">${escHtml(p.name)}</span>`,
           `Torrents: ${cat.count} (${p.percent.toFixed(1)}%)`,
-          `Size: ${formatBytesFromNumber(cat.totalSize)}`,
+          `Size: ${formatBytesNum(cat.totalSize)}`,
         ].join("<br/>")
       },
-    },
+    }),
     legend: {
       orient: "vertical",
       right: 0,
