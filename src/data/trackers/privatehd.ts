@@ -7,8 +7,7 @@ export const privatehd: TrackerRegistryEntry = {
   name: "PrivateHD",
   abbreviation: "PHD",
   url: "https://privatehd.to",
-  description:
-    "Former home of EPSiLON. Part of the PrivateHD network.",
+  description: "Former home of EPSiLON. Part of the PrivateHD network.",
   platform: "custom",
   apiPath: "/api/user",
   specialty: "HD Movies / TV",

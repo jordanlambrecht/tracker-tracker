@@ -7,8 +7,7 @@ export const sportscult: TrackerRegistryEntry = {
   name: "Sportscult",
   abbreviation: "SCult",
   url: "https://sportscult.eu",
-  description:
-    "Private tracker with semi-frequent signups for most sports.",
+  description: "Private tracker with semi-frequent signups for most sports.",
   platform: "custom",
   apiPath: "/api/user",
   specialty: "Sports",

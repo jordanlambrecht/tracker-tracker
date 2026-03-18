@@ -81,28 +81,34 @@ jobs:
             const hasErrors = nonDraft.some(r => r.errors.length > 0);
             const hasWarnings = nonDraft.some(r => r.warnings.length > 0);
 
-            const marker = 'Tracker registry validation';
-            async function deletePreviousComment() {
+            const marker = '<!-- tracker-registry-validation -->';
+            const prNumber = context.payload.pull_request?.number ?? context.issue.number;
+
+            async function findPreviousComments() {
               const { data: comments } = await github.rest.issues.listComments({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: context.issue.number,
+                issue_number: prNumber,
               });
-              const existing = comments.find(c =>
+              return comments.filter(c =>
                 c.user?.login === 'github-actions[bot]' &&
                 c.body?.includes(marker)
               );
-              if (existing) {
+            }
+
+            async function deleteAllPreviousComments() {
+              const existing = await findPreviousComments();
+              for (const c of existing) {
                 await github.rest.issues.deleteComment({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  comment_id: existing.id,
+                  comment_id: c.id,
                 });
               }
             }
 
             if (nonDraft.length === 0 || (!hasErrors && !hasWarnings)) {
-              await deletePreviousComment();
+              await deleteAllPreviousComments();
               return;
             }
 
@@ -151,15 +157,31 @@ jobs:
             lines.push('');
             lines.push('See `src/data/__tests__/tracker-registry.test.ts` for all validation rules.');
 
-            const body = lines.join('\n');
+            const body = `${marker}\n${lines.join('\n')}`;
 
-            await deletePreviousComment();
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body,
-            });
+            const existing = await findPreviousComments();
+            if (existing.length > 0) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing[0].id,
+                body,
+              });
+              for (const c of existing.slice(1)) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: c.id,
+                });
+              }
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body,
+              });
+            }
 
       - name: Fail if tracker validation has errors
         if: steps.changed-trackers.outputs.has_tracker_changes == 'true' && steps.tracker-validation.outcome == 'failure'

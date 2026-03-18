@@ -63,16 +63,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const hashClients = new Map<string, string[]>()
   let oldestCacheAt: Date | null = null
 
-  // Parse each client's cached JSON once, then reuse for filtering + stamping.
-  // Cached blobs can be 500 KB-5 MB, so we avoid double-parsing.
+  // Drizzle returns jsonb columns already deserialized — no JSON.parse needed.
+  // Cached blobs can be 500 KB-5 MB; we map once and reuse for filtering + stamping.
   const parsedCache = new Map<number, QbtTorrent[]>()
   for (const client of clients) {
-    if (!client.cachedTorrents) continue
-    try {
-      parsedCache.set(client.id, JSON.parse(client.cachedTorrents) as QbtTorrent[])
-    } catch {
-      // security-audit-ignore: malformed cached JSON — skip this client
-    }
+    if (!client.cachedTorrents || !Array.isArray(client.cachedTorrents)) continue
+    parsedCache.set(client.id, client.cachedTorrents as QbtTorrent[])
   }
 
   for (const client of clients) {

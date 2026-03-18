@@ -72,7 +72,7 @@ const MOCK_CLIENT = {
   encryptedPassword: "enc-secret",
   pollIntervalSeconds: 30,
   isDefault: true,
-  crossSeedTags: '["cross-seed"]',
+  crossSeedTags: ["cross-seed"],
   lastPolledAt: null,
   lastError: null,
   createdAt: new Date(),

@@ -7,8 +7,7 @@ export const empornium: TrackerRegistryEntry = {
   name: "Empornium",
   abbreviation: "EMP",
   url: "https://empornium.is",
-  description:
-    "The top general porn tracker.",
+  description: "The top general porn tracker.",
   platform: "gazelle",
   apiPath: "/ajax.php",
   specialty: "Porn",

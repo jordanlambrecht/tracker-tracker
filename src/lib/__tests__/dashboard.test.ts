@@ -1,4 +1,5 @@
 // src/lib/__tests__/dashboard.test.ts
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import type { Snapshot, TrackerSummary } from "@/types/api"
@@ -10,14 +11,16 @@ vi.mock("@/data/tracker-registry", () => ({
 
 import { findRegistryEntry } from "@/data/tracker-registry"
 import {
-  clearDismissedAlerts,
   computeAggregateStats,
   computeAlerts,
+  computeSystemAlerts,
+  deleteAllDismissed,
   detectRankChanges,
-  dismissAlert,
+  fetchDismissedKeys,
   getAnniversaryMilestone,
-  getDismissedAlerts,
+  postDismissAlert,
 } from "@/lib/dashboard"
+import { getTrackerHealth } from "@/lib/tracker-status"
 
 const mockFindRegistryEntry = vi.mocked(findRegistryEntry)
 
@@ -34,6 +37,8 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     isActive: true,
     lastPolledAt: new Date().toISOString(),
     lastError: null,
+    consecutiveFailures: 0,
+    pausedAt: null,
     color: "#00d4ff",
     qbtTag: null,
     sortOrder: 0,
@@ -600,82 +605,239 @@ describe("computeAlerts", () => {
     const alerts = computeAlerts([tracker])
     expect(alerts.find((a) => a.type === "zero-seeding")).toBeUndefined()
   })
+
+  it("generates poll-paused alert when pausedAt is set", () => {
+    const trackers = [
+      makeTracker({
+        pausedAt: "2026-03-17T00:00:00Z",
+        consecutiveFailures: 4,
+        lastError: "Bad API key",
+      }),
+    ]
+    const alerts = computeAlerts(trackers)
+    const paused = alerts.find((a) => a.type === "poll-paused")
+    expect(paused).toBeDefined()
+    expect(paused?.dismissible).toBe(false)
+    expect(paused?.message).toContain("Polling paused after repeated failures")
+  })
+
+  it("suppresses error alert when tracker is paused", () => {
+    const trackers = [
+      makeTracker({
+        pausedAt: "2026-03-17T00:00:00Z",
+        consecutiveFailures: 4,
+        lastError: "Bad API key",
+      }),
+    ]
+    const alerts = computeAlerts(trackers)
+    const errorAlerts = alerts.filter((a) => a.type === "error")
+    expect(errorAlerts).toHaveLength(0)
+  })
+
+  it("suppresses stale-data alert when tracker is paused", () => {
+    const staleDate = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
+    const trackers = [
+      makeTracker({
+        pausedAt: "2026-03-17T00:00:00Z",
+        consecutiveFailures: 4,
+        lastPolledAt: staleDate,
+      }),
+    ]
+    const alerts = computeAlerts(trackers)
+    const staleAlerts = alerts.filter((a) => a.type === "stale-data")
+    expect(staleAlerts).toHaveLength(0)
+  })
+
+  it("still fires error alert when tracker is not paused", () => {
+    const trackers = [
+      makeTracker({
+        lastError: "Connection refused",
+        pausedAt: null,
+        consecutiveFailures: 1,
+      }),
+    ]
+    const alerts = computeAlerts(trackers)
+    expect(alerts.find((a) => a.type === "error")).toBeDefined()
+    expect(alerts.find((a) => a.type === "poll-paused")).toBeUndefined()
+  })
 })
 
 // ---------------------------------------------------------------------------
-// localStorage dismissal helpers
+// API dismissal helpers
 // ---------------------------------------------------------------------------
 
-describe("getDismissedAlerts / dismissAlert / clearDismissedAlerts", () => {
-  const store: Record<string, string> = {}
-
-  beforeEach(() => {
-    for (const key in store) delete store[key]
-    vi.stubGlobal("localStorage", {
-      getItem: (key: string) => store[key] ?? null,
-      setItem: (key: string, value: string) => {
-        store[key] = value
-      },
-      removeItem: (key: string) => {
-        delete store[key]
-      },
-    })
-  })
-
+describe("fetchDismissedKeys / postDismissAlert / deleteAllDismissed", () => {
   afterEach(() => {
     vi.restoreAllMocks()
-    vi.unstubAllGlobals()
   })
 
-  it("returns empty set when nothing has been dismissed", () => {
-    const dismissed = getDismissedAlerts()
-    expect(dismissed.size).toBe(0)
-  })
-
-  it("dismissAlert persists a key and getDismissedAlerts returns it", () => {
-    dismissAlert("error-1-Timeout")
-    const dismissed = getDismissedAlerts()
+  it("fetchDismissedKeys returns a Set of keys from the API", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ keys: ["error-1-Timeout", "ratio-danger-2"] }),
+      })
+    )
+    const dismissed = await fetchDismissedKeys()
+    expect(dismissed.size).toBe(2)
     expect(dismissed.has("error-1-Timeout")).toBe(true)
-  })
-
-  it("dismissing multiple keys keeps all of them", () => {
-    dismissAlert("error-1-foo")
-    dismissAlert("ratio-danger-2")
-    dismissAlert("stale-data-3")
-    const dismissed = getDismissedAlerts()
-    expect(dismissed.size).toBe(3)
     expect(dismissed.has("ratio-danger-2")).toBe(true)
   })
 
-  it("clearDismissedAlerts removes all dismissed keys", () => {
-    dismissAlert("error-1-foo")
-    dismissAlert("ratio-danger-2")
-    clearDismissedAlerts()
-    const dismissed = getDismissedAlerts()
+  it("fetchDismissedKeys returns empty set when response is not ok", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }))
+    const dismissed = await fetchDismissedKeys()
     expect(dismissed.size).toBe(0)
   })
 
-  it("getDismissedAlerts returns empty set when localStorage throws (SSR safety)", () => {
-    vi.stubGlobal("localStorage", {
-      getItem: () => {
-        throw new Error("localStorage unavailable")
-      },
-      setItem: () => {},
-      removeItem: () => {},
-    })
-    const dismissed = getDismissedAlerts()
+  it("fetchDismissedKeys returns empty set when fetch throws", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network error")))
+    const dismissed = await fetchDismissedKeys()
     expect(dismissed.size).toBe(0)
   })
 
-  it("dismissAlert silently fails when localStorage throws (SSR safety)", () => {
-    vi.stubGlobal("localStorage", {
-      getItem: () => null,
-      setItem: () => {
-        throw new Error("localStorage unavailable")
-      },
-      removeItem: () => {},
+  it("postDismissAlert sends POST with key and type", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true })
+    vi.stubGlobal("fetch", mockFetch)
+    await postDismissAlert("error-1-Timeout", "error")
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/api/alerts/dismissed",
+      expect.objectContaining({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "error-1-Timeout", type: "error" }),
+      })
+    )
+  })
+
+  it("postDismissAlert silently swallows fetch errors (best-effort)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network error")))
+    await expect(postDismissAlert("some-key", "error")).resolves.toBeUndefined()
+  })
+
+  it("deleteAllDismissed sends DELETE request", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true })
+    vi.stubGlobal("fetch", mockFetch)
+    await deleteAllDismissed()
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/api/alerts/dismissed",
+      expect.objectContaining({ method: "DELETE" })
+    )
+  })
+
+  it("deleteAllDismissed silently swallows fetch errors (best-effort)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network error")))
+    await expect(deleteAllDismissed()).resolves.toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// computeSystemAlerts
+// ---------------------------------------------------------------------------
+
+describe("computeSystemAlerts", () => {
+  it("returns empty array when no conditions are met", () => {
+    const result = computeSystemAlerts({
+      currentVersion: "1.0.0",
+      failedBackups: [],
+      clients: [],
     })
-    expect(() => dismissAlert("some-key")).not.toThrow()
+    expect(result).toHaveLength(0)
+  })
+
+  it("generates update-available alert when versions differ", () => {
+    const result = computeSystemAlerts({
+      latestVersion: "1.1.0",
+      currentVersion: "1.0.0",
+      failedBackups: [],
+      clients: [],
+    })
+    expect(result).toHaveLength(1)
+    expect(result[0].type).toBe("update-available")
+    expect(result[0].key).toBe("update-available-1.1.0")
+    expect(result[0].trackerId).toBeNull()
+    expect(result[0].trackerName).toBe("System")
+    expect(result[0].message).toContain("1.1.0")
+    expect(result[0].message).toContain("1.0.0")
+    expect(result[0].dismissible).toBe(true)
+  })
+
+  it("does not generate update-available alert when versions match", () => {
+    const result = computeSystemAlerts({
+      latestVersion: "1.0.0",
+      currentVersion: "1.0.0",
+      failedBackups: [],
+      clients: [],
+    })
+    expect(result.find((a) => a.type === "update-available")).toBeUndefined()
+  })
+
+  it("does not generate update-available alert when latestVersion is absent", () => {
+    const result = computeSystemAlerts({
+      currentVersion: "1.0.0",
+      failedBackups: [],
+      clients: [],
+    })
+    expect(result.find((a) => a.type === "update-available")).toBeUndefined()
+  })
+
+  it("generates backup-failed alert from the most recent failed backup", () => {
+    const createdAt = "2026-01-15T03:00:00.000Z"
+    const result = computeSystemAlerts({
+      currentVersion: "1.0.0",
+      failedBackups: [{ createdAt }, { createdAt: "2026-01-14T03:00:00.000Z" }],
+      clients: [],
+    })
+    const backupAlert = result.find((a) => a.type === "backup-failed")
+    expect(backupAlert).toBeDefined()
+    expect(backupAlert?.key).toBe(`backup-failed-${createdAt}`)
+    expect(backupAlert?.trackerId).toBeNull()
+    expect(backupAlert?.trackerName).toBe("Backups")
+    expect(backupAlert?.timestamp).toBe(createdAt)
+    expect(backupAlert?.dismissible).toBe(true)
+  })
+
+  it("generates client-error alerts for enabled clients with errors", () => {
+    const result = computeSystemAlerts({
+      currentVersion: "1.0.0",
+      failedBackups: [],
+      clients: [
+        { id: 1, name: "qBittorrent", enabled: true, lastError: "Connection refused" },
+        { id: 2, name: "Deluge", enabled: false, lastError: "Timed out" },
+        { id: 3, name: "Transmission", enabled: true, lastError: null },
+      ],
+    })
+    expect(result).toHaveLength(1)
+    const clientAlert = result[0]
+    expect(clientAlert.type).toBe("client-error")
+    expect(clientAlert.key).toBe("client-error-1")
+    expect(clientAlert.trackerId).toBeNull()
+    expect(clientAlert.trackerName).toBe("qBittorrent")
+    expect(clientAlert.message).toBe("Connection refused")
+    expect(clientAlert.dismissible).toBe(false)
+  })
+
+  it("client-error alerts are non-dismissible", () => {
+    const result = computeSystemAlerts({
+      currentVersion: "1.0.0",
+      failedBackups: [],
+      clients: [{ id: 5, name: "Client", enabled: true, lastError: "Unreachable" }],
+    })
+    expect(result[0].dismissible).toBe(false)
+  })
+
+  it("generates all three alert types together", () => {
+    const result = computeSystemAlerts({
+      latestVersion: "2.0.0",
+      currentVersion: "1.0.0",
+      failedBackups: [{ createdAt: "2026-01-15T03:00:00.000Z" }],
+      clients: [{ id: 1, name: "qBt", enabled: true, lastError: "Unreachable" }],
+    })
+    expect(result).toHaveLength(3)
+    expect(result.map((a) => a.type)).toEqual(
+      expect.arrayContaining(["update-available", "backup-failed", "client-error"])
+    )
   })
 })
 
@@ -809,5 +971,102 @@ describe("getAnniversaryMilestone", () => {
     const tracker = makeTracker({ joinedAt: null })
     const alerts = computeAlerts([tracker])
     expect(alerts.find((a) => a.type === "anniversary")).toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// getTrackerHealth
+// ---------------------------------------------------------------------------
+
+describe("getTrackerHealth", () => {
+  it("returns paused when pausedAt is set", () => {
+    const health = getTrackerHealth(makeTracker({ pausedAt: "2026-03-17T00:00:00Z" }))
+    expect(health).toBe("paused")
+  })
+
+  it("paused takes priority over error", () => {
+    const health = getTrackerHealth(
+      makeTracker({ pausedAt: "2026-03-17T00:00:00Z", lastError: "Bad key" })
+    )
+    expect(health).toBe("paused")
+  })
+
+  it("paused takes priority over healthy stats", () => {
+    const health = getTrackerHealth(
+      makeTracker({
+        pausedAt: "2026-03-17T00:00:00Z",
+        latestStats: {
+          ratio: 5.0,
+          uploadedBytes: "5000",
+          downloadedBytes: "1000",
+          seedingCount: 10,
+          leechingCount: 0,
+          requiredRatio: null,
+          warned: null,
+          freeleechTokens: null,
+          username: "u",
+          group: null,
+        },
+      })
+    )
+    expect(health).toBe("paused")
+  })
+
+  it("returns error when lastError is set and not paused", () => {
+    const health = getTrackerHealth(
+      makeTracker({ pausedAt: null, lastError: "Connection refused" })
+    )
+    expect(health).toBe("error")
+  })
+
+  it("returns offline when no latestStats and not paused or error", () => {
+    const health = getTrackerHealth(
+      makeTracker({ pausedAt: null, lastError: null, latestStats: null })
+    )
+    expect(health).toBe("offline")
+  })
+
+  it("returns healthy when ratio >= 2 and seeding > 0", () => {
+    const health = getTrackerHealth(
+      makeTracker({
+        pausedAt: null,
+        lastError: null,
+        latestStats: {
+          ratio: 3.0,
+          uploadedBytes: "3000",
+          downloadedBytes: "1000",
+          seedingCount: 5,
+          leechingCount: 0,
+          requiredRatio: null,
+          warned: null,
+          freeleechTokens: null,
+          username: "u",
+          group: null,
+        },
+      })
+    )
+    expect(health).toBe("healthy")
+  })
+
+  it("returns critical when ratio < 1", () => {
+    const health = getTrackerHealth(
+      makeTracker({
+        pausedAt: null,
+        lastError: null,
+        latestStats: {
+          ratio: 0.3,
+          uploadedBytes: "300",
+          downloadedBytes: "1000",
+          seedingCount: 2,
+          leechingCount: 0,
+          requiredRatio: null,
+          warned: null,
+          freeleechTokens: null,
+          username: "u",
+          group: null,
+        },
+      })
+    )
+    expect(health).toBe("critical")
   })
 })

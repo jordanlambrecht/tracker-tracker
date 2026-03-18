@@ -38,7 +38,7 @@ jobs:
             -e POSTGRES_USER=test \
             -e POSTGRES_PASSWORD=test \
             -e POSTGRES_DB=test \
-            postgres:16
+            postgres:18-alpine
 
           sleep 10
 

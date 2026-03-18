@@ -315,9 +315,17 @@ input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 textarea:-webkit-autofill,
-select:-webkit-autofill {
-  -webkit-box-shadow: 0 0 0 1000px oklch(24.55% 0.0174 275.22) inset; /* surface-800 / control-bg */
-  -webkit-text-fill-color: oklch(92.88% 0.0126 255.51); /* gray-50 / primary text */
+select:-webkit-autofill,
+input:autofill,
+input:autofill:hover,
+input:autofill:focus,
+textarea:autofill,
+select:autofill {
+  -webkit-box-shadow: 0 0 0 1000px oklch(24.55% 0.0174 275.22) inset; /* control-bg — Chromium */
+  box-shadow: 0 0 0 1000px oklch(24.55% 0.0174 275.22) inset; /* control-bg — Firefox/standard */
+  -webkit-text-fill-color: oklch(92.88% 0.0126 255.51); /* primary text */
+  color: oklch(92.88% 0.0126 255.51) !important;
+  background-color: oklch(24.55% 0.0174 275.22) !important;
   caret-color: oklch(92.88% 0.0126 255.51);
   transition: background-color 5000s ease-in-out 0s;
 }

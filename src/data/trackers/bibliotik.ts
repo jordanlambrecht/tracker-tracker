@@ -7,7 +7,8 @@ export const bibliotik: TrackerRegistryEntry = {
   name: "Bibliotik",
   abbreviation: "BIB",
   url: "https://bibliotik.me",
-  description: "The premier private tracker for e-books, audiobooks, comics, and other written media. Massive library with strict curation.",
+  description:
+    "The premier private tracker for e-books, audiobooks, comics, and other written media. Massive library with strict curation.",
   platform: "custom",
   apiPath: "/api/user",
   specialty: "E-Books / Audiobooks",

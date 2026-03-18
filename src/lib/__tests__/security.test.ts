@@ -27,7 +27,7 @@ vi.mock("@/lib/db", () => ({
     insert: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
-    execute: vi.fn().mockResolvedValue(undefined),
+    execute: vi.fn().mockResolvedValue([]),
   },
 }))
 
@@ -75,6 +75,7 @@ vi.mock("@/lib/db/schema", () => ({
   tagGroupMembers: {},
   clientSnapshots: {},
   backupHistory: {},
+  dismissedAlerts: {},
 }))
 
 vi.mock("@/lib/backup", () => ({
@@ -159,6 +160,11 @@ vi.mock("@/data/tracker-registry", () => ({
 // Route imports
 // ---------------------------------------------------------------------------
 
+import {
+  DELETE as AlertDismissedDELETE,
+  GET as AlertDismissedGET,
+  POST as AlertDismissedPOST,
+} from "@/app/api/alerts/dismissed/route"
 import { POST as ChangePasswordPOST } from "@/app/api/auth/change-password/route"
 import { POST as LogoutPOST } from "@/app/api/auth/logout/route"
 import { POST as TotpConfirmPOST } from "@/app/api/auth/totp/confirm/route"
@@ -198,6 +204,7 @@ import { GET as TagGroupsGET, POST as TagGroupsPOST } from "@/app/api/tag-groups
 import { GET as TrackerAvatarGET } from "@/app/api/trackers/[id]/avatar/route"
 import { POST as DebugPOST } from "@/app/api/trackers/[id]/debug/route"
 import { POST as PollPOST } from "@/app/api/trackers/[id]/poll/route"
+import { POST as ResumePOST } from "@/app/api/trackers/[id]/resume/route"
 import { GET as RolesGET, POST as RolesPOST } from "@/app/api/trackers/[id]/roles/route"
 import { DELETE, PATCH, GET as TrackerDetailGET } from "@/app/api/trackers/[id]/route"
 import { GET as SnapshotsGET } from "@/app/api/trackers/[id]/snapshots/route"
@@ -293,6 +300,12 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
   it("POST /api/trackers/[id]/poll returns 401", async () => {
     const req = makeRequest("http://localhost/api/trackers/1/poll", undefined, "POST")
     const res = await PollPOST(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(401)
+  })
+
+  it("POST /api/trackers/[id]/resume returns 401", async () => {
+    const req = makeRequest("http://localhost/api/trackers/1/resume", undefined, "POST")
+    const res = await ResumePOST(req, { params: MOCK_PARAMS })
     expect(res.status).toBe(401)
   })
 
@@ -621,6 +634,27 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
     })
     expect(res.status).toBe(401)
   })
+
+  it("GET /api/alerts/dismissed returns 401", async () => {
+    const res = await AlertDismissedGET()
+    expect(res.status).toBe(401)
+  })
+
+  it("POST /api/alerts/dismissed returns 401", async () => {
+    const req = makeRequest(
+      "http://localhost/api/alerts/dismissed",
+      { key: "test", type: "error" },
+      "POST"
+    )
+    const res = await AlertDismissedPOST(req)
+    expect(res.status).toBe(401)
+  })
+
+  it("DELETE /api/alerts/dismissed returns 401", async () => {
+    const req = makeRequest("http://localhost/api/alerts/dismissed", undefined, "DELETE")
+    const res = await AlertDismissedDELETE(req)
+    expect(res.status).toBe(401)
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -658,14 +692,11 @@ describe("Token leakage prevention", () => {
     // Call 2: db.select({storeUsernames}).from(appSettings).limit(1)
     const mockSettingsLimit = vi.fn().mockResolvedValue([{ storeUsernames: true }])
     const mockSettingsFrom = vi.fn().mockReturnValue({ limit: mockSettingsLimit })
-    // Call 3: db.select().from(trackerSnapshots).where(sql`...`) — batch snapshot query
-    const mockSnapshotWhere = vi.fn().mockResolvedValue([])
-    const mockSnapshotFrom = vi.fn().mockReturnValue({ where: mockSnapshotWhere })
 
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFrom })
       .mockReturnValueOnce({ from: mockSettingsFrom })
-      .mockReturnValueOnce({ from: mockSnapshotFrom })
+    // DISTINCT ON query via db.execute — default mock resolves []
 
     const res = await GET()
     const body = await res.json()

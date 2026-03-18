@@ -8,6 +8,7 @@
 "use client"
 
 import { useChartPreferencesBase } from "@/hooks/useChartPreferencesBase"
+import { STORAGE_KEYS } from "@/lib/storage-keys"
 
 export interface FleetChartDef {
   id: string
@@ -100,8 +101,6 @@ export const FLEET_CHARTS: FleetChartDef[] = [
   },
 ]
 
-const STORAGE_KEY = "tracker-tracker:fleet-chart-preferences"
-
 interface FleetChartPrefs {
   hidden: string[]
   collapsed: string[]
@@ -119,7 +118,7 @@ export function useFleetChartPreferences() {
     setVisible,
     collapseAll,
     allVisibleCollapsed,
-  } = useChartPreferencesBase<FleetChartPrefs>(STORAGE_KEY, EMPTY_PREFS)
+  } = useChartPreferencesBase<FleetChartPrefs>(STORAGE_KEYS.FLEET_CHART_PREFERENCES, EMPTY_PREFS)
 
   return {
     hydrated,

@@ -38,6 +38,26 @@ import {
 } from "@/lib/qbt"
 import { clearUptimeAccumulator, flushCompletedBuckets, recordHeartbeat } from "@/lib/uptime"
 
+/** Columns needed by heartbeatClient — excludes large blobs like cachedTorrents */
+export const HEARTBEAT_COLUMNS = {
+  id: downloadClients.id,
+  enabled: downloadClients.enabled,
+  name: downloadClients.name,
+  host: downloadClients.host,
+  port: downloadClients.port,
+  useSsl: downloadClients.useSsl,
+  encryptedUsername: downloadClients.encryptedUsername,
+  encryptedPassword: downloadClients.encryptedPassword,
+} as const
+
+/** Columns needed by deepPollClient — heartbeat fields + poll config + tags */
+export const DEEP_POLL_COLUMNS = {
+  ...HEARTBEAT_COLUMNS,
+  crossSeedTags: downloadClients.crossSeedTags,
+  pollIntervalSeconds: downloadClients.pollIntervalSeconds,
+  lastPolledAt: downloadClients.lastPolledAt,
+} as const
+
 // Store on globalThis to survive HMR in development.
 // Without this, each hot-reload orphans the old cron job while creating a new one.
 const g = globalThis as typeof globalThis & {
@@ -67,7 +87,7 @@ function setDeepPollTask(task: ScheduledTask | null) {
 
 async function heartbeatClient(clientId: number, encryptionKey: Buffer): Promise<void> {
   const [client] = await db
-    .select()
+    .select(HEARTBEAT_COLUMNS)
     .from(downloadClients)
     .where(eq(downloadClients.id, clientId))
     .limit(1)
@@ -112,7 +132,7 @@ async function heartbeatClient(clientId: number, encryptionKey: Buffer): Promise
 
 async function heartbeatAllClients(encryptionKey: Buffer): Promise<void> {
   const allClients = await db
-    .select()
+    .select({ id: downloadClients.id })
     .from(downloadClients)
     .where(eq(downloadClients.enabled, true))
 
@@ -127,7 +147,7 @@ async function heartbeatAllClients(encryptionKey: Buffer): Promise<void> {
 
 export async function deepPollClient(clientId: number, encryptionKey: Buffer): Promise<void> {
   const [client] = await db
-    .select()
+    .select(DEEP_POLL_COLUMNS)
     .from(downloadClients)
     .where(eq(downloadClients.id, clientId))
     .limit(1)
@@ -187,7 +207,7 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
     await db
       .update(downloadClients)
       .set({
-        cachedTorrents: JSON.stringify(sanitizedTorrents),
+        cachedTorrents: sanitizedTorrents,
         cachedTorrentsAt: new Date(),
       })
       .where(eq(downloadClients.id, clientId))
@@ -223,7 +243,12 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
 
 async function deepPollAllClients(encryptionKey: Buffer): Promise<void> {
   const allClients = await db
-    .select()
+    .select({
+      id: downloadClients.id,
+      enabled: downloadClients.enabled,
+      pollIntervalSeconds: downloadClients.pollIntervalSeconds,
+      lastPolledAt: downloadClients.lastPolledAt,
+    })
     .from(downloadClients)
     .where(eq(downloadClients.enabled, true))
 

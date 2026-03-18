@@ -17,10 +17,10 @@ import { findRegistryEntry, type TrackerRegistryEntry } from "@/data/tracker-reg
 import { ALL_TRACKERS } from "@/data/trackers"
 import { useClickOutside } from "@/hooks/useClickOutside"
 import { formatAccountAge, formatJoinedDate, formatRatio } from "@/lib/formatters"
+import { STORAGE_KEYS } from "@/lib/storage-keys"
 import { getHealthPulseDot, getTrackerHealth } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
 
-const LEGACY_STORAGE_KEY = "tracker-tracker:draft-quicklinks"
 const FILTER_THRESHOLD = 6
 
 interface TrackerOverviewGridProps {
@@ -50,7 +50,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
         const dbSlugs = Array.isArray(data.slugs) ? data.slugs : []
 
         if (dbSlugs.length === 0 && typeof window !== "undefined") {
-          const raw = localStorage.getItem(LEGACY_STORAGE_KEY)
+          const raw = localStorage.getItem(STORAGE_KEYS.DRAFT_QUICKLINKS)
           if (raw) {
             try {
               const legacy = JSON.parse(raw) as unknown
@@ -61,7 +61,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ slugs: migrated }),
                 })
-                localStorage.removeItem(LEGACY_STORAGE_KEY)
+                localStorage.removeItem(STORAGE_KEYS.DRAFT_QUICKLINKS)
                 setSelectedDrafts(migrated)
                 return
               }
@@ -272,12 +272,18 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                 </a>
               </div>
 
-              {/* Row 2: Class/rank */}
-              <RedactedText
-                value={t.latestStats?.group ?? null}
-                color={t.color}
-                className="font-mono text-xs text-accent ml-4.5"
-              />
+              {/* Row 2: Class/rank or paused indicator */}
+              {t.pausedAt ? (
+                <span className="font-mono text-[10px] text-danger uppercase tracking-wider ml-4.5">
+                  ⏸ Polling paused
+                </span>
+              ) : (
+                <RedactedText
+                  value={t.latestStats?.group ?? null}
+                  color={t.color}
+                  className="font-mono text-xs text-accent ml-4.5"
+                />
+              )}
 
               {/* Row 3: Account age + join date */}
               {t.joinedAt ? (

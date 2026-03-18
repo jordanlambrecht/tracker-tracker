@@ -6,8 +6,8 @@ import clsx from "clsx"
 import ReactECharts from "echarts-for-react"
 import "echarts-gl"
 import { useState } from "react"
-import { CHART_THEME } from "@/components/charts/theme"
 import type { TorrentInfo } from "@/lib/torrent-utils"
+import { CHART_THEME } from "./theme"
 
 // ---------------------------------------------------------------------------
 // Types & Constants

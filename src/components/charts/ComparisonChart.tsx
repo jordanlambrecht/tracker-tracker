@@ -7,10 +7,11 @@
 import type { EChartsOption } from "echarts"
 import { useState } from "react"
 import { Tooltip } from "@/components/ui/Tooltip"
-import { bytesToGiB } from "@/lib/formatters"
+import { bytesToGiB, hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./ChartECharts"
+import { ChartEmptyState } from "./ChartEmptyState"
 import {
   adaptiveDotSize,
   autoByteScale,
@@ -120,7 +121,7 @@ function buildAverageSeries(
           y2: 1,
           colorStops: [
             { offset: 0, color: CHART_THEME.accentDim },
-            { offset: 1, color: "rgba(0, 212, 255, 0)" },
+            { offset: 1, color: hexToRgba(CHART_THEME.accent, 0) },
           ],
         } as unknown as string,
       },
@@ -202,7 +203,7 @@ function buildComparisonOption(
             y2: 1,
             colorStops: [
               { offset: 0, color: CHART_THEME.accentDim },
-              { offset: 1, color: "rgba(0, 212, 255, 0)" },
+              { offset: 1, color: hexToRgba(CHART_THEME.accent, 0) },
             ],
           } as unknown as string,
         },
@@ -265,45 +266,25 @@ function buildComparisonOption(
     })
   }
 
-  // yAxis config — log vs linear
-  const yAxis: EChartsOption["yAxis"] = useLog
-    ? {
-        type: "log",
-        name: unit,
-        logBase: 10,
-        nameTextStyle: {
-          color: CHART_THEME.textTertiary,
-          fontFamily: CHART_THEME.fontMono,
-          fontSize: 10,
-        },
-        axisLine: { show: false },
-        axisTick: { show: false },
-        axisLabel: chartAxisLabel({
-          formatter: (val: number) => fmtNum(val, 1),
-        }),
-        splitLine: {
-          lineStyle: { color: CHART_THEME.gridLine, width: 1 },
-        },
-      }
-    : {
-        type: "value",
-        name: unit,
-        scale: true,
-        ...yAxisAutoRange(),
-        nameTextStyle: {
-          color: CHART_THEME.textTertiary,
-          fontFamily: CHART_THEME.fontMono,
-          fontSize: 10,
-        },
-        axisLine: { show: false },
-        axisTick: { show: false },
-        axisLabel: chartAxisLabel({
-          formatter: (val: number) => fmtNum(val, 1),
-        }),
-        splitLine: {
-          lineStyle: { color: CHART_THEME.gridLine, width: 1 },
-        },
-      }
+  // yAxis config — shared base with log/linear specifics
+  const yAxis: EChartsOption["yAxis"] = {
+    type: useLog ? "log" : "value",
+    name: unit,
+    ...(useLog ? { logBase: 10 } : { scale: true, ...yAxisAutoRange() }),
+    nameTextStyle: {
+      color: CHART_THEME.textTertiary,
+      fontFamily: CHART_THEME.fontMono,
+      fontSize: 10,
+    },
+    axisLine: { show: false },
+    axisTick: { show: false },
+    axisLabel: chartAxisLabel({
+      formatter: (val: number) => fmtNum(val, 1),
+    }),
+    splitLine: {
+      lineStyle: { color: CHART_THEME.gridLine, width: 1 },
+    },
+  }
 
   return {
     backgroundColor: "transparent",
@@ -384,12 +365,7 @@ function ComparisonChart({
 
   if (!hasData) {
     return (
-      <div
-        className="flex items-center justify-center text-tertiary font-mono text-sm"
-        style={{ height }}
-      >
-        No snapshot data yet. Waiting for first polls...
-      </div>
+      <ChartEmptyState height={height} message="No snapshot data yet. Waiting for first polls..." />
     )
   }
 
@@ -436,7 +412,7 @@ function ComparisonChart({
                       : "text-tertiary hover:text-secondary"
                   }`}
                 >
-                  {m === "lines" ? "Per-Tracker" : m === "stacked" ? "Stacked" : "Total"}
+                  {{ lines: "Per-Tracker", stacked: "Stacked", total: "Total" }[m]}
                 </button>
               ))}
             </div>

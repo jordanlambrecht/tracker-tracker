@@ -6,9 +6,10 @@
 
 import type { EChartsOption } from "echarts"
 import type { FleetSnapshot } from "@/lib/fleet"
-import { formatBytesNum } from "@/lib/formatters"
+import { formatBytesNum, hexToRgba } from "@/lib/formatters"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
+import { buildAxisPointer } from "./chart-helpers"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -57,10 +58,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
     backgroundColor: "transparent",
     legend: chartLegend(),
     tooltip: chartTooltip("axis", {
-      axisPointer: {
-        type: "line",
-        lineStyle: { color: CHART_THEME.borderMid, type: "dashed" },
-      },
+      axisPointer: buildAxisPointer(),
       formatter: (params: unknown) => {
         const items = params as Array<{
           seriesName: string
@@ -148,7 +146,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
             y2: 1,
             colorStops: [
               { offset: 0, color: CHART_THEME.accentGlow },
-              { offset: 1, color: "rgba(0, 212, 255, 0)" },
+              { offset: 1, color: hexToRgba(CHART_THEME.upload, 0) },
             ],
           },
         },
@@ -171,7 +169,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
             y2: 1,
             colorStops: [
               { offset: 0, color: CHART_THEME.warnGlow },
-              { offset: 1, color: "rgba(245, 158, 11, 0)" },
+              { offset: 1, color: hexToRgba(CHART_THEME.download, 0) },
             ],
           },
         },

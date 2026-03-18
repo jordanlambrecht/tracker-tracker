@@ -12,6 +12,8 @@ const mockTracker = {
   isActive: true,
   lastPolledAt: new Date("2026-01-01"),
   lastError: null,
+  consecutiveFailures: 0,
+  pausedAt: null,
   color: "#00d4ff",
   qbtTag: null,
   remoteUserId: null,

@@ -102,12 +102,12 @@ describe("Unit3dAdapter - security", () => {
       statusText: "Forbidden",
     } as Response)
 
-    try {
-      await adapter.fetchStats("https://example.com", secretToken, "/api/user")
-    } catch (error) {
-      const errorMessage = (error as Error).message
-      expect(errorMessage).not.toContain(secretToken)
-    }
+    await expect(
+      adapter.fetchStats("https://example.com", secretToken, "/api/user")
+    ).rejects.toSatisfy((err: Error) => {
+      expect(err.message).not.toContain(secretToken)
+      return true
+    })
   })
 
   it("does not expose the API token when fetch itself throws with a URL in the message", async () => {

@@ -4,10 +4,10 @@
 
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
-import { CHART_THEME, chartDot, chartTooltip, escHtml } from "@/components/charts/theme"
 import { formatBytesNum, formatDuration, generatePalette, hexToRgba } from "@/lib/formatters"
 import type { CategoryStats } from "@/lib/torrent-utils"
 import { ChartEmptyState } from "./ChartEmptyState"
+import { CHART_THEME, chartDot, chartTooltip, escHtml } from "./theme"
 
 // ---------------------------------------------------------------------------
 // Helpers

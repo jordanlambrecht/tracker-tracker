@@ -15,7 +15,7 @@ import {
 } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { appSettings, trackerSnapshots, trackers } from "@/lib/db/schema"
+import { appSettings, type trackerSnapshots, trackers } from "@/lib/db/schema"
 import { createPrivacyMaskSync } from "@/lib/privacy-db"
 import { serializeTrackerResponse } from "@/lib/tracker-serializer"
 
@@ -34,17 +34,32 @@ export async function GET() {
   // behavior when no settings row exists. Do NOT change to false.
   const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
 
-  // Batch-fetch the latest snapshot per tracker using a single query.
-  const latestSnapshots = await db
-    .select()
-    .from(trackerSnapshots)
-    .where(
-      sql`(${trackerSnapshots.trackerId}, ${trackerSnapshots.polledAt}) IN (
-        SELECT ${trackerSnapshots.trackerId}, MAX(${trackerSnapshots.polledAt})
-        FROM ${trackerSnapshots}
-        GROUP BY ${trackerSnapshots.trackerId}
-      )`
-    )
+  // Batch-fetch the latest snapshot per tracker using DISTINCT ON.
+  // PG18's enable_distinct_reordering planner flag optimises exactly this pattern.
+  // Drizzle has no native DISTINCT ON support, so we use db.execute with a raw sql tag.
+  // security-audit-ignore: static SQL string with zero user input — no injection risk
+  const latestSnapshots = (await db.execute(sql`
+    SELECT DISTINCT ON (tracker_id)
+      id,
+      tracker_id        AS "trackerId",
+      polled_at          AS "polledAt",
+      uploaded_bytes     AS "uploadedBytes",
+      downloaded_bytes   AS "downloadedBytes",
+      ratio,
+      buffer_bytes       AS "bufferBytes",
+      seeding_count      AS "seedingCount",
+      leeching_count     AS "leechingCount",
+      seedbonus,
+      hit_and_runs       AS "hitAndRuns",
+      required_ratio     AS "requiredRatio",
+      warned,
+      freeleech_tokens   AS "freeleechTokens",
+      share_score        AS "shareScore",
+      username,
+      group_name         AS "group"
+    FROM tracker_snapshots
+    ORDER BY tracker_id, polled_at DESC
+  `)) as unknown as (typeof trackerSnapshots.$inferSelect)[]
 
   // Build a lookup map for O(1) access
   const snapshotByTracker = new Map(latestSnapshots.map((s) => [s.trackerId, s]))

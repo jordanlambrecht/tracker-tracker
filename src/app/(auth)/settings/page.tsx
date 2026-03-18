@@ -21,7 +21,7 @@ import { TabBar } from "@/components/ui/TabBar"
 import { extractApiError } from "@/lib/client-helpers"
 import type { TrackerSummary } from "@/types/api"
 
-type SettingsTab = "general" | "clients" | "tag-groups" | "backups"
+type SettingsTab = "general" | "clients" | "backups"
 
 interface SettingsData {
   storeUsernames: boolean
@@ -115,7 +115,6 @@ export default function SettingsPage() {
   const tabs: { key: SettingsTab; label: string }[] = [
     { key: "general", label: "General" },
     { key: "clients", label: "Download Clients" },
-    { key: "tag-groups", label: "Tag Groups" },
     { key: "backups", label: "Backups" },
   ]
 
@@ -220,6 +219,16 @@ export default function SettingsPage() {
             </Card>
           </section>
 
+          {/* ── Webhooks (coming soon) ─────────────────────────── */}
+          <section aria-labelledby="webhooks-heading">
+            <H2 id="webhooks-heading" className="mb-4 opacity-40">
+              Webhooks
+            </H2>
+            <Card elevation="raised" className="opacity-40 pointer-events-none select-none">
+              <p className="text-sm font-mono text-muted text-center py-6">Coming soon</p>
+            </Card>
+          </section>
+
           <DangerZoneSection />
         </>
       )}
@@ -228,10 +237,9 @@ export default function SettingsPage() {
         <>
           <DownloadClients />
           <QbitmanageSettings />
+          <TagGroups />
         </>
       )}
-
-      {activeTab === "tag-groups" && <TagGroups />}
 
       {activeTab === "backups" && (
         <BackupsSection
