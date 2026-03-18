@@ -172,14 +172,6 @@ All other settings — polling interval, privacy mode, proxy, backups — are co
 | `./data/logs`    | `/data/logs`    | Application log files                   |
 | `pgdata` (named) | PG data dir     | PostgreSQL database (managed by Docker) |
 
-## Architecture
-
-- **Next.js 16** (App Router) — server components + API routes
-- **PostgreSQL** + **Drizzle ORM** — schema-first, no raw SQL migrations
-- **ECharts** — interactive time-series charts
-- **node-cron** — background polling scheduler
-- **Argon2** — master password hashing
-- **jose** — JWE session tokens (AES-256-GCM)
 
 ## Adding a Tracker
 
@@ -200,6 +192,15 @@ PRs welcome. Areas where help matters most:
 - **Data Visualization** - I ain't no math wizard, so any contributions for data viz, charts/graphs, etc.
 - **Custom platform adapters** — trackers marked "Custom" need bespoke adapters since they don't run UNIT3D or Gazelle.
 - **HawkeUno lobbying** — convince the Hawke mods to add a `/users` endpoint so the adapter can work
+
+## Architecture
+
+- **Next.js 16** (App Router)
+- **PostgreSQL** + **Drizzle ORM**
+- **ECharts**
+- **node-cron**
+- **Argon2**
+- **jose**
 
 ## License
 
