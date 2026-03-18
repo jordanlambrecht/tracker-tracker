@@ -219,22 +219,23 @@ ok "tracker_snapshots rows: ${ROW_COUNT}"
 info "Converting cachedTorrents from text to jsonb..."
 docker exec "$DB_CONTAINER" psql -U "$PG_USER" -d tracker_tracker -c "
   ALTER TABLE download_clients
-    ALTER COLUMN cached_torrents TYPE jsonb
-    USING CASE
-      WHEN cached_torrents IS NULL THEN NULL
-      ELSE cached_torrents::jsonb
-    END;
+    ALTER COLUMN cached_torrents TYPE jsonb USING cached_torrents::jsonb;
 " >/dev/null 2>&1 || warn "cachedTorrents conversion failed (may already be jsonb)"
 
 info "Converting crossSeedTags from JSON text to PG array format..."
+# PG doesn't allow subqueries in USING expressions, so we use a temp column swap.
 docker exec "$DB_CONTAINER" psql -U "$PG_USER" -d tracker_tracker -c "
-  ALTER TABLE download_clients
-    ALTER COLUMN cross_seed_tags TYPE text[]
-    USING CASE
-      WHEN cross_seed_tags IS NULL THEN NULL
-      WHEN cross_seed_tags = '[]' THEN '{}'::text[]
-      ELSE ARRAY(SELECT jsonb_array_elements_text(cross_seed_tags::jsonb))
-    END;
+  ALTER TABLE download_clients ADD COLUMN cross_seed_tags_new text[] DEFAULT '{}';
+" >/dev/null 2>&1 || true
+docker exec "$DB_CONTAINER" psql -U "$PG_USER" -d tracker_tracker -c "
+  UPDATE download_clients SET cross_seed_tags_new = CASE
+    WHEN cross_seed_tags IS NULL OR cross_seed_tags = '[]' THEN '{}'::text[]
+    ELSE (SELECT array_agg(elem) FROM jsonb_array_elements_text(cross_seed_tags::jsonb) AS elem)
+  END;
+" >/dev/null 2>&1 || true
+docker exec "$DB_CONTAINER" psql -U "$PG_USER" -d tracker_tracker -c "
+  ALTER TABLE download_clients DROP COLUMN cross_seed_tags;
+  ALTER TABLE download_clients RENAME COLUMN cross_seed_tags_new TO cross_seed_tags;
 " >/dev/null 2>&1 || warn "crossSeedTags conversion failed (may already be text[])"
 
 # ── Schema push (new indexes) ────────────────────
