@@ -167,7 +167,7 @@ export async function POST(request: Request) {
       encryptedPassword,
       pollIntervalSeconds: typeof pollIntervalSeconds === "number" ? pollIntervalSeconds : 300,
       isDefault: resolvedIsDefault,
-      crossSeedTags: JSON.stringify(resolvedTags),
+      crossSeedTags: resolvedTags,
     })
     .returning()
 

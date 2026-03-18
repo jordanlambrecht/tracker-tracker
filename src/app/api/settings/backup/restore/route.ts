@@ -317,7 +317,15 @@ export async function POST(request: Request) {
             encryptedPassword: encPassword,
             pollIntervalSeconds: fields.pollIntervalSeconds as number,
             isDefault: fields.isDefault as boolean,
-            crossSeedTags: (fields.crossSeedTags as string) ?? "[]",
+            crossSeedTags: Array.isArray(fields.crossSeedTags)
+              ? (fields.crossSeedTags as string[])
+              : (() => {
+                  try {
+                    return JSON.parse(fields.crossSeedTags as string) as string[]
+                  } catch {
+                    return []
+                  }
+                })(),
             lastError: credentialsCleared
               ? "Credentials cleared during restore — re-enter and re-enable"
               : null,

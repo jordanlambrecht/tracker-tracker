@@ -89,17 +89,13 @@ export async function flushCompletedBuckets(): Promise<number> {
 
   const entries = queue.splice(0, queue.length)
 
-  for (const entry of entries) {
-    await db
-      .insert(clientUptimeBuckets)
-      .values({
-        clientId: entry.clientId,
-        bucketTs: new Date(entry.ts),
-        ok: entry.ok,
-        fail: entry.fail,
-      })
-      .onConflictDoNothing()
-  }
+  const rows = entries.map((entry) => ({
+    clientId: entry.clientId,
+    bucketTs: new Date(entry.ts),
+    ok: entry.ok,
+    fail: entry.fail,
+  }))
+  await db.insert(clientUptimeBuckets).values(rows).onConflictDoNothing()
 
   return entries.length
 }
