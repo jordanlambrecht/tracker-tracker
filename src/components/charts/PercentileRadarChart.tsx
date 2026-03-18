@@ -6,9 +6,9 @@
 
 import ReactECharts from "echarts-for-react"
 import { useMemo } from "react"
+import { CHART_THEME, chartTooltip } from "@/components/charts/theme"
 import { hexToRgba } from "@/lib/formatters"
 import type { GazelleRanks } from "@/types/api"
-import { CHART_THEME, chartTooltip } from "./theme"
 
 export interface PercentileRadarChartProps {
   ranks: GazelleRanks
@@ -103,8 +103,6 @@ function PercentileRadarChart({ ranks, accentColor }: PercentileRadarChartProps)
       option={option}
       style={{ height: 320, width: "100%" }}
       opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
     />
   )
 }

@@ -5,8 +5,9 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { STORAGE_KEYS } from "@/lib/storage-keys"
 import { DASHBOARD_SETTINGS_DEFAULTS, type DashboardSettings } from "@/types/api"
+
+const LEGACY_STORAGE_KEY = "tracker-tracker:dashboard-settings"
 
 const DEFAULTS = DASHBOARD_SETTINGS_DEFAULTS
 
@@ -24,7 +25,7 @@ function useDashboardSettings() {
         if (cancelled) return
 
         // One-time migration: if DB has defaults and localStorage has data, migrate
-        const legacy = localStorage.getItem(STORAGE_KEYS.DASHBOARD_SETTINGS)
+        const legacy = localStorage.getItem(LEGACY_STORAGE_KEY)
         if (legacy) {
           try {
             const parsed = { ...DEFAULTS, ...(JSON.parse(legacy) as Partial<DashboardSettings>) }
@@ -34,11 +35,11 @@ function useDashboardSettings() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(parsed),
             })
-            localStorage.removeItem(STORAGE_KEYS.DASHBOARD_SETTINGS)
+            localStorage.removeItem(LEGACY_STORAGE_KEY)
             if (!cancelled) setSettings(parsed)
             return
           } catch {
-            localStorage.removeItem(STORAGE_KEYS.DASHBOARD_SETTINGS)
+            localStorage.removeItem(LEGACY_STORAGE_KEY)
           }
         }
 

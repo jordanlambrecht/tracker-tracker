@@ -4,12 +4,12 @@
 
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
+import { DAY_LABELS, HOUR_LABELS } from "@/components/charts/chart-helpers"
+import { buildActivityMatrix } from "@/components/charts/chart-transforms"
+import { CHART_THEME, chartTooltip } from "@/components/charts/theme"
 import { hexToRgba } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { DAY_LABELS, HOUR_LABELS } from "./chart-helpers"
-import { buildActivityMatrix } from "./chart-transforms"
-import { CHART_THEME, chartTooltip } from "./theme"
 
 // ---------------------------------------------------------------------------
 // Props

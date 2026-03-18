@@ -10,19 +10,6 @@ const securityHeaders = [
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
 ]
 
-if (process.env.BASE_URL) {
-  try {
-    const parsed = new URL(process.env.BASE_URL)
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      console.error(`BASE_URL must use http or https protocol, got: ${parsed.protocol}`)
-      process.exit(1)
-    }
-  } catch {
-    console.error(`BASE_URL is not a valid URL: ${process.env.BASE_URL}`)
-    process.exit(1)
-  }
-}
-
 const nextConfig: NextConfig = {
   output: "standalone",
   serverExternalPackages: ["argon2"],

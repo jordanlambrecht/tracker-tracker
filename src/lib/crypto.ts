@@ -1,7 +1,7 @@
 // src/lib/crypto.ts
 //
-// Functions: deriveKey, deriveWrappingKey, encrypt, decrypt, reencrypt, generateSalt
-import { createCipheriv, createDecipheriv, hkdfSync, randomBytes, scryptSync } from "node:crypto"
+// Functions: deriveKey, encrypt, decrypt, reencrypt, generateSalt
+import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "node:crypto"
 
 const KEY_LENGTH = 32 // 256 bits for AES-256
 const SCRYPT_N = 16384
@@ -16,19 +16,6 @@ export async function deriveKey(password: string, salt: string): Promise<Buffer>
     r: SCRYPT_R,
     p: SCRYPT_P,
   })
-}
-
-/**
- * Derive a 32-byte wrapping key from SESSION_SECRET via HKDF.
- * Used to encrypt/decrypt the scheduler key at rest in the DB.
- * Domain-separated from session JWE key via the info label.
- */
-export function deriveWrappingKey(): Buffer {
-  const secret = process.env.SESSION_SECRET
-  if (!secret || secret.length < 32) {
-    throw new Error("SESSION_SECRET must be at least 32 characters")
-  }
-  return Buffer.from(hkdfSync("sha256", secret, "", "tracker-tracker:scheduler-key-v1", 32))
 }
 
 export function encrypt(plaintext: string, key: Buffer): string {

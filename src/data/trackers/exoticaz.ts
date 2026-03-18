@@ -7,7 +7,8 @@ export const exoticaz: TrackerRegistryEntry = {
   name: "ExoticaZ",
   abbreviation: "ExZ",
   url: "https://exoticaz.to",
-  description: "Mainly Asian porn but some western content. Part of the PrivateHD network.",
+  description:
+    "Mainly Asian porn but some western content. Part of the PrivateHD network.",
   platform: "custom",
   apiPath: "/api/user",
   specialty: "Asian Adult",

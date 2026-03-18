@@ -232,7 +232,5 @@ export function buildThemeRiverSingleAxis(overrides?: {
  * @param thresholds - [high, low] count thresholds (default [100, 30])
  */
 export function adaptiveDotSize(count: number, thresholds: [number, number] = [100, 30]): number {
-  if (count > thresholds[0]) return 2
-  if (count > thresholds[1]) return 4
-  return 6
+  return count > thresholds[0] ? 2 : count > thresholds[1] ? 4 : 6
 }

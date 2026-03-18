@@ -7,7 +7,8 @@ export const greatposterwall: TrackerRegistryEntry = {
   name: "Great Poster Wall",
   abbreviation: "GPW",
   url: "https://greatposterwall.com",
-  description: "A Chinese Gazelle-based tracker with movies and some TV.",
+  description:
+    "A Chinese Gazelle-based tracker with movies and some TV.",
   platform: "gazelle",
   apiPath: "/ajax.php",
   specialty: "Movies",

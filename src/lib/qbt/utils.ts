@@ -5,11 +5,15 @@
 import type { QbtTorrent } from "./types"
 
 /**
- * Normalizes the crossSeedTags column value. The column is a native text[]
- * array, so Drizzle returns string[] | null. Returns [] for null.
+ * Parses the crossSeedTags JSON column. The column is notNull with default "[]",
+ * but the stored value could be malformed. Falls back to [] on any parse error.
  */
-export function parseCrossSeedTags(raw: string[] | null): string[] {
-  return raw ?? []
+export function parseCrossSeedTags(raw: string): string[] {
+  try {
+    return JSON.parse(raw) as string[]
+  } catch {
+    return []
+  }
 }
 
 /**

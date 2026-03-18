@@ -7,7 +7,8 @@ export const pier720: TrackerRegistryEntry = {
   name: "720pier",
   abbreviation: "720P",
   url: "https://720pier.ru",
-  description: "Semi-private tracker for most sports.",
+  description:
+    "Semi-private tracker for most sports.",
   platform: "custom",
   apiPath: "/api/user",
   specialty: "Sports",

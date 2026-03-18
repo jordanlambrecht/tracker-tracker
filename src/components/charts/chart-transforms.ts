@@ -82,10 +82,10 @@ export function buildUnifiedTimestampAxis(trackerData: TrackerSnapshotSeries[]):
 } {
   const set = new Set<string>()
   for (const { snapshots } of trackerData) {
-    for (const s of snapshots) set.add(s.polledAt)
+    for (const s of snapshots) set.add(s.polledAt as string)
   }
   const timestamps = [...set].sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
-  return { timestamps, labels: buildSmartLabels(timestamps) }
+  return { timestamps, labels: timestamps.map(formatSnapshotLabel) }
 }
 
 /**

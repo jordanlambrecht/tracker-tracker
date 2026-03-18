@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { aggregateByTag } from "./aggregator"
 import { buildBaseUrl, getTorrents, getTransferInfo, login } from "./client"
 import type { QbtTorrent } from "./types"
-import { parseCrossSeedTags } from "./utils"
 
 // ---------------------------------------------------------------------------
 // buildBaseUrl
@@ -505,15 +504,5 @@ describe("aggregateByTag", () => {
     expect(crossSeedStats?.seedingCount).toBe(1)
     const untagged = result.tagStats.find((t) => t.tag === "untagged")
     expect(untagged).toBeUndefined()
-  })
-})
-
-// ---------------------------------------------------------------------------
-// parseCrossSeedTags
-// ---------------------------------------------------------------------------
-
-describe("parseCrossSeedTags", () => {
-  it("returns an empty array for null", () => {
-    expect(parseCrossSeedTags(null)).toEqual([])
   })
 })

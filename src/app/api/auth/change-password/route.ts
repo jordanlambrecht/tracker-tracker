@@ -16,7 +16,6 @@ import { db } from "@/lib/db"
 import { appSettings, downloadClients, trackers } from "@/lib/db/schema"
 import { recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import { stopScheduler } from "@/lib/scheduler"
-import { clearSchedulerKey } from "@/lib/scheduler-key-store"
 
 export async function POST(request: Request) {
   const auth = await authenticate()
@@ -68,13 +67,7 @@ export async function POST(request: Request) {
   const failedTrackers: string[] = []
   const failedClients: string[] = []
 
-  const allTrackers = await db
-    .select({
-      id: trackers.id,
-      name: trackers.name,
-      encryptedApiToken: trackers.encryptedApiToken,
-    })
-    .from(trackers)
+  const allTrackers = await db.select().from(trackers)
   for (const tracker of allTrackers) {
     try {
       trackerPlaintexts.set(tracker.id, decrypt(tracker.encryptedApiToken, oldKey))
@@ -83,14 +76,7 @@ export async function POST(request: Request) {
     }
   }
 
-  const allClients = await db
-    .select({
-      id: downloadClients.id,
-      name: downloadClients.name,
-      encryptedUsername: downloadClients.encryptedUsername,
-      encryptedPassword: downloadClients.encryptedPassword,
-    })
-    .from(downloadClients)
+  const allClients = await db.select().from(downloadClients)
   for (const client of allClients) {
     try {
       clientPlaintexts.set(client.id, {
@@ -193,7 +179,6 @@ export async function POST(request: Request) {
   }
 
   // Transaction committed — safe to end session
-  await clearSchedulerKey(settings.id)
   stopScheduler()
   await clearSession()
 

@@ -14,7 +14,26 @@ import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
 import { buildProxyAgentFromSettings } from "@/lib/proxy"
-import { scrubObject } from "@/lib/scrub-object"
+
+// Top-level keys to scrub from raw response objects (auth tokens, passkeys, IPs)
+const SCRUB_KEYS = new Set(["authkey", "passkey", "ip", "api_token", "key", "torrent_pass"])
+
+function scrubObject(obj: unknown, depth = 0): unknown {
+  if (depth > 10) return obj
+  if (obj === null || typeof obj !== "object") return obj
+  if (Array.isArray(obj)) {
+    return obj.map((item) => scrubObject(item, depth + 1))
+  }
+  const result: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+    if (SCRUB_KEYS.has(k.toLowerCase())) {
+      result[k] = "[redacted]"
+    } else {
+      result[k] = scrubObject(v, depth + 1)
+    }
+  }
+  return result
+}
 
 function serializeStats(stats: TrackerStats): Record<string, unknown> {
   return {

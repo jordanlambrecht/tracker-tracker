@@ -4,7 +4,6 @@
 //            clearSession, createPendingToken, verifyPendingToken,
 //            createSetupToken, verifySetupToken
 
-import { hkdfSync } from "node:crypto"
 import argon2 from "argon2"
 import { EncryptJWT, jwtDecrypt } from "jose"
 import { cookies } from "next/headers"
@@ -19,8 +18,8 @@ function getSessionKey(): Uint8Array {
   const secret = process.env.SESSION_SECRET
   if (!secret) throw new Error("SESSION_SECRET environment variable is not set")
   if (secret.length < 32) throw new Error("SESSION_SECRET must be at least 32 characters")
-  // HKDF-derived key with domain separation — distinct from scheduler wrapping key
-  return new Uint8Array(hkdfSync("sha256", secret, "", "tracker-tracker:session-v1", 32))
+  // Use first 32 bytes as AES-256 key
+  return new TextEncoder().encode(secret.slice(0, 32))
 }
 
 export async function hashPassword(password: string): Promise<string> {

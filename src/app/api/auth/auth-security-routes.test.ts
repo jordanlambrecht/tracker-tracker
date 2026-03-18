@@ -38,11 +38,6 @@ vi.mock("@/lib/scheduler", () => ({
   startScheduler: vi.fn(),
 }))
 
-vi.mock("@/lib/scheduler-key-store", () => ({
-  persistSchedulerKey: vi.fn().mockResolvedValue(undefined),
-  clearSchedulerKey: vi.fn().mockResolvedValue(undefined),
-}))
-
 vi.mock("@/lib/totp", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/totp")>()
   return {

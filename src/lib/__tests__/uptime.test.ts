@@ -88,19 +88,18 @@ describe("recordHeartbeat + flushCompletedBuckets", () => {
 
     const flushed = await flushCompletedBuckets()
     expect(flushed).toBe(1)
-    // Batch: one insert call with an array of rows
     expect(db.insert).toHaveBeenCalledTimes(1)
-    expect(insertChain.values).toHaveBeenCalledWith([
+    expect(insertChain.values).toHaveBeenCalledWith(
       expect.objectContaining({
         clientId: 1,
         ok: 2,
         fail: 1,
-      }),
-    ])
+      })
+    )
   })
 
   it("tracks multiple clients independently", async () => {
-    const insertChain = mockDbInsert()
+    mockDbInsert()
 
     recordHeartbeat(1, true)
     recordHeartbeat(2, false)
@@ -111,14 +110,7 @@ describe("recordHeartbeat + flushCompletedBuckets", () => {
 
     const flushed = await flushCompletedBuckets()
     expect(flushed).toBe(2)
-    // Batch: one insert call with 2 rows (not 2 separate insert calls)
-    expect(db.insert).toHaveBeenCalledTimes(1)
-    expect(insertChain.values).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({ clientId: 1, ok: 1, fail: 0 }),
-        expect.objectContaining({ clientId: 2, ok: 0, fail: 1 }),
-      ])
-    )
+    expect(db.insert).toHaveBeenCalledTimes(2)
   })
 
   it("returns 0 when flush queue is empty", async () => {

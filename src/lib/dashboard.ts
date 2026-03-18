@@ -1,6 +1,6 @@
 // src/lib/dashboard.ts
 //
-// Functions: computeAggregateStats, getAnniversaryMilestone, computeAlerts, detectRankChanges, fetchDismissedKeys, postDismissAlert, deleteAllDismissed, computeSystemAlerts
+// Functions: computeAggregateStats, getAnniversaryMilestone, computeAlerts, detectRankChanges, getDismissedAlerts, dismissAlert, clearDismissedAlerts
 
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { isRedacted } from "@/lib/privacy"
@@ -21,27 +21,24 @@ export interface AggregateStats {
 
 export type AlertType =
   | "error"
-  | "poll-paused"
   | "ratio-danger"
   | "stale-data"
   | "rank-change"
   | "zero-seeding"
   | "warned"
   | "anniversary"
-  | "update-available"
-  | "backup-failed"
-  | "client-error"
 
 export interface DashboardAlert {
   key: string
   type: AlertType
-  trackerId: number | null
+  trackerId: number
   trackerName: string
   trackerColor: string
   message: string
   timestamp?: string
-  dismissible: boolean
 }
+
+const DISMISSED_STORAGE_KEY = "dashboard-dismissed-alerts"
 
 // ---------------------------------------------------------------------------
 // computeAggregateStats
@@ -108,7 +105,7 @@ export function getAnniversaryMilestone(joinedAt: string): { label: string } | n
   m6.setMonth(m6.getMonth() + 6)
   candidates.push({ date: m6, label: "6 month anniversary" })
 
-  // Annual: 1yr, 2yr, ... up to 50yr lol but we'll all be dead by then so whatever, I guess.
+  // Annual: 1yr, 2yr, ... up to 50yr
   const yearsSinceJoin = today.getFullYear() - joined.getFullYear()
   for (let y = 1; y <= Math.max(yearsSinceJoin + 1, 1); y++) {
     const ann = new Date(joined)
@@ -136,19 +133,8 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
   const alerts: DashboardAlert[] = []
 
   for (const tracker of trackers) {
-    // --- Poll paused (suppresses error alert when paused) ---
-    if (tracker.pausedAt) {
-      alerts.push({
-        key: `poll-paused-${tracker.id}`,
-        type: "poll-paused",
-        trackerId: tracker.id,
-        trackerName: tracker.name,
-        trackerColor: tracker.color,
-        message: "Polling paused after repeated failures — check API key and resume",
-        timestamp: tracker.pausedAt ?? undefined,
-        dismissible: false,
-      })
-    } else if (tracker.lastError) {
+    // --- Error alert ---
+    if (tracker.lastError) {
       const snippet = tracker.lastError.slice(0, 20).replace(/\s+/g, "_")
       alerts.push({
         key: `error-${tracker.id}-${snippet}`,
@@ -158,7 +144,6 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
         trackerColor: tracker.color,
         message: `Last poll failed: ${tracker.lastError}`,
         timestamp: tracker.lastPolledAt ?? undefined,
-        dismissible: true,
       })
     }
 
@@ -179,13 +164,12 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
           trackerColor: tracker.color,
           message: `Ratio ${tracker.latestStats.ratio.toFixed(2)} is below the minimum of ${minimumRatio}`,
           timestamp: tracker.lastPolledAt ?? undefined,
-          dismissible: true,
         })
       }
     }
 
-    // --- Stale data (skip if paused — staleness is expected) ---
-    if (!tracker.pausedAt && tracker.lastPolledAt) {
+    // --- Stale data ---
+    if (tracker.lastPolledAt) {
       const lastPolled = new Date(tracker.lastPolledAt)
       const thresholdMs = 2 * 60 * 60 * 1000 // 2 hours — stale if no poll in this window
       const ageMs = Date.now() - lastPolled.getTime()
@@ -199,7 +183,6 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
           trackerColor: tracker.color,
           message: `Last polled ${hoursAgo}h ago`,
           timestamp: tracker.lastPolledAt,
-          dismissible: true,
         })
       }
     }
@@ -214,7 +197,6 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
         trackerColor: tracker.color,
         message: "Seeding 0 torrents — no active seeds",
         timestamp: tracker.lastPolledAt ?? undefined,
-        dismissible: true,
       })
     }
 
@@ -228,7 +210,6 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
         trackerColor: tracker.color,
         message: "You have an active warning on this tracker",
         timestamp: tracker.lastPolledAt ?? undefined,
-        dismissible: true,
       })
     }
 
@@ -243,7 +224,6 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
           trackerName: tracker.name,
           trackerColor: tracker.color,
           message: milestone.label,
-          dismissible: true,
         })
       }
     }
@@ -303,7 +283,6 @@ export function detectRankChanges(
         trackerColor: t.color,
         message: `Rank changed: ${previous.group} → ${current.group}`,
         timestamp: current.polledAt,
-        dismissible: true,
       })
       break // Only report the most recent change per tracker
     }
@@ -313,103 +292,34 @@ export function detectRankChanges(
 }
 
 // ---------------------------------------------------------------------------
-// Dismissal helpers
+// Dismissal helpers (localStorage, SSR-safe)
 // ---------------------------------------------------------------------------
 
-export async function fetchDismissedKeys(): Promise<Set<string>> {
+export function getDismissedAlerts(): Set<string> {
   try {
-    const res = await fetch("/api/alerts/dismissed", {
-      signal: AbortSignal.timeout(5000),
-    })
-    if (!res.ok) return new Set()
-    const data = (await res.json()) as { keys: string[] }
-    return new Set(data.keys)
+    const raw = localStorage.getItem(DISMISSED_STORAGE_KEY)
+    if (!raw) return new Set()
+    const parsed = JSON.parse(raw) as string[]
+    return new Set(parsed)
   } catch {
-    // security-audit-ignore: best-effort. dismissed keys default to empty on failure
     return new Set()
   }
 }
 
-export async function postDismissAlert(key: string, type: string): Promise<void> {
+export function dismissAlert(key: string): void {
   try {
-    await fetch("/api/alerts/dismissed", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key, type }),
-      signal: AbortSignal.timeout(5000),
-    })
+    const dismissed = getDismissedAlerts()
+    dismissed.add(key)
+    localStorage.setItem(DISMISSED_STORAGE_KEY, JSON.stringify([...dismissed]))
   } catch {
-    // security-audit-ignore: best-effort. alert will reappear on next load if POST failed
+    // security-audit-ignore: SSR or storage quota exceeded — localStorage is best-effort
   }
 }
 
-export async function deleteAllDismissed(): Promise<void> {
+export function clearDismissedAlerts(): void {
   try {
-    await fetch("/api/alerts/dismissed", {
-      method: "DELETE",
-      signal: AbortSignal.timeout(5000),
-    })
+    localStorage.removeItem(DISMISSED_STORAGE_KEY)
   } catch {
-    // security-audit-ignore: best-effort. dismissals will be re-fetched on next load
+    // security-audit-ignore: SSR or storage quota exceeded — localStorage is best-effort
   }
-}
-
-// ---------------------------------------------------------------------------
-// computeSystemAlerts
-// ---------------------------------------------------------------------------
-
-export interface SystemAlertData {
-  latestVersion?: string
-  currentVersion: string
-  failedBackups: { createdAt: string }[]
-  clients: { id: number; name: string; enabled: boolean; lastError: string | null }[]
-}
-
-export function computeSystemAlerts(data: SystemAlertData): DashboardAlert[] {
-  const alerts: DashboardAlert[] = []
-
-  // Update available
-  if (data.latestVersion && data.latestVersion !== data.currentVersion) {
-    alerts.push({
-      key: `update-available-${data.latestVersion}`,
-      type: "update-available",
-      trackerId: null,
-      trackerName: "System",
-      trackerColor: "var(--color-accent)",
-      message: `Version ${data.latestVersion} is available (current: ${data.currentVersion})`,
-      dismissible: true,
-    })
-  }
-
-  // Failed backups (most recent only)
-  if (data.failedBackups.length > 0) {
-    const latest = data.failedBackups[0]
-    alerts.push({
-      key: `backup-failed-${latest.createdAt}`,
-      type: "backup-failed",
-      trackerId: null,
-      trackerName: "Backups",
-      trackerColor: "var(--color-danger)",
-      message: `Scheduled backup failed at ${new Date(latest.createdAt).toLocaleString()}`,
-      timestamp: latest.createdAt,
-      dismissible: true,
-    })
-  }
-
-  // DL Client errors (non-dismissible)
-  for (const client of data.clients) {
-    if (client.enabled && client.lastError) {
-      alerts.push({
-        key: `client-error-${client.id}`,
-        type: "client-error",
-        trackerId: null,
-        trackerName: client.name,
-        trackerColor: "var(--color-danger)",
-        message: client.lastError,
-        dismissible: false,
-      })
-    }
-  }
-
-  return alerts
 }

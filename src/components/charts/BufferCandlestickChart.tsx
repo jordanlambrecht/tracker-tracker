@@ -11,7 +11,7 @@ import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./ChartECharts"
 import { ChartEmptyState } from "./ChartEmptyState"
-import { autoByteScale, buildAxisPointer, fmtNum, formatDateLabel } from "./chart-helpers"
+import { autoByteScale, fmtNum, formatDateLabel } from "./chart-helpers"
 import { LogScaleToggle } from "./LogScaleToggle"
 import {
   CHART_THEME,
@@ -169,7 +169,15 @@ function buildCandlestickOption(
     grid: chartGrid({ right: 16, left: 72 }),
     legend: chartLegend(),
     tooltip: chartTooltip("axis", {
-      axisPointer: buildAxisPointer(CHART_THEME.borderMid, 0.8, 1),
+      axisPointer: {
+        type: "line",
+        lineStyle: {
+          color: CHART_THEME.borderMid,
+          opacity: 0.8,
+          width: 1,
+          type: "dashed",
+        },
+      },
       formatter: (params: unknown) => {
         const items = params as Array<{
           seriesName: string
@@ -236,12 +244,13 @@ function buildCandlestickOption(
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: chartAxisLabel({
-        formatter: (val: number) => {
-          if (!useLog) return fmtNum(val, 1)
-          if (val >= 1000) return `${fmtNum(val / 1000, 1)}k`
-          if (val >= 1) return fmtNum(val, val < 10 ? 1 : 0)
-          return fmtNum(val, 2)
-        },
+        formatter: useLog
+          ? (val: number) => {
+              if (val >= 1000) return `${fmtNum(val / 1000, 1)}k`
+              if (val >= 1) return fmtNum(val, val < 10 ? 1 : 0)
+              return fmtNum(val, 2)
+            }
+          : (val: number) => fmtNum(val, 1),
       }),
       splitLine: {
         lineStyle: {

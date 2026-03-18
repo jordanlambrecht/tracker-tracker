@@ -9,7 +9,7 @@ import type { DashboardAlert } from "@/lib/dashboard"
 
 interface AlertsBannerProps {
   alerts: DashboardAlert[]
-  onDismiss: (key: string, type: string) => void
+  onDismiss: (key: string) => void
   onDismissAll?: () => void
 }
 
@@ -21,20 +21,14 @@ const typeConfig: Record<string, { borderColor: string; icon: string; label: str
   "zero-seeding": { borderColor: "var(--color-warn)", icon: "⏸", label: "Seeds" },
   warned: { borderColor: "var(--color-danger)", icon: "⚠", label: "Warning" },
   anniversary: { borderColor: "var(--color-accent)", icon: "🎂", label: "Anniversary" },
-  "update-available": { borderColor: "var(--color-accent)", icon: "⬆", label: "Update" },
-  "backup-failed": { borderColor: "var(--color-warn)", icon: "⚠", label: "Backup" },
-  "client-error": { borderColor: "var(--color-danger)", icon: "⏹", label: "Client" },
-  "poll-paused": { borderColor: "var(--color-danger)", icon: "⏸", label: "Paused" },
 }
 
 function AlertsBanner({ alerts, onDismiss, onDismissAll }: AlertsBannerProps) {
   if (alerts.length === 0) return null
 
-  const dismissibleAlerts = alerts.filter((a) => a.dismissible !== false)
-
   return (
     <div className="flex flex-col gap-2">
-      {onDismissAll && dismissibleAlerts.length > 1 && (
+      {onDismissAll && alerts.length > 1 && (
         <div className="flex justify-end">
           <button
             type="button"
@@ -57,18 +51,12 @@ function AlertsBanner({ alerts, onDismiss, onDismissAll }: AlertsBannerProps) {
               {config.icon}
             </span>
             <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-3">
-              {alert.trackerId !== null ? (
-                <Link
-                  href={`/trackers/${alert.trackerId}`}
-                  className="font-mono text-xs font-semibold text-secondary uppercase tracking-wider shrink-0 hover:text-primary transition-colors duration-150"
-                >
-                  {alert.trackerName}
-                </Link>
-              ) : (
-                <span className="font-mono text-xs font-semibold text-secondary uppercase tracking-wider shrink-0">
-                  {alert.trackerName}
-                </span>
-              )}
+              <Link
+                href={`/trackers/${alert.trackerId}`}
+                className="font-mono text-xs font-semibold text-secondary uppercase tracking-wider shrink-0 hover:text-primary transition-colors duration-150"
+              >
+                {alert.trackerName}
+              </Link>
               <span className="font-mono text-xs text-tertiary truncate">{alert.message}</span>
             </div>
             {alert.timestamp && (
@@ -76,16 +64,14 @@ function AlertsBanner({ alerts, onDismiss, onDismissAll }: AlertsBannerProps) {
                 {new Date(alert.timestamp).toLocaleString()}
               </span>
             )}
-            {alert.dismissible !== false && (
-              <button
-                type="button"
-                onClick={() => onDismiss(alert.key, alert.type)}
-                className="text-muted hover:text-secondary transition-colors duration-150 cursor-pointer shrink-0 px-1 mt-0.5 sm:mt-0"
-                aria-label={`Dismiss ${config.label} alert for ${alert.trackerName}`}
-              >
-                ×
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => onDismiss(alert.key)}
+              className="text-muted hover:text-secondary transition-colors duration-150 cursor-pointer shrink-0 px-1 mt-0.5 sm:mt-0"
+              aria-label={`Dismiss ${config.label} alert for ${alert.trackerName}`}
+            >
+              ×
+            </button>
           </div>
         )
       })}

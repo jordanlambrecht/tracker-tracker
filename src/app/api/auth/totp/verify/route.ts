@@ -10,22 +10,18 @@ import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { parseJsonBody } from "@/lib/api-helpers"
 import { createSession, verifyPendingToken } from "@/lib/auth"
-import { extractClientIp } from "@/lib/client-ip"
 import { decrypt, encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
 import { checkLockout, recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import { log } from "@/lib/logger"
 import { startScheduler } from "@/lib/scheduler"
-import { persistSchedulerKey } from "@/lib/scheduler-key-store"
 import type { BackupCodeEntry } from "@/lib/totp"
 import { BACKUP_CODE_PATTERN, verifyAndConsumeBackupCode, verifyTotpCode } from "@/lib/totp"
 
 export async function POST(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
-
-  const clientIp = extractClientIp(request.headers)
 
   const { pendingToken, code, isBackupCode } = body as {
     pendingToken?: string
@@ -80,10 +76,7 @@ export async function POST(request: Request) {
 
     if (!valid) {
       await recordFailedAttempt(settings.id, settings)
-      log.warn(
-        { event: "totp_failed", method: "backup_code", ip: clientIp },
-        "Failed backup code attempt"
-      )
+      log.warn({ event: "totp_failed", method: "backup_code" }, "Failed backup code attempt")
       return NextResponse.json({ error: "Invalid backup code" }, { status: 401 })
     }
 
@@ -97,7 +90,7 @@ export async function POST(request: Request) {
     const totpSecret = decrypt(settings.totpSecret, key)
     if (!verifyTotpCode(totpSecret, code)) {
       await recordFailedAttempt(settings.id, settings)
-      log.warn({ event: "totp_failed", method: "totp", ip: clientIp }, "Failed TOTP code attempt")
+      log.warn({ event: "totp_failed", method: "totp" }, "Failed TOTP code attempt")
       return NextResponse.json({ error: "Invalid TOTP code" }, { status: 401 })
     }
   }
@@ -106,10 +99,9 @@ export async function POST(request: Request) {
   await resetFailedAttempts(settings.id)
 
   await createSession(pending.encryptionKey, settings.sessionTimeoutMinutes)
-  await persistSchedulerKey(key, settings.id)
   startScheduler(key)
   log.info(
-    { event: "login_success", method: isBackupCode ? "backup_code" : "totp", ip: clientIp },
+    { event: "login_success", method: isBackupCode ? "backup_code" : "totp" },
     "Login successful (2FA verified)"
   )
 

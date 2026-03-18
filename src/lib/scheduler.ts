@@ -1,13 +1,12 @@
 // src/lib/scheduler.ts
 //
-// Functions: pollTracker, pollAllTrackers, pruneOldSnapshots, startScheduler, stopScheduler, ensureSchedulerRunning, POLL_FAILURE_THRESHOLD
+// Functions: pollTracker, pollAllTrackers, pruneOldSnapshots, startScheduler, stopScheduler, ensureSchedulerRunning
 import type { Agent as HttpAgent } from "node:http"
 
-import { eq, lt, sql } from "drizzle-orm"
+import { eq, lt } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { getAdapter } from "@/lib/adapters"
-import { pruneDismissedAlerts } from "@/lib/alert-pruning"
 import { startBackupScheduler, stopBackupScheduler } from "@/lib/backup-scheduler"
 import {
   ensureClientSchedulerRunning,
@@ -50,9 +49,6 @@ function getPollInFlight(): boolean {
 function setPollInFlight(v: boolean) {
   g.__pollInFlight = v
 }
-
-/** After this many consecutive poll failures, auto-pause the tracker. */
-export const POLL_FAILURE_THRESHOLD = 4
 
 export async function pollTracker(
   trackerId: number,
@@ -142,43 +138,16 @@ export async function pollTracker(
 
     await db
       .update(trackers)
-      .set({
-        lastPolledAt: timestamp,
-        lastError: null,
-        consecutiveFailures: 0,
-        pausedAt: null,
-        updatedAt: timestamp,
-      })
+      .set({ lastPolledAt: timestamp, lastError: null, updatedAt: timestamp })
       .where(eq(trackers.id, tracker.id))
   } catch (error) {
     const raw = error instanceof Error ? error.message : "Unknown error"
     const message = sanitizeNetworkError(raw, "Poll failed")
+    await db
+      .update(trackers)
+      .set({ lastError: message, updatedAt: new Date() })
+      .where(eq(trackers.id, trackerId))
     log.error(`Poll failed for tracker ${trackerId}: ${raw}`)
-
-    try {
-      const now = new Date()
-      const [updated] = await db
-        .update(trackers)
-        .set({
-          lastError: message,
-          consecutiveFailures: sql`${trackers.consecutiveFailures} + 1`,
-          pausedAt: sql`CASE WHEN ${trackers.consecutiveFailures} + 1 >= ${POLL_FAILURE_THRESHOLD} THEN ${now}::timestamp ELSE ${trackers.pausedAt} END`,
-          updatedAt: now,
-        })
-        .where(eq(trackers.id, trackerId))
-        .returning({
-          consecutiveFailures: trackers.consecutiveFailures,
-          pausedAt: trackers.pausedAt,
-        })
-
-      if (updated?.pausedAt) {
-        log.warn(
-          `Tracker ${trackerId} auto-paused after ${updated.consecutiveFailures} consecutive failures`
-        )
-      }
-    } catch (dbError) {
-      log.error(dbError, `Failed to record poll failure for tracker ${trackerId}`)
-    }
   }
 }
 
@@ -215,7 +184,6 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
   const now = Date.now()
 
   const overdue = allTrackers.filter((tracker) => {
-    if (tracker.pausedAt) return false
     const lastPoll = tracker.lastPolledAt?.getTime() ?? 0
     return now - lastPoll >= globalIntervalMs
   })
@@ -248,13 +216,6 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
     } catch (error) {
       log.error(error, "Snapshot pruning failed")
     }
-  }
-
-  // Prune expired dismissed alerts (stale-data and zero-seeding types expire after 24h)
-  try {
-    await pruneDismissedAlerts()
-  } catch (error) {
-    log.error(error, "Dismissed alerts pruning failed")
   }
 }
 
