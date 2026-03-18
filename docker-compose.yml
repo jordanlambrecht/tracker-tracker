@@ -23,16 +23,22 @@ services:
         condition: service_healthy
 
   tracker-tracker-db:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     restart: unless-stopped
     container_name: tracker-tracker-db
     environment:
       POSTGRES_DB: tracker_tracker
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data
       # POSTGRES_PORT: ${POSTGRES_PORT} uncomment if you want to customize
     volumes:
+      # Fresh installs: PG18 defaults PGDATA to /var/lib/postgresql/18/docker.
+      # We override via PGDATA above to keep compatibility with existing volumes.
+      # If starting from scratch, you could use pgdata:/var/lib/postgresql instead.
       - pgdata:/var/lib/postgresql/data
+      - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 5s
