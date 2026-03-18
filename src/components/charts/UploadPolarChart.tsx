@@ -81,20 +81,32 @@ function buildPolarOption(buckets: HourDayBucket[], accentColor: string): EChart
     if (b.avgBytes > maxVal) maxVal = b.avgBytes
   }
 
+  // Flatten the 7×24 grid into [hourIdx, dayIdx, value] triples for the heatmap
+  const heatmapData: [number, number, number][] = []
+  for (let day = 0; day < 7; day++) {
+    for (let hour = 0; hour < 24; hour++) {
+      heatmapData.push([hour, day, grid[day][hour]])
+    }
+  }
+
   const axisLabelStyle = {
     color: CHART_THEME.textTertiary,
     fontFamily: CHART_THEME.fontMono,
     fontSize: 10,
   }
 
+  const ANGLE_STEP = 360 / 24
+  const INNER_RADIUS_PCT = 15
+  const OUTER_RADIUS_PCT = 88
+  const RING_STEP = (OUTER_RADIUS_PCT - INNER_RADIUS_PCT) / 7
+  const GAP = 0.6 // degrees gap between wedges
+
   return {
     backgroundColor: "transparent",
     tooltip: chartTooltip("item", {
       formatter: (params: unknown) => {
-        const p = params as { seriesIndex: number; dataIndex: number; data: number; value: number }
-        const dayIdx = p.seriesIndex
-        const hourIdx = p.dataIndex
-        const val = p.value ?? p.data
+        const p = params as { data: [number, number, number] }
+        const [hourIdx, dayIdx, val] = p.data
         if (!val || val <= 0) return ""
         const dayName = escHtml(DAY_LABELS[dayIdx] ?? "")
         const hourLabel = escHtml(HOUR_LABELS[hourIdx] ?? "")
@@ -107,13 +119,13 @@ function buildPolarOption(buckets: HourDayBucket[], accentColor: string): EChart
       },
     }),
     polar: {
-      radius: ["15%", "90%"],
+      radius: [`${INNER_RADIUS_PCT}%`, `${OUTER_RADIUS_PCT}%`],
     },
     angleAxis: {
       type: "category",
       data: HOUR_LABELS,
       boundaryGap: true,
-      startAngle: 97.5,
+      startAngle: 90 + ANGLE_STEP / 2,
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: axisLabelStyle,
@@ -125,7 +137,10 @@ function buildPolarOption(buckets: HourDayBucket[], accentColor: string): EChart
       z: 10,
       axisLine: { show: false },
       axisTick: { show: false },
-      axisLabel: axisLabelStyle,
+      axisLabel: {
+        ...axisLabelStyle,
+        fontSize: 9,
+      },
       splitLine: { show: false },
     },
     visualMap: {
@@ -134,7 +149,7 @@ function buildPolarOption(buckets: HourDayBucket[], accentColor: string): EChart
       max: maxVal || 1,
       inRange: {
         color: [
-          hexToRgba(accentColor, 0.05),
+          hexToRgba(accentColor, 0.06),
           hexToRgba(accentColor, 0.2),
           hexToRgba(accentColor, 0.45),
           hexToRgba(accentColor, 0.7),
@@ -142,28 +157,59 @@ function buildPolarOption(buckets: HourDayBucket[], accentColor: string): EChart
         ],
       },
     },
-    series: DAY_LABELS.map((_, dayIdx) => ({
-      type: "bar" as const,
-      coordinateSystem: "polar" as const,
-      name: DAY_LABELS[dayIdx],
-      data: HOUR_LABELS.map((__, hourIdx) => grid[dayIdx][hourIdx]),
-      stack: "days",
-      itemStyle: {
-        color: (params: unknown) => {
-          const val = (params as { data: number }).data as number
-          const ratio = maxVal > 0 ? val / maxVal : 0
-          return hexToRgba(accentColor, Math.max(0.05, ratio * 0.9 + 0.05))
+    series: [
+      {
+        type: "custom",
+        coordinateSystem: "polar",
+        data: heatmapData,
+        renderItem: (_params: unknown, api: unknown) => {
+          const a = api as {
+            value: (idx: number) => number
+            coord: (val: [number, number]) => [number, number]
+            size: (val: [number, number]) => [number, number]
+            getWidth: () => number
+            getHeight: () => number
+            visual: (key: string) => string
+          }
+          const hourIdx = a.value(0)
+          const dayIdx = a.value(1)
+
+          // Polar center in pixels
+          const cx = a.getWidth() / 2
+          const cy = a.getHeight() / 2
+          const outerPx = (Math.min(cx, cy) * OUTER_RADIUS_PCT) / 100
+
+          // Angular range for this hour wedge (clockwise from top)
+          const startAngle = 90 - hourIdx * ANGLE_STEP + ANGLE_STEP / 2 - GAP / 2
+          const endAngle = startAngle - ANGLE_STEP + GAP
+
+          // Radial range for this day ring (innermost = Sun)
+          const r0 = ((INNER_RADIUS_PCT + dayIdx * RING_STEP) / OUTER_RADIUS_PCT) * outerPx + 1
+          const r1 = ((INNER_RADIUS_PCT + (dayIdx + 1) * RING_STEP) / OUTER_RADIUS_PCT) * outerPx - 1
+
+          return {
+            type: "sector",
+            shape: {
+              cx,
+              cy,
+              r0,
+              r: r1,
+              startAngle: (startAngle * Math.PI) / 180,
+              endAngle: (endAngle * Math.PI) / 180,
+            },
+            style: {
+              fill: a.visual("color"),
+            },
+            emphasis: {
+              style: {
+                stroke: accentColor,
+                lineWidth: 2,
+              },
+            },
+          }
         },
-        borderColor: CHART_THEME.surface,
-        borderWidth: 1,
       },
-      emphasis: {
-        itemStyle: {
-          borderColor: accentColor,
-          borderWidth: 2,
-        },
-      },
-    })),
+    ],
   }
 }
 

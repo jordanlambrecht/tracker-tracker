@@ -21,8 +21,7 @@
 # production
 /build
 
-./data/
-./data/*
+/data/
 # misc
 .DS_Store
 *.pem
@@ -46,6 +45,7 @@ docs/superpowers/*
 docs/superpowers/specs/
 .claude/
 .history/
+.vscode/
 .serena/
 .playwright-mcp/
 .interface-design/
