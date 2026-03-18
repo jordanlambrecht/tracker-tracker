@@ -1,5 +1,48 @@
 # Changelog
 
+## [2.0.2](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.11.3...v2.0.2) (2026-03-18)
+
+
+### Features
+
+- add boot-time scheduler recovery ([b1b1499](https://github.com/jordanlambrecht/tracker-tracker/commit/b1b1499d4cce5cfd3a621c9023ffd1f47c04322f))
+- add client IP logging for auth routes ([9442b62](https://github.com/jordanlambrecht/tracker-tracker/commit/9442b62d50a43f584f6d733ec7a0731d2bbf44ff))
+- add HKDF wrapping key and scheduler key store ([6e579c1](https://github.com/jordanlambrecht/tracker-tracker/commit/6e579c136efab3811e3a074f4a463b46588f9be7))
+- add optional BASE_URL env var with startup validation ([df1ff90](https://github.com/jordanlambrecht/tracker-tracker/commit/df1ff90e12e53d93ec13790ca5ae20f71524ba2a))
+- add per-tracker poll failure circuit breaker ([f57ab8b](https://github.com/jordanlambrecht/tracker-tracker/commit/f57ab8bed174aa73f6a054c44178febba61e0068))
+- add poll-paused alert type and paused health status ([a159abc](https://github.com/jordanlambrecht/tracker-tracker/commit/a159abc22cbee2df290861977ad373571d25a1f9))
+- add resume endpoint and serialize circuit breaker state ([205a805](https://github.com/jordanlambrecht/tracker-tracker/commit/205a805983107b06b1fe4757be609e098f5892a3))
+- add resume UI for paused trackers ([5ca9d8a](https://github.com/jordanlambrecht/tracker-tracker/commit/5ca9d8a625a7b70f07152e59c34cab07f09f27d0))
+- add webhooks coming-soon placeholder to settings ([5cddf82](https://github.com/jordanlambrecht/tracker-tracker/commit/5cddf826edc04cc88b199229283bcd5ad9c37751))
+- clear scheduler key on lockdown, nuke, password change, and restore ([493686e](https://github.com/jordanlambrecht/tracker-tracker/commit/493686ebf1054d146fb96e101e80204213c9d67b))
+- migrate alert dismissals to database, add system alerts ([8e85869](https://github.com/jordanlambrecht/tracker-tracker/commit/8e85869786909ebcf52c80ed3cd9f686f201e5cd))
+- persist scheduler key on login, keep running through logout ([eca1cad](https://github.com/jordanlambrecht/tracker-tracker/commit/eca1cad3ff7d7ef86cae43876e99b5cb1f75d9d9))
+- postgresql 18 infrastructure with migration script ([4178cad](https://github.com/jordanlambrecht/tracker-tracker/commit/4178cad4d78dc210323850e5623ebc7b16505cb0))
+
+
+### Bug Fixes
+
+- add icons metadata for favicon ([d048355](https://github.com/jordanlambrecht/tracker-tracker/commit/d04835500a5d8071215a3613d678c1aaba51c7cd))
+- biome filter for noImportantStyles ([ae2fd08](https://github.com/jordanlambrecht/tracker-tracker/commit/ae2fd08b542a2c87cd080ce59dffe8e47ffcaace))
+- hopefully fixed un/pw field flashing on login screen ([2482473](https://github.com/jordanlambrecht/tracker-tracker/commit/2482473b950519f9bffe6cb459ec82f3bb2a9a73))
+
+
+### Performance
+
+- add database indexes, column type improvements, and connection pool tuning ([c949145](https://github.com/jordanlambrecht/tracker-tracker/commit/c949145f502fe6e549bc060e15af3f2f33eb59ca))
+- distinct on query, column projections, batch inserts, jsonb/array cleanup ([f5cc7ca](https://github.com/jordanlambrecht/tracker-tracker/commit/f5cc7ca22d4c72740f627f321c0258abbd4fa96c))
+
+
+### Refactoring
+
+- centralize localStorage keys into storage-keys.ts ([501288e](https://github.com/jordanlambrecht/tracker-tracker/commit/501288e6bd5a5c1e3d0d9f0d2bffc32fd16ffdcb))
+- consolidated the tag groups and download clients tabs in app settings ([41e1958](https://github.com/jordanlambrecht/tracker-tracker/commit/41e19583077fefe49a928c67824d64e646180a9f))
+- extract scrubObject to shared utility for tests ([dd821d3](https://github.com/jordanlambrecht/tracker-tracker/commit/dd821d3681810b79c2bd923c82e319ef220e10ae))
+- implement HKDF for session key derivation ([f38bccd](https://github.com/jordanlambrecht/tracker-tracker/commit/f38bccdb5043c643dc5d773a0b45396852369235))
+- standardize chart helpers, imports, and axis labels ([b55f0df](https://github.com/jordanlambrecht/tracker-tracker/commit/b55f0dfdcb27d5af1a203b11e8e5e162fcb8e079))
+- use HKDF for session key derivation ([d4a9001](https://github.com/jordanlambrecht/tracker-tracker/commit/d4a9001bd794e7c9a15f5e0fe085eddfd4ce84df))
+- use optional chaining ([c260fe6](https://github.com/jordanlambrecht/tracker-tracker/commit/c260fe64b5cab12e29154cf397789cfcfd2cec88))
+
 ## [2.0.1](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.11.3...v2.0.1) (2026-03-18)
 
 
