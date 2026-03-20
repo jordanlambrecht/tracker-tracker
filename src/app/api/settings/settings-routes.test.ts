@@ -25,6 +25,33 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/db/schema", () => ({
   appSettings: {},
+  trackers: {
+    id: "id",
+    name: "name",
+    baseUrl: "baseUrl",
+    apiPath: "apiPath",
+    platformType: "platformType",
+    isActive: "isActive",
+    lastPolledAt: "lastPolledAt",
+    lastError: "lastError",
+    consecutiveFailures: "consecutiveFailures",
+    pausedAt: "pausedAt",
+    color: "color",
+    qbtTag: "qbtTag",
+    remoteUserId: "remoteUserId",
+    platformMeta: "platformMeta",
+    avatarData: "avatarData",
+    avatarCachedAt: "avatarCachedAt",
+    avatarRemoteUrl: "avatarRemoteUrl",
+    useProxy: "useProxy",
+    countCrossSeedUnsatisfied: "countCrossSeedUnsatisfied",
+    isFavorite: "isFavorite",
+    sortOrder: "sortOrder",
+    joinedAt: "joinedAt",
+    lastAccessAt: "lastAccessAt",
+    createdAt: "createdAt",
+    updatedAt: "updatedAt",
+  },
   trackerSnapshots: {},
 }))
 
