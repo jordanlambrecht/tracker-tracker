@@ -10,6 +10,8 @@ import {
   clientUptimeBuckets,
   dismissedAlerts,
   downloadClients,
+  notificationDeliveryState,
+  notificationTargets,
   tagGroupMembers,
   tagGroups,
   trackerRoles,
@@ -63,6 +65,12 @@ export async function scrubAndDeleteAll(): Promise<void> {
       lastError: null,
     })
 
+    await tx.update(notificationTargets).set({
+      encryptedConfig: randomHex(64),
+      name: randomHex(8),
+      lastDeliveryError: null,
+    })
+
     await tx.delete(dismissedAlerts)
     await tx.delete(clientUptimeBuckets)
     await tx.delete(clientSnapshots)
@@ -70,6 +78,8 @@ export async function scrubAndDeleteAll(): Promise<void> {
     await tx.delete(trackerRoles)
     await tx.delete(tagGroupMembers)
     await tx.delete(tagGroups)
+    await tx.delete(notificationDeliveryState)
+    await tx.delete(notificationTargets)
     await tx.delete(downloadClients)
     await tx.delete(trackers)
     await tx.delete(appSettings)
