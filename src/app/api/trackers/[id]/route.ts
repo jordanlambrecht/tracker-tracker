@@ -2,7 +2,7 @@
 //
 // Functions: GET, PATCH, DELETE
 
-import { desc, eq } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import {
   authenticate,
@@ -14,45 +14,28 @@ import {
 } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { appSettings, trackerSnapshots, trackers } from "@/lib/db/schema"
-import { createPrivacyMaskSync } from "@/lib/privacy-db"
-import { serializeTrackerResponse } from "@/lib/tracker-serializer"
+import { trackers } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
+import { getTrackerForClient } from "@/lib/server-data"
 
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const trackerId = await parseTrackerId(params)
+  const trackerId = await parseTrackerId(props.params)
   if (trackerId instanceof NextResponse) return trackerId
 
-  const [[tracker], [latest], [privacySettings]] = await Promise.all([
-    db.select().from(trackers).where(eq(trackers.id, trackerId)).limit(1),
-    db
-      .select()
-      .from(trackerSnapshots)
-      .where(eq(trackerSnapshots.trackerId, trackerId))
-      .orderBy(desc(trackerSnapshots.polledAt))
-      .limit(1),
-    db.select({ storeUsernames: appSettings.storeUsernames }).from(appSettings).limit(1),
-  ])
+  const tracker = await getTrackerForClient(trackerId)
+  if (!tracker) return NextResponse.json({ error: "Tracker not found" }, { status: 404 })
 
-  if (!tracker) {
-    return NextResponse.json({ error: "Tracker not found" }, { status: 404 })
-  }
-
-  // Fallback true = "store usernames" = no masking. Matches createPrivacyMask()
-  // behavior when no settings row exists. Do NOT change to false.
-  const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
-
-  // security-audit-ignore: serializeTrackerResponse omits encryptedApiToken by design
-  return NextResponse.json(serializeTrackerResponse(tracker, latest ?? null, mask))
+  return NextResponse.json(tracker)
 }
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const trackerId = await parseTrackerId(params)
+  const trackerId = await parseTrackerId(props.params)
   if (trackerId instanceof NextResponse) return trackerId
 
   const body = await parseJsonBody(request)
@@ -126,14 +109,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   return NextResponse.json({ success: true })
 }
 
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_request: Request, props: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const trackerId = await parseTrackerId(params)
+  const trackerId = await parseTrackerId(props.params)
   if (trackerId instanceof NextResponse) return trackerId
 
   await db.delete(trackers).where(eq(trackers.id, trackerId))
 
+  log.info({ route: "DELETE /api/trackers/[id]", trackerId }, "tracker deleted")
   return NextResponse.json({ success: true })
 }
