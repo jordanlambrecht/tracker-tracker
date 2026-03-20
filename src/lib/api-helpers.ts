@@ -1,7 +1,7 @@
 // src/lib/api-helpers.ts
 //
 // Functions: authenticate, parseRouteId, parseTrackerId, parseJsonBody,
-//            validateHttpUrl, validateHexColor, validatePort, decodeKey
+//            validateHttpUrl, validateHexColor, validatePort, validateJoinedAt, decodeKey
 
 import { NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
@@ -75,6 +75,16 @@ export function validatePort(port: number): NextResponse | null {
       { error: "Port must be an integer between 1 and 65535" },
       { status: 400 }
     )
+  }
+  return null
+}
+
+export function validateJoinedAt(value: string): NextResponse | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return NextResponse.json({ error: "joinedAt must be YYYY-MM-DD" }, { status: 400 })
+  }
+  if (value > new Date().toISOString().split("T")[0]) {
+    return NextResponse.json({ error: "Join date cannot be in the future" }, { status: 400 })
   }
   return null
 }

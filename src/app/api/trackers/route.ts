@@ -11,6 +11,7 @@ import {
   parseJsonBody,
   validateHexColor,
   validateHttpUrl,
+  validateJoinedAt,
 } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
@@ -92,12 +93,8 @@ export async function POST(request: Request) {
   }
 
   if (typeof joinedAt === "string" && joinedAt) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(joinedAt)) {
-      return NextResponse.json({ error: "joinedAt must be YYYY-MM-DD" }, { status: 400 })
-    }
-    if (joinedAt > new Date().toISOString().split("T")[0]) {
-      return NextResponse.json({ error: "Join date cannot be in the future" }, { status: 400 })
-    }
+    const joinedAtErr = validateJoinedAt(joinedAt)
+    if (joinedAtErr) return joinedAtErr
   }
 
   const platform = typeof platformType === "string" ? platformType : "unit3d"

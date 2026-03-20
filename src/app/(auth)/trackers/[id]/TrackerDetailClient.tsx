@@ -6,7 +6,7 @@
 
 import clsx from "clsx"
 import { useRouter, useSearchParams } from "next/navigation"
-import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { type CSSProperties, useCallback, useEffect, useMemo, useState } from "react"
 import { CHART_THEME } from "@/components/charts/theme"
 import type { DayRange } from "@/components/dashboard/DayRangeSidebar"
 import { RankProgress } from "@/components/dashboard/RankProgress"
@@ -38,7 +38,6 @@ const VALID_TABS: Tab[] = ["analytics", "info", "torrents"]
 interface TrackerDetailClientProps {
   trackerId: number
   initialTracker: TrackerSummary
-  initialSnapshots: Snapshot[]
   initialAllTimeSnapshots: Snapshot[]
   initialTagGroups: TagGroup[]
   initialQbitmanageConfig: { enabled: boolean; tags: QbitmanageTagConfig } | null
@@ -47,7 +46,6 @@ interface TrackerDetailClientProps {
 export function TrackerDetailClient({
   trackerId,
   initialTracker,
-  initialSnapshots,
   initialAllTimeSnapshots,
   initialTagGroups,
   initialQbitmanageConfig,
@@ -61,8 +59,7 @@ export function TrackerDetailClient({
     : "analytics"
 
   const [tracker, setTracker] = useState<TrackerSummary>(initialTracker)
-  const [snapshots, setSnapshots] = useState<Snapshot[]>(initialSnapshots)
-  const allTimeSnapshots = initialAllTimeSnapshots
+  const [allTimeSnapshots, setAllTimeSnapshots] = useState<Snapshot[]>(initialAllTimeSnapshots)
   const tagGroups = initialTagGroups
   const qbitmanageConfig = initialQbitmanageConfig
   const [days, setDays] = useState<DayRange>(30)
@@ -75,22 +72,11 @@ export function TrackerDetailClient({
   const [debugLoading, setDebugLoading] = useState(false)
   const [debugError, setDebugError] = useState<string | null>(null)
 
-  // Skip the first fetch on mount — initialSnapshots already has 30-day data
-  // from the server. Only re-fetch when id or days actually changes.
-  const initialFetchSkipped = useRef(false)
-
-  useEffect(() => {
-    if (!initialFetchSkipped.current) {
-      initialFetchSkipped.current = true
-      return
-    }
-    const controller = new AbortController()
-    fetch(`/api/trackers/${id}/snapshots?days=${days}`, { signal: controller.signal })
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data: Snapshot[]) => setSnapshots(data))
-      .catch(() => {})
-    return () => controller.abort()
-  }, [id, days])
+  const snapshots = useMemo(() => {
+    if (days === 0) return allTimeSnapshots
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+    return allTimeSnapshots.filter((s) => s.polledAt >= since)
+  }, [allTimeSnapshots, days])
 
   // Tint the page scrollbar to the tracker's color
   const scrollbarColor = tracker?.color || CHART_THEME.accent
@@ -132,12 +118,12 @@ export function TrackerDetailClient({
         const body = await res.json().catch(() => ({ error: "Poll failed" }))
         setPollError((body as { error?: string }).error ?? "Poll failed")
       } else {
-        const [trackerRes, snapshotsRes] = await Promise.all([
+        const [trackerRes, allTimeRes] = await Promise.all([
           fetch(`/api/trackers/${id}`),
-          fetch(`/api/trackers/${id}/snapshots?days=${days}`),
+          fetch(`/api/trackers/${id}/snapshots?days=0`),
         ])
         if (trackerRes.ok) setTracker(await trackerRes.json())
-        if (snapshotsRes.ok) setSnapshots(await snapshotsRes.json())
+        if (allTimeRes.ok) setAllTimeSnapshots(await allTimeRes.json())
       }
     } catch {
       setPollError("Network error during poll")

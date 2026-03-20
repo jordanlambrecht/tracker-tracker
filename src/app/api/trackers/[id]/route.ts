@@ -11,6 +11,7 @@ import {
   parseTrackerId,
   validateHexColor,
   validateHttpUrl,
+  validateJoinedAt,
 } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
@@ -82,10 +83,9 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
   if (body.joinedAt !== undefined) {
     if (body.joinedAt === null) {
       updates.joinedAt = null
-    } else if (typeof body.joinedAt === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.joinedAt)) {
-      if (body.joinedAt > new Date().toISOString().split("T")[0]) {
-        return NextResponse.json({ error: "Join date cannot be in the future" }, { status: 400 })
-      }
+    } else if (typeof body.joinedAt === "string") {
+      const joinedAtErr = validateJoinedAt(body.joinedAt)
+      if (joinedAtErr) return joinedAtErr
       updates.joinedAt = body.joinedAt
     } else {
       return NextResponse.json({ error: "joinedAt must be YYYY-MM-DD or null" }, { status: 400 })
