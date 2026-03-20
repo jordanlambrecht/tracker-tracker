@@ -5,7 +5,7 @@
 // getTagGroupsWithMembers
 // Constants: settingsColumns, trackerColumns
 //
-// Server-side data fetchers — single source of truth for safe DB queries
+// Server-side data fetchers: single source of truth for safe DB queries
 // that return client-safe shapes. Used by both API route handlers and
 // Server Component pages.
 //
@@ -127,7 +127,7 @@ export async function getSettingsForClient() {
  * Explicit column projection for trackers. Excludes encryptedApiToken at the
  * query level so the ciphertext never enters server process memory. Also
  * excludes avatarData (potentially large base64) since the serializer
- * doesn't include it — avatars are served via a dedicated API route.
+ * doesn't include it. Avatars are served via a dedicated API route.
  */
 export const trackerColumns = {
   id: trackers.id,
@@ -175,7 +175,7 @@ export async function getTrackerListForDashboard(): Promise<TrackerSummary[]> {
 
   // Batch-fetch the latest snapshot per tracker using DISTINCT ON.
   // PG18's enable_distinct_reordering planner flag optimises exactly this pattern.
-  // Drizzle has no native DISTINCT ON support, so we use db.execute with a raw sql tag.
+  // Drizzle has no native DISTINCT ON support, so we use db.execute with a raw sql tag. I know, I know.
   // security-audit-ignore: static SQL string with zero user input -- no injection risk
   const latestSnapshots = (await db.execute(sql`
     SELECT DISTINCT ON (tracker_id)
@@ -236,6 +236,7 @@ export async function getTrackerForClient(id: number): Promise<TrackerSummary | 
 
   // Fallback true = "store usernames" = no masking. Matches createPrivacyMask()
   // behavior when no settings row exists. Do NOT change to false.
+  // Why? Because I said so.
   const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
 
   // security-audit-ignore: serializeTrackerResponse omits encryptedApiToken by design
@@ -249,12 +250,8 @@ export async function getTrackerForClient(id: number): Promise<TrackerSummary | 
 /**
  * Fetches snapshots for a tracker, filtered by day range.
  * Pass days=0 for all snapshots. Applies privacy masking.
- * Serializes bigints to strings for JSON compatibility.
  */
-export async function getSnapshotsForTracker(
-  trackerId: number,
-  days: number
-): Promise<Snapshot[]> {
+export async function getSnapshotsForTracker(trackerId: number, days: number): Promise<Snapshot[]> {
   const safeDays = days === 0 ? 0 : Math.min(Math.max(days, 1), 3650)
 
   const conditions = [eq(trackerSnapshots.trackerId, trackerId)]
@@ -272,7 +269,7 @@ export async function getSnapshotsForTracker(
     db.select({ storeUsernames: appSettings.storeUsernames }).from(appSettings).limit(1),
   ])
 
-  // Enforce masking at response time -- even if DB has plaintext from before
+  // Enforce masking at response time. even if DB has plaintext from before
   // privacy mode was enabled. Fallback true = "store usernames" = no masking.
   const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
 
@@ -304,14 +301,10 @@ export async function getSnapshotsForTracker(
 
 /**
  * Fetches all tag groups with their members in a single two-query batch.
- * Avoids N+1 by grouping members in-process after two parallel queries.
  */
 export async function getTagGroupsWithMembers(): Promise<TagGroup[]> {
   const [groups, allMembers] = await Promise.all([
-    db
-      .select()
-      .from(tagGroupsTable)
-      .orderBy(asc(tagGroupsTable.sortOrder), asc(tagGroupsTable.id)),
+    db.select().from(tagGroupsTable).orderBy(asc(tagGroupsTable.sortOrder), asc(tagGroupsTable.id)),
     db.select().from(tagGroupMembers).orderBy(asc(tagGroupMembers.sortOrder)),
   ])
 

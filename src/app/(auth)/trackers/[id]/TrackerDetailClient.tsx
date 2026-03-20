@@ -227,7 +227,7 @@ export function TrackerDetailClient({
         } as CSSProperties
       }
     >
-      {/* ── Header ── */}
+      {/* Header */}
       <TrackerDetailHeader
         tracker={tracker}
         stats={stats}
@@ -250,7 +250,7 @@ export function TrackerDetailClient({
         joinedAt={tracker.joinedAt}
       />
 
-      {/* ── Error banners ── */}
+      {/* Error banners */}
       <PollErrorBanner
         pollError={pollError}
         lastError={tracker.lastError}
@@ -260,7 +260,7 @@ export function TrackerDetailClient({
         onResume={handleResume}
       />
 
-      {/* ── Tabs ── */}
+      {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-border">
         {tabs.map((tab) => (
           <button
@@ -280,7 +280,7 @@ export function TrackerDetailClient({
         ))}
       </div>
 
-      {/* ── Tab content ── */}
+      {/* Tab content */}
       {activeTab === "analytics" && (
         <AnalyticsTab
           tracker={tracker}

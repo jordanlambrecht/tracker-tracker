@@ -75,7 +75,7 @@ export function DashboardClient({ initialTrackers }: DashboardClientProps) {
 
   return (
     <div className="flex flex-col gap-10 max-w-6xl mx-auto pb-12">
-      {/* ── Page Header ── */}
+      {/* Page Header */}
       <div className="flex items-center justify-between">
         <H1>Dashboard</H1>
         <div className="flex items-center gap-2">
@@ -96,7 +96,7 @@ export function DashboardClient({ initialTrackers }: DashboardClientProps) {
         </div>
       </div>
 
-      {/* ── Section 1: Tracker Overview ── */}
+      {/* Section 1: Tracker Overview */}
       <div className="flex flex-col gap-4">
         <H2>Trackers</H2>
         <TrackerOverviewGrid
@@ -105,7 +105,7 @@ export function DashboardClient({ initialTrackers }: DashboardClientProps) {
         />
       </div>
 
-      {/* ── Section 2: Alerts ── */}
+      {/* Section 2: Alerts */}
       {data.alerts.length > 0 && (
         <AlertsBanner
           alerts={data.alerts}
@@ -114,16 +114,16 @@ export function DashboardClient({ initialTrackers }: DashboardClientProps) {
         />
       )}
 
-      {/* ── Section 3: Login Timers ── */}
+      {/* Login Timers */}
       {dashSettings.settings.showLoginTimers && <LoginTimers trackers={data.trackers} />}
 
-      {/* ── Section 4: Leaderboard ── */}
+      {/* Leaderboard */}
       <div className="flex flex-col gap-4">
         <H2>Leaderboard</H2>
         <TrackerLeaderboard trackers={data.trackers} />
       </div>
 
-      {/* ── Divider ── */}
+      {/* Divider */}
       <div
         className="h-px"
         style={{
@@ -131,10 +131,10 @@ export function DashboardClient({ initialTrackers }: DashboardClientProps) {
         }}
       />
 
-      {/* ── Section 4: Ecosystem (Aggregate Stats) ── */}
+      {/* Aggregate Stats */}
       <EcosystemStatsSection trackers={data.trackers} aggregateStats={aggregateStats} />
 
-      {/* ── Divider ── */}
+      {/* Divider */}
       <div
         className="h-px"
         style={{
@@ -142,7 +142,7 @@ export function DashboardClient({ initialTrackers }: DashboardClientProps) {
         }}
       />
 
-      {/* ── Tab Switcher ── */}
+      {/* Tab Switcher */}
       <TabBar
         tabs={[
           { key: "tracker-stats" as const, label: "Tracker Stats" },
@@ -152,7 +152,7 @@ export function DashboardClient({ initialTrackers }: DashboardClientProps) {
         onChange={setDashboardTab}
       />
 
-      {/* ── Section 5: Analytics / Fleet (conditional) ── */}
+      {/*  Analytics / Fleet  */}
       <div className="flex flex-col md:flex-row gap-4 md:gap-8">
         <div className="flex-1 min-w-0">
           {dashboardTab === "torrent-fleet" ? (
@@ -162,7 +162,7 @@ export function DashboardClient({ initialTrackers }: DashboardClientProps) {
           )}
         </div>
 
-        {/* Sticky sidebar — shared by both tabs */}
+        {/* Sticky sidebar*/}
         <DayRangeSidebar
           days={data.dayRange}
           onChange={data.setDayRange}
@@ -170,7 +170,7 @@ export function DashboardClient({ initialTrackers }: DashboardClientProps) {
         />
       </div>
 
-      {/* ── Settings Sheet ── */}
+      {/* Settings Sheet */}
       <DashboardSettingsSheet
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}

@@ -129,8 +129,7 @@ Type: `string`
 One or two sentences describing what the tracker is about — content focus, community reputation, anything a prospective member would want to know.
 
 ```typescript
-description:
-  "The largest general music tracker (also has some software). Has an interview to join, although the wait can be notoriously long."
+description: "The largest general music tracker (also has some software). Has an interview to join, although the wait can be notoriously long."
 ```
 
 #### `platform`
@@ -139,13 +138,13 @@ Type: `"unit3d" | "gazelle" | "ggn" | "nebulance" | "custom"`
 
 Which adapter handles API requests for this tracker. This controls how the scheduler fetches stats. Must match the software the tracker runs.
 
-| Platform | What it means |
-|---|---|
-| `"unit3d"` | Runs the UNIT3D codebase |
-| `"gazelle"` | Runs Gazelle or a derivative (Orpheus, Gazelle-Music, etc.) |
-| `"ggn"` | GazelleGames only — custom API different from standard Gazelle |
-| `"nebulance"` | Nebulance-specific API |
-| `"custom"` | Placeholder, not implemented — do not use |
+| Platform      | What it means                                                  |
+| ------------- | -------------------------------------------------------------- |
+| `"unit3d"`    | Runs the UNIT3D codebase                                       |
+| `"gazelle"`   | Runs Gazelle or a derivative (Orpheus, Gazelle-Music, etc.)    |
+| `"ggn"`       | GazelleGames only — custom API different from standard Gazelle |
+| `"nebulance"` | Nebulance-specific API                                         |
+| `"custom"`    | Placeholder, not implemented — do not use                      |
 
 #### `apiPath`
 
@@ -153,12 +152,12 @@ Type: `string`
 
 The path appended to `url` when making API requests. Must match the platform's actual API endpoint.
 
-| Platform | Default apiPath |
-|---|---|
-| `unit3d` | `"/api/user"` |
-| `gazelle` | `"/ajax.php"` |
-| `ggn` | `"/api.php"` |
-| `nebulance` | `"/api.php"` |
+| Platform    | Default apiPath |
+| ----------- | --------------- |
+| `unit3d`    | `"/api/user"`   |
+| `gazelle`   | `"/ajax.php"`   |
+| `ggn`       | `"/api.php"`    |
+| `nebulance` | `"/api.php"`    |
 
 ```typescript
 // UNIT3D tracker
@@ -207,10 +206,10 @@ Type: `string`
 A hex color code used to theme the tracker's detail page — chart colors, scrollbar, stat card accents. Pick something that represents the tracker's visual identity.
 
 ```typescript
-color: "#00d4ff"   // Aither cyan
-color: "#f44336"   // REDacted red
-color: "#7b1fa2"   // GazelleGames purple
-color: "#1a4fc2"   // Nebulance blue
+color: "#00d4ff" // Aither cyan
+color: "#f44336" // REDacted red
+color: "#7b1fa2" // GazelleGames purple
+color: "#1a4fc2" // Nebulance blue
 ```
 
 ---
@@ -224,9 +223,9 @@ Type: `string | undefined`
 A short code for the tracker, used in compact UI contexts.
 
 ```typescript
-abbreviation: "ATH"  // Aither
-abbreviation: "RED"  // REDacted
-abbreviation: "GGn"  // GazelleGames
+abbreviation: "ATH" // Aither
+abbreviation: "RED" // REDacted
+abbreviation: "GGn" // GazelleGames
 ```
 
 #### `language`
@@ -288,7 +287,7 @@ Type: `boolean | undefined`
 Gazelle trackers only. When `true`, the adapter makes a second API call (`action=user&id=X`) after the initial `action=index` call to fetch additional fields like `warned`. Set to `true` for trackers where this extra call is needed and documented to work.
 
 ```typescript
-gazelleEnrich: true   // REDacted
+gazelleEnrich: true // REDacted
 ```
 
 #### `draft`
@@ -327,10 +326,10 @@ The `userClasses` array documents the tracker's rank/class system. Each entry is
 
 ```typescript
 interface TrackerUserClass {
-  name: string          // required — display name of the class
+  name: string // required — display name of the class
   requirements?: string // what it takes to reach this class
-  perks?: RankPerk[]    // structured perks (optional, rarely populated)
-  icon?: string         // path to an icon (optional)
+  perks?: RankPerk[] // structured perks (optional, rarely populated)
+  icon?: string // path to an icon (optional)
 }
 ```
 
@@ -432,12 +431,7 @@ releaseGroups: []
 The `bannedGroups` field is a separate `string[]` for groups that are explicitly banned from the tracker:
 
 ```typescript
-bannedGroups: [
-  "EVO",
-  "FGT",
-  "YIFY",
-  "YTS",
-]
+bannedGroups: ["EVO", "FGT", "YIFY", "YTS"]
 ```
 
 ---
@@ -448,12 +442,12 @@ The `rules` field documents the tracker's seeding and account policies. The type
 
 ```typescript
 interface TrackerRules {
-  minimumRatio: number        // required — 0 = no minimum
-  seedTimeHours: number       // required — 0 = no minimum
-  loginIntervalDays: number   // required — days before account is disabled; 0 = no policy
-  fulfillmentPeriodHours?: number  // total hours allowed to complete H&R seeding
-  hnrBanLimit?: number             // number of active H&Rs before downloading is blocked
-  fullRulesMarkdown?: string       // the full rules as a markdown string
+  minimumRatio: number // required — 0 = no minimum
+  seedTimeHours: number // required — 0 = no minimum
+  loginIntervalDays: number // required — days before account is disabled; 0 = no policy
+  fulfillmentPeriodHours?: number // total hours allowed to complete H&R seeding
+  hnrBanLimit?: number // number of active H&Rs before downloading is blocked
+  fullRulesMarkdown?: string // the full rules as a markdown string
 }
 ```
 
@@ -518,7 +512,7 @@ Open `src/data/trackers/index.ts`. You need to add the tracker in two places.
 
 ```typescript
 export * from "./morethantv"
-export * from "./mytracker"   // add this
+export * from "./mytracker" // add this
 export * from "./myanonamouse"
 ```
 
@@ -526,7 +520,7 @@ export * from "./myanonamouse"
 
 ```typescript
 import { morethantv } from "./morethantv"
-import { mytracker } from "./mytracker"   // add this
+import { mytracker } from "./mytracker" // add this
 import { myanonamouse } from "./myanonamouse"
 ```
 
@@ -536,7 +530,7 @@ import { myanonamouse } from "./myanonamouse"
 export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   // ...
   morethantv,
-  mytracker,   // add this
+  mytracker, // add this
   myanonamouse,
   // ...
 ]
