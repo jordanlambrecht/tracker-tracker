@@ -12,7 +12,6 @@ import type { DashboardAlert } from "@/lib/dashboard"
 import {
   computeAlerts,
   computeSystemAlerts,
-  deleteAllDismissed,
   detectRankChanges,
   fetchDismissedKeys,
   postDismissAlert as persistDismiss,
@@ -156,11 +155,14 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
   }, [])
 
   const dismissAllAlerts = useCallback(() => {
-    deleteAllDismissed()
+    const dismissible = visibleAlerts.filter((a) => a.dismissible !== false)
+    for (const a of dismissible) {
+      persistDismiss(a.key, a.type)
+    }
     setLocalDismissedKeys((prev) => {
       const next = new Set(prev)
-      for (const a of visibleAlerts) {
-        if (a.dismissible !== false) next.add(a.key)
+      for (const a of dismissible) {
+        next.add(a.key)
       }
       return next
     })
