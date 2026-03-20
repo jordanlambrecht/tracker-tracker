@@ -28,6 +28,7 @@ vi.mock("@/lib/db", () => ({
     update: vi.fn(),
     delete: vi.fn(),
     execute: vi.fn().mockResolvedValue([]),
+    transaction: vi.fn(),
   },
 }))
 
@@ -76,6 +77,9 @@ vi.mock("@/lib/db/schema", () => ({
   clientSnapshots: {},
   backupHistory: {},
   dismissedAlerts: {},
+  notificationTargets: {},
+  notificationDeliveryState: {},
+  clientUptimeBuckets: {},
 }))
 
 vi.mock("@/lib/backup", () => ({
@@ -156,6 +160,20 @@ vi.mock("@/data/tracker-registry", () => ({
   findRegistryEntry: vi.fn(),
 }))
 
+vi.mock("@/lib/notifications/validate", () => ({
+  validateNotificationConfig: vi.fn().mockReturnValue(null),
+}))
+
+vi.mock("@/lib/notifications/decrypt", () => ({
+  decryptNotificationConfig: vi
+    .fn()
+    .mockReturnValue({ webhookUrl: "https://discord.com/api/webhooks/123/abc" }),
+}))
+
+vi.mock("@/lib/notifications/deliver", () => ({
+  deliverDiscordWebhook: vi.fn().mockResolvedValue({ success: true, status: "delivered" }),
+}))
+
 // ---------------------------------------------------------------------------
 // Route imports
 // ---------------------------------------------------------------------------
@@ -179,6 +197,12 @@ import { GET as ClientTorrentsGET } from "@/app/api/clients/[id]/torrents/route"
 import { GET as ClientsGET, POST as ClientsPOST } from "@/app/api/clients/route"
 import { GET as FleetSnapshotsGET } from "@/app/api/fleet/snapshots/route"
 import { GET as FleetTorrentsGET } from "@/app/api/fleet/torrents/route"
+import {
+  DELETE as NotificationDELETE,
+  PATCH as NotificationPATCH,
+} from "@/app/api/notifications/[id]/route"
+import { POST as NotificationTestPOST } from "@/app/api/notifications/[id]/test/route"
+import { GET as NotificationsGET, POST as NotificationsPOST } from "@/app/api/notifications/route"
 import {
   DELETE as BackupDeleteDELETE,
   GET as BackupGetGET,
@@ -655,6 +679,44 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
     const res = await AlertDismissedDELETE(req)
     expect(res.status).toBe(401)
   })
+
+  // Notification target routes
+  it("GET /api/notifications returns 401 without session", async () => {
+    const res = await NotificationsGET()
+    expect(res.status).toBe(401)
+  })
+
+  it("POST /api/notifications returns 401 without session", async () => {
+    const req = makeRequest(
+      "http://localhost/api/notifications",
+      {
+        name: "test",
+        type: "discord",
+        config: { webhookUrl: "https://discord.com/api/webhooks/123/abc" },
+      },
+      "POST"
+    )
+    const res = await NotificationsPOST(req)
+    expect(res.status).toBe(401)
+  })
+
+  it("PATCH /api/notifications/1 returns 401 without session", async () => {
+    const req = makeRequest("http://localhost/api/notifications/1", { name: "updated" }, "PATCH")
+    const res = await NotificationPATCH(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(401)
+  })
+
+  it("DELETE /api/notifications/1 returns 401 without session", async () => {
+    const req = makeRequest("http://localhost/api/notifications/1", undefined, "DELETE")
+    const res = await NotificationDELETE(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(401)
+  })
+
+  it("POST /api/notifications/1/test returns 401 without session", async () => {
+    const req = makeRequest("http://localhost/api/notifications/1/test", undefined, "POST")
+    const res = await NotificationTestPOST(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(401)
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -704,6 +766,42 @@ describe("Token leakage prevention", () => {
 
     expect(json).not.toContain("SUPER_SECRET_SHOULD_NOT_APPEAR")
     expect(json).not.toContain("encryptedApiToken")
+  })
+
+  it("GET /api/notifications never includes encryptedConfig in responses", async () => {
+    const target = {
+      id: 1,
+      name: "My Discord",
+      type: "discord",
+      enabled: true,
+      encryptedConfig: "SUPER_SECRET_ENCRYPTED_CONFIG_SHOULD_NOT_APPEAR",
+      notifyRatioDrop: true,
+      notifyHitAndRun: false,
+      notifyTrackerDown: true,
+      notifyBufferMilestone: false,
+      thresholds: null,
+      includeTrackerName: true,
+      scope: null,
+      lastDeliveryStatus: null,
+      lastDeliveryAt: null,
+      lastDeliveryError: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+
+    const mockFrom = vi.fn().mockResolvedValue([target])
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValueOnce({ from: mockFrom })
+
+    const res = await NotificationsGET()
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    const json = JSON.stringify(body)
+
+    expect(json).not.toContain("SUPER_SECRET_ENCRYPTED_CONFIG_SHOULD_NOT_APPEAR")
+    expect(json).not.toContain("encryptedConfig")
+    // Confirm the safe fields are present
+    expect(body[0]).toHaveProperty("hasConfig", true)
+    expect(body[0]).toHaveProperty("name", "My Discord")
   })
 
   it("GET /api/trackers/[id] does not include encryptedApiToken or apiPath in response", async () => {
@@ -1395,5 +1493,245 @@ describe("Backup restore authenticated flows", () => {
     expect(res.status).toBe(400)
     const data = await res.json()
     expect(data.error).toContain("exceeds maximum size")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 9. Backup/restore round-trip for new notify* columns
+// ---------------------------------------------------------------------------
+
+describe("Backup restore: new notify* column round-trip", () => {
+  const BASE_BACKUP = {
+    manifest: {
+      version: 1,
+      appVersion: "2.1.0",
+      createdAt: new Date().toISOString(),
+      encrypted: false,
+      counts: {
+        trackers: 0,
+        trackerSnapshots: 0,
+        trackerRoles: 0,
+        downloadClients: 0,
+        tagGroups: 0,
+        tagGroupMembers: 0,
+        clientSnapshots: 0,
+      },
+    },
+    settings: {
+      encryptionSalt: "a".repeat(64),
+    },
+    trackers: [],
+    trackerSnapshots: [],
+    trackerRoles: [],
+    downloadClients: [],
+    tagGroups: [],
+    tagGroupMembers: [],
+    clientSnapshots: [],
+  }
+
+  function createRestoreRequest(fileContent: string, masterPassword: string): Request {
+    const blob = new Blob([fileContent], { type: "application/json" })
+    const formData = new FormData()
+    formData.append("file", blob, "backup.json")
+    formData.append("masterPassword", masterPassword)
+
+    const req = new Request("http://localhost/api/settings/backup/restore", {
+      method: "POST",
+    })
+    req.formData = vi.fn().mockResolvedValue(formData)
+    return req
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it("preserves new notify* columns during backup/restore", async () => {
+    const { POST } = await import("@/app/api/settings/backup/restore/route")
+    const { verifyPassword } = await import("@/lib/auth")
+    const { validateBackupJson } = await import("@/lib/backup")
+    const { deriveKey } = await import("@/lib/crypto")
+
+    vi.mocked(authenticate).mockResolvedValue({ encryptionKey: "a".repeat(64) })
+    // deriveKey is cleared by clearAllMocks() — restore it so key derivation succeeds
+    vi.mocked(deriveKey).mockResolvedValue(Buffer.from("a".repeat(32)))
+
+    vi.mocked(db.select).mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        limit: vi.fn().mockResolvedValue([
+          {
+            id: 1,
+            passwordHash: "hashed_password",
+            encryptionSalt: "a".repeat(64),
+          },
+        ]),
+      }),
+    } as unknown as ReturnType<typeof db.select>)
+
+    vi.mocked(verifyPassword).mockResolvedValue(true)
+    vi.mocked(validateBackupJson).mockImplementation(() => undefined)
+
+    // Backup payload includes a notificationTarget with all 5 new notify* flags set to true
+    const backupWithNotifyFlags = {
+      ...BASE_BACKUP,
+      notificationTargets: [
+        {
+          id: 1,
+          name: "My Discord",
+          type: "discord",
+          enabled: true,
+          encryptedConfig: "encrypted_config_value",
+          notifyRatioDrop: false,
+          notifyHitAndRun: false,
+          notifyTrackerDown: false,
+          notifyBufferMilestone: false,
+          notifyWarned: true,
+          notifyRatioDanger: true,
+          notifyZeroSeeding: true,
+          notifyRankChange: true,
+          notifyAnniversary: true,
+          thresholds: null,
+          includeTrackerName: true,
+          scope: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ],
+    }
+
+    // Capture what gets inserted via the transaction's tx.insert().values() calls
+    const insertedValues: Record<string, unknown>[] = []
+
+    // Use plain functions for the insert chain to capture inserts into insertedValues
+    const txMock = {
+      select: () => ({ from: () => ({ limit: () => Promise.resolve([]) }) }),
+      insert: () => ({
+        values: (vals: Record<string, unknown>) => {
+          insertedValues.push(vals)
+          return Promise.resolve()
+        },
+        onConflictDoNothing: () => Promise.resolve(),
+      }),
+      update: () => ({
+        set: () => ({
+          where: () => Promise.resolve(undefined),
+        }),
+      }),
+      delete: () => Promise.resolve(undefined),
+      execute: () => Promise.resolve([]),
+    }
+
+    // Mock db.transaction to invoke the callback with the tx mock
+    ;(db.transaction as ReturnType<typeof vi.fn>).mockImplementation(
+      async (fn: (tx: unknown) => Promise<unknown>) => await fn(txMock)
+    )
+
+    const req = createRestoreRequest(JSON.stringify(backupWithNotifyFlags), "correct_password")
+    await POST(req)
+
+    // Find the insert call for notificationTargets (it should include the 5 new flags)
+    const ntInsert = insertedValues.find(
+      (v) => typeof v === "object" && v !== null && "notifyWarned" in v
+    )
+
+    // The insert must have preserved all 5 new notify* columns as true
+    expect(ntInsert).toBeDefined()
+    expect(ntInsert?.notifyWarned).toBe(true)
+    expect(ntInsert?.notifyRatioDanger).toBe(true)
+    expect(ntInsert?.notifyZeroSeeding).toBe(true)
+    expect(ntInsert?.notifyRankChange).toBe(true)
+    expect(ntInsert?.notifyAnniversary).toBe(true)
+  })
+
+  it("defaults new notify* columns to false when restoring older backup without them", async () => {
+    const { POST } = await import("@/app/api/settings/backup/restore/route")
+    const { verifyPassword } = await import("@/lib/auth")
+    const { validateBackupJson } = await import("@/lib/backup")
+    const { deriveKey } = await import("@/lib/crypto")
+
+    vi.mocked(authenticate).mockResolvedValue({ encryptionKey: "a".repeat(64) })
+    vi.mocked(deriveKey).mockResolvedValue(Buffer.from("a".repeat(32)))
+
+    vi.mocked(db.select).mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        limit: vi.fn().mockResolvedValue([
+          {
+            id: 1,
+            passwordHash: "hashed_password",
+            encryptionSalt: "a".repeat(64),
+          },
+        ]),
+      }),
+    } as unknown as ReturnType<typeof db.select>)
+
+    vi.mocked(verifyPassword).mockResolvedValue(true)
+    vi.mocked(validateBackupJson).mockImplementation(() => undefined)
+
+    // Older backup: notificationTarget missing all 5 new notify* fields
+    const olderBackup = {
+      ...BASE_BACKUP,
+      notificationTargets: [
+        {
+          id: 1,
+          name: "Legacy Discord",
+          type: "discord",
+          enabled: true,
+          encryptedConfig: "encrypted_config_value",
+          notifyRatioDrop: true,
+          notifyHitAndRun: false,
+          notifyTrackerDown: true,
+          notifyBufferMilestone: false,
+          // notifyWarned, notifyRatioDanger, notifyZeroSeeding, notifyRankChange, notifyAnniversary — absent
+          thresholds: null,
+          includeTrackerName: true,
+          scope: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ],
+    }
+
+    const insertedValues: Record<string, unknown>[] = []
+
+    const txMock2 = {
+      select: () => ({ from: () => ({ limit: () => Promise.resolve([]) }) }),
+      insert: () => ({
+        values: (vals: Record<string, unknown>) => {
+          insertedValues.push(vals)
+          return Promise.resolve()
+        },
+        onConflictDoNothing: () => Promise.resolve(),
+      }),
+      update: () => ({
+        set: () => ({
+          where: () => Promise.resolve(undefined),
+        }),
+      }),
+      delete: () => Promise.resolve(undefined),
+      execute: () => Promise.resolve([]),
+    }
+
+    ;(db.transaction as ReturnType<typeof vi.fn>).mockImplementation(
+      async (fn: (tx: unknown) => Promise<unknown>) => await fn(txMock2)
+    )
+
+    const req = createRestoreRequest(JSON.stringify(olderBackup), "correct_password")
+    await POST(req)
+
+    const ntInsert = insertedValues.find(
+      (v) =>
+        typeof v === "object" &&
+        v !== null &&
+        "name" in v &&
+        (v as Record<string, unknown>).name === "Legacy Discord"
+    )
+
+    // All 5 new columns must default to false when absent from the backup payload
+    expect(ntInsert).toBeDefined()
+    expect(ntInsert?.notifyWarned).toBe(false)
+    expect(ntInsert?.notifyRatioDanger).toBe(false)
+    expect(ntInsert?.notifyZeroSeeding).toBe(false)
+    expect(ntInsert?.notifyRankChange).toBe(false)
+    expect(ntInsert?.notifyAnniversary).toBe(false)
   })
 })
