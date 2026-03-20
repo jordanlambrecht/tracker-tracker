@@ -103,6 +103,10 @@ describe("formatStatValue", () => {
     requiredRatio: null,
     warned: null,
     freeleechTokens: null,
+    bufferBytes: null,
+    hitAndRuns: null,
+    seedbonus: null,
+    shareScore: null,
     username: "test",
     group: "VIP",
   }

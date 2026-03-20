@@ -77,3 +77,48 @@ describe("serializeTrackerResponse", () => {
     expect(result.latestStats?.uploadedBytes).toBe("1000")
   })
 })
+
+describe("serializeTrackerResponse new fields", () => {
+  it("serializes bufferBytes as decimal string", () => {
+    const snapshotWithBuffer = { ...mockSnapshot, bufferBytes: BigInt(10737418240) }
+    const result = serializeTrackerResponse(mockTracker, snapshotWithBuffer, (v) => v ?? null)
+    expect(result.latestStats?.bufferBytes).toBe("10737418240")
+  })
+
+  it("serializes null bufferBytes as null", () => {
+    const snapshotWithNullBuffer = { ...mockSnapshot, bufferBytes: null }
+    const result = serializeTrackerResponse(mockTracker, snapshotWithNullBuffer, (v) => v ?? null)
+    expect(result.latestStats?.bufferBytes).toBeNull()
+  })
+
+  it("serializes all 4 new fields as null when snapshot is null", () => {
+    const result = serializeTrackerResponse(mockTracker, null, (v) => v ?? null)
+    expect(result.latestStats).toBeNull()
+  })
+
+  it("serializes hitAndRuns, seedbonus, shareScore when present", () => {
+    const snapshotWithStats = {
+      ...mockSnapshot,
+      hitAndRuns: 2,
+      seedbonus: 1500.5,
+      shareScore: 3.14,
+    }
+    const result = serializeTrackerResponse(mockTracker, snapshotWithStats, (v) => v ?? null)
+    expect(result.latestStats?.hitAndRuns).toBe(2)
+    expect(result.latestStats?.seedbonus).toBe(1500.5)
+    expect(result.latestStats?.shareScore).toBe(3.14)
+  })
+
+  it("serializes null hitAndRuns, seedbonus, shareScore as null", () => {
+    const snapshotWithNulls = {
+      ...mockSnapshot,
+      hitAndRuns: null,
+      seedbonus: null,
+      shareScore: null,
+    }
+    const result = serializeTrackerResponse(mockTracker, snapshotWithNulls, (v) => v ?? null)
+    expect(result.latestStats?.hitAndRuns).toBeNull()
+    expect(result.latestStats?.seedbonus).toBeNull()
+    expect(result.latestStats?.shareScore).toBeNull()
+  })
+})
