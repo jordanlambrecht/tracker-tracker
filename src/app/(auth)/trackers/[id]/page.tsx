@@ -17,9 +17,8 @@ export default async function TrackerDetailPage(props: { params: Promise<{ id: s
   const trackerId = parseInt(id, 10)
   if (Number.isNaN(trackerId) || trackerId < 1) notFound()
 
-  const [tracker, snapshots, allTimeSnapshots, tagGroupsData, settingsRow] = await Promise.all([
+  const [tracker, allTimeSnapshots, tagGroupsData, settingsRow] = await Promise.all([
     getTrackerForClient(trackerId),
-    getSnapshotsForTracker(trackerId, 30),
     getSnapshotsForTracker(trackerId, 0),
     getTagGroupsWithMembers(),
     db
@@ -46,7 +45,6 @@ export default async function TrackerDetailPage(props: { params: Promise<{ id: s
     <TrackerDetailClient
       trackerId={trackerId}
       initialTracker={tracker as TrackerSummary}
-      initialSnapshots={snapshots}
       initialAllTimeSnapshots={allTimeSnapshots}
       initialTagGroups={tagGroupsData}
       initialQbitmanageConfig={qbitmanageConfig}
