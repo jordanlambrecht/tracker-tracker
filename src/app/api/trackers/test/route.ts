@@ -3,6 +3,7 @@ import { NextResponse } from "next/server"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { DEFAULT_API_PATHS, getAdapter, VALID_PLATFORM_TYPES } from "@/lib/adapters"
 import { authenticate, parseJsonBody, validateHttpUrl } from "@/lib/api-helpers"
+import { log } from "@/lib/logger"
 
 export async function POST(request: Request) {
   const auth = await authenticate()
@@ -60,6 +61,7 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Connection failed"
+    log.warn({ route: "POST /api/trackers/test", error: message }, "tracker connection test failed")
     return NextResponse.json({ error: message }, { status: 422 })
   }
 }

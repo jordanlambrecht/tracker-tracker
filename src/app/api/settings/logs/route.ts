@@ -3,6 +3,7 @@
 import { open, stat } from "node:fs/promises"
 import { NextResponse } from "next/server"
 import { authenticate } from "@/lib/api-helpers"
+import { log } from "@/lib/logger"
 
 const MAX_BYTES = 64 * 1024 // Read last 64 KB
 
@@ -44,6 +45,7 @@ export async function GET(): Promise<NextResponse> {
     if (err instanceof Error && "code" in err && (err as NodeJS.ErrnoException).code === "ENOENT") {
       return NextResponse.json({ content: "", sizeBytes: 0 })
     }
+    log.error({ route: "GET /api/settings/logs" }, "failed to read log file")
     return NextResponse.json({ error: "Failed to read log file" }, { status: 500 })
   }
 }

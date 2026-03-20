@@ -11,6 +11,7 @@ import { verifySetupToken } from "@/lib/auth"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
 import { verifyTotpCode } from "@/lib/totp"
 
 export async function POST(request: Request) {
@@ -35,6 +36,7 @@ export async function POST(request: Request) {
 
   const setup = await verifySetupToken(setupToken)
   if (!setup) {
+    log.warn({ route: "POST /api/auth/totp/confirm" }, "TOTP confirm rejected — expired or invalid setup token")
     return NextResponse.json(
       { error: "Setup token expired or invalid. Please restart enrollment." },
       { status: 400 }
@@ -42,6 +44,7 @@ export async function POST(request: Request) {
   }
 
   if (!verifyTotpCode(setup.totpSecret, code)) {
+    log.warn({ route: "POST /api/auth/totp/confirm" }, "TOTP confirm rejected — invalid code")
     return NextResponse.json({ error: "Invalid TOTP code. Please try again." }, { status: 400 })
   }
 
@@ -62,5 +65,6 @@ export async function POST(request: Request) {
 
   await db.update(appSettings).set(updates).where(eq(appSettings.id, settings.id))
 
+  log.info({ route: "POST /api/auth/totp/confirm" }, "TOTP enrollment confirmed")
   return NextResponse.json({ success: true })
 }

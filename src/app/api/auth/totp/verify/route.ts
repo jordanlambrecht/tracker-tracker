@@ -51,6 +51,7 @@ export async function POST(request: Request) {
 
   const pending = await verifyPendingToken(pendingToken)
   if (!pending) {
+    log.warn({ route: "POST /api/auth/totp/verify" }, "TOTP verify rejected — invalid or expired pending token")
     return NextResponse.json({ error: "Session expired. Please log in again." }, { status: 401 })
   }
 
@@ -74,6 +75,7 @@ export async function POST(request: Request) {
     try {
       entries = JSON.parse(decrypt(settings.totpBackupCodes, key))
     } catch {
+      log.error({ route: "POST /api/auth/totp/verify" }, "corrupted backup codes detected")
       return NextResponse.json({ error: "Corrupted backup codes" }, { status: 500 })
     }
     const { valid, updatedEntries } = verifyAndConsumeBackupCode(code, entries)

@@ -4,6 +4,7 @@
 
 import { NextResponse } from "next/server"
 import { authenticate, decodeKey, parseJsonBody, validatePort } from "@/lib/api-helpers"
+import { log } from "@/lib/logger"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
@@ -172,5 +173,6 @@ export async function POST(request: Request) {
     .returning()
 
   // SECURITY: Only return safe fields
+  log.info({ route: "POST /api/clients", clientId: client.id }, "download client created")
   return NextResponse.json({ id: client.id, name: client.name }, { status: 201 })
 }

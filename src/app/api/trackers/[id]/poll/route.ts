@@ -4,16 +4,17 @@ import { NextResponse } from "next/server"
 import { authenticate, decodeKey, parseTrackerId } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
 import { buildProxyAgentFromSettings } from "@/lib/proxy"
 import { pollTracker } from "@/lib/scheduler"
 
 const POLL_COOLDOWN_MS = 10_000
 
-export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(_request: Request, props: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const trackerId = await parseTrackerId(params)
+  const trackerId = await parseTrackerId(props.params)
   if (trackerId instanceof NextResponse) return trackerId
 
   // Rate limit: reject if this tracker was polled within the last 60 seconds
@@ -57,6 +58,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ success: true })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Poll failed"
+    log.error({ route: "POST /api/trackers/[id]/poll", trackerId, error: message }, "manual poll failed")
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

@@ -90,6 +90,9 @@ export async function POST(req: Request) {
     })
     .returning({ id: notificationTargets.id, name: notificationTargets.name })
 
-  log.info({ route: "POST /api/notifications", targetId: inserted.id }, "notification target created")
+  log.info(
+    { route: "POST /api/notifications", targetId: inserted.id },
+    "notification target created"
+  )
   return NextResponse.json(inserted, { status: 201 })
 }

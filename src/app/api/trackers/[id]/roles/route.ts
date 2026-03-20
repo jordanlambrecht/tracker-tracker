@@ -4,12 +4,13 @@ import { NextResponse } from "next/server"
 import { authenticate, parseJsonBody, parseTrackerId } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { trackerRoles } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
 
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const trackerId = await parseTrackerId(params)
+  const trackerId = await parseTrackerId(props.params)
   if (trackerId instanceof NextResponse) return trackerId
 
   const roles = await db
@@ -21,11 +22,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   return NextResponse.json(roles)
 }
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const trackerId = await parseTrackerId(params)
+  const trackerId = await parseTrackerId(props.params)
   if (trackerId instanceof NextResponse) return trackerId
 
   const body = await parseJsonBody(request)
@@ -68,5 +69,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     })
     .returning()
 
+  log.info({ route: "POST /api/trackers/[id]/roles", trackerId }, "role created")
   return NextResponse.json(role, { status: 201 })
 }

@@ -10,13 +10,14 @@ import { NextResponse } from "next/server"
 import { authenticate, decodeKey, parseTrackerId } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { downloadClients, trackers } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
 import { fetchAndMergeTorrents } from "@/lib/qbt/fetch-merged"
 
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const trackerId = await parseTrackerId(params)
+  const trackerId = await parseTrackerId(props.params)
   if (trackerId instanceof NextResponse) return trackerId
 
   // Look up tracker to get qbtTag
@@ -58,6 +59,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const activeOnly = url.searchParams.get("active") === "true"
   const qbtFilter = activeOnly ? "active" : undefined
 
-  const result = await fetchAndMergeTorrents(clients, [tag], key, qbtFilter)
-  return NextResponse.json(result)
+  try {
+    const result = await fetchAndMergeTorrents(clients, [tag], key, qbtFilter)
+    return NextResponse.json(result)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown"
+    log.error({ route: "GET /api/trackers/[id]/torrents", trackerId, error: message }, "torrent fetch failed")
+    return NextResponse.json({ error: "Failed to fetch torrents" }, { status: 502 })
+  }
 }

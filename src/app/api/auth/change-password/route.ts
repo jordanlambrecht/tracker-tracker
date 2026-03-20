@@ -15,6 +15,7 @@ import { decrypt, deriveKey, encrypt, reencrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings, downloadClients, trackers } from "@/lib/db/schema"
 import { recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
+import { log } from "@/lib/logger"
 import { stopScheduler } from "@/lib/scheduler"
 import { clearSchedulerKey } from "@/lib/scheduler-key-store"
 
@@ -53,6 +54,7 @@ export async function POST(request: Request) {
   const valid = await verifyPassword(settings.passwordHash, currentPassword)
   if (!valid) {
     await recordFailedAttempt(settings.id, settings)
+    log.warn({ route: "POST /api/auth/change-password" }, "password change rejected — incorrect current password")
     return NextResponse.json({ error: "Current password is incorrect" }, { status: 401 })
   }
   await resetFailedAttempts(settings.id)
@@ -182,7 +184,7 @@ export async function POST(request: Request) {
         .where(eq(appSettings.id, settings.id))
     })
   } catch (err) {
-    console.error("[change-password] Transaction failed:", err) // security-audit-ignore: server-side only
+    log.error({ route: "POST /api/auth/change-password", error: err instanceof Error ? err.message : "unknown" }, "transaction failed during password change")
     return NextResponse.json(
       { error: "Password change failed. Your current password is unchanged." },
       { status: 500 }
@@ -193,6 +195,7 @@ export async function POST(request: Request) {
   }
 
   // Transaction committed — safe to end session
+  log.info({ route: "POST /api/auth/change-password" }, "password changed successfully")
   await clearSchedulerKey(settings.id)
   stopScheduler()
   await clearSession()
@@ -208,6 +211,7 @@ export async function POST(request: Request) {
     )
   }
   if (totpDisabled) {
+    log.warn({ route: "POST /api/auth/change-password" }, "TOTP disabled during password change — re-encryption failed")
     warnings.push("TOTP could not be re-encrypted and was disabled. Re-enroll 2FA after login.")
   }
 

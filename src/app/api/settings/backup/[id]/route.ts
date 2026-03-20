@@ -13,12 +13,12 @@ import { log } from "@/lib/logger"
 
 export async function GET(
   _request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  props: { params: Promise<{ id: string }> }
 ): Promise<NextResponse | Response> {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const backupId = await parseRouteId(params, "backup")
+  const backupId = await parseRouteId(props.params, "backup")
   if (backupId instanceof NextResponse) return backupId
 
   const [record] = await db
@@ -55,6 +55,7 @@ export async function GET(
   try {
     await stat(resolved)
   } catch {
+    log.warn({ route: "GET /api/settings/backup/[id]", backupId }, "backup record exists but file not found on disk")
     return NextResponse.json({ error: "Backup file not found on disk" }, { status: 404 })
   }
 
@@ -62,6 +63,7 @@ export async function GET(
   const filename = path.basename(resolved)
   const isEncrypted = filename.endsWith(".ttbak")
 
+  log.info({ route: "GET /api/settings/backup/[id]", backupId }, "backup file served for download")
   return new Response(contents, {
     headers: {
       "Content-Type": isEncrypted ? "application/octet-stream" : "application/json",
@@ -72,12 +74,12 @@ export async function GET(
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  props: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const backupId = await parseRouteId(params, "backup")
+  const backupId = await parseRouteId(props.params, "backup")
   if (backupId instanceof NextResponse) return backupId
 
   const [record] = await db
@@ -114,6 +116,7 @@ export async function DELETE(
   }
 
   await db.delete(backupHistory).where(eq(backupHistory.id, backupId))
+  log.info({ route: "DELETE /api/settings/backup/[id]", backupId }, "backup record deleted")
 
   return new NextResponse(null, { status: 204 })
 }

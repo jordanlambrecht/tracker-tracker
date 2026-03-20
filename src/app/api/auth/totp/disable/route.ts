@@ -12,6 +12,7 @@ import { decrypt, encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
 import { recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
+import { log } from "@/lib/logger"
 import type { BackupCodeEntry } from "@/lib/totp"
 import { BACKUP_CODE_PATTERN, verifyAndConsumeBackupCode, verifyTotpCode } from "@/lib/totp"
 
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
   const passwordValid = await verifyPassword(settings.passwordHash, password)
   if (!passwordValid) {
     await recordFailedAttempt(settings.id, settings)
+    log.warn({ route: "POST /api/auth/totp/disable" }, "TOTP disable rejected — incorrect password")
     return NextResponse.json({ error: "Incorrect password" }, { status: 401 })
   }
 
@@ -68,6 +70,7 @@ export async function POST(request: Request) {
     try {
       entries = JSON.parse(decrypt(settings.totpBackupCodes, key))
     } catch {
+      log.error({ route: "POST /api/auth/totp/disable" }, "TOTP disable failed — backup code decrypt error")
       return NextResponse.json({ error: "Failed to decrypt backup codes" }, { status: 500 })
     }
     const { valid, updatedEntries } = verifyAndConsumeBackupCode(code, entries)
@@ -88,6 +91,7 @@ export async function POST(request: Request) {
     try {
       totpSecret = decrypt(settings.totpSecret, key)
     } catch {
+      log.error({ route: "POST /api/auth/totp/disable" }, "TOTP disable failed — decrypt error")
       return NextResponse.json({ error: "Failed to decrypt TOTP secret" }, { status: 500 })
     }
     verified = verifyTotpCode(totpSecret, code)
@@ -95,6 +99,7 @@ export async function POST(request: Request) {
 
   if (!verified) {
     await recordFailedAttempt(settings.id, settings)
+    log.warn({ route: "POST /api/auth/totp/disable" }, "TOTP disable rejected — invalid code")
     return NextResponse.json({ error: "Invalid code" }, { status: 401 })
   }
 
@@ -106,5 +111,6 @@ export async function POST(request: Request) {
     .set({ totpSecret: null, totpBackupCodes: null })
     .where(eq(appSettings.id, settings.id))
 
+  log.info({ route: "POST /api/auth/totp/disable" }, "TOTP disabled")
   return NextResponse.json({ success: true })
 }

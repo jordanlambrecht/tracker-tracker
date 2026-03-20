@@ -5,16 +5,17 @@
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { authenticate, decodeKey, parseRouteId } from "@/lib/api-helpers"
+import { log } from "@/lib/logger"
 import { decryptClientCredentials } from "@/lib/client-decrypt"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
 import { buildBaseUrl, getTransferInfo, invalidateSession, login } from "@/lib/qbt"
 
-export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(_request: Request, props: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const clientId = await parseRouteId(params, "client ID")
+  const clientId = await parseRouteId(props.params, "client ID")
   if (clientId instanceof NextResponse) return clientId
 
   const [client] = await db
@@ -34,6 +35,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   try {
     ;({ username, password } = decryptClientCredentials(client, key))
   } catch {
+    log.error({ route: "POST /api/clients/[id]/test", clientId }, "client test failed — credential decrypt error")
     return NextResponse.json({ error: "Failed to decrypt credentials" }, { status: 422 })
   }
 
@@ -50,6 +52,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     if (/timed?\s*out/i.test(raw)) detail = " (timed out)"
     else if (/ECONNREFUSED/i.test(raw)) detail = " (ECONNREFUSED)"
     else if (/403/.test(raw)) detail = " (403)"
+    log.warn({ route: "POST /api/clients/[id]/test", clientId, error: `Connection test failed${detail}` }, "client connection test failed")
     return NextResponse.json({ error: `Connection test failed${detail}` }, { status: 422 })
   }
 }

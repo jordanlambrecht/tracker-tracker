@@ -13,11 +13,11 @@ import { downloadClients, trackers } from "@/lib/db/schema"
 import { parseCrossSeedTags, type QbtTorrent } from "@/lib/qbt"
 import { aggregateCrossSeedTags, mergeTorrentLists } from "@/lib/qbt/merge"
 
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const trackerId = await parseTrackerId(params)
+  const trackerId = await parseTrackerId(props.params)
   if (trackerId instanceof NextResponse) return trackerId
 
   // Look up tracker to get qbtTag
