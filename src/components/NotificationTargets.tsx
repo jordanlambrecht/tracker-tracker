@@ -4,7 +4,7 @@
 
 "use client"
 
-import { H3, Paragraph, Subtext } from "@typography"
+import { H2, H3, Paragraph, Subtext } from "@typography"
 import { useCallback, useEffect, useState } from "react"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
@@ -632,6 +632,7 @@ function NotificationTargets() {
 
   return (
     <div className="flex flex-col gap-6">
+      <H2>Webhooks</H2>
       {targets.length === 0 && !showAddForm ? (
         <Card elevation="raised" className="flex flex-col items-center gap-4 py-10">
           <span className="text-2xl" aria-hidden="true">
