@@ -7,8 +7,6 @@
 //   "stacked" — multiple label/value rows with optional total
 //   "ring"    — countdown ring (login deadline)
 
-"use client"
-
 import clsx from "clsx"
 import type { HTMLAttributes, ReactNode } from "react"
 import { CHART_THEME } from "@/components/charts/theme"
