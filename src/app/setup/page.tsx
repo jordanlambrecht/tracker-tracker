@@ -9,10 +9,7 @@ import { SetupForm } from "./SetupForm"
 export default async function SetupPage() {
   await connection()
 
-  const [settings] = await db
-    .select({ id: appSettings.id })
-    .from(appSettings)
-    .limit(1)
+  const [settings] = await db.select({ id: appSettings.id }).from(appSettings).limit(1)
 
   if (settings) {
     redirect("/login")
