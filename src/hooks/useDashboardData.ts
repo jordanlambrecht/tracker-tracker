@@ -58,8 +58,8 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
   // Tracker list query
   const trackersQuery = useQuery({
     queryKey: ["trackers"],
-    queryFn: async () => {
-      const res = await fetch("/api/trackers")
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/trackers", { signal })
       if (!res.ok) return [] as TrackerSummary[]
       const all: TrackerSummary[] = await res.json()
       return all.filter((t) => t.isActive)
@@ -75,12 +75,12 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
   const snapshotQueries = useQueries({
     queries: trackers.map((t) => ({
       queryKey: ["snapshots", t.id, dayRange] as const,
-      queryFn: async () => {
+      queryFn: async ({ signal }) => {
         const url =
           dayRange === 0
             ? `/api/trackers/${t.id}/snapshots`
             : `/api/trackers/${t.id}/snapshots?days=${dayRange}`
-        const res = await fetch(url)
+        const res = await fetch(url, { signal })
         if (!res.ok) return [] as Snapshot[]
         return res.json() as Promise<Snapshot[]>
       },
@@ -91,8 +91,8 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
   // Secondary queries for alert computation (less frequent)
   const clientsQuery = useQuery({
     queryKey: ["clients-for-alerts"],
-    queryFn: async () => {
-      const res = await fetch("/api/clients")
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/clients", { signal })
       if (!res.ok)
         return [] as { id: number; name: string; enabled: boolean; lastError: string | null }[]
       return res.json() as Promise<
@@ -104,8 +104,8 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
 
   const backupQuery = useQuery({
     queryKey: ["backup-history-for-alerts"],
-    queryFn: async () => {
-      const res = await fetch("/api/settings/backup/history")
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/settings/backup/history", { signal })
       if (!res.ok) return [] as { createdAt: string; status: string }[]
       return res.json() as Promise<{ createdAt: string; status: string }[]>
     },
@@ -114,18 +114,16 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
 
   // Derived: snapshotMap
 
-  const snapshotDataEntries = trackers.map(
-    (t, i) => [t.id, snapshotQueries[i]?.data ?? []] as const
-  )
+  const snapshotData = snapshotQueries.map((q) => q.data)
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: snapshotDataEntries is spread into deps; each element is stable and only changes when query data updates — this intentionally avoids the new-array-ref instability from useQueries
+  // biome-ignore lint/correctness/useExhaustiveDependencies: spreading individual q.data refs which are referentially stable from TanStack Query — avoids new-array-ref instability from the useQueries result array itself
   const snapshotMap = useMemo(() => {
     const map = new Map<number, Snapshot[]>()
-    for (const [id, data] of snapshotDataEntries) {
-      map.set(id, data)
+    for (let i = 0; i < trackers.length; i++) {
+      map.set(trackers[i].id, snapshotData[i] ?? [])
     }
     return map
-  }, [trackers, ...snapshotDataEntries])
+  }, [trackers, ...snapshotData])
 
   // Derived: alerts
   const visibleAlerts = useMemo(() => {

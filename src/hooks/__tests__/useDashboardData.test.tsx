@@ -197,7 +197,8 @@ describe("useDashboardData", () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining("/api/trackers/1/snapshots?days=30")
+        expect.stringContaining("/api/trackers/1/snapshots?days=30"),
+        expect.any(Object)
       )
     })
   })
@@ -220,7 +221,8 @@ describe("useDashboardData", () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining("/api/trackers/1/snapshots?days=7")
+        expect.stringContaining("/api/trackers/1/snapshots?days=7"),
+        expect.any(Object)
       )
     })
   })
@@ -266,8 +268,8 @@ describe("useDashboardData", () => {
     )
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/clients")
-      expect(fetchMock).toHaveBeenCalledWith("/api/settings/backup/history")
+      expect(fetchMock).toHaveBeenCalledWith("/api/clients", expect.any(Object))
+      expect(fetchMock).toHaveBeenCalledWith("/api/settings/backup/history", expect.any(Object))
     })
   })
 
