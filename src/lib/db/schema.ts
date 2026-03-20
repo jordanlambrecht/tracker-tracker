@@ -1,6 +1,9 @@
 // src/lib/db/schema.ts
 //
-// Tables: appSettings, trackers, trackerSnapshots, trackerRoles, downloadClients, tagGroups, tagGroupMembers, clientSnapshots, backupHistory, dismissedAlerts, draftQuicklinks (column on appSettings), notificationTargets, notificationDeliveryState
+// Tables: appSettings, trackers, trackerSnapshots, trackerRoles, downloadClients,
+// tagGroups, tagGroupMembers, clientSnapshots, backupHistory, dismissedAlerts,
+// draftQuicklinks (column on appSettings), notificationTargets, notificationDeliveryState
+
 import {
   bigint,
   boolean,
