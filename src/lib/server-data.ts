@@ -2,7 +2,7 @@
 //
 // Functions: fetchSettings, serializeSettingsResponse, getSettingsForClient,
 // getTrackerListForDashboard, getTrackerForClient, getSnapshotsForTracker,
-// getTagGroupsWithMembers
+// getTagGroupsWithMembers, getProxyTrackers
 // Constants: settingsColumns, trackerColumns
 //
 // Server-side data fetchers: single source of truth for safe DB queries
@@ -324,5 +324,30 @@ export async function getTagGroupsWithMembers(): Promise<TagGroup[]> {
     sortOrder: g.sortOrder,
     countUnmatched: g.countUnmatched,
     members: membersByGroup.get(g.id) ?? [],
+  }))
+}
+
+// ---------------------------------------------------------------------------
+// Proxy trackers
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetches only id, name, and color for trackers that have useProxy enabled.
+ * Used by the settings page — avoids the heavy dashboard query for this narrow need.
+ */
+export async function getProxyTrackers(): Promise<{ id: number; name: string; color: string }[]> {
+  const rows = await db
+    .select({
+      id: trackers.id,
+      name: trackers.name,
+      color: trackers.color,
+    })
+    .from(trackers)
+    .where(eq(trackers.useProxy, true))
+
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    color: r.color ?? "#00d4ff",
   }))
 }
