@@ -2,7 +2,7 @@
 
 .env
 # dependencies
-/node_modules
+node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -68,3 +68,5 @@ duplicates-report.md
 
 # mkdocs build output
 docs/kb/site/
+
+tmp/

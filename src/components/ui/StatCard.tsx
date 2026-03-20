@@ -332,7 +332,8 @@ function RingContent({
   const strokeWidth = 6
   const radius = (size - strokeWidth) / 2
   const circumference = 2 * Math.PI * radius
-  const dashOffset = circumference * progress
+  // Round to 2 decimal places to prevent SSR/client hydration mismatch
+  const dashOffset = Math.round(circumference * progress * 100) / 100
 
   const deadlineDate = new Date(lastAccess + totalMs)
   const deadlineDateStr = deadlineDate.toLocaleDateString("en-US", {
