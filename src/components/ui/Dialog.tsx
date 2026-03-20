@@ -8,12 +8,26 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { XIcon } from "@/components/ui/Icons"
 
+type DialogSize = "sm" | "md" | "lg" | "xl" | "full"
+
+const SIZE_PRESETS: Record<DialogSize, { maxWidth: string; maxHeight: string }> = {
+  sm: { maxWidth: "max-w-md", maxHeight: "70vh" },
+  md: { maxWidth: "max-w-2xl", maxHeight: "85vh" },
+  lg: { maxWidth: "max-w-4xl", maxHeight: "90vh" },
+  xl: { maxWidth: "max-w-6xl", maxHeight: "90vh" },
+  full: { maxWidth: "max-w-[95vw]", maxHeight: "95vh" },
+}
+
 interface DialogProps {
   open: boolean
   onClose: () => void
   title?: ReactNode
   ariaLabel?: string
+  /** Preset size. Defaults to "md". Overridden by explicit maxWidth/maxHeight. */
+  size?: DialogSize
+  /** Tailwind max-width class (e.g. "max-w-3xl"). Overrides size preset. */
   maxWidth?: string
+  /** CSS max-height value (e.g. "85vh"). Overrides size preset. */
   maxHeight?: string
   children: ReactNode
 }
@@ -23,10 +37,14 @@ function Dialog({
   onClose,
   title,
   ariaLabel,
-  maxWidth = "max-w-2xl",
-  maxHeight = "90vh",
+  size = "md",
+  maxWidth,
+  maxHeight,
   children,
 }: DialogProps) {
+  const preset = SIZE_PRESETS[size]
+  const resolvedMaxWidth = maxWidth ?? preset.maxWidth
+  const resolvedMaxHeight = maxHeight ?? preset.maxHeight
   const [mounted, setMounted] = useState(false)
   const [visible, setVisible] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -104,7 +122,7 @@ function Dialog({
         aria-label={ariaLabel ?? (titleIsString ? (title as string) : undefined)}
         className={[
           "relative z-10 w-full flex flex-col bg-elevated nm-raised rounded-nm-xl overflow-hidden",
-          maxWidth,
+          resolvedMaxWidth,
         ].join(" ")}
         style={{
           opacity: visible ? 1 : 0,
@@ -112,7 +130,7 @@ function Dialog({
           transition: visible
             ? "opacity 200ms ease-out, transform 200ms ease-out"
             : "opacity 150ms ease-in, transform 150ms ease-in",
-          maxHeight: maxHeight,
+          maxHeight: resolvedMaxHeight,
         }}
       >
         {/* Header */}
@@ -156,5 +174,5 @@ function Dialog({
   )
 }
 
-export type { DialogProps }
+export type { DialogProps, DialogSize }
 export { Dialog }

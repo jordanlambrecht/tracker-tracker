@@ -85,8 +85,8 @@ export function DebugResponseDialog({
         </div>
       }
       ariaLabel="Debug API Response"
+      size="md"
       maxWidth="max-w-3xl"
-      maxHeight="85vh"
     >
       {/* Loading state */}
       {loading && (
