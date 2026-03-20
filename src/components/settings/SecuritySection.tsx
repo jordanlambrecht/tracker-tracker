@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { Checkbox } from "@/components/ui/Checkbox"
 import { NumberInput } from "@/components/ui/NumberInput"
+import { Tooltip } from "@/components/ui/Tooltip"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 import { DOCS } from "@/lib/constants"
 
@@ -173,16 +174,11 @@ export function SecuritySection({
     <>
       {/* ── Two-Factor Authentication ──────────────────────────────── */}
       <section aria-labelledby="2fa-heading">
-        <H2 id="2fa-heading" className="mb-4">
-          Two-Factor Authentication{" "}
-          <a
-            href={DOCS.TOTP.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-accent hover:underline text-xs font-normal"
-          >
-            Docs →
-          </a>
+        <H2 id="2fa-heading" className="mb-4 flex items-center gap-2">
+          Two-Factor Authentication
+          <Tooltip content="Protect your login with a TOTP authenticator app." docs={DOCS.TOTP}>
+            <span className="text-muted hover:text-secondary cursor-help text-sm">&#9432;</span>
+          </Tooltip>
         </H2>
 
         <Card elevation="raised">

@@ -742,7 +742,12 @@ function TagGroups() {
   return (
     <section aria-labelledby="tag-groups-heading">
       <div className="flex items-center justify-between mb-2">
-        <H2 id="tag-groups-heading">Tag Groups</H2>
+        <H2 id="tag-groups-heading" className="flex items-center gap-2">
+          Tag Groups
+          <Tooltip content="Create tag groups to visualize your qBittorrent tags as charts." docs={DOCS.TAG_GROUPS}>
+            <span className="text-muted hover:text-secondary cursor-help text-sm">&#9432;</span>
+          </Tooltip>
+        </H2>
         {!showAddForm && (
           <Button size="sm" variant="secondary" onClick={() => setShowAddForm(true)}>
             + New Group
@@ -752,15 +757,7 @@ function TagGroups() {
 
       <Paragraph className="mb-6">
         Bundle qBittorrent tags into named groups for breakdown charts on each tracker&apos;s
-        Torrents tab.{" "}
-        <a
-          href={DOCS.TAG_GROUPS.href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-accent hover:underline"
-        >
-          Docs →
-        </a>
+        Torrents tab.
       </Paragraph>
 
       {showAddForm && (

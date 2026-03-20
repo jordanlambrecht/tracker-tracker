@@ -28,6 +28,8 @@ Tracker Tracker can send you alerts when things happen on your trackers — rati
 
 Keep this URL private — anyone with it can post to your channel.
 
+![Discord webhook setup showing name and channel](../assets/images/webhooks-discord-setup.png)
+
 ### In Tracker Tracker
 
 1. Go to **Settings → Notifications**.
@@ -35,6 +37,8 @@ Keep this URL private — anyone with it can post to your channel.
 3. Select **Discord**, paste the URL, and give the target a name.
 4. Choose which events you want.
 5. Save, then click **Test Webhook** to confirm it works.
+
+![Test notification in Discord](../assets/images/webhooks-discord-test-notif.png)
 
 ## Events
 
@@ -55,7 +59,7 @@ Each target subscribes to any combination of these events:
 Cooldowns prevent spam — if a condition persists across multiple polls, you get one alert per cooldown period, not one per poll.
 
 !!! info "First-poll behavior"
-Events that compare snapshots (ratio drop, hit-and-run) need at least two polls and won't fire on the first one. Events like "account warned" fire immediately if the condition is already true.
+    Events that compare snapshots (ratio drop, hit-and-run) need at least two polls and won't fire on the first one. Events like "account warned" fire immediately if the condition is already true.
 
 ## Thresholds
 

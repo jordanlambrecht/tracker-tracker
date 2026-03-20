@@ -34,7 +34,7 @@ Everything you need to customize how Tracker Tracker runs: environment variables
 | `LOG_FILE`      | _(none)_             | Absolute path inside the container to write logs to disk, e.g. `/data/logs/tracker-tracker.log`.                                                                   |
 
 !!! info "Settings vs environment variables"
-Most day-to-day settings — polling interval, privacy mode, proxy config, backup schedule, lockout policy — live inside the app under **Settings**, not in environment variables. Environment variables are just for infrastructure stuff like database connections and ports.
+    Most day-to-day settings — polling interval, privacy mode, proxy config, backup schedule, lockout policy — live inside the app under **Settings**, not in environment variables. Environment variables are just for infrastructure stuff like database connections and ports.
 
 ---
 
@@ -49,7 +49,7 @@ Most day-to-day settings — polling interval, privacy mode, proxy config, backu
 | `./postgres/postgresql.conf` | `/etc/postgresql/postgresql.conf` | Custom PostgreSQL config. Included in the repo and required for the bundled database to start. |
 
 !!! warning "Back up the pgdata volume"
-The `pgdata` named volume holds your entire database. Use the built-in backup feature (Settings → Backups) for app-level backups, and separately snapshot the Docker volume or use `pg_dump` if you want a database-level backup.
+    The `pgdata` named volume holds your entire database. Use the built-in backup feature (Settings → Backups) for app-level backups, and separately snapshot the Docker volume or use `pg_dump` if you want a database-level backup.
 
 ---
 
@@ -69,7 +69,7 @@ PORT=8080
 ```
 
 !!! tip "Behind a reverse proxy?"
-If Tracker Tracker sits behind Nginx, Caddy, or Traefik, you don't need to expose port 3000 to the outside world at all. Remove the `ports:` block from `docker-compose.yml` and let the reverse proxy talk to the container over the Docker network directly.
+    If Tracker Tracker sits behind Nginx, Caddy, or Traefik, you don't need to expose port 3000 to the outside world at all. Remove the `ports:` block from `docker-compose.yml` and let the reverse proxy talk to the container over the Docker network directly.
 
 ---
 
@@ -143,7 +143,7 @@ If Tracker Tracker sits behind Nginx, Caddy, or Traefik, you don't need to expos
     This assumes Traefik is already running with a `websecure` entrypoint and a `letsencrypt` certificate resolver.
 
 !!! info "Set BASE_URL when using a reverse proxy"
-Set `BASE_URL=https://trackertracker.example.com` in `.env` so backup files and notification links use your public address instead of localhost.
+    Set `BASE_URL=https://trackertracker.example.com` in `.env` so backup files and notification links use your public address instead of localhost.
 
 ---
 
@@ -169,7 +169,7 @@ docker compose pull && docker compose up -d
 The database schema updates automatically on startup. No manual steps required.
 
 !!! tip "Check the changelog first"
-Read the [CHANGELOG](https://github.com/jordanlambrecht/tracker-tracker/blob/main/CHANGELOG.md) before pulling a new image — especially for major version bumps, which may include breaking changes to backup formats or environment variables.
+    Read the [CHANGELOG](https://github.com/jordanlambrecht/tracker-tracker/blob/main/CHANGELOG.md) before pulling a new image — especially for major version bumps, which may include breaking changes to backup formats or environment variables.
 
 To pin to a specific version and update deliberately:
 

@@ -80,7 +80,7 @@ function Tooltip({ content, children, className, docs }: TooltipProps) {
                 rel="noopener noreferrer"
                 className="block mt-1.5 pt-1.5 border-t border-border text-accent hover:underline text-[10px]"
               >
-                {docs.description ?? "Learn more"} →
+                Documentation →
               </a>
             )}
           </div>,

@@ -6,7 +6,7 @@ description: Route tracker polling through SOCKS5, HTTP, or HTTPS proxies on a p
 # Proxies
 
 !!! warning "Experimental"
-Proxy support is experimental and may not work with all trackers or proxy configurations. Use at your own risk.
+    Proxy support is experimental and may not work with all trackers or proxy configurations. Use at your own risk.
 
 You can route outbound tracker API requests through a proxy. Proxy support is opt-in — you configure one global proxy, and then individually enable it per tracker.
 
@@ -23,10 +23,10 @@ The proxy type controls how your traffic reaches the proxy server — SOCKS5 for
 When a proxy is enabled for a tracker, the tracker sees the proxy's IP address — not yours.
 
 !!! warning "Some trackers ban proxy and VPN traffic"
-Many private trackers explicitly prohibit accessing the site from VPNs, proxies, or shared IPs. Using a proxy for API polling may trigger automated security flags or get your account disabled. Check your tracker's rules before enabling this. If a tracker allows API access from a different IP than your browsing IP, you're probably fine — but not all trackers make that distinction.
+    Many private trackers explicitly prohibit accessing the site from VPNs, proxies, or shared IPs. Using a proxy for API polling may trigger automated security flags or get your account disabled. Check your tracker's rules before enabling this. If a tracker allows API access from a different IP than your browsing IP, you're probably fine — but not all trackers make that distinction.
 
 !!! info "DNS resolution"
-HTTP and HTTPS proxies resolve the tracker's hostname on the proxy side — your local DNS provider never sees the domain. SOCKS5 behavior depends on configuration: most SOCKS5 proxies also resolve remotely, but some setups resolve locally first. If DNS privacy matters to you, verify your SOCKS5 proxy does remote resolution.
+    HTTP and HTTPS proxies resolve the tracker's hostname on the proxy side — your local DNS provider never sees the domain. SOCKS5 behavior depends on configuration: most SOCKS5 proxies also resolve remotely, but some setups resolve locally first. If DNS privacy matters to you, verify your SOCKS5 proxy does remote resolution.
 
 ## Setup
 

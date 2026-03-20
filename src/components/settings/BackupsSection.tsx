@@ -312,16 +312,11 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
     <>
       {/* ── Export ──────────────────────────────────────────────── */}
       <section aria-labelledby="backup-export-heading">
-        <H2 id="backup-export-heading" className="mb-4">
-          Export{" "}
-          <a
-            href={DOCS.BACKUPS.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-accent hover:underline text-xs font-normal"
-          >
-            Docs →
-          </a>
+        <H2 id="backup-export-heading" className="mb-4 flex items-center gap-2">
+          Export
+          <Tooltip content="Export and restore your trackers, settings, and snapshots." docs={DOCS.BACKUPS}>
+            <span className="text-muted hover:text-secondary cursor-help text-sm">&#9432;</span>
+          </Tooltip>
         </H2>
 
         <Card elevation="raised" className="flex flex-col gap-4">

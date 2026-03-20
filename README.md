@@ -2,7 +2,7 @@
 ![Version](https://img.shields.io/github/package-json/v/jordanlambrecht/tracker-tracker)
 ![Self-Hosted](https://img.shields.io/badge/self--hosted-Docker-2496ed)
 
-📖 **[Documentation](https://jordanlambrecht.github.io/tracker-tracker/)**
+[![Documentation](https://img.shields.io/badge/Documentation-→-00d4ff)](https://jordanlambrecht.github.io/tracker-tracker/)
 
 <p align="center">
   <img src="public/img/trackerTracker_logo.svg" alt="Tracker Tracker" width="400" />
