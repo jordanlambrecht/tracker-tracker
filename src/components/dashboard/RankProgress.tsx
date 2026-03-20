@@ -9,9 +9,9 @@ import { CHART_THEME } from "@/components/charts/theme"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { RedactedText } from "@/components/ui/RedactedText"
 import type { TrackerUserClass } from "@/data/tracker-registry"
-import { getAnniversaryMilestone } from "@/lib/dashboard"
 import { hexToRgba } from "@/lib/formatters"
 import { isRedacted } from "@/lib/privacy"
+import { checkAnniversaryMilestone } from "@/lib/tracker-events"
 import type { Snapshot } from "@/types/api"
 
 // ── Types ──
@@ -232,11 +232,9 @@ function RankProgress({
     direction: classifyDirection(change.from, change.to, userClasses),
   }))
 
-  if (joinedAt) {
-    const milestone = getAnniversaryMilestone(joinedAt)
-    if (milestone) {
-      events.push({ kind: "anniversary", label: milestone.label })
-    }
+  const milestone = checkAnniversaryMilestone(joinedAt)
+  if (milestone) {
+    events.push({ kind: "anniversary", label: milestone.label })
   }
 
   const hasProgressBar = userClasses.length > 0 && currentRank

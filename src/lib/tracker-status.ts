@@ -7,6 +7,7 @@
 
 import type { BadgeVariant } from "@/components/ui/Badge"
 import type { PulseDotStatus } from "@/components/ui/PulseDot"
+import { checkWarned } from "@/lib/tracker-events"
 import type { TrackerSummary } from "@/types/api"
 
 type TrackerHealth = "healthy" | "warning" | "critical" | "error" | "paused" | "offline"
@@ -65,7 +66,7 @@ function getTrackerHealth(tracker: TrackerSummary): TrackerHealth {
   if (ratio === null) return "offline"
 
   // Warned by tracker is always critical — potential ban risk
-  if (tracker.latestStats.warned === true) return "critical"
+  if (checkWarned(tracker.latestStats?.warned)) return "critical"
 
   let status: TrackerHealth
   if (ratio >= 2) status = "healthy"
