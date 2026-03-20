@@ -8,6 +8,7 @@ import { authenticate } from "@/lib/api-helpers"
 import { createSetupToken } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
 import { generateBackupCodes, generateTotpSecret, hashBackupCode } from "@/lib/totp"
 
 export async function POST() {
@@ -20,6 +21,7 @@ export async function POST() {
   }
 
   if (settings.totpSecret) {
+    log.warn({ route: "POST /api/auth/totp/setup" }, "TOTP setup rejected — already enabled")
     return NextResponse.json({ error: "TOTP is already enabled" }, { status: 400 })
   }
 
@@ -29,6 +31,7 @@ export async function POST() {
 
   const setupToken = await createSetupToken(secret, JSON.stringify(backupHashes))
 
+  log.info({ route: "POST /api/auth/totp/setup" }, "TOTP enrollment initiated")
   return NextResponse.json({
     uri,
     setupToken,

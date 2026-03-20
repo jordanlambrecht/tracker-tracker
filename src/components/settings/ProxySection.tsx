@@ -15,6 +15,7 @@ import { Select } from "@/components/ui/Select"
 import { Toggle } from "@/components/ui/Toggle"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 import { extractApiError } from "@/lib/client-helpers"
+import { DOCS } from "@/lib/constants"
 
 export interface ProxySectionProps {
   initialProxy: {
@@ -153,7 +154,17 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
 
       <div className="flex items-center gap-2 mb-3 px-1 text-warn text-xs font-mono">
         <span aria-hidden="true">⚠</span>
-        <span>EXPERIMENTAL — Use at your own risk. May result in IP leaks and/or angry mods.</span>
+        <span>
+          EXPERIMENTAL — Use at your own risk. May result in IP leaks and/or angry mods.{" "}
+          <a
+            href={DOCS.PROXIES.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-accent hover:underline"
+          >
+            Read the docs →
+          </a>
+        </span>
       </div>
 
       <Card elevation="raised" className="flex flex-col gap-5">

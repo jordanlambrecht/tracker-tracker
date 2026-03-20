@@ -13,6 +13,7 @@ import { authenticate, decodeKey, parseTrackerId } from "@/lib/api-helpers"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
 import { buildProxyAgentFromSettings } from "@/lib/proxy"
 import { scrubObject } from "@/lib/scrub-object"
 
@@ -39,11 +40,11 @@ function serializeStats(stats: TrackerStats): Record<string, unknown> {
   }
 }
 
-export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(_request: Request, props: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const trackerId = await parseTrackerId(params)
+  const trackerId = await parseTrackerId(props.params)
   if (trackerId instanceof NextResponse) return trackerId
 
   const key = decodeKey(auth)
@@ -134,6 +135,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     } catch (err) {
       // security-audit-ignore: error captured in rawError for debug response
       rawError = err instanceof Error ? err.message : "Raw fetch failed"
+      log.warn({ route: "POST /api/trackers/[id]/debug", trackerId, error: rawError }, "debug raw fetch failed")
     }
   } else {
     rawError = `fetchRaw not implemented for platform: ${tracker.platformType}`
@@ -147,6 +149,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     normalizedResponse = serializeStats(stats)
   } catch (err) {
     normalizedError = err instanceof Error ? err.message : "Normalized fetch failed"
+    log.warn({ route: "POST /api/trackers/[id]/debug", trackerId, error: normalizedError }, "debug normalized fetch failed")
   }
 
   return NextResponse.json({

@@ -90,6 +90,10 @@ vi.mock("@/lib/api-helpers", async (importOriginal) => {
   }
 })
 
+vi.mock("@/lib/notifications/dispatch", () => ({
+  dispatchNotifications: vi.fn().mockResolvedValue(undefined),
+}))
+
 // ---------------------------------------------------------------------------
 // Imports (after mocks)
 // ---------------------------------------------------------------------------
@@ -115,9 +119,10 @@ function makeRequest(url: string, method = "POST"): Request {
 /** Build a db.select() chain that resolves a single call with `rows`. */
 function mockSelectOnce(rows: unknown[]) {
   const mockLimit = vi.fn().mockResolvedValue(rows)
-  const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit })
+  const mockOrderBy = vi.fn().mockReturnValue({ limit: mockLimit })
+  const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy, limit: mockLimit })
   const mockFrom = vi.fn().mockReturnValue({ where: mockWhere })
-  return { from: mockFrom, where: mockWhere, limit: mockLimit }
+  return { from: mockFrom, where: mockWhere, orderBy: mockOrderBy, limit: mockLimit }
 }
 
 /** Build a db.update() chain with a fluent set/where/returning. */

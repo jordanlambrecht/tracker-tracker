@@ -21,6 +21,8 @@ import {
   clientUptimeBuckets,
   dismissedAlerts,
   downloadClients,
+  notificationDeliveryState,
+  notificationTargets,
   tagGroupMembers,
   tagGroups,
   trackerRoles,
@@ -234,6 +236,8 @@ export async function POST(request: Request) {
       await tx.delete(trackerRoles)
       await tx.delete(tagGroupMembers)
       await tx.delete(tagGroups)
+      await tx.delete(notificationDeliveryState)
+      await tx.delete(notificationTargets)
       await tx.delete(downloadClients)
       await tx.delete(trackers)
 
@@ -475,6 +479,51 @@ export async function POST(request: Request) {
         }
       }
 
+      // Insert notificationTargets with config re-encryption (optional — absent in older backups)
+      if (Array.isArray(payload.notificationTargets) && payload.notificationTargets.length > 0) {
+        for (const nt of payload.notificationTargets) {
+          const { id: _id, ...fields } = nt as Record<string, unknown> & { id: number }
+
+          let encryptedConfig: string
+          if (sameSalt) {
+            encryptedConfig = (fields.encryptedConfig as string) || ""
+          } else if (canReencrypt) {
+            encryptedConfig = reencryptField(
+              fields.encryptedConfig as string,
+              backupKey,
+              currentKey
+            )
+          } else {
+            encryptedConfig = ""
+          }
+
+          const configCleared = !encryptedConfig
+          await tx.insert(notificationTargets).values({
+            name: fields.name as string,
+            type: fields.type as string,
+            enabled: configCleared ? false : (fields.enabled as boolean),
+            encryptedConfig,
+            notifyRatioDrop: (fields.notifyRatioDrop as boolean) ?? false,
+            notifyHitAndRun: (fields.notifyHitAndRun as boolean) ?? false,
+            notifyTrackerDown: (fields.notifyTrackerDown as boolean) ?? false,
+            notifyBufferMilestone: (fields.notifyBufferMilestone as boolean) ?? false,
+            notifyWarned: (fields.notifyWarned as boolean) ?? false,
+            notifyRatioDanger: (fields.notifyRatioDanger as boolean) ?? false,
+            notifyZeroSeeding: (fields.notifyZeroSeeding as boolean) ?? false,
+            notifyRankChange: (fields.notifyRankChange as boolean) ?? false,
+            notifyAnniversary: (fields.notifyAnniversary as boolean) ?? false,
+            thresholds: (fields.thresholds as Record<string, unknown> | null) ?? null,
+            includeTrackerName: (fields.includeTrackerName as boolean) ?? true,
+            scope: (fields.scope as number[] | null) ?? null,
+            lastDeliveryError: configCleared
+              ? "Config cleared during restore — re-enter and re-enable"
+              : null,
+            createdAt: new Date(fields.createdAt as string),
+            updatedAt: new Date(fields.updatedAt as string),
+          })
+        }
+      }
+
       // Re-encrypt proxy password if possible
       let proxyPassword: string | null = null
       if (payload.settings.encryptedProxyPassword) {
@@ -604,6 +653,7 @@ export async function POST(request: Request) {
       fileNameHash: hashFileName(fileName),
       tokensPreserved,
       tokensCleared,
+      clientCredentialsCleared,
       totpDisabledOnRestore,
       restored: {
         trackers: payload.trackers.length,
@@ -613,6 +663,9 @@ export async function POST(request: Request) {
         tagGroups: payload.tagGroups.length,
         dismissedAlerts: Array.isArray(payload.dismissedAlerts)
           ? payload.dismissedAlerts.length
+          : 0,
+        notificationTargets: Array.isArray(payload.notificationTargets)
+          ? payload.notificationTargets.length
           : 0,
       },
     },
@@ -633,6 +686,9 @@ export async function POST(request: Request) {
         ? payload.clientUptimeBuckets.length
         : 0,
       dismissedAlerts: Array.isArray(payload.dismissedAlerts) ? payload.dismissedAlerts.length : 0,
+      notificationTargets: Array.isArray(payload.notificationTargets)
+        ? payload.notificationTargets.length
+        : 0,
     },
     tokensPreserved,
     tokensCleared,

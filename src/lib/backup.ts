@@ -14,6 +14,7 @@ import {
   clientUptimeBuckets,
   dismissedAlerts,
   downloadClients,
+  notificationTargets,
   tagGroupMembers,
   tagGroups,
   trackerRoles,
@@ -21,6 +22,7 @@ import {
   trackers,
 } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
+import { VALID_NOTIFICATION_TYPES } from "@/lib/notifications/types"
 import packageJson from "../../package.json"
 
 export const CURRENT_BACKUP_VERSION = 1
@@ -46,6 +48,7 @@ export interface BackupPayload {
   clientSnapshots: Record<string, unknown>[]
   clientUptimeBuckets?: Record<string, unknown>[]
   dismissedAlerts?: Record<string, unknown>[]
+  notificationTargets?: Record<string, unknown>[]
 }
 
 export interface EncryptedBackupEnvelope {
@@ -161,6 +164,16 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     serializeRow(a as Record<string, unknown>)
   )
 
+  // notificationTargets — exclude transient delivery state columns
+  const allNotificationTargets = await db
+    .select()
+    .from(notificationTargets)
+    .orderBy(notificationTargets.id)
+  const backupNotificationTargets = allNotificationTargets.map(
+    ({ lastDeliveryStatus, lastDeliveryAt, lastDeliveryError, ...rest }) =>
+      serializeRow(rest as Record<string, unknown>)
+  )
+
   const counts: Record<string, number> = {
     trackers: trackersPayload.length,
     trackerSnapshots: snapshotsPayload.length,
@@ -171,6 +184,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     clientSnapshots: clientSnapshotsPayload.length,
     clientUptimeBuckets: uptimeBucketsPayload.length,
     dismissedAlerts: dismissedAlertsPayload.length,
+    notificationTargets: backupNotificationTargets.length,
   }
 
   const manifest: BackupManifest = {
@@ -194,6 +208,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     clientSnapshots: clientSnapshotsPayload,
     clientUptimeBuckets: uptimeBucketsPayload,
     dismissedAlerts: dismissedAlertsPayload,
+    notificationTargets: backupNotificationTargets,
   }
 }
 
@@ -321,6 +336,24 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
   // dismissedAlerts is optional for backward compatibility with older backups
   if (p.dismissedAlerts !== undefined) {
     assertArray(p.dismissedAlerts, "dismissedAlerts")
+  }
+  // notificationTargets is optional for backward compatibility with older backups
+  if (p.notificationTargets !== undefined) {
+    assertArray(p.notificationTargets, "notificationTargets")
+    for (let i = 0; i < p.notificationTargets.length; i++) {
+      const nt = p.notificationTargets[i] as Record<string, unknown>
+      const prefix = `notificationTargets[${i}]`
+      assertString(nt.name, `${prefix}.name`)
+      assertString(nt.encryptedConfig, `${prefix}.encryptedConfig`)
+      assertString(nt.type, `${prefix}.type`)
+      if (
+        !VALID_NOTIFICATION_TYPES.includes(nt.type as (typeof VALID_NOTIFICATION_TYPES)[number])
+      ) {
+        throw new Error(
+          `Backup validation: ${prefix}.type must be one of: ${VALID_NOTIFICATION_TYPES.join(", ")}`
+        )
+      }
+    }
   }
 
   // tracker entries

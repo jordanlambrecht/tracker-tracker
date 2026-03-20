@@ -3,7 +3,7 @@
 // Functions: pollTracker, pollAllTrackers, pruneOldSnapshots, startScheduler, stopScheduler, ensureSchedulerRunning, POLL_FAILURE_THRESHOLD
 import type { Agent as HttpAgent } from "node:http"
 
-import { eq, lt, sql } from "drizzle-orm"
+import { desc, eq, lt, sql } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { getAdapter } from "@/lib/adapters"
@@ -16,9 +16,10 @@ import {
 } from "@/lib/client-scheduler"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { appSettings, trackerSnapshots, trackers } from "@/lib/db/schema"
+import { appSettings, notificationTargets, trackerSnapshots, trackers } from "@/lib/db/schema"
 import { sanitizeNetworkError } from "@/lib/error-utils"
 import { log } from "@/lib/logger"
+import { dispatchNotifications } from "@/lib/notifications/dispatch"
 import { maskUsername } from "@/lib/privacy"
 import { buildProxyAgentFromSettings } from "@/lib/proxy"
 
@@ -59,7 +60,8 @@ export async function pollTracker(
   encryptionKey: Buffer,
   privacyMode: boolean,
   proxyAgent?: HttpAgent,
-  batchTimestamp?: Date
+  batchTimestamp?: Date,
+  enabledTargets?: (typeof notificationTargets.$inferSelect)[]
 ): Promise<void> {
   const [tracker] = await db.select().from(trackers).where(eq(trackers.id, trackerId)).limit(1)
 
@@ -121,6 +123,21 @@ export async function pollTracker(
       await db.update(trackers).set(metaUpdates).where(eq(trackers.id, tracker.id))
     }
 
+    // Fetch previous snapshot BEFORE inserting the new one — used for change detection in notifications
+    const [previousSnapshot] = await db
+      .select({
+        ratio: trackerSnapshots.ratio,
+        hitAndRuns: trackerSnapshots.hitAndRuns,
+        bufferBytes: trackerSnapshots.bufferBytes,
+        warned: trackerSnapshots.warned,
+        group: trackerSnapshots.group,
+        seedingCount: trackerSnapshots.seedingCount,
+      })
+      .from(trackerSnapshots)
+      .where(eq(trackerSnapshots.trackerId, tracker.id))
+      .orderBy(desc(trackerSnapshots.polledAt))
+      .limit(1)
+
     await db.insert(trackerSnapshots).values({
       trackerId: tracker.id,
       polledAt: timestamp,
@@ -139,6 +156,39 @@ export async function pollTracker(
       username: privacyMode ? maskUsername(stats.username) : stats.username,
       group: privacyMode ? maskUsername(stats.group) : stats.group,
     })
+
+    try {
+      await dispatchNotifications(
+        {
+          trackerId: tracker.id,
+          trackerName: tracker.name,
+          storeUsernames: privacyMode === false,
+          currentRatio: stats.ratio,
+          previousRatio: previousSnapshot?.ratio ?? null,
+          currentHnrs: stats.hitAndRuns,
+          previousHnrs: previousSnapshot?.hitAndRuns ?? null,
+          currentBufferBytes: stats.bufferBytes !== null ? stats.bufferBytes : null,
+          previousBufferBytes: previousSnapshot?.bufferBytes ?? null,
+          trackerDown: false,
+          trackerError: null,
+          currentWarned: stats.warned ?? null,
+          previousWarned: previousSnapshot?.warned ?? null,
+          currentSeedingCount: stats.seedingCount ?? null,
+          currentGroup: stats.group ?? null,
+          previousGroup: previousSnapshot?.group ?? null,
+          trackerIsActive: tracker.isActive,
+          trackerPausedAt: null,
+          trackerJoinedAt: tracker.joinedAt ?? null,
+          minimumRatio: registryEntry?.rules?.minimumRatio,
+        },
+        encryptionKey,
+        enabledTargets
+      )
+    } catch (err) {
+      log.error(
+        `Notification dispatch failed for ${tracker.name}: ${err instanceof Error ? err.message : "Unknown"}`
+      )
+    }
 
     await db
       .update(trackers)
@@ -178,6 +228,37 @@ export async function pollTracker(
       }
     } catch (dbError) {
       log.error(dbError, `Failed to record poll failure for tracker ${trackerId}`)
+    }
+
+    try {
+      await dispatchNotifications(
+        {
+          trackerId: tracker?.id ?? trackerId,
+          trackerName: tracker?.name ?? String(trackerId),
+          storeUsernames: false,
+          currentRatio: null,
+          previousRatio: null,
+          currentHnrs: null,
+          previousHnrs: null,
+          currentBufferBytes: null,
+          previousBufferBytes: null,
+          trackerDown: true,
+          trackerError: message,
+          currentWarned: null,
+          previousWarned: null,
+          currentSeedingCount: null,
+          currentGroup: null,
+          previousGroup: null,
+          trackerIsActive: tracker?.isActive ?? true,
+          trackerPausedAt: tracker?.pausedAt?.toISOString() ?? null,
+          trackerJoinedAt: tracker?.joinedAt ?? null,
+          minimumRatio: undefined,
+        },
+        encryptionKey,
+        enabledTargets
+      )
+    } catch {
+      // security-audit-ignore: notification dispatch is non-critical — errors logged inside dispatchNotifications
     }
   }
 }
@@ -227,6 +308,19 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
   // Build proxy agent once for all trackers that need it
   const proxyAgent = settings ? buildProxyAgentFromSettings(settings, encryptionKey) : undefined
 
+  // Fetch notification targets once for the entire poll cycle — avoids N identical queries
+  let enabledNotificationTargets: (typeof notificationTargets.$inferSelect)[] = []
+  try {
+    enabledNotificationTargets = await db
+      .select()
+      .from(notificationTargets)
+      .where(eq(notificationTargets.enabled, true))
+  } catch (err) {
+    log.error(
+      `pollAllTrackers: failed to fetch notification targets: ${err instanceof Error ? err.message : "Unknown"}`
+    )
+  }
+
   // Capture a single timestamp for the whole batch so all snapshots in one
   // cycle share the same polledAt value — simplifies time-series queries
   const batchTimestamp = new Date()
@@ -234,7 +328,14 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
   // Poll all overdue trackers in parallel — one slow tracker won't block the rest
   await Promise.allSettled(
     overdue.map((tracker) =>
-      pollTracker(tracker.id, encryptionKey, privacyMode, proxyAgent, batchTimestamp)
+      pollTracker(
+        tracker.id,
+        encryptionKey,
+        privacyMode,
+        proxyAgent,
+        batchTimestamp,
+        enabledNotificationTargets
+      )
     )
   )
 

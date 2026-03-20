@@ -13,6 +13,10 @@ const baseStats: TrackerLatestStats = {
   requiredRatio: null,
   warned: false,
   freeleechTokens: null,
+  bufferBytes: null,
+  hitAndRuns: null,
+  seedbonus: null,
+  shareScore: null,
   username: "test",
   group: "User",
 }

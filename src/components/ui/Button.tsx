@@ -2,7 +2,7 @@
 
 import { cva } from "class-variance-authority"
 import clsx from "clsx"
-import { type ButtonHTMLAttributes, forwardRef } from "react"
+import type { ButtonHTMLAttributes, Ref } from "react"
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger"
 type ButtonSize = "sm" | "md" | "lg"
@@ -10,6 +10,7 @@ type ButtonSize = "sm" | "md" | "lg"
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant
   size?: ButtonSize
+  ref?: Ref<HTMLButtonElement>
 }
 
 const button = cva(
@@ -44,23 +45,28 @@ const button = cva(
   }
 )
 
-const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ variant = "primary", size = "md", className, disabled, children, style, ...props }, ref) => {
-    return (
-      <button
-        ref={ref}
-        disabled={disabled}
-        className={clsx(button({ variant, size }), className)}
-        style={style}
-        {...props}
-      >
-        {children}
-      </button>
-    )
-  }
-)
-
-Button.displayName = "Button"
+function Button({
+  variant = "primary",
+  size = "md",
+  className,
+  disabled,
+  children,
+  style,
+  ref,
+  ...props
+}: ButtonProps) {
+  return (
+    <button
+      ref={ref}
+      disabled={disabled}
+      className={clsx(button({ variant, size }), className)}
+      style={style}
+      {...props}
+    >
+      {children}
+    </button>
+  )
+}
 
 export type { ButtonProps, ButtonSize, ButtonVariant }
 export { Button, button as buttonVariants }

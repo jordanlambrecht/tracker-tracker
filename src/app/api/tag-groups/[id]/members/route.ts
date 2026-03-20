@@ -7,12 +7,13 @@ import { NextResponse } from "next/server"
 import { authenticate, parseJsonBody, parseRouteId, validateHexColor } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { tagGroupMembers, tagGroups } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
 
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const groupId = await parseRouteId(params, "group ID")
+  const groupId = await parseRouteId(props.params, "group ID")
   if (groupId instanceof NextResponse) return groupId
 
   const [group] = await db
@@ -34,11 +35,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   return NextResponse.json(members)
 }
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const groupId = await parseRouteId(params, "group ID")
+  const groupId = await parseRouteId(props.params, "group ID")
   if (groupId instanceof NextResponse) return groupId
 
   const body = await parseJsonBody(request)
@@ -107,5 +108,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     })
     .returning()
 
+  log.info({ route: "POST /api/tag-groups/[id]/members", groupId }, "tag group member added")
   return NextResponse.json(member, { status: 201 })
 }

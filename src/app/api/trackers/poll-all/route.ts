@@ -12,6 +12,7 @@ import { NextResponse } from "next/server"
 import { authenticate, decodeKey } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
 import { buildProxyAgentFromSettings } from "@/lib/proxy"
 import { pollTracker } from "@/lib/scheduler"
 
@@ -45,6 +46,8 @@ export async function POST() {
   if (activeTrackers.length === 0) {
     return NextResponse.json({ total: 0, done: true, polled: 0, failed: 0 })
   }
+
+  log.info({ route: "POST /api/trackers/poll-all", count: activeTrackers.length }, "poll-all initiated")
 
   const batchTimestamp = new Date()
   const encoder = new TextEncoder()

@@ -7,6 +7,7 @@ import { authenticate, decodeKey, parseJsonBody, validatePort } from "@/lib/api-
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
 import {
   createProxyAgent,
   PROXY_HOST_PATTERN,
@@ -75,6 +76,7 @@ export async function POST(request: Request) {
         const key = decodeKey(auth)
         resolvedPassword = decrypt(settings.encryptedProxyPassword, key)
       } catch {
+        log.error({ route: "POST /api/settings/proxy-test" }, "proxy test failed — password decrypt error")
         return NextResponse.json(
           { success: false, error: "Failed to decrypt stored proxy password" },
           { status: 500 }
@@ -121,6 +123,7 @@ export async function POST(request: Request) {
     else if (/ECONNRESET/i.test(raw)) detail = " (connection reset)"
     else if (/SOCKS/i.test(raw)) detail = " (SOCKS proxy error)"
     else if (/407/i.test(raw)) detail = " (proxy authentication required)"
+    log.warn({ route: "POST /api/settings/proxy-test", error: `Proxy test failed${detail}` }, "proxy connection test failed")
     return NextResponse.json(
       { success: false, error: `Proxy test failed${detail}` },
       { status: 422 }

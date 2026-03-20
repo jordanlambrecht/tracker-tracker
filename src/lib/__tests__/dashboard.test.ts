@@ -17,9 +17,9 @@ import {
   deleteAllDismissed,
   detectRankChanges,
   fetchDismissedKeys,
-  getAnniversaryMilestone,
   postDismissAlert,
 } from "@/lib/dashboard"
+import { checkAnniversaryMilestone } from "@/lib/tracker-events"
 import { getTrackerHealth } from "@/lib/tracker-status"
 
 const mockFindRegistryEntry = vi.mocked(findRegistryEntry)
@@ -59,6 +59,10 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
       requiredRatio: null,
       warned: null,
       freeleechTokens: null,
+      bufferBytes: null,
+      hitAndRuns: null,
+      seedbonus: null,
+      shareScore: null,
       username: "user",
       group: null,
     },
@@ -134,6 +138,10 @@ describe("computeAggregateStats", () => {
           requiredRatio: null,
           warned: null,
           freeleechTokens: null,
+          bufferBytes: null,
+          hitAndRuns: null,
+          seedbonus: null,
+          shareScore: null,
           username: "user",
           group: null,
         },
@@ -149,6 +157,10 @@ describe("computeAggregateStats", () => {
           requiredRatio: null,
           warned: null,
           freeleechTokens: null,
+          bufferBytes: null,
+          hitAndRuns: null,
+          seedbonus: null,
+          shareScore: null,
           username: "user2",
           group: null,
         },
@@ -175,6 +187,10 @@ describe("computeAggregateStats", () => {
           requiredRatio: null,
           warned: null,
           freeleechTokens: null,
+          bufferBytes: null,
+          hitAndRuns: null,
+          seedbonus: null,
+          shareScore: null,
           username: "user",
           group: null,
         },
@@ -190,6 +206,10 @@ describe("computeAggregateStats", () => {
           requiredRatio: null,
           warned: null,
           freeleechTokens: null,
+          bufferBytes: null,
+          hitAndRuns: null,
+          seedbonus: null,
+          shareScore: null,
           username: "user2",
           group: null,
         },
@@ -212,6 +232,10 @@ describe("computeAggregateStats", () => {
           requiredRatio: null,
           warned: null,
           freeleechTokens: null,
+          bufferBytes: null,
+          hitAndRuns: null,
+          seedbonus: null,
+          shareScore: null,
           username: "user",
           group: null,
         },
@@ -234,6 +258,10 @@ describe("computeAggregateStats", () => {
           requiredRatio: null,
           warned: null,
           freeleechTokens: null,
+          bufferBytes: null,
+          hitAndRuns: null,
+          seedbonus: null,
+          shareScore: null,
           username: "user",
           group: null,
         },
@@ -262,6 +290,10 @@ describe("computeAggregateStats", () => {
           requiredRatio: null,
           warned: null,
           freeleechTokens: null,
+          bufferBytes: null,
+          hitAndRuns: null,
+          seedbonus: null,
+          shareScore: null,
           username: "user",
           group: null,
         },
@@ -286,6 +318,10 @@ describe("computeAggregateStats", () => {
           requiredRatio: null,
           warned: null,
           freeleechTokens: null,
+          bufferBytes: null,
+          hitAndRuns: null,
+          seedbonus: null,
+          shareScore: null,
           username: "user",
           group: null,
         },
@@ -307,6 +343,10 @@ describe("computeAggregateStats", () => {
         requiredRatio: null,
         warned: null,
         freeleechTokens: null,
+        bufferBytes: null,
+        hitAndRuns: null,
+        seedbonus: null,
+        shareScore: null,
         username: "a",
         group: "User",
       },
@@ -343,6 +383,10 @@ describe("computeAlerts", () => {
         requiredRatio: null,
         warned: null,
         freeleechTokens: null,
+        bufferBytes: null,
+        hitAndRuns: null,
+        seedbonus: null,
+        shareScore: null,
         username: "u",
         group: null,
       },
@@ -397,6 +441,10 @@ describe("computeAlerts", () => {
         requiredRatio: null,
         warned: null,
         freeleechTokens: null,
+        bufferBytes: null,
+        hitAndRuns: null,
+        seedbonus: null,
+        shareScore: null,
         username: "u",
         group: null,
       },
@@ -427,6 +475,10 @@ describe("computeAlerts", () => {
         requiredRatio: null,
         warned: null,
         freeleechTokens: null,
+        bufferBytes: null,
+        hitAndRuns: null,
+        seedbonus: null,
+        shareScore: null,
         username: "u",
         group: null,
       },
@@ -453,6 +505,10 @@ describe("computeAlerts", () => {
         requiredRatio: null,
         warned: null,
         freeleechTokens: null,
+        bufferBytes: null,
+        hitAndRuns: null,
+        seedbonus: null,
+        shareScore: null,
         username: "u",
         group: null,
       },
@@ -478,6 +534,10 @@ describe("computeAlerts", () => {
         requiredRatio: null,
         warned: null,
         freeleechTokens: null,
+        bufferBytes: null,
+        hitAndRuns: null,
+        seedbonus: null,
+        shareScore: null,
         username: "u",
         group: null,
       },
@@ -528,6 +588,10 @@ describe("computeAlerts", () => {
         requiredRatio: null,
         warned: null,
         freeleechTokens: null,
+        bufferBytes: null,
+        hitAndRuns: null,
+        seedbonus: null,
+        shareScore: null,
         username: "u",
         group: null,
       },
@@ -554,6 +618,10 @@ describe("computeAlerts", () => {
         requiredRatio: null,
         warned: null,
         freeleechTokens: null,
+        bufferBytes: null,
+        hitAndRuns: null,
+        seedbonus: null,
+        shareScore: null,
         username: "u",
         group: null,
       },
@@ -576,6 +644,10 @@ describe("computeAlerts", () => {
         requiredRatio: null,
         warned: null,
         freeleechTokens: null,
+        bufferBytes: null,
+        hitAndRuns: null,
+        seedbonus: null,
+        shareScore: null,
         username: "u",
         group: null,
       },
@@ -598,6 +670,10 @@ describe("computeAlerts", () => {
         requiredRatio: null,
         warned: null,
         freeleechTokens: null,
+        bufferBytes: null,
+        hitAndRuns: null,
+        seedbonus: null,
+        shareScore: null,
         username: "u",
         group: null,
       },
@@ -899,10 +975,10 @@ describe("detectRankChanges", () => {
 })
 
 // ---------------------------------------------------------------------------
-// getAnniversaryMilestone
+// checkAnniversaryMilestone
 // ---------------------------------------------------------------------------
 
-describe("getAnniversaryMilestone", () => {
+describe("checkAnniversaryMilestone", () => {
   beforeEach(() => {
     vi.useFakeTimers()
   })
@@ -913,47 +989,51 @@ describe("getAnniversaryMilestone", () => {
 
   it("returns 1 month anniversary on exact date", () => {
     vi.setSystemTime(new Date("2026-04-15"))
-    expect(getAnniversaryMilestone("2026-03-15")).toEqual({ label: "1 month anniversary" })
+    expect(checkAnniversaryMilestone("2026-03-15")).toEqual({ label: "1 month anniversary" })
   })
 
   it("returns 6 month anniversary on exact date", () => {
     vi.setSystemTime(new Date("2026-09-15"))
-    expect(getAnniversaryMilestone("2026-03-15")).toEqual({ label: "6 month anniversary" })
+    expect(checkAnniversaryMilestone("2026-03-15")).toEqual({ label: "6 month anniversary" })
   })
 
   it("returns 1 year anniversary on exact date", () => {
     vi.setSystemTime(new Date("2027-03-15"))
-    expect(getAnniversaryMilestone("2026-03-15")).toEqual({ label: "1 year anniversary" })
+    expect(checkAnniversaryMilestone("2026-03-15")).toEqual({ label: "1 year anniversary" })
   })
 
   it("returns multi-year anniversary", () => {
     vi.setSystemTime(new Date("2031-03-15"))
-    expect(getAnniversaryMilestone("2026-03-15")).toEqual({ label: "5 year anniversary" })
+    expect(checkAnniversaryMilestone("2026-03-15")).toEqual({ label: "5 year anniversary" })
   })
 
   it("matches within the ±3 day window", () => {
     vi.setSystemTime(new Date("2027-03-13")) // 2 days before 1yr anniversary
-    expect(getAnniversaryMilestone("2026-03-15")).toEqual({ label: "1 year anniversary" })
+    expect(checkAnniversaryMilestone("2026-03-15")).toEqual({ label: "1 year anniversary" })
   })
 
   it("does not match outside the ±3 day window", () => {
     vi.setSystemTime(new Date("2027-03-10")) // 5 days before 1yr anniversary
-    expect(getAnniversaryMilestone("2026-03-15")).toBeNull()
+    expect(checkAnniversaryMilestone("2026-03-15")).toBeNull()
   })
 
   it("returns null for dates not near any milestone", () => {
     vi.setSystemTime(new Date("2026-08-01")) // ~4.5 months in, no milestone nearby
-    expect(getAnniversaryMilestone("2026-03-15")).toBeNull()
+    expect(checkAnniversaryMilestone("2026-03-15")).toBeNull()
   })
 
   it("returns null for invalid date string", () => {
-    expect(getAnniversaryMilestone("not-a-date")).toBeNull()
+    expect(checkAnniversaryMilestone("not-a-date")).toBeNull()
+  })
+
+  it("returns null when joinedAt is null", () => {
+    expect(checkAnniversaryMilestone(null)).toBeNull()
   })
 
   it("prefers 1 month over 1 year when both could match", () => {
     // Edge case: 1 month anniversary checked before annual milestones
     vi.setSystemTime(new Date("2026-04-15"))
-    const result = getAnniversaryMilestone("2026-03-15")
+    const result = checkAnniversaryMilestone("2026-03-15")
     expect(result?.label).toBe("1 month anniversary")
   })
 
@@ -1004,6 +1084,10 @@ describe("getTrackerHealth", () => {
           requiredRatio: null,
           warned: null,
           freeleechTokens: null,
+          bufferBytes: null,
+          hitAndRuns: null,
+          seedbonus: null,
+          shareScore: null,
           username: "u",
           group: null,
         },
@@ -1040,6 +1124,10 @@ describe("getTrackerHealth", () => {
           requiredRatio: null,
           warned: null,
           freeleechTokens: null,
+          bufferBytes: null,
+          hitAndRuns: null,
+          seedbonus: null,
+          shareScore: null,
           username: "u",
           group: null,
         },
@@ -1062,6 +1150,10 @@ describe("getTrackerHealth", () => {
           requiredRatio: null,
           warned: null,
           freeleechTokens: null,
+          bufferBytes: null,
+          hitAndRuns: null,
+          seedbonus: null,
+          shareScore: null,
           username: "u",
           group: null,
         },

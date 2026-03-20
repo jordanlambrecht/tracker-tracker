@@ -1,6 +1,6 @@
 // src/app/api/settings/route.ts
 //
-// Functions: fetchSettings, serializeSettingsResponse, GET, PATCH
+// Functions: GET, PATCH
 
 import { access, mkdir } from "node:fs/promises"
 import path from "node:path"
@@ -14,65 +14,8 @@ import { appSettings } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
 import { scrubSnapshotUsernames } from "@/lib/privacy-db"
 import { PROXY_HOST_PATTERN, VALID_PROXY_TYPES } from "@/lib/proxy"
-import { parseQbitmanageTags, QBITMANAGE_KEYS } from "@/lib/qbitmanage-defaults"
-
-const settingsColumns = {
-  storeUsernames: appSettings.storeUsernames,
-  username: appSettings.username,
-  sessionTimeoutMinutes: appSettings.sessionTimeoutMinutes,
-  lockoutEnabled: appSettings.lockoutEnabled,
-  lockoutThreshold: appSettings.lockoutThreshold,
-  lockoutDurationMinutes: appSettings.lockoutDurationMinutes,
-  snapshotRetentionDays: appSettings.snapshotRetentionDays,
-  trackerPollIntervalMinutes: appSettings.trackerPollIntervalMinutes,
-  proxyEnabled: appSettings.proxyEnabled,
-  proxyType: appSettings.proxyType,
-  proxyHost: appSettings.proxyHost,
-  proxyPort: appSettings.proxyPort,
-  proxyUsername: appSettings.proxyUsername,
-  hasProxyPassword: appSettings.encryptedProxyPassword,
-  qbitmanageEnabled: appSettings.qbitmanageEnabled,
-  qbitmanageTags: appSettings.qbitmanageTags,
-  backupScheduleEnabled: appSettings.backupScheduleEnabled,
-  backupScheduleFrequency: appSettings.backupScheduleFrequency,
-  backupRetentionCount: appSettings.backupRetentionCount,
-  backupEncryptionEnabled: appSettings.backupEncryptionEnabled,
-  hasBackupPassword: appSettings.encryptedBackupPassword,
-  backupStoragePath: appSettings.backupStoragePath,
-}
-
-function fetchSettings() {
-  return db.select(settingsColumns).from(appSettings).limit(1)
-}
-
-type SettingsRow = Awaited<ReturnType<typeof fetchSettings>>[number]
-
-function serializeSettingsResponse(row: SettingsRow) {
-  return {
-    storeUsernames: row.storeUsernames,
-    username: row.username,
-    sessionTimeoutMinutes: row.sessionTimeoutMinutes,
-    lockoutEnabled: row.lockoutEnabled,
-    lockoutThreshold: row.lockoutThreshold,
-    lockoutDurationMinutes: row.lockoutDurationMinutes,
-    snapshotRetentionDays: row.snapshotRetentionDays,
-    trackerPollIntervalMinutes: row.trackerPollIntervalMinutes,
-    proxyEnabled: row.proxyEnabled,
-    proxyType: row.proxyType,
-    proxyHost: row.proxyHost,
-    proxyPort: row.proxyPort,
-    proxyUsername: row.proxyUsername,
-    hasProxyPassword: !!row.hasProxyPassword,
-    qbitmanageEnabled: row.qbitmanageEnabled,
-    qbitmanageTags: parseQbitmanageTags(row.qbitmanageTags),
-    backupScheduleEnabled: row.backupScheduleEnabled,
-    backupScheduleFrequency: row.backupScheduleFrequency,
-    backupRetentionCount: row.backupRetentionCount,
-    backupEncryptionEnabled: row.backupEncryptionEnabled,
-    hasBackupPassword: !!row.hasBackupPassword,
-    backupStoragePath: row.backupStoragePath,
-  }
-}
+import { QBITMANAGE_KEYS } from "@/lib/qbitmanage-defaults"
+import { fetchSettings, serializeSettingsResponse } from "@/lib/server-data"
 
 export async function GET() {
   const auth = await authenticate()
@@ -484,10 +427,14 @@ export async function PATCH(request: Request) {
   }
 
   await db.update(appSettings).set(updates).where(eq(appSettings.id, settings.id))
+  log.info({ route: "PATCH /api/settings", fields: Object.keys(updates) }, "settings updated")
 
   // Re-fetch to return current state
   const [updated] = await fetchSettings()
-  if (!updated) throw new Error("Settings update failed")
+  if (!updated) {
+    log.error({ route: "PATCH /api/settings" }, "settings re-fetch returned empty after update")
+    throw new Error("Settings update failed")
+  }
 
   // Restart backup scheduler if schedule settings changed
   if (

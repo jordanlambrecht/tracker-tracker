@@ -22,6 +22,10 @@ export interface TrackerLatestStats {
   requiredRatio: number | null
   warned: boolean | null
   freeleechTokens: number | null
+  bufferBytes: string | null // bigint serialized as decimal string
+  hitAndRuns: number | null
+  seedbonus: number | null
+  shareScore: number | null
   username: string | null
   group: string | null
 }

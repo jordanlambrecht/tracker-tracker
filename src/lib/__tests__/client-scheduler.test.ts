@@ -57,7 +57,7 @@ vi.mock("@/lib/qbt", () => ({
   clearAllSessions: vi.fn(),
 }))
 
-// Prevent node-cron from spinning up real timers
+// Prevent node-cron from spinning up timers
 vi.mock("node-cron", () => ({
   default: {
     schedule: vi.fn().mockReturnValue({ stop: vi.fn() }),

@@ -37,8 +37,8 @@ jobs:
             | grep -oE '[0-9]+ test' \
             | grep -oE '[0-9]+')
           echo "Security tests: $COUNT"
-          if [ "$COUNT" -lt 78 ]; then
-            echo "::error::Security test count dropped below expected minimum (78). Was a test removed?"
+          if [ "$COUNT" -lt 98 ]; then
+            echo "::error::Security test count dropped below expected minimum (98). Was a test removed?"
             exit 1
           fi
 

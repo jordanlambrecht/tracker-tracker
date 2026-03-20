@@ -6,7 +6,7 @@ import "server-only"
 
 import type { trackerSnapshots, trackers } from "@/lib/db/schema"
 
-type TrackerRow = typeof trackers.$inferSelect
+type TrackerRow = Omit<typeof trackers.$inferSelect, "encryptedApiToken" | "avatarData" | "avatarCachedAt" | "avatarRemoteUrl">
 type SnapshotRow = typeof trackerSnapshots.$inferSelect
 
 export function parsePlatformMeta(raw: string | null): unknown {
@@ -29,11 +29,11 @@ export function serializeTrackerResponse(
     baseUrl: tracker.baseUrl,
     platformType: tracker.platformType,
     isActive: tracker.isActive,
-    lastPolledAt: tracker.lastPolledAt,
+    lastPolledAt: tracker.lastPolledAt?.toISOString() ?? null,
     lastError: tracker.lastError,
     consecutiveFailures: tracker.consecutiveFailures,
-    pausedAt: tracker.pausedAt,
-    color: tracker.color,
+    pausedAt: tracker.pausedAt?.toISOString() ?? null,
+    color: tracker.color ?? "#00d4ff",
     qbtTag: tracker.qbtTag,
     useProxy: tracker.useProxy,
     countCrossSeedUnsatisfied: tracker.countCrossSeedUnsatisfied,
@@ -54,6 +54,10 @@ export function serializeTrackerResponse(
           requiredRatio: latest.requiredRatio ?? null,
           warned: latest.warned ?? null,
           freeleechTokens: latest.freeleechTokens ?? null,
+          bufferBytes: latest.bufferBytes?.toString() ?? null,
+          hitAndRuns: latest.hitAndRuns ?? null,
+          seedbonus: latest.seedbonus ?? null,
+          shareScore: latest.shareScore ?? null,
           username: mask(latest.username),
           group: mask(latest.group),
         }

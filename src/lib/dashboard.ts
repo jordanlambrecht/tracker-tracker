@@ -1,9 +1,16 @@
 // src/lib/dashboard.ts
 //
-// Functions: computeAggregateStats, getAnniversaryMilestone, computeAlerts, detectRankChanges, fetchDismissedKeys, postDismissAlert, deleteAllDismissed, computeSystemAlerts
+// Functions: computeAggregateStats, computeAlerts, detectRankChanges, fetchDismissedKeys, postDismissAlert, deleteAllDismissed, computeSystemAlerts
 
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { isRedacted } from "@/lib/privacy"
+import {
+  checkAnniversaryMilestone,
+  checkRatioBelowMinimum,
+  checkTrackerError,
+  checkWarned,
+  checkZeroSeeding,
+} from "@/lib/tracker-events"
 import type { Snapshot, TrackerSummary } from "@/types/api"
 
 // ---------------------------------------------------------------------------
@@ -78,57 +85,6 @@ export function computeAggregateStats(trackers: TrackerSummary[]): AggregateStat
 }
 
 // ---------------------------------------------------------------------------
-// Anniversary milestones
-// ---------------------------------------------------------------------------
-
-const ANNIVERSARY_WINDOW_DAYS = 3
-
-/**
- * Checks if a joinedAt date falls within ±ANNIVERSARY_WINDOW_DAYS of a milestone.
- * Milestones: 1 month, 6 months, then every year (1yr, 2yr, 3yr, ...).
- * Returns the milestone label if within the window, null otherwise.
- */
-export function getAnniversaryMilestone(joinedAt: string): { label: string } | null {
-  const joined = new Date(`${joinedAt}T00:00:00`)
-  if (Number.isNaN(joined.getTime())) return null
-
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  // Build candidate milestone dates from most specific to least
-  const candidates: { date: Date; label: string }[] = []
-
-  // 1 month
-  const m1 = new Date(joined)
-  m1.setMonth(m1.getMonth() + 1)
-  candidates.push({ date: m1, label: "1 month anniversary" })
-
-  // 6 months
-  const m6 = new Date(joined)
-  m6.setMonth(m6.getMonth() + 6)
-  candidates.push({ date: m6, label: "6 month anniversary" })
-
-  // Annual: 1yr, 2yr, ... up to 50yr lol but we'll all be dead by then so whatever, I guess.
-  const yearsSinceJoin = today.getFullYear() - joined.getFullYear()
-  for (let y = 1; y <= Math.max(yearsSinceJoin + 1, 1); y++) {
-    const ann = new Date(joined)
-    ann.setFullYear(ann.getFullYear() + y)
-    candidates.push({ date: ann, label: `${y} year anniversary` })
-  }
-
-  // Find the first milestone within the window
-  for (const { date, label } of candidates) {
-    const diffMs = Math.abs(today.getTime() - date.getTime())
-    const diffDays = diffMs / (1000 * 60 * 60 * 24)
-    if (diffDays <= ANNIVERSARY_WINDOW_DAYS) {
-      return { label }
-    }
-  }
-
-  return null
-}
-
-// ---------------------------------------------------------------------------
 // computeAlerts
 // ---------------------------------------------------------------------------
 
@@ -137,7 +93,8 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
 
   for (const tracker of trackers) {
     // --- Poll paused (suppresses error alert when paused) ---
-    if (tracker.pausedAt) {
+    const { paused, hasError } = checkTrackerError(tracker.lastError, tracker.pausedAt)
+    if (paused) {
       alerts.push({
         key: `poll-paused-${tracker.id}`,
         type: "poll-paused",
@@ -148,8 +105,8 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
         timestamp: tracker.pausedAt ?? undefined,
         dismissible: false,
       })
-    } else if (tracker.lastError) {
-      const snippet = tracker.lastError.slice(0, 20).replace(/\s+/g, "_")
+    } else if (hasError) {
+      const snippet = tracker.lastError?.slice(0, 20).replace(/\s+/g, "_")
       alerts.push({
         key: `error-${tracker.id}-${snippet}`,
         type: "error",
@@ -165,23 +122,17 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
     // --- Ratio danger ---
     const registryEntry = findRegistryEntry(tracker.baseUrl)
     const minimumRatio = registryEntry?.rules?.minimumRatio
-    if (
-      minimumRatio !== undefined &&
-      tracker.latestStats?.ratio !== null &&
-      tracker.latestStats?.ratio !== undefined
-    ) {
-      if (Number.isFinite(minimumRatio) && tracker.latestStats.ratio < minimumRatio) {
-        alerts.push({
-          key: `ratio-danger-${tracker.id}`,
-          type: "ratio-danger",
-          trackerId: tracker.id,
-          trackerName: tracker.name,
-          trackerColor: tracker.color,
-          message: `Ratio ${tracker.latestStats.ratio.toFixed(2)} is below the minimum of ${minimumRatio}`,
-          timestamp: tracker.lastPolledAt ?? undefined,
-          dismissible: true,
-        })
-      }
+    if (checkRatioBelowMinimum(tracker.latestStats?.ratio, minimumRatio)) {
+      alerts.push({
+        key: `ratio-danger-${tracker.id}`,
+        type: "ratio-danger",
+        trackerId: tracker.id,
+        trackerName: tracker.name,
+        trackerColor: tracker.color,
+        message: `Ratio ${tracker.latestStats?.ratio?.toFixed(2)} is below the minimum of ${minimumRatio}`,
+        timestamp: tracker.lastPolledAt ?? undefined,
+        dismissible: true,
+      })
     }
 
     // --- Stale data (skip if paused — staleness is expected) ---
@@ -205,7 +156,7 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
     }
 
     // --- Zero seeding ---
-    if (tracker.isActive && tracker.latestStats && tracker.latestStats.seedingCount === 0) {
+    if (checkZeroSeeding(tracker.latestStats?.seedingCount, tracker.isActive)) {
       alerts.push({
         key: `zero-seeding-${tracker.id}`,
         type: "zero-seeding",
@@ -219,7 +170,7 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
     }
 
     // --- Warned by tracker ---
-    if (tracker.latestStats?.warned === true) {
+    if (checkWarned(tracker.latestStats?.warned)) {
       alerts.push({
         key: `warned-${tracker.id}`,
         type: "warned",
@@ -233,22 +184,18 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
     }
 
     // --- Anniversary ---
-    if (tracker.joinedAt) {
-      const milestone = getAnniversaryMilestone(tracker.joinedAt)
-      if (milestone) {
-        alerts.push({
-          key: `anniversary-${tracker.id}-${milestone.label}`,
-          type: "anniversary",
-          trackerId: tracker.id,
-          trackerName: tracker.name,
-          trackerColor: tracker.color,
-          message: milestone.label,
-          dismissible: true,
-        })
-      }
+    const milestone = checkAnniversaryMilestone(tracker.joinedAt)
+    if (milestone) {
+      alerts.push({
+        key: `anniversary-${tracker.id}-${milestone.label}`,
+        type: "anniversary",
+        trackerId: tracker.id,
+        trackerName: tracker.name,
+        trackerColor: tracker.color,
+        message: milestone.label,
+        dismissible: true,
+      })
     }
-
-    // H&R risk: skipped — requires snapshot data not available in TrackerSummary
   }
 
   return alerts

@@ -5,16 +5,17 @@
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { authenticate, decodeKey, parseRouteId } from "@/lib/api-helpers"
+import { log } from "@/lib/logger"
 import { decryptClientCredentials } from "@/lib/client-decrypt"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
 import { getTorrents, withSessionRetry } from "@/lib/qbt"
 
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const clientId = await parseRouteId(params, "client ID")
+  const clientId = await parseRouteId(props.params, "client ID")
   if (clientId instanceof NextResponse) return clientId
 
   const url = new URL(request.url)
@@ -40,6 +41,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   try {
     ;({ username, password } = decryptClientCredentials(client, key))
   } catch {
+    log.error({ route: "GET /api/clients/[id]/torrents", clientId }, "torrent fetch failed — credential decrypt error")
     return NextResponse.json({ error: "Failed to decrypt credentials" }, { status: 422 })
   }
 
@@ -59,6 +61,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if (/timed?\s*out/i.test(raw)) detail = " (timed out)"
     else if (/ECONNREFUSED/i.test(raw)) detail = " (ECONNREFUSED)"
     else if (/403/.test(raw)) detail = " (403)"
+    log.error({ route: "GET /api/clients/[id]/torrents", clientId, error: `Failed to fetch torrents${detail}` }, "torrent fetch failed")
     return NextResponse.json(
       { error: `Failed to fetch torrents from client${detail}` },
       { status: 502 }

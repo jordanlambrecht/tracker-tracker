@@ -18,6 +18,7 @@ import { Toggle } from "@/components/ui/Toggle"
 import { Tooltip } from "@/components/ui/Tooltip"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 import { extractApiError } from "@/lib/client-helpers"
+import { DOCS } from "@/lib/constants"
 import { downloadResponseBlob } from "@/lib/download"
 import { formatBytesNum } from "@/lib/formatters"
 
@@ -312,7 +313,15 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
       {/* ── Export ──────────────────────────────────────────────── */}
       <section aria-labelledby="backup-export-heading">
         <H2 id="backup-export-heading" className="mb-4">
-          Export
+          Export{" "}
+          <a
+            href={DOCS.BACKUPS.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-accent hover:underline text-xs font-normal"
+          >
+            Docs →
+          </a>
         </H2>
 
         <Card elevation="raised" className="flex flex-col gap-4">

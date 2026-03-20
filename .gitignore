@@ -65,3 +65,6 @@ categories/
 duplicates/
 duplicates-report.md
 .tmp-process.jq
+
+# mkdocs build output
+docs/kb/site/

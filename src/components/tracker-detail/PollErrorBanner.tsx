@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
+import { DOCS } from "@/lib/constants"
 
 interface PollErrorBannerProps {
   pollError: string | null
@@ -57,7 +58,15 @@ export function PollErrorBanner({
           </div>
           <p className="text-sm font-mono text-warn mb-2">
             Polling was paused after repeated failures. Verify your API key is correct before
-            resuming.
+            resuming.{" "}
+            <a
+              href={DOCS.TRACKER_OFFLINE.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent hover:underline"
+            >
+              Troubleshooting guide →
+            </a>
           </p>
           {lastError && (
             <p className="text-xs font-mono text-danger/80 mb-3">Last error: {lastError}</p>
