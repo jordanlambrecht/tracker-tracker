@@ -12,6 +12,7 @@ import { Card } from "@/components/ui/Card"
 import { Checkbox } from "@/components/ui/Checkbox"
 import { NumberInput } from "@/components/ui/NumberInput"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
+import { DOCS } from "@/lib/constants"
 
 interface LockoutConfig {
   enabled: boolean
@@ -173,7 +174,15 @@ export function SecuritySection({
       {/* ── Two-Factor Authentication ──────────────────────────────── */}
       <section aria-labelledby="2fa-heading">
         <H2 id="2fa-heading" className="mb-4">
-          Two-Factor Authentication
+          Two-Factor Authentication{" "}
+          <a
+            href={DOCS.TOTP.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-accent hover:underline text-xs font-normal"
+          >
+            Docs →
+          </a>
         </H2>
 
         <Card elevation="raised">

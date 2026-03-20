@@ -43,6 +43,7 @@ import {
   hexToRgba,
   type StatMode,
 } from "@/lib/formatters"
+import { DOCS_URL } from "@/lib/constants"
 import { STORAGE_KEYS } from "@/lib/storage-keys"
 import { getHealthPulseDot, getTrackerHealth } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
@@ -909,6 +910,17 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
               </span>
               Settings
             </button>
+            <a
+              href={DOCS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-tertiary hover:text-secondary text-sm font-mono flex items-center gap-3 transition-colors duration-150 cursor-pointer w-full px-1 py-1"
+            >
+              <span className="text-lg" aria-hidden="true">
+                📖
+              </span>
+              Docs
+            </a>
 
             {/* Version + GitHub */}
             <div className="flex items-center gap-2 px-1 pt-2">

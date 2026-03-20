@@ -1,0 +1,96 @@
+# docs/kb/mkdocs.yml
+site_name: Tracker Tracker Docs
+site_description: Documentation for the self-hosted private tracker stats dashboard
+site_url: https://jordanlambrecht.github.io/tracker-tracker/
+repo_url: https://github.com/jordanlambrecht/tracker-tracker
+repo_name: jordanlambrecht/tracker-tracker
+edit_uri: edit/main/docs/kb/docs/
+
+theme:
+  name: material
+  palette:
+    scheme: slate
+    primary: cyan
+    accent: cyan
+  features:
+  - navigation.instant
+  - navigation.sections
+  - navigation.top
+  - navigation.expand
+  - content.code.copy
+  - content.action.edit
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+- admonition
+- pymdownx.details
+- pymdownx.superfences
+- pymdownx.tabbed:
+    alternate_style: true
+- pymdownx.highlight:
+    anchor_linenums: true
+- pymdownx.inlinehilite
+- attr_list
+- md_in_html
+- toc:
+    permalink: true
+
+nav:
+- Home: index.md
+- Getting Started:
+  - Installation: getting-started/installation.md
+  - First Setup: getting-started/first-setup.md
+  - Docker Configuration: getting-started/docker-config.md
+- Trackers:
+  - Adding a Tracker: trackers/adding-a-tracker.md
+- Features:
+  - Proxy Support: features/proxies.md
+  - Two-Factor Auth (TOTP): features/totp.md
+  - Backups & Restore: features/backups.md
+  - Download Clients: features/download-clients.md
+  - Tag Groups: features/tag-groups.md
+  - qbitmanage Integration: features/qbitmanage.md
+  - Webhooks: features/webhooks.md
+- Reference:
+  - Settings Guide: reference/settings.md
+  - Stats Explained: reference/stats-explained.md
+  - Platform Differences: reference/platform-differences.md
+- Troubleshooting:
+  - Tracker Shows Offline: troubleshooting/tracker-offline.md
+  - Ratio Not Updating: troubleshooting/ratio-not-updating.md
+  - Common Errors: troubleshooting/common-errors.md
+- Contributing:
+  - Overview: contributing/index.md
+  - Adding a Tracker: contributing/adding-a-tracker.md
+  - Bento Grid Slot System: contributing/slot-system.md
+  - Tracker API Responses:
+    - Overview: contributing/tracker-responses.md
+    - UNIT3D: contributing/tracker-responses-unit3d.md
+    - Gazelle: contributing/tracker-responses-gazelle.md
+    - GGn: contributing/tracker-responses-ggn.md
+    - Individual Trackers:
+      - Aither: contributing/trackers/aither.md
+      - AlphaRatio: contributing/trackers/alpharatio.md
+      - AnimeBytes: contributing/trackers/animebytes.md
+      - Anthelion: contributing/trackers/anthelion.md
+      - Blutopia: contributing/trackers/blutopia.md
+      - BroadcasTheNet: contributing/trackers/broadcasthenet.md
+      - Concertos: contributing/trackers/concertos.md
+      - Empornium: contributing/trackers/empornium.md
+      - FearNoPeer: contributing/trackers/fearnopeer.md
+      - GazelleGames: contributing/trackers/gazellegames.md
+      - Great Poster Wall: contributing/trackers/greatposterwall.md
+      - LST: contributing/trackers/lst.md
+      - MoreThanTV: contributing/trackers/morethantv.md
+      - Nebulance: contributing/trackers/nebulance.md
+      - OldToons: contributing/trackers/oldtoons.md
+      - OnlyEncodes: contributing/trackers/onlyencodes.md
+      - Orpheus: contributing/trackers/orpheus.md
+      - PassThePopcorn: contributing/trackers/passthepopcorn.md
+      - Phoenix Project: contributing/trackers/phoenixproject.md
+      - Racing4Everyone: contributing/trackers/racing4everyone.md
+      - REDacted: contributing/trackers/redacted.md
+      - Reelflix: contributing/trackers/reelflix.md
+      - SkipTheCommercials: contributing/trackers/skipthecommercials.md
+      - Upload.cx: contributing/trackers/uploadcx.md

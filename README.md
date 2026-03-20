@@ -2,6 +2,8 @@
 ![Version](https://img.shields.io/github/package-json/v/jordanlambrecht/tracker-tracker)
 ![Self-Hosted](https://img.shields.io/badge/self--hosted-Docker-2496ed)
 
+📖 **[Documentation](https://jordanlambrecht.github.io/tracker-tracker/)**
+
 <p align="center">
   <img src="public/img/trackerTracker_logo.svg" alt="Tracker Tracker" width="400" />
 </p>
@@ -179,6 +181,12 @@ All other settings — polling interval, privacy mode, proxy, backups — are co
 2. Select from the registry or enter details manually
 3. Paste your API token (found in your tracker's security/API settings)
 4. The app validates the connection and starts polling automatically
+
+## Documentation
+
+Full documentation is available at **[jordanlambrecht.github.io/tracker-tracker](https://jordanlambrecht.github.io/tracker-tracker/)**.
+
+Covers installation, tracker setup (UNIT3D, Gazelle, GGn), features (proxies, TOTP, backups, download clients, notifications), and troubleshooting.
 
 ## Contributing
 

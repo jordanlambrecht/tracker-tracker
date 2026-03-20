@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/Input"
 import { QBT_TAG_WARN_PATTERN } from "@/components/ui/QbtTagWarning"
 import { Toggle } from "@/components/ui/Toggle"
 import { Tooltip } from "@/components/ui/Tooltip"
+import { DOCS } from "@/lib/constants"
 import type { TagGroup, TagGroupChartType } from "@/types/api"
 
 const CHART_TYPE_OPTIONS: { value: TagGroupChartType; label: string }[] = [
@@ -751,7 +752,15 @@ function TagGroups() {
 
       <Paragraph className="mb-6">
         Bundle qBittorrent tags into named groups for breakdown charts on each tracker&apos;s
-        Torrents tab.
+        Torrents tab.{" "}
+        <a
+          href={DOCS.TAG_GROUPS.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-accent hover:underline"
+        >
+          Docs →
+        </a>
       </Paragraph>
 
       {showAddForm && (

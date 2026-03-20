@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/Checkbox"
 import { Input } from "@/components/ui/Input"
 import { Toggle } from "@/components/ui/Toggle"
 import { QBITMANAGE_TAG_DEFAULTS } from "@/lib/qbitmanage-defaults"
+import { DOCS } from "@/lib/constants"
 import type { QbitmanageTagConfig } from "@/types/api"
 
 const QBITMANAGE_STATUSES = [
@@ -104,7 +105,17 @@ function QbitmanageSettings() {
   return (
     <section className="flex flex-col gap-4">
       <div>
-        <H3 className="mb-1">qbitmanage Tag Tracking</H3>
+        <H3 className="mb-1">
+          qbitmanage Tag Tracking{" "}
+          <a
+            href={DOCS.QBITMANAGE.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-accent hover:underline text-xs font-normal"
+          >
+            Docs →
+          </a>
+        </H3>
         <Subtext>Categorize torrents by status tags written by qbitmanage.</Subtext>
       </div>
 
