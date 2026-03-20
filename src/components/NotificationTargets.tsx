@@ -632,7 +632,12 @@ function NotificationTargets() {
 
   return (
     <div className="flex flex-col gap-6">
-      <H2>Webhooks</H2>
+      <H2 className="flex items-center gap-2">
+        Webhooks
+        <Tooltip content="Get alerts when something happens on your trackers." docs={DOCS.WEBHOOKS}>
+          <span className="text-muted hover:text-secondary cursor-help text-sm">&#9432;</span>
+        </Tooltip>
+      </H2>
       {targets.length === 0 && !showAddForm ? (
         <Card elevation="raised" className="flex flex-col items-center gap-4 py-10">
           <span className="text-2xl" aria-hidden="true">
