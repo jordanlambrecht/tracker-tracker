@@ -1,9 +1,15 @@
 // src/lib/__tests__/notifications.test.ts
 
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { CHART_THEME } from "@/components/charts/theme"
 import type { notificationTargets } from "@/lib/db/schema"
 import type { SnapshotContext } from "@/lib/notifications/dispatch"
 import type { NotificationTargetType } from "@/lib/notifications/types"
+
+// Convert "#rrggbb" hex string to Discord embed integer — mirrors payload.ts hexToInt
+function hexToInt(hex: string): number {
+  return Number.parseInt(hex.replace("#", ""), 16)
+}
 
 // Mock DB so dispatch.ts can be imported without a live database connection
 vi.mock("@/lib/db", () => ({
@@ -16,14 +22,6 @@ vi.mock("@/lib/db", () => ({
     transaction: vi.fn(),
   },
 }))
-
-// Mock privacy module — isRedacted must work for rank_change redaction tests
-vi.mock("@/lib/privacy", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/privacy")>()
-  return {
-    ...actual,
-  }
-})
 
 // ─── Test helpers ─────────────────────────────────────────────────────────────
 
@@ -353,7 +351,7 @@ describe("buildDiscordEmbed new event types", () => {
       data: {},
     })
     expect(embed.title).toBe("Account Warning")
-    expect(embed.color).toBe(0xf59e0b)
+    expect(embed.color).toBe(hexToInt(CHART_THEME.warn))
     expect(embed.description).toContain("MyTracker")
     expect(embed.description).toContain("warning")
   })
@@ -368,7 +366,7 @@ describe("buildDiscordEmbed new event types", () => {
       data: { currentRatio: 0.5, minimumRatio: 0.6 },
     })
     expect(embed.title).toBe("Ratio Below Minimum")
-    expect(embed.color).toBe(0xef4444)
+    expect(embed.color).toBe(hexToInt(CHART_THEME.danger))
     expect(embed.description).toContain("0.50")
     expect(embed.description).toContain("0.60")
     expect(embed.description).toContain("MyTracker")
@@ -384,7 +382,7 @@ describe("buildDiscordEmbed new event types", () => {
       data: {},
     })
     expect(embed.title).toBe("Zero Active Seeds")
-    expect(embed.color).toBe(0xf59e0b)
+    expect(embed.color).toBe(hexToInt(CHART_THEME.warn))
     expect(embed.description).toContain("MyTracker")
     expect(embed.description).toContain("no active seeds")
   })
@@ -399,7 +397,7 @@ describe("buildDiscordEmbed new event types", () => {
       data: { newGroup: "Elite", previousGroup: "Power User" },
     })
     expect(embed.title).toBe("Rank Change")
-    expect(embed.color).toBe(0x00d4ff)
+    expect(embed.color).toBe(hexToInt(CHART_THEME.accent))
     expect(embed.description).toContain("Power User")
     expect(embed.description).toContain("Elite")
     expect(embed.description).toContain("MyTracker")
@@ -415,7 +413,7 @@ describe("buildDiscordEmbed new event types", () => {
       data: { label: "1 year anniversary" },
     })
     expect(embed.title).toBe("Membership Anniversary")
-    expect(embed.color).toBe(0x00d4ff)
+    expect(embed.color).toBe(hexToInt(CHART_THEME.accent))
     expect(embed.description).toContain("MyTracker")
     expect(embed.description).toContain("1 year anniversary")
   })
@@ -431,5 +429,214 @@ describe("buildDiscordEmbed new event types", () => {
     })
     expect(embed.description).not.toContain("SecretTracker")
     expect(embed.description).toContain("A tracker")
+  })
+})
+
+// ─── Part 4: buildEventData — pure switch statement coverage ─────────────────
+//
+// buildEventData is the bridge between SnapshotContext fields and the data
+// object that payload.ts consumes. Each test targets a specific fallback branch
+// that silently misbehaves if the source field is null or undefined.
+
+describe("buildEventData", () => {
+  it("tracker_down with null trackerError returns 'Unknown error' sentinel", async () => {
+    // Catches: the ?? "Unknown error" fallback not working, which would send
+    // Discord embeds containing "null" or "undefined" as the error message.
+    const { buildEventData } = await import("@/lib/notifications/dispatch")
+    const ctx = makeContext({ trackerError: null })
+    const data = buildEventData("tracker_down", ctx)
+    expect(data.error).toBe("Unknown error")
+  })
+
+  it("tracker_down with a real error string passes it through unchanged", async () => {
+    // Catches: the ?? operator accidentally overriding truthy values.
+    const { buildEventData } = await import("@/lib/notifications/dispatch")
+    const ctx = makeContext({ trackerError: "Connection refused" })
+    const data = buildEventData("tracker_down", ctx)
+    expect(data.error).toBe("Connection refused")
+  })
+
+  it("buffer_milestone converts bigint to Number without precision loss for 10 GiB", async () => {
+    // Catches: BigInt coercion bugs. Number(10737418240n) must equal the integer
+    // 10737418240, not be truncated, NaN, or wrapped in an object.
+    const { buildEventData } = await import("@/lib/notifications/dispatch")
+    const ctx = makeContext({ currentBufferBytes: 10737418240n })
+    const data = buildEventData("buffer_milestone", ctx)
+    expect(data.bufferBytes).toBe(10737418240)
+    expect(typeof data.bufferBytes).toBe("number")
+  })
+
+  it("buffer_milestone with null currentBufferBytes returns 0", async () => {
+    // Catches: Number(null) returning 0 correctly vs. a refactor that introduces
+    // a null check path that forgets to coerce.
+    const { buildEventData } = await import("@/lib/notifications/dispatch")
+    const ctx = makeContext({ currentBufferBytes: null })
+    const data = buildEventData("buffer_milestone", ctx)
+    expect(data.bufferBytes).toBe(0)
+  })
+
+  it("anniversary without a label returns the 'Anniversary' fallback string", async () => {
+    // Catches: the ?? "Anniversary" fallback being removed or changed, which
+    // would cause payload.ts to receive undefined and fall into a different branch.
+    const { buildEventData } = await import("@/lib/notifications/dispatch")
+    const ctx = makeContext()
+    const data = buildEventData("anniversary", ctx, undefined)
+    expect(data.label).toBe("Anniversary")
+  })
+
+  it("anniversary with a label passes it through to the data object", async () => {
+    // Catches: the label argument being ignored due to parameter order confusion.
+    const { buildEventData } = await import("@/lib/notifications/dispatch")
+    const ctx = makeContext()
+    const data = buildEventData("anniversary", ctx, "3 Year Anniversary")
+    expect(data.label).toBe("3 Year Anniversary")
+  })
+
+  it("rank_change maps currentGroup to newGroup field name in the output", async () => {
+    // Catches: field name typos (e.g. "currentGroup" vs "newGroup") that would
+    // cause payload.ts to receive undefined and fall into the wrong description branch.
+    const { buildEventData } = await import("@/lib/notifications/dispatch")
+    const ctx = makeContext({ currentGroup: "Elite", previousGroup: "Power User" })
+    const data = buildEventData("rank_change", ctx)
+    expect(data).toHaveProperty("newGroup", "Elite")
+    expect(data).toHaveProperty("previousGroup", "Power User")
+    // Confirm the field is NOT stored under the context's own name
+    expect(data).not.toHaveProperty("currentGroup")
+  })
+
+  it("ratio_drop returns both ratio values under the correct field names", async () => {
+    // Catches: field rename in SnapshotContext not propagating to buildEventData output.
+    const { buildEventData } = await import("@/lib/notifications/dispatch")
+    const ctx = makeContext({ previousRatio: 1.8, currentRatio: 1.2 })
+    const data = buildEventData("ratio_drop", ctx)
+    expect(data.previousRatio).toBe(1.8)
+    expect(data.currentRatio).toBe(1.2)
+  })
+})
+
+// ─── Part 5: validateNotificationConfig — uncovered edge cases ────────────────
+
+describe("validateNotificationConfig edge cases", () => {
+  it("rejects Discord config with empty string webhookUrl", async () => {
+    // Catches: !url.trim() guard being removed, which would let empty strings
+    // pass through to the regex test (which would also fail, but for the wrong reason).
+    const { validateNotificationConfig } = await import("@/lib/notifications/validate")
+    const result = validateNotificationConfig("discord", { webhookUrl: "" })
+    expect(result).toMatch(/webhookUrl/)
+  })
+
+  it("rejects Discord config with whitespace-only webhookUrl", async () => {
+    // Catches: validation only checking typeof but not trimming before the check.
+    const { validateNotificationConfig } = await import("@/lib/notifications/validate")
+    const result = validateNotificationConfig("discord", { webhookUrl: "   " })
+    expect(result).toMatch(/webhookUrl/)
+  })
+
+  it("rejects Discord config where webhookUrl is a number, not a string", async () => {
+    // Catches: the typeof url !== "string" guard. A number would pass trim()
+    // if the guard were missing and coercion happened silently.
+    const { validateNotificationConfig } = await import("@/lib/notifications/validate")
+    const result = validateNotificationConfig("discord", { webhookUrl: 12345 as unknown as string })
+    expect(result).toMatch(/webhookUrl/)
+  })
+
+  it("gotify returns a 'not yet supported' message (not null, not 'Unsupported')", async () => {
+    // Catches: a dev adding "gotify" to VALID_NOTIFICATION_TYPES but forgetting
+    // the switch case, which would fall through to the default "Unsupported" branch
+    // instead of the intended "not yet supported" message.
+    const { validateNotificationConfig } = await import("@/lib/notifications/validate")
+    const result = validateNotificationConfig("gotify", {})
+    expect(result).not.toBeNull()
+    expect(result).toMatch(/not yet supported/)
+  })
+
+  it("telegram returns a 'not yet supported' message", async () => {
+    // Same as gotify — tests the parallel switch case.
+    const { validateNotificationConfig } = await import("@/lib/notifications/validate")
+    const result = validateNotificationConfig("telegram", {})
+    expect(result).not.toBeNull()
+    expect(result).toMatch(/not yet supported/)
+  })
+
+  it("slack returns a 'not yet supported' message", async () => {
+    const { validateNotificationConfig } = await import("@/lib/notifications/validate")
+    const result = validateNotificationConfig("slack", {})
+    expect(result).not.toBeNull()
+    expect(result).toMatch(/not yet supported/)
+  })
+})
+
+// ─── Part 6: buildDescription fallback branches in payload.ts ─────────────────
+//
+// These test branches in buildDescription that only fire when the data object
+// is missing expected fields. The only way to reach them in production is when
+// buildEventData has a bug — so these tests pin the fallback contract.
+
+describe("buildDescription fallback branches", () => {
+  it("rank_change with only newGroup (no previousGroup) uses the rank-only path", async () => {
+    // Catches: the `if (newGroup)` branch being removed or merged with the
+    // two-group branch, leaving no single-group fallback.
+    const { buildDiscordEmbed } = await import("@/lib/notifications/payload")
+    const embed = buildDiscordEmbed({
+      eventType: "rank_change",
+      trackerName: "MyTracker",
+      includeTrackerName: true,
+      storeUsernames: true,
+      data: { newGroup: "Elite", previousGroup: undefined },
+    })
+    expect(embed.description).toContain("Elite")
+    expect(embed.description).not.toContain("undefined")
+    expect(embed.description).not.toContain("from")
+    // The generic fallback must NOT fire when newGroup is present
+    expect(embed.description).not.toBe("MyTracker rank has changed")
+  })
+
+  it("rank_change with neither group falls back to the generic description", async () => {
+    // Catches: the default branch at the end of the rank_change case being
+    // accidentally removed, which would return "undefined" in the description.
+    const { buildDiscordEmbed } = await import("@/lib/notifications/payload")
+    const embed = buildDiscordEmbed({
+      eventType: "rank_change",
+      trackerName: "MyTracker",
+      includeTrackerName: true,
+      storeUsernames: true,
+      data: {},
+    })
+    expect(embed.description).toContain("rank has changed")
+    expect(embed.description).not.toContain("undefined")
+    expect(embed.description).not.toContain("null")
+  })
+
+  it("buffer_milestone with missing bufferBytes data uses 'unknown' label", async () => {
+    // Catches: the `bytes ? formatBytesNum(bytes) : "unknown"` guard. If bytes
+    // is 0 or absent, this must not produce "undefined" or "NaN" in the embed.
+    const { buildDiscordEmbed } = await import("@/lib/notifications/payload")
+    const embed = buildDiscordEmbed({
+      eventType: "buffer_milestone",
+      trackerName: "MyTracker",
+      includeTrackerName: true,
+      storeUsernames: true,
+      data: {},
+    })
+    expect(embed.description).toContain("unknown")
+    expect(embed.description).not.toContain("undefined")
+    expect(embed.description).not.toContain("NaN")
+  })
+
+  it("anniversary with undefined label falls back to membership anniversary text", async () => {
+    // Catches: the `label ? ... : ...` ternary in buildDescription. When
+    // buildEventData passes "Anniversary" (the fallback string from dispatch.ts),
+    // this branch should NOT fire — but it must work correctly when data arrives
+    // without a label key at all.
+    const { buildDiscordEmbed } = await import("@/lib/notifications/payload")
+    const embed = buildDiscordEmbed({
+      eventType: "anniversary",
+      trackerName: "MyTracker",
+      includeTrackerName: true,
+      storeUsernames: true,
+      data: {},
+    })
+    expect(embed.description).toContain("membership anniversary")
+    expect(embed.description).not.toContain("undefined")
   })
 })
