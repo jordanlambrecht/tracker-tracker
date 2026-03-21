@@ -8,8 +8,9 @@ export const orpheus: TrackerRegistryEntry = {
   abbreviation: "OPS",
   url: "https://orpheus.network",
   description:
-    "Very similar to RED, both based on What.CD's model. Less content but a BP system that leads to easier ratio. Same interview process with shorter wait times.",
+    "One of the largest and most prestigious private music trackers, Orpheus is renowned for its extensive library of high-quality music releases, active community, and strict quality standards.",
   platform: "gazelle",
+  gazelleEnrich: true,
   apiPath: "/ajax.php",
   specialty: "Music",
   contentCategories: ["Music"],
@@ -27,4 +28,12 @@ export const orpheus: TrackerRegistryEntry = {
     loginIntervalDays: 120,
   },
   draft: false,
+  supportsTransitPapers: true,
+  transitPaperFields: {
+    warned: true,
+    lastAccessDate: true,
+    donor: true,
+    joinedDate: "api",
+    profileUrlPattern: "/user.php?id={id}",
+  },
 }
