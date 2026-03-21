@@ -15,7 +15,7 @@ Tracker Tracker runs as a Docker image. The easiest way to get it running is wit
 Nothing else needs to be installed on your host.
 
 !!! info "Architecture support"
-The image supports **linux/amd64** and **linux/arm64**. It runs on x86-64 servers and ARM machines like Raspberry Pi 4/5 or Apple Silicon in Linux VMs — Docker picks the right version automatically.
+    The image supports **linux/amd64** and **linux/arm64**. It runs on x86-64 servers and ARM machines like Raspberry Pi 4/5 or Apple Silicon in Linux VMs — Docker picks the right version automatically.
 
 ---
 
