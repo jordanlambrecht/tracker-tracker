@@ -1,5 +1,51 @@
 # Changelog
 
+## [2.3.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.1.1...v2.3.0) (2026-03-21)
+
+
+### Features
+
+- add alertSlideIn keyframe animation ([f59ab88](https://github.com/jordanlambrecht/tracker-tracker/commit/f59ab8854669d8592422da27f8e74a9c7d643216))
+- add notification delivery pipeline with circuit breaker and cooldowns ([14d3982](https://github.com/jordanlambrecht/tracker-tracker/commit/14d3982c19e017b5d4b932953bcc8ae6fcfbd839))
+- add notification target CRUD API routes ([a367039](https://github.com/jordanlambrecht/tracker-tracker/commit/a367039735950988f612d7fe986cf491f90a3dd9))
+- add notificationTargets and notificationDeliveryState schema tables ([785a641](https://github.com/jordanlambrecht/tracker-tracker/commit/785a641fd8dc69cc9e9e51bad202110f70b12fde))
+- add scoped error boundary for tracker detail page ([e4ad230](https://github.com/jordanlambrecht/tracker-tracker/commit/e4ad2302d34bfea1954cd1485bdc56e985267e69))
+- add server-data module with secure column projections ([49fc00e](https://github.com/jordanlambrecht/tracker-tracker/commit/49fc00e4c21c37ae8d20b9630a12ddd917a68ebf))
+- add shared event detection functions and notification type definitions ([4c217bb](https://github.com/jordanlambrecht/tracker-tracker/commit/4c217bb1fe794bcba87a21c255028ee112c0732d))
+- added Dialog and CopyButton components ([a732148](https://github.com/jordanlambrecht/tracker-tracker/commit/a732148512ef3cc444d6828b0d17d4c7906f444e))
+- docs support for tooltips ([406528f](https://github.com/jordanlambrecht/tracker-tracker/commit/406528f40466e52ef153056c209ff40aa7a7456d))
+- **docs:** brand spankin' new documentation site and integration ([2c644d4](https://github.com/jordanlambrecht/tracker-tracker/commit/2c644d412bcf91d78564df596df01e1032843848))
+- expand TrackerLatestStats with bufferBytes, hitAndRuns, seedbonus, shareScore ([a818e1a](https://github.com/jordanlambrecht/tracker-tracker/commit/a818e1ad1995d157577e454a1de89d227826304b))
+- integrate notification targets with backup, restore, and nuke ([655393e](https://github.com/jordanlambrecht/tracker-tracker/commit/655393ebc32887548e7bcea5a08d2db3cb62410f))
+- replace manual polling with TanStack Query ([0129020](https://github.com/jordanlambrecht/tracker-tracker/commit/0129020d3caba64431485bd4d7fb7b3647853fab))
+- wire notification dispatch into tracker polling scheduler ([1d8f4fc](https://github.com/jordanlambrecht/tracker-tracker/commit/1d8f4fc622d79400f0bf52b7fc7678fd123dea42))
+
+
+### Bug Fixes
+
+- added size props to dialog comp ([46a8160](https://github.com/jordanlambrecht/tracker-tracker/commit/46a816081276ab068310b36a040ee6ada8fd4441))
+- round dashOffset to 2 decimal places ([5f23be2](https://github.com/jordanlambrecht/tracker-tracker/commit/5f23be24545c5544bd96813288b4bd065bc2d246))
+- update notificationDeliveryState schema to add foreign key constraint for targetId ([1319b8d](https://github.com/jordanlambrecht/tracker-tracker/commit/1319b8d168cd192627ab9c874120174317034738))
+- update timestamp format ([2d01aba](https://github.com/jordanlambrecht/tracker-tracker/commit/2d01abaf76a46e7f93353ce1e17461d3d112e22a))
+
+
+### Refactoring
+
+- add getProxyTrackers function to fetch proxy-enabled trackers ([17cf490](https://github.com/jordanlambrecht/tracker-tracker/commit/17cf4903c1047a00dc62ea3d2e8614cdc74f06ec))
+- adopt React 19 ref-as-prop pattern ([a936c8f](https://github.com/jordanlambrecht/tracker-tracker/commit/a936c8fa8fec9f00a0952680a419f3a2bc5e04ca))
+- better joinedAt logic ([24c2e1d](https://github.com/jordanlambrecht/tracker-tracker/commit/24c2e1d0c6da41f237963635466170d3066f5e97))
+- changed snapshot retrieval logic ([75613b1](https://github.com/jordanlambrecht/tracker-tracker/commit/75613b11a40e7114988037fb255e8e087038e49e))
+- consolidate API GET handlers to use server-data functions ([3d6b686](https://github.com/jordanlambrecht/tracker-tracker/commit/3d6b68656f43edfbd7b548e4fafc9fb0c57e149b))
+- migrate API route params to async props.params for Next.js 16 ([6a4efba](https://github.com/jordanlambrecht/tracker-tracker/commit/6a4efba993f1e990bddf388cb7a8921de1a33e32))
+- move login and setup redirect logic server-side ([168ae57](https://github.com/jordanlambrecht/tracker-tracker/commit/168ae579e694d253987cc5f2ffe4d4042bf7c268))
+- replace tracker list with proxy trackers in settings page ([c7d0c47](https://github.com/jordanlambrecht/tracker-tracker/commit/c7d0c4792067515bd004211fd7850d50150e78ac))
+- settingspage to use server-side data fetching ([ff27517](https://github.com/jordanlambrecht/tracker-tracker/commit/ff27517304598d9ebab0bb2ed7bc1053e75dd0c7))
+- simplify database query ([44de4aa](https://github.com/jordanlambrecht/tracker-tracker/commit/44de4aaed114048bfd82374e8fa800d4eeb6e311))
+- split authenticated pages into server and client components ([246287a](https://github.com/jordanlambrecht/tracker-tracker/commit/246287a16a0180c23efefebef7ea6d27a03b5f74))
+- update dismissAllAlerts logic to use persistDismiss ([411e98e](https://github.com/jordanlambrecht/tracker-tracker/commit/411e98e4fd4a791fd4355e64d1dcf86917597a0f))
+- update fetch calls in useDashboardData to support signal for aborting requests ([0ae0dbc](https://github.com/jordanlambrecht/tracker-tracker/commit/0ae0dbcbd765de08457449f0e3b2a324c426518f))
+- use shared detection functions in dashboard alerts and tracker status ([04aca35](https://github.com/jordanlambrecht/tracker-tracker/commit/04aca35e6d8c37e20f47f49d3604911c047b281e))
+
 ## [2.2.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.1.1...v2.2.0) (2026-03-20)
 
 
