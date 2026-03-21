@@ -149,4 +149,4 @@ TZ=America/Chicago
 ```
 
 !!! tip
-You only need to create the database itself beforehand. The app handles the rest on first startup — no manual SQL required.
+    You only need to create the database itself beforehand. The app handles the rest on first startup — no manual SQL required.
