@@ -126,7 +126,7 @@ The same image is on two registries — either works:
 | Registry                  | Image                                            |
 | ------------------------- | ------------------------------------------------ |
 | GitHub Container Registry | `ghcr.io/jordanlambrecht/tracker-tracker:latest` |
-| Docker Hub                | `jordanlambrecht/tracker-tracker:latest`         |
+| Docker Hub                | `jordyjordy/tracker-tracker:latest`              |
 
 Pin to a specific version if you want predictable updates:
 
