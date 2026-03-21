@@ -15,7 +15,7 @@ Tracker Tracker runs as a Docker image. The easiest way to get it running is wit
 Nothing else needs to be installed on your host.
 
 !!! info "Architecture support"
-    The image supports **linux/amd64** and **linux/arm64**. It runs on x86-64 servers and ARM machines like Raspberry Pi 4/5 or Apple Silicon in Linux VMs — Docker picks the right version automatically.
+The image supports **linux/amd64** and **linux/arm64**. It runs on x86-64 servers and ARM machines like Raspberry Pi 4/5 or Apple Silicon in Linux VMs — Docker picks the right version automatically.
 
 ---
 
@@ -53,7 +53,7 @@ TZ=America/Chicago
 ```
 
 !!! warning "Don't reuse these values"
-    `SESSION_SECRET` protects your session cookies. `POSTGRES_PASSWORD` protects your database. Generate fresh values — never copy the placeholder text from `.env.example`.
+`SESSION_SECRET` protects your session cookies. `POSTGRES_PASSWORD` protects your database. Generate fresh values — never copy the placeholder text from `.env.example`.
 
 ## Step 4 — Start the stack
 
@@ -149,4 +149,4 @@ TZ=America/Chicago
 ```
 
 !!! tip
-    You only need to create the database itself beforehand. The app handles the rest on first startup — no manual SQL required.
+You only need to create the database itself beforehand. The app handles the rest on first startup — no manual SQL required.
