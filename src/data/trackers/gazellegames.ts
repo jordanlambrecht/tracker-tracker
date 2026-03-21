@@ -3,15 +3,31 @@
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 
 export const gazellegames: TrackerRegistryEntry = {
+  // ── Identity ────────────────────────────────────────────────────────
   slug: "gazellegames",
   name: "GazelleGames",
   abbreviation: "GGn",
   url: "https://gazellegames.net",
   description: "The largest gaming tracker, featuring console and PC content.",
+
+  // ── Platform & API ──────────────────────────────────────────────────
   platform: "ggn",
   apiPath: "/api.php",
+
+  // ── Content ─────────────────────────────────────────────────────────
   specialty: "Games",
   contentCategories: ["Games"],
+  language: "English",
+
+  // ── Visual ──────────────────────────────────────────────────────────
+  color: "#7b1fa2",
+  logo: "",
+
+  // ── External Links ──────────────────────────────────────────────────
+  trackerHubSlug: "gazelle-games",
+  statusPageUrl: "https://ggn.trackerstatus.info/",
+
+  // ── Community ───────────────────────────────────────────────────────
   userClasses: [
     { name: "Amateur", requirements: "Default starting class" },
     {
@@ -45,11 +61,10 @@ export const gazellegames: TrackerRegistryEntry = {
     },
   ],
   releaseGroups: [],
+  bannedGroups: [],
   notableMembers: [],
-  language: "English",
-  color: "#7b1fa2",
-  trackerHubSlug: "gazelle-games",
-  statusPageUrl: "https://ggn.trackerstatus.info/",
+
+  // ── Rules ───────────────────────────────────────────────────────────
   rules: {
     minimumRatio: 0.6,
     seedTimeHours: 80,
@@ -99,5 +114,13 @@ export const gazellegames: TrackerRegistryEntry = {
       "Throttling upload speed to an unfair level (relative to download speed) results in warning or permanent ban. Enforced automatically.",
     ].join("\n"),
   },
+
+  // ── Status ──────────────────────────────────────────────────────────
+  warning: false,
+  warningNote: "",
+
+  // ── Flags ───────────────────────────────────────────────────────────
   draft: false,
+  supportsTransitPapers: true,
+  profileUrlPattern: "/user.php?id={id}",
 }

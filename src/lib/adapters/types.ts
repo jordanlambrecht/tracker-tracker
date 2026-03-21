@@ -100,6 +100,7 @@ export interface FetchOptions {
   proxyAgent?: HttpAgent
   remoteUserId?: number
   authStyle?: "token" | "raw"
+  unit3dAuthStyle?: "bearer" | "query"
   enrich?: boolean
 }
 

@@ -64,75 +64,6 @@ interface GGnUserResponse {
 }
 
 export class GGnAdapter implements TrackerAdapter {
-  async fetchRaw(
-    baseUrl: string,
-    apiToken: string,
-    apiPath: string,
-    options?: FetchOptions
-  ): Promise<DebugApiCall[]> {
-    const hostname = new URL(baseUrl).hostname
-    const calls: DebugApiCall[] = []
-
-    let userId: number | undefined = options?.remoteUserId
-
-    // Call 1: Quick User (skip if we already have a cached user ID)
-    if (!userId) {
-      const quickUrl = new URL(apiPath, baseUrl)
-      quickUrl.searchParams.set("request", "quick_user")
-      quickUrl.searchParams.set("key", apiToken)
-
-      try {
-        const quickData = await adapterFetch<GGnQuickUserResponse>(
-          quickUrl.toString(),
-          hostname,
-          options
-        )
-        calls.push({
-          label: "Quick User",
-          endpoint: `${apiPath}?request=quick_user`,
-          data: quickData,
-          error: null,
-        })
-        userId = quickData.response?.id
-      } catch (err) {
-        calls.push({
-          label: "Quick User",
-          endpoint: `${apiPath}?request=quick_user`,
-          data: null,
-          error: err instanceof Error ? err.message : "Request failed",
-        })
-        return calls
-      }
-    }
-
-    // Call 2: Full User Profile
-    if (userId) {
-      const userUrl = new URL(apiPath, baseUrl)
-      userUrl.searchParams.set("request", "user")
-      userUrl.searchParams.set("id", String(userId))
-      userUrl.searchParams.set("key", apiToken)
-      const endpoint = `${apiPath}?request=user&id=${userId}`
-
-      try {
-        const userData = await adapterFetch<Record<string, unknown>>(
-          userUrl.toString(),
-          hostname,
-          options
-        )
-        calls.push({ label: "User Profile", endpoint, data: userData, error: null })
-      } catch (err) {
-        calls.push({
-          label: "User Profile",
-          endpoint,
-          data: null,
-          error: err instanceof Error ? err.message : "Request failed",
-        })
-      }
-    }
-
-    return calls
-  }
-
   async fetchStats(
     baseUrl: string,
     apiToken: string,
@@ -226,5 +157,74 @@ export class GGnAdapter implements TrackerAdapter {
       shareScore: resp.stats.shareScore ?? undefined,
       platformMeta,
     }
+  }
+
+  async fetchRaw(
+    baseUrl: string,
+    apiToken: string,
+    apiPath: string,
+    options?: FetchOptions
+  ): Promise<DebugApiCall[]> {
+    const hostname = new URL(baseUrl).hostname
+    const calls: DebugApiCall[] = []
+
+    let userId: number | undefined = options?.remoteUserId
+
+    // Call 1: Quick User (skip if we already have a cached user ID)
+    if (!userId) {
+      const quickUrl = new URL(apiPath, baseUrl)
+      quickUrl.searchParams.set("request", "quick_user")
+      quickUrl.searchParams.set("key", apiToken)
+
+      try {
+        const quickData = await adapterFetch<GGnQuickUserResponse>(
+          quickUrl.toString(),
+          hostname,
+          options
+        )
+        calls.push({
+          label: "Quick User",
+          endpoint: `${apiPath}?request=quick_user`,
+          data: quickData,
+          error: null,
+        })
+        userId = quickData.response?.id
+      } catch (err) {
+        calls.push({
+          label: "Quick User",
+          endpoint: `${apiPath}?request=quick_user`,
+          data: null,
+          error: err instanceof Error ? err.message : "Request failed",
+        })
+        return calls
+      }
+    }
+
+    // Call 2: Full User Profile
+    if (userId) {
+      const userUrl = new URL(apiPath, baseUrl)
+      userUrl.searchParams.set("request", "user")
+      userUrl.searchParams.set("id", String(userId))
+      userUrl.searchParams.set("key", apiToken)
+      const endpoint = `${apiPath}?request=user&id=${userId}`
+
+      try {
+        const userData = await adapterFetch<Record<string, unknown>>(
+          userUrl.toString(),
+          hostname,
+          options
+        )
+        calls.push({ label: "User Profile", endpoint, data: userData, error: null })
+      } catch (err) {
+        calls.push({
+          label: "User Profile",
+          endpoint,
+          data: null,
+          error: err instanceof Error ? err.message : "Request failed",
+        })
+      }
+    }
+
+    return calls
   }
 }

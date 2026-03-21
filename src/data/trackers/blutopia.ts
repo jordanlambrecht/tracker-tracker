@@ -3,16 +3,33 @@
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 
 export const blutopia: TrackerRegistryEntry = {
+  // ── Identity ────────────────────────────────────────────────────────
   slug: "blutopia",
   name: "Blutopia",
   abbreviation: "BLU",
   url: "https://blutopia.cc",
   description:
     "Community-built Movie/TV/FANRES database with a strong focus on HD content. Known for one of the best FANRES selections available, an experienced staff team, and a security-focused codebase. No donation pestering.",
+
+  // ── Platform & API ──────────────────────────────────────────────────
   platform: "unit3d",
+  unit3dAuthStyle: "bearer",
   apiPath: "/api/user",
+
+  // ── Content ─────────────────────────────────────────────────────────
   specialty: "General / Large library",
   contentCategories: ["Movies", "TV", "Documentaries", "Fanres", "Music", "Sports"],
+  language: "English",
+
+  // ── Visual ──────────────────────────────────────────────────────────
+  color: "#3b82f6",
+  logo: "/tracker-logos/blutopia_logo.svg",
+
+  // ── External Links ──────────────────────────────────────────────────
+  trackerHubSlug: "blutopia",
+  statusPageUrl: "",
+
+  // ── Community ───────────────────────────────────────────────────────
   userClasses: [
     // Dynamic — activity-based
     {
@@ -58,7 +75,7 @@ export const blutopia: TrackerRegistryEntry = {
     {
       name: "BluArchivist",
       requirements:
-        "Seed size ≥ 20 TiB, age ≥ 90 days, avg seedtime ≥ 90 days. H&R immune, global freeleech, global 2× upload, 150 download slots",
+        "Seed size ≥ 20 TiB, age ≥ 90 days, avg seedtime ≥ 90 days. H&R immune, global freeleech, global 2x upload, 150 download slots",
     },
     // Static — staff-assigned
     { name: "Junior Uploader", requirements: "Staff — brings fresh content" },
@@ -84,7 +101,6 @@ export const blutopia: TrackerRegistryEntry = {
     "WiLDCAT",
     "ZoroSenpai",
   ],
-  notableMembers: ["SavageHenry", "nelsokege", "vyerni", "modernmalaise"],
   bannedGroups: [
     "[Oj]",
     "3LTON",
@@ -175,13 +191,9 @@ export const blutopia: TrackerRegistryEntry = {
     "ZmN",
     "ZMNT",
   ],
-  stats: {
-    userCount: 30240,
-    activeUsers: 13489,
-    torrentCount: 241565,
-    seedSize: "49.72 PiB",
-    statsUpdatedAt: "March 2026",
-  },
+  notableMembers: ["SavageHenry", "nelsokege", "vyerni", "modernmalaise"],
+
+  // ── Rules ───────────────────────────────────────────────────────────
   rules: {
     minimumRatio: 0.4,
     seedTimeHours: 168,
@@ -189,9 +201,9 @@ export const blutopia: TrackerRegistryEntry = {
     fulfillmentPeriodHours: 168,
     fullRulesMarkdown: [
       "Ratio",
-      "• Minimum ratio: 0.4 (you can download up to 2.5× what you upload)",
+      "• Minimum ratio: 0.4 (you can download up to 2.5x what you upload)",
       "• Falling below 0.4 moves you to Leech group — download, invite, and request privileges revoked",
-      "• Buffer = Upload × 2.5 − Download",
+      "• Buffer = Upload x 2.5 - Download",
       "",
       "Seedtime",
       "• 7-day seedtime required on all torrents if ≥ 10% was downloaded",
@@ -260,9 +272,22 @@ export const blutopia: TrackerRegistryEntry = {
       "• Donators receive perks within their existing group and a star on their username",
     ].join("\n"),
   },
-  language: "English",
-  color: "#3b82f6",
-  logo: "/tracker-logos/blutopia_logo.svg",
-  trackerHubSlug: "blutopia",
+
+  // ── Status ──────────────────────────────────────────────────────────
+  warning: false,
+  warningNote: "",
+
+  // ── Flags ───────────────────────────────────────────────────────────
   draft: false,
+  supportsTransitPapers: true,
+  profileUrlPattern: "/users/{username}",
+
+  // ── Stats (omit this block entirely if no real data is available) ───
+  stats: {
+    userCount: 30240,
+    activeUsers: 13489,
+    torrentCount: 241565,
+    seedSize: "49.72 PiB",
+    statsUpdatedAt: "March 2026",
+  },
 }

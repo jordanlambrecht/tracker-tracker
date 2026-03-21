@@ -3,26 +3,32 @@
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 
 export const aither: TrackerRegistryEntry = {
+  // ── Identity ────────────────────────────────────────────────────────
   slug: "aither",
   name: "Aither",
   abbreviation: "ATH",
   url: "https://aither.cc",
   description:
     "General private tracker with a focus on high-quality encodes and a welcoming community. Known for its active forums and generous bonus system.",
+
+  // ── Platform & API ──────────────────────────────────────────────────
   platform: "unit3d",
   apiPath: "/api/user",
+
+  // ── Content ─────────────────────────────────────────────────────────
   specialty: "General / HD content",
-  contentCategories: [
-    "Movies",
-    "TV",
-    "Music",
-    "Games",
-    "Apps",
-    "Sports",
-    "Education",
-    "Audiobooks",
-    "XXX",
-  ],
+  contentCategories: ["Movies", "TV", "Sports"],
+  language: "English",
+
+  // ── Visual ──────────────────────────────────────────────────────────
+  color: "#00d4ff",
+  logo: "/tracker-logos/aither_logo.svg",
+
+  // ── External Links ──────────────────────────────────────────────────
+  trackerHubSlug: "aither",
+  statusPageUrl: "https://status.aither.cc/status/aither",
+
+  // ── Community ───────────────────────────────────────────────────────
   userClasses: [
     // Dynamic — upload/seed-based
     { name: "Leech", requirements: "Ratio below 0.4 — download privileges revoked" },
@@ -68,7 +74,7 @@ export const aither: TrackerRegistryEntry = {
       requirements: "Staff — junior role model uploader. Torrent mod bypass",
     },
     { name: "Uploader", requirements: "Staff — role model uploader. Freeleech, H&R immune" },
-    { name: "Typhon", requirements: "Staff — deemed worthy. Freeleech, 2× upload, H&R immune" },
+    { name: "Typhon", requirements: "Staff — deemed worthy. Freeleech, 2x upload, H&R immune" },
     {
       name: "Contributor",
       requirements: "Staff — contributes work to Aither. Freeleech, H&R immune",
@@ -103,7 +109,6 @@ export const aither: TrackerRegistryEntry = {
     { name: "VaLTiEL", description: "Blu-ray and DVD full discs" },
     { name: "WiTCHCRAFT", description: "Obscure, indie, and arthouse WEB-DL content" },
   ],
-  notableMembers: [],
   bannedGroups: [
     "4K4U",
     "afm72",
@@ -194,10 +199,9 @@ export const aither: TrackerRegistryEntry = {
     "YTS",
     "YTS.MX",
   ],
-  stats: {
-    userCount: undefined,
-    torrentCount: undefined,
-  },
+  notableMembers: [],
+
+  // ── Rules ───────────────────────────────────────────────────────────
   rules: {
     minimumRatio: 0.4,
     seedTimeHours: 120,
@@ -262,10 +266,13 @@ export const aither: TrackerRegistryEntry = {
       "• Pending requests auto-approved after 3 weeks",
     ].join("\n"),
   },
-  language: "English",
-  color: "#00d4ff",
-  logo: "/tracker-logos/aither_logo.svg",
-  trackerHubSlug: "aither",
-  statusPageUrl: "https://status.aither.cc/status/aither",
+
+  // ── Status ──────────────────────────────────────────────────────────
+  warning: false,
+  warningNote: "",
+
+  // ── Flags ───────────────────────────────────────────────────────────
   draft: false,
+  supportsTransitPapers: true,
+  profileUrlPattern: "/users/{username}",
 }

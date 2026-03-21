@@ -48,55 +48,6 @@ interface NebulanceErrorResponse {
 type NebulanceResponse = NebulanceWrappedResponse | NebulanceErrorResponse | NebulanceUserData
 
 export class NebulanceAdapter implements TrackerAdapter {
-  async fetchRaw(
-    baseUrl: string,
-    apiToken: string,
-    apiPath: string,
-    options?: FetchOptions
-  ): Promise<DebugApiCall[]> {
-    const hostname = new URL(baseUrl).hostname
-    const userId = options?.remoteUserId ?? 1
-
-    const isAnthelion = hostname.includes("anthelion")
-    const authParam = isAnthelion ? "apikey" : "api_key"
-
-    const url = new URL(apiPath, baseUrl)
-    url.searchParams.set("action", "user")
-    url.searchParams.set(authParam, apiToken)
-    url.searchParams.set("method", "getuserinfo")
-    url.searchParams.set("type", "id")
-    url.searchParams.set("user", String(userId))
-
-    const endpoint = `${apiPath}?action=user&method=getuserinfo&user=${userId}`
-
-    try {
-      const headers = { Accept: "application/json" }
-      let data: unknown
-
-      if (options?.proxyAgent) {
-        const result = await proxyFetch(url.toString(), options.proxyAgent, { headers })
-        data = await result.json()
-      } else {
-        const response = await fetch(url.toString(), {
-          headers,
-          signal: AbortSignal.timeout(15000),
-        })
-        data = await response.json()
-      }
-
-      return [{ label: "User Info", endpoint, data, error: null }]
-    } catch (err) {
-      return [
-        {
-          label: "User Info",
-          endpoint,
-          data: null,
-          error: err instanceof Error ? err.message : "Request failed",
-        },
-      ]
-    }
-  }
-
   async fetchStats(
     baseUrl: string,
     apiToken: string,
@@ -213,7 +164,57 @@ export class NebulanceAdapter implements TrackerAdapter {
       warned: null, // Not available from Nebulance API
       freeleechTokens: null, // Not available from Nebulance API
       joinedDate: resp.JoinDate ?? undefined,
+      lastAccessDate: resp.LastAccess ?? undefined,
       platformMeta,
+    }
+  }
+
+  async fetchRaw(
+    baseUrl: string,
+    apiToken: string,
+    apiPath: string,
+    options?: FetchOptions
+  ): Promise<DebugApiCall[]> {
+    const hostname = new URL(baseUrl).hostname
+    const userId = options?.remoteUserId ?? 1
+
+    const isAnthelion = hostname.includes("anthelion")
+    const authParam = isAnthelion ? "apikey" : "api_key"
+
+    const url = new URL(apiPath, baseUrl)
+    url.searchParams.set("action", "user")
+    url.searchParams.set(authParam, apiToken)
+    url.searchParams.set("method", "getuserinfo")
+    url.searchParams.set("type", "id")
+    url.searchParams.set("user", String(userId))
+
+    const endpoint = `${apiPath}?action=user&method=getuserinfo&user=${userId}`
+
+    try {
+      const headers = { Accept: "application/json" }
+      let data: unknown
+
+      if (options?.proxyAgent) {
+        const result = await proxyFetch(url.toString(), options.proxyAgent, { headers })
+        data = await result.json()
+      } else {
+        const response = await fetch(url.toString(), {
+          headers,
+          signal: AbortSignal.timeout(15000),
+        })
+        data = await response.json()
+      }
+
+      return [{ label: "User Info", endpoint, data, error: null }]
+    } catch (err) {
+      return [
+        {
+          label: "User Info",
+          endpoint,
+          data: null,
+          error: err instanceof Error ? err.message : "Request failed",
+        },
+      ]
     }
   }
 }

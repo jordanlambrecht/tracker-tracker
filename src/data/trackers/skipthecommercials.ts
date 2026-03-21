@@ -3,16 +3,32 @@
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 
 export const skipthecommercials: TrackerRegistryEntry = {
+  // ── Identity ────────────────────────────────────────────────────────
   slug: "skipthecommercials",
   name: "SkipTheCommercials",
   abbreviation: "STC",
   url: "https://skipthecommercials.xyz",
   description:
-    "TV-only private tracker focused on commercial-free television content. Strict upload standards with mandatory mediainfo and screenshots. No trumping or dupe rules — all versions coexist. House group STC handles internal releases.",
+    "TV-only private tracker focused on commercial-free television content. Strict upload standards with mandatory mediainfo and screenshots. No trumping or dupe rules and all versions coexist. House group STC handles internal releases.",
+
+  // ── Platform & API ──────────────────────────────────────────────────
   platform: "unit3d",
   apiPath: "/api/user",
+
+  // ── Content ─────────────────────────────────────────────────────────
   specialty: "TV Only",
   contentCategories: ["TV", "Movies", "Anime"],
+  language: "English",
+
+  // ── Visual ──────────────────────────────────────────────────────────
+  color: "#b026ff",
+  logo: "/tracker-logos/skipthecommercials_logo.png",
+
+  // ── External Links ──────────────────────────────────────────────────
+  trackerHubSlug: "",
+  statusPageUrl: "",
+
+  // ── Community ───────────────────────────────────────────────────────
   userClasses: [
     // System
     {
@@ -81,14 +97,10 @@ export const skipthecommercials: TrackerRegistryEntry = {
     { name: "VIP", requirements: "Donation — freeleech, double upload, H&R immune" },
   ],
   releaseGroups: ["STC", "PR0WL3R", "SP24", "GRiMM"],
+  bannedGroups: [],
   notableMembers: ["Clicker", "Awilix", "PewPew"],
-  stats: {
-    userCount: 1498,
-    activeUsers: 1393,
-    torrentCount: 7921,
-    seedSize: "106.86 TiB",
-    statsUpdatedAt: "March 2026",
-  },
+
+  // ── Rules ───────────────────────────────────────────────────────────
   rules: {
     minimumRatio: 0.4,
     seedTimeHours: 168,
@@ -97,9 +109,9 @@ export const skipthecommercials: TrackerRegistryEntry = {
     hnrBanLimit: 3,
     fullRulesMarkdown: [
       "Ratio",
-      "• Minimum ratio: 0.4 (you can download up to 2.5× what you upload)",
+      "• Minimum ratio: 0.4 (you can download up to 2.5x what you upload)",
       "• Falling below 0.4 moves you to Leech group — download privileges revoked",
-      "• Buffer = Upload × 2.5 − Download",
+      "• Buffer = Upload x 2.5 − Download",
       "• New users start with 50 GiB upload credit",
       "• Low ratios may result in severe consequences including banning in extreme cases",
       "",
@@ -176,8 +188,22 @@ export const skipthecommercials: TrackerRegistryEntry = {
       "• Respect staff decisions",
     ].join("\n"),
   },
-  language: "English",
-  color: "#b026ff",
-  logo: "/tracker-logos/skipthecommercials_logo.png",
+
+  // ── Status ──────────────────────────────────────────────────────────
+  warning: false,
+  warningNote: "",
+
+  // ── Flags ───────────────────────────────────────────────────────────
   draft: false,
+  supportsTransitPapers: true,
+  profileUrlPattern: "/users/{username}",
+
+  // ── Stats (omit this block entirely if no real data is available) ───
+  stats: {
+    userCount: 1498,
+    activeUsers: 1393,
+    torrentCount: 7921,
+    seedSize: "106.86 TiB",
+    statsUpdatedAt: "March 2026",
+  },
 }

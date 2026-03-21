@@ -3,16 +3,32 @@
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 
 export const uploadcx: TrackerRegistryEntry = {
+  // ── Identity ────────────────────────────────────────────────────────
   slug: "uploadcx",
   name: "Upload.cx",
   abbreviation: "UCX",
   url: "https://upload.cx",
   description:
     "Community-built Movie/TV/FANRES database with a strong HD focus, a proactive userbase, and one of the best FANRES selections available. Experienced staff, security-focused codebase, and no donation pestering.",
+
+  // ── Platform & API ──────────────────────────────────────────────────
   platform: "unit3d",
   apiPath: "/api/user",
+
+  // ── Content ─────────────────────────────────────────────────────────
   specialty: "General / HD content / FANRES",
   contentCategories: ["Movies", "TV"],
+  language: "English",
+
+  // ── Visual ──────────────────────────────────────────────────────────
+  color: "#538dab",
+  logo: "/tracker-logos/ulcx_logo.png",
+
+  // ── External Links ──────────────────────────────────────────────────
+  trackerHubSlug: "",
+  statusPageUrl: "",
+
+  // ── Community ───────────────────────────────────────────────────────
   userClasses: [
     // Dynamic — upload-based
     {
@@ -140,7 +156,6 @@ export const uploadcx: TrackerRegistryEntry = {
     },
   ],
   releaseGroups: ["BLOOM", "Xewdy"],
-  notableMembers: ["vandaag", "Xewdy", "Zips"],
   bannedGroups: [
     "4K4U",
     "Alcaide_Kira",
@@ -188,10 +203,9 @@ export const uploadcx: TrackerRegistryEntry = {
     "x0r",
     "YIFY",
   ],
-  stats: {
-    userCount: undefined,
-    torrentCount: undefined,
-  },
+  notableMembers: ["vandaag", "Xewdy", "Zips"],
+
+  // ── Rules ───────────────────────────────────────────────────────────
   rules: {
     minimumRatio: 0.6,
     seedTimeHours: 48,
@@ -287,8 +301,13 @@ export const uploadcx: TrackerRegistryEntry = {
       "• No revealing personal information about yourself or others",
     ].join("\n"),
   },
-  language: "English",
-  color: "#538dab",
-  logo: "/tracker-logos/ulcx_logo.png",
+
+  // ── Status ──────────────────────────────────────────────────────────
+  warning: false,
+  warningNote: "",
+
+  // ── Flags ───────────────────────────────────────────────────────────
   draft: false,
+  supportsTransitPapers: true,
+  profileUrlPattern: "/users/{username}",
 }

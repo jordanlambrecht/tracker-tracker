@@ -6,6 +6,28 @@ If the tracker you want to add runs on UNIT3D, Gazelle, GGn, or Nebulance, you o
 
 ---
 
+## Standardization Philosophy
+
+Every tracker file in `src/data/trackers/` follows the same field order and completeness rules. This makes files easy to compare, review, and diff.
+
+**Every field must be present in every tracker file, even if empty.** Use `""` for empty strings, `[]` for empty arrays, and `false` for booleans. Do not omit fields and do not use `undefined` as a value. Presence in the file shows the field was considered.
+
+```typescript
+abbreviation: ""          // not: abbreviation: undefined
+logo: ""                  // not: logo: undefined
+trackerHubSlug: ""        // not: trackerHubSlug: undefined
+bannedGroups: []          // not: bannedGroups: undefined
+warning: false            // not: warning: undefined
+```
+
+**There are three exceptions to this rule:**
+
+1. The `stats` block is omitted entirely when no real data exists. Do not include the block with `undefined` values.
+2. `rules.fulfillmentPeriodHours`, `rules.hnrBanLimit`, and `rules.fullRulesMarkdown` are truly optional — omit them when unknown rather than setting them to `undefined`.
+3. Platform-specific fields (`gazelleAuthStyle`, `gazelleEnrich`, `unit3dAuthStyle`) only appear in tracker files for their respective platform. Do not add them to tracker files on other platforms.
+
+---
+
 ## 1. Copy the Template
 
 The template lives at `src/data/trackers/_template.ts`. Copy it to a new file named after your tracker's slug. The slug must be lowercase with hyphens only — no underscores, no uppercase, no special characters.
@@ -22,63 +44,95 @@ Here is the full template for reference:
 // Copy this file to add a new tracker to the registry.
 //
 // 1. Duplicate this file and rename it to your tracker's slug (e.g. mytracker.ts)
-// 2. Fill in the fields below — see inline comments for guidance
+// 2. Fill in all fields below — every field must be present (use "" / [] / false
+//    rather than omitting). See inline comments for guidance.
 // 3. Export from src/data/trackers/index.ts (add to the barrel + ALL_TRACKERS array)
 // 4. Run `pnpm test` to validate your entry
 //
 // Set draft: true while the entry is incomplete. Draft trackers skip strict
 // validation in CI, so you can submit a PR with partial data.
 //
-// Content categories must be from the allowed list:
+// Allowed content categories:
 //   Movies, TV, Music, Games, Apps, Sports, Books, Audiobooks, Comics,
 //   Manga, Anime, XXX, Documentaries, Education, Tutorials, Fanres,
 //   iOS Apps, Graphics, Audio
+//
+// Validator checks:
+//   - slug: lowercase letters and hyphens only
+//   - platform: "unit3d" | "gazelle" | "ggn" | "nebulance" | "custom"
+//   - apiPath must match platform default:
+//       unit3d   → "/api/user"
+//       gazelle  → "/ajax.php"
+//       ggn      → "/api.php"
+//   - url: https only
+//   - contentCategories: values must come from the allowed list above
+//   - language: required
+//   - rules: required (minimumRatio, seedTimeHours, loginIntervalDays as numbers)
 
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 
 export const mytracker: TrackerRegistryEntry = {
-  // ── Required ────────────────────────────────────────────────────────
+  // ── Identity ────────────────────────────────────────────────────────
   slug: "mytracker", // lowercase, hyphens only (e.g. "my-tracker")
   name: "My Tracker", // display name
-  url: "https://mytracker.example", // base URL (https only)
+  abbreviation: "", // short code (e.g. "ATH", "RED") — "" if none
+  url: "https://example.com", // base URL (https only)
   description: "TODO", // 1-2 sentence overview
-  platform: "unit3d", // "unit3d" | "gazelle" | "ggn" | "nebulance" | "custom"
-  apiPath: "/api/user", // must match platform default (unit3d: "/api/user", gazelle: "/ajax.php")
-  specialty: "", // what the tracker is known for (e.g. "HD Movies", "Anime")
-  contentCategories: [], // see allowed list above
-  color: "#00d4ff", // hex accent color for the tracker's detail page
 
-  // ── Optional (fill in what you know) ────────────────────────────────
-  abbreviation: undefined, // short code (e.g. "ATH", "RED")
+  // ── Platform & API ──────────────────────────────────────────────────
+  platform: "unit3d", // "unit3d" | "gazelle" | "ggn" | "nebulance" | "custom"
+  // Platform-specific fields (uncomment for your platform):
+  //   gazelleAuthStyle: "token",   // gazelle only — "token" | "raw"
+  //   gazelleEnrich: true,         // gazelle only — enables enrichment call
+  //   unit3dAuthStyle: "bearer",   // unit3d only — "bearer" | "query"
+  apiPath: "/api/user", // unit3d: "/api/user" | gazelle: "/ajax.php" | ggn: "/api.php"
+
+  // ── Content ─────────────────────────────────────────────────────────
+  specialty: "", // what the tracker is known for (e.g. "HD Movies", "Anime")
+  contentCategories: [], // see allowed list in header
   language: "English",
-  logo: undefined, // "/tracker-logos/mytracker_logo.svg" — file must exist in public/
-  trackerHubSlug: undefined, // slug on trackerhub.xyz, if listed
-  statusPageUrl: undefined, // external status page URL
+
+  // ── Visual ──────────────────────────────────────────────────────────
+  color: "#000000", // hex accent color for the tracker's detail page
+  logo: "", // "/tracker-logos/mytracker_logo.svg" — file must exist in public/ — "" if none
+
+  // ── External Links ──────────────────────────────────────────────────
+  trackerHubSlug: "", // slug on trackerhub.xyz, if listed — "" if none
+  statusPageUrl: "", // external status page URL — "" if none
+
+  // ── Community ───────────────────────────────────────────────────────
+  userClasses: [], // [{ name: "Power User", requirements: "Upload ≥ 100 GiB" }]
+  releaseGroups: [], // [{ name: "GrpName", description: "Encodes" }] or ["GrpName"]
+  bannedGroups: [], // ["GroupName"] — groups explicitly banned by the tracker
+  notableMembers: [], // ["handle"] — notable community figures
 
   // ── Rules ───────────────────────────────────────────────────────────
   rules: {
     minimumRatio: 0, // 0 = no minimum
     seedTimeHours: 0, // 0 = no minimum
     loginIntervalDays: 0, // 0 = no login interval policy
-    // fulfillmentPeriodHours: undefined, // hours to complete H&R seeding
-    // hnrBanLimit: undefined,            // number of H&Rs before ban
-    // fullRulesMarkdown: undefined,      // detailed rules as markdown string
+    // fulfillmentPeriodHours: 72,      // optional — hours to complete H&R seeding
+    // hnrBanLimit: 3,                  // optional — number of H&Rs before ban
+    // fullRulesMarkdown: `...`,        // optional — detailed rules as markdown string
   },
 
-  // ── Community data (arrays can be empty) ────────────────────────────
-  userClasses: [], // [{ name: "Power User", requirements: "Upload ≥ 100 GiB" }]
-  releaseGroups: [], // [{ name: "GrpName", description: "Encodes" }] or ["GrpName"]
-  notableMembers: [],
-  bannedGroups: [],
-
-  // ── Stats (leave undefined if unknown) ──────────────────────────────
-  stats: {
-    userCount: undefined,
-    torrentCount: undefined,
-  },
+  // ── Status ──────────────────────────────────────────────────────────
+  warning: false, // true if the tracker has a known issue or is at risk
+  warningNote: "", // short description of the warning — "" if none
 
   // ── Flags ───────────────────────────────────────────────────────────
-  draft: true, // remove once all required fields are filled in
+  draft: true, // remove (or set false) once all required fields are filled in
+  supportsTransitPapers: false, // true if the tracker supports transit papers export
+  profileUrlPattern: "", // e.g. "/user.php?id={id}" — required when supportsTransitPapers: true
+
+  // ── Stats (omit this block entirely if no real data is available) ───
+  // stats: {
+  //   userCount: undefined,
+  //   activeUsers: undefined,
+  //   torrentCount: undefined,
+  //   seedSize: undefined,    // e.g. "500 TiB"
+  //   statsUpdatedAt: undefined, // ISO 8601 date string
+  // },
 }
 ```
 
@@ -86,7 +140,9 @@ export const mytracker: TrackerRegistryEntry = {
 
 ## 2. Field Reference
 
-### Required Fields
+Fields are documented in the same order they appear in the template, grouped by section.
+
+### Identity
 
 #### `slug`
 
@@ -108,6 +164,18 @@ Human-readable display name. This is what users see in the UI.
 ```typescript
 name: "Blutopia"
 name: "My Tracker"
+```
+
+#### `abbreviation`
+
+Type: `string`
+
+A short code for the tracker, used in compact UI contexts. Use `""` if none.
+
+```typescript
+abbreviation: "ATH" // Aither
+abbreviation: "RED" // REDacted
+abbreviation: ""    // no abbreviation
 ```
 
 #### `url`
@@ -132,6 +200,10 @@ One or two sentences describing what the tracker is about — content focus, com
 description: "The largest general music tracker (also has some software). Has an interview to join, although the wait can be notoriously long."
 ```
 
+---
+
+### Platform & API
+
 #### `platform`
 
 Type: `"unit3d" | "gazelle" | "ggn" | "nebulance" | "custom"`
@@ -145,6 +217,46 @@ Which adapter handles API requests for this tracker. This controls how the sched
 | `"ggn"`       | GazelleGames only — custom API different from standard Gazelle |
 | `"nebulance"` | Nebulance-specific API                                         |
 | `"custom"`    | Placeholder, not implemented — do not use                      |
+
+#### `gazelleAuthStyle`
+
+Type: `"token" | "raw"` — Gazelle trackers only
+
+Controls how the API token is sent in the request.
+
+- `"token"` — sends the token in an `Authorization: token TOKEN` header (used by REDacted, Orpheus)
+- `"raw"` — sends the token directly in the `Authorization` header without a prefix
+
+Only include this field for Gazelle trackers. If you are unsure which style a Gazelle tracker uses, check `docs/kb/docs/contributing/tracker-responses-gazelle.md`.
+
+#### `gazelleEnrich`
+
+Type: `boolean` — Gazelle trackers only
+
+When `true`, the adapter makes a second API call (`action=user&id=X`) after the initial `action=index` call to fetch seeding/leeching counts, warned status, joined date, avatar, ranks, and community stats. **All Gazelle trackers must set this to `true`** — without it, seeding and leeching counts will always be 0.
+
+```typescript
+gazelleEnrich: true
+```
+
+Only include this field for Gazelle trackers.
+
+#### `unit3dAuthStyle`
+
+Type: `"bearer" | "query"` — UNIT3D trackers only
+
+Controls how the API token is sent in the request.
+
+- `"bearer"` — sends the token in an `Authorization: Bearer TOKEN` header (required by UNIT3D v8+)
+- `"query"` — sends the token as a `?api_token=TOKEN` query parameter (legacy UNIT3D)
+
+Omit this field to use the default query parameter method. Set to `"bearer"` if the tracker's UNIT3D instance has been updated to v8+ and returns 401 with query param auth.
+
+```typescript
+unit3dAuthStyle: "bearer" // Blutopia (UNIT3D v8+)
+```
+
+Only include this field for UNIT3D trackers.
 
 #### `apiPath`
 
@@ -169,16 +281,20 @@ apiPath: "/ajax.php"
 
 Do not change this from the platform default unless you have verified that the tracker uses a non-standard path. Almost no trackers deviate from the defaults above.
 
+---
+
+### Content
+
 #### `specialty`
 
 Type: `string`
 
-A short phrase describing what the tracker specializes in. Shown in the UI and used for filtering.
+A short phrase describing what the tracker specializes in. Shown in the UI and used for filtering. Use `""` if none.
 
 ```typescript
 specialty: "HD Movies"
 specialty: "Music"
-specialty: "General / HD content"
+specialty: ""
 ```
 
 #### `contentCategories`
@@ -196,8 +312,18 @@ iOS Apps, Graphics, Audio
 ```typescript
 contentCategories: ["Movies", "TV"]
 contentCategories: ["Music", "Apps"]
-contentCategories: ["Games"]
+contentCategories: []
 ```
+
+#### `language`
+
+Type: `string`
+
+Primary language of the tracker. Use `"English"` for English-language trackers.
+
+---
+
+### Visual
 
 #### `color`
 
@@ -212,111 +338,117 @@ color: "#7b1fa2" // GazelleGames purple
 color: "#1a4fc2" // Nebulance blue
 ```
 
----
-
-### Optional Fields
-
-#### `abbreviation`
-
-Type: `string | undefined`
-
-A short code for the tracker, used in compact UI contexts.
-
-```typescript
-abbreviation: "ATH" // Aither
-abbreviation: "RED" // REDacted
-abbreviation: "GGn" // GazelleGames
-```
-
-#### `language`
-
-Type: `string | undefined`
-
-Primary language of the tracker. Defaults to `"English"` if omitted.
-
 #### `logo`
 
-Type: `string | undefined`
+Type: `string`
 
-Path to the tracker's logo file under the `public/` directory. The file must actually exist — do not set this field if you have not added the logo.
+Path to the tracker's logo file under the `public/` directory. The file must actually exist — do not set this field to a path unless you have added the logo. Use `""` if none.
 
 ```typescript
 logo: "/tracker-logos/aither_logo.svg"
 logo: "/tracker-logos/nebulance_logo.png"
+logo: ""
 ```
 
 SVG is preferred. PNG is acceptable.
 
+---
+
+### External Links
+
 #### `trackerHubSlug`
 
-Type: `string | undefined`
+Type: `string`
 
-The tracker's slug on [trackerhub.xyz](https://trackerhub.xyz), if the tracker is listed there. Used to link to its Trackerhub profile.
+The tracker's slug on [trackerhub.xyz](https://trackerhub.xyz), if the tracker is listed there. Used to link to its Trackerhub profile. Use `""` if not listed.
 
 ```typescript
 trackerHubSlug: "aither"
-trackerHubSlug: "gazelle-games"
+trackerHubSlug: ""
 ```
 
 #### `statusPageUrl`
 
-Type: `string | undefined`
+Type: `string`
 
-URL to an external status page. Many trackers have one at `trackerstatus.info`.
+URL to an external status page. Many trackers have one at `trackerstatus.info`. Use `""` if none.
 
 ```typescript
 statusPageUrl: "https://status.aither.cc/status/aither"
-statusPageUrl: "https://red.trackerstatus.info/"
+statusPageUrl: ""
 ```
 
-#### `gazelleAuthStyle`
+---
 
-Type: `"token" | "raw" | undefined`
+### Status
 
-Gazelle trackers only. Controls how the API token is sent in the request.
+#### `warning`
 
-- `"token"` — sends the token in an `Authorization: token TOKEN` header (used by REDacted, Orpheus)
-- `"raw"` — sends the token directly in the `Authorization` header without a prefix
+Type: `boolean`
 
-Omit this field for non-Gazelle trackers. If you are unsure which style a Gazelle tracker uses, check `docs/kb/docs/contributing/tracker-responses-gazelle.md`.
+Set to `true` if there is something users should know before adding this tracker (for example, known API instability). Use `false` when there is no known issue.
 
-#### `gazelleEnrich`
+#### `warningNote`
 
-Type: `boolean | undefined`
+Type: `string`
 
-Gazelle trackers only. When `true`, the adapter makes a second API call (`action=user&id=X`) after the initial `action=index` call to fetch additional fields like `warned`. Set to `true` for trackers where this extra call is needed and documented to work.
+Short description of the warning. Use `""` if `warning` is `false`.
 
-```typescript
-gazelleEnrich: true // REDacted
-```
+---
+
+### Flags
 
 #### `draft`
 
-Type: `boolean | undefined`
+Type: `boolean`
 
-When `true`, the tracker is excluded from `TRACKER_REGISTRY` and skips strict validation in CI. Use this while you are filling in fields. Remove the field (or set to `false`) once the entry is complete.
+When `true`, the tracker is excluded from `TRACKER_REGISTRY` and skips strict validation in CI. Use this while you are filling in fields. Set to `false` (or remove the field) once the entry is complete.
 
-#### `warning` and `warningNote`
+#### `supportsTransitPapers`
 
-Type: `boolean | undefined` and `string | undefined`
+Type: `boolean`
 
-Set `warning: true` and provide a `warningNote` if there is something users should know before adding this tracker (for example, known API instability).
+Set to `true` if the tracker supports the transit papers export feature. Use `false` otherwise.
+
+#### `profileUrlPattern`
+
+Type: `string`
+
+The URL pattern used to construct a user's profile link. Required when `supportsTransitPapers` is `true`. Use `""` if not applicable.
+
+```typescript
+profileUrlPattern: "/user.php?id={id}"
+profileUrlPattern: ""
+```
 
 ---
 
 ### Stats
+
+The `stats` block is **omitted entirely** when no real data is available. Do not include the block with `undefined` values — the absence of the block signals that no stats have been sourced yet.
+
+When you do have data, include only the fields you know:
+
+```typescript
+stats: {
+  userCount: 12000,
+  torrentCount: 450000,
+  seedSize: "8.2 PiB",
+  statsUpdatedAt: "2025-09-01",
+}
+```
+
+Available fields:
 
 ```typescript
 stats: {
   userCount?: number
   activeUsers?: number
   torrentCount?: number
-  seedSize?: string
-  statsUpdatedAt?: string
+  seedSize?: string       // e.g. "500 TiB"
+  statsUpdatedAt?: string // ISO 8601 date string
 }
 ```
-
-All fields are optional. Fill in what you know. If the tracker does not publish these numbers publicly, leave the object with all values as `undefined`.
 
 ---
 
@@ -474,22 +606,7 @@ rules: {
 }
 ```
 
-For `fullRulesMarkdown`, you can use a template literal for readability:
-
-```typescript
-fullRulesMarkdown: `## Ratio Requirements
-
-| Downloaded | Required Ratio |
-|---|---|
-| 0-5 GB | 0.00 |
-| 100+ GB | 0.60 |
-
-## Seeding Rules
-
-- Torrents must be seeded for **72 hours** after snatching.`,
-```
-
-Or join an array of strings, which works well for long rule sets:
+For `fullRulesMarkdown`, use the array-join format. This keeps diffs clean and avoids multiline template literal indentation issues:
 
 ```typescript
 fullRulesMarkdown: [
@@ -499,6 +616,9 @@ fullRulesMarkdown: [
   "",
   "## Ratio System",
   "Required ratio starts at 0.00 and rises as you download more.",
+  "",
+  "## Seeding Rules",
+  "- Torrents must be seeded for **72 hours** after snatching.",
 ].join("\n"),
 ```
 
@@ -599,4 +719,4 @@ The `color` field must be a full six-digit hex string starting with `#`. Shortha
 
 ### Logo path points to a missing file
 
-If you set `logo: "/tracker-logos/mytracker.svg"` but the file does not exist under `public/`, the logo image will silently 404 and show a broken image in the UI. Either add the file or leave `logo` as `undefined`.
+If you set `logo: "/tracker-logos/mytracker.svg"` but the file does not exist under `public/`, the logo image will silently 404 and show a broken image in the UI. Either add the file or set `logo: ""`.

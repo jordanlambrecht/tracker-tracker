@@ -24,11 +24,18 @@ export class Unit3dAdapter implements TrackerAdapter {
     options?: FetchOptions
   ): Promise<TrackerStats> {
     const url = new URL(apiPath, baseUrl)
-    url.searchParams.set("api_token", apiToken)
-
     const hostname = new URL(baseUrl).hostname
 
-    const data = await adapterFetch<Unit3dApiResponse>(url.toString(), hostname, options)
+    const headers: Record<string, string> =
+      options?.unit3dAuthStyle === "bearer"
+        ? { Authorization: `Bearer ${apiToken}` }
+        : {}
+
+    if (options?.unit3dAuthStyle !== "bearer") {
+      url.searchParams.set("api_token", apiToken)
+    }
+
+    const data = await adapterFetch<Unit3dApiResponse>(url.toString(), hostname, options, headers)
 
     return {
       username: data.username,
@@ -54,11 +61,19 @@ export class Unit3dAdapter implements TrackerAdapter {
     options?: FetchOptions
   ): Promise<DebugApiCall[]> {
     const url = new URL(apiPath, baseUrl)
-    url.searchParams.set("api_token", apiToken)
     const hostname = new URL(baseUrl).hostname
 
+    const headers: Record<string, string> =
+      options?.unit3dAuthStyle === "bearer"
+        ? { Authorization: `Bearer ${apiToken}` }
+        : {}
+
+    if (options?.unit3dAuthStyle !== "bearer") {
+      url.searchParams.set("api_token", apiToken)
+    }
+
     try {
-      const data = await adapterFetch<Record<string, unknown>>(url.toString(), hostname, options)
+      const data = await adapterFetch<Record<string, unknown>>(url.toString(), hostname, options, headers)
       return [{ label: "User Stats", endpoint: apiPath, data, error: null }]
     } catch (err) {
       return [

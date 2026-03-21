@@ -6,7 +6,7 @@ import type { Agent as HttpAgent } from "node:http"
 import { desc, eq, lt, sql } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
 import { findRegistryEntry } from "@/data/tracker-registry"
-import { getAdapter } from "@/lib/adapters"
+import { buildFetchOptions, getAdapter } from "@/lib/adapters"
 import { pruneDismissedAlerts } from "@/lib/alert-pruning"
 import { startBackupScheduler, stopBackupScheduler } from "@/lib/backup-scheduler"
 import {
@@ -77,23 +77,15 @@ export async function pollTracker(
       throw new Error(`API key is missing or invalid for tracker "${tracker.name}"`)
     }
     const adapter = getAdapter(tracker.platformType)
-    const fetchOptions: {
-      proxyAgent?: typeof proxyAgent
-      remoteUserId?: number
-      authStyle?: "token" | "raw"
-      enrich?: boolean
-    } = {}
-    if (tracker.useProxy) {
-      if (!proxyAgent)
-        throw new Error(
-          "Proxy required but not available — refusing to leak IP via direct connection"
-        )
-      fetchOptions.proxyAgent = proxyAgent
+    if (tracker.useProxy && !proxyAgent) {
+      throw new Error(
+        "Proxy required but not available — refusing to leak IP via direct connection"
+      )
     }
-    if (tracker.remoteUserId) fetchOptions.remoteUserId = tracker.remoteUserId
-    const registryEntry = findRegistryEntry(tracker.baseUrl)
-    if (registryEntry?.gazelleAuthStyle) fetchOptions.authStyle = registryEntry.gazelleAuthStyle
-    if (registryEntry?.gazelleEnrich) fetchOptions.enrich = true
+    const fetchOptions = buildFetchOptions(tracker.baseUrl, {
+      proxyAgent: tracker.useProxy ? proxyAgent : undefined,
+      remoteUserId: tracker.remoteUserId ?? undefined,
+    })
     const stats = await adapter.fetchStats(tracker.baseUrl, apiToken, tracker.apiPath, fetchOptions)
 
     // Cache metadata from poll (remoteUserId saves an API call, joinedDate/platformMeta enrich the UI)
@@ -179,7 +171,7 @@ export async function pollTracker(
           trackerIsActive: tracker.isActive,
           trackerPausedAt: null,
           trackerJoinedAt: tracker.joinedAt ?? null,
-          minimumRatio: registryEntry?.rules?.minimumRatio,
+          minimumRatio: findRegistryEntry(tracker.baseUrl)?.rules?.minimumRatio,
         },
         encryptionKey,
         enabledTargets

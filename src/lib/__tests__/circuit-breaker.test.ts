@@ -28,6 +28,7 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/adapters", () => ({
   getAdapter: vi.fn(),
+  buildFetchOptions: vi.fn().mockReturnValue({}),
 }))
 
 vi.mock("@/lib/crypto", () => ({

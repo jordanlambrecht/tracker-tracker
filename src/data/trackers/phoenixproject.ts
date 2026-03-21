@@ -3,17 +3,33 @@
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 
 export const phoenixproject: TrackerRegistryEntry = {
+  // ── Identity ────────────────────────────────────────────────────────
   slug: "phoenixproject",
   name: "Phoenix Project",
   abbreviation: "PP",
   url: "https://phoenixproject.app",
   description:
     "macOS-focused private tracker specializing in Mac applications, games, iOS content, audio tools, graphics software, tutorials, and ebooks. Gazelle-based with a bonus point system and an active community of around 1.6K users.",
+
+  // ── Platform & API ──────────────────────────────────────────────────
   platform: "gazelle",
-  apiPath: "/ajax.php",
   gazelleEnrich: true,
+  apiPath: "/ajax.php",
+
+  // ── Content ─────────────────────────────────────────────────────────
   specialty: "macOS Software",
   contentCategories: ["Apps", "Games", "Tutorials", "Books", "Audiobooks"],
+  language: "English",
+
+  // ── Visual ──────────────────────────────────────────────────────────
+  color: "#f35c30",
+  logo: "/tracker-logos/phoenix_logo.png",
+
+  // ── External Links ──────────────────────────────────────────────────
+  trackerHubSlug: "",
+  statusPageUrl: "",
+
+  // ── Community ───────────────────────────────────────────────────────
   userClasses: [
     {
       name: "User",
@@ -93,16 +109,10 @@ export const phoenixproject: TrackerRegistryEntry = {
     { name: "Sysop", requirements: "Staff — in charge of everything" },
   ],
   releaseGroups: [],
+  bannedGroups: [],
   notableMembers: [],
-  stats: {
-    userCount: 5000,
-    activeUsers: 1662,
-    torrentCount: 31509,
-    statsUpdatedAt: "2026-03-12",
-  },
-  language: "English",
-  logo: "/tracker-logos/phoenix_logo.png",
-  color: "#f35c30",
+
+  // ── Rules ───────────────────────────────────────────────────────────
   rules: {
     minimumRatio: 0.6,
     seedTimeHours: 0,
@@ -125,7 +135,7 @@ export const phoenixproject: TrackerRegistryEntry = {
       "| 80-100 GB | 0.60 | 0.50 |",
       "| 100+ GB | 0.60 | 0.60 |",
       "",
-      "**Formula:** `required ratio = (max ratio) × (1 − (seeding / snatched))`",
+      "**Formula:** `required ratio = (max ratio) x (1 - (seeding / snatched))`",
       "- Seeding count is averaged over 72 hours within the last week",
       "- Capped at 100% of snatched amount",
       "- First 5 GB downloaded is exempt from ratio requirements",
@@ -237,7 +247,21 @@ export const phoenixproject: TrackerRegistryEntry = {
       "- Dictionaries not allowed",
     ].join("\n"),
   },
-  draft: false,
+
+  // ── Status ──────────────────────────────────────────────────────────
   warning: false,
   warningNote: "",
+
+  // ── Flags ───────────────────────────────────────────────────────────
+  draft: false,
+  supportsTransitPapers: true,
+  profileUrlPattern: "/user.php?id={id}",
+
+  // ── Stats (omit this block entirely if no real data is available) ───
+  stats: {
+    userCount: 5000,
+    activeUsers: 1662,
+    torrentCount: 31509,
+    statsUpdatedAt: "2026-03-12",
+  },
 }
