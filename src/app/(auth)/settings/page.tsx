@@ -5,18 +5,18 @@
 import { desc } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { backupHistory } from "@/lib/db/schema"
-import { getSettingsForClient, getTrackerListForDashboard } from "@/lib/server-data"
+import { getSettingsForClient, getProxyTrackers } from "@/lib/server-data"
 import { SettingsClient } from "./SettingsClient"
 
 export default async function SettingsPage() {
-  const [settings, trackers, history] = await Promise.all([
+  const [settings, proxyTrackers, history] = await Promise.all([
     getSettingsForClient(),
-    getTrackerListForDashboard(),
+    getProxyTrackers(),
     db.select().from(backupHistory).orderBy(desc(backupHistory.createdAt)).limit(50),
   ])
 
   // If settings don't exist, this page shouldn't be reachable
-  // (the (auth) layout redirects to /setup). Defensive guard only.
+  // (the (auth) layout redirects to /setup)
   if (!settings) {
     return (
       <div className="max-w-2xl mx-auto">
@@ -24,10 +24,6 @@ export default async function SettingsPage() {
       </div>
     )
   }
-
-  const proxyTrackers = trackers
-    .filter((t) => t.useProxy)
-    .map((t) => ({ id: t.id, name: t.name, color: t.color }))
 
   // Serialize Dates for client transport — BackupRecord.createdAt is a string
   const serializedHistory = history.map((h) => ({

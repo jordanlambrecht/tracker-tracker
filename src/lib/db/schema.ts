@@ -1,10 +1,14 @@
 // src/lib/db/schema.ts
 //
-// Tables: appSettings, trackers, trackerSnapshots, trackerRoles, downloadClients, tagGroups, tagGroupMembers, clientSnapshots, backupHistory, dismissedAlerts, draftQuicklinks (column on appSettings), notificationTargets, notificationDeliveryState
+// Tables: appSettings, trackers, trackerSnapshots, trackerRoles, downloadClients,
+// tagGroups, tagGroupMembers, clientSnapshots, backupHistory, dismissedAlerts,
+// draftQuicklinks (column on appSettings), notificationTargets, notificationDeliveryState
+
 import {
   bigint,
   boolean,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -319,9 +323,7 @@ export const notificationDeliveryState = pgTable(
   {
     id: serial("id").primaryKey(),
 
-    targetId: integer("target_id")
-      .references(() => notificationTargets.id, { onDelete: "cascade" })
-      .notNull(),
+    targetId: integer("target_id").notNull(),
 
     // null = global event not tied to a specific tracker (reserved for future use).
     // All currently planned events are per-tracker, so this will almost always
@@ -340,6 +342,11 @@ export const notificationDeliveryState = pgTable(
     snoozedUntil: timestamp("snoozed_until"),
   },
   (table) => [
+    foreignKey({
+      name: "fk_delivery_state_target",
+      columns: [table.targetId],
+      foreignColumns: [notificationTargets.id],
+    }).onDelete("cascade"),
     // Primary lookup key for every cooldown check: "has target T already fired
     // event E for tracker X recently?" — must be unique to enable upsert.
     uniqueIndex("uq_delivery_state_target_tracker_event").on(

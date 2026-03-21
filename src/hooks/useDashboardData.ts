@@ -4,14 +4,14 @@
 
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useCallback, useMemo, useState } from "react"
 import type { DayRange } from "@/components/dashboard/DayRangeSidebar"
 import { useUpdateCheck } from "@/hooks/useUpdateCheck"
 import type { DashboardAlert } from "@/lib/dashboard"
 import {
   computeAlerts,
   computeSystemAlerts,
-  deleteAllDismissed,
   detectRankChanges,
   fetchDismissedKeys,
   postDismissAlert as persistDismiss,
@@ -30,131 +30,157 @@ interface DashboardData {
   refresh: () => Promise<void>
 }
 
-function useDashboardData(): DashboardData {
-  const [trackers, setTrackers] = useState<TrackerSummary[]>([])
-  const [snapshotMap, setSnapshotMap] = useState<Map<number, Snapshot[]>>(new Map())
+interface UseDashboardDataOptions {
+  initialTrackers?: TrackerSummary[]
+}
+
+function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
   const [dayRange, setDayRange] = useState<DayRange>(30)
-  const [loading, setLoading] = useState(true)
-  const [visibleAlerts, setVisibleAlerts] = useState<DashboardAlert[]>([])
+  const queryClient = useQueryClient()
   const updateCheck = useUpdateCheck()
-  const latestVersionRef = useRef(updateCheck.latestVersion)
-  latestVersionRef.current = updateCheck.latestVersion
 
-  const abortRef = useRef<AbortController | null>(null)
-  const lastFetchRef = useRef(0)
+  const dismissedQuery = useQuery({
+    queryKey: ["dismissed-alert-keys"],
+    queryFn: fetchDismissedKeys,
+    staleTime: Infinity,
+  })
+  const [localDismissedKeys, setLocalDismissedKeys] = useState<Set<string>>(new Set())
 
-  const loadData = useCallback(async () => {
-    // Abort any in-flight request so day-range changes restart immediately
-    abortRef.current?.abort()
-    const controller = new AbortController()
-    abortRef.current = controller
-
-    try {
-      const trackersRes = await fetch("/api/trackers", { signal: controller.signal })
-      if (!trackersRes.ok) return
-
-      const allTrackers: TrackerSummary[] = await trackersRes.json()
-      const fetchedTrackers = allTrackers.filter((t) => t.isActive)
-
-      const snapshotEntries = await Promise.all(
-        fetchedTrackers.map(async (t) => {
-          try {
-            const url =
-              dayRange === 0
-                ? `/api/trackers/${t.id}/snapshots`
-                : `/api/trackers/${t.id}/snapshots?days=${dayRange}`
-            const res = await fetch(url, { signal: controller.signal })
-            if (!res.ok) return [t.id, []] as [number, Snapshot[]]
-            const snaps: Snapshot[] = await res.json()
-            return [t.id, snaps] as [number, Snapshot[]]
-          } catch {
-            return [t.id, []] as [number, Snapshot[]]
-          }
-        })
-      )
-
-      if (controller.signal.aborted) return
-
-      const newMap = new Map<number, Snapshot[]>(snapshotEntries)
-
-      setTrackers(fetchedTrackers)
-      setSnapshotMap(newMap)
-
-      // Fetch system data for additional alert types (best-effort, don't block on failure)
-      const [clientsRes, backupHistoryRes] = await Promise.all([
-        fetch("/api/clients", { signal: controller.signal }).catch(() => null),
-        fetch("/api/settings/backup/history", { signal: controller.signal }).catch(() => null),
-      ])
-
-      const clients: { id: number; name: string; enabled: boolean; lastError: string | null }[] =
-        clientsRes?.ok ? await clientsRes.json() : []
-      const backupHistory: { createdAt: string; status: string }[] = backupHistoryRes?.ok
-        ? await backupHistoryRes.json()
-        : []
-
-      const allAlerts = computeAlerts(fetchedTrackers)
-      const rankAlerts = detectRankChanges(fetchedTrackers, newMap, 7)
-      const systemAlerts = computeSystemAlerts({
-        latestVersion: latestVersionRef.current ?? undefined,
-        currentVersion: process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0",
-        failedBackups: backupHistory.filter((b) => b.status === "failed"),
-        clients,
-      })
-      const combined = [...allAlerts, ...rankAlerts, ...systemAlerts]
-      const dismissed = await fetchDismissedKeys()
-      setVisibleAlerts(combined.filter((a) => !dismissed.has(a.key)))
-      lastFetchRef.current = Date.now()
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return
-    } finally {
-      if (!controller.signal.aborted) setLoading(false)
+  // Merge server-fetched dismissed keys with locally-dismissed keys
+  const dismissedKeys = useMemo(() => {
+    const merged = new Set(dismissedQuery.data ?? [])
+    for (const key of localDismissedKeys) {
+      merged.add(key)
     }
-  }, [dayRange])
+    return merged
+  }, [dismissedQuery.data, localDismissedKeys])
 
-  useEffect(() => {
-    loadData()
+  // Tracker list query
+  const trackersQuery = useQuery({
+    queryKey: ["trackers"],
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/trackers", { signal })
+      if (!res.ok) return [] as TrackerSummary[]
+      const all: TrackerSummary[] = await res.json()
+      return all.filter((t) => t.isActive)
+    },
+    refetchInterval: 60_000,
+    initialData: options?.initialTrackers?.filter((t) => t.isActive),
+    initialDataUpdatedAt: options?.initialTrackers ? Date.now() : undefined,
+  })
 
-    const interval = setInterval(() => {
-      if (document.visibilityState === "hidden") return
-      loadData()
-    }, 60_000)
+  const trackers = trackersQuery.data ?? []
 
-    function handleVisibilityChange() {
-      if (document.visibilityState !== "visible") return
-      if (Date.now() - lastFetchRef.current < 2 * 60 * 1000) return // Skip refetch if data is < 2 min old
-      loadData()
+  // Per-tracker snapshot queries
+  const snapshotQueries = useQueries({
+    queries: trackers.map((t) => ({
+      queryKey: ["snapshots", t.id, dayRange] as const,
+      queryFn: async ({ signal }) => {
+        const url =
+          dayRange === 0
+            ? `/api/trackers/${t.id}/snapshots`
+            : `/api/trackers/${t.id}/snapshots?days=${dayRange}`
+        const res = await fetch(url, { signal })
+        if (!res.ok) return [] as Snapshot[]
+        return res.json() as Promise<Snapshot[]>
+      },
+      refetchInterval: 60_000,
+    })),
+  })
+
+  // Secondary queries for alert computation (less frequent)
+  const clientsQuery = useQuery({
+    queryKey: ["clients-for-alerts"],
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/clients", { signal })
+      if (!res.ok)
+        return [] as { id: number; name: string; enabled: boolean; lastError: string | null }[]
+      return res.json() as Promise<
+        { id: number; name: string; enabled: boolean; lastError: string | null }[]
+      >
+    },
+    refetchInterval: 5 * 60 * 1000,
+  })
+
+  const backupQuery = useQuery({
+    queryKey: ["backup-history-for-alerts"],
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/settings/backup/history", { signal })
+      if (!res.ok) return [] as { createdAt: string; status: string }[]
+      return res.json() as Promise<{ createdAt: string; status: string }[]>
+    },
+    refetchInterval: 5 * 60 * 1000,
+  })
+
+  // Derived: snapshotMap
+
+  const snapshotData = snapshotQueries.map((q) => q.data)
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: spreading individual q.data refs which are referentially stable from TanStack Query — avoids new-array-ref instability from the useQueries result array itself
+  const snapshotMap = useMemo(() => {
+    const map = new Map<number, Snapshot[]>()
+    for (let i = 0; i < trackers.length; i++) {
+      map.set(trackers[i].id, snapshotData[i] ?? [])
     }
-    document.addEventListener("visibilitychange", handleVisibilityChange)
+    return map
+  }, [trackers, ...snapshotData])
 
-    return () => {
-      clearInterval(interval)
-      document.removeEventListener("visibilitychange", handleVisibilityChange)
-      abortRef.current?.abort()
-    }
-  }, [loadData])
+  // Derived: alerts
+  const visibleAlerts = useMemo(() => {
+    const trackerAlerts = computeAlerts(trackers)
+    const rankAlerts = detectRankChanges(trackers, snapshotMap, 7)
+    const systemAlerts = computeSystemAlerts({
+      latestVersion: updateCheck.latestVersion ?? undefined,
+      currentVersion: process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0",
+      failedBackups: (backupQuery.data ?? []).filter((b) => b.status === "failed"),
+      clients: clientsQuery.data ?? [],
+    })
+    const combined = [...trackerAlerts, ...rankAlerts, ...systemAlerts]
+    return combined.filter((a) => !dismissedKeys.has(a.key))
+  }, [
+    trackers,
+    snapshotMap,
+    updateCheck.latestVersion,
+    backupQuery.data,
+    clientsQuery.data,
+    dismissedKeys,
+  ])
 
+  // Dismiss handlers
   const dismissAlert = useCallback((key: string, type: string) => {
     persistDismiss(key, type)
-    setVisibleAlerts((prev) => prev.filter((a) => a.key !== key))
+    setLocalDismissedKeys((prev) => new Set([...prev, key]))
   }, [])
 
   const dismissAllAlerts = useCallback(() => {
-    deleteAllDismissed()
-    setVisibleAlerts((prev) => prev.filter((a) => a.dismissible === false))
-  }, [])
+    const dismissible = visibleAlerts.filter((a) => a.dismissible !== false)
+    for (const a of dismissible) {
+      persistDismiss(a.key, a.type)
+    }
+    setLocalDismissedKeys((prev) => {
+      const next = new Set(prev)
+      for (const a of dismissible) {
+        next.add(a.key)
+      }
+      return next
+    })
+  }, [visibleAlerts])
 
   return {
     trackers,
     snapshotMap,
-    loading,
+    loading: trackersQuery.isLoading,
     alerts: visibleAlerts,
     dayRange,
     setDayRange,
     dismissAlert,
     dismissAllAlerts,
-    refresh: loadData,
+    refresh: async () => {
+      await trackersQuery.refetch()
+      await queryClient.invalidateQueries({ queryKey: ["snapshots"] })
+    },
   }
 }
 
-export type { DashboardData }
+export type { DashboardData, UseDashboardDataOptions }
 export { useDashboardData }

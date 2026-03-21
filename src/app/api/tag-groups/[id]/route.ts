@@ -7,13 +7,14 @@ import { NextResponse } from "next/server"
 import { authenticate, parseJsonBody, parseRouteId } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { tagGroups } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
 import { VALID_CHART_TYPES } from "@/types/api"
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const groupId = await parseRouteId(params, "group ID")
+  const groupId = await parseRouteId(props.params, "group ID")
   if (groupId instanceof NextResponse) return groupId
 
   const body = await parseJsonBody(request)
@@ -89,11 +90,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   return NextResponse.json({ success: true })
 }
 
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_request: Request, props: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const groupId = await parseRouteId(params, "group ID")
+  const groupId = await parseRouteId(props.params, "group ID")
   if (groupId instanceof NextResponse) return groupId
 
   const [existing] = await db
@@ -108,5 +109,6 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
 
   await db.delete(tagGroups).where(eq(tagGroups.id, groupId))
 
+  log.info({ route: "DELETE /api/tag-groups/[id]", groupId }, "tag group deleted")
   return NextResponse.json({ success: true })
 }

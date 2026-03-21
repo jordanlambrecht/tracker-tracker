@@ -2,44 +2,19 @@
 //
 // Functions: GET, POST
 
-import { asc } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { authenticate, parseJsonBody } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
-import { tagGroupMembers, tagGroups } from "@/lib/db/schema"
-import type { TagGroup, TagGroupChartType } from "@/types/api"
+import { tagGroups } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
+import { getTagGroupsWithMembers } from "@/lib/server-data"
 import { VALID_CHART_TYPES } from "@/types/api"
 
 export async function GET() {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const [groups, allMembers] = await Promise.all([
-    db.select().from(tagGroups).orderBy(asc(tagGroups.sortOrder), asc(tagGroups.id)),
-    db.select().from(tagGroupMembers).orderBy(asc(tagGroupMembers.sortOrder)),
-  ])
-
-  const membersByGroup = new Map<number, typeof allMembers>()
-  for (const member of allMembers) {
-    const list = membersByGroup.get(member.groupId)
-    if (list) {
-      list.push(member)
-    } else {
-      membersByGroup.set(member.groupId, [member])
-    }
-  }
-
-  const result: TagGroup[] = groups.map((group) => ({
-    id: group.id,
-    name: group.name,
-    emoji: group.emoji,
-    chartType: group.chartType as TagGroupChartType,
-    description: group.description,
-    sortOrder: group.sortOrder,
-    countUnmatched: group.countUnmatched,
-    members: membersByGroup.get(group.id) ?? [],
-  }))
-
+  const result = await getTagGroupsWithMembers()
   return NextResponse.json(result)
 }
 
@@ -99,5 +74,6 @@ export async function POST(request: Request) {
     })
     .returning()
 
+  log.info({ route: "POST /api/tag-groups", groupId: group.id }, "tag group created")
   return NextResponse.json({ id: group.id, name: group.name }, { status: 201 })
 }

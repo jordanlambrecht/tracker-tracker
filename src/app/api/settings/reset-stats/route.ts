@@ -7,6 +7,7 @@ import { authenticate, parseJsonBody } from "@/lib/api-helpers"
 import { verifyPassword } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { appSettings, clientSnapshots, trackerSnapshots, trackers } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
 
 export async function POST(request: Request) {
   const auth = await authenticate()
@@ -27,9 +28,11 @@ export async function POST(request: Request) {
 
   const valid = await verifyPassword(settings.passwordHash, password)
   if (!valid) {
+    log.warn({ route: "POST /api/settings/reset-stats" }, "stats reset rejected — incorrect password")
     return NextResponse.json({ error: "Incorrect password" }, { status: 401 })
   }
 
+  log.info({ route: "POST /api/settings/reset-stats" }, "stats reset initiated")
   // Delete all tracker snapshots
   await db.delete(trackerSnapshots)
 

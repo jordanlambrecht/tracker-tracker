@@ -11,9 +11,13 @@ vi.mock("@/lib/logger", () => ({
   log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
 }))
 
-vi.mock("@/lib/error-utils", () => ({
-  sanitizeNetworkError: vi.fn((_raw: string, fallback: string) => fallback),
-}))
+// Use vi.mock with importOriginal so the real function still runs, but the
+// export is wrappable by a spy. A full module replacement was removed here
+// because it prevented the real sanitization logic from executing.
+vi.mock("@/lib/error-utils", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/error-utils")>()
+  return { ...actual }
+})
 
 const TARGET_ID = 42
 const WEBHOOK_URL = "https://discord.com/api/webhooks/123/abc"
@@ -58,6 +62,7 @@ describe("notification delivery circuit breaker", () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
   })
@@ -120,19 +125,23 @@ describe("notification delivery circuit breaker", () => {
   })
 
   it("auto-resets circuit after cooldown expires", async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2025-01-01T00:00:00Z"))
+
     mockFetchError(500, "Internal Server Error")
     await deliverDiscordWebhook(TARGET_ID, WEBHOOK_URL, EMBEDS)
     await deliverDiscordWebhook(TARGET_ID, WEBHOOK_URL, EMBEDS)
     await deliverDiscordWebhook(TARGET_ID, WEBHOOK_URL, EMBEDS)
 
-    // Fast-forward past the cooldown
-    const state = getCircuitState(TARGET_ID)
-    state.openUntil = new Date(Date.now() - 1000) // expired 1 second ago
+    // Advance past the 60s default cooldown so the circuit breaker expires
+    vi.advanceTimersByTime(61_000)
 
     mockFetchOk()
     const result = await deliverDiscordWebhook(TARGET_ID, WEBHOOK_URL, EMBEDS)
     expect(result.status).toBe("delivered")
     expect(getCircuitState(TARGET_ID).failures).toBe(0)
+
+    vi.useRealTimers()
   })
 
   // ─── Rate limiting (429) ─────────────────────────────────────────────
@@ -193,20 +202,22 @@ describe("notification delivery circuit breaker", () => {
   })
 
   it("sanitizes error messages from fetch failures", async () => {
-    const { sanitizeNetworkError } = await import("@/lib/error-utils")
+    const errorUtils = await import("@/lib/error-utils")
+    vi.spyOn(errorUtils, "sanitizeNetworkError")
     mockFetchThrow("connect ECONNREFUSED 192.168.1.100:443")
     await deliverDiscordWebhook(TARGET_ID, WEBHOOK_URL, EMBEDS)
-    expect(sanitizeNetworkError).toHaveBeenCalledWith(
+    expect(errorUtils.sanitizeNetworkError).toHaveBeenCalledWith(
       "connect ECONNREFUSED 192.168.1.100:443",
       "Delivery failed"
     )
   })
 
   it("sanitizes error messages from non-ok HTTP responses", async () => {
-    const { sanitizeNetworkError } = await import("@/lib/error-utils")
+    const errorUtils = await import("@/lib/error-utils")
+    vi.spyOn(errorUtils, "sanitizeNetworkError")
     mockFetchError(403, "Forbidden")
     await deliverDiscordWebhook(TARGET_ID, WEBHOOK_URL, EMBEDS)
-    expect(sanitizeNetworkError).toHaveBeenCalledWith(
+    expect(errorUtils.sanitizeNetworkError).toHaveBeenCalledWith(
       "Webhook API error: 403 Forbidden",
       "Delivery failed"
     )

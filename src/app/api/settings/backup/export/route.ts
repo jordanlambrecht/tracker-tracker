@@ -96,6 +96,7 @@ export async function POST(request: Request) {
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error"
+    log.error({ route: "POST /api/settings/backup/export", error: err instanceof Error ? err.message : "unknown" }, "backup export failed")
     return NextResponse.json({ error: `Backup export failed: ${message}` }, { status: 500 })
   }
 }

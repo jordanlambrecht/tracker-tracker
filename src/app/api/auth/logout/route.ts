@@ -6,6 +6,7 @@ import { log } from "@/lib/logger"
 export async function POST() {
   const session = await getSession()
   if (!session) {
+    log.warn({ route: "POST /api/auth/logout" }, "logout attempted without valid session")
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 

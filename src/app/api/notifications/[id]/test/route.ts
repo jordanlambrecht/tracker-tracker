@@ -35,7 +35,10 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   try {
     config = decryptNotificationConfig(target, key) as DiscordConfig
   } catch {
-    log.error({ route: "POST /api/notifications/[id]/test", targetId: id }, "notification test failed — config decrypt error")
+    log.error(
+      { route: "POST /api/notifications/[id]/test", targetId: id },
+      "notification test failed — config decrypt error"
+    )
     return NextResponse.json({ error: "Failed to decrypt notification config" }, { status: 422 })
   }
 
@@ -61,6 +64,13 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ success: true })
   }
 
-  log.warn({ route: "POST /api/notifications/[id]/test", targetId: id, error: result.error ?? "delivery failed" }, "notification test failed")
+  log.warn(
+    {
+      route: "POST /api/notifications/[id]/test",
+      targetId: id,
+      error: result.error ?? "delivery failed",
+    },
+    "notification test failed"
+  )
   return NextResponse.json({ error: result.error ?? "Test delivery failed" }, { status: 422 })
 }

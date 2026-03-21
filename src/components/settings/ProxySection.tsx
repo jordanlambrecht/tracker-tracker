@@ -14,6 +14,7 @@ import { NumberInput } from "@/components/ui/NumberInput"
 import { Select } from "@/components/ui/Select"
 import { Toggle } from "@/components/ui/Toggle"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
+import { Tooltip } from "@/components/ui/Tooltip"
 import { extractApiError } from "@/lib/client-helpers"
 import { DOCS } from "@/lib/constants"
 
@@ -148,23 +149,26 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
 
   return (
     <section aria-labelledby="proxy-heading">
-      <H2 id="proxy-heading" className="mb-4">
+      <H2 id="proxy-heading" className="mb-4 flex items-center gap-2">
         Proxy
+        <Tooltip content="Route tracker requests through a proxy server." docs={DOCS.PROXIES}>
+          <span className="text-muted hover:text-secondary cursor-help text-sm">&#9432;</span>
+        </Tooltip>
       </H2>
 
-      <div className="flex items-center gap-2 mb-3 px-1 text-warn text-xs font-mono">
-        <span aria-hidden="true">⚠</span>
-        <span>
-          EXPERIMENTAL — Use at your own risk. May result in IP leaks and/or angry mods.{" "}
-          <a
-            href={DOCS.PROXIES.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-accent hover:underline"
-          >
-            Read the docs →
-          </a>
-        </span>
+      <div className="flex flex-col gap-1 mb-3 px-1 text-warn text-xs font-mono">
+        <div className="flex items-center gap-2">
+          <span aria-hidden="true">⚠</span>
+          <span>EXPERIMENTAL — Use at your own risk. May result in IP leaks and/or angry mods.</span>
+        </div>
+        <a
+          href={DOCS.PROXIES.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-accent hover:underline pl-6"
+        >
+          Read the docs →
+        </a>
       </div>
 
       <Card elevation="raised" className="flex flex-col gap-5">

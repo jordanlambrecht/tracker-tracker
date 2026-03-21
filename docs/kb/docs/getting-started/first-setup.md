@@ -19,10 +19,10 @@ Your password does two things:
 2. **Protects your stored API tokens.** All tracker API tokens are encrypted at rest using a key derived from your password. If you lose your password, those tokens can't be recovered — but you can re-enter them manually.
 
 !!! warning "Choose strong credentials"
-There is no recovery mechanism. If you forget your password, you'll need to reset the database and start fresh. Keep it in a password manager.
+    There is no recovery mechanism. If you forget your password, you'll need to reset the database and start fresh. Keep it in a password manager.
 
 !!! info "Your password stays on your machine"
-It's hashed on the server before being stored. The raw password is never saved anywhere.
+    It's hashed on the server before being stored. The raw password is never saved anywhere.
 
 Click **Create Account**. You'll be logged in and land on the dashboard.
 
@@ -41,7 +41,7 @@ The left sidebar has three sections:
 The main area shows the tracker overview grid, charts, and leaderboard. Charts fill in automatically as polling history builds up over time.
 
 !!! tip "Polling starts right away"
-The moment you add a tracker, the app polls it and records a snapshot. Stats start charting from that first poll. The default polling interval is 60 minutes — you can change it in **Settings → General**.
+    The moment you add a tracker, the app polls it and records a snapshot. Stats start charting from that first poll. The default polling interval is 60 minutes — you can change it in **Settings → General**.
 
 ---
 

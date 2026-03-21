@@ -5,7 +5,7 @@
 //            CheckIcon, CheckLargeIcon, CopyIcon, UploadArrowIcon, DownloadArrowIcon,
 //            UserIcon, PlusIcon, ActivityIcon, ShareScoreIcon, ShieldIcon, StarIcon,
 //            LeechingIcon, SeedingIcon, TriangleWarningIcon, RatioIcon, GridIcon,
-//            ClockIcon, BoxIcon, ServerIcon, TagIcon, BugIcon, XIcon
+//            ClockIcon, BoxIcon, ServerIcon, TagIcon, BugIcon, XIcon, TransitPapersIcon
 
 import type { SVGProps } from "react"
 
@@ -635,6 +635,29 @@ function XIcon(props: IconProps) {
   )
 }
 
+// Passport/document icon with seal — used for Transit Papers (Proof of Citizenship) reports
+function TransitPapersIcon(props: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <rect x="4" y="2" width="16" height="20" rx="2" />
+      <line x1="4" y1="2" x2="4" y2="22" strokeWidth={2.5} />
+      <circle cx="12" cy="10" r="4" strokeWidth={1.5} />
+      <circle cx="12" cy="10" r="1.5" fill="currentColor" stroke="none" />
+      <line x1="8" y1="17" x2="16" y2="17" strokeWidth={1.25} />
+      <line x1="9" y1="19.5" x2="15" y2="19.5" strokeWidth={1.25} />
+    </svg>
+  )
+}
+
 export {
   ActivityIcon,
   BoxIcon,
@@ -664,6 +687,7 @@ export {
   ShieldIcon,
   StarIcon,
   TagIcon,
+  TransitPapersIcon,
   TriangleWarningIcon,
   UploadArrowIcon,
   UserIcon,

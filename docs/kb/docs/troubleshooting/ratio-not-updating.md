@@ -16,7 +16,7 @@ Go to **Settings → General** and find the **Tracker Poll Interval** field. The
 If this is set to 240, stats will only update every 4 hours. That is expected behavior, not a bug.
 
 !!! info "Minimum update rate"
-Setting the interval to 15 minutes is the fastest update rate available. Stats will not update more frequently than this regardless of how often you reload the page.
+    Setting the interval to 15 minutes is the fastest update rate available. Stats will not update more frequently than this regardless of how often you reload the page.
 
 ---
 
@@ -82,4 +82,4 @@ If you have configured a **Snapshot Retention** period in Settings → General, 
 If retention is set to 7 days and you are looking at a 30-day chart, the older portion of the chart will be empty. That data was pruned.
 
 !!! tip "Retention defaults"
-If retention is not configured, snapshots are kept forever. If you see gaps in older data, check the retention setting in Settings → General.
+    If retention is not configured, snapshots are kept forever. If you see gaps in older data, check the retention setting in Settings → General.

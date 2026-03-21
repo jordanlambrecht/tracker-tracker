@@ -14,6 +14,7 @@ import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
 import { stopScheduler } from "@/lib/scheduler"
 import { clearSchedulerKey } from "@/lib/scheduler-key-store"
+import { log } from "@/lib/logger"
 
 export async function POST(request: Request) {
   const auth = await authenticate()
@@ -34,9 +35,11 @@ export async function POST(request: Request) {
 
   const valid = await verifyPassword(settings.passwordHash, password)
   if (!valid) {
+    log.warn({ route: "POST /api/settings/lockdown" }, "lockdown rejected — incorrect password")
     return NextResponse.json({ error: "Incorrect password" }, { status: 401 })
   }
 
+  log.info({ route: "POST /api/settings/lockdown" }, "emergency lockdown initiated")
   // 1. Stop all polling immediately
   stopScheduler()
   await clearSchedulerKey(settings.id)
@@ -68,5 +71,6 @@ export async function POST(request: Request) {
   // 5. Kill the session
   await clearSession()
 
+  log.info({ route: "POST /api/settings/lockdown" }, "emergency lockdown completed")
   return NextResponse.json({ success: true })
 }

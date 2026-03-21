@@ -7,6 +7,7 @@ import { NextResponse } from "next/server"
 import { authenticate, parseJsonBody, validateHexColor } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { tagGroupMembers } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
 
 async function parseGroupAndMemberId(
   params: Promise<{ id: string; memberId: string }>
@@ -23,12 +24,12 @@ async function parseGroupAndMemberId(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ id: string; memberId: string }> }
+  props: { params: Promise<{ id: string; memberId: string }> }
 ) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const parsed = await parseGroupAndMemberId(params)
+  const parsed = await parseGroupAndMemberId(props.params)
   if (parsed instanceof NextResponse) return parsed
   const { groupId, memberId } = parsed
 
@@ -113,12 +114,12 @@ export async function PATCH(
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: Promise<{ id: string; memberId: string }> }
+  props: { params: Promise<{ id: string; memberId: string }> }
 ) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const parsed = await parseGroupAndMemberId(params)
+  const parsed = await parseGroupAndMemberId(props.params)
   if (parsed instanceof NextResponse) return parsed
   const { groupId, memberId } = parsed
 
@@ -136,5 +137,6 @@ export async function DELETE(
     .delete(tagGroupMembers)
     .where(and(eq(tagGroupMembers.id, memberId), eq(tagGroupMembers.groupId, groupId)))
 
+  log.info({ route: "DELETE /api/tag-groups/[id]/members/[memberId]", groupId, memberId }, "tag group member deleted")
   return NextResponse.json({ success: true })
 }

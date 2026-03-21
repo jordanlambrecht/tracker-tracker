@@ -6,14 +6,16 @@
 
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
+import type { DocsEntry } from "@/lib/constants"
 
 interface TooltipProps {
   content: ReactNode
   children: ReactNode
   className?: string
+  docs?: DocsEntry
 }
 
-function Tooltip({ content, children, className }: TooltipProps) {
+function Tooltip({ content, children, className, docs }: TooltipProps) {
   const [visible, setVisible] = useState(false)
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
   const triggerRef = useRef<HTMLSpanElement>(null)
@@ -66,6 +68,21 @@ function Tooltip({ content, children, className }: TooltipProps) {
             onMouseLeave={hide}
           >
             {content}
+            {docs?.description && !docs.href && (
+              <p className="mt-1.5 pt-1.5 border-t border-border text-muted text-[10px]">
+                {docs.description}
+              </p>
+            )}
+            {docs?.href && (
+              <a
+                href={docs.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block mt-1.5 pt-1.5 border-t border-border text-accent hover:underline text-[10px]"
+              >
+                Documentation →
+              </a>
+            )}
           </div>,
           document.body
         )}

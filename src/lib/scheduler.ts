@@ -212,7 +212,7 @@ export async function pollTracker(
         .set({
           lastError: message,
           consecutiveFailures: sql`${trackers.consecutiveFailures} + 1`,
-          pausedAt: sql`CASE WHEN ${trackers.consecutiveFailures} + 1 >= ${POLL_FAILURE_THRESHOLD} THEN ${now}::timestamp ELSE ${trackers.pausedAt} END`,
+          pausedAt: sql`CASE WHEN ${trackers.consecutiveFailures} + 1 >= ${POLL_FAILURE_THRESHOLD} THEN ${now.toISOString()}::timestamp ELSE ${trackers.pausedAt} END`,
           updatedAt: now,
         })
         .where(eq(trackers.id, trackerId))

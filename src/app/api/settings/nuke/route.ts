@@ -8,6 +8,7 @@ import { clearSession, verifyPassword } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
 import { scrubAndDeleteAll } from "@/lib/nuke"
+import { log } from "@/lib/logger"
 
 export async function POST(request: Request) {
   const auth = await authenticate()
@@ -28,9 +29,11 @@ export async function POST(request: Request) {
 
   const valid = await verifyPassword(settings.passwordHash, password)
   if (!valid) {
+    log.warn({ route: "POST /api/settings/nuke" }, "data scrub rejected — incorrect password")
     return NextResponse.json({ error: "Incorrect password" }, { status: 401 })
   }
 
+  log.info({ route: "POST /api/settings/nuke" }, "data scrub initiated")
   await scrubAndDeleteAll()
   await clearSession()
 

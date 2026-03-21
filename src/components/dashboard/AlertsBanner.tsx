@@ -5,6 +5,7 @@
 "use client"
 
 import Link from "next/link"
+import { useCallback, useState } from "react"
 import type { DashboardAlert } from "@/lib/dashboard"
 
 interface AlertsBannerProps {
@@ -28,6 +29,32 @@ const typeConfig: Record<string, { borderColor: string; icon: string; label: str
 }
 
 function AlertsBanner({ alerts, onDismiss, onDismissAll }: AlertsBannerProps) {
+  const [dismissing, setDismissing] = useState<Set<string>>(new Set())
+
+  const handleDismiss = useCallback(
+    (key: string, type: string) => {
+      setDismissing((prev) => new Set([...prev, key]))
+      setTimeout(() => {
+        onDismiss(key, type)
+        setDismissing((prev) => {
+          const next = new Set(prev)
+          next.delete(key)
+          return next
+        })
+      }, 250)
+    },
+    [onDismiss]
+  )
+
+  const handleDismissAll = useCallback(() => {
+    const dismissibleKeys = alerts.filter((a) => a.dismissible !== false).map((a) => a.key)
+    setDismissing(new Set(dismissibleKeys))
+    setTimeout(() => {
+      onDismissAll?.()
+      setDismissing(new Set())
+    }, 250)
+  }, [alerts, onDismissAll])
+
   if (alerts.length === 0) return null
 
   const dismissibleAlerts = alerts.filter((a) => a.dismissible !== false)
@@ -38,20 +65,37 @@ function AlertsBanner({ alerts, onDismiss, onDismissAll }: AlertsBannerProps) {
         <div className="flex justify-end">
           <button
             type="button"
-            onClick={onDismissAll}
+            onClick={handleDismissAll}
             className="text-[10px] font-mono text-muted hover:text-secondary transition-colors duration-150 cursor-pointer uppercase tracking-wider"
           >
             Clear All
           </button>
         </div>
       )}
-      {alerts.map((alert) => {
+      {alerts.map((alert, i) => {
         const config = typeConfig[alert.type] ?? typeConfig.error
+        const isDismissing = dismissing.has(alert.key)
         return (
           <div
             key={alert.key}
-            className="flex items-start sm:items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 nm-inset-sm bg-control-bg rounded-nm-md"
-            style={{ borderLeft: `3px solid ${config.borderColor}` }}
+            className="overflow-hidden transition-all duration-250 ease-out"
+            style={{
+              maxHeight: isDismissing ? 0 : 80,
+              marginBottom: isDismissing ? -8 : 0,
+              opacity: isDismissing ? 0 : 1,
+              animationName: "alertSlideIn",
+              animationDuration: "200ms",
+              animationTimingFunction: "ease-out",
+              animationFillMode: "backwards",
+              animationDelay: `${i * 30}ms`,
+            }}
+          >
+          <div
+            className="flex items-start sm:items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 nm-inset-sm bg-control-bg rounded-nm-md transition-transform duration-250 ease-out"
+            style={{
+              borderLeft: `3px solid ${config.borderColor}`,
+              transform: isDismissing ? "translateX(-12px)" : "translateX(0)",
+            }}
           >
             <span className="shrink-0 text-sm mt-0.5 sm:mt-0" aria-hidden="true">
               {config.icon}
@@ -79,13 +123,14 @@ function AlertsBanner({ alerts, onDismiss, onDismissAll }: AlertsBannerProps) {
             {alert.dismissible !== false && (
               <button
                 type="button"
-                onClick={() => onDismiss(alert.key, alert.type)}
+                onClick={() => handleDismiss(alert.key, alert.type)}
                 className="text-muted hover:text-secondary transition-colors duration-150 cursor-pointer shrink-0 px-1 mt-0.5 sm:mt-0"
                 aria-label={`Dismiss ${config.label} alert for ${alert.trackerName}`}
               >
                 ×
               </button>
             )}
+          </div>
           </div>
         )
       })}

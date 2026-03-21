@@ -9,6 +9,7 @@ import { NextResponse } from "next/server"
 import { authenticate, decodeKey, parseTrackerId, validateHttpUrl } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
 import { buildProxyAgentFromSettings, proxyFetch } from "@/lib/proxy"
 
 const STALE_MS = 7 * 24 * 60 * 60 * 1000
@@ -26,11 +27,11 @@ function avatarUrl(
   return null
 }
 
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const trackerId = await parseTrackerId(params)
+  const trackerId = await parseTrackerId(props.params)
   if (trackerId instanceof NextResponse) return trackerId
 
   const [tracker] = await db
@@ -143,6 +144,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   } catch {
     // If we have stale cache, serve it rather than failing
     if (tracker.avatarData) {
+      log.warn({ route: "GET /api/trackers/[id]/avatar", trackerId }, "avatar fetch failed — serving stale cache")
       const data = Buffer.from(tracker.avatarData, "base64")
       return new NextResponse(new Uint8Array(data), {
         headers: {
@@ -151,6 +153,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         },
       })
     }
+    log.error({ route: "GET /api/trackers/[id]/avatar", trackerId }, "avatar fetch failed — no cache available")
     return NextResponse.json({ error: "Failed to fetch avatar" }, { status: 502 })
   }
 }

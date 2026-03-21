@@ -4,9 +4,8 @@
 import { H1 } from "@typography"
 import clsx from "clsx"
 import Link from "next/link"
-import { useState } from "react"
 import { Button, buttonVariants } from "@/components/ui/Button"
-import { CheckLargeIcon, CopyIcon } from "@/components/ui/Icons"
+import { CopyButton } from "@/components/ui/CopyButton"
 import { Tooltip } from "@/components/ui/Tooltip"
 
 export function ErrorDisplay({
@@ -20,15 +19,7 @@ export function ErrorDisplay({
   linkHref: string
   linkText: string
 }) {
-  const [copied, setCopied] = useState(false)
   const errorText = message || "An unexpected error occurred."
-
-  function handleCopy() {
-    navigator.clipboard.writeText(errorText).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-base px-4">
@@ -42,17 +33,10 @@ export function ErrorDisplay({
             {errorText}
           </pre>
           <Tooltip content="Copy error message">
-            <button
-              type="button"
-              onClick={handleCopy}
+            <CopyButton
+              value={errorText}
               className="absolute top-2 right-2 p-1.5 text-muted hover:text-secondary transition-colors duration-150 cursor-pointer"
-            >
-              {copied ? (
-                <CheckLargeIcon width="14" height="14" />
-              ) : (
-                <CopyIcon width="14" height="14" />
-              )}
-            </button>
+            />
           </Tooltip>
         </div>
         <div className="flex gap-3">

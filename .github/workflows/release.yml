@@ -134,3 +134,11 @@ jobs:
           body: ${{ steps.changelog.outputs.notes }}
           generate_release_notes: false
           files: sbom-tracker-tracker.spdx.json
+
+      - name: Sync README to Docker Hub
+        if: steps.tag.outputs.should_release == 'true'
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: jordyjordy/tracker-tracker

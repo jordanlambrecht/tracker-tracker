@@ -2,7 +2,6 @@
 //
 // Functions: GET, POST
 
-import { sql } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { CHART_THEME } from "@/components/charts/theme"
 import { DEFAULT_API_PATHS, VALID_PLATFORM_TYPES } from "@/lib/adapters"
@@ -12,66 +11,20 @@ import {
   parseJsonBody,
   validateHexColor,
   validateHttpUrl,
+  validateJoinedAt,
 } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { appSettings, type trackerSnapshots, trackers } from "@/lib/db/schema"
-import { createPrivacyMaskSync } from "@/lib/privacy-db"
-import { serializeTrackerResponse } from "@/lib/tracker-serializer"
+import { trackers } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
+import { getTrackerListForDashboard } from "@/lib/server-data"
 
 export async function GET() {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const [allTrackers, [privacySettings]] = await Promise.all([
-    db.select().from(trackers).orderBy(trackers.createdAt),
-    db.select({ storeUsernames: appSettings.storeUsernames }).from(appSettings).limit(1),
-  ])
-
-  // Enforce masking at response time — even if DB has plaintext from before
-  // privacy was enabled, the API never leaks it when privacy mode is on.
-  // Fallback true = "store usernames" = no masking. Matches createPrivacyMask()
-  // behavior when no settings row exists. Do NOT change to false.
-  const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
-
-  // Batch-fetch the latest snapshot per tracker using DISTINCT ON.
-  // PG18's enable_distinct_reordering planner flag optimises exactly this pattern.
-  // Drizzle has no native DISTINCT ON support, so we use db.execute with a raw sql tag.
-  // security-audit-ignore: static SQL string with zero user input — no injection risk
-  const latestSnapshots = (await db.execute(sql`
-    SELECT DISTINCT ON (tracker_id)
-      id,
-      tracker_id        AS "trackerId",
-      polled_at          AS "polledAt",
-      uploaded_bytes     AS "uploadedBytes",
-      downloaded_bytes   AS "downloadedBytes",
-      ratio,
-      buffer_bytes       AS "bufferBytes",
-      seeding_count      AS "seedingCount",
-      leeching_count     AS "leechingCount",
-      seedbonus,
-      hit_and_runs       AS "hitAndRuns",
-      required_ratio     AS "requiredRatio",
-      warned,
-      freeleech_tokens   AS "freeleechTokens",
-      share_score        AS "shareScore",
-      username,
-      group_name         AS "group"
-    FROM tracker_snapshots
-    ORDER BY tracker_id, polled_at DESC
-  `)) as unknown as (typeof trackerSnapshots.$inferSelect)[]
-
-  // Build a lookup map for O(1) access
-  const snapshotByTracker = new Map(latestSnapshots.map((s) => [s.trackerId, s]))
-
-  // SECURITY: Never include encryptedApiToken in response
-  // security-audit-ignore: serializeTrackerResponse omits encryptedApiToken by design
-  const trackersWithStats = allTrackers.map((tracker) => {
-    const latest = snapshotByTracker.get(tracker.id) ?? null
-    return serializeTrackerResponse(tracker, latest, mask)
-  })
-
-  return NextResponse.json(trackersWithStats)
+  const trackerList = await getTrackerListForDashboard()
+  return NextResponse.json(trackerList)
 }
 
 export async function POST(request: Request) {
@@ -140,12 +93,8 @@ export async function POST(request: Request) {
   }
 
   if (typeof joinedAt === "string" && joinedAt) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(joinedAt)) {
-      return NextResponse.json({ error: "joinedAt must be YYYY-MM-DD" }, { status: 400 })
-    }
-    if (joinedAt > new Date().toISOString().split("T")[0]) {
-      return NextResponse.json({ error: "Join date cannot be in the future" }, { status: 400 })
-    }
+    const joinedAtErr = validateJoinedAt(joinedAt)
+    if (joinedAtErr) return joinedAtErr
   }
 
   const platform = typeof platformType === "string" ? platformType : "unit3d"
@@ -171,5 +120,6 @@ export async function POST(request: Request) {
     .returning()
 
   // SECURITY: Only return safe fields
+  log.info({ route: "POST /api/trackers", trackerId: tracker.id }, "tracker created")
   return NextResponse.json({ id: tracker.id, name: tracker.name }, { status: 201 })
 }

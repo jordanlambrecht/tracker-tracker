@@ -11,6 +11,7 @@ import {
   parseRouteId,
   validatePort,
 } from "@/lib/api-helpers"
+import { log } from "@/lib/logger"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
@@ -18,11 +19,11 @@ import { PROXY_HOST_PATTERN } from "@/lib/proxy"
 import { VALID_CLIENT_TYPES } from "@/lib/qbt/types"
 import { removeClientFromAccumulator } from "@/lib/uptime"
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const clientId = await parseRouteId(params, "client ID")
+  const clientId = await parseRouteId(props.params, "client ID")
   if (clientId instanceof NextResponse) return clientId
 
   const body = await parseJsonBody(request)
@@ -146,11 +147,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   return NextResponse.json({ success: true })
 }
 
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_request: Request, props: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const clientId = await parseRouteId(params, "client ID")
+  const clientId = await parseRouteId(props.params, "client ID")
   if (clientId instanceof NextResponse) return clientId
 
   // Fetch to check if this client is the default before deleting
@@ -186,5 +187,6 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     }
   })
 
+  log.info({ route: "DELETE /api/clients/[id]", clientId }, "download client deleted")
   return NextResponse.json({ success: true })
 }

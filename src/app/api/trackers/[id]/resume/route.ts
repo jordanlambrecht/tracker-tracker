@@ -6,11 +6,11 @@ import { db } from "@/lib/db"
 import { trackers } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
 
-export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(_request: Request, props: { params: Promise<{ id: string }> }) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const trackerId = await parseTrackerId(params)
+  const trackerId = await parseTrackerId(props.params)
   if (trackerId instanceof NextResponse) return trackerId
 
   const [tracker] = await db
