@@ -53,7 +53,7 @@ TZ=America/Chicago
 ```
 
 !!! warning "Don't reuse these values"
-`SESSION_SECRET` protects your session cookies. `POSTGRES_PASSWORD` protects your database. Generate fresh values — never copy the placeholder text from `.env.example`.
+    `SESSION_SECRET` protects your session cookies. `POSTGRES_PASSWORD` protects your database. Generate fresh values — never copy the placeholder text from `.env.example`.
 
 ## Step 4 — Start the stack
 
