@@ -41,7 +41,7 @@ export interface TrackerRules {
   loginIntervalDays: number // days until prune/disable
   fulfillmentPeriodHours?: number // null = not applicable
   hnrBanLimit?: number // null = not applicable
-  fullRulesMarkdown?: string
+  fullRulesMarkdown?: string | string[]
 }
 
 export interface TrackerRegistryEntry {
