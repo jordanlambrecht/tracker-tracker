@@ -7,7 +7,7 @@
 import clsx from "clsx"
 import { useRouter, useSearchParams } from "next/navigation"
 import { type CSSProperties, useCallback, useEffect, useMemo, useState } from "react"
-import { CHART_THEME } from "@/components/charts/theme"
+import { CHART_THEME } from "@/components/charts/lib/theme"
 import type { DayRange } from "@/components/dashboard/DayRangeSidebar"
 import { RankProgress } from "@/components/dashboard/RankProgress"
 import { TorrentsTab } from "@/components/dashboard/TorrentsTab"
@@ -15,7 +15,7 @@ import { TrackerSettingsDialog } from "@/components/TrackerSettingsDialog"
 import { AnalyticsTab } from "@/components/tracker-detail/AnalyticsTab"
 import type { DebugData } from "@/components/tracker-detail/DebugResponseDialog"
 import { DebugResponseDialog } from "@/components/tracker-detail/DebugResponseDialog"
-import { PollErrorBanner } from "@/components/tracker-detail/PollErrorBanner"
+import { TrackerStatusBanner } from "@/components/tracker-detail/TrackerStatusBanner"
 import { resolveSlots } from "@/components/tracker-detail/resolve-slots"
 import { TrackerDetailHeader } from "@/components/tracker-detail/TrackerDetailHeader"
 import { TrackerInfoTab } from "@/components/tracker-detail/TrackerInfoTab"
@@ -71,6 +71,7 @@ export function TrackerDetailClient({
   const [debugData, setDebugData] = useState<DebugData | null>(null)
   const [debugLoading, setDebugLoading] = useState(false)
   const [debugError, setDebugError] = useState<string | null>(null)
+  const [pauseLoading, setPauseLoading] = useState(false)
 
   const snapshots = useMemo(() => {
     if (days === 0) return allTimeSnapshots
@@ -106,6 +107,33 @@ export function TrackerDetailClient({
       }
     } catch {
       setPollError("Network error while resuming polling")
+    }
+  }
+
+  async function handleTogglePause() {
+    setPauseLoading(true)
+    const wasPaused = !!tracker.userPausedAt
+    const originalUserPausedAt = tracker.userPausedAt
+
+    setTracker((prev) => ({
+      ...prev,
+      userPausedAt: wasPaused ? null : new Date().toISOString(),
+      ...(wasPaused ? { pausedAt: null, consecutiveFailures: 0, lastError: null } : {}),
+    }))
+
+    try {
+      const res = await fetch(`/api/trackers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pollingPaused: !wasPaused }),
+      })
+      if (!res.ok) throw new Error("Failed to toggle pause")
+      const trackerRes = await fetch(`/api/trackers/${id}`)
+      if (trackerRes.ok) setTracker(await trackerRes.json())
+    } catch {
+      setTracker((prev) => ({ ...prev, userPausedAt: originalUserPausedAt }))
+    } finally {
+      setPauseLoading(false)
     }
   }
 
@@ -225,6 +253,8 @@ export function TrackerDetailClient({
         onDebugPoll={handleDebugPoll}
         debugLoading={debugLoading}
         badgeSlots={badgeSlots}
+        onTogglePause={handleTogglePause}
+        pauseLoading={pauseLoading}
       />
 
       {/* Rank Progression */}
@@ -236,12 +266,10 @@ export function TrackerDetailClient({
         joinedAt={tracker.joinedAt}
       />
 
-      {/* Error banners */}
-      <PollErrorBanner
+      {/* Error / pause banners */}
+      <TrackerStatusBanner
+        tracker={tracker}
         pollError={pollError}
-        lastError={tracker.lastError}
-        lastPolledAt={tracker.lastPolledAt}
-        pausedAt={tracker.pausedAt}
         onDismissPollError={() => setPollError(null)}
         onResume={handleResume}
       />

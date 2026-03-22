@@ -2,6 +2,7 @@
 //
 // Functions: TrackerDetailHeader
 
+import clsx from "clsx"
 import { H1 } from "@typography"
 import Image from "next/image"
 import { TrackerHubStatus } from "@/components/TrackerHubStatus"
@@ -9,7 +10,13 @@ import { SlotRenderer } from "@/components/tracker-detail/SlotRenderer"
 import { UserProfileCard } from "@/components/tracker-detail/UserProfileCard"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
-import { BugIcon, ExternalLinkSmallIcon, GearIcon } from "@/components/ui/Icons"
+import {
+  BugIcon,
+  ExternalLinkSmallIcon,
+  GearIcon,
+  PauseIcon,
+  PlayIcon,
+} from "@/components/ui/Icons"
 import { PulseDot } from "@/components/ui/PulseDot"
 import { Tooltip } from "@/components/ui/Tooltip"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
@@ -33,6 +40,8 @@ interface TrackerDetailHeaderProps {
   onDebugPoll: () => void
   debugLoading: boolean
   badgeSlots: ResolvedSlot[]
+  onTogglePause: () => void
+  pauseLoading: boolean
 }
 
 export function TrackerDetailHeader({
@@ -46,6 +55,8 @@ export function TrackerDetailHeader({
   onDebugPoll,
   debugLoading,
   badgeSlots,
+  onTogglePause,
+  pauseLoading,
 }: TrackerDetailHeaderProps) {
   const health = getTrackerHealth(tracker)
 
@@ -100,6 +111,27 @@ export function TrackerDetailHeader({
               className="px-2"
             >
               <BugIcon width="16" height="16" />
+            </Button>
+          </Tooltip>
+          <Tooltip
+            content={tracker.userPausedAt ? "Resume automated polling" : "Pause automated polling"}
+          >
+            <Button
+              variant={tracker.userPausedAt ? "secondary" : "ghost"}
+              size="sm"
+              onClick={onTogglePause}
+              disabled={pauseLoading || polling}
+              aria-label={
+                tracker.userPausedAt ? "Resume automated polling" : "Pause automated polling"
+              }
+              aria-pressed={!!tracker.userPausedAt}
+              className={clsx("px-2", tracker.userPausedAt && "border-warn text-warn")}
+            >
+              {tracker.userPausedAt ? (
+                <PlayIcon width="16" height="16" />
+              ) : (
+                <PauseIcon width="16" height="16" />
+              )}
             </Button>
           </Tooltip>
           <Button variant="secondary" size="sm" onClick={onPollNow} disabled={polling}>

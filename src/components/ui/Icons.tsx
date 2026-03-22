@@ -658,6 +658,36 @@ function TransitPapersIcon(props: IconProps) {
   )
 }
 
+// Pause — two vertical bars, used in tracker detail pause polling button
+function PauseIcon(props: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+    </svg>
+  )
+}
+
+// Play — right-pointing triangle, used in tracker detail resume polling button
+function PlayIcon(props: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M8 5v14l11-7z" />
+    </svg>
+  )
+}
+
 export {
   ActivityIcon,
   BoxIcon,
@@ -678,6 +708,8 @@ export {
   GridIcon,
   HamburgerIcon,
   LeechingIcon,
+  PauseIcon,
+  PlayIcon,
   PlusIcon,
   RatioIcon,
   RequiredRatioIcon,
