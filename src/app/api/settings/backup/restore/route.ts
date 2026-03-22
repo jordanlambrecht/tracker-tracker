@@ -554,6 +554,49 @@ export async function POST(request: Request) {
         }
       }
 
+      // Re-encrypt image hosting API keys if possible
+      let encryptedPtpimgApiKey: string | null = null
+      if (payload.settings.encryptedPtpimgApiKey) {
+        if (sameSalt) {
+          encryptedPtpimgApiKey = payload.settings.encryptedPtpimgApiKey as string
+        } else if (canReencrypt) {
+          encryptedPtpimgApiKey =
+            reencryptField(
+              payload.settings.encryptedPtpimgApiKey as string,
+              backupKey,
+              currentKey
+            ) || null
+        }
+      }
+
+      let encryptedOeimgApiKey: string | null = null
+      if (payload.settings.encryptedOeimgApiKey) {
+        if (sameSalt) {
+          encryptedOeimgApiKey = payload.settings.encryptedOeimgApiKey as string
+        } else if (canReencrypt) {
+          encryptedOeimgApiKey =
+            reencryptField(
+              payload.settings.encryptedOeimgApiKey as string,
+              backupKey,
+              currentKey
+            ) || null
+        }
+      }
+
+      let encryptedImgbbApiKey: string | null = null
+      if (payload.settings.encryptedImgbbApiKey) {
+        if (sameSalt) {
+          encryptedImgbbApiKey = payload.settings.encryptedImgbbApiKey as string
+        } else if (canReencrypt) {
+          encryptedImgbbApiKey =
+            reencryptField(
+              payload.settings.encryptedImgbbApiKey as string,
+              backupKey,
+              currentKey
+            ) || null
+        }
+      }
+
       // Re-encrypt TOTP secret if possible
       let totpSecret: string | null = null
       let totpBackupCodes: string | null = null
@@ -611,6 +654,9 @@ export async function POST(request: Request) {
           backupEncryptionEnabled: payload.settings.backupEncryptionEnabled as boolean,
           encryptedBackupPassword: backupPasswordEncrypted,
           backupStoragePath: (payload.settings.backupStoragePath as string | null) ?? null,
+          encryptedPtpimgApiKey,
+          encryptedOeimgApiKey,
+          encryptedImgbbApiKey,
           draftQuicklinks: (payload.settings.draftQuicklinks as string | null) ?? null,
           dashboardSettings: (payload.settings.dashboardSettings as string | null) ?? null,
           // passwordHash: NEVER updated from backup

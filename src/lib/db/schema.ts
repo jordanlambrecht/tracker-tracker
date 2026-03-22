@@ -55,6 +55,9 @@ export const appSettings = pgTable("app_settings", {
   backupStoragePath: varchar("backup_storage_path", { length: 500 }),
   draftQuicklinks: text("draft_quicklinks"),
   dashboardSettings: text("dashboard_settings"),
+  encryptedPtpimgApiKey: text("encrypted_ptpimg_api_key"),
+  encryptedOeimgApiKey: text("encrypted_oeimg_api_key"),
+  encryptedImgbbApiKey: text("encrypted_imgbb_api_key"),
   encryptedSchedulerKey: text("encrypted_scheduler_key"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
@@ -85,6 +88,7 @@ export const trackers = pgTable("trackers", {
   sortOrder: integer("sort_order"),
   joinedAt: date("joined_at"),
   lastAccessAt: date("last_access_at"),
+  profileUrl: text("profile_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })

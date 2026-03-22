@@ -42,6 +42,25 @@ vi.mock("@/lib/crypto", () => ({
 vi.mock("@/lib/scheduler", () => ({
   pollTracker: vi.fn(),
   stopScheduler: vi.fn(),
+  fetchTrackerStats: vi.fn(),
+}))
+
+vi.mock("@/lib/transit-papers/report-generator", () => ({
+  generateReportPng: vi.fn().mockResolvedValue(Buffer.from("fake-png")),
+}))
+
+vi.mock("@/lib/transit-papers/combined-seal", () => ({
+  renderCombinedSeal: vi.fn().mockReturnValue({ pixels: new Uint8ClampedArray(4) }),
+}))
+
+vi.mock("@/lib/transit-papers/png", () => ({
+  rgbaToPng: vi.fn().mockReturnValue(Buffer.from("fake-png")),
+}))
+
+vi.mock("@/lib/image-hosting", () => ({
+  getImageHostAdapter: vi.fn().mockReturnValue({
+    upload: vi.fn().mockResolvedValue({ url: "https://example.com/image.png" }),
+  }),
 }))
 
 vi.mock("@/lib/auth", () => ({
@@ -228,15 +247,19 @@ import { GET as TagGroupsGET, POST as TagGroupsPOST } from "@/app/api/tag-groups
 import { GET as TrackerAvatarGET } from "@/app/api/trackers/[id]/avatar/route"
 import { POST as DebugPOST } from "@/app/api/trackers/[id]/debug/route"
 import { POST as PollPOST } from "@/app/api/trackers/[id]/poll/route"
+import { GET as ReportGET } from "@/app/api/trackers/[id]/report/route"
 import { POST as ResumePOST } from "@/app/api/trackers/[id]/resume/route"
 import { GET as RolesGET, POST as RolesPOST } from "@/app/api/trackers/[id]/roles/route"
 import { DELETE, PATCH, GET as TrackerDetailGET } from "@/app/api/trackers/[id]/route"
+import { GET as SealGET } from "@/app/api/trackers/[id]/seal/route"
 import { GET as SnapshotsGET } from "@/app/api/trackers/[id]/snapshots/route"
 import { GET as TrackerTorrentsGET } from "@/app/api/trackers/[id]/torrents/route"
 import { POST as PollAllPOST } from "@/app/api/trackers/poll-all/route"
 import { PATCH as ReorderPATCH } from "@/app/api/trackers/reorder/route"
 import { GET, POST } from "@/app/api/trackers/route"
 import { POST as TestPOST } from "@/app/api/trackers/test/route"
+import { POST as UploadImagePOST } from "@/app/api/upload-image/route"
+import { GET as ImageHostsGET } from "@/app/api/settings/image-hosts/route"
 
 // ---------------------------------------------------------------------------
 // Lib imports
@@ -717,10 +740,53 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
     const res = await NotificationTestPOST(req, { params: MOCK_PARAMS })
     expect(res.status).toBe(401)
   })
+
+  it("POST /api/upload-image returns 401", async () => {
+    const formData = new FormData()
+    formData.append("host", "ptpimg")
+    formData.append("image", new Blob(["fake"], { type: "image/png" }), "test.png")
+    const req = new Request("http://localhost/api/upload-image", {
+      method: "POST",
+      body: formData,
+    })
+    const res = await UploadImagePOST(req)
+    expect(res.status).toBe(401)
+  })
+
+  it("GET /api/settings/image-hosts returns 401", async () => {
+    const res = await ImageHostsGET()
+    expect(res.status).toBe(401)
+  })
+
+  it("GET /api/trackers/[id]/report returns 401", async () => {
+    const req = makeRequest("http://localhost/api/trackers/1/report")
+    const res = await ReportGET(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(401)
+  })
+
+  it("GET /api/trackers/[id]/seal returns 401", async () => {
+    const req = makeRequest("http://localhost/api/trackers/1/seal")
+    const res = await SealGET(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(401)
+  })
 })
 
 // ---------------------------------------------------------------------------
-// 2. Encrypted tokens never leak in API responses
+// 2. Public endpoint documentation
+// ---------------------------------------------------------------------------
+
+describe("Public endpoints: verify routes do NOT require auth", () => {
+  it("POST /api/verify-report is intentionally public (rate-limited, no auth)", () => {
+    // Documented: verify-report and verify-report/fetch-image are public endpoints.
+    // They use in-memory rate limiting instead of authentication.
+    // Moderators verify reports without needing an account.
+    // Do NOT add authenticate() to these routes.
+    expect(true).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 3. Encrypted tokens never leak in API responses
 // ---------------------------------------------------------------------------
 
 describe("Token leakage prevention", () => {
@@ -866,6 +932,91 @@ describe("Token leakage prevention", () => {
     expect(body).toHaveProperty("lastAccessAt")
     expect(body).toHaveProperty("platformMeta")
     expect(body).toHaveProperty("platformType")
+  })
+
+  it("GET /api/settings/image-hosts returns booleans, not ciphertext", async () => {
+    // Mock db.select to return settings with encrypted key values present
+    const mockLimit = vi.fn().mockResolvedValue([
+      {
+        encryptedPtpimgApiKey: "ENCRYPTED_PTPIMG_KEY_CIPHERTEXT",
+        encryptedOeimgApiKey: "ENCRYPTED_OEIMG_KEY_CIPHERTEXT",
+        encryptedImgbbApiKey: null,
+      },
+    ])
+    const mockFrom = vi.fn().mockReturnValue({ limit: mockLimit })
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValueOnce({ from: mockFrom })
+
+    const res = await ImageHostsGET()
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    const json = JSON.stringify(body)
+
+    // Ciphertext must never appear in the response
+    expect(json).not.toContain("ENCRYPTED_PTPIMG_KEY_CIPHERTEXT")
+    expect(json).not.toContain("ENCRYPTED_OEIMG_KEY_CIPHERTEXT")
+    expect(json).not.toContain("encryptedPtpimgApiKey")
+    expect(json).not.toContain("encryptedOeimgApiKey")
+    expect(json).not.toContain("encryptedImgbbApiKey")
+
+    // Response must only contain boolean presence flags
+    expect(body).toHaveProperty("ptpimg", true)
+    expect(body).toHaveProperty("onlyimage", true)
+    expect(body).toHaveProperty("imgbb", false)
+  })
+
+  it("GET /api/settings does not include encrypted image hosting keys in response", async () => {
+    // Mock fetchSettings — GET /api/settings calls fetchSettings() which uses
+    // settingsColumns (a projected select). The serializer converts ciphertext
+    // column values to booleans via !!value before they leave the server.
+    const mockLimit = vi.fn().mockResolvedValue([
+      {
+        storeUsernames: true,
+        username: null,
+        sessionTimeoutMinutes: null,
+        lockoutEnabled: false,
+        lockoutThreshold: 5,
+        lockoutDurationMinutes: 30,
+        snapshotRetentionDays: null,
+        trackerPollIntervalMinutes: 60,
+        proxyEnabled: false,
+        proxyType: null,
+        proxyHost: null,
+        proxyPort: null,
+        proxyUsername: null,
+        hasProxyPassword: null,
+        // These are the encrypted key columns projected as boolean aliases
+        hasPtpimgKey: "ENCRYPTED_PTPIMG_KEY_SHOULD_NOT_APPEAR",
+        hasOeimgKey: "ENCRYPTED_OEIMG_KEY_SHOULD_NOT_APPEAR",
+        hasImgbbKey: null,
+        qbitmanageEnabled: false,
+        qbitmanageTags: null,
+        backupScheduleEnabled: false,
+        backupScheduleFrequency: "daily",
+        backupRetentionCount: 7,
+        backupEncryptionEnabled: false,
+        hasBackupPassword: null,
+        backupStoragePath: null,
+      },
+    ])
+    const mockFrom = vi.fn().mockReturnValue({ limit: mockLimit })
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValueOnce({ from: mockFrom })
+
+    const res = await SettingsGET()
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    const json = JSON.stringify(body)
+
+    // Ciphertext must never appear in the response
+    expect(json).not.toContain("ENCRYPTED_PTPIMG_KEY_SHOULD_NOT_APPEAR")
+    expect(json).not.toContain("ENCRYPTED_OEIMG_KEY_SHOULD_NOT_APPEAR")
+    expect(json).not.toContain("encryptedPtpimgApiKey")
+    expect(json).not.toContain("encryptedOeimgApiKey")
+    expect(json).not.toContain("encryptedImgbbApiKey")
+
+    // serializeSettingsResponse must coerce to boolean
+    expect(body).toHaveProperty("hasPtpimgKey", true)
+    expect(body).toHaveProperty("hasOeimgKey", true)
+    expect(body).toHaveProperty("hasImgbbKey", false)
   })
 })
 
