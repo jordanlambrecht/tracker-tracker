@@ -3,7 +3,7 @@
 // Functions: pollTracker, pollAllTrackers, pruneOldSnapshots, startScheduler, stopScheduler, ensureSchedulerRunning, POLL_FAILURE_THRESHOLD
 import type { Agent as HttpAgent } from "node:http"
 
-import { desc, eq, lt, sql } from "drizzle-orm"
+import { and, desc, eq, isNotNull, lt, notInArray, sql } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { buildFetchOptions, getAdapter } from "@/lib/adapters"
@@ -22,6 +22,7 @@ import { log } from "@/lib/logger"
 import { dispatchNotifications } from "@/lib/notifications/dispatch"
 import { maskUsername } from "@/lib/privacy"
 import { buildProxyAgentFromSettings } from "@/lib/proxy"
+import { getPauseState } from "@/lib/tracker-status"
 
 // Store on globalThis to survive HMR in development.
 // Without this, each hot-reload orphans the old cron job (it keeps firing)
@@ -259,7 +260,15 @@ export async function pruneOldSnapshots(retentionDays: number): Promise<number> 
   const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000)
   const deleted = await db
     .delete(trackerSnapshots)
-    .where(lt(trackerSnapshots.polledAt, cutoff))
+    .where(
+      and(
+        lt(trackerSnapshots.polledAt, cutoff),
+        notInArray(
+          trackerSnapshots.trackerId,
+          db.select({ id: trackers.id }).from(trackers).where(isNotNull(trackers.userPausedAt))
+        )
+      )
+    )
     .returning({ id: trackerSnapshots.id })
   return deleted.length
 }
@@ -288,7 +297,11 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
   const now = Date.now()
 
   const overdue = allTrackers.filter((tracker) => {
-    if (tracker.pausedAt) return false
+    const pause = getPauseState(tracker)
+    if (pause.isPaused) {
+      log.debug({ tracker: tracker.name, reason: pause.reason }, "skipping paused tracker")
+      return false
+    }
     const lastPoll = tracker.lastPolledAt?.getTime() ?? 0
     return now - lastPoll >= globalIntervalMs
   })

@@ -1,6 +1,6 @@
 // src/lib/tracker-status.ts
 //
-// Functions: getTrackerHealth, getHealthBadgeVariant, getHealthLabel, getHealthDescription
+// Functions: getPauseState, getTrackerHealth, getHealthBadgeVariant, getHealthLabel, getHealthDescription, getHealthPulseDot
 //
 // Single source of truth for tracker health status — type, derivation logic,
 // and all visual mappings (PulseDot status, Badge variant, labels, descriptions).
@@ -10,7 +10,14 @@ import type { PulseDotStatus } from "@/components/ui/PulseDot"
 import { checkWarned } from "@/lib/tracker-events"
 import type { TrackerSummary } from "@/types/api"
 
-type TrackerHealth = "healthy" | "warning" | "critical" | "error" | "paused" | "offline"
+type TrackerHealth =
+  | "healthy"
+  | "warning"
+  | "critical"
+  | "error"
+  | "paused"
+  | "paused-user"
+  | "offline"
 
 interface HealthMeta {
   label: string
@@ -44,6 +51,12 @@ const HEALTH_META: Record<TrackerHealth, HealthMeta> = {
     pulseDot: "paused",
     badge: "danger",
   },
+  "paused-user": {
+    label: "Paused",
+    description: "Automated polling paused by user",
+    pulseDot: "paused-user",
+    badge: "warn",
+  },
   error: {
     label: "Error",
     description: "Last poll returned an error",
@@ -58,8 +71,23 @@ const HEALTH_META: Record<TrackerHealth, HealthMeta> = {
   },
 }
 
+type PauseState = { isPaused: false } | { isPaused: true; reason: "user" | "failure"; since: Date }
+
+function getPauseState(tracker: {
+  pausedAt?: Date | string | null
+  userPausedAt?: Date | string | null
+}): PauseState {
+  const userPaused = tracker.userPausedAt ? new Date(tracker.userPausedAt) : null
+  const autoPaused = tracker.pausedAt ? new Date(tracker.pausedAt) : null
+
+  if (userPaused) return { isPaused: true, reason: "user", since: userPaused }
+  if (autoPaused) return { isPaused: true, reason: "failure", since: autoPaused }
+  return { isPaused: false }
+}
+
 function getTrackerHealth(tracker: TrackerSummary): TrackerHealth {
-  if (tracker.pausedAt) return "paused"
+  const pause = getPauseState(tracker)
+  if (pause.isPaused) return pause.reason === "failure" ? "paused" : "paused-user"
   if (tracker.lastError) return "error"
   if (!tracker.latestStats) return "offline"
   const { ratio, seedingCount } = tracker.latestStats
@@ -94,11 +122,12 @@ function getHealthPulseDot(status: TrackerHealth): PulseDotStatus {
   return HEALTH_META[status].pulseDot
 }
 
-export type { TrackerHealth }
+export type { PauseState, TrackerHealth }
 export {
   getHealthBadgeVariant,
   getHealthDescription,
   getHealthLabel,
   getHealthPulseDot,
+  getPauseState,
   getTrackerHealth,
 }

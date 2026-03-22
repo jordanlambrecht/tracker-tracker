@@ -93,8 +93,12 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
 
   for (const tracker of trackers) {
     // --- Poll paused (suppresses error alert when paused) ---
-    const { paused, hasError } = checkTrackerError(tracker.lastError, tracker.pausedAt)
-    if (paused) {
+    const { paused, pausedByUser, hasError } = checkTrackerError(
+      tracker.lastError,
+      tracker.pausedAt,
+      tracker.userPausedAt
+    )
+    if (paused && !pausedByUser) {
       alerts.push({
         key: `poll-paused-${tracker.id}`,
         type: "poll-paused",
@@ -136,7 +140,7 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
     }
 
     // --- Stale data (skip if paused — staleness is expected) ---
-    if (!tracker.pausedAt && tracker.lastPolledAt) {
+    if (!tracker.pausedAt && !tracker.userPausedAt && tracker.lastPolledAt) {
       const lastPolled = new Date(tracker.lastPolledAt)
       const thresholdMs = 2 * 60 * 60 * 1000 // 2 hours — stale if no poll in this window
       const ageMs = Date.now() - lastPolled.getTime()

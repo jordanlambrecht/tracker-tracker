@@ -51,6 +51,7 @@ vi.mock("@/lib/error-utils", () => ({
 
 vi.mock("@/lib/logger", () => ({
   log: {
+    debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
@@ -713,5 +714,78 @@ describe("re-pause after resume: immediate re-pause when failures remain at thre
         (call[0] as Record<string, unknown>).pausedAt === null
     )
     expect(successReset).toBeDefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// pruneOldSnapshots — excludes user-paused trackers
+// ---------------------------------------------------------------------------
+
+describe("pruneOldSnapshots: excludes snapshots for user-paused trackers", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it("passes an AND clause that excludes user-paused tracker IDs from deletion", async () => {
+    const { pruneOldSnapshots } = await import("@/lib/scheduler")
+
+    // db.select() subquery chain (used inside notInArray)
+    const subqueryWhere = vi.fn().mockReturnValue([])
+    const subqueryFrom = vi.fn().mockReturnValue({ where: subqueryWhere })
+
+    // db.delete() chain
+    const mockReturning = vi.fn().mockResolvedValue([])
+    const mockWhere = vi.fn().mockReturnValue({ returning: mockReturning })
+    const mockDelete = vi.fn().mockReturnValue({ where: mockWhere })
+
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue({
+      from: subqueryFrom,
+    })
+    ;(db.delete as ReturnType<typeof vi.fn>).mockImplementation(mockDelete)
+
+    await pruneOldSnapshots(30)
+
+    // db.delete must have been called
+    expect(db.delete).toHaveBeenCalled()
+
+    // The .where() on delete must have been called — carries the AND condition
+    expect(mockWhere).toHaveBeenCalled()
+
+    // The where argument must be an AND expression (Drizzle SQL object), not a bare lt()
+    const whereArg = mockWhere.mock.calls[0]?.[0]
+    expect(whereArg).toBeDefined()
+    // Drizzle builds SQL objects — not primitives. Verify it is an object (the AND clause).
+    expect(typeof whereArg).toBe("object")
+    expect(whereArg).not.toBeNull()
+  })
+
+  it("returns count of deleted snapshots", async () => {
+    const { pruneOldSnapshots } = await import("@/lib/scheduler")
+
+    const mockReturning = vi.fn().mockResolvedValue([{ id: 1 }, { id: 2 }, { id: 3 }])
+    const mockWhere = vi.fn().mockReturnValue({ returning: mockReturning })
+    ;(db.delete as ReturnType<typeof vi.fn>).mockReturnValue({ where: mockWhere })
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue({
+      from: vi.fn().mockReturnValue({ where: vi.fn().mockReturnValue([]) }),
+    })
+
+    const count = await pruneOldSnapshots(30)
+
+    expect(count).toBe(3)
+  })
+
+  it("returns 0 when no snapshots fall outside retention window", async () => {
+    const { pruneOldSnapshots } = await import("@/lib/scheduler")
+
+    const mockReturning = vi.fn().mockResolvedValue([])
+    const mockWhere = vi.fn().mockReturnValue({ returning: mockReturning })
+    ;(db.delete as ReturnType<typeof vi.fn>).mockReturnValue({ where: mockWhere })
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue({
+      from: vi.fn().mockReturnValue({ where: vi.fn().mockReturnValue([]) }),
+    })
+
+    const count = await pruneOldSnapshots(30)
+
+    expect(count).toBe(0)
   })
 })

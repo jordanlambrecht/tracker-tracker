@@ -40,6 +40,7 @@ export interface TrackerSummary {
   lastError: string | null
   consecutiveFailures: number
   pausedAt: string | null
+  userPausedAt: string | null
   color: string
   qbtTag: string | null
   useProxy: boolean

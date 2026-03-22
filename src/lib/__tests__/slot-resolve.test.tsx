@@ -25,6 +25,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     lastError: null,
     consecutiveFailures: 0,
     pausedAt: null,
+    userPausedAt: null,
     color: "#00d4ff",
     qbtTag: null,
     useProxy: false,

@@ -79,6 +79,14 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
   if (typeof body.countCrossSeedUnsatisfied === "boolean")
     updates.countCrossSeedUnsatisfied = body.countCrossSeedUnsatisfied
   if (typeof body.isFavorite === "boolean") updates.isFavorite = body.isFavorite
+  if (typeof body.pollingPaused === "boolean") {
+    updates.userPausedAt = body.pollingPaused ? new Date() : null
+    if (!body.pollingPaused) {
+      updates.pausedAt = null
+      updates.consecutiveFailures = 0
+      updates.lastError = null
+    }
+  }
 
   if (body.joinedAt !== undefined) {
     if (body.joinedAt === null) {

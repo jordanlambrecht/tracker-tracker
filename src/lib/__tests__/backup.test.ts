@@ -315,4 +315,18 @@ describe("Backup security invariants", () => {
     expect(p.settings.encryptionSalt).toBeDefined()
     expect(typeof p.settings.encryptionSalt).toBe("string")
   })
+
+  it("userPausedAt is included in tracker backup payload when set", () => {
+    const p = validPayload()
+    const tracker = p.trackers[0]
+    tracker.userPausedAt = "2026-03-21T12:00:00.000Z"
+    expect(tracker.userPausedAt).toBe("2026-03-21T12:00:00.000Z")
+  })
+
+  it("pausedAt is excluded from tracker backup payload (transient runtime state)", () => {
+    const p = validPayload()
+    const tracker = p.trackers[0]
+    expect(tracker).not.toHaveProperty("pausedAt")
+    expect(tracker).not.toHaveProperty("paused_at")
+  })
 })

@@ -71,6 +71,7 @@ export const trackers = pgTable("trackers", {
   lastError: text("last_error"),
   consecutiveFailures: integer("consecutive_failures").default(0).notNull(),
   pausedAt: timestamp("paused_at"),
+  userPausedAt: timestamp("user_paused_at"),
   color: varchar("color", { length: 20 }).default("#00d4ff"),
   qbtTag: varchar("qbt_tag", { length: 100 }),
   remoteUserId: integer("remote_user_id"),

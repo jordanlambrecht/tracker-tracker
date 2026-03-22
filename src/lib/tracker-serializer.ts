@@ -33,6 +33,7 @@ export function serializeTrackerResponse(
     lastError: tracker.lastError,
     consecutiveFailures: tracker.consecutiveFailures,
     pausedAt: tracker.pausedAt?.toISOString() ?? null,
+    userPausedAt: tracker.userPausedAt?.toISOString() ?? null,
     color: tracker.color ?? "#00d4ff",
     qbtTag: tracker.qbtTag,
     useProxy: tracker.useProxy,

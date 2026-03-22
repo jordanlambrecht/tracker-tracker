@@ -47,11 +47,13 @@ export function checkRatioBelowMinimumTransition(
 
 export function checkTrackerError(
   lastError: string | null,
-  pausedAt: string | null
-): { paused: boolean; hasError: boolean } {
-  if (pausedAt) return { paused: true, hasError: false }
-  if (lastError) return { paused: false, hasError: true }
-  return { paused: false, hasError: false }
+  pausedAt: string | null,
+  userPausedAt?: string | null
+): { paused: boolean; pausedByUser: boolean; hasError: boolean } {
+  if (userPausedAt) return { paused: true, pausedByUser: true, hasError: false }
+  if (pausedAt) return { paused: true, pausedByUser: false, hasError: false }
+  if (lastError) return { paused: false, pausedByUser: false, hasError: true }
+  return { paused: false, pausedByUser: false, hasError: false }
 }
 
 export function checkWarned(warned: boolean | null | undefined): boolean {

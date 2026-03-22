@@ -140,6 +140,7 @@ export const trackerColumns = {
   lastError: trackers.lastError,
   consecutiveFailures: trackers.consecutiveFailures,
   pausedAt: trackers.pausedAt,
+  userPausedAt: trackers.userPausedAt,
   color: trackers.color,
   qbtTag: trackers.qbtTag,
   remoteUserId: trackers.remoteUserId,
