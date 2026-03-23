@@ -4,19 +4,19 @@
 
 "use client"
 
-import { useRef, useState } from "react"
+import { type ReactNode, useRef, useState } from "react"
 import { Card } from "@/components/ui/Card"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
 
 interface CollapsibleCardProps {
   /** Always-visible header content (left side — title, badges, meta) */
-  header: React.ReactNode
+  header: ReactNode
   /** Optional content between header and collapsible body (i.e. uptime bars) — always visible */
-  subheader?: React.ReactNode
+  subheader?: ReactNode
   /** Trailing content in the header row before the chevron (i.e. type label) */
-  trailing?: React.ReactNode
+  trailing?: ReactNode
   /** Collapsible body content */
-  children: React.ReactNode
+  children: ReactNode
   /** Controlled expanded state — if omitted, uses internal state */
   expanded?: boolean
   /** Controlled toggle callback */
