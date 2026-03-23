@@ -402,7 +402,8 @@ select {
 
 .styled-scrollbar-visible {
   scrollbar-width: thin;
-  scrollbar-color: oklch(34.45% 0.0283 276.51) /* #353848 */ oklch(22.44% 0.0168 277.68) /* #1e2029 */;
+  scrollbar-color: oklch(34.45% 0.0283 276.51) /* #353848 */ oklch(22.44% 0.0168 277.68)
+    /* #1e2029 */;
 }
 .styled-scrollbar-visible::-webkit-scrollbar {
   width: 6px;
