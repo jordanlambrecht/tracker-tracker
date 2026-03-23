@@ -1,6 +1,6 @@
 {
   "name": "private-tracker-tracker",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Self-hosted dashboard for monitoring private tracker stats over time",
   "license": "GPL-3.0",
   "repository": {
