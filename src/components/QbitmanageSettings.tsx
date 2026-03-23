@@ -4,16 +4,15 @@
 
 "use client"
 
-import { H2, Subtext } from "@typography"
-import { useEffect, useState } from "react"
+import { Subtext } from "@typography"
+import { useState } from "react"
+import { SettingsSection } from "@/components/settings/SettingsSection"
 import { Button } from "@/components/ui/Button"
-import { Card } from "@/components/ui/Card"
 import { Checkbox } from "@/components/ui/Checkbox"
 import { Input } from "@/components/ui/Input"
 import { Toggle } from "@/components/ui/Toggle"
-import { QBITMANAGE_TAG_DEFAULTS } from "@/lib/qbitmanage-defaults"
-import { Tooltip } from "@/components/ui/Tooltip"
 import { DOCS } from "@/lib/constants"
+import { QBITMANAGE_TAG_DEFAULTS } from "@/lib/qbitmanage-defaults"
 import type { QbitmanageTagConfig } from "@/types/api"
 
 const QBITMANAGE_STATUSES = [
@@ -37,32 +36,21 @@ const QBITMANAGE_STATUSES = [
   },
 ]
 
-function QbitmanageSettings() {
-  const [enabled, setEnabled] = useState(false)
-  const [config, setConfig] = useState<QbitmanageTagConfig>(QBITMANAGE_TAG_DEFAULTS)
+interface QbitmanageSettingsProps {
+  initialEnabled: boolean
+  initialTags: QbitmanageTagConfig
+}
+
+function QbitmanageSettings({ initialEnabled, initialTags }: QbitmanageSettingsProps) {
+  const [enabled, setEnabled] = useState(initialEnabled)
+  const [config, setConfig] = useState<QbitmanageTagConfig>({
+    ...QBITMANAGE_TAG_DEFAULTS,
+    ...initialTags,
+  })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-    fetch("/api/settings")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!data) return
-        if (typeof data.qbitmanageEnabled === "boolean") {
-          if (!cancelled) setEnabled(data.qbitmanageEnabled)
-        }
-        if (data.qbitmanageTags && typeof data.qbitmanageTags === "object") {
-          if (!cancelled) setConfig({ ...QBITMANAGE_TAG_DEFAULTS, ...data.qbitmanageTags })
-        }
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   function updateEntry(
     key: keyof QbitmanageTagConfig,
@@ -104,16 +92,14 @@ function QbitmanageSettings() {
   }
 
   return (
-    <section className="flex flex-col gap-4">
-      <div>
-        <H2 className="mb-1 flex items-center gap-2">
-          qbitmanage Tag Tracking
-          <Tooltip content="Categorize torrents by qbitmanage status tags." docs={DOCS.QBITMANAGE}>
-            <span className="text-muted hover:text-secondary cursor-help text-sm">&#9432;</span>
-          </Tooltip>
-        </H2>
-        <Subtext>Categorize torrents by status tags written by qbitmanage.</Subtext>
-      </div>
+    <SettingsSection
+      id="qbitmanage"
+      title="qbitmanage Tag Tracking"
+      tooltip="Categorize torrents by qbitmanage status tags."
+      docs={DOCS.QBITMANAGE}
+      cardClassName="flex flex-col gap-4"
+    >
+      <Subtext>Categorize torrents by status tags written by qbitmanage.</Subtext>
 
       <Toggle
         label="Enable qbitmanage Tag Tracking"
@@ -125,7 +111,9 @@ function QbitmanageSettings() {
       />
 
       {enabled && (
-        <Card elevation="raised" className="flex flex-col gap-4 mt-2">
+        <>
+          <div className="border-t border-border" />
+
           <Subtext>Map each qbitmanage status to its qBittorrent tag name.</Subtext>
 
           {QBITMANAGE_STATUSES.map((status) => (
@@ -159,9 +147,9 @@ function QbitmanageSettings() {
             </div>
             {saveError && <span className="text-xs font-mono text-danger">{saveError}</span>}
           </div>
-        </Card>
+        </>
       )}
-    </section>
+    </SettingsSection>
   )
 }
 

@@ -5,7 +5,7 @@
 "use client"
 
 import { H2, Paragraph, Subtext } from "@typography"
-import { type ChangeEvent, useRef, useState } from "react"
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
@@ -42,10 +42,9 @@ interface BackupsSectionProps {
     backupRetentionCount: number
     backupStoragePath: string
   }
-  initialHistory: BackupRecord[]
 }
 
-export function BackupsSection({ initialConfig, initialHistory }: BackupsSectionProps) {
+export function BackupsSection({ initialConfig }: BackupsSectionProps) {
   const [encryptBackups, setEncryptBackups] = useState(initialConfig.encryptBackups)
   const [hasStoredPassword, setHasStoredPassword] = useState(initialConfig.hasBackupPassword)
   const [newBackupPassword, setNewBackupPassword] = useState("")
@@ -56,7 +55,7 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
     initialConfig.backupRetentionCount
   )
   const [backupStoragePath, setBackupStoragePath] = useState(initialConfig.backupStoragePath)
-  const [backupHistory, setBackupHistory] = useState<BackupRecord[]>(initialHistory)
+  const [backupHistory, setBackupHistory] = useState<BackupRecord[]>([])
   const [backingUp, setBackingUp] = useState(false)
   const [restoring, setRestoring] = useState(false)
   const [backupError, setBackupError] = useState<string | null>(null)
@@ -78,6 +77,15 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
   const restoreInputRef = useRef<HTMLInputElement>(null)
 
   const { saving: savingBackupConfig, patch: patchSettings } = usePatchSettings()
+
+  useEffect(() => {
+    fetch("/api/settings/backup/history")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: BackupRecord[] | null) => {
+        if (data) setBackupHistory(data)
+      })
+      .catch(() => {})
+  }, [])
 
   const backupConfigDirty =
     encryptBackups !== savedBackupConfig.encryptBackups ||
@@ -206,7 +214,7 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
     }
   }
 
-  async function handleDownloadBackup(id: number) {
+  const handleDownloadBackup = useCallback(async (id: number) => {
     try {
       const res = await fetch(`/api/settings/backup/${id}`)
       if (!res.ok) {
@@ -216,9 +224,9 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
     } catch (err) {
       setBackupError(err instanceof Error ? err.message : "Download failed")
     }
-  }
+  }, [])
 
-  async function handleDeleteBackup(id: number) {
+  const handleDeleteBackup = useCallback(async (id: number) => {
     setDeletingBackupId(id)
     try {
       const res = await fetch(`/api/settings/backup/${id}`, { method: "DELETE" })
@@ -232,7 +240,7 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
     } finally {
       setDeletingBackupId(null)
     }
-  }
+  }, [])
 
   async function saveBackupConfig() {
     const result = await patchSettings({
@@ -253,60 +261,63 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
     }
   }
 
-  const backupColumns: Column<BackupRecord>[] = [
-    {
-      key: "date",
-      header: "Date",
-      render: (b) => (
-        <span className="text-sm font-mono text-primary tabular-nums">
-          {new Date(b.createdAt).toLocaleString()}
-          {b.encrypted && (
-            <Tooltip content="Password-protected">
-              <span className="ml-2 text-xs text-accent">🔒</span>
-            </Tooltip>
-          )}
-        </span>
-      ),
-    },
-    {
-      key: "size",
-      header: "Size",
-      render: (b) => (
-        <span className="text-sm font-mono text-tertiary tabular-nums">
-          {formatBytesNum(b.sizeBytes)}
-        </span>
-      ),
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (b) => (
-        <Badge variant={b.status === "completed" ? "success" : "danger"}>{b.status}</Badge>
-      ),
-    },
-    {
-      key: "actions",
-      header: "Actions",
-      align: "right",
-      render: (b) => (
-        <div className="flex gap-2 justify-end">
-          {b.storagePath && (
-            <Button variant="secondary" size="sm" onClick={() => handleDownloadBackup(b.id)}>
-              Download
+  const backupColumns: Column<BackupRecord>[] = useMemo(
+    () => [
+      {
+        key: "date",
+        header: "Date",
+        render: (b) => (
+          <span className="text-sm font-mono text-primary tabular-nums">
+            {new Date(b.createdAt).toLocaleString()}
+            {b.encrypted && (
+              <Tooltip content="Password-protected">
+                <span className="ml-2 text-xs text-accent">🔒</span>
+              </Tooltip>
+            )}
+          </span>
+        ),
+      },
+      {
+        key: "size",
+        header: "Size",
+        render: (b) => (
+          <span className="text-sm font-mono text-tertiary tabular-nums">
+            {formatBytesNum(b.sizeBytes)}
+          </span>
+        ),
+      },
+      {
+        key: "status",
+        header: "Status",
+        render: (b) => (
+          <Badge variant={b.status === "completed" ? "success" : "danger"}>{b.status}</Badge>
+        ),
+      },
+      {
+        key: "actions",
+        header: "Actions",
+        align: "right",
+        render: (b) => (
+          <div className="flex gap-2 justify-end">
+            {b.storagePath && (
+              <Button variant="secondary" size="sm" onClick={() => handleDownloadBackup(b.id)}>
+                Download
+              </Button>
+            )}
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => handleDeleteBackup(b.id)}
+              disabled={deletingBackupId === b.id}
+            >
+              {deletingBackupId === b.id ? "Deleting…" : "Delete"}
             </Button>
-          )}
-          <Button
-            variant="danger"
-            size="sm"
-            onClick={() => handleDeleteBackup(b.id)}
-            disabled={deletingBackupId === b.id}
-          >
-            {deletingBackupId === b.id ? "Deleting…" : "Delete"}
-          </Button>
-        </div>
-      ),
-    },
-  ]
+          </div>
+        ),
+      },
+    ],
+    [deletingBackupId, handleDownloadBackup, handleDeleteBackup]
+  )
 
   return (
     <>
@@ -314,7 +325,10 @@ export function BackupsSection({ initialConfig, initialHistory }: BackupsSection
       <section aria-labelledby="backup-export-heading">
         <H2 id="backup-export-heading" className="mb-4 flex items-center gap-2">
           Export
-          <Tooltip content="Export and restore your trackers, settings, and snapshots." docs={DOCS.BACKUPS}>
+          <Tooltip
+            content="Export and restore your trackers, settings, and snapshots."
+            docs={DOCS.BACKUPS}
+          >
             <span className="text-muted hover:text-secondary cursor-help text-sm">&#9432;</span>
           </Tooltip>
         </H2>

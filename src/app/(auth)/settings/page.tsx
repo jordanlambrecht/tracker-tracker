@@ -2,18 +2,11 @@
 //
 // Functions: SettingsPage
 
-import { desc } from "drizzle-orm"
-import { db } from "@/lib/db"
-import { backupHistory } from "@/lib/db/schema"
-import { getSettingsForClient, getProxyTrackers } from "@/lib/server-data"
+import { getProxyTrackers, getSettingsForClient } from "@/lib/server-data"
 import { SettingsClient } from "./SettingsClient"
 
 export default async function SettingsPage() {
-  const [settings, proxyTrackers, history] = await Promise.all([
-    getSettingsForClient(),
-    getProxyTrackers(),
-    db.select().from(backupHistory).orderBy(desc(backupHistory.createdAt)).limit(50),
-  ])
+  const [settings, proxyTrackers] = await Promise.all([getSettingsForClient(), getProxyTrackers()])
 
   // If settings don't exist, this page shouldn't be reachable
   // (the (auth) layout redirects to /setup)
@@ -25,17 +18,5 @@ export default async function SettingsPage() {
     )
   }
 
-  // Serialize Dates for client transport — BackupRecord.createdAt is a string
-  const serializedHistory = history.map((h) => ({
-    ...h,
-    createdAt: h.createdAt.toISOString(),
-  }))
-
-  return (
-    <SettingsClient
-      initialSettings={settings}
-      initialProxyTrackers={proxyTrackers}
-      initialBackupHistory={serializedHistory}
-    />
-  )
+  return <SettingsClient initialSettings={settings} initialProxyTrackers={proxyTrackers} />
 }
