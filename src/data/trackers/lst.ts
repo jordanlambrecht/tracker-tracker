@@ -243,7 +243,7 @@ export const lst: TrackerRegistryEntry = {
       "- Dead torrents (0 seeders) trumpable by equivalent or better release.",
       "- Foreign overlays on English-language titles are trumpable. Modified folder/file names are trumpable.",
       "- SDR, HDR, HDR10+, DV each have separate slots. 3D has separate slots. Alternate cuts get separate slots if differences documented.",
-    ].join("\n"),
+    ],
   },
 
   // ── Status ──────────────────────────────────────────────────────────

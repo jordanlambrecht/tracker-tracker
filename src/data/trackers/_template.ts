@@ -72,7 +72,7 @@ export const mytracker: TrackerRegistryEntry = {
     loginIntervalDays: 0, // 0 = no login interval policy
     // fulfillmentPeriodHours: 72,      // optional — hours to complete H&R seeding
     // hnrBanLimit: 3,                  // optional — number of H&Rs before ban
-    // fullRulesMarkdown: `...`,        // optional — detailed rules as markdown string
+    // fullRulesMarkdown: [],             // optional — detailed rules as markdown string[]
   },
 
   // ── Status ──────────────────────────────────────────────────────────

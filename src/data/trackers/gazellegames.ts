@@ -112,7 +112,7 @@ export const gazellegames: TrackerRegistryEntry = {
       "",
       "## Upload Speed",
       "Throttling upload speed to an unfair level (relative to download speed) results in warning or permanent ban. Enforced automatically.",
-    ].join("\n"),
+    ],
   },
 
   // ── Status ──────────────────────────────────────────────────────────

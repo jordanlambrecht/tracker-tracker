@@ -245,7 +245,7 @@ export const phoenixproject: TrackerRegistryEntry = {
       "- Uploaded individually, not archived",
       "- Must state if RETAIL, format-converted, or edited",
       "- Dictionaries not allowed",
-    ].join("\n"),
+    ],
   },
 
   // ── Status ──────────────────────────────────────────────────────────

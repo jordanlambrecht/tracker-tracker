@@ -86,7 +86,7 @@ export const redacted: TrackerRegistryEntry = {
       "",
       "- Merit tokens can be used to highlight or recommend releases.",
       "- Earned through community contributions.",
-    ].join("\n"),
+    ],
   },
 
   // ── Status ──────────────────────────────────────────────────────────
