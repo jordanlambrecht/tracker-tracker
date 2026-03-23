@@ -247,7 +247,7 @@ import { GET as TagGroupsGET, POST as TagGroupsPOST } from "@/app/api/tag-groups
 import { GET as TrackerAvatarGET } from "@/app/api/trackers/[id]/avatar/route"
 import { POST as DebugPOST } from "@/app/api/trackers/[id]/debug/route"
 import { POST as PollPOST } from "@/app/api/trackers/[id]/poll/route"
-// Transit papers routes — stashed, uncomment when restored
+// Transit papers routes. Unimplemented for now.
 // import { GET as ReportGET } from "@/app/api/trackers/[id]/report/route"
 import { POST as ResumePOST } from "@/app/api/trackers/[id]/resume/route"
 import { GET as RolesGET, POST as RolesPOST } from "@/app/api/trackers/[id]/roles/route"
@@ -261,6 +261,9 @@ import { GET, POST } from "@/app/api/trackers/route"
 import { POST as TestPOST } from "@/app/api/trackers/test/route"
 import { POST as UploadImagePOST } from "@/app/api/upload-image/route"
 import { GET as ImageHostsGET } from "@/app/api/settings/image-hosts/route"
+import { GET as EventsGET } from "@/app/api/settings/events/route"
+import { DELETE as LogsDELETE } from "@/app/api/settings/logs/route"
+import { GET as LogsDownloadGET } from "@/app/api/settings/logs/download/route"
 
 // ---------------------------------------------------------------------------
 // Lib imports
@@ -756,6 +759,23 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
 
   it("GET /api/settings/image-hosts returns 401", async () => {
     const res = await ImageHostsGET()
+    expect(res.status).toBe(401)
+  })
+
+  it("GET /api/settings/events returns 401", async () => {
+    const req = makeRequest("http://localhost/api/settings/events")
+    const res = await EventsGET(req)
+    expect(res.status).toBe(401)
+  })
+
+  it("DELETE /api/settings/logs returns 401", async () => {
+    const req = makeRequest("http://localhost/api/settings/logs", { password: "test" }, "DELETE")
+    const res = await LogsDELETE(req)
+    expect(res.status).toBe(401)
+  })
+
+  it("GET /api/settings/logs/download returns 401", async () => {
+    const res = await LogsDownloadGET()
     expect(res.status).toBe(401)
   })
 
