@@ -101,6 +101,7 @@ export function UnsatisfiedTorrentsTable({
       fixedLayout
       noHorizontalScroll
       maxHeight={torrents.length > 15 ? 720 : undefined}
+      alwaysShowScrollbar={torrents.length > 15}
     />
   )
 }

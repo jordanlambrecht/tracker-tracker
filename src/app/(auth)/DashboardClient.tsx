@@ -4,8 +4,8 @@
 
 "use client"
 
-import { useMemo, useState } from "react"
 import { H1, H2 } from "@typography"
+import { useMemo, useState } from "react"
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import { AlertsBanner } from "@/components/dashboard/AlertsBanner"
 import { AnalyticsSection } from "@/components/dashboard/AnalyticsSection"

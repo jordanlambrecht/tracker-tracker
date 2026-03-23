@@ -3,6 +3,7 @@
 
 import clsx from "clsx"
 import Image from "next/image"
+import { usePathname } from "next/navigation"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { BackToTop } from "@/components/ui/BackToTop"
@@ -38,6 +39,13 @@ export function AuthShell({ children }: { children: ReactNode }) {
   }, [setCollapsed])
 
   const mainRef = useRef<HTMLElement>(null)
+  const pathname = usePathname()
+
+  // Scroll main content to top on route change (main is the scroll container, not window)
+  useEffect(() => {
+    mainRef.current?.scrollTo(0, 0)
+  }, [pathname])
+
   const effectiveCollapsed = !mounted || collapsed
   const showHamburger = isMobile || effectiveCollapsed
 

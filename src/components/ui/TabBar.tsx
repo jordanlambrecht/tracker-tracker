@@ -75,7 +75,9 @@ function TabBar<T extends string>({ tabs, activeTab, onChange, compact = false }
             compact
               ? "px-2.5 py-1 text-xs font-mono"
               : "flex-1 px-4 py-2.5 text-sm font-sans font-medium",
-            activeTab === tab.key ? "text-primary font-semibold" : "text-tertiary hover:text-secondary"
+            activeTab === tab.key
+              ? "text-primary font-semibold"
+              : "text-tertiary hover:text-secondary"
           )}
           aria-selected={activeTab === tab.key}
           role="tab"

@@ -15,12 +15,13 @@ import { TrackerSettingsDialog } from "@/components/TrackerSettingsDialog"
 import { AnalyticsTab } from "@/components/tracker-detail/AnalyticsTab"
 import type { DebugData } from "@/components/tracker-detail/DebugResponseDialog"
 import { DebugResponseDialog } from "@/components/tracker-detail/DebugResponseDialog"
-import { TrackerStatusBanner } from "@/components/tracker-detail/TrackerStatusBanner"
 import { resolveSlots } from "@/components/tracker-detail/resolve-slots"
 import { TrackerDetailHeader } from "@/components/tracker-detail/TrackerDetailHeader"
 import { TrackerInfoTab } from "@/components/tracker-detail/TrackerInfoTab"
+import { TrackerStatusBanner } from "@/components/tracker-detail/TrackerStatusBanner"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { findRegistryEntry } from "@/data/tracker-registry"
+import { useTrackerTorrents } from "@/hooks/useTrackerTorrents"
 import { computeDelta, hexToRgba } from "@/lib/formatters"
 import type { SlotContext } from "@/lib/slot-types"
 import type {
@@ -72,6 +73,15 @@ export function TrackerDetailClient({
   const [debugLoading, setDebugLoading] = useState(false)
   const [debugError, setDebugError] = useState<string | null>(null)
   const [pauseLoading, setPauseLoading] = useState(false)
+
+  const torrentData = useTrackerTorrents({
+    trackerId,
+    qbtTag: tracker.qbtTag,
+    rules: findRegistryEntry(tracker.baseUrl)?.rules,
+    tagGroups,
+    trackerSeedingCount: tracker.latestStats?.seedingCount,
+    qbitmanageConfig,
+  })
 
   const snapshots = useMemo(() => {
     if (days === 0) return allTimeSnapshots
@@ -181,19 +191,16 @@ export function TrackerDetailClient({
     }
   }
 
-  const handleTabChange = useCallback(
-    (tab: Tab) => {
-      setActiveTab(tab)
-      const url = new URL(window.location.href)
-      if (tab === "analytics") {
-        url.searchParams.delete("tab")
-      } else {
-        url.searchParams.set("tab", tab)
-      }
-      router.replace(url.pathname + url.search, { scroll: false })
-    },
-    [router]
-  )
+  const handleTabChange = useCallback((tab: Tab) => {
+    setActiveTab(tab)
+    const url = new URL(window.location.href)
+    if (tab === "analytics") {
+      url.searchParams.delete("tab")
+    } else {
+      url.searchParams.set("tab", tab)
+    }
+    window.history.replaceState(null, "", url.pathname + url.search)
+  }, [])
 
   const latestSnapshot = snapshots.length > 0 ? snapshots[snapshots.length - 1] : null
   const stats = tracker?.latestStats ?? null
@@ -319,14 +326,11 @@ export function TrackerDetailClient({
 
       {activeTab === "torrents" && (
         <TorrentsTab
-          trackerId={trackerId}
           trackerName={tracker.name}
           qbtTag={tracker.qbtTag}
           accentColor={tc}
-          rules={registryEntry?.rules}
-          tagGroups={tagGroups}
+          data={torrentData}
           trackerSeedingCount={stats?.seedingCount}
-          qbitmanageConfig={qbitmanageConfig}
         />
       )}
 
