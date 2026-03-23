@@ -6,7 +6,10 @@ import "server-only"
 
 import type { trackerSnapshots, trackers } from "@/lib/db/schema"
 
-type TrackerRow = Omit<typeof trackers.$inferSelect, "encryptedApiToken" | "avatarData" | "avatarCachedAt" | "avatarRemoteUrl">
+type TrackerRow = Omit<
+  typeof trackers.$inferSelect,
+  "encryptedApiToken" | "avatarData" | "avatarCachedAt" | "avatarRemoteUrl"
+>
 type SnapshotRow = typeof trackerSnapshots.$inferSelect
 
 export function parsePlatformMeta(raw: string | null): unknown {
@@ -33,6 +36,7 @@ export function serializeTrackerResponse(
     lastError: tracker.lastError,
     consecutiveFailures: tracker.consecutiveFailures,
     pausedAt: tracker.pausedAt?.toISOString() ?? null,
+    userPausedAt: tracker.userPausedAt?.toISOString() ?? null,
     color: tracker.color ?? "#00d4ff",
     qbtTag: tracker.qbtTag,
     useProxy: tracker.useProxy,

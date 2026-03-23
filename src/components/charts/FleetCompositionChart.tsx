@@ -5,22 +5,26 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
-import { ChartECharts } from "./ChartECharts"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { buildAxisPointer, buildGlowAreaStyle } from "./chart-helpers"
-import { buildUnifiedTimestampAxis } from "./chart-transforms"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import {
+  buildAxisPointer,
+  buildGlowAreaStyle,
+  buildTimeXAxis,
+  insideZoom,
+} from "./lib/chart-helpers"
+import { carryForwardTimeSeries, collectUnifiedTimestamps } from "./lib/chart-transforms"
 import {
   CHART_THEME,
   chartAxisLabel,
-  chartDot,
   chartGrid,
   chartLegend,
   chartTooltip,
   chartTooltipHeader,
-  escHtml,
-} from "./theme"
+  chartTooltipRow,
+  formatChartTimestamp,
+} from "./lib/theme"
 
 interface FleetCompositionChartProps {
   trackerData: TrackerSnapshotSeries[]
@@ -28,20 +32,12 @@ interface FleetCompositionChartProps {
 }
 
 function buildFleetOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
-  // Build unified time axis from the union of all polledAt timestamps
-  const { timestamps: sortedTimestamps, labels } = buildUnifiedTimestampAxis(trackerData)
+  // Collect unified ms timestamps for the time axis
+  const allTimestamps = collectUnifiedTimestamps(trackerData)
 
   const series: EChartsOption["series"] = trackerData.map((tracker) => {
-    const snapByTs = new Map<string, Snapshot>()
-    for (const snap of tracker.snapshots) {
-      snapByTs.set(snap.polledAt, snap)
-    }
-
-    const data = sortedTimestamps.map((ts) => {
-      const snap = snapByTs.get(ts)
-      if (!snap) return null
-      return snap.seedingCount ?? null
-    })
+    // Carry forward last known seedingCount to prevent stacked area collapse at gap timestamps
+    const data = carryForwardTimeSeries(allTimestamps, tracker.snapshots, (s) => s.seedingCount)
 
     return {
       name: tracker.name,
@@ -49,9 +45,7 @@ function buildFleetOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
       stack: "fleet",
       data,
       smooth: true,
-      connectNulls: false,
       symbol: "none",
-      emphasis: { focus: "series" },
       lineStyle: {
         color: tracker.color,
         width: 1.5,
@@ -70,35 +64,35 @@ function buildFleetOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
       formatter: (params: unknown) => {
         const items = params as Array<{
           seriesName: string
-          value: number | null
+          value: [number, number] | null
           color: string
-          axisValueLabel: string
         }>
         if (!items?.length) return ""
-        const time = items[0].axisValueLabel
+
+        const firstValue = items[0]?.value
+        if (!firstValue) return ""
+        const tsMs = firstValue[0]
+        const time = formatChartTimestamp(tsMs)
+
         const validItems = items.filter((i) => i.value !== null && i.value !== undefined)
-        const total = validItems.reduce((sum, i) => sum + (i.value as number), 0)
-        const sorted = [...validItems].sort((a, b) => (b.value as number) - (a.value as number))
+        const total = validItems.reduce((sum, i) => sum + (i.value as [number, number])[1], 0)
+        const sorted = [...validItems].sort(
+          (a, b) => (b.value as [number, number])[1] - (a.value as [number, number])[1]
+        )
 
         const header = chartTooltipHeader(time)
         const totalRow = `<div style="color:${CHART_THEME.textPrimary};font-weight:600;margin-bottom:4px;">Total: ${total.toLocaleString()} seeding</div>`
         const rows = sorted
           .map((item) => {
-            return `${chartDot(item.color)}<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${(item.value as number).toLocaleString()}</span>`
+            const val = (item.value as [number, number])[1]
+            return chartTooltipRow(item.color, item.seriesName, val.toLocaleString())
           })
           .join("<br/>")
 
         return header + totalRow + rows
       },
     }),
-    xAxis: {
-      type: "category",
-      data: labels,
-      boundaryGap: false,
-      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
-      axisTick: { show: false },
-      axisLabel: chartAxisLabel({ rotate: 30, interval: "auto" }),
-    },
+    xAxis: buildTimeXAxis(),
     yAxis: {
       type: "value",
       name: "Seeding",
@@ -119,6 +113,7 @@ function buildFleetOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
         },
       },
     },
+    dataZoom: insideZoom(allTimestamps.length),
     series,
   }
 }
@@ -130,15 +125,7 @@ function FleetCompositionChart({ trackerData, height = 360 }: FleetCompositionCh
     return <ChartEmptyState height={height} message="No fleet data available" />
   }
 
-  return (
-    <ChartECharts
-      option={buildFleetOption(trackerData)}
-      style={{ height, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
-    />
-  )
+  return <ChartECharts option={buildFleetOption(trackerData)} style={{ height, width: "100%" }} />
 }
 
 export type { FleetCompositionChartProps }

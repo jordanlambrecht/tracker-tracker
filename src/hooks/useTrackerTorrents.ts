@@ -102,76 +102,98 @@ function useTrackerTorrents({
   useEffect(() => {
     let cancelled = false
 
+    function applyResponse(data: AggregatedTorrentsResponse) {
+      if (cancelled) return
+      setTorrents(data.torrents.map(mapTorrent))
+      setCrossSeedTags(data.crossSeedTags)
+      setClientCount(data.clientCount)
+      setNoClients(data.clientCount === 0)
+    }
+
+    function storeLocal(data: AggregatedTorrentsResponse) {
+      try {
+        sessionStorage.setItem(`torrent-cache-${trackerId}`, JSON.stringify(data))
+      } catch {
+        // sessionStorage full or unavailable — ignore
+      }
+    }
+
+    function loadLocal(): AggregatedTorrentsResponse | null {
+      try {
+        const raw = sessionStorage.getItem(`torrent-cache-${trackerId}`)
+        if (!raw) return null
+        return JSON.parse(raw) as AggregatedTorrentsResponse
+      } catch {
+        return null
+      }
+    }
+
     async function init() {
       if (!qbtTag) {
         if (!cancelled) setLoading(false)
         return
       }
 
-      // Reset stale state on fresh fetch
-      if (!cancelled) {
-        setStale(false)
-        setCachedAt(null)
+      // Phase 0: Instant — restore from sessionStorage (survives page refresh)
+      const local = loadLocal()
+      if (local && local.torrents.length > 0) {
+        applyResponse(local)
+        if (!cancelled) {
+          setStale(true)
+          setLoading(false)
+          ready.current = true
+        }
       }
 
+      // Phase 1: Load from DB cache (fast, may have newer data than sessionStorage)
+      let hasCachedData = local !== null && local.torrents.length > 0
       try {
-        const res = await fetch(`/api/trackers/${trackerId}/torrents`)
-        if (res.ok) {
-          const data: AggregatedTorrentsResponse = await res.json()
+        const cachedRes = await fetch(`/api/trackers/${trackerId}/torrents/cached`)
+        if (cachedRes.ok) {
+          const data: AggregatedTorrentsResponse = await cachedRes.json()
+          if (data.torrents.length > 0) {
+            applyResponse(data)
+            storeLocal(data)
+            hasCachedData = true
+            if (!cancelled) {
+              setStale(true)
+              setCachedAt(data.cachedAt ?? null)
+              setLoading(false)
+              ready.current = true
+            }
+          }
+        }
+      } catch {
+        // Cache miss — continue to live fetch
+      }
+
+      // Phase 2: Refresh with live data (slow qBT fetch)
+      try {
+        const liveRes = await fetch(`/api/trackers/${trackerId}/torrents`)
+        if (liveRes.ok) {
+          const data: AggregatedTorrentsResponse = await liveRes.json()
+          applyResponse(data)
+          storeLocal(data)
           if (!cancelled) {
-            setTorrents(data.torrents.map(mapTorrent))
-            setCrossSeedTags(data.crossSeedTags)
-            setClientCount(data.clientCount)
-            setNoClients(data.clientCount === 0)
+            setStale(false)
+            setCachedAt(null)
             setTorrentError(
               data.clientErrors.length > 0
                 ? `Partial data — some clients failed: ${data.clientErrors.join("; ")}`
                 : null
             )
           }
-          return
-        }
-
-        // Live fetch failed — try cached fallback
-        if (res.status !== 400) {
-          await fetchCached()
         }
       } catch {
-        // Network error — try cached fallback
-        await fetchCached()
+        // Live fetch failed — cached data stays visible
+        if (!hasCachedData && !cancelled) {
+          setTorrentError("Client offline — no cached data available")
+        }
       } finally {
         if (!cancelled) {
           setLoading(false)
           ready.current = true
         }
-      }
-    }
-
-    async function fetchCached() {
-      // References `cancelled` from the outer useEffect closure — NOT passed as a
-      // parameter — so it stays reactive if the component unmounts mid-fetch.
-      try {
-        const res = await fetch(`/api/trackers/${trackerId}/torrents/cached`)
-        if (!res.ok) {
-          if (!cancelled) setTorrentError("Client offline — no cached data available")
-          return
-        }
-        const data: AggregatedTorrentsResponse = await res.json()
-        if (data.torrents.length === 0) {
-          if (!cancelled) setTorrentError("Client offline — no cached data available")
-          return
-        }
-        if (!cancelled) {
-          setTorrents(data.torrents.map(mapTorrent))
-          setCrossSeedTags(data.crossSeedTags)
-          setClientCount(data.clientCount)
-          setNoClients(false)
-          setStale(true)
-          setCachedAt(data.cachedAt ?? null)
-          setTorrentError(null)
-        }
-      } catch {
-        if (!cancelled) setTorrentError("Client offline — no cached data available")
       }
     }
 
@@ -322,13 +344,13 @@ function useTrackerTorrents({
         const memberCounts = group.members
           .map((member) => {
             const count = torrents.filter((t) =>
-              parseTorrentTags(t.tags).includes(member.tag)
+              parseTorrentTags(t.tags, false).includes(member.tag)
             ).length
             return { label: member.label, count, color: member.color }
           })
           .filter((m) => m.count > 0)
         const unmatchedCount = torrents.filter((t) => {
-          const tags = parseTorrentTags(t.tags)
+          const tags = parseTorrentTags(t.tags, false)
           return !tags.some((tag) => allGroupTags.includes(tag))
         }).length
         return { group, memberCounts, unmatchedCount }
@@ -340,7 +362,7 @@ function useTrackerTorrents({
           .filter(([, entry]) => entry.enabled)
           .map(([key, entry]) => {
             const count = torrents.filter((t) =>
-              parseTorrentTags(t.tags).includes(entry.tag)
+              parseTorrentTags(t.tags, false).includes(entry.tag)
             ).length
             const labelMap: Record<string, string> = {
               issue: "Issue",

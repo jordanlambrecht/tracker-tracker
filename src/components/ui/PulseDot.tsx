@@ -2,7 +2,14 @@
 import { cva } from "class-variance-authority"
 import clsx from "clsx"
 
-type PulseDotStatus = "healthy" | "warning" | "critical" | "error" | "paused" | "offline"
+type PulseDotStatus =
+  | "healthy"
+  | "warning"
+  | "critical"
+  | "error"
+  | "paused"
+  | "paused-user"
+  | "offline"
 type PulseDotSize = "sm" | "md"
 
 interface PulseDotProps {
@@ -18,6 +25,7 @@ const statusLabels: Record<PulseDotStatus, string> = {
   warning: "Warning",
   critical: "Critical",
   paused: "Paused",
+  "paused-user": "Paused by user",
   error: "Error",
   offline: "Offline",
 }
@@ -27,6 +35,7 @@ const shouldPulse: Record<PulseDotStatus, boolean> = {
   warning: true,
   critical: true,
   paused: false,
+  "paused-user": false,
   error: false,
   offline: false,
 }
@@ -38,6 +47,7 @@ const pulseDot = cva("inline-block rounded-full shrink-0", {
       warning: "text-warn bg-warn",
       critical: "text-danger bg-danger",
       paused: "text-danger bg-danger",
+      "paused-user": "text-warn bg-warn",
       error: "text-secondary bg-secondary",
       offline: "text-muted bg-muted",
     },

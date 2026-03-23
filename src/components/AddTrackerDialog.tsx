@@ -17,7 +17,7 @@ import {
   useRef,
   useState,
 } from "react"
-import { CHART_THEME } from "@/components/charts/theme"
+import { CHART_THEME } from "@/components/charts/lib/theme"
 import { Button } from "@/components/ui/Button"
 import { ColorPicker } from "@/components/ui/ColorPicker"
 import { TriangleWarningIcon } from "@/components/ui/Icons"

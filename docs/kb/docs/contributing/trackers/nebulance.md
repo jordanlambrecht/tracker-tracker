@@ -1,13 +1,13 @@
 # Nebulance (NBL)
 
-| Field | Value |
-|---|---|
-| Platform | Nebulance |
-| Base URL | `https://nebulance.io` |
-| API Endpoint | `https://nebulance.io/api.php` |
-| Auth Method | Query parameter: `?api_token=TOKEN` |
-| Enrichment | N/A |
-| Auth Style | N/A |
+| Field        | Value                               |
+| ------------ | ----------------------------------- |
+| Platform     | Nebulance                           |
+| Base URL     | `https://nebulance.io`              |
+| API Endpoint | `https://nebulance.io/api.php`      |
+| Auth Method  | Query parameter: `?api_token=TOKEN` |
+| Enrichment   | N/A                                 |
+| Auth Style   | N/A                                 |
 
 ## Notes
 

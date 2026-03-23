@@ -4,14 +4,14 @@
 
 "use client"
 
-import clsx from "clsx"
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
 import { useState } from "react"
+import { TabBar } from "@/components/ui/TabBar"
 import { formatBytesFromString } from "@/lib/formatters"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { fmtNum } from "./chart-helpers"
-import { CHART_THEME, chartDot, chartTooltip, escHtml } from "./theme"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { fmtNum } from "./lib/chart-helpers"
+import { CHART_THEME, chartDot, chartTooltip, escHtml } from "./lib/theme"
 
 type ViewMode = "donuts" | "sankey" | "parallel"
 
@@ -363,24 +363,18 @@ function DistributionChart({ trackers, height = 300 }: DistributionChartProps) {
   function renderChart() {
     if (mode === "sankey" && hasBothMetrics) {
       return (
-        <ReactECharts
+        <ChartECharts
           option={buildSankeyOption(pctTrackers)}
           style={{ height: height + 60, width: "100%" }}
-          opts={{ renderer: "canvas" }}
-          notMerge
-          lazyUpdate
         />
       )
     }
 
     if (mode === "parallel" && hasBothMetrics) {
       return (
-        <ReactECharts
+        <ChartECharts
           option={buildParallelOption(pctTrackers)}
           style={{ height: height + 60, width: "100%" }}
-          opts={{ renderer: "canvas" }}
-          notMerge
-          lazyUpdate
         />
       )
     }
@@ -388,27 +382,21 @@ function DistributionChart({ trackers, height = 300 }: DistributionChartProps) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {hasUpload && (
-          <ReactECharts
+          <ChartECharts
             option={buildPieOption("Upload Share", uploadData, (v) =>
               formatBytesFromString(v.toString())
             )}
             style={{ height, width: "100%" }}
-            opts={{ renderer: "canvas" }}
-            notMerge
-            lazyUpdate
           />
         )}
         {hasSeeding && (
-          <ReactECharts
+          <ChartECharts
             option={buildPieOption(
               "Seeding Share",
               seedingData,
               (v) => `${v.toLocaleString()} torrents`
             )}
             style={{ height, width: "100%" }}
-            opts={{ renderer: "canvas" }}
-            notMerge
-            lazyUpdate
           />
         )}
       </div>
@@ -419,23 +407,15 @@ function DistributionChart({ trackers, height = 300 }: DistributionChartProps) {
     <div className="flex flex-col gap-3">
       {modes.length > 1 && (
         <div className="flex justify-end">
-          <div className="nm-inset-sm p-1 flex gap-0.5 rounded-nm-sm">
-            {modes.map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setMode(m)}
-                className={clsx(
-                  "px-2.5 py-1 text-xs font-mono transition-all duration-150 cursor-pointer rounded-nm-sm",
-                  mode === m
-                    ? "nm-raised-sm text-primary font-semibold"
-                    : "text-tertiary hover:text-secondary"
-                )}
-              >
-                {m === "donuts" ? "Donuts" : m === "sankey" ? "Flow" : "Parallel"}
-              </button>
-            ))}
-          </div>
+          <TabBar
+            compact
+            tabs={modes.map((m) => ({
+              key: m,
+              label: m === "donuts" ? "Donuts" : m === "sankey" ? "Flow" : "Parallel",
+            }))}
+            activeTab={mode}
+            onChange={setMode}
+          />
         </div>
       )}
       {renderChart()}

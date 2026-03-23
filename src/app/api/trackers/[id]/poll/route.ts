@@ -58,7 +58,10 @@ export async function POST(_request: Request, props: { params: Promise<{ id: str
     return NextResponse.json({ success: true })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Poll failed"
-    log.error({ route: "POST /api/trackers/[id]/poll", trackerId, error: message }, "manual poll failed")
+    log.error(
+      { route: "POST /api/trackers/[id]/poll", trackerId, error: message },
+      "manual poll failed"
+    )
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

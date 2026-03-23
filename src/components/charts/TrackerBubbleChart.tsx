@@ -5,21 +5,22 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { useState } from "react"
-import { bytesToGiB, hexToRgba } from "@/lib/formatters"
-import { ChartECharts } from "./ChartECharts"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { autoByteScale, fmtNum } from "./chart-helpers"
-import { LogScaleToggle } from "./LogScaleToggle"
+import { bytesToGiB } from "@/lib/formatters"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { autoByteScale, fmtNum } from "./lib/chart-helpers"
+import { LogScaleToggle } from "./lib/LogScaleToggle"
 import {
   CHART_THEME,
   chartAxisLabel,
+  chartDot,
   chartGrid,
   chartLegend,
   chartTooltip,
   escHtml,
   shouldUseLogScale,
-} from "./theme"
+} from "./lib/theme"
+import { useLogScale } from "./lib/useLogScale"
 
 interface TrackerBubbleData {
   name: string
@@ -171,13 +172,9 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
 
         const ratio = downloadVal > 0 ? (uploadVal / downloadVal).toFixed(2) : "∞"
 
-        // Glowing swatch — uses hexToRgba for the box-shadow glow
-        const glowColor = hexToRgba(color.startsWith("#") ? color : CHART_THEME.neutral, 0.8)
-        const swatch = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:6px;box-shadow:0 0 6px ${glowColor};"></span>`
-
         return [
           `<div style="font-family:${CHART_THEME.fontMono};font-size:12px;">`,
-          `${swatch}<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(p.seriesName)}</span>`,
+          `${chartDot(color.startsWith("#") ? color : CHART_THEME.neutral)}<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(p.seriesName)}</span>`,
           `<br/><span style="color:${CHART_THEME.textSecondary};">Uploaded:</span> <span style="color:${CHART_THEME.textPrimary};">${fmtNum(uploadVal)} ${unit}</span>`,
           `<br/><span style="color:${CHART_THEME.textSecondary};">Downloaded:</span> <span style="color:${CHART_THEME.textPrimary};">${fmtNum(downloadVal)} ${unit}</span>`,
           `<br/><span style="color:${CHART_THEME.textSecondary};">Seeding:</span> <span style="color:${CHART_THEME.textPrimary};">${seedingCount.toLocaleString()} torrents</span>`,
@@ -228,9 +225,6 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
 }
 
 function TrackerBubbleChart({ trackers, height = 360 }: TrackerBubbleChartProps) {
-  // null = auto-detect, true = force log, false = force linear
-  const [logOverride, setLogOverride] = useState<boolean | null>(null)
-
   // Narrow to trackers that have both byte values present
   const validTrackers: ValidTrackerData[] = trackers.flatMap((t) =>
     t.uploadedBytes !== null && t.downloadedBytes !== null
@@ -246,31 +240,29 @@ function TrackerBubbleChart({ trackers, height = 360 }: TrackerBubbleChartProps)
       : []
   )
 
+  // Hook must be called before any early return (React rules of hooks)
+  const xValues = validTrackers.map((t) => bytesToGiB(t.downloadedBytes))
+  const yValues = validTrackers.map((t) => bytesToGiB(t.uploadedBytes))
+  const allValues = [...xValues, ...yValues]
+  const { effectiveLog, isAuto, onToggle } = useLogScale(allValues)
+
   if (validTrackers.length === 0) {
     return <ChartEmptyState height={height} message="No tracker data available" />
   }
 
-  // Determine current effective log state for the toggle label
-  const xValues = validTrackers.map((t) => bytesToGiB(t.downloadedBytes))
-  const yValues = validTrackers.map((t) => bytesToGiB(t.uploadedBytes))
-  const autoLog = shouldUseLogScale(xValues) || shouldUseLogScale(yValues)
-  const effectiveLog = logOverride ?? autoLog
+  // Derive per-axis log override to pass into the option builder.
+  // useLogScale auto-detects across all values; we pass null for auto, or the
+  // effective boolean when the user has manually overridden.
+  const logOverride = isAuto ? null : effectiveLog
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex justify-end">
-        <LogScaleToggle
-          effectiveLog={effectiveLog}
-          isAuto={logOverride === null}
-          onToggle={() => setLogOverride(logOverride === null ? !autoLog : null)}
-        />
+        <LogScaleToggle effectiveLog={effectiveLog} isAuto={isAuto} onToggle={onToggle} />
       </div>
       <ChartECharts
         option={buildBubbleOption(validTrackers, logOverride)}
         style={{ height, width: "100%" }}
-        opts={{ renderer: "canvas" }}
-        notMerge
-        lazyUpdate
       />
     </div>
   )

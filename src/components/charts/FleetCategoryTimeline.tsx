@@ -1,65 +1,55 @@
 // src/components/charts/FleetCategoryTimeline.tsx
 //
-// Functions: groupByCategory, buildCategoryTimelineOption, FleetCategoryTimeline
+// Functions: groupByCategory, FleetCategoryTimeline
 
 "use client"
 
-import type { EChartsOption } from "echarts"
-import { ChartECharts } from "./ChartECharts"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { buildAxisPointer, formatDateLabel } from "./chart-helpers"
-import {
-  buildTagColors,
-  CHART_THEME,
-  chartAxisLabel,
-  chartDot,
-  chartGrid,
-  chartLegend,
-  chartTooltip,
-  chartTooltipHeader,
-  escHtml,
-} from "./theme"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { buildStackedAreaOption } from "./lib/chart-helpers"
+import { buildTagColors, CHART_THEME } from "./lib/theme"
 
 interface FleetCategoryTimelineProps {
-  torrents: { added_on: number; category: string }[]
+  torrents: { addedOn: number; category: string }[]
   height?: number
 }
 
 interface CategorySeries {
   name: string
   color: string
-  dateMap: Map<string, number>
+  monthMap: Map<string, number>
 }
 
-function groupByCategory(torrents: { added_on: number; category: string }[]): {
-  sortedDates: string[]
+function groupByCategory(torrents: { addedOn: number; category: string }[]): {
+  sortedMonths: string[]
   series: CategorySeries[]
 } {
   const categoryMaps = new Map<string, Map<string, number>>()
-  const allDates = new Set<string>()
+  const allMonths = new Set<string>()
 
   for (const torrent of torrents) {
-    if (!torrent.added_on || torrent.added_on <= 0) continue
-    const date = new Date(torrent.added_on * 1000).toISOString().slice(0, 10)
-    allDates.add(date)
+    if (!torrent.addedOn || torrent.addedOn <= 0) continue
+    const d = new Date(torrent.addedOn * 1000)
+    const month = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`
+    allMonths.add(month)
 
     const cat = torrent.category?.trim() || "Uncategorized"
-    let dateMap = categoryMaps.get(cat)
-    if (!dateMap) {
-      dateMap = new Map<string, number>()
-      categoryMaps.set(cat, dateMap)
+    let monthMap = categoryMaps.get(cat)
+    if (!monthMap) {
+      monthMap = new Map<string, number>()
+      categoryMaps.set(cat, monthMap)
     }
-    dateMap.set(date, (dateMap.get(date) ?? 0) + 1)
+    monthMap.set(month, (monthMap.get(month) ?? 0) + 1)
   }
 
-  const sortedDates = Array.from(allDates).sort()
+  const sortedMonths = Array.from(allMonths).sort()
 
   // Sort categories by total torrent count descending
   const entries = Array.from(categoryMaps.entries())
-    .map(([name, dateMap]) => {
+    .map(([name, monthMap]) => {
       let total = 0
-      for (const count of dateMap.values()) total += count
-      return { name, dateMap, total }
+      for (const count of monthMap.values()) total += count
+      return { name, monthMap, total }
     })
     .sort((a, b) => b.total - a.total)
 
@@ -68,110 +58,29 @@ function groupByCategory(torrents: { added_on: number; category: string }[]): {
   const series: CategorySeries[] = entries.map((e) => ({
     name: e.name,
     color: colorMap.get(e.name) ?? CHART_THEME.chartFallback,
-    dateMap: e.dateMap,
+    monthMap: e.monthMap,
   }))
 
-  return { sortedDates, series }
-}
-
-function buildCategoryTimelineOption(
-  sortedDates: string[],
-  series: CategorySeries[]
-): EChartsOption {
-  const labels = sortedDates.map(formatDateLabel)
-
-  const eChartsSeries: NonNullable<EChartsOption["series"]> = series.map((s) => {
-    let running = 0
-    const data = sortedDates.map((date) => {
-      running += s.dateMap.get(date) ?? 0
-      return running
-    })
-
-    return {
-      name: s.name,
-      type: "line",
-      stack: "categories",
-      smooth: true,
-      symbol: "none",
-      data,
-      itemStyle: { color: s.color },
-      lineStyle: { color: s.color, width: 1.5 },
-      areaStyle: { color: s.color, opacity: 0.3 },
-    }
-  })
-
-  return {
-    backgroundColor: "transparent",
-    grid: chartGrid({ right: 16, bottom: 48, left: 56 }),
-    tooltip: chartTooltip("axis", {
-      axisPointer: buildAxisPointer(),
-      formatter: (params: unknown) => {
-        const items = params as Array<{
-          seriesName: string
-          value: number
-          color: string
-          axisValueLabel: string
-        }>
-        if (!items?.length) return ""
-        const dateLabel = items[0].axisValueLabel
-        const rows = items
-          .filter((item) => item.value > 0)
-          .sort((a, b) => b.value - a.value)
-          .map((item) => {
-            const dot = chartDot(item.color)
-            return `${dot}<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${item.value.toLocaleString()}</span>`
-          })
-          .join("<br/>")
-        return `${chartTooltipHeader(dateLabel)}${rows}`
-      },
-    }),
-    legend: chartLegend(),
-    xAxis: {
-      type: "category",
-      data: labels,
-      boundaryGap: false,
-      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
-      axisTick: { show: false },
-      axisLabel: chartAxisLabel({ rotate: sortedDates.length > 14 ? 30 : 0, interval: "auto" }),
-    },
-    yAxis: {
-      type: "value",
-      name: "Torrents",
-      nameTextStyle: {
-        color: CHART_THEME.textTertiary,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
-      },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      axisLabel: chartAxisLabel(),
-      splitLine: { lineStyle: { color: CHART_THEME.gridLine } },
-    },
-    dataZoom: [{ type: "inside", zoomOnMouseWheel: true, moveOnMouseMove: true }],
-    series: eChartsSeries,
-  }
+  return { sortedMonths, series }
 }
 
 function FleetCategoryTimeline({ torrents, height = 320 }: FleetCategoryTimelineProps) {
-  const validTorrents = torrents.filter((t) => t.added_on && t.added_on > 0)
+  const validTorrents = torrents.filter((t) => t.addedOn && t.addedOn > 0)
 
   if (validTorrents.length === 0) {
     return <ChartEmptyState height={height} message="No torrent data available" />
   }
 
-  const { sortedDates, series } = groupByCategory(validTorrents)
+  const { sortedMonths, series } = groupByCategory(validTorrents)
 
-  if (sortedDates.length === 0 || series.length === 0) {
+  if (sortedMonths.length === 0 || series.length === 0) {
     return <ChartEmptyState height={height} message="No torrent data available" />
   }
 
   return (
     <ChartECharts
-      option={buildCategoryTimelineOption(sortedDates, series)}
+      option={buildStackedAreaOption(sortedMonths, series, "categories")}
       style={{ height, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
     />
   )
 }

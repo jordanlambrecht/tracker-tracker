@@ -5,15 +5,19 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { useState } from "react"
 import { hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
-import { ChartECharts } from "./ChartECharts"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { buildAxisPointer, fmtNum, yAxisAutoRange } from "./chart-helpers"
-import { buildUnifiedTimestampAxis } from "./chart-transforms"
-import { LogScaleToggle } from "./LogScaleToggle"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import {
+  buildAxisPointer,
+  buildTimeXAxis,
+  fmtNum,
+  insideZoom,
+  yAxisAutoRange,
+} from "./lib/chart-helpers"
+import { LogScaleToggle } from "./lib/LogScaleToggle"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -23,8 +27,9 @@ import {
   chartTooltip,
   chartTooltipHeader,
   escHtml,
-  shouldUseLogScale,
-} from "./theme"
+  formatChartTimestamp,
+} from "./lib/theme"
+import { useLogScale } from "./lib/useLogScale"
 
 interface RatioStabilityChartProps {
   trackerData: TrackerSnapshotSeries[]
@@ -34,10 +39,10 @@ interface RatioStabilityChartProps {
 }
 
 interface EmaWithBandResult {
-  timestamps: string[]
-  ema: (number | null)[]
-  upper: (number | null)[]
-  lower: (number | null)[]
+  ema: [number, number][]
+  upper: [number, number][]
+  lower: [number, number][]
+  stdDevByTs: Map<number, number>
 }
 
 function computeEmaWithBand(
@@ -50,21 +55,23 @@ function computeEmaWithBand(
     .sort((a, b) => new Date(a.polledAt).getTime() - new Date(b.polledAt).getTime())
 
   if (filtered.length === 0) {
-    return { timestamps: [], ema: [], upper: [], lower: [] }
+    return { ema: [], upper: [], lower: [], stdDevByTs: new Map() }
   }
 
   const ratios = filtered.map((s) => s.ratio as number)
-  const timestamps = filtered.map((s) => s.polledAt)
+  const tsMs = filtered.map((s) => new Date(s.polledAt).getTime())
 
   const alpha = 2 / (emaPeriod + 1)
-  const emaValues: number[] = []
-  const upperValues: (number | null)[] = []
-  const lowerValues: (number | null)[] = []
+  const emaPoints: [number, number][] = []
+  const upperPoints: [number, number][] = []
+  const lowerPoints: [number, number][] = []
+  const stdDevByTs = new Map<number, number>()
 
   for (let t = 0; t < ratios.length; t++) {
+    const ts = tsMs[t]
+
     // Compute EMA
-    const emaT = t === 0 ? ratios[0] : alpha * ratios[t] + (1 - alpha) * emaValues[t - 1]
-    emaValues.push(emaT)
+    const emaT = t === 0 ? ratios[0] : alpha * ratios[t] + (1 - alpha) * emaPoints[t - 1][1]
 
     // Compute rolling std dev over last bandWindow raw ratio values
     const windowStart = Math.max(0, t + 1 - bandWindow)
@@ -74,61 +81,28 @@ function computeEmaWithBand(
     const variance = window.reduce((sum, v) => sum + (v - mean) ** 2, 0) / n
     const stdDev = Math.sqrt(variance)
 
-    upperValues.push(emaT + stdDev)
-    lowerValues.push(Math.max(0, emaT - stdDev))
+    const upperT = emaT + stdDev
+    const lowerT = Math.max(0, emaT - stdDev)
+
+    emaPoints.push([ts, emaT])
+    upperPoints.push([ts, upperT])
+    lowerPoints.push([ts, lowerT])
+    stdDevByTs.set(ts, stdDev)
   }
 
-  return {
-    timestamps,
-    ema: emaValues,
-    upper: upperValues,
-    lower: lowerValues,
-  }
+  return { ema: emaPoints, upper: upperPoints, lower: lowerPoints, stdDevByTs }
 }
 
 function buildRatioStabilityOption(
   trackerData: TrackerSnapshotSeries[],
   emaPeriod: number,
   bandWindow: number,
-  forceLog: boolean | null = null
+  useLog: boolean
 ): EChartsOption {
-  // Build unified time axis from union of all polledAt timestamps
-  const { timestamps: sortedTimestamps, labels } = buildUnifiedTimestampAxis(trackerData)
-
-  // Log scale detection
-  const allRatioValues: number[] = []
-  for (const tracker of trackerData) {
-    for (const snap of tracker.snapshots) {
-      if (snap.ratio !== null && snap.ratio > 0) allRatioValues.push(snap.ratio)
-    }
-  }
-  const autoLog = shouldUseLogScale(allRatioValues)
-  const useLog = forceLog ?? autoLog
-
-  // Pre-compute EMA + band for each tracker, keyed by timestamp
+  // Pre-compute EMA + band for each tracker
   const trackerComputations = trackerData.map((tracker) => {
     const result = computeEmaWithBand(tracker.snapshots, emaPeriod, bandWindow)
-
-    // Map results back to timestamp keys
-    const emaByTs = new Map<string, number | null>()
-    const upperByTs = new Map<string, number | null>()
-    const lowerByTs = new Map<string, number | null>()
-    const stdDevByTs = new Map<string, number>()
-
-    for (let i = 0; i < result.timestamps.length; i++) {
-      const ts = result.timestamps[i]
-      emaByTs.set(ts, result.ema[i])
-      upperByTs.set(ts, result.upper[i])
-      lowerByTs.set(ts, result.lower[i])
-
-      const emaVal = result.ema[i]
-      const upperVal = result.upper[i]
-      if (emaVal !== null && upperVal !== null) {
-        stdDevByTs.set(ts, upperVal - emaVal)
-      }
-    }
-
-    return { tracker, emaByTs, upperByTs, lowerByTs, stdDevByTs }
+    return { tracker, ...result }
   })
 
   // Build legend data (only EMA series)
@@ -137,24 +111,21 @@ function buildRatioStabilityOption(
   // Build ECharts series array: lower base + diff band + EMA line per tracker
   const series: EChartsOption["series"] = []
 
-  for (const { tracker, emaByTs, upperByTs, lowerByTs } of trackerComputations) {
+  for (const { tracker, ema, upper, lower } of trackerComputations) {
     const stackId = `band-${tracker.name}`
 
-    const emaData = sortedTimestamps.map((ts) => emaByTs.get(ts) ?? null)
-    const lowerData = sortedTimestamps.map((ts) => lowerByTs.get(ts) ?? null)
-    const upperData = sortedTimestamps.map((ts) => {
-      const u = upperByTs.get(ts)
-      const l = lowerByTs.get(ts)
-      if (u == null || l == null) return null
-      return u - l
+    // Band diff data: upper - lower at each timestamp
+    const bandDiffData: [number, number][] = lower.map(([ts, lowerVal], i) => {
+      const upperVal = upper[i]?.[1] ?? lowerVal
+      return [ts, upperVal - lowerVal]
     })
 
-    // Series 1: lower baseline (invisible, just establishes the stack floor)
+    // Series 1: lower baseline (invisible, establishes the stack floor)
     series.push({
       name: `${tracker.name}-lower`,
       type: "line",
       stack: stackId,
-      data: lowerData,
+      data: lower,
       symbol: "none",
       smooth: true,
       legendHoverLink: false,
@@ -168,7 +139,7 @@ function buildRatioStabilityOption(
       name: `${tracker.name}-band`,
       type: "line",
       stack: stackId,
-      data: upperData,
+      data: bandDiffData,
       symbol: "none",
       smooth: true,
       legendHoverLink: false,
@@ -183,15 +154,18 @@ function buildRatioStabilityOption(
     series.push({
       name: tracker.name,
       type: "line",
-      data: emaData,
+      data: ema,
       symbol: "none",
       smooth: true,
-      connectNulls: true,
       lineStyle: {
         color: tracker.color,
         width: 2,
       },
       itemStyle: { color: tracker.color },
+      emphasis: {
+        focus: "series" as const,
+        lineStyle: { shadowBlur: 16, shadowColor: tracker.color },
+      },
     })
   }
 
@@ -204,15 +178,18 @@ function buildRatioStabilityOption(
       formatter: (params: unknown) => {
         const items = params as Array<{
           seriesName: string
-          value: number | null
+          value: [number, number] | null
           color: string
-          axisValueLabel: string
           seriesIndex: number
         }>
 
         if (!items || items.length === 0) return ""
 
-        const time = items[0].axisValueLabel
+        // Extract ms timestamp from the first item's value tuple
+        const firstValue = items[0]?.value
+        if (!firstValue) return ""
+        const tsMs = firstValue[0]
+        const time = formatChartTimestamp(tsMs)
 
         // Only show EMA series in tooltip (filter out lower/band series by name suffix)
         const emaItems = items.filter(
@@ -221,15 +198,13 @@ function buildRatioStabilityOption(
 
         if (emaItems.length === 0) return ""
 
-        const ts = sortedTimestamps[labels.indexOf(time) >= 0 ? labels.indexOf(time) : 0]
-
         const rows = emaItems
           .filter((item) => item.value !== null && item.value !== undefined)
           .map((item) => {
-            const emaVal = item.value as number
+            const emaVal = (item.value as [number, number])[1]
             // Look up std dev for this tracker + timestamp
             const computation = trackerComputations.find((c) => c.tracker.name === item.seriesName)
-            const sigma = computation?.stdDevByTs.get(ts) ?? null
+            const sigma = computation?.stdDevByTs.get(tsMs) ?? null
 
             const sigmaStr =
               sigma !== null
@@ -249,15 +224,7 @@ function buildRatioStabilityOption(
         return chartTooltipHeader(time) + rows
       },
     }),
-    xAxis: {
-      type: "category",
-      data: labels,
-      boundaryGap: false,
-      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
-      axisTick: { show: false },
-      axisLabel: chartAxisLabel({ rotate: 30, interval: "auto" }),
-      splitLine: { show: false },
-    },
+    xAxis: buildTimeXAxis(),
     yAxis: {
       type: useLog ? "log" : "value",
       name: useLog ? "Ratio (log)" : "Ratio",
@@ -280,6 +247,7 @@ function buildRatioStabilityOption(
         },
       },
     },
+    dataZoom: insideZoom(Math.max(...trackerComputations.map((c) => c.ema.length), 0)),
     series,
   }
 }
@@ -290,15 +258,9 @@ function RatioStabilityChart({
   emaPeriod = 7,
   bandWindow = 14,
 }: RatioStabilityChartProps) {
-  const [logOverride, setLogOverride] = useState<boolean | null>(null)
-
   const hasEnoughData = trackerData.some(
     (t) => t.snapshots.filter((s) => s.ratio !== null).length >= 3
   )
-
-  if (!hasEnoughData) {
-    return <ChartEmptyState height={height} message="Not enough data for stability analysis" />
-  }
 
   const allRatioValues: number[] = []
   for (const tracker of trackerData) {
@@ -306,24 +268,29 @@ function RatioStabilityChart({
       if (snap.ratio !== null && snap.ratio > 0) allRatioValues.push(snap.ratio)
     }
   }
-  const autoLog = shouldUseLogScale(allRatioValues)
-  const effectiveLog = logOverride ?? autoLog
+  const logScale = useLogScale(allRatioValues)
+
+  if (!hasEnoughData) {
+    return <ChartEmptyState height={height} message="Not enough data for stability analysis" />
+  }
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex justify-end">
         <LogScaleToggle
-          effectiveLog={effectiveLog}
-          isAuto={logOverride === null}
-          onToggle={() => setLogOverride(logOverride === null ? !autoLog : null)}
+          effectiveLog={logScale.effectiveLog}
+          isAuto={logScale.isAuto}
+          onToggle={logScale.onToggle}
         />
       </div>
       <ChartECharts
-        option={buildRatioStabilityOption(trackerData, emaPeriod, bandWindow, logOverride)}
+        option={buildRatioStabilityOption(
+          trackerData,
+          emaPeriod,
+          bandWindow,
+          logScale.effectiveLog
+        )}
         style={{ height, width: "100%" }}
-        opts={{ renderer: "canvas" }}
-        notMerge
-        lazyUpdate
       />
     </div>
   )

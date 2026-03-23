@@ -4,9 +4,9 @@
 
 "use client"
 
-import { useMemo, useState } from "react"
 import { H1, H2 } from "@typography"
-import { CHART_THEME } from "@/components/charts/theme"
+import { useMemo, useState } from "react"
+import { CHART_THEME } from "@/components/charts/lib/theme"
 import { AlertsBanner } from "@/components/dashboard/AlertsBanner"
 import { AnalyticsSection } from "@/components/dashboard/AnalyticsSection"
 import { DashboardSettingsSheet } from "@/components/dashboard/DashboardSettingsSheet"
@@ -155,11 +155,12 @@ export function DashboardClient({ initialTrackers }: DashboardClientProps) {
       {/*  Analytics / Fleet  */}
       <div className="flex flex-col md:flex-row gap-4 md:gap-8">
         <div className="flex-1 min-w-0">
-          {dashboardTab === "torrent-fleet" ? (
+          <div className={dashboardTab !== "torrent-fleet" ? "hidden" : undefined}>
             <FleetDashboard dayRange={data.dayRange} trackers={data.trackers} />
-          ) : (
+          </div>
+          <div className={dashboardTab !== "tracker-stats" ? "hidden" : undefined}>
             <AnalyticsSection trackerSeries={trackerSeries} trackers={data.trackers} />
-          )}
+          </div>
         </div>
 
         {/* Sticky sidebar*/}

@@ -145,7 +145,7 @@ export class GazelleAdapter implements TrackerAdapter {
       seedbonus: userStats.bonusPoints ?? userStats.bonuspoints ?? null,
       hitAndRuns: null,
       requiredRatio: typeof userStats.requiredratio === "number" ? userStats.requiredratio : null,
-      warned: false,
+      warned: null,
       freeleechTokens:
         typeof userStats.freeleechTokens === "number"
           ? userStats.freeleechTokens
@@ -164,6 +164,8 @@ export class GazelleAdapter implements TrackerAdapter {
       const userId = options.remoteUserId ?? response.id
       if (userId) {
         try {
+          // Brief pause between API calls to avoid rate-limiting on strict Gazelle sites
+          await new Promise((r) => setTimeout(r, 1500))
           const enriched = await this.fetchUserProfile(
             baseUrl,
             apiPath,
@@ -185,8 +187,11 @@ export class GazelleAdapter implements TrackerAdapter {
             if (enriched.avatarUrl) stats.avatarUrl = enriched.avatarUrl
             stats.platformMeta = enriched.platformMeta
           }
-        } catch {
+        } catch (err) {
           // security-audit-ignore: enrichment failure is non-fatal — core stats from index are still valid
+          console.warn(
+            `[${hostname}] Enrichment failed: ${err instanceof Error ? err.message : "unknown"}`
+          )
         }
       }
     }

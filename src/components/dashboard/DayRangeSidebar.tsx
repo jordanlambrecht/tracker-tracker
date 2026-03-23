@@ -5,7 +5,7 @@
 "use client"
 
 import clsx from "clsx"
-import { CHART_THEME } from "@/components/charts/theme"
+import { CHART_THEME } from "@/components/charts/lib/theme"
 import { hexToRgba } from "@/lib/formatters"
 
 type DayRange = 0 | 1 | 7 | 30 | 90 | 365

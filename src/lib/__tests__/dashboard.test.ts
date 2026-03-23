@@ -39,6 +39,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     lastError: null,
     consecutiveFailures: 0,
     pausedAt: null,
+    userPausedAt: null,
     color: "#00d4ff",
     qbtTag: null,
     sortOrder: 0,
@@ -736,6 +737,25 @@ describe("computeAlerts", () => {
     expect(alerts.find((a) => a.type === "error")).toBeDefined()
     expect(alerts.find((a) => a.type === "poll-paused")).toBeUndefined()
   })
+
+  it("does not generate poll-paused alert for user-paused trackers", () => {
+    const trackers = [makeTracker({ userPausedAt: "2026-03-21T12:00:00Z", pausedAt: null })]
+    const alerts = computeAlerts(trackers)
+    expect(alerts.find((a) => a.type === "poll-paused")).toBeUndefined()
+  })
+
+  it("suppresses stale-data alert for user-paused trackers", () => {
+    const staleDate = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
+    const trackers = [
+      makeTracker({
+        userPausedAt: "2026-03-21T12:00:00Z",
+        pausedAt: null,
+        lastPolledAt: staleDate,
+      }),
+    ]
+    const alerts = computeAlerts(trackers)
+    expect(alerts.find((a) => a.type === "stale-data")).toBeUndefined()
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -1094,6 +1114,18 @@ describe("getTrackerHealth", () => {
       })
     )
     expect(health).toBe("paused")
+  })
+
+  it("returns paused-user when userPausedAt is set", () => {
+    const health = getTrackerHealth(makeTracker({ userPausedAt: "2026-03-21T12:00:00Z" }))
+    expect(health).toBe("paused-user")
+  })
+
+  it("returns paused-user (priority) when both pausedAt and userPausedAt are set", () => {
+    const health = getTrackerHealth(
+      makeTracker({ pausedAt: "2026-03-17T00:00:00Z", userPausedAt: "2026-03-21T12:00:00Z" })
+    )
+    expect(health).toBe("paused-user")
   })
 
   it("returns error when lastError is set and not paused", () => {

@@ -1,49 +1,38 @@
 // src/components/charts/TorrentSeedTimeDistribution.tsx
+//
+// Functions: TorrentSeedTimeDistribution
 
 "use client"
 
-import ReactECharts from "echarts-for-react"
-import type { TorrentInfo } from "@/lib/torrent-utils"
-import { SEEDING_STATES } from "@/lib/torrent-utils"
-import { buildBucketedBarOption } from "./chart-helpers"
-import { CHART_THEME } from "./theme"
-
-// ---------------------------------------------------------------------------
-// Bucket definitions
-// ---------------------------------------------------------------------------
-
-interface SeedTimeBucket {
-  label: string
-  max: number
-  color: string
-}
-
-function getSeedTimeBuckets(accentColor: string): SeedTimeBucket[] {
-  return [
-    { label: "< 1d", max: 86400, color: CHART_THEME.scale[0] },
-    { label: "1-7d", max: 604800, color: CHART_THEME.scale[1] },
-    { label: "7-30d", max: 2592000, color: CHART_THEME.scale[2] },
-    { label: "30-90d", max: 7776000, color: accentColor },
-    { label: "90d+", max: Infinity, color: CHART_THEME.scale[4] },
-  ]
-}
+import { getSeedTimeBuckets, SEEDING_STATES } from "@/lib/fleet"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { buildBucketedBarOption } from "./lib/chart-helpers"
+import { CHART_THEME } from "./lib/theme"
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export interface TorrentSeedTimeDistributionProps {
-  torrents: TorrentInfo[]
-  seedTimeHours: number | null
-  accentColor: string
+interface TorrentSeedTimeDistributionProps {
+  torrents: { state: string; seedingTime: number }[]
+  seedTimeHours?: number | null
+  accentColor?: string
+  height?: number
 }
 
-export function TorrentSeedTimeDistribution({
+function TorrentSeedTimeDistribution({
   torrents,
-  seedTimeHours,
-  accentColor,
+  seedTimeHours = null,
+  accentColor = CHART_THEME.accent,
+  height = 200,
 }: TorrentSeedTimeDistributionProps) {
   const seeding = torrents.filter((t) => SEEDING_STATES.has(t.state))
+
+  if (seeding.length === 0) {
+    return <ChartEmptyState height={height} message="No seeding torrents found" />
+  }
+
   const buckets = getSeedTimeBuckets(accentColor)
 
   let markLine: { thresholdIdx: number; label: string; color: string } | undefined
@@ -71,13 +60,8 @@ export function TorrentSeedTimeDistribution({
     markLine,
   })
 
-  return (
-    <ReactECharts
-      option={option}
-      style={{ height: 200, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
-    />
-  )
+  return <ChartECharts option={option} style={{ height, width: "100%" }} />
 }
+
+export type { TorrentSeedTimeDistributionProps }
+export { TorrentSeedTimeDistribution, TorrentSeedTimeDistribution as SeedTimeDistribution }

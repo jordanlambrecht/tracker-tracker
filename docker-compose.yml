@@ -42,7 +42,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       # POSTGRES_PORT: ${POSTGRES_PORT} uncomment if you want to customize
     volumes:
-      - pgdata:/var/lib/postgresql/data # Don't ever put a database on a network drive
+      - pgdata:/var/lib/postgresql # Don't ever put a database on a network drive
       - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro # Needed for loading fancy PG18-specific optimizations
     command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"] # ^Same
     healthcheck:

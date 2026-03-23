@@ -5,10 +5,10 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
 import { formatBytesNum, generatePalette, hexToHsl, hslToHex } from "@/lib/formatters"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartDot, chartTooltip, escHtml } from "./theme"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { CHART_THEME, chartDot, chartTooltip, escHtml } from "./lib/theme"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -212,13 +212,7 @@ function StorageSunburst({ torrents, accentColor, height = 480 }: StorageSunburs
   }
 
   return (
-    <ReactECharts
-      option={buildOption(torrents, accentColor)}
-      style={{ height, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
-    />
+    <ChartECharts option={buildOption(torrents, accentColor)} style={{ height, width: "100%" }} />
   )
 }
 

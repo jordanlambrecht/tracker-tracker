@@ -400,6 +400,27 @@ select {
   background: oklch(40.24% 0.0439 279.12); /* #434660 */
 }
 
+.styled-scrollbar-visible {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(34.45% 0.0283 276.51) /* #353848 */ oklch(22.44% 0.0168 277.68)
+    /* #1e2029 */;
+}
+.styled-scrollbar-visible::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.styled-scrollbar-visible::-webkit-scrollbar-track {
+  background: oklch(22.44% 0.0168 277.68); /* #1e2029 control-bg */
+  border-radius: 9999px;
+}
+.styled-scrollbar-visible::-webkit-scrollbar-thumb {
+  background: oklch(34.45% 0.0283 276.51); /* #353848 */
+  border-radius: 9999px;
+}
+.styled-scrollbar-visible::-webkit-scrollbar-thumb:hover {
+  background: oklch(40.24% 0.0439 279.12); /* #434660 */
+}
+
 /* react-colorful overrides — scoped under wrapper for specificity without !important */
 .color-picker-wrapper .react-colorful {
   width: 100%;

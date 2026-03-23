@@ -2,7 +2,7 @@ name: Docker Build & Scan
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, development]
 
 permissions:
   contents: read

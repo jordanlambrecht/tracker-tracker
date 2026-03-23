@@ -1,7 +1,7 @@
 // src/app/setup/page.tsx
 
-import { connection } from "next/server"
 import { redirect } from "next/navigation"
+import { connection } from "next/server"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
 import { SetupForm } from "./SetupForm"

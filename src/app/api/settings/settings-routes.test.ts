@@ -36,6 +36,7 @@ vi.mock("@/lib/db/schema", () => ({
     lastError: "lastError",
     consecutiveFailures: "consecutiveFailures",
     pausedAt: "pausedAt",
+    userPausedAt: "userPausedAt",
     color: "color",
     qbtTag: "qbtTag",
     remoteUserId: "remoteUserId",

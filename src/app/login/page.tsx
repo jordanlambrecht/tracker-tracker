@@ -1,7 +1,7 @@
 // src/app/login/page.tsx
 
-import { connection } from "next/server"
 import { redirect } from "next/navigation"
+import { connection } from "next/server"
 import { getSession } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"

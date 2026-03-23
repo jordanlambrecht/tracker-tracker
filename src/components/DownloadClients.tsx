@@ -9,7 +9,7 @@ import { useCallback, useEffect, useState } from "react"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
-import { ChevronToggle } from "@/components/ui/ChevronToggle"
+import { CollapsibleCard } from "@/components/ui/CollapsibleCard"
 import { Input } from "@/components/ui/Input"
 import { MaskedSecret } from "@/components/ui/MaskedSecret"
 import { NumberInput } from "@/components/ui/NumberInput"
@@ -221,14 +221,11 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
   )
 
   return (
-    <Card elevation="raised" className="flex flex-col gap-0 !p-0 overflow-hidden">
-      {/* Header — always visible */}
-      <button
-        type="button"
-        onClick={() => setExpanded((e) => !e)}
-        className="flex items-center gap-3 px-5 py-4 w-full text-left cursor-pointer hover:bg-overlay transition-colors duration-100"
-      >
-        <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+    <CollapsibleCard
+      expanded={expanded}
+      onToggle={() => setExpanded((e) => !e)}
+      header={
+        <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-3">
             <H3 className="truncate">{client.name || "Untitled Client"}</H3>
             {statusBadge}
@@ -250,332 +247,324 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
             )}
           </div>
         </div>
-        <span className="text-xs font-mono text-tertiary shrink-0">
-          {CLIENT_TYPE_OPTIONS.find((o) => o.value === client.type)?.label}
-        </span>
-        <ChevronToggle expanded={expanded} variant="flip" className="text-tertiary text-sm" />
-      </button>
-
-      {/* Uptime bar — always visible */}
-      {uptimeData && (
-        <div className="px-5 pb-3">
-          <UptimeBar buckets={uptimeData.buckets} uptimePercent={uptimeData.uptimePercent} />
+      }
+      trailing={CLIENT_TYPE_OPTIONS.find((o) => o.value === client.type)?.label}
+      subheader={
+        uptimeData ? (
+          <div className="px-5 pb-3">
+            <UptimeBar buckets={uptimeData.buckets} uptimePercent={uptimeData.uptimePercent} />
+          </div>
+        ) : undefined
+      }
+    >
+      {/* Row 1: Name + Type + Enabled */}
+      <div className="flex flex-col sm:flex-row gap-4 sm:items-end pt-5">
+        <div className="flex-1">
+          <Input
+            label="Name"
+            value={draft.name}
+            onChange={(e) => updateDraft({ name: e.target.value })}
+            placeholder="My qBittorrent"
+          />
         </div>
+        <div className="w-full sm:w-40">
+          <Select
+            label="Type"
+            value={draft.type}
+            onChange={(v) => updateDraft({ type: v as ClientType })}
+            ariaLabel="Client type"
+            size="md"
+            options={CLIENT_TYPE_OPTIONS}
+          />
+        </div>
+      </div>
+
+      <Toggle
+        label="Enabled"
+        checked={draft.enabled}
+        onChange={(v) => updateDraft({ enabled: v })}
+        description="Disabled clients are not polled and their stats are excluded from dashboard totals."
+      />
+
+      <div className="border-t border-border" />
+
+      {/* Row 2: Host + Port + SSL */}
+      <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
+        <div className="flex-1">
+          <Input
+            label="Host"
+            value={draft.host}
+            onChange={(e) => updateDraft({ host: e.target.value })}
+            placeholder="localhost or 192.168.1.100"
+          />
+        </div>
+        <NumberInput
+          label="Port"
+          value={draft.port}
+          onChange={(v) => updateDraft({ port: v })}
+          min={1}
+          max={65535}
+        />
+      </div>
+
+      <Toggle
+        label="Use SSL"
+        checked={draft.useSsl}
+        onChange={(v) => updateDraft({ useSsl: v })}
+        description={`Connect via ${draft.useSsl ? "https" : "http"}://${draft.host}:${draft.port}`}
+      />
+
+      {draft.useSsl && draft.port === 80 && (
+        <p className="text-xs font-mono text-warning">
+          SSL is enabled but port is 80 (standard HTTP). Did you mean port 443?
+        </p>
+      )}
+      {!draft.useSsl && draft.port === 443 && (
+        <p className="text-xs font-mono text-warning">
+          Port 443 is typically used with SSL. Did you mean to enable SSL?
+        </p>
       )}
 
-      {/* Body — collapsible */}
-      {expanded && (
-        <div className="px-5 pb-5 flex flex-col gap-5 border-t border-border">
-          {/* Row 1: Name + Type + Enabled */}
-          <div className="flex flex-col sm:flex-row gap-4 sm:items-end pt-5">
-            <div className="flex-1">
-              <Input
-                label="Name"
-                value={draft.name}
-                onChange={(e) => updateDraft({ name: e.target.value })}
-                placeholder="My qBittorrent"
-              />
-            </div>
-            <div className="w-full sm:w-40">
-              <Select
-                label="Type"
-                value={draft.type}
-                onChange={(v) => updateDraft({ type: v as ClientType })}
-                ariaLabel="Client type"
-                size="md"
-                options={CLIENT_TYPE_OPTIONS}
-              />
-            </div>
-          </div>
+      <div className="border-t border-border" />
 
-          <Toggle
-            label="Enabled"
-            checked={draft.enabled}
-            onChange={(v) => updateDraft({ enabled: v })}
-            description="Disabled clients are not polled and their stats are excluded from dashboard totals."
-          />
-
-          <div className="border-t border-border" />
-
-          {/* Row 2: Host + Port + SSL */}
-          <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
-            <div className="flex-1">
-              <Input
-                label="Host"
-                value={draft.host}
-                onChange={(e) => updateDraft({ host: e.target.value })}
-                placeholder="localhost or 192.168.1.100"
-              />
-            </div>
-            <NumberInput
-              label="Port"
-              value={draft.port}
-              onChange={(v) => updateDraft({ port: v })}
-              min={1}
-              max={65535}
-            />
-          </div>
-
-          <Toggle
-            label="Use SSL"
-            checked={draft.useSsl}
-            onChange={(v) => updateDraft({ useSsl: v })}
-            description={`Connect via ${draft.useSsl ? "https" : "http"}://${draft.host}:${draft.port}`}
-          />
-
-          {draft.useSsl && draft.port === 80 && (
-            <p className="text-xs font-mono text-warning">
-              SSL is enabled but port is 80 (standard HTTP). Did you mean port 443?
-            </p>
-          )}
-          {!draft.useSsl && draft.port === 443 && (
-            <p className="text-xs font-mono text-warning">
-              Port 443 is typically used with SSL. Did you mean to enable SSL?
-            </p>
-          )}
-
-          <div className="border-t border-border" />
-
-          {/* Row 3: Auth */}
-          <div className="flex flex-col gap-2">
-            <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
-              Credentials
-            </span>
-            {changingCredentials ? (
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex-1">
-                    <Input
-                      label="Username"
-                      value={newUsername}
-                      onChange={(e) => setNewUsername(e.target.value)}
-                      placeholder="admin"
-                      name="client-username"
-                      autoComplete="off"
-                      data-1p-ignore
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <Input
-                      type="password"
-                      label="Password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="••••••••"
-                      name="client-password"
-                      autoComplete="off"
-                      data-1p-ignore
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    onClick={handleSaveCredentials}
-                    disabled={!newUsername.trim() || !newPassword.trim()}
-                  >
-                    Save Credentials
-                  </Button>
-                  {client.hasCredentials && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setChangingCredentials(false)
-                        setNewUsername("")
-                        setNewPassword("")
-                        setCredError(null)
-                      }}
-                      className="text-xs font-mono text-tertiary hover:text-secondary transition-colors cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                  )}
-                </div>
-                {credError && <p className="text-xs font-mono text-danger">{credError}</p>}
-              </div>
-            ) : (
-              <MaskedSecret onChangeClick={() => setChangingCredentials(true)} />
-            )}
-          </div>
-
-          <div className="border-t border-border" />
-
-          {/* Row 4: Polling */}
-          <div className="flex items-end gap-4">
-            <div className="w-48">
-              <Select
-                label="Poll Frequency"
-                value={String(draft.pollIntervalSeconds)}
-                onChange={(v) => updateDraft({ pollIntervalSeconds: parseInt(v, 10) })}
-                ariaLabel="Polling frequency"
-                size="md"
-                options={[
-                  { value: "60", label: "Every minute" },
-                  { value: "120", label: "Every 2 minutes" },
-                  { value: "300", label: "Every 5 minutes" },
-                  { value: "600", label: "Every 10 minutes" },
-                ]}
-              />
-            </div>
-          </div>
-
-          <div className="border-t border-border" />
-
-          {/* Cross-seed tags */}
+      {/* Row 3: Auth */}
+      <div className="flex flex-col gap-2">
+        <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
+          Credentials
+        </span>
+        {changingCredentials ? (
           <div className="flex flex-col gap-3">
-            <H3>Cross-Seed Tags</H3>
-            <div className="flex flex-col gap-2">
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <Input
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    placeholder="i.e cross-seed"
-                    onKeyDown={(e) => {
-                      if ((e.key === "Enter" || e.key === ",") && tagInput.trim()) {
-                        e.preventDefault()
-                        const tag = tagInput.trim().replace(/,/g, "")
-                        if (tag && !draft.crossSeedTags.includes(tag)) {
-                          updateDraft({ crossSeedTags: [...draft.crossSeedTags, tag] })
-                        }
-                        setTagInput("")
-                      }
-                    }}
-                  />
-                </div>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  disabled={!tagInput.trim()}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <Input
+                  label="Username"
+                  value={newUsername}
+                  onChange={(e) => setNewUsername(e.target.value)}
+                  placeholder="admin"
+                  name="client-username"
+                  autoComplete="off"
+                  data-1p-ignore
+                />
+              </div>
+              <div className="flex-1">
+                <Input
+                  type="password"
+                  label="Password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="••••••••"
+                  name="client-password"
+                  autoComplete="off"
+                  data-1p-ignore
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={handleSaveCredentials}
+                disabled={!newUsername.trim() || !newPassword.trim()}
+              >
+                Save Credentials
+              </Button>
+              {client.hasCredentials && (
+                <button
+                  type="button"
                   onClick={() => {
-                    const tag = tagInput.trim()
+                    setChangingCredentials(false)
+                    setNewUsername("")
+                    setNewPassword("")
+                    setCredError(null)
+                  }}
+                  className="text-xs font-mono text-tertiary hover:text-secondary transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+            {credError && <p className="text-xs font-mono text-danger">{credError}</p>}
+          </div>
+        ) : (
+          <MaskedSecret onChangeClick={() => setChangingCredentials(true)} />
+        )}
+      </div>
+
+      <div className="border-t border-border" />
+
+      {/* Row 4: Polling */}
+      <div className="flex items-end gap-4">
+        <div className="w-48">
+          <Select
+            label="Poll Frequency"
+            value={String(draft.pollIntervalSeconds)}
+            onChange={(v) => updateDraft({ pollIntervalSeconds: parseInt(v, 10) })}
+            ariaLabel="Polling frequency"
+            size="md"
+            options={[
+              { value: "60", label: "Every minute" },
+              { value: "120", label: "Every 2 minutes" },
+              { value: "300", label: "Every 5 minutes" },
+              { value: "600", label: "Every 10 minutes" },
+            ]}
+          />
+        </div>
+      </div>
+
+      <div className="border-t border-border" />
+
+      {/* Cross-seed tags */}
+      <div className="flex flex-col gap-3">
+        <H3>Cross-Seed Tags</H3>
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <Input
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                placeholder="i.e cross-seed"
+                onKeyDown={(e) => {
+                  if ((e.key === "Enter" || e.key === ",") && tagInput.trim()) {
+                    e.preventDefault()
+                    const tag = tagInput.trim().replace(/,/g, "")
                     if (tag && !draft.crossSeedTags.includes(tag)) {
                       updateDraft({ crossSeedTags: [...draft.crossSeedTags, tag] })
                     }
                     setTagInput("")
-                  }}
-                >
-                  Add
-                </Button>
-              </div>
-              {draft.crossSeedTags.length > 0 && (
-                <div className="flex gap-1.5 flex-wrap">
-                  {draft.crossSeedTags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="inline-flex items-center gap-1.5 font-mono text-xs text-primary bg-control-bg nm-inset-sm px-2.5 py-1 rounded-nm-sm"
-                    >
-                      {tag}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateDraft({
-                            crossSeedTags: draft.crossSeedTags.filter((t) => t !== tag),
-                          })
-                        }
-                        className="text-tertiary hover:text-danger transition-colors cursor-pointer text-xs leading-none"
-                        aria-label={`Remove tag ${tag}`}
-                      >
-                        ✕
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
+                  }
+                }}
+              />
             </div>
-            <Subtext>
-              Torrents with these tags are counted as cross-seeded and tracked separately from
-              direct seeding stats on the dashboard.
-            </Subtext>
-          </div>
-
-          {/* Linked trackers */}
-          {linkedTrackers.length > 0 && (
-            <div className="flex items-center gap-2">
-              <Subheader className="uppercase tracking-wider shrink-0">Linked Trackers</Subheader>
-              <div className="flex gap-1.5 flex-wrap">
-                {linkedTrackers.map((name) => (
-                  <Badge key={name} variant="default">
-                    {name}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <Subtext>
-            Trackers are linked to this client via their qBittorrent Tag field in individual tracker
-            settings.
-          </Subtext>
-
-          {/* Save / Discard bar — only visible when draft has changes */}
-          {dirty && (
-            <>
-              <div className="border-t border-border" />
-              <div className="flex items-center gap-3">
-                <Button size="sm" onClick={handleSave} disabled={saving}>
-                  {saving ? "Saving..." : "Save Changes"}
-                </Button>
-                <Button size="sm" variant="ghost" onClick={handleDiscard} disabled={saving}>
-                  Discard
-                </Button>
-                {saveError && <span className="text-xs font-mono text-danger">{saveError}</span>}
-              </div>
-            </>
-          )}
-
-          <div className="border-t border-border" />
-
-          {/* Actions */}
-          <div className="flex items-center gap-3 flex-wrap">
             <Button
               size="sm"
               variant="secondary"
-              onClick={handleTestConnection}
-              disabled={connectionStatus === "testing"}
+              disabled={!tagInput.trim()}
+              onClick={() => {
+                const tag = tagInput.trim()
+                if (tag && !draft.crossSeedTags.includes(tag)) {
+                  updateDraft({ crossSeedTags: [...draft.crossSeedTags, tag] })
+                }
+                setTagInput("")
+              }}
             >
-              {connectionStatus === "testing"
-                ? "Testing..."
-                : connectionStatus === "success"
-                  ? "Connected"
-                  : connectionStatus === "failed"
-                    ? "Failed — Retry"
-                    : "Test Connection"}
+              Add
             </Button>
-
-            {connectionStatus === "success" && <Badge variant="success">Connection OK</Badge>}
-            {connectionStatus === "failed" && <Badge variant="danger">Failed</Badge>}
-
-            <div className="flex-1" />
-
-            {!client.isDefault && (
-              <Button size="sm" variant="ghost" onClick={() => onSetDefault(client.id)}>
-                Set as Default
-              </Button>
-            )}
-
-            {confirmRemove ? (
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="danger" onClick={() => onRemove(client.id)}>
-                  Confirm Remove
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setConfirmRemove(false)}>
-                  Cancel
-                </Button>
-              </div>
-            ) : (
-              <Button size="sm" variant="danger" onClick={() => setConfirmRemove(true)}>
-                Remove
-              </Button>
-            )}
           </div>
-          {connectionStatus === "failed" && connectionError && (
-            <p className="text-xs font-mono text-danger">{connectionError}</p>
+          {draft.crossSeedTags.length > 0 && (
+            <div className="flex gap-1.5 flex-wrap">
+              {draft.crossSeedTags.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1.5 font-mono text-xs text-primary bg-control-bg nm-inset-sm px-2.5 py-1 rounded-nm-sm"
+                >
+                  {tag}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateDraft({
+                        crossSeedTags: draft.crossSeedTags.filter((t) => t !== tag),
+                      })
+                    }
+                    className="text-tertiary hover:text-danger transition-colors cursor-pointer text-xs leading-none"
+                    aria-label={`Remove tag ${tag}`}
+                  >
+                    ✕
+                  </button>
+                </span>
+              ))}
+            </div>
           )}
         </div>
+        <Subtext>
+          Torrents with these tags are counted as cross-seeded and tracked separately from direct
+          seeding stats on the dashboard.
+        </Subtext>
+      </div>
+
+      {/* Linked trackers */}
+      {linkedTrackers.length > 0 && (
+        <div className="flex items-center gap-2">
+          <Subheader className="uppercase tracking-wider shrink-0">Linked Trackers</Subheader>
+          <div className="flex gap-1.5 flex-wrap">
+            {linkedTrackers.map((name) => (
+              <Badge key={name} variant="default">
+                {name}
+              </Badge>
+            ))}
+          </div>
+        </div>
       )}
-    </Card>
+
+      <Subtext>
+        Trackers are linked to this client via their qBittorrent Tag field in individual tracker
+        settings.
+      </Subtext>
+
+      {/* Save / Discard bar — only visible when draft has changes */}
+      {dirty && (
+        <>
+          <div className="border-t border-border" />
+          <div className="flex items-center gap-3">
+            <Button size="sm" onClick={handleSave} disabled={saving}>
+              {saving ? "Saving..." : "Save Changes"}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={handleDiscard} disabled={saving}>
+              Discard
+            </Button>
+            {saveError && <span className="text-xs font-mono text-danger">{saveError}</span>}
+          </div>
+        </>
+      )}
+
+      <div className="border-t border-border" />
+
+      {/* Actions */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={handleTestConnection}
+          disabled={connectionStatus === "testing"}
+        >
+          {connectionStatus === "testing"
+            ? "Testing..."
+            : connectionStatus === "success"
+              ? "Connected"
+              : connectionStatus === "failed"
+                ? "Failed — Retry"
+                : "Test Connection"}
+        </Button>
+
+        {connectionStatus === "success" && <Badge variant="success">Connection OK</Badge>}
+        {connectionStatus === "failed" && <Badge variant="danger">Failed</Badge>}
+
+        <div className="flex-1" />
+
+        {!client.isDefault && (
+          <Button size="sm" variant="ghost" onClick={() => onSetDefault(client.id)}>
+            Set as Default
+          </Button>
+        )}
+
+        {confirmRemove ? (
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="danger" onClick={() => onRemove(client.id)}>
+              Confirm Remove
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setConfirmRemove(false)}>
+              Cancel
+            </Button>
+          </div>
+        ) : (
+          <Button size="sm" variant="danger" onClick={() => setConfirmRemove(true)}>
+            Remove
+          </Button>
+        )}
+      </div>
+      {connectionStatus === "failed" && connectionError && (
+        <p className="text-xs font-mono text-danger">{connectionError}</p>
+      )}
+    </CollapsibleCard>
   )
 }
 

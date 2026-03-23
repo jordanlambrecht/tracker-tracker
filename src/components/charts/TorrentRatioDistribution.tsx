@@ -1,43 +1,34 @@
 // src/components/charts/TorrentRatioDistribution.tsx
+//
+// Functions: TorrentRatioDistribution
 
 "use client"
 
-import ReactECharts from "echarts-for-react"
-import type { TorrentInfo } from "@/lib/torrent-utils"
-import { buildBucketedBarOption } from "./chart-helpers"
-import { CHART_THEME } from "./theme"
-
-// ---------------------------------------------------------------------------
-// Bucket definitions
-// ---------------------------------------------------------------------------
-
-interface RatioBucket {
-  label: string
-  max: number
-  color: string
-}
-
-function getRatioBuckets(accentColor: string): RatioBucket[] {
-  return [
-    { label: "< 0.5", max: 0.5, color: CHART_THEME.scale[0] },
-    { label: "0.5-1", max: 1, color: CHART_THEME.scale[1] },
-    { label: "1-2", max: 2, color: CHART_THEME.scale[2] },
-    { label: "2-5", max: 5, color: accentColor },
-    { label: "5-10", max: 10, color: CHART_THEME.scale[4] },
-    { label: "10+", max: Infinity, color: CHART_THEME.scale[5] },
-  ]
-}
+import { getRatioBuckets } from "@/lib/fleet"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { buildBucketedBarOption } from "./lib/chart-helpers"
+import { CHART_THEME } from "./lib/theme"
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export interface TorrentRatioDistributionProps {
-  torrents: TorrentInfo[]
-  accentColor: string
+interface TorrentRatioDistributionProps {
+  torrents: { ratio: number }[]
+  accentColor?: string
+  height?: number
 }
 
-export function TorrentRatioDistribution({ torrents, accentColor }: TorrentRatioDistributionProps) {
+function TorrentRatioDistribution({
+  torrents,
+  accentColor = CHART_THEME.accent,
+  height = 280,
+}: TorrentRatioDistributionProps) {
+  if (torrents.length === 0) {
+    return <ChartEmptyState height={height} message="No torrent data available" />
+  }
+
   const buckets = getRatioBuckets(accentColor)
 
   const option = buildBucketedBarOption({
@@ -50,13 +41,8 @@ export function TorrentRatioDistribution({ torrents, accentColor }: TorrentRatio
     labelPrefix: "Ratio",
   })
 
-  return (
-    <ReactECharts
-      option={option}
-      style={{ height: 200, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
-    />
-  )
+  return <ChartECharts option={option} style={{ height, width: "100%" }} />
 }
+
+export type { TorrentRatioDistributionProps }
+export { TorrentRatioDistribution, TorrentRatioDistribution as RatioDistribution }

@@ -5,13 +5,14 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
 import { useState } from "react"
+import { TabBar } from "@/components/ui/TabBar"
 import { hexToRgba } from "@/lib/formatters"
 import type { TrackerSnapshotSeries } from "@/types/charts"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { DAY_LABELS, fmtNum, HOUR_LABELS } from "./chart-helpers"
-import { CHART_THEME, chartAxisLabel, chartTooltip, escHtml } from "./theme"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { DAY_LABELS, fmtNum, HOUR_LABELS } from "./lib/chart-helpers"
+import { CHART_THEME, chartAxisLabel, chartTooltip, chartTooltipRow, escHtml } from "./lib/theme"
 
 type VolumeField = "upload" | "download"
 
@@ -88,7 +89,7 @@ function buildFleetVolumeHeatmapOption(
         const display = gib >= 1024 ? `${fmtNum(gib / 1024)} TiB` : `${fmtNum(gib)} GiB`
         return (
           `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(dayLabel)} at ${escHtml(hourLabel)}</span><br/>` +
-          `<span style="color:${color};">${label}: ${display}</span>`
+          chartTooltipRow(color, label, display)
         )
       },
     }),
@@ -157,32 +158,20 @@ function FleetVolumeHeatmap({ trackerData, height = 260 }: FleetVolumeHeatmapPro
 
   return (
     <div>
-      <div className="flex justify-end gap-1 pb-2">
-        <button
-          type="button"
-          onClick={() => setField("upload")}
-          className={`px-2.5 py-1 text-[10px] font-mono rounded-nm-sm cursor-pointer transition-colors duration-150 ${
-            field === "upload" ? "nm-raised-sm text-accent" : "text-tertiary hover:text-secondary"
-          }`}
-        >
-          Upload
-        </button>
-        <button
-          type="button"
-          onClick={() => setField("download")}
-          className={`px-2.5 py-1 text-[10px] font-mono rounded-nm-sm cursor-pointer transition-colors duration-150 ${
-            field === "download" ? "nm-raised-sm text-warn" : "text-tertiary hover:text-secondary"
-          }`}
-        >
-          Download
-        </button>
+      <div className="flex justify-end pb-2">
+        <TabBar
+          compact
+          tabs={[
+            { key: "upload" as const, label: "Upload" },
+            { key: "download" as const, label: "Download" },
+          ]}
+          activeTab={field}
+          onChange={setField}
+        />
       </div>
-      <ReactECharts
+      <ChartECharts
         option={buildFleetVolumeHeatmapOption(data, maxValue, field)}
         style={{ height, width: "100%" }}
-        opts={{ renderer: "canvas" }}
-        notMerge
-        lazyUpdate
       />
     </div>
   )

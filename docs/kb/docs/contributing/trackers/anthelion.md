@@ -1,13 +1,13 @@
 # Anthelion (ANT)
 
-| Field | Value |
-|---|---|
-| Platform | Nebulance |
-| Base URL | `https://anthelion.me` |
-| API Endpoint | `https://anthelion.me/api.php` |
-| Auth Method | Query parameter: `?api_token=TOKEN` |
-| Enrichment | N/A |
-| Auth Style | N/A |
+| Field        | Value                               |
+| ------------ | ----------------------------------- |
+| Platform     | Nebulance                           |
+| Base URL     | `https://anthelion.me`              |
+| API Endpoint | `https://anthelion.me/api.php`      |
+| Auth Method  | Query parameter: `?api_token=TOKEN` |
+| Enrichment   | N/A                                 |
+| Auth Style   | N/A                                 |
 
 ## Notes
 

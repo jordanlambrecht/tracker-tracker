@@ -3,7 +3,7 @@
 // Functions: GET, POST
 
 import { NextResponse } from "next/server"
-import { CHART_THEME } from "@/components/charts/theme"
+import { CHART_THEME } from "@/components/charts/lib/theme"
 import { DEFAULT_API_PATHS, VALID_PLATFORM_TYPES } from "@/lib/adapters"
 import {
   authenticate,

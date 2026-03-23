@@ -73,6 +73,12 @@ async function fetchClientTorrents(
  * @param filter   Optional qBT filter string (e.g. "active"). Only applied when
  *                 tags has exactly one entry.
  */
+/** Per-client deadline for live fetches (seconds). Keeps the UI responsive
+ *  when one client is offline — the online client's data arrives immediately
+ *  while the offline one is cut short after this deadline instead of waiting
+ *  for the full 30s retry cycle (15s timeout × 2 attempts). */
+const CLIENT_DEADLINE_MS = 5_000
+
 export async function fetchAndMergeTorrents(
   clients: ClientRow[],
   tags: string[],
@@ -91,11 +97,17 @@ export async function fetchAndMergeTorrents(
   }
 
   const results = await Promise.allSettled(
-    clients.map(async (client) => ({
-      clientName: client.name,
-      crossSeedTags: parseCrossSeedTags(client.crossSeedTags),
-      torrents: await fetchClientTorrents(client, tags, key, filter),
-    }))
+    clients.map(async (client) => {
+      const deadline = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Client deadline exceeded")), CLIENT_DEADLINE_MS)
+      )
+      const work = (async () => ({
+        clientName: client.name,
+        crossSeedTags: parseCrossSeedTags(client.crossSeedTags),
+        torrents: await fetchClientTorrents(client, tags, key, filter),
+      }))()
+      return Promise.race([work, deadline])
+    })
   )
 
   const torrentLists: QbtTorrent[][] = []

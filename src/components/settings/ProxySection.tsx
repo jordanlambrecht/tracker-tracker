@@ -4,17 +4,16 @@
 
 "use client"
 
-import { H2, H3, Paragraph, Subtext } from "@typography"
+import { H3, Paragraph, Subtext } from "@typography"
 import { useState } from "react"
+import { SettingsSection } from "@/components/settings/SettingsSection"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
-import { Card } from "@/components/ui/Card"
 import { Input } from "@/components/ui/Input"
 import { NumberInput } from "@/components/ui/NumberInput"
 import { Select } from "@/components/ui/Select"
 import { Toggle } from "@/components/ui/Toggle"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
-import { Tooltip } from "@/components/ui/Tooltip"
 import { extractApiError } from "@/lib/client-helpers"
 import { DOCS } from "@/lib/constants"
 
@@ -148,196 +147,180 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
   }
 
   return (
-    <section aria-labelledby="proxy-heading">
-      <H2 id="proxy-heading" className="mb-4 flex items-center gap-2">
-        Proxy
-        <Tooltip content="Route tracker requests through a proxy server." docs={DOCS.PROXIES}>
-          <span className="text-muted hover:text-secondary cursor-help text-sm">&#9432;</span>
-        </Tooltip>
-      </H2>
+    <SettingsSection
+      id="proxy"
+      title="Proxy"
+      tooltip="Route tracker requests through a proxy server."
+      docs={DOCS.PROXIES}
+      notice={{
+        label: "EXPERIMENTAL",
+        message: "Use at your own risk. May result in IP leaks and/or angry mods.",
+      }}
+      cardClassName="flex flex-col gap-5"
+    >
+      <Toggle
+        label="Route tracker requests through a proxy"
+        checked={proxyEnabled}
+        onChange={(v) => {
+          setProxyEnabled(v)
+          clearProxySuccess()
+        }}
+        description="When enabled, all API polling requests to trackers are routed through the configured proxy server instead of your direct IP."
+      />
 
-      <div className="flex flex-col gap-1 mb-3 px-1 text-warn text-xs font-mono">
-        <div className="flex items-center gap-2">
-          <span aria-hidden="true">⚠</span>
-          <span>EXPERIMENTAL — Use at your own risk. May result in IP leaks and/or angry mods.</span>
-        </div>
-        <a
-          href={DOCS.PROXIES.href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-accent hover:underline pl-6"
-        >
-          Read the docs →
-        </a>
-      </div>
+      {proxyEnabled && (
+        <>
+          <div className="border-t border-border" />
 
-      <Card elevation="raised" className="flex flex-col gap-5">
-        <Toggle
-          label="Route tracker requests through a proxy"
-          checked={proxyEnabled}
-          onChange={(v) => {
-            setProxyEnabled(v)
-            clearProxySuccess()
-          }}
-          description="When enabled, all API polling requests to trackers are routed through the configured proxy server instead of your direct IP."
-        />
-
-        {proxyEnabled && (
-          <>
-            <div className="border-t border-border" />
-
-            <div className="flex gap-4 items-end">
-              <div className="w-36">
-                <Select
-                  label="Type"
-                  value={proxyType}
-                  onChange={(newType) => {
-                    const oldDefault = defaultPortForType(proxyType)
-                    setProxyType(newType)
-                    // Auto-fill port if user hasn't customized it from the current type's default
-                    if (proxyPort === oldDefault) {
-                      setProxyPort(defaultPortForType(newType))
-                    }
-                  }}
-                  ariaLabel="Proxy type"
-                  size="md"
-                  options={[
-                    { value: "socks5", label: "SOCKS5" },
-                    { value: "http", label: "HTTP" },
-                    { value: "https", label: "HTTPS" },
-                  ]}
-                />
-              </div>
-              <div className="flex-1">
-                <Input
-                  label="Host"
-                  value={proxyHost}
-                  onChange={(e) => setProxyHost(e.target.value)}
-                  placeholder="127.0.0.1 or proxy.example.com"
-                />
-              </div>
-              <NumberInput
-                label="Port"
-                value={proxyPort}
-                onChange={setProxyPort}
-                min={1}
-                max={65535}
+          <div className="flex gap-4 items-end">
+            <div className="w-36">
+              <Select
+                label="Type"
+                value={proxyType}
+                onChange={(newType) => {
+                  const oldDefault = defaultPortForType(proxyType)
+                  setProxyType(newType)
+                  // Auto-fill port if user hasn't customized it from the current type's default
+                  if (proxyPort === oldDefault) {
+                    setProxyPort(defaultPortForType(newType))
+                  }
+                }}
+                ariaLabel="Proxy type"
+                size="md"
+                options={[
+                  { value: "socks5", label: "SOCKS5" },
+                  { value: "http", label: "HTTP" },
+                  { value: "https", label: "HTTPS" },
+                ]}
               />
             </div>
-
-            <div className="border-t border-border" />
-
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <Input
-                  label="Username"
-                  value={proxyUsername}
-                  onChange={(e) => setProxyUsername(e.target.value)}
-                  placeholder="Optional"
-                />
-              </div>
-              <div className="flex-1">
-                <Input
-                  type="password"
-                  autoComplete="off"
-                  data-1p-ignore
-                  label="Password"
-                  value={proxyPassword}
-                  onChange={(e) => {
-                    setProxyPassword(e.target.value)
-                    clearProxySuccess()
-                  }}
-                  placeholder={proxyPasswordPlaceholder ? "••••••••" : "Optional"}
-                />
-              </div>
+            <div className="flex-1">
+              <Input
+                label="Host"
+                value={proxyHost}
+                onChange={(e) => setProxyHost(e.target.value)}
+                placeholder="127.0.0.1 or proxy.example.com"
+              />
             </div>
+            <NumberInput
+              label="Port"
+              value={proxyPort}
+              onChange={setProxyPort}
+              min={1}
+              max={65535}
+            />
+          </div>
 
-            <Subtext>
-              Credentials are only required if your proxy server uses authentication. They are
-              encrypted at rest alongside your API tokens.
-            </Subtext>
+          <div className="border-t border-border" />
 
-            <div className="border-t border-border" />
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <Input
+                label="Username"
+                value={proxyUsername}
+                onChange={(e) => setProxyUsername(e.target.value)}
+                placeholder="Optional"
+              />
+            </div>
+            <div className="flex-1">
+              <Input
+                type="password"
+                autoComplete="off"
+                data-1p-ignore
+                label="Password"
+                value={proxyPassword}
+                onChange={(e) => {
+                  setProxyPassword(e.target.value)
+                  clearProxySuccess()
+                }}
+                placeholder={proxyPasswordPlaceholder ? "••••••••" : "Optional"}
+              />
+            </div>
+          </div>
 
-            {/* Save proxy */}
-            {proxyError && (
-              <p className="text-xs font-sans text-danger" role="alert">
-                {proxyError}
-              </p>
-            )}
-            {proxySuccess && (
-              <p className="text-xs font-sans text-success">Proxy settings saved.</p>
-            )}
-            {proxyHasChanges && (
-              <div className="flex justify-end">
-                <Button
-                  size="sm"
-                  disabled={savingProxy || !proxyHost.trim()}
-                  onClick={handleSaveProxy}
-                >
-                  {savingProxy ? "Saving…" : "Save Proxy"}
-                </Button>
-              </div>
-            )}
+          <Subtext>
+            Credentials are only required if your proxy server uses authentication. They are
+            encrypted at rest alongside your API tokens.
+          </Subtext>
 
-            <div className="border-t border-border" />
+          <div className="border-t border-border" />
 
-            <div className="flex items-center gap-3 flex-wrap">
+          {/* Save proxy */}
+          {proxyError && (
+            <p className="text-xs font-sans text-danger" role="alert">
+              {proxyError}
+            </p>
+          )}
+          {proxySuccess && <p className="text-xs font-sans text-success">Proxy settings saved.</p>}
+          {proxyHasChanges && (
+            <div className="flex justify-end">
               <Button
                 size="sm"
-                variant="secondary"
-                disabled={!proxyHost.trim() || proxyTestStatus === "testing"}
-                onClick={handleTestProxy}
+                disabled={savingProxy || !proxyHost.trim()}
+                onClick={handleSaveProxy}
               >
-                {proxyTestStatus === "testing"
-                  ? "Testing..."
-                  : proxyTestStatus === "success"
-                    ? "Connected"
-                    : proxyTestStatus === "failed"
-                      ? "Failed — Retry"
-                      : "Test Connection"}
+                {savingProxy ? "Saving…" : "Save Proxy"}
               </Button>
-              {proxyTestStatus === "success" && (
-                <Badge variant="success">
-                  Proxy reachable{proxyTestIp ? ` (${proxyTestIp})` : ""}
-                </Badge>
-              )}
-              {proxyTestStatus === "failed" && (
-                <Badge variant="danger">{proxyTestError ?? "Unreachable"}</Badge>
-              )}
             </div>
-          </>
-        )}
-
-        <div className="border-t border-border" />
-
-        {/* Linked Trackers */}
-        <div className="flex flex-col gap-3">
-          <H3>Linked Trackers</H3>
-          {trackers.length > 0 ? (
-            <div className="flex gap-2 flex-wrap">
-              {trackers.map((t) => (
-                <Badge key={t.id} variant="default">
-                  <span
-                    className="inline-block w-2 h-2 rounded-full mr-1.5 shrink-0"
-                    style={{ backgroundColor: t.color }}
-                  />
-                  {t.name}
-                </Badge>
-              ))}
-            </div>
-          ) : (
-            <Paragraph>
-              No trackers are using the proxy. Enable it per-tracker in each tracker&apos;s settings
-              dialog.
-            </Paragraph>
           )}
-          <Subtext>
-            Toggle proxy usage for individual trackers via their settings dialog on the tracker
-            detail page.
-          </Subtext>
-        </div>
-      </Card>
-    </section>
+
+          <div className="border-t border-border" />
+
+          <div className="flex items-center gap-3 flex-wrap">
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={!proxyHost.trim() || proxyTestStatus === "testing"}
+              onClick={handleTestProxy}
+            >
+              {proxyTestStatus === "testing"
+                ? "Testing..."
+                : proxyTestStatus === "success"
+                  ? "Connected"
+                  : proxyTestStatus === "failed"
+                    ? "Failed — Retry"
+                    : "Test Connection"}
+            </Button>
+            {proxyTestStatus === "success" && (
+              <Badge variant="success">
+                Proxy reachable{proxyTestIp ? ` (${proxyTestIp})` : ""}
+              </Badge>
+            )}
+            {proxyTestStatus === "failed" && (
+              <Badge variant="danger">{proxyTestError ?? "Unreachable"}</Badge>
+            )}
+          </div>
+        </>
+      )}
+
+      <div className="border-t border-border" />
+
+      {/* Linked Trackers */}
+      <div className="flex flex-col gap-3">
+        <H3>Linked Trackers</H3>
+        {trackers.length > 0 ? (
+          <div className="flex gap-2 flex-wrap">
+            {trackers.map((t) => (
+              <Badge key={t.id} variant="default">
+                <span
+                  className="inline-block w-2 h-2 rounded-full mr-1.5 shrink-0"
+                  style={{ backgroundColor: t.color }}
+                />
+                {t.name}
+              </Badge>
+            ))}
+          </div>
+        ) : (
+          <Paragraph>
+            No trackers are using the proxy. Enable it per-tracker in each tracker&apos;s settings
+            dialog.
+          </Paragraph>
+        )}
+        <Subtext>
+          Toggle proxy usage for individual trackers via their settings dialog on the tracker detail
+          page.
+        </Subtext>
+      </div>
+    </SettingsSection>
   )
 }

@@ -4,23 +4,25 @@
 
 "use client"
 
-import clsx from "clsx"
 import type { EChartsOption } from "echarts"
 import { useState } from "react"
+import { TabBar } from "@/components/ui/TabBar"
 import { bytesToGiB, getComplementaryColor } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
-import { ChartECharts } from "./ChartECharts"
-import { ChartEmptyState } from "./ChartEmptyState"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
 import {
   adaptiveDotSize,
   autoByteScale,
   buildAxisPointer,
   buildGlowAreaStyle,
+  buildTimeXAxis,
   fmtNum,
+  formatDateLabel,
   yAxisAutoRange,
-} from "./chart-helpers"
-import { computeDailyDeltas, formatSnapshotLabel } from "./chart-transforms"
-import { LogScaleToggle } from "./LogScaleToggle"
+} from "./lib/chart-helpers"
+import { computeDailyDeltas } from "./lib/chart-transforms"
+import { LogScaleToggle } from "./lib/LogScaleToggle"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -30,13 +32,15 @@ import {
   chartLegend,
   chartTooltip,
   chartTooltipHeader,
+  chartTooltipRow,
   escHtml,
-  shouldUseLogScale,
-} from "./theme"
+  formatChartTimestamp,
+} from "./lib/theme"
+import { useLogScale } from "./lib/useLogScale"
 
 // ── Types ──
 
-export type Metric = "ratio" | "buffer" | "seedbonus" | "seedingCount" | "dailyDelta" | "shareScore"
+type Metric = "ratio" | "buffer" | "seedbonus" | "seedingCount" | "dailyDelta" | "shareScore"
 
 interface MetricConfig {
   label: string
@@ -46,7 +50,7 @@ interface MetricConfig {
   allowNegative?: boolean
 }
 
-export interface MetricChartProps {
+interface MetricChartProps {
   metric: Metric
   snapshots: Snapshot[]
   accentColor?: string
@@ -99,8 +103,6 @@ function buildLineOption(
   baselineValue?: number,
   useLog?: boolean
 ): EChartsOption {
-  const labels = snapshots.map((s) => formatSnapshotLabel(s.polledAt))
-
   const rawData = snapshots.map((s) => config.getValue(s))
 
   // Auto-detect TiB for byte-based metrics
@@ -111,7 +113,13 @@ function buildLineOption(
     ;({ divisor, unit } = autoByteScale(maxGiB))
   }
 
-  const data = rawData.map((v) => (v !== null ? Number((v / divisor).toFixed(3)) : null))
+  const data: [number, number][] = snapshots
+    .map((s) => {
+      const v = config.getValue(s)
+      if (v === null) return null
+      return [new Date(s.polledAt).getTime(), Number((v / divisor).toFixed(3))] as [number, number]
+    })
+    .filter((d): d is [number, number] => d !== null)
   const dotSize = adaptiveDotSize(snapshots.length)
 
   const showSlider = snapshots.length >= 30
@@ -127,30 +135,23 @@ function buildLineOption(
       axisPointer: buildAxisPointer(safeAccent, 0.3, 1),
       formatter: (params: unknown) => {
         const items = params as Array<{
-          value: number | null
-          axisValueLabel: string
+          value: [number, number] | null
           color: string
         }>
         if (!items?.[0]) return ""
-        const val = items[0].value
-        if (val === null || val === undefined) return ""
+        const pair = items[0].value
+        if (!pair || pair[1] === null || pair[1] === undefined) return ""
+        const val = pair[1]
         const display = config.isInteger ? Math.round(val).toLocaleString() : fmtNum(val)
+        const ts = formatChartTimestamp(pair[0])
         return (
-          chartTooltipHeader(items[0].axisValueLabel) +
+          chartTooltipHeader(ts) +
           chartDot(safeAccent) +
           `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(display)} ${escHtml(unit)}</span>`
         )
       },
     }),
-    xAxis: {
-      type: "category",
-      data: labels,
-      boundaryGap: false,
-      axisLine: { lineStyle: { color: BORDER_SOFT } },
-      axisTick: { show: false },
-      axisLabel: chartAxisLabel({ rotate: 30, interval: "auto" }),
-      splitLine: { show: false },
-    },
+    xAxis: buildTimeXAxis(),
     yAxis: {
       type: useLog ? "log" : "value",
       name: useLog ? `${unit} (log)` : unit,
@@ -177,7 +178,6 @@ function buildLineOption(
         type: "line",
         data,
         smooth: true,
-        connectNulls: true,
         symbol: "circle",
         symbolSize: dotSize,
         itemStyle: { color: safeAccent },
@@ -225,7 +225,7 @@ function buildDailyDeltaOption(
   const buckets = computeDailyDeltas(snapshots)
   if (buckets.length === 0) return null
 
-  const labels = buckets.map((b) => b.label)
+  const labels = buckets.map((b) => formatDateLabel(b.label))
   const uploadData = buckets.map((b) => Number(b.uploadDelta.toFixed(3)))
   const downloadData = buckets.map((b) => Number(b.downloadDelta.toFixed(3)))
 
@@ -253,11 +253,8 @@ function buildDailyDeltaOption(
         if (!items?.length) return ""
         const time = items[0].axisValueLabel
         const rows = items
-          .map(
-            (item) =>
-              chartDot(item.color) +
-              `<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> ` +
-              `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${fmtNum(item.value)} ${unit}</span>`
+          .map((item) =>
+            chartTooltipRow(item.color, item.seriesName, `${fmtNum(item.value)} ${unit}`)
           )
           .join("<br/>")
         return `${chartTooltipHeader(time)}${rows}`
@@ -269,7 +266,7 @@ function buildDailyDeltaOption(
       data: labels,
       axisLine: { lineStyle: { color: BORDER_SOFT } },
       axisTick: { show: false },
-      axisLabel: chartAxisLabel({ rotate: 30, interval: "auto" }),
+      axisLabel: chartAxisLabel({ interval: "auto" }),
     },
     yAxis: {
       type: "value",
@@ -355,21 +352,19 @@ function MetricChart({
   baselineValue,
 }: MetricChartProps) {
   const [deltaMode, setDeltaMode] = useState<DeltaMode>("bar")
-  const [forceLog, setForceLog] = useState<boolean | null>(null)
 
   const safeAccent = /^#[0-9a-fA-F]{6}$/.test(accentColor) ? accentColor : CHART_THEME.accent
-
-  if (snapshots.length === 0) {
-    return <ChartEmptyState height={height} message="No snapshot data yet." />
-  }
 
   const config = metric !== "dailyDelta" ? METRIC_CONFIGS[metric] : null
   const ratioValues = config
     ? snapshots.map((s) => config.getValue(s)).filter((v): v is number => v !== null && v > 0)
     : []
-  const autoLog = ratioValues.length > 0 ? shouldUseLogScale(ratioValues) : false
-  const useLog = forceLog ?? autoLog
   const showLogToggle = metric === "ratio" || metric === "buffer" || metric === "seedbonus"
+  const logScale = useLogScale(ratioValues, true)
+
+  if (snapshots.length === 0) {
+    return <ChartEmptyState height={height} message="No snapshot data yet." />
+  }
 
   const option =
     metric === "dailyDelta"
@@ -379,7 +374,7 @@ function MetricChart({
           METRIC_CONFIGS[metric],
           safeAccent,
           metric === "ratio" ? baselineValue : undefined,
-          showLogToggle ? useLog : undefined
+          showLogToggle ? logScale.effectiveLog : undefined
         )
 
   if (option === null) {
@@ -389,32 +384,16 @@ function MetricChart({
   if (metric === "dailyDelta") {
     return (
       <div className="flex flex-col gap-1">
-        <div className="flex justify-end">
-          <div className="nm-inset-sm p-1 flex gap-0.5 rounded-nm-sm">
-            {(["bar", "line"] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setDeltaMode(m)}
-                className={clsx(
-                  "px-2.5 py-1 text-xs font-mono transition-all duration-150 cursor-pointer rounded-nm-sm",
-                  deltaMode === m
-                    ? "nm-raised-sm text-primary font-semibold"
-                    : "text-tertiary hover:text-secondary"
-                )}
-              >
-                {m === "bar" ? "Bar" : "Line"}
-              </button>
-            ))}
-          </div>
-        </div>
-        <ChartECharts
-          option={option}
-          style={{ height, width: "100%" }}
-          opts={{ renderer: "canvas" }}
-          notMerge
-          lazyUpdate
+        <TabBar
+          compact
+          tabs={[
+            { key: "bar" as const, label: "Bar" },
+            { key: "line" as const, label: "Line" },
+          ]}
+          activeTab={deltaMode}
+          onChange={setDeltaMode}
         />
+        <ChartECharts option={option} style={{ height, width: "100%" }} />
       </div>
     )
   }
@@ -424,27 +403,16 @@ function MetricChart({
       {showLogToggle && (
         <div className="flex justify-end">
           <LogScaleToggle
-            effectiveLog={useLog}
-            isAuto={forceLog === null}
-            onToggle={() =>
-              setForceLog((prev) => {
-                if (prev === null) return !autoLog
-                return prev ? false : null
-              })
-            }
+            effectiveLog={logScale.effectiveLog}
+            isAuto={logScale.isAuto}
+            onToggle={logScale.onToggle}
           />
         </div>
       )}
-      <ChartECharts
-        option={option}
-        style={{ height, width: "100%" }}
-        opts={{ renderer: "canvas" }}
-        notMerge
-        lazyUpdate
-      />
+      <ChartECharts option={option} style={{ height, width: "100%" }} />
     </div>
   )
 }
 
-export type { MetricConfig }
+export type { Metric, MetricChartProps, MetricConfig }
 export { METRIC_CONFIGS, MetricChart }

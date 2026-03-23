@@ -1,86 +1,82 @@
 // src/components/charts/TorrentActivityHeatmap.tsx
+//
+// Functions: TorrentActivityHeatmap
 
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
 import { hexToRgba } from "@/lib/formatters"
-import type { TorrentInfo } from "@/lib/torrent-utils"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { DAY_LABELS, HOUR_LABELS } from "./chart-helpers"
-import { buildActivityMatrix } from "./chart-transforms"
-import { CHART_THEME, chartTooltip } from "./theme"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { DAY_LABELS, HOUR_LABELS } from "./lib/chart-helpers"
+import { buildActivityMatrix } from "./lib/chart-transforms"
+import { CHART_THEME, chartAxisLabel, chartTooltip, escHtml } from "./lib/theme"
 
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
 interface TorrentActivityHeatmapProps {
-  torrents: TorrentInfo[]
-  accentColor: string
+  torrents: { addedOn: number }[]
+  accentColor?: string
+  height?: number
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export function TorrentActivityHeatmap({ torrents, accentColor }: TorrentActivityHeatmapProps) {
+function TorrentActivityHeatmap({
+  torrents,
+  accentColor = CHART_THEME.accent,
+  height = 240,
+}: TorrentActivityHeatmapProps) {
   const validTimestamps = torrents.map((t) => t.addedOn).filter((ts) => ts > 0)
   const { data, maxCount } = buildActivityMatrix(validTimestamps)
 
   if (maxCount === 0) {
-    return <ChartEmptyState height={240} message="No activity data" />
+    return <ChartEmptyState height={height} message="No activity data" />
   }
 
   const option: EChartsOption = {
     backgroundColor: "transparent",
     tooltip: chartTooltip("item", {
+      borderColor: accentColor,
       formatter: (params: unknown) => {
         const p = params as { value: [number, number, number] }
         const [hour, day, count] = p.value
-        return `${DAY_LABELS[day]} ${HOUR_LABELS[hour]}: ${count} torrent${count !== 1 ? "s" : ""} added`
+        const dayLabel = DAY_LABELS[day] ?? ""
+        const hourLabel = HOUR_LABELS[hour] ?? ""
+        return (
+          `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(dayLabel)} at ${escHtml(hourLabel)}</span><br/>` +
+          `<span style="color:${CHART_THEME.textSecondary};">${count.toLocaleString()} torrent${count !== 1 ? "s" : ""} added</span>`
+        )
       },
     }),
-    grid: { left: 48, right: 24, top: 8, bottom: 32 },
+    grid: { left: 48, right: 24, top: 16, bottom: 40 },
     xAxis: {
       type: "category",
       data: HOUR_LABELS,
       splitArea: { show: false },
-      axisLabel: {
-        color: CHART_THEME.textTertiary,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 9,
-        interval: 2,
-      },
-      axisLine: { show: false },
+      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
       axisTick: { show: false },
+      axisLabel: chartAxisLabel({
+        interval: 1,
+        formatter: (_val: string, index: number) => (index % 2 === 0 ? _val : ""),
+      }),
     },
     yAxis: {
       type: "category",
       data: DAY_LABELS,
       splitArea: { show: false },
-      axisLabel: {
-        color: CHART_THEME.textTertiary,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
-      },
       axisLine: { show: false },
       axisTick: { show: false },
+      axisLabel: chartAxisLabel(),
     },
     visualMap: {
       min: 0,
-      max: maxCount,
-      calculable: false,
-      orient: "horizontal",
-      left: "center",
-      bottom: 0,
-      itemWidth: 12,
-      itemHeight: 80,
-      textStyle: {
-        color: CHART_THEME.textTertiary,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 9,
-      },
+      max: Math.max(maxCount, 1),
+      show: false,
       inRange: {
         color: [
           CHART_THEME.gridLine,
@@ -98,7 +94,7 @@ export function TorrentActivityHeatmap({ torrents, accentColor }: TorrentActivit
         emphasis: {
           itemStyle: {
             shadowBlur: 10,
-            shadowColor: hexToRgba(accentColor, 0.5),
+            shadowColor: hexToRgba(accentColor, 0.4),
           },
         },
         itemStyle: {
@@ -110,13 +106,8 @@ export function TorrentActivityHeatmap({ torrents, accentColor }: TorrentActivit
     ],
   }
 
-  return (
-    <ReactECharts
-      option={option}
-      style={{ height: 240, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
-    />
-  )
+  return <ChartECharts option={option} style={{ height, width: "100%" }} />
 }
+
+export type { TorrentActivityHeatmapProps }
+export { TorrentActivityHeatmap, TorrentActivityHeatmap as ActivityHeatmap }

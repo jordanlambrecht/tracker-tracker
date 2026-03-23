@@ -51,7 +51,10 @@ export async function POST(request: Request) {
 
   const pending = await verifyPendingToken(pendingToken)
   if (!pending) {
-    log.warn({ route: "POST /api/auth/totp/verify" }, "TOTP verify rejected — invalid or expired pending token")
+    log.warn(
+      { route: "POST /api/auth/totp/verify" },
+      "TOTP verify rejected — invalid or expired pending token"
+    )
     return NextResponse.json({ error: "Session expired. Please log in again." }, { status: 401 })
   }
 

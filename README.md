@@ -49,6 +49,7 @@ You can check out a few other, longer, screenshots in the docs folder.
 | Redacted (RED)        | Gazelle   | ✅ Verified            |                                                   |
 | ReelFlix              | UNIT3D    | ✅ Verified            |                                                   |
 | SkipTheCommercials    | UNIT3D    | ✅ Verified            |                                                   |
+| Seedpool              | UNIT3D    | ✅ Verified            |                                                   |
 | Upload.cx             | UNIT3D    | ✅ Verified            |                                                   |
 | AlphaRatio            | Gazelle   | 🟡 Unverified ⛔ Stuck |                                                   |
 | AnimeBytes            | Gazelle   | 🟡 Unverified ⛔ Stuck |                                                   |
@@ -173,7 +174,6 @@ All other settings — polling interval, privacy mode, proxy, backups — are co
 | `./data/backups` | `/data/backups` | Scheduled backup files                  |
 | `./data/logs`    | `/data/logs`    | Application log files                   |
 | `pgdata` (named) | PG data dir     | PostgreSQL database (managed by Docker) |
-
 
 ## Adding a Tracker
 

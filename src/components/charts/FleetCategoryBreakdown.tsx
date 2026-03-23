@@ -5,68 +5,72 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
-import type { TorrentRaw, TrackerTag } from "@/lib/fleet"
+import type { TrackerTag } from "@/lib/fleet"
 import { parseTorrentTags } from "@/lib/fleet"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { fmtNum } from "./chart-helpers"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { fmtNum } from "./lib/chart-helpers"
 import {
   CHART_THEME,
   chartAxisLabel,
   chartDataZoom,
-  chartDot,
   chartLegend,
   chartTooltip,
+  chartTooltipRow,
   escHtml,
-} from "./theme"
+} from "./lib/theme"
 
 interface FleetCategoryBreakdownProps {
-  torrents: TorrentRaw[]
+  torrents: { addedOn: number; tags: string; category: string }[]
   trackerTags: TrackerTag[]
   height?: number
 }
 
 function buildFleetCategoryBreakdownOption(
-  trackerNames: string[],
+  sortedMonths: string[],
   categories: string[],
   categoryColors: string[],
+  // month key → category → count
   data: Map<string, Map<string, number>>
 ): EChartsOption {
-  // For each category, build a bar series with normalized values (percentage)
-  const series: NonNullable<EChartsOption["series"]> = categories.map((cat, catIndex) => ({
-    name: cat,
-    type: "bar",
-    stack: "total",
-    barMaxWidth: 40,
-    itemStyle: {
-      color: categoryColors[catIndex],
-      borderRadius: catIndex === categories.length - 1 ? [2, 2, 0, 0] : 0,
-    },
-    emphasis: {
-      itemStyle: {
-        shadowBlur: 8,
-        shadowColor: "rgba(0,0,0,0.3)",
-      },
-    },
-    label: {
-      show: true,
-      position: "inside",
-      fontFamily: CHART_THEME.fontMono,
-      fontSize: 9,
-      color: CHART_THEME.textPrimary,
-      formatter: (params: unknown) => {
-        const p = params as { value: number }
-        return p.value >= 5 ? `${fmtNum(p.value, 1)}%` : ""
-      },
-    },
-    data: trackerNames.map((tracker) => {
-      const trackerCats = data.get(tracker)
-      if (!trackerCats) return 0
-      const total = Array.from(trackerCats.values()).reduce((a, b) => a + b, 0)
-      const count = trackerCats.get(cat) ?? 0
+  const series: NonNullable<EChartsOption["series"]> = categories.map((cat, catIndex) => {
+    const seriesData: number[] = sortedMonths.map((month) => {
+      const monthCats = data.get(month)
+      if (!monthCats) return 0
+      const total = Array.from(monthCats.values()).reduce((a, b) => a + b, 0)
+      const count = monthCats.get(cat) ?? 0
       return total > 0 ? Number(((count / total) * 100).toFixed(1)) : 0
-    }),
-  }))
+    })
+
+    return {
+      name: cat,
+      type: "bar",
+      stack: "total",
+      barWidth: 20,
+      itemStyle: {
+        color: categoryColors[catIndex],
+        borderRadius: catIndex === categories.length - 1 ? [2, 2, 0, 0] : 0,
+      },
+      emphasis: {
+        itemStyle: {
+          shadowBlur: 8,
+          shadowColor: "rgba(0,0,0,0.3)",
+        },
+      },
+      label: {
+        show: true,
+        position: "inside",
+        fontFamily: CHART_THEME.fontMono,
+        fontSize: 9,
+        color: CHART_THEME.textPrimary,
+        formatter: (params: unknown) => {
+          const p = params as { value: number }
+          return p.value >= 5 ? `${fmtNum(p.value, 1)}%` : ""
+        },
+      },
+      data: seriesData,
+    }
+  })
 
   return {
     backgroundColor: "transparent",
@@ -75,20 +79,17 @@ function buildFleetCategoryBreakdownOption(
         const items = params as Array<{
           seriesName: string
           value: number
-          color: string
           axisValueLabel: string
+          color: string
         }>
         if (!items?.length) return ""
-        const tracker = items[0].axisValueLabel
+        const dateLabel = items[0].axisValueLabel
         const rows = items
           .filter((item) => item.value > 0)
           .sort((a, b) => b.value - a.value)
-          .map(
-            (item) =>
-              `${chartDot(item.color)}<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${fmtNum(item.value, 1)}%</span>`
-          )
+          .map((item) => chartTooltipRow(item.color, item.seriesName, `${fmtNum(item.value, 1)}%`))
           .join("<br/>")
-        return `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(tracker)}</span><br/>${rows}`
+        return `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(dateLabel)}</span><br/>${rows}`
       },
     }),
     legend: chartLegend({ data: categories }),
@@ -100,13 +101,13 @@ function buildFleetCategoryBreakdownOption(
     },
     xAxis: {
       type: "category",
-      data: trackerNames,
+      data: sortedMonths.map((m) => {
+        const d = new Date(`${m}-15T12:00:00`)
+        return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" })
+      }),
       axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
       axisTick: { show: false },
-      axisLabel: chartAxisLabel({
-        rotate: trackerNames.length > 8 ? 30 : 0,
-        interval: 0,
-      }),
+      axisLabel: chartAxisLabel(),
     },
     yAxis: {
       type: "value",
@@ -121,9 +122,13 @@ function buildFleetCategoryBreakdownOption(
       },
     },
     dataZoom:
-      trackerNames.length > 10
+      sortedMonths.length > 10
         ? [
-            ...chartDataZoom(CHART_THEME.accent).map((z) => ({ ...z, startValue: 0, endValue: 9 })),
+            ...chartDataZoom(CHART_THEME.accent).map((z) => ({
+              ...z,
+              start: 0,
+              end: Math.min(100, (10 / sortedMonths.length) * 100),
+            })),
             { type: "inside", xAxisIndex: 0 },
           ]
         : undefined,
@@ -149,44 +154,44 @@ function FleetCategoryBreakdown({
     return <ChartEmptyState height={height} message="No torrent data available" />
   }
 
-  const tagMap = new Map<string, string>()
-  for (const tt of trackerTags) tagMap.set(tt.tag.toLowerCase(), tt.name)
+  const tagSet = new Set(trackerTags.map((tt) => tt.tag.toLowerCase()))
 
-  // Build: tracker name → category → count
+  // Build: month → category → count (fleet-wide, filtered to tagged torrents only)
   const data = new Map<string, Map<string, number>>()
   const allCategories = new Set<string>()
+  const allMonths = new Set<string>()
 
   for (const torrent of torrents) {
+    if (!torrent.addedOn || torrent.addedOn <= 0) continue
+
     const tags = parseTorrentTags(torrent.tags)
+    const hasTrackerTag = tags.some((tag) => tagSet.has(tag))
+    if (!hasTrackerTag) continue
+
+    const d = new Date(torrent.addedOn * 1000)
+    const month = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`
+    allMonths.add(month)
+
     const cat = torrent.category?.trim() || "Uncategorized"
     allCategories.add(cat)
 
-    for (const tag of tags) {
-      const trackerName = tagMap.get(tag)
-      if (!trackerName) continue
-
-      const trackerCats = data.get(trackerName) ?? new Map<string, number>()
-      trackerCats.set(cat, (trackerCats.get(cat) ?? 0) + 1)
-      data.set(trackerName, trackerCats)
-    }
+    const monthCats = data.get(month) ?? new Map<string, number>()
+    monthCats.set(cat, (monthCats.get(cat) ?? 0) + 1)
+    data.set(month, monthCats)
   }
 
   if (data.size === 0) {
     return <ChartEmptyState height={height} message="No tagged torrents found" />
   }
 
-  const trackerNames = trackerTags.map((t) => t.name).filter((name) => data.has(name))
-
+  const sortedMonths = Array.from(allMonths).sort()
   const categories = Array.from(allCategories).sort()
   const categoryColors = categories.map((_, i) => CATEGORY_PALETTE[i % CATEGORY_PALETTE.length])
 
   return (
-    <ReactECharts
-      option={buildFleetCategoryBreakdownOption(trackerNames, categories, categoryColors, data)}
+    <ChartECharts
+      option={buildFleetCategoryBreakdownOption(sortedMonths, categories, categoryColors, data)}
       style={{ height, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
     />
   )
 }

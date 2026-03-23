@@ -1,4 +1,6 @@
 // src/components/charts/TorrentAgeScatter3D.tsx
+//
+// Functions: TorrentAgeScatter3D
 
 "use client"
 
@@ -7,7 +9,8 @@ import ReactECharts from "echarts-for-react"
 import "echarts-gl"
 import { useState } from "react"
 import type { TorrentInfo } from "@/lib/torrent-utils"
-import { CHART_THEME } from "./theme"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { CHART_THEME } from "./lib/theme"
 
 // ---------------------------------------------------------------------------
 // Types & Constants
@@ -58,7 +61,7 @@ interface TorrentAgeScatter3DProps {
 // Component
 // ---------------------------------------------------------------------------
 
-export function TorrentAgeScatter3D({ torrents, accentColor }: TorrentAgeScatter3DProps) {
+function TorrentAgeScatter3D({ torrents, accentColor }: TorrentAgeScatter3DProps) {
   const [view, setView] = useState<Scatter3DView>("age-seed")
   const cfg = SCATTER3D_VIEWS[view]
 
@@ -72,7 +75,9 @@ export function TorrentAgeScatter3D({ torrents, accentColor }: TorrentAgeScatter
       Math.min(t.ratio, 10), // 3: ratio
     ])
 
-  if (data.length === 0) return null
+  if (data.length === 0) {
+    return <ChartEmptyState height={400} message="No torrent data available" />
+  }
 
   const axisStyle = {
     nameTextStyle: {
@@ -161,14 +166,11 @@ export function TorrentAgeScatter3D({ torrents, accentColor }: TorrentAgeScatter
         className="rounded-nm-md overflow-hidden"
         style={{ backgroundColor: CHART_THEME.surface }}
       >
-        <ReactECharts
-          option={option}
-          style={{ height: 400, width: "100%" }}
-          opts={{ renderer: "canvas" }}
-          notMerge
-          lazyUpdate
-        />
+        <ReactECharts option={option} style={{ height: 400, width: "100%" }} />
       </div>
     </div>
   )
 }
+
+export type { TorrentAgeScatter3DProps }
+export { TorrentAgeScatter3D }

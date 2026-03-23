@@ -14,9 +14,10 @@ interface TabBarProps<T extends string> {
   tabs: Tab<T>[]
   activeTab: T
   onChange: (tab: T) => void
+  compact?: boolean
 }
 
-function TabBar<T extends string>({ tabs, activeTab, onChange }: TabBarProps<T>) {
+function TabBar<T extends string>({ tabs, activeTab, onChange, compact = false }: TabBarProps<T>) {
   const containerRef = useRef<HTMLDivElement>(null)
   const buttonRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null)
@@ -39,13 +40,19 @@ function TabBar<T extends string>({ tabs, activeTab, onChange }: TabBarProps<T>)
   return (
     <div
       ref={containerRef}
-      className="relative flex gap-1.5 p-2 bg-control-bg nm-inset rounded-nm-md"
+      className={clsx(
+        "relative flex bg-control-bg nm-inset rounded-nm-md",
+        compact ? "gap-0.5 p-1 w-fit rounded-nm-sm" : "gap-1.5 p-2.5"
+      )}
       role="tablist"
     >
       {/* Sliding pill */}
       {pill && (
         <div
-          className="absolute top-2 bottom-2 nm-raised-sm bg-raised pointer-events-none rounded-nm-sm"
+          className={clsx(
+            "absolute nm-raised-sm bg-raised pointer-events-none rounded-nm-sm",
+            compact ? "top-1 bottom-1" : "top-2.5 bottom-2.5"
+          )}
           style={{
             left: pill.left,
             width: pill.width,
@@ -64,8 +71,13 @@ function TabBar<T extends string>({ tabs, activeTab, onChange }: TabBarProps<T>)
           type="button"
           onClick={() => onChange(tab.key)}
           className={clsx(
-            "relative z-10 flex-1 px-4 py-2.5 text-sm font-sans font-medium transition-colors duration-150 cursor-pointer rounded-nm-sm",
-            activeTab === tab.key ? "text-primary" : "text-tertiary hover:text-secondary"
+            "relative z-10 transition-colors duration-150 cursor-pointer rounded-nm-sm",
+            compact
+              ? "px-2.5 py-1 text-xs font-mono"
+              : "flex-1 px-4 py-2.5 text-sm font-sans font-medium",
+            activeTab === tab.key
+              ? "text-primary font-semibold"
+              : "text-tertiary hover:text-secondary"
           )}
           aria-selected={activeTab === tab.key}
           role="tab"

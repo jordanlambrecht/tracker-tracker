@@ -1,31 +1,32 @@
-// src/components/tracker-detail/PollErrorBanner.tsx
+// src/components/tracker-detail/TrackerStatusBanner.tsx
 
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { DOCS } from "@/lib/constants"
+import { getPauseState } from "@/lib/tracker-status"
+import type { TrackerSummary } from "@/types/api"
 
-interface PollErrorBannerProps {
+interface TrackerStatusBannerProps {
+  tracker: TrackerSummary
   pollError: string | null
-  lastError: string | null
-  lastPolledAt: string | null
-  pausedAt: string | null
   onDismissPollError: () => void
   onResume: () => void
 }
 
-export function PollErrorBanner({
+export function TrackerStatusBanner({
+  tracker,
   pollError,
-  lastError,
-  lastPolledAt,
-  pausedAt,
   onDismissPollError,
   onResume,
-}: PollErrorBannerProps) {
-  const showPollError = !!pollError
-  const showPaused = !!pausedAt
-  const showLastError = !pausedAt && !!lastError
+}: TrackerStatusBannerProps) {
+  const pause = getPauseState(tracker)
 
-  if (!showPollError && !showPaused && !showLastError) return null
+  const showPollError = !!pollError
+  const showUserPaused = !pollError && pause.isPaused && pause.reason === "user"
+  const showAutoPaused = !pollError && pause.isPaused && pause.reason === "failure"
+  const showLastError = !pollError && !pause.isPaused && !!tracker.lastError
+
+  if (!showPollError && !showUserPaused && !showAutoPaused && !showLastError) return null
 
   return (
     <>
@@ -44,17 +45,30 @@ export function PollErrorBanner({
           </div>
         </Card>
       )}
-      {showPaused && (
+      {showUserPaused && pause.isPaused && pause.reason === "user" && (
+        <Card glow glowColor="var(--color-warn-dim)" elevation="elevated">
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-xs font-sans font-medium text-warn uppercase tracking-wider">
+              Polling Paused
+            </p>
+            <span className="text-[10px] font-mono text-muted shrink-0">
+              since {pause.since.toLocaleDateString()}
+            </span>
+          </div>
+          <p className="text-sm font-mono text-secondary mt-2">
+            Automated polling is paused by the user.
+          </p>
+        </Card>
+      )}
+      {showAutoPaused && pause.isPaused && pause.reason === "failure" && (
         <Card glow glowColor="var(--color-danger-dim)" elevation="elevated">
           <div className="flex items-start justify-between gap-3 mb-2">
             <p className="text-xs font-sans font-medium text-danger uppercase tracking-wider">
               Polling Paused
             </p>
-            {pausedAt && (
-              <span className="text-[10px] font-mono text-muted shrink-0">
-                {new Date(pausedAt).toLocaleString()}
-              </span>
-            )}
+            <span className="text-[10px] font-mono text-muted shrink-0">
+              {new Date(pause.since).toLocaleString()}
+            </span>
           </div>
           <p className="text-sm font-mono text-warn mb-2">
             Polling was paused after repeated failures. Verify your API key is correct before
@@ -68,8 +82,8 @@ export function PollErrorBanner({
               Troubleshooting guide →
             </a>
           </p>
-          {lastError && (
-            <p className="text-xs font-mono text-danger/80 mb-3">Last error: {lastError}</p>
+          {tracker.lastError && (
+            <p className="text-xs font-mono text-danger/80 mb-3">Last error: {tracker.lastError}</p>
           )}
           <Button variant="danger" size="sm" onClick={onResume}>
             Resume Polling
@@ -82,13 +96,13 @@ export function PollErrorBanner({
             <p className="text-xs font-sans font-medium text-danger uppercase tracking-wider">
               Last Error
             </p>
-            {lastPolledAt && (
+            {tracker.lastPolledAt && (
               <span className="text-[10px] font-mono text-muted">
-                {new Date(lastPolledAt).toLocaleString()}
+                {new Date(tracker.lastPolledAt).toLocaleString()}
               </span>
             )}
           </div>
-          <p className="text-danger text-sm font-mono">{lastError}</p>
+          <p className="text-danger text-sm font-mono">{tracker.lastError}</p>
         </Card>
       )}
     </>

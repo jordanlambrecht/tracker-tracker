@@ -906,7 +906,7 @@ function checkTimingSafeComparison(): CheckResult {
       if (!eqMatch) continue
 
       const lhs = eqMatch[1].trim()
-      const rhs = eqMatch[2].split(/[;,)]/)[0].trim()
+      const rhs = eqMatch[2].split(/[;,)?\s]/)[0].trim()
 
       const lhsIsSecret = SECRET_VAR_RE.test(lhs)
       const rhsIsSecret = SECRET_VAR_RE.test(rhs)

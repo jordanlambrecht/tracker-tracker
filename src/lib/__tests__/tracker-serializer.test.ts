@@ -14,6 +14,7 @@ const mockTracker = {
   lastError: null,
   consecutiveFailures: 0,
   pausedAt: null,
+  userPausedAt: null,
   color: "#00d4ff",
   qbtTag: null,
   remoteUserId: null,
@@ -27,6 +28,7 @@ const mockTracker = {
   sortOrder: null,
   joinedAt: null,
   lastAccessAt: null,
+  profileUrl: null,
   createdAt: new Date("2026-01-01"),
   updatedAt: new Date("2026-01-01"),
 }
@@ -120,5 +122,18 @@ describe("serializeTrackerResponse new fields", () => {
     expect(result.latestStats?.hitAndRuns).toBeNull()
     expect(result.latestStats?.seedbonus).toBeNull()
     expect(result.latestStats?.shareScore).toBeNull()
+  })
+})
+
+describe("serializeTrackerResponse userPausedAt", () => {
+  it("serializes userPausedAt as ISO string when set", () => {
+    const tracker = { ...mockTracker, userPausedAt: new Date("2026-03-21T12:00:00Z") }
+    const result = serializeTrackerResponse(tracker, null, (v) => v ?? null)
+    expect(result.userPausedAt).toBe("2026-03-21T12:00:00.000Z")
+  })
+
+  it("serializes null userPausedAt as null", () => {
+    const result = serializeTrackerResponse(mockTracker, null, (v) => v ?? null)
+    expect(result.userPausedAt).toBeNull()
   })
 })

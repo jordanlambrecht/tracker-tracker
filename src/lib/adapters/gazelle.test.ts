@@ -52,7 +52,7 @@ describe("GazelleAdapter", () => {
     expect(stats.hitAndRuns).toBeNull()
     expect(stats.requiredRatio).toBeCloseTo(0.6)
     expect(stats.freeleechTokens).toBe(3)
-    expect(stats.warned).toBe(false)
+    expect(stats.warned).toBeNull()
   })
 
   it("handles numeric seeding/leeching when present", async () => {
@@ -332,7 +332,7 @@ describe("GazelleAdapter", () => {
 
     // Should still have core stats
     expect(stats.username).toBe("JohnDoe")
-    expect(stats.warned).toBe(false) // Default, not enriched
+    expect(stats.warned).toBeNull() // Default when enrichment fails — null means "unknown"
   })
 
   it("handles zero buffer when downloaded exceeds uploaded", async () => {

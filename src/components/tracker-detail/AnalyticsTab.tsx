@@ -149,6 +149,7 @@ export function AnalyticsTab({
         snapshots={snapshots}
         lastPolledAt={tracker.lastPolledAt}
         lastError={tracker.lastError}
+        userPausedAt={tracker.userPausedAt}
       />
       <AnalyticsCharts
         trackerName={tracker.name}

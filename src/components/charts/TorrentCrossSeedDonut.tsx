@@ -1,63 +1,79 @@
 // src/components/charts/TorrentCrossSeedDonut.tsx
+//
+// Functions: TorrentCrossSeedDonut
 
 "use client"
 
-import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
 import { getComplementaryColor, hexToRgba } from "@/lib/formatters"
-import { CHART_THEME, chartTooltip, escHtml } from "./theme"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { buildDonutShell } from "./lib/chart-helpers"
+import { CHART_THEME, chartTooltip, escHtml } from "./lib/theme"
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export interface TorrentCrossSeedDonutProps {
+interface TorrentCrossSeedDonutProps {
   crossSeeded: number
   unique: number
   accentColor: string
 }
 
-export function TorrentCrossSeedDonut({
-  crossSeeded,
-  unique,
-  accentColor,
-}: TorrentCrossSeedDonutProps) {
-  const secondaryColor = getComplementaryColor(accentColor)
+function TorrentCrossSeedDonut({ crossSeeded, unique, accentColor }: TorrentCrossSeedDonutProps) {
   const total = crossSeeded + unique
 
-  const option: EChartsOption = {
+  if (total === 0) {
+    return <ChartEmptyState height={300} message="No cross-seed data available" />
+  }
+
+  const secondaryColor = getComplementaryColor(accentColor)
+
+  const crossPct = total > 0 ? ((crossSeeded / total) * 100).toFixed(1) : "0"
+
+  const option = {
     backgroundColor: "transparent",
-    tooltip: chartTooltip("item"),
+    tooltip: chartTooltip("item", {
+      borderColor: accentColor,
+      formatter: (params: unknown) => {
+        const p = params as { name: string; value: number; color: string }
+        const pct = total > 0 ? ((p.value / total) * 100).toFixed(1) : "0"
+        return `<span style="color:${p.color};">●</span> <b>${escHtml(p.name)}</b><br/>${p.value.toLocaleString()} torrents · ${pct}%`
+      },
+    }),
+    graphic: [
+      {
+        type: "text",
+        left: "center",
+        top: "38%",
+        style: {
+          text: `${crossPct}%`,
+          fill: CHART_THEME.textPrimary,
+          fontSize: 24,
+          fontWeight: "bold",
+          fontFamily: CHART_THEME.fontMono,
+          textAlign: "center" as const,
+        },
+      },
+      {
+        type: "text",
+        left: "center",
+        top: "50%",
+        style: {
+          text: "cross-seeded",
+          fill: CHART_THEME.textTertiary,
+          fontSize: 11,
+          fontFamily: CHART_THEME.fontMono,
+          textAlign: "center" as const,
+        },
+      },
+    ],
     series: [
       {
-        type: "pie",
-        radius: ["45%", "72%"],
-        center: ["50%", "50%"],
-        avoidLabelOverlap: true,
-        itemStyle: {
-          borderRadius: 4,
-          borderColor: CHART_THEME.surface,
-          borderWidth: 2,
-        },
-        label: {
-          show: true,
-          position: "outside",
-          color: CHART_THEME.textSecondary,
-          fontFamily: CHART_THEME.fontMono,
-          fontSize: 12,
-          formatter: (params: unknown) => {
-            const p = params as { name: string; value: number }
-            const pct = total > 0 ? ((p.value / total) * 100).toFixed(1) : "0"
-            return `${escHtml(p.name)}: ${p.value} (${pct}%)`
-          },
-        },
-        labelLine: {
-          lineStyle: { color: CHART_THEME.borderMid },
-          length: 14,
-          length2: 10,
-        },
+        ...buildDonutShell(),
+        label: { show: false },
         emphasis: {
-          label: { show: true, fontWeight: "bold", color: CHART_THEME.textPrimary },
+          label: { show: false },
           itemStyle: { shadowBlur: 12, shadowColor: hexToRgba(accentColor, 0.5) },
         },
         data: [
@@ -65,26 +81,19 @@ export function TorrentCrossSeedDonut({
             name: "Cross-seeded",
             value: crossSeeded,
             itemStyle: { color: accentColor },
-            emphasis: { itemStyle: { shadowBlur: 12, shadowColor: accentColor } },
           },
           {
             name: "Unique",
             value: unique,
             itemStyle: { color: secondaryColor },
-            emphasis: { itemStyle: { shadowBlur: 12, shadowColor: secondaryColor } },
           },
         ],
       },
     ],
   }
 
-  return (
-    <ReactECharts
-      option={option}
-      style={{ height: 300, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
-    />
-  )
+  return <ChartECharts option={option} style={{ height: 300, width: "100%" }} />
 }
+
+export type { TorrentCrossSeedDonutProps }
+export { TorrentCrossSeedDonut }

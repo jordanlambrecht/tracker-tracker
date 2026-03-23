@@ -1,27 +1,20 @@
 // src/components/charts/FleetStorageTreemap.tsx
 //
-// Functions: goldenAngleColor, groupTorrentsForTreemap, buildFleetStorageTreemapOption, FleetStorageTreemap
+// Functions: groupTorrentsForTreemap, buildFleetStorageTreemapOption, FleetStorageTreemap
 
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
-import type { TorrentRaw } from "@/lib/fleet"
 import { formatBytesNum } from "@/lib/formatters"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartTooltip, escHtml } from "./theme"
+import type { TorrentInfo } from "@/lib/torrent-utils"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { CHART_THEME, chartTooltip, escHtml } from "./lib/theme"
 
 interface FleetStorageTreemapProps {
-  torrents: TorrentRaw[]
+  torrents: TorrentInfo[]
   trackerTags: string[]
   height?: number
-}
-
-const GOLDEN_ANGLE = 137.508
-
-function goldenAngleColor(index: number): string {
-  const hue = (index * GOLDEN_ANGLE) % 360
-  return `hsl(${hue.toFixed(1)}, 70%, 55%)`
 }
 
 interface TreemapNode {
@@ -32,7 +25,7 @@ interface TreemapNode {
   upperLabel?: { show: boolean; color: string }
 }
 
-function groupTorrentsForTreemap(torrents: TorrentRaw[], trackerTags: string[]): TreemapNode[] {
+function groupTorrentsForTreemap(torrents: TorrentInfo[], trackerTags: string[]): TreemapNode[] {
   const tagSetLower = trackerTags.map((t) => t.toLowerCase())
 
   const trackerMap = new Map<string, Map<string, number>>()
@@ -65,7 +58,7 @@ function groupTorrentsForTreemap(torrents: TorrentRaw[], trackerTags: string[]):
         ? "Other"
         : (trackerTags.find((t) => t.toLowerCase() === trackerKey) ?? trackerKey)
 
-    const trackerColor = goldenAngleColor(colorIndex++)
+    const trackerColor = `hsl(${(colorIndex++ * 137.5) % 360}, 70%, 55%)`
     const totalSize = Array.from(catMap.values()).reduce((a, b) => a + b, 0)
 
     const children: TreemapNode[] = Array.from(catMap.entries()).map(([category, size]) => ({
@@ -192,15 +185,12 @@ function FleetStorageTreemap({ torrents, trackerTags, height = 400 }: FleetStora
   }
 
   return (
-    <ReactECharts
+    <ChartECharts
       option={buildFleetStorageTreemapOption(nodes)}
       style={{ height, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
     />
   )
 }
 
 export type { FleetStorageTreemapProps }
-export { FleetStorageTreemap, goldenAngleColor, groupTorrentsForTreemap }
+export { FleetStorageTreemap, groupTorrentsForTreemap }

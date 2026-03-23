@@ -21,12 +21,13 @@ import { CSS } from "@dnd-kit/utilities"
 import { H2 } from "@typography"
 import clsx from "clsx"
 import Image from "next/image"
+import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { type CSSProperties, useCallback, useEffect, useRef, useState } from "react"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { AddTrackerDialog } from "@/components/AddTrackerDialog"
-import { CHART_THEME } from "@/components/charts/theme"
+import { CHART_THEME } from "@/components/charts/lib/theme"
 import { Button } from "@/components/ui/Button"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { DownloadArrowIcon, EyeIcon, EyeOffIcon, UploadArrowIcon } from "@/components/ui/Icons"
@@ -36,6 +37,7 @@ import { Select } from "@/components/ui/Select"
 import { Tooltip } from "@/components/ui/Tooltip"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
 import { useUpdateCheck } from "@/hooks/useUpdateCheck"
+import { DOCS_URL } from "@/lib/constants"
 import {
   formatBytesNum,
   formatStatValue,
@@ -43,7 +45,6 @@ import {
   hexToRgba,
   type StatMode,
 } from "@/lib/formatters"
-import { DOCS_URL } from "@/lib/constants"
 import { STORAGE_KEYS } from "@/lib/storage-keys"
 import { getHealthPulseDot, getTrackerHealth } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
@@ -88,7 +89,6 @@ interface SortableTrackerItemProps {
   isActive: boolean
   unlocked: boolean
   statMode: StatMode
-  onClick: () => void
   onToggleFavorite: (id: number, current: boolean) => void
 }
 
@@ -97,7 +97,6 @@ function SortableTrackerItem({
   isActive,
   unlocked,
   statMode,
-  onClick,
   onToggleFavorite,
 }: SortableTrackerItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -132,62 +131,83 @@ function SortableTrackerItem({
       : "text-secondary nm-raised-sm hover:text-primary hover:nm-raised active:nm-inset-sm active:scale-[0.98]"
   )
 
-  return (
-    <li ref={setNodeRef} style={dragStyle}>
-      <button
-        type="button"
-        onClick={unlocked ? undefined : onClick}
-        className={`${itemClasses} rounded-nm-md`}
-        style={activeStyle}
-        aria-current={isActive ? "page" : undefined}
-        {...(unlocked ? { ...attributes, ...listeners } : undefined)}
-      >
-        {unlocked && (
-          <span
-            className="text-tertiary shrink-0 text-sm leading-none select-none"
-            aria-hidden="true"
-          >
-            ⠿
-          </span>
-        )}
-        {archived ? (
-          <span className="w-2 h-2 rounded-full bg-muted shrink-0" aria-hidden="true" />
-        ) : (
-          <PulseDot status={getHealthPulseDot(health)} size="sm" />
-        )}
-        <span className="flex-1 truncate text-[15px] font-semibold">{tracker.name}</span>
-        <span className="font-mono text-xs tabular-nums text-tertiary shrink-0">
-          {archived ? "Archived" : stat}
+  const children = (
+    <>
+      {unlocked && (
+        <span
+          className="text-tertiary shrink-0 text-sm leading-none select-none"
+          aria-hidden="true"
+        >
+          ⠿
         </span>
-        {!unlocked && (
-          // biome-ignore lint/a11y/useSemanticElements: Star must be inside parent button for visual layout. I know this is sloppy please don't sue me.
-          <span
-            role="button"
-            tabIndex={0}
-            aria-pressed={tracker.isFavorite}
-            onClick={(e) => {
+      )}
+      {archived ? (
+        <span className="w-2 h-2 rounded-full bg-muted shrink-0" aria-hidden="true" />
+      ) : (
+        <PulseDot status={getHealthPulseDot(health)} size="sm" />
+      )}
+      <span className="flex-1 truncate text-[15px] font-semibold">{tracker.name}</span>
+      <span className="font-mono text-xs tabular-nums text-tertiary shrink-0">
+        {archived ? "Archived" : stat}
+      </span>
+      {!unlocked && (
+        // biome-ignore lint/a11y/useSemanticElements: Star must be inside parent button for visual layout
+        <span
+          role="button"
+          tabIndex={0}
+          aria-pressed={tracker.isFavorite}
+          onClick={(e) => {
+            e.stopPropagation()
+            e.preventDefault()
+            onToggleFavorite(tracker.id, tracker.isFavorite)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault()
               e.stopPropagation()
               onToggleFavorite(tracker.id, tracker.isFavorite)
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault()
-                e.stopPropagation()
-                onToggleFavorite(tracker.id, tracker.isFavorite)
-              }
-            }}
-            className={clsx(
-              "shrink-0 text-sm leading-none transition-all duration-150 cursor-pointer bg-transparent border-none p-0",
-              tracker.isFavorite
-                ? "text-warn opacity-100"
-                : "text-muted opacity-0 group-hover:opacity-50 hover:opacity-100!"
-            )}
-            aria-label={tracker.isFavorite ? "Remove from favorites" : "Add to favorites"}
-          >
-            {tracker.isFavorite ? "★" : "☆"}
-          </span>
-        )}
-      </button>
+            }
+          }}
+          className={clsx(
+            "shrink-0 text-sm leading-none transition-all duration-150 cursor-pointer bg-transparent border-none p-0",
+            tracker.isFavorite
+              ? "text-warn opacity-100"
+              : "text-muted opacity-0 group-hover:opacity-50 hover:opacity-100!"
+          )}
+          aria-label={tracker.isFavorite ? "Remove from favorites" : "Add to favorites"}
+        >
+          {tracker.isFavorite ? "★" : "☆"}
+        </span>
+      )}
+    </>
+  )
+
+  const cls = `${itemClasses} rounded-nm-md`
+
+  return (
+    <li ref={setNodeRef} style={dragStyle}>
+      {unlocked ? (
+        <button
+          type="button"
+          className={cls}
+          style={activeStyle}
+          aria-current={isActive ? "page" : undefined}
+          {...attributes}
+          {...listeners}
+        >
+          {children}
+        </button>
+      ) : (
+        <Link
+          href={`/trackers/${tracker.id}`}
+          prefetch
+          className={cls}
+          style={activeStyle}
+          aria-current={isActive ? "page" : undefined}
+        >
+          {children}
+        </Link>
+      )}
     </li>
   )
 }
@@ -845,7 +865,6 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
                           isActive={isActive}
                           unlocked={unlocked}
                           statMode={statMode}
-                          onClick={() => router.push(`/trackers/${tracker.id}`)}
                           onToggleFavorite={toggleFavorite}
                         />
                       )

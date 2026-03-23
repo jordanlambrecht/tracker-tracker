@@ -5,12 +5,18 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
 import type { TrackerSnapshotSeries } from "@/types/charts"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { buildAxisPointer, buildThemeRiverSingleAxis } from "./chart-helpers"
-import { formatSnapshotLabel } from "./chart-transforms"
-import { CHART_THEME, chartDot, chartTooltip, chartTooltipHeader, escHtml } from "./theme"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { buildAxisPointer, buildThemeRiverSingleAxis } from "./lib/chart-helpers"
+import { carryForwardValues } from "./lib/chart-transforms"
+import {
+  CHART_THEME,
+  chartTooltip,
+  chartTooltipHeader,
+  chartTooltipRow,
+  formatChartTimestamp,
+} from "./lib/theme"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -44,22 +50,13 @@ function buildRiverData(trackerData: TrackerSnapshotSeries[]): [string, number, 
 
   const sortedTs = [...allTs].sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
 
-  const data: [string, number, string][] = []
+  // Carry forward per-tracker seedbonus values (O(T) per tracker instead of O(T*N))
+  const carriedSeries = trackerMaps.map((map) => carryForwardValues(sortedTs, map, 0))
 
-  for (const ts of sortedTs) {
+  const data: [string, number, string][] = []
+  for (let t = 0; t < sortedTs.length; t++) {
     for (let i = 0; i < trackerData.length; i++) {
-      const map = trackerMaps[i]
-      let val = map.get(ts)
-      if (val === undefined) {
-        // Find most recent known value before this timestamp (forward-fill)
-        const tsTime = new Date(ts).getTime()
-        let closest = 0
-        for (const [key, v] of map) {
-          if (new Date(key).getTime() <= tsTime) closest = v
-        }
-        val = closest
-      }
-      data.push([ts, val, trackerData[i].name])
+      data.push([sortedTs[t], carriedSeries[i][t] ?? 0, trackerData[i].name])
     }
   }
 
@@ -93,20 +90,15 @@ function buildRiverOption(
 
         // The timestamp comes from the first item's value[0]
         const rawDate = items[0]?.value?.[0]
-        const formattedDate = rawDate ? formatSnapshotLabel(rawDate) : ""
+        const formattedDate = rawDate ? formatChartTimestamp(new Date(rawDate).getTime()) : ""
 
         const rows = items
           .filter((item) => item.value && item.value[1] !== undefined)
           .map((item) => {
             const trackerName = item.value[2]
             const bon = item.value[1]
-            const display = bon.toLocaleString()
-            const col = item.color
-            return (
-              chartDot(col) +
-              `<span style="color:${CHART_THEME.textSecondary};">${escHtml(trackerName)}:</span> ` +
-              `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${display} BON</span>`
-            )
+            const display = `${bon.toLocaleString()} BON`
+            return chartTooltipRow(item.color, trackerName, display)
           })
           .join("<br/>")
 
@@ -149,12 +141,9 @@ function SeedbonusRiverChart({ trackerData, height = 320 }: SeedbonusRiverChartP
   const riverData = buildRiverData(trackerData)
 
   return (
-    <ReactECharts
+    <ChartECharts
       option={buildRiverOption(trackerData, riverData)}
       style={{ height, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
     />
   )
 }

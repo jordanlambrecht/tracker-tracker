@@ -1,13 +1,13 @@
 # BroadcasTheNet (BTN)
 
-| Field | Value |
-|---|---|
-| Platform | Gazelle |
-| Base URL | `https://broadcasthe.net` |
-| API Endpoint | `https://broadcasthe.net/ajax.php` |
-| Auth Method | HTTP header: `Authorization: token TOKEN` |
-| Enrichment | No |
-| Auth Style | standard |
+| Field        | Value                                     |
+| ------------ | ----------------------------------------- |
+| Platform     | Gazelle                                   |
+| Base URL     | `https://broadcasthe.net`                 |
+| API Endpoint | `https://broadcasthe.net/ajax.php`        |
+| Auth Method  | HTTP header: `Authorization: token TOKEN` |
+| Enrichment   | No                                        |
+| Auth Style   | standard                                  |
 
 ## Notes
 

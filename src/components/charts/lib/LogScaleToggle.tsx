@@ -1,4 +1,4 @@
-// src/components/charts/LogScaleToggle.tsx
+// src/components/charts/lib/LogScaleToggle.tsx
 //
 // Functions: LogScaleToggle
 

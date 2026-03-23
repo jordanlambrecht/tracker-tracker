@@ -35,10 +35,10 @@ The app will be available at `http://localhost:3000`. On first run it redirects 
 
 ### Key environment variables
 
-| Variable | Description |
-|---|---|
-| `DATABASE_URL` | Postgres connection string |
-| `NEXTAUTH_SECRET` | Random secret for JWE session signing |
+| Variable                  | Description                                      |
+| ------------------------- | ------------------------------------------------ |
+| `DATABASE_URL`            | Postgres connection string                       |
+| `NEXTAUTH_SECRET`         | Random secret for JWE session signing            |
 | `NEXT_PUBLIC_APP_VERSION` | Auto-populated from `package.json` at build time |
 
 ---

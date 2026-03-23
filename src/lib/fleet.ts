@@ -1,8 +1,8 @@
 // src/lib/fleet.ts
 //
-// Functions: parseTorrentTags, computeFleetStats, extractTagsFromSnapshots
+// Functions: parseTorrentTags, getRatioBuckets, getSeedTimeBuckets, computeFleetStats, extractTagsFromSnapshots
 
-import { CHART_THEME } from "@/components/charts/theme"
+import { CHART_THEME } from "@/components/charts/lib/theme"
 
 /** Raw torrent data from qBittorrent — shared by fleet charts */
 export interface TorrentRaw {
@@ -39,11 +39,11 @@ export interface TrackerTag {
   color: string
 }
 
-/** Parse comma-separated qBT tag string into normalized lowercase array */
-export function parseTorrentTags(rawTags: string): string[] {
+/** Parse comma-separated qBT tag string into trimmed array. Lowercases by default. */
+export function parseTorrentTags(rawTags: string, lowercase = true): string[] {
   return rawTags
     .split(",")
-    .map((t) => t.trim().toLowerCase())
+    .map((t) => (lowercase ? t.trim().toLowerCase() : t.trim()))
     .filter((t) => t.length > 0)
 }
 
@@ -79,24 +79,48 @@ export function extractTagsFromSnapshots(snapshots: FleetSnapshot[]): string[] {
   return Array.from(tagSet).sort()
 }
 
+export interface Bucket {
+  label: string
+  max: number
+  color: string
+}
+
 /** Ratio bucket definitions — shared with TorrentsTab */
-export const RATIO_BUCKETS = [
+export const RATIO_BUCKETS: Bucket[] = [
   { label: "<0.5", max: 0.5, color: CHART_THEME.scale[0] },
   { label: "0.5-1", max: 1, color: CHART_THEME.scale[1] },
   { label: "1-2", max: 2, color: CHART_THEME.scale[2] },
   { label: "2-5", max: 5, color: CHART_THEME.scale[3] },
   { label: "5-10", max: 10, color: CHART_THEME.scale[4] },
   { label: "10+", max: Infinity, color: CHART_THEME.scale[5] },
-] as const
+]
 
 /** Seed time bucket definitions — shared with TorrentsTab */
-export const SEED_TIME_BUCKETS = [
-  { label: "<1d", maxSeconds: 86_400, color: CHART_THEME.scale[0] },
-  { label: "1-7d", maxSeconds: 604_800, color: CHART_THEME.scale[1] },
-  { label: "7-30d", maxSeconds: 2_592_000, color: CHART_THEME.scale[2] },
-  { label: "30-90d", maxSeconds: 7_776_000, color: CHART_THEME.scale[3] },
-  { label: "90d+", maxSeconds: Infinity, color: CHART_THEME.scale[4] },
-] as const
+export const SEED_TIME_BUCKETS: Bucket[] = [
+  { label: "<1d", max: 86_400, color: CHART_THEME.scale[0] },
+  { label: "1-7d", max: 604_800, color: CHART_THEME.scale[1] },
+  { label: "7-30d", max: 2_592_000, color: CHART_THEME.scale[2] },
+  { label: "30-90d", max: 7_776_000, color: CHART_THEME.scale[3] },
+  { label: "90d+", max: Infinity, color: CHART_THEME.scale[4] },
+]
+
+/** Ratio buckets with optional accent color override on the "2-5" range */
+export function getRatioBuckets(accentColor?: string): Bucket[] {
+  if (!accentColor) return RATIO_BUCKETS
+  return RATIO_BUCKETS.map((b, i) => ({
+    ...b,
+    color: i === 3 ? accentColor : b.color,
+  }))
+}
+
+/** Seed time buckets with optional accent color override on the "30-90d" range */
+export function getSeedTimeBuckets(accentColor?: string): Bucket[] {
+  if (!accentColor) return SEED_TIME_BUCKETS
+  return SEED_TIME_BUCKETS.map((b, i) => ({
+    ...b,
+    color: i === 3 ? accentColor : b.color,
+  }))
+}
 
 export interface FleetStats {
   totalSeeding: number
@@ -130,7 +154,7 @@ export function computeFleetStats(
     upspeed: number
     dlspeed: number
     size: number
-    last_activity: number
+    lastActivity: number
     tags: string
   }[],
   crossSeedTags: string[]
@@ -151,7 +175,7 @@ export function computeFleetStats(
     fleetUploadSpeed += t.upspeed
     fleetDownloadSpeed += t.dlspeed
     totalLibrarySize += t.size
-    if (t.last_activity > 0 && now - t.last_activity * 1000 > STALE_THRESHOLD_MS) staleCount++
+    if (t.lastActivity > 0 && now - t.lastActivity * 1000 > STALE_THRESHOLD_MS) staleCount++
     if (csTagSet.size > 0) {
       if (parseTorrentTags(t.tags).some((tag) => csTagSet.has(tag))) crossSeeded++
     }

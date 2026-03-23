@@ -3,11 +3,11 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
 import type { TorrentInfo } from "@/lib/torrent-utils"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { buildGlowAreaStyle } from "./chart-helpers"
-import { CHART_THEME, chartTooltip, escHtml } from "./theme"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { buildGlowAreaStyle, buildTimeXAxis } from "./lib/chart-helpers"
+import { CHART_THEME, chartGrid, chartTooltip, chartTooltipRow } from "./lib/theme"
 
 // ---------------------------------------------------------------------------
 // Props
@@ -22,48 +22,46 @@ interface TorrentAgeTimelineProps {
 // Component
 // ---------------------------------------------------------------------------
 
-export function TorrentAgeTimeline({ torrents, accentColor }: TorrentAgeTimelineProps) {
+function TorrentAgeTimeline({ torrents, accentColor }: TorrentAgeTimelineProps) {
   const withDates = torrents.filter((t) => t.addedOn > 0).sort((a, b) => a.addedOn - b.addedOn)
   if (withDates.length < 2) {
     return <ChartEmptyState height={220} message="Need 2+ torrents with dates" />
   }
 
-  // Group by day
-  const dayMap = new Map<string, number>()
+  // Group by month, accumulate cumulative counts
+  const monthMap = new Map<string, number>()
   let cumulative = 0
   for (const t of withDates) {
-    const day = new Date(t.addedOn * 1000).toISOString().split("T")[0]
+    const d = new Date(t.addedOn * 1000)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
     cumulative++
-    dayMap.set(day, cumulative)
+    monthMap.set(key, cumulative)
   }
 
-  const labels = [...dayMap.keys()]
-  const values = [...dayMap.values()]
+  // Convert month keys to [timestamp, cumulativeCount] pairs
+  const seriesData: [number, number][] = [...monthMap.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, count]) => [new Date(`${key}-15T12:00:00`).getTime(), count])
 
   const option: EChartsOption = {
     backgroundColor: "transparent",
     tooltip: chartTooltip("axis", {
+      borderColor: accentColor,
       formatter: (params: unknown) => {
-        const p = (params as { axisValueLabel: string; value: number }[])[0]
+        const p = (params as { value: [number, number] }[])[0]
         if (!p) return ""
-        return `${escHtml(String(p.axisValueLabel ?? ""))}<br/><span style="font-weight:600;color:${accentColor}">${p.value}</span> torrents`
+        const label = new Date(p.value[0]).toLocaleDateString("en-US", {
+          month: "short",
+          year: "numeric",
+        })
+        return (
+          `<div style="margin-bottom:4px;color:${CHART_THEME.textTertiary};font-size:11px;">${label}</div>` +
+          chartTooltipRow(accentColor, "Torrents", String(p.value[1]))
+        )
       },
     }),
-    grid: { left: 48, right: 16, top: 16, bottom: 40 },
-    xAxis: {
-      type: "category",
-      data: labels,
-      boundaryGap: false,
-      axisLabel: {
-        color: CHART_THEME.textTertiary,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
-        rotate: 30,
-        interval: "auto",
-      },
-      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
-      axisTick: { show: false },
-    },
+    grid: chartGrid({ left: 48, right: 16, top: 16, bottom: 40 }),
+    xAxis: buildTimeXAxis(),
     yAxis: {
       type: "value",
       splitLine: { lineStyle: { color: CHART_THEME.gridLine } },
@@ -76,7 +74,7 @@ export function TorrentAgeTimeline({ torrents, accentColor }: TorrentAgeTimeline
     series: [
       {
         type: "line",
-        data: values,
+        data: seriesData,
         smooth: true,
         symbol: "none",
         lineStyle: {
@@ -93,13 +91,8 @@ export function TorrentAgeTimeline({ torrents, accentColor }: TorrentAgeTimeline
     ],
   }
 
-  return (
-    <ReactECharts
-      option={option}
-      style={{ height: 220, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
-    />
-  )
+  return <ChartECharts option={option} style={{ height: 220, width: "100%" }} />
 }
+
+export type { TorrentAgeTimelineProps }
+export { TorrentAgeTimeline }

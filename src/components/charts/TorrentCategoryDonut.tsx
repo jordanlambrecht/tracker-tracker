@@ -3,22 +3,23 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
 import { formatBytesNum, generatePalette } from "@/lib/formatters"
 import type { CategoryStats } from "@/lib/torrent-utils"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartDot, chartTooltip, escHtml } from "./theme"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { buildDonutShell } from "./lib/chart-helpers"
+import { CHART_THEME, chartTooltip, chartTooltipRow, escHtml } from "./lib/theme"
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export interface TorrentCategoryDonutProps {
+interface TorrentCategoryDonutProps {
   categories: CategoryStats[]
   accentColor: string
 }
 
-export function TorrentCategoryDonut({ categories, accentColor }: TorrentCategoryDonutProps) {
+function TorrentCategoryDonut({ categories, accentColor }: TorrentCategoryDonutProps) {
   if (categories.length === 0) {
     return <ChartEmptyState height={320} message="No category data" />
   }
@@ -35,9 +36,9 @@ export function TorrentCategoryDonut({ categories, accentColor }: TorrentCategor
         const cat = sorted.find((c) => c.name === p.name)
         if (!cat) return ""
         return [
-          `${chartDot(p.color)}<span style="color:${p.color};font-weight:600;">${escHtml(p.name)}</span>`,
-          `Torrents: ${cat.count} (${p.percent.toFixed(1)}%)`,
-          `Size: ${formatBytesNum(cat.totalSize)}`,
+          `<span style="color:${p.color};font-weight:600;">${escHtml(p.name)}</span>`,
+          chartTooltipRow(p.color, "Torrents", `${cat.count} (${p.percent.toFixed(1)}%)`),
+          chartTooltipRow(CHART_THEME.neutral, "Size", formatBytesNum(cat.totalSize)),
         ].join("<br/>")
       },
     }),
@@ -56,15 +57,7 @@ export function TorrentCategoryDonut({ categories, accentColor }: TorrentCategor
     },
     series: [
       {
-        type: "pie",
-        radius: ["45%", "72%"],
-        center: ["35%", "50%"],
-        avoidLabelOverlap: false,
-        itemStyle: {
-          borderRadius: 4,
-          borderColor: CHART_THEME.surface,
-          borderWidth: 2,
-        },
+        ...buildDonutShell({ center: ["35%", "50%"], avoidLabelOverlap: false }),
         label: {
           show: true,
           position: "center",
@@ -101,13 +94,8 @@ export function TorrentCategoryDonut({ categories, accentColor }: TorrentCategor
     ],
   }
 
-  return (
-    <ReactECharts
-      option={option}
-      style={{ height: 320, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
-    />
-  )
+  return <ChartECharts option={option} style={{ height: 320, width: "100%" }} />
 }
+
+export type { TorrentCategoryDonutProps }
+export { TorrentCategoryDonut }

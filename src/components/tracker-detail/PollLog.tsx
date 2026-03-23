@@ -12,9 +12,10 @@ interface PollLogProps {
   snapshots: Snapshot[]
   lastPolledAt: string | null
   lastError: string | null
+  userPausedAt?: string | null
 }
 
-export function PollLog({ snapshots, lastPolledAt, lastError }: PollLogProps) {
+export function PollLog({ snapshots, lastPolledAt, lastError, userPausedAt }: PollLogProps) {
   const [open, setOpen] = useState(false)
 
   const lastPolledLabel = lastPolledAt ? new Date(lastPolledAt).toLocaleString() : "Never"
@@ -31,7 +32,16 @@ export function PollLog({ snapshots, lastPolledAt, lastError }: PollLogProps) {
       </button>
       {open && (
         <div className="nm-inset-sm bg-control-bg overflow-hidden overflow-x-auto styled-scrollbar rounded-nm-md">
-          {lastError && (
+          {userPausedAt && (
+            <div className="flex items-center gap-2 px-4 py-2.5 text-xs font-mono text-warn border-b border-border whitespace-nowrap min-w-fit">
+              <span className="shrink-0">⏸</span>
+              <span className="text-tertiary shrink-0 w-[160px]">
+                {new Date(userPausedAt).toLocaleString()}
+              </span>
+              <span>Polling paused</span>
+            </div>
+          )}
+          {lastError && !userPausedAt && (
             <div className="flex items-center gap-2 px-4 py-2.5 text-xs font-mono text-danger border-b border-border whitespace-nowrap min-w-fit">
               <span className="shrink-0">✕</span>
               <span className="text-tertiary">{lastPolledLabel}</span>

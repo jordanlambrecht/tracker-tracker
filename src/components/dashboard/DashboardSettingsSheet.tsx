@@ -14,7 +14,7 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { H2 } from "@typography"
 import { useCallback, useState } from "react"
-import { CHART_THEME } from "@/components/charts/theme"
+import { CHART_THEME } from "@/components/charts/lib/theme"
 import type { ChartDef } from "@/components/dashboard/useChartPreferences"
 import { useChartPreferences } from "@/components/dashboard/useChartPreferences"
 import { useDashboardSettings } from "@/components/dashboard/useDashboardSettings"

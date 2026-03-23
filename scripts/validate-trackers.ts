@@ -181,6 +181,60 @@ function validate(slugFilter?: string[]): TrackerResult[] {
       }
     }
 
+    // ── Canonical field presence (every field must be explicitly set) ─
+    const obj = tracker as unknown as Record<string, unknown>
+    const CANONICAL_FIELDS = [
+      "slug",
+      "name",
+      "abbreviation",
+      "url",
+      "description",
+      "platform",
+      "apiPath",
+      "specialty",
+      "contentCategories",
+      "language",
+      "color",
+      "logo",
+      "trackerHubSlug",
+      "statusPageUrl",
+      "userClasses",
+      "releaseGroups",
+      "bannedGroups",
+      "notableMembers",
+      "rules",
+      "warning",
+      "warningNote",
+      "draft",
+      "supportsTransitPapers",
+      "profileUrlPattern",
+    ] as const
+    for (const field of CANONICAL_FIELDS) {
+      if (!(field in obj)) {
+        errors.push(`Missing canonical field "${field}" — all fields must be explicitly present`)
+      }
+    }
+
+    // ── Platform-specific field checks ─────────────────────────────────
+    if (tracker.platform === "gazelle" && !tracker.gazelleEnrich) {
+      errors.push("Gazelle trackers must have gazelleEnrich: true")
+    }
+
+    // ── Transit Papers validation ────────────────────────────────────
+    if (tracker.supportsTransitPapers) {
+      if (!tracker.profileUrlPattern) {
+        errors.push("supportsTransitPapers is true but profileUrlPattern is missing")
+      } else {
+        const pattern = tracker.profileUrlPattern
+        if (!pattern.includes("{id}") && !pattern.includes("{username}")) {
+          errors.push(`profileUrlPattern must contain {id} or {username} (got "${pattern}")`)
+        }
+      }
+    }
+    if (tracker.profileUrlPattern && !tracker.supportsTransitPapers) {
+      warnings.push("profileUrlPattern defined but supportsTransitPapers is not true")
+    }
+
     // ── Warn-level fields ─────────────────────────────────────────────
     if (isEmpty(tracker.abbreviation)) warnings.push("Missing abbreviation")
     if (isEmpty(tracker.specialty)) warnings.push("Missing specialty")

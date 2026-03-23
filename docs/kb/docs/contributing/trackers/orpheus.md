@@ -1,13 +1,13 @@
 # Orpheus (OPS)
 
-| Field | Value |
-|---|---|
-| Platform | Gazelle |
-| Base URL | `https://orpheus.network` |
-| API Endpoint | `https://orpheus.network/ajax.php` |
-| Auth Method | HTTP header: `Authorization: token TOKEN` |
-| Enrichment | No |
-| Auth Style | standard |
+| Field        | Value                                     |
+| ------------ | ----------------------------------------- |
+| Platform     | Gazelle                                   |
+| Base URL     | `https://orpheus.network`                 |
+| API Endpoint | `https://orpheus.network/ajax.php`        |
+| Auth Method  | HTTP header: `Authorization: token TOKEN` |
+| Enrichment   | No                                        |
+| Auth Style   | standard                                  |
 
 ## Notes
 

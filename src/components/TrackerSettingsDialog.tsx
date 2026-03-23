@@ -24,42 +24,53 @@ interface TrackerSettingsDialogProps {
   onUpdated: () => void
 }
 
+interface FormState {
+  name: string
+  color: string
+  qbtTag: string
+  joinedAt: string
+  baseUrl: string
+  useProxy: boolean
+  countCrossSeedUnsatisfied: boolean
+}
+
+function formStateFromTracker(t: TrackerSummary): FormState {
+  return {
+    name: t.name,
+    color: t.color,
+    qbtTag: t.qbtTag ?? "",
+    joinedAt: t.joinedAt ?? "",
+    baseUrl: t.baseUrl,
+    useProxy: t.useProxy ?? false,
+    countCrossSeedUnsatisfied: t.countCrossSeedUnsatisfied ?? false,
+  }
+}
+
 function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSettingsDialogProps) {
   const router = useRouter()
 
-  const [name, setName] = useState(tracker.name)
-  const [color, setColor] = useState(tracker.color)
-  const [qbtTag, setQbtTag] = useState(tracker.qbtTag ?? "")
-  const [joinedAt, setJoinedAt] = useState(tracker.joinedAt ?? "")
-  const [baseUrl, setBaseUrl] = useState(tracker.baseUrl)
-  const [useProxy, setUseProxy] = useState(tracker.useProxy ?? false)
-  const [countCrossSeedUnsatisfied, setCountCrossSeedUnsatisfied] = useState(
-    tracker.countCrossSeedUnsatisfied ?? false
-  )
+  const [form, setForm] = useState<FormState>(() => formStateFromTracker(tracker))
+  const updateField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
+    setForm((prev) => ({ ...prev, [key]: value }))
+  }, [])
 
   useEffect(() => {
-    setName(tracker.name)
-    setColor(tracker.color)
-    setQbtTag(tracker.qbtTag ?? "")
-    setJoinedAt(tracker.joinedAt ?? "")
-    setBaseUrl(tracker.baseUrl)
-    setUseProxy(tracker.useProxy ?? false)
-    setCountCrossSeedUnsatisfied(tracker.countCrossSeedUnsatisfied ?? false)
+    setForm(formStateFromTracker(tracker))
   }, [tracker])
 
   const registryEntry = findRegistryEntry(tracker.baseUrl)
 
-  const [proxyAvailable, setProxyAvailable] = useState(false)
+  const [proxyAvailable, setProxyAvailable] = useState<boolean | null>(null)
 
   useEffect(() => {
-    if (!open) return
+    if (!open || proxyAvailable !== null) return
     fetch("/api/settings")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data) setProxyAvailable(!!data.proxyEnabled)
+        setProxyAvailable(data ? !!data.proxyEnabled : false)
       })
-      .catch(() => {})
-  }, [open])
+      .catch(() => setProxyAvailable(false))
+  }, [open, proxyAvailable])
 
   const [changingKey, setChangingKey] = useState(false)
   const [newApiToken, setNewApiToken] = useState("")
@@ -87,12 +98,12 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
     e.preventDefault()
 
     const validationErrors: Record<string, string> = {}
-    if (!name.trim()) validationErrors.name = "Name is required"
-    if (!baseUrl.trim()) {
+    if (!form.name.trim()) validationErrors.name = "Name is required"
+    if (!form.baseUrl.trim()) {
       validationErrors.baseUrl = "Base URL is required"
     } else {
       try {
-        new URL(baseUrl)
+        new URL(form.baseUrl)
       } catch {
         validationErrors.baseUrl = "Invalid URL"
       }
@@ -118,7 +129,7 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            baseUrl: baseUrl.trim(),
+            baseUrl: form.baseUrl.trim(),
             apiToken: trimmedToken,
             platformType: tracker.platformType,
           }),
@@ -137,13 +148,13 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
     }
 
     const payload: Record<string, unknown> = {
-      name: name.trim(),
-      color,
-      baseUrl: baseUrl.trim(),
-      qbtTag: qbtTag.trim(),
-      joinedAt: joinedAt || null,
-      useProxy,
-      countCrossSeedUnsatisfied,
+      name: form.name.trim(),
+      color: form.color,
+      baseUrl: form.baseUrl.trim(),
+      qbtTag: form.qbtTag.trim(),
+      joinedAt: form.joinedAt || null,
+      useProxy: form.useProxy,
+      countCrossSeedUnsatisfied: form.countCrossSeedUnsatisfied,
     }
 
     if (changingKey && trimmedToken) {
@@ -220,16 +231,16 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
         <form onSubmit={handleSave} className="flex flex-col gap-4">
           <Input
             label="Nickname"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            value={form.name}
+            onChange={(e) => updateField("name", e.target.value)}
             placeholder="Display name for this tracker"
             error={errors.name}
           />
 
           <Input
             label="Base URL"
-            value={baseUrl}
-            onChange={(e) => setBaseUrl(e.target.value)}
+            value={form.baseUrl}
+            onChange={(e) => updateField("baseUrl", e.target.value)}
             placeholder="https://aither.cc"
             error={errors.baseUrl}
           />
@@ -270,14 +281,14 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
           <div className="flex flex-col gap-1">
             <Input
               label="qBittorrent Tag"
-              value={qbtTag}
-              onChange={(e) => setQbtTag(e.target.value)}
+              value={form.qbtTag}
+              onChange={(e) => updateField("qbtTag", e.target.value)}
               placeholder="i.e, aither"
             />
-            <QbtTagWarning tag={qbtTag} />
+            <QbtTagWarning tag={form.qbtTag} />
           </div>
 
-          <ColorPicker label="Color" value={color} onChange={setColor} />
+          <ColorPicker label="Color" value={form.color} onChange={(v) => updateField("color", v)} />
 
           {!(registryEntry?.gazelleEnrich || tracker.platformType === "ggn") && (
             <div>
@@ -290,13 +301,13 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
               <input
                 id="settings-joined-at"
                 type="date"
-                value={joinedAt}
+                value={form.joinedAt}
                 max={new Date().toISOString().split("T")[0]}
-                onChange={(e) => setJoinedAt(e.target.value)}
+                onChange={(e) => updateField("joinedAt", e.target.value)}
                 className={clsx(
                   "w-full font-mono text-sm text-primary cursor-pointer border-0",
                   "bg-control-bg px-4 py-3 nm-inset focus:outline-none rounded-nm-md",
-                  !joinedAt && "text-muted"
+                  !form.joinedAt && "text-muted"
                 )}
                 style={{ colorScheme: "dark" }}
               />
@@ -305,9 +316,9 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
 
           <Toggle
             label="Use proxy"
-            checked={useProxy}
-            onChange={setUseProxy}
-            disabled={!proxyAvailable}
+            checked={form.useProxy}
+            onChange={(v) => updateField("useProxy", v)}
+            disabled={!proxyAvailable || proxyAvailable === null}
             description={
               proxyAvailable
                 ? "Route API requests for this tracker through the global proxy configured in Settings."
@@ -317,8 +328,8 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
 
           <Toggle
             label="Count cross-seed towards unsatisfieds"
-            checked={countCrossSeedUnsatisfied}
-            onChange={setCountCrossSeedUnsatisfied}
+            checked={form.countCrossSeedUnsatisfied}
+            onChange={(v) => updateField("countCrossSeedUnsatisfied", v)}
             description="Include cross-seeded torrents when calculating unsatisfied download requirements."
           />
 

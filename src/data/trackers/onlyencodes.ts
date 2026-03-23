@@ -3,16 +3,32 @@
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 
 export const onlyencodes: TrackerRegistryEntry = {
+  // ── Identity ────────────────────────────────────────────────────────
   slug: "onlyencodes",
   name: "OnlyEncodes",
   abbreviation: "OE",
   url: "https://onlyencodes.cc",
   description:
     "Specializes exclusively in high-quality video encodes. Curated library focused on the best possible encode for each title. Strict quality standards.",
+
+  // ── Platform & API ──────────────────────────────────────────────────
   platform: "unit3d",
   apiPath: "/api/user",
+
+  // ── Content ─────────────────────────────────────────────────────────
   specialty: "High-quality video encodes",
   contentCategories: ["Movies", "TV"],
+  language: "English",
+
+  // ── Visual ──────────────────────────────────────────────────────────
+  color: "#facc15",
+  logo: "/tracker-logos/onlyencodes_logo.png",
+
+  // ── External Links ──────────────────────────────────────────────────
+  trackerHubSlug: "only-encodes",
+  statusPageUrl: "",
+
+  // ── Community ───────────────────────────────────────────────────────
   userClasses: [
     // Dynamic — upload-based
     { name: "Leech", requirements: "Ratio below 0.4" },
@@ -52,23 +68,23 @@ export const onlyencodes: TrackerRegistryEntry = {
     {
       name: "Encode Lover",
       requirements:
-        "Upload ≥ 1 TiB, ratio ≥ 0.4, age ≥ 6 months, avg seedtime ≥ 3 months, seed size ≥ 20 TiB. Freeleech, 2× upload, H&R immune",
+        "Upload ≥ 1 TiB, ratio ≥ 0.4, age ≥ 6 months, avg seedtime ≥ 3 months, seed size ≥ 20 TiB. Freeleech, 2x upload, H&R immune",
     },
     // Dynamic — hybrid
     {
       name: "BeachBum",
       requirements:
-        "Upload ≥ 100 TiB, ratio ≥ 1.0, age ≥ 2 months, avg seedtime ≥ 6 days, seed size ≥ 20 TiB. Freeleech, 2× upload, H&R immune",
+        "Upload ≥ 100 TiB, ratio ≥ 1.0, age ≥ 2 months, avg seedtime ≥ 6 days, seed size ≥ 20 TiB. Freeleech, 2x upload, H&R immune",
     },
     {
       name: "OnlyKings",
       requirements:
-        "Upload ≥ 1 TiB, ratio ≥ 1.0, age ≥ 3 months, avg seedtime ≥ 2 months, seed size ≥ 10 TiB, 35+ uploads. Freeleech, 2× upload, H&R immune, torrent mod bypass",
+        "Upload ≥ 1 TiB, ratio ≥ 1.0, age ≥ 3 months, avg seedtime ≥ 2 months, seed size ≥ 10 TiB, 35+ uploads. Freeleech, 2x upload, H&R immune, torrent mod bypass",
     },
     {
       name: "OnlyCoinSpender",
       requirements:
-        "Upload ≥ 908.59 TiB, ratio ≥ 1.0, age ≥ 12 months, seed size ≥ 5 TiB. Freeleech, 2× upload, H&R immune",
+        "Upload ≥ 908.59 TiB, ratio ≥ 1.0, age ≥ 12 months, seed size ≥ 5 TiB. Freeleech, 2x upload, H&R immune",
     },
     // Staff-assigned
     {
@@ -83,11 +99,11 @@ export const onlyencodes: TrackerRegistryEntry = {
     {
       name: "ThunderKeeper",
       requirements:
-        "Staff — internal uploaders. Freeleech, 2× upload, H&R immune, torrent mod bypass",
+        "Staff — internal uploaders. Freeleech, 2x upload, H&R immune, torrent mod bypass",
     },
     {
       name: "SnowGlober",
-      requirements: "Staff — legacy VIP class. Freeleech, 2× upload, H&R immune",
+      requirements: "Staff — legacy VIP class. Freeleech, 2x upload, H&R immune",
     },
     { name: "Bot", requirements: "Staff — automated release bot. H&R immune, torrent mod bypass" },
     {
@@ -112,7 +128,6 @@ export const onlyencodes: TrackerRegistryEntry = {
     "sCOOTER",
     "Vialle",
   ],
-  notableMembers: ["GRiMM"],
   bannedGroups: [
     "3motion",
     "3L73N",
@@ -256,13 +271,9 @@ export const onlyencodes: TrackerRegistryEntry = {
     "ZoNAT",
     "ZVMT",
   ],
-  stats: {
-    userCount: 5631,
-    activeUsers: 4313,
-    torrentCount: 91051,
-    seedSize: "6.12 PiB",
-    statsUpdatedAt: "March 2026",
-  },
+  notableMembers: ["GRiMM"],
+
+  // ── Rules ───────────────────────────────────────────────────────────
   rules: {
     minimumRatio: 0.4,
     seedTimeHours: 48,
@@ -270,32 +281,50 @@ export const onlyencodes: TrackerRegistryEntry = {
     fulfillmentPeriodHours: 168,
     hnrBanLimit: 3,
     fullRulesMarkdown: [
-      "Internal Releases",
-      "• All internal releases receive freeleech",
-      "• 72-hour exclusivity before posting externally — violation = DL revoked, repeat = ban",
+      "## Internal Releases",
       "",
-      "Hit & Run",
-      "• Must seed even on freeleech torrents",
-      "• Warnings expire after 10 days but remain in history",
-      "• Bonus points earned for seeding beyond 48 hours",
+      "- All internal releases receive freeleech",
+      "- 72-hour exclusivity before posting externally — violation = DL revoked, repeat = ban",
       "",
-      "Uploading",
-      "• Personal releases must be seeded for 2 weeks",
-      "• No series packs — seasons only. Season pack trumps individual episodes",
-      "• Non-English content requires English subs or audio",
+      "## Hit & Run",
       "",
-      "Inactivity",
-      "• 60 days no login or seeding = disabled",
-      "• 180 days total inactivity = account deleted",
+      "- Must seed even on freeleech torrents",
+      "- Warnings expire after 10 days but remain in history",
+      "- Bonus points earned for seeding beyond 48 hours",
       "",
-      "Invites",
-      "• Available at Trailblazer class and above",
-      "• You are responsible for your invitees' actions",
-    ].join("\n"),
+      "## Uploading",
+      "",
+      "- Personal releases must be seeded for 2 weeks",
+      "- No series packs — seasons only. Season pack trumps individual episodes",
+      "- Non-English content requires English subs or audio",
+      "",
+      "## Inactivity",
+      "",
+      "- 60 days no login or seeding = disabled",
+      "- 180 days total inactivity = account deleted",
+      "",
+      "## Invites",
+      "",
+      "- Available at Trailblazer class and above",
+      "- You are responsible for your invitees' actions",
+    ],
   },
-  language: "English",
-  color: "#facc15",
-  logo: "/tracker-logos/onlyencodes_logo.png",
-  trackerHubSlug: "only-encodes",
+
+  // ── Status ──────────────────────────────────────────────────────────
+  warning: false,
+  warningNote: "",
+
+  // ── Flags ───────────────────────────────────────────────────────────
   draft: false,
+  supportsTransitPapers: true,
+  profileUrlPattern: "/users/{username}",
+
+  // ── Stats (omit this block entirely if no real data is available) ───
+  stats: {
+    userCount: 5631,
+    activeUsers: 4313,
+    torrentCount: 91051,
+    seedSize: "6.12 PiB",
+    statsUpdatedAt: "March 2026",
+  },
 }

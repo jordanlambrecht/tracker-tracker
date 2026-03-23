@@ -1,13 +1,13 @@
 # Racing4Everyone (R4E)
 
-| Field | Value |
-|---|---|
-| Platform | UNIT3D |
-| Base URL | `https://racing4everyone.eu` |
+| Field        | Value                                 |
+| ------------ | ------------------------------------- |
+| Platform     | UNIT3D                                |
+| Base URL     | `https://racing4everyone.eu`          |
 | API Endpoint | `https://racing4everyone.eu/api/user` |
-| Auth Method | Query parameter: `?api_token=TOKEN` |
-| Enrichment | N/A |
-| Auth Style | N/A |
+| Auth Method  | Query parameter: `?api_token=TOKEN`   |
+| Enrichment   | N/A                                   |
+| Auth Style   | N/A                                   |
 
 ## Notes
 

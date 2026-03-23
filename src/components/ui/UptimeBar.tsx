@@ -5,7 +5,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { CHART_THEME } from "@/components/charts/theme"
+import { CHART_THEME } from "@/components/charts/lib/theme"
 
 interface UptimeBucket {
   bucketTs: string

@@ -38,7 +38,7 @@ When this happens:
 Paused trackers are skipped entirely until you manually resume them.
 
 !!! warning "Verify the cause before resuming"
-    The banner reads: _"Polling was paused after repeated failures. Verify your API key is correct before resuming."_ If you resume without fixing the underlying problem, the tracker will fail again immediately and re-pause within the same poll cycle.
+The banner reads: _"Polling was paused after repeated failures. Verify your API key is correct before resuming."_ If you resume without fixing the underlying problem, the tracker will fail again immediately and re-pause within the same poll cycle.
 
 ---
 
@@ -61,13 +61,7 @@ This is the most common cause. Your tracker API key may have been regenerated, r
 
 **Symptom:** The Poll Error Banner shows `Authentication failed`.
 
-!!! success "Solution"
-    1. Log into your tracker's website and go to your profile or security settings.
-    2. Find your API token (often under "Security", "API", or "Edit Profile").
-    3. Copy the current token.
-    4. In Tracker Tracker, open the tracker's settings (edit icon on the tracker detail page or tracker list).
-    5. Paste the new token into the API Token field and save.
-    6. Click **Resume Polling**, then **Poll Now** to verify.
+!!! success "Solution" 1. Log into your tracker's website and go to your profile or security settings. 2. Find your API token (often under "Security", "API", or "Edit Profile"). 3. Copy the current token. 4. In Tracker Tracker, open the tracker's settings (edit icon on the tracker detail page or tracker list). 5. Paste the new token into the API Token field and save. 6. Click **Resume Polling**, then **Poll Now** to verify.
 
 ---
 
@@ -77,11 +71,7 @@ If a tracker has **Use Proxy** enabled, Tracker Tracker will not fall back to a 
 
 **Symptom:** The Poll Error Banner shows `Proxy connection failed`. The tracker has "Use Proxy" toggled on in its settings.
 
-!!! success "Solution"
-    1. Go to **Settings → Proxy** and verify the proxy host, port, type (SOCKS5/HTTP/HTTPS), and credentials.
-    2. Confirm the proxy server is running and reachable from your Docker host.
-    3. If you want to bypass the proxy for this tracker, edit the tracker settings and disable **Use Proxy**.
-    4. Resume polling after fixing.
+!!! success "Solution" 1. Go to **Settings → Proxy** and verify the proxy host, port, type (SOCKS5/HTTP/HTTPS), and credentials. 2. Confirm the proxy server is running and reachable from your Docker host. 3. If you want to bypass the proxy for this tracker, edit the tracker settings and disable **Use Proxy**. 4. Resume polling after fixing.
 
 ---
 
@@ -91,11 +81,7 @@ The tracker's hostname cannot be resolved. This may be a temporary DNS outage, a
 
 **Symptom:** The Poll Error Banner shows `Host not found`.
 
-!!! success "Solution"
-    1. Check the tracker's base URL for typos in the hostname.
-    2. From your Docker host, test resolution: `nslookup tracker.example.com`.
-    3. If you use custom DNS or a VPN, confirm DNS is available inside the container network. You may need to add a `dns:` entry to your `docker-compose.yml`.
-    4. If the tracker's domain has changed, update the base URL in the tracker settings.
+!!! success "Solution" 1. Check the tracker's base URL for typos in the hostname. 2. From your Docker host, test resolution: `nslookup tracker.example.com`. 3. If you use custom DNS or a VPN, confirm DNS is available inside the container network. You may need to add a `dns:` entry to your `docker-compose.yml`. 4. If the tracker's domain has changed, update the base URL in the tracker settings.
 
 ---
 
@@ -105,11 +91,7 @@ The hostname resolved but the connection was refused or the host was unreachable
 
 **Symptom:** The Poll Error Banner shows `Connection refused` or `Host unreachable`.
 
-!!! success "Solution"
-    1. Check whether the tracker site loads in your browser.
-    2. If the tracker is down, wait for it to recover, then resume polling.
-    3. If you route tracker traffic through a VPN, confirm the VPN is up.
-    4. Verify the base URL uses the correct scheme (`https://` vs `http://`) and the right port if the tracker uses a non-standard one.
+!!! success "Solution" 1. Check whether the tracker site loads in your browser. 2. If the tracker is down, wait for it to recover, then resume polling. 3. If you route tracker traffic through a VPN, confirm the VPN is up. 4. Verify the base URL uses the correct scheme (`https://` vs `http://`) and the right port if the tracker uses a non-standard one.
 
 ---
 
@@ -119,10 +101,7 @@ The connection was established but the tracker API did not respond within 15 sec
 
 **Symptom:** The Poll Error Banner shows `Request timed out`.
 
-!!! success "Solution"
-    1. This is often transient. Try **Poll Now** again after a few minutes.
-    2. If timeouts are persistent, check whether a proxy is adding significant latency.
-    3. If the tracker's API is consistently slow, there is no configurable timeout override.
+!!! success "Solution" 1. This is often transient. Try **Poll Now** again after a few minutes. 2. If timeouts are persistent, check whether a proxy is adding significant latency. 3. If the tracker's API is consistently slow, there is no configurable timeout override.
 
 ---
 
@@ -132,10 +111,7 @@ Some trackers block repeated requests from a single IP if polls come in too freq
 
 **Symptom:** The Poll Error Banner shows `IP temporarily banned by tracker`.
 
-!!! success "Solution"
-    1. Go to **Settings → General** and increase the **Poll Interval**. The minimum is 15 minutes, but 60 minutes (the default) is recommended for most trackers.
-    2. Wait for the IP ban to expire on the tracker side — this varies by site, typically minutes to hours.
-    3. Resume polling only after the ban has likely cleared.
+!!! success "Solution" 1. Go to **Settings → General** and increase the **Poll Interval**. The minimum is 15 minutes, but 60 minutes (the default) is recommended for most trackers. 2. Wait for the IP ban to expire on the tracker side — this varies by site, typically minutes to hours. 3. Resume polling only after the ban has likely cleared.
 
 ---
 
@@ -144,4 +120,4 @@ Some trackers block repeated requests from a single IP if polls come in too freq
 If polling has not paused but you still see a **Last Error** banner — without the "Polling Paused" heading — it means a recent poll failed but not enough times to trigger a pause. The banner clears automatically on the next successful poll.
 
 !!! info "No action needed if the last poll succeeded"
-    The Last Error banner always shows the most recent error, even if subsequent polls recovered. If the PulseDot is `healthy`, `warning`, or `critical` (not `error` or `paused`), polling has already recovered on its own.
+The Last Error banner always shows the most recent error, even if subsequent polls recovered. If the PulseDot is `healthy`, `warning`, or `critical` (not `error` or `paused`), polling has already recovered on its own.

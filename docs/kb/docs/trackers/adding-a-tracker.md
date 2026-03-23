@@ -29,6 +29,7 @@ Click the **+** button next to "Trackers" in the sidebar, or go to `/trackers/ne
     | Racing4Everyone | R4E |
     | ReelFlix | |
     | SkipTheCommercials | STC |
+    | Seedpool | SP |
     | Upload.cx | |
 
 === "Gazelle"
@@ -60,7 +61,7 @@ Click the **+** button next to "Trackers" in the sidebar, or go to `/trackers/ne
     | Nebulance | NBL |
 
 !!! note "Draft entries"
-    Some trackers in the registry are marked as drafts — dashed border, "Stats tracking not yet supported." You can pin them as quicklinks but no stats will be polled.
+Some trackers in the registry are marked as drafts — dashed border, "Stats tracking not yet supported." You can pin them as quicklinks but no stats will be polled.
 
 Trackers you've already added are hidden from the list automatically.
 
@@ -100,7 +101,7 @@ Where to find it depends on the platform:
     GGn keys don't expire on their own, but they can be regenerated from your settings.
 
 !!! warning "Keep your token private"
-    Your API token acts like a password for your account. Tracker Tracker encrypts it before storing it.
+Your API token acts like a password for your account. Tracker Tracker encrypts it before storing it.
 
 ## Optional fields
 
@@ -112,15 +113,15 @@ If the tracker needs a proxy (e.g., for geo-restrictions), toggle **Use Proxy** 
 
 1. The tracker is saved and an immediate poll runs.
 2. The **PulseDot** on the tracker card shows the result:
-    - Breathing cyan — poll succeeded
-    - Amber — warning or partial data
-    - Red — poll failed (bad token, network error, etc.)
+   - Breathing cyan — poll succeeded
+   - Amber — warning or partial data
+   - Red — poll failed (bad token, network error, etc.)
 3. The tracker appears in the dashboard and sidebar.
 
 ![PulseDot states showing healthy, warning, and error](../assets/images/pulsedots-states.png)
 
 !!! tip "Red dot right after adding?"
-    Check your API token. The most common cause is a copy-paste error or a token that was rotated after you copied it.
+Check your API token. The most common cause is a copy-paste error or a token that was rotated after you copied it.
 
 ## Polling manually
 
@@ -134,19 +135,19 @@ The global schedule (default: every 60 minutes) runs all trackers on a shared ti
 
 Not every platform exposes the same stats. Here's what you'll see:
 
-| Stat | UNIT3D | Gazelle | GGn | Notes |
-|------|--------|---------|-----|-------|
-| Upload | Yes | Yes | Yes | |
-| Download | Yes | Yes | Yes | |
-| Ratio | Yes | Yes | Yes | GGn shows extra decimal precision |
-| Buffer | Yes | Yes | Yes | UNIT3D returns this directly; others calculate it from upload minus download |
-| Seeding count | Yes | Partial | Partial | Some Gazelle forks and GGn may return 0 even when you're seeding |
-| Leeching count | Yes | Partial | Partial | Same as above |
-| Bonus points | Yes | Yes | Yes | GGn calls this "gold" — it maps automatically |
-| Hit & Runs | Yes | No | Partial | GGn shows unknown for Elite Gamer+ (HNR immunity) |
-| Required ratio | No | Yes | Yes | Not in the UNIT3D API |
-| Warned status | No | Partial | Yes | Most Gazelle trackers default to false; RED has extended data |
-| Freeleech tokens | No | Partial | No | Not all Gazelle forks expose this |
+| Stat             | UNIT3D | Gazelle | GGn     | Notes                                                                        |
+| ---------------- | ------ | ------- | ------- | ---------------------------------------------------------------------------- |
+| Upload           | Yes    | Yes     | Yes     |                                                                              |
+| Download         | Yes    | Yes     | Yes     |                                                                              |
+| Ratio            | Yes    | Yes     | Yes     | GGn shows extra decimal precision                                            |
+| Buffer           | Yes    | Yes     | Yes     | UNIT3D returns this directly; others calculate it from upload minus download |
+| Seeding count    | Yes    | Partial | Partial | Some Gazelle forks and GGn may return 0 even when you're seeding             |
+| Leeching count   | Yes    | Partial | Partial | Same as above                                                                |
+| Bonus points     | Yes    | Yes     | Yes     | GGn calls this "gold" — it maps automatically                                |
+| Hit & Runs       | Yes    | No      | Partial | GGn shows unknown for Elite Gamer+ (HNR immunity)                            |
+| Required ratio   | No     | Yes     | Yes     | Not in the UNIT3D API                                                        |
+| Warned status    | No     | Partial | Yes     | Most Gazelle trackers default to false; RED has extended data                |
+| Freeleech tokens | No     | Partial | No      | Not all Gazelle forks expose this                                            |
 
 ### Gazelle: enriched data on RED
 
@@ -164,7 +165,7 @@ REDacted (and Phoenix Project) fetch additional data beyond the standard stats �
 
 ### Token not working
 
-Make sure you copied the full token. UNIT3D tokens are typically 60–80 characters. Gazelle keys are shown only once when created.
+Make sure you copied the full token. UNIT3D tokens are typically 60-80 characters. Gazelle keys are shown only once when created.
 
 ### Poll fails with 401
 

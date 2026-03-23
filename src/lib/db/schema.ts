@@ -55,6 +55,9 @@ export const appSettings = pgTable("app_settings", {
   backupStoragePath: varchar("backup_storage_path", { length: 500 }),
   draftQuicklinks: text("draft_quicklinks"),
   dashboardSettings: text("dashboard_settings"),
+  encryptedPtpimgApiKey: text("encrypted_ptpimg_api_key"),
+  encryptedOeimgApiKey: text("encrypted_oeimg_api_key"),
+  encryptedImgbbApiKey: text("encrypted_imgbb_api_key"),
   encryptedSchedulerKey: text("encrypted_scheduler_key"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
@@ -71,6 +74,7 @@ export const trackers = pgTable("trackers", {
   lastError: text("last_error"),
   consecutiveFailures: integer("consecutive_failures").default(0).notNull(),
   pausedAt: timestamp("paused_at"),
+  userPausedAt: timestamp("user_paused_at"),
   color: varchar("color", { length: 20 }).default("#00d4ff"),
   qbtTag: varchar("qbt_tag", { length: 100 }),
   remoteUserId: integer("remote_user_id"),
@@ -84,6 +88,7 @@ export const trackers = pgTable("trackers", {
   sortOrder: integer("sort_order"),
   joinedAt: date("joined_at"),
   lastAccessAt: date("last_access_at"),
+  profileUrl: text("profile_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })

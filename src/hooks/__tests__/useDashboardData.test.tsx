@@ -44,6 +44,7 @@ const mockTracker: TrackerSummary = {
   lastError: null,
   consecutiveFailures: 0,
   pausedAt: null,
+  userPausedAt: null,
   color: "#00d4ff",
   qbtTag: null,
   useProxy: false,
@@ -142,26 +143,21 @@ afterEach(() => {
 
 describe("useDashboardData", () => {
   it("loading is false when initialTrackers are provided", () => {
-    const { result } = renderHook(
-      () => useDashboardData({ initialTrackers: [mockTracker] }),
-      { wrapper: createWrapper() }
-    )
+    const { result } = renderHook(() => useDashboardData({ initialTrackers: [mockTracker] }), {
+      wrapper: createWrapper(),
+    })
     expect(result.current.loading).toBe(false)
   })
 
   it("loading is true when no initialTrackers are provided", () => {
-    const { result } = renderHook(
-      () => useDashboardData(),
-      { wrapper: createWrapper() }
-    )
+    const { result } = renderHook(() => useDashboardData(), { wrapper: createWrapper() })
     expect(result.current.loading).toBe(true)
   })
 
   it("provides trackers from initialTrackers immediately", () => {
-    const { result } = renderHook(
-      () => useDashboardData({ initialTrackers: [mockTracker] }),
-      { wrapper: createWrapper() }
-    )
+    const { result } = renderHook(() => useDashboardData({ initialTrackers: [mockTracker] }), {
+      wrapper: createWrapper(),
+    })
     expect(result.current.trackers).toHaveLength(1)
     expect(result.current.trackers[0].name).toBe("Test Tracker")
   })
@@ -177,10 +173,9 @@ describe("useDashboardData", () => {
   })
 
   it("builds snapshotMap after snapshot queries resolve", async () => {
-    const { result } = renderHook(
-      () => useDashboardData({ initialTrackers: [mockTracker] }),
-      { wrapper: createWrapper() }
-    )
+    const { result } = renderHook(() => useDashboardData({ initialTrackers: [mockTracker] }), {
+      wrapper: createWrapper(),
+    })
 
     await waitFor(() => {
       const snapshots = result.current.snapshotMap.get(1)
@@ -190,10 +185,9 @@ describe("useDashboardData", () => {
   })
 
   it("snapshot fetch URL includes days=30 by default", async () => {
-    renderHook(
-      () => useDashboardData({ initialTrackers: [mockTracker] }),
-      { wrapper: createWrapper() }
-    )
+    renderHook(() => useDashboardData({ initialTrackers: [mockTracker] }), {
+      wrapper: createWrapper(),
+    })
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
@@ -204,10 +198,9 @@ describe("useDashboardData", () => {
   })
 
   it("changing dayRange triggers refetch with new days param", async () => {
-    const { result } = renderHook(
-      () => useDashboardData({ initialTrackers: [mockTracker] }),
-      { wrapper: createWrapper() }
-    )
+    const { result } = renderHook(() => useDashboardData({ initialTrackers: [mockTracker] }), {
+      wrapper: createWrapper(),
+    })
 
     // Wait for initial queries to settle
     await waitFor(() => {
@@ -231,20 +224,18 @@ describe("useDashboardData", () => {
     // Verify the tracker query uses 60_000 by checking the source
     // (TanStack Query internals don't expose interval easily in tests,
     // so we verify the constant is correct at the integration level)
-    const { result } = renderHook(
-      () => useDashboardData({ initialTrackers: [mockTracker] }),
-      { wrapper: createWrapper() }
-    )
+    const { result } = renderHook(() => useDashboardData({ initialTrackers: [mockTracker] }), {
+      wrapper: createWrapper(),
+    })
     // If refetchInterval were 60 (ms), we'd see rapid re-fetches
     // With 60_000 (1 min), a single render cycle won't trigger extra calls
     expect(result.current.trackers).toHaveLength(1)
   })
 
   it("exposes refresh function that triggers tracker refetch", async () => {
-    const { result } = renderHook(
-      () => useDashboardData({ initialTrackers: [mockTracker] }),
-      { wrapper: createWrapper() }
-    )
+    const { result } = renderHook(() => useDashboardData({ initialTrackers: [mockTracker] }), {
+      wrapper: createWrapper(),
+    })
 
     const callCountBefore = (fetchMock.mock.calls as unknown[][]).filter(
       (args) => args[0] === "/api/trackers"
@@ -262,10 +253,9 @@ describe("useDashboardData", () => {
   })
 
   it("fetches system alert data (clients and backup history)", async () => {
-    renderHook(
-      () => useDashboardData({ initialTrackers: [mockTracker] }),
-      { wrapper: createWrapper() }
-    )
+    renderHook(() => useDashboardData({ initialTrackers: [mockTracker] }), {
+      wrapper: createWrapper(),
+    })
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith("/api/clients", expect.any(Object))
@@ -286,10 +276,9 @@ describe("useDashboardData", () => {
     }
     vi.mocked(computeAlerts).mockReturnValue([mockAlert])
 
-    const { result } = renderHook(
-      () => useDashboardData({ initialTrackers: [mockTracker] }),
-      { wrapper: createWrapper() }
-    )
+    const { result } = renderHook(() => useDashboardData({ initialTrackers: [mockTracker] }), {
+      wrapper: createWrapper(),
+    })
 
     await waitFor(() => {
       expect(result.current.alerts).toHaveLength(1)

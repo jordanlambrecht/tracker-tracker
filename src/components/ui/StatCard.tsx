@@ -9,7 +9,7 @@
 
 import clsx from "clsx"
 import type { HTMLAttributes, ReactNode } from "react"
-import { CHART_THEME } from "@/components/charts/theme"
+import { CHART_THEME } from "@/components/charts/lib/theme"
 import { Tooltip } from "@/components/ui/Tooltip"
 import { hexToRgba } from "@/lib/formatters"
 

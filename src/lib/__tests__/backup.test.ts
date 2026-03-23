@@ -1,6 +1,4 @@
 // src/lib/__tests__/backup.test.ts
-//
-// Functions: (test file)
 
 import { describe, expect, it, vi } from "vitest"
 
@@ -83,6 +81,7 @@ function validPayload() {
         useProxy: false,
         sortOrder: 0,
         joinedAt: null,
+        userPausedAt: null,
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-03-09T00:00:00.000Z",
       },
@@ -314,5 +313,19 @@ describe("Backup security invariants", () => {
     const p = validPayload()
     expect(p.settings.encryptionSalt).toBeDefined()
     expect(typeof p.settings.encryptionSalt).toBe("string")
+  })
+
+  it("userPausedAt is included in tracker backup payload when set", () => {
+    const p = validPayload()
+    const tracker = p.trackers[0]
+    ;(tracker as Record<string, unknown>).userPausedAt = "2026-03-21T12:00:00.000Z"
+    expect(tracker.userPausedAt).toBe("2026-03-21T12:00:00.000Z")
+  })
+
+  it("pausedAt is excluded from tracker backup payload (transient runtime state)", () => {
+    const p = validPayload()
+    const tracker = p.trackers[0]
+    expect(tracker).not.toHaveProperty("pausedAt")
+    expect(tracker).not.toHaveProperty("paused_at")
   })
 })

@@ -70,7 +70,10 @@ export async function POST(request: Request) {
     try {
       entries = JSON.parse(decrypt(settings.totpBackupCodes, key))
     } catch {
-      log.error({ route: "POST /api/auth/totp/disable" }, "TOTP disable failed — backup code decrypt error")
+      log.error(
+        { route: "POST /api/auth/totp/disable" },
+        "TOTP disable failed — backup code decrypt error"
+      )
       return NextResponse.json({ error: "Failed to decrypt backup codes" }, { status: 500 })
     }
     const { valid, updatedEntries } = verifyAndConsumeBackupCode(code, entries)

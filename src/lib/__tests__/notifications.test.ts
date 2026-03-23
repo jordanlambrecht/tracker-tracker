@@ -1,7 +1,7 @@
 // src/lib/__tests__/notifications.test.ts
 
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { CHART_THEME } from "@/components/charts/theme"
+import { CHART_THEME } from "@/components/charts/lib/theme"
 import type { notificationTargets } from "@/lib/db/schema"
 import type { SnapshotContext } from "@/lib/notifications/dispatch"
 import type { NotificationTargetType } from "@/lib/notifications/types"

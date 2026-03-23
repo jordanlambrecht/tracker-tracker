@@ -2,14 +2,17 @@
 //
 // Exports: log
 
+import { mkdirSync } from "node:fs"
+import { dirname } from "node:path"
 import pino from "pino"
 import pretty from "pino-pretty"
+import { DEFAULT_LOG_FILE } from "@/lib/constants"
 
 const g = globalThis as typeof globalThis & { __logger?: pino.Logger }
 
 function createLogger(): pino.Logger {
   const level = process.env.LOG_LEVEL || "info"
-  const logFile = process.env.LOG_FILE
+  const logFile = process.env.LOG_FILE ?? DEFAULT_LOG_FILE
 
   const prettyStream = pretty({
     colorize: process.stdout.isTTY ?? false,
@@ -20,10 +23,15 @@ function createLogger(): pino.Logger {
   const streams: pino.StreamEntry[] = [{ level: "trace", stream: prettyStream }]
 
   if (logFile) {
-    streams.push({
-      level: "trace",
-      stream: pino.destination({ dest: logFile, mkdir: true, sync: false }),
-    })
+    try {
+      mkdirSync(dirname(logFile), { recursive: true })
+      streams.push({
+        level: "trace",
+        stream: pino.destination({ dest: logFile, mkdir: false, sync: false }),
+      })
+    } catch {
+      // Can't create log directory (e.g. /data on macOS without root) — stdout only
+    }
   }
 
   return pino({ level }, pino.multistream(streams))

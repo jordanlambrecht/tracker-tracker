@@ -33,21 +33,21 @@ All byte values are **formatted strings** (`"500.25 GiB"`), not integers. The `r
 
 ## Field Mapping
 
-| TrackerStats field | UNIT3D field | Type | Notes |
-|---|---|---|---|
-| `username` | `username` | `string` | Direct copy |
-| `group` | `group` | `string` | User class / rank label |
-| `uploadedBytes` | `uploaded` | `string` | Parsed via `parseBytes()` → `bigint` |
-| `downloadedBytes` | `downloaded` | `string` | Parsed via `parseBytes()` → `bigint` |
-| `ratio` | `ratio` | `string` | `parseFloat()`, defaults to `0` |
-| `bufferBytes` | `buffer` | `string` | Parsed via `parseBytes()` → `bigint` |
-| `seedingCount` | `seeding` | `number` | Direct copy |
-| `leechingCount` | `leeching` | `number` | Direct copy |
-| `seedbonus` | `seedbonus` | `string` | `parseFloat()`, defaults to `0` |
-| `hitAndRuns` | `hit_and_runs` | `number` | Direct copy |
-| `requiredRatio` | — | — | Always `null` — not in UNIT3D API |
-| `warned` | — | — | Always `null` — not in UNIT3D API |
-| `freeleechTokens` | — | — | Always `null` — not in UNIT3D API |
+| TrackerStats field | UNIT3D field   | Type     | Notes                                |
+| ------------------ | -------------- | -------- | ------------------------------------ |
+| `username`         | `username`     | `string` | Direct copy                          |
+| `group`            | `group`        | `string` | User class / rank label              |
+| `uploadedBytes`    | `uploaded`     | `string` | Parsed via `parseBytes()` → `bigint` |
+| `downloadedBytes`  | `downloaded`   | `string` | Parsed via `parseBytes()` → `bigint` |
+| `ratio`            | `ratio`        | `string` | `parseFloat()`, defaults to `0`      |
+| `bufferBytes`      | `buffer`       | `string` | Parsed via `parseBytes()` → `bigint` |
+| `seedingCount`     | `seeding`      | `number` | Direct copy                          |
+| `leechingCount`    | `leeching`     | `number` | Direct copy                          |
+| `seedbonus`        | `seedbonus`    | `string` | `parseFloat()`, defaults to `0`      |
+| `hitAndRuns`       | `hit_and_runs` | `number` | Direct copy                          |
+| `requiredRatio`    | —              | —        | Always `null` — not in UNIT3D API    |
+| `warned`           | —              | —        | Always `null` — not in UNIT3D API    |
+| `freeleechTokens`  | —              | —        | Always `null` — not in UNIT3D API    |
 
 UNIT3D makes a single API call per poll. No enrichment step.
 

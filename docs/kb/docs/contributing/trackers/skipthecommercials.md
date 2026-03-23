@@ -1,13 +1,13 @@
 # SkipTheCommercials (STC)
 
-| Field | Value |
-|---|---|
-| Platform | UNIT3D |
-| Base URL | `https://skipthecommercials.xyz` |
+| Field        | Value                                     |
+| ------------ | ----------------------------------------- |
+| Platform     | UNIT3D                                    |
+| Base URL     | `https://skipthecommercials.xyz`          |
 | API Endpoint | `https://skipthecommercials.xyz/api/user` |
-| Auth Method | Query parameter: `?api_token=TOKEN` |
-| Enrichment | N/A |
-| Auth Style | N/A |
+| Auth Method  | Query parameter: `?api_token=TOKEN`       |
+| Enrichment   | N/A                                       |
+| Auth Style   | N/A                                       |
 
 ## Notes
 

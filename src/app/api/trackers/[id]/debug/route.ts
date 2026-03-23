@@ -6,8 +6,7 @@
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { findRegistryEntry } from "@/data/tracker-registry"
-import { getAdapter } from "@/lib/adapters"
+import { buildFetchOptions, getAdapter } from "@/lib/adapters"
 import type { DebugApiCall, TrackerStats } from "@/lib/adapters/types"
 import { authenticate, decodeKey, parseTrackerId } from "@/lib/api-helpers"
 import { decrypt } from "@/lib/crypto"
@@ -97,28 +96,17 @@ export async function POST(_request: Request, props: { params: Promise<{ id: str
 
   const proxyAgent = settings ? buildProxyAgentFromSettings(settings, key) : undefined
 
-  const fetchOptions: {
-    proxyAgent?: typeof proxyAgent
-    remoteUserId?: number
-    authStyle?: "token" | "raw"
-    enrich?: boolean
-  } = {}
-
-  if (tracker.useProxy) {
-    if (!proxyAgent) {
-      return NextResponse.json(
-        { error: "Proxy required but not configured — refusing direct connection" },
-        { status: 400 }
-      )
-    }
-    fetchOptions.proxyAgent = proxyAgent
+  if (tracker.useProxy && !proxyAgent) {
+    return NextResponse.json(
+      { error: "Proxy required but not configured — refusing direct connection" },
+      { status: 400 }
+    )
   }
 
-  if (tracker.remoteUserId) fetchOptions.remoteUserId = tracker.remoteUserId
-
-  const registryEntry = findRegistryEntry(tracker.baseUrl)
-  if (registryEntry?.gazelleAuthStyle) fetchOptions.authStyle = registryEntry.gazelleAuthStyle
-  if (registryEntry?.gazelleEnrich) fetchOptions.enrich = true
+  const fetchOptions = buildFetchOptions(tracker.baseUrl, {
+    proxyAgent: tracker.useProxy ? proxyAgent : undefined,
+    remoteUserId: tracker.remoteUserId ?? undefined,
+  })
 
   const adapter = getAdapter(tracker.platformType)
 
@@ -135,7 +123,10 @@ export async function POST(_request: Request, props: { params: Promise<{ id: str
     } catch (err) {
       // security-audit-ignore: error captured in rawError for debug response
       rawError = err instanceof Error ? err.message : "Raw fetch failed"
-      log.warn({ route: "POST /api/trackers/[id]/debug", trackerId, error: rawError }, "debug raw fetch failed")
+      log.warn(
+        { route: "POST /api/trackers/[id]/debug", trackerId, error: rawError },
+        "debug raw fetch failed"
+      )
     }
   } else {
     rawError = `fetchRaw not implemented for platform: ${tracker.platformType}`
@@ -149,7 +140,10 @@ export async function POST(_request: Request, props: { params: Promise<{ id: str
     normalizedResponse = serializeStats(stats)
   } catch (err) {
     normalizedError = err instanceof Error ? err.message : "Normalized fetch failed"
-    log.warn({ route: "POST /api/trackers/[id]/debug", trackerId, error: normalizedError }, "debug normalized fetch failed")
+    log.warn(
+      { route: "POST /api/trackers/[id]/debug", trackerId, error: normalizedError },
+      "debug normalized fetch failed"
+    )
   }
 
   return NextResponse.json({

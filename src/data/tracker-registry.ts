@@ -41,7 +41,7 @@ export interface TrackerRules {
   loginIntervalDays: number // days until prune/disable
   fulfillmentPeriodHours?: number // null = not applicable
   hnrBanLimit?: number // null = not applicable
-  fullRulesMarkdown?: string
+  fullRulesMarkdown?: string[]
 }
 
 export interface TrackerRegistryEntry {
@@ -74,8 +74,11 @@ export interface TrackerRegistryEntry {
   draft?: boolean
   warning?: boolean
   warningNote?: string
+  supportsTransitPapers?: boolean
+  profileUrlPattern?: string
   gazelleAuthStyle?: "token" | "raw"
   gazelleEnrich?: boolean
+  unit3dAuthStyle?: "bearer" | "query"
 }
 
 export const TRACKER_REGISTRY: TrackerRegistryEntry[] = ALL_TRACKERS.filter((t) => !t.draft)

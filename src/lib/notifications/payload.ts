@@ -2,7 +2,7 @@
 //
 // Functions: hexToInt, buildDiscordEmbed, buildDescription
 
-import { CHART_THEME } from "@/components/charts/theme"
+import { CHART_THEME } from "@/components/charts/lib/theme"
 import { formatBytesNum } from "@/lib/formatters"
 import type { NotificationEventType } from "@/lib/notifications/types"
 

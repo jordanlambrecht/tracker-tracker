@@ -12,9 +12,9 @@ import { clearSession, verifyPassword } from "@/lib/auth"
 import { generateSalt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
 import { stopScheduler } from "@/lib/scheduler"
 import { clearSchedulerKey } from "@/lib/scheduler-key-store"
-import { log } from "@/lib/logger"
 
 export async function POST(request: Request) {
   const auth = await authenticate()

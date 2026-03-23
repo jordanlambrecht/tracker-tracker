@@ -5,10 +5,10 @@
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { authenticate, decodeKey, parseRouteId } from "@/lib/api-helpers"
-import { log } from "@/lib/logger"
 import { decryptClientCredentials } from "@/lib/client-decrypt"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
 import { getTorrents, withSessionRetry } from "@/lib/qbt"
 
 export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
@@ -41,7 +41,10 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
   try {
     ;({ username, password } = decryptClientCredentials(client, key))
   } catch {
-    log.error({ route: "GET /api/clients/[id]/torrents", clientId }, "torrent fetch failed — credential decrypt error")
+    log.error(
+      { route: "GET /api/clients/[id]/torrents", clientId },
+      "torrent fetch failed — credential decrypt error"
+    )
     return NextResponse.json({ error: "Failed to decrypt credentials" }, { status: 422 })
   }
 
@@ -61,7 +64,14 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
     if (/timed?\s*out/i.test(raw)) detail = " (timed out)"
     else if (/ECONNREFUSED/i.test(raw)) detail = " (ECONNREFUSED)"
     else if (/403/.test(raw)) detail = " (403)"
-    log.error({ route: "GET /api/clients/[id]/torrents", clientId, error: `Failed to fetch torrents${detail}` }, "torrent fetch failed")
+    log.error(
+      {
+        route: "GET /api/clients/[id]/torrents",
+        clientId,
+        error: `Failed to fetch torrents${detail}`,
+      },
+      "torrent fetch failed"
+    )
     return NextResponse.json(
       { error: `Failed to fetch torrents from client${detail}` },
       { status: 502 }

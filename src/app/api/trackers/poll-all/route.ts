@@ -47,7 +47,10 @@ export async function POST() {
     return NextResponse.json({ total: 0, done: true, polled: 0, failed: 0 })
   }
 
-  log.info({ route: "POST /api/trackers/poll-all", count: activeTrackers.length }, "poll-all initiated")
+  log.info(
+    { route: "POST /api/trackers/poll-all", count: activeTrackers.length },
+    "poll-all initiated"
+  )
 
   const batchTimestamp = new Date()
   const encoder = new TextEncoder()

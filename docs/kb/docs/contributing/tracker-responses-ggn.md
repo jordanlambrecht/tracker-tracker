@@ -128,26 +128,26 @@ The only purpose of this call is to resolve the user's numeric ID. Once the adap
 
 ## Field Mapping
 
-| TrackerStats field | GGn path | Type | Notes |
-|---|---|---|---|
-| `username` | `response.username` | `string` | From user response; quick_user value used as fallback |
-| `group` | `response.personal.class` | `string` | Falls back to `"Unknown"` |
-| `remoteUserId` | `response.id` | `number` | Stored after first poll to skip quick_user |
-| `uploadedBytes` | `response.stats.uploaded` | `number` | `BigInt(Math.floor(...))` |
-| `downloadedBytes` | `response.stats.downloaded` | `number` | `BigInt(Math.floor(...))` |
-| `ratio` | `response.stats.ratio` | `string \| number` | Parsed via `parseFloat()` if string |
-| `bufferBytes` | — | — | Calculated: `uploadedBytes - downloadedBytes` (min `0`) |
-| `seedingCount` | `response.community.seeding` | `number \| null` | Defaults to `0`; null when paranoia hides it |
-| `leechingCount` | `response.community.leeching` | `number \| null` | Defaults to `0`; null when paranoia hides it |
-| `seedbonus` | `response.stats.gold` | `number` | GGn uses "gold" as its currency, not "bonus points" |
-| `hitAndRuns` | `response.personal.hnrs` | `number \| null` | `null` when not tracked or hidden |
-| `requiredRatio` | `response.stats.requiredRatio` | `number` | Available directly in the user call |
-| `warned` | `response.personal.warned` | `boolean` | Available directly — no second call needed |
-| `freeleechTokens` | — | — | Always `null` — GGn does not expose FL tokens |
-| `joinedDate` | `response.stats.joinedDate` | `string \| null` | ISO-style datetime string |
-| `lastAccessDate` | `response.stats.lastAccess` | `string \| null` | ISO-style datetime string |
-| `shareScore` | `response.stats.shareScore` | `number \| null` | GGn-specific metric |
-| `platformMeta` | `response.personal`, `response.community`, `response.buffs`, `response.achievements` | — | `GGnPlatformMeta` object |
+| TrackerStats field | GGn path                                                                             | Type               | Notes                                                   |
+| ------------------ | ------------------------------------------------------------------------------------ | ------------------ | ------------------------------------------------------- |
+| `username`         | `response.username`                                                                  | `string`           | From user response; quick_user value used as fallback   |
+| `group`            | `response.personal.class`                                                            | `string`           | Falls back to `"Unknown"`                               |
+| `remoteUserId`     | `response.id`                                                                        | `number`           | Stored after first poll to skip quick_user              |
+| `uploadedBytes`    | `response.stats.uploaded`                                                            | `number`           | `BigInt(Math.floor(...))`                               |
+| `downloadedBytes`  | `response.stats.downloaded`                                                          | `number`           | `BigInt(Math.floor(...))`                               |
+| `ratio`            | `response.stats.ratio`                                                               | `string \| number` | Parsed via `parseFloat()` if string                     |
+| `bufferBytes`      | —                                                                                    | —                  | Calculated: `uploadedBytes - downloadedBytes` (min `0`) |
+| `seedingCount`     | `response.community.seeding`                                                         | `number \| null`   | Defaults to `0`; null when paranoia hides it            |
+| `leechingCount`    | `response.community.leeching`                                                        | `number \| null`   | Defaults to `0`; null when paranoia hides it            |
+| `seedbonus`        | `response.stats.gold`                                                                | `number`           | GGn uses "gold" as its currency, not "bonus points"     |
+| `hitAndRuns`       | `response.personal.hnrs`                                                             | `number \| null`   | `null` when not tracked or hidden                       |
+| `requiredRatio`    | `response.stats.requiredRatio`                                                       | `number`           | Available directly in the user call                     |
+| `warned`           | `response.personal.warned`                                                           | `boolean`          | Available directly — no second call needed              |
+| `freeleechTokens`  | —                                                                                    | —                  | Always `null` — GGn does not expose FL tokens           |
+| `joinedDate`       | `response.stats.joinedDate`                                                          | `string \| null`   | ISO-style datetime string                               |
+| `lastAccessDate`   | `response.stats.lastAccess`                                                          | `string \| null`   | ISO-style datetime string                               |
+| `shareScore`       | `response.stats.shareScore`                                                          | `number \| null`   | GGn-specific metric                                     |
+| `platformMeta`     | `response.personal`, `response.community`, `response.buffs`, `response.achievements` | —                  | `GGnPlatformMeta` object                                |
 
 ## Quirks
 
@@ -155,9 +155,7 @@ The only purpose of this call is to resolve the user's numeric ID. Once the adap
 
 ```typescript
 const ratio =
-  typeof resp.stats.ratio === "number"
-    ? resp.stats.ratio
-    : parseFloat(resp.stats.ratio) || 0
+  typeof resp.stats.ratio === "number" ? resp.stats.ratio : parseFloat(resp.stats.ratio) || 0
 ```
 
 **Seedbonus is called `gold`.** GGn has a currency called gold, not bonus points. The adapter maps `stats.gold` → `seedbonus` in the `TrackerStats` output so the dashboard can display it consistently.

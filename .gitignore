@@ -51,6 +51,9 @@ docs/superpowers/specs/
 .interface-design/
 .worktrees/
 
+# docker local overrides
+docker-compose.override.yml
+
 # vercel
 .vercel
 

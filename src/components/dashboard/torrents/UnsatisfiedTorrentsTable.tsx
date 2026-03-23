@@ -2,7 +2,7 @@
 
 "use client"
 
-import { CHART_THEME } from "@/components/charts/theme"
+import { CHART_THEME } from "@/components/charts/lib/theme"
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
@@ -101,6 +101,7 @@ export function UnsatisfiedTorrentsTable({
       fixedLayout
       noHorizontalScroll
       maxHeight={torrents.length > 15 ? 720 : undefined}
+      alwaysShowScrollbar={torrents.length > 15}
     />
   )
 }

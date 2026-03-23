@@ -389,6 +389,58 @@ export async function PATCH(request: Request) {
     }
   }
 
+  // --- Image hosting API keys ---
+  if (body.ptpimgApiKey !== undefined) {
+    if (body.ptpimgApiKey === null || body.ptpimgApiKey === "") {
+      updates.encryptedPtpimgApiKey = null
+    } else if (typeof body.ptpimgApiKey === "string") {
+      if (body.ptpimgApiKey.length > 500) {
+        return NextResponse.json(
+          { error: "PTPimg API key must be 500 characters or fewer" },
+          { status: 400 }
+        )
+      }
+      const key = decodeKey(auth)
+      updates.encryptedPtpimgApiKey = encrypt(body.ptpimgApiKey, key)
+    } else {
+      return NextResponse.json({ error: "Invalid ptpimgApiKey" }, { status: 400 })
+    }
+  }
+
+  if (body.oeimgApiKey !== undefined) {
+    if (body.oeimgApiKey === null || body.oeimgApiKey === "") {
+      updates.encryptedOeimgApiKey = null
+    } else if (typeof body.oeimgApiKey === "string") {
+      if (body.oeimgApiKey.length > 500) {
+        return NextResponse.json(
+          { error: "OnlyImage API key must be 500 characters or fewer" },
+          { status: 400 }
+        )
+      }
+      const key = decodeKey(auth)
+      updates.encryptedOeimgApiKey = encrypt(body.oeimgApiKey, key)
+    } else {
+      return NextResponse.json({ error: "Invalid oeimgApiKey" }, { status: 400 })
+    }
+  }
+
+  if (body.imgbbApiKey !== undefined) {
+    if (body.imgbbApiKey === null || body.imgbbApiKey === "") {
+      updates.encryptedImgbbApiKey = null
+    } else if (typeof body.imgbbApiKey === "string") {
+      if (body.imgbbApiKey.length > 500) {
+        return NextResponse.json(
+          { error: "ImgBB API key must be 500 characters or fewer" },
+          { status: 400 }
+        )
+      }
+      const key = decodeKey(auth)
+      updates.encryptedImgbbApiKey = encrypt(body.imgbbApiKey, key)
+    } else {
+      return NextResponse.json({ error: "Invalid imgbbApiKey" }, { status: 400 })
+    }
+  }
+
   if (body.backupStoragePath !== undefined) {
     if (body.backupStoragePath === null || body.backupStoragePath === "") {
       updates.backupStoragePath = null

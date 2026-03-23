@@ -1,10 +1,20 @@
-// src/components/charts/chart-helpers.ts
+// src/components/charts/lib/chart-helpers.ts
 //
-// Functions: fmtNum, yAxisPad, formatDateLabel, yAxisAutoRange, autoByteScale, DAY_LABELS, HOUR_LABELS, buildBucketedBarOption, buildGlowAreaStyle, buildAxisPointer, buildThemeRiverSingleAxis, adaptiveDotSize
+// Functions: fmtNum, yAxisPad, formatDateLabel, yAxisAutoRange, autoByteScale, DAY_LABELS, HOUR_LABELS, buildBucketedBarOption, buildGlowAreaStyle, buildAxisPointer, buildThemeRiverSingleAxis, adaptiveDotSize, buildTimeXAxis, insideZoom, buildDonutShell, buildStackedAreaOption
 
 import type { EChartsOption } from "echarts"
 import { hexToRgba } from "@/lib/formatters"
-import { CHART_THEME, chartAxisLabel, chartDot, chartGrid, chartTooltip } from "./theme"
+import {
+  CHART_THEME,
+  chartAxisLabel,
+  chartDot,
+  chartGrid,
+  chartLegend,
+  chartTooltip,
+  chartTooltipHeader,
+  chartTooltipRow,
+  formatChartTimestamp,
+} from "./theme"
 
 /** Locale-formatted number with fixed decimal places — used in chart tooltips and axis labels */
 export function fmtNum(v: number, decimals = 2): string {
@@ -201,7 +211,7 @@ export function buildAxisPointer(
   opacity?: number,
   width?: number
 ): Record<string, unknown> {
-  const lineStyle: Record<string, unknown> = { color, type: "dashed" as const }
+  const lineStyle: Record<string, unknown> = { color, type: "dashed" }
   if (opacity !== undefined) lineStyle.opacity = opacity
   if (width !== undefined) lineStyle.width = width
   return { type: "line", lineStyle }
@@ -235,4 +245,152 @@ export function adaptiveDotSize(count: number, thresholds: [number, number] = [1
   if (count > thresholds[0]) return 2
   if (count > thresholds[1]) return 4
   return 6
+}
+
+/**
+ * Standard time-axis xAxis config.
+ * Uses ECharts cascading label formatter for automatic granularity —
+ * ECharts picks month/day/hour format based on the visible data range.
+ */
+export function buildTimeXAxis(overrides?: Record<string, unknown>): Record<string, unknown> {
+  return {
+    type: "time",
+    boundaryGap: false,
+    axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
+    axisTick: { show: false },
+    axisLabel: chartAxisLabel({
+      hideOverlap: true,
+      formatter: {
+        year: "{yyyy}",
+        month: "{MMM}",
+        day: "{MMM} {d}",
+        hour: "{HH}:{mm}",
+        minute: "{HH}:{mm}",
+      },
+    }),
+    splitLine: { show: true, lineStyle: { color: CHART_THEME.gridLine, width: 1 } },
+    ...overrides,
+  }
+}
+
+/** Inside-only dataZoom (wheel zoom + drag). Returns empty array when data is too sparse to need it. */
+export function insideZoom(dataPointCount: number, minPoints = 14): EChartsOption["dataZoom"] {
+  if (dataPointCount < minPoints) return []
+  return [{ type: "inside", zoomOnMouseWheel: true, moveOnMouseMove: true }]
+}
+
+/**
+ * Shared donut chart shell — common radius, border, emphasis, and label config.
+ * Consumers provide `data`, `label` overrides, and optional extras.
+ */
+export function buildDonutShell(overrides?: {
+  radius?: [string, string]
+  center?: [string, string]
+  avoidLabelOverlap?: boolean
+  labelLineLength?: [number, number]
+}): {
+  type: "pie"
+  radius: [string, string]
+  center: [string, string]
+  avoidLabelOverlap: boolean
+  itemStyle: { borderRadius: number; borderColor: string; borderWidth: number }
+  emphasis: { label: { show: boolean; fontWeight: string; color: string } }
+  labelLine: { lineStyle: { color: string }; length: number; length2: number }
+} {
+  const radius = overrides?.radius ?? ["45%", "72%"]
+  const center = overrides?.center ?? ["50%", "50%"]
+  const [len1, len2] = overrides?.labelLineLength ?? [12, 8]
+  return {
+    type: "pie" as const,
+    radius,
+    center,
+    avoidLabelOverlap: overrides?.avoidLabelOverlap ?? true,
+    itemStyle: {
+      borderRadius: 4,
+      borderColor: CHART_THEME.surface,
+      borderWidth: 2,
+    },
+    emphasis: {
+      label: { show: true, fontWeight: "bold", color: CHART_THEME.textPrimary },
+    },
+    labelLine: {
+      lineStyle: { color: CHART_THEME.borderMid },
+      length: len1,
+      length2: len2,
+    },
+  }
+}
+
+/**
+ * Builds a stacked area chart option for cumulative monthly series.
+ * Used by FleetAgeTimeline and FleetCategoryTimeline.
+ */
+export function buildStackedAreaOption(
+  sortedMonths: string[],
+  series: { name: string; color: string; monthMap: Map<string, number> }[],
+  stackId = "default"
+): EChartsOption {
+  const eChartsSeries: NonNullable<EChartsOption["series"]> = series.map((s) => {
+    let running = 0
+    const data: [number, number][] = sortedMonths.map((month) => {
+      running += s.monthMap.get(month) ?? 0
+      const ts = new Date(`${month}-15T12:00:00`).getTime()
+      return [ts, running]
+    })
+
+    return {
+      name: s.name,
+      type: "line",
+      stack: stackId,
+      smooth: true,
+      symbol: "none",
+      data,
+      itemStyle: { color: s.color },
+      lineStyle: { color: s.color, width: 1.5 },
+      areaStyle: { color: s.color, opacity: 0.3 },
+    }
+  })
+
+  return {
+    backgroundColor: "transparent",
+    grid: chartGrid({ right: 16, bottom: 48, left: 56 }),
+    tooltip: chartTooltip("axis", {
+      axisPointer: buildAxisPointer(),
+      formatter: (params: unknown) => {
+        const items = params as Array<{
+          seriesName: string
+          value: [number, number]
+          color: string
+        }>
+        if (!items?.length) return ""
+        const ts = items[0].value[0]
+        const dateLabel = formatChartTimestamp(ts)
+        const rows = items
+          .filter((item) => item.value[1] > 0)
+          .sort((a, b) => b.value[1] - a.value[1])
+          .map((item) =>
+            chartTooltipRow(item.color, item.seriesName, item.value[1].toLocaleString())
+          )
+          .join("<br/>")
+        return `${chartTooltipHeader(dateLabel)}${rows}`
+      },
+    }),
+    legend: chartLegend(),
+    xAxis: buildTimeXAxis({ boundaryGap: false }),
+    yAxis: {
+      type: "value",
+      name: "Torrents",
+      nameTextStyle: {
+        color: CHART_THEME.textTertiary,
+        fontFamily: CHART_THEME.fontMono,
+        fontSize: 10,
+      },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: chartAxisLabel(),
+      splitLine: { lineStyle: { color: CHART_THEME.gridLine } },
+    },
+    dataZoom: insideZoom(sortedMonths.length),
+    series: eChartsSeries,
+  }
 }

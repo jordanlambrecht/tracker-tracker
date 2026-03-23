@@ -26,8 +26,6 @@ describe("TrackerDetail error boundary", () => {
   })
 
   it("renders safely when error.message is empty", () => {
-    expect(() =>
-      render(<TrackerDetailError error={new Error("")} reset={vi.fn()} />)
-    ).not.toThrow()
+    expect(() => render(<TrackerDetailError error={new Error("")} reset={vi.fn()} />)).not.toThrow()
   })
 })

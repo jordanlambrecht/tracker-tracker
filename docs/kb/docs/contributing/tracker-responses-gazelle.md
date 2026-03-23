@@ -54,22 +54,22 @@ Byte values are **raw integers** (bytes), not formatted strings. The `id` field 
 
 ## Field Mapping (action=index)
 
-| TrackerStats field | Gazelle path | Type | Notes |
-|---|---|---|---|
-| `username` | `response.username` | `string` | Direct copy |
-| `group` | `response.userstats.class` | `string` | Falls back to `"Unknown"` |
-| `uploadedBytes` | `response.userstats.uploaded` | `number` | `BigInt(Math.floor(...))` |
-| `downloadedBytes` | `response.userstats.downloaded` | `number` | `BigInt(Math.floor(...))` |
-| `ratio` | `response.userstats.ratio` | `number` | Defaults to `0` if not a number |
-| `bufferBytes` | — | — | Calculated: `uploadedBytes - downloadedBytes` (min `0`) |
-| `seedingCount` | `response.userstats.seedingcount` | `number?` | Defaults to `0` — many forks omit this |
-| `leechingCount` | `response.userstats.leechingcount` | `number?` | Defaults to `0` — many forks omit this |
-| `seedbonus` | `response.userstats.bonusPoints` or `.bonuspoints` | `number?` | Checks both casing variants |
-| `hitAndRuns` | — | — | Always `null` — not in Gazelle index response |
-| `requiredRatio` | `response.userstats.requiredratio` | `number?` | `null` if absent |
-| `warned` | — | — | Defaults to `false` from index; overridden if enrichment runs |
-| `freeleechTokens` | `response.userstats.freeleechTokens` or `response.giftTokens` | `number?` | Checks `userstats` first, falls back to top-level `giftTokens` |
-| `remoteUserId` | `response.id` | `number` | Cached to skip re-parsing on future polls |
+| TrackerStats field | Gazelle path                                                  | Type      | Notes                                                          |
+| ------------------ | ------------------------------------------------------------- | --------- | -------------------------------------------------------------- |
+| `username`         | `response.username`                                           | `string`  | Direct copy                                                    |
+| `group`            | `response.userstats.class`                                    | `string`  | Falls back to `"Unknown"`                                      |
+| `uploadedBytes`    | `response.userstats.uploaded`                                 | `number`  | `BigInt(Math.floor(...))`                                      |
+| `downloadedBytes`  | `response.userstats.downloaded`                               | `number`  | `BigInt(Math.floor(...))`                                      |
+| `ratio`            | `response.userstats.ratio`                                    | `number`  | Defaults to `0` if not a number                                |
+| `bufferBytes`      | —                                                             | —         | Calculated: `uploadedBytes - downloadedBytes` (min `0`)        |
+| `seedingCount`     | `response.userstats.seedingcount`                             | `number?` | Defaults to `0` — many forks omit this                         |
+| `leechingCount`    | `response.userstats.leechingcount`                            | `number?` | Defaults to `0` — many forks omit this                         |
+| `seedbonus`        | `response.userstats.bonusPoints` or `.bonuspoints`            | `number?` | Checks both casing variants                                    |
+| `hitAndRuns`       | —                                                             | —         | Always `null` — not in Gazelle index response                  |
+| `requiredRatio`    | `response.userstats.requiredratio`                            | `number?` | `null` if absent                                               |
+| `warned`           | —                                                             | —         | Defaults to `false` from index; overridden if enrichment runs  |
+| `freeleechTokens`  | `response.userstats.freeleechTokens` or `response.giftTokens` | `number?` | Checks `userstats` first, falls back to top-level `giftTokens` |
+| `remoteUserId`     | `response.id`                                                 | `number`  | Cached to skip re-parsing on future polls                      |
 
 ---
 
@@ -144,16 +144,16 @@ This call fetches the full user profile including warned status, join date, seed
 
 ### What the enrichment step overrides
 
-| TrackerStats field | Source in action=user response | Notes |
-|---|---|---|
-| `warned` | `personal.warned` | Overrides the `false` default from index |
-| `joinedDate` | `stats.joinedDate` | Not available from index |
-| `lastAccessDate` | `stats.lastAccess` | Not available from index |
-| `bufferBytes` | `stats.buffer` | Richer than the calculated value |
-| `seedingCount` | `community.seeding` | More reliable than index for many forks |
-| `leechingCount` | `community.leeching` | More reliable than index for many forks |
-| `avatarUrl` | `avatar` | Not available from index |
-| `platformMeta` | `personal`, `ranks`, `community` | Full `GazellePlatformMeta` object |
+| TrackerStats field | Source in action=user response   | Notes                                    |
+| ------------------ | -------------------------------- | ---------------------------------------- |
+| `warned`           | `personal.warned`                | Overrides the `false` default from index |
+| `joinedDate`       | `stats.joinedDate`               | Not available from index                 |
+| `lastAccessDate`   | `stats.lastAccess`               | Not available from index                 |
+| `bufferBytes`      | `stats.buffer`                   | Richer than the calculated value         |
+| `seedingCount`     | `community.seeding`              | More reliable than index for many forks  |
+| `leechingCount`    | `community.leeching`             | More reliable than index for many forks  |
+| `avatarUrl`        | `avatar`                         | Not available from index                 |
+| `platformMeta`     | `personal`, `ranks`, `community` | Full `GazellePlatformMeta` object        |
 
 If the enrichment call fails for any reason, the adapter continues with core stats from the index response — the failure is non-fatal.
 
@@ -161,13 +161,13 @@ If the enrichment call fails for any reason, the adapter continues with core sta
 
 ## Gazelle Fork Variations
 
-| Site | bonusPoints field | freeleechTokens | seedingcount in index |
-|---|---|---|---|
-| Redacted (RED) | `bonusPoints` | Sometimes | No |
-| Orpheus (OPS) | `bonusPoints` | Sometimes | No |
-| BroadcasTheNet (BTN) | Varies | No | No |
-| PassThePopcorn (PTP) | Varies | No | No |
-| AnimeBytes (AB) | Varies | Varies | No |
+| Site                 | bonusPoints field | freeleechTokens | seedingcount in index |
+| -------------------- | ----------------- | --------------- | --------------------- |
+| Redacted (RED)       | `bonusPoints`     | Sometimes       | No                    |
+| Orpheus (OPS)        | `bonusPoints`     | Sometimes       | No                    |
+| BroadcasTheNet (BTN) | Varies            | No              | No                    |
+| PassThePopcorn (PTP) | Varies            | No              | No                    |
+| AnimeBytes (AB)      | Varies            | Varies          | No                    |
 
 GazelleGames (GGn) is handled by its own separate adapter — see the [GGn page](tracker-responses-ggn.md).
 

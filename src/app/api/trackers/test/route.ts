@@ -1,7 +1,11 @@
 // src/app/api/trackers/test/route.ts
 import { NextResponse } from "next/server"
-import { findRegistryEntry } from "@/data/tracker-registry"
-import { DEFAULT_API_PATHS, getAdapter, VALID_PLATFORM_TYPES } from "@/lib/adapters"
+import {
+  buildFetchOptions,
+  DEFAULT_API_PATHS,
+  getAdapter,
+  VALID_PLATFORM_TYPES,
+} from "@/lib/adapters"
 import { authenticate, parseJsonBody, validateHttpUrl } from "@/lib/api-helpers"
 import { log } from "@/lib/logger"
 
@@ -49,10 +53,7 @@ export async function POST(request: Request) {
     const adapter = getAdapter(platform)
     const defaultPath = DEFAULT_API_PATHS[platform] ?? "/api/user"
     const path = typeof apiPath === "string" && apiPath.startsWith("/") ? apiPath : defaultPath
-    const registryEntry = findRegistryEntry(trimmedBaseUrl)
-    const fetchOptions: { authStyle?: "token" | "raw"; enrich?: boolean } = {}
-    if (registryEntry?.gazelleAuthStyle) fetchOptions.authStyle = registryEntry.gazelleAuthStyle
-    if (registryEntry?.gazelleEnrich) fetchOptions.enrich = true
+    const fetchOptions = buildFetchOptions(trimmedBaseUrl)
     const stats = await adapter.fetchStats(trimmedBaseUrl, trimmedApiToken, path, fetchOptions)
     return NextResponse.json({
       success: true,

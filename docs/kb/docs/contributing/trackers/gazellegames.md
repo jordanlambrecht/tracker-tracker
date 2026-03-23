@@ -1,13 +1,13 @@
 # GazelleGames (GGn)
 
-| Field | Value |
-|---|---|
-| Platform | GGn |
-| Base URL | `https://gazellegames.net` |
-| API Endpoint | `https://gazellegames.net/api.php` |
-| Auth Method | Query parameter: `?key=TOKEN` |
-| Enrichment | N/A (two-step fetch built into the GGn adapter) |
-| Auth Style | N/A |
+| Field        | Value                                           |
+| ------------ | ----------------------------------------------- |
+| Platform     | GGn                                             |
+| Base URL     | `https://gazellegames.net`                      |
+| API Endpoint | `https://gazellegames.net/api.php`              |
+| Auth Method  | Query parameter: `?key=TOKEN`                   |
+| Enrichment   | N/A (two-step fetch built into the GGn adapter) |
+| Auth Style   | N/A                                             |
 
 ## Notes
 

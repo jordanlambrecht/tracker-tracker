@@ -4,21 +4,23 @@
 
 "use client"
 
-import clsx from "clsx"
 import type { EChartsOption } from "echarts"
 import { useState } from "react"
+import { TabBar } from "@/components/ui/TabBar"
 import { hexToRgba } from "@/lib/formatters"
 import type { TrackerSnapshotSeries } from "@/types/charts"
-import { ChartECharts } from "./ChartECharts"
-import { ChartEmptyState } from "./ChartEmptyState"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
 import {
   autoByteScale,
   buildAxisPointer,
   buildThemeRiverSingleAxis,
+  buildTimeXAxis,
   fmtNum,
   formatDateLabel,
-} from "./chart-helpers"
-import { computeDailyDeltas } from "./chart-transforms"
+  insideZoom,
+} from "./lib/chart-helpers"
+import { computeDailyDeltas } from "./lib/chart-transforms"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -27,8 +29,10 @@ import {
   chartLegend,
   chartTooltip,
   chartTooltipHeader,
+  chartTooltipRow,
   escHtml,
-} from "./theme"
+  formatChartTimestamp,
+} from "./lib/theme"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -57,6 +61,7 @@ function computeTrackerDeltas(trackerData: TrackerSnapshotSeries[]) {
     for (const d of t.deltas) allDays.add(d.label)
   }
   const sortedDays = Array.from(allDays).sort()
+  const dayTimestamps = sortedDays.map((day) => new Date(`${day}T12:00:00`).getTime())
 
   let maxVal = 0
   for (const t of trackerDeltas) {
@@ -67,7 +72,7 @@ function computeTrackerDeltas(trackerData: TrackerSnapshotSeries[]) {
   }
   const { divisor, unit } = autoByteScale(maxVal)
 
-  return { trackerDeltas, sortedDays, divisor, unit }
+  return { trackerDeltas, sortedDays, dayTimestamps, divisor, unit }
 }
 
 // ---------------------------------------------------------------------------
@@ -75,11 +80,10 @@ function computeTrackerDeltas(trackerData: TrackerSnapshotSeries[]) {
 // ---------------------------------------------------------------------------
 
 function buildDailyVolumeOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
-  const { trackerDeltas, sortedDays, divisor, unit } = computeTrackerDeltas(trackerData)
+  const { trackerDeltas, sortedDays, dayTimestamps, divisor, unit } =
+    computeTrackerDeltas(trackerData)
 
   if (sortedDays.length === 0) return {}
-
-  const labels = sortedDays.map(formatDateLabel)
 
   const series: NonNullable<EChartsOption["series"]> = []
 
@@ -88,13 +92,15 @@ function buildDailyVolumeOption(trackerData: TrackerSnapshotSeries[]): EChartsOp
     for (const d of tracker.deltas) deltaMap.set(d.label, d)
 
     series.push({
-      name: `${tracker.name}`,
+      name: tracker.name,
       type: "bar",
       stack: "upload",
-      data: sortedDays.map((day) => {
+      barWidth: 12,
+      data: sortedDays.map((day, i) => {
         const d = deltaMap.get(day)
         // Clamp for stacked bar display — raw data may have negatives from tracker corrections
-        return d ? Number((Math.max(0, d.uploadDelta) / divisor).toFixed(3)) : 0
+        const val = d ? Number((Math.max(0, d.uploadDelta) / divisor).toFixed(3)) : 0
+        return [dayTimestamps[i], val] as [number, number]
       }),
       itemStyle: { color: tracker.color, borderRadius: [2, 2, 0, 0] },
       emphasis: { itemStyle: { shadowBlur: 8, shadowColor: tracker.color } },
@@ -104,10 +110,12 @@ function buildDailyVolumeOption(trackerData: TrackerSnapshotSeries[]): EChartsOp
       name: `${tracker.name} ↓`,
       type: "bar",
       stack: "download",
-      data: sortedDays.map((day) => {
+      barWidth: 12,
+      data: sortedDays.map((day, i) => {
         const d = deltaMap.get(day)
         // Clamp for stacked bar display — raw data may have negatives from tracker corrections
-        return d ? -Number((Math.max(0, d.downloadDelta) / divisor).toFixed(3)) : 0
+        const val = d ? -Number((Math.max(0, d.downloadDelta) / divisor).toFixed(3)) : 0
+        return [dayTimestamps[i], val] as [number, number]
       }),
       itemStyle: {
         color: tracker.color,
@@ -125,13 +133,12 @@ function buildDailyVolumeOption(trackerData: TrackerSnapshotSeries[]): EChartsOp
       formatter: (params: unknown) => {
         const items = params as Array<{
           seriesName: string
-          value: number
+          value: [number, number]
           color: string
-          axisValueLabel: string
         }>
         if (!items?.length) return ""
 
-        const day = items[0].axisValueLabel
+        const day = formatChartTimestamp(items[0].value[0])
 
         const trackerMap = new Map<string, { upload: number; download: number; color: string }>()
         for (const item of items) {
@@ -143,9 +150,9 @@ function buildDailyVolumeOption(trackerData: TrackerSnapshotSeries[]): EChartsOp
             color: item.color,
           }
           if (isDownload) {
-            existing.download = Math.abs(item.value)
+            existing.download = Math.abs(item.value[1])
           } else {
-            existing.upload = item.value
+            existing.upload = item.value[1]
           }
           trackerMap.set(trackerName, existing)
         }
@@ -162,16 +169,7 @@ function buildDailyVolumeOption(trackerData: TrackerSnapshotSeries[]): EChartsOp
     }),
     legend: chartLegend({ data: trackerDeltas.map((t) => t.name) }),
     grid: chartGrid({ right: 16, left: 64 }),
-    xAxis: {
-      type: "category",
-      data: labels,
-      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
-      axisTick: { show: false },
-      axisLabel: chartAxisLabel({
-        rotate: sortedDays.length > 14 ? 30 : 0,
-        interval: "auto",
-      }),
-    },
+    xAxis: buildTimeXAxis({ boundaryGap: ["5%", "5%"] }),
     yAxis: {
       type: "value",
       name: unit,
@@ -249,9 +247,9 @@ function buildRiverOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
         const rows = items
           .filter((item) => item.value[1] > 0)
           .sort((a, b) => b.value[1] - a.value[1])
-          .map((item) => {
-            return `${chartDot(item.color)}<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.value[2])}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${fmtNum(item.value[1])} ${unit}</span>`
-          })
+          .map((item) =>
+            chartTooltipRow(item.color, item.value[2], `${fmtNum(item.value[1])} ${unit}`)
+          )
           .join("<br/>")
 
         return `${chartTooltipHeader(dateLabel)}${rows}`
@@ -301,11 +299,10 @@ function buildRiverOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
 // ---------------------------------------------------------------------------
 
 function buildAreaOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
-  const { trackerDeltas, sortedDays, divisor, unit } = computeTrackerDeltas(trackerData)
+  const { trackerDeltas, sortedDays, dayTimestamps, divisor, unit } =
+    computeTrackerDeltas(trackerData)
 
   if (sortedDays.length === 0) return {}
-
-  const labels = sortedDays.map(formatDateLabel)
 
   const series: NonNullable<EChartsOption["series"]> = trackerDeltas.map((tracker) => {
     const deltaMap = new Map<string, { uploadDelta: number }>()
@@ -320,9 +317,10 @@ function buildAreaOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
       symbol: "none",
       lineStyle: { width: 1, color: tracker.color },
       itemStyle: { color: tracker.color },
-      data: sortedDays.map((day) => {
+      data: sortedDays.map((day, i) => {
         const d = deltaMap.get(day)
-        return d ? Number((Math.max(0, d.uploadDelta) / divisor).toFixed(3)) : 0
+        const val = d ? Number((Math.max(0, d.uploadDelta) / divisor).toFixed(3)) : 0
+        return [dayTimestamps[i], val] as [number, number]
       }),
       emphasis: {
         focus: "series" as const,
@@ -337,19 +335,17 @@ function buildAreaOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
       formatter: (params: unknown) => {
         const items = params as Array<{
           seriesName: string
-          value: number
+          value: [number, number]
           color: string
-          axisValueLabel: string
         }>
         if (!items?.length) return ""
 
-        const day = items[0].axisValueLabel
+        const day = formatChartTimestamp(items[0].value[0])
         const rows = items
-          .filter((item) => item.value > 0)
-          .sort((a, b) => (b.value as number) - (a.value as number))
-          .map(
-            (item) =>
-              `${chartDot(item.color)}<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${fmtNum(item.value)} ${unit}</span>`
+          .filter((item) => item.value[1] > 0)
+          .sort((a, b) => b.value[1] - a.value[1])
+          .map((item) =>
+            chartTooltipRow(item.color, item.seriesName, `${fmtNum(item.value[1])} ${unit}`)
           )
           .join("<br/>")
 
@@ -358,17 +354,7 @@ function buildAreaOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
     }),
     legend: chartLegend({ data: trackerDeltas.map((t) => t.name) }),
     grid: chartGrid({ right: 16, left: 64 }),
-    xAxis: {
-      type: "category",
-      data: labels,
-      boundaryGap: false,
-      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
-      axisTick: { show: false },
-      axisLabel: chartAxisLabel({
-        rotate: sortedDays.length > 14 ? 30 : 0,
-        interval: "auto",
-      }),
-    },
+    xAxis: buildTimeXAxis(),
     yAxis: {
       type: "value",
       name: unit,
@@ -386,7 +372,7 @@ function buildAreaOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
         lineStyle: { color: CHART_THEME.gridLine, width: 1 },
       },
     },
-    dataZoom: [{ type: "inside", zoomOnMouseWheel: true, moveOnMouseMove: true }],
+    dataZoom: insideZoom(sortedDays.length),
     series,
   }
 }
@@ -396,11 +382,10 @@ function buildAreaOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
 // ---------------------------------------------------------------------------
 
 function buildSumsOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
-  const { trackerDeltas, sortedDays, divisor, unit } = computeTrackerDeltas(trackerData)
+  const { trackerDeltas, sortedDays, dayTimestamps, divisor, unit } =
+    computeTrackerDeltas(trackerData)
 
   if (sortedDays.length === 0) return {}
-
-  const labels = sortedDays.map(formatDateLabel)
 
   // Pre-build maps once per tracker to avoid O(n*m*k) find() calls
   const trackerMaps = trackerDeltas.map((tracker) => {
@@ -409,22 +394,22 @@ function buildSumsOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
     return m
   })
 
-  const uploadSums = sortedDays.map((day) => {
+  const uploadSums: [number, number][] = sortedDays.map((day, i) => {
     let total = 0
     for (const m of trackerMaps) {
       const d = m.get(day)
       if (d) total += Math.max(0, d.uploadDelta)
     }
-    return Number((total / divisor).toFixed(3))
+    return [dayTimestamps[i], Number((total / divisor).toFixed(3))]
   })
 
-  const downloadSums = sortedDays.map((day) => {
+  const downloadSums: [number, number][] = sortedDays.map((day, i) => {
     let total = 0
     for (const m of trackerMaps) {
       const d = m.get(day)
       if (d) total += Math.max(0, d.downloadDelta)
     }
-    return Number((total / divisor).toFixed(3))
+    return [dayTimestamps[i], Number((total / divisor).toFixed(3))]
   })
 
   return {
@@ -434,16 +419,14 @@ function buildSumsOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
       formatter: (params: unknown) => {
         const items = params as Array<{
           seriesName: string
-          value: number
+          value: [number, number]
           color: string
-          axisValueLabel: string
         }>
         if (!items?.length) return ""
-        const day = items[0].axisValueLabel
+        const day = formatChartTimestamp(items[0].value[0])
         const rows = items
-          .map(
-            (item) =>
-              `${chartDot(item.color)}<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${fmtNum(item.value)} ${unit}</span>`
+          .map((item) =>
+            chartTooltipRow(item.color, item.seriesName, `${fmtNum(item.value[1])} ${unit}`)
           )
           .join("<br/>")
         return `${chartTooltipHeader(day)}${rows}`
@@ -451,17 +434,7 @@ function buildSumsOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
     }),
     legend: chartLegend({ data: ["Upload", "Download"] }),
     grid: chartGrid({ right: 16, left: 64 }),
-    xAxis: {
-      type: "category",
-      data: labels,
-      boundaryGap: false,
-      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
-      axisTick: { show: false },
-      axisLabel: chartAxisLabel({
-        rotate: sortedDays.length > 14 ? 30 : 0,
-        interval: "auto",
-      }),
-    },
+    xAxis: buildTimeXAxis(),
     yAxis: {
       type: "value",
       name: unit,
@@ -479,7 +452,7 @@ function buildSumsOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
         lineStyle: { color: CHART_THEME.gridLine, width: 1 },
       },
     },
-    dataZoom: [{ type: "inside", zoomOnMouseWheel: true, moveOnMouseMove: true }],
+    dataZoom: insideZoom(sortedDays.length),
     series: [
       {
         name: "Upload",
@@ -508,6 +481,7 @@ function buildSumsOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
             ],
           } as unknown as string,
         },
+        emphasis: { focus: "series" as const },
       },
       {
         name: "Download",
@@ -536,6 +510,7 @@ function buildSumsOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
             ],
           } as unknown as string,
         },
+        emphasis: { focus: "series" as const },
       },
     ],
   }
@@ -570,31 +545,19 @@ function DailyVolumeChart({ trackerData, height = 360 }: DailyVolumeChartProps) 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex justify-end">
-        <div className="nm-inset-sm p-1 flex gap-0.5 rounded-nm-sm">
-          {(["bar", "area", "sums", "river"] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setMode(m)}
-              className={clsx(
-                "px-2.5 py-1 text-xs font-mono transition-all duration-150 cursor-pointer rounded-nm-sm",
-                mode === m
-                  ? "nm-raised-sm text-primary font-semibold"
-                  : "text-tertiary hover:text-secondary"
-              )}
-            >
-              {m === "bar" ? "Bar" : m === "area" ? "Area" : m === "sums" ? "Totals" : "River"}
-            </button>
-          ))}
-        </div>
+        <TabBar
+          compact
+          tabs={[
+            { key: "bar" as const, label: "Bar" },
+            { key: "area" as const, label: "Area" },
+            { key: "sums" as const, label: "Totals" },
+            { key: "river" as const, label: "River" },
+          ]}
+          activeTab={mode}
+          onChange={setMode}
+        />
       </div>
-      <ChartECharts
-        option={option}
-        style={{ height, width: "100%" }}
-        opts={{ renderer: "canvas" }}
-        notMerge
-        lazyUpdate
-      />
+      <ChartECharts key={mode} option={option} style={{ height, width: "100%" }} />
     </div>
   )
 }

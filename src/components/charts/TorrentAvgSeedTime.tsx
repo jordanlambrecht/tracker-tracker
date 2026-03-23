@@ -3,11 +3,11 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
 import type { TorrentInfo } from "@/lib/torrent-utils"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { buildGlowAreaStyle } from "./chart-helpers"
-import { CHART_THEME, chartTooltip, escHtml } from "./theme"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { buildGlowAreaStyle, buildTimeXAxis } from "./lib/chart-helpers"
+import { CHART_THEME, chartGrid, chartTooltip, chartTooltipRow } from "./lib/theme"
 
 // ---------------------------------------------------------------------------
 // Props
@@ -22,7 +22,7 @@ interface TorrentAvgSeedTimeProps {
 // Component
 // ---------------------------------------------------------------------------
 
-export function TorrentAvgSeedTime({ torrents, accentColor }: TorrentAvgSeedTimeProps) {
+function TorrentAvgSeedTime({ torrents, accentColor }: TorrentAvgSeedTimeProps) {
   const withDates = torrents.filter((t) => t.addedOn > 0 && t.seedingTime > 0)
   if (withDates.length === 0) return <ChartEmptyState height={280} message="No seed time data" />
 
@@ -36,31 +36,32 @@ export function TorrentAvgSeedTime({ torrents, accentColor }: TorrentAvgSeedTime
     byMonth.set(key, entry)
   }
 
-  const sorted = [...byMonth.entries()].sort(([a], [b]) => a.localeCompare(b))
-  const labels = sorted.map(([k]) => k)
-  const values = sorted.map(([, v]) => Math.floor(v.total / v.count / 86400))
+  // Convert month keys to [timestamp, avgDays] pairs
+  const seriesData: [number, number][] = [...byMonth.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, v]) => [
+      new Date(`${key}-15T12:00:00`).getTime(),
+      Math.floor(v.total / v.count / 86400),
+    ])
 
   const option: EChartsOption = {
     backgroundColor: "transparent",
     tooltip: chartTooltip("axis", {
       formatter: (params: unknown) => {
-        const p = (params as { name: string; value: number }[])[0]
+        const p = (params as { value: [number, number] }[])[0]
         if (!p) return ""
-        return `${escHtml(p.name)}<br/>Avg: <b>${p.value}d</b>`
+        const label = new Date(p.value[0]).toLocaleDateString("en-US", {
+          month: "short",
+          year: "numeric",
+        })
+        return (
+          `<div style="margin-bottom:4px;color:${CHART_THEME.textTertiary};font-size:11px;">${label}</div>` +
+          chartTooltipRow(accentColor, "Avg Seed Time", `${p.value[1]}d`)
+        )
       },
     }),
-    grid: { top: 16, right: 16, bottom: 32, left: 48 },
-    xAxis: {
-      type: "category",
-      data: labels,
-      axisLabel: {
-        color: CHART_THEME.textTertiary,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
-      },
-      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
-      axisTick: { show: false },
-    },
+    grid: chartGrid({ top: 16, right: 16, bottom: 32, left: 48 }),
+    xAxis: buildTimeXAxis(),
     yAxis: {
       type: "value",
       name: "Days",
@@ -79,24 +80,22 @@ export function TorrentAvgSeedTime({ torrents, accentColor }: TorrentAvgSeedTime
     series: [
       {
         type: "line",
-        data: values,
+        data: seriesData,
         smooth: true,
         symbol: "circle",
         symbolSize: 4,
-        lineStyle: { color: accentColor, width: 2 },
+        lineStyle: { color: accentColor, width: 2, shadowColor: accentColor, shadowBlur: 8 },
         itemStyle: { color: accentColor },
         areaStyle: buildGlowAreaStyle(accentColor, 0.3, 0.02),
+        emphasis: {
+          lineStyle: { shadowBlur: 16, shadowColor: accentColor },
+        },
       },
     ],
   }
 
-  return (
-    <ReactECharts
-      option={option}
-      style={{ height: 280, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
-    />
-  )
+  return <ChartECharts option={option} style={{ height: 280, width: "100%" }} />
 }
+
+export type { TorrentAvgSeedTimeProps }
+export { TorrentAvgSeedTime }

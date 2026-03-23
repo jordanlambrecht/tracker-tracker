@@ -37,6 +37,7 @@ interface TableProps<T> {
   fixedLayout?: boolean
   compact?: boolean
   maxHeight?: number
+  alwaysShowScrollbar?: boolean
   animated?: boolean
   noHorizontalScroll?: boolean
 }
@@ -65,6 +66,7 @@ function Table<T>({
   fixedLayout = false,
   compact = false,
   maxHeight,
+  alwaysShowScrollbar = false,
   animated = false,
   noHorizontalScroll = false,
 }: TableProps<T>) {
@@ -118,7 +120,8 @@ function Table<T>({
           "overflow-hidden rounded-nm-lg",
           !noHorizontalScroll && "overflow-x-auto",
           noHorizontalScroll && "pr-1",
-          maxHeight && "overflow-y-auto overscroll-contain styled-scrollbar",
+          maxHeight && "overflow-y-auto overscroll-contain",
+          maxHeight && (alwaysShowScrollbar ? "styled-scrollbar-visible" : "styled-scrollbar"),
           sortedData.length === 0 && "flex-1 flex items-center justify-center"
         )}
         style={maxHeight ? { maxHeight } : undefined}

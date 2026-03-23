@@ -1,7 +1,7 @@
 // src/app/api/trackers/tracker-routes.test.ts
 import { NextResponse } from "next/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { CHART_THEME } from "@/components/charts/theme"
+import { CHART_THEME } from "@/components/charts/lib/theme"
 import { authenticate, parseJsonBody, parseTrackerId } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { pollTracker } from "@/lib/scheduler"
@@ -598,6 +598,73 @@ describe("PATCH /api/trackers/[id]", () => {
     const params = Promise.resolve({ id: "abc" })
     const response = await PATCH(request, { params })
     expect(response.status).toBe(400)
+  })
+
+  it("sets userPausedAt when pollingPaused is true", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      pollingPaused: true,
+    })
+
+    const mockWhere = vi.fn().mockResolvedValue([])
+    const mockSet = vi.fn().mockReturnValue({ where: mockWhere })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
+
+    const request = makeRequest("http://localhost/api/trackers/1", { pollingPaused: true }, "PATCH")
+    const params = Promise.resolve({ id: "1" })
+    const response = await PATCH(request, { params })
+
+    expect(response.status).toBe(200)
+    const updates = mockSet.mock.calls[0]?.[0]
+    expect(updates.userPausedAt).toBeInstanceOf(Date)
+    expect(updates.pausedAt).toBeUndefined()
+  })
+
+  it("clears userPausedAt and auto-pause state when pollingPaused is false", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      pollingPaused: false,
+    })
+
+    const mockWhere = vi.fn().mockResolvedValue([])
+    const mockSet = vi.fn().mockReturnValue({ where: mockWhere })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
+
+    const request = makeRequest(
+      "http://localhost/api/trackers/1",
+      { pollingPaused: false },
+      "PATCH"
+    )
+    const params = Promise.resolve({ id: "1" })
+    const response = await PATCH(request, { params })
+
+    expect(response.status).toBe(200)
+    const updates = mockSet.mock.calls[0]?.[0]
+    expect(updates.userPausedAt).toBeNull()
+    expect(updates.pausedAt).toBeNull()
+    expect(updates.consecutiveFailures).toBe(0)
+    expect(updates.lastError).toBeNull()
+  })
+
+  it("ignores non-boolean pollingPaused values", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      pollingPaused: "yes",
+    })
+
+    const mockWhere = vi.fn().mockResolvedValue([])
+    const mockSet = vi.fn().mockReturnValue({ where: mockWhere })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
+
+    const request = makeRequest(
+      "http://localhost/api/trackers/1",
+      { pollingPaused: "yes" },
+      "PATCH"
+    )
+    const params = Promise.resolve({ id: "1" })
+    const response = await PATCH(request, { params })
+
+    expect(response.status).toBe(200)
+    const updates = mockSet.mock.calls[0]?.[0]
+    expect(updates.userPausedAt).toBeUndefined()
+    expect(updates.pausedAt).toBeUndefined()
   })
 })
 
