@@ -186,7 +186,7 @@ function buildCandlestickOption(
         const firstValid = items.find((item) => item.value !== null && item.value !== undefined)
         if (!firstValid) return ""
         // Time-axis candlestick value: [timestamp, open, close, low, high]
-        const date = formatChartTimestamp(firstValid.value![0])
+        const date = formatChartTimestamp(firstValid.value?.[0] ?? 0)
         const header = chartTooltipHeader(date)
 
         const rows = items

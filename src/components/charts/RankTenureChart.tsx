@@ -149,8 +149,8 @@ function buildRankTenureOption(
         const durationLabel = `${durationDays} day${durationDays !== 1 ? "s" : ""}`
         return [
           `<div style="font-family:${CHART_THEME.fontMono};font-size:11px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${escHtml(trackerName)}</div>`,
-          chartTooltipRow(color, "Rank", rankName) + "<br/>",
-          chartTooltipRow(CHART_THEME.neutral, "Duration", durationLabel) + "<br/>",
+          `${chartTooltipRow(color, "Rank", rankName)}<br/>`,
+          `${chartTooltipRow(CHART_THEME.neutral, "Duration", durationLabel)}<br/>`,
           `<span style="color:${CHART_THEME.textTertiary};font-size:11px;">${escHtml(startDate)} → ${escHtml(endDate)}</span>`,
         ].join("")
       },
