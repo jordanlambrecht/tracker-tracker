@@ -1,13 +1,13 @@
 # Reelflix (RF)
 
-| Field | Value |
-|---|---|
-| Platform | UNIT3D |
-| Base URL | `https://reelflix.xyz` |
-| API Endpoint | `https://reelflix.xyz/api/user` |
-| Auth Method | Query parameter: `?api_token=TOKEN` |
-| Enrichment | N/A |
-| Auth Style | N/A |
+| Field        | Value                               |
+| ------------ | ----------------------------------- |
+| Platform     | UNIT3D                              |
+| Base URL     | `https://reelflix.xyz`              |
+| API Endpoint | `https://reelflix.xyz/api/user`     |
+| Auth Method  | Query parameter: `?api_token=TOKEN` |
+| Enrichment   | N/A                                 |
+| Auth Style   | N/A                                 |
 
 ## Notes
 

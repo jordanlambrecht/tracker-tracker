@@ -1,13 +1,13 @@
 # OldToons (OT)
 
-| Field | Value |
-|---|---|
-| Platform | UNIT3D |
-| Base URL | `https://oldtoons.world` |
-| API Endpoint | `https://oldtoons.world/api/user` |
-| Auth Method | Query parameter: `?api_token=TOKEN` |
-| Enrichment | N/A |
-| Auth Style | N/A |
+| Field        | Value                               |
+| ------------ | ----------------------------------- |
+| Platform     | UNIT3D                              |
+| Base URL     | `https://oldtoons.world`            |
+| API Endpoint | `https://oldtoons.world/api/user`   |
+| Auth Method  | Query parameter: `?api_token=TOKEN` |
+| Enrichment   | N/A                                 |
+| Auth Style   | N/A                                 |
 
 ## Notes
 

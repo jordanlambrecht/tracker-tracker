@@ -13,11 +13,11 @@ Every tracker file in `src/data/trackers/` follows the same field order and comp
 **Every field must be present in every tracker file, even if empty.** Use `""` for empty strings, `[]` for empty arrays, and `false` for booleans. Do not omit fields and do not use `undefined` as a value. Presence in the file shows the field was considered.
 
 ```typescript
-abbreviation: ""          // not: abbreviation: undefined
-logo: ""                  // not: logo: undefined
-trackerHubSlug: ""        // not: trackerHubSlug: undefined
-bannedGroups: []          // not: bannedGroups: undefined
-warning: false            // not: warning: undefined
+abbreviation: "" // not: abbreviation: undefined
+logo: "" // not: logo: undefined
+trackerHubSlug: "" // not: trackerHubSlug: undefined
+bannedGroups: [] // not: bannedGroups: undefined
+warning: false // not: warning: undefined
 ```
 
 **There are three exceptions to this rule:**
@@ -175,7 +175,7 @@ A short code for the tracker, used in compact UI contexts. Use `""` if none.
 ```typescript
 abbreviation: "ATH" // Aither
 abbreviation: "RED" // REDacted
-abbreviation: ""    // no abbreviation
+abbreviation: "" // no abbreviation
 ```
 
 #### `url`

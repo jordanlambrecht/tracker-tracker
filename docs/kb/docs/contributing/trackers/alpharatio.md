@@ -1,13 +1,13 @@
 # AlphaRatio (AR)
 
-| Field | Value |
-|---|---|
-| Platform | Gazelle |
-| Base URL | `https://alpharatio.cc` |
-| API Endpoint | `https://alpharatio.cc/ajax.php` |
-| Auth Method | HTTP header: `Authorization: token TOKEN` |
-| Enrichment | No |
-| Auth Style | standard |
+| Field        | Value                                     |
+| ------------ | ----------------------------------------- |
+| Platform     | Gazelle                                   |
+| Base URL     | `https://alpharatio.cc`                   |
+| API Endpoint | `https://alpharatio.cc/ajax.php`          |
+| Auth Method  | HTTP header: `Authorization: token TOKEN` |
+| Enrichment   | No                                        |
+| Auth Style   | standard                                  |
 
 ## Notes
 

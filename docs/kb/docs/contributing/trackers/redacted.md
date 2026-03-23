@@ -1,13 +1,13 @@
 # REDacted (RED)
 
-| Field | Value |
-|---|---|
-| Platform | Gazelle |
-| Base URL | `https://redacted.sh` |
-| API Endpoint | `https://redacted.sh/ajax.php` |
-| Auth Method | HTTP header: `Authorization: token TOKEN` |
-| Enrichment | Yes (`gazelleEnrich: true`) |
-| Auth Style | raw (`gazelleAuthStyle: "token"`) |
+| Field        | Value                                     |
+| ------------ | ----------------------------------------- |
+| Platform     | Gazelle                                   |
+| Base URL     | `https://redacted.sh`                     |
+| API Endpoint | `https://redacted.sh/ajax.php`            |
+| Auth Method  | HTTP header: `Authorization: token TOKEN` |
+| Enrichment   | Yes (`gazelleEnrich: true`)               |
+| Auth Style   | raw (`gazelleAuthStyle: "token"`)         |
 
 ## Notes
 

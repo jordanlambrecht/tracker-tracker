@@ -1,13 +1,13 @@
 # Great Poster Wall (GPW)
 
-| Field | Value |
-|---|---|
-| Platform | Gazelle |
-| Base URL | `https://greatposterwall.com` |
-| API Endpoint | `https://greatposterwall.com/ajax.php` |
-| Auth Method | HTTP header: `Authorization: token TOKEN` |
-| Enrichment | No |
-| Auth Style | standard |
+| Field        | Value                                     |
+| ------------ | ----------------------------------------- |
+| Platform     | Gazelle                                   |
+| Base URL     | `https://greatposterwall.com`             |
+| API Endpoint | `https://greatposterwall.com/ajax.php`    |
+| Auth Method  | HTTP header: `Authorization: token TOKEN` |
+| Enrichment   | No                                        |
+| Auth Style   | standard                                  |
 
 ## Notes
 

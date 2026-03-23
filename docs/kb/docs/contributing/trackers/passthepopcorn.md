@@ -1,13 +1,13 @@
 # PassThePopcorn (PTP)
 
-| Field | Value |
-|---|---|
-| Platform | Gazelle |
-| Base URL | `https://passthepopcorn.me` |
-| API Endpoint | `https://passthepopcorn.me/ajax.php` |
-| Auth Method | HTTP header: `Authorization: token TOKEN` |
-| Enrichment | No |
-| Auth Style | standard |
+| Field        | Value                                     |
+| ------------ | ----------------------------------------- |
+| Platform     | Gazelle                                   |
+| Base URL     | `https://passthepopcorn.me`               |
+| API Endpoint | `https://passthepopcorn.me/ajax.php`      |
+| Auth Method  | HTTP header: `Authorization: token TOKEN` |
+| Enrichment   | No                                        |
+| Auth Style   | standard                                  |
 
 ## Notes
 

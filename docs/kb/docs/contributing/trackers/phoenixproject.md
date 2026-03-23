@@ -1,13 +1,13 @@
 # Phoenix Project (PP)
 
-| Field | Value |
-|---|---|
-| Platform | Gazelle |
-| Base URL | `https://phoenixproject.app` |
-| API Endpoint | `https://phoenixproject.app/ajax.php` |
-| Auth Method | HTTP header: `Authorization: token TOKEN` |
-| Enrichment | Yes (`gazelleEnrich: true`) |
-| Auth Style | standard |
+| Field        | Value                                     |
+| ------------ | ----------------------------------------- |
+| Platform     | Gazelle                                   |
+| Base URL     | `https://phoenixproject.app`              |
+| API Endpoint | `https://phoenixproject.app/ajax.php`     |
+| Auth Method  | HTTP header: `Authorization: token TOKEN` |
+| Enrichment   | Yes (`gazelleEnrich: true`)               |
+| Auth Style   | standard                                  |
 
 ## Notes
 

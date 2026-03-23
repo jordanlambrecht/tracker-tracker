@@ -88,7 +88,7 @@ If you're restoring a backup from a different Tracker Tracker installation — o
 If a field can't be re-encrypted (for example, because the backup was encrypted with a password you no longer know), that field is cleared rather than saved in a broken state. For TOTP, the restore screen will tell you if 2FA was turned off as a result. You can re-enable it after the restore completes.
 
 !!! warning "TOTP after a cross-instance restore"
-    If 2FA was active on the source instance but can't be carried over, it will be disabled. Re-enroll in **Settings → Security** after the restore.
+If 2FA was active on the source instance but can't be carried over, it will be disabled. Re-enroll in **Settings → Security** after the restore.
 
 ![Backup configuration — encryption, scheduling, and storage path](../assets/images/backups-configuration.png)
 

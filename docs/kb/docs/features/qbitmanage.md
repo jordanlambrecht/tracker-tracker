@@ -23,14 +23,14 @@ Tracker Tracker has built-in support for qbitmanage's status tags. Enable it in 
 
 Map each status to the tag name from your qbitmanage config. Here are qbitmanage's **out-of-the-box defaults**:
 
-| Status | Default tag | Config key | What it means |
-|--------|------------|------------|---------------|
-| Issue | `issue` | `tracker_error_tag` | Torrent has a tracker error (unregistered, dead, etc.) |
-| Min Time Not Reached | `MinTimeNotReached` | `share_limits_min_seeding_time_tag` | Hasn't hit the minimum seeding time for its share limit group |
-| No Hardlinks | `noHL` | `nohardlinks_tag` | No hardlinks found outside the root directory |
-| Min Seeds Not Met | `MinSeedsNotMet` | `share_limits_min_num_seeds_tag` | Not enough other seeders to safely remove yet |
-| Last Active Limit Not Reached | `LastActiveLimitNotReached` | `share_limits_last_active_tag` | Hasn't been inactive long enough for removal |
-| Last Active Not Reached | `LastActiveNotReached` | `share_limits_last_active_tag` | Last activity hasn't crossed the threshold |
+| Status                        | Default tag                 | Config key                          | What it means                                                 |
+| ----------------------------- | --------------------------- | ----------------------------------- | ------------------------------------------------------------- |
+| Issue                         | `issue`                     | `tracker_error_tag`                 | Torrent has a tracker error (unregistered, dead, etc.)        |
+| Min Time Not Reached          | `MinTimeNotReached`         | `share_limits_min_seeding_time_tag` | Hasn't hit the minimum seeding time for its share limit group |
+| No Hardlinks                  | `noHL`                      | `nohardlinks_tag`                   | No hardlinks found outside the root directory                 |
+| Min Seeds Not Met             | `MinSeedsNotMet`            | `share_limits_min_num_seeds_tag`    | Not enough other seeders to safely remove yet                 |
+| Last Active Limit Not Reached | `LastActiveLimitNotReached` | `share_limits_last_active_tag`      | Hasn't been inactive long enough for removal                  |
+| Last Active Not Reached       | `LastActiveNotReached`      | `share_limits_last_active_tag`      | Last activity hasn't crossed the threshold                    |
 
 Many people customize these with emoji prefixes (e.g., `⚠️ Issue` instead of `issue`). If you've changed them in your qbitmanage `config.yml`, enter **your** tag names — not the defaults above.
 
@@ -39,7 +39,7 @@ Here's what the qbitmanage status breakdown looks like on a tracker's Torrents t
 ![qbitmanage status bar chart showing No Hardlinks, Min Seeds Not Met, Last Active Limit, and Last Active Not Reached](../assets/images/tracker-page-qbitmanage.png)
 
 !!! tip "Match your config exactly"
-    Tag names must match character-for-character, including any emoji or special characters. Copy them directly from your qbitmanage `config.yml`.
+Tag names must match character-for-character, including any emoji or special characters. Copy them directly from your qbitmanage `config.yml`.
 
 ## Tag Group Examples
 

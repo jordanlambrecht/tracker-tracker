@@ -1,13 +1,13 @@
 # Concertos (CON)
 
-| Field | Value |
-|---|---|
-| Platform | UNIT3D |
-| Base URL | `https://concertos.live` |
-| API Endpoint | `https://concertos.live/api/user` |
-| Auth Method | Query parameter: `?api_token=TOKEN` |
-| Enrichment | N/A |
-| Auth Style | N/A |
+| Field        | Value                               |
+| ------------ | ----------------------------------- |
+| Platform     | UNIT3D                              |
+| Base URL     | `https://concertos.live`            |
+| API Endpoint | `https://concertos.live/api/user`   |
+| Auth Method  | Query parameter: `?api_token=TOKEN` |
+| Enrichment   | N/A                                 |
+| Auth Style   | N/A                                 |
 
 ## Notes
 

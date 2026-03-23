@@ -1,13 +1,13 @@
 # FearNoPeer (FNP)
 
-| Field | Value |
-|---|---|
-| Platform | UNIT3D |
-| Base URL | `https://fearnopeer.com` |
-| API Endpoint | `https://fearnopeer.com/api/user` |
-| Auth Method | Query parameter: `?api_token=TOKEN` |
-| Enrichment | N/A |
-| Auth Style | N/A |
+| Field        | Value                               |
+| ------------ | ----------------------------------- |
+| Platform     | UNIT3D                              |
+| Base URL     | `https://fearnopeer.com`            |
+| API Endpoint | `https://fearnopeer.com/api/user`   |
+| Auth Method  | Query parameter: `?api_token=TOKEN` |
+| Enrichment   | N/A                                 |
+| Auth Style   | N/A                                 |
 
 ## Notes
 

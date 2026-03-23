@@ -22,11 +22,11 @@ Every slot belongs to one of three categories defined in `src/lib/slot-types.ts`
 export type SlotCategory = "badge" | "stat-card" | "progress"
 ```
 
-| Category | What it renders | Where it appears |
-|---|---|---|
-| `stat-card` | A `StatCard` component (basic, stacked, or ring variant) | Inside the bento grid |
-| `badge` | A `SlotBadge` pill (Warned, Donor, Parked, etc.) | Collected and displayed as a badge row above the grid |
-| `progress` | An arbitrary component (achievement progress bars, share score, buffs) | Rendered as a flex column above the bento grid via `SlotRenderer` |
+| Category    | What it renders                                                        | Where it appears                                                  |
+| ----------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `stat-card` | A `StatCard` component (basic, stacked, or ring variant)               | Inside the bento grid                                             |
+| `badge`     | A `SlotBadge` pill (Warned, Donor, Parked, etc.)                       | Collected and displayed as a badge row above the grid             |
+| `progress`  | An arbitrary component (achievement progress bars, share score, buffs) | Rendered as a flex column above the bento grid via `SlotRenderer` |
 
 This document focuses on **`stat-card`** slots, as they are the most common thing to add.
 
@@ -36,10 +36,10 @@ This document focuses on **`stat-card`** slots, as they are the most common thin
 
 Each stat-card slot has a `span` field that determines how many grid rows it occupies.
 
-| `span` | CardType in layout | Description |
-|---|---|---|
-| `1` (default) | `single` | Standard 1×1 card — one row tall, one column wide |
-| `2` | `double` (or `triple` if promoted) | Tall card — two rows tall, one column wide. Can be promoted to `triple` (three rows) by the algorithm when it produces a better layout. |
+| `span`        | CardType in layout                 | Description                                                                                                                             |
+| ------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `1` (default) | `single`                           | Standard 1×1 card — one row tall, one column wide                                                                                       |
+| `2`           | `double` (or `triple` if promoted) | Tall card — two rows tall, one column wide. Can be promoted to `triple` (three rows) by the algorithm when it produces a better layout. |
 
 The algorithm may promote a `double` to a `triple` (three rows) when doing so reduces gaps or eliminates an orphan. This is purely a layout decision — the slot itself only declares `span: 1` or `span: 2`. The `triple` type exists in `CardType` but is never assigned directly by slot authors.
 
@@ -54,12 +54,12 @@ The object passed to every slot's `resolve` function:
 ```ts
 // src/lib/slot-types.ts
 export interface SlotContext {
-  tracker: TrackerSummary       // DB row + computed fields
+  tracker: TrackerSummary // DB row + computed fields
   latestSnapshot: Snapshot | null
   snapshots: Snapshot[]
   meta: GGnPlatformMeta | GazellePlatformMeta | NebulancePlatformMeta | null
   registry: TrackerRegistryEntry | undefined
-  accentColor: string           // tracker's hex color, e.g. "#00d4ff"
+  accentColor: string // tracker's hex color, e.g. "#00d4ff"
 }
 ```
 
@@ -89,9 +89,9 @@ interface SlotDefinition<P = Record<string, unknown>> {
   id: string
   category: SlotCategory
   component: ComponentType<P>
-  resolve: (ctx: SlotContext) => P | null   // null = hide this slot
+  resolve: (ctx: SlotContext) => P | null // null = hide this slot
   priority: number
-  span?: 1 | 2                              // omit for 1 (default)
+  span?: 1 | 2 // omit for 1 (default)
 }
 ```
 
@@ -109,18 +109,18 @@ Single hero value. Use for any scalar metric.
 
 ```ts
 interface StatCardBasicProps {
-  type?: "basic"            // optional — "basic" is the default
-  label: string             // card title, displayed uppercase
-  value: string | number    // large hero number
-  unit?: string             // displayed small next to value, e.g. "BON", "GiB"
-  subtitle?: string         // small text below the value
-  subValue?: string         // secondary line, mono font, tertiary color
+  type?: "basic" // optional — "basic" is the default
+  label: string // card title, displayed uppercase
+  value: string | number // large hero number
+  unit?: string // displayed small next to value, e.g. "BON", "GiB"
+  subtitle?: string // small text below the value
+  subValue?: string // secondary line, mono font, tertiary color
   trend?: "up" | "down" | "flat"
-  tooltip?: string          // adds a "?" button with a popover
-  icon?: ReactNode          // 16×16 icon in the top-right corner
-  accentColor?: string      // hex color for the glow effect
+  tooltip?: string // adds a "?" button with a popover
+  icon?: ReactNode // 16×16 icon in the top-right corner
+  accentColor?: string // hex color for the glow effect
   alert?: "warn" | "danger"
-  alertReason?: string      // shown in a "!" tooltip when alert is set
+  alertReason?: string // shown in a "!" tooltip when alert is set
 }
 ```
 
@@ -130,21 +130,21 @@ Multiple label/value rows. Use when a concept has two or three related figures (
 
 ```ts
 interface StatCardStackedProps {
-  type: "stacked"           // required
-  title: string             // card title
+  type: "stacked" // required
+  title: string // card title
   rows: Array<{
     label: string
     value: string | number
-    prefix?: string         // prepended to value display
+    prefix?: string // prepended to value display
     unit?: string
-    colorClass?: string     // Tailwind class, e.g. "text-success"
+    colorClass?: string // Tailwind class, e.g. "text-success"
   }>
   total?: {
-    label: string           // displayed below a divider
+    label: string // displayed below a divider
     value: string
     unit?: string
   }
-  sumIsHero?: boolean       // promote the total to a large hero above the rows
+  sumIsHero?: boolean // promote the total to a large hero above the rows
   tooltip?: string
   icon?: ReactNode
   accentColor?: string
@@ -161,9 +161,9 @@ Countdown progress ring. Used exclusively for the Login Deadline card. Renders a
 
 ```ts
 interface StatCardRingProps {
-  type: "ring"              // required
-  title?: string            // defaults to "Login Deadline"
-  lastAccessAt: string      // ISO date string of last tracker visit
+  type: "ring" // required
+  title?: string // defaults to "Login Deadline"
+  lastAccessAt: string // ISO date string of last tracker visit
   loginIntervalDays: number // from registry entry's rules.loginIntervalDays
   tooltip?: string
   accentColor?: string
@@ -189,16 +189,16 @@ Add a new constant in `src/components/tracker-detail/slot-registry.ts`. Place it
 ```ts
 // Example: a basic card showing invite count for a hypothetical platform
 const myTrackerInvitesSlot: SlotDefinition<StatCardBasicProps> = {
-  id: "my-tracker-invites",         // must be unique across all slots
+  id: "my-tracker-invites", // must be unique across all slots
   category: "stat-card",
   component: StatCard as ComponentType<StatCardBasicProps>,
-  priority: 50,                     // lower = renders earlier (leftmost/topmost)
+  priority: 50, // lower = renders earlier (leftmost/topmost)
   // span: 1,                       // omit for default 1-tall card
   resolve(ctx) {
     const { meta, accentColor } = ctx
-    if (!meta || !("invites" in meta)) return null   // guard: wrong platform
+    if (!meta || !("invites" in meta)) return null // guard: wrong platform
     const invites = (meta as MyPlatformMeta).invites
-    if (typeof invites !== "number" || invites <= 0) return null  // hide when empty
+    if (typeof invites !== "number" || invites <= 0) return null // hide when empty
     return {
       label: "Invites",
       value: invites,
@@ -217,13 +217,13 @@ const myTrackerTokensSlot: SlotDefinition<StatCardStackedProps> = {
   category: "stat-card",
   component: StatCard as ComponentType<StatCardStackedProps>,
   priority: 30,
-  span: 2,                          // 2-row tall card
+  span: 2, // 2-row tall card
   resolve(ctx) {
     const { meta, accentColor } = ctx
     if (!meta || !("giftTokens" in meta)) return null
     const m = meta as MyPlatformMeta
     return {
-      type: "stacked" as const,     // required for stacked
+      type: "stacked" as const, // required for stacked
       title: "Tokens",
       rows: [
         { label: "Gift", value: m.giftTokens ?? 0 },
@@ -246,7 +246,7 @@ export const SLOT_DEFINITIONS: AnySlotDefinition[] = [
   loginDeadlineSlot,
   goldSlot,
   // ... existing slots ...
-  myTrackerInvitesSlot,   // add here
+  myTrackerInvitesSlot, // add here
   myTrackerTokensSlot,
   // badge slots
   // ...
@@ -282,11 +282,11 @@ File: `src/lib/grid-layout.ts`
 
 The algorithm operates on three internal card sizes:
 
-| Type | Row span | Assigned to |
-|---|---|---|
-| `single` | 1 | Core stats + `span: 1` slot cards |
-| `double` | 2 | `span: 2` slot cards |
-| `triple` | 3 | A `double` that was promoted to fill a triple-height gap |
+| Type     | Row span | Assigned to                                              |
+| -------- | -------- | -------------------------------------------------------- |
+| `single` | 1        | Core stats + `span: 1` slot cards                        |
+| `double` | 2        | `span: 2` slot cards                                     |
+| `triple` | 3        | A `double` that was promoted to fill a triple-height gap |
 
 The first N cards in the `single` pool are marked `fixed` (N = number of columns). Fixed cards are always placed in row 1 and are never moved.
 
@@ -302,6 +302,7 @@ This is the primary desktop layout. It brute-forces all valid combinations of co
 The winning configuration's cards each receive a `{ row, col, span }` placement. `getCardClasses` turns these into static Tailwind classes (`row-start-N col-start-N row-span-N`). The row/col start classes are pre-enumerated as lookup tables (up to 30 rows) rather than generated dynamically, because Tailwind v4 requires static class names for its JIT scanner.
 
 **Placement order within the winner:**
+
 - Row 1: core stat singles (up to 4)
 - Triple-height blocks: promoted doubles fill columns left to right; remaining columns in the same row block are filled with singles stacked 3-tall
 - Double-height blocks: doubles fill columns left to right; remaining columns filled with pairs of singles
@@ -317,11 +318,11 @@ Fixed 2 columns. Deterministic: promotes at most one double to a triple when the
 
 ### Breakpoint wiring (current status)
 
-| Breakpoint | Tailwind class | Algorithm | Status |
-|---|---|---|---|
-| Mobile (`< md`) | `grid-cols-2` | `findOptimalLayout2Col` | Wired and active |
-| Medium (`md` to `lg`) | `md:grid-cols-3` | `findOptimalLayout3Col` | Wired and active |
-| Large (`>= lg`) | `lg:grid-cols-3` or `lg:grid-cols-4` | `findOptimalLayout4Col` | Wired and active |
+| Breakpoint            | Tailwind class                       | Algorithm               | Status           |
+| --------------------- | ------------------------------------ | ----------------------- | ---------------- |
+| Mobile (`< md`)       | `grid-cols-2`                        | `findOptimalLayout2Col` | Wired and active |
+| Medium (`md` to `lg`) | `md:grid-cols-3`                     | `findOptimalLayout3Col` | Wired and active |
+| Large (`>= lg`)       | `lg:grid-cols-3` or `lg:grid-cols-4` | `findOptimalLayout4Col` | Wired and active |
 
 The large grid uses `lg:grid-cols-4` when the algorithm selects 4 columns, or `lg:grid-cols-3` when it finds 3 columns produces fewer gaps.
 
@@ -360,7 +361,7 @@ Badge slots follow the same `SlotDefinition` shape but use `SlotBadge` as the co
 ```ts
 const myBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   id: "my-badge",
-  category: "badge",        // not "stat-card"
+  category: "badge", // not "stat-card"
   component: SlotBadge,
   priority: 40,
   resolve(ctx) {
@@ -376,12 +377,12 @@ const myBadgeSlot: SlotDefinition<SlotBadgeProps> = {
 
 ## Key files reference
 
-| File | Purpose |
-|---|---|
-| `src/lib/slot-types.ts` | `SlotCategory`, `SlotContext`, `ResolvedSlot` types |
-| `src/lib/grid-layout.ts` | `findOptimalLayout4Col`, `findOptimalLayout3Col`, `findOptimalLayout2Col`, `getCardClasses` |
-| `src/components/tracker-detail/slot-registry.ts` | All slot definitions + `SLOT_DEFINITIONS` array + `renderSlotElement` |
-| `src/components/ui/StatCard.tsx` | `StatCard` component (basic / stacked / ring) |
-| `src/components/tracker-detail/AnalyticsTab.tsx` | Grid renderer — calls layout algorithms, maps card IDs to elements |
-| `src/components/tracker-detail/CoreStatCards.tsx` | `buildCoreStatDescriptors` — the 8 fixed core stats |
-| `src/components/tracker-detail/SlotRenderer.tsx` | Renders `progress` category slots above the grid |
+| File                                              | Purpose                                                                                     |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `src/lib/slot-types.ts`                           | `SlotCategory`, `SlotContext`, `ResolvedSlot` types                                         |
+| `src/lib/grid-layout.ts`                          | `findOptimalLayout4Col`, `findOptimalLayout3Col`, `findOptimalLayout2Col`, `getCardClasses` |
+| `src/components/tracker-detail/slot-registry.ts`  | All slot definitions + `SLOT_DEFINITIONS` array + `renderSlotElement`                       |
+| `src/components/ui/StatCard.tsx`                  | `StatCard` component (basic / stacked / ring)                                               |
+| `src/components/tracker-detail/AnalyticsTab.tsx`  | Grid renderer — calls layout algorithms, maps card IDs to elements                          |
+| `src/components/tracker-detail/CoreStatCards.tsx` | `buildCoreStatDescriptors` — the 8 fixed core stats                                         |
+| `src/components/tracker-detail/SlotRenderer.tsx`  | Renders `progress` category slots above the grid                                            |

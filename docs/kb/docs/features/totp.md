@@ -33,7 +33,7 @@ When you enable 2FA, you get 8 backup codes. Each one looks like this:
 Use a backup code at the TOTP prompt the same way you'd use a 6-digit code — there's a "Use a backup code" option on the login screen.
 
 !!! warning "Save your backup codes now"
-    If you lose your authenticator app and don't have backup codes, you cannot log in. There is no account recovery. Store the codes in a password manager or print them and keep them somewhere secure.
+If you lose your authenticator app and don't have backup codes, you cannot log in. There is no account recovery. Store the codes in a password manager or print them and keep them somewhere secure.
 
 ## Logging In With 2FA
 
@@ -61,7 +61,7 @@ Failed TOTP attempts count toward the same lockout limit as failed password atte
 ## After a Backup Restore
 
 !!! warning "2FA may be disabled after restoring a backup"
-    If you restore a backup from a different Tracker Tracker instance — one that was set up with a different password — the 2FA secret can't be carried over. In that case, 2FA will be turned off automatically as part of the restore.
+If you restore a backup from a different Tracker Tracker instance — one that was set up with a different password — the 2FA secret can't be carried over. In that case, 2FA will be turned off automatically as part of the restore.
 
 The restore confirmation screen will tell you if this happened. You'll need to go back to **Settings → Security** and set up 2FA again.
 

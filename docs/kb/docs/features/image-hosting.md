@@ -6,7 +6,7 @@ description: Upload screenshots to PTPImg, OnlyImage, or ImgBB directly from Tra
 # Image Hosting
 
 !!! danger "Functionality has not been implemented and this currently does nothing"
-    This is in preparation for the Tracker Transit Papers that will be launched in an upcoming release. No harm is done from adding your api keys now, but they won't do anything.
+This is in preparation for the Tracker Transit Papers that will be launched in an upcoming release. No harm is done from adding your api keys now, but they won't do anything.
 
 Tracker Tracker can upload images to external hosting services and return a direct link. This is useful for uploading screenshots when creating or editing torrent listings on trackers that require images hosted on approved services.
 
