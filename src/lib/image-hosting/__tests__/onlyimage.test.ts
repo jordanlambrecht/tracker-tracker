@@ -39,7 +39,9 @@ describe("secondsToIsoDuration", () => {
 })
 
 describe("onlyimageAdapter", () => {
-  beforeEach(() => { mockFetch.mockReset() })
+  beforeEach(() => {
+    mockFetch.mockReset()
+  })
 
   it("sends X-API-Key header and parses Chevereto response", async () => {
     mockFetch.mockResolvedValueOnce({
@@ -47,11 +49,7 @@ describe("onlyimageAdapter", () => {
       json: async () => CHEVERETO_RESPONSE,
     })
 
-    const result = await onlyimageAdapter.upload(
-      Buffer.from("fake"),
-      "test.png",
-      "my-key"
-    )
+    const result = await onlyimageAdapter.upload(Buffer.from("fake"), "test.png", "my-key")
 
     expect(result.url).toBe("https://onlyimage.org/images/2026/03/20/test.png")
     expect(result.viewerUrl).toBe("https://onlyimage.org/image/AbCdE")
@@ -69,12 +67,9 @@ describe("onlyimageAdapter", () => {
       json: async () => CHEVERETO_RESPONSE,
     })
 
-    await onlyimageAdapter.upload(
-      Buffer.from("img"),
-      "test.png",
-      "key",
-      { expirationSeconds: 86400 }
-    )
+    await onlyimageAdapter.upload(Buffer.from("img"), "test.png", "key", {
+      expirationSeconds: 86400,
+    })
 
     const body = mockFetch.mock.calls[0][1].body as FormData
     expect(body.get("expiration_date")).toBe("P1D")
@@ -86,12 +81,7 @@ describe("onlyimageAdapter", () => {
       json: async () => CHEVERETO_RESPONSE,
     })
 
-    await onlyimageAdapter.upload(
-      Buffer.from("img"),
-      "test.png",
-      "key",
-      { expirationSeconds: 300 }
-    )
+    await onlyimageAdapter.upload(Buffer.from("img"), "test.png", "key", { expirationSeconds: 300 })
 
     const body = mockFetch.mock.calls[0][1].body as FormData
     expect(body.get("expiration_date")).toBe("PT5M")
@@ -107,8 +97,8 @@ describe("onlyimageAdapter", () => {
       }),
     })
 
-    await expect(
-      onlyimageAdapter.upload(Buffer.from("img"), "t.png", "bad")
-    ).rejects.toThrow("OnlyImage upload failed (400)")
+    await expect(onlyimageAdapter.upload(Buffer.from("img"), "t.png", "bad")).rejects.toThrow(
+      "OnlyImage upload failed (400)"
+    )
   })
 })

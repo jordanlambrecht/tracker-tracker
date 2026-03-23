@@ -25,9 +25,7 @@ function validateTransitPapers(entry: Partial<TrackerRegistryEntry>): {
     } else {
       const pattern = entry.profileUrlPattern
       if (!pattern.includes("{id}") && !pattern.includes("{username}")) {
-        errors.push(
-          `profileUrlPattern must contain {id} or {username} (got "${pattern}")`
-        )
+        errors.push(`profileUrlPattern must contain {id} or {username} (got "${pattern}")`)
       }
     }
   }
@@ -93,9 +91,7 @@ describe("transit papers validation", () => {
     const { errors, warnings } = validateTransitPapers(entry)
 
     expect(errors).toHaveLength(0)
-    expect(warnings).toContain(
-      "profileUrlPattern defined but supportsTransitPapers is not true"
-    )
+    expect(warnings).toContain("profileUrlPattern defined but supportsTransitPapers is not true")
   })
 
   it("profileUrlPattern defined with supportsTransitPapers=false produces a warning not an error", () => {
@@ -108,9 +104,7 @@ describe("transit papers validation", () => {
     const { errors, warnings } = validateTransitPapers(entry)
 
     expect(errors).toHaveLength(0)
-    expect(warnings).toContain(
-      "profileUrlPattern defined but supportsTransitPapers is not true"
-    )
+    expect(warnings).toContain("profileUrlPattern defined but supportsTransitPapers is not true")
   })
 
   it("valid config with {username} placeholder produces no errors and no warnings", () => {

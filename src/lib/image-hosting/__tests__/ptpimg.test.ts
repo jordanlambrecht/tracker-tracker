@@ -7,7 +7,9 @@ vi.stubGlobal("fetch", mockFetch)
 import { ptpimgAdapter } from "../ptpimg"
 
 describe("ptpimgAdapter", () => {
-  beforeEach(() => { mockFetch.mockReset() })
+  beforeEach(() => {
+    mockFetch.mockReset()
+  })
 
   it("has correct id", () => {
     expect(ptpimgAdapter.id).toBe("ptpimg")
@@ -19,11 +21,7 @@ describe("ptpimgAdapter", () => {
       json: async () => [{ code: "abc123", ext: "png" }],
     })
 
-    const result = await ptpimgAdapter.upload(
-      Buffer.from("fake-image"),
-      "test.png",
-      "my-api-key"
-    )
+    const result = await ptpimgAdapter.upload(Buffer.from("fake-image"), "test.png", "my-api-key")
 
     expect(result.url).toBe("https://ptpimg.me/abc123.png")
     expect(result.host).toBe("ptpimg")
@@ -45,9 +43,9 @@ describe("ptpimgAdapter", () => {
       text: async () => "Forbidden",
     })
 
-    await expect(
-      ptpimgAdapter.upload(Buffer.from("img"), "test.png", "bad-key")
-    ).rejects.toThrow("PTPImg upload failed (403)")
+    await expect(ptpimgAdapter.upload(Buffer.from("img"), "test.png", "bad-key")).rejects.toThrow(
+      "PTPImg upload failed (403)"
+    )
   })
 
   it("throws on empty response array", async () => {
@@ -56,9 +54,9 @@ describe("ptpimgAdapter", () => {
       json: async () => [],
     })
 
-    await expect(
-      ptpimgAdapter.upload(Buffer.from("img"), "test.png", "key")
-    ).rejects.toThrow("PTPImg returned no image data")
+    await expect(ptpimgAdapter.upload(Buffer.from("img"), "test.png", "key")).rejects.toThrow(
+      "PTPImg returned no image data"
+    )
   })
 
   it("ignores expirationSeconds (not supported)", async () => {
@@ -67,12 +65,9 @@ describe("ptpimgAdapter", () => {
       json: async () => [{ code: "xyz", ext: "jpg" }],
     })
 
-    const result = await ptpimgAdapter.upload(
-      Buffer.from("img"),
-      "test.jpg",
-      "key",
-      { expirationSeconds: 3600 }
-    )
+    const result = await ptpimgAdapter.upload(Buffer.from("img"), "test.jpg", "key", {
+      expirationSeconds: 3600,
+    })
 
     expect(result.url).toBe("https://ptpimg.me/xyz.jpg")
   })

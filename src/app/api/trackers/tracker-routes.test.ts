@@ -628,7 +628,11 @@ describe("PATCH /api/trackers/[id]", () => {
     const mockSet = vi.fn().mockReturnValue({ where: mockWhere })
     ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
 
-    const request = makeRequest("http://localhost/api/trackers/1", { pollingPaused: false }, "PATCH")
+    const request = makeRequest(
+      "http://localhost/api/trackers/1",
+      { pollingPaused: false },
+      "PATCH"
+    )
     const params = Promise.resolve({ id: "1" })
     const response = await PATCH(request, { params })
 
@@ -649,7 +653,11 @@ describe("PATCH /api/trackers/[id]", () => {
     const mockSet = vi.fn().mockReturnValue({ where: mockWhere })
     ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
 
-    const request = makeRequest("http://localhost/api/trackers/1", { pollingPaused: "yes" }, "PATCH")
+    const request = makeRequest(
+      "http://localhost/api/trackers/1",
+      { pollingPaused: "yes" },
+      "PATCH"
+    )
     const params = Promise.resolve({ id: "1" })
     const response = await PATCH(request, { params })
 

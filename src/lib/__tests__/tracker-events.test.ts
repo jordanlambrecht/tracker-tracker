@@ -38,13 +38,25 @@ describe("checkRatioBelowMinimum", () => {
 
 describe("checkTrackerError", () => {
   it("returns paused=true when pausedAt is set", () => {
-    expect(checkTrackerError("some error", "2026-03-19")).toEqual({ paused: true, pausedByUser: false, hasError: false })
+    expect(checkTrackerError("some error", "2026-03-19")).toEqual({
+      paused: true,
+      pausedByUser: false,
+      hasError: false,
+    })
   })
   it("returns hasError=true when lastError is set and not paused", () => {
-    expect(checkTrackerError("some error", null)).toEqual({ paused: false, pausedByUser: false, hasError: true })
+    expect(checkTrackerError("some error", null)).toEqual({
+      paused: false,
+      pausedByUser: false,
+      hasError: true,
+    })
   })
   it("returns all false when clean", () => {
-    expect(checkTrackerError(null, null)).toEqual({ paused: false, pausedByUser: false, hasError: false })
+    expect(checkTrackerError(null, null)).toEqual({
+      paused: false,
+      pausedByUser: false,
+      hasError: false,
+    })
   })
   it("auto-pause takes priority over hasError", () => {
     const result = checkTrackerError("error", "2026-03-19")
@@ -53,7 +65,11 @@ describe("checkTrackerError", () => {
     expect(result.hasError).toBe(false)
   })
   it("returns pausedByUser=true when userPausedAt is set", () => {
-    expect(checkTrackerError(null, null, "2026-03-21T12:00:00Z")).toEqual({ paused: true, pausedByUser: true, hasError: false })
+    expect(checkTrackerError(null, null, "2026-03-21T12:00:00Z")).toEqual({
+      paused: true,
+      pausedByUser: true,
+      hasError: false,
+    })
   })
   it("userPausedAt takes priority over pausedAt", () => {
     const result = checkTrackerError(null, "2026-03-19", "2026-03-21")

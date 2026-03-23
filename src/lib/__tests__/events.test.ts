@@ -333,20 +333,36 @@ describe("mergeAndSort — edge cases", () => {
   })
 
   it("returns empty array when category filter matches nothing", () => {
-    const events: SystemEvent[] = [{
-      id: "1", timestamp: "2026-03-22T14:00:00Z", category: "polls",
-      level: "info", title: "Poll", detail: null, trackerId: 1,
-      trackerName: null, source: "db",
-    }]
+    const events: SystemEvent[] = [
+      {
+        id: "1",
+        timestamp: "2026-03-22T14:00:00Z",
+        category: "polls",
+        level: "info",
+        title: "Poll",
+        detail: null,
+        trackerId: 1,
+        trackerName: null,
+        source: "db",
+      },
+    ]
     expect(mergeAndSort([], events, "auth")).toEqual([])
   })
 
   it("returns empty array when offset exceeds total results", () => {
-    const events: SystemEvent[] = [{
-      id: "1", timestamp: "2026-03-22T14:00:00Z", category: "polls",
-      level: "info", title: "Poll", detail: null, trackerId: 1,
-      trackerName: null, source: "db",
-    }]
+    const events: SystemEvent[] = [
+      {
+        id: "1",
+        timestamp: "2026-03-22T14:00:00Z",
+        category: "polls",
+        level: "info",
+        title: "Poll",
+        detail: null,
+        trackerId: 1,
+        trackerName: null,
+        source: "db",
+      },
+    ]
     expect(mergeAndSort(events, [], "all", 50, 100)).toEqual([])
   })
 })
@@ -354,8 +370,10 @@ describe("mergeAndSort — edge cases", () => {
 describe("classifyLogEvent — priority ordering", () => {
   it("classifies as auth (not errors) when event=login_failed AND level=50", () => {
     const line = JSON.stringify({
-      level: 50, time: 1711100000000,
-      msg: "login failed", event: "login_failed",
+      level: 50,
+      time: 1711100000000,
+      msg: "login failed",
+      event: "login_failed",
     })
     const event = parseLogLine(line)
     expect(event?.category).toBe("auth")
@@ -363,8 +381,11 @@ describe("classifyLogEvent — priority ordering", () => {
 
   it("classifies as auth (not polls) when event=lockout_triggered AND trackerId present", () => {
     const line = JSON.stringify({
-      level: 30, time: 1711100000000,
-      msg: "lockout triggered", event: "lockout_triggered", trackerId: 7,
+      level: 30,
+      time: 1711100000000,
+      msg: "lockout triggered",
+      event: "lockout_triggered",
+      trackerId: 7,
     })
     const event = parseLogLine(line)
     expect(event?.category).toBe("auth")
@@ -373,8 +394,10 @@ describe("classifyLogEvent — priority ordering", () => {
 
   it("classifies as backups (not errors) when event=restore_failed AND level=50", () => {
     const line = JSON.stringify({
-      level: 50, time: 1711100000000,
-      msg: "restore failed", event: "restore_failed",
+      level: 50,
+      time: 1711100000000,
+      msg: "restore failed",
+      event: "restore_failed",
     })
     const event = parseLogLine(line)
     expect(event?.category).toBe("backups")

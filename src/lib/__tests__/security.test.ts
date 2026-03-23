@@ -230,8 +230,11 @@ import { POST as BackupExportPOST } from "@/app/api/settings/backup/export/route
 import { GET as BackupHistoryGET } from "@/app/api/settings/backup/history/route"
 import { POST as BackupRestorePOST } from "@/app/api/settings/backup/restore/route"
 import { GET as DashboardGET, PUT as DashboardPUT } from "@/app/api/settings/dashboard/route"
+import { GET as EventsGET } from "@/app/api/settings/events/route"
+import { GET as ImageHostsGET } from "@/app/api/settings/image-hosts/route"
 import { POST as LockdownPOST } from "@/app/api/settings/lockdown/route"
-import { GET as LogsGET } from "@/app/api/settings/logs/route"
+import { GET as LogsDownloadGET } from "@/app/api/settings/logs/download/route"
+import { DELETE as LogsDELETE, GET as LogsGET } from "@/app/api/settings/logs/route"
 import { POST as NukePOST } from "@/app/api/settings/nuke/route"
 import { POST as ProxyTestPOST } from "@/app/api/settings/proxy-test/route"
 import { GET as QuicklinksGET, PUT as QuicklinksPUT } from "@/app/api/settings/quicklinks/route"
@@ -260,10 +263,6 @@ import { PATCH as ReorderPATCH } from "@/app/api/trackers/reorder/route"
 import { GET, POST } from "@/app/api/trackers/route"
 import { POST as TestPOST } from "@/app/api/trackers/test/route"
 import { POST as UploadImagePOST } from "@/app/api/upload-image/route"
-import { GET as ImageHostsGET } from "@/app/api/settings/image-hosts/route"
-import { GET as EventsGET } from "@/app/api/settings/events/route"
-import { DELETE as LogsDELETE } from "@/app/api/settings/logs/route"
-import { GET as LogsDownloadGET } from "@/app/api/settings/logs/download/route"
 
 // ---------------------------------------------------------------------------
 // Lib imports

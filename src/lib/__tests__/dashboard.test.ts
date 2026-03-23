@@ -739,9 +739,7 @@ describe("computeAlerts", () => {
   })
 
   it("does not generate poll-paused alert for user-paused trackers", () => {
-    const trackers = [
-      makeTracker({ userPausedAt: "2026-03-21T12:00:00Z", pausedAt: null }),
-    ]
+    const trackers = [makeTracker({ userPausedAt: "2026-03-21T12:00:00Z", pausedAt: null })]
     const alerts = computeAlerts(trackers)
     expect(alerts.find((a) => a.type === "poll-paused")).toBeUndefined()
   })

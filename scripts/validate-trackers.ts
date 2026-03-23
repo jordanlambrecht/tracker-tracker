@@ -227,9 +227,7 @@ function validate(slugFilter?: string[]): TrackerResult[] {
       } else {
         const pattern = tracker.profileUrlPattern
         if (!pattern.includes("{id}") && !pattern.includes("{username}")) {
-          errors.push(
-            `profileUrlPattern must contain {id} or {username} (got "${pattern}")`
-          )
+          errors.push(`profileUrlPattern must contain {id} or {username} (got "${pattern}")`)
         }
       }
     }

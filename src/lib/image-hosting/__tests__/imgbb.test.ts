@@ -20,7 +20,9 @@ const IMGBB_RESPONSE = {
 }
 
 describe("imgbbAdapter", () => {
-  beforeEach(() => { mockFetch.mockReset() })
+  beforeEach(() => {
+    mockFetch.mockReset()
+  })
 
   it("sends api key as form field and parses response", async () => {
     mockFetch.mockResolvedValueOnce({
@@ -28,11 +30,7 @@ describe("imgbbAdapter", () => {
       json: async () => IMGBB_RESPONSE,
     })
 
-    const result = await imgbbAdapter.upload(
-      Buffer.from("fake"),
-      "test.png",
-      "my-key"
-    )
+    const result = await imgbbAdapter.upload(Buffer.from("fake"), "test.png", "my-key")
 
     expect(result.url).toBe("https://i.ibb.co/w04Prt6/test.png")
     expect(result.viewerUrl).toBe("https://ibb.co/2ndCYJK")
@@ -50,12 +48,7 @@ describe("imgbbAdapter", () => {
       json: async () => IMGBB_RESPONSE,
     })
 
-    await imgbbAdapter.upload(
-      Buffer.from("img"),
-      "test.png",
-      "key",
-      { expirationSeconds: 3600 }
-    )
+    await imgbbAdapter.upload(Buffer.from("img"), "test.png", "key", { expirationSeconds: 3600 })
 
     const body = mockFetch.mock.calls[0][1].body as FormData
     expect(body.get("expiration")).toBe("3600")
@@ -67,12 +60,7 @@ describe("imgbbAdapter", () => {
       json: async () => IMGBB_RESPONSE,
     })
 
-    await imgbbAdapter.upload(
-      Buffer.from("img"),
-      "test.png",
-      "key",
-      { expirationSeconds: 10 }
-    )
+    await imgbbAdapter.upload(Buffer.from("img"), "test.png", "key", { expirationSeconds: 10 })
 
     const body = mockFetch.mock.calls[0][1].body as FormData
     expect(body.get("expiration")).toBe("60")
@@ -84,9 +72,9 @@ describe("imgbbAdapter", () => {
       json: async () => ({ success: false, status: 400, error: { message: "Bad" } }),
     })
 
-    await expect(
-      imgbbAdapter.upload(Buffer.from("img"), "t.png", "key")
-    ).rejects.toThrow("ImgBB upload failed")
+    await expect(imgbbAdapter.upload(Buffer.from("img"), "t.png", "key")).rejects.toThrow(
+      "ImgBB upload failed"
+    )
   })
 
   it("throws on HTTP error", async () => {
@@ -96,8 +84,8 @@ describe("imgbbAdapter", () => {
       text: async () => "Rate limited",
     })
 
-    await expect(
-      imgbbAdapter.upload(Buffer.from("img"), "t.png", "key")
-    ).rejects.toThrow("ImgBB upload failed (429)")
+    await expect(imgbbAdapter.upload(Buffer.from("img"), "t.png", "key")).rejects.toThrow(
+      "ImgBB upload failed (429)"
+    )
   })
 })
