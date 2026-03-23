@@ -9,7 +9,7 @@ import { useCallback, useEffect, useState } from "react"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
-import { ChevronToggle } from "@/components/ui/ChevronToggle"
+import { CollapsibleCard } from "@/components/ui/CollapsibleCard"
 import { Input } from "@/components/ui/Input"
 import { MaskedSecret } from "@/components/ui/MaskedSecret"
 import { NumberInput } from "@/components/ui/NumberInput"
@@ -225,14 +225,11 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
   )
 
   return (
-    <Card elevation="raised" className="flex flex-col gap-0 !p-0 overflow-hidden">
-      {/* Header — always visible */}
-      <button
-        type="button"
-        onClick={() => setExpanded((e) => !e)}
-        className="flex items-center gap-3 px-5 py-4 w-full text-left cursor-pointer hover:bg-overlay transition-colors duration-100"
-      >
-        <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+    <CollapsibleCard
+      expanded={expanded}
+      onToggle={() => setExpanded((e) => !e)}
+      header={
+        <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-3">
             <H3 className="truncate">{draft.name || "Untitled Target"}</H3>
             {typeBadge}
@@ -244,12 +241,8 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
               : "Last sent: Never"}
           </span>
         </div>
-        <ChevronToggle expanded={expanded} variant="flip" className="text-tertiary text-sm" />
-      </button>
-
-      {/* Body — collapsible */}
-      {expanded && (
-        <div className="px-5 pb-5 flex flex-col gap-5 border-t border-border">
+      }
+    >
           {/* Row 1: Name + Type + Enabled */}
           <div className="flex flex-col sm:flex-row gap-4 sm:items-end pt-5">
             <div className="flex-1">
@@ -489,9 +482,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
           {webhookStatus === "failed" && webhookError && (
             <p className="text-xs font-mono text-danger">{webhookError}</p>
           )}
-        </div>
-      )}
-    </Card>
+    </CollapsibleCard>
   )
 }
 

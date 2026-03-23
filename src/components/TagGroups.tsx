@@ -17,7 +17,7 @@ import clsx from "clsx"
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
-import { ChevronToggle } from "@/components/ui/ChevronToggle"
+import { CollapsibleCard } from "@/components/ui/CollapsibleCard"
 import { EmojiPickerPopover } from "@/components/ui/EmojiPickerPopover"
 import { Input } from "@/components/ui/Input"
 import { QBT_TAG_WARN_PATTERN } from "@/components/ui/QbtTagWarning"
@@ -470,235 +470,213 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
   const savedSortIds = sortIds.filter((_, i) => members[i].id !== null)
 
   return (
-    <Card elevation="raised" className="flex flex-col gap-0 !p-0">
-      {/* Header — entire row toggles expand/collapse, double-click name to rename.
-          Cannot use <button> here because the ternary contains an <input> (interactive nesting). */}
-      {/* biome-ignore lint/a11y/useSemanticElements: contains interactive <input> child, button nesting is invalid HTML */}
-      <div
-        role="button"
-        tabIndex={0}
-        className="flex items-center gap-3 px-5 py-4 cursor-pointer select-none"
-        onClick={(e) => {
-          if ((e.target as HTMLElement).closest("input")) return
-          setExpanded((v) => !v)
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault()
-            setExpanded((v) => !v)
-          }
-        }}
-        aria-expanded={expanded}
-      >
-        {emoji && (
-          <span className="text-base shrink-0" aria-hidden="true">
-            {emoji}
+    <CollapsibleCard
+      expanded={expanded}
+      onToggle={() => setExpanded((v) => !v)}
+      header={
+        <>
+          {emoji && (
+            <span className="text-base shrink-0" aria-hidden="true">
+              {emoji}
+            </span>
+          )}
+
+          {editingName ? (
+            <input
+              className="flex-1 font-sans text-sm font-semibold text-primary bg-control-bg nm-inset-sm px-2 py-1 focus:outline-none min-w-0 rounded-nm-sm"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={() => setEditingName(false)}
+              onKeyDown={handleNameKeyDown}
+              onClick={(e) => e.stopPropagation()}
+              disabled={saving}
+              // biome-ignore lint/a11y/noAutofocus: inline rename input must focus immediately for UX
+              autoFocus
+              aria-label="Group name"
+            />
+          ) : (
+            <Tooltip content="Double-click to rename">
+              {/* biome-ignore lint/a11y/noStaticElementInteractions: double-click to rename is a progressive enhancement */}
+              <span
+                className="flex-1 font-sans text-sm font-semibold text-primary min-w-0 truncate text-left"
+                onDoubleClick={(e) => {
+                  e.stopPropagation()
+                  setEditingName(true)
+                }}
+              >
+                {name}
+              </span>
+            </Tooltip>
+          )}
+
+          {isDirty && (
+            <Tooltip content="Unsaved changes">
+              <span className="w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
+            </Tooltip>
+          )}
+
+          <span className="text-xs font-mono text-tertiary shrink-0">
+            {members.length} {members.length === 1 ? "tag" : "tags"}
           </span>
-        )}
+        </>
+      }
+    >
+      <div className="border-t border-border mb-1" />
 
-        {editingName ? (
-          <input
-            className="flex-1 font-sans text-sm font-semibold text-primary bg-control-bg nm-inset-sm px-2 py-1 focus:outline-none min-w-0 rounded-nm-sm"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={() => setEditingName(false)}
-            onKeyDown={handleNameKeyDown}
-            disabled={saving}
-            // biome-ignore lint/a11y/noAutofocus: inline rename input must focus immediately for UX
-            autoFocus
-            aria-label="Group name"
-          />
-        ) : (
-          <Tooltip content="Double-click to rename">
-            {/* biome-ignore lint/a11y/noStaticElementInteractions: double-click to rename is a progressive enhancement */}
-            <span
-              className="flex-1 font-sans text-sm font-semibold text-primary min-w-0 truncate text-left"
-              onDoubleClick={(e) => {
-                e.stopPropagation()
-                setEditingName(true)
-              }}
-            >
-              {name}
-            </span>
-          </Tooltip>
-        )}
-
-        {isDirty && (
-          <Tooltip content="Unsaved changes">
-            <span className="w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
-          </Tooltip>
-        )}
-
-        <span className="text-xs font-mono text-tertiary shrink-0">
-          {members.length} {members.length === 1 ? "tag" : "tags"}
-        </span>
-
-        <span className="shrink-0 text-tertiary text-xs leading-none">
-          <ChevronToggle expanded={expanded} variant="flip" />
-        </span>
-      </div>
-
-      {/* Expanded content */}
-      {expanded && (
-        <div className="flex flex-col gap-3 px-5 pb-5 pt-1">
-          <div className="border-t border-border mb-1" />
-
-          {/* Emoji + display type row */}
-          <div className="flex items-end gap-4 mb-1">
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
-                Emoji
-              </span>
-              <EmojiPickerPopover value={emoji} onChange={setEmoji} />
-            </div>
-            <div className="flex flex-col gap-1 flex-1">
-              <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
-                Display Type
-              </span>
-              <div className="nm-inset-sm p-1.5 flex gap-1 rounded-nm-md">
-                {CHART_TYPE_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setChartType(opt.value)}
-                    className={clsx(
-                      "flex-1 px-3 py-1.5 text-xs font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
-                      chartType === opt.value
-                        ? "nm-raised-sm text-primary font-semibold"
-                        : "bg-transparent text-tertiary hover:text-secondary"
-                    )}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Count unmatched toggle */}
-          <Toggle
-            label="Count unmatched tags"
-            checked={countUnmatched}
-            onChange={setCountUnmatched}
-            description="Include a count of torrents that don't match any tag in this group."
-          />
-
-          {/* Column headers */}
-          <div className="flex items-center gap-3 px-3">
-            <span className="shrink-0 text-sm leading-none w-4" aria-hidden="true" />
-            <span className="flex-1 text-xs font-sans font-medium text-secondary uppercase tracking-wider">
-              qBT Tag
-            </span>
-            <div className="w-px h-3" />
-            <span className="flex-1 text-xs font-sans font-medium text-secondary uppercase tracking-wider">
-              Display Label
-            </span>
-            <span className="w-4" aria-hidden="true" />
-          </div>
-
-          {/* Sortable saved members + unsaved new rows */}
-          <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={savedSortIds} strategy={verticalListSortingStrategy}>
-              {members.map((m, i) =>
-                m.id !== null ? (
-                  <SortableMemberRow
-                    key={sortIds[i]}
-                    sortId={sortIds[i]}
-                    tag={m.tag}
-                    label={m.label}
-                    onTagChange={(v) =>
-                      setMembers((prev) => prev.map((p, j) => (j === i ? { ...p, tag: v } : p)))
-                    }
-                    onLabelChange={(v) =>
-                      setMembers((prev) => prev.map((p, j) => (j === i ? { ...p, label: v } : p)))
-                    }
-                    onRemove={() => handleRemoveMember(i)}
-                    disabled={saving}
-                  />
-                ) : (
-                  <NewMemberRow
-                    key={sortIds[i]}
-                    tag={m.tag}
-                    label={m.label}
-                    onTagChange={(v) =>
-                      setMembers((prev) => prev.map((p, j) => (j === i ? { ...p, tag: v } : p)))
-                    }
-                    onLabelChange={(v) =>
-                      setMembers((prev) => prev.map((p, j) => (j === i ? { ...p, label: v } : p)))
-                    }
-                    onRemove={() => handleRemoveMember(i)}
-                    disabled={saving}
-                  />
-                )
-              )}
-            </SortableContext>
-          </DndContext>
-
-          {/* Add row button */}
-          <button
-            type="button"
-            onClick={handleAddRow}
-            disabled={saving}
-            className="text-xs font-mono text-tertiary hover:text-accent transition-colors duration-150 cursor-pointer bg-transparent border-none p-0 text-left disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            + Add Row
-          </button>
-
-          <div className="border-t border-border mt-1" />
-
-          {/* Footer: Delete + Save */}
-          {saveError && (
-            <p className="text-xs font-sans text-danger px-1" role="alert">
-              {saveError}
-            </p>
-          )}
-          {deleteError && (
-            <p className="text-xs font-sans text-danger px-1" role="alert">
-              {deleteError}
-            </p>
-          )}
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              {confirmDelete ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-sans text-warn">Delete this group?</span>
-                  <Button size="sm" variant="danger" onClick={handleDelete} disabled={deleting}>
-                    {deleting ? "Deleting…" : "Confirm"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setConfirmDelete(false)}
-                    disabled={deleting}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setConfirmDelete(true)}
-                  className="text-danger hover:text-danger"
-                >
-                  Delete Group
-                </Button>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {isDirty && (
-                <Button size="sm" variant="ghost" onClick={handleDiscard} disabled={saving}>
-                  Discard
-                </Button>
-              )}
-              <Button size="sm" onClick={handleSave} disabled={saving || !isDirty || !name.trim()}>
-                {saving ? "Saving…" : "Save"}
-              </Button>
-            </div>
+      {/* Emoji + display type row */}
+      <div className="flex items-end gap-4 mb-1">
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
+            Emoji
+          </span>
+          <EmojiPickerPopover value={emoji} onChange={setEmoji} />
+        </div>
+        <div className="flex flex-col gap-1 flex-1">
+          <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
+            Display Type
+          </span>
+          <div className="nm-inset-sm p-1.5 flex gap-1 rounded-nm-md">
+            {CHART_TYPE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setChartType(opt.value)}
+                className={clsx(
+                  "flex-1 px-3 py-1.5 text-xs font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
+                  chartType === opt.value
+                    ? "nm-raised-sm text-primary font-semibold"
+                    : "bg-transparent text-tertiary hover:text-secondary"
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
         </div>
+      </div>
+
+      {/* Count unmatched toggle */}
+      <Toggle
+        label="Count unmatched tags"
+        checked={countUnmatched}
+        onChange={setCountUnmatched}
+        description="Include a count of torrents that don't match any tag in this group."
+      />
+
+      {/* Column headers */}
+      <div className="flex items-center gap-3 px-3">
+        <span className="shrink-0 text-sm leading-none w-4" aria-hidden="true" />
+        <span className="flex-1 text-xs font-sans font-medium text-secondary uppercase tracking-wider">
+          qBT Tag
+        </span>
+        <div className="w-px h-3" />
+        <span className="flex-1 text-xs font-sans font-medium text-secondary uppercase tracking-wider">
+          Display Label
+        </span>
+        <span className="w-4" aria-hidden="true" />
+      </div>
+
+      {/* Sortable saved members + unsaved new rows */}
+      <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={savedSortIds} strategy={verticalListSortingStrategy}>
+          {members.map((m, i) =>
+            m.id !== null ? (
+              <SortableMemberRow
+                key={sortIds[i]}
+                sortId={sortIds[i]}
+                tag={m.tag}
+                label={m.label}
+                onTagChange={(v) =>
+                  setMembers((prev) => prev.map((p, j) => (j === i ? { ...p, tag: v } : p)))
+                }
+                onLabelChange={(v) =>
+                  setMembers((prev) => prev.map((p, j) => (j === i ? { ...p, label: v } : p)))
+                }
+                onRemove={() => handleRemoveMember(i)}
+                disabled={saving}
+              />
+            ) : (
+              <NewMemberRow
+                key={sortIds[i]}
+                tag={m.tag}
+                label={m.label}
+                onTagChange={(v) =>
+                  setMembers((prev) => prev.map((p, j) => (j === i ? { ...p, tag: v } : p)))
+                }
+                onLabelChange={(v) =>
+                  setMembers((prev) => prev.map((p, j) => (j === i ? { ...p, label: v } : p)))
+                }
+                onRemove={() => handleRemoveMember(i)}
+                disabled={saving}
+              />
+            )
+          )}
+        </SortableContext>
+      </DndContext>
+
+      {/* Add row button */}
+      <button
+        type="button"
+        onClick={handleAddRow}
+        disabled={saving}
+        className="text-xs font-mono text-tertiary hover:text-accent transition-colors duration-150 cursor-pointer bg-transparent border-none p-0 text-left disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        + Add Row
+      </button>
+
+      <div className="border-t border-border mt-1" />
+
+      {/* Footer: Delete + Save */}
+      {saveError && (
+        <p className="text-xs font-sans text-danger px-1" role="alert">
+          {saveError}
+        </p>
       )}
-    </Card>
+      {deleteError && (
+        <p className="text-xs font-sans text-danger px-1" role="alert">
+          {deleteError}
+        </p>
+      )}
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          {confirmDelete ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-sans text-warn">Delete this group?</span>
+              <Button size="sm" variant="danger" onClick={handleDelete} disabled={deleting}>
+                {deleting ? "Deleting…" : "Confirm"}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setConfirmDelete(false)}
+                disabled={deleting}
+              >
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setConfirmDelete(true)}
+              className="text-danger hover:text-danger"
+            >
+              Delete Group
+            </Button>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {isDirty && (
+            <Button size="sm" variant="ghost" onClick={handleDiscard} disabled={saving}>
+              Discard
+            </Button>
+          )}
+          <Button size="sm" onClick={handleSave} disabled={saving || !isDirty || !name.trim()}>
+            {saving ? "Saving…" : "Save"}
+          </Button>
+        </div>
+      </div>
+    </CollapsibleCard>
   )
 }
 
@@ -744,7 +722,10 @@ function TagGroups() {
       <div className="flex items-center justify-between mb-2">
         <H2 id="tag-groups-heading" className="flex items-center gap-2">
           Tag Groups
-          <Tooltip content="Create tag groups to visualize your qBittorrent tags as charts." docs={DOCS.TAG_GROUPS}>
+          <Tooltip
+            content="Create tag groups to visualize your qBittorrent tags as charts."
+            docs={DOCS.TAG_GROUPS}
+          >
             <span className="text-muted hover:text-secondary cursor-help text-sm">&#9432;</span>
           </Tooltip>
         </H2>
