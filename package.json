@@ -60,7 +60,7 @@
     "emoji-picker-react": "^4.18.0",
     "https-proxy-agent": "^8.0.0",
     "jose": "^6.2.2",
-    "next": "16.2.0",
+    "next": "16.2.1",
     "node-cron": "^4.2.1",
     "otpauth": "^9.5.0",
     "pino": "^10.3.1",
