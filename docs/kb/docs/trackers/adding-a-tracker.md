@@ -29,6 +29,7 @@ Click the **+** button next to "Trackers" in the sidebar, or go to `/trackers/ne
     | Racing4Everyone | R4E |
     | ReelFlix | |
     | SkipTheCommercials | STC |
+    | Seedpool | SP |
     | Upload.cx | |
 
 === "Gazelle"
