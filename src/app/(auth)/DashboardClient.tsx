@@ -155,11 +155,12 @@ export function DashboardClient({ initialTrackers }: DashboardClientProps) {
       {/*  Analytics / Fleet  */}
       <div className="flex flex-col md:flex-row gap-4 md:gap-8">
         <div className="flex-1 min-w-0">
-          {dashboardTab === "torrent-fleet" ? (
+          <div className={dashboardTab !== "torrent-fleet" ? "hidden" : undefined}>
             <FleetDashboard dayRange={data.dayRange} trackers={data.trackers} />
-          ) : (
+          </div>
+          <div className={dashboardTab !== "tracker-stats" ? "hidden" : undefined}>
             <AnalyticsSection trackerSeries={trackerSeries} trackers={data.trackers} />
-          )}
+          </div>
         </div>
 
         {/* Sticky sidebar*/}
