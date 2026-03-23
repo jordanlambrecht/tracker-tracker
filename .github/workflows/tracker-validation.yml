@@ -2,7 +2,7 @@ name: Tracker Validation
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, development]
 
 permissions:
   contents: read
