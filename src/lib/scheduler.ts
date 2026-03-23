@@ -7,6 +7,7 @@ import { and, desc, eq, isNotNull, lt, notInArray, sql } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { buildFetchOptions, getAdapter } from "@/lib/adapters"
+import type { TrackerStats } from "@/lib/adapters/types"
 import { pruneDismissedAlerts } from "@/lib/alert-pruning"
 import { startBackupScheduler, stopBackupScheduler } from "@/lib/backup-scheduler"
 import {
@@ -55,6 +56,62 @@ function setPollInFlight(v: boolean) {
 
 /** After this many consecutive poll failures, auto-pause the tracker. */
 export const POLL_FAILURE_THRESHOLD = 4
+
+/**
+ * Fetch fresh stats from a tracker's API without writing a snapshot.
+ * Used by the transit papers report route to get live data for the report.
+ * Also updates tracker metadata side effects (remoteUserId, joinedAt, lastAccessAt, platformMeta, avatarUrl).
+ */
+export async function fetchTrackerStats(
+  trackerId: number,
+  encryptionKey: Buffer,
+  proxyAgent?: HttpAgent
+): Promise<{ stats: TrackerStats; tracker: typeof trackers.$inferSelect }> {
+  const [tracker] = await db.select().from(trackers).where(eq(trackers.id, trackerId)).limit(1)
+  if (!tracker || !tracker.isActive) throw new Error("Tracker not found or inactive")
+
+  let apiToken: string
+  try {
+    apiToken = decrypt(tracker.encryptedApiToken, encryptionKey)
+  } catch {
+    throw new Error(`API key is missing or invalid for tracker "${tracker.name}"`)
+  }
+
+  const adapter = getAdapter(tracker.platformType)
+  if (tracker.useProxy && !proxyAgent) {
+    throw new Error("Proxy required but not available — refusing to leak IP via direct connection")
+  }
+
+  const fetchOptions = buildFetchOptions(tracker.baseUrl, {
+    proxyAgent: tracker.useProxy ? proxyAgent : undefined,
+    remoteUserId: tracker.remoteUserId ?? undefined,
+  })
+  const stats = await adapter.fetchStats(tracker.baseUrl, apiToken, tracker.apiPath, fetchOptions)
+
+  // Write metadata side effects
+  const metaUpdates: Record<string, unknown> = {}
+  if (stats.remoteUserId && stats.remoteUserId !== tracker.remoteUserId) {
+    metaUpdates.remoteUserId = stats.remoteUserId
+  }
+  if (stats.joinedDate && !tracker.joinedAt) {
+    const parsed = new Date(stats.joinedDate)
+    if (!Number.isNaN(parsed.getTime())) metaUpdates.joinedAt = parsed.toISOString().split("T")[0]
+  }
+  if (stats.lastAccessDate) {
+    const parsed = new Date(stats.lastAccessDate)
+    if (!Number.isNaN(parsed.getTime()))
+      metaUpdates.lastAccessAt = parsed.toISOString().split("T")[0]
+  }
+  if (stats.platformMeta) metaUpdates.platformMeta = JSON.stringify(stats.platformMeta)
+  if (stats.avatarUrl) metaUpdates.avatarRemoteUrl = stats.avatarUrl
+  if (Object.keys(metaUpdates).length > 0) {
+    await db.update(trackers).set(metaUpdates).where(eq(trackers.id, tracker.id))
+  }
+
+  // Re-fetch tracker with updated metadata
+  const [freshTracker] = await db.select().from(trackers).where(eq(trackers.id, trackerId))
+  return { stats, tracker: freshTracker }
+}
 
 export async function pollTracker(
   trackerId: number,
