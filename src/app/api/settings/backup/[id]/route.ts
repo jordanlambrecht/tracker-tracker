@@ -44,8 +44,8 @@ export async function GET(
     .limit(1)
 
   const basePath = settings?.backupStoragePath ?? "/data/backups"
-  const resolved = path.resolve(record.storagePath)
-  const base = path.resolve(basePath)
+  const resolved = path.resolve(/* turbopackIgnore: true */ record.storagePath)
+  const base = path.resolve(/* turbopackIgnore: true */ basePath)
 
   if (!resolved.startsWith(base + path.sep)) {
     log.error(`Backup download rejected: path ${resolved} outside base ${base}`)
@@ -103,8 +103,8 @@ export async function DELETE(
 
     const basePath = settings?.backupStoragePath
     if (basePath) {
-      const resolved = path.resolve(record.storagePath)
-      const base = path.resolve(basePath)
+      const resolved = path.resolve(/* turbopackIgnore: true */ record.storagePath)
+      const base = path.resolve(/* turbopackIgnore: true */ basePath)
       if (resolved.startsWith(base + path.sep)) {
         try {
           await unlink(resolved)
