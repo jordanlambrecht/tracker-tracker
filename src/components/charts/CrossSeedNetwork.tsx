@@ -5,15 +5,16 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
-import type { TorrentRaw, TrackerTag } from "@/lib/fleet"
+import type { TrackerTag } from "@/lib/fleet"
 import { hexToRgba } from "@/lib/formatters"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { fmtNum } from "./chart-helpers"
-import { CHART_THEME, chartTooltip, escHtml } from "./theme"
+import type { TorrentInfo } from "@/lib/torrent-utils"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { fmtNum } from "./lib/chart-helpers"
+import { CHART_THEME, chartTooltip, escHtml } from "./lib/theme"
 
 interface CrossSeedNetworkProps {
-  torrents: TorrentRaw[]
+  torrents: TorrentInfo[]
   trackerTags: TrackerTag[]
   crossSeedTags: string[]
   height?: number
@@ -37,7 +38,7 @@ interface NetworkEdge {
 }
 
 function buildNetworkData(
-  torrents: TorrentRaw[],
+  torrents: TorrentInfo[],
   trackerTags: TrackerTag[],
   crossSeedTags: string[]
 ): { nodes: NetworkNode[]; edges: NetworkEdge[] } {
@@ -208,12 +209,9 @@ function CrossSeedNetwork({
     return <ChartEmptyState height={height} message="No cross-seeded content detected" />
 
   return (
-    <ReactECharts
+    <ChartECharts
       option={buildCrossSeedNetworkOption(nodes, edges)}
       style={{ height, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
     />
   )
 }

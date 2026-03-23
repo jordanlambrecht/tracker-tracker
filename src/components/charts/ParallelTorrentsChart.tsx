@@ -5,25 +5,12 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
 import { hexToRgba } from "@/lib/formatters"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { fmtNum } from "./chart-helpers"
-import { CHART_THEME, chartAxisLabel, chartTooltip } from "./theme"
-
-// ---------------------------------------------------------------------------
-// Local TorrentInfo — only the fields this chart needs
-// ---------------------------------------------------------------------------
-
-interface TorrentInfo {
-  hash: string
-  size: number
-  ratio: number
-  seedingTime: number // seconds
-  numSeeds: number
-  addedOn: number // unix timestamp
-  availability: number
-}
+import type { TorrentInfo } from "@/lib/torrent-utils"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { fmtNum } from "./lib/chart-helpers"
+import { CHART_THEME, chartAxisLabel, chartTooltip, chartTooltipRow } from "./lib/theme"
 
 interface ParallelTorrentsChartProps {
   torrents: TorrentInfo[]
@@ -54,7 +41,7 @@ function buildParallelOption(torrents: TorrentInfo[], trackerColor: string): ECh
     const sizeGiB = t.size / 1024 ** 3
     const seedDays = t.seedingTime / 86400
     const ageDays = (nowSec - t.addedOn) / 86400
-    return [sizeGiB, t.ratio, seedDays, t.numSeeds, ageDays, t.availability]
+    return [sizeGiB, t.ratio, seedDays, t.numSeeds, ageDays, Math.max(0, t.availability ?? 0)]
   })
 
   // Compute per-dimension min/max from data for reasonable axis ranges
@@ -171,18 +158,19 @@ function buildParallelOption(torrents: TorrentInfo[], trackerColor: string): ECh
   return {
     backgroundColor: "transparent",
     tooltip: chartTooltip("item", {
+      borderColor: trackerColor,
       formatter: (params: unknown) => {
         const p = params as { data: number[] }
         const d = p.data
         if (!d) return ""
         return [
           `<span style="color:${CHART_THEME.textTertiary};font-size:11px;font-family:${CHART_THEME.fontMono};">Torrent</span>`,
-          `<span style="color:${CHART_THEME.textSecondary};">Size:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${fmtNum(d[DIM_SIZE], 2)} GiB</span>`,
-          `<span style="color:${CHART_THEME.textSecondary};">Ratio:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${fmtNum(d[DIM_RATIO], 2)}</span>`,
-          `<span style="color:${CHART_THEME.textSecondary};">Seed Time:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${fmtNum(d[DIM_SEED_TIME], 1)} days</span>`,
-          `<span style="color:${CHART_THEME.textSecondary};">Seeds:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${Math.round(d[DIM_SEEDS]).toLocaleString()}</span>`,
-          `<span style="color:${CHART_THEME.textSecondary};">Age:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${fmtNum(d[DIM_AGE], 0)} days</span>`,
-          `<span style="color:${CHART_THEME.textSecondary};">Availability:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${fmtNum(d[DIM_AVAILABILITY], 2)}</span>`,
+          chartTooltipRow(trackerColor, "Size", `${fmtNum(d[DIM_SIZE], 2)} GiB`),
+          chartTooltipRow(trackerColor, "Ratio", fmtNum(d[DIM_RATIO], 2)),
+          chartTooltipRow(trackerColor, "Seed Time", `${fmtNum(d[DIM_SEED_TIME], 1)} days`),
+          chartTooltipRow(trackerColor, "Seeds", Math.round(d[DIM_SEEDS]).toLocaleString()),
+          chartTooltipRow(trackerColor, "Age", `${fmtNum(d[DIM_AGE], 0)} days`),
+          chartTooltipRow(trackerColor, "Availability", fmtNum(d[DIM_AVAILABILITY], 2)),
         ].join("<br/>")
       },
     }),
@@ -237,12 +225,9 @@ function ParallelTorrentsChart({
   }
 
   return (
-    <ReactECharts
+    <ChartECharts
       option={buildParallelOption(filtered, trackerColor)}
       style={{ height, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
     />
   )
 }

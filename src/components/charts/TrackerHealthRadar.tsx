@@ -5,13 +5,21 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import type { TorrentRaw, TrackerTag } from "@/lib/fleet"
-import { ChartECharts } from "./ChartECharts"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartDot, chartLegend, chartTooltip, escHtml } from "./theme"
+import type { TrackerTag } from "@/lib/fleet"
+import type { TorrentInfo } from "@/lib/torrent-utils"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import {
+  CHART_THEME,
+  chartDot,
+  chartLegend,
+  chartTooltip,
+  chartTooltipRow,
+  escHtml,
+} from "./lib/theme"
 
 interface TrackerHealthRadarProps {
-  torrents: TorrentRaw[]
+  torrents: TorrentInfo[]
   trackerTags: TrackerTag[]
   height?: number
 }
@@ -29,7 +37,7 @@ interface TrackerMetrics {
 const FRESHNESS_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
 
 function computeTrackerMetrics(
-  torrents: TorrentRaw[],
+  torrents: TorrentInfo[],
   trackerTags: TrackerTag[]
 ): TrackerMetrics[] {
   const now = Date.now()
@@ -52,12 +60,12 @@ function computeTrackerMetrics(
       const uploadSpeedSum = group.reduce((sum, t) => sum + t.upspeed, 0)
 
       const recentCount = group.filter(
-        (t) => t.last_activity > 0 && now - t.last_activity * 1000 < FRESHNESS_WINDOW_MS
+        (t) => t.lastActivity > 0 && now - t.lastActivity * 1000 < FRESHNESS_WINDOW_MS
       ).length
       const freshnessPct = (recentCount / group.length) * 100
 
       const avgSeedTimeDays =
-        group.reduce((sum, t) => sum + t.seeding_time, 0) / group.length / 86400
+        group.reduce((sum, t) => sum + t.seedingTime, 0) / group.length / 86400
 
       return {
         name: tracker.name,
@@ -105,13 +113,13 @@ function buildTrackerHealthRadarOption(
         const m = metrics[p.dataIndex]
         if (!m) return ""
         const dot = chartDot(p.color)
-        return (
-          `${dot}<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(m.name)}</span><br/>` +
-          `<span style="color:${CHART_THEME.textSecondary};">Torrents:</span> <span style="color:${CHART_THEME.textPrimary};">${m.torrentCount.toLocaleString()}</span><br/>` +
-          `<span style="color:${CHART_THEME.textSecondary};">Avg Ratio:</span> <span style="color:${CHART_THEME.textPrimary};">${m.avgRatio.toFixed(2)}</span><br/>` +
-          `<span style="color:${CHART_THEME.textSecondary};">Freshness:</span> <span style="color:${CHART_THEME.textPrimary};">${m.freshnessPct.toFixed(1)}%</span><br/>` +
-          `<span style="color:${CHART_THEME.textSecondary};">Avg Seed Time:</span> <span style="color:${CHART_THEME.textPrimary};">${m.avgSeedTimeDays.toFixed(1)}d</span>`
-        )
+        return [
+          `${dot}<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(m.name)}</span>`,
+          chartTooltipRow(p.color, "Torrents", m.torrentCount.toLocaleString()),
+          chartTooltipRow(p.color, "Avg Ratio", m.avgRatio.toFixed(2)),
+          chartTooltipRow(p.color, "Freshness", `${m.freshnessPct.toFixed(1)}%`),
+          chartTooltipRow(p.color, "Avg Seed Time", `${m.avgSeedTimeDays.toFixed(1)}d`),
+        ].join("<br/>")
       },
     }),
     legend: chartLegend({ top: undefined, bottom: 0, data: metrics.map((m) => m.name) }),
@@ -175,12 +183,9 @@ function TrackerHealthRadar({ torrents, trackerTags, height = 360 }: TrackerHeal
     <ChartECharts
       option={buildTrackerHealthRadarOption(metrics, normalized)}
       style={{ height, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
     />
   )
 }
 
-export type { TrackerHealthRadarProps, TrackerTag }
+export type { TrackerHealthRadarProps }
 export { computeTrackerMetrics, normalizeMetrics, TrackerHealthRadar }

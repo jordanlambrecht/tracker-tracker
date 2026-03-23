@@ -5,10 +5,11 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
 import { parseTorrentTags } from "@/lib/fleet"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartDot, chartTooltip, escHtml } from "./theme"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { buildDonutShell } from "./lib/chart-helpers"
+import { CHART_THEME, chartDot, chartTooltip, escHtml } from "./lib/theme"
 
 interface FleetCrossSeedDonutProps {
   torrents: { tags: string }[]
@@ -64,15 +65,7 @@ function buildFleetCrossSeedOption(
     ],
     series: [
       {
-        type: "pie",
-        radius: ["45%", "72%"],
-        center: ["50%", "50%"],
-        avoidLabelOverlap: true,
-        itemStyle: {
-          borderRadius: 4,
-          borderColor: CHART_THEME.surface,
-          borderWidth: 2,
-        },
+        ...buildDonutShell({ labelLineLength: [10, 8] }),
         label: {
           show: true,
           position: "outside",
@@ -84,11 +77,6 @@ function buildFleetCrossSeedOption(
             const pct = total > 0 ? ((p.value / total) * 100).toFixed(1) : "0.0"
             return `${p.name}\n${pct}%`
           },
-        },
-        labelLine: {
-          lineStyle: { color: CHART_THEME.borderMid },
-          length: 10,
-          length2: 8,
         },
         emphasis: {
           label: { show: true, fontWeight: "bold", color: CHART_THEME.textPrimary },
@@ -138,12 +126,9 @@ function FleetCrossSeedDonut({ torrents, crossSeedTags, height = 280 }: FleetCro
   const unique = torrents.length - crossSeeded
 
   return (
-    <ReactECharts
+    <ChartECharts
       option={buildFleetCrossSeedOption(crossSeeded, unique, torrents.length)}
       style={{ height, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
     />
   )
 }

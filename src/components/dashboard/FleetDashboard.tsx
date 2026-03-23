@@ -5,24 +5,23 @@
 "use client"
 
 import { H2 } from "@typography"
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { CrossSeedNetwork } from "@/components/charts/CrossSeedNetwork"
-import { FleetActivityHeatmap } from "@/components/charts/FleetActivityHeatmap"
 import { FleetAgeTimeline } from "@/components/charts/FleetAgeTimeline"
 import { FleetCategoryBreakdown } from "@/components/charts/FleetCategoryBreakdown"
 import { FleetCategoryTimeline } from "@/components/charts/FleetCategoryTimeline"
 import { FleetCrossSeedDonut } from "@/components/charts/FleetCrossSeedDonut"
-import { FleetRatioDistribution } from "@/components/charts/FleetRatioDistribution"
-import { FleetSeedTimeDistribution } from "@/components/charts/FleetSeedTimeDistribution"
 import { FleetSizeJitter } from "@/components/charts/FleetSizeJitter"
-
 import { FleetSpeedSparklines } from "@/components/charts/FleetSpeedSparklines"
 import { FleetStorageTreemap } from "@/components/charts/FleetStorageTreemap"
+import { CHART_THEME } from "@/components/charts/lib/theme"
 import { SpeedHistoryChart } from "@/components/charts/SpeedHistoryChart"
 import { SpeedThemeRiver } from "@/components/charts/SpeedThemeRiver"
 import { TagCountTrends } from "@/components/charts/TagCountTrends"
+import { TorrentActivityHeatmap } from "@/components/charts/TorrentActivityHeatmap"
+import { TorrentRatioDistribution } from "@/components/charts/TorrentRatioDistribution"
+import { TorrentSeedTimeDistribution } from "@/components/charts/TorrentSeedTimeDistribution"
 import { TrackerHealthRadar } from "@/components/charts/TrackerHealthRadar"
-import { CHART_THEME } from "@/components/charts/theme"
 import { ChartCard } from "@/components/dashboard/ChartCard"
 import {
   FLEET_CHARTS,
@@ -41,6 +40,8 @@ import { StatCard } from "@/components/ui/StatCard"
 import type { FleetSnapshot, TorrentRaw, TrackerTag } from "@/lib/fleet"
 import { computeFleetStats } from "@/lib/fleet"
 import { formatBytesNum } from "@/lib/formatters"
+import type { TorrentInfo } from "@/lib/torrent-utils"
+import { mapTorrent } from "@/lib/torrent-utils"
 import type { TrackerSummary } from "@/types/api"
 
 function splitBytes(bytes: number, suffix = ""): { value: string; unit: string } {
@@ -58,6 +59,7 @@ interface FleetTorrentsResponse {
   crossSeedTags: string[]
   clientErrors: string[]
   clientCount: number
+  cachedAt?: string | null
 }
 
 interface FleetDashboardProps {
@@ -68,7 +70,7 @@ interface FleetDashboardProps {
 const allChartIds = FLEET_CHARTS.map((c) => c.id)
 
 export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashboardProps) {
-  const [torrents, setTorrents] = useState<TorrentRaw[]>([])
+  const [torrents, setTorrents] = useState<TorrentInfo[]>([])
   const [crossSeedTags, setCrossSeedTags] = useState<string[]>([])
   const [snapshots, setSnapshots] = useState<FleetSnapshot[]>([])
   const [trackerTags, setTrackerTags] = useState<TrackerTag[]>([])
@@ -78,25 +80,34 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
   const chartPrefs = useFleetChartPreferences()
   const { hydrated: chartPrefsHydrated } = chartPrefs
 
-  const loadData = useCallback(async () => {
-    try {
-      const [torrentsRes, snapshotsRes, clientsRes, trackersRes] = await Promise.all([
-        fetch("/api/fleet/torrents"),
-        fetch(`/api/fleet/snapshots?days=${dayRange === 0 ? 30 : dayRange}`),
-        fetch("/api/clients"),
-        // Skip /api/trackers when the parent already provides tracker data
-        trackersProp ? Promise.resolve(null) : fetch("/api/trackers"),
+  const prevDayRange = useRef<number | null>(null)
+  const initialLoaded = useRef(false)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const { signal } = controller
+    const isFirstRun = !initialLoaded.current
+
+    async function loadSnapshots() {
+      const res = await fetch(`/api/fleet/snapshots?days=${dayRange === 0 ? 30 : dayRange}`, {
+        signal,
+      })
+      if (res.ok) setSnapshots(await res.json())
+    }
+
+    async function loadInitial() {
+      const [cachedRes, clientsRes, trackersRes] = await Promise.all([
+        fetch("/api/fleet/torrents/cached", { signal }),
+        fetch("/api/clients", { signal }),
+        trackersProp ? Promise.resolve(null) : fetch("/api/trackers", { signal }),
       ])
 
-      if (torrentsRes.ok) {
-        const data: FleetTorrentsResponse = await torrentsRes.json()
-        setTorrents(data.torrents)
-        setCrossSeedTags(data.crossSeedTags)
-      }
-
-      if (snapshotsRes.ok) {
-        const data: FleetSnapshot[] = await snapshotsRes.json()
-        setSnapshots(data)
+      if (cachedRes.ok) {
+        const data: FleetTorrentsResponse = await cachedRes.json()
+        if (data.torrents.length > 0) {
+          setTorrents(data.torrents.map(mapTorrent))
+          setCrossSeedTags(data.crossSeedTags)
+        }
       }
 
       if (clientsRes.ok) {
@@ -104,7 +115,6 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
         setClientList(data)
       }
 
-      // Derive tracker tags from prop if available, otherwise from fetched data
       if (trackersProp) {
         setTrackerTags(
           trackersProp
@@ -128,16 +138,34 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
             }))
         )
       }
-    } catch {
-      // Silently ignore — stale state stays visible
-    } finally {
-      setLoading(false)
-    }
-  }, [dayRange, trackersProp])
 
-  useEffect(() => {
-    loadData()
-  }, [loadData])
+      // Background: refresh torrents live (slow — hits qBT clients)
+      try {
+        const liveRes = await fetch("/api/fleet/torrents", { signal })
+        if (liveRes.ok) {
+          const data: FleetTorrentsResponse = await liveRes.json()
+          setTorrents(data.torrents.map(mapTorrent))
+          setCrossSeedTags(data.crossSeedTags)
+        }
+      } catch {
+        // Live fetch failed — cached data stays visible
+      }
+    }
+
+    const tasks = isFirstRun ? [loadInitial(), loadSnapshots()] : [loadSnapshots()]
+
+    Promise.all(tasks)
+      .catch(() => {})
+      .finally(() => {
+        if (isFirstRun) {
+          initialLoaded.current = true
+          setLoading(false)
+        }
+      })
+
+    prevDayRange.current = dayRange
+    return () => controller.abort()
+  }, [dayRange, trackersProp])
 
   if (loading) {
     return (
@@ -177,7 +205,7 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
       case "speed-history":
         return <SpeedHistoryChart snapshots={snapshots} />
       case "fleet-ratio-distribution":
-        return <FleetRatioDistribution torrents={torrents} />
+        return <TorrentRatioDistribution torrents={torrents} />
       case "fleet-cross-seed-donut":
         return <FleetCrossSeedDonut torrents={torrents} crossSeedTags={crossSeedTags} />
       case "cross-seed-network":
@@ -192,13 +220,13 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
       case "tracker-health-radar":
         return <TrackerHealthRadar torrents={torrents} trackerTags={trackerTags} />
       case "fleet-activity-heatmap":
-        return <FleetActivityHeatmap torrents={torrents} />
+        return <TorrentActivityHeatmap torrents={torrents} />
       case "fleet-storage-treemap":
         return (
           <FleetStorageTreemap torrents={torrents} trackerTags={trackerTags.map((t) => t.tag)} />
         )
       case "fleet-seed-time-distribution":
-        return <FleetSeedTimeDistribution torrents={torrents} />
+        return <TorrentSeedTimeDistribution torrents={torrents} />
       case "fleet-age-timeline":
         return <FleetAgeTimeline torrents={torrents} trackerTags={trackerTags} />
       case "fleet-category-timeline":

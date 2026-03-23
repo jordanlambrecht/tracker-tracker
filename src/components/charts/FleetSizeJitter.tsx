@@ -5,16 +5,17 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
 import { useMemo } from "react"
-import type { TorrentRaw, TrackerTag } from "@/lib/fleet"
+import type { TrackerTag } from "@/lib/fleet"
 import { parseTorrentTags } from "@/lib/fleet"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { autoByteScale, fmtNum } from "./chart-helpers"
-import { CHART_THEME, chartAxisLabel, chartDataZoom, chartTooltip, escHtml } from "./theme"
+import type { TorrentInfo } from "@/lib/torrent-utils"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { autoByteScale, fmtNum } from "./lib/chart-helpers"
+import { CHART_THEME, chartAxisLabel, chartDataZoom, chartTooltip, escHtml } from "./lib/theme"
 
 interface FleetSizeJitterProps {
-  torrents: TorrentRaw[]
+  torrents: TorrentInfo[]
   trackerTags: TrackerTag[]
   height?: number
 }
@@ -168,15 +169,7 @@ function FleetSizeJitter({ torrents, trackerTags, height = 360 }: FleetSizeJitte
     return <ChartEmptyState height={height} message="No tagged torrents found" />
   }
 
-  return (
-    <ReactECharts
-      option={option}
-      style={{ height, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
-    />
-  )
+  return <ChartECharts option={option} style={{ height, width: "100%" }} />
 }
 
 export type { FleetSizeJitterProps }
