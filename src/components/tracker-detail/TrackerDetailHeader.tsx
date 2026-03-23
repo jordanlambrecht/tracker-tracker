@@ -2,8 +2,8 @@
 //
 // Functions: TrackerDetailHeader
 
-import clsx from "clsx"
 import { H1 } from "@typography"
+import clsx from "clsx"
 import Image from "next/image"
 import { TrackerHubStatus } from "@/components/TrackerHubStatus"
 import { SlotRenderer } from "@/components/tracker-detail/SlotRenderer"

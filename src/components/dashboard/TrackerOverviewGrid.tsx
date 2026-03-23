@@ -273,11 +273,13 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
               </div>
 
               {/* Row 2: Class/rank or paused indicator */}
-              {t.pausedAt || t.userPausedAt ? (
-                <span className={clsx(
-                  "font-mono text-[10px] uppercase tracking-wider ml-4.5",
-                  t.userPausedAt ? "text-warn" : "text-danger"
-                )}>
+              {health === "paused" || health === "paused-user" ? (
+                <span
+                  className={clsx(
+                    "font-mono text-[10px] uppercase tracking-wider ml-4.5",
+                    health === "paused-user" ? "text-warn" : "text-danger"
+                  )}
+                >
                   ⏸ Polling paused
                 </span>
               ) : (

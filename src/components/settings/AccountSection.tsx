@@ -107,9 +107,7 @@ export function AccountSection({ initialUsername }: AccountSectionProps) {
           error={usernameError ?? undefined}
           disabled={savingUsername}
         />
-        <Paragraph>
-          Used to log in alongside your master password. Leave empty to remove.
-        </Paragraph>
+        <Paragraph>Used to log in alongside your master password. Leave empty to remove.</Paragraph>
         <div className="flex justify-end">
           <Button
             size="sm"

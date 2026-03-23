@@ -2,7 +2,14 @@
 import { cva } from "class-variance-authority"
 import clsx from "clsx"
 
-type PulseDotStatus = "healthy" | "warning" | "critical" | "error" | "paused" | "paused-user" | "offline"
+type PulseDotStatus =
+  | "healthy"
+  | "warning"
+  | "critical"
+  | "error"
+  | "paused"
+  | "paused-user"
+  | "offline"
 type PulseDotSize = "sm" | "md"
 
 interface PulseDotProps {

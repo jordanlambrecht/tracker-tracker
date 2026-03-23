@@ -90,47 +90,47 @@ function AlertsBanner({ alerts, onDismiss, onDismissAll }: AlertsBannerProps) {
               animationDelay: `${i * 30}ms`,
             }}
           >
-          <div
-            className="flex items-start sm:items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 nm-inset-sm bg-control-bg rounded-nm-md transition-transform duration-250 ease-out"
-            style={{
-              borderLeft: `3px solid ${config.borderColor}`,
-              transform: isDismissing ? "translateX(-12px)" : "translateX(0)",
-            }}
-          >
-            <span className="shrink-0 text-sm mt-0.5 sm:mt-0" aria-hidden="true">
-              {config.icon}
-            </span>
-            <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-3">
-              {alert.trackerId !== null ? (
-                <Link
-                  href={`/trackers/${alert.trackerId}`}
-                  className="font-mono text-xs font-semibold text-secondary uppercase tracking-wider shrink-0 hover:text-primary transition-colors duration-150"
-                >
-                  {alert.trackerName}
-                </Link>
-              ) : (
-                <span className="font-mono text-xs font-semibold text-secondary uppercase tracking-wider shrink-0">
-                  {alert.trackerName}
+            <div
+              className="flex items-start sm:items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 nm-inset-sm bg-control-bg rounded-nm-md transition-transform duration-250 ease-out"
+              style={{
+                borderLeft: `3px solid ${config.borderColor}`,
+                transform: isDismissing ? "translateX(-12px)" : "translateX(0)",
+              }}
+            >
+              <span className="shrink-0 text-sm mt-0.5 sm:mt-0" aria-hidden="true">
+                {config.icon}
+              </span>
+              <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-3">
+                {alert.trackerId !== null ? (
+                  <Link
+                    href={`/trackers/${alert.trackerId}`}
+                    className="font-mono text-xs font-semibold text-secondary uppercase tracking-wider shrink-0 hover:text-primary transition-colors duration-150"
+                  >
+                    {alert.trackerName}
+                  </Link>
+                ) : (
+                  <span className="font-mono text-xs font-semibold text-secondary uppercase tracking-wider shrink-0">
+                    {alert.trackerName}
+                  </span>
+                )}
+                <span className="font-mono text-xs text-tertiary truncate">{alert.message}</span>
+              </div>
+              {alert.timestamp && (
+                <span className="font-mono text-[10px] text-muted shrink-0 hidden sm:block">
+                  {new Date(alert.timestamp).toLocaleString()}
                 </span>
               )}
-              <span className="font-mono text-xs text-tertiary truncate">{alert.message}</span>
+              {alert.dismissible !== false && (
+                <button
+                  type="button"
+                  onClick={() => handleDismiss(alert.key, alert.type)}
+                  className="text-muted hover:text-secondary transition-colors duration-150 cursor-pointer shrink-0 px-1 mt-0.5 sm:mt-0"
+                  aria-label={`Dismiss ${config.label} alert for ${alert.trackerName}`}
+                >
+                  ×
+                </button>
+              )}
             </div>
-            {alert.timestamp && (
-              <span className="font-mono text-[10px] text-muted shrink-0 hidden sm:block">
-                {new Date(alert.timestamp).toLocaleString()}
-              </span>
-            )}
-            {alert.dismissible !== false && (
-              <button
-                type="button"
-                onClick={() => handleDismiss(alert.key, alert.type)}
-                className="text-muted hover:text-secondary transition-colors duration-150 cursor-pointer shrink-0 px-1 mt-0.5 sm:mt-0"
-                aria-label={`Dismiss ${config.label} alert for ${alert.trackerName}`}
-              >
-                ×
-              </button>
-            )}
-          </div>
           </div>
         )
       })}

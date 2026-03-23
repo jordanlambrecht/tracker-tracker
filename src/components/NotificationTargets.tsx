@@ -243,245 +243,245 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
         </div>
       }
     >
-          {/* Row 1: Name + Type + Enabled */}
-          <div className="flex flex-col sm:flex-row gap-4 sm:items-end pt-5">
-            <div className="flex-1">
-              <Input
-                label="Name"
-                value={draft.name}
-                onChange={(e) => updateDraft({ name: e.target.value })}
-                placeholder="My Discord Webhook"
-              />
-            </div>
-            <div className="w-full sm:w-44">
-              <Select
-                label="Type"
-                value={draft.type}
-                onChange={(v) => updateDraft({ type: v as NotificationTargetType })}
-                ariaLabel="Notification type"
-                size="md"
-                options={NOTIFICATION_TYPE_OPTIONS}
-              />
-            </div>
-          </div>
-
-          <Toggle
-            label="Enabled"
-            checked={draft.enabled}
-            onChange={(v) => updateDraft({ enabled: v })}
-            description="Disabled targets will not receive any notifications."
+      {/* Row 1: Name + Type + Enabled */}
+      <div className="flex flex-col sm:flex-row gap-4 sm:items-end pt-5">
+        <div className="flex-1">
+          <Input
+            label="Name"
+            value={draft.name}
+            onChange={(e) => updateDraft({ name: e.target.value })}
+            placeholder="My Discord Webhook"
           />
+        </div>
+        <div className="w-full sm:w-44">
+          <Select
+            label="Type"
+            value={draft.type}
+            onChange={(v) => updateDraft({ type: v as NotificationTargetType })}
+            ariaLabel="Notification type"
+            size="md"
+            options={NOTIFICATION_TYPE_OPTIONS}
+          />
+        </div>
+      </div>
 
-          <div className="border-t border-border" />
+      <Toggle
+        label="Enabled"
+        checked={draft.enabled}
+        onChange={(v) => updateDraft({ enabled: v })}
+        description="Disabled targets will not receive any notifications."
+      />
 
-          {/* Webhook URL */}
-          <div className="flex flex-col gap-2">
-            <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider flex items-center gap-1.5">
-              Webhook URL
-              <Tooltip
-                content="Encrypted at rest with AES-256-GCM. Never returned in API responses."
-                docs={DOCS.WEBHOOKS}
+      <div className="border-t border-border" />
+
+      {/* Webhook URL */}
+      <div className="flex flex-col gap-2">
+        <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider flex items-center gap-1.5">
+          Webhook URL
+          <Tooltip
+            content="Encrypted at rest with AES-256-GCM. Never returned in API responses."
+            docs={DOCS.WEBHOOKS}
+          >
+            <span className="text-tertiary cursor-help text-[10px]">?</span>
+          </Tooltip>
+        </span>
+        {changingConfig ? (
+          <div className="flex flex-col gap-3">
+            <Input
+              label="Webhook URL"
+              value={newWebhookUrl}
+              onChange={(e) => setNewWebhookUrl(e.target.value)}
+              placeholder="https://discord.com/api/webhooks/..."
+              name="notification-webhook-url"
+              autoComplete="off"
+              data-1p-ignore
+            />
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={handleSaveConfig}
+                disabled={!newWebhookUrl.trim()}
               >
-                <span className="text-tertiary cursor-help text-[10px]">?</span>
-              </Tooltip>
-            </span>
-            {changingConfig ? (
-              <div className="flex flex-col gap-3">
-                <Input
-                  label="Webhook URL"
-                  value={newWebhookUrl}
-                  onChange={(e) => setNewWebhookUrl(e.target.value)}
-                  placeholder="https://discord.com/api/webhooks/..."
-                  name="notification-webhook-url"
-                  autoComplete="off"
-                  data-1p-ignore
-                />
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    onClick={handleSaveConfig}
-                    disabled={!newWebhookUrl.trim()}
-                  >
-                    Save URL
-                  </Button>
-                  {target.hasConfig && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setChangingConfig(false)
-                        setNewWebhookUrl("")
-                        setConfigError(null)
-                      }}
-                      className="text-xs font-mono text-tertiary hover:text-secondary transition-colors cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                  )}
-                </div>
-                {configError && <p className="text-xs font-mono text-danger">{configError}</p>}
-              </div>
-            ) : (
-              <MaskedSecret onChangeClick={() => setChangingConfig(true)} />
-            )}
-          </div>
-
-          <div className="border-t border-border" />
-
-          {/* Notify when section */}
-          <div className="flex flex-col gap-4">
-            <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider flex items-center gap-1.5">
-              Notify when
-              <Tooltip
-                content="Each event has a snooze window to prevent repeated alerts."
-                docs={DOCS.WEBHOOKS}
-              >
-                <span className="text-tertiary cursor-help text-[10px]">?</span>
-              </Tooltip>
-            </span>
-
-            <div className="flex flex-col gap-1">
-              <Toggle
-                label="Ratio drops"
-                checked={draft.notifyRatioDrop}
-                onChange={(v) => updateDraft({ notifyRatioDrop: v })}
-              />
-              {draft.notifyRatioDrop && (
-                <div className="ml-[3.75rem] flex items-center gap-3">
-                  <span className="text-xs font-mono text-tertiary">Threshold (delta)</span>
-                  <NumberInput
-                    value={Math.round(ratioDropDelta * 100)}
-                    onChange={(v) => updateThreshold({ ratioDropDelta: v / 100 })}
-                    min={1}
-                    max={99}
-                    step={1}
-                  />
-                  <span className="text-xs font-mono text-tertiary">/ 100</span>
-                </div>
+                Save URL
+              </Button>
+              {target.hasConfig && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setChangingConfig(false)
+                    setNewWebhookUrl("")
+                    setConfigError(null)
+                  }}
+                  className="text-xs font-mono text-tertiary hover:text-secondary transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
               )}
             </div>
-
-            <Toggle
-              label="Hit-and-run detected"
-              checked={draft.notifyHitAndRun}
-              onChange={(v) => updateDraft({ notifyHitAndRun: v })}
-            />
-
-            <Toggle
-              label="Tracker goes down"
-              checked={draft.notifyTrackerDown}
-              onChange={(v) => updateDraft({ notifyTrackerDown: v })}
-            />
-
-            <Toggle
-              label="Buffer milestone reached"
-              checked={draft.notifyBufferMilestone}
-              onChange={(v) => updateDraft({ notifyBufferMilestone: v })}
-            />
-
-            <Toggle
-              label="Account warning received"
-              checked={draft.notifyWarned}
-              onChange={(v) => updateDraft({ notifyWarned: v })}
-            />
-
-            <Toggle
-              label="Ratio below tracker minimum"
-              checked={draft.notifyRatioDanger}
-              onChange={(v) => updateDraft({ notifyRatioDanger: v })}
-            />
-
-            <Toggle
-              label="Zero active seeds"
-              checked={draft.notifyZeroSeeding}
-              onChange={(v) => updateDraft({ notifyZeroSeeding: v })}
-            />
-
-            <Toggle
-              label="Rank/class changed"
-              checked={draft.notifyRankChange}
-              onChange={(v) => updateDraft({ notifyRankChange: v })}
-            />
-
-            <Toggle
-              label="Membership anniversary"
-              checked={draft.notifyAnniversary}
-              onChange={(v) => updateDraft({ notifyAnniversary: v })}
-            />
+            {configError && <p className="text-xs font-mono text-danger">{configError}</p>}
           </div>
+        ) : (
+          <MaskedSecret onChangeClick={() => setChangingConfig(true)} />
+        )}
+      </div>
 
-          <div className="border-t border-border" />
+      <div className="border-t border-border" />
 
-          {/* Privacy section */}
-          <div className="flex flex-col gap-3">
-            <Toggle
-              label="Include tracker name in notifications"
-              checked={draft.includeTrackerName}
-              onChange={(v) => updateDraft({ includeTrackerName: v })}
-            />
-            <Subtext>
-              Tracker names reveal which private trackers you use. Disable for maximum privacy.
-            </Subtext>
-          </div>
+      {/* Notify when section */}
+      <div className="flex flex-col gap-4">
+        <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider flex items-center gap-1.5">
+          Notify when
+          <Tooltip
+            content="Each event has a snooze window to prevent repeated alerts."
+            docs={DOCS.WEBHOOKS}
+          >
+            <span className="text-tertiary cursor-help text-[10px]">?</span>
+          </Tooltip>
+        </span>
 
-          {/* Save / Discard bar — only visible when draft has changes */}
-          {dirty && (
-            <>
-              <div className="border-t border-border" />
-              <div className="flex items-center gap-3">
-                <Button size="sm" onClick={handleSave} disabled={saving}>
-                  {saving ? "Saving..." : "Save Changes"}
-                </Button>
-                <Button size="sm" variant="ghost" onClick={handleDiscard} disabled={saving}>
-                  Discard
-                </Button>
-                {saveError && <span className="text-xs font-mono text-danger">{saveError}</span>}
-              </div>
-            </>
+        <div className="flex flex-col gap-1">
+          <Toggle
+            label="Ratio drops"
+            checked={draft.notifyRatioDrop}
+            onChange={(v) => updateDraft({ notifyRatioDrop: v })}
+          />
+          {draft.notifyRatioDrop && (
+            <div className="ml-[3.75rem] flex items-center gap-3">
+              <span className="text-xs font-mono text-tertiary">Threshold (delta)</span>
+              <NumberInput
+                value={Math.round(ratioDropDelta * 100)}
+                onChange={(v) => updateThreshold({ ratioDropDelta: v / 100 })}
+                min={1}
+                max={99}
+                step={1}
+              />
+              <span className="text-xs font-mono text-tertiary">/ 100</span>
+            </div>
           )}
+        </div>
 
+        <Toggle
+          label="Hit-and-run detected"
+          checked={draft.notifyHitAndRun}
+          onChange={(v) => updateDraft({ notifyHitAndRun: v })}
+        />
+
+        <Toggle
+          label="Tracker goes down"
+          checked={draft.notifyTrackerDown}
+          onChange={(v) => updateDraft({ notifyTrackerDown: v })}
+        />
+
+        <Toggle
+          label="Buffer milestone reached"
+          checked={draft.notifyBufferMilestone}
+          onChange={(v) => updateDraft({ notifyBufferMilestone: v })}
+        />
+
+        <Toggle
+          label="Account warning received"
+          checked={draft.notifyWarned}
+          onChange={(v) => updateDraft({ notifyWarned: v })}
+        />
+
+        <Toggle
+          label="Ratio below tracker minimum"
+          checked={draft.notifyRatioDanger}
+          onChange={(v) => updateDraft({ notifyRatioDanger: v })}
+        />
+
+        <Toggle
+          label="Zero active seeds"
+          checked={draft.notifyZeroSeeding}
+          onChange={(v) => updateDraft({ notifyZeroSeeding: v })}
+        />
+
+        <Toggle
+          label="Rank/class changed"
+          checked={draft.notifyRankChange}
+          onChange={(v) => updateDraft({ notifyRankChange: v })}
+        />
+
+        <Toggle
+          label="Membership anniversary"
+          checked={draft.notifyAnniversary}
+          onChange={(v) => updateDraft({ notifyAnniversary: v })}
+        />
+      </div>
+
+      <div className="border-t border-border" />
+
+      {/* Privacy section */}
+      <div className="flex flex-col gap-3">
+        <Toggle
+          label="Include tracker name in notifications"
+          checked={draft.includeTrackerName}
+          onChange={(v) => updateDraft({ includeTrackerName: v })}
+        />
+        <Subtext>
+          Tracker names reveal which private trackers you use. Disable for maximum privacy.
+        </Subtext>
+      </div>
+
+      {/* Save / Discard bar — only visible when draft has changes */}
+      {dirty && (
+        <>
           <div className="border-t border-border" />
-
-          {/* Actions */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={handleTestWebhook}
-              disabled={webhookStatus === "testing" || !target.hasConfig}
-            >
-              {webhookStatus === "testing"
-                ? "Sending..."
-                : webhookStatus === "success"
-                  ? "Sent"
-                  : webhookStatus === "failed"
-                    ? "Failed — Retry"
-                    : "Test Webhook"}
+          <div className="flex items-center gap-3">
+            <Button size="sm" onClick={handleSave} disabled={saving}>
+              {saving ? "Saving..." : "Save Changes"}
             </Button>
-
-            {webhookStatus === "success" && <Badge variant="success">Delivered</Badge>}
-            {webhookStatus === "failed" && <Badge variant="danger">Failed</Badge>}
-
-            <div className="flex-1" />
-
-            {confirmRemove ? (
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="danger" onClick={() => onRemove(target.id)}>
-                  Confirm Remove
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setConfirmRemove(false)}>
-                  Cancel
-                </Button>
-              </div>
-            ) : (
-              <Button size="sm" variant="danger" onClick={() => setConfirmRemove(true)}>
-                Remove
-              </Button>
-            )}
+            <Button size="sm" variant="ghost" onClick={handleDiscard} disabled={saving}>
+              Discard
+            </Button>
+            {saveError && <span className="text-xs font-mono text-danger">{saveError}</span>}
           </div>
-          {webhookStatus === "failed" && webhookError && (
-            <p className="text-xs font-mono text-danger">{webhookError}</p>
-          )}
+        </>
+      )}
+
+      <div className="border-t border-border" />
+
+      {/* Actions */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={handleTestWebhook}
+          disabled={webhookStatus === "testing" || !target.hasConfig}
+        >
+          {webhookStatus === "testing"
+            ? "Sending..."
+            : webhookStatus === "success"
+              ? "Sent"
+              : webhookStatus === "failed"
+                ? "Failed — Retry"
+                : "Test Webhook"}
+        </Button>
+
+        {webhookStatus === "success" && <Badge variant="success">Delivered</Badge>}
+        {webhookStatus === "failed" && <Badge variant="danger">Failed</Badge>}
+
+        <div className="flex-1" />
+
+        {confirmRemove ? (
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="danger" onClick={() => onRemove(target.id)}>
+              Confirm Remove
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setConfirmRemove(false)}>
+              Cancel
+            </Button>
+          </div>
+        ) : (
+          <Button size="sm" variant="danger" onClick={() => setConfirmRemove(true)}>
+            Remove
+          </Button>
+        )}
+      </div>
+      {webhookStatus === "failed" && webhookError && (
+        <p className="text-xs font-mono text-danger">{webhookError}</p>
+      )}
     </CollapsibleCard>
   )
 }

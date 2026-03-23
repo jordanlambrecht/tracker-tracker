@@ -150,7 +150,10 @@ export function EventsSection() {
   const copyValue = useMemo(() => {
     return filteredEvents
       .map((e) => {
-        const ts = new Date(e.timestamp).toISOString().replace("T", " ").replace(/\.\d{3}Z$/, "")
+        const ts = new Date(e.timestamp)
+          .toISOString()
+          .replace("T", " ")
+          .replace(/\.\d{3}Z$/, "")
         const parts = [`[${ts}]`, `[${e.level}]`, `[${e.category}]`, e.title]
         if (e.detail) parts.push(`— ${e.detail}`)
         return parts.join(" ")
@@ -209,13 +212,20 @@ export function EventsSection() {
           fallbackFilename={`tracker-tracker-${new Date().toISOString().split("T")[0]}.log`}
           onError={setError}
         />
-        <button type="button" onClick={() => fetchEvents()} aria-label="Refresh events" className={ICON_BUTTON_CLASS}>
+        <button
+          type="button"
+          onClick={() => fetchEvents()}
+          aria-label="Refresh events"
+          className={ICON_BUTTON_CLASS}
+        >
           <RefreshIcon width="12" height="12" />
         </button>
         <button
           type="button"
           onClick={() => setClearConfirm((v) => !v)}
-          aria-label={logSizeBytes > 0 ? `Clear logs (${formatBytesNum(logSizeBytes)})` : "Clear logs"}
+          aria-label={
+            logSizeBytes > 0 ? `Clear logs (${formatBytesNum(logSizeBytes)})` : "Clear logs"
+          }
           className={clsx(ICON_BUTTON_CLASS, clearConfirm && "!text-danger")}
         >
           <TrashIcon width="12" height="12" />
@@ -337,12 +347,15 @@ export function EventsSection() {
                     "flex flex-col gap-0 px-3 py-1.5 text-xs font-mono border-l-[3px] w-full text-left",
                     style.border,
                     i % 2 === 0 ? "bg-control-bg" : "bg-elevated/50",
-                    hasDetail && "cursor-pointer hover:bg-elevated/80 transition-colors duration-100"
+                    hasDetail &&
+                      "cursor-pointer hover:bg-elevated/80 transition-colors duration-100"
                   )
                   const inner = (
                     <>
                       <div className="flex items-baseline gap-2 min-w-fit">
-                        <span className={clsx("shrink-0 w-3 text-center leading-none", style.iconColor)}>
+                        <span
+                          className={clsx("shrink-0 w-3 text-center leading-none", style.iconColor)}
+                        >
                           {style.icon}
                         </span>
                         <span className="text-tertiary shrink-0 tabular-nums w-[62px]">
@@ -350,7 +363,9 @@ export function EventsSection() {
                         </span>
                         <span className="text-secondary shrink-0">{event.title}</span>
                         {hasDetail && !isExpanded && (
-                          <span className="text-tertiary truncate whitespace-nowrap">— {event.detail}</span>
+                          <span className="text-tertiary truncate whitespace-nowrap">
+                            — {event.detail}
+                          </span>
                         )}
                       </div>
                       {isExpanded && event.detail && (
@@ -361,7 +376,11 @@ export function EventsSection() {
                     </>
                   )
                   return hasDetail ? (
-                    <button type="button" onClick={() => handleToggleExpand(event.id)} className={rowClass}>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleExpand(event.id)}
+                      className={rowClass}
+                    >
                       {inner}
                     </button>
                   ) : (

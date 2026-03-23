@@ -30,10 +30,7 @@ export function SettingsSection({
 }: SettingsSectionProps) {
   return (
     <section aria-labelledby={`${id}-heading`}>
-      <H2
-        id={`${id}-heading`}
-        className={`mb-4 flex items-center gap-2 ${headingClassName ?? ""}`}
-      >
+      <H2 id={`${id}-heading`} className={`mb-4 flex items-center gap-2 ${headingClassName ?? ""}`}>
         {title}
         {tooltip && (
           <Tooltip content={tooltip} docs={docs}>

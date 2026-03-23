@@ -55,9 +55,7 @@ export function CollapsibleCard({
         className="flex items-center gap-3 px-5 py-4 w-full text-left cursor-pointer hover:bg-overlay transition-colors duration-100"
       >
         <div className="flex-1 min-w-0 flex items-center gap-3">{header}</div>
-        {trailing && (
-          <span className="text-xs font-mono text-tertiary shrink-0">{trailing}</span>
-        )}
+        {trailing && <span className="text-xs font-mono text-tertiary shrink-0">{trailing}</span>}
         <ChevronToggle expanded={isExpanded} variant="flip" className="text-tertiary text-sm" />
       </button>
 
@@ -69,9 +67,7 @@ export function CollapsibleCard({
         style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr" }}
       >
         <div className="overflow-hidden">
-          <div className="px-5 pb-5 flex flex-col gap-5 border-t border-border">
-            {children}
-          </div>
+          <div className="px-5 pb-5 flex flex-col gap-5 border-t border-border">{children}</div>
         </div>
       </div>
     </Card>

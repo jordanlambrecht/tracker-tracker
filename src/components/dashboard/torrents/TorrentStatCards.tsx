@@ -2,7 +2,7 @@
 
 "use client"
 
-import { CHART_THEME } from "@/components/charts/theme"
+import { CHART_THEME } from "@/components/charts/lib/theme"
 import {
   BoxIcon,
   ClockIcon,

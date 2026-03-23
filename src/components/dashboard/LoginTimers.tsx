@@ -5,7 +5,7 @@
 "use client"
 
 import { useState } from "react"
-import { CHART_THEME } from "@/components/charts/theme"
+import { CHART_THEME } from "@/components/charts/lib/theme"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { ExternalLinkIcon } from "@/components/ui/Icons"
 import { StatCard } from "@/components/ui/StatCard"
