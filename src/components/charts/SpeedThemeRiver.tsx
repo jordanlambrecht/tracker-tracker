@@ -5,21 +5,20 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
 import type { FleetSnapshot } from "@/lib/fleet"
 import { extractTagsFromSnapshots } from "@/lib/fleet"
 import { formatBytesNum } from "@/lib/formatters"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { buildAxisPointer, buildThemeRiverSingleAxis } from "./chart-helpers"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { buildAxisPointer, buildThemeRiverSingleAxis } from "./lib/chart-helpers"
 import {
   buildTagColors,
   CHART_THEME,
-  chartDot,
   chartTooltip,
   chartTooltipHeader,
-  escHtml,
+  chartTooltipRow,
   formatChartTimestamp,
-} from "./theme"
+} from "./lib/theme"
 
 interface SpeedThemeRiverProps {
   snapshots: FleetSnapshot[]
@@ -85,11 +84,9 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
         const rows = items
           .filter((item) => item.value[1] > 0)
           .sort((a, b) => b.value[1] - a.value[1])
-          .map((item) => {
-            const dot = chartDot(item.color)
-            const speedLabel = `${formatBytesNum(item.value[1])}/s`
-            return `${dot}<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.value[2])}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${speedLabel}</span>`
-          })
+          .map((item) =>
+            chartTooltipRow(item.color, item.value[2], `${formatBytesNum(item.value[1])}/s`)
+          )
           .join("<br/>")
 
         return `${chartTooltipHeader(dateLabel)}${rows}`
@@ -124,15 +121,7 @@ function SpeedThemeRiver({ snapshots, height = 360 }: SpeedThemeRiverProps) {
     return <ChartEmptyState height={height} message="No tag speed data available yet." />
   }
 
-  return (
-    <ReactECharts
-      option={buildOption(snapshots)}
-      style={{ height, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
-    />
-  )
+  return <ChartECharts option={buildOption(snapshots)} style={{ height, width: "100%" }} />
 }
 
 export type { SpeedThemeRiverProps }

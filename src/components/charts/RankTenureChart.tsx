@@ -12,9 +12,16 @@ import type {
 } from "echarts"
 import { generatePalette } from "@/lib/formatters"
 import type { TrackerSnapshotSeries } from "@/types/charts"
-import { ChartECharts } from "./ChartECharts"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartAxisLabel, chartGrid, chartTooltip, escHtml } from "./theme"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import {
+  CHART_THEME,
+  chartAxisLabel,
+  chartGrid,
+  chartTooltip,
+  chartTooltipRow,
+  escHtml,
+} from "./lib/theme"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -139,10 +146,11 @@ function buildRankTenureOption(
         const endDate = fmtDate(new Date(endMs))
         const color = colorMap.get(rankName) ?? CHART_THEME.neutral
 
+        const durationLabel = `${durationDays} day${durationDays !== 1 ? "s" : ""}`
         return [
           `<div style="font-family:${CHART_THEME.fontMono};font-size:11px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${escHtml(trackerName)}</div>`,
-          `<span style="color:${CHART_THEME.textSecondary};">Rank:</span> <span style="color:${color};font-weight:600;">${escHtml(rankName)}</span><br/>`,
-          `<span style="color:${CHART_THEME.textSecondary};">Duration:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${durationDays} day${durationDays !== 1 ? "s" : ""}</span><br/>`,
+          chartTooltipRow(color, "Rank", rankName) + "<br/>",
+          chartTooltipRow(CHART_THEME.neutral, "Duration", durationLabel) + "<br/>",
           `<span style="color:${CHART_THEME.textTertiary};font-size:11px;">${escHtml(startDate)} → ${escHtml(endDate)}</span>`,
         ].join("")
       },
@@ -270,9 +278,6 @@ function RankTenureChart({ trackerData, height = 300 }: RankTenureChartProps) {
     <ChartECharts
       option={buildRankTenureOption(trackerData, periods)}
       style={{ height, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
     />
   )
 }

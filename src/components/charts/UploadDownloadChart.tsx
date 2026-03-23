@@ -7,17 +7,17 @@
 import type { EChartsOption } from "echarts"
 import { bytesToGiB, getComplementaryColor } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
-import { ChartECharts } from "./ChartECharts"
-import { ChartEmptyState } from "./ChartEmptyState"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
 import {
   adaptiveDotSize,
   autoByteScale,
   buildAxisPointer,
   buildGlowAreaStyle,
+  buildTimeXAxis,
   fmtNum,
   yAxisAutoRange,
-} from "./chart-helpers"
-import { buildSmartLabels, formatSnapshotLabel } from "./chart-transforms"
+} from "./lib/chart-helpers"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -28,7 +28,8 @@ import {
   chartTooltip,
   chartTooltipHeader,
   escHtml,
-} from "./theme"
+  formatChartTimestamp,
+} from "./lib/theme"
 
 interface UploadDownloadChartProps {
   snapshots: Snapshot[]
@@ -42,17 +43,23 @@ function buildOption(
   accentColor: string,
   showDataZoom: boolean
 ): EChartsOption {
-  const labels = snapshots.map((s) => formatSnapshotLabel(s.polledAt))
-  const smartLabels = buildSmartLabels(snapshots.map((s) => s.polledAt))
-
   // Convert to GiB, then auto-detect whether TiB is more readable
-  const uploadGiB = snapshots.map((s) => bytesToGiB(s.uploadedBytes))
-  const downloadGiB = snapshots.map((s) => bytesToGiB(s.downloadedBytes))
-  const maxGiB = Math.max(...uploadGiB, ...downloadGiB, 0)
+  const allGiB = snapshots.flatMap((s) => [
+    bytesToGiB(s.uploadedBytes),
+    bytesToGiB(s.downloadedBytes),
+  ])
+  const maxGiB = Math.max(...allGiB, 0)
   const { divisor, unit } = autoByteScale(maxGiB)
 
-  const uploadData = uploadGiB.map((v) => Number((v / divisor).toFixed(3)))
-  const downloadData = downloadGiB.map((v) => Number((v / divisor).toFixed(3)))
+  const uploadData: [number, number][] = []
+  const downloadData: [number, number][] = []
+  for (const s of snapshots) {
+    const ts = new Date(s.polledAt).getTime()
+    const up = bytesToGiB(s.uploadedBytes)
+    const down = bytesToGiB(s.downloadedBytes)
+    if (up !== null) uploadData.push([ts, Number((up / divisor).toFixed(3))])
+    if (down !== null) downloadData.push([ts, Number((down / divisor).toFixed(3))])
+  }
 
   const dotSize = adaptiveDotSize(snapshots.length)
   const complementColor = getComplementaryColor(accentColor)
@@ -71,16 +78,16 @@ function buildOption(
       formatter: (params: unknown) => {
         const items = params as Array<{
           seriesName: string
-          value: number
+          value: [number, number]
           color: string
-          axisValueLabel: string
         }>
         if (!items || items.length === 0) return ""
-        const time = items[0].axisValueLabel
+        const time = formatChartTimestamp(items[0].value[0])
         const rows = items
           .map((item) => {
-            const primary = `${fmtNum(item.value)} ${unit}`
-            const altVal = unit === "TiB" ? item.value * 1024 : item.value / 1024
+            const val = item.value[1]
+            const primary = `${fmtNum(val)} ${unit}`
+            const altVal = unit === "TiB" ? val * 1024 : val / 1024
             const altUnit = unit === "TiB" ? "GiB" : "TiB"
             const alt = `${fmtNum(altVal)} ${altUnit}`
             return (
@@ -95,19 +102,7 @@ function buildOption(
       },
     }),
     legend: chartLegend(),
-    xAxis: {
-      type: "category",
-      data: labels,
-      boundaryGap: false,
-      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
-      axisTick: { show: false },
-      axisLabel: chartAxisLabel({
-        rotate: 30,
-        interval: "auto",
-        formatter: (_: string, idx: number) => smartLabels[idx] ?? "",
-      }),
-      splitLine: { show: false },
-    },
+    xAxis: buildTimeXAxis(),
     yAxis: {
       type: "value",
       name: unit,
@@ -196,9 +191,6 @@ function UploadDownloadChart({
     <ChartECharts
       option={buildOption(snapshots, accentColor, showDataZoom)}
       style={{ height, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
     />
   )
 }

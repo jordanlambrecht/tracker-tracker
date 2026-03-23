@@ -1,7 +1,7 @@
 // src/lib/__tests__/upload-polar-chart.test.ts
 
 import { describe, expect, it } from "vitest"
-import { computeHourlyUploadAverages } from "@/components/charts/UploadPolarChart"
+import { computeHourlyAverages } from "@/components/charts/UploadPolarChart"
 import type { Snapshot } from "@/types/api"
 
 // ── Helpers ──
@@ -38,15 +38,15 @@ function isoAt(dayOffset: number, hour = 12): string {
 
 const GiB = 1024 ** 3
 
-// ── computeHourlyUploadAverages ──
+// ── computeHourlyAverages (upload mode) ──
 
-describe("computeHourlyUploadAverages", () => {
+describe("computeHourlyAverages (upload)", () => {
   it("returns empty array for zero snapshots", () => {
-    expect(computeHourlyUploadAverages([])).toEqual([])
+    expect(computeHourlyAverages([], "upload")).toEqual([])
   })
 
   it("returns empty array for exactly one snapshot", () => {
-    expect(computeHourlyUploadAverages([makeSnapshot()])).toEqual([])
+    expect(computeHourlyAverages([makeSnapshot()], "upload")).toEqual([])
   })
 
   it("returns empty array when all deltas are non-positive", () => {
@@ -54,7 +54,7 @@ describe("computeHourlyUploadAverages", () => {
       makeSnapshot({ polledAt: isoAt(0, 8), uploadedBytes: String(2 * GiB) }),
       makeSnapshot({ polledAt: isoAt(0, 9), uploadedBytes: String(GiB) }),
     ]
-    expect(computeHourlyUploadAverages(snapshots)).toEqual([])
+    expect(computeHourlyAverages(snapshots, "upload")).toEqual([])
   })
 
   it("produces one bucket for a single positive delta", () => {
@@ -63,7 +63,7 @@ describe("computeHourlyUploadAverages", () => {
       makeSnapshot({ polledAt: isoAt(0, 9), uploadedBytes: String(GiB) }),
     ]
 
-    const result = computeHourlyUploadAverages(snapshots)
+    const result = computeHourlyAverages(snapshots, "upload")
 
     expect(result).toHaveLength(1)
     expect(result[0].avgBytes).toBeCloseTo(GiB, 0)
@@ -78,7 +78,7 @@ describe("computeHourlyUploadAverages", () => {
       makeSnapshot({ polledAt: laterTs, uploadedBytes: String(GiB) }),
     ]
 
-    const result = computeHourlyUploadAverages(snapshots)
+    const result = computeHourlyAverages(snapshots, "upload")
 
     expect(result).toHaveLength(1)
     // Use the same Date constructor the component uses so the test is TZ-agnostic
@@ -96,7 +96,7 @@ describe("computeHourlyUploadAverages", () => {
     ]
 
     // Both deltas land on the same day-of-week (Monday) and hour (9)
-    const result = computeHourlyUploadAverages(snapshots)
+    const result = computeHourlyAverages(snapshots, "upload")
 
     expect(result).toHaveLength(1)
     // deltas: GiB and 2*GiB  → average = 1.5 GiB
@@ -113,7 +113,7 @@ describe("computeHourlyUploadAverages", () => {
       makeSnapshot({ polledAt: ts10, uploadedBytes: String(3 * GiB) }),
     ]
 
-    const result = computeHourlyUploadAverages(snapshots)
+    const result = computeHourlyAverages(snapshots, "upload")
 
     expect(result).toHaveLength(2)
     const hours = result.map((b) => b.hour).sort((a, b) => a - b)
@@ -132,7 +132,7 @@ describe("computeHourlyUploadAverages", () => {
       makeSnapshot({ polledAt: isoAt(1, 10), uploadedBytes: String(3 * GiB) }),
     ]
 
-    const result = computeHourlyUploadAverages(snapshots)
+    const result = computeHourlyAverages(snapshots, "upload")
 
     expect(result).toHaveLength(2)
     const days = result.map((b) => b.day).sort((a, b) => a - b)
@@ -147,7 +147,7 @@ describe("computeHourlyUploadAverages", () => {
       makeSnapshot({ polledAt: isoAt(0, 8), uploadedBytes: "0" }),
     ]
 
-    const result = computeHourlyUploadAverages(snapshots)
+    const result = computeHourlyAverages(snapshots, "upload")
 
     // After sorting: 0 → GiB, so one positive delta
     expect(result).toHaveLength(1)
@@ -163,7 +163,7 @@ describe("computeHourlyUploadAverages", () => {
       makeSnapshot({ polledAt: isoAt(0, 9), uploadedBytes: eightTiB.toString() }),
     ]
 
-    const result = computeHourlyUploadAverages(snapshots)
+    const result = computeHourlyAverages(snapshots, "upload")
 
     expect(result).toHaveLength(1)
     const expectedDelta = Number(eightTiB - fourTiB)
@@ -178,7 +178,7 @@ describe("computeHourlyUploadAverages", () => {
       makeSnapshot({ polledAt: ts10, uploadedBytes: String(6 * GiB) }),
     ]
 
-    const result = computeHourlyUploadAverages(snapshots)
+    const result = computeHourlyAverages(snapshots, "upload")
 
     // The 8→9 interval has delta 0 and should be skipped
     expect(result).toHaveLength(1)

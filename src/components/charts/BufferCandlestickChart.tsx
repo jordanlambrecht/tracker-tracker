@@ -5,14 +5,19 @@
 "use client"
 
 import type { CandlestickSeriesOption, EChartsOption } from "echarts"
-import { useState } from "react"
 import { bytesToGiB, hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
-import { ChartECharts } from "./ChartECharts"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { autoByteScale, buildAxisPointer, fmtNum, formatDateLabel } from "./chart-helpers"
-import { LogScaleToggle } from "./LogScaleToggle"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import {
+  autoByteScale,
+  buildAxisPointer,
+  buildTimeXAxis,
+  fmtNum,
+  insideZoom,
+} from "./lib/chart-helpers"
+import { LogScaleToggle } from "./lib/LogScaleToggle"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -22,8 +27,9 @@ import {
   chartTooltip,
   chartTooltipHeader,
   escHtml,
-  shouldUseLogScale,
-} from "./theme"
+  formatChartTimestamp,
+} from "./lib/theme"
+import { useLogScale } from "./lib/useLogScale"
 
 interface BufferCandlestickChartProps {
   trackerData: TrackerSnapshotSeries[]
@@ -80,7 +86,7 @@ function computeCandlestickData(snapshots: Snapshot[], divisor: number): Candles
  */
 function buildCandlestickOption(
   trackerData: TrackerSnapshotSeries[],
-  forceLog: boolean | null = null
+  useLog: boolean
 ): EChartsOption {
   // Collect all GiB values across all trackers to decide GiB vs TiB
   let maxGiB = 0
@@ -106,15 +112,13 @@ function buildCandlestickOption(
   }
   const allDays = Array.from(allDaysSet).sort()
 
-  // Collect all OHLC values to decide linear vs log
+  // Collect all OHLC values for log axis min/max computation
   const allValues: number[] = []
   for (const result of trackerResults) {
     for (const [open, close, low, high] of result.ohlc) {
       allValues.push(open, close, low, high)
     }
   }
-  const autoLog = shouldUseLogScale(allValues)
-  const useLog = forceLog ?? autoLog
 
   // Compute explicit min/max for log axis from positive data values
   let logMin: number | undefined
@@ -130,9 +134,8 @@ function buildCandlestickOption(
   const barMaxWidth = 20
 
   // Build one candlestick series per tracker, mapped to the unified day axis.
-  // Days with no data for a tracker use a doji-style placeholder so ECharts
-  // doesn't choke on sparse data — we pass a CandlestickDataItemOption with
-  // value set to undefined which the library treats as a gap.
+  // Time-axis candlestick format: [timestamp, open, close, low, high].
+  // Days with no data for a tracker are skipped — time axis handles sparse data natively.
   const series: CandlestickSeriesOption[] = trackerData.map((tracker, idx) => {
     const result = trackerResults[idx]
     const dayToOhlc = new Map<string, [number, number, number, number]>()
@@ -140,20 +143,21 @@ function buildCandlestickOption(
       dayToOhlc.set(result.days[i], result.ohlc[i])
     }
 
-    // CandlestickDataValue is [open, close, lowest, highest]
-    const data: CandlestickSeriesOption["data"] = allDays.map((day) => {
+    // [timestamp, open, close, low, high] tuples — gaps handled by time axis
+    const data: [number, number, number, number, number][] = []
+    for (const day of allDays) {
       const entry = dayToOhlc.get(day)
-      if (!entry) {
-        // Represent missing days as an item with no value (renders as gap)
-        return { value: undefined as unknown as [number, number, number, number] }
-      }
-      return entry
-    })
+      if (!entry) continue
+      const ts = new Date(`${day}T12:00:00`).getTime()
+      const [open, close, low, high] = entry
+      data.push([ts, open, close, low, high])
+    }
 
     return {
       name: tracker.name,
       type: "candlestick",
-      data,
+      data: data as unknown as CandlestickSeriesOption["data"],
+      barWidth: 12,
       barMaxWidth,
       itemStyle: {
         color: tracker.color,
@@ -167,25 +171,28 @@ function buildCandlestickOption(
   return {
     backgroundColor: "transparent",
     grid: chartGrid({ right: 16, left: 72 }),
-    legend: chartLegend(),
+    legend: trackerData.length > 1 ? chartLegend() : { show: false },
     tooltip: chartTooltip("axis", {
+      ...(trackerData.length === 1 ? { borderColor: trackerData[0].color } : {}),
       axisPointer: buildAxisPointer(CHART_THEME.borderMid, 0.8, 1),
       formatter: (params: unknown) => {
         const items = params as Array<{
           seriesName: string
           value: [number, number, number, number, number] | null
           color: string
-          axisValueLabel: string
         }>
         if (!items || items.length === 0) return ""
 
-        const date = items[0].axisValueLabel
+        const firstValid = items.find((item) => item.value !== null && item.value !== undefined)
+        if (!firstValid) return ""
+        // Time-axis candlestick value: [timestamp, open, close, low, high]
+        const date = formatChartTimestamp(firstValid.value![0])
         const header = chartTooltipHeader(date)
 
         const rows = items
           .filter((item) => item.value !== null && item.value !== undefined)
           .map((item) => {
-            // Axis-trigger candlestick value: [categoryIndex, open, close, low, high]
+            // Time-axis candlestick value: [timestamp, open, close, low, high]
             const [, open, close, low, high] = item.value as [
               number,
               number,
@@ -215,15 +222,7 @@ function buildCandlestickOption(
         return `<div style="font-family:${CHART_THEME.fontMono};font-size:11px;">${header}${rows}</div>`
       },
     }),
-    xAxis: {
-      type: "category",
-      data: allDays.map(formatDateLabel),
-      boundaryGap: true,
-      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
-      axisTick: { show: false },
-      axisLabel: chartAxisLabel({ rotate: 30, interval: "auto" }),
-      splitLine: { show: false },
-    },
+    xAxis: buildTimeXAxis({ boundaryGap: true }),
     yAxis: {
       type: useLog ? "log" : "value",
       name: useLog ? `${unit} (log)` : unit,
@@ -250,6 +249,7 @@ function buildCandlestickOption(
         },
       },
     },
+    dataZoom: insideZoom(allDays.length),
     series: series as EChartsOption["series"],
   }
 }
@@ -260,12 +260,28 @@ function buildCandlestickOption(
  * Shows empty state if no tracker has at least 2 days of data.
  */
 function BufferCandlestickChart({ trackerData, height = 360 }: BufferCandlestickChartProps) {
-  const [logOverride, setLogOverride] = useState<boolean | null>(null)
-
   const hasEnoughDays = trackerData.some((tracker) => {
     const uniqueDays = new Set(tracker.snapshots.map((s) => s.polledAt.slice(0, 10)))
     return uniqueDays.size >= 2
   })
+
+  let globalMaxGiB = 0
+  for (const tracker of trackerData) {
+    for (const snap of tracker.snapshots) {
+      const gib = bytesToGiB(snap.bufferBytes)
+      if (gib > globalMaxGiB) globalMaxGiB = gib
+    }
+  }
+  const { divisor } = autoByteScale(globalMaxGiB)
+
+  const allValues: number[] = []
+  for (const tracker of trackerData) {
+    for (const snap of tracker.snapshots) {
+      allValues.push(bytesToGiB(snap.bufferBytes) / divisor)
+    }
+  }
+
+  const { effectiveLog, isAuto, onToggle } = useLogScale(allValues)
 
   if (!hasEnoughDays) {
     return (
@@ -276,37 +292,14 @@ function BufferCandlestickChart({ trackerData, height = 360 }: BufferCandlestick
     )
   }
 
-  // Compute auto-detect for toggle label
-  const allValues: number[] = []
-  for (const tracker of trackerData) {
-    let maxGiB = 0
-    for (const snap of tracker.snapshots) {
-      const gib = bytesToGiB(snap.bufferBytes)
-      if (gib > maxGiB) maxGiB = gib
-    }
-    const divisor = maxGiB >= 1024 ? 1024 : 1
-    for (const snap of tracker.snapshots) {
-      allValues.push(bytesToGiB(snap.bufferBytes) / divisor)
-    }
-  }
-  const autoLog = shouldUseLogScale(allValues)
-  const effectiveLog = logOverride ?? autoLog
-
   return (
     <div className="flex flex-col gap-2">
       <div className="flex justify-end">
-        <LogScaleToggle
-          effectiveLog={effectiveLog}
-          isAuto={logOverride === null}
-          onToggle={() => setLogOverride(logOverride === null ? !autoLog : null)}
-        />
+        <LogScaleToggle effectiveLog={effectiveLog} isAuto={isAuto} onToggle={onToggle} />
       </div>
       <ChartECharts
-        option={buildCandlestickOption(trackerData, logOverride)}
+        option={buildCandlestickOption(trackerData, effectiveLog)}
         style={{ height, width: "100%" }}
-        opts={{ renderer: "canvas" }}
-        notMerge
-        lazyUpdate
       />
     </div>
   )

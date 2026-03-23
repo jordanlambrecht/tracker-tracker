@@ -10,8 +10,8 @@ import { useEffect, useRef, useState } from "react"
 import { Card } from "@/components/ui/Card"
 import { Tooltip } from "@/components/ui/Tooltip"
 import { formatBytesNum } from "@/lib/formatters"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME } from "./theme"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { CHART_THEME } from "./lib/theme"
 
 // ── Constants ──
 

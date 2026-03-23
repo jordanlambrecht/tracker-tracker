@@ -1,18 +1,22 @@
 // src/components/charts/UploadPolarChart.tsx
 //
-// Functions: computeHourlyUploadAverages, buildPolarOption, UploadPolarChart
+// Functions: computeHourlyAverages, buildPolarOption, UploadPolarChart
 
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
+import { useState } from "react"
+import { TabBar } from "@/components/ui/TabBar"
 import { formatBytesNum, hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { DAY_LABELS, HOUR_LABELS } from "./chart-helpers"
-import { CHART_THEME, chartTooltip, escHtml } from "./theme"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { DAY_LABELS, HOUR_LABELS } from "./lib/chart-helpers"
+import { CHART_THEME, chartTooltip, escHtml } from "./lib/theme"
 
 // ── Types ──
+
+type PolarMode = "upload" | "download"
 
 interface HourDayBucket {
   day: number
@@ -29,7 +33,7 @@ interface UploadPolarChartProps {
 
 // ── Data computation ──
 
-export function computeHourlyUploadAverages(snapshots: Snapshot[]): HourDayBucket[] {
+function computeHourlyAverages(snapshots: Snapshot[], mode: PolarMode): HourDayBucket[] {
   if (snapshots.length < 2) return []
 
   const sorted = [...snapshots].sort(
@@ -37,13 +41,14 @@ export function computeHourlyUploadAverages(snapshots: Snapshot[]): HourDayBucke
   )
 
   const buckets = new Map<string, { total: number; count: number }>()
+  const field = mode === "upload" ? "uploadedBytes" : "downloadedBytes"
 
   for (let i = 1; i < sorted.length; i++) {
     const prev = sorted[i - 1]
     const curr = sorted[i]
 
-    const prevBytes = Number(BigInt(prev.uploadedBytes))
-    const currBytes = Number(BigInt(curr.uploadedBytes))
+    const prevBytes = Number(BigInt(prev[field]))
+    const currBytes = Number(BigInt(curr[field]))
     const delta = currBytes - prevBytes
 
     if (delta <= 0) continue
@@ -72,7 +77,11 @@ export function computeHourlyUploadAverages(snapshots: Snapshot[]): HourDayBucke
 
 // ── Chart option builder ──
 
-function buildPolarOption(buckets: HourDayBucket[], accentColor: string): EChartsOption {
+function buildPolarOption(
+  buckets: HourDayBucket[],
+  accentColor: string,
+  mode: PolarMode
+): EChartsOption {
   const grid: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0))
   let maxVal = 0
 
@@ -101,9 +110,12 @@ function buildPolarOption(buckets: HourDayBucket[], accentColor: string): EChart
   const RING_STEP = (OUTER_RADIUS_PCT - INNER_RADIUS_PCT) / 7
   const GAP = 0.6 // degrees gap between wedges
 
+  const dirLabel = mode === "upload" ? "↑" : "↓"
+
   return {
     backgroundColor: "transparent",
     tooltip: chartTooltip("item", {
+      borderColor: accentColor,
       formatter: (params: unknown) => {
         const p = params as { data: [number, number, number] }
         const [hourIdx, dayIdx, val] = p.data
@@ -114,7 +126,7 @@ function buildPolarOption(buckets: HourDayBucket[], accentColor: string): EChart
         return (
           `<div style="font-family:var(--font-mono),monospace;font-size:11px;` +
           `color:${CHART_THEME.textTertiary};margin-bottom:4px;">${dayName} at ${hourLabel}</div>` +
-          `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(formatted)}/hr</span>`
+          `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(formatted)}/hr ${dirLabel}</span>`
         )
       },
     }),
@@ -185,7 +197,8 @@ function buildPolarOption(buckets: HourDayBucket[], accentColor: string): EChart
 
           // Radial range for this day ring (innermost = Sun)
           const r0 = ((INNER_RADIUS_PCT + dayIdx * RING_STEP) / OUTER_RADIUS_PCT) * outerPx + 1
-          const r1 = ((INNER_RADIUS_PCT + (dayIdx + 1) * RING_STEP) / OUTER_RADIUS_PCT) * outerPx - 1
+          const r1 =
+            ((INNER_RADIUS_PCT + (dayIdx + 1) * RING_STEP) / OUTER_RADIUS_PCT) * outerPx - 1
 
           return {
             type: "sector",
@@ -220,33 +233,42 @@ function UploadPolarChart({
   accentColor = CHART_THEME.accent,
   height = 380,
 }: UploadPolarChartProps) {
-  if (snapshots.length < 2) {
-    return (
-      <ChartEmptyState height={height} message="Not enough snapshots to compute upload patterns." />
-    )
-  }
+  const [mode, setMode] = useState<PolarMode>("upload")
 
-  const buckets = computeHourlyUploadAverages(snapshots)
+  const hasEnoughSnapshots = snapshots.length >= 2
+  const buckets = hasEnoughSnapshots ? computeHourlyAverages(snapshots, mode) : []
 
-  if (buckets.length === 0) {
+  const POLAR_TABS = [
+    { key: "upload" as const, label: "Upload" },
+    { key: "download" as const, label: "Download" },
+  ]
+
+  if (!hasEnoughSnapshots) {
     return (
       <ChartEmptyState
         height={height}
-        message="No positive upload deltas found in the selected range."
+        message="Not enough snapshots to compute activity patterns."
       />
     )
   }
 
   return (
-    <ReactECharts
-      option={buildPolarOption(buckets, accentColor)}
-      style={{ height, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
-    />
+    <div className="flex flex-col gap-1">
+      <TabBar compact tabs={POLAR_TABS} activeTab={mode} onChange={setMode} />
+      {buckets.length === 0 ? (
+        <ChartEmptyState
+          height={height}
+          message={`No positive ${mode} deltas found in the selected range.`}
+        />
+      ) : (
+        <ChartECharts
+          option={buildPolarOption(buckets, accentColor, mode)}
+          style={{ height, width: "100%" }}
+        />
+      )}
+    </div>
   )
 }
 
-export type { HourDayBucket, UploadPolarChartProps }
-export { UploadPolarChart }
+export type { HourDayBucket, PolarMode, UploadPolarChartProps }
+export { computeHourlyAverages, UploadPolarChart }

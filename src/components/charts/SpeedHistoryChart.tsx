@@ -7,9 +7,9 @@
 import type { EChartsOption } from "echarts"
 import type { FleetSnapshot } from "@/lib/fleet"
 import { formatBytesNum, hexToRgba } from "@/lib/formatters"
-import { ChartECharts } from "./ChartECharts"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { buildAxisPointer } from "./chart-helpers"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { buildAxisPointer, buildTimeXAxis } from "./lib/chart-helpers"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -20,7 +20,7 @@ import {
   chartTooltipHeader,
   escHtml,
   formatChartTimestamp,
-} from "./theme"
+} from "./lib/theme"
 
 interface SpeedHistoryChartProps {
   snapshots: FleetSnapshot[]
@@ -84,10 +84,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
     }),
     grid: chartGrid({ right: 64, left: 72 }),
     xAxis: {
-      type: "time",
-      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
-      axisTick: { show: false },
-      axisLabel: chartAxisLabel(),
+      ...buildTimeXAxis(),
       splitLine: { show: false },
     },
     yAxis: [
@@ -136,7 +133,11 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
         smooth: true,
         symbol: "none",
         itemStyle: { color: CYAN },
-        lineStyle: { color: CYAN, width: 2 },
+        lineStyle: { color: CYAN, width: 2, shadowColor: CYAN, shadowBlur: 8 },
+        emphasis: {
+          focus: "series" as const,
+          lineStyle: { shadowBlur: 16, shadowColor: CYAN },
+        },
         areaStyle: {
           color: {
             type: "linear",
@@ -159,7 +160,11 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
         smooth: true,
         symbol: "none",
         itemStyle: { color: AMBER },
-        lineStyle: { color: AMBER, width: 2 },
+        lineStyle: { color: AMBER, width: 2, shadowColor: AMBER, shadowBlur: 8 },
+        emphasis: {
+          focus: "series" as const,
+          lineStyle: { shadowBlur: 16, shadowColor: AMBER },
+        },
         areaStyle: {
           color: {
             type: "linear",
@@ -187,15 +192,7 @@ function SpeedHistoryChart({ snapshots, height = 360 }: SpeedHistoryChartProps) 
     return <ChartEmptyState height={height} message="No speed history data available yet." />
   }
 
-  return (
-    <ChartECharts
-      option={buildOption(snapshots)}
-      style={{ height, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
-    />
-  )
+  return <ChartECharts option={buildOption(snapshots)} style={{ height, width: "100%" }} />
 }
 
 export type { SpeedHistoryChartProps }

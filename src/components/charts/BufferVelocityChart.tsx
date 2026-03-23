@@ -1,23 +1,24 @@
 // src/components/charts/BufferVelocityChart.tsx
 //
-// Functions: computeBufferVelocity, buildBufferVelocityOption, BufferVelocityChart
+// Functions: applyMovingAverage, computeBufferVelocity, buildBufferVelocityOption, BufferVelocityChart
 
 "use client"
 
 import type { EChartsOption } from "echarts"
 import { useState } from "react"
+import { TabBar } from "@/components/ui/TabBar"
 import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
-import { ChartECharts } from "./ChartECharts"
-import { ChartEmptyState } from "./ChartEmptyState"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
 import {
   autoByteScale,
   buildAxisPointer,
-  buildGlowAreaStyle,
+  buildTimeXAxis,
   fmtNum,
-  formatDateLabel,
-} from "./chart-helpers"
-import { LogScaleToggle } from "./LogScaleToggle"
+  insideZoom,
+} from "./lib/chart-helpers"
+import { LogScaleToggle } from "./lib/LogScaleToggle"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -27,12 +28,15 @@ import {
   chartTooltip,
   chartTooltipHeader,
   escHtml,
-  shouldUseLogScale,
-} from "./theme"
+  formatChartTimestamp,
+} from "./lib/theme"
+import { useLogScale } from "./lib/useLogScale"
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+
+type MAWindow = "1" | "3" | "7"
 
 interface BufferVelocityChartProps {
   trackerData: TrackerSnapshotSeries[]
@@ -44,6 +48,20 @@ interface TrackerVelocityData {
   color: string
   days: string[]
   velocities: (number | null)[]
+}
+
+// ---------------------------------------------------------------------------
+// Moving average helper
+// ---------------------------------------------------------------------------
+
+function applyMovingAverage(velocities: (number | null)[], window: number): (number | null)[] {
+  if (window <= 1) return velocities
+  return velocities.map((_, i) => {
+    const start = Math.max(0, i - window + 1)
+    const slice = velocities.slice(start, i + 1).filter((v): v is number => v !== null)
+    if (slice.length === 0) return null
+    return slice.reduce((a, b) => a + b, 0) / slice.length
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -92,15 +110,9 @@ function computeBufferVelocity(snapshots: Snapshot[]): {
 // ---------------------------------------------------------------------------
 
 function buildBufferVelocityOption(
-  trackerData: TrackerSnapshotSeries[],
-  forceLog: boolean | null = null
+  computed: TrackerVelocityData[],
+  useLog: boolean
 ): EChartsOption {
-  // Compute per-tracker velocities
-  const computed: TrackerVelocityData[] = trackerData.map((t) => {
-    const { days, velocities } = computeBufferVelocity(t.snapshots)
-    return { name: t.name, color: t.color, days, velocities }
-  })
-
   // Build unified day axis from the union of all tracker day sets
   const allDays = new Set<string>()
   for (const t of computed) {
@@ -110,7 +122,11 @@ function buildBufferVelocityOption(
 
   if (sortedDays.length === 0) return {}
 
-  const labels = sortedDays.map(formatDateLabel)
+  // Convert ISO day strings to noon timestamps to avoid timezone boundary issues
+  const dayTimestamps = new Map<string, number>()
+  for (const day of sortedDays) {
+    dayTimestamps.set(day, new Date(`${day}T12:00:00`).getTime())
+  }
 
   // Determine unit (GiB vs TiB) based on max absolute velocity
   let maxAbsVal = 0
@@ -122,36 +138,54 @@ function buildBufferVelocityOption(
   const { divisor, unit: baseUnit } = autoByteScale(maxAbsVal)
   const unit = `${baseUnit}/day`
 
-  // Log scale detection (only considers positive velocities)
-  const positiveVelocities: number[] = []
-  for (const t of computed) {
-    for (const v of t.velocities) {
-      if (v !== null && v > 0) positiveVelocities.push(v / divisor)
-    }
-  }
-  const autoLog = shouldUseLogScale(positiveVelocities)
-  const useLog = forceLog ?? autoLog
+  // Detect whether the last day in the unified axis is today (partial day)
+  const today = new Date().toISOString().slice(0, 10)
+  const lastDayIsToday = sortedDays[sortedDays.length - 1] === today
 
-  // Build per-tracker series mapped to the unified day axis
-  const series: NonNullable<EChartsOption["series"]> = computed.map((tracker) => {
+  // Build per-tracker series mapped to the unified day axis.
+  // Delta charts skip nulls — no carry-forward.
+  const series: NonNullable<EChartsOption["series"]> = computed.map((tracker, idx) => {
     const dayVelocityMap = new Map<string, number | null>()
     for (let i = 0; i < tracker.days.length; i++) {
       dayVelocityMap.set(tracker.days[i], tracker.velocities[i])
     }
 
-    const data = sortedDays.map((day) => {
+    const data: (
+      | [number, number]
+      | { value: [number, number]; itemStyle: object; symbolSize: number }
+    )[] = []
+    for (const day of sortedDays) {
       const v = dayVelocityMap.get(day)
-      if (v === undefined || v === null) return null
-      return Number((v / divisor).toFixed(4))
-    })
+      if (v === undefined || v === null) continue
+      const ts = dayTimestamps.get(day) as number
+      data.push([ts, Number((v / divisor).toFixed(4))])
+    }
+
+    // Mark today's point as a hollow ring to signal partial/incomplete data
+    if (lastDayIsToday && data.length > 0) {
+      const lastPoint = data[data.length - 1]
+      const todayTs = dayTimestamps.get(today)
+      const lastVal = Array.isArray(lastPoint) ? lastPoint : lastPoint.value
+      if (lastVal[0] === todayTs) {
+        data[data.length - 1] = {
+          value: lastVal as [number, number],
+          itemStyle: {
+            borderWidth: 2,
+            borderColor: tracker.color,
+            color: CHART_THEME.surface,
+          },
+          symbolSize: 8,
+        }
+      }
+    }
 
     return {
       name: tracker.name,
       type: "line",
       data,
-      smooth: true,
-      connectNulls: true,
-      symbol: "none",
+      smooth: false,
+      symbol: "circle",
+      symbolSize: 6,
       itemStyle: { color: tracker.color },
       lineStyle: {
         color: tracker.color,
@@ -159,36 +193,41 @@ function buildBufferVelocityOption(
         shadowColor: tracker.color,
         shadowBlur: 8,
       },
-      areaStyle: buildGlowAreaStyle(tracker.color, 0.2),
       emphasis: {
+        focus: "series" as const,
         lineStyle: {
           shadowBlur: 16,
           shadowColor: tracker.color,
         },
       },
-      markLine: {
-        silent: true,
-        symbol: ["none", "none"],
-        data: [
-          {
-            yAxis: 0,
-            label: {
-              show: true,
-              formatter: "Break even",
-              position: "insideEndTop",
-              color: CHART_THEME.warn,
-              fontFamily: CHART_THEME.fontMono,
-              fontSize: 10,
+      // Only the first series carries the "Break even" markLine label
+      ...(idx === 0
+        ? {
+            markLine: {
+              silent: true,
+              symbol: ["none", "none"],
+              data: [
+                {
+                  yAxis: 0,
+                  label: {
+                    show: true,
+                    formatter: "Break even",
+                    position: "insideEndTop",
+                    color: CHART_THEME.warn,
+                    fontFamily: CHART_THEME.fontMono,
+                    fontSize: 10,
+                  },
+                  lineStyle: {
+                    color: CHART_THEME.warn,
+                    type: "dashed",
+                    width: 1.5,
+                    opacity: 0.8,
+                  },
+                },
+              ],
             },
-            lineStyle: {
-              color: CHART_THEME.warn,
-              type: "dashed",
-              width: 1.5,
-              opacity: 0.8,
-            },
-          },
-        ],
-      },
+          }
+        : {}),
     }
   })
 
@@ -200,16 +239,17 @@ function buildBufferVelocityOption(
       formatter: (params: unknown) => {
         const items = params as Array<{
           seriesName: string
-          value: number | null
+          value: [number, number] | null
           color: string
-          axisValueLabel: string
         }>
         if (!items || items.length === 0) return ""
-        const date = items[0].axisValueLabel
+        const firstValid = items.find((item) => item.value !== null && item.value !== undefined)
+        if (!firstValid?.value) return ""
+        const date = formatChartTimestamp(firstValid.value[0])
         const rows = items
           .filter((item) => item.value !== null && item.value !== undefined)
           .map((item) => {
-            const val = item.value as number
+            const val = (item.value as [number, number])[1]
             const sign = val >= 0 ? "+" : ""
             const valueColor = val >= 0 ? CHART_THEME.positive : CHART_THEME.negative
             const display = `${sign}${fmtNum(val)} ${unit}`
@@ -224,18 +264,7 @@ function buildBufferVelocityOption(
       },
     }),
     legend: chartLegend(),
-    xAxis: {
-      type: "category",
-      data: labels,
-      boundaryGap: false,
-      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
-      axisTick: { show: false },
-      axisLabel: chartAxisLabel({
-        rotate: sortedDays.length > 14 ? 30 : 0,
-        interval: "auto",
-      }),
-      splitLine: { show: false },
-    },
+    xAxis: buildTimeXAxis(),
     yAxis: {
       type: useLog ? "log" : "value",
       name: useLog ? `${unit} (log)` : unit,
@@ -257,6 +286,7 @@ function buildBufferVelocityOption(
         lineStyle: { color: CHART_THEME.gridLine, width: 1 },
       },
     },
+    dataZoom: insideZoom(sortedDays.length),
     series,
   }
 }
@@ -265,14 +295,30 @@ function buildBufferVelocityOption(
 // Component
 // ---------------------------------------------------------------------------
 
-function BufferVelocityChart({ trackerData, height = 320 }: BufferVelocityChartProps) {
-  const [logOverride, setLogOverride] = useState<boolean | null>(null)
+const MA_TABS: { key: MAWindow; label: string }[] = [
+  { key: "1", label: "Daily" },
+  { key: "3", label: "3-day MA" },
+  { key: "7", label: "7-day MA" },
+]
 
-  // Need at least 2 days of buffer data per tracker (velocity requires consecutive days)
-  const hasEnoughData = trackerData.some((t) => {
-    const { days } = computeBufferVelocity(t.snapshots)
-    return days.length >= 1
+function BufferVelocityChart({ trackerData, height = 320 }: BufferVelocityChartProps) {
+  const [maWindow, setMaWindow] = useState<MAWindow>("1")
+
+  const computed: TrackerVelocityData[] = trackerData.map((t) => {
+    const { days, velocities } = computeBufferVelocity(t.snapshots)
+    return { name: t.name, color: t.color, days, velocities }
   })
+
+  const hasEnoughData = computed.some((t) => t.days.length >= 1)
+
+  const allVelocities: number[] = []
+  for (const t of computed) {
+    for (const v of t.velocities) {
+      if (v !== null && v > 0) allVelocities.push(v)
+    }
+  }
+
+  const { effectiveLog, isAuto, onToggle } = useLogScale(allVelocities)
 
   if (!hasEnoughData) {
     return (
@@ -283,32 +329,22 @@ function BufferVelocityChart({ trackerData, height = 320 }: BufferVelocityChartP
     )
   }
 
-  // Compute auto-detect for toggle label
-  const allVelocities: number[] = []
-  for (const tracker of trackerData) {
-    const { velocities } = computeBufferVelocity(tracker.snapshots)
-    for (const v of velocities) {
-      if (v !== null && v > 0) allVelocities.push(v)
-    }
-  }
-  const autoLog = shouldUseLogScale(allVelocities)
-  const effectiveLog = logOverride ?? autoLog
+  // Apply moving average before passing to chart builder
+  const windowSize = Number(maWindow) as 1 | 3 | 7
+  const smoothed = computed.map((t) => ({
+    ...t,
+    velocities: applyMovingAverage(t.velocities, windowSize),
+  }))
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex justify-end">
-        <LogScaleToggle
-          effectiveLog={effectiveLog}
-          isAuto={logOverride === null}
-          onToggle={() => setLogOverride(logOverride === null ? !autoLog : null)}
-        />
+      <div className="flex items-center justify-between">
+        <TabBar compact tabs={MA_TABS} activeTab={maWindow} onChange={setMaWindow} />
+        <LogScaleToggle effectiveLog={effectiveLog} isAuto={isAuto} onToggle={onToggle} />
       </div>
       <ChartECharts
-        option={buildBufferVelocityOption(trackerData, logOverride)}
+        option={buildBufferVelocityOption(smoothed, effectiveLog)}
         style={{ height, width: "100%" }}
-        opts={{ renderer: "canvas" }}
-        notMerge
-        lazyUpdate
       />
     </div>
   )

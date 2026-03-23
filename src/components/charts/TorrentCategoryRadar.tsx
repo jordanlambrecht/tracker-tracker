@@ -3,11 +3,11 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
 import { formatBytesNum, formatDuration, generatePalette, hexToRgba } from "@/lib/formatters"
 import type { CategoryStats } from "@/lib/torrent-utils"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartDot, chartTooltip, escHtml } from "./theme"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { CHART_THEME, chartTooltip, chartTooltipRow, escHtml } from "./lib/theme"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -23,12 +23,12 @@ function normalize(value: number, max: number): number {
 // Component
 // ---------------------------------------------------------------------------
 
-export interface TorrentCategoryRadarProps {
+interface TorrentCategoryRadarProps {
   categories: CategoryStats[]
   accentColor: string
 }
 
-export function TorrentCategoryRadar({ categories, accentColor }: TorrentCategoryRadarProps) {
+function TorrentCategoryRadar({ categories, accentColor }: TorrentCategoryRadarProps) {
   if (categories.length < 2) {
     return <ChartEmptyState height={380} message="Need 2+ categories for radar" />
   }
@@ -71,17 +71,18 @@ export function TorrentCategoryRadar({ categories, accentColor }: TorrentCategor
   const option: EChartsOption = {
     backgroundColor: "transparent",
     tooltip: chartTooltip("item", {
+      borderColor: accentColor,
       formatter: (params: unknown) => {
         const p = params as { name: string; value: number[]; color: string }
         const cat = top.find((c) => c.name === p.name)
         if (!cat) return ""
         return [
-          `${chartDot(p.color)}<span style="color:${p.color};font-weight:600;">${escHtml(p.name)}</span>`,
-          `Torrents: ${cat.count}`,
-          `Size: ${formatBytesNum(cat.totalSize)}`,
-          `Avg Ratio: ${cat.avgRatio.toFixed(2)}`,
-          `Avg Seed Time: ${formatDuration(cat.avgSeedTime)}`,
-          `Avg Swarm Seeds: ${cat.avgSwarmSeeds.toFixed(0)}`,
+          `<span style="color:${p.color};font-weight:600;">${escHtml(p.name)}</span>`,
+          chartTooltipRow(p.color, "Torrents", String(cat.count)),
+          chartTooltipRow(CHART_THEME.neutral, "Size", formatBytesNum(cat.totalSize)),
+          chartTooltipRow(CHART_THEME.neutral, "Avg Ratio", cat.avgRatio.toFixed(2)),
+          chartTooltipRow(CHART_THEME.neutral, "Avg Seed Time", formatDuration(cat.avgSeedTime)),
+          chartTooltipRow(CHART_THEME.neutral, "Avg Swarm Seeds", cat.avgSwarmSeeds.toFixed(0)),
         ].join("<br/>")
       },
     }),
@@ -121,13 +122,8 @@ export function TorrentCategoryRadar({ categories, accentColor }: TorrentCategor
     ],
   }
 
-  return (
-    <ReactECharts
-      option={option}
-      style={{ height: 380, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
-    />
-  )
+  return <ChartECharts option={option} style={{ height: 380, width: "100%" }} />
 }
+
+export type { TorrentCategoryRadarProps }
+export { TorrentCategoryRadar }

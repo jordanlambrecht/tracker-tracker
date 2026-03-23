@@ -1,27 +1,17 @@
 // src/components/charts/FleetAgeTimeline.tsx
 //
-// Functions: groupByDate, buildFleetAgeTimelineOption, FleetAgeTimeline
+// Functions: groupByMonth, FleetAgeTimeline
 
 "use client"
 
-import type { EChartsOption } from "echarts"
 import type { TrackerTag } from "@/lib/fleet"
-import { ChartECharts } from "./ChartECharts"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { buildAxisPointer, formatDateLabel } from "./chart-helpers"
-import {
-  CHART_THEME,
-  chartAxisLabel,
-  chartDot,
-  chartGrid,
-  chartLegend,
-  chartTooltip,
-  chartTooltipHeader,
-  escHtml,
-} from "./theme"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { buildStackedAreaOption } from "./lib/chart-helpers"
+import { CHART_THEME } from "./lib/theme"
 
 interface FleetAgeTimelineProps {
-  torrents: { added_on: number; tags: string }[]
+  torrents: { addedOn: number; tags: string }[]
   trackerTags?: TrackerTag[]
   height?: number
 }
@@ -29,13 +19,13 @@ interface FleetAgeTimelineProps {
 interface SeriesData {
   name: string
   color: string
-  dateMap: Map<string, number>
+  monthMap: Map<string, number>
 }
 
-function groupByDate(
-  torrents: { added_on: number; tags: string }[],
+function groupByMonth(
+  torrents: { addedOn: number; tags: string }[],
   trackerTags: TrackerTag[]
-): { sortedDates: string[]; series: SeriesData[] } {
+): { sortedMonths: string[]; series: SeriesData[] } {
   const tagSetLower = trackerTags.map((t) => ({
     tagLower: t.tag.toLowerCase(),
     name: t.name,
@@ -48,22 +38,23 @@ function groupByDate(
     seriesMap.set(entry.name, {
       name: entry.name,
       color: entry.color,
-      dateMap: new Map(),
+      monthMap: new Map(),
     })
   }
 
   const otherSeries: SeriesData = {
     name: "Other",
     color: CHART_THEME.textTertiary,
-    dateMap: new Map(),
+    monthMap: new Map(),
   }
 
-  const allDates = new Set<string>()
+  const allMonths = new Set<string>()
 
   for (const torrent of torrents) {
-    if (!torrent.added_on || torrent.added_on <= 0) continue
-    const date = new Date(torrent.added_on * 1000).toISOString().slice(0, 10)
-    allDates.add(date)
+    if (!torrent.addedOn || torrent.addedOn <= 0) continue
+    const d = new Date(torrent.addedOn * 1000)
+    const month = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`
+    allMonths.add(month)
 
     const torrentTagList = torrent.tags
       .split(",")
@@ -75,115 +66,39 @@ function groupByDate(
     if (matchedEntry) {
       const series = seriesMap.get(matchedEntry.name)
       if (series) {
-        series.dateMap.set(date, (series.dateMap.get(date) ?? 0) + 1)
+        series.monthMap.set(month, (series.monthMap.get(month) ?? 0) + 1)
       }
     } else {
-      otherSeries.dateMap.set(date, (otherSeries.dateMap.get(date) ?? 0) + 1)
+      otherSeries.monthMap.set(month, (otherSeries.monthMap.get(month) ?? 0) + 1)
     }
   }
 
-  const sortedDates = Array.from(allDates).sort()
-  const series = [...seriesMap.values(), otherSeries].filter((s) => s.dateMap.size > 0)
+  const sortedMonths = Array.from(allMonths).sort()
+  const series = [...seriesMap.values(), otherSeries].filter((s) => s.monthMap.size > 0)
 
-  return { sortedDates, series }
-}
-
-function buildFleetAgeTimelineOption(sortedDates: string[], series: SeriesData[]): EChartsOption {
-  const labels = sortedDates.map(formatDateLabel)
-
-  const eChartsSeries: NonNullable<EChartsOption["series"]> = series.map((s) => {
-    let running = 0
-    const data = sortedDates.map((date) => {
-      running += s.dateMap.get(date) ?? 0
-      return running
-    })
-
-    return {
-      name: s.name,
-      type: "line",
-      stack: "age",
-      smooth: true,
-      symbol: "none",
-      data,
-      itemStyle: { color: s.color },
-      lineStyle: { color: s.color, width: 1.5 },
-      areaStyle: { color: s.color, opacity: 0.3 },
-    }
-  })
-
-  return {
-    backgroundColor: "transparent",
-    grid: chartGrid({ right: 16, bottom: 48, left: 56 }),
-    tooltip: chartTooltip("axis", {
-      axisPointer: buildAxisPointer(),
-      formatter: (params: unknown) => {
-        const items = params as Array<{
-          seriesName: string
-          value: number
-          color: string
-          axisValueLabel: string
-        }>
-        if (!items?.length) return ""
-        const dateLabel = items[0].axisValueLabel
-        const rows = items
-          .filter((item) => item.value > 0)
-          .map((item) => {
-            const dot = chartDot(item.color)
-            return `${dot}<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${item.value.toLocaleString()}</span>`
-          })
-          .join("<br/>")
-        return `${chartTooltipHeader(dateLabel)}${rows}`
-      },
-    }),
-    legend: chartLegend(),
-    xAxis: {
-      type: "category",
-      data: labels,
-      boundaryGap: false,
-      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
-      axisTick: { show: false },
-      axisLabel: chartAxisLabel({ rotate: sortedDates.length > 14 ? 30 : 0, interval: "auto" }),
-    },
-    yAxis: {
-      type: "value",
-      name: "Torrents",
-      nameTextStyle: {
-        color: CHART_THEME.textTertiary,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
-      },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      axisLabel: chartAxisLabel(),
-      splitLine: { lineStyle: { color: CHART_THEME.gridLine } },
-    },
-    series: eChartsSeries,
-  }
+  return { sortedMonths, series }
 }
 
 function FleetAgeTimeline({ torrents, trackerTags = [], height = 320 }: FleetAgeTimelineProps) {
-  const validTorrents = torrents.filter((t) => t.added_on && t.added_on > 0)
+  const validTorrents = torrents.filter((t) => t.addedOn && t.addedOn > 0)
 
   if (validTorrents.length === 0) {
     return <ChartEmptyState height={height} message="No torrent addition data available" />
   }
 
-  const { sortedDates, series } = groupByDate(validTorrents, trackerTags)
+  const { sortedMonths, series } = groupByMonth(validTorrents, trackerTags)
 
-  if (sortedDates.length === 0 || series.length === 0) {
+  if (sortedMonths.length === 0 || series.length === 0) {
     return <ChartEmptyState height={height} message="No torrent addition data available" />
   }
 
   return (
     <ChartECharts
-      option={buildFleetAgeTimelineOption(sortedDates, series)}
+      option={buildStackedAreaOption(sortedMonths, series, "age")}
       style={{ height, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
     />
   )
 }
 
-export type { FleetAgeTimelineProps, TrackerTag }
-export { FleetAgeTimeline, groupByDate }
+export type { FleetAgeTimelineProps }
+export { FleetAgeTimeline, groupByMonth }

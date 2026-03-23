@@ -4,13 +4,14 @@
 
 "use client"
 
-import ReactECharts from "echarts-for-react"
 import { useMemo } from "react"
 import { hexToRgba } from "@/lib/formatters"
 import type { GazelleRanks } from "@/types/api"
-import { CHART_THEME, chartTooltip } from "./theme"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { CHART_THEME, chartTooltip, chartTooltipRow } from "./lib/theme"
 
-export interface PercentileRadarChartProps {
+interface PercentileRadarChartProps {
   ranks: GazelleRanks
   accentColor: string
 }
@@ -27,6 +28,8 @@ const AXIS_LABELS: { key: keyof GazelleRanks; label: string }[] = [
 ]
 
 function PercentileRadarChart({ ranks, accentColor }: PercentileRadarChartProps) {
+  const allZero = AXIS_LABELS.every(({ key }) => !ranks[key])
+
   const option = useMemo(() => {
     const indicator = AXIS_LABELS.map(({ label }) => ({
       name: label,
@@ -38,7 +41,7 @@ function PercentileRadarChart({ ranks, accentColor }: PercentileRadarChartProps)
     return {
       radar: {
         indicator,
-        shape: "circle",
+        shape: "circle" as const,
         radius: "65%",
         axisName: {
           color: CHART_THEME.textSecondary,
@@ -62,15 +65,16 @@ function PercentileRadarChart({ ranks, accentColor }: PercentileRadarChartProps)
         },
       },
       tooltip: chartTooltip("item", {
+        borderColor: accentColor,
         formatter: (params: { value: number[] }) => {
-          return AXIS_LABELS.map(({ label }, i) => `${label}: <b>${params.value[i]}th</b>`).join(
-            "<br/>"
-          )
+          return AXIS_LABELS.map(({ label }, i) =>
+            chartTooltipRow(accentColor, label, `${params.value[i]}th`)
+          ).join("<br/>")
         },
       }),
       series: [
         {
-          type: "radar",
+          type: "radar" as const,
           data: [
             {
               value: values,
@@ -92,21 +96,18 @@ function PercentileRadarChart({ ranks, accentColor }: PercentileRadarChartProps)
             },
           ],
           animationDuration: 600,
-          animationEasing: "cubicOut",
+          animationEasing: "cubicOut" as const,
         },
       ],
     }
   }, [ranks, accentColor])
 
-  return (
-    <ReactECharts
-      option={option}
-      style={{ height: 320, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
-    />
-  )
+  if (allZero) {
+    return <ChartEmptyState height={320} message="No percentile rank data available" />
+  }
+
+  return <ChartECharts option={option} style={{ height: 320, width: "100%" }} />
 }
 
+export type { PercentileRadarChartProps }
 export { PercentileRadarChart }

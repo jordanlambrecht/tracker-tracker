@@ -3,22 +3,22 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
 import { formatBytesNum, generatePalette } from "@/lib/formatters"
 import type { CategoryStats } from "@/lib/torrent-utils"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartDot, chartTooltip, escHtml } from "./theme"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { CHART_THEME, chartTooltip, chartTooltipRow, escHtml } from "./lib/theme"
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export interface TorrentSizeBreakdownProps {
+interface TorrentSizeBreakdownProps {
   categories: CategoryStats[]
   accentColor: string
 }
 
-export function TorrentSizeBreakdown({ categories, accentColor }: TorrentSizeBreakdownProps) {
+function TorrentSizeBreakdown({ categories, accentColor }: TorrentSizeBreakdownProps) {
   if (categories.length === 0) {
     return <ChartEmptyState height={160} message="No category data" />
   }
@@ -29,15 +29,16 @@ export function TorrentSizeBreakdown({ categories, accentColor }: TorrentSizeBre
   const option: EChartsOption = {
     backgroundColor: "transparent",
     tooltip: chartTooltip("axis", {
+      borderColor: accentColor,
       axisPointer: { type: "shadow" },
       formatter: (params: unknown) => {
         const p = (params as { name: string; value: number; color: string }[])[0]
         if (!p) return ""
         const cat = top.find((c) => c.name === p.name)
         return [
-          `${chartDot(p.color)}<span style="font-weight:600;color:${p.color}">${escHtml(p.name)}</span>`,
-          `Size: ${formatBytesNum(p.value)}`,
-          cat ? `Torrents: ${cat.count}` : "",
+          `<span style="font-weight:600;color:${p.color}">${escHtml(p.name)}</span>`,
+          chartTooltipRow(p.color, "Size", formatBytesNum(p.value)),
+          cat ? chartTooltipRow(CHART_THEME.neutral, "Torrents", String(cat.count)) : "",
         ]
           .filter(Boolean)
           .join("<br/>")
@@ -83,12 +84,12 @@ export function TorrentSizeBreakdown({ categories, accentColor }: TorrentSizeBre
   }
 
   return (
-    <ReactECharts
+    <ChartECharts
       option={option}
       style={{ height: Math.max(160, top.length * 36), width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
     />
   )
 }
+
+export type { TorrentSizeBreakdownProps }
+export { TorrentSizeBreakdown }

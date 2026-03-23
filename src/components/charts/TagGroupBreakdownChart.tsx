@@ -1,12 +1,15 @@
 // src/components/charts/TagGroupBreakdownChart.tsx
+//
+// Functions: memberColor, barOption, donutOption, treemapOption, TagGroupBreakdownChart, numbersNeedsWideCard
 
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
 import { hexToRgba } from "@/lib/formatters"
 import type { TagGroupChartType } from "@/types/api"
-import { CHART_THEME, chartAxisLabel, chartTooltip } from "./theme"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { CHART_THEME, chartAxisLabel, chartTooltip } from "./lib/theme"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -49,6 +52,7 @@ function barOption(
   return {
     backgroundColor: "transparent",
     tooltip: chartTooltip("axis", {
+      borderColor: accentColor,
       axisPointer: { type: "shadow" },
       formatter: (params: unknown) => {
         const p = params as Array<{ name: string; value: number }>
@@ -114,6 +118,7 @@ function donutOption(
   return {
     backgroundColor: "transparent",
     tooltip: chartTooltip("item", {
+      borderColor: accentColor,
       formatter: (params: unknown) => {
         const p = params as { name: string; value: number; percent: number }
         return `<span style="font-family:${CHART_THEME.fontMono}">${p.name}: <b>${p.value}</b> (${p.percent}%)</span>`
@@ -162,6 +167,7 @@ function treemapOption(
   return {
     backgroundColor: "transparent",
     tooltip: chartTooltip("item", {
+      borderColor: accentColor,
       formatter: (params: unknown) => {
         const p = params as { name: string; value: number }
         return `<span style="font-family:${CHART_THEME.fontMono}">${p.name}: <b>${p.value}</b></span>`
@@ -219,21 +225,71 @@ function TagGroupBreakdownChart({
       items.push({ label: "Unmatched", count: unmatchedCount, color: CHART_THEME.textTertiary })
     }
     if (items.length === 0) return null
+
+    const total = items.reduce((sum, m) => sum + m.count, 0)
+    const maxCount = Math.max(...items.map((m) => m.count))
+
+    // Single item: hero layout
+    if (items.length === 1) {
+      const m = items[0]
+      const color = memberColor(accentColor, m, 0, 1)
+      return (
+        <div className="flex flex-col items-center justify-center gap-2 py-6">
+          <span className="font-mono text-5xl font-bold tabular-nums" style={{ color }}>
+            {m.count.toLocaleString()}
+          </span>
+          <span className="text-sm font-sans font-medium text-secondary">{m.label}</span>
+        </div>
+      )
+    }
+
+    // 2+ items: stat tiles with proportional accent bars
+    const gridCols =
+      items.length <= 3
+        ? "grid-cols-1 sm:grid-cols-3"
+        : items.length <= 6
+          ? "grid-cols-2 sm:grid-cols-3"
+          : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
+
     return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {items.map((m, i) => (
-          <div key={m.label} className="flex flex-col gap-1 p-3 nm-inset-sm rounded-nm-md">
-            <span className="text-xs font-sans font-medium text-tertiary uppercase tracking-wider truncate">
-              {m.label}
-            </span>
-            <span
-              className="font-mono text-xl font-semibold"
-              style={{ color: memberColor(accentColor, m, i, items.length) }}
-            >
-              {m.count}
-            </span>
-          </div>
-        ))}
+      <div className="flex flex-col gap-3">
+        <div className={`grid ${gridCols} gap-2`}>
+          {items.map((m, i) => {
+            const color = memberColor(accentColor, m, i, items.length)
+            const pct = total > 0 ? (m.count / total) * 100 : 0
+            const barWidth = maxCount > 0 ? (m.count / maxCount) * 100 : 0
+
+            return (
+              <div
+                key={m.label}
+                className="relative flex flex-col gap-1 p-3 nm-inset-sm rounded-nm-md overflow-hidden"
+              >
+                <span className="text-[10px] font-sans font-medium text-tertiary uppercase tracking-wider leading-tight">
+                  {m.label}
+                </span>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="font-mono text-lg font-semibold tabular-nums" style={{ color }}>
+                    {m.count.toLocaleString()}
+                  </span>
+                  <span className="text-[10px] font-mono text-tertiary">{pct.toFixed(0)}%</span>
+                </div>
+                {/* Proportional bar */}
+                <div className="h-0.5 mt-0.5 rounded-full bg-control-bg">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{ width: `${barWidth}%`, backgroundColor: color }}
+                  />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        {/* Total footer */}
+        <div className="flex justify-end px-1">
+          <span className="text-[10px] font-mono text-tertiary">
+            Total: {total.toLocaleString()}
+          </span>
+        </div>
       </div>
     )
   }
@@ -243,7 +299,7 @@ function TagGroupBreakdownChart({
     allMembers.push({ label: "Untagged", count: unmatchedCount, color: CHART_THEME.textTertiary })
   }
 
-  if (allMembers.length === 0) return null
+  if (allMembers.length === 0) return <ChartEmptyState height={200} message="No data available." />
 
   let option: EChartsOption
   let height: number
@@ -263,16 +319,18 @@ function TagGroupBreakdownChart({
       break
   }
 
-  return (
-    <ReactECharts
-      option={option}
-      style={{ height, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
-    />
-  )
+  return <ChartECharts option={option} style={{ height, width: "100%" }} />
+}
+
+/** Returns true if a numbers-mode chart with this many members should span full width */
+function numbersNeedsWideCard(
+  memberCount: number,
+  countUnmatched?: boolean,
+  unmatchedCount?: number
+): boolean {
+  const total = memberCount + (countUnmatched && unmatchedCount != null ? 1 : 0)
+  return total > 5
 }
 
 export type { TagGroupBreakdownChartProps }
-export { TagGroupBreakdownChart }
+export { numbersNeedsWideCard, TagGroupBreakdownChart }

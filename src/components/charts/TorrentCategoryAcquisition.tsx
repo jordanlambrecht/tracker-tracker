@@ -3,11 +3,12 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
 import { generatePalette } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { CHART_THEME, chartTooltip } from "./theme"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { buildTimeXAxis } from "./lib/chart-helpers"
+import { CHART_THEME, chartGrid, chartTooltip } from "./lib/theme"
 
 // ---------------------------------------------------------------------------
 // Props
@@ -22,10 +23,7 @@ interface TorrentCategoryAcquisitionProps {
 // Component
 // ---------------------------------------------------------------------------
 
-export function TorrentCategoryAcquisition({
-  torrents,
-  accentColor,
-}: TorrentCategoryAcquisitionProps) {
+function TorrentCategoryAcquisition({ torrents, accentColor }: TorrentCategoryAcquisitionProps) {
   const withDates = torrents.filter((t) => t.addedOn > 0)
   if (withDates.length < 2) {
     return <ChartEmptyState height={280} message="Need 2+ torrents with dates" />
@@ -48,17 +46,22 @@ export function TorrentCategoryAcquisition({
   const categories = [...allCategories]
   const palette = generatePalette(categories.length, accentColor)
 
+  // Convert month keys to timestamps once for reuse across all series
+  const monthTimestamps = months.map((m) => new Date(`${m}-15T12:00:00`).getTime())
+
   const series = categories.map((cat, i) => ({
     name: cat,
     type: "bar" as const,
     stack: "total",
     emphasis: { focus: "series" as const },
-    barWidth: "60%",
+    barWidth: 20,
     itemStyle: {
       color: palette[i],
       borderRadius: i === categories.length - 1 ? [2, 2, 0, 0] : undefined,
     },
-    data: months.map((m) => monthCatMap.get(m)?.get(cat) ?? 0),
+    data: monthTimestamps.map(
+      (ts, idx) => [ts, monthCatMap.get(months[idx])?.get(cat) ?? 0] as [number, number]
+    ),
   }))
 
   const option: EChartsOption = {
@@ -76,20 +79,8 @@ export function TorrentCategoryAcquisition({
       pageIconColor: CHART_THEME.textSecondary,
       pageIconInactiveColor: CHART_THEME.textTertiary,
     },
-    grid: { left: 48, right: 16, top: 16, bottom: 48 },
-    xAxis: {
-      type: "category",
-      data: months,
-      axisLabel: {
-        color: CHART_THEME.textTertiary,
-        fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
-        rotate: months.length > 12 ? 30 : 0,
-        interval: "auto",
-      },
-      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
-      axisTick: { show: false },
-    },
+    grid: chartGrid({ left: 48, right: 16, top: 16, bottom: 48 }),
+    xAxis: buildTimeXAxis({ boundaryGap: ["5%", "5%"] }),
     yAxis: {
       type: "value",
       splitLine: { lineStyle: { color: CHART_THEME.gridLine } },
@@ -102,13 +93,8 @@ export function TorrentCategoryAcquisition({
     series,
   }
 
-  return (
-    <ReactECharts
-      option={option}
-      style={{ height: 280, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
-    />
-  )
+  return <ChartECharts option={option} style={{ height: 280, width: "100%" }} />
 }
+
+export type { TorrentCategoryAcquisitionProps }
+export { TorrentCategoryAcquisition }

@@ -8,9 +8,9 @@ import ReactECharts from "echarts-for-react"
 import "echarts-gl"
 import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { autoByteScale, fmtNum } from "./chart-helpers"
-import { CHART_THEME, chartAxisLabel, chartTooltip, escHtml } from "./theme"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { autoByteScale, fmtNum } from "./lib/chart-helpers"
+import { CHART_THEME, chartAxisLabel, chartTooltip, escHtml } from "./lib/theme"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -227,7 +227,7 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
     grid.granularity === "month" ? "Month" : grid.granularity === "week" ? "Week" : "Day"
 
   return {
-    backgroundColor: CHART_THEME.elevated,
+    backgroundColor: "transparent",
     tooltip: chartTooltip("item", {
       show: true,
       formatter: (params: { value: number[] }) => {
@@ -243,6 +243,14 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
         )
       },
     }),
+    // NOTE: echarts-gl does register type:"time" for xAxis3D (see createAxis3DModel.js),
+    // but it is a degraded stub — it inherits valueAxis numeric behavior and does NOT
+    // support ECharts' cascading date formatter or hideOverlap. More importantly,
+    // bar3D data points map dimensions as either 'ordinal' (category) or 'float' (everything
+    // else), so a time axis would require every data point to carry a Unix timestamp instead
+    // of a bucket index, breaking the [bucketIdx, trackerIdx, value] tuple structure.
+    // Pre-formatting labels via formatBucketLabel() and using type:"category" is the correct
+    // approach here. The hour axis on heatmap variants should also stay as category.
     xAxis3D: {
       type: "category",
       data: displayLabels,
@@ -304,7 +312,7 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
         },
         ambient: { intensity: 0.3 },
       },
-      environment: CHART_THEME.elevated,
+      environment: CHART_THEME.surface,
     },
     visualMap: {
       show: false,
@@ -361,13 +369,15 @@ function VolumeSurface3D({ trackerData, height = 480 }: VolumeSurface3DProps) {
   }
 
   return (
-    <ReactECharts
-      option={option}
-      style={{ height, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
-    />
+    <div className="rounded-nm-md overflow-hidden" style={{ backgroundColor: CHART_THEME.surface }}>
+      <ReactECharts
+        option={option}
+        style={{ height, width: "100%" }}
+        opts={{ renderer: "canvas" }}
+        notMerge
+        lazyUpdate
+      />
+    </div>
   )
 }
 

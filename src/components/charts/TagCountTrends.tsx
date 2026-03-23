@@ -7,21 +7,20 @@
 import type { EChartsOption } from "echarts"
 import type { FleetSnapshot } from "@/lib/fleet"
 import { extractTagsFromSnapshots } from "@/lib/fleet"
-import { ChartECharts } from "./ChartECharts"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { buildAxisPointer } from "./chart-helpers"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { buildAxisPointer, buildTimeXAxis } from "./lib/chart-helpers"
 import {
   buildTagColors,
   CHART_THEME,
   chartAxisLabel,
-  chartDot,
   chartGrid,
   chartLegend,
   chartTooltip,
   chartTooltipHeader,
-  escHtml,
+  chartTooltipRow,
   formatChartTimestamp,
-} from "./theme"
+} from "./lib/theme"
 
 type TagCountMode = "seeding" | "leeching"
 
@@ -112,11 +111,9 @@ function buildOption(snapshots: FleetSnapshot[], mode: TagCountMode): EChartsOpt
         const rows = items
           .filter((item) => item.value[1] > 0)
           .sort((a, b) => b.value[1] - a.value[1])
-          .map((item) => {
-            const dot = chartDot(item.color)
-            const count = item.value[1].toLocaleString()
-            return `${dot}<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${count}</span>`
-          })
+          .map((item) =>
+            chartTooltipRow(item.color, item.seriesName, item.value[1].toLocaleString())
+          )
           .join("<br/>")
 
         return `${chartTooltipHeader(dateLabel)}${rows}`
@@ -124,10 +121,7 @@ function buildOption(snapshots: FleetSnapshot[], mode: TagCountMode): EChartsOpt
     }),
     grid: chartGrid({ right: 16, left: 56 }),
     xAxis: {
-      type: "time",
-      axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
-      axisTick: { show: false },
-      axisLabel: chartAxisLabel(),
+      ...buildTimeXAxis(),
       splitLine: { show: false },
     },
     yAxis: {
@@ -167,15 +161,7 @@ function TagCountTrends({ snapshots, mode, height = 360 }: TagCountTrendsProps) 
     )
   }
 
-  return (
-    <ChartECharts
-      option={buildOption(snapshots, mode)}
-      style={{ height, width: "100%" }}
-      opts={{ renderer: "canvas" }}
-      notMerge
-      lazyUpdate
-    />
-  )
+  return <ChartECharts option={buildOption(snapshots, mode)} style={{ height, width: "100%" }} />
 }
 
 export type { TagCountTrendsProps }

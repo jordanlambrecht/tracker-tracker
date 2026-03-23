@@ -5,14 +5,15 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import ReactECharts from "echarts-for-react"
 import { useState } from "react"
+import { TabBar } from "@/components/ui/TabBar"
 import { hexToRgba } from "@/lib/formatters"
 import type { TrackerSnapshotSeries } from "@/types/charts"
-import { ChartEmptyState } from "./ChartEmptyState"
-import { fmtNum } from "./chart-helpers"
-import { computeDailyDeltas } from "./chart-transforms"
-import { CHART_THEME, chartTooltip, escHtml } from "./theme"
+import { ChartECharts } from "./lib/ChartECharts"
+import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { fmtNum } from "./lib/chart-helpers"
+import { computeDailyDeltas } from "./lib/chart-transforms"
+import { CHART_THEME, chartTooltip, chartTooltipRow, escHtml } from "./lib/theme"
 
 type VolumeField = "upload" | "download"
 
@@ -42,7 +43,7 @@ function buildCalendarData(
 
   const entries = Array.from(dayMap.entries()).sort(([a], [b]) => a.localeCompare(b))
 
-  // Fixed 365-day window ending today — matches GitHub's contribution graph
+  // Fixed 365-day window ending today
   const today = new Date()
   const yearAgo = new Date(today)
   yearAgo.setFullYear(yearAgo.getFullYear() - 1)
@@ -86,7 +87,7 @@ function buildFleetVolumeCalendarOption(
         const display = gib >= 1024 ? `${fmtNum(gib / 1024)} TiB` : `${fmtNum(gib)} GiB`
         return (
           `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(dateLabel)}</span><br/>` +
-          `<span style="color:${color};">${label}: ${display}</span>`
+          chartTooltipRow(color, label, display)
         )
       },
     }),
@@ -159,32 +160,20 @@ function FleetVolumeCalendar({ trackerData, height = 200 }: FleetVolumeCalendarP
 
   return (
     <div>
-      <div className="flex justify-end gap-1 pb-2">
-        <button
-          type="button"
-          onClick={() => setField("upload")}
-          className={`px-2.5 py-1 text-[10px] font-mono rounded-nm-sm cursor-pointer transition-colors duration-150 ${
-            field === "upload" ? "nm-raised-sm text-accent" : "text-tertiary hover:text-secondary"
-          }`}
-        >
-          Upload
-        </button>
-        <button
-          type="button"
-          onClick={() => setField("download")}
-          className={`px-2.5 py-1 text-[10px] font-mono rounded-nm-sm cursor-pointer transition-colors duration-150 ${
-            field === "download" ? "nm-raised-sm text-warn" : "text-tertiary hover:text-secondary"
-          }`}
-        >
-          Download
-        </button>
+      <div className="flex justify-end pb-2">
+        <TabBar
+          compact
+          tabs={[
+            { key: "upload" as const, label: "Upload" },
+            { key: "download" as const, label: "Download" },
+          ]}
+          activeTab={field}
+          onChange={setField}
+        />
       </div>
-      <ReactECharts
+      <ChartECharts
         option={buildFleetVolumeCalendarOption(entries, maxValue, dateRange, field)}
         style={{ height, width: "100%" }}
-        opts={{ renderer: "canvas" }}
-        notMerge
-        lazyUpdate
       />
     </div>
   )

@@ -1,7 +1,7 @@
 // src/lib/__tests__/metric-chart.test.ts
 
 import { describe, expect, it } from "vitest"
-import { computeDailyDeltas } from "@/components/charts/chart-transforms"
+import { computeDailyDeltas } from "@/components/charts/lib/chart-transforms"
 import { extractRankHistory } from "@/components/dashboard/RankProgress"
 import type { Snapshot } from "@/types/api"
 
