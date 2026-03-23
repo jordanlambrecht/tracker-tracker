@@ -86,6 +86,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       updates.consecutiveFailures = 0
       updates.lastError = null
     }
+    log.info({ route: "PATCH /api/trackers/[id]", trackerId, action: body.pollingPaused ? "paused" : "resumed" }, "polling toggled")
   }
 
   if (body.joinedAt !== undefined) {

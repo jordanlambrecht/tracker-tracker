@@ -1,15 +1,15 @@
 // src/lib/torrent-utils.ts
 //
-// Functions: mapTorrent, parseTorrentTags
+// Functions: mapTorrent
 // Types: QbtTorrentRaw, TorrentInfo, AggregatedTorrentsResponse, CategoryStats
 //
 // Re-exports SEEDING_STATES, LEECHING_STATES from fleet.ts (single source of truth).
 // QbtTorrentRaw is an alias for TorrentRaw from fleet.ts.
 
-import { LEECHING_STATES, SEEDING_STATES, type TorrentRaw } from "@/lib/fleet"
+import { LEECHING_STATES, parseTorrentTags, SEEDING_STATES, type TorrentRaw } from "@/lib/fleet"
 
-// Re-export constants from fleet.ts — single source of truth
-export { LEECHING_STATES, SEEDING_STATES }
+// Re-export constants and utilities from fleet.ts — single source of truth
+export { LEECHING_STATES, parseTorrentTags, SEEDING_STATES }
 
 // QbtTorrentRaw is the same shape as TorrentRaw (fleet.ts) — aliased here
 // for semantic clarity in per-tracker contexts vs fleet-wide contexts.
@@ -102,17 +102,4 @@ export function mapTorrent(raw: QbtTorrentRaw): TorrentInfo {
     progress: raw.progress,
     clientName: raw.client_name,
   }
-}
-
-/**
- * Split comma-separated qBT tag string into trimmed array.
- * Preserves original case — unlike fleet.ts parseTorrentTags which lowercases.
- * Case-preserving is needed here for per-tracker tag group matching where
- * member.tag casing must match exactly.
- */
-export function parseTorrentTags(rawTags: string): string[] {
-  return rawTags
-    .split(",")
-    .map((t) => t.trim())
-    .filter((t) => t.length > 0)
 }

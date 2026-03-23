@@ -322,13 +322,13 @@ function useTrackerTorrents({
         const memberCounts = group.members
           .map((member) => {
             const count = torrents.filter((t) =>
-              parseTorrentTags(t.tags).includes(member.tag)
+              parseTorrentTags(t.tags, false).includes(member.tag)
             ).length
             return { label: member.label, count, color: member.color }
           })
           .filter((m) => m.count > 0)
         const unmatchedCount = torrents.filter((t) => {
-          const tags = parseTorrentTags(t.tags)
+          const tags = parseTorrentTags(t.tags, false)
           return !tags.some((tag) => allGroupTags.includes(tag))
         }).length
         return { group, memberCounts, unmatchedCount }
@@ -340,7 +340,7 @@ function useTrackerTorrents({
           .filter(([, entry]) => entry.enabled)
           .map(([key, entry]) => {
             const count = torrents.filter((t) =>
-              parseTorrentTags(t.tags).includes(entry.tag)
+              parseTorrentTags(t.tags, false).includes(entry.tag)
             ).length
             const labelMap: Record<string, string> = {
               issue: "Issue",

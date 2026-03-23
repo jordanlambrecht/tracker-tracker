@@ -56,8 +56,7 @@ export function TrackerStatusBanner({
             </span>
           </div>
           <p className="text-sm font-mono text-secondary mt-2">
-            Automated polling is paused. Manual polls via "Poll Now" still work. Use the resume
-            button in the header to restore scheduled polling.
+            Automated polling is paused by the user.
           </p>
         </Card>
       )}

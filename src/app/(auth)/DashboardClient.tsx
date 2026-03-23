@@ -6,7 +6,7 @@
 
 import { useMemo, useState } from "react"
 import { H1, H2 } from "@typography"
-import { CHART_THEME } from "@/components/charts/theme"
+import { CHART_THEME } from "@/components/charts/lib/theme"
 import { AlertsBanner } from "@/components/dashboard/AlertsBanner"
 import { AnalyticsSection } from "@/components/dashboard/AnalyticsSection"
 import { DashboardSettingsSheet } from "@/components/dashboard/DashboardSettingsSheet"

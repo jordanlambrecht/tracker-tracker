@@ -1,6 +1,4 @@
 // src/lib/image-hosting/ptpimg.ts
-//
-// Functions: upload (via ptpimgAdapter)
 
 import type { ImageHostAdapter, UploadOptions, UploadResult } from "./types"
 

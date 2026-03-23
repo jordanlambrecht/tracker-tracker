@@ -123,8 +123,8 @@ function sanitizeLogDetail(line: PinoLine): string | null {
     parts.push(`ip=[redacted]`)
   }
 
-  // For error-level lines, sanitize the message
-  if (line.level >= 50 && line.msg) {
+  // For warn+ lines, sanitize the message to strip raw error details
+  if (line.level >= 40 && line.msg) {
     parts.push(sanitizeNetworkError(line.msg, redactIps(line.msg)))
   }
 
@@ -157,7 +157,9 @@ export function parseLogLine(raw: string): SystemEvent | null {
     timestamp: new Date(line.time).toISOString(),
     category,
     level: severity,
-    title: redactIps(line.msg ?? line.event ?? "Unknown event"),
+    title: line.level >= 40
+      ? sanitizeNetworkError(line.msg ?? "Unknown event", redactIps(line.msg ?? line.event ?? "Unknown event"))
+      : redactIps(line.msg ?? line.event ?? "Unknown event"),
     detail: sanitizeLogDetail(line),
     trackerId: typeof line.trackerId === "number" ? line.trackerId : null,
     trackerName: typeof line.trackerName === "string" ? line.trackerName : null,

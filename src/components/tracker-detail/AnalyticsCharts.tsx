@@ -117,9 +117,9 @@ export function AnalyticsCharts({
           <MetricChart metric="dailyDelta" snapshots={snapshots} accentColor={tc} />
         </Card>
 
-        {/* Upload by Time of Day */}
+        {/* Activity by Time of Day */}
         <Card trackerColor={tc} className="flex flex-col gap-4">
-          <H2>Upload by Time of Day</H2>
+          <H2>Activity by Time of Day</H2>
           <UploadPolarChart snapshots={snapshots} accentColor={tc} />
         </Card>
       </div>

@@ -26,7 +26,7 @@ import { type CSSProperties, useCallback, useEffect, useRef, useState } from "re
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { AddTrackerDialog } from "@/components/AddTrackerDialog"
-import { CHART_THEME } from "@/components/charts/theme"
+import { CHART_THEME } from "@/components/charts/lib/theme"
 import { Button } from "@/components/ui/Button"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { DownloadArrowIcon, EyeIcon, EyeOffIcon, UploadArrowIcon } from "@/components/ui/Icons"

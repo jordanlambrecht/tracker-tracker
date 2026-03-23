@@ -2,7 +2,7 @@
 
 import { render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { CHART_THEME } from "@/components/charts/theme"
+import { CHART_THEME } from "@/components/charts/lib/theme"
 import { StatCard } from "@/components/ui/StatCard"
 
 const ACCENT = CHART_THEME.accent
