@@ -1,8 +1,13 @@
 # .github/workflows/docs.yml
-name: Deploy Docs
+name: Docs
 
 on:
   push:
+    branches: [main]
+    paths:
+      - "docs/kb/**"
+      - ".github/workflows/docs.yml"
+  pull_request:
     branches: [main]
     paths:
       - "docs/kb/**"
@@ -13,7 +18,8 @@ permissions:
   contents: write
 
 jobs:
-  deploy:
+  build:
+    name: Docs Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -25,5 +31,23 @@ jobs:
       - name: Install MkDocs Material
         run: pip install -r docs/kb/requirements.txt
 
-      - name: Build and deploy
+      - name: Build docs
+        run: mkdocs build --strict --config-file docs/kb/mkdocs.yml
+
+  deploy:
+    name: Docs Deploy
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install MkDocs Material
+        run: pip install -r docs/kb/requirements.txt
+
+      - name: Deploy to GitHub Pages
         run: mkdocs gh-deploy --force --config-file docs/kb/mkdocs.yml

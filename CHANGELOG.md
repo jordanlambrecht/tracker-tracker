@@ -2,7 +2,6 @@
 
 ## [2.3.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.1.1...v2.3.0) (2026-03-21)
 
-
 ### Features
 
 - add alertSlideIn keyframe animation ([f59ab88](https://github.com/jordanlambrecht/tracker-tracker/commit/f59ab8854669d8592422da27f8e74a9c7d643216))
@@ -20,14 +19,12 @@
 - replace manual polling with TanStack Query ([0129020](https://github.com/jordanlambrecht/tracker-tracker/commit/0129020d3caba64431485bd4d7fb7b3647853fab))
 - wire notification dispatch into tracker polling scheduler ([1d8f4fc](https://github.com/jordanlambrecht/tracker-tracker/commit/1d8f4fc622d79400f0bf52b7fc7678fd123dea42))
 
-
 ### Bug Fixes
 
 - added size props to dialog comp ([46a8160](https://github.com/jordanlambrecht/tracker-tracker/commit/46a816081276ab068310b36a040ee6ada8fd4441))
 - round dashOffset to 2 decimal places ([5f23be2](https://github.com/jordanlambrecht/tracker-tracker/commit/5f23be24545c5544bd96813288b4bd065bc2d246))
 - update notificationDeliveryState schema to add foreign key constraint for targetId ([1319b8d](https://github.com/jordanlambrecht/tracker-tracker/commit/1319b8d168cd192627ab9c874120174317034738))
 - update timestamp format ([2d01aba](https://github.com/jordanlambrecht/tracker-tracker/commit/2d01abaf76a46e7f93353ce1e17461d3d112e22a))
-
 
 ### Refactoring
 
@@ -48,7 +45,6 @@
 
 ## [2.2.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.1.1...v2.2.0) (2026-03-20)
 
-
 ### Features
 
 - add notification delivery pipeline with circuit breaker and cooldowns ([14d3982](https://github.com/jordanlambrecht/tracker-tracker/commit/14d3982c19e017b5d4b932953bcc8ae6fcfbd839))
@@ -63,7 +59,6 @@
 - integrate notification targets with backup, restore, and nuke ([655393e](https://github.com/jordanlambrecht/tracker-tracker/commit/655393ebc32887548e7bcea5a08d2db3cb62410f))
 - replace manual polling with TanStack Query ([0129020](https://github.com/jordanlambrecht/tracker-tracker/commit/0129020d3caba64431485bd4d7fb7b3647853fab))
 - wire notification dispatch into tracker polling scheduler ([1d8f4fc](https://github.com/jordanlambrecht/tracker-tracker/commit/1d8f4fc622d79400f0bf52b7fc7678fd123dea42))
-
 
 ### Refactoring
 
@@ -87,7 +82,6 @@
 
 ## [2.0.2](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.11.3...v2.0.2) (2026-03-18)
 
-
 ### Features
 
 - add boot-time scheduler recovery ([b1b1499](https://github.com/jordanlambrecht/tracker-tracker/commit/b1b1499d4cce5cfd3a621c9023ffd1f47c04322f))
@@ -104,19 +98,16 @@
 - persist scheduler key on login, keep running through logout ([eca1cad](https://github.com/jordanlambrecht/tracker-tracker/commit/eca1cad3ff7d7ef86cae43876e99b5cb1f75d9d9))
 - postgresql 18 infrastructure with migration script ([4178cad](https://github.com/jordanlambrecht/tracker-tracker/commit/4178cad4d78dc210323850e5623ebc7b16505cb0))
 
-
 ### Bug Fixes
 
 - add icons metadata for favicon ([d048355](https://github.com/jordanlambrecht/tracker-tracker/commit/d04835500a5d8071215a3613d678c1aaba51c7cd))
 - biome filter for noImportantStyles ([ae2fd08](https://github.com/jordanlambrecht/tracker-tracker/commit/ae2fd08b542a2c87cd080ce59dffe8e47ffcaace))
 - hopefully fixed un/pw field flashing on login screen ([2482473](https://github.com/jordanlambrecht/tracker-tracker/commit/2482473b950519f9bffe6cb459ec82f3bb2a9a73))
 
-
 ### Performance
 
 - add database indexes, column type improvements, and connection pool tuning ([c949145](https://github.com/jordanlambrecht/tracker-tracker/commit/c949145f502fe6e549bc060e15af3f2f33eb59ca))
 - distinct on query, column projections, batch inserts, jsonb/array cleanup ([f5cc7ca](https://github.com/jordanlambrecht/tracker-tracker/commit/f5cc7ca22d4c72740f627f321c0258abbd4fa96c))
-
 
 ### Refactoring
 
@@ -130,7 +121,6 @@
 
 ## [2.0.1](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.11.3...v2.0.1) (2026-03-18)
 
-
 ### Features
 
 - add boot-time scheduler recovery ([b1b1499](https://github.com/jordanlambrecht/tracker-tracker/commit/b1b1499d4cce5cfd3a621c9023ffd1f47c04322f))
@@ -147,19 +137,16 @@
 - persist scheduler key on login, keep running through logout ([eca1cad](https://github.com/jordanlambrecht/tracker-tracker/commit/eca1cad3ff7d7ef86cae43876e99b5cb1f75d9d9))
 - postgresql 18 infrastructure with migration script ([4178cad](https://github.com/jordanlambrecht/tracker-tracker/commit/4178cad4d78dc210323850e5623ebc7b16505cb0))
 
-
 ### Bug Fixes
 
 - add icons metadata for favicon ([d048355](https://github.com/jordanlambrecht/tracker-tracker/commit/d04835500a5d8071215a3613d678c1aaba51c7cd))
 - biome filter for noImportantStyles ([ae2fd08](https://github.com/jordanlambrecht/tracker-tracker/commit/ae2fd08b542a2c87cd080ce59dffe8e47ffcaace))
 - hopefully fixed un/pw field flashing on login screen ([2482473](https://github.com/jordanlambrecht/tracker-tracker/commit/2482473b950519f9bffe6cb459ec82f3bb2a9a73))
 
-
 ### Performance
 
 - add database indexes, column type improvements, and connection pool tuning ([c949145](https://github.com/jordanlambrecht/tracker-tracker/commit/c949145f502fe6e549bc060e15af3f2f33eb59ca))
 - distinct on query, column projections, batch inserts, jsonb/array cleanup ([f5cc7ca](https://github.com/jordanlambrecht/tracker-tracker/commit/f5cc7ca22d4c72740f627f321c0258abbd4fa96c))
-
 
 ### Refactoring
 
@@ -173,7 +160,6 @@
 
 ## [2.0.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.11.3...v2.0.0) (2026-03-18)
 
-
 ### Features
 
 - add boot-time scheduler recovery ([b1b1499](https://github.com/jordanlambrecht/tracker-tracker/commit/b1b1499d4cce5cfd3a621c9023ffd1f47c04322f))
@@ -190,19 +176,16 @@
 - persist scheduler key on login, keep running through logout ([eca1cad](https://github.com/jordanlambrecht/tracker-tracker/commit/eca1cad3ff7d7ef86cae43876e99b5cb1f75d9d9))
 - postgresql 18 infrastructure with migration script ([4178cad](https://github.com/jordanlambrecht/tracker-tracker/commit/4178cad4d78dc210323850e5623ebc7b16505cb0))
 
-
 ### Bug Fixes
 
 - add icons metadata for favicon ([d048355](https://github.com/jordanlambrecht/tracker-tracker/commit/d04835500a5d8071215a3613d678c1aaba51c7cd))
 - biome filter for noImportantStyles ([ae2fd08](https://github.com/jordanlambrecht/tracker-tracker/commit/ae2fd08b542a2c87cd080ce59dffe8e47ffcaace))
 - hopefully fixed un/pw field flashing on login screen ([2482473](https://github.com/jordanlambrecht/tracker-tracker/commit/2482473b950519f9bffe6cb459ec82f3bb2a9a73))
 
-
 ### Performance
 
 - add database indexes, column type improvements, and connection pool tuning ([c949145](https://github.com/jordanlambrecht/tracker-tracker/commit/c949145f502fe6e549bc060e15af3f2f33eb59ca))
 - distinct on query, column projections, batch inserts, jsonb/array cleanup ([f5cc7ca](https://github.com/jordanlambrecht/tracker-tracker/commit/f5cc7ca22d4c72740f627f321c0258abbd4fa96c))
-
 
 ### Refactoring
 
@@ -512,7 +495,7 @@
 - Login timer cards link to tracker site with hover external-link indicator
 - Rank timeline: promotion/demotion chevrons (green/red), anniversary milestones, horizontal scroll
 - Swipe/drag gestures on sidebar client carousel (pointer events with capture)
-- 4 new draft trackers: AsianCinema, Bibliotik, UHDBits, Seed Pool
+- 4 new draft trackers: AsianCinema, Bibliotik, UHDBits, SeedPool
 - TrackerHub slugs and status page URLs populated across 19 existing trackers
 - Download client uptime tracking: 24h heartbeat history displayed as a horizontal status bar in each client's settings card, with 5-minute bucket granularity and long-term retention for future chart overlays
 - Live active torrents: 5-second polling of actively transferring torrents on tracker detail page with live speed/state updates

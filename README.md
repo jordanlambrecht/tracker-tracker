@@ -174,7 +174,6 @@ All other settings — polling interval, privacy mode, proxy, backups — are co
 | `./data/logs`    | `/data/logs`    | Application log files                   |
 | `pgdata` (named) | PG data dir     | PostgreSQL database (managed by Docker) |
 
-
 ## Adding a Tracker
 
 1. Click **+ Add Tracker** in the sidebar
