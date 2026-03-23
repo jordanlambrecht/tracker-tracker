@@ -1,4 +1,4 @@
-// src/components/charts/theme.ts
+// src/components/charts/lib/theme.ts
 //
 // Single source of truth for all chart color values. Mirrors the 3-layer
 // token system in globals.css. Every chart component imports from here —
@@ -7,6 +7,7 @@
 // Functions:
 //   escHtml             - HTML-escape untrusted strings for ECharts tooltips
 //   chartDot            - glowing dot swatch for tooltip rows
+//   chartTooltipRow     - standard tooltip row: colored dot + label + bold value
 //   chartTooltipHeader  - timestamp header for tooltip content
 //   formatChartTimestamp - locale-formatted date/time for chart tooltips
 //   chartLegend         - standard legend configuration
@@ -86,7 +87,17 @@ export function escHtml(s: string): string {
 
 /** Glowing dot swatch for tooltip rows */
 export function chartDot(color: string): string {
-  return `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:6px;box-shadow:0 0 6px ${color};"></span>`
+  const safe = /^(#[0-9a-fA-F]{3,8}|rgba?\(|hsla?\(|[a-z]+$)/.test(color) ? color : CHART_THEME.neutral
+  return `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${safe};margin-right:6px;box-shadow:0 0 6px ${safe};"></span>`
+}
+
+/** Standard tooltip row: colored dot + label + bold value */
+export function chartTooltipRow(color: string, label: string, value: string): string {
+  return (
+    chartDot(color) +
+    `<span style="color:${CHART_THEME.textSecondary};">${escHtml(label)}:</span> ` +
+    `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(value)}</span>`
+  )
 }
 
 /** Locale-formatted date/time string for chart tooltips */
@@ -133,10 +144,10 @@ export function chartLegend(overrides?: Record<string, unknown>): Record<string,
 /** Golden-angle hue distribution for maximum visual separation of chart series */
 export function buildTagColors(tags: string[]): Map<string, string> {
   const colorMap = new Map<string, string>()
-  tags.forEach((tag, i) => {
+  for (let i = 0; i < tags.length; i++) {
     const hue = (i * 137.5) % 360
-    colorMap.set(tag, `hsl(${hue}, 70%, 55%)`)
-  })
+    colorMap.set(tags[i], `hsl(${hue}, 70%, 55%)`)
+  }
   return colorMap
 }
 

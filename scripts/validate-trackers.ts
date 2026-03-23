@@ -182,7 +182,7 @@ function validate(slugFilter?: string[]): TrackerResult[] {
     }
 
     // ── Canonical field presence (every field must be explicitly set) ─
-    const obj = tracker as Record<string, unknown>
+    const obj = tracker as unknown as Record<string, unknown>
     const CANONICAL_FIELDS = [
       "slug",
       "name",

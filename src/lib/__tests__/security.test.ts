@@ -247,11 +247,12 @@ import { GET as TagGroupsGET, POST as TagGroupsPOST } from "@/app/api/tag-groups
 import { GET as TrackerAvatarGET } from "@/app/api/trackers/[id]/avatar/route"
 import { POST as DebugPOST } from "@/app/api/trackers/[id]/debug/route"
 import { POST as PollPOST } from "@/app/api/trackers/[id]/poll/route"
-import { GET as ReportGET } from "@/app/api/trackers/[id]/report/route"
+// Transit papers routes — stashed, uncomment when restored
+// import { GET as ReportGET } from "@/app/api/trackers/[id]/report/route"
 import { POST as ResumePOST } from "@/app/api/trackers/[id]/resume/route"
 import { GET as RolesGET, POST as RolesPOST } from "@/app/api/trackers/[id]/roles/route"
 import { DELETE, PATCH, GET as TrackerDetailGET } from "@/app/api/trackers/[id]/route"
-import { GET as SealGET } from "@/app/api/trackers/[id]/seal/route"
+// import { GET as SealGET } from "@/app/api/trackers/[id]/seal/route"
 import { GET as SnapshotsGET } from "@/app/api/trackers/[id]/snapshots/route"
 import { GET as TrackerTorrentsGET } from "@/app/api/trackers/[id]/torrents/route"
 import { POST as PollAllPOST } from "@/app/api/trackers/poll-all/route"
@@ -758,17 +759,18 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
     expect(res.status).toBe(401)
   })
 
-  it("GET /api/trackers/[id]/report returns 401", async () => {
-    const req = makeRequest("http://localhost/api/trackers/1/report")
-    const res = await ReportGET(req, { params: MOCK_PARAMS })
-    expect(res.status).toBe(401)
-  })
+  // Transit papers routes — stashed, uncomment when restored
+  // it("GET /api/trackers/[id]/report returns 401", async () => {
+  //   const req = makeRequest("http://localhost/api/trackers/1/report")
+  //   const res = await ReportGET(req, { params: MOCK_PARAMS })
+  //   expect(res.status).toBe(401)
+  // })
 
-  it("GET /api/trackers/[id]/seal returns 401", async () => {
-    const req = makeRequest("http://localhost/api/trackers/1/seal")
-    const res = await SealGET(req, { params: MOCK_PARAMS })
-    expect(res.status).toBe(401)
-  })
+  // it("GET /api/trackers/[id]/seal returns 401", async () => {
+  //   const req = makeRequest("http://localhost/api/trackers/1/seal")
+  //   const res = await SealGET(req, { params: MOCK_PARAMS })
+  //   expect(res.status).toBe(401)
+  // })
 })
 
 // ---------------------------------------------------------------------------
