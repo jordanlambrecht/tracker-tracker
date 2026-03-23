@@ -1,4 +1,4 @@
-// src/components/charts/ChartECharts.tsx
+// src/components/charts/lib/ChartECharts.tsx
 //
 // Functions: ChartECharts
 //
@@ -10,7 +10,7 @@
 
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
-import { type CSSProperties, useCallback, useRef, useState } from "react"
+import { type CSSProperties, useCallback, useMemo, useRef, useState } from "react"
 
 interface ChartEChartsProps {
   option: EChartsOption
@@ -20,11 +20,13 @@ interface ChartEChartsProps {
   lazyUpdate?: boolean
 }
 
+const DEFAULT_OPTS = { renderer: "canvas" as const }
+
 function ChartECharts({
   option,
   style,
-  opts = { renderer: "canvas" as const },
-  notMerge = true,
+  opts = DEFAULT_OPTS,
+  notMerge = false,
   lazyUpdate = true,
 }: ChartEChartsProps) {
   const chartRef = useRef<ReactECharts | null>(null)
@@ -37,12 +39,15 @@ function ChartECharts({
   const seriesCount = Array.isArray(series) ? series.length : 0
   const showToggle = hasLegend && seriesCount > 1
 
-  const onEvents: Record<string, (...args: never[]) => unknown> = {
-    legendselectchanged: (params: { selected: Record<string, boolean> }) => {
-      const values = Object.values(params.selected)
-      setAllSelected(values.length > 0 && values.every(Boolean))
-    },
-  }
+  const onEvents = useMemo(
+    () => ({
+      legendselectchanged: (params: { selected: Record<string, boolean> }) => {
+        const values = Object.values(params.selected)
+        setAllSelected(values.length > 0 && values.every(Boolean))
+      },
+    }),
+    []
+  )
 
   const handleToggle = useCallback(() => {
     const instance = chartRef.current?.getEchartsInstance()

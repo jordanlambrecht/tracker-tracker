@@ -87,7 +87,9 @@ export function escHtml(s: string): string {
 
 /** Glowing dot swatch for tooltip rows */
 export function chartDot(color: string): string {
-  const safe = /^(#[0-9a-fA-F]{3,8}|rgba?\(|hsla?\(|[a-z]+$)/.test(color) ? color : CHART_THEME.neutral
+  const safe = /^(#[0-9a-fA-F]{3,8}|rgba?\(|hsla?\(|[a-z]+$)/.test(color)
+    ? color
+    : CHART_THEME.neutral
   return `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${safe};margin-right:6px;box-shadow:0 0 6px ${safe};"></span>`
 }
 
@@ -177,6 +179,9 @@ export function chartTooltip(
   return {
     trigger,
     appendToBody: true,
+    confine: true,
+    extraCssText:
+      "max-height: 60vh !important; overflow-y: auto !important; scrollbar-width: thin;",
     backgroundColor: CHART_THEME.tooltipBg,
     borderColor: CHART_THEME.tooltipBorder,
     borderWidth: 1,

@@ -1,4 +1,4 @@
-// src/components/charts/ChartEmptyState.tsx
+// src/components/charts/lib/ChartEmptyState.tsx
 
 interface ChartEmptyStateProps {
   height: string | number
