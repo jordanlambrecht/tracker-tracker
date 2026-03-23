@@ -7,8 +7,8 @@ import { authenticate, parseJsonBody } from "@/lib/api-helpers"
 import { clearSession, verifyPassword } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
-import { scrubAndDeleteAll } from "@/lib/nuke"
 import { log } from "@/lib/logger"
+import { scrubAndDeleteAll } from "@/lib/nuke"
 
 export async function POST(request: Request) {
   const auth = await authenticate()

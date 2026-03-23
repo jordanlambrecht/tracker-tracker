@@ -55,7 +55,10 @@ export async function GET(
   try {
     await stat(resolved)
   } catch {
-    log.warn({ route: "GET /api/settings/backup/[id]", backupId }, "backup record exists but file not found on disk")
+    log.warn(
+      { route: "GET /api/settings/backup/[id]", backupId },
+      "backup record exists but file not found on disk"
+    )
     return NextResponse.json({ error: "Backup file not found on disk" }, { status: 404 })
   }
 

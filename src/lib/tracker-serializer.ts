@@ -6,7 +6,10 @@ import "server-only"
 
 import type { trackerSnapshots, trackers } from "@/lib/db/schema"
 
-type TrackerRow = Omit<typeof trackers.$inferSelect, "encryptedApiToken" | "avatarData" | "avatarCachedAt" | "avatarRemoteUrl">
+type TrackerRow = Omit<
+  typeof trackers.$inferSelect,
+  "encryptedApiToken" | "avatarData" | "avatarCachedAt" | "avatarRemoteUrl"
+>
 type SnapshotRow = typeof trackerSnapshots.$inferSelect
 
 export function parsePlatformMeta(raw: string | null): unknown {

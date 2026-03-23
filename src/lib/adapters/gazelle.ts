@@ -189,7 +189,9 @@ export class GazelleAdapter implements TrackerAdapter {
           }
         } catch (err) {
           // security-audit-ignore: enrichment failure is non-fatal — core stats from index are still valid
-          console.warn(`[${hostname}] Enrichment failed: ${err instanceof Error ? err.message : "unknown"}`)
+          console.warn(
+            `[${hostname}] Enrichment failed: ${err instanceof Error ? err.message : "unknown"}`
+          )
         }
       }
     }

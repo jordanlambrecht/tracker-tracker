@@ -64,7 +64,10 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
     return NextResponse.json(result)
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown"
-    log.error({ route: "GET /api/trackers/[id]/torrents", trackerId, error: message }, "torrent fetch failed")
+    log.error(
+      { route: "GET /api/trackers/[id]/torrents", trackerId, error: message },
+      "torrent fetch failed"
+    )
     return NextResponse.json({ error: "Failed to fetch torrents" }, { status: 502 })
   }
 }

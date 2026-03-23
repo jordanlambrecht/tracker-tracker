@@ -166,6 +166,9 @@ export async function POST(request: Request) {
         ? err.message
         : "Upload failed"
     log.error({ route: "POST /api/upload-image", host: hostId, error: message }, "upload failed")
-    return NextResponse.json({ error: isTimeout ? message : "Upload failed" }, { status: isTimeout ? 504 : 502 })
+    return NextResponse.json(
+      { error: isTimeout ? message : "Upload failed" },
+      { status: isTimeout ? 504 : 502 }
+    )
   }
 }

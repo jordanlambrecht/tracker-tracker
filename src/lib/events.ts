@@ -157,9 +157,13 @@ export function parseLogLine(raw: string): SystemEvent | null {
     timestamp: new Date(line.time).toISOString(),
     category,
     level: severity,
-    title: line.level >= 40
-      ? sanitizeNetworkError(line.msg ?? "Unknown event", redactIps(line.msg ?? line.event ?? "Unknown event"))
-      : redactIps(line.msg ?? line.event ?? "Unknown event"),
+    title:
+      line.level >= 40
+        ? sanitizeNetworkError(
+            line.msg ?? "Unknown event",
+            redactIps(line.msg ?? line.event ?? "Unknown event")
+          )
+        : redactIps(line.msg ?? line.event ?? "Unknown event"),
     detail: sanitizeLogDetail(line),
     trackerId: typeof line.trackerId === "number" ? line.trackerId : null,
     trackerName: typeof line.trackerName === "string" ? line.trackerName : null,
@@ -240,7 +244,7 @@ export function mergeAndSort(
   logEvents: SystemEvent[],
   category: EventCategory | "all" = "all",
   limit = 50,
-  offset = 0,
+  offset = 0
 ): SystemEvent[] {
   let combined = [...dbEvents, ...logEvents]
 

@@ -137,6 +137,9 @@ export async function DELETE(
     .delete(tagGroupMembers)
     .where(and(eq(tagGroupMembers.id, memberId), eq(tagGroupMembers.groupId, groupId)))
 
-  log.info({ route: "DELETE /api/tag-groups/[id]/members/[memberId]", groupId, memberId }, "tag group member deleted")
+  log.info(
+    { route: "DELETE /api/tag-groups/[id]/members/[memberId]", groupId, memberId },
+    "tag group member deleted"
+  )
   return NextResponse.json({ success: true })
 }

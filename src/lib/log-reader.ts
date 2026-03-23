@@ -5,7 +5,9 @@
 import { open, stat } from "node:fs/promises"
 import { DEFAULT_LOG_FILE } from "@/lib/constants"
 
-export async function readLogTail(maxBytes: number): Promise<{ content: string; sizeBytes: number }> {
+export async function readLogTail(
+  maxBytes: number
+): Promise<{ content: string; sizeBytes: number }> {
   const logFile = process.env.LOG_FILE || DEFAULT_LOG_FILE
 
   const info = await stat(logFile)

@@ -6,8 +6,8 @@ import { writeFile } from "node:fs/promises"
 import { NextResponse } from "next/server"
 import { authenticate } from "@/lib/api-helpers"
 import { DEFAULT_LOG_FILE } from "@/lib/constants"
-import { log } from "@/lib/logger"
 import { readLogTail } from "@/lib/log-reader"
+import { log } from "@/lib/logger"
 
 const MAX_BYTES = 64 * 1024 // Read last 64 KB
 

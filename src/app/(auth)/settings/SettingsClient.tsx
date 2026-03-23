@@ -66,10 +66,7 @@ export interface SettingsClientProps {
   initialProxyTrackers: { id: number; name: string; color: string }[]
 }
 
-export function SettingsClient({
-  initialSettings,
-  initialProxyTrackers,
-}: SettingsClientProps) {
+export function SettingsClient({ initialSettings, initialProxyTrackers }: SettingsClientProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("general")
 
   return (

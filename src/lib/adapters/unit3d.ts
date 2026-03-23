@@ -27,9 +27,7 @@ export class Unit3dAdapter implements TrackerAdapter {
     const hostname = new URL(baseUrl).hostname
 
     const headers: Record<string, string> =
-      options?.unit3dAuthStyle === "bearer"
-        ? { Authorization: `Bearer ${apiToken}` }
-        : {}
+      options?.unit3dAuthStyle === "bearer" ? { Authorization: `Bearer ${apiToken}` } : {}
 
     if (options?.unit3dAuthStyle !== "bearer") {
       url.searchParams.set("api_token", apiToken)
@@ -64,16 +62,19 @@ export class Unit3dAdapter implements TrackerAdapter {
     const hostname = new URL(baseUrl).hostname
 
     const headers: Record<string, string> =
-      options?.unit3dAuthStyle === "bearer"
-        ? { Authorization: `Bearer ${apiToken}` }
-        : {}
+      options?.unit3dAuthStyle === "bearer" ? { Authorization: `Bearer ${apiToken}` } : {}
 
     if (options?.unit3dAuthStyle !== "bearer") {
       url.searchParams.set("api_token", apiToken)
     }
 
     try {
-      const data = await adapterFetch<Record<string, unknown>>(url.toString(), hostname, options, headers)
+      const data = await adapterFetch<Record<string, unknown>>(
+        url.toString(),
+        hostname,
+        options,
+        headers
+      )
       return [{ label: "User Stats", endpoint: apiPath, data, error: null }]
     } catch (err) {
       return [

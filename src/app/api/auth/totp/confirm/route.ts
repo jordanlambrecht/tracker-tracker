@@ -36,7 +36,10 @@ export async function POST(request: Request) {
 
   const setup = await verifySetupToken(setupToken)
   if (!setup) {
-    log.warn({ route: "POST /api/auth/totp/confirm" }, "TOTP confirm rejected — expired or invalid setup token")
+    log.warn(
+      { route: "POST /api/auth/totp/confirm" },
+      "TOTP confirm rejected — expired or invalid setup token"
+    )
     return NextResponse.json(
       { error: "Setup token expired or invalid. Please restart enrollment." },
       { status: 400 }

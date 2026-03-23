@@ -2,22 +2,22 @@
 //
 // Functions: GET
 
-import { NextResponse } from "next/server"
 import { desc, eq } from "drizzle-orm"
+import { NextResponse } from "next/server"
 import { authenticate } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { backupHistory, trackerSnapshots, trackers } from "@/lib/db/schema"
 import {
-  EVENT_CATEGORIES,
   backupToEvent,
+  EVENT_CATEGORIES,
+  type EventCategory,
   mergeAndSort,
   parseLogLine,
-  snapshotToEvent,
-  type EventCategory,
   type SystemEvent,
+  snapshotToEvent,
 } from "@/lib/events"
-import { log } from "@/lib/logger"
 import { readLogTail } from "@/lib/log-reader"
+import { log } from "@/lib/logger"
 
 const MAX_LOG_BYTES = 256 * 1024 // 256 KB tail read
 
@@ -105,7 +105,10 @@ export async function GET(request: Request): Promise<NextResponse> {
     try {
       const { content: logContent, sizeBytes: logSize } = await readLogTail(MAX_LOG_BYTES)
       logSizeBytes = logSize
-      logEvents = logContent.split("\n").map(parseLogLine).filter((e) => e !== null)
+      logEvents = logContent
+        .split("\n")
+        .map(parseLogLine)
+        .filter((e) => e !== null)
     } catch (err) {
       if (
         !(err instanceof Error && "code" in err && (err as NodeJS.ErrnoException).code === "ENOENT")
@@ -120,7 +123,12 @@ export async function GET(request: Request): Promise<NextResponse> {
     const total = allMerged.length
     const events = allMerged.slice(offset, offset + limit)
 
-    return NextResponse.json({ events, total, hasMore: offset + events.length < total, logSizeBytes })
+    return NextResponse.json({
+      events,
+      total,
+      hasMore: offset + events.length < total,
+      logSizeBytes,
+    })
   } catch (err) {
     log.error({ route: "GET /api/settings/events", err }, "failed to fetch events")
     return NextResponse.json({ error: "Failed to fetch events" }, { status: 500 })
