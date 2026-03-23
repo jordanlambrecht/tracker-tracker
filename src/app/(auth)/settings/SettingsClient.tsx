@@ -4,25 +4,34 @@
 
 "use client"
 
-import { H1, H2, Paragraph } from "@typography"
+import { H1 } from "@typography"
 import { useState } from "react"
 import { DownloadClients } from "@/components/DownloadClients"
 import { NotificationTargets } from "@/components/NotificationTargets"
 import { QbitmanageSettings } from "@/components/QbitmanageSettings"
 import { AccountSection } from "@/components/settings/AccountSection"
-import { type BackupRecord, BackupsSection } from "@/components/settings/BackupsSection"
+import { BackupsSection } from "@/components/settings/BackupsSection"
 import { DangerZoneSection } from "@/components/settings/DangerZoneSection"
 import { DataSection } from "@/components/settings/DataSection"
+import { EventsSection } from "@/components/settings/EventsSection"
+import { ImageHostingSection } from "@/components/settings/ImageHostingSection"
+import { PrivacySection } from "@/components/settings/PrivacySection"
 import { ProxySection } from "@/components/settings/ProxySection"
-import { SecuritySection } from "@/components/settings/SecuritySection"
+import { SecurityPoliciesSection } from "@/components/settings/SecurityPoliciesSection"
+import { TwoFactorSection } from "@/components/settings/TwoFactorSection"
 import { TagGroups } from "@/components/TagGroups"
-import { Button } from "@/components/ui/Button"
-import { Card } from "@/components/ui/Card"
 import { TabBar } from "@/components/ui/TabBar"
-import { extractApiError } from "@/lib/client-helpers"
 import type { QbitmanageTagConfig } from "@/types/api"
 
-type SettingsTab = "general" | "clients" | "notifications" | "backups"
+type SettingsTab = "general" | "clients" | "notifications" | "backups" | "events"
+
+const SETTINGS_TABS: { key: SettingsTab; label: string }[] = [
+  { key: "general", label: "General" },
+  { key: "clients", label: "Download Clients" },
+  { key: "notifications", label: "Notifications" },
+  { key: "backups", label: "Backups" },
+  { key: "events", label: "Events" },
+]
 
 export interface SettingsData {
   storeUsernames: boolean
@@ -47,119 +56,68 @@ export interface SettingsData {
   backupEncryptionEnabled: boolean
   hasBackupPassword: boolean
   backupStoragePath: string | null
+  hasPtpimgKey: boolean
+  hasOeimgKey: boolean
+  hasImgbbKey: boolean
 }
 
 export interface SettingsClientProps {
   initialSettings: SettingsData
   initialProxyTrackers: { id: number; name: string; color: string }[]
-  initialBackupHistory: BackupRecord[]
 }
 
 export function SettingsClient({
   initialSettings,
   initialProxyTrackers,
-  initialBackupHistory,
 }: SettingsClientProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("general")
-
-  const settings = initialSettings
-  const proxyTrackers = initialProxyTrackers
-  const backupHistory = initialBackupHistory
-
-  // Error log (small enough to keep inline)
-  const [logLoading, setLogLoading] = useState(false)
-  const [logCopied, setLogCopied] = useState(false)
-  const [logError, setLogError] = useState<string | null>(null)
-
-  const tabs: { key: SettingsTab; label: string }[] = [
-    { key: "general", label: "General" },
-    { key: "clients", label: "Download Clients" },
-    { key: "notifications", label: "Notifications" },
-    { key: "backups", label: "Backups" },
-  ]
 
   return (
     <div className="max-w-2xl mx-auto flex flex-col gap-10 pb-16">
       <div className="flex flex-col gap-6">
         <H1>Settings</H1>
-        <TabBar tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+        <TabBar tabs={SETTINGS_TABS} activeTab={activeTab} onChange={setActiveTab} />
       </div>
 
       {activeTab === "general" && (
         <>
-          <AccountSection
-            initialStoreUsernames={settings.storeUsernames}
-            initialUsername={settings.username ?? ""}
+          <AccountSection initialUsername={initialSettings.username ?? ""} />
+
+          <TwoFactorSection />
+
+          <PrivacySection initialStoreUsernames={initialSettings.storeUsernames} />
+
+          <DataSection initialPollInterval={initialSettings.trackerPollIntervalMinutes ?? 60} />
+
+          <ImageHostingSection
+            initialHasKeys={{
+              ptpimg: initialSettings.hasPtpimgKey,
+              oeimg: initialSettings.hasOeimgKey,
+              imgbb: initialSettings.hasImgbbKey,
+            }}
           />
 
-          <DataSection initialPollInterval={settings.trackerPollIntervalMinutes ?? 60} />
-
-          <SecuritySection
+          <SecurityPoliciesSection
             initialLockout={{
-              enabled: settings.lockoutEnabled,
-              threshold: settings.lockoutThreshold,
-              durationMinutes: settings.lockoutDurationMinutes,
+              enabled: initialSettings.lockoutEnabled,
+              threshold: initialSettings.lockoutThreshold,
+              durationMinutes: initialSettings.lockoutDurationMinutes,
             }}
-            initialSnapshotRetentionDays={settings.snapshotRetentionDays}
-            initialSessionTimeoutMinutes={settings.sessionTimeoutMinutes}
+            initialSnapshotRetentionDays={initialSettings.snapshotRetentionDays}
+            initialSessionTimeoutMinutes={initialSettings.sessionTimeoutMinutes}
           />
 
           <ProxySection
             initialProxy={{
-              enabled: settings.proxyEnabled,
-              type: settings.proxyType || "socks5",
-              host: settings.proxyHost ?? "",
-              port: settings.proxyPort ?? 1080,
-              username: settings.proxyUsername ?? "",
-              hasPassword: settings.hasProxyPassword,
+              enabled: initialSettings.proxyEnabled,
+              type: initialSettings.proxyType || "socks5",
+              host: initialSettings.proxyHost ?? "",
+              port: initialSettings.proxyPort ?? 1080,
+              username: initialSettings.proxyUsername ?? "",
+              hasPassword: initialSettings.hasProxyPassword,
             }}
-            trackers={proxyTrackers}
+            trackers={initialProxyTrackers}
           />
-
-          {/* ── Error Log ──────────────────────────────────────────── */}
-          <section aria-labelledby="error-log-heading">
-            <H2 id="error-log-heading" className="mb-4">
-              Error Log
-            </H2>
-            <Card elevation="raised" className="flex flex-col gap-4">
-              <Paragraph>
-                Copy recent log output to share when reporting issues. Logs stay on your machine —
-                nothing is sent externally.
-              </Paragraph>
-              <div className="flex gap-3 items-center">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={async () => {
-                    setLogLoading(true)
-                    setLogError(null)
-                    try {
-                      const res = await fetch("/api/settings/logs")
-                      if (!res.ok)
-                        throw new Error(await extractApiError(res, "Failed to load logs"))
-                      const data = await res.json()
-                      const content = (data as { content: string }).content
-                      if (!content) {
-                        setLogError("Log file is empty")
-                        return
-                      }
-                      await navigator.clipboard.writeText(content)
-                      setLogCopied(true)
-                      setTimeout(() => setLogCopied(false), 2000)
-                    } catch (err) {
-                      setLogError(err instanceof Error ? err.message : "Failed to load logs")
-                    } finally {
-                      setLogLoading(false)
-                    }
-                  }}
-                  disabled={logLoading}
-                >
-                  {logLoading ? "Loading…" : logCopied ? "Copied!" : "Copy Log to Clipboard"}
-                </Button>
-                {logError && <span className="text-sm text-danger font-mono">{logError}</span>}
-              </div>
-            </Card>
-          </section>
 
           <DangerZoneSection />
         </>
@@ -168,7 +126,10 @@ export function SettingsClient({
       {activeTab === "clients" && (
         <>
           <DownloadClients />
-          <QbitmanageSettings />
+          <QbitmanageSettings
+            initialEnabled={initialSettings.qbitmanageEnabled}
+            initialTags={initialSettings.qbitmanageTags}
+          />
           <TagGroups />
         </>
       )}
@@ -178,16 +139,17 @@ export function SettingsClient({
       {activeTab === "backups" && (
         <BackupsSection
           initialConfig={{
-            encryptBackups: settings.backupEncryptionEnabled,
-            hasBackupPassword: settings.hasBackupPassword,
-            scheduleEnabled: settings.backupScheduleEnabled,
-            scheduleFrequency: settings.backupScheduleFrequency,
-            backupRetentionCount: settings.backupRetentionCount,
-            backupStoragePath: settings.backupStoragePath ?? "/data/backups",
+            encryptBackups: initialSettings.backupEncryptionEnabled,
+            hasBackupPassword: initialSettings.hasBackupPassword,
+            scheduleEnabled: initialSettings.backupScheduleEnabled,
+            scheduleFrequency: initialSettings.backupScheduleFrequency,
+            backupRetentionCount: initialSettings.backupRetentionCount,
+            backupStoragePath: initialSettings.backupStoragePath ?? "/data/backups",
           }}
-          initialHistory={backupHistory}
         />
       )}
+
+      {activeTab === "events" && <EventsSection />}
     </div>
   )
 }
