@@ -1,19 +1,20 @@
-# Alpine zlib — fix requires base image rebuild. Will resolve when node:24-alpine or node:25-alpine ships with zlib 1.3.2-r0.
+# Alpine zlib — fix requires base image rebuild. Will resolve when node:24-alpine ships with zlib 1.3.2-r0.
 CVE-2026-22184
 
-# minimatch — transitive via npm internals. No direct dep to bump.
+# minimatch — transitive via npm internals baked into base image. Stripped from runner but may appear in intermediate stages.
 CVE-2026-26996
 CVE-2026-27903
 CVE-2026-27904
 
-# node-tar — transitive via npm internals. No direct dep to bump.
+# node-tar — transitive via npm internals baked into base image. Stripped from runner but may appear in intermediate stages.
 CVE-2026-26960
 CVE-2026-29786
 CVE-2026-31802
 
-# esbuild Go stdlib — build tool binary, not runtime; CVEs apply to the Go runtime bundled in esbuild (transitive via drizzle-kit).
-# Cannot fix until esbuild releases a version compiled with a patched Go toolchain.
+# esbuild Go stdlib (1.23.x) — build tool binary in schema-sync, not a runtime service. Runs once at startup for drizzle-kit push.
+# Cannot fix until esbuild ships a release built with Go 1.24.13+.
 CVE-2025-47912
+CVE-2025-58183
 CVE-2025-58185
 CVE-2025-58186
 CVE-2025-58187
@@ -22,8 +23,12 @@ CVE-2025-58189
 CVE-2025-61723
 CVE-2025-61724
 CVE-2025-61725
+CVE-2025-61726
 CVE-2025-61727
+CVE-2025-61728
+CVE-2025-61729
 CVE-2025-61730
+CVE-2025-68121
 CVE-2026-25679
 CVE-2026-27139
 CVE-2026-27142

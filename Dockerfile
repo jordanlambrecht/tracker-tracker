@@ -31,11 +31,11 @@ ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
 RUN pnpm build
 
 # ---------------------------------------------------------------------------
-# Stage 3 — deps for drizzle-kit
+# Stage 3 — Minimal deps for drizzle-kit
 # ---------------------------------------------------------------------------
 FROM base AS schema-deps
 WORKDIR /schema-sync
-RUN echo '{"private":true}' > package.json \
+RUN printf '{"private":true,"pnpm":{"overrides":{"esbuild":">=0.25.0"}}}\n' > package.json \
     && pnpm add drizzle-kit drizzle-orm postgres
 
 # ---------------------------------------------------------------------------
