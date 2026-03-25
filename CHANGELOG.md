@@ -1,5 +1,51 @@
 # Changelog
 
+## [2.4.2](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.3.0...v2.4.2) (2026-03-25)
+
+
+### Features
+
+- add development image to docker hub ([8785094](https://github.com/jordanlambrecht/tracker-tracker/commit/87850942f118ccfd23c0a04d537928cd3db82976))
+- add fetchTrackerStats for future live transit paper data ([ed6662f](https://github.com/jordanlambrecht/tracker-tracker/commit/ed6662f0ac0c9990b6c96e8ae5616452385b6c26))
+- add GitHub Actions workflow for building and pushing development Docker image ([dca0af0](https://github.com/jordanlambrecht/tracker-tracker/commit/dca0af0a75a4ce21fbe14414d86d4ecbe4d459d3))
+- add per-tracker pause polling ([14a6c43](https://github.com/jordanlambrecht/tracker-tracker/commit/14a6c43cd6764924aba6e2fa592ef13d208b528a))
+- add system events viewer and log management ([b01ed22](https://github.com/jordanlambrecht/tracker-tracker/commit/b01ed22ec2ecfefe7f12bb448998d2726cb6b7f9))
+- remote image upload ([a480c34](https://github.com/jordanlambrecht/tracker-tracker/commit/a480c3470b7e97e44764c1d9c6d1bee356d22728))
+- **ui:** add pause/resume button ([c89299e](https://github.com/jordanlambrecht/tracker-tracker/commit/c89299ee80b9ce5ab22743039b6abd40be5a27b6))
+- **ui:** lazy-load chart sections, prefetch sidebar links, and fix scroll-to-top on navigation ([ba8f59e](https://github.com/jordanlambrecht/tracker-tracker/commit/ba8f59ee33a21be72034f296f5da1ae795e03c70))
+
+
+### Bug Fixes
+
+- **api:** orpheus was not matching seeding/leeching to response ([4569238](https://github.com/jordanlambrecht/tracker-tracker/commit/456923879b2970c46432bc9a0b604da2685bc31d))
+- **auth:** decouple cookie secure flag from node_env for self-hosted http deployments. Closes [#101](https://github.com/jordanlambrecht/tracker-tracker/issues/101) ([b2a7902](https://github.com/jordanlambrecht/tracker-tracker/commit/b2a790245ca76f1ec3ef8220c273a4ab9ca508fd))
+- better regex for splitting comparison values in timing safe check ([8c67a50](https://github.com/jordanlambrecht/tracker-tracker/commit/8c67a50cb64196831d7b021249eb76e84766e009))
+- convert bold numbered rules to markdown list items ([6e96454](https://github.com/jordanlambrecht/tracker-tracker/commit/6e964541330cca791818aca5d703e03ac2165694))
+- deploy issues ([cf45ea1](https://github.com/jordanlambrecht/tracker-tracker/commit/cf45ea19726b8f31db5080ebe93909dd0825e995))
+- **Dockerfile:** update package.json for drizzle-kit with esbuild overrides ([bce0854](https://github.com/jordanlambrecht/tracker-tracker/commit/bce0854d8ea18cf4a99488ed6d9243b25fc71658))
+- preload fleet dashboard tab ([5f08951](https://github.com/jordanlambrecht/tracker-tracker/commit/5f0895192f39a740927594ab6617f2c5c04b5708))
+- resolve biome lint warnings ([af8807d](https://github.com/jordanlambrecht/tracker-tracker/commit/af8807d72847e139be396778a096a7695fc49123))
+- **trackers:** markdown rendering ([a5fbdde](https://github.com/jordanlambrecht/tracker-tracker/commit/a5fbdde7056848bb58fdbe6f1e77a765a543842d))
+- update type imports for CollapsibleCard ([23979d1](https://github.com/jordanlambrecht/tracker-tracker/commit/23979d1f6323bd3fa209c9ed19172dbd7d05b6db))
+- update workflow triggers to include development branch for pull requests ([d159775](https://github.com/jordanlambrecht/tracker-tracker/commit/d15977566a9dbd341c0db6f3b67e0ace9bb70f16))
+- wrong postgres setup in docker-compose (closes [#78](https://github.com/jordanlambrecht/tracker-tracker/issues/78)) ([a0a3e0e](https://github.com/jordanlambrecht/tracker-tracker/commit/a0a3e0e16fe4e3b97dea9c7ebc5616cb54e22332))
+
+
+### Performance
+
+- add 5s per-client fetch deadline ([558c4be](https://github.com/jordanlambrecht/tracker-tracker/commit/558c4be0f9b05b198fd09ca5df4aad0dc6cde637))
+- **settings:** settings page optimizations ([63aabab](https://github.com/jordanlambrecht/tracker-tracker/commit/63aabab9afdfde3d492b81b86f581c4c035269d1))
+
+
+### Refactoring
+
+- **charts:** consolidate duplicate Fleet/Torrent chart pairs and normalize upstream data flow ([ca051a8](https://github.com/jordanlambrecht/tracker-tracker/commit/ca051a8f4284565f6b0c09e4c9f0522a70ff7e2c))
+- **charts:** migrate time-series charts to time axis with shared helpers and quality fixes ([596396e](https://github.com/jordanlambrecht/tracker-tracker/commit/596396e205fe387799986af7f1ff8386e8f77d13))
+- **charts:** reorganize chart support files into lib/ subfolder ([98a26d4](https://github.com/jordanlambrecht/tracker-tracker/commit/98a26d4fb4bf2fb7c3b02c4d38151a6b07fbb887))
+- **Dockerfile:** cleaned up build stages ([3b96ff9](https://github.com/jordanlambrecht/tracker-tracker/commit/3b96ff964058f33d3fe8fd65bf7a6fcde9dbcd3b))
+- **settings:** extract CollapsibleCard ([5487d19](https://github.com/jordanlambrecht/tracker-tracker/commit/5487d19d1ac2dd56c6bf2136f072edbcb7868fe5))
+- **settings:** extract SettingsSection wrapper ([ea0572c](https://github.com/jordanlambrecht/tracker-tracker/commit/ea0572c603ef191494a37cd9fe7ca64447bce1d4))
+
 ## [2.4.1](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.3.0...v2.4.1) (2026-03-23)
 
 
