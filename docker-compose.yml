@@ -26,6 +26,7 @@ services:
       # LOG_LEVEL: ${LOG_LEVEL} # optional, defaults to 'info'
       # LOG_FILE: /data/logs/tracker-tracker.log # optional
       BASE_URL: ${BASE_URL:-} # optional, i.e https://trackertracker.example.com
+      # SECURE_COOKIES: ${SECURE_COOKIES:-} # set to 'true' if serving over HTTPS
     volumes:
       - ./data:/data
     depends_on:

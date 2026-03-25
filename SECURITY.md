@@ -62,7 +62,7 @@ Last audited: `2026-03-17`
 
 - **Password hashing**: Argon2 (memory-hard KDF) — `src/lib/auth.ts`
 - **Session tokens**: Encrypted JWE (A256GCM) via `jose` — `src/lib/auth.ts`
-- **Cookie security**: httpOnly, secure (in production), sameSite=strict, 7-day hard expiry
+- **Cookie security**: httpOnly, secure (when BASE_URL is HTTPS or SECURE_COOKIES=true), sameSite=strict, 7-day hard expiry
 - **Password policy**: 8-128 characters enforced on setup and login
 - **Username**: Optional login username (6-100 chars), case-insensitive
 - **TOTP 2FA**: Optional TOTP via `otpauth` (SHA1, 6 digits, 30s period, ±1 window). Secret encrypted at rest with AES-256-GCM. Stateless enrollment via JWE setup tokens (5min TTL).
@@ -307,7 +307,7 @@ When `backupEncryptionEnabled` is true, the entire backup JSON is wrapped in an 
 - **Read-only filesystem:** Mount the application container root as read-only (`read_only: true` in docker-compose) with tmpfs for `/tmp`.
 - **Network isolation:** Place PostgreSQL on an internal Docker network with no published ports.
 - **Reverse proxy:** Deploy behind Nginx, Caddy, or Traefik with TLS termination and rate limiting on `/api/auth/login`.
-- **`NODE_ENV=production`:** Required for the `secure` cookie flag and Next.js production optimizations.
+- **`NODE_ENV=production`:** Required for Next.js production optimizations. Cookie `secure` flag is controlled separately via `BASE_URL` scheme or `SECURE_COOKIES=true`.
 - **`SESSION_SECRET`:** Minimum 32 characters of cryptographically random data. Generate with: `openssl rand -base64 48`.
 
 ---
@@ -474,7 +474,7 @@ npx tsx scripts/security-audit.ts     # Static security audit (28 checks)
 
 #### 5. Session Security
 
-- [ ] Session cookie set with: `httpOnly: true`, `sameSite: "strict"`, `secure: NODE_ENV === "production"`, `path: "/"`
+- [ ] Session cookie set with: `httpOnly: true`, `sameSite: "strict"`, `secure: shouldSecureCookies()`, `path: "/"`
 - [ ] Session has hard expiry (7 days) encoded in the JWE payload — not just cookie `maxAge`
 - [ ] Destructive operations (lockdown, nuke, password change, restore) zero-fill the encryption key buffer and stop the scheduler. Logout preserves the scheduler for 24/7 polling.
 - [ ] Login returns the encryption key only inside the JWE session — never in the response body
@@ -516,7 +516,7 @@ Verify in `next.config.ts`:
 #### 10. Docker & Deployment
 
 - [ ] Container runs as non-root user (UID 1001 `nextjs`)
-- [ ] `NODE_ENV=production` set in Docker Compose
+- [ ] `NODE_ENV=production` set in Dockerfile (cookie `secure` flag derived from `BASE_URL`/`SECURE_COOKIES`, not `NODE_ENV`)
 - [ ] PostgreSQL on internal network — no published ports
 - [ ] No `.env` files tracked by git (checked by security audit #7)
 - [ ] `scripts/reset-password-nuclear.mjs` not included in production Docker image

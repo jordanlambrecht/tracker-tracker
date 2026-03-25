@@ -165,6 +165,15 @@ Wait for the lockout duration to expire — the remaining time is shown on the l
 
 ---
 
+### Login succeeds but redirects back to login
+
+**Cause:** The server logs show "Login successful" but the browser keeps returning to the login screen. This happens when session cookies are marked `Secure` but the app is accessed over plain HTTP — browsers silently discard `Secure` cookies on non-HTTPS connections.
+
+!!! success "Solution"
+If you access Tracker Tracker over plain HTTP (e.g. `http://192.168.1.x:3000`), no action is needed on recent versions — cookies default to non-secure. If you are on an older version, update to the latest image. If you serve over HTTPS via a reverse proxy, set `BASE_URL=https://your-domain.com` in `.env` to enable secure cookies.
+
+---
+
 ### TOTP — Invalid code
 
 **Cause:** The 6-digit code was incorrect or expired. TOTP codes are valid for 30 seconds. Clock drift between your authenticator app and the server can cause valid-looking codes to fail.
