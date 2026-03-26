@@ -1,6 +1,6 @@
 // src/components/tracker-detail/platform/GgnAchievementProgress.tsx
 
-import { hexToRgba } from "@/lib/formatters"
+import { ProgressBar } from "@/components/ui/ProgressBar"
 import type { GGnPlatformMeta } from "@/types/api"
 
 export interface GgnAchievementProgressProps {
@@ -13,7 +13,7 @@ export function GgnAchievementProgress({ ggMeta, accentColor }: GgnAchievementPr
 
   const { userLevel, nextLevel, totalPoints, pointsToNextLvl } = ggMeta.achievements
   const earned = totalPoints - pointsToNextLvl
-  const pct = totalPoints > 0 ? Math.min(100, Math.max(0, (earned / totalPoints) * 100)) : 0
+  const pct = totalPoints > 0 ? (earned / totalPoints) * 100 : 0
 
   return (
     <div className="flex flex-col gap-2">
@@ -24,16 +24,7 @@ export function GgnAchievementProgress({ ggMeta, accentColor }: GgnAchievementPr
         </span>
         <span className="text-muted">{nextLevel}</span>
       </div>
-      <div className="nm-inset h-2 w-full overflow-hidden rounded-nm-pill">
-        <div
-          className="h-full transition-all duration-500 rounded-nm-pill"
-          style={{
-            width: `${pct}%`,
-            backgroundColor: accentColor,
-            boxShadow: `0 0 8px ${hexToRgba(accentColor, 0.5)}`,
-          }}
-        />
-      </div>
+      <ProgressBar percent={pct} color={accentColor} size="sm" />
       <p className="text-[10px] font-mono text-muted text-right">
         {pointsToNextLvl.toLocaleString()} pts to {nextLevel}
       </p>

@@ -207,9 +207,10 @@ export function TrackerDetailClient({
   const delta = useMemo(() => computeDelta(snapshots), [snapshots])
 
   const tc = tracker?.color || CHART_THEME.accent
-  const registryEntry: TrackerRegistryEntry | undefined = tracker
-    ? findRegistryEntry(tracker.baseUrl)
-    : undefined
+  const registryEntry = useMemo(
+    () => (tracker ? findRegistryEntry(tracker.baseUrl) : undefined),
+    [tracker?.baseUrl]
+  )
 
   const { statCardSlots, badgeSlots, progressSlots } = useMemo(() => {
     if (!tracker) return { statCardSlots: [], badgeSlots: [], progressSlots: [] }
