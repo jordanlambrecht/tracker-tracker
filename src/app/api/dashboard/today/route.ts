@@ -14,9 +14,9 @@ export async function GET() {
   try {
     // One-time backfill on first request that populates checkpoint table from existing snapshots
     if (!g.__backfillDone) {
-      g.__backfillDone = true
       try {
         const filled = await backfillTrackerCheckpoints()
+        g.__backfillDone = true
         if (filled > 0) log.info(`Backfilled ${filled} tracker daily checkpoints`)
       } catch (err) {
         log.error(err, "Checkpoint backfill failed")
