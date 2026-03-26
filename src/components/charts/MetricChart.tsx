@@ -40,7 +40,7 @@ import { useLogScale } from "./lib/useLogScale"
 
 // ── Types ──
 
-type Metric = "ratio" | "buffer" | "seedbonus" | "seedingCount" | "dailyDelta" | "shareScore"
+type Metric = "ratio" | "buffer" | "seedbonus" | "seedingCount" | "dailyDelta" | "shareScore" | "freeleechTokens"
 
 interface MetricConfig {
   label: string
@@ -87,6 +87,12 @@ const METRIC_CONFIGS: Record<Exclude<Metric, "dailyDelta">, MetricConfig> = {
     label: "Seeding",
     unit: "torrents",
     getValue: (s) => s.seedingCount,
+    isInteger: true,
+  },
+  freeleechTokens: {
+    label: "Freeleech Tokens",
+    unit: "tokens",
+    getValue: (s) => s.freeleechTokens,
     isInteger: true,
   },
 }

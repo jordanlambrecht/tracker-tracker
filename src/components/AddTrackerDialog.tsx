@@ -8,9 +8,9 @@ import { H2 } from "@typography"
 import clsx from "clsx"
 import Image from "next/image"
 import {
-  type FormEvent,
   type KeyboardEvent,
   type MouseEvent,
+  type SyntheticEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -348,7 +348,7 @@ function AddTrackerDialog({
     return next
   }
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: SyntheticEvent) {
     e.preventDefault()
 
     const validationErrors = validate()
@@ -491,11 +491,13 @@ function AddTrackerDialog({
               value={apiToken}
               onChange={(e) => setApiToken(e.target.value)}
               placeholder={
-                selectedEntry?.platform === "ggn"
-                  ? "Your GGn API key"
-                  : selectedEntry?.platform === "gazelle"
-                    ? "Your Gazelle API key"
-                    : "Your UNIT3D API token"
+                selectedEntry?.platform === "mam"
+                  ? "Your mam_id session cookie"
+                  : selectedEntry?.platform === "ggn"
+                    ? "Your GGn API key"
+                    : selectedEntry?.platform === "gazelle"
+                      ? "Your Gazelle API key"
+                      : "Your UNIT3D API token"
               }
               error={errors.apiToken}
             />
