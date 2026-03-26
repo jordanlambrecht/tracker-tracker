@@ -26,6 +26,12 @@ export async function POST(request: Request) {
     // Resolve backup password: explicit form value > stored encrypted password
     let backupPassword: string | null = null
     if (formPassword && typeof formPassword === "string" && formPassword.length > 0) {
+      if (formPassword.length > 128) {
+        return NextResponse.json(
+          { error: "Backup password must be 128 characters or fewer" },
+          { status: 400 }
+        )
+      }
       backupPassword = formPassword
     } else if (settings?.backupEncryptionEnabled && settings.encryptedBackupPassword) {
       try {

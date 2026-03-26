@@ -134,6 +134,12 @@ export async function POST(request: Request) {
           { status: 400 }
         )
       }
+      if (backupPassword.length > 128) {
+        return NextResponse.json(
+          { error: "Backup password must be 128 characters or fewer" },
+          { status: 400 }
+        )
+      }
 
       const backupEnvelope = envelope as unknown as EncryptedBackupEnvelope
       if (!backupEnvelope.encryptionSalt || typeof backupEnvelope.encryptionSalt !== "string") {
