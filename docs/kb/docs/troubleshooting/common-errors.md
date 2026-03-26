@@ -99,7 +99,7 @@ These appear in the **Poll Error Banner** on the tracker detail page, under the 
 **Cause:** An unexpected error occurred that did not match any of the known patterns above.
 
 !!! success "Solution"
-Check the Tracker Tracker server logs (`docker compose logs app`) for the full error. Look for a line containing `Poll failed for tracker` followed by the raw error string.
+    Check the Tracker Tracker server logs (`docker compose logs app`) for the full error. Look for a line containing `Poll failed for tracker` followed by the raw error string.
 
 ---
 
@@ -122,7 +122,7 @@ These appear on the **Download Clients** panel in Settings, on individual client
 **Cause:** qBittorrent returned a 403 on an authenticated request, indicating the session has expired. Tracker Tracker handles this automatically by re-authenticating on the next request.
 
 !!! info "No action needed"
-Session expiry is handled transparently. If you see persistent errors in the **Download Clients** panel, the issue is more likely wrong credentials rather than session expiry.
+    Session expiry is handled transparently. If you see persistent errors in the **Download Clients** panel, the issue is more likely wrong credentials rather than session expiry.
 
 ---
 
@@ -139,7 +139,7 @@ Session expiry is handled transparently. If you see persistent errors in the **D
 **Cause:** DNS resolution failed for the qBittorrent host.
 
 !!! success "Solution"
-Use the container name (if qBittorrent is in the same Docker Compose stack) or an IP address instead of a hostname that depends on external DNS.
+    Use the container name (if qBittorrent is in the same Docker Compose stack) or an IP address instead of a hostname that depends on external DNS.
 
 ---
 
@@ -148,7 +148,7 @@ Use the container name (if qBittorrent is in the same Docker Compose stack) or a
 **Cause:** qBittorrent accepted the connection but did not respond within 15 seconds. This can happen during heavy indexing operations.
 
 !!! success "Solution"
-Wait for qBittorrent to finish processing and retry. If timeouts are persistent, check qBittorrent's CPU and memory usage.
+    Wait for qBittorrent to finish processing and retry. If timeouts are persistent, check qBittorrent's CPU and memory usage.
 
 ---
 
@@ -161,7 +161,7 @@ Wait for qBittorrent to finish processing and retry. If timeouts are persistent,
 **Cause:** The auto-lockout feature triggered. After a configurable number of consecutive failed login attempts, the app blocks further attempts until the lockout duration expires.
 
 !!! success "Solution"
-Wait for the lockout duration to expire — the remaining time is shown on the login page. If you are locked out and cannot wait, you will need to connect to the database directly and clear the `lockedUntil` field in the `appSettings` table.
+    Wait for the lockout duration to expire. The remaining time is shown on the login page. If you are locked out and cannot wait, you will need to connect to the database directly and clear the `lockedUntil` field in the `appSettings` table.
 
 ---
 
@@ -170,7 +170,7 @@ Wait for the lockout duration to expire — the remaining time is shown on the l
 **Cause:** The server logs show "Login successful" but the browser keeps returning to the login screen. This happens when session cookies are marked `Secure` but the app is accessed over plain HTTP — browsers silently discard `Secure` cookies on non-HTTPS connections.
 
 !!! success "Solution"
-If you access Tracker Tracker over plain HTTP (e.g. `http://192.168.1.x:3000`), no action is needed on recent versions — cookies default to non-secure. If you are on an older version, update to the latest image. If you serve over HTTPS via a reverse proxy, set `BASE_URL=https://your-domain.com` in `.env` to enable secure cookies.
+    If you access Tracker Tracker over plain HTTP (e.g. `http://192.168.1.x:3000`), no action is needed on recent versions — cookies default to non-secure. If you are on an older version, update to the latest image. If you serve over HTTPS via a reverse proxy, set `BASE_URL=https://your-domain.com` in `.env` to enable secure cookies.
 
 ---
 
@@ -187,7 +187,7 @@ If you access Tracker Tracker over plain HTTP (e.g. `http://192.168.1.x:3000`), 
 **Cause:** You no longer have access to the authenticator app and have no backup codes.
 
 !!! warning "Database access required"
-There is no in-app recovery path for this situation. You will need to connect to the PostgreSQL database directly and run:
+    There is no in-app recovery path for this situation. You will need to connect to the PostgreSQL database directly and run:
 
     ```sql
     UPDATE app_settings SET totp_secret = NULL, totp_backup_codes = NULL;
@@ -206,7 +206,7 @@ There is no in-app recovery path for this situation. You will need to connect to
 **Cause:** The URL you entered uses an unsupported scheme (e.g. `ftp://`) or is a bare hostname without a scheme.
 
 !!! success "Solution"
-Prefix the URL with `https://` or `http://`.
+    Prefix the URL with `https://` or `http://`.
 
 ---
 
@@ -215,4 +215,4 @@ Prefix the URL with `https://` or `http://`.
 **Cause:** The URL resolves to a private IP range (192.168.x.x, 10.x.x.x, 172.16-31.x.x) or localhost. Tracker Tracker blocks these to prevent your internal network from being probed through the app.
 
 !!! info "By design"
-Tracker URLs must be publicly routable hostnames. Internal or self-hosted trackers only accessible via private IPs cannot be added.
+    Tracker URLs must be publicly routable hostnames. Internal or self-hosted trackers only accessible via private IPs cannot be added.

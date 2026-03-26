@@ -39,7 +39,7 @@ Here's what the qbitmanage status breakdown looks like on a tracker's Torrents t
 ![qbitmanage status bar chart showing No Hardlinks, Min Seeds Not Met, Last Active Limit, and Last Active Not Reached](../assets/images/tracker-page-qbitmanage.png)
 
 !!! tip "Match your config exactly"
-Tag names must match character-for-character, including any emoji or special characters. Copy them directly from your qbitmanage `config.yml`.
+  Tag names must match character-for-character, including any emoji or special characters. Copy them directly from your qbitmanage `config.yml`.
 
 ## Tag Group Examples
 

@@ -61,7 +61,7 @@ Click the **+** button next to "Trackers" in the sidebar, or go to `/trackers/ne
     | Nebulance | NBL |
 
 !!! note "Draft entries"
-Some trackers in the registry are marked as drafts — dashed border, "Stats tracking not yet supported." You can pin them as quicklinks but no stats will be polled.
+    Some trackers in the registry are marked as drafts — dashed border, "Stats tracking not yet supported." You can pin them as quicklinks but no stats will be polled.
 
 Trackers you've already added are hidden from the list automatically.
 
@@ -101,7 +101,7 @@ Where to find it depends on the platform:
     GGn keys don't expire on their own, but they can be regenerated from your settings.
 
 !!! warning "Keep your token private"
-Your API token acts like a password for your account. Tracker Tracker encrypts it before storing it.
+    Your API token acts like a password for your account. Tracker Tracker encrypts it before storing it.
 
 ## Optional fields
 
@@ -121,7 +121,7 @@ If the tracker needs a proxy (e.g., for geo-restrictions), toggle **Use Proxy** 
 ![PulseDot states showing healthy, warning, and error](../assets/images/pulsedots-states.png)
 
 !!! tip "Red dot right after adding?"
-Check your API token. The most common cause is a copy-paste error or a token that was rotated after you copied it.
+    Check your API token. The most common cause is a copy-paste error or a token that was rotated after you copied it.
 
 ## Polling manually
 
