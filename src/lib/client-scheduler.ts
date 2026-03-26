@@ -212,20 +212,23 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
       (t) => t.uploaded != null && t.downloaded != null && t.hash && t.name
     )
     if (checkpointable.length > 0) {
+      const CHUNK = 500
       try {
-        await db
-          .insert(torrentDailyCheckpoints)
-          .values(
-            checkpointable.map((t) => ({
-              clientId,
-              hash: t.hash,
-              name: t.name,
-              checkpointDate,
-              uploadedStart: BigInt(t.uploaded),
-              downloadedStart: BigInt(t.downloaded),
-            }))
-          )
-          .onConflictDoNothing()
+        for (let i = 0; i < checkpointable.length; i += CHUNK) {
+          await db
+            .insert(torrentDailyCheckpoints)
+            .values(
+              checkpointable.slice(i, i + CHUNK).map((t) => ({
+                clientId,
+                hash: t.hash,
+                name: t.name,
+                checkpointDate,
+                uploadedStart: BigInt(t.uploaded),
+                downloadedStart: BigInt(t.downloaded),
+              }))
+            )
+            .onConflictDoNothing()
+        }
       } catch (err) {
         log.warn(
           `Torrent checkpoint insert failed for client ${clientId}: ${err instanceof Error ? err.message : "Unknown"}`
