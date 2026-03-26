@@ -282,6 +282,10 @@ export const notificationTargets = pgTable("notification_targets", {
   notifyZeroSeeding: boolean("notify_zero_seeding").default(false).notNull(),
   notifyRankChange: boolean("notify_rank_change").default(false).notNull(),
   notifyAnniversary: boolean("notify_anniversary").default(false).notNull(),
+  notifyBonusCap: boolean("notify_bonus_cap").default(false).notNull(),
+  notifyVipExpiring: boolean("notify_vip_expiring").default(false).notNull(),
+  notifyUnsatisfiedLimit: boolean("notify_unsatisfied_limit").default(false).notNull(),
+  notifyActiveHnrs: boolean("notify_active_hnrs").default(false).notNull(),
 
   // Event thresholds — nullable JSONB; null means use application defaults.
   // Shape: { ratioDropDelta?: number, bufferMilestoneBytes?: number }

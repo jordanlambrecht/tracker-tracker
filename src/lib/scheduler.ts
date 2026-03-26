@@ -7,7 +7,7 @@ import { and, desc, eq, isNotNull, lt, notInArray, sql } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { buildFetchOptions, getAdapter } from "@/lib/adapters"
-import type { TrackerStats } from "@/lib/adapters/types"
+import type { MamPlatformMeta, TrackerStats } from "@/lib/adapters/types"
 import { pruneDismissedAlerts } from "@/lib/alert-pruning"
 import { startBackupScheduler, stopBackupScheduler } from "@/lib/backup-scheduler"
 import {
@@ -192,6 +192,7 @@ export async function pollTracker(
         warned: trackerSnapshots.warned,
         group: trackerSnapshots.group,
         seedingCount: trackerSnapshots.seedingCount,
+        seedbonus: trackerSnapshots.seedbonus,
       })
       .from(trackerSnapshots)
       .where(eq(trackerSnapshots.trackerId, tracker.id))
@@ -250,6 +251,11 @@ export async function pollTracker(
     }
 
     try {
+      const mamMeta =
+        tracker.platformType === "mam"
+          ? (stats.platformMeta as MamPlatformMeta | undefined)
+          : undefined
+
       await dispatchNotifications(
         {
           trackerId: tracker.id,
@@ -259,7 +265,7 @@ export async function pollTracker(
           previousRatio: previousSnapshot?.ratio ?? null,
           currentHnrs: stats.hitAndRuns,
           previousHnrs: previousSnapshot?.hitAndRuns ?? null,
-          currentBufferBytes: stats.bufferBytes !== null ? stats.bufferBytes : null,
+          currentBufferBytes: stats.bufferBytes,
           previousBufferBytes: previousSnapshot?.bufferBytes ?? null,
           trackerDown: false,
           trackerError: null,
@@ -272,6 +278,15 @@ export async function pollTracker(
           trackerPausedAt: null,
           trackerJoinedAt: tracker.joinedAt ?? null,
           minimumRatio: findRegistryEntry(tracker.baseUrl)?.rules?.minimumRatio,
+          mamContext: tracker.platformType === "mam" ? {
+            currentSeedbonus: stats.seedbonus ?? null,
+            previousSeedbonus: previousSnapshot?.seedbonus ?? null,
+            vipUntil: mamMeta?.vipUntil ?? null,
+            unsatisfiedCount: mamMeta?.unsatisfiedCount ?? null,
+            unsatisfiedLimit: mamMeta?.unsatisfiedLimit ?? null,
+            inactiveHnrCount: stats.hitAndRuns ?? null,
+            previousInactiveHnrCount: previousSnapshot?.hitAndRuns ?? null,
+          } : undefined,
         },
         encryptionKey,
         enabledTargets
@@ -345,6 +360,7 @@ export async function pollTracker(
           trackerPausedAt: tracker?.pausedAt?.toISOString() ?? null,
           trackerJoinedAt: tracker?.joinedAt ?? null,
           minimumRatio: undefined,
+          mamContext: undefined,
         },
         encryptionKey,
         enabledTargets

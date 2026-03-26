@@ -77,6 +77,7 @@ function makeContext(overrides: Partial<SnapshotContext> = {}): SnapshotContext 
     trackerPausedAt: null,
     trackerJoinedAt: "2020-01-01",
     minimumRatio: 0.6,
+    mamContext: undefined,
     ...overrides,
   }
 }

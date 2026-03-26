@@ -15,12 +15,19 @@ export const VALID_EVENT_TYPES = [
   "zero_seeding",
   "rank_change",
   "anniversary",
+  "bonus_cap",
+  "vip_expiring",
+  "unsatisfied_limit",
+  "active_hnrs",
 ] as const
 export type NotificationEventType = (typeof VALID_EVENT_TYPES)[number]
 
 export interface NotificationThresholds {
   ratioDropDelta?: number // i.e 0.1 — alert when ratio falls by ≥0.1
   bufferMilestoneBytes?: number //i.e 10737418240 — alert when buffer crosses 10 GiB
+  bonusCapLimit?: number // default 99999 — fires when seedbonus hits or exceeds cap
+  vipExpiringDays?: number // default 7 — fires when VIP expiry is within N days
+  unsatisfiedLimitPercent?: number // default 80 — fires at 80% of unsatisfied limit
 }
 
 // Per-type config shapes (decrypted form — never stored plaintext)
