@@ -10,6 +10,7 @@ import { NextResponse } from "next/server"
 import { authenticate, decodeKey } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { downloadClients, trackers } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
 import { fetchAndMergeTorrents } from "@/lib/qbt/fetch-merged"
 
 export async function GET() {
@@ -43,5 +44,11 @@ export async function GET() {
   ]
 
   const result = await fetchAndMergeTorrents(clients, tags, key)
+
+  if (result.sessionExpired) {
+    log.warn({ route: "GET /api/fleet/torrents" }, "fleet fetch failed — stale session key")
+    return NextResponse.json({ error: "Session expired — please log in again" }, { status: 401 })
+  }
+
   return NextResponse.json(result)
 }

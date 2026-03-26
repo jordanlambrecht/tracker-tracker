@@ -8,6 +8,7 @@ import { authenticate, decodeKey, parseRouteId } from "@/lib/api-helpers"
 import { decryptClientCredentials } from "@/lib/client-decrypt"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
+import { isDecryptionError } from "@/lib/error-utils"
 import { log } from "@/lib/logger"
 import { buildBaseUrl, getTransferInfo, invalidateSession, login } from "@/lib/qbt"
 
@@ -34,7 +35,14 @@ export async function POST(_request: Request, props: { params: Promise<{ id: str
   let password: string
   try {
     ;({ username, password } = decryptClientCredentials(client, key))
-  } catch {
+  } catch (err) {
+    if (isDecryptionError(err)) {
+      log.warn(
+        { route: "POST /api/clients/[id]/test", clientId },
+        "client test failed — stale session key"
+      )
+      return NextResponse.json({ error: "Session expired — please log in again" }, { status: 401 })
+    }
     log.error(
       { route: "POST /api/clients/[id]/test", clientId },
       "client test failed — credential decrypt error"

@@ -24,7 +24,7 @@ describe("decryptClientCredentials", () => {
     })
     const client = { name: "MyClient", encryptedUsername: "x", encryptedPassword: "y" }
     expect(() => decryptClientCredentials(client, Buffer.alloc(32))).toThrow(
-      'Credentials are missing or invalid for client "MyClient"'
+      'Failed to decrypt credentials for client "MyClient"'
     )
   })
 })

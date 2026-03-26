@@ -4,6 +4,7 @@ import { NextResponse } from "next/server"
 import { authenticate, decodeKey, parseTrackerId } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
+import { isDecryptionError } from "@/lib/error-utils"
 import { log } from "@/lib/logger"
 import { buildProxyAgentFromSettings } from "@/lib/proxy"
 import { pollTracker } from "@/lib/scheduler"
@@ -57,6 +58,13 @@ export async function POST(_request: Request, props: { params: Promise<{ id: str
     await pollTracker(trackerId, key, privacyMode, proxyAgent)
     return NextResponse.json({ success: true })
   } catch (error) {
+    if (isDecryptionError(error)) {
+      log.warn(
+        { route: "POST /api/trackers/[id]/poll", trackerId },
+        "manual poll failed — stale session key"
+      )
+      return NextResponse.json({ error: "Session expired — please log in again" }, { status: 401 })
+    }
     const message = error instanceof Error ? error.message : "Poll failed"
     log.error(
       { route: "POST /api/trackers/[id]/poll", trackerId, error: message },
