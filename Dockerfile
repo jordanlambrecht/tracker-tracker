@@ -36,7 +36,7 @@ RUN pnpm build
 FROM base AS schema-deps
 WORKDIR /schema-sync
 RUN printf '{"private":true,"pnpm":{"overrides":{"esbuild":">=0.25.0"}}}\n' > package.json \
-    && pnpm add drizzle-kit drizzle-orm postgres
+    && pnpm add drizzle-kit@0.31.10 drizzle-orm@0.45.1 postgres@3.4.8
 
 # ---------------------------------------------------------------------------
 # Stage 4 — Production runner
