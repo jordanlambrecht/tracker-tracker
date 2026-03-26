@@ -65,11 +65,10 @@ export async function POST(_request: Request, props: { params: Promise<{ id: str
       )
       return NextResponse.json({ error: "Session expired — please log in again" }, { status: 401 })
     }
-    const message = error instanceof Error ? error.message : "Poll failed"
     log.error(
-      { route: "POST /api/trackers/[id]/poll", trackerId, error: message },
+      { route: "POST /api/trackers/[id]/poll", trackerId, error: String(error) },
       "manual poll failed"
     )
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: "Poll failed" }, { status: 500 })
   }
 }

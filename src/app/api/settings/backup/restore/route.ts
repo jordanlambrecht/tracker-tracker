@@ -153,9 +153,12 @@ export async function POST(request: Request) {
       payload = raw as BackupPayload
     }
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error"
+    log.error(
+      { route: "POST /api/settings/backup/restore", error: String(err) },
+      "backup file validation or decryption failed"
+    )
     return NextResponse.json(
-      { error: `Invalid or corrupted backup file: ${message}` },
+      { error: "Invalid or corrupted backup file" },
       { status: 400 }
     )
   }

@@ -19,7 +19,6 @@ import { resolveSlots } from "@/components/tracker-detail/resolve-slots"
 import { TrackerDetailHeader } from "@/components/tracker-detail/TrackerDetailHeader"
 import { TrackerInfoTab } from "@/components/tracker-detail/TrackerInfoTab"
 import { TrackerStatusBanner } from "@/components/tracker-detail/TrackerStatusBanner"
-import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { useTrackerTorrents } from "@/hooks/useTrackerTorrents"
 import { computeDelta, hexToRgba } from "@/lib/formatters"
@@ -207,9 +206,10 @@ export function TrackerDetailClient({
   const delta = useMemo(() => computeDelta(snapshots), [snapshots])
 
   const tc = tracker?.color || CHART_THEME.accent
+  const baseUrl = tracker?.baseUrl
   const registryEntry = useMemo(
-    () => (tracker ? findRegistryEntry(tracker.baseUrl) : undefined),
-    [tracker?.baseUrl]
+    () => (baseUrl ? findRegistryEntry(baseUrl) : undefined),
+    [baseUrl]
   )
 
   const { statCardSlots, badgeSlots, progressSlots } = useMemo(() => {

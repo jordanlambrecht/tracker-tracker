@@ -1639,7 +1639,6 @@ describe("Backup restore authenticated flows", () => {
     expect(res.status).toBe(400)
     const data = await res.json()
     expect(data.error).toContain("Invalid or corrupted backup file")
-    expect(data.error).toContain("Unsupported backup version")
   })
 
   it("POST /api/settings/backup/restore with no password returns 400", async () => {

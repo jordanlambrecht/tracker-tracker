@@ -104,7 +104,7 @@ export async function POST(request: Request) {
     log.error(
       {
         route: "POST /api/settings/backup/export",
-        error: err instanceof Error ? err.message : String(err),
+        error: String(err),
       },
       "backup export failed"
     )

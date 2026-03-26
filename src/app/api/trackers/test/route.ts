@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     log.warn(
       {
         route: "POST /api/trackers/test",
-        error: error instanceof Error ? error.message : String(error),
+        error: String(error),
       },
       "tracker connection test failed"
     )

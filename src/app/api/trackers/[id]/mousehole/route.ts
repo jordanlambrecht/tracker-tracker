@@ -125,6 +125,12 @@ export async function POST(request: Request, { params }: RouteContext) {
 
   const { mouseholeBase } = resolved
 
+  const MAX_BODY_SIZE = 256
+  const contentLength = Number(request.headers.get("content-length") ?? 0)
+  if (contentLength > MAX_BODY_SIZE) {
+    return NextResponse.json({ error: "Request body too large" }, { status: 413 })
+  }
+
   let body: { force?: boolean } = {}
   try {
     const raw = await request.json()
@@ -132,7 +138,7 @@ export async function POST(request: Request, { params }: RouteContext) {
       body = { force: Boolean(raw.force) }
     }
   } catch (_err) {
-    log.debug({ route: "POST /api/trackers/[id]/mousehole" }, "no request body (optional)")
+    log.warn({ route: "POST /api/trackers/[id]/mousehole" }, "no request body (optional)")
   }
 
   const controller = new AbortController()

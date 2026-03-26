@@ -281,9 +281,9 @@ function extractHandlerBodies(
 ): Array<{ method: string; startLine: number; body: string }> {
   const HANDLER_RE = /export\s+(?:async\s+)?function\s+(GET|POST|PATCH|PUT|DELETE)\b/g
   const results: Array<{ method: string; startLine: number; body: string }> = []
-  let handlerMatch: RegExpExecArray | null
+  let handlerMatch: RegExpExecArray | null = HANDLER_RE.exec(content)
 
-  while ((handlerMatch = HANDLER_RE.exec(content)) !== null) {
+  while (handlerMatch !== null) {
     const method = handlerMatch[1]
     const startLine = content.slice(0, handlerMatch.index).split("\n").length
 
@@ -324,6 +324,7 @@ function extractHandlerBodies(
       startLine,
       body: content.slice(openBrace, end + 1),
     })
+    handlerMatch = HANDLER_RE.exec(content)
   }
 
   return results
@@ -2180,9 +2181,9 @@ function checkNotificationSsrfValidation(): CheckResult {
 
   // Find case blocks for notification types that are NOT "not yet supported"
   const CASE_RE = /case\s+["'](\w+)["']\s*:\s*\{/g
-  let caseMatch: RegExpExecArray | null
+  let caseMatch: RegExpExecArray | null = CASE_RE.exec(content)
 
-  while ((caseMatch = CASE_RE.exec(content)) !== null) {
+  while (caseMatch !== null) {
     const typeName = caseMatch[1]
     const caseStart = caseMatch.index
 
@@ -2212,6 +2213,7 @@ function checkNotificationSsrfValidation(): CheckResult {
         detail: `Notification type "${typeName}" has active validation but does not call isUnsafeNetworkHost() — SSRF risk`,
       })
     }
+    caseMatch = CASE_RE.exec(content)
   }
 
   return {

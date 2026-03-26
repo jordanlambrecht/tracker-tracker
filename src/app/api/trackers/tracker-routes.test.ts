@@ -776,7 +776,7 @@ describe("POST /api/trackers/[id]/poll", () => {
     expect(data.success).toBe(true)
   })
 
-  it("returns 500 when poll fails with error message", async () => {
+  it("returns 500 with generic message when poll fails", async () => {
     ;(pollTracker as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Connection refused"))
 
     const request = makeRequest("http://localhost/api/trackers/1/poll", undefined, "POST")
@@ -785,7 +785,7 @@ describe("POST /api/trackers/[id]/poll", () => {
     const data = await response.json()
 
     expect(response.status).toBe(500)
-    expect(data.error).toBe("Connection refused")
+    expect(data.error).toBe("Poll failed")
   })
 
   it("returns 'Poll failed' when pollTracker rejects with non-Error", async () => {

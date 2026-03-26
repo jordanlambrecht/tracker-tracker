@@ -34,18 +34,6 @@ const SEGMENTS = [
   { key: "completed", label: "Completed", color: "var(--color-text-tertiary)" },
 ] as const
 
-function formatResult(msg: string): string {
-  switch (msg) {
-    case "Completed":
-      return "IP updated"
-    case "No change":
-    case "No Change":
-      return "No change needed"
-    default:
-      return msg
-  }
-}
-
 export function MamHealthOverview({
   meta,
   seedingCount,
@@ -81,10 +69,11 @@ export function MamHealthOverview({
   }
 
   // ── Satisfaction data ───────────────────────────────────────────────────
-  const hasCapacity = unsatisfiedLimit != null && unsatisfiedLimit > 0
-  const satUsed = hasCapacity ? Math.min(unsatisfiedCount ?? 0, unsatisfiedLimit!) : 0
-  const satPct = hasCapacity ? (satUsed / unsatisfiedLimit!) * 100 : 0
-  const satRemaining = hasCapacity ? unsatisfiedLimit! - satUsed : 0
+  const safeLimit = unsatisfiedLimit ?? 0
+  const hasCapacity = safeLimit > 0
+  const satUsed = hasCapacity ? Math.min(unsatisfiedCount ?? 0, safeLimit) : 0
+  const satPct = hasCapacity ? (satUsed / safeLimit) * 100 : 0
+  const satRemaining = hasCapacity ? safeLimit - satUsed : 0
   let satColor = accentColor
   if (satPct >= 90) satColor = "var(--color-danger)"
   else if (satPct >= 70) satColor = "var(--color-warn)"
@@ -187,7 +176,7 @@ export function MamHealthOverview({
         <div className="nm-inset-sm bg-danger-dim rounded-nm-md p-4 flex flex-col gap-1">
           <span className="slot-label text-danger">Bonus Cap Reached</span>
           <span className="text-sm font-mono font-semibold text-primary">
-            {seedbonus!.toLocaleString()} / {MAM_BONUS_CAP.toLocaleString()}
+            {(seedbonus ?? 0).toLocaleString()} / {MAM_BONUS_CAP.toLocaleString()}
           </span>
           {wastePerDay > 0 && (
             <p className="text-[10px] font-mono text-warn">
