@@ -29,6 +29,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check for known dependency vulnerabilities
+        run: pnpm audit --audit-level=high || echo "::warning::pnpm audit found high-severity vulnerabilities"
+
       - name: Verify security test count
         run: |
           COUNT=$(pnpm test:run -- src/lib/__tests__/security.test.ts 2>&1 \
@@ -37,8 +40,8 @@ jobs:
             | grep -oE '[0-9]+ test' \
             | grep -oE '[0-9]+')
           echo "Security tests: $COUNT"
-          if [ "$COUNT" -lt 98 ]; then
-            echo "::error::Security test count dropped below expected minimum (98). Was a test removed?"
+          if [ "$COUNT" -lt 106 ]; then
+            echo "::error::Security test count dropped below expected minimum (106). Was a test removed?"
             exit 1
           fi
 
@@ -46,9 +49,21 @@ jobs:
         id: security-audit
         continue-on-error: true
         run: |
-          pnpm exec tsx scripts/security-audit.ts > /tmp/security-results.json
-          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          pnpm exec tsx scripts/security-audit.ts > /tmp/security-results.json; echo "audit_exit=$?" >> "$GITHUB_OUTPUT"
           cat /tmp/security-results.json
+
+      - name: Verify audit check count
+        run: |
+          if [ ! -f /tmp/security-results.json ]; then
+            echo "::error::Security audit produced no output"
+            exit 1
+          fi
+          TOTAL=$(python3 -c "import json; print(json.load(open('/tmp/security-results.json'))['summary']['total'])")
+          echo "Audit checks: $TOTAL"
+          if [ "$TOTAL" -lt 36 ]; then
+            echo "::error::Audit check count dropped below expected minimum (36). Was a check removed?"
+            exit 1
+          fi
 
       - name: Comment on PR with security audit results
         if: github.event_name == 'pull_request'
@@ -214,5 +229,5 @@ jobs:
             }
 
       - name: Fail if security audit has critical findings
-        if: steps.security-audit.outcome == 'failure'
+        if: steps.security-audit.outputs.audit_exit != '0'
         run: exit 1
