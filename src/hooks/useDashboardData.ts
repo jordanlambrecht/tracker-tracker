@@ -1,6 +1,4 @@
 // src/hooks/useDashboardData.ts
-//
-// Functions: useDashboardData
 
 "use client"
 
@@ -16,7 +14,7 @@ import {
   fetchDismissedKeys,
   postDismissAlert as persistDismiss,
 } from "@/lib/dashboard"
-import type { Snapshot, TrackerSummary } from "@/types/api"
+import type { Snapshot, TodayAtAGlance, TrackerSummary } from "@/types/api"
 
 interface DashboardData {
   trackers: TrackerSummary[]
@@ -25,6 +23,8 @@ interface DashboardData {
   alerts: DashboardAlert[]
   dayRange: DayRange
   setDayRange: (range: DayRange) => void
+  todayData: TodayAtAGlance | null
+  todayLoading: boolean
   dismissAlert: (key: string, type: string) => void
   dismissAllAlerts: () => void
   refresh: () => Promise<void>
@@ -86,6 +86,17 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
       },
       refetchInterval: 60_000,
     })),
+  })
+
+  const todayQuery = useQuery({
+    queryKey: ["dashboard-today"],
+    queryFn: async ({ signal }): Promise<TodayAtAGlance> => {
+      const res = await fetch("/api/dashboard/today", { signal })
+      if (!res.ok) throw new Error("Failed to fetch today data")
+      return res.json()
+    },
+    staleTime: 60_000,
+    refetchInterval: 60_000,
   })
 
   // Secondary queries for alert computation (less frequent)
@@ -169,6 +180,8 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
   return {
     trackers,
     snapshotMap,
+    todayData: todayQuery.data ?? null,
+    todayLoading: todayQuery.isLoading,
     loading: trackersQuery.isLoading,
     alerts: visibleAlerts,
     dayRange,
@@ -178,6 +191,7 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
     refresh: async () => {
       await trackersQuery.refetch()
       await queryClient.invalidateQueries({ queryKey: ["snapshots"] })
+      queryClient.invalidateQueries({ queryKey: ["dashboard-today"] })
     },
   }
 }

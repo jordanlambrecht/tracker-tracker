@@ -15,6 +15,8 @@ import { EcosystemStatsSection } from "@/components/dashboard/EcosystemStatsSect
 import { FleetDashboard } from "@/components/dashboard/FleetDashboard"
 import { LoginTimers } from "@/components/dashboard/LoginTimers"
 import { PollAllButton } from "@/components/dashboard/PollAllButton"
+import { TodayAtAGlance } from "@/components/dashboard/TodayAtAGlance"
+import { TodayAtAGlanceSkeleton } from "@/components/dashboard/TodayAtAGlanceSkeleton"
 import { TrackerLeaderboard } from "@/components/dashboard/TrackerLeaderboard"
 import { TrackerOverviewGrid } from "@/components/dashboard/TrackerOverviewGrid"
 import { useDashboardSettings } from "@/components/dashboard/useDashboardSettings"
@@ -96,7 +98,19 @@ export function DashboardClient({ initialTrackers }: DashboardClientProps) {
         </div>
       </div>
 
-      {/* Section 1: Tracker Overview */}
+      {/* Today At A Glance */}
+      {dashSettings.settings.showTodayAtAGlance && (
+        <div className="flex flex-col gap-4">
+          <H2>Today At A Glance</H2>
+          {data.todayData ? (
+            <TodayAtAGlance data={data.todayData} />
+          ) : data.todayLoading ? (
+            <TodayAtAGlanceSkeleton />
+          ) : null}
+        </div>
+      )}
+
+      {/* Tracker Overview */}
       <div className="flex flex-col gap-4">
         <H2>Trackers</H2>
         <TrackerOverviewGrid
@@ -105,7 +119,7 @@ export function DashboardClient({ initialTrackers }: DashboardClientProps) {
         />
       </div>
 
-      {/* Section 2: Alerts */}
+      {/* Alerts */}
       {data.alerts.length > 0 && (
         <AlertsBanner
           alerts={data.alerts}
