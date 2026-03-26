@@ -766,6 +766,8 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
                 width={140}
                 height={40}
                 className="shrink-0"
+                style={{ width: 140, height: "auto" }}
+                priority
               />
             </button>
             <button
@@ -906,29 +908,31 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
 
           {/* Bottom controls — pinned */}
           <div className="px-3 py-4 border-t border-border shrink-0 flex flex-col gap-1">
-            <button
-              type="button"
-              onClick={async () => {
-                await fetch("/api/auth/logout", { method: "POST" })
-                router.push("/login")
-              }}
-              className="text-tertiary hover:text-secondary text-sm font-mono flex items-center gap-3 transition-colors duration-150 cursor-pointer w-full px-1 py-1"
-            >
-              <span className="text-lg" aria-hidden="true">
-                ⏻
-              </span>
-              Log Out
-            </button>
-            <button
-              type="button"
-              onClick={() => router.push("/settings")}
-              className="text-tertiary hover:text-secondary text-sm font-mono flex items-center gap-3 transition-colors duration-150 cursor-pointer w-full px-1 py-1"
-            >
-              <span className="text-lg" aria-hidden="true">
-                ⚙
-              </span>
-              Settings
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={async () => {
+                  await fetch("/api/auth/logout", { method: "POST" })
+                  router.push("/login")
+                }}
+                className="text-tertiary hover:text-secondary text-sm font-mono flex items-center gap-3 transition-colors duration-150 cursor-pointer flex-1 px-1 py-1"
+              >
+                <span className="text-lg" aria-hidden="true">
+                  ⏻
+                </span>
+                Log Out
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push("/settings")}
+                className="text-tertiary hover:text-secondary text-sm font-mono flex items-center gap-3 transition-colors duration-150 cursor-pointer flex-1 px-1 py-1"
+              >
+                <span className="text-lg" aria-hidden="true">
+                  ⚙
+                </span>
+                Settings
+              </button>
+            </div>
 
             {/* Version + GitHub + Docs */}
             <div className="flex items-center gap-2 px-1 pt-2">

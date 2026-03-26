@@ -90,3 +90,4 @@ Notification targets are configured individually. Each target is an independent 
 - **Encrypted storage** — Your proxy password, backup password, API tokens, and download client credentials are all encrypted at rest. Changing your master password re-encrypts everything automatically.
 - **Restoring a backup** — Your master password and its associated encryption salt are never included in a backup and are never overwritten when you restore one. Your session stays valid after a restore.
 - **Lockout and restores** — Restoring a backup always clears any active lockout, regardless of what was in the backup file.
+- **Secure cookies** — Session cookies are marked `Secure` (HTTPS-only) when `BASE_URL` starts with `https://` or `SECURE_COOKIES=true` is set. If you access the app over plain HTTP, cookies are not marked `Secure` and this is expected.

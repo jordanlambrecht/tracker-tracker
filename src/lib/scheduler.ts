@@ -1,6 +1,6 @@
 // src/lib/scheduler.ts
 //
-// Functions: pollTracker, pollAllTrackers, pruneOldSnapshots, startScheduler, stopScheduler, ensureSchedulerRunning, POLL_FAILURE_THRESHOLD
+// Functions: pollTracker, pollAllTrackers, pruneOldSnapshots, pruneOldCheckpoints, startScheduler, stopScheduler, ensureSchedulerRunning, fetchTrackerStats, POLL_FAILURE_THRESHOLD
 import type { Agent as HttpAgent } from "node:http"
 
 import { and, desc, eq, isNotNull, lt, notInArray, sql } from "drizzle-orm"
@@ -17,8 +17,16 @@ import {
 } from "@/lib/client-scheduler"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { appSettings, notificationTargets, trackerSnapshots, trackers } from "@/lib/db/schema"
+import {
+  appSettings,
+  notificationTargets,
+  torrentDailyCheckpoints,
+  trackerDailyCheckpoints,
+  trackerSnapshots,
+  trackers,
+} from "@/lib/db/schema"
 import { sanitizeNetworkError } from "@/lib/error-utils"
+import { localDateStr } from "@/lib/formatters"
 import { log } from "@/lib/logger"
 import { dispatchNotifications } from "@/lib/notifications/dispatch"
 import { maskUsername } from "@/lib/privacy"
@@ -27,7 +35,7 @@ import { getPauseState } from "@/lib/tracker-status"
 
 // Store on globalThis to survive HMR in development.
 // Without this, each hot-reload orphans the old cron job (it keeps firing)
-// while creating a new one — causing duplicate polls that hammer tracker APIs.
+// while creating a new one which causes duplicate polls that hammer tracker APIs.
 const g = globalThis as typeof globalThis & {
   __schedulerTask?: ScheduledTask | null
   __schedulerKey?: Buffer | null
@@ -73,13 +81,14 @@ export async function fetchTrackerStats(
   let apiToken: string
   try {
     apiToken = decrypt(tracker.encryptedApiToken, encryptionKey)
-  } catch {
-    throw new Error(`API key is missing or invalid for tracker "${tracker.name}"`)
+  } catch (err) {
+    const cause = err instanceof Error ? err.message : String(err)
+    throw new Error(`API key is missing or invalid for tracker "${tracker.name}": ${cause}`)
   }
 
   const adapter = getAdapter(tracker.platformType)
   if (tracker.useProxy && !proxyAgent) {
-    throw new Error("Proxy required but not available — refusing to leak IP via direct connection")
+    throw new Error("Proxy required but not available, refusing to leak IP via direct connection")
   }
 
   const fetchOptions = buildFetchOptions(tracker.baseUrl, {
@@ -131,13 +140,14 @@ export async function pollTracker(
     let apiToken: string
     try {
       apiToken = decrypt(tracker.encryptedApiToken, encryptionKey)
-    } catch (_err) {
-      throw new Error(`API key is missing or invalid for tracker "${tracker.name}"`)
+    } catch (err) {
+      const cause = err instanceof Error ? err.message : String(err)
+      throw new Error(`API key is missing or invalid for tracker "${tracker.name}": ${cause}`)
     }
     const adapter = getAdapter(tracker.platformType)
     if (tracker.useProxy && !proxyAgent) {
       throw new Error(
-        "Proxy required but not available — refusing to leak IP via direct connection"
+        "Proxy required but not available, refusing to leak IP via direct connection"
       )
     }
     const fetchOptions = buildFetchOptions(tracker.baseUrl, {
@@ -173,7 +183,7 @@ export async function pollTracker(
       await db.update(trackers).set(metaUpdates).where(eq(trackers.id, tracker.id))
     }
 
-    // Fetch previous snapshot BEFORE inserting the new one — used for change detection in notifications
+    // Fetch previous snapshot before inserting the new one (used for change detection in notifications)
     const [previousSnapshot] = await db
       .select({
         ratio: trackerSnapshots.ratio,
@@ -206,6 +216,38 @@ export async function pollTracker(
       username: privacyMode ? maskUsername(stats.username) : stats.username,
       group: privacyMode ? maskUsername(stats.group) : stats.group,
     })
+
+    try {
+      // Upsert daily checkpoint for "Today At A Glance" comparisons
+      const checkpointDate = localDateStr(timestamp)
+      await db
+        .insert(trackerDailyCheckpoints)
+        .values({
+          trackerId: tracker.id,
+          checkpointDate,
+          uploadedBytesEnd: stats.uploadedBytes !== null ? BigInt(stats.uploadedBytes) : 0n,
+          downloadedBytesEnd: stats.downloadedBytes !== null ? BigInt(stats.downloadedBytes) : 0n,
+          bufferBytesEnd: stats.bufferBytes !== null ? BigInt(stats.bufferBytes) : null,
+          ratioEnd: stats.ratio,
+          seedbonusEnd: stats.seedbonus,
+          snapshotCount: 1,
+        })
+        .onConflictDoUpdate({
+          target: [trackerDailyCheckpoints.trackerId, trackerDailyCheckpoints.checkpointDate],
+          set: {
+            uploadedBytesEnd: stats.uploadedBytes !== null ? BigInt(stats.uploadedBytes) : 0n,
+            downloadedBytesEnd: stats.downloadedBytes !== null ? BigInt(stats.downloadedBytes) : 0n,
+            bufferBytesEnd: stats.bufferBytes !== null ? BigInt(stats.bufferBytes) : null,
+            ratioEnd: stats.ratio,
+            seedbonusEnd: stats.seedbonus,
+            snapshotCount: sql`${trackerDailyCheckpoints.snapshotCount} + 1`,
+          },
+        })
+    } catch (checkpointErr) {
+      log.warn(
+        `Daily checkpoint upsert failed for tracker ${tracker.id}: ${checkpointErr instanceof Error ? checkpointErr.message : "Unknown"}`
+      )
+    }
 
     try {
       await dispatchNotifications(
@@ -308,7 +350,7 @@ export async function pollTracker(
         enabledTargets
       )
     } catch {
-      // security-audit-ignore: notification dispatch is non-critical — errors logged inside dispatchNotifications
+      // security-audit-ignore: notification dispatch is non-critical, errors logged inside dispatchNotifications
     }
   }
 }
@@ -330,8 +372,26 @@ export async function pruneOldSnapshots(retentionDays: number): Promise<number> 
   return deleted.length
 }
 
+export async function pruneOldCheckpoints(retentionDays: number): Promise<number> {
+  const cutoffDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10)
+
+  const deletedTracker = await db
+    .delete(trackerDailyCheckpoints)
+    .where(lt(trackerDailyCheckpoints.checkpointDate, cutoffDate))
+    .returning({ id: trackerDailyCheckpoints.id })
+
+  const deletedTorrent = await db
+    .delete(torrentDailyCheckpoints)
+    .where(lt(torrentDailyCheckpoints.checkpointDate, cutoffDate))
+    .returning({ id: torrentDailyCheckpoints.id })
+
+  return deletedTracker.length + deletedTorrent.length
+}
+
 export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
-  // Query settings first — global interval is needed for overdue filtering
+  // Query settings first; global interval is needed for overdue filtering
   const [settings] = await db
     .select({
       storeUsernames: appSettings.storeUsernames,
@@ -370,7 +430,7 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
   // Build proxy agent once for all trackers that need it
   const proxyAgent = settings ? buildProxyAgentFromSettings(settings, encryptionKey) : undefined
 
-  // Fetch notification targets once for the entire poll cycle — avoids N identical queries
+  // Fetch notification targets once for the entire poll cycle (avoids N identical queries)
   let enabledNotificationTargets: (typeof notificationTargets.$inferSelect)[] = []
   try {
     enabledNotificationTargets = await db
@@ -384,10 +444,10 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
   }
 
   // Capture a single timestamp for the whole batch so all snapshots in one
-  // cycle share the same polledAt value — simplifies time-series queries
+  // cycle share the same polledAt value, simplifying time-series queries
   const batchTimestamp = new Date()
 
-  // Poll all overdue trackers in parallel — one slow tracker won't block the rest
+  // Poll all overdue trackers in parallel so one slow tracker won't block the rest
   await Promise.allSettled(
     overdue.map((tracker) =>
       pollTracker(
@@ -411,6 +471,17 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
     } catch (error) {
       log.error(error, "Snapshot pruning failed")
     }
+
+    try {
+      const prunedCheckpoints = await pruneOldCheckpoints(settings.snapshotRetentionDays)
+      if (prunedCheckpoints > 0) {
+        log.info(
+          `Pruned ${prunedCheckpoints} checkpoint rows older than ${settings.snapshotRetentionDays} days`
+        )
+      }
+    } catch (error) {
+      log.error(error, "Checkpoint pruning failed")
+    }
   }
 
   // Prune expired dismissed alerts (stale-data and zero-seeding types expire after 24h)
@@ -426,7 +497,7 @@ export function startScheduler(encryptionKey: Buffer): void {
 
   setSchedulerKey(encryptionKey)
 
-  // Poll immediately on start — don't wait for first 5-minute tick
+  // Poll immediately on start, don't wait for first 5-minute tick
   pollAllTrackers(encryptionKey).catch((error) => {
     log.error(error, "Initial poll error")
   })
@@ -468,7 +539,7 @@ export function stopScheduler(): void {
   stopBackupScheduler()
 }
 
-/** Exposed for testing — returns the raw schedulerKey buffer reference. */
+/** Exposed for testing. Returns the raw schedulerKey buffer reference. */
 export function _getSchedulerKeyForTest(): Buffer | null {
   return getSchedulerKey()
 }

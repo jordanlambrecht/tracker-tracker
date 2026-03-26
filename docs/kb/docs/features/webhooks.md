@@ -59,7 +59,7 @@ Each target subscribes to any combination of these events:
 Cooldowns prevent spam — if a condition persists across multiple polls, you get one alert per cooldown period, not one per poll.
 
 !!! info "First-poll behavior"
-Events that compare snapshots (ratio drop, hit-and-run) need at least two polls and won't fire on the first one. Events like "account warned" fire immediately if the condition is already true.
+    Events that compare snapshots (ratio drop, hit-and-run) need at least two polls and won't fire on the first one. Events like "account warned" fire immediately if the condition is already true.
 
 ## Thresholds
 

@@ -105,7 +105,7 @@ jobs:
           fi
 
       - name: Post PR Comment
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: knip-report
           path: knip-report.md

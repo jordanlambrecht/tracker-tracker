@@ -2,7 +2,8 @@
 //
 // Tables: appSettings, trackers, trackerSnapshots, trackerRoles, downloadClients,
 // tagGroups, tagGroupMembers, clientSnapshots, backupHistory, dismissedAlerts,
-// draftQuicklinks (column on appSettings), notificationTargets, notificationDeliveryState
+// draftQuicklinks (column on appSettings), notificationTargets, notificationDeliveryState,
+// trackerDailyCheckpoints, torrentDailyCheckpoints
 
 import {
   bigint,
@@ -362,5 +363,61 @@ export const notificationDeliveryState = pgTable(
     // Batch cooldown fetch: "find all snooze state for tracker X in one query"
     // — dispatch.ts fetches all rows for a trackerId then checks in-memory via Map.
     index("idx_delivery_state_tracker_id").on(table.trackerId),
+  ]
+)
+
+// ─── Today At A Glance — daily checkpoint tables ──────────────────────────────
+//
+// These tables store end-of-day snapshots used by the "Today At A Glance"
+// feature to compute daily deltas (e.g. how much was uploaded/downloaded today).
+//
+// trackerDailyCheckpoints: one row per tracker per calendar day, capturing the
+// final metric values recorded that day. snapshotCount reflects how many raw
+// snapshots were taken during the day, giving confidence in the reading quality.
+//
+// torrentDailyCheckpoints: one row per (client, torrent hash, calendar day),
+// recording the starting uploaded/downloaded values for the day. Delta is
+// computed at query time as (current − start).
+
+export const trackerDailyCheckpoints = pgTable(
+  "tracker_daily_checkpoints",
+  {
+    id: serial("id").primaryKey(),
+    trackerId: integer("tracker_id")
+      .references(() => trackers.id, { onDelete: "cascade" })
+      .notNull(),
+    checkpointDate: date("checkpoint_date").notNull(),
+    uploadedBytesEnd: bigint("uploaded_bytes_end", { mode: "bigint" }).notNull(),
+    downloadedBytesEnd: bigint("downloaded_bytes_end", { mode: "bigint" }).notNull(),
+    bufferBytesEnd: bigint("buffer_bytes_end", { mode: "bigint" }),
+    ratioEnd: real("ratio_end"),
+    seedbonusEnd: real("seedbonus_end"),
+    snapshotCount: integer("snapshot_count").notNull().default(0),
+  },
+  (table) => [
+    uniqueIndex("uq_tracker_checkpoint_tracker_date").on(table.trackerId, table.checkpointDate),
+  ]
+)
+
+export const torrentDailyCheckpoints = pgTable(
+  "torrent_daily_checkpoints",
+  {
+    id: serial("id").primaryKey(),
+    clientId: integer("client_id")
+      .references(() => downloadClients.id, { onDelete: "cascade" })
+      .notNull(),
+    hash: varchar("hash", { length: 64 }).notNull(),
+    name: text("name").notNull(),
+    checkpointDate: date("checkpoint_date").notNull(),
+    uploadedStart: bigint("uploaded_start", { mode: "bigint" }).notNull(),
+    downloadedStart: bigint("downloaded_start", { mode: "bigint" }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("uq_torrent_checkpoint_client_hash_date").on(
+      table.clientId,
+      table.hash,
+      table.checkpointDate
+    ),
+    index("idx_torrent_checkpoint_date").on(table.checkpointDate),
   ]
 )

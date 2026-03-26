@@ -1,5 +1,6 @@
 // src/proxy.ts
 import { type NextRequest, NextResponse } from "next/server"
+import { shouldSecureCookies } from "@/lib/cookie-security"
 
 const PUBLIC_EXACT = ["/login", "/setup", "/api/health"]
 const PUBLIC_PREFIX = ["/api/auth/", "/api/verify-report", "/_next/", "/img/", "/favicon"]
@@ -31,17 +32,17 @@ export function proxy(request: NextRequest) {
   const maxAge = maxAgeStr ? parseInt(maxAgeStr, 10) : null
 
   if (maxAge && maxAge > 0 && maxAge <= MAX_COOKIE_AGE) {
-    const isProduction = process.env.NODE_ENV === "production"
+    const secureCookies = shouldSecureCookies()
     response.cookies.set(SESSION_COOKIE, session.value, {
       httpOnly: true,
-      secure: isProduction,
+      secure: secureCookies,
       sameSite: "strict",
       maxAge,
       path: "/",
     })
     response.cookies.set(MAX_AGE_COOKIE, String(maxAge), {
       httpOnly: true,
-      secure: isProduction,
+      secure: secureCookies,
       sameSite: "strict",
       maxAge,
       path: "/",

@@ -30,7 +30,7 @@ Go to **Settings → Download Clients** and fill in the connection details:
 | Use SSL  | Enable if your qBittorrent Web UI is served over HTTPS      |
 
 !!! warning "SSL/port mismatch"
-The form will warn you if SSL is on with port 80, or SSL is off with port 443. These combinations are usually misconfigured. You can still save, but double-check your settings.
+    The form will warn you if SSL is on with port 80, or SSL is off with port 443. These combinations are usually misconfigured. You can still save, but double-check your settings.
 
 After saving, use the **Test Connection** button to confirm Tracker Tracker can reach and authenticate with qBittorrent.
 

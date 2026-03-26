@@ -15,7 +15,8 @@ export function decryptClientCredentials(
       username: decrypt(client.encryptedUsername, key),
       password: decrypt(client.encryptedPassword, key),
     }
-  } catch {
-    throw new Error(`Credentials are missing or invalid for client "${client.name}"`)
+  } catch (err) {
+    const cause = err instanceof Error ? err.message : String(err)
+    throw new Error(`Failed to decrypt credentials for client "${client.name}": ${cause}`)
   }
 }

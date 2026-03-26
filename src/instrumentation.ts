@@ -11,6 +11,14 @@ export async function register() {
   const { startScheduler } = await import("@/lib/scheduler")
   const { log } = await import("@/lib/logger")
 
+  const { shouldSecureCookies } = await import("@/lib/cookie-security")
+  if (!shouldSecureCookies()) {
+    log.warn(
+      "Session cookies are not marked Secure. If this instance is served over HTTPS, " +
+        "set BASE_URL=https://... or SECURE_COOKIES=true in your environment."
+    )
+  }
+
   try {
     const key = await loadSchedulerKey()
     if (!key) {

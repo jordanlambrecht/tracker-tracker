@@ -1,6 +1,4 @@
 // src/lib/nuke.ts
-//
-// Functions: scrubAndDeleteAll
 
 import { randomBytes } from "node:crypto"
 import { db } from "@/lib/db"
@@ -14,6 +12,8 @@ import {
   notificationTargets,
   tagGroupMembers,
   tagGroups,
+  torrentDailyCheckpoints,
+  trackerDailyCheckpoints,
   trackerRoles,
   trackerSnapshots,
   trackers,
@@ -73,6 +73,8 @@ export async function scrubAndDeleteAll(): Promise<void> {
 
     await tx.delete(dismissedAlerts)
     await tx.delete(clientUptimeBuckets)
+    await tx.delete(torrentDailyCheckpoints)
+    await tx.delete(trackerDailyCheckpoints)
     await tx.delete(clientSnapshots)
     await tx.delete(trackerSnapshots)
     await tx.delete(trackerRoles)

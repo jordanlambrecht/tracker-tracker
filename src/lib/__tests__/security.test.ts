@@ -24,6 +24,7 @@ vi.mock("@/lib/api-helpers", async (importOriginal) => {
 vi.mock("@/lib/db", () => ({
   db: {
     select: vi.fn(),
+    selectDistinctOn: vi.fn(),
     insert: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
@@ -845,7 +846,12 @@ describe("Token leakage prevention", () => {
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFrom })
       .mockReturnValueOnce({ from: mockSettingsFrom })
-    // DISTINCT ON query via db.execute — default mock resolves []
+    // DISTINCT ON query via db.selectDistinctOn
+    ;(db.selectDistinctOn as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      from: vi.fn().mockReturnValue({
+        orderBy: vi.fn().mockResolvedValue([]),
+      }),
+    })
 
     const res = await GET()
     const body = await res.json()

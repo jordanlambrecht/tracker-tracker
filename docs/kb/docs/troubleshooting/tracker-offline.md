@@ -38,7 +38,7 @@ When this happens:
 Paused trackers are skipped entirely until you manually resume them.
 
 !!! warning "Verify the cause before resuming"
-The banner reads: _"Polling was paused after repeated failures. Verify your API key is correct before resuming."_ If you resume without fixing the underlying problem, the tracker will fail again immediately and re-pause within the same poll cycle.
+  The banner reads: _"Polling was paused after repeated failures. Verify your API key is correct before resuming."_ If you resume without fixing the underlying problem, the tracker will fail again immediately and re-pause within the same poll cycle.
 
 ---
 
@@ -91,7 +91,8 @@ The hostname resolved but the connection was refused or the host was unreachable
 
 **Symptom:** The Poll Error Banner shows `Connection refused` or `Host unreachable`.
 
-!!! success "Solution" 1. Check whether the tracker site loads in your browser. 2. If the tracker is down, wait for it to recover, then resume polling. 3. If you route tracker traffic through a VPN, confirm the VPN is up. 4. Verify the base URL uses the correct scheme (`https://` vs `http://`) and the right port if the tracker uses a non-standard one.
+!!! success "Solution" 1.
+  Check whether the tracker site loads in your browser. 2. If the tracker is down, wait for it to recover, then resume polling. 3. If you route tracker traffic through a VPN, confirm the VPN is up. 4. Verify the base URL uses the correct scheme (`https://` vs `http://`) and the right port if the tracker uses a non-standard one.
 
 ---
 
@@ -101,7 +102,8 @@ The connection was established but the tracker API did not respond within 15 sec
 
 **Symptom:** The Poll Error Banner shows `Request timed out`.
 
-!!! success "Solution" 1. This is often transient. Try **Poll Now** again after a few minutes. 2. If timeouts are persistent, check whether a proxy is adding significant latency. 3. If the tracker's API is consistently slow, there is no configurable timeout override.
+!!! success "Solution" 1.
+  This is often transient. Try **Poll Now** again after a few minutes. 2. If timeouts are persistent, check whether a proxy is adding significant latency. 3. If the tracker's API is consistently slow, there is no configurable timeout override.
 
 ---
 
@@ -111,7 +113,8 @@ Some trackers block repeated requests from a single IP if polls come in too freq
 
 **Symptom:** The Poll Error Banner shows `IP temporarily banned by tracker`.
 
-!!! success "Solution" 1. Go to **Settings → General** and increase the **Poll Interval**. The minimum is 15 minutes, but 60 minutes (the default) is recommended for most trackers. 2. Wait for the IP ban to expire on the tracker side — this varies by site, typically minutes to hours. 3. Resume polling only after the ban has likely cleared.
+!!! success "Solution" 1.
+  Go to **Settings → General** and increase the **Poll Interval**. The minimum is 15 minutes, but 60 minutes (the default) is recommended for most trackers. 2. Wait for the IP ban to expire on the tracker side — this varies by site, typically minutes to hours. 3. Resume polling only after the ban has likely cleared.
 
 ---
 
@@ -120,4 +123,4 @@ Some trackers block repeated requests from a single IP if polls come in too freq
 If polling has not paused but you still see a **Last Error** banner — without the "Polling Paused" heading — it means a recent poll failed but not enough times to trigger a pause. The banner clears automatically on the next successful poll.
 
 !!! info "No action needed if the last poll succeeded"
-The Last Error banner always shows the most recent error, even if subsequent polls recovered. If the PulseDot is `healthy`, `warning`, or `critical` (not `error` or `paused`), polling has already recovered on its own.
+  The Last Error banner always shows the most recent error, even if subsequent polls recovered. If the PulseDot is `healthy`, `warning`, or `critical` (not `error` or `paused`), polling has already recovered on its own.

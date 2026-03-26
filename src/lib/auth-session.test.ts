@@ -76,10 +76,21 @@ vi.mock("jose", () => ({
   jwtDecrypt: vi.fn(async (token: string) => ({ payload: JSON.parse(token).payload })),
 }))
 
+vi.mock("@/lib/cookie-security", async () => {
+  return {
+    shouldSecureCookies: () => {
+      if (process.env.SECURE_COOKIES === "true") return true
+      if (process.env.BASE_URL?.toLowerCase().startsWith("https://")) return true
+      return false
+    },
+  }
+})
+
 describe("auth session cookies", () => {
   beforeEach(() => {
     resetCookieState()
     tokenCounter = 0
+    vi.unstubAllEnvs()
     vi.stubEnv("SESSION_SECRET", "x".repeat(32))
     vi.stubEnv("NODE_ENV", "test")
   })
@@ -113,8 +124,8 @@ describe("auth session cookies", () => {
     await expect(getSession()).resolves.toEqual({ encryptionKey: "a".repeat(64) })
   })
 
-  it("uses secure cookies in production and different tokens per session", async () => {
-    vi.stubEnv("NODE_ENV", "production")
+  it("uses secure cookies when SECURE_COOKIES=true and different tokens per session", async () => {
+    vi.stubEnv("SECURE_COOKIES", "true")
     const { createSession } = await loadAuthModule()
 
     const first = await createSession("b".repeat(64), null)
@@ -124,6 +135,64 @@ describe("auth session cookies", () => {
     expect(getCookieOptions("tt_session")).toMatchObject({
       secure: true,
       maxAge: 60 * 60 * 24 * 7,
+    })
+  })
+
+  it("enables secure cookies when BASE_URL uses https", async () => {
+    vi.stubEnv("BASE_URL", "https://trackertracker.example.com")
+    const { createSession } = await loadAuthModule()
+
+    await createSession("f".repeat(64), null)
+
+    expect(getCookieOptions("tt_session")).toMatchObject({
+      secure: true,
+    })
+  })
+
+  it("does not set secure cookies when NODE_ENV is production but no SECURE_COOKIES or HTTPS BASE_URL", async () => {
+    vi.stubEnv("NODE_ENV", "production")
+    const { createSession } = await loadAuthModule()
+
+    await createSession("g".repeat(64), null)
+
+    expect(getCookieOptions("tt_session")).toMatchObject({
+      secure: false,
+    })
+  })
+
+  it("does not set secure cookies when BASE_URL uses http://", async () => {
+    vi.stubEnv("BASE_URL", "http://trackertracker.local")
+    const { createSession } = await loadAuthModule()
+
+    await createSession("h".repeat(64), null)
+
+    expect(getCookieOptions("tt_session")).toMatchObject({
+      secure: false,
+    })
+    expect(getCookieOptions("tt_max_age")).toMatchObject({
+      secure: false,
+    })
+  })
+
+  it("does not set secure cookies when SECURE_COOKIES is the string 'false'", async () => {
+    vi.stubEnv("SECURE_COOKIES", "false")
+    const { createSession } = await loadAuthModule()
+
+    await createSession("i".repeat(64), null)
+
+    expect(getCookieOptions("tt_session")).toMatchObject({
+      secure: false,
+    })
+  })
+
+  it("sets secure cookies when BASE_URL uses HTTPS:// with uppercase scheme", async () => {
+    vi.stubEnv("BASE_URL", "HTTPS://trackertracker.example.com")
+    const { createSession } = await loadAuthModule()
+
+    await createSession("j".repeat(64), null)
+
+    expect(getCookieOptions("tt_session")).toMatchObject({
+      secure: true,
     })
   })
 

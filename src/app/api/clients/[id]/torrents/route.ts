@@ -8,6 +8,7 @@ import { authenticate, decodeKey, parseRouteId } from "@/lib/api-helpers"
 import { decryptClientCredentials } from "@/lib/client-decrypt"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
+import { isDecryptionError } from "@/lib/error-utils"
 import { log } from "@/lib/logger"
 import { getTorrents, withSessionRetry } from "@/lib/qbt"
 
@@ -40,7 +41,14 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
   let password: string
   try {
     ;({ username, password } = decryptClientCredentials(client, key))
-  } catch {
+  } catch (err) {
+    if (isDecryptionError(err)) {
+      log.warn(
+        { route: "GET /api/clients/[id]/torrents", clientId },
+        "torrent fetch failed — stale session key"
+      )
+      return NextResponse.json({ error: "Session expired. Please log in again" }, { status: 401 })
+    }
     log.error(
       { route: "GET /api/clients/[id]/torrents", clientId },
       "torrent fetch failed — credential decrypt error"
