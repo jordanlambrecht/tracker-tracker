@@ -358,4 +358,4 @@ Returns the caller's current IP, ASN, and AS organization name. Available on bot
 
 ## Supported Trackers
 
-- [MyAnonaMouse](trackers/myanonamouse.md) *(to be created)*
+- MyAnonaMouse
