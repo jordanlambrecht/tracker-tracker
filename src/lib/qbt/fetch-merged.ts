@@ -5,7 +5,7 @@
 import "server-only"
 
 import { decryptClientCredentials } from "@/lib/client-decrypt"
-import { sanitizeNetworkError } from "@/lib/error-utils"
+import { isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
 import {
   getTorrents,
   parseCrossSeedTags,
@@ -125,9 +125,9 @@ export async function fetchAndMergeTorrents(
       crossSeedClients.push({ crossSeedTags: result.value.crossSeedTags })
     } else {
       const clientName = clients[i].name
-      const raw = result.reason instanceof Error ? result.reason.message : "Unknown error"
-      const isDecrypt = /decrypt|crypt|EVP_/i.test(raw)
+      const isDecrypt = isDecryptionError(result.reason)
       if (isDecrypt) decryptionFailureCount++
+      const raw = result.reason instanceof Error ? result.reason.message : "Unknown error"
       const message = isDecrypt ? "Credential decryption failed" : sanitizeNetworkError(raw)
       clientErrors.push(`${clientName}: ${message}`)
     }
