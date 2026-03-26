@@ -22,7 +22,7 @@ export interface TrackerLatestStats {
   requiredRatio: number | null
   warned: boolean | null
   freeleechTokens: number | null
-  bufferBytes: string | null // bigint serialized as decimal string
+  bufferBytes: string | null
   hitAndRuns: number | null
   seedbonus: number | null
   shareScore: number | null
@@ -114,9 +114,56 @@ export interface QbitmanageTagConfig {
 export interface DashboardSettings {
   showHealthIndicators: boolean
   showLoginTimers: boolean
+  showTodayAtAGlance: boolean
+}
+
+export interface TodayAtAGlance {
+  fleet: {
+    uploadDelta: string
+    downloadDelta: string
+    bufferDelta: string
+    ratioChange: number | null
+    seedbonusChange: number | null
+    uploadDeltaYesterday: string | null
+    downloadDeltaYesterday: string | null
+    bufferDeltaYesterday: string | null
+  }
+  trackers: Array<{
+    id: number
+    name: string
+    color: string | null
+    uploadDelta: string
+    downloadDelta: string
+    bufferDelta: string
+  }>
+  activity: {
+    addedToday: number
+    completedToday: number
+  }
+  movers: {
+    topUploaders: Array<{
+      hash: string
+      name: string
+      qbtTag: string | null
+      trackerColor: string | null
+      clientName: string | null
+      uploadedToday: string
+    }>
+    topDownloaders: Array<{
+      hash: string
+      name: string
+      qbtTag: string | null
+      trackerColor: string | null
+      clientName: string | null
+      downloadedToday: string
+    }>
+  }
+  trackerLastUpdated: string | null
+  clientLastUpdated: string | null
 }
 
 export const DASHBOARD_SETTINGS_DEFAULTS: DashboardSettings = {
   showHealthIndicators: true,
   showLoginTimers: true,
+  showTodayAtAGlance: true,
 }
