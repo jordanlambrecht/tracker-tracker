@@ -44,7 +44,7 @@ import type { Snapshot, TagGroup, TagGroupChartType } from "@/types/api"
  *
  * Note: `hasProxyPassword` and `hasBackupPassword` select the encrypted column
  * references so the serializer can coerce them to booleans. The raw ciphertext
- * is never returned to clients — serializeSettingsResponse() converts these to
+ * is never returned to clients and serializeSettingsResponse() converts these to
  * `!!value` before the data leaves the server.
  */
 export const settingsColumns = {
@@ -116,7 +116,7 @@ export function serializeSettingsResponse(row: SettingsRow) {
 }
 
 /**
- * Convenience wrapper: fetches settings and serializes for the client.
+ * fetches settings and serializes for the client.
  * Returns null if no settings row exists (app not yet configured).
  */
 export async function getSettingsForClient() {
@@ -175,40 +175,16 @@ export async function getTrackerListForDashboard(): Promise<TrackerSummary[]> {
     db.select({ storeUsernames: appSettings.storeUsernames }).from(appSettings).limit(1),
   ])
 
-  // Enforce masking at response time -- even if DB has plaintext from before
-  // privacy was enabled, the API never leaks it when privacy mode is on.
+  // Enforce masking at response time
   // Fallback true = "store usernames" = no masking. Matches createPrivacyMask()
   // behavior when no settings row exists. Do NOT change to false.
   const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
 
-  // Batch-fetch the latest snapshot per tracker using DISTINCT ON.
-  // PG18's enable_distinct_reordering planner flag optimises exactly this pattern.
-  // Drizzle has no native DISTINCT ON support, so we use db.execute with a raw sql tag. I know, I know.
-  // security-audit-ignore: static SQL string with zero user input -- no injection risk
-  const latestSnapshots = (await db.execute(sql`
-    SELECT DISTINCT ON (tracker_id)
-      id,
-      tracker_id        AS "trackerId",
-      polled_at          AS "polledAt",
-      uploaded_bytes     AS "uploadedBytes",
-      downloaded_bytes   AS "downloadedBytes",
-      ratio,
-      buffer_bytes       AS "bufferBytes",
-      seeding_count      AS "seedingCount",
-      leeching_count     AS "leechingCount",
-      seedbonus,
-      hit_and_runs       AS "hitAndRuns",
-      required_ratio     AS "requiredRatio",
-      warned,
-      freeleech_tokens   AS "freeleechTokens",
-      share_score        AS "shareScore",
-      username,
-      group_name         AS "group"
-    FROM tracker_snapshots
-    ORDER BY tracker_id, polled_at DESC
-  `)) as unknown as (typeof trackerSnapshots.$inferSelect)[]
+  const latestSnapshots = await db
+    .selectDistinctOn([trackerSnapshots.trackerId])
+    .from(trackerSnapshots)
+    .orderBy(trackerSnapshots.trackerId, desc(trackerSnapshots.polledAt))
 
-  // Build a lookup map for O(1) access
   const snapshotByTracker = new Map(latestSnapshots.map((s) => [s.trackerId, s]))
 
   // SECURITY: Never include encryptedApiToken in response
@@ -341,7 +317,7 @@ export async function getTagGroupsWithMembers(): Promise<TagGroup[]> {
 
 /**
  * Fetches only id, name, and color for trackers that have useProxy enabled.
- * Used by the settings page — avoids the heavy dashboard query for this narrow need.
+ * Used by the settings page
  */
 export async function getProxyTrackers(): Promise<{ id: number; name: string; color: string }[]> {
   const rows = await db

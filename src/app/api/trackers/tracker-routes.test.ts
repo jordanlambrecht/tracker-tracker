@@ -24,6 +24,7 @@ vi.mock("@/lib/api-helpers", async (importOriginal) => {
 vi.mock("@/lib/db", () => ({
   db: {
     select: vi.fn(),
+    selectDistinctOn: vi.fn(),
     insert: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
@@ -114,8 +115,12 @@ describe("GET /api/trackers", () => {
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFromTrackers })
       .mockReturnValueOnce({ from: mockSettingsFrom })
-    // DISTINCT ON query via db.execute
-    ;(db.execute as ReturnType<typeof vi.fn>).mockResolvedValueOnce([snapshot])
+    // DISTINCT ON query via db.selectDistinctOn
+    ;(db.selectDistinctOn as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      from: vi.fn().mockReturnValue({
+        orderBy: vi.fn().mockResolvedValue([snapshot]),
+      }),
+    })
 
     const response = await GET()
     const data = await response.json()
@@ -139,8 +144,12 @@ describe("GET /api/trackers", () => {
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFrom })
       .mockReturnValueOnce({ from: mockSettingsFrom })
-    // DISTINCT ON query via db.execute
-    ;(db.execute as ReturnType<typeof vi.fn>).mockResolvedValueOnce([])
+    // DISTINCT ON query via db.selectDistinctOn
+    ;(db.selectDistinctOn as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      from: vi.fn().mockReturnValue({
+        orderBy: vi.fn().mockResolvedValue([]),
+      }),
+    })
 
     const response = await GET()
     const data = await response.json()
@@ -181,8 +190,12 @@ describe("GET /api/trackers", () => {
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFromTrackers })
       .mockReturnValueOnce({ from: mockSettingsFrom })
-    // DISTINCT ON query via db.execute
-    ;(db.execute as ReturnType<typeof vi.fn>).mockResolvedValueOnce([])
+    // DISTINCT ON query via db.selectDistinctOn
+    ;(db.selectDistinctOn as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      from: vi.fn().mockReturnValue({
+        orderBy: vi.fn().mockResolvedValue([]),
+      }),
+    })
 
     const response = await GET()
     const data = await response.json()

@@ -10,6 +10,10 @@
 //
 // Functions: heartbeatClient, heartbeatAllClients, deepPollClient, deepPollAllClients,
 //            startClientScheduler, stopClientScheduler, ensureClientSchedulerRunning
+//
+// Side effects of deepPollClient:
+//   - Writes torrent daily checkpoints (torrentDailyCheckpoints) for "Movers & Shakers".
+//     Uses onConflictDoNothing so the first poll of the day wins; subsequent polls skip.
 
 import { eq, isNotNull, lt, sql } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
@@ -20,9 +24,11 @@ import {
   clientSnapshots,
   clientUptimeBuckets,
   downloadClients,
+  torrentDailyCheckpoints,
   trackers,
 } from "@/lib/db/schema"
 import { sanitizeNetworkError } from "@/lib/error-utils"
+import { localDateStr } from "@/lib/formatters"
 import { log } from "@/lib/logger"
 import type { QbtTorrent } from "@/lib/qbt"
 import {
@@ -38,7 +44,7 @@ import {
 } from "@/lib/qbt"
 import { clearUptimeAccumulator, flushCompletedBuckets, recordHeartbeat } from "@/lib/uptime"
 
-/** Columns needed by heartbeatClient — excludes large blobs like cachedTorrents */
+/** Columns needed by heartbeatClient. Excludes large blobs like cachedTorrents */
 export const HEARTBEAT_COLUMNS = {
   id: downloadClients.id,
   enabled: downloadClients.enabled,
@@ -50,7 +56,7 @@ export const HEARTBEAT_COLUMNS = {
   encryptedPassword: downloadClients.encryptedPassword,
 } as const
 
-/** Columns needed by deepPollClient — heartbeat fields + poll config + tags */
+/** Columns needed by deepPollClient. Heartbeat fields + poll config + tags */
 export const DEEP_POLL_COLUMNS = {
   ...HEARTBEAT_COLUMNS,
   crossSeedTags: downloadClients.crossSeedTags,
@@ -82,7 +88,7 @@ function setDeepPollTask(task: ScheduledTask | null) {
 }
 
 // ---------------------------------------------------------------------------
-// Heartbeat — lightweight speed + connection check
+// Heartbeat
 // ---------------------------------------------------------------------------
 
 async function heartbeatClient(clientId: number, encryptionKey: Buffer): Promise<void> {
@@ -112,7 +118,7 @@ async function heartbeatClient(clientId: number, encryptionKey: Buffer): Promise
 
     await db
       .update(downloadClients)
-      .set({ lastPolledAt: new Date(), lastError: null, errorSince: null, updatedAt: new Date() })
+      .set({ lastError: null, errorSince: null, updatedAt: new Date() })
       .where(eq(downloadClients.id, clientId))
   } catch (error) {
     recordHeartbeat(clientId, false)
@@ -142,7 +148,7 @@ async function heartbeatAllClients(encryptionKey: Buffer): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Deep poll — full torrent list + per-tag aggregation
+// Deep poll
 // ---------------------------------------------------------------------------
 
 export async function deepPollClient(clientId: number, encryptionKey: Buffer): Promise<void> {
@@ -187,7 +193,7 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
         for (const result of tagSettled) {
           if (result.status !== "fulfilled") continue
           for (const t of result.value) {
-            if (!t.isPrivate || seen.has(t.hash)) continue
+            if (seen.has(t.hash)) continue
             seen.add(t.hash)
             deduped.push(t)
           }
@@ -199,6 +205,33 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
     log.debug(
       `[deep-poll] client=${clientId} → ${torrents.length} relevant torrents (${allTags.length} tags)`
     )
+
+    // Write daily torrent checkpoints for "Movers & Shakers" — first-seen-today wins
+    const checkpointDate = localDateStr()
+    const checkpointable = torrents.filter(
+      (t) => t.uploaded != null && t.downloaded != null && t.hash && t.name
+    )
+    if (checkpointable.length > 0) {
+      try {
+        await db
+          .insert(torrentDailyCheckpoints)
+          .values(
+            checkpointable.map((t) => ({
+              clientId,
+              hash: t.hash,
+              name: t.name,
+              checkpointDate,
+              uploadedStart: BigInt(t.uploaded),
+              downloadedStart: BigInt(t.downloaded),
+            }))
+          )
+          .onConflictDoNothing()
+      } catch (err) {
+        log.warn(
+          `Torrent checkpoint insert failed for client ${clientId}: ${err instanceof Error ? err.message : "Unknown"}`
+        )
+      }
+    }
 
     const stats = aggregateByTag(torrents, trackerTags, crossSeedTags)
 
@@ -280,7 +313,7 @@ export function startClientScheduler(encryptionKey: Buffer): void {
     log.error(error, "Initial deep poll error")
   })
 
-  // Heartbeat: every 5 seconds — lightweight speed + connection check
+  // Heartbeat: every 5 seconds
   const hbTask = cron.schedule("*/5 * * * * *", async () => {
     if (heartbeatInFlight) return
     heartbeatInFlight = true
@@ -295,7 +328,7 @@ export function startClientScheduler(encryptionKey: Buffer): void {
   })
   setHeartbeatTask(hbTask)
 
-  // Deep poll: every 5 minutes — full torrent list + tag aggregation
+  // Deep poll
   const dpTask = cron.schedule("*/5 * * * *", async () => {
     if (deepPollInFlight) return
     deepPollInFlight = true
@@ -334,7 +367,7 @@ export function stopClientScheduler(): void {
   }
   clearAllSessions()
   clearSpeedCache()
-  // Best-effort flush of any completed uptime buckets before clearing
+
   flushCompletedBuckets().catch(() => {})
   clearUptimeAccumulator()
 }

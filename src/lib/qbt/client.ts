@@ -1,15 +1,16 @@
 // src/lib/qbt/client.ts
 //
 // Available functions:
-//   buildBaseUrl       - Construct base URL from host/port/ssl
-//   login              - Authenticate with qBittorrent Web API, returns SID cookie
-//   getSession         - Return cached SID or perform a fresh login
-//   invalidateSession  - Remove a cached SID (i.e after 403)
-//   clearAllSessions   - Remove all cached SIDs (called on logout)
-//   withSessionRetry   - Run an operation with automatic session retry on expiry
-//   qbtFetch           - Shared fetch + error handler for authenticated qBT requests
-//   getTorrents        - Fetch torrent info from qBittorrent (optionally filtered by tag)
-//   getTransferInfo    - Fetch global transfer stats from qBittorrent
+//   buildBaseUrl          - Construct base URL from host/port/ssl
+//   login                 - Authenticate with qBittorrent Web API, returns SID cookie
+//   getSession            - Return cached SID or perform a fresh login
+//   invalidateSession     - Remove a cached SID (i.e after 403)
+//   clearAllSessions      - Remove all cached SIDs (called on logout)
+//   withSessionRetry      - Run an operation with automatic session retry on expiry
+//   qbtFetch              - Shared fetch + error handler for authenticated qBT requests
+//   parseCachedTorrents   - Safely parse JSONB cachedTorrents column (string or object)
+//   getTorrents           - Fetch torrent info from qBittorrent (optionally filtered by tag)
+//   getTransferInfo       - Fetch global transfer stats from qBittorrent
 
 import type { QbtTorrent, QbtTransferInfo } from "./types"
 
@@ -18,14 +19,13 @@ import type { QbtTorrent, QbtTransferInfo } from "./types"
  *  TypeError("fetch failed") { cause: Error("ECONNREFUSED ...") }
  */
 function describeFetchError(err: unknown): string {
-  // Unwrap Node fetch's cause chain for the real error
   const cause =
     err !== null && typeof err === "object" && "cause" in (err as object)
       ? (err as { cause: unknown }).cause
       : undefined
   if (cause instanceof Error) {
     const code = "code" in cause ? (cause as NodeJS.ErrnoException).code : undefined
-    if (code) return code // i.e ECONNREFUSED, ENOTFOUND, ETIMEDOUT
+    if (code) return code
     if (cause.message) return cause.message
   }
 
@@ -45,8 +45,7 @@ export function buildBaseUrl(host: string, port: number, ssl: boolean): string {
 }
 
 // ---------------------------------------------------------------------------
-// SID session cache — avoids re-authenticating on every poll cycle.
-// SIDs are cached per baseUrl and reused until a 403 invalidates them.
+// SID session cache to avoid re-authenticating on every poll cycle.
 // ---------------------------------------------------------------------------
 
 const gSid = globalThis as typeof globalThis & {
@@ -193,6 +192,23 @@ async function qbtFetch(
   }
 
   return response
+}
+
+/**
+ * Parses the cachedTorrents JSONB column
+ */
+export function parseCachedTorrents(raw: unknown): QbtTorrent[] {
+  if (!raw) return []
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw)
+      return Array.isArray(parsed) ? (parsed as QbtTorrent[]) : []
+    } catch {
+      return []
+    }
+  }
+  if (Array.isArray(raw)) return raw as QbtTorrent[]
+  return []
 }
 
 export async function getTorrents(

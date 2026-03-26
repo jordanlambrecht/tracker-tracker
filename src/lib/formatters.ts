@@ -1,6 +1,10 @@
 // src/lib/formatters.ts
 //
-// Functions: formatBytesFromString, bytesToGiB, formatBytesNum, formatRatio, formatAccountAge, formatJoinedDate, hexToRgba, hexToHsl, hslToHex, generatePalette, getComplementaryColor, formatStatValue, computeDelta, formatDuration, formatTimeAgo, splitValueUnit
+// Functions: formatBytesFromString, bytesToGiB, formatBytesNum,
+// formatRatio, formatAccountAge, formatJoinedDate, hexToRgba, hexToHsl,
+// hslToHex, generatePalette, getComplementaryColor, formatStatValue,
+// computeDelta, formatDuration, formatTimeAgo, splitValueUnit, compareBigIntDesc,
+// computePctChange, localDateStr, isUnixTimestampOnDate
 
 import type { Snapshot, TrackerLatestStats } from "@/types/api"
 
@@ -14,7 +18,9 @@ export function formatBytesFromString(bytesStr: string | null | undefined): stri
   const tib = bytes / 1024 ** 4
   if (tib >= 1) return `${tib.toFixed(2)} TiB`
   const gib = bytes / 1024 ** 3
-  return `${gib.toFixed(2)} GiB`
+  if (gib >= 1) return `${gib.toFixed(2)} GiB`
+  const mib = bytes / 1024 ** 2
+  return `${Math.round(mib)} MiB`
 }
 
 /**
@@ -290,4 +296,42 @@ export function splitValueUnit(formatted: string): { num: string; unit: string }
   const idx = formatted.indexOf(" ")
   if (idx === -1) return { num: formatted, unit: "" }
   return { num: formatted.slice(0, idx), unit: formatted.slice(idx + 1) }
+}
+
+/** Comparator for sorting bigint values in descending order. */
+export function compareBigIntDesc(a: bigint, b: bigint): number {
+  if (b > a) return 1
+  if (b < a) return -1
+  return 0
+}
+
+/** Compute percentage change between two bigint-encoded decimal strings. */
+export function computePctChange(today: string, yesterday: string | null): number | null {
+  if (yesterday === null) return null
+  try {
+    const y = Number(BigInt(yesterday))
+    if (y === 0) return null
+    const t = Number(BigInt(today))
+    return ((t - y) / y) * 100
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Returns a YYYY-MM-DD date string in the server's local timezone (respects TZ env).
+ * Use this instead of `.toISOString().slice(0, 10)` which always returns UTC.
+ */
+export function localDateStr(date?: Date | number): string {
+  const d = date instanceof Date ? date : date !== undefined ? new Date(date) : new Date()
+  return d.toLocaleDateString("en-CA")
+}
+
+/**
+ * Returns true if a unix timestamp (seconds) falls on the given date string (YYYY-MM-DD)
+ * in the server's local timezone. Returns false for timestamps <= 0.
+ */
+export function isUnixTimestampOnDate(unixSeconds: number, dateStr: string): boolean {
+  if (unixSeconds <= 0) return false
+  return localDateStr(new Date(unixSeconds * 1000)) === dateStr
 }
