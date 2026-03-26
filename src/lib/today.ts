@@ -234,8 +234,8 @@ export async function computeTodayAtAGlance(): Promise<TodayAtAGlance> {
       yesterdayFleetUpload = (yesterdayFleetUpload ?? 0n) + trackerUploadYesterday
       yesterdayFleetDownload = (yesterdayFleetDownload ?? 0n) + trackerDownloadYesterday
       yesterdayFleetBuffer = (yesterdayFleetBuffer ?? 0n) + trackerBufferYesterday
-    } catch {
-      log.debug("BigInt conversion failed for yesterday comparison, tracker %d", tracker.id)
+    } catch (err) {
+      log.debug(err, "BigInt conversion failed for yesterday comparison, tracker %d", tracker.id)
     }
   }
 
@@ -278,8 +278,8 @@ export async function computeTodayAtAGlance(): Promise<TodayAtAGlance> {
       try {
         uploadedToday = BigInt(torrent.uploaded) - BigInt(checkpoint.uploadedStart)
         downloadedToday = BigInt(torrent.downloaded) - BigInt(checkpoint.downloadedStart)
-      } catch {
-        log.debug("BigInt conversion failed for torrent %s", torrent.hash)
+      } catch (err) {
+        log.debug(err, "BigInt conversion failed for torrent %s", torrent.hash)
         continue
       }
 
