@@ -5,7 +5,7 @@ description: Stat availability and behavior differences across UNIT3D, Gazelle, 
 
 # Platform Differences
 
-Tracker Tracker supports three tracker platforms: **UNIT3D**, **Gazelle**, and **GGn**. Each platform exposes different stats and uses a different authentication method. This page tells you what to expect when adding a tracker of each type.
+Tracker Tracker supports multiple tracker platforms: **UNIT3D**, **Gazelle**, **GGn**, **Nebulance**, and **MAM** (MyAnonaMouse). Each platform exposes different stats and uses a different authentication method. This page tells you what to expect when adding a tracker of each type.
 
 ---
 
@@ -18,6 +18,7 @@ How you authenticate with each platform's API depends on the platform type. In a
 | **UNIT3D**  | Appended as a query parameter on every request (`?api_token=TOKEN`). HTTPS is required to prevent the token from being exposed in server logs.                         |
 | **Gazelle** | Sent as an HTTP `Authorization` header (`Authorization: token TOKEN`). Some Gazelle forks accept the token without the `token ` prefix — Tracker Tracker handles both. |
 | **GGn**     | Appended as a query parameter (`?key=TOKEN`), similar to UNIT3D but using a different parameter name.                                                                  |
+| **MAM**     | Sent as a `Cookie: mam_id=VALUE` header. Uses a session cookie from MAM's Security Settings page, not a traditional API key. Session cookies rotate monthly.           |
 
 ---
 
@@ -25,26 +26,26 @@ How you authenticate with each platform's API depends on the platform type. In a
 
 The table below shows which stats Tracker Tracker can collect from each platform. A note in the cell means the stat is available but with caveats.
 
-| Stat                      | UNIT3D                   | Gazelle                          | GGn                              |
-| ------------------------- | ------------------------ | -------------------------------- | -------------------------------- |
-| Upload / Download / Ratio | Yes                      | Yes                              | Yes                              |
-| Buffer                    | Yes (tracker-calculated) | Approximate (calculated locally) | Approximate (calculated locally) |
-| Seeding count             | Yes                      | Some forks only                  | Paranoia-dependent               |
-| Leeching count            | Yes                      | Some forks only                  | Paranoia-dependent               |
-| Seedbonus / Bonus Points  | Yes                      | Yes (most forks)                 | Yes (called "gold")              |
-| Required Ratio            | No                       | Yes                              | Yes                              |
-| Hit & Runs                | Yes                      | No                               | Partial (may be null)            |
-| Freeleech Tokens          | No                       | Some forks only                  | No                               |
-| Warned status             | No                       | Some sites only                  | Yes                              |
-| Class / Rank              | Yes                      | Yes                              | Yes                              |
-| Join date                 | No                       | Some sites only                  | Yes                              |
-| Last access date          | No                       | Some sites only                  | Yes                              |
-| Share Score               | No                       | No                               | Yes                              |
-| Donor status              | No                       | Some sites only                  | Yes                              |
-| Snatched count            | No                       | Some sites only                  | Yes                              |
-| Community / rank data     | No                       | Some sites only                  | Yes                              |
-| Upload / download buffs   | No                       | No                               | Yes                              |
-| Avatar                    | No                       | Some sites only                  | No                               |
+| Stat                      | UNIT3D                   | Gazelle                          | GGn                              | MAM                                 |
+| ------------------------- | ------------------------ | -------------------------------- | -------------------------------- | ----------------------------------- |
+| Upload / Download / Ratio | Yes                      | Yes                              | Yes                              | Yes (raw bytes + formatted strings) |
+| Buffer                    | Yes (tracker-calculated) | Approximate (calculated locally) | Approximate (calculated locally) | Approximate (calculated locally)    |
+| Seeding count             | Yes                      | Some forks only                  | Paranoia-dependent               | Yes (sum of snatch_summary seeding) |
+| Leeching count            | Yes                      | Some forks only                  | Paranoia-dependent               | Yes                                 |
+| Seedbonus / Bonus Points  | Yes                      | Yes (most forks)                 | Yes (called "gold")              | Yes                                 |
+| Required Ratio            | No                       | Yes                              | Yes                              | No                                  |
+| Hit & Runs                | Yes                      | No                               | Partial (may be null)            | Yes (inactive unsatisfied HnRs)     |
+| Freeleech Tokens          | No                       | Some forks only                  | No                               | Yes (called "wedges")               |
+| Warned status             | No                       | Some sites only                  | Yes                              | No                                  |
+| Class / Rank              | Yes                      | Yes                              | Yes                              | Yes                                 |
+| Join date                 | No                       | Some sites only                  | Yes                              | No                                  |
+| Last access date          | No                       | Some sites only                  | Yes                              | No                                  |
+| Share Score               | No                       | No                               | Yes                              | No                                  |
+| Donor status              | No                       | Some sites only                  | Yes                              | No (VIP status + expiry available)  |
+| Snatched count            | No                       | Some sites only                  | Yes                              | Yes (via snatch_summary categories) |
+| Community / rank data     | No                       | Some sites only                  | Yes                              | No                                  |
+| Upload / download buffs   | No                       | No                               | Yes                              | No                                  |
+| Avatar                    | No                       | Some sites only                  | No                               | No                                  |
 
 ### Notes on specific cells
 
@@ -108,3 +109,17 @@ GGn's full user profile includes:
 - Total and unique snatch counts
 - Active multiplier buffs (upload, download, forum posts, etc.)
 - Achievement level, points, and progress toward next level
+
+### MAM (MyAnonaMouse)
+
+MAM uses a single `/jsonLoad.php` endpoint with `?snatch_summary` to return everything in one call. MAM-specific extras include:
+
+- VIP status and expiry date
+- Connectivity status (connectable/offline)
+- Unsatisfied torrent count and limit (class-dependent: User=50, PU=100, VIP=150, above VIP=200)
+- Detailed snatch summary breakdown (seeding satisfied, seeding HnR, inactive satisfied, etc.)
+- Tracker error count (important tracker errors)
+- Recently deleted torrent count
+- FL Wedge count (freeleech tokens)
+
+**Authentication note:** MAM uses a `mam_id` session cookie rather than a traditional API key. The cookie is obtained from MAM's Security Settings page (User Preferences → Security). Session cookies rotate monthly, so users will need to update their token periodically.
