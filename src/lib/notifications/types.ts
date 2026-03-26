@@ -18,8 +18,6 @@ export const VALID_EVENT_TYPES = [
 ] as const
 export type NotificationEventType = (typeof VALID_EVENT_TYPES)[number]
 
-export type NotificationDeliveryStatus = "delivered" | "failed" | "rate_limited"
-
 export interface NotificationThresholds {
   ratioDropDelta?: number // i.e 0.1 — alert when ratio falls by ≥0.1
   bufferMilestoneBytes?: number //i.e 10737418240 — alert when buffer crosses 10 GiB
