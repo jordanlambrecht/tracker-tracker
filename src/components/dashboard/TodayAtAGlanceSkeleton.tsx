@@ -15,7 +15,7 @@ export function TodayAtAGlanceSkeleton() {
   return (
     <Card>
       <div className="flex flex-col gap-5">
-        {/* Fleet headline — 5 stat card placeholders */}
+        {/* Fleet headline */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {STAT_KEYS.map((key) => (
             <div key={key} className="bg-raised p-5 flex flex-col gap-3 nm-raised-sm rounded-nm-lg">
@@ -27,7 +27,7 @@ export function TodayAtAGlanceSkeleton() {
 
         <div className="border-t border-border" />
 
-        {/* Tracker breakdowns — two panels */}
+        {/* Tracker breakdowns */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {PANEL_KEYS.map((key) => (
             <div key={key} className="nm-inset-sm rounded-nm-md p-4 flex flex-col gap-3">

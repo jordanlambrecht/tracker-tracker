@@ -1,9 +1,4 @@
 // src/components/ui/ProgressBar.tsx
-//
-// Functions: ProgressBar
-//
-// Neumorphic progress bar matching the Toggle track/knob depth pattern.
-// Track: nm-inset-sm (recessed channel). Fill: nm-raised-sm (floating bar).
 
 "use client"
 
@@ -12,7 +7,7 @@ import clsx from "clsx"
 type ProgressBarSize = "sm" | "md" | "lg"
 
 interface ProgressBarProps {
-  /** Percentage filled (0–100). Clamped internally. */
+  /** Percentage filled (0-100). Clamped internally. */
   percent: number
   /** Fill color — accepts any CSS color value or CSS variable. Defaults to accent. */
   color?: string

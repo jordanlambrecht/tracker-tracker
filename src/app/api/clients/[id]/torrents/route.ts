@@ -47,7 +47,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
         { route: "GET /api/clients/[id]/torrents", clientId },
         "torrent fetch failed — stale session key"
       )
-      return NextResponse.json({ error: "Session expired — please log in again" }, { status: 401 })
+      return NextResponse.json({ error: "Session expired. Please log in again" }, { status: 401 })
     }
     log.error(
       { route: "GET /api/clients/[id]/torrents", clientId },

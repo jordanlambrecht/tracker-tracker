@@ -20,19 +20,19 @@ Everything you need to customize how Tracker Tracker runs: environment variables
 
 ### Optional
 
-| Variable        | Default              | Description                                                                                                                                                        |
-| --------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `POSTGRES_USER` | `postgres`           | PostgreSQL username. Must match in both the app and db services.                                                                                                   |
-| `POSTGRES_DB`   | `tracker_tracker`    | Database name.                                                                                                                                                     |
-| `POSTGRES_HOST` | `tracker-tracker-db` | Hostname of the PostgreSQL server. Only change this if you're using an external database without `DATABASE_URL`.                                                   |
-| `POSTGRES_PORT` | `5432`               | PostgreSQL port. If you change this, uncomment the matching lines in `docker-compose.yml`.                                                                         |
-| `DATABASE_URL`  | _(auto-built)_       | Full connection string. Set this to use an external Postgres instance instead of the `POSTGRES_*` variables. Format: `postgresql://user:password@host:5432/dbname` |
-| `PORT`          | `3000`               | Port the app listens on inside the container. The host-side port mapping in `docker-compose.yml` follows this value.                                               |
-| `BASE_URL`      | _(empty)_            | The public URL where your app is reachable, e.g. `https://trackertracker.example.com`. Used in backup file metadata and notification links.                        |
-| `SECURE_COOKIES` | _(auto)_           | Set to `true` to mark session cookies as `Secure`. Auto-enabled when `BASE_URL` starts with `https://`. Only needed if you serve over HTTPS without setting `BASE_URL`. |
-| `TZ`            | `UTC`                | Timezone for scheduled tasks and log timestamps. Uses standard tz database names, e.g. `America/Chicago`, `Europe/London`.                                         |
-| `LOG_LEVEL`     | `info`               | Log verbosity. Options: `error`, `warn`, `info`, `debug`.                                                                                                          |
-| `LOG_FILE`      | _(none)_             | Absolute path inside the container to write logs to disk, e.g. `/data/logs/tracker-tracker.log`.                                                                   |
+| Variable         | Default              | Description                                                                                                                                                             |
+| ---------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POSTGRES_USER`  | `postgres`           | PostgreSQL username. Must match in both the app and db services.                                                                                                        |
+| `POSTGRES_DB`    | `tracker_tracker`    | Database name.                                                                                                                                                          |
+| `POSTGRES_HOST`  | `tracker-tracker-db` | Hostname of the PostgreSQL server. Only change this if you're using an external database without `DATABASE_URL`.                                                        |
+| `POSTGRES_PORT`  | `5432`               | PostgreSQL port. If you change this, uncomment the matching lines in `docker-compose.yml`.                                                                              |
+| `DATABASE_URL`   | _(auto-built)_       | Full connection string. Set this to use an external Postgres instance instead of the `POSTGRES_*` variables. Format: `postgresql://user:password@host:5432/dbname`      |
+| `PORT`           | `3000`               | Port the app listens on inside the container. The host-side port mapping in `docker-compose.yml` follows this value.                                                    |
+| `BASE_URL`       | _(empty)_            | The public URL where your app is reachable, e.g. `https://trackertracker.example.com`. Used in backup file metadata and notification links.                             |
+| `SECURE_COOKIES` | _(auto)_             | Set to `true` to mark session cookies as `Secure`. Auto-enabled when `BASE_URL` starts with `https://`. Only needed if you serve over HTTPS without setting `BASE_URL`. |
+| `TZ`             | `UTC`                | Timezone for scheduled tasks and log timestamps. Uses standard tz database names, e.g. `America/Chicago`, `Europe/London`.                                              |
+| `LOG_LEVEL`      | `info`               | Log verbosity. Options: `error`, `warn`, `info`, `debug`.                                                                                                               |
+| `LOG_FILE`       | _(none)_             | Absolute path inside the container to write logs to disk, e.g. `/data/logs/tracker-tracker.log`.                                                                        |
 
 !!! info "Settings vs environment variables"
 Most day-to-day settings — polling interval, privacy mode, proxy config, backup schedule, lockout policy — live inside the app under **Settings**, not in environment variables. Environment variables are just for infrastructure stuff like database connections and ports.

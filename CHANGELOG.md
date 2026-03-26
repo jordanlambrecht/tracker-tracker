@@ -2,7 +2,6 @@
 
 ## [2.4.2](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.3.0...v2.4.2) (2026-03-25)
 
-
 ### Features
 
 - add development image to docker hub ([8785094](https://github.com/jordanlambrecht/tracker-tracker/commit/87850942f118ccfd23c0a04d537928cd3db82976))
@@ -13,7 +12,6 @@
 - remote image upload ([a480c34](https://github.com/jordanlambrecht/tracker-tracker/commit/a480c3470b7e97e44764c1d9c6d1bee356d22728))
 - **ui:** add pause/resume button ([c89299e](https://github.com/jordanlambrecht/tracker-tracker/commit/c89299ee80b9ce5ab22743039b6abd40be5a27b6))
 - **ui:** lazy-load chart sections, prefetch sidebar links, and fix scroll-to-top on navigation ([ba8f59e](https://github.com/jordanlambrecht/tracker-tracker/commit/ba8f59ee33a21be72034f296f5da1ae795e03c70))
-
 
 ### Bug Fixes
 
@@ -30,12 +28,10 @@
 - update workflow triggers to include development branch for pull requests ([d159775](https://github.com/jordanlambrecht/tracker-tracker/commit/d15977566a9dbd341c0db6f3b67e0ace9bb70f16))
 - wrong postgres setup in docker-compose (closes [#78](https://github.com/jordanlambrecht/tracker-tracker/issues/78)) ([a0a3e0e](https://github.com/jordanlambrecht/tracker-tracker/commit/a0a3e0e16fe4e3b97dea9c7ebc5616cb54e22332))
 
-
 ### Performance
 
 - add 5s per-client fetch deadline ([558c4be](https://github.com/jordanlambrecht/tracker-tracker/commit/558c4be0f9b05b198fd09ca5df4aad0dc6cde637))
 - **settings:** settings page optimizations ([63aabab](https://github.com/jordanlambrecht/tracker-tracker/commit/63aabab9afdfde3d492b81b86f581c4c035269d1))
-
 
 ### Refactoring
 
@@ -48,7 +44,6 @@
 
 ## [2.4.1](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.3.0...v2.4.1) (2026-03-23)
 
-
 ### Features
 
 - add development image to docker hub ([8785094](https://github.com/jordanlambrecht/tracker-tracker/commit/87850942f118ccfd23c0a04d537928cd3db82976))
@@ -59,7 +54,6 @@
 - remote image upload ([a480c34](https://github.com/jordanlambrecht/tracker-tracker/commit/a480c3470b7e97e44764c1d9c6d1bee356d22728))
 - **ui:** add pause/resume button ([c89299e](https://github.com/jordanlambrecht/tracker-tracker/commit/c89299ee80b9ce5ab22743039b6abd40be5a27b6))
 - **ui:** lazy-load chart sections, prefetch sidebar links, and fix scroll-to-top on navigation ([ba8f59e](https://github.com/jordanlambrecht/tracker-tracker/commit/ba8f59ee33a21be72034f296f5da1ae795e03c70))
-
 
 ### Bug Fixes
 
@@ -74,12 +68,10 @@
 - update workflow triggers to include development branch for pull requests ([d159775](https://github.com/jordanlambrecht/tracker-tracker/commit/d15977566a9dbd341c0db6f3b67e0ace9bb70f16))
 - wrong postgres setup in docker-compose (closes [#78](https://github.com/jordanlambrecht/tracker-tracker/issues/78)) ([a0a3e0e](https://github.com/jordanlambrecht/tracker-tracker/commit/a0a3e0e16fe4e3b97dea9c7ebc5616cb54e22332))
 
-
 ### Performance
 
 - add 5s per-client fetch deadline ([558c4be](https://github.com/jordanlambrecht/tracker-tracker/commit/558c4be0f9b05b198fd09ca5df4aad0dc6cde637))
 - **settings:** settings page optimizations ([63aabab](https://github.com/jordanlambrecht/tracker-tracker/commit/63aabab9afdfde3d492b81b86f581c4c035269d1))
-
 
 ### Refactoring
 
@@ -91,7 +83,6 @@
 
 ## [2.4.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.3.0...v2.4.0) (2026-03-23)
 
-
 ### Features
 
 - add fetchTrackerStats for future live transit paper data ([ed6662f](https://github.com/jordanlambrecht/tracker-tracker/commit/ed6662f0ac0c9990b6c96e8ae5616452385b6c26))
@@ -101,7 +92,6 @@
 - remote image upload ([a480c34](https://github.com/jordanlambrecht/tracker-tracker/commit/a480c3470b7e97e44764c1d9c6d1bee356d22728))
 - **ui:** add pause/resume button ([c89299e](https://github.com/jordanlambrecht/tracker-tracker/commit/c89299ee80b9ce5ab22743039b6abd40be5a27b6))
 - **ui:** lazy-load chart sections, prefetch sidebar links, and fix scroll-to-top on navigation ([ba8f59e](https://github.com/jordanlambrecht/tracker-tracker/commit/ba8f59ee33a21be72034f296f5da1ae795e03c70))
-
 
 ### Bug Fixes
 
@@ -115,12 +105,10 @@
 - update workflow triggers to include development branch for pull requests ([d159775](https://github.com/jordanlambrecht/tracker-tracker/commit/d15977566a9dbd341c0db6f3b67e0ace9bb70f16))
 - wrong postgres setup in docker-compose (closes [#78](https://github.com/jordanlambrecht/tracker-tracker/issues/78)) ([a0a3e0e](https://github.com/jordanlambrecht/tracker-tracker/commit/a0a3e0e16fe4e3b97dea9c7ebc5616cb54e22332))
 
-
 ### Performance
 
 - add 5s per-client fetch deadline ([558c4be](https://github.com/jordanlambrecht/tracker-tracker/commit/558c4be0f9b05b198fd09ca5df4aad0dc6cde637))
 - **settings:** settings page optimizations ([63aabab](https://github.com/jordanlambrecht/tracker-tracker/commit/63aabab9afdfde3d492b81b86f581c4c035269d1))
-
 
 ### Refactoring
 

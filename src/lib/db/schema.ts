@@ -395,10 +395,7 @@ export const trackerDailyCheckpoints = pgTable(
     snapshotCount: integer("snapshot_count").notNull().default(0),
   },
   (table) => [
-    uniqueIndex("uq_tracker_checkpoint_tracker_date").on(
-      table.trackerId,
-      table.checkpointDate
-    ),
+    uniqueIndex("uq_tracker_checkpoint_tracker_date").on(table.trackerId, table.checkpointDate),
   ]
 )
 
