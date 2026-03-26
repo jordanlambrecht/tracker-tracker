@@ -672,19 +672,17 @@ export async function POST(request: Request) {
         .where(eq(appSettings.id, currentSettingsId))
     })
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error"
-
     log.error(
       {
         event: "restore_failed",
-        error: message,
+        error: err instanceof Error ? err.message : String(err),
         fileNameHash: hashFileName(fileName),
       },
       "Restore operation failed"
     )
 
     return NextResponse.json(
-      { error: "Restore failed. Check server logs for details." },
+      { error: "Backup restore failed" },
       { status: 409 }
     )
   } finally {
