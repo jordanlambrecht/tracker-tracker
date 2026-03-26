@@ -248,7 +248,7 @@ export async function computeTodayAtAGlance(): Promise<TodayAtAGlance> {
   const trackerTagToColor = new Map<string, string | null>()
   for (const tracker of allTrackers) {
     if (tracker.qbtTag) {
-      trackerTagToColor.set(tracker.qbtTag, tracker.color ?? null)
+      trackerTagToColor.set(tracker.qbtTag.toLowerCase(), tracker.color ?? null)
     }
   }
 
@@ -287,7 +287,7 @@ export async function computeTodayAtAGlance(): Promise<TodayAtAGlance> {
       let matchedTag: string | null = null
       let matchedColor: string | null = null
       if (torrent.tags) {
-        const torrentTags = parseTorrentTags(torrent.tags, false)
+        const torrentTags = parseTorrentTags(torrent.tags)
         for (const tag of torrentTags) {
           if (trackerTagToColor.has(tag)) {
             matchedTag = tag
