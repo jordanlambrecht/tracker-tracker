@@ -2,7 +2,7 @@
 //
 // Functions: fetchSettings, serializeSettingsResponse, getSettingsForClient,
 // getTrackerListForDashboard, getTrackerForClient, getSnapshotsForTracker,
-// getTagGroupsWithMembers, getProxyTrackers
+// getTagGroupsWithMembers, getProxyTrackers, getDatabaseSize
 // Constants: settingsColumns, trackerColumns
 //
 // Server-side data fetchers: single source of truth for safe DB queries
@@ -334,4 +334,16 @@ export async function getProxyTrackers(): Promise<{ id: number; name: string; co
     name: r.name,
     color: r.color ?? "#00d4ff",
   }))
+}
+
+// ---------------------------------------------------------------------------
+// Database size
+// ---------------------------------------------------------------------------
+
+// security-audit-ignore: read-only PostgreSQL system function, no user input
+export async function getDatabaseSize(): Promise<string> {
+  const rows = await db.execute(
+    sql`SELECT pg_size_pretty(pg_database_size(current_database())) as size`
+  )
+  return (rows as unknown as Array<{ size: string }>)[0]?.size ?? "Unknown"
 }

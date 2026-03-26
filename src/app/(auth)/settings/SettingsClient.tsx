@@ -64,9 +64,14 @@ export interface SettingsData {
 export interface SettingsClientProps {
   initialSettings: SettingsData
   initialProxyTrackers: { id: number; name: string; color: string }[]
+  databaseSize?: string
 }
 
-export function SettingsClient({ initialSettings, initialProxyTrackers }: SettingsClientProps) {
+export function SettingsClient({
+  initialSettings,
+  initialProxyTrackers,
+  databaseSize,
+}: SettingsClientProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("general")
 
   return (
@@ -102,6 +107,7 @@ export function SettingsClient({ initialSettings, initialProxyTrackers }: Settin
             }}
             initialSnapshotRetentionDays={initialSettings.snapshotRetentionDays}
             initialSessionTimeoutMinutes={initialSettings.sessionTimeoutMinutes}
+            databaseSize={databaseSize}
           />
 
           <ProxySection

@@ -21,7 +21,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
 
   const url = new URL(request.url)
   const tag = url.searchParams.get("tag")
-  if (!tag || !tag.trim()) {
+  if (!tag?.trim()) {
     return NextResponse.json({ error: "tag query parameter is required" }, { status: 400 })
   }
 

@@ -76,7 +76,7 @@ export async function fetchTrackerStats(
   proxyAgent?: HttpAgent
 ): Promise<{ stats: TrackerStats; tracker: typeof trackers.$inferSelect }> {
   const [tracker] = await db.select().from(trackers).where(eq(trackers.id, trackerId)).limit(1)
-  if (!tracker || !tracker.isActive) throw new Error("Tracker not found or inactive")
+  if (!tracker?.isActive) throw new Error("Tracker not found or inactive")
 
   let apiToken: string
   try {
@@ -132,7 +132,7 @@ export async function pollTracker(
 ): Promise<void> {
   const [tracker] = await db.select().from(trackers).where(eq(trackers.id, trackerId)).limit(1)
 
-  if (!tracker || !tracker.isActive) return
+  if (!tracker?.isActive) return
 
   const timestamp = batchTimestamp ?? new Date()
 

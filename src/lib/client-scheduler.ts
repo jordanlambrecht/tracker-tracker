@@ -98,7 +98,7 @@ async function heartbeatClient(clientId: number, encryptionKey: Buffer): Promise
     .where(eq(downloadClients.id, clientId))
     .limit(1)
 
-  if (!client || !client.enabled) return
+  if (!client?.enabled) return
   if (!client.encryptedUsername || !client.encryptedPassword) return
 
   try {
@@ -158,7 +158,7 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
     .where(eq(downloadClients.id, clientId))
     .limit(1)
 
-  if (!client || !client.enabled) return
+  if (!client?.enabled) return
   if (!client.encryptedUsername || !client.encryptedPassword) return
 
   try {
