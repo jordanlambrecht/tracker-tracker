@@ -373,9 +373,7 @@ export async function pruneOldSnapshots(retentionDays: number): Promise<number> 
 }
 
 export async function pruneOldCheckpoints(retentionDays: number): Promise<number> {
-  const cutoffDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10)
+  const cutoffDate = localDateStr(Date.now() - retentionDays * 24 * 60 * 60 * 1000)
 
   const deletedTracker = await db
     .delete(trackerDailyCheckpoints)
