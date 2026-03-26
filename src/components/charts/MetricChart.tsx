@@ -40,7 +40,14 @@ import { useLogScale } from "./lib/useLogScale"
 
 // ── Types ──
 
-type Metric = "ratio" | "buffer" | "seedbonus" | "seedingCount" | "dailyDelta" | "shareScore" | "freeleechTokens"
+type Metric =
+  | "ratio"
+  | "buffer"
+  | "seedbonus"
+  | "seedingCount"
+  | "dailyDelta"
+  | "shareScore"
+  | "freeleechTokens"
 
 interface MetricConfig {
   label: string

@@ -34,17 +34,16 @@ export async function POST(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const { name, baseUrl, apiToken, platformType, color, qbtTag, mouseholeUrl, joinedAt } =
-    body as {
-      name?: string
-      baseUrl?: string
-      apiToken?: string
-      platformType?: string
-      color?: string
-      qbtTag?: string
-      mouseholeUrl?: string
-      joinedAt?: string
-    }
+  const { name, baseUrl, apiToken, platformType, color, qbtTag, mouseholeUrl, joinedAt } = body as {
+    name?: string
+    baseUrl?: string
+    apiToken?: string
+    platformType?: string
+    color?: string
+    qbtTag?: string
+    mouseholeUrl?: string
+    joinedAt?: string
+  }
 
   if (
     typeof name !== "string" ||

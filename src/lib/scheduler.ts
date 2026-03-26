@@ -146,9 +146,7 @@ export async function pollTracker(
     }
     const adapter = getAdapter(tracker.platformType)
     if (tracker.useProxy && !proxyAgent) {
-      throw new Error(
-        "Proxy required but not available, refusing to leak IP via direct connection"
-      )
+      throw new Error("Proxy required but not available, refusing to leak IP via direct connection")
     }
     const fetchOptions = buildFetchOptions(tracker.baseUrl, {
       proxyAgent: tracker.useProxy ? proxyAgent : undefined,
@@ -278,15 +276,18 @@ export async function pollTracker(
           trackerPausedAt: null,
           trackerJoinedAt: tracker.joinedAt ?? null,
           minimumRatio: findRegistryEntry(tracker.baseUrl)?.rules?.minimumRatio,
-          mamContext: tracker.platformType === "mam" ? {
-            currentSeedbonus: stats.seedbonus ?? null,
-            previousSeedbonus: previousSnapshot?.seedbonus ?? null,
-            vipUntil: mamMeta?.vipUntil ?? null,
-            unsatisfiedCount: mamMeta?.unsatisfiedCount ?? null,
-            unsatisfiedLimit: mamMeta?.unsatisfiedLimit ?? null,
-            inactiveHnrCount: stats.hitAndRuns ?? null,
-            previousInactiveHnrCount: previousSnapshot?.hitAndRuns ?? null,
-          } : undefined,
+          mamContext:
+            tracker.platformType === "mam"
+              ? {
+                  currentSeedbonus: stats.seedbonus ?? null,
+                  previousSeedbonus: previousSnapshot?.seedbonus ?? null,
+                  vipUntil: mamMeta?.vipUntil ?? null,
+                  unsatisfiedCount: mamMeta?.unsatisfiedCount ?? null,
+                  unsatisfiedLimit: mamMeta?.unsatisfiedLimit ?? null,
+                  inactiveHnrCount: stats.hitAndRuns ?? null,
+                  previousInactiveHnrCount: previousSnapshot?.hitAndRuns ?? null,
+                }
+              : undefined,
         },
         encryptionKey,
         enabledTargets

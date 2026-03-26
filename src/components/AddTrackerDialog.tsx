@@ -539,9 +539,14 @@ function AddTrackerDialog({
                 />
                 <Tooltip
                   content="If you run Mousehole to manage your MAM seedbox IP, enter its URL here to see status and trigger updates from Tracker Tracker."
-                  docs={{ href: "https://github.com/t-mart/mousehole", description: "Mousehole on GitHub" }}
+                  docs={{
+                    href: "https://github.com/t-mart/mousehole",
+                    description: "Mousehole on GitHub",
+                  }}
                 >
-                  <span className="text-muted hover:text-secondary cursor-help text-xs">&#9432;</span>
+                  <span className="text-muted hover:text-secondary cursor-help text-xs">
+                    &#9432;
+                  </span>
                 </Tooltip>
               </div>
             </div>

@@ -160,7 +160,10 @@ export async function POST(request: Request) {
     return NextResponse.json(result)
   } catch (err) {
     const isTimeout = err instanceof DOMException && err.name === "TimeoutError"
-    log.error({ route: "POST /api/upload-image", host: hostId, error: String(err) }, "upload failed")
+    log.error(
+      { route: "POST /api/upload-image", host: hostId, error: String(err) },
+      "upload failed"
+    )
     return NextResponse.json(
       { error: isTimeout ? "Upload timed out after 30 seconds" : "Image upload failed" },
       { status: isTimeout ? 504 : 502 }

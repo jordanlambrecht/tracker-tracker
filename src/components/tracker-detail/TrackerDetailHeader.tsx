@@ -149,7 +149,8 @@ export function TrackerDetailHeader({
         </div>
       </div>
 
-      {(registryEntry?.trackerHubSlug || (tracker.platformType === "mam" && tracker.mouseholeUrl)) && (
+      {(registryEntry?.trackerHubSlug ||
+        (tracker.platformType === "mam" && tracker.mouseholeUrl)) && (
         <div className="flex flex-col gap-3 my-4">
           {registryEntry?.trackerHubSlug && (
             <TrackerHubStatus
@@ -158,10 +159,7 @@ export function TrackerDetailHeader({
             />
           )}
           {tracker.platformType === "mam" && tracker.mouseholeUrl && (
-            <MamMouseholeCard
-              trackerId={tracker.id}
-              mouseholeUrl={tracker.mouseholeUrl}
-            />
+            <MamMouseholeCard trackerId={tracker.id} mouseholeUrl={tracker.mouseholeUrl} />
           )}
         </div>
       )}

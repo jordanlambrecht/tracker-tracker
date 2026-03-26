@@ -274,7 +274,13 @@ export function detectEvents(
 
   if (target.notifyBonusCap) {
     const capLimit = (thresholds?.bonusCapLimit as number | undefined) ?? MAM_BONUS_CAP
-    if (checkBonusCapReached(ctx.mamContext?.currentSeedbonus ?? null, ctx.mamContext?.previousSeedbonus ?? null, capLimit)) {
+    if (
+      checkBonusCapReached(
+        ctx.mamContext?.currentSeedbonus ?? null,
+        ctx.mamContext?.previousSeedbonus ?? null,
+        capLimit
+      )
+    ) {
       events.push("bonus_cap")
     }
   }
@@ -288,13 +294,24 @@ export function detectEvents(
 
   if (target.notifyUnsatisfiedLimit) {
     const pct = (thresholds?.unsatisfiedLimitPercent as number | undefined) ?? 80
-    if (checkUnsatisfiedLimitApproaching(ctx.mamContext?.unsatisfiedCount ?? null, ctx.mamContext?.unsatisfiedLimit ?? null, pct)) {
+    if (
+      checkUnsatisfiedLimitApproaching(
+        ctx.mamContext?.unsatisfiedCount ?? null,
+        ctx.mamContext?.unsatisfiedLimit ?? null,
+        pct
+      )
+    ) {
       events.push("unsatisfied_limit")
     }
   }
 
   if (target.notifyActiveHnrs) {
-    if (checkActiveHnrs(ctx.mamContext?.inactiveHnrCount ?? null, ctx.mamContext?.previousInactiveHnrCount ?? null)) {
+    if (
+      checkActiveHnrs(
+        ctx.mamContext?.inactiveHnrCount ?? null,
+        ctx.mamContext?.previousInactiveHnrCount ?? null
+      )
+    ) {
       events.push("active_hnrs")
     }
   }
@@ -331,7 +348,10 @@ export function buildEventData(
     case "vip_expiring":
       return { vipUntil: ctx.mamContext?.vipUntil ?? null }
     case "unsatisfied_limit":
-      return { count: ctx.mamContext?.unsatisfiedCount ?? null, limit: ctx.mamContext?.unsatisfiedLimit ?? null }
+      return {
+        count: ctx.mamContext?.unsatisfiedCount ?? null,
+        limit: ctx.mamContext?.unsatisfiedLimit ?? null,
+      }
     case "active_hnrs":
       return { count: ctx.mamContext?.inactiveHnrCount ?? null }
     default:

@@ -17,9 +17,7 @@ export function MamBonusWaste({ seedbonus, seedingCount }: MamBonusWasteProps) {
 
   return (
     <div className="flex flex-col gap-1">
-      <span className="slot-label text-danger">
-        Bonus Cap Reached
-      </span>
+      <span className="slot-label text-danger">Bonus Cap Reached</span>
       <span className="text-sm font-mono font-semibold text-primary">
         {seedbonus.toLocaleString()} / {MAM_BONUS_CAP.toLocaleString()}
       </span>

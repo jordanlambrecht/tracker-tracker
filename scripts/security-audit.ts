@@ -2257,16 +2257,14 @@ function checkErrorMessageDisclosure(files?: string[]): CheckResult {
       const window = lines.slice(i, windowEnd + 1).join("\n")
 
       const hasJsonResponse =
-        /NextResponse\.json\s*\(/.test(window) ||
-        /return\s+new\s+Response/.test(window)
+        /NextResponse\.json\s*\(/.test(window) || /return\s+new\s+Response/.test(window)
 
       if (!hasJsonResponse) continue
 
       // Check: is the captured variable or err.message in the response?
       const varName = captureMatch?.[1]
       const varInResponse = varName
-        ? new RegExp(`\\b${varName}\\b`).test(window) &&
-          /(?:error|message)\s*:/.test(window)
+        ? new RegExp(`\\b${varName}\\b`).test(window) && /(?:error|message)\s*:/.test(window)
         : /(?:err|error)\.message/.test(window)
 
       if (varInResponse) {
@@ -2355,10 +2353,9 @@ const SECRET_ENV_VARS = [
 
 function checkClientEnvLeak(): CheckResult {
   const findings: Finding[] = []
-  const clientFiles = [
-    ...walkFiles(SRC_DIR, ".tsx"),
-    ...walkFiles(SRC_DIR, ".ts"),
-  ].filter((f) => !isTestFile(f))
+  const clientFiles = [...walkFiles(SRC_DIR, ".tsx"), ...walkFiles(SRC_DIR, ".ts")].filter(
+    (f) => !isTestFile(f)
+  )
 
   for (const file of clientFiles) {
     const content = fs.readFileSync(file, "utf8")

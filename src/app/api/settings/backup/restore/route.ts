@@ -157,10 +157,7 @@ export async function POST(request: Request) {
       { route: "POST /api/settings/backup/restore", error: String(err) },
       "backup file validation or decryption failed"
     )
-    return NextResponse.json(
-      { error: "Invalid or corrupted backup file" },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: "Invalid or corrupted backup file" }, { status: 400 })
   }
 
   // Step 5: Get current settings for ID
@@ -684,10 +681,7 @@ export async function POST(request: Request) {
       "Restore operation failed"
     )
 
-    return NextResponse.json(
-      { error: "Backup restore failed" },
-      { status: 409 }
-    )
+    return NextResponse.json({ error: "Backup restore failed" }, { status: 409 })
   } finally {
     if (backupKey.length > 0) backupKey.fill(0)
     if (currentKey !== backupKey && currentKey.length > 0) currentKey.fill(0)

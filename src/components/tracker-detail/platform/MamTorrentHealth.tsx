@@ -18,7 +18,12 @@ const SEGMENTS = [
   { key: "completed", label: "Completed", color: "var(--color-text-tertiary)" },
 ] as const
 
-export function MamTorrentHealth({ meta, seedingCount, leechingCount, hitAndRuns }: MamTorrentHealthProps) {
+export function MamTorrentHealth({
+  meta,
+  seedingCount,
+  leechingCount,
+  hitAndRuns,
+}: MamTorrentHealthProps) {
   const values: Record<string, number> = {
     seeding: Math.max(0, seedingCount - (meta.seedingHnrCount ?? 0)),
     seedingHnr: meta.seedingHnrCount ?? 0,

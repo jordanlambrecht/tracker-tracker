@@ -35,7 +35,14 @@ function mockMamResponse(overrides?: Partial<Record<string, unknown>>) {
     duplicates: { name: "Duplicates", count: 0, red: false, size: null },
     reseed: { name: "Reseed", count: 0, inactive: 0, red: false },
     ite: { name: "Tracker Errors", count: 1, latest: 1711000000 },
-    notifs: { pms: 3, aboutToDropClient: 0, tickets: 1, waiting_tickets: 0, requests: 2, topics: 5 },
+    notifs: {
+      pms: 3,
+      aboutToDropClient: 0,
+      tickets: 1,
+      waiting_tickets: 0,
+      requests: 2,
+      topics: 5,
+    },
     ...overrides,
   }
 }
@@ -215,11 +222,7 @@ describe("MamAdapter - auth", () => {
       json: async () => mockMamResponse(),
     } as Response)
 
-    await adapter.fetchStats(
-      "https://www.myanonamouse.net",
-      "my-session-cookie",
-      "/jsonLoad.php"
-    )
+    await adapter.fetchStats("https://www.myanonamouse.net", "my-session-cookie", "/jsonLoad.php")
 
     const callOpts = fetchSpy.mock.calls[0][1] as RequestInit
     const headers = callOpts.headers as Record<string, string>
@@ -232,11 +235,7 @@ describe("MamAdapter - auth", () => {
       json: async () => mockMamResponse(),
     } as Response)
 
-    await adapter.fetchStats(
-      "https://www.myanonamouse.net",
-      "session-id",
-      "/jsonLoad.php"
-    )
+    await adapter.fetchStats("https://www.myanonamouse.net", "session-id", "/jsonLoad.php")
 
     const calledUrl = fetchSpy.mock.calls[0][0] as string
     expect(calledUrl).toContain("snatch_summary")

@@ -22,5 +22,11 @@ export default async function SettingsPage() {
     )
   }
 
-  return <SettingsClient initialSettings={settings} initialProxyTrackers={proxyTrackers} databaseSize={databaseSize} />
+  return (
+    <SettingsClient
+      initialSettings={settings}
+      initialProxyTrackers={proxyTrackers}
+      databaseSize={databaseSize}
+    />
+  )
 }

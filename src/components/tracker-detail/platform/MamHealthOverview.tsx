@@ -91,9 +91,7 @@ export function MamHealthOverview({
 
   // ── Bonus cap data ─────────────────────────────────────────────────────
   const atCap = seedbonus != null && seedbonus >= MAM_BONUS_CAP
-  const wastePerDay = atCap
-    ? Math.round(seedingCount * ESTIMATED_POINTS_PER_SEED_PER_HOUR * 24)
-    : 0
+  const wastePerDay = atCap ? Math.round(seedingCount * ESTIMATED_POINTS_PER_SEED_PER_HOUR * 24) : 0
 
   const hasVip = vipDays != null
   const hasHealth = healthTotal > 0
@@ -137,7 +135,9 @@ export function MamHealthOverview({
           <div className="flex items-center gap-1">
             <span className="slot-label">Torrent Health</span>
             <Tooltip content="Breakdown of your snatched torrents by seeding status. Green = seeding and satisfied. Amber = seeding but not yet past the 72-hour requirement (pre-HnR or active HnR). Red = not seeding past deadline (Hit & Run). Gray = completed, no longer seeding.">
-              <span className="text-muted hover:text-secondary cursor-help text-[10px]">&#9432;</span>
+              <span className="text-muted hover:text-secondary cursor-help text-[10px]">
+                &#9432;
+              </span>
             </Tooltip>
           </div>
           <div className="nm-inset h-3 w-full overflow-hidden rounded-nm-pill flex">
@@ -158,7 +158,10 @@ export function MamHealthOverview({
             {SEGMENTS.map(({ key, label, color }) => {
               if (healthValues[key] <= 0) return null
               return (
-                <span key={key} className="text-[10px] font-mono text-muted flex items-center gap-1">
+                <span
+                  key={key}
+                  className="text-[10px] font-mono text-muted flex items-center gap-1"
+                >
                   <span
                     className="w-1.5 h-1.5 rounded-full inline-block"
                     style={{ backgroundColor: color }}

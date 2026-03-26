@@ -54,7 +54,12 @@ export interface TrackerSummary {
   joinedAt: string | null
   lastAccessAt: string | null
   remoteUserId: number | null
-  platformMeta: GGnPlatformMeta | GazellePlatformMeta | NebulancePlatformMeta | MamPlatformMeta | null
+  platformMeta:
+    | GGnPlatformMeta
+    | GazellePlatformMeta
+    | NebulancePlatformMeta
+    | MamPlatformMeta
+    | null
   createdAt: string
   latestStats: TrackerLatestStats | null
 }

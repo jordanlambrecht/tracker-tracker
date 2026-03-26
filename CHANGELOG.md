@@ -2,7 +2,6 @@
 
 ## [2.5.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.3.0...v2.5.0) (2026-03-26)
 
-
 ### Features
 
 - add development image to docker hub ([8785094](https://github.com/jordanlambrecht/tracker-tracker/commit/87850942f118ccfd23c0a04d537928cd3db82976))
@@ -16,7 +15,6 @@
 - **schema:** add daily checkpoint tables and TodayAtAGlance types ([636d227](https://github.com/jordanlambrecht/tracker-tracker/commit/636d22701cd43d8827f9afe49a5105820578f892))
 - **ui:** add pause/resume button ([c89299e](https://github.com/jordanlambrecht/tracker-tracker/commit/c89299ee80b9ce5ab22743039b6abd40be5a27b6))
 - **ui:** lazy-load chart sections, prefetch sidebar links, and fix scroll-to-top on navigation ([ba8f59e](https://github.com/jordanlambrecht/tracker-tracker/commit/ba8f59ee33a21be72034f296f5da1ae795e03c70))
-
 
 ### Bug Fixes
 
@@ -37,12 +35,10 @@
 - update workflow triggers to include development branch for pull requests ([d159775](https://github.com/jordanlambrecht/tracker-tracker/commit/d15977566a9dbd341c0db6f3b67e0ace9bb70f16))
 - wrong postgres setup in docker-compose (closes [#78](https://github.com/jordanlambrecht/tracker-tracker/issues/78)) ([a0a3e0e](https://github.com/jordanlambrecht/tracker-tracker/commit/a0a3e0e16fe4e3b97dea9c7ebc5616cb54e22332))
 
-
 ### Performance
 
 - add 5s per-client fetch deadline ([558c4be](https://github.com/jordanlambrecht/tracker-tracker/commit/558c4be0f9b05b198fd09ca5df4aad0dc6cde637))
 - **settings:** settings page optimizations ([63aabab](https://github.com/jordanlambrecht/tracker-tracker/commit/63aabab9afdfde3d492b81b86f581c4c035269d1))
-
 
 ### Refactoring
 

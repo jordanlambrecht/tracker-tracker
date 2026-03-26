@@ -207,10 +207,7 @@ export function TrackerDetailClient({
 
   const tc = tracker?.color || CHART_THEME.accent
   const baseUrl = tracker?.baseUrl
-  const registryEntry = useMemo(
-    () => (baseUrl ? findRegistryEntry(baseUrl) : undefined),
-    [baseUrl]
-  )
+  const registryEntry = useMemo(() => (baseUrl ? findRegistryEntry(baseUrl) : undefined), [baseUrl])
 
   const { statCardSlots, badgeSlots, progressSlots } = useMemo(() => {
     if (!tracker) return { statCardSlots: [], badgeSlots: [], progressSlots: [] }

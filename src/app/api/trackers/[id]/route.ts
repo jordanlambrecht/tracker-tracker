@@ -90,8 +90,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
   if (typeof body.useProxy === "boolean") updates.useProxy = body.useProxy
   if (typeof body.countCrossSeedUnsatisfied === "boolean")
     updates.countCrossSeedUnsatisfied = body.countCrossSeedUnsatisfied
-  if (typeof body.hideUnreadBadges === "boolean")
-    updates.hideUnreadBadges = body.hideUnreadBadges
+  if (typeof body.hideUnreadBadges === "boolean") updates.hideUnreadBadges = body.hideUnreadBadges
   if (typeof body.isFavorite === "boolean") updates.isFavorite = body.isFavorite
   if (typeof body.pollingPaused === "boolean") {
     updates.userPausedAt = body.pollingPaused ? new Date() : null
