@@ -34,15 +34,17 @@ export async function POST(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const { name, baseUrl, apiToken, platformType, color, qbtTag, joinedAt } = body as {
-    name?: string
-    baseUrl?: string
-    apiToken?: string
-    platformType?: string
-    color?: string
-    qbtTag?: string
-    joinedAt?: string
-  }
+  const { name, baseUrl, apiToken, platformType, color, qbtTag, mouseholeUrl, joinedAt } =
+    body as {
+      name?: string
+      baseUrl?: string
+      apiToken?: string
+      platformType?: string
+      color?: string
+      qbtTag?: string
+      mouseholeUrl?: string
+      joinedAt?: string
+    }
 
   if (
     typeof name !== "string" ||
@@ -92,6 +94,14 @@ export async function POST(request: Request) {
     )
   }
 
+  if (typeof mouseholeUrl === "string" && mouseholeUrl.trim()) {
+    try {
+      new URL(mouseholeUrl.trim())
+    } catch {
+      return NextResponse.json({ error: "Invalid Mousehole URL format" }, { status: 400 })
+    }
+  }
+
   if (typeof joinedAt === "string" && joinedAt) {
     const joinedAtErr = validateJoinedAt(joinedAt)
     if (joinedAtErr) return joinedAtErr
@@ -115,6 +125,8 @@ export async function POST(request: Request) {
       platformType: platform,
       color: (color as string) || CHART_THEME.accent,
       qbtTag: typeof qbtTag === "string" ? qbtTag.trim() : null,
+      mouseholeUrl:
+        typeof mouseholeUrl === "string" && mouseholeUrl.trim() ? mouseholeUrl.trim() : null,
       joinedAt: typeof joinedAt === "string" && joinedAt ? joinedAt : null,
     })
     .returning()

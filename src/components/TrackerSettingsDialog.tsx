@@ -6,13 +6,14 @@
 
 import clsx from "clsx"
 import { useRouter } from "next/navigation"
-import { type FormEvent, useCallback, useEffect, useState } from "react"
+import { type SyntheticEvent, useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { ColorPicker } from "@/components/ui/ColorPicker"
 import { Input } from "@/components/ui/Input"
 import { MaskedSecret } from "@/components/ui/MaskedSecret"
 import { QbtTagWarning } from "@/components/ui/QbtTagWarning"
 import { Sheet } from "@/components/ui/Sheet"
+import { Tooltip } from "@/components/ui/Tooltip"
 import { Toggle } from "@/components/ui/Toggle"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import type { TrackerSummary } from "@/types/api"
@@ -32,6 +33,8 @@ interface FormState {
   baseUrl: string
   useProxy: boolean
   countCrossSeedUnsatisfied: boolean
+  hideUnreadBadges: boolean
+  mouseholeUrl: string
 }
 
 function formStateFromTracker(t: TrackerSummary): FormState {
@@ -43,6 +46,8 @@ function formStateFromTracker(t: TrackerSummary): FormState {
     baseUrl: t.baseUrl,
     useProxy: t.useProxy ?? false,
     countCrossSeedUnsatisfied: t.countCrossSeedUnsatisfied ?? false,
+    hideUnreadBadges: t.hideUnreadBadges ?? false,
+    mouseholeUrl: t.mouseholeUrl ?? "",
   }
 }
 
@@ -94,7 +99,7 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
     onClose()
   }
 
-  async function handleSave(e: FormEvent) {
+  async function handleSave(e: SyntheticEvent) {
     e.preventDefault()
 
     const validationErrors: Record<string, string> = {}
@@ -155,6 +160,8 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
       joinedAt: form.joinedAt || null,
       useProxy: form.useProxy,
       countCrossSeedUnsatisfied: form.countCrossSeedUnsatisfied,
+      hideUnreadBadges: form.hideUnreadBadges,
+      mouseholeUrl: form.mouseholeUrl.trim() || null,
     }
 
     if (changingKey && trimmedToken) {
@@ -288,6 +295,23 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
             <QbtTagWarning tag={form.qbtTag} />
           </div>
 
+          {tracker.platformType === "mam" && (
+            <div className="flex items-center gap-1">
+              <Input
+                label="Mousehole URL (optional)"
+                value={form.mouseholeUrl}
+                onChange={(e) => updateField("mouseholeUrl", e.target.value)}
+                placeholder="http://localhost:7001"
+              />
+              <Tooltip
+                content="If you run Mousehole to manage your MAM seedbox IP, enter its URL here to see status and trigger updates from Tracker Tracker."
+                docs={{ href: "https://github.com/t-mart/mousehole", description: "Mousehole on GitHub" }}
+              >
+                <span className="text-muted hover:text-secondary cursor-help text-xs">&#9432;</span>
+              </Tooltip>
+            </div>
+          )}
+
           <ColorPicker label="Color" value={form.color} onChange={(v) => updateField("color", v)} />
 
           {!(registryEntry?.gazelleEnrich || tracker.platformType === "ggn") && (
@@ -332,6 +356,15 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
             onChange={(v) => updateField("countCrossSeedUnsatisfied", v)}
             description="Include cross-seeded torrents when calculating unsatisfied download requirements."
           />
+
+          {(tracker.platformType === "mam" || tracker.platformType === "gazelle") && (
+            <Toggle
+              checked={form.hideUnreadBadges}
+              onChange={(v) => updateField("hideUnreadBadges", v)}
+              label="Hide unread badges"
+              description="Don't show inbox/notification counts on this tracker's detail page"
+            />
+          )}
 
           {errors.form && (
             <p className="text-xs font-sans text-danger" role="alert">

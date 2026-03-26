@@ -3,6 +3,7 @@
 import type {
   GazellePlatformMeta,
   GGnPlatformMeta,
+  MamPlatformMeta,
   NebulancePlatformMeta,
 } from "@/lib/adapters/types"
 
@@ -10,6 +11,7 @@ export type {
   GazellePlatformMeta,
   GazelleRanks,
   GGnPlatformMeta,
+  MamPlatformMeta,
   NebulancePlatformMeta,
 } from "@/lib/adapters/types"
 
@@ -43,14 +45,16 @@ export interface TrackerSummary {
   userPausedAt: string | null
   color: string
   qbtTag: string | null
+  mouseholeUrl: string | null
   useProxy: boolean
   countCrossSeedUnsatisfied: boolean
+  hideUnreadBadges: boolean
   isFavorite: boolean
   sortOrder: number | null
   joinedAt: string | null
   lastAccessAt: string | null
   remoteUserId: number | null
-  platformMeta: GGnPlatformMeta | GazellePlatformMeta | NebulancePlatformMeta | null
+  platformMeta: GGnPlatformMeta | GazellePlatformMeta | NebulancePlatformMeta | MamPlatformMeta | null
   createdAt: string
   latestStats: TrackerLatestStats | null
 }

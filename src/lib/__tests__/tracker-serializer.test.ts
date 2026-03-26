@@ -17,6 +17,8 @@ const mockTracker = {
   userPausedAt: null,
   color: "#00d4ff",
   qbtTag: null,
+  mouseholeUrl: null,
+  hideUnreadBadges: false,
   remoteUserId: null,
   platformMeta: null,
   avatarData: null,
