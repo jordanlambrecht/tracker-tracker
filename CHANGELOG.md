@@ -1,5 +1,48 @@
 # Changelog
 
+## [2.6.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.4.1...v2.6.0) (2026-03-27)
+
+
+### Features
+
+- **dashboard:** add Today At A Glance server logic, checkpoints, and deep poll fixes ([d3826a1](https://github.com/jordanlambrecht/tracker-tracker/commit/d3826a181c017c6b2ac8bbc6fa9d77f6dfd0edc2))
+- **dashboard:** add Today At A Glance UI ([84c5227](https://github.com/jordanlambrecht/tracker-tracker/commit/84c522750f517c95653b73e1298aa72bd204e27f))
+- **mam:** add bonus cap, VIP expiry, unsatisfied limit, and active HnR notifications ([2b210d7](https://github.com/jordanlambrecht/tracker-tracker/commit/2b210d76542db6a7377c13d7e9a9abf51cc48752))
+- **mam:** add Mousehole integration ([0e28443](https://github.com/jordanlambrecht/tracker-tracker/commit/0e28443875c1de70b1dea0f3662ae9625000da0f))
+- **mam:** add MyAnonaMouse adapter ([692d312](https://github.com/jordanlambrecht/tracker-tracker/commit/692d3124cd648a3f1278b38881df5083f7febdc1))
+- **mam:** add platform UI with health overview, badges, and FL Wedges chart ([3bb280e](https://github.com/jordanlambrecht/tracker-tracker/commit/3bb280e302ae4f4afeab667b912f5cea0e6f501c))
+- **schema:** add daily checkpoint tables and TodayAtAGlance types ([636d227](https://github.com/jordanlambrecht/tracker-tracker/commit/636d22701cd43d8827f9afe49a5105820578f892))
+- **security:** enhance security audit checks and improve vulnerability reporting ([23b4cae](https://github.com/jordanlambrecht/tracker-tracker/commit/23b4cae6420d17a1e1f86e9b925841726e28ccfe))
+- **settings:** display database size ([67ff496](https://github.com/jordanlambrecht/tracker-tracker/commit/67ff4961e5d6ba50655ed0a9229ba807a26e1bbe))
+
+
+### Bug Fixes
+
+- **api:** improve session expiration error message ([5a95cd0](https://github.com/jordanlambrecht/tracker-tracker/commit/5a95cd039daf5aebb128f547acf70ae749132221))
+- **auth:** decouple cookie secure flag from node_env for self-hosted http deployments. Closes [#101](https://github.com/jordanlambrecht/tracker-tracker/issues/101) ([b2a7902](https://github.com/jordanlambrecht/tracker-tracker/commit/b2a790245ca76f1ec3ef8220c273a4ab9ca508fd))
+- **auth:** return 401 on stale session instead of misleading credential errors ([cf54c7f](https://github.com/jordanlambrecht/tracker-tracker/commit/cf54c7fbd6c2d9171b5d11b621e9a1f68abc381a))
+- **backups:** enforce maximum length for backup password to 128 characters ([5e6d58e](https://github.com/jordanlambrecht/tracker-tracker/commit/5e6d58e361fbcfa6323e414b3702768d895d85d7))
+- **Dockerfile:** update package.json for drizzle-kit with esbuild overrides ([bce0854](https://github.com/jordanlambrecht/tracker-tracker/commit/bce0854d8ea18cf4a99488ed6d9243b25fc71658))
+- ensure backfill flag is set after successful checkpoint backfill ([60f5786](https://github.com/jordanlambrecht/tracker-tracker/commit/60f5786134f346e4ba07684d210f3806bd384468))
+- error logging for BigInt conversion failures ([e91b30a](https://github.com/jordanlambrecht/tracker-tracker/commit/e91b30a79605ac73c34c39e372ad2aaca4c09c44))
+- error logging for BigInt conversion failures in computeTodayAtAGlance ([15eb043](https://github.com/jordanlambrecht/tracker-tracker/commit/15eb043989fa2611acc846032aae1e049fef7000))
+- **errors:** improve error handling and logging for backup and tracker operations ([7f7b202](https://github.com/jordanlambrecht/tracker-tracker/commit/7f7b202e2557d25cd011c8bd96e14332f3565bb1))
+- **Icons:** update DownloadArrowIcon stroke width ([d2cd450](https://github.com/jordanlambrecht/tracker-tracker/commit/d2cd450af0b6cf55bc5fc1c94ea01452c55252fb))
+- improve error handling for decryption failures in fetchAndMergeTorrents ([0b07d40](https://github.com/jordanlambrecht/tracker-tracker/commit/0b07d40ddaca93f188eeb166e53431764cb1bb8e))
+- normalize tracker tags to lowercase ([762988f](https://github.com/jordanlambrecht/tracker-tracker/commit/762988f2228218cf27b2d12c138bb0e2dfa1c5b1))
+- optimize torrent checkpoint insertion by batching database writes ([90285d6](https://github.com/jordanlambrecht/tracker-tracker/commit/90285d69b1dd709d0f77682ecb797a20fe3fea1c))
+- resolve lint warnings, Copilot review issues, remove dead code, and harden error handling ([815b479](https://github.com/jordanlambrecht/tracker-tracker/commit/815b479047fc956b965556cdcc01d39bc1ce4a33))
+- **ui:** prevent StatCard DOM prop leak ([2d0b22a](https://github.com/jordanlambrecht/tracker-tracker/commit/2d0b22aa51b1badeb8916ace9505fdf32f526dc9))
+- update drizzle-kit, drizzle-orm, and postgres to specific versions in Dockerfile ([303c6f5](https://github.com/jordanlambrecht/tracker-tracker/commit/303c6f5b21195a9a15a66f227dab4c022eca36b9))
+- update VALID_PLATFORMS to use VALID_PLATFORM_TYPES constant ([8cff4ee](https://github.com/jordanlambrecht/tracker-tracker/commit/8cff4ee6fabc274ca644aac65433a03fedbc0d53))
+- use localDateStr for cutoff date in pruneOldCheckpoints function ([0b465b6](https://github.com/jordanlambrecht/tracker-tracker/commit/0b465b6c139333ebcb8650fcf8224d5a70076bee))
+
+
+### Refactoring
+
+- **Dockerfile:** cleaned up build stages ([3b96ff9](https://github.com/jordanlambrecht/tracker-tracker/commit/3b96ff964058f33d3fe8fd65bf7a6fcde9dbcd3b))
+- reuse ProgressBar component and extract slot-label utility ([c3d9031](https://github.com/jordanlambrecht/tracker-tracker/commit/c3d90315d4ca8717f983a3d270d922cc0355de18))
+
 ## [2.5.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.3.0...v2.5.0) (2026-03-26)
 
 ### Features
