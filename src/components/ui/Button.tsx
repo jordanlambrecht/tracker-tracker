@@ -4,7 +4,7 @@ import { cva } from "class-variance-authority"
 import clsx from "clsx"
 import type { ButtonHTMLAttributes, Ref } from "react"
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "danger"
+type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "minimal"
 type ButtonSize = "sm" | "md" | "lg"
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -31,6 +31,8 @@ const button = cva(
           "bg-transparent text-secondary hover:bg-raised hover:text-primary hover:nm-raised-sm active:scale-[0.96]",
         danger:
           "bg-danger-dim text-danger nm-raised-sm hover:nm-raised active:nm-pressed active:scale-[0.93]",
+        minimal:
+          "bg-transparent text-muted hover:text-secondary",
       },
       size: {
         sm: "px-4 py-2 text-xs gap-2 rounded-nm-sm",

@@ -195,7 +195,7 @@ function TorrentsTab({
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <CategoryCard categories={data.categoryStats} accentColor={accentColor} />
           <Card trackerColor={accentColor} className="flex flex-col gap-4">
-            <H2 className="text-sm font-sans font-semibold text-primary uppercase tracking-wider">
+            <H2 className="card-heading">
               Cross-Seed Ratio
             </H2>
             {data.crossSeedTags.length === 0 ? (
@@ -230,7 +230,7 @@ function TorrentsTab({
                 trackerColor={accentColor}
                 className={`flex flex-col gap-4${wideCard ? " lg:col-span-2" : ""}`}
               >
-                <H2 className="text-sm font-sans font-semibold text-primary uppercase tracking-wider">
+                <H2 className="card-heading">
                   {group.emoji ? `${group.emoji} ` : ""}
                   {group.name}
                 </H2>
@@ -251,7 +251,7 @@ function TorrentsTab({
       {/* qbitmanage Breakdown */}
       {data.qbitmanageBreakdown.length > 0 && (
         <Card trackerColor={accentColor} className="flex flex-col gap-4">
-          <H2 className="text-sm font-sans font-semibold text-primary uppercase tracking-wider">
+          <H2 className="card-heading">
             qbitmanage Status
           </H2>
           <TagGroupBreakdownChart
@@ -266,13 +266,13 @@ function TorrentsTab({
       <LazySection minHeight={300}>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Card trackerColor={accentColor} className="flex flex-col gap-4">
-            <H2 className="text-sm font-sans font-semibold text-primary uppercase tracking-wider">
+            <H2 className="card-heading">
               Ratio Distribution
             </H2>
             <TorrentRatioDistribution torrents={data.torrents} accentColor={accentColor} />
           </Card>
           <Card trackerColor={accentColor} className="flex flex-col gap-4">
-            <H2 className="text-sm font-sans font-semibold text-primary uppercase tracking-wider">
+            <H2 className="card-heading">
               Seed Time Distribution
             </H2>
             <TorrentSeedTimeDistribution
@@ -290,13 +290,13 @@ function TorrentsTab({
       <LazySection minHeight={300}>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Card trackerColor={accentColor} className="flex flex-col gap-4">
-            <H2 className="text-sm font-sans font-semibold text-primary uppercase tracking-wider">
+            <H2 className="card-heading">
               Size by Category
             </H2>
             <TorrentSizeBreakdown categories={data.categoryStats} accentColor={accentColor} />
           </Card>
           <Card trackerColor={accentColor} className="flex flex-col gap-4">
-            <H2 className="text-sm font-sans font-semibold text-primary uppercase tracking-wider">
+            <H2 className="card-heading">
               Torrent Add Heatmap
             </H2>
             <TorrentActivityHeatmap torrents={data.torrents} accentColor={accentColor} />
@@ -307,7 +307,7 @@ function TorrentsTab({
       {/* Library Growth */}
       <LazySection>
         <Card trackerColor={accentColor} className="flex flex-col gap-4">
-          <H2 className="text-sm font-sans font-semibold text-primary uppercase tracking-wider">
+          <H2 className="card-heading">
             Library Growth
           </H2>
           <TorrentAgeTimeline torrents={data.torrents} accentColor={accentColor} />
@@ -366,7 +366,7 @@ function TorrentsTab({
       {/* Parallel Coordinates */}
       <LazySection minHeight={380}>
         <Card trackerColor={accentColor} className="flex flex-col gap-4">
-          <H2 className="text-sm font-sans font-semibold text-primary uppercase tracking-wider">
+          <H2 className="card-heading">
             Torrent Profile
           </H2>
           <p className="text-xs font-mono text-tertiary -mt-2">
@@ -379,7 +379,7 @@ function TorrentsTab({
       {/* Storage Sunburst */}
       <LazySection minHeight={360}>
         <Card trackerColor={accentColor} className="flex flex-col gap-4">
-          <H2 className="text-sm font-sans font-semibold text-primary uppercase tracking-wider">
+          <H2 className="card-heading">
             Storage Breakdown
           </H2>
           <StorageSunburst

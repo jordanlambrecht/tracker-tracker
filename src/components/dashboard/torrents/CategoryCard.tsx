@@ -22,7 +22,7 @@ export function CategoryCard({ categories, accentColor }: CategoryCardProps) {
 
   return (
     <Card trackerColor={accentColor} className="flex flex-col gap-4">
-      <H2 className="text-sm font-sans font-semibold text-primary uppercase tracking-wider">
+      <H2 className="card-heading">
         Categories
       </H2>
       <TabBar
