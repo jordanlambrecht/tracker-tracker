@@ -91,7 +91,7 @@ function EmojiPickerPopover({
           // biome-ignore lint/a11y/noStaticElementInteractions: onMouseDown prevents blur-close when clicking inside the picker
           <div
             ref={pickerRef}
-            className="emoji-picker-wrapper fixed z-50 nm-raised-lg"
+            className="emoji-picker-wrapper fixed z-40 nm-raised-lg"
             style={{ top: pos.top, left: pos.left }}
             onMouseDown={(e) => e.stopPropagation()}
           >

@@ -44,7 +44,7 @@ export function computeDailyDeltas(snapshots: Snapshot[]): DailyBucket[] {
 }
 
 /**
- * Build a 7×24 activity matrix from a list of Unix epoch timestamps (seconds).
+ * Build a 7x24 activity matrix from a list of Unix epoch timestamps (seconds).
  * Returns the flattened [hour, day, count] data array and the maximum count.
  */
 export function buildActivityMatrix(addedOnSeconds: number[]): {

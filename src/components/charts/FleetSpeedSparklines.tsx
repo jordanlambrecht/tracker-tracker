@@ -44,7 +44,7 @@ interface FleetSpeedSparklinesProps {
 
 /**
  * Converts an array of numeric values into SVG polyline `points` attribute string.
- * Maps values onto a viewBox of `width` × `height`, with y-axis inverted (SVG top=0).
+ * Maps values onto a viewBox of `width` x `height`, with y-axis inverted (SVG top=0).
  * Returns empty string when fewer than 2 points exist.
  */
 function buildPolylinePoints(values: number[], width: number, height: number): string {
@@ -69,7 +69,7 @@ interface MiniSparklineProps {
 
 /**
  * Pure SVG sparkline — no ECharts.
- * Renders an 80×24 polyline with a translucent fill beneath the line.
+ * Renders an 80x24 polyline with a translucent fill beneath the line.
  */
 function MiniSparkline({ values, color }: MiniSparklineProps) {
   const points = buildPolylinePoints(values, SPARKLINE_WIDTH, SPARKLINE_HEIGHT)

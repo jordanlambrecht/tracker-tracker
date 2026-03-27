@@ -60,7 +60,7 @@ function Tooltip({ content, children, className, docs }: TooltipProps) {
           <div
             ref={tooltipRef}
             role="tooltip"
-            className="fixed z-[9999] px-3 py-2 text-2xs font-sans font-normal normal-case tracking-normal text-secondary leading-relaxed whitespace-normal bg-overlay nm-raised-sm rounded-nm-sm"
+            className="fixed z-50 px-3 py-2 text-2xs font-sans font-normal normal-case tracking-normal text-secondary leading-relaxed whitespace-normal bg-overlay nm-raised-sm rounded-nm-sm"
             style={{ top: pos.top, left: pos.left }}
             onMouseEnter={show}
             onMouseLeave={hide}

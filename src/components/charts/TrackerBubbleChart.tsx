@@ -178,7 +178,7 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
           `<br/><span style="color:${CHART_THEME.textSecondary};">Uploaded:</span> <span style="color:${CHART_THEME.textPrimary};">${fmtNum(uploadVal)} ${unit}</span>`,
           `<br/><span style="color:${CHART_THEME.textSecondary};">Downloaded:</span> <span style="color:${CHART_THEME.textPrimary};">${fmtNum(downloadVal)} ${unit}</span>`,
           `<br/><span style="color:${CHART_THEME.textSecondary};">Seeding:</span> <span style="color:${CHART_THEME.textPrimary};">${seedingCount.toLocaleString()} torrents</span>`,
-          `<br/><span style="color:${CHART_THEME.textSecondary};">Ratio:</span> <span style="color:${CHART_THEME.textPrimary};">${ratio}×</span>`,
+          `<br/><span style="color:${CHART_THEME.textSecondary};">Ratio:</span> <span style="color:${CHART_THEME.textPrimary};">${ratio}x</span>`,
           "</div>",
         ].join("")
       },

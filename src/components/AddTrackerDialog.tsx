@@ -168,7 +168,7 @@ function TrackerCombobox({ presets, value, onChange }: TrackerComboboxProps) {
       {open && (
         <div
           ref={listRef}
-          className="absolute top-full left-0 right-0 mt-1 z-50 bg-elevated nm-raised-sm py-1 max-h-60 overflow-y-auto styled-scrollbar rounded-nm-md"
+          className="absolute top-full left-0 right-0 mt-1 z-40 bg-elevated nm-raised-sm py-1 max-h-60 overflow-y-auto styled-scrollbar rounded-nm-md"
           role="listbox"
         >
           {filtered.length === 0 ? (

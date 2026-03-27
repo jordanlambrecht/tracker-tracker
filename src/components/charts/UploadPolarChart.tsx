@@ -90,7 +90,7 @@ function buildPolarOption(
     if (b.avgBytes > maxVal) maxVal = b.avgBytes
   }
 
-  // Flatten the 7×24 grid into [hourIdx, dayIdx, value] triples for the heatmap
+  // Flatten the 7x24 grid into [hourIdx, dayIdx, value] triples for the heatmap
   const heatmapData: [number, number, number][] = []
   for (let day = 0; day < 7; day++) {
     for (let hour = 0; hour < 24; hour++) {

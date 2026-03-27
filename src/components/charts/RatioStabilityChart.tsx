@@ -214,7 +214,7 @@ function buildRatioStabilityOption(
             return (
               chartDot(item.color) +
               `<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> ` +
-              `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${emaVal.toFixed(2)}×</span>` +
+              `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${emaVal.toFixed(2)}x</span>` +
               ` <span style="color:${CHART_THEME.textTertiary};">(EMA)</span>` +
               sigmaStr
             )

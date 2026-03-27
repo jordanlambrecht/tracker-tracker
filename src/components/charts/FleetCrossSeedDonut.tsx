@@ -1,6 +1,4 @@
 // src/components/charts/FleetCrossSeedDonut.tsx
-//
-// Functions: buildFleetCrossSeedOption, FleetCrossSeedDonut
 
 "use client"
 

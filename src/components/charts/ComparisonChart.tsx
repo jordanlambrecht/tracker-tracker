@@ -150,7 +150,7 @@ function buildComparisonOption(
   const allTimestamps = collectUnifiedTimestamps(trackerData)
 
   // Determine unit and divisor per metric type
-  let unit = "×"
+  let unit = "x"
   let divisor = 1
   if (metric === "seedbonus") {
     unit = "pts"
@@ -305,7 +305,7 @@ function buildComparisonOption(
           .filter((item) => item.value != null && item.value[1] != null)
           .map((item) => {
             const val = item.value[1]
-            const display = metric === "ratio" ? `${fmtNum(val)} ×` : `${fmtNum(val)} ${unit}`
+            const display = metric === "ratio" ? `${fmtNum(val)} x` : `${fmtNum(val)} ${unit}`
             return chartTooltipRow(item.color, item.seriesName, display)
           })
           .join("<br/>")
@@ -374,7 +374,7 @@ function ComparisonChart({
               <button
                 type="button"
                 onClick={() => setAverageMode((v) => !v)}
-                className="nm-raised-sm bg-raised px-2.5 py-1 text-3xs font-mono text-muted hover:text-secondary active:nm-inset-sm active:scale-[0.97] transition-all duration-150 cursor-pointer flex items-center gap-1.5 rounded-nm-sm"
+                className="timestamp nm-raised-sm bg-raised px-2.5 py-1 hover:text-secondary active:nm-inset-sm active:scale-[0.97] transition-all duration-150 cursor-pointer flex items-center gap-1.5 rounded-nm-sm"
               >
                 {averageMode ? "Avg" : "Per-Tracker"}
               </button>

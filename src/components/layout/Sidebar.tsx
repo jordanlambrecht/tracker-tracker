@@ -732,7 +732,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
       <aside
         className={clsx(
           "h-screen flex flex-col bg-base border-r border-border overflow-hidden",
-          isMobile ? "fixed inset-y-0 left-0 z-40 shrink-0" : "shrink-0"
+          isMobile ? "fixed inset-y-0 left-0 z-30 shrink-0" : "shrink-0"
         )}
         style={
           isMobile
@@ -883,7 +883,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
                 <button
                   type="button"
                   onClick={() => setShowArchived((s) => !s)}
-                  className="text-tertiary hover:text-secondary text-xs font-mono flex items-center gap-2 transition-colors duration-150 cursor-pointer w-full"
+                  className="ghost-link flex items-center gap-2 duration-150 w-full"
                 >
                   {showArchived ? (
                     <EyeOffIcon width="14" height="14" className="shrink-0" />
@@ -940,7 +940,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
               <button
                 type="button"
                 onClick={openChangelog}
-                className="text-muted hover:text-secondary text-3xs font-mono transition-colors duration-150 cursor-pointer text-left"
+                className="timestamp hover:text-secondary transition-colors duration-150 cursor-pointer text-left"
               >
                 v{process.env.NEXT_PUBLIC_APP_VERSION}
               </button>
@@ -981,7 +981,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
                 href={DOCS_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-muted hover:text-secondary transition-colors duration-150 shrink-0 text-2xs font-mono"
+                className="torrent-cell hover:text-secondary transition-colors duration-150 shrink-0"
                 aria-label="Documentation"
               >
                 ?

@@ -84,7 +84,7 @@ function Select<T extends string>({
 
       {open && (
         <div
-          className="absolute top-full left-0 right-0 mt-1 z-50 bg-elevated nm-raised-sm py-1 overflow-hidden rounded-nm-md"
+          className="absolute top-full left-0 right-0 mt-1 z-40 bg-elevated nm-raised-sm py-1 overflow-hidden rounded-nm-md"
           role="listbox"
           aria-label={ariaLabel}
         >

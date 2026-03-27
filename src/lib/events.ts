@@ -192,7 +192,7 @@ export function snapshotToEvent(row: SnapshotRow): SystemEvent {
   } catch {
     // Non-numeric byte strings default to 0
   }
-  const ratioStr = row.ratio !== null ? `${row.ratio.toFixed(2)}×` : ""
+  const ratioStr = row.ratio !== null ? `${row.ratio.toFixed(2)}x` : ""
 
   return {
     id: `snap-${row.id}`,

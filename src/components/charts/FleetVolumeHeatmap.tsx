@@ -22,9 +22,9 @@ interface FleetVolumeHeatmapProps {
 }
 
 /**
- * Build a 7×24 volume matrix from snapshot series.
+ * Build a 7x24 volume matrix from snapshot series.
  * For each consecutive snapshot pair, compute the byte delta and bucket
- * it by the dayOfWeek × hourOfDay of the later snapshot.
+ * it by the dayOfWeek x hourOfDay of the later snapshot.
  * Returns values in GiB.
  */
 function buildVolumeMatrix(

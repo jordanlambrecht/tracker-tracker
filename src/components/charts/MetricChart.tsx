@@ -75,7 +75,7 @@ const METRIC_CONFIGS: Record<Exclude<Metric, "dailyDelta">, MetricConfig> = {
   },
   ratio: {
     label: "Ratio",
-    unit: "×",
+    unit: "x",
     getValue: (s) => s.ratio,
   },
   buffer: {
