@@ -18,6 +18,7 @@ import { Select } from "@/components/ui/Select"
 import { Toggle } from "@/components/ui/Toggle"
 import { UptimeBar } from "@/components/ui/UptimeBar"
 import { formatTimeAgo } from "@/lib/formatters"
+import { log } from "@/lib/logger"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -75,15 +76,16 @@ const DRAFT_KEYS: (keyof DownloadClient)[] = [
   "crossSeedTags",
 ]
 
-function isDirty(draft: DownloadClient, saved: DownloadClient): boolean {
+function buildPatch(draft: DownloadClient, saved: DownloadClient): Record<string, unknown> | null {
+  const patch: Record<string, unknown> = {}
   for (const key of DRAFT_KEYS) {
     const a = draft[key]
     const b = saved[key]
     if (Array.isArray(a) && Array.isArray(b)) {
-      if (a.length !== b.length || a.some((v, i) => v !== b[i])) return true
-    } else if (a !== b) return true
+      if (a.length !== b.length || a.some((v, i) => v !== b[i])) patch[key] = a
+    } else if (a !== b) patch[key] = a
   }
-  return false
+  return Object.keys(patch).length > 0 ? patch : null
 }
 
 function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }: ClientCardProps) {
@@ -98,7 +100,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
   } = useActionStatus()
   const [tagInput, setTagInput] = useState("")
 
-  const dirty = isDirty(draft, client)
+  const dirty = buildPatch(draft, client) !== null
 
   // Sync draft when parent pushes new server state (i.e after another card's setDefault)
   useEffect(() => {
@@ -112,14 +114,8 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
   async function handleSave() {
     setSaving(true)
     setSaveError(null)
-    const patch: Record<string, unknown> = {}
-    for (const key of DRAFT_KEYS) {
-      const a = draft[key]
-      const b = client[key]
-      if (Array.isArray(a) && Array.isArray(b)) {
-        if (a.length !== b.length || a.some((v, i) => v !== b[i])) patch[key] = a
-      } else if (a !== b) patch[key] = a
-    }
+    const patch = buildPatch(draft, client)
+    if (!patch) return
     try {
       const res = await fetch(`/api/clients/${client.id}`, {
         method: "PATCH",
@@ -164,7 +160,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
         const data = await res.json()
         if (!cancelled) setUptimeData(data)
       } catch {
-        // uptime bar is non-critical
+        log.debug(`Failed to fetch uptime for client ${client.id}`)
       }
     }
     fetchUptime()

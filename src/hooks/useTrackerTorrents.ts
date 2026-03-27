@@ -1,6 +1,4 @@
 // src/hooks/useTrackerTorrents.ts
-//
-// Functions: useTrackerTorrents
 
 "use client"
 
@@ -338,20 +336,23 @@ function useTrackerTorrents({
       : []
 
     // --- Tag group breakdowns ---
+    // Pre-compute parsed tags once per torrent (O(n)) instead of per-member per-group (O(n*m))
+    const torrentTagSets = torrents.map((t) => new Set(parseTorrentTags(t.tags, false)))
+
     const tagGroupBreakdowns: TagGroupBreakdown[] = (tagGroups ?? [])
       .map((group) => {
-        const allGroupTags = group.members.map((m) => m.tag)
+        const allGroupTagSet = new Set(group.members.map((m) => m.tag))
         const memberCounts = group.members
           .map((member) => {
-            const count = torrents.filter((t) =>
-              parseTorrentTags(t.tags, false).includes(member.tag)
-            ).length
+            const count = torrentTagSets.filter((tags) => tags.has(member.tag)).length
             return { label: member.label, count, color: member.color }
           })
           .filter((m) => m.count > 0)
-        const unmatchedCount = torrents.filter((t) => {
-          const tags = parseTorrentTags(t.tags, false)
-          return !tags.some((tag) => allGroupTags.includes(tag))
+        const unmatchedCount = torrentTagSets.filter((tags) => {
+          for (const tag of tags) {
+            if (allGroupTagSet.has(tag)) return false
+          }
+          return true
         }).length
         return { group, memberCounts, unmatchedCount }
       })
@@ -361,9 +362,7 @@ function useTrackerTorrents({
       ? Object.entries(qbitmanageConfig.tags)
           .filter(([, entry]) => entry.enabled)
           .map(([key, entry]) => {
-            const count = torrents.filter((t) =>
-              parseTorrentTags(t.tags, false).includes(entry.tag)
-            ).length
+            const count = torrentTagSets.filter((tags) => tags.has(entry.tag)).length
             const labelMap: Record<string, string> = {
               issue: "Issue",
               minTimeNotReached: "Min Time Not Reached",

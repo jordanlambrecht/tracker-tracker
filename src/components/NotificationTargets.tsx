@@ -22,6 +22,7 @@ import { Tooltip } from "@/components/ui/Tooltip"
 import { DOCS } from "@/lib/constants"
 import { formatTimeAgo } from "@/lib/formatters"
 import type { NotificationTargetType } from "@/lib/notifications/types"
+import { log } from "@/lib/logger"
 
 interface NotificationTarget {
   id: number
@@ -97,16 +98,20 @@ const DRAFT_KEYS: (keyof NotificationTarget)[] = [
   "scope",
 ]
 
-function isDirty(draft: NotificationTarget, saved: NotificationTarget): boolean {
+function buildPatch(
+  draft: NotificationTarget,
+  saved: NotificationTarget
+): Record<string, unknown> | null {
+  const patch: Record<string, unknown> = {}
   for (const key of DRAFT_KEYS) {
     const a = draft[key]
     const b = saved[key]
     if (a === null && b === null) continue
     if (typeof a === "object" && typeof b === "object" && a !== null && b !== null) {
-      if (JSON.stringify(a) !== JSON.stringify(b)) return true
-    } else if (a !== b) return true
+      if (JSON.stringify(a) !== JSON.stringify(b)) patch[key] = a
+    } else if (a !== b) patch[key] = a
   }
-  return false
+  return Object.keys(patch).length > 0 ? patch : null
 }
 
 function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) {
@@ -116,7 +121,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
   const [expanded, setExpanded] = useState(false)
   const { status: webhookStatus, error: webhookError, execute: executeTest } = useActionStatus()
 
-  const dirty = isDirty(draft, target)
+  const dirty = buildPatch(draft, target) !== null
 
   // Sync draft when parent pushes new server state
   useEffect(() => {
@@ -137,16 +142,8 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
   async function handleSave() {
     setSaving(true)
     setSaveError(null)
-    const patch: Record<string, unknown> = {}
-    for (const key of DRAFT_KEYS) {
-      const a = draft[key]
-      const b = target[key]
-      if (typeof a === "object" && typeof b === "object") {
-        if (JSON.stringify(a) !== JSON.stringify(b)) patch[key] = a
-      } else if (a !== b) {
-        patch[key] = a
-      }
-    }
+    const patch = buildPatch(draft, target)
+    if (!patch) return
     try {
       const res = await fetch(`/api/notifications/${target.id}`, {
         method: "PATCH",
@@ -617,7 +614,7 @@ function NotificationTargets() {
       if (!res.ok) return
       setTargets((prev) => prev.filter((t) => t.id !== id))
     } catch {
-      // Network error — leave state unchanged
+      log.debug(`Failed to delete notification target ${id}`)
     }
   }, [])
 
