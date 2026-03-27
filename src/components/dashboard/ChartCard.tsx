@@ -30,9 +30,9 @@ function ChartCard({
 }: ChartCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
-  const [shouldMount, setShouldMount] = useState(false)
 
-  // Lazy-load: only mount chart content when card scrolls into view
+  const shouldMount = !collapsed && visible
+
   useEffect(() => {
     const el = cardRef.current
     if (!el || visible) return
@@ -50,12 +50,8 @@ function ChartCard({
     return () => observer.disconnect()
   }, [visible])
 
-  useEffect(() => {
-    if (!collapsed && visible) setShouldMount(true)
-  }, [collapsed, visible])
-
   return (
-    <div ref={cardRef}>
+    <div ref={cardRef} style={{ contentVisibility: 'auto', containIntrinsicSize: '0 500px' }}>
       <Card className="flex flex-col gap-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex flex-col gap-1 min-w-0">
