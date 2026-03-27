@@ -74,6 +74,13 @@ export const CHART_THEME = {
   accentGlow60: "rgba(0, 212, 255, 0.6)",
   warnDim: "rgba(245, 158, 11, 0.15)",
   warnGlow: "rgba(245, 158, 11, 0.3)",
+
+  // ── Font sizes (raw numbers — ECharts cannot read CSS vars) ──
+  // Keep in sync with @theme inline tokens in globals.css.
+  fontSizeMicro: 9, // text-4xs — unit suffixes in chart tooltips
+  fontSizeCompact: 10, // text-3xs — axis labels, legend items
+  fontSizeDense: 10, // text-2xs — same as compact today; bump to 11 if needed
+  fontSizeSmall: 12, // text-xs  — tooltip body, larger labels
 } as const
 
 /** Escape HTML entities in untrusted strings before injecting into ECharts tooltip HTML */
@@ -115,7 +122,7 @@ export function formatChartTimestamp(ts: number): string {
 
 /** Timestamp header div for tooltip content */
 export function chartTooltipHeader(label: string): string {
-  return `<div style="font-family:var(--font-mono),monospace;font-size:11px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${escHtml(label)}</div>`
+  return `<div style="font-family:var(--font-mono),monospace;font-size:${CHART_THEME.fontSizeDense}px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${escHtml(label)}</div>`
 }
 
 /** Standard legend configuration — plain wrapping, toggle handled by ChartECharts wrapper */
@@ -132,7 +139,7 @@ export function chartLegend(overrides?: Record<string, unknown>): Record<string,
     textStyle: {
       color: CHART_THEME.textTertiary,
       fontFamily: CHART_THEME.fontMono,
-      fontSize: 11,
+      fontSize: CHART_THEME.fontSizeDense,
     },
     ...overrides,
   }
@@ -189,7 +196,7 @@ export function chartTooltip(
     textStyle: {
       color: CHART_THEME.textPrimary,
       fontFamily: CHART_THEME.fontMono,
-      fontSize: 12,
+      fontSize: CHART_THEME.fontSizeSmall,
     },
     ...(trigger === "axis"
       ? {
@@ -230,7 +237,7 @@ export function chartAxisLabel(overrides?: Record<string, unknown>): Record<stri
   return {
     color: CHART_THEME.textTertiary,
     fontFamily: CHART_THEME.fontMono,
-    fontSize: 10,
+    fontSize: CHART_THEME.fontSizeCompact,
     ...overrides,
   }
 }
@@ -255,7 +262,7 @@ export function chartDataZoom(accentColor: string): Record<string, unknown>[] {
       textStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       height: 24,
       bottom: 8,

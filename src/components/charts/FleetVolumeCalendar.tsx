@@ -114,13 +114,13 @@ function buildFleetVolumeCalendarOption(
       yearLabel: { show: false },
       monthLabel: {
         color: CHART_THEME.textTertiary,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
         fontFamily: CHART_THEME.fontMono,
       },
       dayLabel: {
         firstDay: 1,
         color: CHART_THEME.textTertiary,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
         fontFamily: CHART_THEME.fontMono,
         nameMap: ["S", "M", "T", "W", "T", "F", "S"],
       },

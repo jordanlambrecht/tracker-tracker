@@ -46,7 +46,7 @@ function PercentileRadarChart({ ranks, accentColor }: PercentileRadarChartProps)
         axisName: {
           color: CHART_THEME.textSecondary,
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 11,
+          fontSize: CHART_THEME.fontSizeDense,
         },
         splitArea: {
           areaStyle: {

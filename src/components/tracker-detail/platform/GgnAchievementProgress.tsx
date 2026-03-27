@@ -25,7 +25,7 @@ export function GgnAchievementProgress({ ggMeta, accentColor }: GgnAchievementPr
         <span className="text-muted">{nextLevel}</span>
       </div>
       <ProgressBar percent={pct} color={accentColor} size="sm" />
-      <p className="text-[10px] font-mono text-muted text-right">
+      <p className="text-3xs font-mono text-muted text-right">
         {pointsToNextLvl.toLocaleString()} pts to {nextLevel}
       </p>
     </div>

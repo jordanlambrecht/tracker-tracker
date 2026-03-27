@@ -129,7 +129,7 @@ function buildParallelOption(torrents: TorrentInfo[], trackerColor: string): ECh
     nameTextStyle: {
       color: CHART_THEME.textSecondary,
       fontFamily: CHART_THEME.fontMono,
-      fontSize: 11,
+      fontSize: CHART_THEME.fontSizeDense,
       fontWeight: 500,
     },
     axisLabel: chartAxisLabel(axis.axisLabel),
@@ -164,7 +164,7 @@ function buildParallelOption(torrents: TorrentInfo[], trackerColor: string): ECh
         const d = p.data
         if (!d) return ""
         return [
-          `<span style="color:${CHART_THEME.textTertiary};font-size:11px;font-family:${CHART_THEME.fontMono};">Torrent</span>`,
+          `<span style="color:${CHART_THEME.textTertiary};font-size:${CHART_THEME.fontSizeDense}px;font-family:${CHART_THEME.fontMono};">Torrent</span>`,
           chartTooltipRow(trackerColor, "Size", `${fmtNum(d[DIM_SIZE], 2)} GiB`),
           chartTooltipRow(trackerColor, "Ratio", fmtNum(d[DIM_RATIO], 2)),
           chartTooltipRow(trackerColor, "Seed Time", `${fmtNum(d[DIM_SEED_TIME], 1)} days`),

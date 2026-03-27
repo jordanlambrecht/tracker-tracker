@@ -22,7 +22,7 @@ const seedTimeCol: Column<TorrentInfo> = {
   align: "right",
   width: "8%",
   render: (t) => (
-    <span className="text-[11px] font-mono text-muted">{formatDuration(t.seedingTime)}</span>
+    <span className="text-2xs font-mono text-muted">{formatDuration(t.seedingTime)}</span>
   ),
 }
 
@@ -32,7 +32,7 @@ const seedTimeColLast: Column<TorrentInfo> = {
   align: "right",
   width: "8%",
   render: (t) => (
-    <span className="text-[11px] font-mono text-muted pr-2">{formatDuration(t.seedingTime)}</span>
+    <span className="text-2xs font-mono text-muted pr-2">{formatDuration(t.seedingTime)}</span>
   ),
 }
 
@@ -42,7 +42,7 @@ const swarmCol: Column<TorrentInfo> = {
   align: "right",
   width: "7%",
   render: (t) => (
-    <span className="text-[11px] font-mono text-muted pr-2">
+    <span className="text-2xs font-mono text-muted pr-2">
       {t.numComplete}/{t.numIncomplete}
     </span>
   ),
@@ -56,7 +56,7 @@ const addedCol: Column<TorrentInfo> = {
   render: (t) => {
     const d = new Date(t.addedOn * 1000)
     return (
-      <span className="text-[11px] font-mono text-muted">
+      <span className="text-2xs font-mono text-muted">
         {d.toLocaleDateString("en-US", { month: "short", year: "2-digit" })}
       </span>
     )
@@ -75,14 +75,14 @@ export function TorrentRankingTable({ torrents, variant }: TorrentRankingTablePr
       header: "#",
       width: "3%",
       render: (_t, i) => (
-        <span className="text-[11px] font-mono text-muted pl-2">{i != null ? i + 1 : ""}</span>
+        <span className="text-2xs font-mono text-muted pl-2">{i != null ? i + 1 : ""}</span>
       ),
     },
     {
       key: "name",
       header: "Name",
       render: (t) => (
-        <MarqueeText className="text-[11px] font-mono text-secondary" speed={30}>
+        <MarqueeText className="text-2xs font-mono text-secondary" speed={30}>
           {t.name}
         </MarqueeText>
       ),
@@ -93,7 +93,7 @@ export function TorrentRankingTable({ torrents, variant }: TorrentRankingTablePr
       width: "10%",
       render: (t) => (
         <Tooltip content={t.category}>
-          <span className="text-[11px] font-mono text-muted truncate block">
+          <span className="text-2xs font-mono text-muted truncate block">
             {t.category || "\u2014"}
           </span>
         </Tooltip>
@@ -110,9 +110,9 @@ export function TorrentRankingTable({ torrents, variant }: TorrentRankingTablePr
         const num = spaceIdx > -1 ? formatted.slice(0, spaceIdx) : formatted
         const unit = spaceIdx > -1 ? formatted.slice(spaceIdx + 1) : ""
         return (
-          <span className="text-[11px] font-mono text-muted text-right leading-none">
+          <span className="text-2xs font-mono text-muted text-right leading-none">
             {num}
-            <span className="block text-[9px] mt-px">{unit}</span>
+            <span className="block text-4xs mt-px">{unit}</span>
           </span>
         )
       },
@@ -122,7 +122,7 @@ export function TorrentRankingTable({ torrents, variant }: TorrentRankingTablePr
       header: "Ratio",
       align: "right",
       width: "8%",
-      render: (t) => <span className="text-[11px] font-mono text-muted">{t.ratio.toFixed(2)}</span>,
+      render: (t) => <span className="text-2xs font-mono text-muted">{t.ratio.toFixed(2)}</span>,
     },
   ]
 

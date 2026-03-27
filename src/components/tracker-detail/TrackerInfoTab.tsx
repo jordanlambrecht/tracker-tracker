@@ -101,7 +101,7 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
                   <span className="text-sm font-sans text-tertiary flex items-center gap-1.5">
                     {rule.label}
                     <Tooltip content={rule.tip}>
-                      <span className="cursor-help text-[9px] font-bold opacity-50 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current hover:opacity-80 transition-opacity">
+                      <span className="cursor-help text-4xs font-bold opacity-50 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current hover:opacity-80 transition-opacity">
                         ?
                       </span>
                     </Tooltip>
@@ -138,7 +138,7 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
           <div className="flex flex-col gap-3">
             <H2>Site Stats</H2>
             {registryEntry.stats.statsUpdatedAt && (
-              <span className="text-[10px] font-mono text-muted">
+              <span className="text-3xs font-mono text-muted">
                 Updated {registryEntry.stats.statsUpdatedAt}
               </span>
             )}
@@ -205,7 +205,7 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
                       {uc.name}
                     </span>
                     {isCurrent && (
-                      <span className="text-[10px] font-mono" style={{ color: tc }}>
+                      <span className="text-3xs font-mono" style={{ color: tc }}>
                         ← you
                       </span>
                     )}
@@ -222,7 +222,7 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
                           {uc.perks.map((perk) => (
                             <span
                               key={`${perk.type}-${perk.label}`}
-                              className="text-[10px] font-mono text-muted nm-inset-sm bg-control-bg px-1.5 py-0.5 rounded-nm-pill"
+                              className="text-3xs font-mono text-muted nm-inset-sm bg-control-bg px-1.5 py-0.5 rounded-nm-pill"
                             >
                               {perk.label}
                             </span>

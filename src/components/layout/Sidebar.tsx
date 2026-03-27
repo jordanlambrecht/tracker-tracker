@@ -147,7 +147,7 @@ function SortableTrackerItem({
       ) : (
         <PulseDot status={getHealthPulseDot(health)} size="sm" />
       )}
-      <span className="flex-1 truncate text-[15px] font-semibold">{tracker.name}</span>
+      <span className="flex-1 truncate text-sm font-semibold">{tracker.name}</span>
       <span className="font-mono text-xs tabular-nums text-tertiary shrink-0">
         {archived ? "Archived" : stat}
       </span>
@@ -297,7 +297,7 @@ function ClientSlide({
       />
       <div className="flex flex-col flex-1 min-w-0">
         <MarqueeText className="text-xs font-mono text-secondary">{client.name}</MarqueeText>
-        <span className="text-[10px] font-mono text-tertiary">
+        <span className="text-3xs font-mono text-tertiary">
           {hasError ? (
             <span className="text-danger">
               Down{client.errorSince ? ` ${formatTimeAgo(client.errorSince)}` : ""}
@@ -790,7 +790,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
               aria-expanded={filtersExpanded}
               aria-label={filtersExpanded ? "Collapse filters" : "Expand filters"}
             >
-              <span className="text-[10px] font-mono uppercase tracking-wider">Filters</span>
+              <span className="text-3xs font-mono uppercase tracking-wider">Filters</span>
               <ChevronToggle expanded={filtersExpanded} variant="flip" />
             </button>
             {filtersExpanded && (
@@ -940,7 +940,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
               <button
                 type="button"
                 onClick={openChangelog}
-                className="text-muted hover:text-secondary text-[10px] font-mono transition-colors duration-150 cursor-pointer text-left"
+                className="text-muted hover:text-secondary text-3xs font-mono transition-colors duration-150 cursor-pointer text-left"
               >
                 v{process.env.NEXT_PUBLIC_APP_VERSION}
               </button>
@@ -949,7 +949,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
                   href={`https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v${latestVersion}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-1.5 py-0.5 text-[9px] font-mono text-accent hover:bg-accent/25 transition-colors duration-150"
+                  className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-1.5 py-0.5 text-4xs font-mono text-accent hover:bg-accent/25 transition-colors duration-150"
                 >
                   <Tooltip content={`Update available: v${latestVersion}`}>
                     <span className="flex items-center gap-1">
@@ -981,7 +981,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
                 href={DOCS_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-muted hover:text-secondary transition-colors duration-150 shrink-0 text-[11px] font-mono"
+                className="text-muted hover:text-secondary transition-colors duration-150 shrink-0 text-2xs font-mono"
                 aria-label="Documentation"
               >
                 ?

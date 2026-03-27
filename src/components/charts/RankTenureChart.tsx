@@ -148,10 +148,10 @@ function buildRankTenureOption(
 
         const durationLabel = `${durationDays} day${durationDays !== 1 ? "s" : ""}`
         return [
-          `<div style="font-family:${CHART_THEME.fontMono};font-size:11px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${escHtml(trackerName)}</div>`,
+          `<div style="font-family:${CHART_THEME.fontMono};font-size:${CHART_THEME.fontSizeDense}px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${escHtml(trackerName)}</div>`,
           `${chartTooltipRow(color, "Rank", rankName)}<br/>`,
           `${chartTooltipRow(CHART_THEME.neutral, "Duration", durationLabel)}<br/>`,
-          `<span style="color:${CHART_THEME.textTertiary};font-size:11px;">${escHtml(startDate)} → ${escHtml(endDate)}</span>`,
+          `<span style="color:${CHART_THEME.textTertiary};font-size:${CHART_THEME.fontSizeDense}px;">${escHtml(startDate)} → ${escHtml(endDate)}</span>`,
         ].join("")
       },
     }),
@@ -178,7 +178,7 @@ function buildRankTenureOption(
       axisLabel: {
         color: CHART_THEME.textSecondary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
+        fontSize: CHART_THEME.fontSizeDense,
         width: 112,
         overflow: "truncate",
       },
@@ -235,7 +235,7 @@ function buildRankTenureOption(
                     textAlign: "left" as const,
                     textVerticalAlign: "middle" as const,
                     fill: CHART_THEME.textPrimary,
-                    fontSize: 10,
+                    fontSize: CHART_THEME.fontSizeCompact,
                     fontFamily: CHART_THEME.fontMono,
                     truncate: { outerWidth: width - 12, ellipsis: "…" },
                   },

@@ -173,7 +173,7 @@ function buildLineOption(
       nameTextStyle: {
         color: TERTIARY_COLOR,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },
@@ -215,7 +215,7 @@ function buildLineOption(
                   formatter: `Min: ${baselineValue}`,
                   position: "insideEndTop",
                   color: CHART_THEME.danger,
-                  fontSize: 10,
+                  fontSize: CHART_THEME.fontSizeCompact,
                   fontFamily: CHART_THEME.fontMono,
                 },
                 data: [{ yAxis: baselineValue }],
@@ -287,7 +287,7 @@ function buildDailyDeltaOption(
       nameTextStyle: {
         color: TERTIARY_COLOR,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },

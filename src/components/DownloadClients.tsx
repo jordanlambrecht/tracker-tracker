@@ -232,18 +232,18 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
             {client.isDefault && <Badge variant="accent">Default</Badge>}
           </div>
           <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-[10px] font-mono text-tertiary">
+            <span className="text-3xs font-mono text-tertiary">
               {client.lastPolledAt
                 ? `Last seen: ${formatTimeAgo(client.lastPolledAt)}`
                 : "Last seen: Never"}
             </span>
             {client.errorSince && (
-              <span className="text-[10px] font-mono text-danger">
+              <span className="text-3xs font-mono text-danger">
                 Down since {formatTimeAgo(client.errorSince)}
               </span>
             )}
             {client.lastError && !client.errorSince && (
-              <span className="text-[10px] font-mono text-danger">{client.lastError}</span>
+              <span className="text-3xs font-mono text-danger">{client.lastError}</span>
             )}
           </div>
         </div>

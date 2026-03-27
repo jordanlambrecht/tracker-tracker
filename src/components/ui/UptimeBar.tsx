@@ -123,8 +123,8 @@ function UptimeBar({ buckets, uptimePercent, className = "" }: UptimeBarProps) {
       </div>
 
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-mono text-tertiary/60">24h ago</span>
-        <span className="text-[10px] font-mono text-tertiary/60">now</span>
+        <span className="text-3xs font-mono text-tertiary/60">24h ago</span>
+        <span className="text-3xs font-mono text-tertiary/60">now</span>
       </div>
     </div>
   )

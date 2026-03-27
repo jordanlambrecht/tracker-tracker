@@ -109,7 +109,7 @@ export function MamHealthOverview({
             <span className="text-xs font-mono text-secondary font-semibold">{vipDays}d</span>
           </div>
           <ProgressBar percent={vipPct} color={vipColor} size="sm" />
-          <p className="text-[10px] font-mono text-muted text-right">{vipDateStr}</p>
+          <p className="text-3xs font-mono text-muted text-right">{vipDateStr}</p>
         </div>
       )}
 
@@ -123,7 +123,7 @@ export function MamHealthOverview({
             </span>
           </div>
           <ProgressBar percent={satPct} color={satColor} size="sm" />
-          <p className="text-[10px] font-mono text-muted text-right">
+          <p className="text-3xs font-mono text-muted text-right">
             {satUsed} unsatisfied torrent{satUsed !== 1 ? "s" : ""}
           </p>
         </div>
@@ -135,7 +135,7 @@ export function MamHealthOverview({
           <div className="flex items-center gap-1">
             <span className="slot-label">Torrent Health</span>
             <Tooltip content="Breakdown of your snatched torrents by seeding status. Green = seeding and satisfied. Amber = seeding but not yet past the 72-hour requirement (pre-HnR or active HnR). Red = not seeding past deadline (Hit & Run). Gray = completed, no longer seeding.">
-              <span className="text-muted hover:text-secondary cursor-help text-[10px]">
+              <span className="text-muted hover:text-secondary cursor-help text-3xs">
                 &#9432;
               </span>
             </Tooltip>
@@ -160,7 +160,7 @@ export function MamHealthOverview({
               return (
                 <span
                   key={key}
-                  className="text-[10px] font-mono text-muted flex items-center gap-1"
+                  className="text-3xs font-mono text-muted flex items-center gap-1"
                 >
                   <span
                     className="w-1.5 h-1.5 rounded-full inline-block"
@@ -182,7 +182,7 @@ export function MamHealthOverview({
             {(seedbonus ?? 0).toLocaleString()} / {MAM_BONUS_CAP.toLocaleString()}
           </span>
           {wastePerDay > 0 && (
-            <p className="text-[10px] font-mono text-warn">
+            <p className="text-3xs font-mono text-warn">
               ~{wastePerDay.toLocaleString()} pts/day wasted
             </p>
           )}

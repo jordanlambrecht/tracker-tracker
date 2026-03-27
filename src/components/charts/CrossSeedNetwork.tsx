@@ -97,7 +97,7 @@ function buildNetworkData(
       label: {
         show: true,
         color: CHART_THEME.textSecondary,
-        fontSize: 11,
+        fontSize: CHART_THEME.fontSizeDense,
         fontFamily: CHART_THEME.fontMono,
       },
     })

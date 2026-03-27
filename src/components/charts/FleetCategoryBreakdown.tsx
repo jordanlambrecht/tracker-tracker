@@ -61,7 +61,7 @@ function buildFleetCategoryBreakdownOption(
         show: true,
         position: "inside",
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 9,
+        fontSize: CHART_THEME.fontSizeMicro,
         color: CHART_THEME.textPrimary,
         formatter: (params: unknown) => {
           const p = params as { value: number }

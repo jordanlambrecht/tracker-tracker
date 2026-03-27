@@ -55,7 +55,7 @@ function TorrentAgeTimeline({ torrents, accentColor }: TorrentAgeTimelineProps) 
           year: "numeric",
         })
         return (
-          `<div style="margin-bottom:4px;color:${CHART_THEME.textTertiary};font-size:11px;">${label}</div>` +
+          `<div style="margin-bottom:4px;color:${CHART_THEME.textTertiary};font-size:${CHART_THEME.fontSizeDense}px;">${label}</div>` +
           chartTooltipRow(accentColor, "Torrents", String(p.value[1]))
         )
       },
@@ -68,7 +68,7 @@ function TorrentAgeTimeline({ torrents, accentColor }: TorrentAgeTimelineProps) 
       axisLabel: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
     },
     series: [

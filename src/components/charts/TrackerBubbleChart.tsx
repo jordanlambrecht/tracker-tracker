@@ -120,7 +120,7 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
               formatter: "1:1 ratio",
               color: CHART_THEME.textTertiary,
               fontFamily: CHART_THEME.fontMono,
-              fontSize: 10,
+              fontSize: CHART_THEME.fontSizeCompact,
             },
             data: [
               [
@@ -173,7 +173,7 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
         const ratio = downloadVal > 0 ? (uploadVal / downloadVal).toFixed(2) : "∞"
 
         return [
-          `<div style="font-family:${CHART_THEME.fontMono};font-size:12px;">`,
+          `<div style="font-family:${CHART_THEME.fontMono};font-size:${CHART_THEME.fontSizeSmall}px;">`,
           `${chartDot(color.startsWith("#") ? color : CHART_THEME.neutral)}<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(p.seriesName)}</span>`,
           `<br/><span style="color:${CHART_THEME.textSecondary};">Uploaded:</span> <span style="color:${CHART_THEME.textPrimary};">${fmtNum(uploadVal)} ${unit}</span>`,
           `<br/><span style="color:${CHART_THEME.textSecondary};">Downloaded:</span> <span style="color:${CHART_THEME.textPrimary};">${fmtNum(downloadVal)} ${unit}</span>`,
@@ -191,7 +191,7 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
       axisTick: { show: false },
@@ -209,7 +209,7 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },

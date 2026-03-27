@@ -77,7 +77,7 @@ function Select<T extends string>({
         aria-expanded={open}
       >
         <span className="truncate">{selectedLabel}</span>
-        <span className="text-tertiary text-[10px] shrink-0" aria-hidden="true">
+        <span className="text-tertiary text-3xs shrink-0" aria-hidden="true">
           ▾
         </span>
       </button>

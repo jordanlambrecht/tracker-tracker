@@ -26,7 +26,7 @@ function ChevronToggle({ expanded, variant = "pivot", className }: ChevronToggle
   return (
     <span
       className={clsx(
-        "inline-block transition-transform duration-150 text-[10px]",
+        "inline-block transition-transform duration-150 text-3xs",
         expanded ? "rotate-90" : "rotate-0",
         className
       )}

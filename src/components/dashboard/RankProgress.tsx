@@ -155,7 +155,7 @@ function RankTimeline({ events, accentColor }: RankTimelineProps) {
                   boxShadow: `0 0 8px ${hexToRgba(CHART_THEME.accent, 0.4)}`,
                 }}
               />
-              <span className="text-[10px] font-mono text-accent whitespace-nowrap">
+              <span className="text-3xs font-mono text-accent whitespace-nowrap">
                 {event.label}
               </span>
             </div>
@@ -180,7 +180,7 @@ function RankTimeline({ events, accentColor }: RankTimelineProps) {
         return (
           <div key={`${event.date}-${event.to}`} className="flex flex-col gap-0.5 shrink-0">
             <div className="flex items-center gap-1.5 whitespace-nowrap">
-              <span className="text-[9px] leading-none shrink-0" style={{ color: dirColor }}>
+              <span className="text-4xs leading-none shrink-0" style={{ color: dirColor }}>
                 {dirIcon}
               </span>
               <span className="text-xs font-mono text-secondary">
@@ -193,7 +193,7 @@ function RankTimeline({ events, accentColor }: RankTimelineProps) {
                 <RedactedText value={event.to} color={dirColor} className="font-semibold" />
               </span>
             </div>
-            <span className="text-[10px] font-mono text-muted whitespace-nowrap pl-4">
+            <span className="text-3xs font-mono text-muted whitespace-nowrap pl-4">
               {dateStr}
             </span>
           </div>

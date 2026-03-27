@@ -58,7 +58,7 @@ function buildFleetCrossSeedOption(
         style: {
           text: "total",
           fill: CHART_THEME.textTertiary,
-          fontSize: 10,
+          fontSize: CHART_THEME.fontSizeCompact,
           fontFamily: CHART_THEME.fontMono,
         },
       },
@@ -71,7 +71,7 @@ function buildFleetCrossSeedOption(
           position: "outside",
           color: CHART_THEME.textTertiary,
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 10,
+          fontSize: CHART_THEME.fontSizeCompact,
           formatter: (params: unknown) => {
             const p = params as { name: string; value: number }
             const pct = total > 0 ? ((p.value / total) * 100).toFixed(1) : "0.0"

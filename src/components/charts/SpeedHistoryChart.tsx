@@ -94,7 +94,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
         nameTextStyle: {
           color: CYAN,
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 10,
+          fontSize: CHART_THEME.fontSizeCompact,
         },
         axisLine: { show: false },
         axisTick: { show: false },
@@ -112,7 +112,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
         nameTextStyle: {
           color: AMBER,
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 10,
+          fontSize: CHART_THEME.fontSizeCompact,
         },
         position: "right",
         axisLine: { show: false },

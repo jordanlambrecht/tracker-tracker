@@ -215,7 +215,7 @@ function buildBufferVelocityOption(
                     position: "insideEndTop",
                     color: CHART_THEME.warn,
                     fontFamily: CHART_THEME.fontMono,
-                    fontSize: 10,
+                    fontSize: CHART_THEME.fontSizeCompact,
                   },
                   lineStyle: {
                     color: CHART_THEME.warn,
@@ -272,7 +272,7 @@ function buildBufferVelocityOption(
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },

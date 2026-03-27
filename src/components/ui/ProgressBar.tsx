@@ -59,7 +59,7 @@ function ProgressBar({
         aria-valuemax={100}
       >
         {showLabel && size === "lg" && clamped > 10 && (
-          <span className="absolute inset-0 flex items-center justify-center text-[9px] font-mono font-semibold text-white/80">
+          <span className="absolute inset-0 flex items-center justify-center text-4xs font-mono font-semibold text-white/80">
             {Math.round(clamped)}%
           </span>
         )}

@@ -136,7 +136,7 @@ function buildTrackerHealthRadarOption(
       axisName: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       splitLine: {
         lineStyle: { color: CHART_THEME.gridLine },

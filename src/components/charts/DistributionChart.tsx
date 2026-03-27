@@ -52,7 +52,7 @@ function buildPieOption(
       textStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
+        fontSize: CHART_THEME.fontSizeDense,
         fontWeight: 500,
       },
     },
@@ -72,7 +72,7 @@ function buildPieOption(
           position: "outside",
           color: CHART_THEME.textTertiary,
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 10,
+          fontSize: CHART_THEME.fontSizeCompact,
           formatter: "{b}",
         },
         labelLine: {
@@ -194,7 +194,7 @@ function buildSankeyOption(
         label: {
           color: CHART_THEME.textSecondary,
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 10,
+          fontSize: CHART_THEME.fontSizeCompact,
           formatter: (params: { name: string }) => params.name.trim(),
         },
         lineStyle: {
@@ -212,7 +212,7 @@ function buildSankeyOption(
         style: {
           text: "Upload %",
           fill: CHART_THEME.textTertiary,
-          fontSize: 11,
+          fontSize: CHART_THEME.fontSizeDense,
           fontFamily: CHART_THEME.fontMono,
         },
       },
@@ -223,7 +223,7 @@ function buildSankeyOption(
         style: {
           text: "Seeding %",
           fill: CHART_THEME.textTertiary,
-          fontSize: 11,
+          fontSize: CHART_THEME.fontSizeDense,
           fontFamily: CHART_THEME.fontMono,
         },
       },
@@ -256,14 +256,14 @@ function buildParallelOption(
         nameTextStyle: {
           color: CHART_THEME.textTertiary,
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 11,
+          fontSize: CHART_THEME.fontSizeDense,
           padding: [0, 0, 12, 0],
         },
         axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
         axisLabel: {
           color: CHART_THEME.textTertiary,
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 10,
+          fontSize: CHART_THEME.fontSizeCompact,
           formatter: (v: number) => `${fmtNum(v, 1)}%`,
         },
       },
@@ -274,14 +274,14 @@ function buildParallelOption(
         nameTextStyle: {
           color: CHART_THEME.textTertiary,
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 11,
+          fontSize: CHART_THEME.fontSizeDense,
           padding: [0, 0, 12, 0],
         },
         axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
         axisLabel: {
           color: CHART_THEME.textTertiary,
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 10,
+          fontSize: CHART_THEME.fontSizeCompact,
           formatter: (v: number) => `${fmtNum(v, 1)}%`,
         },
       },

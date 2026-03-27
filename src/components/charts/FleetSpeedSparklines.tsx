@@ -147,12 +147,12 @@ function ClientSpeedCard({ name, state }: ClientSpeedCardProps) {
           {/* Upload row */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-mono" style={{ color: COLOR_UPLOAD }}>
+              <span className="text-3xs font-mono" style={{ color: COLOR_UPLOAD }}>
                 ↑
               </span>
               <MiniSparkline values={uploadValues} color={COLOR_UPLOAD} />
             </div>
-            <span className="text-[10px] font-mono tabular-nums" style={{ color: COLOR_UPLOAD }}>
+            <span className="text-3xs font-mono tabular-nums" style={{ color: COLOR_UPLOAD }}>
               {formatBytesNum(currentUpload)}/s
             </span>
           </div>
@@ -160,12 +160,12 @@ function ClientSpeedCard({ name, state }: ClientSpeedCardProps) {
           {/* Download row */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-mono" style={{ color: COLOR_DOWNLOAD }}>
+              <span className="text-3xs font-mono" style={{ color: COLOR_DOWNLOAD }}>
                 ↓
               </span>
               <MiniSparkline values={downloadValues} color={COLOR_DOWNLOAD} />
             </div>
-            <span className="text-[10px] font-mono tabular-nums" style={{ color: COLOR_DOWNLOAD }}>
+            <span className="text-3xs font-mono tabular-nums" style={{ color: COLOR_DOWNLOAD }}>
               {formatBytesNum(currentDownload)}/s
             </span>
           </div>

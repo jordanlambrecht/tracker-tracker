@@ -50,7 +50,7 @@ function TorrentSizeBreakdown({ categories, accentColor }: TorrentSizeBreakdownP
       axisLabel: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
         formatter: (val: number) => formatBytesNum(val),
       },
       splitLine: { lineStyle: { color: CHART_THEME.gridLine } },
@@ -61,7 +61,7 @@ function TorrentSizeBreakdown({ categories, accentColor }: TorrentSizeBreakdownP
       axisLabel: {
         color: CHART_THEME.textSecondary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
         width: 80,
         overflow: "truncate",
       },

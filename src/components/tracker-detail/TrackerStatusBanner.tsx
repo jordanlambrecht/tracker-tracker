@@ -51,7 +51,7 @@ export function TrackerStatusBanner({
             <p className="text-xs font-sans font-medium text-warn uppercase tracking-wider">
               Polling Paused
             </p>
-            <span className="text-[10px] font-mono text-muted shrink-0">
+            <span className="text-3xs font-mono text-muted shrink-0">
               since {pause.since.toLocaleDateString()}
             </span>
           </div>
@@ -66,7 +66,7 @@ export function TrackerStatusBanner({
             <p className="text-xs font-sans font-medium text-danger uppercase tracking-wider">
               Polling Paused
             </p>
-            <span className="text-[10px] font-mono text-muted shrink-0">
+            <span className="text-3xs font-mono text-muted shrink-0">
               {new Date(pause.since).toLocaleString()}
             </span>
           </div>
@@ -97,7 +97,7 @@ export function TrackerStatusBanner({
               Last Error
             </p>
             {tracker.lastPolledAt && (
-              <span className="text-[10px] font-mono text-muted">
+              <span className="text-3xs font-mono text-muted">
                 {new Date(tracker.lastPolledAt).toLocaleString()}
               </span>
             )}

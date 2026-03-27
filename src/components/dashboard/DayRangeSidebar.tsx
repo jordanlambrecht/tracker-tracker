@@ -28,7 +28,7 @@ interface DayRangeSidebarProps {
 function DayRangeSidebar({ days, onChange, accentColor }: DayRangeSidebarProps) {
   return (
     <div className="order-first md:order-none md:sticky md:top-6 flex flex-row flex-wrap md:flex-col gap-1 p-3 nm-raised-sm bg-elevated md:self-start md:ml-6 rounded-nm-lg">
-      <span className="w-full text-[9px] font-sans font-medium text-muted uppercase tracking-wider px-2 pb-1 md:pb-1">
+      <span className="w-full text-4xs font-sans font-medium text-muted uppercase tracking-wider px-2 pb-1 md:pb-1">
         Range
       </span>
       {DAY_RANGES.map((d) => {

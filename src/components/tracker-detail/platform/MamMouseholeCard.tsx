@@ -190,7 +190,7 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
         />
         <div className="flex flex-col gap-0.5">
           <span className="text-xs font-sans font-medium text-secondary">Mousehole</span>
-          <span className="text-[10px] font-mono text-danger">{fetchError}</span>
+          <span className="text-3xs font-mono text-danger">{fetchError}</span>
         </div>
       </div>
     )

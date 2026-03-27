@@ -241,7 +241,7 @@ export function EventsSection() {
           onClick={() => setActiveCategories(new Set(EVENT_CATEGORIES))}
           aria-pressed={allCategoriesActive}
           className={clsx(
-            "px-2 py-0.5 text-[11px] font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
+            "px-2 py-0.5 text-2xs font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
             allCategoriesActive
               ? "nm-raised-sm text-primary font-semibold"
               : "bg-transparent text-muted hover:text-secondary"
@@ -257,7 +257,7 @@ export function EventsSection() {
             onClick={() => toggleCategory(cat)}
             aria-pressed={activeCategories.has(cat)}
             className={clsx(
-              "px-2 py-0.5 text-[11px] font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
+              "px-2 py-0.5 text-2xs font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
               activeCategories.has(cat)
                 ? "nm-raised-sm text-primary font-semibold"
                 : "bg-transparent text-muted hover:text-secondary line-through opacity-50"
@@ -278,7 +278,7 @@ export function EventsSection() {
             onClick={() => toggleLevel(level)}
             aria-pressed={activeLevels.has(level)}
             className={clsx(
-              "px-2 py-0.5 text-[11px] font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
+              "px-2 py-0.5 text-2xs font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
               activeLevels.has(level)
                 ? clsx("nm-raised-sm font-semibold", LEVEL_TEXT_COLORS[level])
                 : "bg-transparent text-muted hover:text-secondary line-through opacity-50"
@@ -338,7 +338,7 @@ export function EventsSection() {
             return (
               <div key={event.id}>
                 {showDateSep && (
-                  <div className="sticky top-0 z-10 px-3 py-1 text-[10px] font-mono text-tertiary bg-overlay/90 backdrop-blur-sm border-b border-border">
+                  <div className="sticky top-0 z-10 px-3 py-1 text-3xs font-mono text-tertiary bg-overlay/90 backdrop-blur-sm border-b border-border">
                     {formatDateLabel(event.timestamp)}
                   </div>
                 )}
@@ -369,7 +369,7 @@ export function EventsSection() {
                         )}
                       </div>
                       {isExpanded && event.detail && (
-                        <pre className="text-tertiary text-[11px] leading-relaxed whitespace-pre-wrap break-all pl-[calc(0.75rem+62px+0.5rem)] pt-1 pb-0.5 select-text">
+                        <pre className="text-tertiary text-2xs leading-relaxed whitespace-pre-wrap break-all pl-[calc(0.75rem+62px+0.5rem)] pt-1 pb-0.5 select-text">
                           {event.detail}
                         </pre>
                       )}
@@ -395,9 +395,9 @@ export function EventsSection() {
 
       {/* ── Footer ───────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
-        <p className="text-[10px] text-muted font-mono">IPs redacted</p>
+        <p className="text-3xs text-muted font-mono">IPs redacted</p>
         {filteredEvents.length > 0 && (
-          <span className="text-[10px] font-mono text-muted">
+          <span className="text-3xs font-mono text-muted">
             {filteredEvents.length === events.length
               ? `${events.length} events`
               : `${filteredEvents.length} of ${events.length}`}

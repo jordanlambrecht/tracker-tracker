@@ -68,7 +68,7 @@ function ChartECharts({
         <button
           type="button"
           onClick={handleToggle}
-          className="absolute top-0 right-0 z-10 px-2.5 py-1 text-[11px] font-mono text-muted hover:text-secondary hover:bg-overlay transition-colors cursor-pointer rounded-nm-sm"
+          className="absolute top-0 right-0 z-10 px-2.5 py-1 text-2xs font-mono text-muted hover:text-secondary hover:bg-overlay transition-colors cursor-pointer rounded-nm-sm"
         >
           {allSelected ? "None" : "All"}
         </button>

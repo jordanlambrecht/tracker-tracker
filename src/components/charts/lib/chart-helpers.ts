@@ -134,7 +134,7 @@ export function buildBucketedBarOption<TBucket, TTorrent>(
         formatter: markLine.label,
         position: "end",
         color: markLine.color,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
     }
   }
@@ -383,7 +383,7 @@ export function buildStackedAreaOption(
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },

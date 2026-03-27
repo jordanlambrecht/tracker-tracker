@@ -66,7 +66,7 @@ function AlertsBanner({ alerts, onDismiss, onDismissAll }: AlertsBannerProps) {
           <button
             type="button"
             onClick={handleDismissAll}
-            className="text-[10px] font-mono text-muted hover:text-secondary transition-colors duration-150 cursor-pointer uppercase tracking-wider"
+            className="text-3xs font-mono text-muted hover:text-secondary transition-colors duration-150 cursor-pointer uppercase tracking-wider"
           >
             Clear All
           </button>
@@ -116,7 +116,7 @@ function AlertsBanner({ alerts, onDismiss, onDismissAll }: AlertsBannerProps) {
                 <span className="font-mono text-xs text-tertiary truncate">{alert.message}</span>
               </div>
               {alert.timestamp && (
-                <span className="font-mono text-[10px] text-muted shrink-0 hidden sm:block">
+                <span className="font-mono text-3xs text-muted shrink-0 hidden sm:block">
                   {new Date(alert.timestamp).toLocaleString()}
                 </span>
               )}

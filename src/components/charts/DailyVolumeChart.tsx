@@ -176,7 +176,7 @@ function buildDailyVolumeOption(trackerData: TrackerSnapshotSeries[]): EChartsOp
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },
@@ -281,7 +281,7 @@ function buildRiverOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
           show: true,
           color: CHART_THEME.textSecondary,
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 10,
+          fontSize: CHART_THEME.fontSizeCompact,
         },
         emphasis: {
           itemStyle: {
@@ -361,7 +361,7 @@ function buildAreaOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },
@@ -441,7 +441,7 @@ function buildSumsOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },

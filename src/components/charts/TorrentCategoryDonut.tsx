@@ -49,7 +49,7 @@ function TorrentCategoryDonut({ categories, accentColor }: TorrentCategoryDonutP
       textStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
+        fontSize: CHART_THEME.fontSizeDense,
       },
       itemWidth: 10,
       itemHeight: 10,
@@ -64,14 +64,14 @@ function TorrentCategoryDonut({ categories, accentColor }: TorrentCategoryDonutP
           formatter: `{total|${total}}\n{label|torrents}`,
           rich: {
             total: {
-              fontSize: 22,
+              fontSize: 24,
               fontWeight: "bold",
               fontFamily: CHART_THEME.fontMono,
               color: CHART_THEME.textPrimary,
               lineHeight: 30,
             },
             label: {
-              fontSize: 11,
+              fontSize: CHART_THEME.fontSizeDense,
               fontFamily: CHART_THEME.fontMono,
               color: CHART_THEME.textTertiary,
               lineHeight: 16,

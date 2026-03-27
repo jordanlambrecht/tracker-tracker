@@ -107,6 +107,14 @@
   --radius-lg: 20px;
   --radius-xl: 24px;
   --radius-pill: 9999px;
+
+  /* Sub-xs font sizes for dense data UI.
+   * text-3xs and text-2xs are intentionally the same value today (10px).
+   * text-2xs covers former 11px contexts (table cells, pills).
+   * If dense tables feel too tight, bump --text-2xs to 11px — one-line change. */
+  --text-4xs: 9px;
+  --text-3xs: 10px;
+  --text-2xs: 10px;
 }
 
 /* Custom radius utilities matching design system tokens */
@@ -176,7 +184,7 @@
 
 @utility slot-label {
   font-family: var(--font-sans);
-  font-size: 10px;
+  font-size: var(--text-3xs);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -430,7 +438,7 @@ select {
   background: oklch(40.24% 0.0439 279.12); /* #434660 */
 }
 
-/* react-colorful overrides — scoped under wrapper for specificity without !important */
+/* react-colorful overrides */
 .color-picker-wrapper .react-colorful {
   width: 100%;
   height: 160px;
@@ -453,7 +461,7 @@ select {
   box-shadow: 0 0 4px oklch(0% 0 0 / 0.4); /* #000000 40% */
 }
 
-/* Emoji picker theme overrides — scoped under wrapper for specificity without !important */
+/* Emoji picker theme overrides */
 .emoji-picker-wrapper .EmojiPickerReact.epr-dark-theme {
   --epr-bg-color: oklch(31.52% 0.0323 279.44); /* #2e3042 */
   --epr-category-label-bg-color: oklch(31.52% 0.0323 279.44); /* #2e3042 */

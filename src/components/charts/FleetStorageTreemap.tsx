@@ -115,7 +115,7 @@ function buildFleetStorageTreemapOption(nodes: TreemapNode[]): EChartsOption {
             textStyle: {
               color: CHART_THEME.textSecondary,
               fontFamily: CHART_THEME.fontMono,
-              fontSize: 11,
+              fontSize: CHART_THEME.fontSizeDense,
             },
           },
           emphasis: {
@@ -129,7 +129,7 @@ function buildFleetStorageTreemapOption(nodes: TreemapNode[]): EChartsOption {
           height: 24,
           color: CHART_THEME.textPrimary,
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 11,
+          fontSize: CHART_THEME.fontSizeDense,
           fontWeight: "bold",
           formatter: (params: unknown) => {
             const p = params as { name: string; value: number }
@@ -140,7 +140,7 @@ function buildFleetStorageTreemapOption(nodes: TreemapNode[]): EChartsOption {
           show: true,
           color: CHART_THEME.textSecondary,
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 10,
+          fontSize: CHART_THEME.fontSizeCompact,
           formatter: (params: unknown) => {
             const p = params as { name: string; value: number }
             return `${p.name}\n${formatBytesNum(p.value)}`

@@ -73,7 +73,7 @@ function TorrentCategoryAcquisition({ torrents, accentColor }: TorrentCategoryAc
       textStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       pageTextStyle: { color: CHART_THEME.textTertiary },
       pageIconColor: CHART_THEME.textSecondary,
@@ -87,7 +87,7 @@ function TorrentCategoryAcquisition({ torrents, accentColor }: TorrentCategoryAc
       axisLabel: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
     },
     series,

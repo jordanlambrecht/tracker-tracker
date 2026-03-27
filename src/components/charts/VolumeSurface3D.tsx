@@ -237,7 +237,7 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
         const formatted = fmtNum(Math.abs(val))
         return (
           `<div style="font-family:var(--font-mono),monospace">` +
-          `<div style="color:${CHART_THEME.textTertiary};font-size:11px;margin-bottom:2px">${escHtml(bucketLabel)}</div>` +
+          `<div style="color:${CHART_THEME.textTertiary};font-size:${CHART_THEME.fontSizeDense}px;margin-bottom:2px">${escHtml(bucketLabel)}</div>` +
           `<div><span style="color:${CHART_THEME.textSecondary}">${escHtml(tracker)}:</span> <b>${formatted} ${unit}</b></div>` +
           `</div>`
         )
@@ -258,10 +258,10 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
       nameTextStyle: {
         color: CHART_THEME.textSecondary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
+        fontSize: CHART_THEME.fontSizeDense,
       },
       axisLabel: chartAxisLabel({
-        fontSize: 9,
+        fontSize: CHART_THEME.fontSizeMicro,
         interval: Math.max(0, Math.floor(displayLabels.length / 8) - 1),
       }),
       axisLine: { lineStyle: { color: CHART_THEME.borderEmphasis } },
@@ -273,7 +273,7 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
       nameTextStyle: {
         color: CHART_THEME.textSecondary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
+        fontSize: CHART_THEME.fontSizeDense,
       },
       axisLabel: chartAxisLabel(),
       axisLine: { lineStyle: { color: CHART_THEME.borderEmphasis } },
@@ -284,9 +284,9 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
       nameTextStyle: {
         color: CHART_THEME.textSecondary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
+        fontSize: CHART_THEME.fontSizeDense,
       },
-      axisLabel: chartAxisLabel({ fontSize: 9 }),
+      axisLabel: chartAxisLabel({ fontSize: CHART_THEME.fontSizeMicro }),
       axisLine: { lineStyle: { color: CHART_THEME.borderEmphasis } },
     },
     grid3D: {

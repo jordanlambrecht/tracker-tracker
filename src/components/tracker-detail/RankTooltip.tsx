@@ -18,7 +18,7 @@ export function RankTooltip({ currentRank, userClasses, accentColor }: RankToolt
     <Tooltip
       content={
         <div className="min-w-[200px]">
-          <p className="text-[10px] font-sans font-medium text-tertiary uppercase tracking-wider px-3 pb-1.5">
+          <p className="text-3xs font-sans font-medium text-tertiary uppercase tracking-wider px-3 pb-1.5">
             Ranks
           </p>
           {userClasses.map((uc) => {
@@ -34,7 +34,7 @@ export function RankTooltip({ currentRank, userClasses, accentColor }: RankToolt
                 }
               >
                 <span className={isCurrent ? "font-semibold" : "text-secondary"}>{uc.name}</span>
-                {isCurrent && <span className="text-[10px]">&larr; you</span>}
+                {isCurrent && <span className="text-3xs">&larr; you</span>}
               </div>
             )
           })}
@@ -51,7 +51,7 @@ export function RankTooltip({ currentRank, userClasses, accentColor }: RankToolt
         <span className="flex items-center gap-1.5">
           {currentRank}
           <span
-            className="cursor-help text-[9px] font-bold opacity-70 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current"
+            className="cursor-help text-4xs font-bold opacity-70 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current"
             aria-hidden="true"
           >
             ?

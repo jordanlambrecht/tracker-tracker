@@ -114,7 +114,7 @@ function buildRiverOption(
           show: true,
           color: CHART_THEME.textSecondary,
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 10,
+          fontSize: CHART_THEME.fontSizeCompact,
         },
         emphasis: {
           itemStyle: {

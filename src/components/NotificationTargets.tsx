@@ -243,7 +243,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
             {typeBadge}
             {statusBadge}
           </div>
-          <span className="text-[10px] font-mono text-tertiary">
+          <span className="text-3xs font-mono text-tertiary">
             {target.lastDeliveryAt
               ? `Last sent: ${formatTimeAgo(target.lastDeliveryAt)}`
               : "Last sent: Never"}
@@ -290,7 +290,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
             content="Encrypted at rest with AES-256-GCM. Never returned in API responses."
             docs={DOCS.WEBHOOKS}
           >
-            <span className="text-tertiary cursor-help text-[10px]">?</span>
+            <span className="text-tertiary cursor-help text-3xs">?</span>
           </Tooltip>
         </span>
         {changingConfig ? (
@@ -344,7 +344,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
             content="Each event has a snooze window to prevent repeated alerts."
             docs={DOCS.WEBHOOKS}
           >
-            <span className="text-tertiary cursor-help text-[10px]">?</span>
+            <span className="text-tertiary cursor-help text-3xs">?</span>
           </Tooltip>
         </span>
 

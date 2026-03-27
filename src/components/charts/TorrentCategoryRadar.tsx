@@ -91,7 +91,7 @@ function TorrentCategoryRadar({ categories, accentColor }: TorrentCategoryRadarP
       textStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 12,
+        fontSize: CHART_THEME.fontSizeSmall,
       },
       itemWidth: 14,
       itemHeight: 10,
@@ -106,7 +106,7 @@ function TorrentCategoryRadar({ categories, accentColor }: TorrentCategoryRadarP
       axisName: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
+        fontSize: CHART_THEME.fontSizeDense,
       },
       splitLine: { lineStyle: { color: CHART_THEME.gridLine } },
       splitArea: { show: false },

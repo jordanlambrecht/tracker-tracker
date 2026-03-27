@@ -219,7 +219,7 @@ function buildCandlestickOption(
           })
           .join("")
 
-        return `<div style="font-family:${CHART_THEME.fontMono};font-size:11px;">${header}${rows}</div>`
+        return `<div style="font-family:${CHART_THEME.fontMono};font-size:${CHART_THEME.fontSizeDense}px;">${header}${rows}</div>`
       },
     }),
     xAxis: buildTimeXAxis({ boundaryGap: true }),
@@ -230,7 +230,7 @@ function buildCandlestickOption(
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },

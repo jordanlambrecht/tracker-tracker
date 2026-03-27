@@ -83,9 +83,9 @@ function TorrentAgeScatter3D({ torrents, accentColor }: TorrentAgeScatter3DProps
     nameTextStyle: {
       color: CHART_THEME.textTertiary,
       fontFamily: CHART_THEME.fontMono,
-      fontSize: 10,
+      fontSize: CHART_THEME.fontSizeCompact,
     },
-    axisLabel: { color: CHART_THEME.textTertiary, fontFamily: CHART_THEME.fontMono, fontSize: 9 },
+    axisLabel: { color: CHART_THEME.textTertiary, fontFamily: CHART_THEME.fontMono, fontSize: CHART_THEME.fontSizeMicro },
     axisLine: { lineStyle: { color: CHART_THEME.borderEmphasis } },
   }
 
@@ -115,7 +115,7 @@ function TorrentAgeScatter3D({ torrents, accentColor }: TorrentAgeScatter3DProps
       textStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
     },
     xAxis3D: { type: "value", name: cfg.x.name, ...axisStyle },
@@ -151,7 +151,7 @@ function TorrentAgeScatter3D({ torrents, accentColor }: TorrentAgeScatter3DProps
             type="button"
             onClick={() => setView(key)}
             className={clsx(
-              "px-3 py-1.5 text-[11px] font-mono rounded-nm-pill transition-colors cursor-pointer",
+              "px-3 py-1.5 text-2xs font-mono rounded-nm-pill transition-colors cursor-pointer",
               view === key
                 ? "nm-raised-sm text-primary"
                 : "nm-inset-sm text-tertiary hover:text-secondary"

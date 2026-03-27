@@ -211,7 +211,7 @@ function TrackerHubStatus({
                 height={12}
                 aria-hidden="true"
               />
-              <span className="text-[10px] font-mono">Powered by TrackerHub</span>
+              <span className="text-3xs font-mono">Powered by TrackerHub</span>
             </a>
           </div>
         </div>

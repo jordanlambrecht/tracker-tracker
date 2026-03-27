@@ -148,7 +148,7 @@ function Header({
           <Tooltip content={<span className="w-52 block">{tooltip}</span>}>
             <button
               type="button"
-              className="cursor-help text-[9px] font-bold text-muted opacity-50 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current hover:opacity-80 focus:opacity-80 transition-opacity outline-none"
+              className="cursor-help text-4xs font-bold text-muted opacity-50 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current hover:opacity-80 focus:opacity-80 transition-opacity outline-none"
               aria-label={`Info: ${label}`}
             >
               ?
@@ -159,7 +159,7 @@ function Header({
           <Tooltip content={<span className="w-52 block">{alertReason}</span>}>
             <button
               type="button"
-              className="cursor-help text-[9px] font-bold inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current hover:opacity-80 transition-opacity outline-none"
+              className="cursor-help text-4xs font-bold inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current hover:opacity-80 transition-opacity outline-none"
               style={{ color: alertColor }}
               aria-label={`Alert: ${alertReason}`}
             >
@@ -384,11 +384,11 @@ function RingContent({
             {valueText}
           </span>
           {!isOverdue && (
-            <span className="font-mono text-[10px] text-muted mt-0.5">{unitText}</span>
+            <span className="font-mono text-3xs text-muted mt-0.5">{unitText}</span>
           )}
         </div>
       </div>
-      <p className="font-mono text-[10px] text-muted text-center">
+      <p className="font-mono text-3xs text-muted text-center">
         {isOverdue
           ? `${overdueDays} ${overdueDays === 1 ? "day" : "days"} overdue`
           : `by ${deadlineDateStr}`}

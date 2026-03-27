@@ -160,7 +160,7 @@ function TrackerCombobox({ presets, value, onChange }: TrackerComboboxProps) {
             ✕
           </button>
         )}
-        <span className="text-tertiary text-[10px] shrink-0" aria-hidden="true">
+        <span className="text-tertiary text-3xs shrink-0" aria-hidden="true">
           ▾
         </span>
       </div>
@@ -206,7 +206,7 @@ function TrackerCombobox({ presets, value, onChange }: TrackerComboboxProps) {
                     <span className="flex items-center gap-1 shrink-0">
                       <TriangleWarningIcon width="13" height="13" className="text-warn" />
                       {entry.warningNote && (
-                        <span className="text-[10px] text-warn">{entry.warningNote}</span>
+                        <span className="text-3xs text-warn">{entry.warningNote}</span>
                       )}
                     </span>
                   </Tooltip>

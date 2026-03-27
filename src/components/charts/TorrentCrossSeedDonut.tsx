@@ -62,7 +62,7 @@ function TorrentCrossSeedDonut({ crossSeeded, unique, accentColor }: TorrentCros
         style: {
           text: "cross-seeded",
           fill: CHART_THEME.textTertiary,
-          fontSize: 11,
+          fontSize: CHART_THEME.fontSizeDense,
           fontFamily: CHART_THEME.fontMono,
           textAlign: "center" as const,
         },

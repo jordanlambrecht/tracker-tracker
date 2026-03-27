@@ -160,7 +160,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
             <ChevronToggle expanded={filtersOpen} />
             Filters
             {activeFilterCount > 0 && (
-              <span className="inline-flex items-center justify-center w-4 h-4 text-[10px] font-semibold text-accent nm-raised-sm rounded-nm-pill">
+              <span className="inline-flex items-center justify-center w-4 h-4 text-3xs font-semibold text-accent nm-raised-sm rounded-nm-pill">
                 {activeFilterCount}
               </span>
             )}
@@ -276,7 +276,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
               {health === "paused" || health === "paused-user" ? (
                 <span
                   className={clsx(
-                    "font-mono text-[10px] uppercase tracking-wider ml-4.5",
+                    "font-mono text-3xs uppercase tracking-wider ml-4.5",
                     health === "paused-user" ? "text-warn" : "text-danger"
                   )}
                 >
@@ -327,7 +327,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                 strokeWidth={2}
               />
             </div>
-            <span className="font-mono text-[10px] text-muted ml-4.5">
+            <span className="font-mono text-3xs text-muted ml-4.5">
               Stats tracking not yet supported
             </span>
           </a>
@@ -348,7 +348,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
             {/* Draft tracker picker popover */}
             {pickerOpen && (
               <div className="absolute top-full left-0 mt-2 z-50 w-80 max-h-72 overflow-y-auto nm-raised bg-elevated p-3 flex flex-col gap-1 styled-scrollbar rounded-nm-md">
-                <p className="text-[10px] font-mono text-warn px-2 py-1.5 nm-inset-sm bg-control-bg mb-2 rounded-nm-sm">
+                <p className="text-3xs font-mono text-warn px-2 py-1.5 nm-inset-sm bg-control-bg mb-2 rounded-nm-sm">
                   These trackers don't have adapter support yet — links only, no stats tracking.
                 </p>
                 {draftTrackers.map((dt: TrackerRegistryEntry) => (
