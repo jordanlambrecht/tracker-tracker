@@ -13,7 +13,7 @@ function ChevronToggle({ expanded, variant = "pivot", className }: ChevronToggle
     return (
       <span
         className={clsx(
-          "inline-block transition-transform duration-150 text-tertiary text-sm shrink-0",
+          "inline-block transition-transform duration-150 ease-in-out text-tertiary text-sm shrink-0",
           expanded ? "rotate-0" : "rotate-180",
           className
         )}

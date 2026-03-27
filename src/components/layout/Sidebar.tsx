@@ -5,7 +5,6 @@
 //   SortableTrackerItem
 //   Sparkline
 //   ClientStatusWidget
-//   formatSidebarSpeed
 //   Sidebar
 
 "use client"
@@ -39,6 +38,7 @@ import { useUpdateCheck } from "@/hooks/useUpdateCheck"
 import { DOCS_URL } from "@/lib/constants"
 import {
   formatBytesNum,
+  formatSpeed,
   formatStatValue,
   formatTimeAgo,
   hexToRgba,
@@ -305,10 +305,10 @@ function ClientSlide({
           ) : !expanded && entry.speeds.length > 0 ? (
             <span className="flex items-center gap-1.5">
               <span className="text-accent">
-                {formatSidebarSpeed(entry.speeds[entry.speeds.length - 1].up)}↑
+                {formatSpeed(entry.speeds[entry.speeds.length - 1].up)}↑
               </span>
               <span className="text-warn">
-                {formatSidebarSpeed(entry.speeds[entry.speeds.length - 1].down)}↓
+                {formatSpeed(entry.speeds[entry.speeds.length - 1].down)}↓
               </span>
             </span>
           ) : (
@@ -515,7 +515,7 @@ function ClientStatusWidget() {
                         height={16}
                       />
                       <span className="text-xs font-mono text-accent tabular-nums shrink-0">
-                        {formatSidebarSpeed(current.speeds[current.speeds.length - 1].up)}
+                        {formatSpeed(current.speeds[current.speeds.length - 1].up)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -533,7 +533,7 @@ function ClientStatusWidget() {
                         height={16}
                       />
                       <span className="text-xs font-mono text-warn tabular-nums shrink-0">
-                        {formatSidebarSpeed(current.speeds[current.speeds.length - 1].down)}
+                        {formatSpeed(current.speeds[current.speeds.length - 1].down)}
                       </span>
                     </div>
                   </div>
@@ -563,11 +563,6 @@ function ClientStatusWidget() {
       </div>
     </div>
   )
-}
-
-function formatSidebarSpeed(bytesPerSec: number): string {
-  if (!bytesPerSec || bytesPerSec <= 0) return "0 B/s"
-  return `${formatBytesNum(bytesPerSec)}/s`
 }
 
 // ---------------------------------------------------------------------------

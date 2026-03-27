@@ -4,7 +4,7 @@
 // formatRatio, formatAccountAge, formatJoinedDate, hexToRgba, hexToHsl,
 // hslToHex, generatePalette, getComplementaryColor, formatStatValue,
 // computeDelta, formatDuration, formatTimeAgo, splitValueUnit, compareBigIntDesc,
-// computePctChange, localDateStr, isUnixTimestampOnDate
+// computePctChange, localDateStr, isUnixTimestampOnDate, formatSpeed
 
 import type { Snapshot, TrackerLatestStats } from "@/types/api"
 
@@ -94,12 +94,13 @@ export function formatJoinedDate(joinedAt: string | null): string | null {
   return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
 }
 
-const VALID_HEX_RE = /^#[0-9a-fA-F]{6}$/
-const FALLBACK_HEX = "#00d4ff"
-
 /**
  * Converts a hex color (#rrggbb) to rgba with the given alpha.
  */
+
+const VALID_HEX_RE = /^#[0-9a-fA-F]{6}$/
+const FALLBACK_HEX = "#00d4ff"
+
 export function hexToRgba(hex: string, alpha: number): string {
   const safe = VALID_HEX_RE.test(hex) ? hex : FALLBACK_HEX
   const r = parseInt(safe.slice(1, 3), 16)
@@ -324,7 +325,6 @@ export function computePctChange(today: string, yesterday: string | null): numbe
 
 /**
  * Returns a YYYY-MM-DD date string in the server's local timezone (respects TZ env).
- * Use this instead of `.toISOString().slice(0, 10)` which always returns UTC.
  */
 export function localDateStr(date?: Date | number): string {
   const d = date instanceof Date ? date : date !== undefined ? new Date(date) : new Date()
@@ -338,4 +338,9 @@ export function localDateStr(date?: Date | number): string {
 export function isUnixTimestampOnDate(unixSeconds: number, dateStr: string): boolean {
   if (unixSeconds <= 0) return false
   return localDateStr(new Date(unixSeconds * 1000)) === dateStr
+}
+
+export function formatSpeed(bytesPerSec: number): string {
+  if (!bytesPerSec || bytesPerSec <= 0) return "0 B/s"
+  return `${formatBytesNum(bytesPerSec)}/s`
 }

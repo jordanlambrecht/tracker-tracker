@@ -5,7 +5,7 @@
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
-import { formatBytesNum } from "@/lib/formatters"
+import { formatBytesNum, splitValueUnit } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 
 interface ActiveTransfersTableProps {
@@ -96,10 +96,8 @@ export function ActiveTransfersTable({
       width: 48,
       render: (t) => {
         const raw = isDownload ? t.dlspeed : t.upspeed
-        const formatted = formatBytesNum(raw)
-        const spaceIdx = formatted.indexOf(" ")
-        const num = spaceIdx > -1 ? formatted.slice(0, spaceIdx) : formatted
-        const unit = spaceIdx > -1 ? `${formatted.slice(spaceIdx + 1)}/s` : "/s"
+        const { num, unit: baseUnit } = splitValueUnit(formatBytesNum(raw))
+        const unit = `${baseUnit || "B"}/s`
         return (
           <span
             className="text-2xs font-mono text-right leading-none"

@@ -1,12 +1,10 @@
 // src/components/charts/SpeedHistoryChart.tsx
-//
-// Functions: parseSpeedBytes, buildOption, SpeedHistoryChart
 
 "use client"
 
 import type { EChartsOption } from "echarts"
 import type { FleetSnapshot } from "@/lib/fleet"
-import { formatBytesNum, hexToRgba } from "@/lib/formatters"
+import { formatBytesNum, formatSpeed, hexToRgba } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { buildAxisPointer, buildTimeXAxis } from "./lib/chart-helpers"
@@ -74,7 +72,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
         const rows = items
           .map((item) => {
             const dot = chartDot(item.color)
-            const speedLabel = `${formatBytesNum(item.value[1])}/s`
+            const speedLabel = formatSpeed(item.value[1])
             return `${dot}<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${speedLabel}</span>`
           })
           .join("<br/>")
@@ -100,7 +98,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
         axisTick: { show: false },
         axisLabel: chartAxisLabel({
           color: CYAN,
-          formatter: (val: number) => `${formatBytesNum(val)}/s`,
+          formatter: (val: number) => formatSpeed(val),
         }),
         splitLine: {
           lineStyle: { color: CHART_THEME.gridLine, width: 1 },
@@ -119,7 +117,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
         axisTick: { show: false },
         axisLabel: chartAxisLabel({
           color: AMBER,
-          formatter: (val: number) => `${formatBytesNum(val)}/s`,
+          formatter: (val: number) => formatSpeed(val),
         }),
         splitLine: { show: false },
       },
