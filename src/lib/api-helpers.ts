@@ -41,21 +41,21 @@ export async function parseJsonBody(
   }
 }
 
-export function validateHttpUrl(url: string): NextResponse | null {
+export function validateHttpUrl(url: string, label = "baseUrl"): NextResponse | null {
   try {
     const parsed = new URL(url)
     if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-      return NextResponse.json({ error: "baseUrl must use https:// or http://" }, { status: 400 })
+      return NextResponse.json({ error: `${label} must use https:// or http://` }, { status: 400 })
     }
     if (isUnsafeNetworkHost(parsed.hostname)) {
       return NextResponse.json(
-        { error: "baseUrl must not target localhost or a private network address" },
+        { error: `${label} must not target localhost or a private network address` },
         { status: 400 }
       )
     }
     return null
   } catch {
-    return NextResponse.json({ error: "Invalid baseUrl format" }, { status: 400 })
+    return NextResponse.json({ error: `Invalid ${label} format` }, { status: 400 })
   }
 }
 
