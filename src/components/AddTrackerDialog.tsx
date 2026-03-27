@@ -8,9 +8,9 @@ import { H2 } from "@typography"
 import clsx from "clsx"
 import Image from "next/image"
 import {
-  type FormEvent,
   type KeyboardEvent,
   type MouseEvent,
+  type SyntheticEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -247,6 +247,7 @@ function AddTrackerDialog({
   const [baseUrl, setBaseUrl] = useState("")
   const [apiToken, setApiToken] = useState("")
   const [qbtTag, setQbtTag] = useState("")
+  const [mouseholeUrl, setMouseholeUrl] = useState("")
   const [color, setColor] = useState<string>(CHART_THEME.accent)
   const [joinedAt, setJoinedAt] = useState("")
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -259,6 +260,7 @@ function AddTrackerDialog({
     setBaseUrl("")
     setApiToken("")
     setQbtTag("")
+    setMouseholeUrl("")
     setColor(CHART_THEME.accent)
     setJoinedAt("")
     setErrors({})
@@ -348,7 +350,7 @@ function AddTrackerDialog({
     return next
   }
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: SyntheticEvent) {
     e.preventDefault()
 
     const validationErrors = validate()
@@ -394,6 +396,7 @@ function AddTrackerDialog({
           color,
           qbtTag: qbtTag.trim() || undefined,
           joinedAt: joinedAt || undefined,
+          mouseholeUrl: mouseholeUrl.trim() || undefined,
         }),
       })
 
@@ -491,11 +494,13 @@ function AddTrackerDialog({
               value={apiToken}
               onChange={(e) => setApiToken(e.target.value)}
               placeholder={
-                selectedEntry?.platform === "ggn"
-                  ? "Your GGn API key"
-                  : selectedEntry?.platform === "gazelle"
-                    ? "Your Gazelle API key"
-                    : "Your UNIT3D API token"
+                selectedEntry?.platform === "mam"
+                  ? "Your mam_id session cookie"
+                  : selectedEntry?.platform === "ggn"
+                    ? "Your GGn API key"
+                    : selectedEntry?.platform === "gazelle"
+                      ? "Your Gazelle API key"
+                      : "Your UNIT3D API token"
               }
               error={errors.apiToken}
             />
@@ -519,6 +524,33 @@ function AddTrackerDialog({
             />
             <QbtTagWarning tag={qbtTag} />
           </div>
+
+          {selectedEntry?.platform === "mam" && (
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1">
+                <Input
+                  label="Mousehole URL (optional)"
+                  name="tracker-mousehole-url"
+                  autoComplete="off"
+                  data-1p-ignore
+                  value={mouseholeUrl}
+                  onChange={(e) => setMouseholeUrl(e.target.value)}
+                  placeholder="http://localhost:7001"
+                />
+                <Tooltip
+                  content="If you run Mousehole to manage your MAM seedbox IP, enter its URL here to see status and trigger updates from Tracker Tracker."
+                  docs={{
+                    href: "https://github.com/t-mart/mousehole",
+                    description: "Mousehole on GitHub",
+                  }}
+                >
+                  <span className="text-muted hover:text-secondary cursor-help text-xs">
+                    &#9432;
+                  </span>
+                </Tooltip>
+              </div>
+            </div>
+          )}
 
           <ColorPicker label="Color" value={color} onChange={setColor} />
 

@@ -4,7 +4,9 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import type { NotificationEventType } from "@/lib/notifications/types"
 import { VALID_EVENT_TYPES } from "@/lib/notifications/types"
 import {
+  checkActiveHnrs,
   checkAnniversaryMilestone,
+  checkBonusCapReached,
   checkBufferMilestoneCrossed,
   checkHnrIncrease,
   checkRankChange,
@@ -12,6 +14,8 @@ import {
   checkRatioBelowMinimumTransition,
   checkRatioDelta,
   checkTrackerError,
+  checkUnsatisfiedLimitApproaching,
+  checkVipExpiringSoon,
   checkWarned,
   checkWarnedTransition,
   checkZeroSeeding,
@@ -323,5 +327,113 @@ describe("EVENT_SNOOZE_MS", () => {
     const sevenDays = 7 * 24 * 60 * 60 * 1000
     expect(EVENT_SNOOZE_MS.rank_change).toBe(sevenDays)
     expect(EVENT_SNOOZE_MS.anniversary).toBe(sevenDays)
+  })
+})
+
+describe("checkBonusCapReached", () => {
+  it("returns true when current >= capLimit and previous was below cap (transition)", () => {
+    expect(checkBonusCapReached(1000, 800, 1000)).toBe(true)
+  })
+  it("returns true when current exceeds capLimit and previous was below cap", () => {
+    expect(checkBonusCapReached(1200, 800, 1000)).toBe(true)
+  })
+  it("returns false when current is below capLimit", () => {
+    expect(checkBonusCapReached(900, 800, 1000)).toBe(false)
+  })
+  it("returns false when previous was already at or above capLimit (already notified)", () => {
+    expect(checkBonusCapReached(1100, 1000, 1000)).toBe(false)
+  })
+  it("returns false when currentBonus is null", () => {
+    expect(checkBonusCapReached(null, 800, 1000)).toBe(false)
+  })
+  it("returns false when currentBonus is undefined", () => {
+    expect(checkBonusCapReached(undefined, 800, 1000)).toBe(false)
+  })
+  it("returns true when previousBonus is null and current >= capLimit (first poll at cap fires)", () => {
+    expect(checkBonusCapReached(1000, null, 1000)).toBe(true)
+  })
+})
+
+describe("checkVipExpiringSoon", () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("returns true when expiry is within threshold days", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-03-26T00:00:00Z"))
+    // Expires in 3 days, threshold is 7
+    expect(checkVipExpiringSoon("2026-03-29T00:00:00Z", 7)).toBe(true)
+  })
+  it("returns false when expiry is beyond threshold days", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-03-26T00:00:00Z"))
+    // Expires in 30 days, threshold is 7
+    expect(checkVipExpiringSoon("2026-04-25T00:00:00Z", 7)).toBe(false)
+  })
+  it("returns false when vipUntil is null", () => {
+    expect(checkVipExpiringSoon(null, 7)).toBe(false)
+  })
+  it("returns false when vipUntil is undefined", () => {
+    expect(checkVipExpiringSoon(undefined, 7)).toBe(false)
+  })
+  it("returns false when vipUntil is an invalid date string", () => {
+    expect(checkVipExpiringSoon("not-a-date", 7)).toBe(false)
+  })
+  it("returns false when VIP has already expired (date in the past)", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-03-26T00:00:00Z"))
+    expect(checkVipExpiringSoon("2026-03-20T00:00:00Z", 7)).toBe(false)
+  })
+})
+
+describe("checkUnsatisfiedLimitApproaching", () => {
+  it("returns true when count/limit ratio meets the percent threshold", () => {
+    // 80/100 = 80% >= 80%
+    expect(checkUnsatisfiedLimitApproaching(80, 100, 80)).toBe(true)
+  })
+  it("returns true when count/limit ratio exceeds the percent threshold", () => {
+    // 90/100 = 90% >= 80%
+    expect(checkUnsatisfiedLimitApproaching(90, 100, 80)).toBe(true)
+  })
+  it("returns false when count/limit ratio is below threshold", () => {
+    // 50/100 = 50% < 80%
+    expect(checkUnsatisfiedLimitApproaching(50, 100, 80)).toBe(false)
+  })
+  it("returns false when count is null", () => {
+    expect(checkUnsatisfiedLimitApproaching(null, 100, 80)).toBe(false)
+  })
+  it("returns false when count is undefined", () => {
+    expect(checkUnsatisfiedLimitApproaching(undefined, 100, 80)).toBe(false)
+  })
+  it("returns false when limit is null", () => {
+    expect(checkUnsatisfiedLimitApproaching(80, null, 80)).toBe(false)
+  })
+  it("returns false when limit is 0 (division by zero guard)", () => {
+    expect(checkUnsatisfiedLimitApproaching(80, 0, 80)).toBe(false)
+  })
+})
+
+describe("checkActiveHnrs", () => {
+  it("returns true when count increased from 0 to 2 (transition)", () => {
+    expect(checkActiveHnrs(2, 0)).toBe(true)
+  })
+  it("returns true when count increased from a prior positive value", () => {
+    expect(checkActiveHnrs(5, 3)).toBe(true)
+  })
+  it("returns false when count is 0", () => {
+    expect(checkActiveHnrs(0, 0)).toBe(false)
+  })
+  it("returns false when count is null", () => {
+    expect(checkActiveHnrs(null, 0)).toBe(false)
+  })
+  it("returns false when count is undefined", () => {
+    expect(checkActiveHnrs(undefined, 0)).toBe(false)
+  })
+  it("returns false when count stayed the same (already notified)", () => {
+    expect(checkActiveHnrs(3, 3)).toBe(false)
+  })
+  it("returns false when count decreased (resolving HnRs)", () => {
+    expect(checkActiveHnrs(2, 5)).toBe(false)
   })
 })

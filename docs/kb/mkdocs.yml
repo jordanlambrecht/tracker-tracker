@@ -69,6 +69,7 @@ nav:
           - UNIT3D: contributing/tracker-responses-unit3d.md
           - Gazelle: contributing/tracker-responses-gazelle.md
           - GGn: contributing/tracker-responses-ggn.md
+          - MAM: contributing/tracker-responses-mam.md
           - Individual Trackers:
               - Aither: contributing/trackers/aither.md
               - AlphaRatio: contributing/trackers/alpharatio.md

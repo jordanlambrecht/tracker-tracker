@@ -95,6 +95,12 @@ function DashboardSettingsSheet({
         <div className="flex flex-col gap-4">
           <H2>Trackers</H2>
           <Toggle
+            label="Today At A Glance"
+            description="Show daily upload, download, and activity summary at the top of the dashboard"
+            checked={dashSettings.settings.showTodayAtAGlance}
+            onChange={(checked) => dashSettings.update("showTodayAtAGlance", checked)}
+          />
+          <Toggle
             label="Show health indicators"
             description="Display the breathing pulse dot on each tracker card showing connection status."
             checked={dashSettings.settings.showHealthIndicators}

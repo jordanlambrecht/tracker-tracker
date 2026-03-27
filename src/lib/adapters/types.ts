@@ -21,7 +21,7 @@ export interface TrackerStats {
   lastAccessDate?: string
   shareScore?: number
   avatarUrl?: string
-  platformMeta?: GGnPlatformMeta | GazellePlatformMeta | NebulancePlatformMeta
+  platformMeta?: GGnPlatformMeta | GazellePlatformMeta | NebulancePlatformMeta | MamPlatformMeta
 }
 
 export interface GGnPlatformMeta {
@@ -94,6 +94,22 @@ export interface NebulancePlatformMeta {
   grabbed?: number
   forumPosts?: number
   invites?: number
+}
+
+export interface MamPlatformMeta {
+  vipUntil?: string
+  connectable?: string
+  unsatisfiedCount?: number
+  unsatisfiedLimit?: number
+  inactiveSatisfiedCount?: number
+  seedingHnrCount?: number
+  inactiveUnsatisfiedCount?: number
+  trackerErrorCount?: number
+  recentlyDeleted?: number
+  unreadPMs?: number
+  openTickets?: number
+  pendingRequests?: number
+  unreadTopics?: number
 }
 
 export interface FetchOptions {

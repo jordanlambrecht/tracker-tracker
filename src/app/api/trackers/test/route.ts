@@ -61,8 +61,13 @@ export async function POST(request: Request) {
       group: stats.group,
     })
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Connection failed"
-    log.warn({ route: "POST /api/trackers/test", error: message }, "tracker connection test failed")
-    return NextResponse.json({ error: message }, { status: 422 })
+    log.warn(
+      {
+        route: "POST /api/trackers/test",
+        error: String(error),
+      },
+      "tracker connection test failed"
+    )
+    return NextResponse.json({ error: "Tracker test failed" }, { status: 422 })
   }
 }

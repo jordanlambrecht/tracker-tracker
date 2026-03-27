@@ -64,4 +64,4 @@ function TorrentSeedTimeDistribution({
 }
 
 export type { TorrentSeedTimeDistributionProps }
-export { TorrentSeedTimeDistribution, TorrentSeedTimeDistribution as SeedTimeDistribution }
+export { TorrentSeedTimeDistribution }

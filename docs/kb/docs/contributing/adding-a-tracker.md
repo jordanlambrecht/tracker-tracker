@@ -59,11 +59,13 @@ Here is the full template for reference:
 //
 // Validator checks:
 //   - slug: lowercase letters and hyphens only
-//   - platform: "unit3d" | "gazelle" | "ggn" | "nebulance" | "custom"
+//   - platform: "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "custom"
 //   - apiPath must match platform default:
-//       unit3d   → "/api/user"
-//       gazelle  → "/ajax.php"
-//       ggn      → "/api.php"
+//       unit3d     → "/api/user"
+//       gazelle    → "/ajax.php"
+//       ggn        → "/api.php"
+//       nebulance  → "/api.php"
+//       mam        → "/jsonLoad.php"
 //   - url: https only
 //   - contentCategories: values must come from the allowed list above
 //   - language: required
@@ -80,12 +82,12 @@ export const mytracker: TrackerRegistryEntry = {
   description: "TODO", // 1-2 sentence overview
 
   // ── Platform & API ──────────────────────────────────────────────────
-  platform: "unit3d", // "unit3d" | "gazelle" | "ggn" | "nebulance" | "custom"
+  platform: "unit3d", // "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "custom"
   // Platform-specific fields (uncomment for your platform):
   //   gazelleAuthStyle: "token",   // gazelle only — "token" | "raw"
   //   gazelleEnrich: true,         // gazelle only — enables enrichment call
   //   unit3dAuthStyle: "bearer",   // unit3d only — "bearer" | "query"
-  apiPath: "/api/user", // unit3d: "/api/user" | gazelle: "/ajax.php" | ggn: "/api.php"
+  apiPath: "/api/user", // unit3d: "/api/user" | gazelle: "/ajax.php" | ggn: "/api.php" | mam: "/jsonLoad.php"
 
   // ── Content ─────────────────────────────────────────────────────────
   specialty: "", // what the tracker is known for (e.g. "HD Movies", "Anime")
@@ -206,7 +208,7 @@ description: "The largest general music tracker (also has some software). Has an
 
 #### `platform`
 
-Type: `"unit3d" | "gazelle" | "ggn" | "nebulance" | "custom"`
+Type: `"unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "custom"`
 
 Which adapter handles API requests for this tracker. This controls how the scheduler fetches stats. Must match the software the tracker runs.
 
@@ -216,6 +218,7 @@ Which adapter handles API requests for this tracker. This controls how the sched
 | `"gazelle"`   | Runs Gazelle or a derivative (Orpheus, Gazelle-Music, etc.)    |
 | `"ggn"`       | GazelleGames only — custom API different from standard Gazelle |
 | `"nebulance"` | Nebulance-specific API                                         |
+| `"mam"`       | MyAnonaMouse — cookie-based auth via `mam_id` session cookie   |
 | `"custom"`    | Placeholder, not implemented — do not use                      |
 
 #### `gazelleAuthStyle`

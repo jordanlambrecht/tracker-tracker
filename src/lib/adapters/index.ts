@@ -7,6 +7,7 @@ import type { Agent as HttpAgent } from "node:http"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { GazelleAdapter } from "./gazelle"
 import { GGnAdapter } from "./ggn"
+import { MamAdapter } from "./mam"
 import { NebulanceAdapter } from "./nebulance"
 import type { FetchOptions, TrackerAdapter } from "./types"
 import { Unit3dAdapter } from "./unit3d"
@@ -16,6 +17,7 @@ export { DEFAULT_API_PATHS, VALID_PLATFORM_TYPES } from "./constants"
 const adapters: Record<string, TrackerAdapter> = {
   gazelle: new GazelleAdapter(),
   ggn: new GGnAdapter(),
+  mam: new MamAdapter(),
   nebulance: new NebulanceAdapter(),
   unit3d: new Unit3dAdapter(),
 }

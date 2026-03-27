@@ -3,6 +3,7 @@
 import type {
   GazellePlatformMeta,
   GGnPlatformMeta,
+  MamPlatformMeta,
   NebulancePlatformMeta,
 } from "@/lib/adapters/types"
 
@@ -10,6 +11,7 @@ export type {
   GazellePlatformMeta,
   GazelleRanks,
   GGnPlatformMeta,
+  MamPlatformMeta,
   NebulancePlatformMeta,
 } from "@/lib/adapters/types"
 
@@ -22,7 +24,7 @@ export interface TrackerLatestStats {
   requiredRatio: number | null
   warned: boolean | null
   freeleechTokens: number | null
-  bufferBytes: string | null // bigint serialized as decimal string
+  bufferBytes: string | null
   hitAndRuns: number | null
   seedbonus: number | null
   shareScore: number | null
@@ -43,14 +45,21 @@ export interface TrackerSummary {
   userPausedAt: string | null
   color: string
   qbtTag: string | null
+  mouseholeUrl: string | null
   useProxy: boolean
   countCrossSeedUnsatisfied: boolean
+  hideUnreadBadges: boolean
   isFavorite: boolean
   sortOrder: number | null
   joinedAt: string | null
   lastAccessAt: string | null
   remoteUserId: number | null
-  platformMeta: GGnPlatformMeta | GazellePlatformMeta | NebulancePlatformMeta | null
+  platformMeta:
+    | GGnPlatformMeta
+    | GazellePlatformMeta
+    | NebulancePlatformMeta
+    | MamPlatformMeta
+    | null
   createdAt: string
   latestStats: TrackerLatestStats | null
 }
@@ -114,9 +123,56 @@ export interface QbitmanageTagConfig {
 export interface DashboardSettings {
   showHealthIndicators: boolean
   showLoginTimers: boolean
+  showTodayAtAGlance: boolean
+}
+
+export interface TodayAtAGlance {
+  fleet: {
+    uploadDelta: string
+    downloadDelta: string
+    bufferDelta: string
+    ratioChange: number | null
+    seedbonusChange: number | null
+    uploadDeltaYesterday: string | null
+    downloadDeltaYesterday: string | null
+    bufferDeltaYesterday: string | null
+  }
+  trackers: Array<{
+    id: number
+    name: string
+    color: string | null
+    uploadDelta: string
+    downloadDelta: string
+    bufferDelta: string
+  }>
+  activity: {
+    addedToday: number
+    completedToday: number
+  }
+  movers: {
+    topUploaders: Array<{
+      hash: string
+      name: string
+      qbtTag: string | null
+      trackerColor: string | null
+      clientName: string | null
+      uploadedToday: string
+    }>
+    topDownloaders: Array<{
+      hash: string
+      name: string
+      qbtTag: string | null
+      trackerColor: string | null
+      clientName: string | null
+      downloadedToday: string
+    }>
+  }
+  trackerLastUpdated: string | null
+  clientLastUpdated: string | null
 }
 
 export const DASHBOARD_SETTINGS_DEFAULTS: DashboardSettings = {
   showHealthIndicators: true,
   showLoginTimers: true,
+  showTodayAtAGlance: true,
 }

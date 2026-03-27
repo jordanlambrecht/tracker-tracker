@@ -94,6 +94,14 @@ export function AnalyticsCharts({
           </Card>
         )}
 
+        {/* FL Wedges (MAM only) */}
+        {platformType === "mam" && (
+          <Card trackerColor={tc} className="flex flex-col gap-4">
+            <H2>FL Wedges</H2>
+            <MetricChart metric="freeleechTokens" snapshots={snapshots} accentColor={tc} />
+          </Card>
+        )}
+
         {/* Gazelle Percentile Radar */}
         {gazelleMeta?.ranks && (
           <Card trackerColor={tc} className="flex flex-col gap-4">

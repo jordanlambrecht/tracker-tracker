@@ -29,7 +29,7 @@ export interface QbtTorrent {
   progress: number // float 0-1, download progress
   content_path: string // full path to content
   save_path: string // save directory
-  isPrivate: boolean // true if from a private tracker
+  is_private?: boolean // qBT API returns this field in snake_case
 }
 
 // From GET /api/v2/transfer/info

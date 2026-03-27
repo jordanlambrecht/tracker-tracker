@@ -6,6 +6,7 @@ import { H1 } from "@typography"
 import clsx from "clsx"
 import Image from "next/image"
 import { TrackerHubStatus } from "@/components/TrackerHubStatus"
+import { MamMouseholeCard } from "@/components/tracker-detail/platform/MamMouseholeCard"
 import { SlotRenderer } from "@/components/tracker-detail/SlotRenderer"
 import { UserProfileCard } from "@/components/tracker-detail/UserProfileCard"
 import { Badge } from "@/components/ui/Badge"
@@ -148,12 +149,18 @@ export function TrackerDetailHeader({
         </div>
       </div>
 
-      {registryEntry?.trackerHubSlug && (
-        <div className="my-4">
-          <TrackerHubStatus
-            trackerHubSlug={registryEntry.trackerHubSlug}
-            statusPageUrl={registryEntry.statusPageUrl}
-          />
+      {(registryEntry?.trackerHubSlug ||
+        (tracker.platformType === "mam" && tracker.mouseholeUrl)) && (
+        <div className="flex flex-col gap-3 my-4">
+          {registryEntry?.trackerHubSlug && (
+            <TrackerHubStatus
+              trackerHubSlug={registryEntry.trackerHubSlug}
+              statusPageUrl={registryEntry.statusPageUrl}
+            />
+          )}
+          {tracker.platformType === "mam" && tracker.mouseholeUrl && (
+            <MamMouseholeCard trackerId={tracker.id} mouseholeUrl={tracker.mouseholeUrl} />
+          )}
         </div>
       )}
 

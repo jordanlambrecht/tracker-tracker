@@ -1,8 +1,12 @@
 // src/proxy.test.ts
 
 import { NextRequest } from "next/server"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { proxy } from "./proxy"
+
+vi.mock("@/lib/cookie-security", () => ({
+  shouldSecureCookies: () => false,
+}))
 
 describe("auth middleware", () => {
   it("allows public auth routes without a session", () => {
@@ -42,6 +46,8 @@ describe("auth middleware", () => {
     expect(setCookie).toContain("HttpOnly")
     expect(setCookie.toLowerCase()).toContain("samesite=strict")
     expect(setCookie).toContain("Max-Age=1800")
+    // shouldSecureCookies() is mocked to return false — verify Secure is absent
+    expect(setCookie).not.toContain("Secure")
   })
 
   it("does not honor oversized tt_max_age cookie values", () => {

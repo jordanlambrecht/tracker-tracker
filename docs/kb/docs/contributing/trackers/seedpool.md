@@ -1,13 +1,13 @@
 # Seed Pool (SP)
 
-| Field        | Value                                  |
-| ------------ | -------------------------------------- |
-| Platform     | UNIT3D                                 |
-| Base URL     | `https://seedpool.org`                 |
-| API Endpoint | `https://seedpool.org/api/user`        |
-| Auth Method  | Query parameter: `?api_token=TOKEN`    |
-| Enrichment   | N/A                                    |
-| Auth Style   | N/A                                    |
+| Field        | Value                               |
+| ------------ | ----------------------------------- |
+| Platform     | UNIT3D                              |
+| Base URL     | `https://seedpool.org`              |
+| API Endpoint | `https://seedpool.org/api/user`     |
+| Auth Method  | Query parameter: `?api_token=TOKEN` |
+| Enrichment   | N/A                                 |
+| Auth Style   | N/A                                 |
 
 ## Notes
 

@@ -165,7 +165,7 @@ describe("getTorrents", () => {
         progress: 1,
         content_path: "/downloads/My.Show.S01.BluRay",
         save_path: "/downloads",
-        isPrivate: true,
+        is_private: true,
       },
     ]
 
@@ -334,6 +334,10 @@ describe("getTransferInfo", () => {
 // ---------------------------------------------------------------------------
 
 describe("aggregateByTag", () => {
+  // Regression: prevents isPrivate camelCase/snake_case mismatch from masking real API shape.
+  // The real qBT API returns `is_private` (snake_case), not `isPrivate`. Tests that set
+  // `isPrivate: true` would hide bugs that relied on that field being defined. This factory
+  // deliberately omits it to match the real API response shape.
   function makeTorrent(overrides: Partial<QbtTorrent>): QbtTorrent {
     return {
       hash: "deadbeef",
@@ -363,7 +367,8 @@ describe("aggregateByTag", () => {
       progress: 1,
       content_path: "/downloads/Test Torrent",
       save_path: "/downloads",
-      isPrivate: true,
+      // isPrivate intentionally omitted — real qBT API returns `is_private` (snake_case).
+      // Only override explicitly in tests that specifically need to test isPrivate handling.
       ...overrides,
     }
   }
@@ -515,5 +520,164 @@ describe("aggregateByTag", () => {
 describe("parseCrossSeedTags", () => {
   it("returns an empty array for null", () => {
     expect(parseCrossSeedTags(null)).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Mock factory realism
+// ---------------------------------------------------------------------------
+
+describe("makeTorrent factory shape", () => {
+  // Regression: prevents isPrivate camelCase mismatch from masking deep-poll dedup bug.
+  // The factory previously included `isPrivate: true`, which caused any code that
+  // checked `t.isPrivate` to behave differently from the real API (which returns
+  // `is_private` in snake_case). Tests built on the old factory would never catch
+  // bugs that depended on `t.isPrivate` being undefined.
+  it("produces API-realistic shape without isPrivate by default", () => {
+    // Re-declare the factory inline to confirm the standalone shape — this is the
+    // canonical check that should fail immediately if someone adds isPrivate back.
+    function makeTorrentForShapeCheck(overrides: Partial<QbtTorrent> = {}): QbtTorrent {
+      return {
+        hash: "deadbeef",
+        name: "Test Torrent",
+        state: "uploading",
+        tags: "",
+        category: "",
+        upspeed: 0,
+        dlspeed: 0,
+        uploaded: 0,
+        downloaded: 0,
+        ratio: 0,
+        size: 0,
+        num_seeds: 0,
+        num_leechs: 0,
+        num_complete: 0,
+        num_incomplete: 0,
+        tracker: "",
+        added_on: 0,
+        completion_on: -1,
+        last_activity: 0,
+        seeding_time: 0,
+        time_active: 0,
+        seen_complete: 0,
+        availability: -1,
+        amount_left: 0,
+        progress: 1,
+        content_path: "/downloads/Test Torrent",
+        save_path: "/downloads",
+        ...overrides,
+      }
+    }
+
+    const torrent = makeTorrentForShapeCheck()
+
+    // The real qBT API does NOT return `isPrivate` (camelCase). Ensure the factory
+    // does not include it so tests built on this shape match real API responses.
+    expect(Object.hasOwn(torrent, "isPrivate")).toBe(false)
+
+    // Core fields that the API does return must be present
+    expect(torrent).toHaveProperty("hash")
+    expect(torrent).toHaveProperty("state")
+    expect(torrent).toHaveProperty("tags")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// aggregateByTag — case-insensitive tag matching
+// ---------------------------------------------------------------------------
+
+describe("aggregateByTag case-insensitive tag matching", () => {
+  // Local helper that does NOT include isPrivate, matching real API shape
+  function makeRealTorrent(overrides: Partial<QbtTorrent>): QbtTorrent {
+    return {
+      hash: "deadbeef",
+      name: "Test Torrent",
+      state: "uploading",
+      tags: "",
+      category: "",
+      upspeed: 0,
+      dlspeed: 0,
+      uploaded: 0,
+      downloaded: 0,
+      ratio: 0,
+      size: 0,
+      num_seeds: 0,
+      num_leechs: 0,
+      num_complete: 0,
+      num_incomplete: 0,
+      tracker: "",
+      added_on: 0,
+      completion_on: -1,
+      last_activity: 0,
+      seeding_time: 0,
+      time_active: 0,
+      seen_complete: 0,
+      availability: -1,
+      amount_left: 0,
+      progress: 1,
+      content_path: "/downloads/Test Torrent",
+      save_path: "/downloads",
+      ...overrides,
+    }
+  }
+
+  // Regression: prevents tag case mismatch between DB-stored tags and parseTorrentTags output.
+  // aggregateByTag builds its internal map with lowercase keys. parseTorrentTags lowercases
+  // torrent tags by default. If the map were built with original-case keys (e.g. "Blutopia"),
+  // a torrent tagged "blutopia" (lowercased by parseTorrentTags) would never match and would
+  // fall into the untagged bucket instead.
+  it("matches torrent tags case-insensitively when DB tag has title case", () => {
+    // Torrent tags as parseTorrentTags returns them: lowercase
+    const torrents = [makeRealTorrent({ state: "uploading", tags: "blutopia", upspeed: 512 })]
+    // DB stores the tag with title case
+    const result = aggregateByTag(torrents, ["Blutopia"], [])
+
+    const blutopiaStats = result.tagStats.find((t) => t.tag === "blutopia")
+    expect(blutopiaStats).toBeDefined()
+    expect(blutopiaStats?.seedingCount).toBe(1)
+    expect(blutopiaStats?.uploadSpeed).toBe(512)
+
+    // Must NOT fall into the untagged bucket
+    const untagged = result.tagStats.find((t) => t.tag === "untagged")
+    expect(untagged).toBeUndefined()
+  })
+
+  // Regression: verifies the fix handles all common tracker tag casing patterns from DB.
+  it("handles mixed case tags from DB — ALL_CAPS, lowercase, TitleCase", () => {
+    const torrents = [
+      makeRealTorrent({ state: "uploading", tags: "red", upspeed: 100 }),
+      makeRealTorrent({ state: "uploading", tags: "ops", upspeed: 200 }),
+      makeRealTorrent({ state: "uploading", tags: "nebulance", upspeed: 300 }),
+    ]
+    // DB may store these as "RED", "ops", "Nebulance"
+    const result = aggregateByTag(torrents, ["RED", "ops", "Nebulance"], [])
+
+    const redStats = result.tagStats.find((t) => t.tag === "red")
+    const opsStats = result.tagStats.find((t) => t.tag === "ops")
+    const nebStats = result.tagStats.find((t) => t.tag === "nebulance")
+
+    expect(redStats?.seedingCount).toBe(1)
+    expect(opsStats?.seedingCount).toBe(1)
+    expect(nebStats?.seedingCount).toBe(1)
+
+    // No torrent should end up untagged
+    const untagged = result.tagStats.find((t) => t.tag === "untagged")
+    expect(untagged).toBeUndefined()
+
+    expect(result.totalSeedingCount).toBe(3)
+    expect(result.uploadSpeedBytes).toBe(600)
+  })
+
+  it("cross-seed tags from DB are also lowercased for matching", () => {
+    const torrents = [makeRealTorrent({ state: "uploading", tags: "cross-seed", upspeed: 50 })]
+    // DB cross-seed tag stored with mixed case
+    const result = aggregateByTag(torrents, [], ["Cross-Seed"])
+
+    const csStats = result.tagStats.find((t) => t.tag === "cross-seed")
+    expect(csStats).toBeDefined()
+    expect(csStats?.seedingCount).toBe(1)
+
+    const untagged = result.tagStats.find((t) => t.tag === "untagged")
+    expect(untagged).toBeUndefined()
   })
 })

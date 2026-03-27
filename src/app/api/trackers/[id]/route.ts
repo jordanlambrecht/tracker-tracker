@@ -75,9 +75,25 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     updates.qbtTag = body.qbtTag.trim() || null
   }
 
+  if (typeof body.mouseholeUrl === "string") {
+    const trimmed = body.mouseholeUrl.trim()
+    if (trimmed) {
+      try {
+        const parsed = new URL(trimmed)
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+          return NextResponse.json({ error: "Mousehole URL must use http or https" }, { status: 400 })
+        }
+      } catch {
+        return NextResponse.json({ error: "Invalid Mousehole URL format" }, { status: 400 })
+      }
+    }
+    updates.mouseholeUrl = trimmed || null
+  }
+
   if (typeof body.useProxy === "boolean") updates.useProxy = body.useProxy
   if (typeof body.countCrossSeedUnsatisfied === "boolean")
     updates.countCrossSeedUnsatisfied = body.countCrossSeedUnsatisfied
+  if (typeof body.hideUnreadBadges === "boolean") updates.hideUnreadBadges = body.hideUnreadBadges
   if (typeof body.isFavorite === "boolean") updates.isFavorite = body.isFavorite
   if (typeof body.pollingPaused === "boolean") {
     updates.userPausedAt = body.pollingPaused ? new Date() : null

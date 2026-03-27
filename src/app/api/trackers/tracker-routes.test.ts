@@ -24,6 +24,7 @@ vi.mock("@/lib/api-helpers", async (importOriginal) => {
 vi.mock("@/lib/db", () => ({
   db: {
     select: vi.fn(),
+    selectDistinctOn: vi.fn(),
     insert: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
@@ -114,8 +115,12 @@ describe("GET /api/trackers", () => {
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFromTrackers })
       .mockReturnValueOnce({ from: mockSettingsFrom })
-    // DISTINCT ON query via db.execute
-    ;(db.execute as ReturnType<typeof vi.fn>).mockResolvedValueOnce([snapshot])
+    // DISTINCT ON query via db.selectDistinctOn
+    ;(db.selectDistinctOn as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      from: vi.fn().mockReturnValue({
+        orderBy: vi.fn().mockResolvedValue([snapshot]),
+      }),
+    })
 
     const response = await GET()
     const data = await response.json()
@@ -139,8 +144,12 @@ describe("GET /api/trackers", () => {
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFrom })
       .mockReturnValueOnce({ from: mockSettingsFrom })
-    // DISTINCT ON query via db.execute
-    ;(db.execute as ReturnType<typeof vi.fn>).mockResolvedValueOnce([])
+    // DISTINCT ON query via db.selectDistinctOn
+    ;(db.selectDistinctOn as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      from: vi.fn().mockReturnValue({
+        orderBy: vi.fn().mockResolvedValue([]),
+      }),
+    })
 
     const response = await GET()
     const data = await response.json()
@@ -181,8 +190,12 @@ describe("GET /api/trackers", () => {
     ;(db.select as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce({ from: mockFromTrackers })
       .mockReturnValueOnce({ from: mockSettingsFrom })
-    // DISTINCT ON query via db.execute
-    ;(db.execute as ReturnType<typeof vi.fn>).mockResolvedValueOnce([])
+    // DISTINCT ON query via db.selectDistinctOn
+    ;(db.selectDistinctOn as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      from: vi.fn().mockReturnValue({
+        orderBy: vi.fn().mockResolvedValue([]),
+      }),
+    })
 
     const response = await GET()
     const data = await response.json()
@@ -763,7 +776,7 @@ describe("POST /api/trackers/[id]/poll", () => {
     expect(data.success).toBe(true)
   })
 
-  it("returns 500 when poll fails with error message", async () => {
+  it("returns 500 with generic message when poll fails", async () => {
     ;(pollTracker as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Connection refused"))
 
     const request = makeRequest("http://localhost/api/trackers/1/poll", undefined, "POST")
@@ -772,7 +785,7 @@ describe("POST /api/trackers/[id]/poll", () => {
     const data = await response.json()
 
     expect(response.status).toBe(500)
-    expect(data.error).toBe("Connection refused")
+    expect(data.error).toBe("Poll failed")
   })
 
   it("returns 'Poll failed' when pollTracker rejects with non-Error", async () => {

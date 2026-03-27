@@ -8,14 +8,14 @@ description: Generate tamper-resistant proof-of-membership images for private tr
 !!! danger "This feature is currently unreleased"
 
 !!! warning "Beta — Highly Experimental"
-Transit Papers are under active development. The report format, encoding scheme, and verification behavior may change between versions. Reports generated with one version are not guaranteed to verify correctly with a future version. Use at your own risk.
+    Transit Papers are under active development. The report format, encoding scheme, and verification behavior may change between versions. Reports generated with one version are not guaranteed to verify correctly with a future version. Use at your own risk.
 
 Transit Papers generate a tamper-resistant PNG image showing your stats on a single tracker. The image is designed to be shared with tracker moderators as proof of your membership and standing when applying to other trackers.
 
 Instead of a browser screenshot — which can be faked in seconds with inspect element or Photoshop — Transit Papers produce a server-rendered image with cryptographically linked visual elements. Editing any part of the image (the stats, the fractal seal, or the data strip) breaks the link between them, and the verification tool detects it. Each report is called a **Proof of Citizenship**.
 
 !!! warning "What Transit Papers are NOT"
-Transit Papers are **not zero-trust cryptographic proof** that the stats are real. Tracker Tracker is self-hosted. You control the machine, the database, and the network. A technically motivated user could theoretically fabricate data before generation.
+    Transit Papers are **not zero-trust cryptographic proof** that the stats are real. Tracker Tracker is self-hosted. You control the machine, the database, and the network. A technically motivated user could theoretically fabricate data before generation.
 
     What this system does is raise the cost of forgery from **trivial** (inspect element, 30 seconds) to **impractical** (clone the project, set up a database, fabricate internally consistent stats across 10+ mathematically related fields, understand the target tracker's API schema).
 
@@ -62,7 +62,7 @@ If you are not using an integration, share the original PNG file directly:
 - Upload to any lossless image host manually (ptpimg.me, imgbox.com, catbox.moe)
 
 !!! danger "Do not screenshot the report"
-The verification system reads pixel data from the image. A screenshot of the report is not the report. It will degrade verification or cause it to fail entirely.
+    The verification system reads pixel data from the image. A screenshot of the report is not the report. It will degrade verification or cause it to fail entirely.
 
 ---
 
@@ -136,7 +136,7 @@ Upload or drag-and-drop the PNG onto the verification page.
 : The image is too degraded or has been fundamentally altered. Cannot verify.
 
 !!! info "What verification does NOT tell you"
-Verification confirms the image is internally consistent and has not been tampered with **after generation**. It does not confirm the stats are truthful — the user controls their instance and could have fabricated data before generating the report. Use it as one input alongside your own judgment.
+    Verification confirms the image is internally consistent and has not been tampered with **after generation**. It does not confirm the stats are truthful — the user controls their instance and could have fabricated data before generating the report. Use it as one input alongside your own judgment.
 
 ---
 
@@ -174,7 +174,7 @@ Verification confirms the image is internally consistent and has not been tamper
 | User modifies the source code                                        | Open source — code is public            | Faker must reproduce pixel-perfect output from the full rendering pipeline                |
 
 !!! note "Honest positioning"
-This system raises forgery effort from trivial to impractical. It does not make forgery impossible. A determined attacker with technical skills who controls their instance can theoretically fabricate a valid report. The practical threat — someone trying to bluff their way into a tracker invite — is effectively blocked.
+    This system raises forgery effort from trivial to impractical. It does not make forgery impossible. A determined attacker with technical skills who controls their instance can theoretically fabricate a valid report. The practical threat — someone trying to bluff their way into a tracker invite — is effectively blocked.
 
 ---
 

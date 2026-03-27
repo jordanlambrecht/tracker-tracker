@@ -134,6 +134,12 @@ export async function POST(request: Request) {
           { status: 400 }
         )
       }
+      if (backupPassword.length > 128) {
+        return NextResponse.json(
+          { error: "Backup password must be 128 characters or fewer" },
+          { status: 400 }
+        )
+      }
 
       const backupEnvelope = envelope as unknown as EncryptedBackupEnvelope
       if (!backupEnvelope.encryptionSalt || typeof backupEnvelope.encryptionSalt !== "string") {
@@ -147,11 +153,11 @@ export async function POST(request: Request) {
       payload = raw as BackupPayload
     }
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error"
-    return NextResponse.json(
-      { error: `Invalid or corrupted backup file: ${message}` },
-      { status: 400 }
+    log.error(
+      { route: "POST /api/settings/backup/restore", error: String(err) },
+      "backup file validation or decryption failed"
     )
+    return NextResponse.json({ error: "Invalid or corrupted backup file" }, { status: 400 })
   }
 
   // Step 5: Get current settings for ID
@@ -666,21 +672,16 @@ export async function POST(request: Request) {
         .where(eq(appSettings.id, currentSettingsId))
     })
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error"
-
     log.error(
       {
         event: "restore_failed",
-        error: message,
+        error: err instanceof Error ? err.message : String(err),
         fileNameHash: hashFileName(fileName),
       },
       "Restore operation failed"
     )
 
-    return NextResponse.json(
-      { error: "Restore failed. Check server logs for details." },
-      { status: 409 }
-    )
+    return NextResponse.json({ error: "Backup restore failed" }, { status: 409 })
   } finally {
     if (backupKey.length > 0) backupKey.fill(0)
     if (currentKey !== backupKey && currentKey.length > 0) currentKey.fill(0)

@@ -3,6 +3,7 @@
 // Functions: dispatchNotifications, detectEvents, buildEventData
 
 import { eq } from "drizzle-orm"
+import { MAM_BONUS_CAP } from "@/lib/adapters/constants"
 import { db } from "@/lib/db"
 import { notificationDeliveryState, notificationTargets } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
@@ -15,12 +16,16 @@ import type {
   NotificationThresholds,
 } from "@/lib/notifications/types"
 import {
+  checkActiveHnrs,
   checkAnniversaryMilestone,
+  checkBonusCapReached,
   checkBufferMilestoneCrossed,
   checkHnrIncrease,
   checkRankChange,
   checkRatioBelowMinimumTransition,
   checkRatioDelta,
+  checkUnsatisfiedLimitApproaching,
+  checkVipExpiringSoon,
   checkWarnedTransition,
   checkZeroSeeding,
   EVENT_SNOOZE_MS,
@@ -47,6 +52,16 @@ export interface SnapshotContext {
   trackerPausedAt: string | null
   trackerJoinedAt: string | null
   minimumRatio: number | undefined
+  // MAM-specific fields grouped into sub-object; undefined for non-MAM trackers
+  mamContext?: {
+    currentSeedbonus: number | null
+    previousSeedbonus: number | null
+    vipUntil: string | null
+    unsatisfiedCount: number | null
+    unsatisfiedLimit: number | null
+    inactiveHnrCount: number | null
+    previousInactiveHnrCount: number | null
+  }
 }
 
 export async function dispatchNotifications(
@@ -102,6 +117,7 @@ export async function dispatchNotifications(
       const anniversaryLabel = events.includes("anniversary")
         ? checkAnniversaryMilestone(ctx.trackerJoinedAt)?.label
         : undefined
+      const targetThresholds = (target.thresholds as NotificationThresholds | null) ?? null
 
       // Only Discord is currently supported — skip unknown types
       if (target.type !== "discord") {
@@ -136,7 +152,7 @@ export async function dispatchNotifications(
             trackerName: ctx.trackerName,
             includeTrackerName: target.includeTrackerName,
             storeUsernames: ctx.storeUsernames,
-            data: buildEventData(event, ctx, anniversaryLabel),
+            data: buildEventData(event, ctx, targetThresholds, anniversaryLabel),
           })
 
           const result = await deliverDiscordWebhook(target.id, config.webhookUrl, [
@@ -257,12 +273,57 @@ export function detectEvents(
     events.push("anniversary")
   }
 
+  if (target.notifyBonusCap) {
+    const capLimit = (thresholds?.bonusCapLimit as number | undefined) ?? MAM_BONUS_CAP
+    if (
+      checkBonusCapReached(
+        ctx.mamContext?.currentSeedbonus ?? null,
+        ctx.mamContext?.previousSeedbonus ?? null,
+        capLimit
+      )
+    ) {
+      events.push("bonus_cap")
+    }
+  }
+
+  if (target.notifyVipExpiring) {
+    const days = (thresholds?.vipExpiringDays as number | undefined) ?? 7
+    if (checkVipExpiringSoon(ctx.mamContext?.vipUntil ?? null, days)) {
+      events.push("vip_expiring")
+    }
+  }
+
+  if (target.notifyUnsatisfiedLimit) {
+    const pct = (thresholds?.unsatisfiedLimitPercent as number | undefined) ?? 80
+    if (
+      checkUnsatisfiedLimitApproaching(
+        ctx.mamContext?.unsatisfiedCount ?? null,
+        ctx.mamContext?.unsatisfiedLimit ?? null,
+        pct
+      )
+    ) {
+      events.push("unsatisfied_limit")
+    }
+  }
+
+  if (target.notifyActiveHnrs) {
+    if (
+      checkActiveHnrs(
+        ctx.mamContext?.inactiveHnrCount ?? null,
+        ctx.mamContext?.previousInactiveHnrCount ?? null
+      )
+    ) {
+      events.push("active_hnrs")
+    }
+  }
+
   return events
 }
 
 export function buildEventData(
   event: NotificationEventType,
   ctx: SnapshotContext,
+  thresholds?: NotificationThresholds | null,
   anniversaryLabel?: string
 ): Record<string, unknown> {
   switch (event) {
@@ -284,6 +345,19 @@ export function buildEventData(
       return { newGroup: ctx.currentGroup, previousGroup: ctx.previousGroup }
     case "anniversary":
       return { label: anniversaryLabel ?? "Anniversary" }
+    case "bonus_cap": {
+      const effectiveCap = (thresholds?.bonusCapLimit as number | undefined) ?? MAM_BONUS_CAP
+      return { currentBonus: ctx.mamContext?.currentSeedbonus ?? null, capLimit: effectiveCap }
+    }
+    case "vip_expiring":
+      return { vipUntil: ctx.mamContext?.vipUntil ?? null }
+    case "unsatisfied_limit":
+      return {
+        count: ctx.mamContext?.unsatisfiedCount ?? null,
+        limit: ctx.mamContext?.unsatisfiedLimit ?? null,
+      }
+    case "active_hnrs":
+      return { count: ctx.mamContext?.inactiveHnrCount ?? null }
     default:
       return {}
   }

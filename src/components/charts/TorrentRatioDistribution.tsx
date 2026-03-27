@@ -45,4 +45,4 @@ function TorrentRatioDistribution({
 }
 
 export type { TorrentRatioDistributionProps }
-export { TorrentRatioDistribution, TorrentRatioDistribution as RatioDistribution }
+export { TorrentRatioDistribution }

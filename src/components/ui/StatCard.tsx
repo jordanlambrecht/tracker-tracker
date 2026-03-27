@@ -1,8 +1,6 @@
 // src/components/ui/StatCard.tsx
-//
-// Functions: StatCard
-//
-// Unified stat card with three variants:
+
+//  three variants:
 //   "basic"   — single hero value (default)
 //   "stacked" — multiple label/value rows with optional total
 //   "ring"    — countdown ring (login deadline)
@@ -14,7 +12,7 @@ import { Tooltip } from "@/components/ui/Tooltip"
 import { hexToRgba } from "@/lib/formatters"
 
 // ---------------------------------------------------------------------------
-// Shared types
+//  types
 // ---------------------------------------------------------------------------
 
 type TrendDirection = "up" | "down" | "flat"
@@ -228,7 +226,7 @@ function BasicContent({
 }
 
 // ---------------------------------------------------------------------------
-// Stacked variant — multiple label/value rows
+// Stacked variant
 // ---------------------------------------------------------------------------
 
 function StackedContent({
@@ -298,7 +296,7 @@ function StackedContent({
 }
 
 // ---------------------------------------------------------------------------
-// Ring variant — countdown progress
+// Ring variant
 // ---------------------------------------------------------------------------
 
 function getDeadlineColor(progress: number, accent: string): string {
@@ -404,7 +402,26 @@ function RingContent({
 // ---------------------------------------------------------------------------
 
 function StatCard(props: StatCardProps) {
-  const { accentColor, icon, alert, alertReason, className, style, ...rest } = props
+  const {
+    accentColor,
+    icon,
+    alert,
+    alertReason,
+    className,
+    style,
+    // Destructure component-only props so they don't leak into Shell's DOM spread
+    ...rest
+  } = props
+  // Strip non-DOM props from rest before Shell spread
+  const {
+    label: _label,
+    value: _value,
+    unit: _unit,
+    subValue: _subValue,
+    subtitle: _subtitle,
+    trend: _trend,
+    ...shellRest
+  } = rest as Record<string, unknown>
 
   if (props.type === "ring") {
     const la = new Date(props.lastAccessAt).getTime()
@@ -456,7 +473,13 @@ function StatCard(props: StatCardProps) {
 
   // Default: basic
   return (
-    <Shell accentColor={accentColor} alert={alert} className={className} style={style} {...rest}>
+    <Shell
+      accentColor={accentColor}
+      alert={alert}
+      className={className}
+      style={style}
+      {...shellRest}
+    >
       <Header
         label={props.label}
         icon={icon}

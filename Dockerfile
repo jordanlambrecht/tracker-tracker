@@ -1,9 +1,4 @@
 # Dockerfile
-#
-# Multi-stage build for Tracker Tracker.
-# Stages: deps → builder → prod-deps → runner
-#
-# Uses Next.js standalone output for minimal image size (~150MB vs ~1GB).
 
 # ---------------------------------------------------------------------------
 # Base
@@ -23,7 +18,7 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 # ---------------------------------------------------------------------------
-# Stage 2 — Build the Next.js application
+# Stage 2 — Build the Next.js app
 # ---------------------------------------------------------------------------
 FROM base AS builder
 WORKDIR /app
@@ -31,23 +26,25 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 # Dummy DATABASE_URL so Next.js can evaluate route modules during build
-# (the DB is never actually queried at build time)
+# (In case DB is never actually queried at build time)
 ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
 RUN pnpm build
 
 # ---------------------------------------------------------------------------
-# Stage 3 — Prune to production deps for schema-sync
+# Stage 3 — Minimal deps for drizzle-kit
 # ---------------------------------------------------------------------------
-FROM deps AS prod-deps
-WORKDIR /app
-RUN pnpm prune --prod --ignore-scripts
+FROM base AS schema-deps
+WORKDIR /schema-sync
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
 # ---------------------------------------------------------------------------
 # Stage 4 — Production runner
 # ---------------------------------------------------------------------------
 FROM node:24-alpine AS runner
-# Targeted upgrade for CVE-2026-22184 (zlib). Remove once node:24-alpine ships zlib >= 1.3.2-r0.
-RUN apk add --no-cache libc6-compat bash && apk upgrade --no-cache zlib
+RUN apk add --no-cache libc6-compat bash && apk upgrade --no-cache \
+    && rm -rf /usr/lib/node_modules /usr/local/lib/node_modules \
+    /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -55,22 +52,21 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-# Non-root user for security
+# Non-root user
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
 RUN mkdir -p /data/backups /data/logs && chown -R nextjs:nodejs /data
 
-# --- Standalone server (traced dependencies only) ---
+# --- Standalone server ---
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # --- Drizzle schema-sync (for drizzle-kit push at startup) ---
-# Use production-only dependencies to minimize image size and CVE surface.
 RUN mkdir -p /schema-sync/src/lib
-COPY --from=prod-deps /app/node_modules /schema-sync/node_modules
-COPY --from=builder /app/package.json /schema-sync/
+COPY --from=schema-deps /schema-sync/node_modules /schema-sync/node_modules
+COPY --from=schema-deps /schema-sync/package.json /schema-sync/
 COPY --from=builder /app/drizzle.config.ts /schema-sync/
 COPY --from=builder /app/src/lib/db /schema-sync/src/lib/db
 COPY --from=builder /app/tsconfig.json /schema-sync/
@@ -86,6 +82,6 @@ USER nextjs
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
 ENTRYPOINT ["./docker-entrypoint.sh"]

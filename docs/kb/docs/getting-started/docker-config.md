@@ -20,21 +20,22 @@ Everything you need to customize how Tracker Tracker runs: environment variables
 
 ### Optional
 
-| Variable        | Default              | Description                                                                                                                                                        |
-| --------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `POSTGRES_USER` | `postgres`           | PostgreSQL username. Must match in both the app and db services.                                                                                                   |
-| `POSTGRES_DB`   | `tracker_tracker`    | Database name.                                                                                                                                                     |
-| `POSTGRES_HOST` | `tracker-tracker-db` | Hostname of the PostgreSQL server. Only change this if you're using an external database without `DATABASE_URL`.                                                   |
-| `POSTGRES_PORT` | `5432`               | PostgreSQL port. If you change this, uncomment the matching lines in `docker-compose.yml`.                                                                         |
-| `DATABASE_URL`  | _(auto-built)_       | Full connection string. Set this to use an external Postgres instance instead of the `POSTGRES_*` variables. Format: `postgresql://user:password@host:5432/dbname` |
-| `PORT`          | `3000`               | Port the app listens on inside the container. The host-side port mapping in `docker-compose.yml` follows this value.                                               |
-| `BASE_URL`      | _(empty)_            | The public URL where your app is reachable, e.g. `https://trackertracker.example.com`. Used in backup file metadata and notification links.                        |
-| `TZ`            | `UTC`                | Timezone for scheduled tasks and log timestamps. Uses standard tz database names, e.g. `America/Chicago`, `Europe/London`.                                         |
-| `LOG_LEVEL`     | `info`               | Log verbosity. Options: `error`, `warn`, `info`, `debug`.                                                                                                          |
-| `LOG_FILE`      | _(none)_             | Absolute path inside the container to write logs to disk, e.g. `/data/logs/tracker-tracker.log`.                                                                   |
+| Variable         | Default              | Description                                                                                                                                                             |
+| ---------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POSTGRES_USER`  | `postgres`           | PostgreSQL username. Must match in both the app and db services.                                                                                                        |
+| `POSTGRES_DB`    | `tracker_tracker`    | Database name.                                                                                                                                                          |
+| `POSTGRES_HOST`  | `tracker-tracker-db` | Hostname of the PostgreSQL server. Only change this if you're using an external database without `DATABASE_URL`.                                                        |
+| `POSTGRES_PORT`  | `5432`               | PostgreSQL port. If you change this, uncomment the matching lines in `docker-compose.yml`.                                                                              |
+| `DATABASE_URL`   | _(auto-built)_       | Full connection string. Set this to use an external Postgres instance instead of the `POSTGRES_*` variables. Format: `postgresql://user:password@host:5432/dbname`      |
+| `PORT`           | `3000`               | Port the app listens on inside the container. The host-side port mapping in `docker-compose.yml` follows this value.                                                    |
+| `BASE_URL`       | _(empty)_            | The public URL where your app is reachable, e.g. `https://trackertracker.example.com`. Used in backup file metadata and notification links.                             |
+| `SECURE_COOKIES` | _(auto)_             | Set to `true` to mark session cookies as `Secure`. Auto-enabled when `BASE_URL` starts with `https://`. Only needed if you serve over HTTPS without setting `BASE_URL`. |
+| `TZ`             | `UTC`                | Timezone for scheduled tasks and log timestamps. Uses standard tz database names, e.g. `America/Chicago`, `Europe/London`.                                              |
+| `LOG_LEVEL`      | `info`               | Log verbosity. Options: `error`, `warn`, `info`, `debug`.                                                                                                               |
+| `LOG_FILE`       | _(none)_             | Absolute path inside the container to write logs to disk, e.g. `/data/logs/tracker-tracker.log`.                                                                        |
 
 !!! info "Settings vs environment variables"
-Most day-to-day settings — polling interval, privacy mode, proxy config, backup schedule, lockout policy — live inside the app under **Settings**, not in environment variables. Environment variables are just for infrastructure stuff like database connections and ports.
+    Most day-to-day settings — polling interval, privacy mode, proxy config, backup schedule, lockout policy — live inside the app under **Settings**, not in environment variables. Environment variables are just for infrastructure stuff like database connections and ports.
 
 ---
 
@@ -49,7 +50,7 @@ Most day-to-day settings — polling interval, privacy mode, proxy config, backu
 | `./postgres/postgresql.conf` | `/etc/postgresql/postgresql.conf` | Custom PostgreSQL config. Included in the repo and required for the bundled database to start. |
 
 !!! warning "Back up the pgdata volume"
-The `pgdata` named volume holds your entire database. Use the built-in backup feature (Settings → Backups) for app-level backups, and separately snapshot the Docker volume or use `pg_dump` if you want a database-level backup.
+    The `pgdata` named volume holds your entire database. Use the built-in backup feature (Settings → Backups) for app-level backups, and separately snapshot the Docker volume or use `pg_dump` if you want a database-level backup.
 
 ---
 
@@ -69,7 +70,7 @@ PORT=8080
 ```
 
 !!! tip "Behind a reverse proxy?"
-If Tracker Tracker sits behind Nginx, Caddy, or Traefik, you don't need to expose port 3000 to the outside world at all. Remove the `ports:` block from `docker-compose.yml` and let the reverse proxy talk to the container over the Docker network directly.
+    If Tracker Tracker sits behind Nginx, Caddy, or Traefik, you don't need to expose port 3000 to the outside world at all. Remove the `ports:` block from `docker-compose.yml` and let the reverse proxy talk to the container over the Docker network directly.
 
 ---
 
@@ -143,7 +144,7 @@ If Tracker Tracker sits behind Nginx, Caddy, or Traefik, you don't need to expos
     This assumes Traefik is already running with a `websecure` entrypoint and a `letsencrypt` certificate resolver.
 
 !!! info "Set BASE_URL when using a reverse proxy"
-Set `BASE_URL=https://trackertracker.example.com` in `.env` so backup files and notification links use your public address instead of localhost.
+    Set `BASE_URL=https://trackertracker.example.com` in `.env`. This enables secure session cookies automatically and ensures backup files and notification links use your public address.
 
 ---
 
@@ -169,7 +170,7 @@ docker compose pull && docker compose up -d
 The database schema updates automatically on startup. No manual steps required.
 
 !!! tip "Check the changelog first"
-Read the [CHANGELOG](https://github.com/jordanlambrecht/tracker-tracker/blob/main/CHANGELOG.md) before pulling a new image — especially for major version bumps, which may include breaking changes to backup formats or environment variables.
+    Read the [CHANGELOG](https://github.com/jordanlambrecht/tracker-tracker/blob/main/CHANGELOG.md) before pulling a new image — especially for major version bumps, which may include breaking changes to backup formats or environment variables.
 
 To pin to a specific version and update deliberately:
 

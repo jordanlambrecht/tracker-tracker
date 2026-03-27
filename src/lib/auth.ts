@@ -8,6 +8,7 @@ import { hkdfSync } from "node:crypto"
 import argon2 from "argon2"
 import { EncryptJWT, jwtDecrypt } from "jose"
 import { cookies } from "next/headers"
+import { shouldSecureCookies } from "@/lib/cookie-security"
 
 const SESSION_COOKIE = "tt_session"
 const MAX_AGE_COOKIE = "tt_max_age"
@@ -47,12 +48,12 @@ export async function createSession(
     .setExpirationTime(`${jweMaxAge}s`)
     .encrypt(getSessionKey())
 
-  const isProduction = process.env.NODE_ENV === "production"
+  const secureCookies = shouldSecureCookies()
   const cookieStore = await cookies()
 
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: isProduction,
+    secure: secureCookies,
     sameSite: "strict",
     maxAge: cookieMaxAge,
     path: "/",
@@ -61,7 +62,7 @@ export async function createSession(
   // Companion cookie so middleware can refresh maxAge without decrypting the JWE
   cookieStore.set(MAX_AGE_COOKIE, String(cookieMaxAge), {
     httpOnly: true,
-    secure: isProduction,
+    secure: secureCookies,
     sameSite: "strict",
     maxAge: cookieMaxAge,
     path: "/",

@@ -22,12 +22,14 @@ export interface SecurityPoliciesSectionProps {
   initialLockout: LockoutConfig
   initialSnapshotRetentionDays: number | null
   initialSessionTimeoutMinutes: number | null
+  databaseSize?: string
 }
 
 export function SecurityPoliciesSection({
   initialLockout,
   initialSnapshotRetentionDays,
   initialSessionTimeoutMinutes,
+  databaseSize,
 }: SecurityPoliciesSectionProps) {
   // ── Auto-lockout ───────────────────────────────────────────────────
   const [lockoutEnabled, setLockoutEnabled] = useState(initialLockout.enabled)
@@ -258,6 +260,11 @@ export function SecurityPoliciesSection({
           Automatically prunes historical snapshot data older than the configured period. Reduces
           what&apos;s stored on disk.
         </Paragraph>
+        {databaseSize && (
+          <p className="text-xs font-mono text-tertiary ml-8">
+            Current database size: {databaseSize}
+          </p>
+        )}
         {retentionError && (
           <p className="text-xs font-sans text-danger ml-8" role="alert">
             {retentionError}

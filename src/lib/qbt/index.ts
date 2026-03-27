@@ -9,6 +9,7 @@ export {
   getTransferInfo,
   invalidateSession,
   login,
+  parseCachedTorrents,
   withSessionRetry,
 } from "./client"
 export type { SpeedSnapshot } from "./speed-cache"

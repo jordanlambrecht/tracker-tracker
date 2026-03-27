@@ -26,6 +26,12 @@ export async function POST(request: Request) {
     // Resolve backup password: explicit form value > stored encrypted password
     let backupPassword: string | null = null
     if (formPassword && typeof formPassword === "string" && formPassword.length > 0) {
+      if (formPassword.length > 128) {
+        return NextResponse.json(
+          { error: "Backup password must be 128 characters or fewer" },
+          { status: 400 }
+        )
+      }
       backupPassword = formPassword
     } else if (settings?.backupEncryptionEnabled && settings.encryptedBackupPassword) {
       try {
@@ -95,14 +101,13 @@ export async function POST(request: Request) {
       },
     })
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error"
     log.error(
       {
         route: "POST /api/settings/backup/export",
-        error: err instanceof Error ? err.message : "unknown",
+        error: String(err),
       },
       "backup export failed"
     )
-    return NextResponse.json({ error: `Backup export failed: ${message}` }, { status: 500 })
+    return NextResponse.json({ error: "Backup export failed" }, { status: 500 })
   }
 }

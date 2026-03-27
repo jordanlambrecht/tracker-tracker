@@ -61,7 +61,7 @@ When enabled, the chart includes an extra segment for torrents that don't match 
 Tags must match **exactly** — same capitalization, same spacing, same characters. If your qBittorrent tag is `High Priority` and you type `high priority` in the group, it won't match.
 
 !!! tip "Check your qBittorrent tags"
-Open qBittorrent and look at the tag list in the sidebar to see the exact tag names. Copy them character-for-character into Tracker Tracker.
+    Open qBittorrent and look at the tag list in the sidebar to see the exact tag names. Copy them character-for-character into Tracker Tracker.
 
 ## Automating with qbitmanage
 

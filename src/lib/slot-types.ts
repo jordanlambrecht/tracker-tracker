@@ -6,6 +6,7 @@ import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import type {
   GazellePlatformMeta,
   GGnPlatformMeta,
+  MamPlatformMeta,
   NebulancePlatformMeta,
 } from "@/lib/adapters/types"
 import type { Snapshot, TrackerSummary } from "@/types/api"
@@ -16,7 +17,7 @@ export interface SlotContext {
   tracker: TrackerSummary
   latestSnapshot: Snapshot | null
   snapshots: Snapshot[]
-  meta: GGnPlatformMeta | GazellePlatformMeta | NebulancePlatformMeta | null
+  meta: GGnPlatformMeta | GazellePlatformMeta | NebulancePlatformMeta | MamPlatformMeta | null
   registry: TrackerRegistryEntry | undefined
   accentColor: string
 }

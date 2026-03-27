@@ -35,6 +35,10 @@ interface NotificationTarget {
   notifyZeroSeeding: boolean
   notifyRankChange: boolean
   notifyAnniversary: boolean
+  notifyBonusCap: boolean
+  notifyVipExpiring: boolean
+  notifyUnsatisfiedLimit: boolean
+  notifyActiveHnrs: boolean
   thresholds: { ratioDropDelta?: number; bufferMilestoneBytes?: number } | null
   includeTrackerName: boolean
   scope: number[] | null
@@ -83,6 +87,10 @@ const DRAFT_KEYS: (keyof NotificationTarget)[] = [
   "notifyZeroSeeding",
   "notifyRankChange",
   "notifyAnniversary",
+  "notifyBonusCap",
+  "notifyVipExpiring",
+  "notifyUnsatisfiedLimit",
+  "notifyActiveHnrs",
   "thresholds",
   "includeTrackerName",
   "scope",
@@ -407,6 +415,34 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
           label="Membership anniversary"
           checked={draft.notifyAnniversary}
           onChange={(v) => updateDraft({ notifyAnniversary: v })}
+        />
+
+        <Toggle
+          label="Bonus Points Capped"
+          checked={draft.notifyBonusCap}
+          onChange={(v) => updateDraft({ notifyBonusCap: v })}
+          description="Alert when seedbonus hits the cap (99,999 on MAM)"
+        />
+
+        <Toggle
+          label="VIP Expiring Soon"
+          checked={draft.notifyVipExpiring}
+          onChange={(v) => updateDraft({ notifyVipExpiring: v })}
+          description="Alert when VIP status is about to expire"
+        />
+
+        <Toggle
+          label="Unsatisfied Limit Warning"
+          checked={draft.notifyUnsatisfiedLimit}
+          onChange={(v) => updateDraft({ notifyUnsatisfiedLimit: v })}
+          description="Alert when approaching the unsatisfied torrent limit"
+        />
+
+        <Toggle
+          label="Active Hit & Runs"
+          checked={draft.notifyActiveHnrs}
+          onChange={(v) => updateDraft({ notifyActiveHnrs: v })}
+          description="Alert when inactive Hit & Runs are detected"
         />
       </div>
 

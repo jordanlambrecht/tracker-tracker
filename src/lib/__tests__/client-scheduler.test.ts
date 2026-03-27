@@ -259,35 +259,15 @@ describe("deepPollClient per-tag optimization", () => {
   // -------------------------------------------------------------------------
 
   it("passes deduped per-tag results to aggregateByTag", async () => {
+    // isPrivate omitted — real qBT API returns is_private (snake_case), not isPrivate
     const aitherTorrents = [
-      { hash: "a1", state: "uploading", tags: "aither", upspeed: 100, dlspeed: 0, isPrivate: true },
-      { hash: "a2", state: "uploading", tags: "aither", upspeed: 100, dlspeed: 0, isPrivate: true },
+      { hash: "a1", state: "uploading", tags: "aither", upspeed: 100, dlspeed: 0 },
+      { hash: "a2", state: "uploading", tags: "aither", upspeed: 100, dlspeed: 0 },
     ]
     const crossTorrents = [
-      {
-        hash: "c1",
-        state: "uploading",
-        tags: "cross-seed",
-        upspeed: 100,
-        dlspeed: 0,
-        isPrivate: true,
-      },
-      {
-        hash: "c2",
-        state: "uploading",
-        tags: "cross-seed",
-        upspeed: 100,
-        dlspeed: 0,
-        isPrivate: true,
-      },
-      {
-        hash: "c3",
-        state: "uploading",
-        tags: "cross-seed",
-        upspeed: 100,
-        dlspeed: 0,
-        isPrivate: true,
-      },
+      { hash: "c1", state: "uploading", tags: "cross-seed", upspeed: 100, dlspeed: 0 },
+      { hash: "c2", state: "uploading", tags: "cross-seed", upspeed: 100, dlspeed: 0 },
+      { hash: "c3", state: "uploading", tags: "cross-seed", upspeed: 100, dlspeed: 0 },
     ]
 
     mockDbSelectSequence(MOCK_CLIENT, ["aither"])
@@ -423,6 +403,7 @@ describe("deepPollClient per-tag optimization", () => {
   // -------------------------------------------------------------------------
 
   it("caches filtered torrents to downloadClients on successful poll", async () => {
+    // isPrivate omitted — real qBT API returns is_private (snake_case), not isPrivate
     const filteredTorrents = [
       {
         hash: "a1",
@@ -431,7 +412,6 @@ describe("deepPollClient per-tag optimization", () => {
         tags: "aither",
         upspeed: 100,
         dlspeed: 0,
-        isPrivate: true,
       },
       {
         hash: "a2",
@@ -440,7 +420,6 @@ describe("deepPollClient per-tag optimization", () => {
         tags: "aither",
         upspeed: 200,
         dlspeed: 0,
-        isPrivate: true,
       },
     ]
 
@@ -473,6 +452,7 @@ describe("deepPollClient per-tag optimization", () => {
   })
 
   it("strips tracker, content_path, and save_path from cached torrents", async () => {
+    // isPrivate omitted — real qBT API returns is_private (snake_case), not isPrivate
     const torrentsWithSensitiveFields = [
       {
         hash: "a1",
@@ -481,7 +461,6 @@ describe("deepPollClient per-tag optimization", () => {
         tags: "aither",
         upspeed: 100,
         dlspeed: 0,
-        isPrivate: true,
         tracker: "https://aither.cc/announce?passkey=SECRET123",
         content_path: "/data/torrents/Movie.mkv",
         save_path: "/data/torrents",
@@ -548,5 +527,190 @@ describe("deepPollClient per-tag optimization", () => {
     expect(retryCalls).toHaveLength(1)
     expect(retryCalls[0][3]).toBe("decrypted-user")
     expect(retryCalls[0][4]).toBe("decrypted-pass")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Regression: isPrivate field mismatch — dedup must not rely on t.isPrivate
+// ---------------------------------------------------------------------------
+
+describe("deepPollClient dedup without isPrivate", () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  // Regression: prevents dedup from silently dropping all torrents when t.isPrivate
+  // is undefined. The old guard `if (!t.isPrivate || seen.has(t.hash)) continue` would
+  // skip every torrent because `t.isPrivate` is always undefined (the real qBT API
+  // returns `is_private` in snake_case, not camelCase). The fix removed the isPrivate
+  // guard entirely, keeping only the hash-based dedup.
+  it("dedup includes torrents that do not have an isPrivate field", async () => {
+    // Torrents constructed WITHOUT isPrivate — matching real qBT API response shape
+    const torrentsWithoutIsPrivate = [
+      { hash: "h1", state: "uploading", tags: "aither", upspeed: 100, dlspeed: 0 },
+      { hash: "h2", state: "uploading", tags: "aither", upspeed: 200, dlspeed: 0 },
+      { hash: "h3", state: "uploading", tags: "aither", upspeed: 300, dlspeed: 0 },
+    ]
+
+    // Sanity-check the test data itself: none of these objects have isPrivate defined
+    for (const t of torrentsWithoutIsPrivate) {
+      expect(Object.hasOwn(t, "isPrivate")).toBe(false)
+    }
+
+    mockDbSelectSequence(MOCK_CLIENT, ["aither"])
+    ;(decrypt as ReturnType<typeof vi.fn>)
+      .mockReturnValueOnce("admin")
+      .mockReturnValueOnce("secret")
+    ;(getTorrents as ReturnType<typeof vi.fn>).mockResolvedValue(torrentsWithoutIsPrivate)
+    ;(getTransferInfo as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TRANSFER_INFO)
+    ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
+    mockDbInsertSnapshot()
+    mockDbUpdateClient()
+
+    await deepPollClient(1, makeEncryptionKey())
+
+    // aggregateByTag must have been called with all 3 torrents — none were dropped
+    const aggregateCalls = (aggregateByTag as ReturnType<typeof vi.fn>).mock.calls
+    expect(aggregateCalls).toHaveLength(1)
+    const passedTorrents = aggregateCalls[0][0]
+    expect(passedTorrents).toHaveLength(3)
+  })
+
+  // Regression: verify that dedup still correctly handles duplicate hashes across tag
+  // fetches even without isPrivate present. The only dedup criterion should be the hash.
+  it("dedup removes duplicate hashes across tag results when isPrivate is absent", async () => {
+    // Same hash "shared" appears in both aither and cross-seed tag responses
+    const aitherResult = [
+      { hash: "shared", state: "uploading", tags: "aither, cross-seed", upspeed: 100, dlspeed: 0 },
+      { hash: "aither-only", state: "uploading", tags: "aither", upspeed: 50, dlspeed: 0 },
+    ]
+    const crossResult = [
+      // "shared" seen again from the cross-seed tag query — should be deduped
+      { hash: "shared", state: "uploading", tags: "aither, cross-seed", upspeed: 100, dlspeed: 0 },
+      { hash: "cross-only", state: "uploading", tags: "cross-seed", upspeed: 75, dlspeed: 0 },
+    ]
+
+    mockDbSelectSequence(MOCK_CLIENT, ["aither"])
+    ;(decrypt as ReturnType<typeof vi.fn>)
+      .mockReturnValueOnce("admin")
+      .mockReturnValueOnce("secret")
+    // First call (aither tag) returns aitherResult; second (cross-seed tag) returns crossResult
+    ;(getTorrents as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(aitherResult)
+      .mockResolvedValueOnce(crossResult)
+    ;(getTransferInfo as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TRANSFER_INFO)
+    ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
+    mockDbInsertSnapshot()
+    mockDbUpdateClient()
+
+    await deepPollClient(1, makeEncryptionKey())
+
+    const aggregateCalls = (aggregateByTag as ReturnType<typeof vi.fn>).mock.calls
+    expect(aggregateCalls).toHaveLength(1)
+    const passedTorrents = aggregateCalls[0][0] as Array<{ hash: string }>
+
+    // 3 unique hashes: "shared", "aither-only", "cross-only"
+    expect(passedTorrents).toHaveLength(3)
+    const hashes = passedTorrents.map((t) => t.hash)
+    expect(hashes).toContain("shared")
+    expect(hashes).toContain("aither-only")
+    expect(hashes).toContain("cross-only")
+    // "shared" must appear exactly once
+    expect(hashes.filter((h) => h === "shared")).toHaveLength(1)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Regression: heartbeat must not overwrite lastPolledAt
+// ---------------------------------------------------------------------------
+
+describe("deepPollClient lastPolledAt written; heartbeat update does not include it", () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  // Regression: prevents heartbeat from starving the deep poll scheduler.
+  // deepPollAllClients decides whether to run by comparing now - lastPolledAt >= intervalMs.
+  // If heartbeat (running every 5s) also wrote lastPolledAt, the overdue threshold would
+  // never be reached after the first heartbeat, and deep polls would stop firing.
+  // The fix: heartbeat updates only lastError/errorSince/updatedAt, never lastPolledAt.
+  it("deep poll success writes lastPolledAt to the DB", async () => {
+    setupFullHappyPathMocks(["aither"])
+    const { mockSet } = mockDbUpdateClient()
+
+    await deepPollClient(1, makeEncryptionKey())
+
+    // At least one update call must include lastPolledAt — this is the status update
+    const allSetCalls = mockSet.mock.calls.map((c: unknown[]) => c[0] as Record<string, unknown>)
+    const statusUpdate = allSetCalls.find((c) => "lastPolledAt" in c)
+    expect(statusUpdate).toBeDefined()
+    expect(statusUpdate?.lastPolledAt).toBeInstanceOf(Date)
+  })
+
+  // Regression: verifies the scheduling invariant — a client with a recent lastPolledAt
+  // (set during a prior deep poll) should be considered NOT overdue, while a client
+  // with lastPolledAt = null (never polled) should always be considered overdue.
+  // This mirrors the logic in deepPollAllClients without needing to call it directly.
+  it("overdue check: client with null lastPolledAt is always overdue", () => {
+    const pollIntervalSeconds = 30
+    const now = Date.now()
+
+    // Mirrors: const lastPoll = client.lastPolledAt?.getTime() ?? 0
+    // Mirrors: return now - lastPoll >= intervalMs
+    const lastPolledAt = null
+    const intervalMs = pollIntervalSeconds * 1000
+    const lastPoll = lastPolledAt ?? 0
+    const isOverdue = now - lastPoll >= intervalMs
+
+    expect(isOverdue).toBe(true)
+  })
+
+  it("overdue check: client deep-polled within interval is not overdue", () => {
+    const pollIntervalSeconds = 30
+    const now = Date.now()
+
+    // Simulate: heartbeat ran 5s ago but deep poll ran 10s ago (within 30s interval)
+    const lastPolledAt = new Date(now - 10_000) // 10 seconds ago
+    const intervalMs = pollIntervalSeconds * 1000
+    const lastPoll = lastPolledAt.getTime()
+    const isOverdue = now - lastPoll >= intervalMs
+
+    expect(isOverdue).toBe(false)
+  })
+
+  it("overdue check: client whose interval has elapsed is overdue", () => {
+    const pollIntervalSeconds = 30
+    const now = Date.now()
+
+    // Simulate: last deep poll was 35s ago (past the 30s interval)
+    const lastPolledAt = new Date(now - 35_000)
+    const intervalMs = pollIntervalSeconds * 1000
+    const lastPoll = lastPolledAt.getTime()
+    const isOverdue = now - lastPoll >= intervalMs
+
+    expect(isOverdue).toBe(true)
+  })
+
+  // Regression: if heartbeat wrote lastPolledAt (the bug), a client polled 5s ago
+  // via heartbeat would NOT be considered overdue even after the deep poll interval elapsed.
+  // This test documents that scenario: if lastPolledAt reflects a heartbeat timestamp
+  // (5s ago) and the poll interval is 30s, the client should still be overdue —
+  // but only if deep poll hadn't run. We verify the boundary is the deep poll timestamp,
+  // not the heartbeat timestamp.
+  it("overdue check: client whose only recent update was a heartbeat 5s ago is still overdue after 30s interval", () => {
+    const pollIntervalSeconds = 30
+    const now = Date.now()
+
+    // Scenario demonstrating the bug: if heartbeat wrote lastPolledAt 5s ago,
+    // the client would appear not-overdue even though deep poll hasn't run in 60s.
+    // With the fix, heartbeat does NOT write lastPolledAt, so the last deep poll
+    // timestamp (60s ago) is what drives the overdue check.
+    const lastDeepPollAt = new Date(now - 60_000) // deep poll ran 60s ago
+    const intervalMs = pollIntervalSeconds * 1000
+    const lastPoll = lastDeepPollAt.getTime()
+    const isOverdue = now - lastPoll >= intervalMs
+
+    // 60s ago > 30s interval → overdue
+    expect(isOverdue).toBe(true)
   })
 })

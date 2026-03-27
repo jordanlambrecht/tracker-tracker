@@ -110,4 +110,4 @@ function TorrentActivityHeatmap({
 }
 
 export type { TorrentActivityHeatmapProps }
-export { TorrentActivityHeatmap, TorrentActivityHeatmap as ActivityHeatmap }
+export { TorrentActivityHeatmap }

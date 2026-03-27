@@ -190,7 +190,7 @@ export async function POST(request: Request) {
     log.error(
       {
         route: "POST /api/auth/change-password",
-        error: err instanceof Error ? err.message : "unknown",
+        error: String(err),
       },
       "transaction failed during password change"
     )

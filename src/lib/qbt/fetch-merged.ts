@@ -5,7 +5,7 @@
 import "server-only"
 
 import { decryptClientCredentials } from "@/lib/client-decrypt"
-import { sanitizeNetworkError } from "@/lib/error-utils"
+import { isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
 import {
   getTorrents,
   parseCrossSeedTags,
@@ -32,6 +32,8 @@ export interface MergedResult {
   crossSeedTags: string[]
   clientErrors: string[]
   clientCount: number
+  /** True when every client failure was a decryption error, indicating a stale session key. */
+  sessionExpired: boolean
 }
 
 async function fetchClientTorrents(
@@ -90,6 +92,7 @@ export async function fetchAndMergeTorrents(
     crossSeedTags: [],
     clientErrors: [],
     clientCount: 0,
+    sessionExpired: false,
   }
 
   if (clients.length === 0 || tags.length === 0) {
@@ -113,6 +116,7 @@ export async function fetchAndMergeTorrents(
   const torrentLists: QbtTorrent[][] = []
   const crossSeedClients: { crossSeedTags: string[] }[] = []
   const clientErrors: string[] = []
+  let decryptionFailureCount = 0
 
   for (let i = 0; i < results.length; i++) {
     const result = results[i]
@@ -121,13 +125,17 @@ export async function fetchAndMergeTorrents(
       crossSeedClients.push({ crossSeedTags: result.value.crossSeedTags })
     } else {
       const clientName = clients[i].name
+      const isDecrypt = isDecryptionError(result.reason)
+      if (isDecrypt) decryptionFailureCount++
       const raw = result.reason instanceof Error ? result.reason.message : "Unknown error"
-      const message = /decrypt|crypt|EVP_/i.test(raw)
-        ? "Credential decryption failed"
-        : sanitizeNetworkError(raw)
+      const message = isDecrypt ? "Credential decryption failed" : sanitizeNetworkError(raw)
       clientErrors.push(`${clientName}: ${message}`)
     }
   }
+
+  // All clients failed with decryption errors → the session key is stale.
+  const sessionExpired =
+    clients.length > 0 && torrentLists.length === 0 && decryptionFailureCount === clients.length
 
   // Build hash → client name(s) lookup before merge flattens provenance
   const hashClients = new Map<string, string[]>()
@@ -156,5 +164,6 @@ export async function fetchAndMergeTorrents(
     crossSeedTags,
     clientErrors,
     clientCount: clients.length,
+    sessionExpired,
   }
 }

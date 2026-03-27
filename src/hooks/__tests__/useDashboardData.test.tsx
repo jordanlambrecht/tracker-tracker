@@ -47,6 +47,8 @@ const mockTracker: TrackerSummary = {
   userPausedAt: null,
   color: "#00d4ff",
   qbtTag: null,
+  mouseholeUrl: null,
+  hideUnreadBadges: false,
   useProxy: false,
   countCrossSeedUnsatisfied: false,
   isFavorite: false,

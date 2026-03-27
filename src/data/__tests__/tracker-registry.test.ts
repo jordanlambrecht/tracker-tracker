@@ -15,7 +15,7 @@ import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { ALL_TRACKERS } from "@/data/trackers"
 import { DEFAULT_API_PATHS } from "@/lib/adapters"
 
-const VALID_PLATFORMS = ["unit3d", "gazelle", "ggn", "nebulance", "custom"] as const
+const VALID_PLATFORMS = ["unit3d", "gazelle", "ggn", "nebulance", "mam", "custom"] as const
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
 const LOGO_NAME_RE = /^\/tracker-logos\/[a-z0-9_]+_logo\.(svg|png)$/

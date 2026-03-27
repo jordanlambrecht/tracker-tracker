@@ -37,6 +37,10 @@ const EVENT_COLORS: Record<NotificationEventType, number> = {
   zero_seeding: hexToInt(CHART_THEME.warn),
   rank_change: hexToInt(CHART_THEME.accent),
   anniversary: hexToInt(CHART_THEME.accent),
+  bonus_cap: hexToInt(CHART_THEME.warn),
+  vip_expiring: hexToInt(CHART_THEME.warn),
+  unsatisfied_limit: hexToInt(CHART_THEME.danger),
+  active_hnrs: hexToInt(CHART_THEME.danger),
 }
 
 const EVENT_TITLES: Record<NotificationEventType, string> = {
@@ -49,6 +53,10 @@ const EVENT_TITLES: Record<NotificationEventType, string> = {
   zero_seeding: "Zero Active Seeds",
   rank_change: "Rank Change",
   anniversary: "Membership Anniversary",
+  bonus_cap: "Bonus Cap Reached",
+  vip_expiring: "VIP Expiring Soon",
+  unsatisfied_limit: "Unsatisfied Limit Approaching",
+  active_hnrs: "New Inactive Hit & Run",
 }
 
 export function buildDiscordEmbed(input: EmbedInput): DiscordEmbed {
@@ -106,6 +114,26 @@ function buildDescription(
     case "anniversary": {
       const label = data.label as string | undefined
       return label ? `${source} — ${label}` : `${source} membership anniversary`
+    }
+    case "bonus_cap": {
+      const current = Number(data.currentBonus ?? 0).toLocaleString()
+      const cap = Number(data.capLimit ?? 0).toLocaleString()
+      return `${source} bonus points at **${current}** (cap: ${cap}). Spend them before they're wasted!`
+    }
+    case "vip_expiring": {
+      const expiry = data.vipUntil ? new Date(String(data.vipUntil)) : null
+      const days = expiry ? Math.ceil((expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0
+      return `${source} VIP status expires in **${days} day${days !== 1 ? "s" : ""}**`
+    }
+    case "unsatisfied_limit": {
+      const count = Number(data.count ?? 0)
+      const limit = Number(data.limit ?? 0)
+      const pct = limit > 0 ? Math.round((count / limit) * 100) : 0
+      return `${source} unsatisfied torrents at **${count}/${limit}** (${pct}%). Download capacity running low.`
+    }
+    case "active_hnrs": {
+      const count = Number(data.count ?? 0)
+      return `${source} has **${count}** active Hit & Run${count !== 1 ? "s" : ""}. Seed them to avoid penalties.`
     }
     default:
       return `${source} triggered a notification`

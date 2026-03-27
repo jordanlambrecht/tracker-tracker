@@ -4,10 +4,13 @@
 // Slot IDs defined:
 //   stat-card: login-deadline, gold, snatched-nebulance, seedbonus, ggn-share-score-card,
 //              gazelle-tokens, perfect-flacs, snatched-gazelle, torrents-uploaded,
-//              requests-filled, groups-contributed, invited, gazelle-bounty, gazelle-comments
+//              requests-filled, groups-contributed, invited, gazelle-bounty, gazelle-comments,
+//              mam-wedges, mam-completed, mam-tracker-errors
 //   badge: warned, donor, disabled, ggn-parked, ggn-invites, ggn-irc,
-//          gazelle-paranoia, gazelle-unread, gazelle-announcement
-//   progress: ggn-achievement-progress, ggn-share-score-progress, ggn-buffs
+//          gazelle-paranoia, gazelle-unread, gazelle-announcement,
+//          mam-vip, mam-connectable, mam-unread
+//   progress: ggn-achievement-progress, ggn-share-score-progress, ggn-buffs,
+//             mam-health-overview
 
 import type { ComponentType, ReactNode } from "react"
 import { createElement } from "react"
@@ -26,7 +29,7 @@ import type {
   StatCardStackedProps,
 } from "@/components/ui/StatCard"
 import { StatCard } from "@/components/ui/StatCard"
-import type { GazellePlatformMeta, GGnPlatformMeta } from "@/lib/adapters/types"
+import type { GazellePlatformMeta, GGnPlatformMeta, MamPlatformMeta } from "@/lib/adapters/types"
 import { formatBytesNum } from "@/lib/formatters"
 import type { SlotCategory, SlotContext } from "@/lib/slot-types"
 import type { GgnAchievementProgressProps } from "./platform/GgnAchievementProgress"
@@ -35,6 +38,8 @@ import type { GgnBuffsDisplayProps } from "./platform/GgnBuffsDisplay"
 import { GgnBuffsDisplay } from "./platform/GgnBuffsDisplay"
 import type { GgnShareScoreProgressProps } from "./platform/GgnShareScoreProgress"
 import { GgnShareScoreProgress } from "./platform/GgnShareScoreProgress"
+import type { MamHealthOverviewProps } from "./platform/MamHealthOverview"
+import { MamHealthOverview } from "./platform/MamHealthOverview"
 import type { SlotBadgeProps } from "./slots/SlotBadge"
 import { SlotBadge } from "./slots/SlotBadge"
 
@@ -507,6 +512,7 @@ const gazelleUnreadBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   component: SlotBadge,
   priority: 31,
   resolve(ctx) {
+    if (ctx.tracker.hideUnreadBadges) return null
     const { meta } = ctx
     if (!meta || !("notifications" in meta)) return null
     const gazMeta = meta as GazellePlatformMeta
@@ -522,6 +528,7 @@ const gazelleAnnouncementBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   component: SlotBadge,
   priority: 32,
   resolve(ctx) {
+    if (ctx.tracker.hideUnreadBadges) return null
     const { meta } = ctx
     if (!meta || !("notifications" in meta)) return null
     const gazMeta = meta as GazellePlatformMeta
@@ -576,6 +583,140 @@ const ggnBuffsSlot: SlotDefinition<GgnBuffsDisplayProps> = {
 }
 
 // ---------------------------------------------------------------------------
+// MAM slot definitions
+// ---------------------------------------------------------------------------
+
+function isMamMeta(meta: unknown): meta is MamPlatformMeta {
+  return !!meta && typeof meta === "object" && "vipUntil" in meta
+}
+
+function getDaysUntilVipExpiry(vipUntil: string): number | null {
+  const expiry = new Date(vipUntil)
+  if (Number.isNaN(expiry.getTime())) return null
+  const ms = expiry.getTime() - Date.now()
+  if (ms <= 0) return null
+  return Math.ceil(ms / (1000 * 60 * 60 * 24))
+}
+
+const mamWedgesSlot: SlotDefinition<StatCardBasicProps> = {
+  id: "mam-wedges",
+  category: "stat-card",
+  component: StatCard as ComponentType<StatCardBasicProps>,
+  priority: 14,
+  resolve(ctx) {
+    const { meta, latestSnapshot, accentColor } = ctx
+    if (!isMamMeta(meta)) return null
+    if (latestSnapshot?.freeleechTokens == null) return null
+    return {
+      label: "FL Wedges",
+      value: Math.floor(latestSnapshot.freeleechTokens).toLocaleString(),
+      accentColor,
+      icon: icon16(StarIcon),
+    }
+  },
+}
+
+const mamCompletedSlot: SlotDefinition<StatCardBasicProps> = {
+  id: "mam-completed",
+  category: "stat-card",
+  component: StatCard as ComponentType<StatCardBasicProps>,
+  priority: 22,
+  resolve(ctx) {
+    const { meta, accentColor } = ctx
+    if (!isMamMeta(meta)) return null
+    if (meta.inactiveSatisfiedCount == null) return null
+    return {
+      label: "Completed",
+      value: meta.inactiveSatisfiedCount,
+      accentColor,
+      icon: icon16(DownloadArrowIcon),
+    }
+  },
+}
+
+const mamTrackerErrorsSlot: SlotDefinition<StatCardBasicProps> = {
+  id: "mam-tracker-errors",
+  category: "stat-card",
+  component: StatCard as ComponentType<StatCardBasicProps>,
+  priority: 23,
+  resolve(ctx) {
+    const { meta, accentColor } = ctx
+    if (!isMamMeta(meta)) return null
+    if (meta.trackerErrorCount == null || meta.trackerErrorCount <= 0) return null
+    return {
+      label: "Tracker Errors",
+      value: meta.trackerErrorCount,
+      accentColor,
+      alert: "danger" as const,
+    }
+  },
+}
+
+const mamVipBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "mam-vip",
+  category: "badge",
+  component: SlotBadge,
+  priority: 10,
+  resolve(ctx) {
+    if (!isMamMeta(ctx.meta) || !ctx.meta.vipUntil) return null
+    const days = getDaysUntilVipExpiry(ctx.meta.vipUntil)
+    if (days == null) return null
+    return { variant: days <= 7 ? "warn" : "accent", label: `VIP (${days}d)` }
+  },
+}
+
+const mamConnectableBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "mam-connectable",
+  category: "badge",
+  component: SlotBadge,
+  priority: 20,
+  resolve(ctx) {
+    if (!isMamMeta(ctx.meta) || ctx.meta.connectable == null) return null
+    const lower = ctx.meta.connectable.toLowerCase()
+    const isOnline = lower === "yes" || lower === "true" || lower === "online"
+    return {
+      variant: isOnline ? "default" : "danger",
+      label: isOnline ? "Connectable" : "Not Connectable",
+    }
+  },
+}
+
+const mamUnreadBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "mam-unread",
+  category: "badge",
+  component: SlotBadge,
+  priority: 30,
+  resolve(ctx) {
+    if (ctx.tracker.hideUnreadBadges) return null
+    if (!isMamMeta(ctx.meta)) return null
+    const count = (ctx.meta.unreadPMs ?? 0) + (ctx.meta.unreadTopics ?? 0)
+    if (count <= 0) return null
+    return { variant: "warn", label: `${count} Unread` }
+  },
+}
+
+const mamHealthOverviewSlot: SlotDefinition<MamHealthOverviewProps> = {
+  id: "mam-health-overview",
+  category: "progress",
+  component: MamHealthOverview as ComponentType<MamHealthOverviewProps>,
+  priority: 10,
+  resolve(ctx) {
+    if (!isMamMeta(ctx.meta)) return null
+    return {
+      meta: ctx.meta,
+      seedingCount: ctx.latestSnapshot?.seedingCount ?? 0,
+      leechingCount: ctx.latestSnapshot?.leechingCount ?? 0,
+      hitAndRuns: ctx.latestSnapshot?.hitAndRuns ?? 0,
+      seedbonus: ctx.latestSnapshot?.seedbonus ?? null,
+      accentColor: ctx.accentColor,
+      vipUntil: ctx.meta.vipUntil ?? null,
+      unsatisfiedCount: ctx.meta.unsatisfiedCount ?? null,
+      unsatisfiedLimit: ctx.meta.unsatisfiedLimit ?? null,
+    }
+  },
+}
+
+// ---------------------------------------------------------------------------
 // Exported registry
 // ---------------------------------------------------------------------------
 
@@ -595,6 +736,10 @@ export const SLOT_DEFINITIONS: AnySlotDefinition[] = [
   invitedSlot,
   gazelleBountySlot,
   gazelleCommentsSlot,
+  // MAM slots (stat-card)
+  mamWedgesSlot,
+  mamCompletedSlot,
+  mamTrackerErrorsSlot,
   // badge slots
   warnedBadgeSlot,
   donorBadgeSlot,
@@ -605,10 +750,16 @@ export const SLOT_DEFINITIONS: AnySlotDefinition[] = [
   gazelleParanoiaBadgeSlot,
   gazelleUnreadBadgeSlot,
   gazelleAnnouncementBadgeSlot,
+  // MAM slots (badge)
+  mamVipBadgeSlot,
+  mamConnectableBadgeSlot,
+  mamUnreadBadgeSlot,
   // progress slots
   ggnAchievementProgressSlot,
   ggnShareScoreProgressSlot,
   ggnBuffsSlot,
+  // MAM slots (progress)
+  mamHealthOverviewSlot,
 ]
 
 // Shared component lookup — single source for rendering resolved slots

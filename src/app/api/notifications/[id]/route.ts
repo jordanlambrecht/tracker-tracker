@@ -34,7 +34,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const updates: Record<string, unknown> = { updatedAt: new Date() }
 
-  // Key is decoded lazily — only when config update is present
+  // Key is decoded lazily and only when config update is present
   let cachedKey: Buffer | null = null
   const getKey = () => {
     if (!cachedKey) cachedKey = decodeKey(auth as Exclude<typeof auth, NextResponse>)
@@ -82,6 +82,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     "notifyZeroSeeding",
     "notifyRankChange",
     "notifyAnniversary",
+    "notifyBonusCap",
+    "notifyVipExpiring",
+    "notifyUnsatisfiedLimit",
+    "notifyActiveHnrs",
     "includeTrackerName",
   ] as const) {
     if (key in fields) {
@@ -99,7 +103,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       return NextResponse.json({ error: "thresholds must be an object or null" }, { status: 400 })
     } else {
       const t = fields.thresholds as Record<string, unknown>
-      const allowed = new Set(["ratioDropDelta", "bufferMilestoneBytes"])
+      const allowed = new Set([
+        "ratioDropDelta",
+        "bufferMilestoneBytes",
+        "bonusCapLimit",
+        "vipExpiringDays",
+        "unsatisfiedLimitPercent",
+      ])
       for (const key of Object.keys(t)) {
         if (!allowed.has(key)) {
           return NextResponse.json({ error: `thresholds: unknown key "${key}"` }, { status: 400 })
@@ -124,6 +134,40 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       ) {
         return NextResponse.json(
           { error: "thresholds.bufferMilestoneBytes must be a positive integer" },
+          { status: 400 }
+        )
+      }
+      if (
+        "bonusCapLimit" in t &&
+        (typeof t.bonusCapLimit !== "number" ||
+          !Number.isInteger(t.bonusCapLimit) ||
+          t.bonusCapLimit <= 0)
+      ) {
+        return NextResponse.json(
+          { error: "thresholds.bonusCapLimit must be a positive integer" },
+          { status: 400 }
+        )
+      }
+      if (
+        "vipExpiringDays" in t &&
+        (typeof t.vipExpiringDays !== "number" ||
+          !Number.isInteger(t.vipExpiringDays) ||
+          t.vipExpiringDays <= 0)
+      ) {
+        return NextResponse.json(
+          { error: "thresholds.vipExpiringDays must be a positive integer" },
+          { status: 400 }
+        )
+      }
+      if (
+        "unsatisfiedLimitPercent" in t &&
+        (typeof t.unsatisfiedLimitPercent !== "number" ||
+          !Number.isFinite(t.unsatisfiedLimitPercent) ||
+          t.unsatisfiedLimitPercent <= 0 ||
+          t.unsatisfiedLimitPercent > 100)
+      ) {
+        return NextResponse.json(
+          { error: "thresholds.unsatisfiedLimitPercent must be a number between 1 and 100" },
           { status: 400 }
         )
       }
@@ -159,7 +203,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   if (id instanceof NextResponse) return id
 
   // notificationDeliveryState rows are cleaned up automatically via FK cascade
-  // (onDelete: "cascade" on targetId) — no manual delete needed here.
+  // (onDelete: "cascade" on targetId)
   await db.delete(notificationTargets).where(eq(notificationTargets.id, id))
 
   log.info({ route: "DELETE /api/notifications/[id]", targetId: id }, "notification target deleted")

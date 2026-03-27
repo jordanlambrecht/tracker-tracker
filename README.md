@@ -162,6 +162,7 @@ pnpm dev
 | `POSTGRES_USER`     | No       | `postgres`        | Database user                                       |
 | `POSTGRES_DB`       | No       | `tracker_tracker` | Database name                                       |
 | `DATABASE_URL`      | No\*     | _(auto-built)_    | Override to use an external Postgres instance       |
+| `SECURE_COOKIES`    | No       | _(auto)_          | Set `true` for HTTPS. Auto-enabled by `BASE_URL`.   |
 
 \* Set either `POSTGRES_PASSWORD` (bundled DB) or `DATABASE_URL` (external DB).
 

@@ -3,21 +3,26 @@
 // Static security analysis for CI.
 // Outputs JSON to stdout: { results: CheckResult[], summary: { ... } }
 //
-// Functions: walkFiles, routePathFromFile, getCachedLines, filterIgnoredFindings,
+// Functions: walkFiles, relativePath, findAllLineNumbers, routePathFromFile, isTestFile,
+//   getCachedLines, filterIgnoredFindings, extractHandlerBodies,
 //   checkAuthEnforcement, checkDangerousFunctions, checkHardcodedSecrets,
 //   checkSecurityHeaders, checkCookieSecurity, checkSensitiveFieldExposure,
 //   checkEnvFiles, checkConsoleLogInRoutes, checkTodoInSecurityFiles,
 //   checkRawSqlInRoutes, checkUnvalidatedJsonParse, checkBareCatchBlocks,
 //   checkUnsafeRedirectFetch, checkRequestBodySize, checkTimingSafeComparison,
 //   checkNoRawMigrations, checkFetchTimeout, checkDockerfileNonRoot,
-//   checkProxyAllowlistSync, checkBigIntSafety, checkPathTraversalDefense,
+//   normalizeRoute, checkProxyAllowlistSync, checkBigIntSafety, checkPathTraversalDefense,
 //   checkArgon2Hashing, checkEncryptedColumnWrites, checkTotpFlowIntegrity,
 //   checkLockdownFlowIntegrity, checkNukeFlowIntegrity,
-//   checkBackupRestoreIntegrity, checkLoginFlowIntegrity, runAudit
+//   checkBackupRestoreIntegrity, checkLoginFlowIntegrity, checkAuthResultGating,
+//   checkBackupPasswordBounds, checkWebhookRedirectPolicy,
+//   checkSessionSecretLengthGuard, checkNotificationSsrfValidation,
+//   checkErrorMessageDisclosure, checkDockerCopySensitiveFiles,
+//   checkClientEnvLeak, runAudit
 //
 // Usage: npx tsx scripts/security-audit.ts [--changed-only file1 file2 ...]
 // If --changed-only is provided, only those files are scanned for
-// file-level checks (2/3/8/9/11/12/14/20). Auth enforcement and headers always
+// file-level checks (2/3/8/9/11/12/14/20/34). Auth enforcement and headers always
 // run a full scan regardless.
 //
 // Exit code: 1 if any critical check fails, 0 otherwise.
@@ -261,29 +266,90 @@ function filterIgnoredFindings(results: CheckResult[]): CheckResult[] {
   return filtered
 }
 
-// ── Check 1: Auth enforcement ───────────────────────────────────────────
+// ── Check 1: Auth enforcement (per-handler) ─────────────────────────────
+
+/**
+ * Extract the body of each exported handler function.
+ * Returns an array of { method, startLine, body } for each handler.
+ *
+ * Handles typed parameters like `(request: Request, props: { params: Promise<{ id: string }> })`
+ * by first skipping past the parameter list via paren-counting, then finding the
+ * function body's opening brace.
+ */
+function extractHandlerBodies(
+  content: string
+): Array<{ method: string; startLine: number; body: string }> {
+  const HANDLER_RE = /export\s+(?:async\s+)?function\s+(GET|POST|PATCH|PUT|DELETE)\b/g
+  const results: Array<{ method: string; startLine: number; body: string }> = []
+  let handlerMatch: RegExpExecArray | null = HANDLER_RE.exec(content)
+
+  while (handlerMatch !== null) {
+    const method = handlerMatch[1]
+    const startLine = content.slice(0, handlerMatch.index).split("\n").length
+
+    // Step 1: find opening paren of parameter list
+    const openParen = content.indexOf("(", handlerMatch.index + handlerMatch[0].length)
+    if (openParen === -1) continue
+
+    // Step 2: count parens to find the closing paren of the parameter list
+    let parenDepth = 0
+    let closeParen = openParen
+    for (let i = openParen; i < content.length; i++) {
+      if (content[i] === "(") parenDepth++
+      if (content[i] === ")") parenDepth--
+      if (parenDepth === 0) {
+        closeParen = i
+        break
+      }
+    }
+
+    // Step 3: find the function body's opening brace AFTER the parameter list
+    const openBrace = content.indexOf("{", closeParen + 1)
+    if (openBrace === -1) continue
+
+    // Step 4: count braces to find the matching close
+    let braceDepth = 0
+    let end = openBrace
+    for (let i = openBrace; i < content.length; i++) {
+      if (content[i] === "{") braceDepth++
+      if (content[i] === "}") braceDepth--
+      if (braceDepth === 0) {
+        end = i
+        break
+      }
+    }
+
+    results.push({
+      method,
+      startLine,
+      body: content.slice(openBrace, end + 1),
+    })
+    handlerMatch = HANDLER_RE.exec(content)
+  }
+
+  return results
+}
 
 function checkAuthEnforcement(): CheckResult {
   const findings: Finding[] = []
   const routeFiles = walkFiles(API_DIR, "route.ts")
-  const EXPORTED_HANDLERS = /export\s+(?:async\s+)?function\s+(GET|POST|PATCH|PUT|DELETE)\b/g
 
   for (const file of routeFiles) {
     const routePath = routePathFromFile(file)
     if (NO_AUTH_ROUTES.has(routePath)) continue
 
     const content = fs.readFileSync(file, "utf8")
-    const handlers = [...content.matchAll(EXPORTED_HANDLERS)].map((m) => m[1])
+    const handlers = extractHandlerBodies(content)
     if (handlers.length === 0) continue
 
-    // Accept any of the valid auth patterns
-    const hasAuth = AUTH_PATTERNS.some((re) => re.test(content))
+    for (const { method, startLine, body } of handlers) {
+      const hasAuth = AUTH_PATTERNS.some((re) => re.test(body))
 
-    if (!hasAuth) {
-      for (const method of handlers) {
+      if (!hasAuth) {
         findings.push({
           file: relativePath(file),
-          detail: `${method} /${routePath} — no auth check (missing authenticate/getSession/requireAuth)`,
+          line: startLine,
+          detail: `${method} /${routePath} — no auth check in handler body (missing authenticate/getSession/requireAuth)`,
         })
       }
     }
@@ -291,7 +357,7 @@ function checkAuthEnforcement(): CheckResult {
 
   return {
     id: "auth-enforcement",
-    name: "Auth enforcement on protected routes",
+    name: "Auth enforcement on protected routes (per-handler)",
     severity: "critical",
     status: findings.length === 0 ? "pass" : "fail",
     findings,
@@ -1889,6 +1955,441 @@ function checkLoginFlowIntegrity(): CheckResult {
   }
 }
 
+// ── Check 29: Auth result must be checked (critical) ──────────────────────
+
+function checkAuthResultGating(): CheckResult {
+  const findings: Finding[] = []
+  const routeFiles = walkFiles(API_DIR, "route.ts")
+
+  for (const file of routeFiles) {
+    const routePath = routePathFromFile(file)
+    if (NO_AUTH_ROUTES.has(routePath)) continue
+
+    const content = fs.readFileSync(file, "utf8")
+    const handlers = extractHandlerBodies(content)
+
+    for (const { method, startLine, body } of handlers) {
+      // Only check handlers that use any recognized auth pattern
+      const hasAuth = AUTH_PATTERNS.some((re) => re.test(body))
+      if (!hasAuth) continue
+
+      // Strip comment lines before checking for the gate,
+      // so a commented-out guard doesn't satisfy the check
+      const bodyNoComments = body
+        .split("\n")
+        .filter((l) => {
+          const t = l.trim()
+          return !t.startsWith("//") && !t.startsWith("*")
+        })
+        .join("\n")
+
+      // authenticate() returns NextResponse | { encryptionKey }, so gate with instanceof
+      // getSession() returns { encryptionKey } | null, so gate with !session or === null
+      const hasInstanceofGate =
+        /instanceof\s+NextResponse/.test(bodyNoComments) ||
+        /instanceof\s+Response/.test(bodyNoComments)
+      const hasNullGate = /!\s*session\b|session\s*===?\s*null/.test(bodyNoComments)
+
+      if (!hasInstanceofGate && !hasNullGate) {
+        findings.push({
+          file: relativePath(file),
+          line: startLine,
+          detail: `${method} /${routePath} — calls auth function but never checks the result (missing instanceof NextResponse or null check)`,
+        })
+      }
+    }
+  }
+
+  return {
+    id: "auth-result-gating",
+    name: "Auth result checked before proceeding",
+    severity: "critical",
+    status: findings.length === 0 ? "pass" : "fail",
+    findings,
+  }
+}
+
+// ── Check 30: Backup password inputs bounded before deriveKey (critical) ─
+
+function checkBackupPasswordBounds(): CheckResult {
+  const findings: Finding[] = []
+
+  const exportPath = path.join(API_DIR, "settings/backup/export/route.ts")
+  const restorePath = path.join(API_DIR, "settings/backup/restore/route.ts")
+
+  for (const absPath of [exportPath, restorePath]) {
+    if (!fs.existsSync(absPath)) continue
+    const content = fs.readFileSync(absPath, "utf8")
+    const rel = relativePath(absPath)
+
+    // Check: any route that reads backupPassword from formData and passes it
+    // to deriveKey/encryptBackupPayload must enforce an upper-bound length check
+    const readsBackupPw =
+      /formData\.get\s*\(\s*["']backupPassword["']\s*\)/.test(content) ||
+      /\bbackupPassword\b/.test(content)
+    const callsDeriveOrEncrypt =
+      /\bderiveKey\s*\(/.test(content) || /\bencryptBackupPayload\s*\(/.test(content)
+
+    if (!readsBackupPw || !callsDeriveOrEncrypt) continue
+
+    // Must have an upper-bound length check (e.g., .length > 128)
+    const hasUpperBound =
+      /backupPassword\.length\s*>\s*\d+/.test(content) ||
+      /formPassword\.length\s*>\s*\d+/.test(content)
+
+    if (!hasUpperBound) {
+      findings.push({
+        file: rel,
+        detail:
+          "Backup password input lacks upper-bound length check before deriveKey() — scrypt DoS vector",
+      })
+    }
+  }
+
+  return {
+    id: "backup-password-bounds",
+    name: "Backup password inputs bounded before key derivation",
+    severity: "critical",
+    status: findings.length === 0 ? "pass" : "fail",
+    findings,
+  }
+}
+
+// ── Check 31: Webhook delivery fetch uses redirect:"error" (critical) ────
+
+function checkWebhookRedirectPolicy(): CheckResult {
+  const findings: Finding[] = []
+  const deliverPath = path.join(SRC_DIR, "lib/notifications/deliver.ts")
+
+  if (!fs.existsSync(deliverPath)) {
+    return {
+      id: "webhook-redirect-policy",
+      name: 'Webhook delivery fetch uses redirect: "error"',
+      severity: "critical",
+      status: "pass",
+      findings,
+    }
+  }
+
+  const content = fs.readFileSync(deliverPath, "utf8")
+  const rel = relativePath(deliverPath)
+  const lines = content.split("\n")
+
+  const FETCH_RE = /\bfetch\s*\(/
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim()
+    if (trimmed.startsWith("//") || trimmed.startsWith("*")) continue
+    if (!FETCH_RE.test(lines[i])) continue
+
+    // Check within 8 lines for redirect: "error"
+    const windowEnd = Math.min(i + 8, lines.length - 1)
+    const fetchWindow = lines.slice(i, windowEnd + 1).join("\n")
+
+    if (!/redirect\s*:\s*["']error["']/.test(fetchWindow)) {
+      findings.push({
+        file: rel,
+        line: i + 1,
+        detail:
+          'fetch() in webhook delivery missing redirect: "error" — SSRF via open redirect possible',
+      })
+    }
+  }
+
+  return {
+    id: "webhook-redirect-policy",
+    name: 'Webhook delivery fetch uses redirect: "error"',
+    severity: "critical",
+    status: findings.length === 0 ? "pass" : "fail",
+    findings,
+  }
+}
+
+// ── Check 32: SESSION_SECRET minimum-length guard (critical) ──────────────
+
+function checkSessionSecretLengthGuard(): CheckResult {
+  const findings: Finding[] = []
+
+  const checks: Array<{ file: string; fnName: string }> = [
+    { file: "src/lib/auth.ts", fnName: "getSessionKey" },
+    { file: "src/lib/crypto.ts", fnName: "deriveWrappingKey" },
+  ]
+
+  for (const { file, fnName } of checks) {
+    const absPath = path.join(ROOT, file)
+    if (!fs.existsSync(absPath)) {
+      findings.push({
+        file,
+        detail: `${file} not found — cannot verify SESSION_SECRET length guard`,
+      })
+      continue
+    }
+
+    const content = fs.readFileSync(absPath, "utf8")
+
+    const hasFn = new RegExp(`function\\s+${fnName}\\b`).test(content)
+    if (!hasFn) {
+      findings.push({
+        file,
+        detail: `Expected function ${fnName}() not found`,
+      })
+      continue
+    }
+
+    // Extract the function body (rough: from function declaration to next top-level function/export)
+    const fnStart = content.indexOf(`function ${fnName}`)
+    const fnSlice = content.slice(fnStart, fnStart + 500)
+
+    const hasLengthCheck =
+      /secret\.length\s*<\s*32/.test(fnSlice) || /\.length\s*<\s*32/.test(fnSlice)
+
+    if (!hasLengthCheck) {
+      findings.push({
+        file,
+        detail: `${fnName}() missing SESSION_SECRET minimum-length guard (secret.length < 32)`,
+      })
+    }
+  }
+
+  return {
+    id: "session-secret-length-guard",
+    name: "SESSION_SECRET minimum-length guard in auth/crypto modules",
+    severity: "critical",
+    status: findings.length === 0 ? "pass" : "fail",
+    findings,
+  }
+}
+
+// ── Check 33: Notification type validators must include SSRF check (critical) ──
+
+function checkNotificationSsrfValidation(): CheckResult {
+  const findings: Finding[] = []
+  const validatePath = path.join(SRC_DIR, "lib/notifications/validate.ts")
+
+  if (!fs.existsSync(validatePath)) {
+    return {
+      id: "notification-ssrf-validation",
+      name: "Notification URL validators include SSRF protection",
+      severity: "critical",
+      status: "pass",
+      findings,
+    }
+  }
+
+  const content = fs.readFileSync(validatePath, "utf8")
+  const rel = relativePath(validatePath)
+
+  // Find case blocks for notification types that are NOT "not yet supported"
+  const CASE_RE = /case\s+["'](\w+)["']\s*:\s*\{/g
+  let caseMatch: RegExpExecArray | null = CASE_RE.exec(content)
+
+  while (caseMatch !== null) {
+    const typeName = caseMatch[1]
+    const caseStart = caseMatch.index
+
+    // Find the closing brace by counting depth
+    let depth = 0
+    let caseEnd = caseStart
+    for (let i = content.indexOf("{", caseStart); i < content.length; i++) {
+      if (content[i] === "{") depth++
+      if (content[i] === "}") depth--
+      if (depth === 0) {
+        caseEnd = i
+        break
+      }
+    }
+
+    const caseBody = content.slice(caseStart, caseEnd + 1)
+
+    // Skip types that are "not yet supported" — no URL handling to validate
+    if (/not yet supported/.test(caseBody)) continue
+
+    // Active type — must call isUnsafeNetworkHost
+    if (!/isUnsafeNetworkHost/.test(caseBody)) {
+      const lineNum = content.slice(0, caseStart).split("\n").length
+      findings.push({
+        file: rel,
+        line: lineNum,
+        detail: `Notification type "${typeName}" has active validation but does not call isUnsafeNetworkHost() — SSRF risk`,
+      })
+    }
+    caseMatch = CASE_RE.exec(content)
+  }
+
+  return {
+    id: "notification-ssrf-validation",
+    name: "Notification URL validators include SSRF protection",
+    severity: "critical",
+    status: findings.length === 0 ? "pass" : "fail",
+    findings,
+  }
+}
+
+// ── Check 34: Error message information disclosure (warning) ──────────────
+
+function checkErrorMessageDisclosure(files?: string[]): CheckResult {
+  const findings: Finding[] = []
+  const targetFiles = files
+    ? files.filter((f) => f.includes("app/api") && f.endsWith("route.ts"))
+    : walkFiles(API_DIR, "route.ts")
+
+  // Detect: err.message captured into a variable, then that variable (or the
+  // expression directly) interpolated into a JSON response within a few lines.
+  const ERR_CAPTURE_RE =
+    /(?:const|let)\s+(\w+)\s*=\s*(?:err|error)\s+instanceof\s+Error\s*\?\s*(?:err|error)\.message/
+  const DIRECT_ERR_MSG_RE = /(?:err|error)\.message/
+
+  for (const file of targetFiles) {
+    if (isTestFile(file)) continue
+    const content = fs.readFileSync(file, "utf8")
+    const lines = content.split("\n")
+
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim()
+      if (trimmed.startsWith("//") || trimmed.startsWith("*")) continue
+
+      // Check for err.message capture: `const message = err instanceof Error ? err.message : ...`
+      const captureMatch = ERR_CAPTURE_RE.exec(lines[i])
+      if (!captureMatch && !DIRECT_ERR_MSG_RE.test(lines[i])) continue
+
+      // Look within 5 lines for a JSON response that includes the error
+      const windowEnd = Math.min(i + 5, lines.length - 1)
+      const window = lines.slice(i, windowEnd + 1).join("\n")
+
+      const hasJsonResponse =
+        /NextResponse\.json\s*\(/.test(window) || /return\s+new\s+Response/.test(window)
+
+      if (!hasJsonResponse) continue
+
+      // Check: is the captured variable or err.message in the response?
+      const varName = captureMatch?.[1]
+      const varInResponse = varName
+        ? new RegExp(`\\b${varName}\\b`).test(window) && /(?:error|message)\s*:/.test(window)
+        : /(?:err|error)\.message/.test(window)
+
+      if (varInResponse) {
+        findings.push({
+          file: relativePath(file),
+          line: i + 1,
+          detail:
+            "Raw error message passed into API response — may leak internal paths or library details",
+        })
+      }
+    }
+  }
+
+  return {
+    id: "error-message-disclosure",
+    name: "No raw error messages in API responses",
+    severity: "warning",
+    status: findings.length === 0 ? "pass" : "fail",
+    findings,
+  }
+}
+
+// ── Check 35: Docker COPY of sensitive files (critical) ───────────────────
+
+function checkDockerCopySensitiveFiles(): CheckResult {
+  const findings: Finding[] = []
+  const dockerfilePath = path.join(ROOT, "Dockerfile")
+
+  if (!fs.existsSync(dockerfilePath)) {
+    return {
+      id: "docker-copy-sensitive",
+      name: "Dockerfile does not COPY sensitive files",
+      severity: "critical",
+      status: "pass",
+      findings,
+    }
+  }
+
+  const content = fs.readFileSync(dockerfilePath, "utf8")
+  const lines = content.split("\n")
+
+  const SENSITIVE_FILE_PATTERNS = [
+    /\.env\b(?!\.example)/,
+    /\.env\.local\b/,
+    /\.env\.production\b/,
+    /credentials\.json/,
+    /\.pem\b/,
+    /id_rsa\b/,
+    /\.key\b/,
+  ]
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim()
+    if (trimmed.startsWith("#")) continue
+    if (!trimmed.startsWith("COPY") && !trimmed.startsWith("ADD")) continue
+
+    for (const pattern of SENSITIVE_FILE_PATTERNS) {
+      if (pattern.test(trimmed)) {
+        findings.push({
+          file: "Dockerfile",
+          line: i + 1,
+          detail: `COPY/ADD of potentially sensitive file: ${trimmed.slice(0, 100)}`,
+        })
+      }
+    }
+  }
+
+  return {
+    id: "docker-copy-sensitive",
+    name: "Dockerfile does not COPY sensitive files",
+    severity: "critical",
+    status: findings.length === 0 ? "pass" : "fail",
+    findings,
+  }
+}
+
+// ── Check 36: No secret env vars in client components (critical) ──────────
+
+const SECRET_ENV_VARS = [
+  "SESSION_SECRET",
+  "DATABASE_URL",
+  "POSTGRES_URL",
+  "REDIS_URL",
+  "ENCRYPTION_KEY",
+]
+
+function checkClientEnvLeak(): CheckResult {
+  const findings: Finding[] = []
+  const clientFiles = [...walkFiles(SRC_DIR, ".tsx"), ...walkFiles(SRC_DIR, ".ts")].filter(
+    (f) => !isTestFile(f)
+  )
+
+  for (const file of clientFiles) {
+    const content = fs.readFileSync(file, "utf8")
+
+    // Only check files marked as client components
+    if (!content.includes("'use client'") && !content.includes('"use client"')) continue
+
+    const lines = content.split("\n")
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const trimmed = line.trim()
+      if (trimmed.startsWith("//") || trimmed.startsWith("*")) continue
+
+      for (const envVar of SECRET_ENV_VARS) {
+        if (line.includes(`process.env.${envVar}`)) {
+          findings.push({
+            file: relativePath(file),
+            line: i + 1,
+            detail: `Client component references process.env.${envVar} — secret will be undefined but indicates confused boundary`,
+          })
+        }
+      }
+    }
+  }
+
+  return {
+    id: "client-env-leak",
+    name: "No secret env vars in client components",
+    severity: "critical",
+    status: findings.length === 0 ? "pass" : "fail",
+    findings,
+  }
+}
+
 // ── Run all checks ──────────────────────────────────────────────────────
 
 function runAudit(changedFiles?: string[]): AuditOutput {
@@ -1918,6 +2419,13 @@ function runAudit(changedFiles?: string[]): AuditOutput {
     checkNukeFlowIntegrity(),
     checkBackupRestoreIntegrity(),
     checkLoginFlowIntegrity(),
+    checkAuthResultGating(),
+    checkBackupPasswordBounds(),
+    checkWebhookRedirectPolicy(),
+    checkSessionSecretLengthGuard(),
+    checkNotificationSsrfValidation(),
+    checkDockerCopySensitiveFiles(),
+    checkClientEnvLeak(),
     // Warning — flag but don't fail
     checkConsoleLogInRoutes(absChangedFiles),
     checkTodoInSecurityFiles(),
@@ -1925,6 +2433,7 @@ function runAudit(changedFiles?: string[]): AuditOutput {
     checkBareCatchBlocks(absChangedFiles),
     checkRequestBodySize(absChangedFiles),
     checkBigIntSafety(absChangedFiles),
+    checkErrorMessageDisclosure(absChangedFiles),
   ]
 
   const finalResults = filterIgnoredFindings(results)

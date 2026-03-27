@@ -1,6 +1,17 @@
 // src/lib/error-utils.ts
 //
-// Functions: sanitizeNetworkError
+// Functions: sanitizeNetworkError, isDecryptionError
+
+/**
+ * Returns true when an error originates from AES-256-GCM authentication failure
+ * or key/ciphertext mismatch — i.e. the session encryption key is stale.
+ * Used by route handlers to distinguish key-mismatch (→ 401) from genuinely
+ * missing or corrupt stored credentials (→ 422).
+ */
+export function isDecryptionError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  return /decrypt|authenticate\s*data|bad\s*decrypt|invalid\s*key|EVP_/i.test(error.message)
+}
 
 /**
  * Maps raw network/auth error messages to safe user-facing messages.

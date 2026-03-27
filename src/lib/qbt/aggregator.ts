@@ -1,6 +1,4 @@
 // src/lib/qbt/aggregator.ts
-//
-// Functions: aggregateByTag
 
 import { LEECHING_STATES, parseTorrentTags, SEEDING_STATES } from "@/lib/fleet"
 import type { ClientStats, QbtTorrent, TagStats } from "./types"
@@ -12,11 +10,10 @@ export function aggregateByTag(
 ): ClientStats {
   const knownTags = [...trackerTags, ...crossSeedTags]
 
-  // Build a map of tag → accumulator
   const tagMap = new Map<string, TagStats>()
   for (const tag of knownTags) {
-    tagMap.set(tag, {
-      tag,
+    tagMap.set(tag.toLowerCase(), {
+      tag: tag.toLowerCase(),
       seedingCount: 0,
       leechingCount: 0,
       uploadSpeed: 0,

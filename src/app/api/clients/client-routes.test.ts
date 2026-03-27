@@ -108,7 +108,7 @@ const MOCK_TORRENTS = [
     progress: 1,
     content_path: "/downloads/Show.S01.BluRay",
     save_path: "/downloads",
-    isPrivate: true,
+    is_private: true,
   },
 ]
 
@@ -238,7 +238,7 @@ describe("GET /api/clients/[id]/torrents", () => {
   // Credential handling
   // -------------------------------------------------------------------------
 
-  it("returns 422 when credential decryption fails", async () => {
+  it("returns 401 when credential decryption fails", async () => {
     mockDbSelectClient(MOCK_CLIENT)
     ;(decrypt as ReturnType<typeof vi.fn>).mockImplementation(() => {
       throw new Error("decryption error")
@@ -249,7 +249,8 @@ describe("GET /api/clients/[id]/torrents", () => {
     const response = await GET(request, { params })
     const data = await response.json()
 
-    expect(response.status).toBe(422)
+    expect(response.status).toBe(401)
+    expect(data.error).toMatch(/session expired/i)
     // Response body must not contain the encryption key or the encrypted credential strings
     const body = JSON.stringify(data)
     expect(body).not.toContain(VALID_KEY)

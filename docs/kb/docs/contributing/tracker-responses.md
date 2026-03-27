@@ -32,7 +32,7 @@ interface TrackerStats {
   lastAccessDate?: string
   shareScore?: number
   avatarUrl?: string
-  platformMeta?: GGnPlatformMeta | GazellePlatformMeta | NebulancePlatformMeta
+  platformMeta?: GGnPlatformMeta | GazellePlatformMeta | NebulancePlatformMeta | MamPlatformMeta
 }
 ```
 
@@ -43,6 +43,7 @@ Fields marked `null` in the platform pages mean the platform does not expose tha
 - [UNIT3D API Response](tracker-responses-unit3d.md)
 - [Gazelle API Response](tracker-responses-gazelle.md)
 - [GGn API Response](tracker-responses-ggn.md)
+- [MAM API Response](tracker-responses-mam.md)
 
 ---
 

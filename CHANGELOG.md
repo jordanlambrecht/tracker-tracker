@@ -1,7 +1,98 @@
 # Changelog
 
-## [2.4.1](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.3.0...v2.4.1) (2026-03-23)
+## [2.6.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.4.1...v2.6.0) (2026-03-27)
 
+
+### Features
+
+- **dashboard:** add Today At A Glance server logic, checkpoints, and deep poll fixes ([d3826a1](https://github.com/jordanlambrecht/tracker-tracker/commit/d3826a181c017c6b2ac8bbc6fa9d77f6dfd0edc2))
+- **dashboard:** add Today At A Glance UI ([84c5227](https://github.com/jordanlambrecht/tracker-tracker/commit/84c522750f517c95653b73e1298aa72bd204e27f))
+- **mam:** add bonus cap, VIP expiry, unsatisfied limit, and active HnR notifications ([2b210d7](https://github.com/jordanlambrecht/tracker-tracker/commit/2b210d76542db6a7377c13d7e9a9abf51cc48752))
+- **mam:** add Mousehole integration ([0e28443](https://github.com/jordanlambrecht/tracker-tracker/commit/0e28443875c1de70b1dea0f3662ae9625000da0f))
+- **mam:** add MyAnonaMouse adapter ([692d312](https://github.com/jordanlambrecht/tracker-tracker/commit/692d3124cd648a3f1278b38881df5083f7febdc1))
+- **mam:** add platform UI with health overview, badges, and FL Wedges chart ([3bb280e](https://github.com/jordanlambrecht/tracker-tracker/commit/3bb280e302ae4f4afeab667b912f5cea0e6f501c))
+- **schema:** add daily checkpoint tables and TodayAtAGlance types ([636d227](https://github.com/jordanlambrecht/tracker-tracker/commit/636d22701cd43d8827f9afe49a5105820578f892))
+- **security:** enhance security audit checks and improve vulnerability reporting ([23b4cae](https://github.com/jordanlambrecht/tracker-tracker/commit/23b4cae6420d17a1e1f86e9b925841726e28ccfe))
+- **settings:** display database size ([67ff496](https://github.com/jordanlambrecht/tracker-tracker/commit/67ff4961e5d6ba50655ed0a9229ba807a26e1bbe))
+
+
+### Bug Fixes
+
+- **api:** improve session expiration error message ([5a95cd0](https://github.com/jordanlambrecht/tracker-tracker/commit/5a95cd039daf5aebb128f547acf70ae749132221))
+- **auth:** decouple cookie secure flag from node_env for self-hosted http deployments. Closes [#101](https://github.com/jordanlambrecht/tracker-tracker/issues/101) ([b2a7902](https://github.com/jordanlambrecht/tracker-tracker/commit/b2a790245ca76f1ec3ef8220c273a4ab9ca508fd))
+- **auth:** return 401 on stale session instead of misleading credential errors ([cf54c7f](https://github.com/jordanlambrecht/tracker-tracker/commit/cf54c7fbd6c2d9171b5d11b621e9a1f68abc381a))
+- **backups:** enforce maximum length for backup password to 128 characters ([5e6d58e](https://github.com/jordanlambrecht/tracker-tracker/commit/5e6d58e361fbcfa6323e414b3702768d895d85d7))
+- **Dockerfile:** update package.json for drizzle-kit with esbuild overrides ([bce0854](https://github.com/jordanlambrecht/tracker-tracker/commit/bce0854d8ea18cf4a99488ed6d9243b25fc71658))
+- ensure backfill flag is set after successful checkpoint backfill ([60f5786](https://github.com/jordanlambrecht/tracker-tracker/commit/60f5786134f346e4ba07684d210f3806bd384468))
+- error logging for BigInt conversion failures ([e91b30a](https://github.com/jordanlambrecht/tracker-tracker/commit/e91b30a79605ac73c34c39e372ad2aaca4c09c44))
+- error logging for BigInt conversion failures in computeTodayAtAGlance ([15eb043](https://github.com/jordanlambrecht/tracker-tracker/commit/15eb043989fa2611acc846032aae1e049fef7000))
+- **errors:** improve error handling and logging for backup and tracker operations ([7f7b202](https://github.com/jordanlambrecht/tracker-tracker/commit/7f7b202e2557d25cd011c8bd96e14332f3565bb1))
+- **Icons:** update DownloadArrowIcon stroke width ([d2cd450](https://github.com/jordanlambrecht/tracker-tracker/commit/d2cd450af0b6cf55bc5fc1c94ea01452c55252fb))
+- improve error handling for decryption failures in fetchAndMergeTorrents ([0b07d40](https://github.com/jordanlambrecht/tracker-tracker/commit/0b07d40ddaca93f188eeb166e53431764cb1bb8e))
+- normalize tracker tags to lowercase ([762988f](https://github.com/jordanlambrecht/tracker-tracker/commit/762988f2228218cf27b2d12c138bb0e2dfa1c5b1))
+- optimize torrent checkpoint insertion by batching database writes ([90285d6](https://github.com/jordanlambrecht/tracker-tracker/commit/90285d69b1dd709d0f77682ecb797a20fe3fea1c))
+- resolve lint warnings, Copilot review issues, remove dead code, and harden error handling ([815b479](https://github.com/jordanlambrecht/tracker-tracker/commit/815b479047fc956b965556cdcc01d39bc1ce4a33))
+- **ui:** prevent StatCard DOM prop leak ([2d0b22a](https://github.com/jordanlambrecht/tracker-tracker/commit/2d0b22aa51b1badeb8916ace9505fdf32f526dc9))
+- update drizzle-kit, drizzle-orm, and postgres to specific versions in Dockerfile ([303c6f5](https://github.com/jordanlambrecht/tracker-tracker/commit/303c6f5b21195a9a15a66f227dab4c022eca36b9))
+- update VALID_PLATFORMS to use VALID_PLATFORM_TYPES constant ([8cff4ee](https://github.com/jordanlambrecht/tracker-tracker/commit/8cff4ee6fabc274ca644aac65433a03fedbc0d53))
+- use localDateStr for cutoff date in pruneOldCheckpoints function ([0b465b6](https://github.com/jordanlambrecht/tracker-tracker/commit/0b465b6c139333ebcb8650fcf8224d5a70076bee))
+
+
+### Refactoring
+
+- **Dockerfile:** cleaned up build stages ([3b96ff9](https://github.com/jordanlambrecht/tracker-tracker/commit/3b96ff964058f33d3fe8fd65bf7a6fcde9dbcd3b))
+- reuse ProgressBar component and extract slot-label utility ([c3d9031](https://github.com/jordanlambrecht/tracker-tracker/commit/c3d90315d4ca8717f983a3d270d922cc0355de18))
+
+## [2.5.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.3.0...v2.5.0) (2026-03-26)
+
+### Features
+
+- add development image to docker hub ([8785094](https://github.com/jordanlambrecht/tracker-tracker/commit/87850942f118ccfd23c0a04d537928cd3db82976))
+- add fetchTrackerStats for future live transit paper data ([ed6662f](https://github.com/jordanlambrecht/tracker-tracker/commit/ed6662f0ac0c9990b6c96e8ae5616452385b6c26))
+- add GitHub Actions workflow for building and pushing development Docker image ([dca0af0](https://github.com/jordanlambrecht/tracker-tracker/commit/dca0af0a75a4ce21fbe14414d86d4ecbe4d459d3))
+- add per-tracker pause polling ([14a6c43](https://github.com/jordanlambrecht/tracker-tracker/commit/14a6c43cd6764924aba6e2fa592ef13d208b528a))
+- add system events viewer and log management ([b01ed22](https://github.com/jordanlambrecht/tracker-tracker/commit/b01ed22ec2ecfefe7f12bb448998d2726cb6b7f9))
+- **dashboard:** add Today At A Glance server logic, checkpoints, and deep poll fixes ([d3826a1](https://github.com/jordanlambrecht/tracker-tracker/commit/d3826a181c017c6b2ac8bbc6fa9d77f6dfd0edc2))
+- **dashboard:** add Today At A Glance UI ([84c5227](https://github.com/jordanlambrecht/tracker-tracker/commit/84c522750f517c95653b73e1298aa72bd204e27f))
+- remote image upload ([a480c34](https://github.com/jordanlambrecht/tracker-tracker/commit/a480c3470b7e97e44764c1d9c6d1bee356d22728))
+- **schema:** add daily checkpoint tables and TodayAtAGlance types ([636d227](https://github.com/jordanlambrecht/tracker-tracker/commit/636d22701cd43d8827f9afe49a5105820578f892))
+- **ui:** add pause/resume button ([c89299e](https://github.com/jordanlambrecht/tracker-tracker/commit/c89299ee80b9ce5ab22743039b6abd40be5a27b6))
+- **ui:** lazy-load chart sections, prefetch sidebar links, and fix scroll-to-top on navigation ([ba8f59e](https://github.com/jordanlambrecht/tracker-tracker/commit/ba8f59ee33a21be72034f296f5da1ae795e03c70))
+
+### Bug Fixes
+
+- **api:** improve session expiration error message ([5a95cd0](https://github.com/jordanlambrecht/tracker-tracker/commit/5a95cd039daf5aebb128f547acf70ae749132221))
+- **api:** orpheus was not matching seeding/leeching to response ([4569238](https://github.com/jordanlambrecht/tracker-tracker/commit/456923879b2970c46432bc9a0b604da2685bc31d))
+- **auth:** decouple cookie secure flag from node_env for self-hosted http deployments. Closes [#101](https://github.com/jordanlambrecht/tracker-tracker/issues/101) ([b2a7902](https://github.com/jordanlambrecht/tracker-tracker/commit/b2a790245ca76f1ec3ef8220c273a4ab9ca508fd))
+- **auth:** return 401 on stale session instead of misleading credential errors ([cf54c7f](https://github.com/jordanlambrecht/tracker-tracker/commit/cf54c7fbd6c2d9171b5d11b621e9a1f68abc381a))
+- better regex for splitting comparison values in timing safe check ([8c67a50](https://github.com/jordanlambrecht/tracker-tracker/commit/8c67a50cb64196831d7b021249eb76e84766e009))
+- convert bold numbered rules to markdown list items ([6e96454](https://github.com/jordanlambrecht/tracker-tracker/commit/6e964541330cca791818aca5d703e03ac2165694))
+- deploy issues ([cf45ea1](https://github.com/jordanlambrecht/tracker-tracker/commit/cf45ea19726b8f31db5080ebe93909dd0825e995))
+- **Dockerfile:** update package.json for drizzle-kit with esbuild overrides ([bce0854](https://github.com/jordanlambrecht/tracker-tracker/commit/bce0854d8ea18cf4a99488ed6d9243b25fc71658))
+- **Icons:** update DownloadArrowIcon stroke width ([d2cd450](https://github.com/jordanlambrecht/tracker-tracker/commit/d2cd450af0b6cf55bc5fc1c94ea01452c55252fb))
+- preload fleet dashboard tab ([5f08951](https://github.com/jordanlambrecht/tracker-tracker/commit/5f0895192f39a740927594ab6617f2c5c04b5708))
+- resolve biome lint warnings ([af8807d](https://github.com/jordanlambrecht/tracker-tracker/commit/af8807d72847e139be396778a096a7695fc49123))
+- **trackers:** markdown rendering ([a5fbdde](https://github.com/jordanlambrecht/tracker-tracker/commit/a5fbdde7056848bb58fdbe6f1e77a765a543842d))
+- **ui:** prevent StatCard DOM prop leak ([2d0b22a](https://github.com/jordanlambrecht/tracker-tracker/commit/2d0b22aa51b1badeb8916ace9505fdf32f526dc9))
+- update type imports for CollapsibleCard ([23979d1](https://github.com/jordanlambrecht/tracker-tracker/commit/23979d1f6323bd3fa209c9ed19172dbd7d05b6db))
+- update workflow triggers to include development branch for pull requests ([d159775](https://github.com/jordanlambrecht/tracker-tracker/commit/d15977566a9dbd341c0db6f3b67e0ace9bb70f16))
+- wrong postgres setup in docker-compose (closes [#78](https://github.com/jordanlambrecht/tracker-tracker/issues/78)) ([a0a3e0e](https://github.com/jordanlambrecht/tracker-tracker/commit/a0a3e0e16fe4e3b97dea9c7ebc5616cb54e22332))
+
+### Performance
+
+- add 5s per-client fetch deadline ([558c4be](https://github.com/jordanlambrecht/tracker-tracker/commit/558c4be0f9b05b198fd09ca5df4aad0dc6cde637))
+- **settings:** settings page optimizations ([63aabab](https://github.com/jordanlambrecht/tracker-tracker/commit/63aabab9afdfde3d492b81b86f581c4c035269d1))
+
+### Refactoring
+
+- **charts:** consolidate duplicate Fleet/Torrent chart pairs and normalize upstream data flow ([ca051a8](https://github.com/jordanlambrecht/tracker-tracker/commit/ca051a8f4284565f6b0c09e4c9f0522a70ff7e2c))
+- **charts:** migrate time-series charts to time axis with shared helpers and quality fixes ([596396e](https://github.com/jordanlambrecht/tracker-tracker/commit/596396e205fe387799986af7f1ff8386e8f77d13))
+- **charts:** reorganize chart support files into lib/ subfolder ([98a26d4](https://github.com/jordanlambrecht/tracker-tracker/commit/98a26d4fb4bf2fb7c3b02c4d38151a6b07fbb887))
+- **Dockerfile:** cleaned up build stages ([3b96ff9](https://github.com/jordanlambrecht/tracker-tracker/commit/3b96ff964058f33d3fe8fd65bf7a6fcde9dbcd3b))
+- **settings:** extract CollapsibleCard ([5487d19](https://github.com/jordanlambrecht/tracker-tracker/commit/5487d19d1ac2dd56c6bf2136f072edbcb7868fe5))
+- **settings:** extract SettingsSection wrapper ([ea0572c](https://github.com/jordanlambrecht/tracker-tracker/commit/ea0572c603ef191494a37cd9fe7ca64447bce1d4))
+
+## [2.4.2](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.3.0...v2.4.2) (2026-03-25)
 
 ### Features
 
@@ -14,6 +105,47 @@
 - **ui:** add pause/resume button ([c89299e](https://github.com/jordanlambrecht/tracker-tracker/commit/c89299ee80b9ce5ab22743039b6abd40be5a27b6))
 - **ui:** lazy-load chart sections, prefetch sidebar links, and fix scroll-to-top on navigation ([ba8f59e](https://github.com/jordanlambrecht/tracker-tracker/commit/ba8f59ee33a21be72034f296f5da1ae795e03c70))
 
+### Bug Fixes
+
+- **api:** orpheus was not matching seeding/leeching to response ([4569238](https://github.com/jordanlambrecht/tracker-tracker/commit/456923879b2970c46432bc9a0b604da2685bc31d))
+- **auth:** decouple cookie secure flag from node_env for self-hosted http deployments. Closes [#101](https://github.com/jordanlambrecht/tracker-tracker/issues/101) ([b2a7902](https://github.com/jordanlambrecht/tracker-tracker/commit/b2a790245ca76f1ec3ef8220c273a4ab9ca508fd))
+- better regex for splitting comparison values in timing safe check ([8c67a50](https://github.com/jordanlambrecht/tracker-tracker/commit/8c67a50cb64196831d7b021249eb76e84766e009))
+- convert bold numbered rules to markdown list items ([6e96454](https://github.com/jordanlambrecht/tracker-tracker/commit/6e964541330cca791818aca5d703e03ac2165694))
+- deploy issues ([cf45ea1](https://github.com/jordanlambrecht/tracker-tracker/commit/cf45ea19726b8f31db5080ebe93909dd0825e995))
+- **Dockerfile:** update package.json for drizzle-kit with esbuild overrides ([bce0854](https://github.com/jordanlambrecht/tracker-tracker/commit/bce0854d8ea18cf4a99488ed6d9243b25fc71658))
+- preload fleet dashboard tab ([5f08951](https://github.com/jordanlambrecht/tracker-tracker/commit/5f0895192f39a740927594ab6617f2c5c04b5708))
+- resolve biome lint warnings ([af8807d](https://github.com/jordanlambrecht/tracker-tracker/commit/af8807d72847e139be396778a096a7695fc49123))
+- **trackers:** markdown rendering ([a5fbdde](https://github.com/jordanlambrecht/tracker-tracker/commit/a5fbdde7056848bb58fdbe6f1e77a765a543842d))
+- update type imports for CollapsibleCard ([23979d1](https://github.com/jordanlambrecht/tracker-tracker/commit/23979d1f6323bd3fa209c9ed19172dbd7d05b6db))
+- update workflow triggers to include development branch for pull requests ([d159775](https://github.com/jordanlambrecht/tracker-tracker/commit/d15977566a9dbd341c0db6f3b67e0ace9bb70f16))
+- wrong postgres setup in docker-compose (closes [#78](https://github.com/jordanlambrecht/tracker-tracker/issues/78)) ([a0a3e0e](https://github.com/jordanlambrecht/tracker-tracker/commit/a0a3e0e16fe4e3b97dea9c7ebc5616cb54e22332))
+
+### Performance
+
+- add 5s per-client fetch deadline ([558c4be](https://github.com/jordanlambrecht/tracker-tracker/commit/558c4be0f9b05b198fd09ca5df4aad0dc6cde637))
+- **settings:** settings page optimizations ([63aabab](https://github.com/jordanlambrecht/tracker-tracker/commit/63aabab9afdfde3d492b81b86f581c4c035269d1))
+
+### Refactoring
+
+- **charts:** consolidate duplicate Fleet/Torrent chart pairs and normalize upstream data flow ([ca051a8](https://github.com/jordanlambrecht/tracker-tracker/commit/ca051a8f4284565f6b0c09e4c9f0522a70ff7e2c))
+- **charts:** migrate time-series charts to time axis with shared helpers and quality fixes ([596396e](https://github.com/jordanlambrecht/tracker-tracker/commit/596396e205fe387799986af7f1ff8386e8f77d13))
+- **charts:** reorganize chart support files into lib/ subfolder ([98a26d4](https://github.com/jordanlambrecht/tracker-tracker/commit/98a26d4fb4bf2fb7c3b02c4d38151a6b07fbb887))
+- **Dockerfile:** cleaned up build stages ([3b96ff9](https://github.com/jordanlambrecht/tracker-tracker/commit/3b96ff964058f33d3fe8fd65bf7a6fcde9dbcd3b))
+- **settings:** extract CollapsibleCard ([5487d19](https://github.com/jordanlambrecht/tracker-tracker/commit/5487d19d1ac2dd56c6bf2136f072edbcb7868fe5))
+- **settings:** extract SettingsSection wrapper ([ea0572c](https://github.com/jordanlambrecht/tracker-tracker/commit/ea0572c603ef191494a37cd9fe7ca64447bce1d4))
+
+## [2.4.1](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.3.0...v2.4.1) (2026-03-23)
+
+### Features
+
+- add development image to docker hub ([8785094](https://github.com/jordanlambrecht/tracker-tracker/commit/87850942f118ccfd23c0a04d537928cd3db82976))
+- add fetchTrackerStats for future live transit paper data ([ed6662f](https://github.com/jordanlambrecht/tracker-tracker/commit/ed6662f0ac0c9990b6c96e8ae5616452385b6c26))
+- add GitHub Actions workflow for building and pushing development Docker image ([dca0af0](https://github.com/jordanlambrecht/tracker-tracker/commit/dca0af0a75a4ce21fbe14414d86d4ecbe4d459d3))
+- add per-tracker pause polling ([14a6c43](https://github.com/jordanlambrecht/tracker-tracker/commit/14a6c43cd6764924aba6e2fa592ef13d208b528a))
+- add system events viewer and log management ([b01ed22](https://github.com/jordanlambrecht/tracker-tracker/commit/b01ed22ec2ecfefe7f12bb448998d2726cb6b7f9))
+- remote image upload ([a480c34](https://github.com/jordanlambrecht/tracker-tracker/commit/a480c3470b7e97e44764c1d9c6d1bee356d22728))
+- **ui:** add pause/resume button ([c89299e](https://github.com/jordanlambrecht/tracker-tracker/commit/c89299ee80b9ce5ab22743039b6abd40be5a27b6))
+- **ui:** lazy-load chart sections, prefetch sidebar links, and fix scroll-to-top on navigation ([ba8f59e](https://github.com/jordanlambrecht/tracker-tracker/commit/ba8f59ee33a21be72034f296f5da1ae795e03c70))
 
 ### Bug Fixes
 
@@ -28,12 +160,10 @@
 - update workflow triggers to include development branch for pull requests ([d159775](https://github.com/jordanlambrecht/tracker-tracker/commit/d15977566a9dbd341c0db6f3b67e0ace9bb70f16))
 - wrong postgres setup in docker-compose (closes [#78](https://github.com/jordanlambrecht/tracker-tracker/issues/78)) ([a0a3e0e](https://github.com/jordanlambrecht/tracker-tracker/commit/a0a3e0e16fe4e3b97dea9c7ebc5616cb54e22332))
 
-
 ### Performance
 
 - add 5s per-client fetch deadline ([558c4be](https://github.com/jordanlambrecht/tracker-tracker/commit/558c4be0f9b05b198fd09ca5df4aad0dc6cde637))
 - **settings:** settings page optimizations ([63aabab](https://github.com/jordanlambrecht/tracker-tracker/commit/63aabab9afdfde3d492b81b86f581c4c035269d1))
-
 
 ### Refactoring
 
@@ -45,7 +175,6 @@
 
 ## [2.4.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.3.0...v2.4.0) (2026-03-23)
 
-
 ### Features
 
 - add fetchTrackerStats for future live transit paper data ([ed6662f](https://github.com/jordanlambrecht/tracker-tracker/commit/ed6662f0ac0c9990b6c96e8ae5616452385b6c26))
@@ -55,7 +184,6 @@
 - remote image upload ([a480c34](https://github.com/jordanlambrecht/tracker-tracker/commit/a480c3470b7e97e44764c1d9c6d1bee356d22728))
 - **ui:** add pause/resume button ([c89299e](https://github.com/jordanlambrecht/tracker-tracker/commit/c89299ee80b9ce5ab22743039b6abd40be5a27b6))
 - **ui:** lazy-load chart sections, prefetch sidebar links, and fix scroll-to-top on navigation ([ba8f59e](https://github.com/jordanlambrecht/tracker-tracker/commit/ba8f59ee33a21be72034f296f5da1ae795e03c70))
-
 
 ### Bug Fixes
 
@@ -69,12 +197,10 @@
 - update workflow triggers to include development branch for pull requests ([d159775](https://github.com/jordanlambrecht/tracker-tracker/commit/d15977566a9dbd341c0db6f3b67e0ace9bb70f16))
 - wrong postgres setup in docker-compose (closes [#78](https://github.com/jordanlambrecht/tracker-tracker/issues/78)) ([a0a3e0e](https://github.com/jordanlambrecht/tracker-tracker/commit/a0a3e0e16fe4e3b97dea9c7ebc5616cb54e22332))
 
-
 ### Performance
 
 - add 5s per-client fetch deadline ([558c4be](https://github.com/jordanlambrecht/tracker-tracker/commit/558c4be0f9b05b198fd09ca5df4aad0dc6cde637))
 - **settings:** settings page optimizations ([63aabab](https://github.com/jordanlambrecht/tracker-tracker/commit/63aabab9afdfde3d492b81b86f581c4c035269d1))
-
 
 ### Refactoring
 
