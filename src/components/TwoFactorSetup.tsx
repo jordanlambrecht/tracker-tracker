@@ -5,12 +5,14 @@
 "use client"
 
 import { H3, Paragraph, Subtext } from "@typography"
-import { QRCodeSVG } from "qrcode.react"
+import dynamic from "next/dynamic"
 import { useCallback, useEffect, useState } from "react"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Checkbox } from "@/components/ui/Checkbox"
 import { Input } from "@/components/ui/Input"
+
+const QRCodeSVG = dynamic(() => import("qrcode.react").then((m) => m.QRCodeSVG), { ssr: false })
 
 // ---------------------------------------------------------------------------
 // Types
