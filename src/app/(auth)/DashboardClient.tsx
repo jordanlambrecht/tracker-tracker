@@ -5,11 +5,11 @@
 "use client"
 
 import { H1, H2 } from "@typography"
+import dynamic from "next/dynamic"
 import { useMemo, useState } from "react"
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import { AlertsBanner } from "@/components/dashboard/AlertsBanner"
 import { AnalyticsSection } from "@/components/dashboard/AnalyticsSection"
-import { DashboardSettingsSheet } from "@/components/dashboard/DashboardSettingsSheet"
 import { DayRangeSidebar } from "@/components/dashboard/DayRangeSidebar"
 import { EcosystemStatsSection } from "@/components/dashboard/EcosystemStatsSection"
 import { FleetDashboard } from "@/components/dashboard/FleetDashboard"
@@ -27,6 +27,12 @@ import { useDashboardData } from "@/hooks/useDashboardData"
 import { computeAggregateStats } from "@/lib/dashboard"
 import type { Snapshot, TrackerSummary } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
+
+const DashboardSettingsSheet = dynamic(
+  () =>
+    import("@/components/dashboard/DashboardSettingsSheet").then((m) => m.DashboardSettingsSheet),
+  { ssr: false }
+)
 
 function buildTrackerSeries(
   trackers: TrackerSummary[],
