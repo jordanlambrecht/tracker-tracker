@@ -1,7 +1,4 @@
 // src/components/settings/BackupsSection.tsx
-//
-// Functions: BackupsSection
-
 "use client"
 
 import { H2, Paragraph, Subtext } from "@typography"
@@ -76,7 +73,11 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
   const [isDraggingRestore, setIsDraggingRestore] = useState(false)
   const restoreInputRef = useRef<HTMLInputElement>(null)
 
-  const { saving: savingBackupConfig, error: settingsError, patch: patchSettings } = usePatchSettings()
+  const {
+    saving: savingBackupConfig,
+    error: settingsError,
+    patch: patchSettings,
+  } = usePatchSettings()
 
   useEffect(() => {
     fetch("/api/settings/backup/history")
@@ -453,10 +454,9 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
                 placeholder="RESTORE ALL DATA"
                 autoComplete="off"
                 className="font-mono"
+                hint="This destructive operation cannot be undone. Type the phrase exactly to proceed."
+                hintVariant="danger"
               />
-              <p className="text-xs text-danger/80 mt-2">
-                This destructive operation cannot be undone. Type the phrase exactly to proceed.
-              </p>
             </div>
             <div className="flex gap-3">
               <Button
