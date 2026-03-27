@@ -6,6 +6,7 @@
 
 import { H2, H3, Paragraph, Subtext } from "@typography"
 import { useCallback, useEffect, useState } from "react"
+import { useActionStatus } from "@/hooks/useActionStatus"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
@@ -50,8 +51,6 @@ interface NotificationTarget {
   createdAt: string
   updatedAt: string
 }
-
-type WebhookStatus = "idle" | "testing" | "success" | "failed"
 
 const NOTIFICATION_TYPE_OPTIONS: {
   value: NotificationTargetType
@@ -115,8 +114,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(false)
-  const [webhookStatus, setWebhookStatus] = useState<WebhookStatus>("idle")
-  const [webhookError, setWebhookError] = useState<string | null>(null)
+  const { status: webhookStatus, error: webhookError, execute: executeTest } = useActionStatus()
 
   const dirty = isDirty(draft, target)
 
@@ -200,24 +198,14 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
     }
   }
 
-  const handleTestWebhook = useCallback(async () => {
-    setWebhookStatus("testing")
-    setWebhookError(null)
-    try {
+  const handleTestWebhook = () =>
+    executeTest(async () => {
       const res = await fetch(`/api/notifications/${target.id}/test`, { method: "POST" })
-      if (res.ok) {
-        setWebhookStatus("success")
-        setTimeout(() => setWebhookStatus("idle"), 3000)
-      } else {
+      if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        setWebhookError(data.error || "Test failed")
-        setWebhookStatus("failed")
+        throw new Error(data.error || "Test failed")
       }
-    } catch {
-      setWebhookError("Network error — could not reach server")
-      setWebhookStatus("failed")
-    }
-  }, [target.id])
+    })
 
   const ratioDropDelta = draft.thresholds?.ratioDropDelta ?? 0.1
 

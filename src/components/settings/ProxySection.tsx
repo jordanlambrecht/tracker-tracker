@@ -1,11 +1,10 @@
 // src/components/settings/ProxySection.tsx
-//
-// Functions: ProxySection
 
 "use client"
 
 import { H3, Paragraph, Subtext } from "@typography"
 import { useState } from "react"
+import { useActionStatus } from "@/hooks/useActionStatus"
 import { SettingsSection } from "@/components/settings/SettingsSection"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
@@ -40,11 +39,12 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
   const [proxyUsername, setProxyUsername] = useState(initialProxy.username)
   const [proxyPassword, setProxyPassword] = useState("")
   const [proxyPasswordPlaceholder, setProxyPasswordPlaceholder] = useState(initialProxy.hasPassword)
-  const [proxyTestStatus, setProxyTestStatus] = useState<"idle" | "testing" | "success" | "failed">(
-    "idle"
-  )
+  const {
+    status: proxyTestStatus,
+    error: proxyTestError,
+    execute: executeProxyTest,
+  } = useActionStatus({ autoResetMs: false })
   const [proxyTestIp, setProxyTestIp] = useState<string | null>(null)
-  const [proxyTestError, setProxyTestError] = useState<string | null>(null)
   const [savedProxy, setSavedProxy] = useState({
     enabled: initialProxy.enabled,
     type: initialProxy.type || "socks5",
@@ -109,11 +109,9 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
     setProxyPassword("")
   }
 
-  async function handleTestProxy() {
-    setProxyTestStatus("testing")
+  function handleTestProxy() {
     setProxyTestIp(null)
-    setProxyTestError(null)
-    try {
+    executeProxyTest(async () => {
       const res = await fetch("/api/settings/proxy-test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -127,23 +125,14 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
         }),
       })
       if (!res.ok) {
-        const errMsg = await extractApiError(res, "Connection failed")
-        setProxyTestStatus("failed")
-        setProxyTestError(errMsg)
-        return
+        throw new Error(await extractApiError(res, "Connection failed"))
       }
       const data = (await res.json()) as { success: boolean; proxyIp?: string; error?: string }
-      if (data.success) {
-        setProxyTestStatus("success")
-        setProxyTestIp(data.proxyIp ?? null)
-      } else {
-        setProxyTestStatus("failed")
-        setProxyTestError(data.error ?? "Connection failed")
+      if (!data.success) {
+        throw new Error(data.error ?? "Connection failed")
       }
-    } catch {
-      setProxyTestStatus("failed")
-      setProxyTestError("Network error")
-    }
+      setProxyTestIp(data.proxyIp ?? null)
+    })
   }
 
   return (

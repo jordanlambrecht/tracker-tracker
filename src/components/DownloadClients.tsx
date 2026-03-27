@@ -1,11 +1,10 @@
 // src/components/DownloadClients.tsx
-//
-// Functions: DownloadClients, ClientCard
 
 "use client"
 
 import { H3, Paragraph, Subheader, Subtext } from "@typography"
 import { useCallback, useEffect, useState } from "react"
+import { useActionStatus } from "@/hooks/useActionStatus"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
@@ -42,8 +41,6 @@ interface DownloadClient {
   lastError: string | null
   errorSince: string | null
 }
-
-type ConnectionStatus = "idle" | "testing" | "success" | "failed"
 
 const EMPTY_TRACKERS: string[] = []
 
@@ -94,8 +91,11 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(false)
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("idle")
-  const [connectionError, setConnectionError] = useState<string | null>(null)
+  const {
+    status: connectionStatus,
+    error: connectionError,
+    execute: executeTest,
+  } = useActionStatus()
   const [tagInput, setTagInput] = useState("")
 
   const dirty = isDirty(draft, client)
@@ -175,24 +175,14 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
     }
   }, [client.id])
 
-  const handleTestConnection = useCallback(async () => {
-    setConnectionStatus("testing")
-    setConnectionError(null)
-    try {
+  const handleTestConnection = () =>
+    executeTest(async () => {
       const res = await fetch(`/api/clients/${client.id}/test`, { method: "POST" })
-      if (res.ok) {
-        setConnectionStatus("success")
-        setTimeout(() => setConnectionStatus("idle"), 3000)
-      } else {
+      if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        setConnectionError(data.error || "Connection failed")
-        setConnectionStatus("failed")
+        throw new Error(data.error || "Connection failed")
       }
-    } catch {
-      setConnectionError("Network error — could not reach server")
-      setConnectionStatus("failed")
-    }
-  }, [client.id])
+    })
 
   async function handleSaveCredentials() {
     if (!newUsername.trim() || !newPassword.trim()) return
