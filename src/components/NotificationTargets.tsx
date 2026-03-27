@@ -321,7 +321,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
                     setNewWebhookUrl("")
                     setConfigError(null)
                   }}
-                  className="text-xs font-mono text-tertiary hover:text-secondary transition-colors cursor-pointer"
+                  className="ghost-link"
                 >
                   Cancel
                 </button>
@@ -355,7 +355,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
             onChange={(v) => updateDraft({ notifyRatioDrop: v })}
           />
           {draft.notifyRatioDrop && (
-            <div className="ml-[3.75rem] flex items-center gap-3">
+            <div className="ml-15 flex items-center gap-3">
               <span className="text-xs font-mono text-tertiary">Threshold (delta)</span>
               <NumberInput
                 value={Math.round(ratioDropDelta * 100)}
@@ -569,7 +569,7 @@ function AddNotificationForm({
   }
 
   return (
-    <Card elevation="raised" className="flex flex-col gap-4 !p-5">
+    <Card elevation="raised" className="flex flex-col gap-4">
       <H3>Add Notification Target</H3>
       <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
         <div className="flex-1">

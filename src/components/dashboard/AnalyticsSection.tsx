@@ -159,14 +159,12 @@ function AnalyticsSection({ trackerSeries, trackers }: AnalyticsSectionProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <H2>Analytics</H2>
-          {hiddenChartCount > 0 && (
-            <span className="text-3xs font-mono text-muted">{hiddenChartCount} hidden</span>
-          )}
+          {hiddenChartCount > 0 && <span className="timestamp">{hiddenChartCount} hidden</span>}
         </div>
         <button
           type="button"
           onClick={() => chartPrefs.collapseAll(allChartIds)}
-          className="flex items-center gap-1.5 px-2.5 py-1 text-3xs font-mono text-muted hover:text-secondary hover:bg-overlay transition-colors cursor-pointer rounded-nm-sm"
+          className="timestamp flex items-center gap-1.5 px-2.5 py-1 hover:text-secondary hover:bg-overlay transition-colors cursor-pointer rounded-nm-sm"
         >
           <ChevronUpIcon
             width="12"

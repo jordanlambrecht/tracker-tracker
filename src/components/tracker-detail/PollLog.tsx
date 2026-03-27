@@ -25,7 +25,7 @@ export function PollLog({ snapshots, lastPolledAt, lastError, userPausedAt }: Po
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 text-xs text-tertiary font-mono hover:text-secondary transition-colors duration-150 cursor-pointer w-fit"
+        className="ghost-link flex items-center gap-2 duration-150 w-fit"
       >
         <ChevronToggle expanded={open} />
         Last polled: {lastPolledLabel}
@@ -35,7 +35,7 @@ export function PollLog({ snapshots, lastPolledAt, lastError, userPausedAt }: Po
           {userPausedAt && (
             <div className="flex items-center gap-2 px-4 py-2.5 text-xs font-mono text-warn border-b border-border whitespace-nowrap min-w-fit">
               <span className="shrink-0">⏸</span>
-              <span className="text-tertiary shrink-0 w-[160px]">
+              <span className="text-tertiary shrink-0 w-40">
                 {new Date(userPausedAt).toLocaleString()}
               </span>
               <span>Polling paused</span>
@@ -63,7 +63,7 @@ export function PollLog({ snapshots, lastPolledAt, lastError, userPausedAt }: Po
                   )}
                 >
                   <span className="text-success shrink-0">✓</span>
-                  <span className="text-tertiary shrink-0 w-[160px]">
+                  <span className="text-tertiary shrink-0 w-40">
                     {new Date(snap.polledAt).toLocaleString()}
                   </span>
                   <span className="text-secondary">

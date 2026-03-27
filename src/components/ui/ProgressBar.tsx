@@ -23,8 +23,8 @@ interface ProgressBarProps {
 
 const sizeMap: Record<ProgressBarSize, { track: string; fill: string }> = {
   sm: { track: "p-px", fill: "h-1.5" },
-  md: { track: "p-[3px]", fill: "h-3" },
-  lg: { track: "p-0.5", fill: "h-3" },
+  md: { track: "p-1", fill: "h-3" },
+  lg: { track: "p-2", fill: "h-3" },
 }
 
 function ProgressBar({

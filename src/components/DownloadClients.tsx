@@ -379,7 +379,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
                     setNewPassword("")
                     setCredError(null)
                   }}
-                  className="text-xs font-mono text-tertiary hover:text-secondary transition-colors cursor-pointer"
+                  className="ghost-link"
                 >
                   Cancel
                 </button>
@@ -624,7 +624,7 @@ function AddClientForm({
   }
 
   return (
-    <Card elevation="raised" className="flex flex-col gap-4 !p-5">
+    <Card elevation="raised" className="flex flex-col gap-4">
       <H3>Add Download Client</H3>
       <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
         <div className="flex-1">

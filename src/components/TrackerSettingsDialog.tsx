@@ -275,7 +275,7 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
                     setNewApiToken("")
                     setErrors({})
                   }}
-                  className="text-xs font-mono text-tertiary hover:text-secondary transition-colors cursor-pointer self-start"
+                  className="ghost-link self-start"
                 >
                   Cancel
                 </button>
