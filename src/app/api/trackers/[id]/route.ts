@@ -79,7 +79,10 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     const trimmed = body.mouseholeUrl.trim()
     if (trimmed) {
       try {
-        new URL(trimmed)
+        const parsed = new URL(trimmed)
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+          return NextResponse.json({ error: "Mousehole URL must use http or https" }, { status: 400 })
+        }
       } catch {
         return NextResponse.json({ error: "Invalid Mousehole URL format" }, { status: 400 })
       }

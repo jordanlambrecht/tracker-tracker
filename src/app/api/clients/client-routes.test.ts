@@ -108,7 +108,7 @@ const MOCK_TORRENTS = [
     progress: 1,
     content_path: "/downloads/Show.S01.BluRay",
     save_path: "/downloads",
-    isPrivate: true,
+    is_private: true,
   },
 ]
 

@@ -196,7 +196,10 @@ export async function computeTodayAtAGlance(): Promise<TodayAtAGlance> {
     fleetSeedbonusChange += delta.seedbonusChange
 
     if (delta.uploadDelta > 0n) {
-      // Convert upload delta to a Number for the weight
+      // NOTE: Number(delta.uploadDelta) can lose precision when uploadDelta
+      // exceeds Number.MAX_SAFE_INTEGER (~8 PiB). For realistic tracker upload
+      // volumes this is unlikely, but a full bigint weighted-average refactor
+      // would eliminate this limitation if ever needed.
       const weight = Number(delta.uploadDelta)
       weightedRatioSum += delta.ratioChange * weight
       totalUploadWeight += delta.uploadDelta
@@ -289,9 +292,10 @@ export async function computeTodayAtAGlance(): Promise<TodayAtAGlance> {
       if (torrent.tags) {
         const torrentTags = parseTorrentTags(torrent.tags)
         for (const tag of torrentTags) {
-          if (trackerTagToColor.has(tag)) {
+          const tagLower = tag.toLowerCase()
+          if (trackerTagToColor.has(tagLower)) {
             matchedTag = tag
-            matchedColor = trackerTagToColor.get(tag) ?? null
+            matchedColor = trackerTagToColor.get(tagLower) ?? null
             break
           }
         }
@@ -436,10 +440,17 @@ export async function backfillTrackerCheckpoints(): Promise<number> {
           bufferBytesEnd: row.bufferBytesEnd,
           ratioEnd: row.ratioEnd != null ? Number(row.ratioEnd) : null,
           seedbonusEnd: row.seedbonusEnd != null ? Number(row.seedbonusEnd) : null,
+          // snapshotCount is hard-coded to 1 because backfill selects only the
+          // last snapshot per day — the actual count is not available without a
+          // separate COUNT query per (trackerId, date) pair. Acceptable for backfill.
           snapshotCount: 1,
         }))
       )
       .onConflictDoNothing()
+    // NOTE: inserted tracks chunk.length rather than actual DB rows written.
+    // onConflictDoNothing() silently skips duplicate rows, so this count may
+    // overstate the number of rows inserted. The return value is informational
+    // only (used for a log.info call) and does not affect correctness.
     inserted += chunk.length
   }
 

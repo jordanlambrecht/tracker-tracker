@@ -489,7 +489,7 @@ describe("buildEventData", () => {
     // Catches: the label argument being ignored due to parameter order confusion.
     const { buildEventData } = await import("@/lib/notifications/dispatch")
     const ctx = makeContext()
-    const data = buildEventData("anniversary", ctx, "3 Year Anniversary")
+    const data = buildEventData("anniversary", ctx, null, "3 Year Anniversary")
     expect(data.label).toBe("3 Year Anniversary")
   })
 

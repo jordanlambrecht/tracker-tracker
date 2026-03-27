@@ -309,6 +309,10 @@ export function compareBigIntDesc(a: bigint, b: bigint): number {
 export function computePctChange(today: string, yesterday: string | null): number | null {
   if (yesterday === null) return null
   try {
+    // NOTE: Converting BigInt to Number can lose precision for values larger than
+    // Number.MAX_SAFE_INTEGER (~8 PiB). For typical tracker upload/download totals
+    // this is unlikely to be a problem, but a full bigint arithmetic refactor would
+    // be required to handle extreme values correctly.
     const y = Number(BigInt(yesterday))
     if (y === 0) return null
     const t = Number(BigInt(today))

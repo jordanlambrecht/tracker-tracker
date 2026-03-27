@@ -45,6 +45,15 @@ async function resolveMouseholeBase(
     return NextResponse.json({ error: "Mousehole URL not configured" }, { status: 400 })
   }
 
+  try {
+    const parsed = new URL(tracker.mouseholeUrl)
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return NextResponse.json({ error: "Mousehole URL must use http or https" }, { status: 400 })
+    }
+  } catch {
+    return NextResponse.json({ error: "Invalid Mousehole URL in database" }, { status: 400 })
+  }
+
   const mouseholeBase = tracker.mouseholeUrl.replace(/\/+$/, "")
   return { mouseholeBase }
 }

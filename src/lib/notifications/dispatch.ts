@@ -117,6 +117,7 @@ export async function dispatchNotifications(
       const anniversaryLabel = events.includes("anniversary")
         ? checkAnniversaryMilestone(ctx.trackerJoinedAt)?.label
         : undefined
+      const targetThresholds = (target.thresholds as NotificationThresholds | null) ?? null
 
       // Only Discord is currently supported — skip unknown types
       if (target.type !== "discord") {
@@ -151,7 +152,7 @@ export async function dispatchNotifications(
             trackerName: ctx.trackerName,
             includeTrackerName: target.includeTrackerName,
             storeUsernames: ctx.storeUsernames,
-            data: buildEventData(event, ctx, anniversaryLabel),
+            data: buildEventData(event, ctx, targetThresholds, anniversaryLabel),
           })
 
           const result = await deliverDiscordWebhook(target.id, config.webhookUrl, [
@@ -322,6 +323,7 @@ export function detectEvents(
 export function buildEventData(
   event: NotificationEventType,
   ctx: SnapshotContext,
+  thresholds?: NotificationThresholds | null,
   anniversaryLabel?: string
 ): Record<string, unknown> {
   switch (event) {
@@ -343,8 +345,10 @@ export function buildEventData(
       return { newGroup: ctx.currentGroup, previousGroup: ctx.previousGroup }
     case "anniversary":
       return { label: anniversaryLabel ?? "Anniversary" }
-    case "bonus_cap":
-      return { currentBonus: ctx.mamContext?.currentSeedbonus ?? null, capLimit: MAM_BONUS_CAP }
+    case "bonus_cap": {
+      const effectiveCap = (thresholds?.bonusCapLimit as number | undefined) ?? MAM_BONUS_CAP
+      return { currentBonus: ctx.mamContext?.currentSeedbonus ?? null, capLimit: effectiveCap }
+    }
     case "vip_expiring":
       return { vipUntil: ctx.mamContext?.vipUntil ?? null }
     case "unsatisfied_limit":

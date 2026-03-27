@@ -165,7 +165,7 @@ describe("getTorrents", () => {
         progress: 1,
         content_path: "/downloads/My.Show.S01.BluRay",
         save_path: "/downloads",
-        isPrivate: true,
+        is_private: true,
       },
     ]
 

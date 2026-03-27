@@ -95,7 +95,10 @@ export async function POST(request: Request) {
 
   if (typeof mouseholeUrl === "string" && mouseholeUrl.trim()) {
     try {
-      new URL(mouseholeUrl.trim())
+      const parsed = new URL(mouseholeUrl.trim())
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        return NextResponse.json({ error: "Mousehole URL must use http or https" }, { status: 400 })
+      }
     } catch {
       return NextResponse.json({ error: "Invalid Mousehole URL format" }, { status: 400 })
     }
