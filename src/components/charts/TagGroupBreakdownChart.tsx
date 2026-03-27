@@ -4,6 +4,7 @@
 
 "use client"
 
+import { SlotLabel } from "@typography"
 import type { EChartsOption } from "echarts"
 import { hexToRgba } from "@/lib/formatters"
 import type { TagGroupChartType } from "@/types/api"
@@ -264,9 +265,7 @@ function TagGroupBreakdownChart({
                 key={m.label}
                 className="relative flex flex-col gap-1 p-3 nm-inset-sm rounded-nm-md overflow-hidden"
               >
-                <span className="text-3xs font-sans font-medium text-tertiary uppercase tracking-wider leading-tight">
-                  {m.label}
-                </span>
+                <SlotLabel label={m.label} className="leading-tight" />
                 <div className="flex items-baseline gap-1.5">
                   <span className="font-mono text-lg font-semibold tabular-nums" style={{ color }}>
                     {m.count.toLocaleString()}

@@ -2,6 +2,7 @@
 
 "use client"
 
+import { SlotLabel } from "@typography"
 import { Badge } from "@/components/ui/Badge"
 import { Tooltip } from "@/components/ui/Tooltip"
 import type { TrackerUserClass } from "@/data/tracker-registry"
@@ -17,10 +18,8 @@ export function RankTooltip({ currentRank, userClasses, accentColor }: RankToolt
   return (
     <Tooltip
       content={
-        <div className="min-w-[200px]">
-          <p className="text-3xs font-sans font-medium text-tertiary uppercase tracking-wider px-3 pb-1.5">
-            Ranks
-          </p>
+        <div className="min-w-50">
+          <SlotLabel label="Ranks" className="px-3 pb-1.5" />
           {userClasses.map((uc) => {
             const isCurrent = uc.name.toLowerCase() === currentRank.toLowerCase()
             return (
@@ -50,10 +49,7 @@ export function RankTooltip({ currentRank, userClasses, accentColor }: RankToolt
       >
         <span className="flex items-center gap-1.5">
           {currentRank}
-          <span
-            className="cursor-help text-4xs font-bold opacity-70 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current"
-            aria-hidden="true"
-          >
+          <span className="help-icon opacity-70" aria-hidden="true">
             ?
           </span>
         </span>

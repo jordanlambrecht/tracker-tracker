@@ -66,10 +66,15 @@ function Subtext({ className, children, ...props }: HTMLAttributes<HTMLParagraph
 }
 
 /** uppercase micro text for slot names, field labels in dense UI */
-function SlotLabel({ className, children, ...props }: HTMLAttributes<HTMLSpanElement>) {
+function SlotLabel({
+  label,
+  className,
+  children,
+  ...props
+}: { label?: string } & HTMLAttributes<HTMLSpanElement>) {
   return (
     <span className={clsx("slot-label", className)} {...props}>
-      {children}
+      {label ?? children}
     </span>
   )
 }

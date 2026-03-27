@@ -258,7 +258,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                   {t.name}
                 </span>
                 <span className="font-mono text-xs text-tertiary tabular-nums shrink-0">
-                  {t.latestStats?.ratio != null ? `${formatRatio(t.latestStats.ratio)}×` : "—"}
+                  {t.latestStats?.ratio != null ? `${formatRatio(t.latestStats.ratio)}x` : "—"}
                 </span>
                 <a
                   href={t.baseUrl.startsWith("http") ? t.baseUrl : `https://${t.baseUrl}`}
@@ -327,9 +327,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                 strokeWidth={2}
               />
             </div>
-            <span className="font-mono text-3xs text-muted ml-4.5">
-              Stats tracking not yet supported
-            </span>
+            <span className="timestamp ml-4.5">Stats tracking not yet supported</span>
           </a>
         ))}
 
@@ -347,7 +345,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
 
             {/* Draft tracker picker popover */}
             {pickerOpen && (
-              <div className="absolute top-full left-0 mt-2 z-50 w-80 max-h-72 overflow-y-auto nm-raised bg-elevated p-3 flex flex-col gap-1 styled-scrollbar rounded-nm-md">
+              <div className="absolute top-full left-0 mt-2 z-40 w-80 max-h-72 overflow-y-auto nm-raised bg-elevated p-3 flex flex-col gap-1 styled-scrollbar rounded-nm-md">
                 <p className="text-3xs font-mono text-warn px-2 py-1.5 nm-inset-sm bg-control-bg mb-2 rounded-nm-sm">
                   These trackers don't have adapter support yet — links only, no stats tracking.
                 </p>

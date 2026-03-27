@@ -106,7 +106,7 @@ export function MamHealthOverview({
       {hasVip && (
         <div className="nm-inset-sm bg-control-bg rounded-nm-md p-4 flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <SlotLabel>VIP Expires</SlotLabel>
+            <SlotLabel label="VIP Expires" />
             <span className="text-xs font-mono text-secondary font-semibold">{vipDays}d</span>
           </div>
           <ProgressBar percent={vipPct} color={vipColor} size="sm" />
@@ -118,7 +118,7 @@ export function MamHealthOverview({
       {hasCapacity && (
         <div className="nm-inset-sm bg-control-bg rounded-nm-md p-4 flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <SlotLabel>Download Capacity</SlotLabel>
+            <SlotLabel label="Download Capacity" />
             <span className="text-xs font-mono text-secondary font-semibold">
               {satRemaining} / {unsatisfiedLimit} slots
             </span>
@@ -134,7 +134,7 @@ export function MamHealthOverview({
       {hasHealth && (
         <div className="nm-inset-sm bg-control-bg rounded-nm-md p-4 flex flex-col gap-2">
           <div className="flex items-center gap-1">
-            <SlotLabel>Torrent Health</SlotLabel>
+            <SlotLabel label="Torrent Health" />
             <Tooltip content="Breakdown of your snatched torrents by seeding status. Green = seeding and satisfied. Amber = seeding but not yet past the 72-hour requirement (pre-HnR or active HnR). Red = not seeding past deadline (Hit & Run). Gray = completed, no longer seeding.">
               <span className="text-muted hover:text-secondary cursor-help text-3xs">&#9432;</span>
             </Tooltip>
@@ -173,7 +173,7 @@ export function MamHealthOverview({
       {/* ── Bottom-right: Bonus Cap Warning ──────────────────────────────── */}
       {atCap && (
         <div className="nm-inset-sm bg-danger-dim rounded-nm-md p-4 flex flex-col gap-1">
-          <SlotLabel className="text-danger">Bonus Cap Reached</SlotLabel>
+          <SlotLabel label="Bonus Cap Reached" className="text-danger" />
           <span className="text-sm font-mono font-semibold text-primary">
             {(seedbonus ?? 0).toLocaleString()} / {MAM_BONUS_CAP.toLocaleString()}
           </span>
