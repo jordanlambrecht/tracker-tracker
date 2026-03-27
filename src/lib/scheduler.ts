@@ -392,15 +392,16 @@ export async function pruneOldSnapshots(retentionDays: number): Promise<number> 
 export async function pruneOldCheckpoints(retentionDays: number): Promise<number> {
   const cutoffDate = localDateStr(Date.now() - retentionDays * 24 * 60 * 60 * 1000)
 
-  const deletedTracker = await db
-    .delete(trackerDailyCheckpoints)
-    .where(lt(trackerDailyCheckpoints.checkpointDate, cutoffDate))
-    .returning({ id: trackerDailyCheckpoints.id })
-
-  const deletedTorrent = await db
-    .delete(torrentDailyCheckpoints)
-    .where(lt(torrentDailyCheckpoints.checkpointDate, cutoffDate))
-    .returning({ id: torrentDailyCheckpoints.id })
+  const [deletedTracker, deletedTorrent] = await Promise.all([
+    db
+      .delete(trackerDailyCheckpoints)
+      .where(lt(trackerDailyCheckpoints.checkpointDate, cutoffDate))
+      .returning({ id: trackerDailyCheckpoints.id }),
+    db
+      .delete(torrentDailyCheckpoints)
+      .where(lt(torrentDailyCheckpoints.checkpointDate, cutoffDate))
+      .returning({ id: torrentDailyCheckpoints.id }),
+  ])
 
   return deletedTracker.length + deletedTorrent.length
 }
