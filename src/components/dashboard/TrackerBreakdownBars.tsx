@@ -2,6 +2,7 @@
 
 "use client"
 
+import { DataCell } from "@typography"
 import { ProgressBar } from "@/components/ui/ProgressBar"
 import { compareBigIntDesc, formatBytesFromString } from "@/lib/formatters"
 import type { TodayAtAGlance } from "@/types/api"
@@ -61,9 +62,9 @@ export function TrackerBreakdownBars({ trackers, metric = "upload" }: TrackerBre
 
             <ProgressBar percent={pct} color={color} size="md" className="flex-1" />
 
-            <span className="tabular-cell w-20 text-right shrink-0">
+            <DataCell className="w-20 text-right shrink-0">
               {formatBytesFromString(getDelta(tracker))}
-            </span>
+            </DataCell>
           </div>
         )
       })}

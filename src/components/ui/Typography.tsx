@@ -1,6 +1,6 @@
 // src/components/ui/Typography.tsx
 //
-// Functions: H1, H2, H3, Subheader, Paragraph, Subtext, SlotLabel
+// Functions: H1, H2, H3, Subheader, Paragraph, Subtext, SlotLabel, DataCell
 
 import clsx from "clsx"
 import type { HTMLAttributes } from "react"
@@ -79,4 +79,18 @@ function SlotLabel({
   )
 }
 
-export { H1, H2, H3, Paragraph, SlotLabel, Subheader, Subtext }
+/** Mono tabular-nums value for leaderboard/table cells */
+function DataCell({
+  value,
+  className,
+  children,
+  ...props
+}: { value?: string } & HTMLAttributes<HTMLSpanElement>) {
+  return (
+    <span className={clsx("tabular-cell", className)} {...props}>
+      {value ?? children}
+    </span>
+  )
+}
+
+export { DataCell, H1, H2, H3, Paragraph, SlotLabel, Subheader, Subtext }

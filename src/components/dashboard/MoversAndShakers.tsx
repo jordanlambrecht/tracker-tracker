@@ -2,6 +2,7 @@
 
 "use client"
 
+import { DataCell } from "@typography"
 import type { ReactNode } from "react"
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import { Tooltip } from "@/components/ui/Tooltip"
@@ -58,9 +59,9 @@ function TorrentRankList({ label, entries }: { label: string; entries: TorrentRa
                   />
                   <MarqueeText className="text-xs font-mono text-primary">{entry.name}</MarqueeText>
                 </div>
-                <span className="tabular-cell whitespace-nowrap">
+                <DataCell className="whitespace-nowrap">
                   {formatBytesFromString(entry.bytes)}
-                </span>
+                </DataCell>
               </li>
             </Tooltip>
           ))}

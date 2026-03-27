@@ -5,6 +5,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
+import { DataCell } from "@typography"
 import { Badge } from "@/components/ui/Badge"
 import { PulseDot } from "@/components/ui/PulseDot"
 import type { Column } from "@/components/ui/Table"
@@ -51,9 +52,9 @@ const columns: Column<TrackerSummary>[] = [
     sortable: true,
     sortValue: (t) => t.latestStats?.ratio ?? -1,
     render: (t) => (
-      <span className="tabular-cell">
+      <DataCell>
         {t.latestStats?.ratio != null ? `${formatRatio(t.latestStats.ratio)}x` : "—"}
-      </span>
+      </DataCell>
     ),
   },
   {
@@ -64,9 +65,9 @@ const columns: Column<TrackerSummary>[] = [
     sortValue: (t) =>
       t.latestStats?.uploadedBytes ? Number(BigInt(t.latestStats.uploadedBytes)) : -1,
     render: (t) => (
-      <span className="tabular-cell">
+      <DataCell>
         {t.latestStats?.uploadedBytes ? formatBytesFromString(t.latestStats.uploadedBytes) : "—"}
-      </span>
+      </DataCell>
     ),
   },
   {
@@ -77,11 +78,11 @@ const columns: Column<TrackerSummary>[] = [
     sortValue: (t) =>
       t.latestStats?.downloadedBytes ? Number(BigInt(t.latestStats.downloadedBytes)) : -1,
     render: (t) => (
-      <span className="tabular-cell">
+      <DataCell>
         {t.latestStats?.downloadedBytes
           ? formatBytesFromString(t.latestStats.downloadedBytes)
           : "—"}
-      </span>
+      </DataCell>
     ),
   },
   {
@@ -91,11 +92,11 @@ const columns: Column<TrackerSummary>[] = [
     sortable: true,
     sortValue: (t) => Number(getBufferBytes(t)),
     render: (t) => (
-      <span className="tabular-cell">
+      <DataCell>
         {t.latestStats?.uploadedBytes && t.latestStats?.downloadedBytes
           ? formatBytesFromString(getBufferBytes(t).toString())
           : "—"}
-      </span>
+      </DataCell>
     ),
   },
   {
@@ -105,9 +106,9 @@ const columns: Column<TrackerSummary>[] = [
     sortable: true,
     sortValue: (t) => t.latestStats?.seedingCount ?? -1,
     render: (t) => (
-      <span className="tabular-cell">
+      <DataCell>
         {t.latestStats?.seedingCount != null ? t.latestStats.seedingCount.toLocaleString() : "—"}
-      </span>
+      </DataCell>
     ),
   },
   {
@@ -117,7 +118,7 @@ const columns: Column<TrackerSummary>[] = [
     sortable: true,
     sortValue: (t) => (t.joinedAt ? new Date(t.joinedAt).getTime() : Infinity),
     render: (t) => (
-      <span className="tabular-cell whitespace-nowrap">{formatAccountAge(t.joinedAt) ?? "—"}</span>
+      <DataCell className="whitespace-nowrap">{formatAccountAge(t.joinedAt) ?? "—"}</DataCell>
     ),
   },
   {
