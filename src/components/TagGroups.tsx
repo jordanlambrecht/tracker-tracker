@@ -14,7 +14,7 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { H2, H3, Paragraph } from "@typography"
 import clsx from "clsx"
-import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react"
+import { type KeyboardEvent, useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { CollapsibleCard } from "@/components/ui/CollapsibleCard"
@@ -159,6 +159,7 @@ interface MemberRowProps {
   onRemove: () => void
   disabled?: boolean
   dragHandle?: boolean
+  isNew?: boolean
 }
 
 function MemberRow({
@@ -169,14 +170,17 @@ function MemberRow({
   onRemove,
   disabled,
   dragHandle,
+  isNew,
 }: MemberRowProps) {
-  const warn = tagWarning(tag)
+  const warn = tag ? tagWarning(tag) : null
   return (
     <div className="flex flex-col gap-1">
-      <div className="nm-inset-sm flex items-center gap-3 px-3 py-2 bg-control-bg rounded-nm-md">
-        {dragHandle && (
+      <div
+        className={`nm-inset-sm flex items-center gap-3 px-3 py-2 bg-control-bg rounded-nm-md${isNew ? " border border-dashed border-border" : ""}`}
+      >
+        {(dragHandle || isNew) && (
           <span
-            className="text-tertiary shrink-0 text-sm leading-none select-none cursor-grab active:cursor-grabbing"
+            className={`shrink-0 text-sm leading-none select-none${isNew ? " text-transparent" : " text-tertiary cursor-grab active:cursor-grabbing"}`}
             aria-hidden="true"
           >
             ⠿
@@ -189,7 +193,7 @@ function MemberRow({
             onChange={(e) => onTagChange(e.target.value)}
             placeholder="qbt-tag"
             disabled={disabled}
-            aria-label="qBT Tag"
+            aria-label={isNew ? "New qBT Tag" : "qBT Tag"}
           />
         </div>
         <div className="w-px h-4 bg-border shrink-0" />
@@ -200,7 +204,7 @@ function MemberRow({
             onChange={(e) => onLabelChange(e.target.value)}
             placeholder="Display Label"
             disabled={disabled}
-            aria-label="Display Label"
+            aria-label={isNew ? "New Display Label" : "Display Label"}
           />
         </div>
         <button
@@ -235,72 +239,6 @@ function SortableMemberRow({ sortId, ...props }: SortableMemberRowProps) {
   )
 }
 
-// ─── NewMemberRow (always visible) ────────────────────────────────────────────
-
-interface NewMemberRowProps {
-  tag: string
-  label: string
-  onTagChange: (v: string) => void
-  onLabelChange: (v: string) => void
-  onRemove: () => void
-  disabled?: boolean
-}
-
-function NewMemberRow({
-  tag,
-  label,
-  onTagChange,
-  onLabelChange,
-  onRemove,
-  disabled,
-}: NewMemberRowProps) {
-  const warn = tag ? tagWarning(tag) : null
-
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="nm-inset-sm flex items-center gap-3 px-3 py-2 bg-control-bg border border-dashed border-border rounded-nm-md">
-        <span
-          className="text-transparent shrink-0 text-sm leading-none select-none"
-          aria-hidden="true"
-        >
-          ⠿
-        </span>
-        <div className="flex-1 min-w-0">
-          <input
-            className="w-full font-mono text-sm text-primary bg-transparent focus:outline-none placeholder:text-muted disabled:opacity-40"
-            value={tag}
-            onChange={(e) => onTagChange(e.target.value)}
-            placeholder="qbt-tag"
-            disabled={disabled}
-            aria-label="New qBT Tag"
-          />
-        </div>
-        <div className="w-px h-4 bg-border shrink-0" />
-        <div className="flex-1 min-w-0">
-          <input
-            className="w-full font-mono text-sm text-primary bg-transparent focus:outline-none placeholder:text-muted disabled:opacity-40"
-            value={label}
-            onChange={(e) => onLabelChange(e.target.value)}
-            placeholder="Display Label"
-            disabled={disabled}
-            aria-label="New Display Label"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={onRemove}
-          disabled={disabled}
-          className="shrink-0 text-tertiary hover:text-danger transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed text-base leading-none"
-          aria-label="Remove row"
-        >
-          ✕
-        </button>
-      </div>
-      {warn && <p className="text-xs font-sans text-warn px-1">{warn}</p>}
-    </div>
-  )
-}
-
 // ─── TagGroupCard ─────────────────────────────────────────────────────────────
 
 interface EditableMember {
@@ -331,9 +269,7 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   // Sync from parent when group prop changes (e.g. after save + refetch)
-  const groupIdRef = useRef(group.id)
   useEffect(() => {
-    if (groupIdRef.current !== group.id) groupIdRef.current = group.id
     setName(group.name)
     setEmoji(group.emoji ?? "")
     setChartType(group.chartType)
@@ -596,7 +532,7 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
                 disabled={saving}
               />
             ) : (
-              <NewMemberRow
+              <MemberRow
                 key={sortIds[i]}
                 tag={m.tag}
                 label={m.label}
@@ -608,6 +544,7 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
                 }
                 onRemove={() => handleRemoveMember(i)}
                 disabled={saving}
+                isNew
               />
             )
           )}

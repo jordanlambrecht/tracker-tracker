@@ -3,7 +3,7 @@
 "use client"
 
 import { H2 } from "@typography"
-import { type ReactNode, useEffect, useRef, useState } from "react"
+import { useState } from "react"
 import dynamic from "next/dynamic"
 import { ParallelTorrentsChart } from "@/components/charts/ParallelTorrentsChart"
 import { StorageSunburst } from "@/components/charts/StorageSunburst"
@@ -29,6 +29,7 @@ import {
   UnsatisfiedTorrentsTable,
 } from "@/components/dashboard/torrents"
 import { Card } from "@/components/ui/Card"
+import { LazySection } from "@/components/ui/LazySection"
 import type { TrackerTorrentsData } from "@/hooks/useTrackerTorrents"
 import { formatBytesNum, formatTimeAgo } from "@/lib/formatters"
 
@@ -47,37 +48,6 @@ interface TorrentsTabProps {
   accentColor: string
   data: TrackerTorrentsData
   trackerSeedingCount?: number | null
-}
-
-// ---------------------------------------------------------------------------
-// Lazy section — mounts children only when scrolled into view
-// ---------------------------------------------------------------------------
-
-function LazySection({ children, minHeight = 200 }: { children: ReactNode; minHeight?: number }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [visible, setVisible] = useState(false)
-
-  useEffect(() => {
-    const el = ref.current
-    if (!el || visible) return
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true)
-          observer.disconnect()
-        }
-      },
-      { rootMargin: "200px" }
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [visible])
-
-  return (
-    <div ref={ref} style={{ minHeight: visible ? undefined : minHeight }}>
-      {visible ? children : null}
-    </div>
-  )
 }
 
 // ---------------------------------------------------------------------------
@@ -191,28 +161,31 @@ function TorrentsTab({
       />
 
       {/* Category + Cross-Seed */}
-      <LazySection minHeight={350}>
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <CategoryCard categories={data.categoryStats} accentColor={accentColor} />
-          <Card trackerColor={accentColor} className="flex flex-col gap-4" title="Cross-Seed Ratio">
-            {data.crossSeedTags.length === 0 ? (
-              <div className="flex items-center justify-center flex-1">
-                <p className="text-xs font-mono text-tertiary text-center">
-                  No cross-seed tags configured.
-                  <br />
-                  Set them in Settings → Download Clients.
-                </p>
-              </div>
-            ) : (
-              <TorrentCrossSeedDonut
-                crossSeeded={data.crossSeeded.length}
-                unique={data.torrents.length - data.crossSeeded.length}
-                accentColor={accentColor}
-              />
-            )}
-          </Card>
-        </div>
-      </LazySection>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <CategoryCard categories={data.categoryStats} accentColor={accentColor} />
+        <Card
+          lazy
+          trackerColor={accentColor}
+          className="flex flex-col gap-4"
+          title="Cross-Seed Ratio"
+        >
+          {data.crossSeedTags.length === 0 ? (
+            <div className="flex items-center justify-center flex-1">
+              <p className="text-xs font-mono text-tertiary text-center">
+                No cross-seed tags configured.
+                <br />
+                Set them in Settings → Download Clients.
+              </p>
+            </div>
+          ) : (
+            <TorrentCrossSeedDonut
+              crossSeeded={data.crossSeeded.length}
+              unique={data.torrents.length - data.crossSeeded.length}
+              accentColor={accentColor}
+            />
+          )}
+        </Card>
+      </div>
 
       {/* Tag Group Breakdowns */}
       {data.tagGroupBreakdowns.length > 0 && (
@@ -257,65 +230,86 @@ function TorrentsTab({
       )}
 
       {/* Ratio + Seed Time Distribution */}
-      <LazySection minHeight={300}>
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card trackerColor={accentColor} className="flex flex-col gap-4" title="Ratio Distribution">
-            <TorrentRatioDistribution torrents={data.torrents} accentColor={accentColor} />
-          </Card>
-          <Card trackerColor={accentColor} className="flex flex-col gap-4" title="Seed Time Distribution">
-            <TorrentSeedTimeDistribution
-              torrents={data.torrents}
-              seedTimeHours={
-                data.requiredSeedSeconds != null ? data.requiredSeedSeconds / 3600 : null
-              }
-              accentColor={accentColor}
-            />
-          </Card>
-        </div>
-      </LazySection>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Card
+          lazy
+          trackerColor={accentColor}
+          className="flex flex-col gap-4"
+          title="Ratio Distribution"
+        >
+          <TorrentRatioDistribution torrents={data.torrents} accentColor={accentColor} />
+        </Card>
+        <Card
+          lazy
+          trackerColor={accentColor}
+          className="flex flex-col gap-4"
+          title="Seed Time Distribution"
+        >
+          <TorrentSeedTimeDistribution
+            torrents={data.torrents}
+            seedTimeHours={
+              data.requiredSeedSeconds != null ? data.requiredSeedSeconds / 3600 : null
+            }
+            accentColor={accentColor}
+          />
+        </Card>
+      </div>
 
       {/* Size Breakdown + Activity Heatmap */}
-      <LazySection minHeight={300}>
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card trackerColor={accentColor} className="flex flex-col gap-4" title="Size by Category">
-            <TorrentSizeBreakdown categories={data.categoryStats} accentColor={accentColor} />
-          </Card>
-          <Card trackerColor={accentColor} className="flex flex-col gap-4" title="Torrent Add Heatmap">
-            <TorrentActivityHeatmap torrents={data.torrents} accentColor={accentColor} />
-          </Card>
-        </div>
-      </LazySection>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Card
+          lazy
+          trackerColor={accentColor}
+          className="flex flex-col gap-4"
+          title="Size by Category"
+        >
+          <TorrentSizeBreakdown categories={data.categoryStats} accentColor={accentColor} />
+        </Card>
+        <Card
+          lazy
+          trackerColor={accentColor}
+          className="flex flex-col gap-4"
+          title="Torrent Add Heatmap"
+        >
+          <TorrentActivityHeatmap torrents={data.torrents} accentColor={accentColor} />
+        </Card>
+      </div>
 
       {/* Library Growth */}
-      <LazySection>
-        <Card trackerColor={accentColor} className="flex flex-col gap-4" title="Library Growth">
-          <TorrentAgeTimeline torrents={data.torrents} accentColor={accentColor} />
-        </Card>
-      </LazySection>
+      <Card lazy trackerColor={accentColor} className="flex flex-col gap-4" title="Library Growth">
+        <TorrentAgeTimeline torrents={data.torrents} accentColor={accentColor} />
+      </Card>
 
       {/* Category Acquisition */}
-      <LazySection>
-        <Card trackerColor={accentColor} className="flex flex-col gap-4">
-          <H2>Torrents Added by Category</H2>
-          <p className="text-xs font-mono text-tertiary">
-            Monthly acquisition by category — shows what you've been grabbing
-          </p>
-          <TorrentCategoryAcquisition torrents={data.torrents} accentColor={accentColor} />
-        </Card>
-      </LazySection>
+      <Card
+        lazy
+        title="Torrents Added by Category"
+        trackerColor={accentColor}
+        className="flex flex-col gap-4"
+      >
+        <p className="text-xs font-mono text-tertiary">
+          Monthly acquisition by category — shows what you've been grabbing
+        </p>
+        <TorrentCategoryAcquisition torrents={data.torrents} accentColor={accentColor} />
+      </Card>
 
       {/* Avg Seed Time by Cohort */}
-      <LazySection>
-        <Card trackerColor={accentColor} className="flex flex-col gap-4">
-          <H2>Average Seed Time by Cohort</H2>
-          <TorrentAvgSeedTime torrents={data.torrents} accentColor={accentColor} />
-        </Card>
-      </LazySection>
+      <Card
+        lazy
+        title="Average Seed Time by Cohort"
+        trackerColor={accentColor}
+        className="flex flex-col gap-4"
+      >
+        <TorrentAvgSeedTime torrents={data.torrents} accentColor={accentColor} />
+      </Card>
 
       {/* 3D Scatter */}
       <LazySection minHeight={400}>
-        <Card trackerColor={accentColor} className="flex flex-col gap-4">
-          <H2>Torrent Library — 3D Scatter</H2>
+        <Card
+          title="Torrent Library — 3D Scatter"
+          trackerColor={accentColor}
+          className="flex flex-col gap-4"
+        >
           <TorrentAgeScatter3D torrents={data.torrents} accentColor={accentColor} />
         </Card>
       </LazySection>
@@ -343,39 +337,38 @@ function TorrentsTab({
       </div>
 
       {/* Parallel Coordinates */}
-      <LazySection minHeight={380}>
-        <Card trackerColor={accentColor} className="flex flex-col gap-4" title="Torrent Profile">
-          <p className="text-xs font-mono text-tertiary -mt-2">
-            Each line is a torrent — hover to inspect, brush axes to filter
-          </p>
-          <ParallelTorrentsChart torrents={data.torrents} trackerColor={accentColor} height={380} />
-        </Card>
-      </LazySection>
+      <Card lazy trackerColor={accentColor} className="flex flex-col gap-4" title="Torrent Profile">
+        <p className="text-xs font-mono text-tertiary -mt-2">
+          Each line is a torrent — hover to inspect, brush axes to filter
+        </p>
+        <ParallelTorrentsChart torrents={data.torrents} trackerColor={accentColor} height={380} />
+      </Card>
 
       {/* Storage Sunburst */}
-      <LazySection minHeight={360}>
-        <Card trackerColor={accentColor} className="flex flex-col gap-4" title="Storage Breakdown">
-          <StorageSunburst
-            torrents={data.torrents.map((t) => ({
-              name: t.name,
-              size: t.size,
-              category: t.category,
-            }))}
-            accentColor={accentColor}
-            height={480}
-          />
-        </Card>
-      </LazySection>
+      <Card
+        lazy
+        trackerColor={accentColor}
+        className="flex flex-col gap-4"
+        title="Storage Breakdown"
+      >
+        <StorageSunburst
+          torrents={data.torrents.map((t) => ({
+            name: t.name,
+            size: t.size,
+            category: t.category,
+          }))}
+          accentColor={accentColor}
+          height={480}
+        />
+      </Card>
 
       {/* Elder Torrents */}
-      <LazySection>
-        <div className="flex flex-col gap-3">
-          <H2 className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
-            Elder Torrents
-          </H2>
-          <TorrentRankingTable variant="elder" torrents={data.elderTorrents} />
-        </div>
-      </LazySection>
+      <div className="flex flex-col gap-3 lazy-card">
+        <H2 className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
+          Elder Torrents
+        </H2>
+        <TorrentRankingTable variant="elder" torrents={data.elderTorrents} />
+      </div>
     </div>
   )
 }
