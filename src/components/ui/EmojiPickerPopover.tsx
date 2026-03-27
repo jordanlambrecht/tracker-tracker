@@ -4,9 +4,13 @@
 
 "use client"
 
-import EmojiPicker, { EmojiStyle, Theme } from "emoji-picker-react"
+import dynamic from "next/dynamic"
+import { EmojiStyle, Theme } from "emoji-picker-react"
+import type { EmojiClickData, PickerProps } from "emoji-picker-react"
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
+
+const EmojiPicker = dynamic<PickerProps>(() => import("emoji-picker-react"), { ssr: false })
 
 interface EmojiPickerPopoverProps {
   value: string
@@ -101,7 +105,7 @@ function EmojiPickerPopover({
               lazyLoadEmojis
               searchPlaceholder="Search emojis…"
               previewConfig={{ showPreview: false }}
-              onEmojiClick={(emojiData) => {
+              onEmojiClick={(emojiData: EmojiClickData) => {
                 onChange(emojiData.emoji)
                 setOpen(false)
               }}
