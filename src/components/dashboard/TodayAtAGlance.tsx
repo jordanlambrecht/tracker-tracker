@@ -20,7 +20,7 @@ function UpdatedAt({ iso }: { iso: string | null }) {
   if (!iso) return null
   const ago = formatTimeAgo(new Date(iso))
   return (
-    <span className="text-3xs font-mono text-muted" title={iso}>
+    <span className="timestamp" title={iso}>
       Updated {ago}
     </span>
   )

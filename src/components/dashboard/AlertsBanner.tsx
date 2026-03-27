@@ -66,7 +66,7 @@ function AlertsBanner({ alerts, onDismiss, onDismissAll }: AlertsBannerProps) {
           <button
             type="button"
             onClick={handleDismissAll}
-            className="text-3xs font-mono text-muted hover:text-secondary transition-colors duration-150 cursor-pointer uppercase tracking-wider"
+            className="timestamp hover:text-secondary transition-colors duration-150 cursor-pointer uppercase tracking-wider"
           >
             Clear All
           </button>
@@ -116,7 +116,7 @@ function AlertsBanner({ alerts, onDismiss, onDismissAll }: AlertsBannerProps) {
                 <span className="font-mono text-xs text-tertiary truncate">{alert.message}</span>
               </div>
               {alert.timestamp && (
-                <span className="font-mono text-3xs text-muted shrink-0 hidden sm:block">
+                <span className="timestamp shrink-0 hidden sm:block">
                   {new Date(alert.timestamp).toLocaleString()}
                 </span>
               )}
@@ -127,7 +127,7 @@ function AlertsBanner({ alerts, onDismiss, onDismissAll }: AlertsBannerProps) {
                   className="text-muted hover:text-secondary transition-colors duration-150 cursor-pointer shrink-0 px-1 mt-0.5 sm:mt-0"
                   aria-label={`Dismiss ${config.label} alert for ${alert.trackerName}`}
                 >
-                  ×
+                  x
                 </button>
               )}
             </div>

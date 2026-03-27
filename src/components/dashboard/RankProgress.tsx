@@ -193,7 +193,7 @@ function RankTimeline({ events, accentColor }: RankTimelineProps) {
                 <RedactedText value={event.to} color={dirColor} className="font-semibold" />
               </span>
             </div>
-            <span className="text-3xs font-mono text-muted whitespace-nowrap pl-4">
+            <span className="timestamp whitespace-nowrap pl-4">
               {dateStr}
             </span>
           </div>
