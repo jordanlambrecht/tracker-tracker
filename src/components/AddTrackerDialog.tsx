@@ -379,7 +379,6 @@ function AddTrackerDialog({
 
       if (!testRes.ok) {
         setErrors({ apiToken: testData.error ?? "Connection failed" })
-        setLoading(false)
         return
       }
 
@@ -404,7 +403,6 @@ function AddTrackerDialog({
 
       if (!saveRes.ok) {
         setErrors({ form: saveData.error ?? "Failed to add tracker" })
-        setLoading(false)
         return
       }
 
@@ -415,6 +413,7 @@ function AddTrackerDialog({
       onAdded(saveData.id)
     } catch {
       setErrors({ form: "Network error — please try again" })
+    } finally {
       setLoading(false)
     }
   }
