@@ -43,6 +43,8 @@ interface DownloadClient {
 
 type ConnectionStatus = "idle" | "testing" | "success" | "failed"
 
+const EMPTY_TRACKERS: string[] = []
+
 const CLIENT_TYPE_OPTIONS: { value: ClientType; label: string; disabled?: boolean }[] = [
   { value: "qbittorrent", label: "qBittorrent" },
   { value: "deluge", label: "Deluge (coming soon)", disabled: true },
@@ -758,7 +760,7 @@ function DownloadClients() {
             <ClientCard
               key={client.id}
               client={client}
-              linkedTrackers={[]}
+              linkedTrackers={EMPTY_TRACKERS}
               onSaved={handleSaved}
               onRemove={handleRemove}
               onSetDefault={handleSetDefault}

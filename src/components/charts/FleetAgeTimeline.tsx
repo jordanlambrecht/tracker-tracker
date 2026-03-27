@@ -10,6 +10,8 @@ import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { buildStackedAreaOption } from "./lib/chart-helpers"
 import { CHART_THEME } from "./lib/theme"
 
+const EMPTY_TRACKER_TAGS: TrackerTag[] = []
+
 interface FleetAgeTimelineProps {
   torrents: { addedOn: number; tags: string }[]
   trackerTags?: TrackerTag[]
@@ -79,7 +81,7 @@ function groupByMonth(
   return { sortedMonths, series }
 }
 
-function FleetAgeTimeline({ torrents, trackerTags = [], height = 320 }: FleetAgeTimelineProps) {
+function FleetAgeTimeline({ torrents, trackerTags = EMPTY_TRACKER_TAGS, height = 320 }: FleetAgeTimelineProps) {
   const validTorrents = torrents.filter((t) => t.addedOn && t.addedOn > 0)
 
   if (validTorrents.length === 0) {
