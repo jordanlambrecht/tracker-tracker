@@ -1,5 +1,6 @@
 // src/components/ui/Card.tsx
 
+import { H2 } from "@typography"
 import { cva } from "class-variance-authority"
 import clsx from "clsx"
 import type { CSSProperties, HTMLAttributes } from "react"
@@ -12,6 +13,7 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
   glow?: boolean
   glowColor?: string
   trackerColor?: string
+  title?: string
 }
 
 const card = cva("p-5", {
@@ -31,6 +33,7 @@ function Card({
   glow = false,
   glowColor,
   trackerColor,
+  title,
   className,
   style,
   children,
@@ -50,6 +53,7 @@ function Card({
       style={{ ...glowStyle, ...style }}
       {...props}
     >
+      {title && <H2 className="card-heading">{title}</H2>}
       {children}
     </div>
   )

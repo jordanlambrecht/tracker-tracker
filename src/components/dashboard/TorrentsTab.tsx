@@ -194,10 +194,7 @@ function TorrentsTab({
       <LazySection minHeight={350}>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <CategoryCard categories={data.categoryStats} accentColor={accentColor} />
-          <Card trackerColor={accentColor} className="flex flex-col gap-4">
-            <H2 className="card-heading">
-              Cross-Seed Ratio
-            </H2>
+          <Card trackerColor={accentColor} className="flex flex-col gap-4" title="Cross-Seed Ratio">
             {data.crossSeedTags.length === 0 ? (
               <div className="flex items-center justify-center flex-1">
                 <p className="text-xs font-mono text-tertiary text-center">
@@ -250,10 +247,7 @@ function TorrentsTab({
 
       {/* qbitmanage Breakdown */}
       {data.qbitmanageBreakdown.length > 0 && (
-        <Card trackerColor={accentColor} className="flex flex-col gap-4">
-          <H2 className="card-heading">
-            qbitmanage Status
-          </H2>
+        <Card trackerColor={accentColor} className="flex flex-col gap-4" title="qbitmanage Status">
           <TagGroupBreakdownChart
             groupName="qbitmanage Status"
             members={data.qbitmanageBreakdown}
@@ -265,16 +259,10 @@ function TorrentsTab({
       {/* Ratio + Seed Time Distribution */}
       <LazySection minHeight={300}>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card trackerColor={accentColor} className="flex flex-col gap-4">
-            <H2 className="card-heading">
-              Ratio Distribution
-            </H2>
+          <Card trackerColor={accentColor} className="flex flex-col gap-4" title="Ratio Distribution">
             <TorrentRatioDistribution torrents={data.torrents} accentColor={accentColor} />
           </Card>
-          <Card trackerColor={accentColor} className="flex flex-col gap-4">
-            <H2 className="card-heading">
-              Seed Time Distribution
-            </H2>
+          <Card trackerColor={accentColor} className="flex flex-col gap-4" title="Seed Time Distribution">
             <TorrentSeedTimeDistribution
               torrents={data.torrents}
               seedTimeHours={
@@ -289,16 +277,10 @@ function TorrentsTab({
       {/* Size Breakdown + Activity Heatmap */}
       <LazySection minHeight={300}>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card trackerColor={accentColor} className="flex flex-col gap-4">
-            <H2 className="card-heading">
-              Size by Category
-            </H2>
+          <Card trackerColor={accentColor} className="flex flex-col gap-4" title="Size by Category">
             <TorrentSizeBreakdown categories={data.categoryStats} accentColor={accentColor} />
           </Card>
-          <Card trackerColor={accentColor} className="flex flex-col gap-4">
-            <H2 className="card-heading">
-              Torrent Add Heatmap
-            </H2>
+          <Card trackerColor={accentColor} className="flex flex-col gap-4" title="Torrent Add Heatmap">
             <TorrentActivityHeatmap torrents={data.torrents} accentColor={accentColor} />
           </Card>
         </div>
@@ -306,10 +288,7 @@ function TorrentsTab({
 
       {/* Library Growth */}
       <LazySection>
-        <Card trackerColor={accentColor} className="flex flex-col gap-4">
-          <H2 className="card-heading">
-            Library Growth
-          </H2>
+        <Card trackerColor={accentColor} className="flex flex-col gap-4" title="Library Growth">
           <TorrentAgeTimeline torrents={data.torrents} accentColor={accentColor} />
         </Card>
       </LazySection>
@@ -365,10 +344,7 @@ function TorrentsTab({
 
       {/* Parallel Coordinates */}
       <LazySection minHeight={380}>
-        <Card trackerColor={accentColor} className="flex flex-col gap-4">
-          <H2 className="card-heading">
-            Torrent Profile
-          </H2>
+        <Card trackerColor={accentColor} className="flex flex-col gap-4" title="Torrent Profile">
           <p className="text-xs font-mono text-tertiary -mt-2">
             Each line is a torrent — hover to inspect, brush axes to filter
           </p>
@@ -378,10 +354,7 @@ function TorrentsTab({
 
       {/* Storage Sunburst */}
       <LazySection minHeight={360}>
-        <Card trackerColor={accentColor} className="flex flex-col gap-4">
-          <H2 className="card-heading">
-            Storage Breakdown
-          </H2>
+        <Card trackerColor={accentColor} className="flex flex-col gap-4" title="Storage Breakdown">
           <StorageSunburst
             torrents={data.torrents.map((t) => ({
               name: t.name,
