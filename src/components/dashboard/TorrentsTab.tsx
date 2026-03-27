@@ -4,6 +4,7 @@
 
 import { H2 } from "@typography"
 import { type ReactNode, useEffect, useRef, useState } from "react"
+import dynamic from "next/dynamic"
 import { ParallelTorrentsChart } from "@/components/charts/ParallelTorrentsChart"
 import { StorageSunburst } from "@/components/charts/StorageSunburst"
 import {
@@ -11,7 +12,6 @@ import {
   TagGroupBreakdownChart,
 } from "@/components/charts/TagGroupBreakdownChart"
 import { TorrentActivityHeatmap } from "@/components/charts/TorrentActivityHeatmap"
-import { TorrentAgeScatter3D } from "@/components/charts/TorrentAgeScatter3D"
 import { TorrentAgeTimeline } from "@/components/charts/TorrentAgeTimeline"
 import { TorrentAvgSeedTime } from "@/components/charts/TorrentAvgSeedTime"
 import { TorrentCategoryAcquisition } from "@/components/charts/TorrentCategoryAcquisition"
@@ -31,6 +31,11 @@ import {
 import { Card } from "@/components/ui/Card"
 import type { TrackerTorrentsData } from "@/hooks/useTrackerTorrents"
 import { formatBytesNum, formatTimeAgo } from "@/lib/formatters"
+
+const TorrentAgeScatter3D = dynamic(
+  () => import("@/components/charts/TorrentAgeScatter3D").then((m) => m.TorrentAgeScatter3D),
+  { ssr: false }
+)
 
 // ---------------------------------------------------------------------------
 // Types
