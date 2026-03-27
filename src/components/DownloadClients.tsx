@@ -10,9 +10,11 @@ import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { CollapsibleCard } from "@/components/ui/CollapsibleCard"
+import { ConfirmRemove } from "@/components/ui/ConfirmRemove"
 import { Input } from "@/components/ui/Input"
 import { MaskedSecret } from "@/components/ui/MaskedSecret"
 import { NumberInput } from "@/components/ui/NumberInput"
+import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
 import { Select } from "@/components/ui/Select"
 import { Toggle } from "@/components/ui/Toggle"
 import { UptimeBar } from "@/components/ui/UptimeBar"
@@ -94,7 +96,6 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
   const [expanded, setExpanded] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("idle")
   const [connectionError, setConnectionError] = useState<string | null>(null)
-  const [confirmRemove, setConfirmRemove] = useState(false)
   const [tagInput, setTagInput] = useState("")
 
   const dirty = isDirty(draft, client)
@@ -502,21 +503,13 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
         settings.
       </Subtext>
 
-      {/* Save / Discard bar — only visible when draft has changes */}
-      {dirty && (
-        <>
-          <div className="border-t border-border" />
-          <div className="flex items-center gap-3">
-            <Button size="sm" onClick={handleSave} disabled={saving}>
-              {saving ? "Saving..." : "Save Changes"}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={handleDiscard} disabled={saving}>
-              Discard
-            </Button>
-            {saveError && <span className="text-xs font-mono text-danger">{saveError}</span>}
-          </div>
-        </>
-      )}
+      <SaveDiscardBar
+        dirty={dirty}
+        saving={saving}
+        onSave={handleSave}
+        onDiscard={handleDiscard}
+        error={saveError}
+      />
 
       <div className="border-t border-border" />
 
@@ -548,20 +541,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
           </Button>
         )}
 
-        {confirmRemove ? (
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="danger" onClick={() => onRemove(client.id)}>
-              Confirm Remove
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setConfirmRemove(false)}>
-              Cancel
-            </Button>
-          </div>
-        ) : (
-          <Button size="sm" variant="danger" onClick={() => setConfirmRemove(true)}>
-            Remove
-          </Button>
-        )}
+        <ConfirmRemove onConfirm={() => onRemove(client.id)} />
       </div>
       {connectionStatus === "failed" && connectionError && (
         <p className="text-xs font-mono text-danger">{connectionError}</p>

@@ -10,9 +10,11 @@ import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { CollapsibleCard } from "@/components/ui/CollapsibleCard"
+import { ConfirmRemove } from "@/components/ui/ConfirmRemove"
 import { Input } from "@/components/ui/Input"
 import { MaskedSecret } from "@/components/ui/MaskedSecret"
 import { NumberInput } from "@/components/ui/NumberInput"
+import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
 import { Select } from "@/components/ui/Select"
 import { Toggle } from "@/components/ui/Toggle"
 import { Tooltip } from "@/components/ui/Tooltip"
@@ -115,7 +117,6 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
   const [expanded, setExpanded] = useState(false)
   const [webhookStatus, setWebhookStatus] = useState<WebhookStatus>("idle")
   const [webhookError, setWebhookError] = useState<string | null>(null)
-  const [confirmRemove, setConfirmRemove] = useState(false)
 
   const dirty = isDirty(draft, target)
 
@@ -460,21 +461,13 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
         </Subtext>
       </div>
 
-      {/* Save / Discard bar — only visible when draft has changes */}
-      {dirty && (
-        <>
-          <div className="border-t border-border" />
-          <div className="flex items-center gap-3">
-            <Button size="sm" onClick={handleSave} disabled={saving}>
-              {saving ? "Saving..." : "Save Changes"}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={handleDiscard} disabled={saving}>
-              Discard
-            </Button>
-            {saveError && <span className="text-xs font-mono text-danger">{saveError}</span>}
-          </div>
-        </>
-      )}
+      <SaveDiscardBar
+        dirty={dirty}
+        saving={saving}
+        onSave={handleSave}
+        onDiscard={handleDiscard}
+        error={saveError}
+      />
 
       <div className="border-t border-border" />
 
@@ -500,20 +493,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
 
         <div className="flex-1" />
 
-        {confirmRemove ? (
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="danger" onClick={() => onRemove(target.id)}>
-              Confirm Remove
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setConfirmRemove(false)}>
-              Cancel
-            </Button>
-          </div>
-        ) : (
-          <Button size="sm" variant="danger" onClick={() => setConfirmRemove(true)}>
-            Remove
-          </Button>
-        )}
+        <ConfirmRemove onConfirm={() => onRemove(target.id)} />
       </div>
       {webhookStatus === "failed" && webhookError && (
         <p className="text-xs font-mono text-danger">{webhookError}</p>

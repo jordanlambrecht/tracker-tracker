@@ -54,7 +54,7 @@ function TorrentRankList({ label, entries }: { label: string; entries: TorrentRa
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span
-                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    className="w-2 h-2 rounded-full shrink-0"
                     style={{ backgroundColor: entry.trackerColor ?? "var(--color-accent)" }}
                   />
                   <MarqueeText className="text-xs font-mono text-primary">{entry.name}</MarqueeText>

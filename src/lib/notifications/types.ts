@@ -1,6 +1,4 @@
 // src/lib/notifications/types.ts
-//
-// Functions: (types only — no runtime code)
 
 export const VALID_NOTIFICATION_TYPES = ["discord", "gotify", "telegram", "slack", "email"] as const
 export type NotificationTargetType = (typeof VALID_NOTIFICATION_TYPES)[number]
@@ -23,14 +21,13 @@ export const VALID_EVENT_TYPES = [
 export type NotificationEventType = (typeof VALID_EVENT_TYPES)[number]
 
 export interface NotificationThresholds {
-  ratioDropDelta?: number // i.e 0.1 — alert when ratio falls by ≥0.1
-  bufferMilestoneBytes?: number //i.e 10737418240 — alert when buffer crosses 10 GiB
-  bonusCapLimit?: number // default 99999 — fires when seedbonus hits or exceeds cap
-  vipExpiringDays?: number // default 7 — fires when VIP expiry is within N days
-  unsatisfiedLimitPercent?: number // default 80 — fires at 80% of unsatisfied limit
+  ratioDropDelta?: number
+  bufferMilestoneBytes?: number
+  bonusCapLimit?: number // default 99999, used for MAM specifically
+  vipExpiringDays?: number // default 7
+  unsatisfiedLimitPercent?: number // default 80
 }
 
-// Per-type config shapes (decrypted form — never stored plaintext)
 export interface DiscordConfig {
   webhookUrl: string
 }
@@ -61,5 +58,5 @@ export type NotificationConfig =
   | SlackConfig
   | EmailConfig
 
-// Discord webhook URL pattern — used for validation
+// Discord webhook URL pattern
 export const DISCORD_WEBHOOK_RE = /^https:\/\/discord\.com\/api\/webhooks\/\d+\/[\w-]+$/

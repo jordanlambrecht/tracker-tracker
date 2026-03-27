@@ -1,6 +1,4 @@
 // src/components/ui/RedactedText.tsx
-//
-// Functions: RedactedText
 
 "use client"
 
@@ -9,30 +7,21 @@ import { Tooltip } from "@/components/ui/Tooltip"
 import { redactedLength } from "@/lib/privacy"
 
 interface RedactedTextProps {
-  /** The raw value from the database — either real text or a "▓N" redacted marker */
   value: string | null | undefined
-  /** Accent color for the redaction blocks */
   color?: string
   className?: string
 }
 
-/**
- * Renders either the real text or a visual redaction mosaic.
- * The mosaic consists of small blocks with varying opacity,
- * giving a "classified document" aesthetic. Block count is
- * derived from the original character length for visual consistency.
- */
+// Renders either the real text or a visual redaction mosaic
 function RedactedText({ value, color = "var(--color-tertiary)", className }: RedactedTextProps) {
   const charCount = redactedLength(value)
 
-  // Not redacted — render the real value
+  // Not redacted
   if (charCount === null) {
     return <span className={className}>{value ?? "—"}</span>
   }
 
-  // Generate deterministic-looking blocks from the character count.
-  // Each character maps to 1 block. We vary opacity using a simple
-  // hash-like distribution so adjacent blocks look different.
+  // Generate deterministic-looking blocks from the character count
   const blocks: { id: string; opacity: number }[] = []
   for (let i = 0; i < charCount; i++) {
     const seed = i * 7 + 3
