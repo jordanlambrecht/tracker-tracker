@@ -12,8 +12,14 @@ import {
 import type { QbitmanageTagConfig, TrackerSummary } from "@/types/api"
 import { TrackerDetailClient } from "./TrackerDetailClient"
 
-export default async function TrackerDetailPage(props: { params: Promise<{ id: string }> }) {
+export default async function TrackerDetailPage(props: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
   const { id } = await props.params
+  const searchParams = await props.searchParams
+  const rawTab = searchParams?.tab
+  const initialTab = typeof rawTab === "string" ? rawTab : null
   const trackerId = parseInt(id, 10)
   if (Number.isNaN(trackerId) || trackerId < 1) notFound()
 
@@ -48,6 +54,7 @@ export default async function TrackerDetailPage(props: { params: Promise<{ id: s
       initialAllTimeSnapshots={allTimeSnapshots}
       initialTagGroups={tagGroupsData}
       initialQbitmanageConfig={qbitmanageConfig}
+      initialTab={initialTab}
     />
   )
 }
