@@ -14,6 +14,7 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
   glowColor?: string
   trackerColor?: string
   title?: string
+  lazy?: boolean
 }
 
 const card = cva("p-5", {
@@ -34,6 +35,7 @@ function Card({
   glowColor,
   trackerColor,
   title,
+  lazy,
   className,
   style,
   children,
@@ -49,7 +51,7 @@ function Card({
 
   return (
     <div
-      className={clsx(card({ elevation }), "rounded-nm-lg", className)}
+      className={clsx(card({ elevation }), "rounded-nm-lg", lazy && "lazy-card", className)}
       style={{ ...glowStyle, ...style }}
       {...props}
     >

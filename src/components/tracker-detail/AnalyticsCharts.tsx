@@ -1,6 +1,4 @@
 // src/components/tracker-detail/AnalyticsCharts.tsx
-//
-// Functions: AnalyticsCharts
 
 import { BufferCandlestickChart } from "@/components/charts/BufferCandlestickChart"
 import { MetricChart } from "@/components/charts/MetricChart"
@@ -56,7 +54,7 @@ export function AnalyticsCharts({
         </Card>
 
         {/* Ratio */}
-        <Card title="Ratio" trackerColor={tc} className="flex flex-col gap-4">
+        <Card lazy title="Ratio" trackerColor={tc} className="flex flex-col gap-4">
           <MetricChart
             metric="ratio"
             snapshots={snapshots}
@@ -66,37 +64,42 @@ export function AnalyticsCharts({
         </Card>
 
         {/* Buffer */}
-        <Card title="Buffer" trackerColor={tc} className="flex flex-col gap-4">
+        <Card lazy title="Buffer" trackerColor={tc} className="flex flex-col gap-4">
           <MetricChart metric="buffer" snapshots={snapshots} accentColor={tc} />
         </Card>
 
         {/* Buffer Candlestick */}
-        <Card title="Daily Buffer" trackerColor={tc} className="flex flex-col gap-4">
+        <Card lazy title="Daily Buffer" trackerColor={tc} className="flex flex-col gap-4">
           <BufferCandlestickChart trackerData={candlestickData} height={320} />
         </Card>
 
         {/* Seedbonus / Gold */}
-        <Card title={platformType === "ggn" ? "Gold" : "Seedbonus"} trackerColor={tc} className="flex flex-col gap-4">
+        <Card
+          lazy
+          title={platformType === "ggn" ? "Gold" : "Seedbonus"}
+          trackerColor={tc}
+          className="flex flex-col gap-4"
+        >
           <MetricChart metric="seedbonus" snapshots={snapshots} accentColor={tc} />
         </Card>
 
         {/* GGn Share Score chart */}
         {platformType === "ggn" && (
-          <Card title="Share Score" trackerColor={tc} className="flex flex-col gap-4">
+          <Card lazy title="Share Score" trackerColor={tc} className="flex flex-col gap-4">
             <MetricChart metric="shareScore" snapshots={snapshots} accentColor={tc} />
           </Card>
         )}
 
         {/* FL Wedges (MAM only) */}
         {platformType === "mam" && (
-          <Card title="FL Wedges" trackerColor={tc} className="flex flex-col gap-4">
+          <Card lazy title="FL Wedges" trackerColor={tc} className="flex flex-col gap-4">
             <MetricChart metric="freeleechTokens" snapshots={snapshots} accentColor={tc} />
           </Card>
         )}
 
         {/* Gazelle Percentile Radar */}
         {gazelleMeta?.ranks && (
-          <Card title="Percentile Ranks" trackerColor={tc} className="flex flex-col gap-4">
+          <Card lazy title="Percentile Ranks" trackerColor={tc} className="flex flex-col gap-4">
             <p className="text-xs font-mono text-tertiary">
               Your standing relative to all users — {gazelleMeta.ranks.overall}th percentile overall
             </p>
@@ -105,17 +108,22 @@ export function AnalyticsCharts({
         )}
 
         {/* Seeding Count */}
-        <Card title="Seeding Count" trackerColor={tc} className="flex flex-col gap-4">
+        <Card lazy title="Seeding Count" trackerColor={tc} className="flex flex-col gap-4">
           <MetricChart metric="seedingCount" snapshots={snapshots} accentColor={tc} />
         </Card>
 
         {/* Daily Activity */}
-        <Card title="Daily Activity" trackerColor={tc} className="flex flex-col gap-4">
+        <Card lazy title="Daily Activity" trackerColor={tc} className="flex flex-col gap-4">
           <MetricChart metric="dailyDelta" snapshots={snapshots} accentColor={tc} />
         </Card>
 
         {/* Activity by Time of Day */}
-        <Card title="Activity by Time of Day" trackerColor={tc} className="flex flex-col gap-4">
+        <Card
+          lazy
+          title="Activity by Time of Day"
+          trackerColor={tc}
+          className="flex flex-col gap-4"
+        >
           <UploadPolarChart snapshots={snapshots} accentColor={tc} />
         </Card>
       </div>

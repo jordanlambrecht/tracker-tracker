@@ -227,7 +227,9 @@
   color: var(--color-tertiary);
   cursor: pointer;
   transition: color 150ms;
-  &:hover { color: var(--color-secondary); }
+  &:hover {
+    color: var(--color-secondary);
+  }
 }
 
 @utility description-text {
@@ -271,7 +273,9 @@
   cursor: help;
   font-size: var(--text-sm);
   transition: color 150ms;
-  &:hover { color: var(--color-secondary); }
+  &:hover {
+    color: var(--color-secondary);
+  }
 }
 
 /* ─── Structural utilities ─── */
@@ -299,6 +303,11 @@
   min-height: calc(100vh - 6rem);
   align-items: center;
   justify-content: center;
+}
+
+@utility lazy-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 320px;
 }
 
 /*
