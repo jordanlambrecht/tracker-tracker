@@ -6,8 +6,8 @@
 
 import { useState } from "react"
 import { CHART_THEME } from "@/components/charts/lib/theme"
-import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { RedactedText } from "@/components/ui/RedactedText"
+import { SectionToggle } from "@/components/ui/SectionToggle"
 import type { TrackerUserClass } from "@/data/tracker-registry"
 import { hexToRgba } from "@/lib/formatters"
 import { isRedacted } from "@/lib/privacy"
@@ -31,6 +31,25 @@ type TimelineEvent =
       direction: "promotion" | "demotion" | "unknown"
     }
   | { kind: "anniversary"; label: string }
+
+interface RankProgressBarProps {
+  userClasses: TrackerUserClass[]
+  currentRank: string | null
+  accentColor: string
+}
+
+interface RankTimelineProps {
+  events: TimelineEvent[]
+  accentColor: string
+}
+
+interface RankProgressProps {
+  userClasses: TrackerUserClass[]
+  currentRank: string | null
+  snapshots: Snapshot[]
+  accentColor: string
+  joinedAt?: string | null
+}
 
 // ── Helpers ──
 
@@ -61,14 +80,6 @@ function classifyDirection(
   const toIdx = userClasses.findIndex((uc) => uc.name.toLowerCase() === to.toLowerCase())
   if (fromIdx === -1 || toIdx === -1) return "unknown"
   return toIdx > fromIdx ? "promotion" : "demotion"
-}
-
-// ── Progress Bar ──
-
-interface RankProgressBarProps {
-  userClasses: TrackerUserClass[]
-  currentRank: string | null
-  accentColor: string
 }
 
 function RankProgressBar({ userClasses, currentRank, accentColor }: RankProgressBarProps) {
@@ -129,13 +140,6 @@ function RankProgressBar({ userClasses, currentRank, accentColor }: RankProgress
   )
 }
 
-// ── Timeline ──
-
-interface RankTimelineProps {
-  events: TimelineEvent[]
-  accentColor: string
-}
-
 function RankTimeline({ events, accentColor }: RankTimelineProps) {
   if (events.length === 0) return null
 
@@ -193,24 +197,12 @@ function RankTimeline({ events, accentColor }: RankTimelineProps) {
                 <RedactedText value={event.to} color={dirColor} className="font-semibold" />
               </span>
             </div>
-            <span className="timestamp whitespace-nowrap pl-4">
-              {dateStr}
-            </span>
+            <span className="timestamp whitespace-nowrap pl-4">{dateStr}</span>
           </div>
         )
       })}
     </div>
   )
-}
-
-// ── Combined component ──
-
-interface RankProgressProps {
-  userClasses: TrackerUserClass[]
-  currentRank: string | null
-  snapshots: Snapshot[]
-  accentColor: string
-  joinedAt?: string | null
 }
 
 function RankProgress({
@@ -223,7 +215,7 @@ function RankProgress({
   const [expanded, setExpanded] = useState(true)
   const rankHistory = extractRankHistory(snapshots)
 
-  // Build timeline events: rank changes + anniversary milestone
+  // Build timeline events for rank changes + anniversary milestone
   const events: TimelineEvent[] = [...rankHistory].reverse().map((change) => ({
     kind: "rank" as const,
     from: change.from,
@@ -243,14 +235,11 @@ function RankProgress({
 
   return (
     <div className="flex flex-col gap-4">
-      <button
-        type="button"
-        onClick={() => setExpanded((e) => !e)}
-        className="flex items-center gap-2 text-xs font-sans font-medium text-tertiary uppercase tracking-wider hover:text-secondary transition-colors duration-150 cursor-pointer w-fit"
-      >
-        <ChevronToggle expanded={expanded} />
-        Rank Progression
-      </button>
+      <SectionToggle
+        label="Rank Progression"
+        expanded={expanded}
+        onToggle={() => setExpanded((e) => !e)}
+      />
 
       {expanded && (
         <>

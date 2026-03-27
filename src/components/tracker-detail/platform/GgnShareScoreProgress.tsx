@@ -1,7 +1,6 @@
 // src/components/tracker-detail/platform/GgnShareScoreProgress.tsx
 
-import { SlotLabel } from "@typography"
-import { ProgressBar } from "@/components/ui/ProgressBar"
+import { ProgressWidget } from "@/components/ui/ProgressWidget"
 import type { Snapshot } from "@/types/api"
 
 export interface GgnShareScoreProgressProps {
@@ -17,14 +16,11 @@ export function GgnShareScoreProgress({ latestSnapshot, accentColor }: GgnShareS
   const pct = (score / maxScore) * 100
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between text-xs font-mono">
-        <SlotLabel label="Share Score" />
-        <span className="text-secondary font-semibold">
-          {score.toFixed(2)} / {maxScore}
-        </span>
-      </div>
-      <ProgressBar percent={pct} color={accentColor} size="sm" />
-    </div>
+    <ProgressWidget
+      label="Share Score"
+      value={`${score.toFixed(2)} / ${maxScore}`}
+      percent={pct}
+      color={accentColor}
+    />
   )
 }

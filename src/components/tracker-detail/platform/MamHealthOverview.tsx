@@ -1,11 +1,8 @@
 // src/components/tracker-detail/platform/MamHealthOverview.tsx
-//
-// Composite layout for all MAM progress visualizations.
-// Replaces the 4 individual full-width progress slots with a single
-// component that handles internal composition and visual hierarchy.
 
 import { SlotLabel } from "@typography"
 import { ProgressBar } from "@/components/ui/ProgressBar"
+import { ProgressWidget } from "@/components/ui/ProgressWidget"
 import { Tooltip } from "@/components/ui/Tooltip"
 import { MAM_BONUS_CAP } from "@/lib/adapters/constants"
 import type { MamPlatformMeta } from "@/lib/adapters/types"
@@ -22,7 +19,6 @@ export interface MamHealthOverviewProps {
   unsatisfiedLimit: number | null
 }
 
-// ── Bonus cap waste estimate ────────────────────────────────────────────────
 const ESTIMATED_POINTS_PER_SEED_PER_HOUR = 0.5 // Rough average
 
 // ── Torrent health segments ─────────────────────────────────────────────────
@@ -104,30 +100,26 @@ export function MamHealthOverview({
     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
       {/* ── Top-left: VIP Countdown ──────────────────────────────────────── */}
       {hasVip && (
-        <div className="nm-inset-sm bg-control-bg rounded-nm-md p-4 flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <SlotLabel label="VIP Expires" />
-            <span className="text-xs font-mono text-secondary font-semibold">{vipDays}d</span>
-          </div>
-          <ProgressBar percent={vipPct} color={vipColor} size="sm" />
-          <p className="timestamp text-right">{vipDateStr}</p>
-        </div>
+        <ProgressWidget
+          inset
+          label="VIP Expires"
+          value={`${vipDays}d`}
+          percent={vipPct}
+          color={vipColor}
+          footer={vipDateStr}
+        />
       )}
 
       {/* ── Top-right: Download Capacity ─────────────────────────────────── */}
       {hasCapacity && (
-        <div className="nm-inset-sm bg-control-bg rounded-nm-md p-4 flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <SlotLabel label="Download Capacity" />
-            <span className="text-xs font-mono text-secondary font-semibold">
-              {satRemaining} / {unsatisfiedLimit} slots
-            </span>
-          </div>
-          <ProgressBar percent={satPct} color={satColor} size="sm" />
-          <p className="timestamp text-right">
-            {satUsed} unsatisfied torrent{satUsed !== 1 ? "s" : ""}
-          </p>
-        </div>
+        <ProgressWidget
+          inset
+          label="Download Capacity"
+          value={`${satRemaining} / ${unsatisfiedLimit} slots`}
+          percent={satPct}
+          color={satColor}
+          footer={`${satUsed} unsatisfied torrent${satUsed !== 1 ? "s" : ""}`}
+        />
       )}
 
       {/* ── Bottom-left: Torrent Health ──────────────────────────────────── */}

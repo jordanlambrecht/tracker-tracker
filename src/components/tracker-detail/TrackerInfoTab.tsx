@@ -1,6 +1,4 @@
 // src/components/tracker-detail/TrackerInfoTab.tsx
-//
-// Functions: TrackerInfoTab
 
 "use client"
 
@@ -9,7 +7,8 @@ import clsx from "clsx"
 import { useState } from "react"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { ChevronToggle } from "@/components/ui/ChevronToggle"
+import { PillTag } from "@/components/ui/PillTag"
+import { SectionToggle } from "@/components/ui/SectionToggle"
 import { Tooltip } from "@/components/ui/Tooltip"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { hexToRgba } from "@/lib/formatters"
@@ -121,12 +120,9 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
           <H2>Content</H2>
           <div className="flex flex-wrap items-center gap-2">
             {registryEntry.contentCategories.map((cat) => (
-              <span
-                key={cat}
-                className="inline-flex items-center px-3 py-1 font-mono text-xs text-tertiary nm-inset-sm bg-control-bg rounded-nm-pill"
-              >
+              <PillTag key={cat} className="inline-flex items-center">
                 {cat}
-              </span>
+              </PillTag>
             ))}
           </div>
         </div>
@@ -218,12 +214,9 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
                       {uc.perks && uc.perks.length > 0 && (
                         <div className="flex flex-wrap justify-end gap-1 mt-1">
                           {uc.perks.map((perk) => (
-                            <span
-                              key={`${perk.type}-${perk.label}`}
-                              className="timestamp nm-inset-sm bg-control-bg px-1.5 py-0.5 rounded-nm-pill"
-                            >
+                            <PillTag key={`${perk.type}-${perk.label}`} size="sm" color="muted">
                               {perk.label}
-                            </span>
+                            </PillTag>
                           ))}
                         </div>
                       )}
@@ -245,12 +238,9 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
               const name = typeof g === "string" ? g : g.name
               const desc = typeof g === "string" ? undefined : g.description
               const badge = (
-                <span
-                  key={name}
-                  className="nm-inset-sm bg-control-bg rounded-nm-pill px-3 py-1 text-xs font-mono text-accent"
-                >
+                <PillTag key={name} color="accent">
                   {name}
-                </span>
+                </PillTag>
               )
               return desc ? (
                 <Tooltip key={name} content={desc}>
@@ -270,40 +260,35 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
           <H2>Notable Members</H2>
           <div className="flex flex-wrap gap-2">
             {registryEntry.notableMembers.map((m) => (
-              <span
-                key={m}
-                className="nm-inset-sm bg-control-bg rounded-nm-pill px-3 py-1 text-xs font-mono text-secondary"
-              >
+              <PillTag key={m} color="secondary">
                 {m}
-              </span>
+              </PillTag>
             ))}
           </div>
         </div>
       )}
 
-      {/* Banned Groups (accordion) */}
+      {/* Banned Groups */}
       {registryEntry?.bannedGroups && registryEntry.bannedGroups.length > 0 && (
         <div className="flex flex-col gap-2">
-          <button
-            type="button"
-            className="flex items-center gap-2 text-xs font-sans font-medium text-tertiary uppercase tracking-wider cursor-pointer hover:text-secondary transition-colors"
-            onClick={() => setBannedOpen((o) => !o)}
-          >
-            <ChevronToggle expanded={bannedOpen} />
-            Banned Groups
-            <span className="text-muted font-mono normal-case">
-              ({registryEntry.bannedGroups.length})
-            </span>
-          </button>
+          <SectionToggle
+            expanded={bannedOpen}
+            onToggle={() => setBannedOpen((o) => !o)}
+            label={
+              <>
+                Banned Groups{" "}
+                <span className="text-muted font-mono normal-case">
+                  ({registryEntry.bannedGroups.length})
+                </span>
+              </>
+            }
+          />
           {bannedOpen && (
             <div className="flex flex-wrap gap-2">
               {registryEntry.bannedGroups.map((g) => (
-                <span
-                  key={g}
-                  className="nm-inset-sm bg-control-bg rounded-nm-pill px-3 py-1 text-xs font-mono text-danger"
-                >
+                <PillTag key={g} color="danger">
                   {g}
-                </span>
+                </PillTag>
               ))}
             </div>
           )}
