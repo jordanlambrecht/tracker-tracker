@@ -20,12 +20,11 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { H2 } from "@typography"
 import clsx from "clsx"
+import dynamic from "next/dynamic"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { type CSSProperties, useCallback, useEffect, useRef, useState } from "react"
-import Markdown from "react-markdown"
-import remarkGfm from "remark-gfm"
 import { AddTrackerDialog } from "@/components/AddTrackerDialog"
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import { Button } from "@/components/ui/Button"
@@ -48,6 +47,8 @@ import {
 import { STORAGE_KEYS } from "@/lib/storage-keys"
 import { getHealthPulseDot, getTrackerHealth } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
+
+const ChangelogContent = dynamic(() => import("./ChangelogContent"), { ssr: false })
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1038,7 +1039,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
           </div>
           <div className="overflow-y-auto px-6 py-5 styled-scrollbar prose prose-invert prose-sm max-w-none prose-headings:font-mono prose-headings:text-primary prose-h1:text-lg prose-h2:text-base prose-h2:text-white prose-h2:border-b prose-h2:border-border prose-h2:pb-2 prose-h3:text-sm prose-li:text-secondary prose-p:text-secondary prose-strong:text-primary prose-a:text-accent">
             {changelogContent ? (
-              <Markdown remarkPlugins={[remarkGfm]}>{changelogContent}</Markdown>
+              <ChangelogContent content={changelogContent} />
             ) : (
               <p className="text-muted">Loading...</p>
             )}
