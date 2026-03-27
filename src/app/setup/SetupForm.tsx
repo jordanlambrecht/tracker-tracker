@@ -12,25 +12,25 @@ export function SetupForm() {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
-  const [error, setError] = useState<string | null>(null)
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   async function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
-    setError(null)
+    setErrors({})
 
     if (!username.trim() || username.trim().length < 3) {
-      setError("Username must be at least 3 characters.")
+      setErrors({ username: "Username must be at least 3 characters." })
       return
     }
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters.")
+      setErrors({ password: "Password must be at least 8 characters." })
       return
     }
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match.")
+      setErrors({ confirmPassword: "Passwords do not match." })
       return
     }
 
@@ -47,7 +47,16 @@ export function SetupForm() {
 
       if (!setupRes.ok) {
         const data = (await setupRes.json()) as { error?: string }
-        setError(data.error ?? "Setup failed. Please try again.")
+        const msg = data.error ?? "Setup failed. Please try again."
+        if (msg.toLowerCase().includes("username")) {
+          setErrors({ username: msg })
+        } else if (msg.toLowerCase().includes("8 char") || msg.toLowerCase().includes("password")) {
+          setErrors({ password: msg })
+        } else if (msg.toLowerCase().includes("match")) {
+          setErrors({ confirmPassword: msg })
+        } else {
+          setErrors({ form: msg })
+        }
         return
       }
 
@@ -59,13 +68,13 @@ export function SetupForm() {
 
       if (!loginRes.ok) {
         const data = (await loginRes.json()) as { error?: string }
-        setError(data.error ?? "Login after setup failed. Please go to the login page.")
+        setErrors({ form: data.error ?? "Login after setup failed. Please go to the login page." })
         return
       }
 
       router.push("/")
     } catch {
-      setError("An unexpected error occurred. Please try again.")
+      setErrors({ form: "An unexpected error occurred. Please try again." })
     } finally {
       setIsSubmitting(false)
     }
@@ -96,7 +105,7 @@ export function SetupForm() {
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              error={error?.toLowerCase().includes("username") ? error : undefined}
+              error={errors.username}
               disabled={isSubmitting}
             />
 
@@ -107,7 +116,7 @@ export function SetupForm() {
               placeholder="Min. 8 characters"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              error={error?.toLowerCase().includes("8 char") ? error : undefined}
+              error={errors.password}
               disabled={isSubmitting}
               required
             />
@@ -119,19 +128,16 @@ export function SetupForm() {
               placeholder="Re-enter password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              error={error?.toLowerCase().includes("match") ? error : undefined}
+              error={errors.confirmPassword}
               disabled={isSubmitting}
               required
             />
 
-            {error &&
-              !error?.toLowerCase().includes("8 char") &&
-              !error?.toLowerCase().includes("match") &&
-              !error?.toLowerCase().includes("username") && (
-                <p className="text-xs font-sans text-danger" role="alert">
-                  {error}
-                </p>
-              )}
+            {errors.form && (
+              <p className="text-xs font-sans text-danger" role="alert">
+                {errors.form}
+              </p>
+            )}
 
             <Button
               type="submit"
