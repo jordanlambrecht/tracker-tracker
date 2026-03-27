@@ -21,16 +21,12 @@ export async function GET(request: Request) {
 
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 
-  const clients = await db
-    .select({ id: downloadClients.id, name: downloadClients.name })
-    .from(downloadClients)
+  const [clients, snapshots] = await Promise.all([
+    db.select({ id: downloadClients.id, name: downloadClients.name }).from(downloadClients),
+    db.select().from(clientSnapshots).where(gte(clientSnapshots.polledAt, cutoff)),
+  ])
 
   const clientNameMap = new Map(clients.map((c) => [c.id, c.name]))
-
-  const snapshots = await db
-    .select()
-    .from(clientSnapshots)
-    .where(gte(clientSnapshots.polledAt, cutoff))
 
   const serialized = snapshots.map((s) => ({
     clientId: s.clientId,

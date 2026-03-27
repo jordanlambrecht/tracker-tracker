@@ -485,7 +485,7 @@ export async function PATCH(request: Request) {
   const [updated] = await fetchSettings()
   if (!updated) {
     log.error({ route: "PATCH /api/settings" }, "settings re-fetch returned empty after update")
-    throw new Error("Settings update failed")
+    return NextResponse.json({ error: "Settings update failed" }, { status: 500 })
   }
 
   // Restart backup scheduler if schedule settings changed

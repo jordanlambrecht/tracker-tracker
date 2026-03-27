@@ -22,26 +22,24 @@ export async function POST() {
 
   const key = decodeKey(auth)
 
-  const [settings] = await db
-    .select({
-      storeUsernames: appSettings.storeUsernames,
-      proxyEnabled: appSettings.proxyEnabled,
-      proxyType: appSettings.proxyType,
-      proxyHost: appSettings.proxyHost,
-      proxyPort: appSettings.proxyPort,
-      proxyUsername: appSettings.proxyUsername,
-      encryptedProxyPassword: appSettings.encryptedProxyPassword,
-    })
-    .from(appSettings)
-    .limit(1)
+  const [[settings], activeTrackers] = await Promise.all([
+    db
+      .select({
+        storeUsernames: appSettings.storeUsernames,
+        proxyEnabled: appSettings.proxyEnabled,
+        proxyType: appSettings.proxyType,
+        proxyHost: appSettings.proxyHost,
+        proxyPort: appSettings.proxyPort,
+        proxyUsername: appSettings.proxyUsername,
+        encryptedProxyPassword: appSettings.encryptedProxyPassword,
+      })
+      .from(appSettings)
+      .limit(1),
+    db.select({ id: trackers.id }).from(trackers).where(eq(trackers.isActive, true)),
+  ])
 
   const privacyMode = settings ? !settings.storeUsernames : false
   const proxyAgent = settings ? buildProxyAgentFromSettings(settings, key) : undefined
-
-  const activeTrackers = await db
-    .select({ id: trackers.id })
-    .from(trackers)
-    .where(eq(trackers.isActive, true))
 
   if (activeTrackers.length === 0) {
     return NextResponse.json({ total: 0, done: true, polled: 0, failed: 0 })

@@ -73,13 +73,24 @@ export async function POST(request: Request) {
   const failedTrackers: string[] = []
   const failedClients: string[] = []
 
-  const allTrackers = await db
-    .select({
-      id: trackers.id,
-      name: trackers.name,
-      encryptedApiToken: trackers.encryptedApiToken,
-    })
-    .from(trackers)
+  const [allTrackers, allClients] = await Promise.all([
+    db
+      .select({
+        id: trackers.id,
+        name: trackers.name,
+        encryptedApiToken: trackers.encryptedApiToken,
+      })
+      .from(trackers),
+    db
+      .select({
+        id: downloadClients.id,
+        name: downloadClients.name,
+        encryptedUsername: downloadClients.encryptedUsername,
+        encryptedPassword: downloadClients.encryptedPassword,
+      })
+      .from(downloadClients),
+  ])
+
   for (const tracker of allTrackers) {
     try {
       trackerPlaintexts.set(tracker.id, decrypt(tracker.encryptedApiToken, oldKey))
@@ -88,14 +99,6 @@ export async function POST(request: Request) {
     }
   }
 
-  const allClients = await db
-    .select({
-      id: downloadClients.id,
-      name: downloadClients.name,
-      encryptedUsername: downloadClients.encryptedUsername,
-      encryptedPassword: downloadClients.encryptedPassword,
-    })
-    .from(downloadClients)
   for (const client of allClients) {
     try {
       clientPlaintexts.set(client.id, {
