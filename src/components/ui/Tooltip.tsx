@@ -1,10 +1,8 @@
 // src/components/ui/Tooltip.tsx
-//
-// Functions: Tooltip
 
 "use client"
 
-import { type ReactNode, useEffect, useRef, useState } from "react"
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import type { DocsEntry } from "@/lib/constants"
 
@@ -38,7 +36,7 @@ function Tooltip({ content, children, className, docs }: TooltipProps) {
     []
   )
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!visible || !triggerRef.current) return
     const rect = triggerRef.current.getBoundingClientRect()
     setPos({ top: rect.bottom + 6, left: rect.left })

@@ -1,13 +1,11 @@
 // src/components/ui/EmojiPickerPopover.tsx
-//
-// Functions: EmojiPickerPopover
 
 "use client"
 
 import dynamic from "next/dynamic"
 import { EmojiStyle, Theme } from "emoji-picker-react"
 import type { EmojiClickData, PickerProps } from "emoji-picker-react"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 
 const EmojiPicker = dynamic<PickerProps>(() => import("emoji-picker-react"), { ssr: false })
@@ -31,7 +29,7 @@ function EmojiPickerPopover({
   const containerRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open || !triggerRef.current) return
     const rect = triggerRef.current.getBoundingClientRect()
     setPos({ top: rect.bottom + 8, left: rect.left })
