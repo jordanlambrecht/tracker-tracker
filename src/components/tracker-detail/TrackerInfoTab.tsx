@@ -101,7 +101,7 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
                   <span className="text-sm font-sans text-tertiary flex items-center gap-1.5">
                     {rule.label}
                     <Tooltip content={rule.tip}>
-                      <span className="cursor-help text-4xs font-bold opacity-50 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current hover:opacity-80 transition-opacity">
+                      <span className="help-icon opacity-50 hover:opacity-80 transition-opacity">
                         ?
                       </span>
                     </Tooltip>
@@ -138,9 +138,7 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
           <div className="flex flex-col gap-3">
             <H2>Site Stats</H2>
             {registryEntry.stats.statsUpdatedAt && (
-              <span className="text-3xs font-mono text-muted">
-                Updated {registryEntry.stats.statsUpdatedAt}
-              </span>
+              <span className="timestamp">Updated {registryEntry.stats.statsUpdatedAt}</span>
             )}
             <div className="flex flex-wrap gap-6">
               {registryEntry.stats.userCount != null && (
@@ -197,7 +195,7 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
                   <div className="flex items-center gap-3 pt-0.5">
                     <span
                       className={clsx(
-                        "text-sm font-mono min-w-[140px]",
+                        "text-sm font-mono min-w-35",
                         isCurrent ? "font-semibold" : "text-secondary"
                       )}
                       style={isCurrent ? { color: tc } : undefined}
@@ -222,7 +220,7 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
                           {uc.perks.map((perk) => (
                             <span
                               key={`${perk.type}-${perk.label}`}
-                              className="text-3xs font-mono text-muted nm-inset-sm bg-control-bg px-1.5 py-0.5 rounded-nm-pill"
+                              className="timestamp nm-inset-sm bg-control-bg px-1.5 py-0.5 rounded-nm-pill"
                             >
                               {perk.label}
                             </span>
