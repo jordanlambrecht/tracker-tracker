@@ -4,6 +4,7 @@
 // Replaces the 4 individual full-width progress slots with a single
 // component that handles internal composition and visual hierarchy.
 
+import { SlotLabel } from "@typography"
 import { ProgressBar } from "@/components/ui/ProgressBar"
 import { Tooltip } from "@/components/ui/Tooltip"
 import { MAM_BONUS_CAP } from "@/lib/adapters/constants"
@@ -22,7 +23,7 @@ export interface MamHealthOverviewProps {
 }
 
 // ── Bonus cap waste estimate ────────────────────────────────────────────────
-const ESTIMATED_POINTS_PER_SEED_PER_HOUR = 0.5 // Rough average — MAM formula varies by torrent
+const ESTIMATED_POINTS_PER_SEED_PER_HOUR = 0.5 // Rough average
 
 // ── Torrent health segments ─────────────────────────────────────────────────
 const SEGMENTS = [
@@ -105,11 +106,11 @@ export function MamHealthOverview({
       {hasVip && (
         <div className="nm-inset-sm bg-control-bg rounded-nm-md p-4 flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <span className="slot-label">VIP Expires</span>
+            <SlotLabel>VIP Expires</SlotLabel>
             <span className="text-xs font-mono text-secondary font-semibold">{vipDays}d</span>
           </div>
           <ProgressBar percent={vipPct} color={vipColor} size="sm" />
-          <p className="text-3xs font-mono text-muted text-right">{vipDateStr}</p>
+          <p className="timestamp text-right">{vipDateStr}</p>
         </div>
       )}
 
@@ -117,13 +118,13 @@ export function MamHealthOverview({
       {hasCapacity && (
         <div className="nm-inset-sm bg-control-bg rounded-nm-md p-4 flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <span className="slot-label">Download Capacity</span>
+            <SlotLabel>Download Capacity</SlotLabel>
             <span className="text-xs font-mono text-secondary font-semibold">
               {satRemaining} / {unsatisfiedLimit} slots
             </span>
           </div>
           <ProgressBar percent={satPct} color={satColor} size="sm" />
-          <p className="text-3xs font-mono text-muted text-right">
+          <p className="timestamp text-right">
             {satUsed} unsatisfied torrent{satUsed !== 1 ? "s" : ""}
           </p>
         </div>
@@ -133,11 +134,9 @@ export function MamHealthOverview({
       {hasHealth && (
         <div className="nm-inset-sm bg-control-bg rounded-nm-md p-4 flex flex-col gap-2">
           <div className="flex items-center gap-1">
-            <span className="slot-label">Torrent Health</span>
+            <SlotLabel>Torrent Health</SlotLabel>
             <Tooltip content="Breakdown of your snatched torrents by seeding status. Green = seeding and satisfied. Amber = seeding but not yet past the 72-hour requirement (pre-HnR or active HnR). Red = not seeding past deadline (Hit & Run). Gray = completed, no longer seeding.">
-              <span className="text-muted hover:text-secondary cursor-help text-3xs">
-                &#9432;
-              </span>
+              <span className="text-muted hover:text-secondary cursor-help text-3xs">&#9432;</span>
             </Tooltip>
           </div>
           <div className="nm-inset h-3 w-full overflow-hidden rounded-nm-pill flex">
@@ -158,10 +157,7 @@ export function MamHealthOverview({
             {SEGMENTS.map(({ key, label, color }) => {
               if (healthValues[key] <= 0) return null
               return (
-                <span
-                  key={key}
-                  className="text-3xs font-mono text-muted flex items-center gap-1"
-                >
+                <span key={key} className="timestamp flex items-center gap-1">
                   <span
                     className="w-1.5 h-1.5 rounded-full inline-block"
                     style={{ backgroundColor: color }}
@@ -177,7 +173,7 @@ export function MamHealthOverview({
       {/* ── Bottom-right: Bonus Cap Warning ──────────────────────────────── */}
       {atCap && (
         <div className="nm-inset-sm bg-danger-dim rounded-nm-md p-4 flex flex-col gap-1">
-          <span className="slot-label text-danger">Bonus Cap Reached</span>
+          <SlotLabel className="text-danger">Bonus Cap Reached</SlotLabel>
           <span className="text-sm font-mono font-semibold text-primary">
             {(seedbonus ?? 0).toLocaleString()} / {MAM_BONUS_CAP.toLocaleString()}
           </span>

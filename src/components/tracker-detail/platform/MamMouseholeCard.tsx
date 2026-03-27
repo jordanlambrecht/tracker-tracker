@@ -281,7 +281,7 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
         <div
           className={clsx(
             "overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out",
-            expanded ? "max-h-[300px] opacity-100" : "max-h-0 opacity-0"
+            expanded ? "max-h-75 opacity-100" : "max-h-0 opacity-0"
           )}
         >
           <div className="flex flex-col gap-2 mt-2.5">

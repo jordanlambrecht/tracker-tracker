@@ -82,8 +82,8 @@ function UptimeBar({ buckets, uptimePercent, className = "" }: UptimeBarProps) {
       </div>
 
       <div className="relative">
-        <div className="nm-inset rounded-md p-[2px]">
-          <div className="flex gap-[1px] rounded-sm overflow-hidden">
+        <div className="nm-inset rounded-md p-0.5">
+          <div className="flex gap-px rounded-sm overflow-hidden">
             {blocks.map((block, i) => (
               // biome-ignore lint/a11y/noStaticElementInteractions: decorative hover for chart tooltip
               <div

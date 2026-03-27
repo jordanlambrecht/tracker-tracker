@@ -203,7 +203,7 @@ export function EventsSection() {
           placeholder="Search…"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="flex-1 min-w-[120px] max-w-[320px] text-xs"
+          className="flex-1 min-w-30 max-w-80 text-xs"
         />
         <span className="flex-1" />
         <CopyButton value={copyValue} />
@@ -318,7 +318,7 @@ export function EventsSection() {
       {error && <span className="text-xs text-danger font-mono">{error}</span>}
 
       {/* ── Event stream ─────────────────────────────────────────── */}
-      <div className="nm-inset-sm bg-control-bg overflow-x-auto overflow-y-auto max-h-[560px] styled-scrollbar rounded-nm-md">
+      <div className="nm-inset-sm bg-control-bg overflow-x-auto overflow-y-auto max-h-140 styled-scrollbar rounded-nm-md">
         {loading && events.length === 0 ? (
           <p className="px-3 py-8 text-xs font-mono text-muted text-center">Loading events…</p>
         ) : filteredEvents.length === 0 ? (
@@ -344,7 +344,7 @@ export function EventsSection() {
                 )}
                 {(() => {
                   const rowClass = clsx(
-                    "flex flex-col gap-0 px-3 py-1.5 text-xs font-mono border-l-[3px] w-full text-left",
+                    "flex flex-col gap-0 px-3 py-1.5 text-xs font-mono border-l-3 w-full text-left",
                     style.border,
                     i % 2 === 0 ? "bg-control-bg" : "bg-elevated/50",
                     hasDetail &&
@@ -358,7 +358,7 @@ export function EventsSection() {
                         >
                           {style.icon}
                         </span>
-                        <span className="text-tertiary shrink-0 tabular-nums w-[62px]">
+                        <span className="text-tertiary shrink-0 tabular-nums w-15.5">
                           {formatTime(event.timestamp)}
                         </span>
                         <span className="text-secondary shrink-0">{event.title}</span>
@@ -395,9 +395,9 @@ export function EventsSection() {
 
       {/* ── Footer ───────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
-        <p className="text-3xs text-muted font-mono">IPs redacted</p>
+        <p className="timestamp">IPs redacted</p>
         {filteredEvents.length > 0 && (
-          <span className="text-3xs font-mono text-muted">
+          <span className="timestamp">
             {filteredEvents.length === events.length
               ? `${events.length} events`
               : `${filteredEvents.length} of ${events.length}`}

@@ -42,7 +42,7 @@ function Toggle({ label, checked, onChange, disabled = false, description, id }:
             "absolute top-0.5 block w-5 h-5",
             "nm-raised-sm rounded-nm-pill",
             "transition-all duration-200",
-            checked ? "left-[22px] bg-accent" : "left-0.5 bg-secondary"
+            checked ? "left-5.5 bg-accent" : "left-0.5 bg-secondary"
           )}
           aria-hidden="true"
         />
