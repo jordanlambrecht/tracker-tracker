@@ -59,6 +59,19 @@ export async function POST(request: Request) {
     )
   }
 
+  if (typeof proxyUsername === "string" && proxyUsername.length > 255) {
+    return NextResponse.json(
+      { error: "Proxy username must be 255 characters or fewer" },
+      { status: 400 }
+    )
+  }
+  if (typeof proxyPassword === "string" && proxyPassword.length > 255) {
+    return NextResponse.json(
+      { error: "Proxy password must be 255 characters or fewer" },
+      { status: 400 }
+    )
+  }
+
   const port = typeof proxyPort === "number" ? proxyPort : 1080
   const portErr = validatePort(port)
   if (portErr) return portErr

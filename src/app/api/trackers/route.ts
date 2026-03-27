@@ -94,6 +94,12 @@ export async function POST(request: Request) {
   }
 
   if (typeof mouseholeUrl === "string" && mouseholeUrl.trim()) {
+    if (mouseholeUrl.trim().length > 500) {
+      return NextResponse.json(
+        { error: "Mousehole URL must be 500 characters or fewer" },
+        { status: 400 }
+      )
+    }
     const mouseUrlErr = validateHttpUrl(mouseholeUrl.trim(), "Mousehole URL")
     if (mouseUrlErr) return mouseUrlErr
   }

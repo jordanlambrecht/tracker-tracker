@@ -52,7 +52,8 @@ export async function POST(request: Request) {
   try {
     const adapter = getAdapter(platform)
     const defaultPath = DEFAULT_API_PATHS[platform] ?? "/api/user"
-    const path = typeof apiPath === "string" && apiPath.startsWith("/") ? apiPath : defaultPath
+    const rawPath = typeof apiPath === "string" && apiPath.startsWith("/") ? apiPath : defaultPath
+    const path = rawPath.length > 500 ? rawPath.slice(0, 500) : rawPath
     const fetchOptions = buildFetchOptions(trimmedBaseUrl)
     const stats = await adapter.fetchStats(trimmedBaseUrl, trimmedApiToken, path, fetchOptions)
     return NextResponse.json({

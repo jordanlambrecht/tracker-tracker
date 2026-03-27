@@ -78,6 +78,12 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
   if (typeof body.mouseholeUrl === "string") {
     const trimmed = body.mouseholeUrl.trim()
     if (trimmed) {
+      if (trimmed.length > 500) {
+        return NextResponse.json(
+          { error: "Mousehole URL must be 500 characters or fewer" },
+          { status: 400 }
+        )
+      }
       const mouseUrlErr = validateHttpUrl(trimmed, "Mousehole URL")
       if (mouseUrlErr) return mouseUrlErr
     }
