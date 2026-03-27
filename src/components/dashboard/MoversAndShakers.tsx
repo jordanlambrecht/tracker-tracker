@@ -58,7 +58,7 @@ function TorrentRankList({ label, entries }: { label: string; entries: TorrentRa
                   />
                   <MarqueeText className="text-xs font-mono text-primary">{entry.name}</MarqueeText>
                 </div>
-                <span className="text-xs font-mono text-secondary tabular-nums whitespace-nowrap">
+                <span className="tabular-cell whitespace-nowrap">
                   {formatBytesFromString(entry.bytes)}
                 </span>
               </li>

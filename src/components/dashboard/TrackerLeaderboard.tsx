@@ -51,8 +51,8 @@ const columns: Column<TrackerSummary>[] = [
     sortable: true,
     sortValue: (t) => t.latestStats?.ratio ?? -1,
     render: (t) => (
-      <span className="font-mono tabular-nums text-secondary text-xs">
-        {t.latestStats?.ratio != null ? `${formatRatio(t.latestStats.ratio)}×` : "—"}
+      <span className="tabular-cell">
+        {t.latestStats?.ratio != null ? `${formatRatio(t.latestStats.ratio)}x` : "—"}
       </span>
     ),
   },
@@ -64,7 +64,7 @@ const columns: Column<TrackerSummary>[] = [
     sortValue: (t) =>
       t.latestStats?.uploadedBytes ? Number(BigInt(t.latestStats.uploadedBytes)) : -1,
     render: (t) => (
-      <span className="font-mono tabular-nums text-secondary text-xs">
+      <span className="tabular-cell">
         {t.latestStats?.uploadedBytes ? formatBytesFromString(t.latestStats.uploadedBytes) : "—"}
       </span>
     ),
@@ -77,7 +77,7 @@ const columns: Column<TrackerSummary>[] = [
     sortValue: (t) =>
       t.latestStats?.downloadedBytes ? Number(BigInt(t.latestStats.downloadedBytes)) : -1,
     render: (t) => (
-      <span className="font-mono tabular-nums text-secondary text-xs">
+      <span className="tabular-cell">
         {t.latestStats?.downloadedBytes
           ? formatBytesFromString(t.latestStats.downloadedBytes)
           : "—"}
@@ -91,7 +91,7 @@ const columns: Column<TrackerSummary>[] = [
     sortable: true,
     sortValue: (t) => Number(getBufferBytes(t)),
     render: (t) => (
-      <span className="font-mono tabular-nums text-secondary text-xs">
+      <span className="tabular-cell">
         {t.latestStats?.uploadedBytes && t.latestStats?.downloadedBytes
           ? formatBytesFromString(getBufferBytes(t).toString())
           : "—"}
@@ -105,7 +105,7 @@ const columns: Column<TrackerSummary>[] = [
     sortable: true,
     sortValue: (t) => t.latestStats?.seedingCount ?? -1,
     render: (t) => (
-      <span className="font-mono tabular-nums text-secondary text-xs">
+      <span className="tabular-cell">
         {t.latestStats?.seedingCount != null ? t.latestStats.seedingCount.toLocaleString() : "—"}
       </span>
     ),
@@ -117,9 +117,7 @@ const columns: Column<TrackerSummary>[] = [
     sortable: true,
     sortValue: (t) => (t.joinedAt ? new Date(t.joinedAt).getTime() : Infinity),
     render: (t) => (
-      <span className="font-mono tabular-nums text-secondary text-xs whitespace-nowrap">
-        {formatAccountAge(t.joinedAt) ?? "—"}
-      </span>
+      <span className="tabular-cell whitespace-nowrap">{formatAccountAge(t.joinedAt) ?? "—"}</span>
     ),
   },
   {

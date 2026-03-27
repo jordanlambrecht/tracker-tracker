@@ -61,7 +61,7 @@ export function TrackerBreakdownBars({ trackers, metric = "upload" }: TrackerBre
 
             <ProgressBar percent={pct} color={color} size="md" className="flex-1" />
 
-            <span className="text-xs font-mono text-secondary tabular-nums w-20 text-right shrink-0">
+            <span className="tabular-cell w-20 text-right shrink-0">
               {formatBytesFromString(getDelta(tracker))}
             </span>
           </div>

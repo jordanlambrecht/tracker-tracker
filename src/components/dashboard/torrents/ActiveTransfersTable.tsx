@@ -71,7 +71,7 @@ export function ActiveTransfersTable({
         const num = spaceIdx > -1 ? formatted.slice(0, spaceIdx) : formatted
         const unit = spaceIdx > -1 ? formatted.slice(spaceIdx + 1) : ""
         return (
-          <span className="text-2xs font-mono text-muted text-right leading-none">
+          <span className="torrent-cell text-right leading-none">
             {num}
             <span className="block text-4xs mt-px">{unit}</span>
           </span>
@@ -84,7 +84,7 @@ export function ActiveTransfersTable({
       align: "right",
       width: 36,
       render: (t) => (
-        <span className="text-2xs font-mono text-muted">
+        <span className="torrent-cell">
           {isDownload ? `${(t.progress * 100).toFixed(0)}%` : t.ratio.toFixed(2)}
         </span>
       ),
@@ -117,7 +117,7 @@ export function ActiveTransfersTable({
       align: "right",
       width: 36,
       render: (t) => {
-        if (t.lastActivity <= 0) return <span className="text-2xs font-mono text-muted">—</span>
+        if (t.lastActivity <= 0) return <span className="torrent-cell">—</span>
         const diff = Math.floor(Date.now() / 1000 - t.lastActivity)
         const val =
           diff < 60
@@ -127,7 +127,7 @@ export function ActiveTransfersTable({
               : diff < 86400
                 ? `${Math.floor(diff / 3600)}h`
                 : `${Math.floor(diff / 86400)}d`
-        return <span className="text-2xs font-mono text-muted">{val}</span>
+        return <span className="torrent-cell">{val}</span>
       },
     },
   ]
