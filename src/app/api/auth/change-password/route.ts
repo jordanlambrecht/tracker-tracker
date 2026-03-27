@@ -4,7 +4,8 @@
 //
 // Changes the master password and re-encrypts all encrypted fields
 // (tracker API tokens, download client credentials, proxy password,
-// backup password, TOTP secrets) inside a single transaction.
+// backup password, TOTP secrets, image host API keys, notification
+// target configs) inside a single transaction.
 // Requires an active session and the current password for verification.
 
 import { eq } from "drizzle-orm"
@@ -13,7 +14,7 @@ import { authenticate, decodeKey, parseJsonBody } from "@/lib/api-helpers"
 import { clearSession, hashPassword, verifyPassword } from "@/lib/auth"
 import { decrypt, deriveKey, encrypt, reencrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { appSettings, downloadClients, trackers } from "@/lib/db/schema"
+import { appSettings, downloadClients, notificationTargets, trackers } from "@/lib/db/schema"
 import { recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import { log } from "@/lib/logger"
 import { stopScheduler } from "@/lib/scheduler"
@@ -70,10 +71,12 @@ export async function POST(request: Request) {
   // already-corrupted items before committing any writes.
   const trackerPlaintexts = new Map<number, string>()
   const clientPlaintexts = new Map<number, { username: string; password: string }>()
+  const notificationPlaintexts = new Map<number, string>()
   const failedTrackers: string[] = []
   const failedClients: string[] = []
+  const failedNotifications: string[] = []
 
-  const [allTrackers, allClients] = await Promise.all([
+  const [allTrackers, allClients, allNotifications] = await Promise.all([
     db
       .select({
         id: trackers.id,
@@ -89,6 +92,13 @@ export async function POST(request: Request) {
         encryptedPassword: downloadClients.encryptedPassword,
       })
       .from(downloadClients),
+    db
+      .select({
+        id: notificationTargets.id,
+        name: notificationTargets.name,
+        encryptedConfig: notificationTargets.encryptedConfig,
+      })
+      .from(notificationTargets),
   ])
 
   for (const tracker of allTrackers) {
@@ -107,6 +117,14 @@ export async function POST(request: Request) {
       })
     } catch {
       failedClients.push(client.name)
+    }
+  }
+
+  for (const nt of allNotifications) {
+    try {
+      notificationPlaintexts.set(nt.id, decrypt(nt.encryptedConfig, oldKey))
+    } catch {
+      failedNotifications.push(nt.name)
     }
   }
 
@@ -163,6 +181,51 @@ export async function POST(request: Request) {
     }
   }
 
+  if (settings.encryptedPtpimgApiKey) {
+    try {
+      settingsUpdates.encryptedPtpimgApiKey = reencrypt(
+        settings.encryptedPtpimgApiKey,
+        oldKey,
+        newKey
+      )
+    } catch {
+      settingsUpdates.encryptedPtpimgApiKey = null
+      warnings.push(
+        "PTPImg API key could not be re-encrypted and was cleared. Re-enter it in settings."
+      )
+    }
+  }
+
+  if (settings.encryptedOeimgApiKey) {
+    try {
+      settingsUpdates.encryptedOeimgApiKey = reencrypt(
+        settings.encryptedOeimgApiKey,
+        oldKey,
+        newKey
+      )
+    } catch {
+      settingsUpdates.encryptedOeimgApiKey = null
+      warnings.push(
+        "OEImg API key could not be re-encrypted and was cleared. Re-enter it in settings."
+      )
+    }
+  }
+
+  if (settings.encryptedImgbbApiKey) {
+    try {
+      settingsUpdates.encryptedImgbbApiKey = reencrypt(
+        settings.encryptedImgbbApiKey,
+        oldKey,
+        newKey
+      )
+    } catch {
+      settingsUpdates.encryptedImgbbApiKey = null
+      warnings.push(
+        "ImgBB API key could not be re-encrypted and was cleared. Re-enter it in settings."
+      )
+    }
+  }
+
   // All decrypts done. Write phase is all-or-nothing inside a transaction.
   // Only items that successfully decrypted are re-encrypted and committed.
   try {
@@ -182,6 +245,13 @@ export async function POST(request: Request) {
             encryptedPassword: encrypt(creds.password, newKey),
           })
           .where(eq(downloadClients.id, id))
+      }
+
+      for (const [id, plainConfig] of notificationPlaintexts) {
+        await tx
+          .update(notificationTargets)
+          .set({ encryptedConfig: encrypt(plainConfig, newKey) })
+          .where(eq(notificationTargets.id, id))
       }
 
       await tx
@@ -220,6 +290,11 @@ export async function POST(request: Request) {
   if (failedClients.length > 0) {
     warnings.push(
       `Could not re-encrypt ${failedClients.length} client credential(s). Re-enter them manually.`
+    )
+  }
+  if (failedNotifications.length > 0) {
+    warnings.push(
+      `${failedNotifications.length} notification target(s) could not be re-encrypted and were skipped: ${failedNotifications.join(", ")}`
     )
   }
   if (totpDisabled) {
