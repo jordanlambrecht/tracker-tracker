@@ -76,7 +76,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
   const [isDraggingRestore, setIsDraggingRestore] = useState(false)
   const restoreInputRef = useRef<HTMLInputElement>(null)
 
-  const { saving: savingBackupConfig, patch: patchSettings } = usePatchSettings()
+  const { saving: savingBackupConfig, error: settingsError, patch: patchSettings } = usePatchSettings()
 
   useEffect(() => {
     fetch("/api/settings/backup/history")
@@ -128,33 +128,27 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
     if (!newBackupPassword) return
     setSavingPassword(true)
     setBackupError(null)
-    try {
-      const result = await patchSettings({ backupPassword: newBackupPassword })
-      if (result !== null) {
-        setHasStoredPassword(true)
-        setNewBackupPassword("")
-      }
-    } catch (err) {
-      setBackupError(err instanceof Error ? err.message : "Failed to save password")
-    } finally {
-      setSavingPassword(false)
+    const result = await patchSettings({ backupPassword: newBackupPassword })
+    if (result === null) {
+      setBackupError(settingsError ?? "Failed to save password")
+    } else {
+      setHasStoredPassword(true)
+      setNewBackupPassword("")
     }
+    setSavingPassword(false)
   }
 
   async function handleClearBackupPassword() {
     setSavingPassword(true)
     setBackupError(null)
-    try {
-      const result = await patchSettings({ backupPassword: null })
-      if (result !== null) {
-        setHasStoredPassword(false)
-        setNewBackupPassword("")
-      }
-    } catch (err) {
-      setBackupError(err instanceof Error ? err.message : "Failed to clear password")
-    } finally {
-      setSavingPassword(false)
+    const result = await patchSettings({ backupPassword: null })
+    if (result === null) {
+      setBackupError(settingsError ?? "Failed to clear password")
+    } else {
+      setHasStoredPassword(false)
+      setNewBackupPassword("")
     }
+    setSavingPassword(false)
   }
 
   async function handleRestoreFileSelect(e: ChangeEvent<HTMLInputElement>) {
