@@ -5,7 +5,7 @@
 "use client"
 
 import clsx from "clsx"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { type CSSProperties, useCallback, useEffect, useMemo, useState } from "react"
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import type { DayRange } from "@/components/dashboard/DayRangeSidebar"
@@ -41,6 +41,7 @@ interface TrackerDetailClientProps {
   initialAllTimeSnapshots: Snapshot[]
   initialTagGroups: TagGroup[]
   initialQbitmanageConfig: { enabled: boolean; tags: QbitmanageTagConfig } | null
+  initialTab?: string | null
 }
 
 export function TrackerDetailClient({
@@ -49,13 +50,13 @@ export function TrackerDetailClient({
   initialAllTimeSnapshots,
   initialTagGroups,
   initialQbitmanageConfig,
+  initialTab: initialTabProp,
 }: TrackerDetailClientProps) {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const id = String(trackerId)
 
-  const initialTab = VALID_TABS.includes(searchParams.get("tab") as Tab)
-    ? (searchParams.get("tab") as Tab)
+  const initialTab = VALID_TABS.includes(initialTabProp as Tab)
+    ? (initialTabProp as Tab)
     : "analytics"
 
   const [tracker, setTracker] = useState<TrackerSummary>(initialTracker)
