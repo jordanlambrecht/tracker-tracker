@@ -1,27 +1,25 @@
 // src/components/charts/TorrentCategoryRadar.tsx
-
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { formatBytesNum, formatDuration, generatePalette, hexToRgba } from "@/lib/formatters"
+import {
+  formatBytesNum,
+  formatCount,
+  formatDuration,
+  formatRatio,
+  generatePalette,
+  hexToRgba,
+} from "@/lib/formatters"
 import type { CategoryStats } from "@/lib/torrent-utils"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { CHART_THEME, chartTooltip, chartTooltipRow, escHtml } from "./lib/theme"
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 /** Normalize a value to 0-100 scale for radar chart */
 function normalize(value: number, max: number): number {
   if (max === 0) return 0
   return Math.min((value / max) * 100, 100)
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 interface TorrentCategoryRadarProps {
   categories: CategoryStats[]
@@ -78,9 +76,9 @@ function TorrentCategoryRadar({ categories, accentColor }: TorrentCategoryRadarP
         if (!cat) return ""
         return [
           `<span style="color:${p.color};font-weight:600;">${escHtml(p.name)}</span>`,
-          chartTooltipRow(p.color, "Torrents", String(cat.count)),
+          chartTooltipRow(p.color, "Torrents", formatCount(cat.count)),
           chartTooltipRow(CHART_THEME.neutral, "Size", formatBytesNum(cat.totalSize)),
-          chartTooltipRow(CHART_THEME.neutral, "Avg Ratio", cat.avgRatio.toFixed(2)),
+          chartTooltipRow(CHART_THEME.neutral, "Avg Ratio", formatRatio(cat.avgRatio)),
           chartTooltipRow(CHART_THEME.neutral, "Avg Seed Time", formatDuration(cat.avgSeedTime)),
           chartTooltipRow(CHART_THEME.neutral, "Avg Swarm Seeds", cat.avgSwarmSeeds.toFixed(0)),
         ].join("<br/>")

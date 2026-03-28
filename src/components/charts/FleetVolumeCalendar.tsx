@@ -1,17 +1,14 @@
 // src/components/charts/FleetVolumeCalendar.tsx
-//
-// Functions: buildCalendarData, buildFleetVolumeCalendarOption, FleetVolumeCalendar
-
 "use client"
 
 import type { EChartsOption } from "echarts"
 import { useState } from "react"
 import { TabBar } from "@/components/ui/TabBar"
-import { hexToRgba } from "@/lib/formatters"
+import { hexToRgba, localDateStr } from "@/lib/formatters"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
-import { fmtNum } from "./lib/chart-helpers"
+import { formatGiB } from "./lib/chart-helpers"
 import { computeDailyDeltas } from "./lib/chart-transforms"
 import { CHART_THEME, chartTooltip, chartTooltipRow, escHtml } from "./lib/theme"
 
@@ -48,10 +45,7 @@ function buildCalendarData(
   const yearAgo = new Date(today)
   yearAgo.setFullYear(yearAgo.getFullYear() - 1)
   yearAgo.setDate(yearAgo.getDate() + 1)
-  const dateRange: [string, string] = [
-    yearAgo.toISOString().slice(0, 10),
-    today.toISOString().slice(0, 10),
-  ]
+  const dateRange: [string, string] = [localDateStr(yearAgo), localDateStr(today)]
 
   const maxValue = entries.length > 0 ? Math.max(...entries.map(([, v]) => v)) : 0
 
@@ -84,7 +78,7 @@ function buildFleetVolumeCalendarOption(
             `<span style="color:${CHART_THEME.textTertiary};">No data</span>`
           )
         }
-        const display = gib >= 1024 ? `${fmtNum(gib / 1024)} TiB` : `${fmtNum(gib)} GiB`
+        const display = formatGiB(gib)
         return (
           `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(dateLabel)}</span><br/>` +
           chartTooltipRow(color, label, display)

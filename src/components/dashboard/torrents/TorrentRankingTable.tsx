@@ -1,12 +1,11 @@
 // src/components/dashboard/torrents/TorrentRankingTable.tsx
-
 "use client"
 
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
 import { Tooltip } from "@/components/ui/Tooltip"
-import { formatBytesNum, formatDuration } from "@/lib/formatters"
+import { formatBytesNum, formatDuration, formatRatio, splitValueUnit } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 
 type TorrentTableVariant = "top-seeded" | "elder"
@@ -21,9 +20,7 @@ const seedTimeCol: Column<TorrentInfo> = {
   header: "Seed",
   align: "right",
   width: "8%",
-  render: (t) => (
-    <span className="torrent-cell">{formatDuration(t.seedingTime)}</span>
-  ),
+  render: (t) => <span className="torrent-cell">{formatDuration(t.seedingTime)}</span>,
 }
 
 const seedTimeColLast: Column<TorrentInfo> = {
@@ -31,9 +28,7 @@ const seedTimeColLast: Column<TorrentInfo> = {
   header: "Seed",
   align: "right",
   width: "8%",
-  render: (t) => (
-    <span className="torrent-cell pr-2">{formatDuration(t.seedingTime)}</span>
-  ),
+  render: (t) => <span className="torrent-cell pr-2">{formatDuration(t.seedingTime)}</span>,
 }
 
 const swarmCol: Column<TorrentInfo> = {
@@ -74,9 +69,7 @@ export function TorrentRankingTable({ torrents, variant }: TorrentRankingTablePr
       key: "rank",
       header: "#",
       width: "3%",
-      render: (_t, i) => (
-        <span className="torrent-cell pl-2">{i != null ? i + 1 : ""}</span>
-      ),
+      render: (_t, i) => <span className="torrent-cell pl-2">{i != null ? i + 1 : ""}</span>,
     },
     {
       key: "name",
@@ -93,9 +86,7 @@ export function TorrentRankingTable({ torrents, variant }: TorrentRankingTablePr
       width: "10%",
       render: (t) => (
         <Tooltip content={t.category}>
-          <span className="torrent-cell truncate block">
-            {t.category || "\u2014"}
-          </span>
+          <span className="torrent-cell truncate block">{t.category || "\u2014"}</span>
         </Tooltip>
       ),
     },
@@ -105,10 +96,7 @@ export function TorrentRankingTable({ torrents, variant }: TorrentRankingTablePr
       align: "right",
       width: "8%",
       render: (t) => {
-        const formatted = formatBytesNum(t.size)
-        const spaceIdx = formatted.indexOf(" ")
-        const num = spaceIdx > -1 ? formatted.slice(0, spaceIdx) : formatted
-        const unit = spaceIdx > -1 ? formatted.slice(spaceIdx + 1) : ""
+        const { num, unit } = splitValueUnit(formatBytesNum(t.size))
         return (
           <span className="torrent-cell text-right leading-none">
             {num}
@@ -122,7 +110,7 @@ export function TorrentRankingTable({ torrents, variant }: TorrentRankingTablePr
       header: "Ratio",
       align: "right",
       width: "8%",
-      render: (t) => <span className="torrent-cell">{t.ratio.toFixed(2)}</span>,
+      render: (t) => <span className="torrent-cell">{formatRatio(t.ratio)}</span>,
     },
   ]
 

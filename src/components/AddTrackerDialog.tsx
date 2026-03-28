@@ -1,9 +1,6 @@
 // src/components/AddTrackerDialog.tsx
 "use client"
 
-//
-// Functions: AddTrackerDialog
-
 import { H2 } from "@typography"
 import clsx from "clsx"
 import Image from "next/image"
@@ -27,10 +24,11 @@ import { Tooltip } from "@/components/ui/Tooltip"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { TRACKER_REGISTRY } from "@/data/tracker-registry"
 import { useClickOutside } from "@/hooks/useClickOutside"
+import { localDateStr } from "@/lib/formatters"
 import { normalizeUrl } from "@/lib/url"
 
 // ---------------------------------------------------------------------------
-// Fuzzy match — matches if all query chars appear in order in the target
+// Fuzzy match
 // ---------------------------------------------------------------------------
 
 function fuzzyMatch(query: string, target: string): boolean {
@@ -44,7 +42,7 @@ function fuzzyMatch(query: string, target: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// TrackerCombobox — searchable dropdown for tracker selection
+// TrackerCombobox
 // ---------------------------------------------------------------------------
 
 interface TrackerComboboxProps {
@@ -71,10 +69,8 @@ function TrackerCombobox({ presets, value, onChange }: TrackerComboboxProps) {
       )
     : presets
 
-  // Close on outside click
   useClickOutside(ref, () => setOpen(false), open)
 
-  // Scroll highlighted item into view
   useEffect(() => {
     if (!open || !listRef.current) return
     const item = listRef.current.children[highlightIndex] as HTMLElement | undefined
@@ -556,7 +552,7 @@ function AddTrackerDialog({
               label="Join Date (optional)"
               type="date"
               value={joinedAt}
-              max={new Date().toISOString().split("T")[0]}
+              max={localDateStr()}
               onChange={(e) => setJoinedAt(e.target.value)}
               placeholder="YYYY-MM-DD"
             />

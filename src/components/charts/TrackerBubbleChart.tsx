@@ -5,7 +5,7 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { bytesToGiB } from "@/lib/formatters"
+import { bytesToGiB, formatCount, formatRatioDisplay } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { autoByteScale, fmtNum } from "./lib/chart-helpers"
@@ -170,15 +170,15 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
         const match = scaled.find((d) => d.tracker.name === p.seriesName)
         const seedingCount = match?.tracker.seedingCount ?? 0
 
-        const ratio = downloadVal > 0 ? (uploadVal / downloadVal).toFixed(2) : "∞"
+        const ratio = formatRatioDisplay(downloadVal > 0 ? uploadVal / downloadVal : Infinity)
 
         return [
           `<div style="font-family:${CHART_THEME.fontMono};font-size:${CHART_THEME.fontSizeSmall}px;">`,
           `${chartDot(color.startsWith("#") ? color : CHART_THEME.neutral)}<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(p.seriesName)}</span>`,
           `<br/><span style="color:${CHART_THEME.textSecondary};">Uploaded:</span> <span style="color:${CHART_THEME.textPrimary};">${fmtNum(uploadVal)} ${unit}</span>`,
           `<br/><span style="color:${CHART_THEME.textSecondary};">Downloaded:</span> <span style="color:${CHART_THEME.textPrimary};">${fmtNum(downloadVal)} ${unit}</span>`,
-          `<br/><span style="color:${CHART_THEME.textSecondary};">Seeding:</span> <span style="color:${CHART_THEME.textPrimary};">${seedingCount.toLocaleString()} torrents</span>`,
-          `<br/><span style="color:${CHART_THEME.textSecondary};">Ratio:</span> <span style="color:${CHART_THEME.textPrimary};">${ratio}x</span>`,
+          `<br/><span style="color:${CHART_THEME.textSecondary};">Seeding:</span> <span style="color:${CHART_THEME.textPrimary};">${formatCount(seedingCount)} torrents</span>`,
+          `<br/><span style="color:${CHART_THEME.textSecondary};">Ratio:</span> <span style="color:${CHART_THEME.textPrimary};">${ratio}</span>`,
           "</div>",
         ].join("")
       },

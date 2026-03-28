@@ -7,7 +7,7 @@
 import type { EChartsOption } from "echarts"
 import { useState } from "react"
 import { TabBar } from "@/components/ui/TabBar"
-import { bytesToGiB, getComplementaryColor } from "@/lib/formatters"
+import { bytesToGiB, formatCount, getComplementaryColor } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
@@ -155,7 +155,7 @@ function buildLineOption(
         const pair = items[0].value
         if (!pair || pair[1] === null || pair[1] === undefined) return ""
         const val = pair[1]
-        const display = config.isInteger ? Math.round(val).toLocaleString() : fmtNum(val)
+        const display = config.isInteger ? formatCount(Math.round(val)) : fmtNum(val)
         const ts = formatChartTimestamp(pair[0])
         return (
           chartTooltipHeader(ts) +
@@ -179,7 +179,7 @@ function buildLineOption(
       axisTick: { show: false },
       axisLabel: chartAxisLabel({
         formatter: config.isInteger
-          ? (val: number) => Math.round(val).toLocaleString()
+          ? (val: number) => formatCount(Math.round(val))
           : (val: number) => fmtNum(val, 1),
       }),
       splitLine: { lineStyle: { color: BORDER_SOFT, width: 1 } },

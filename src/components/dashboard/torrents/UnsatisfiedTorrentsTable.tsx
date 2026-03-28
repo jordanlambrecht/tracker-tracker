@@ -1,12 +1,11 @@
 // src/components/dashboard/torrents/UnsatisfiedTorrentsTable.tsx
-
 "use client"
 
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
-import { formatBytesNum, formatDuration } from "@/lib/formatters"
+import { formatBytesNum, formatDuration, formatPercent } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 
 interface UnsatisfiedTorrentsTableProps {
@@ -43,7 +42,7 @@ export function UnsatisfiedTorrentsTable({
                 />
               </div>
               <span className="text-3xs font-mono shrink-0" style={{ color: pctColor(pct) }}>
-                {pct.toFixed(0)}%
+                {formatPercent(pct, 0)}
               </span>
             </div>
           </div>

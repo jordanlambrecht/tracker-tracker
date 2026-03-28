@@ -7,7 +7,7 @@
 import type { EChartsOption } from "echarts"
 import { useState } from "react"
 import { TabBar } from "@/components/ui/TabBar"
-import { formatBytesFromString } from "@/lib/formatters"
+import { formatBytesFromString, formatCount } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { fmtNum } from "./lib/chart-helpers"
@@ -394,7 +394,7 @@ function DistributionChart({ trackers, height = 300 }: DistributionChartProps) {
             option={buildPieOption(
               "Seeding Share",
               seedingData,
-              (v) => `${v.toLocaleString()} torrents`
+              (v) => `${formatCount(v)} torrents`
             )}
             style={{ height, width: "100%" }}
           />

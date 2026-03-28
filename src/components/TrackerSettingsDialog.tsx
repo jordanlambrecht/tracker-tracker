@@ -16,6 +16,7 @@ import { QbtTagWarning } from "@/components/ui/QbtTagWarning"
 import { Sheet } from "@/components/ui/Sheet"
 import { Toggle } from "@/components/ui/Toggle"
 import { Tooltip } from "@/components/ui/Tooltip"
+import { localDateStr } from "@/lib/formatters"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import type { TrackerSummary } from "@/types/api"
 
@@ -255,9 +256,7 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
 
           {/* API Key — show status or change input */}
           <div className="flex flex-col gap-1">
-            <H2 className="uppercase tracking-wider">
-              API Key
-            </H2>
+            <H2 className="uppercase tracking-wider">API Key</H2>
             {changingKey ? (
               <div className="flex flex-col gap-2">
                 <Input
@@ -330,7 +329,7 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
                 id="settings-joined-at"
                 type="date"
                 value={form.joinedAt}
-                max={new Date().toISOString().split("T")[0]}
+                max={localDateStr()}
                 onChange={(e) => updateField("joinedAt", e.target.value)}
                 className={clsx(
                   "w-full font-mono text-sm text-primary cursor-pointer border-0",

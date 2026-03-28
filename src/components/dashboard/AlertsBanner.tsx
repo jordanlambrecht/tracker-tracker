@@ -1,12 +1,10 @@
 // src/components/dashboard/AlertsBanner.tsx
-//
-// Functions: AlertsBanner
-
 "use client"
 
 import Link from "next/link"
 import { useCallback, useState } from "react"
 import type { DashboardAlert } from "@/lib/dashboard"
+import { formatDateTime } from "@/lib/formatters"
 
 interface AlertsBannerProps {
   alerts: DashboardAlert[]
@@ -117,7 +115,7 @@ function AlertsBanner({ alerts, onDismiss, onDismissAll }: AlertsBannerProps) {
               </div>
               {alert.timestamp && (
                 <span className="timestamp shrink-0 hidden sm:block">
-                  {new Date(alert.timestamp).toLocaleString()}
+                  {formatDateTime(alert.timestamp)}
                 </span>
               )}
               {alert.dismissible !== false && (

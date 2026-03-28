@@ -1,5 +1,4 @@
 // src/components/dashboard/TorrentsTab.tsx
-
 "use client"
 
 import { H2 } from "@typography"
@@ -31,7 +30,7 @@ import {
 import { Card } from "@/components/ui/Card"
 import { LazySection } from "@/components/ui/LazySection"
 import type { TrackerTorrentsData } from "@/hooks/useTrackerTorrents"
-import { formatBytesNum, formatTimeAgo } from "@/lib/formatters"
+import { formatSpeed, formatTimeAgo } from "@/lib/formatters"
 
 const TorrentAgeScatter3D = dynamic(
   () => import("@/components/charts/TorrentAgeScatter3D").then((m) => m.TorrentAgeScatter3D),
@@ -83,7 +82,7 @@ function TorrentsTab({
         </div>
       )}
 
-      {/* Stale data banner — dismissible, reappears on next mount */}
+      {/* Stale data banner that's dismissible, reappears on next mount */}
       {data.stale && data.cachedAt && !staleDismissed && (
         <div className="px-4 py-3 text-xs font-mono text-secondary nm-inset-sm rounded-nm-md flex items-center gap-2">
           <span className="text-warn">●</span>
@@ -133,7 +132,7 @@ function TorrentsTab({
             Active Uploads ({data.activelySeedingTorrents.length})
             {data.activelySeedingTorrents.length > 0 && (
               <span className="font-mono text-accent ml-auto mr-2 text-2xs normal-case tracking-normal">
-                {formatBytesNum(data.activelySeedingTorrents.reduce((s, t) => s + t.upspeed, 0))}/s
+                {formatSpeed(data.activelySeedingTorrents.reduce((s, t) => s + t.upspeed, 0))}
               </span>
             )}
           </H2>
@@ -330,9 +329,7 @@ function TorrentsTab({
 
       {/* Top Seeded */}
       <div className="flex flex-col gap-3">
-        <H2 className="uppercase tracking-wider">
-          Top Seeded Torrents
-        </H2>
+        <H2 className="uppercase tracking-wider">Top Seeded Torrents</H2>
         <TorrentRankingTable variant="top-seeded" torrents={data.topBySeeding} />
       </div>
 
@@ -364,9 +361,7 @@ function TorrentsTab({
 
       {/* Elder Torrents */}
       <div className="flex flex-col gap-3 lazy-card">
-        <H2 className="uppercase tracking-wider">
-          Elder Torrents
-        </H2>
+        <H2 className="uppercase tracking-wider">Elder Torrents</H2>
         <TorrentRankingTable variant="elder" torrents={data.elderTorrents} />
       </div>
     </div>

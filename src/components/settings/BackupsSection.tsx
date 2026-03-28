@@ -17,7 +17,7 @@ import { usePatchSettings } from "@/hooks/usePatchSettings"
 import { extractApiError } from "@/lib/client-helpers"
 import { DOCS } from "@/lib/constants"
 import { downloadResponseBlob } from "@/lib/download"
-import { formatBytesNum } from "@/lib/formatters"
+import { formatBytesNum, formatDateTime } from "@/lib/formatters"
 
 export interface BackupRecord {
   id: number
@@ -263,7 +263,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
         header: "Date",
         render: (b) => (
           <span className="text-sm font-mono text-primary tabular-nums">
-            {new Date(b.createdAt).toLocaleString()}
+            {formatDateTime(b.createdAt)}
             {b.encrypted && (
               <Tooltip content="Password-protected">
                 <span className="ml-2 text-xs text-accent">🔒</span>

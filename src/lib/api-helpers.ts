@@ -5,6 +5,7 @@
 
 import { NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
+import { localDateStr } from "@/lib/formatters"
 import { isUnsafeNetworkHost } from "@/lib/network"
 
 export async function authenticate(): Promise<NextResponse | { encryptionKey: string }> {
@@ -83,7 +84,7 @@ export function validateJoinedAt(value: string): NextResponse | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return NextResponse.json({ error: "joinedAt must be YYYY-MM-DD" }, { status: 400 })
   }
-  if (value > new Date().toISOString().split("T")[0]) {
+  if (value > localDateStr()) {
     return NextResponse.json({ error: "Join date cannot be in the future" }, { status: 400 })
   }
   return null

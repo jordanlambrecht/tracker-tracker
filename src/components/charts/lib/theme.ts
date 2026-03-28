@@ -27,7 +27,7 @@ export const CHART_THEME = {
   overlay: "#343648", // --color-overlay
   controlBg: "#1e2029", // --color-control-bg
   tooltipBg: "#2e3042", // same as elevated
-  surfaceSemi: "rgba(40, 42, 54, 0.6)", // semi-transparent base for slider backgrounds
+  surfaceSemi: hexToRgba("#282a36", 0.6), // semi-transparent base for slider backgrounds
 
   // ── Text ──
   textPrimary: "#e2e8f0", // --color-primary
@@ -36,10 +36,10 @@ export const CHART_THEME = {
   fontMono: "var(--font-mono), monospace",
 
   // ── Borders ──
-  tooltipBorder: "rgba(148, 163, 184, 0.2)",
-  gridLine: "rgba(148, 163, 184, 0.08)", // --color-border
-  borderEmphasis: "rgba(148, 163, 184, 0.15)", // --color-border-emphasis
-  borderMid: "rgba(148, 163, 184, 0.3)", // axis pointers, label lines
+  tooltipBorder: hexToRgba("#94a3b8", 0.2),
+  gridLine: hexToRgba("#94a3b8", 0.08), // --color-border
+  borderEmphasis: hexToRgba("#94a3b8", 0.15), // --color-border-emphasis
+  borderMid: hexToRgba("#94a3b8", 0.3), // axis pointers, label lines
 
   // ── Layer 1: Raw colors ──
   cyan: "#00d4ff",
@@ -62,18 +62,18 @@ export const CHART_THEME = {
   positive: "#22c55e",
   negative: "#ef4444",
   neutral: "#94a3b8",
-  chartFallback: "#6b7280", // gray-500, replaces "#888" in multi-series charts
+  chartFallback: "#6b7280",
 
   // Ordinal scale for ratio/seed-time distribution buckets
   scale: ["#ef4444", "#f59e0b", "#10b981", "#00d4ff", "#8b5cf6", "#06b6d4"] as const,
 
   // ── Glow variants (for areaStyle fills, shadows) ──
-  accentDim: "rgba(0, 212, 255, 0.15)",
-  accentGlow: "rgba(0, 212, 255, 0.3)",
-  accentGlow40: "rgba(0, 212, 255, 0.4)",
-  accentGlow60: "rgba(0, 212, 255, 0.6)",
-  warnDim: "rgba(245, 158, 11, 0.15)",
-  warnGlow: "rgba(245, 158, 11, 0.3)",
+  accentDim: hexToRgba("#00d4ff", 0.15),
+  accentGlow: hexToRgba("#00d4ff", 0.3),
+  accentGlow40: hexToRgba("#00d4ff", 0.4),
+  accentGlow60: hexToRgba("#00d4ff", 0.6),
+  warnDim: hexToRgba("#f59e0b", 0.15),
+  warnGlow: hexToRgba("#f59e0b", 0.3),
 
   // ── Font sizes (raw numbers — ECharts cannot read CSS vars) ──
   // Keep in sync with @theme inline tokens in globals.css.

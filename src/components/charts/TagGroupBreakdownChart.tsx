@@ -6,7 +6,7 @@
 
 import { SlotLabel } from "@typography"
 import type { EChartsOption } from "echarts"
-import { hexToRgba } from "@/lib/formatters"
+import { formatCount, formatPercent, hexToRgba } from "@/lib/formatters"
 import type { TagGroupChartType } from "@/types/api"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
@@ -143,7 +143,11 @@ function donutOption(
           lineStyle: { color: CHART_THEME.textTertiary },
         },
         emphasis: {
-          label: { fontSize: CHART_THEME.fontSizeSmall, fontWeight: "bold", color: CHART_THEME.textPrimary },
+          label: {
+            fontSize: CHART_THEME.fontSizeSmall,
+            fontWeight: "bold",
+            color: CHART_THEME.textPrimary,
+          },
         },
         data: members.map((m, i) => ({
           name: m.label,
@@ -237,7 +241,7 @@ function TagGroupBreakdownChart({
       return (
         <div className="flex flex-col items-center justify-center gap-2 py-6">
           <span className="font-mono text-5xl font-bold tabular-nums" style={{ color }}>
-            {m.count.toLocaleString()}
+            {formatCount(m.count)}
           </span>
           <span className="text-sm font-sans font-medium text-secondary">{m.label}</span>
         </div>
@@ -268,9 +272,9 @@ function TagGroupBreakdownChart({
                 <SlotLabel label={m.label} className="leading-tight" />
                 <div className="flex items-baseline gap-1.5">
                   <span className="font-mono text-lg font-semibold tabular-nums" style={{ color }}>
-                    {m.count.toLocaleString()}
+                    {formatCount(m.count)}
                   </span>
-                  <span className="text-3xs font-mono text-tertiary">{pct.toFixed(0)}%</span>
+                  <span className="text-3xs font-mono text-tertiary">{formatPercent(pct, 0)}</span>
                 </div>
                 {/* Proportional bar */}
                 <div className="h-0.5 mt-0.5 rounded-full bg-control-bg">
@@ -285,9 +289,7 @@ function TagGroupBreakdownChart({
         </div>
         {/* Total footer */}
         <div className="flex justify-end px-1">
-          <span className="text-3xs font-mono text-tertiary">
-            Total: {total.toLocaleString()}
-          </span>
+          <span className="text-3xs font-mono text-tertiary">Total: {formatCount(total)}</span>
         </div>
       </div>
     )

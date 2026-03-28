@@ -6,6 +6,7 @@
 
 import ReactECharts from "echarts-for-react"
 import "echarts-gl"
+import { localDateStr } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
@@ -51,7 +52,7 @@ function computeDailyGrid(trackerData: TrackerSnapshotSeries[]): {
     )
     const dayMap = new Map<string, Snapshot>()
     for (const snap of sorted) {
-      const day = new Date(snap.polledAt).toISOString().slice(0, 10)
+      const day = localDateStr(new Date(snap.polledAt))
       dayMap.set(day, snap)
     }
     return dayMap
@@ -108,7 +109,7 @@ function getBucketKey(day: string, granularity: "day" | "week" | "month"): strin
   const dow = d.getDay()
   const monday = new Date(d)
   monday.setDate(d.getDate() - ((dow + 6) % 7))
-  return monday.toISOString().slice(0, 10)
+  return localDateStr(monday)
 }
 
 /** Format a bucket key into a human-readable label. */
@@ -217,10 +218,10 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
     }
   }
 
-  // Adaptive bar size — fewer buckets = fatter bars
+  // Adaptive bar size. fewer buckets = fatter bars
   const barSize = bucketCount > 40 ? 4 : bucketCount > 20 ? 6 : bucketCount > 10 ? 8 : 10
 
-  // Adaptive box width — wider for more buckets
+  // Adaptive box width
   const boxWidth = Math.min(300, Math.max(150, bucketCount * 6))
 
   const periodLabel =

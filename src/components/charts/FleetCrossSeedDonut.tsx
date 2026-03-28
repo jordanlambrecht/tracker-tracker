@@ -4,6 +4,7 @@
 
 import type { EChartsOption } from "echarts"
 import { parseTorrentTags } from "@/lib/fleet"
+import { formatCount } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { buildDonutShell } from "./lib/chart-helpers"
@@ -31,7 +32,7 @@ function buildFleetCrossSeedOption(
         return (
           chartDot(p.color) +
           `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(p.name)}</span><br/>` +
-          `<span style="color:${CHART_THEME.textSecondary};">${p.value.toLocaleString()} torrents</span>` +
+          `<span style="color:${CHART_THEME.textSecondary};">${formatCount(p.value)} torrents</span>` +
           `<span style="color:${CHART_THEME.textTertiary};"> · ${p.percent}%</span>`
         )
       },
@@ -42,7 +43,7 @@ function buildFleetCrossSeedOption(
         left: "center",
         top: "middle",
         style: {
-          text: total.toLocaleString(),
+          text: formatCount(total),
           fill: CHART_THEME.textPrimary,
           fontSize: 20,
           fontWeight: "bold",

@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { DOCS } from "@/lib/constants"
+import { formatDateTime } from "@/lib/formatters"
 import { getPauseState } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
 
@@ -64,7 +65,7 @@ export function TrackerStatusBanner({
             <p className="text-xs font-sans font-medium text-danger uppercase tracking-wider">
               Polling Paused
             </p>
-            <span className="timestamp shrink-0">{new Date(pause.since).toLocaleString()}</span>
+            <span className="timestamp shrink-0">{formatDateTime(pause.since)}</span>
           </div>
           <p className="text-sm font-mono text-warn mb-2">
             Polling was paused after repeated failures. Verify your API key is correct before
@@ -93,7 +94,7 @@ export function TrackerStatusBanner({
               Last Error
             </p>
             {tracker.lastPolledAt && (
-              <span className="timestamp">{new Date(tracker.lastPolledAt).toLocaleString()}</span>
+              <span className="timestamp">{formatDateTime(tracker.lastPolledAt)}</span>
             )}
           </div>
           <p className="text-danger text-sm font-mono">{tracker.lastError}</p>

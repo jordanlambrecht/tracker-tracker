@@ -1,7 +1,4 @@
 // src/components/dashboard/TrackerLeaderboard.tsx
-//
-// Functions: getBufferBytes, TrackerLeaderboard
-
 "use client"
 
 import { useRouter } from "next/navigation"
@@ -10,7 +7,13 @@ import { Badge } from "@/components/ui/Badge"
 import { PulseDot } from "@/components/ui/PulseDot"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
-import { formatAccountAge, formatBytesFromString, formatRatio } from "@/lib/formatters"
+import {
+  computeBufferBytes,
+  formatAccountAge,
+  formatBytesFromString,
+  formatCount,
+  formatRatioDisplay,
+} from "@/lib/formatters"
 import {
   getHealthBadgeVariant,
   getHealthLabel,
@@ -22,7 +25,7 @@ import type { TrackerSummary } from "@/types/api"
 function getBufferBytes(t: TrackerSummary): bigint {
   const s = t.latestStats
   if (!s?.uploadedBytes || !s?.downloadedBytes) return 0n
-  return BigInt(s.uploadedBytes) - BigInt(s.downloadedBytes)
+  return computeBufferBytes(BigInt(s.uploadedBytes), BigInt(s.downloadedBytes))
 }
 
 const columns: Column<TrackerSummary>[] = [
@@ -51,11 +54,7 @@ const columns: Column<TrackerSummary>[] = [
     align: "right",
     sortable: true,
     sortValue: (t) => t.latestStats?.ratio ?? -1,
-    render: (t) => (
-      <DataCell>
-        {t.latestStats?.ratio != null ? `${formatRatio(t.latestStats.ratio)}x` : "—"}
-      </DataCell>
-    ),
+    render: (t) => <DataCell>{formatRatioDisplay(t.latestStats?.ratio)}</DataCell>,
   },
   {
     key: "uploaded",
@@ -64,11 +63,7 @@ const columns: Column<TrackerSummary>[] = [
     sortable: true,
     sortValue: (t) =>
       t.latestStats?.uploadedBytes ? Number(BigInt(t.latestStats.uploadedBytes)) : -1,
-    render: (t) => (
-      <DataCell>
-        {t.latestStats?.uploadedBytes ? formatBytesFromString(t.latestStats.uploadedBytes) : "—"}
-      </DataCell>
-    ),
+    render: (t) => <DataCell>{formatBytesFromString(t.latestStats?.uploadedBytes)}</DataCell>,
   },
   {
     key: "downloaded",
@@ -77,13 +72,7 @@ const columns: Column<TrackerSummary>[] = [
     sortable: true,
     sortValue: (t) =>
       t.latestStats?.downloadedBytes ? Number(BigInt(t.latestStats.downloadedBytes)) : -1,
-    render: (t) => (
-      <DataCell>
-        {t.latestStats?.downloadedBytes
-          ? formatBytesFromString(t.latestStats.downloadedBytes)
-          : "—"}
-      </DataCell>
-    ),
+    render: (t) => <DataCell>{formatBytesFromString(t.latestStats?.downloadedBytes)}</DataCell>,
   },
   {
     key: "buffer",
@@ -105,11 +94,7 @@ const columns: Column<TrackerSummary>[] = [
     align: "right",
     sortable: true,
     sortValue: (t) => t.latestStats?.seedingCount ?? -1,
-    render: (t) => (
-      <DataCell>
-        {t.latestStats?.seedingCount != null ? t.latestStats.seedingCount.toLocaleString() : "—"}
-      </DataCell>
-    ),
+    render: (t) => <DataCell>{formatCount(t.latestStats?.seedingCount)}</DataCell>,
   },
   {
     key: "age",

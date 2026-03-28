@@ -1,11 +1,16 @@
 // src/components/dashboard/torrents/ActiveTransfersTable.tsx
-
 "use client"
 
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
-import { formatBytesNum, splitValueUnit } from "@/lib/formatters"
+import {
+  formatBytesNum,
+  formatPercent,
+  formatRatio,
+  formatSpeed,
+  splitValueUnit,
+} from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 
 interface ActiveTransfersTableProps {
@@ -66,10 +71,7 @@ export function ActiveTransfersTable({
       align: "right",
       width: 48,
       render: (t) => {
-        const formatted = formatBytesNum(t.size)
-        const spaceIdx = formatted.indexOf(" ")
-        const num = spaceIdx > -1 ? formatted.slice(0, spaceIdx) : formatted
-        const unit = spaceIdx > -1 ? formatted.slice(spaceIdx + 1) : ""
+        const { num, unit } = splitValueUnit(formatBytesNum(t.size))
         return (
           <span className="torrent-cell text-right leading-none">
             {num}
@@ -85,7 +87,7 @@ export function ActiveTransfersTable({
       width: 36,
       render: (t) => (
         <span className="torrent-cell">
-          {isDownload ? `${(t.progress * 100).toFixed(0)}%` : t.ratio.toFixed(2)}
+          {isDownload ? formatPercent(t.progress * 100, 0) : formatRatio(t.ratio)}
         </span>
       ),
     },
@@ -96,8 +98,8 @@ export function ActiveTransfersTable({
       width: 48,
       render: (t) => {
         const raw = isDownload ? t.dlspeed : t.upspeed
-        const { num, unit: baseUnit } = splitValueUnit(formatBytesNum(raw))
-        const unit = `${baseUnit || "B"}/s`
+        const { num, unit: baseUnit } = splitValueUnit(formatSpeed(raw))
+        const unit = baseUnit || "B/s"
         return (
           <span
             className="text-2xs font-mono text-right leading-none"

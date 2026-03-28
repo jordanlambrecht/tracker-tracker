@@ -1,27 +1,18 @@
 // src/components/charts/TorrentCategoryAcquisition.tsx
-
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { generatePalette } from "@/lib/formatters"
+import { generatePalette, localDateStr } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { buildTimeXAxis } from "./lib/chart-helpers"
 import { CHART_THEME, chartGrid, chartTooltip } from "./lib/theme"
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface TorrentCategoryAcquisitionProps {
   torrents: TorrentInfo[]
   accentColor: string
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 function TorrentCategoryAcquisition({ torrents, accentColor }: TorrentCategoryAcquisitionProps) {
   const withDates = torrents.filter((t) => t.addedOn > 0)
@@ -34,7 +25,7 @@ function TorrentCategoryAcquisition({ torrents, accentColor }: TorrentCategoryAc
   const allCategories = new Set<string>()
 
   for (const t of withDates) {
-    const month = new Date(t.addedOn * 1000).toISOString().slice(0, 7) // YYYY-MM
+    const month = localDateStr(new Date(t.addedOn * 1000)).slice(0, 7) // YYYY-MM
     const cat = t.category || "Uncategorized"
     allCategories.add(cat)
     if (!monthCatMap.has(month)) monthCatMap.set(month, new Map())

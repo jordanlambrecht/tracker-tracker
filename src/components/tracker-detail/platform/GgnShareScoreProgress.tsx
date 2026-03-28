@@ -1,6 +1,7 @@
 // src/components/tracker-detail/platform/GgnShareScoreProgress.tsx
 
 import { ProgressWidget } from "@/components/ui/ProgressWidget"
+import { formatRatio } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 
 export interface GgnShareScoreProgressProps {
@@ -18,7 +19,7 @@ export function GgnShareScoreProgress({ latestSnapshot, accentColor }: GgnShareS
   return (
     <ProgressWidget
       label="Share Score"
-      value={`${score.toFixed(2)} / ${maxScore}`}
+      value={`${formatRatio(score)} / ${maxScore}`}
       percent={pct}
       color={accentColor}
     />

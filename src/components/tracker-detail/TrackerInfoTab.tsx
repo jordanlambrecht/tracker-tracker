@@ -11,7 +11,7 @@ import { PillTag } from "@/components/ui/PillTag"
 import { SectionToggle } from "@/components/ui/SectionToggle"
 import { Tooltip } from "@/components/ui/Tooltip"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
-import { hexToRgba } from "@/lib/formatters"
+import { formatCount, formatRatio, hexToRgba } from "@/lib/formatters"
 import type { TrackerLatestStats } from "@/types/api"
 
 interface TrackerInfoTabProps {
@@ -50,7 +50,7 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
                 label: "Minimum Ratio",
                 value:
                   registryEntry.rules.minimumRatio > 0
-                    ? registryEntry.rules.minimumRatio.toString()
+                    ? formatRatio(registryEntry.rules.minimumRatio)
                     : "None",
                 tip: "Your upload/download ratio must stay above this threshold to avoid demotion or account restrictions.",
               },
@@ -140,13 +140,13 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
               {registryEntry.stats.userCount != null && (
                 <div className="flex flex-col gap-1">
                   <span className="text-2xl font-mono font-semibold text-primary">
-                    {registryEntry.stats.userCount.toLocaleString()}
+                    {formatCount(registryEntry.stats.userCount)}
                   </span>
                   <span className="text-xs font-sans text-tertiary">
                     Users
                     {registryEntry.stats.activeUsers != null && (
                       <span className="text-muted ml-1">
-                        ({registryEntry.stats.activeUsers.toLocaleString()} active)
+                        ({formatCount(registryEntry.stats.activeUsers)} active)
                       </span>
                     )}
                   </span>
@@ -155,7 +155,7 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
               {registryEntry.stats.torrentCount != null && (
                 <div className="flex flex-col gap-1">
                   <span className="text-2xl font-mono font-semibold text-primary">
-                    {registryEntry.stats.torrentCount.toLocaleString()}
+                    {formatCount(registryEntry.stats.torrentCount)}
                   </span>
                   <span className="text-xs font-sans text-tertiary">Torrents</span>
                 </div>

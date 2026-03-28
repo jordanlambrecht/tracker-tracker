@@ -1,11 +1,10 @@
 // src/components/tracker-detail/PollLog.tsx
-
 "use client"
 
 import clsx from "clsx"
 import { useState } from "react"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
-import { formatBytesFromString } from "@/lib/formatters"
+import { formatBytesFromString, formatDateTime, formatRatioDisplay } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 
 interface PollLogProps {
@@ -18,7 +17,7 @@ interface PollLogProps {
 export function PollLog({ snapshots, lastPolledAt, lastError, userPausedAt }: PollLogProps) {
   const [open, setOpen] = useState(false)
 
-  const lastPolledLabel = lastPolledAt ? new Date(lastPolledAt).toLocaleString() : "Never"
+  const lastPolledLabel = lastPolledAt ? formatDateTime(lastPolledAt) : "Never"
 
   return (
     <div className="flex flex-col gap-2">
@@ -35,9 +34,7 @@ export function PollLog({ snapshots, lastPolledAt, lastError, userPausedAt }: Po
           {userPausedAt && (
             <div className="flex items-center gap-2 px-4 py-2.5 text-xs font-mono text-warn border-b border-border whitespace-nowrap min-w-fit">
               <span className="shrink-0">⏸</span>
-              <span className="text-tertiary shrink-0 w-40">
-                {new Date(userPausedAt).toLocaleString()}
-              </span>
+              <span className="text-tertiary shrink-0 w-40">{formatDateTime(userPausedAt)}</span>
               <span>Polling paused</span>
             </div>
           )}
@@ -64,7 +61,7 @@ export function PollLog({ snapshots, lastPolledAt, lastError, userPausedAt }: Po
                 >
                   <span className="text-success shrink-0">✓</span>
                   <span className="text-tertiary shrink-0 w-40">
-                    {new Date(snap.polledAt).toLocaleString()}
+                    {formatDateTime(snap.polledAt)}
                   </span>
                   <span className="text-secondary">
                     {formatBytesFromString(snap.uploadedBytes)} ↑
@@ -72,9 +69,7 @@ export function PollLog({ snapshots, lastPolledAt, lastError, userPausedAt }: Po
                   <span className="text-secondary">
                     {formatBytesFromString(snap.downloadedBytes)} ↓
                   </span>
-                  <span className="text-secondary">
-                    {snap.ratio !== null ? `${snap.ratio.toFixed(2)}x` : "—"}
-                  </span>
+                  <span className="text-secondary">{formatRatioDisplay(snap.ratio)}</span>
                 </div>
               ))
           )}

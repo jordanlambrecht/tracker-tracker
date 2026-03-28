@@ -5,7 +5,7 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { hexToRgba } from "@/lib/formatters"
+import { formatRatioDisplay, hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
@@ -214,7 +214,7 @@ function buildRatioStabilityOption(
             return (
               chartDot(item.color) +
               `<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> ` +
-              `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${emaVal.toFixed(2)}x</span>` +
+              `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${formatRatioDisplay(emaVal)}</span>` +
               ` <span style="color:${CHART_THEME.textTertiary};">(EMA)</span>` +
               sigmaStr
             )

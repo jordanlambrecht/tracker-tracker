@@ -1,8 +1,7 @@
 // src/lib/adapters/ggn.ts
-//
-// Functions: GGnAdapter, GGnAdapter.fetchStats, GGnAdapter.fetchRaw
 
 import { adapterFetch } from "./adapter-fetch"
+import { floatBytesToBigInt, computeBufferBytes } from "@/lib/formatters"
 import type {
   DebugApiCall,
   FetchOptions,
@@ -76,7 +75,7 @@ export class GGnAdapter implements TrackerAdapter {
     let username: string
 
     if (options?.remoteUserId) {
-      // Skip quick_user call — we already resolved this user's ID on a prior poll
+      // Skip quick_user call because we already resolved this user's ID on a prior poll
       userId = options.remoteUserId
       username = "" // Will be overwritten from the full user response
     } else {
@@ -119,8 +118,8 @@ export class GGnAdapter implements TrackerAdapter {
       throw new Error(`Unexpected response from ${hostname}: missing stats`)
     }
 
-    const uploaded = BigInt(Math.floor(resp.stats.uploaded ?? 0))
-    const downloaded = BigInt(Math.floor(resp.stats.downloaded ?? 0))
+    const uploaded = floatBytesToBigInt(resp.stats.uploaded)
+    const downloaded = floatBytesToBigInt(resp.stats.downloaded)
     const ratio =
       typeof resp.stats.ratio === "number" ? resp.stats.ratio : parseFloat(resp.stats.ratio) || 0
 
@@ -144,7 +143,7 @@ export class GGnAdapter implements TrackerAdapter {
       uploadedBytes: uploaded,
       downloadedBytes: downloaded,
       ratio,
-      bufferBytes: uploaded > downloaded ? uploaded - downloaded : BigInt(0),
+      bufferBytes: computeBufferBytes(uploaded, downloaded),
       seedingCount: resp.community?.seeding ?? 0,
       leechingCount: resp.community?.leeching ?? 0,
       seedbonus: resp.stats.gold ?? 0,

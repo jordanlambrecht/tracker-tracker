@@ -1,6 +1,4 @@
 // src/components/charts/FleetVolumeHeatmap.tsx
-//
-// Functions: buildVolumeMatrix, buildFleetVolumeHeatmapOption, FleetVolumeHeatmap
 
 "use client"
 
@@ -11,7 +9,7 @@ import { hexToRgba } from "@/lib/formatters"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
-import { DAY_LABELS, fmtNum, HOUR_LABELS } from "./lib/chart-helpers"
+import { DAY_LABELS, formatGiB, HOUR_LABELS } from "./lib/chart-helpers"
 import { CHART_THEME, chartAxisLabel, chartTooltip, chartTooltipRow, escHtml } from "./lib/theme"
 
 type VolumeField = "upload" | "download"
@@ -86,7 +84,7 @@ function buildFleetVolumeHeatmapOption(
             `<span style="color:${CHART_THEME.textTertiary};">No data</span>`
           )
         }
-        const display = gib >= 1024 ? `${fmtNum(gib / 1024)} TiB` : `${fmtNum(gib)} GiB`
+        const display = formatGiB(gib)
         return (
           `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(dayLabel)} at ${escHtml(hourLabel)}</span><br/>` +
           chartTooltipRow(color, label, display)

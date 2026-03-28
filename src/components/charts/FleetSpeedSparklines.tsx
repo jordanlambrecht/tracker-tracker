@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Card } from "@/components/ui/Card"
 import { Tooltip } from "@/components/ui/Tooltip"
-import { formatBytesNum } from "@/lib/formatters"
+import { formatSpeed } from "@/lib/formatters"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { CHART_THEME } from "./lib/theme"
 
@@ -153,7 +153,7 @@ function ClientSpeedCard({ name, state }: ClientSpeedCardProps) {
               <MiniSparkline values={uploadValues} color={COLOR_UPLOAD} />
             </div>
             <span className="text-3xs font-mono tabular-nums" style={{ color: COLOR_UPLOAD }}>
-              {formatBytesNum(currentUpload)}/s
+              {formatSpeed(currentUpload)}
             </span>
           </div>
 
@@ -166,7 +166,7 @@ function ClientSpeedCard({ name, state }: ClientSpeedCardProps) {
               <MiniSparkline values={downloadValues} color={COLOR_DOWNLOAD} />
             </div>
             <span className="text-3xs font-mono tabular-nums" style={{ color: COLOR_DOWNLOAD }}>
-              {formatBytesNum(currentDownload)}/s
+              {formatSpeed(currentDownload)}
             </span>
           </div>
         </>

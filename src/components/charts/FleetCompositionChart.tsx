@@ -1,6 +1,4 @@
 // src/components/charts/FleetCompositionChart.tsx
-//
-// Functions: buildFleetOption, FleetCompositionChart
 
 "use client"
 
@@ -15,6 +13,7 @@ import {
   insideZoom,
 } from "./lib/chart-helpers"
 import { carryForwardTimeSeries, collectUnifiedTimestamps } from "./lib/chart-transforms"
+import { formatCount } from "@/lib/formatters"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -81,11 +80,11 @@ function buildFleetOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
         )
 
         const header = chartTooltipHeader(time)
-        const totalRow = `<div style="color:${CHART_THEME.textPrimary};font-weight:600;margin-bottom:4px;">Total: ${total.toLocaleString()} seeding</div>`
+        const totalRow = `<div style="color:${CHART_THEME.textPrimary};font-weight:600;margin-bottom:4px;">Total: ${formatCount(total)} seeding</div>`
         const rows = sorted
           .map((item) => {
             const val = (item.value as [number, number])[1]
-            return chartTooltipRow(item.color, item.seriesName, val.toLocaleString())
+            return chartTooltipRow(item.color, item.seriesName, formatCount(val))
           })
           .join("<br/>")
 
@@ -104,7 +103,7 @@ function buildFleetOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: chartAxisLabel({
-        formatter: (val: number) => val.toLocaleString(),
+        formatter: (val: number) => formatCount(val),
       }),
       splitLine: {
         lineStyle: {

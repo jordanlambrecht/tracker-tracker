@@ -1,6 +1,7 @@
 // src/lib/scheduler.ts
 //
-// Functions: pollTracker, pollAllTrackers, pruneOldSnapshots, pruneOldCheckpoints, startScheduler, stopScheduler, ensureSchedulerRunning, fetchTrackerStats, POLL_FAILURE_THRESHOLD
+// Functions: pollTracker, pollAllTrackers, pruneOldSnapshots, pruneOldCheckpoints,
+// startScheduler, stopScheduler, ensureSchedulerRunning, fetchTrackerStats, POLL_FAILURE_THRESHOLD
 import type { Agent as HttpAgent } from "node:http"
 
 import { and, desc, eq, isNotNull, lt, notInArray, sql } from "drizzle-orm"
@@ -104,12 +105,11 @@ export async function fetchTrackerStats(
   }
   if (stats.joinedDate && !tracker.joinedAt) {
     const parsed = new Date(stats.joinedDate)
-    if (!Number.isNaN(parsed.getTime())) metaUpdates.joinedAt = parsed.toISOString().split("T")[0]
+    if (!Number.isNaN(parsed.getTime())) metaUpdates.joinedAt = localDateStr(parsed)
   }
   if (stats.lastAccessDate) {
     const parsed = new Date(stats.lastAccessDate)
-    if (!Number.isNaN(parsed.getTime()))
-      metaUpdates.lastAccessAt = parsed.toISOString().split("T")[0]
+    if (!Number.isNaN(parsed.getTime())) metaUpdates.lastAccessAt = localDateStr(parsed)
   }
   if (stats.platformMeta) metaUpdates.platformMeta = JSON.stringify(stats.platformMeta)
   if (stats.avatarUrl) metaUpdates.avatarRemoteUrl = stats.avatarUrl
@@ -162,13 +162,13 @@ export async function pollTracker(
     if (stats.joinedDate && !tracker.joinedAt) {
       const parsed = new Date(stats.joinedDate)
       if (!Number.isNaN(parsed.getTime())) {
-        metaUpdates.joinedAt = parsed.toISOString().split("T")[0]
+        metaUpdates.joinedAt = localDateStr(parsed)
       }
     }
     if (stats.lastAccessDate) {
       const parsed = new Date(stats.lastAccessDate)
       if (!Number.isNaN(parsed.getTime())) {
-        metaUpdates.lastAccessAt = parsed.toISOString().split("T")[0]
+        metaUpdates.lastAccessAt = localDateStr(parsed)
       }
     }
     if (stats.platformMeta) {

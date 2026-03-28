@@ -30,7 +30,7 @@ import type {
 } from "@/components/ui/StatCard"
 import { StatCard } from "@/components/ui/StatCard"
 import type { GazellePlatformMeta, GGnPlatformMeta, MamPlatformMeta } from "@/lib/adapters/types"
-import { formatBytesNum } from "@/lib/formatters"
+import { formatBytesNum, formatCount, formatRatio } from "@/lib/formatters"
 import type { SlotCategory, SlotContext } from "@/lib/slot-types"
 import type { GgnAchievementProgressProps } from "./platform/GgnAchievementProgress"
 import { GgnAchievementProgress } from "./platform/GgnAchievementProgress"
@@ -100,11 +100,10 @@ const goldSlot: SlotDefinition<StatCardStackedProps> = {
       type: "stacked" as const,
       title: "Gold",
       rows: [
-        { label: "Balance", value: gold.toLocaleString() },
+        { label: "Balance", value: formatCount(gold) },
         {
           label: "Per Hour",
-          value:
-            ggMeta.hourlyGold != null ? `+${Math.floor(ggMeta.hourlyGold).toLocaleString()}` : "—",
+          value: ggMeta.hourlyGold != null ? `+${formatCount(Math.floor(ggMeta.hourlyGold))}` : "—",
           colorClass: ggMeta.hourlyGold ? "text-success" : undefined,
         },
       ],
@@ -146,7 +145,7 @@ const seedbonusSlot: SlotDefinition<StatCardBasicProps> = {
     if (meta && "snatched" in meta) return null
     return {
       label: "Seedbonus",
-      value: Math.floor(latestSnapshot.seedbonus).toLocaleString(),
+      value: formatCount(Math.floor(latestSnapshot.seedbonus)),
       unit: "BON",
       accentColor,
       icon: icon16(StarIcon),
@@ -165,7 +164,7 @@ const ggnShareScoreCardSlot: SlotDefinition<StatCardBasicProps> = {
     if (!meta || !("hourlyGold" in meta)) return null
     return {
       label: "Share Score",
-      value: latestSnapshot.shareScore.toFixed(2),
+      value: formatRatio(latestSnapshot.shareScore),
       accentColor,
       icon: icon16(ShareScoreIcon),
     }
@@ -609,7 +608,7 @@ const mamWedgesSlot: SlotDefinition<StatCardBasicProps> = {
     if (latestSnapshot?.freeleechTokens == null) return null
     return {
       label: "FL Wedges",
-      value: Math.floor(latestSnapshot.freeleechTokens).toLocaleString(),
+      value: formatCount(Math.floor(latestSnapshot.freeleechTokens)),
       accentColor,
       icon: icon16(StarIcon),
     }
