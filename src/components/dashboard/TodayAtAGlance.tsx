@@ -2,6 +2,7 @@
 
 "use client"
 
+import { H2 } from "@typography"
 import { FleetActivity } from "@/components/dashboard/FleetActivity"
 import { FleetHeadline } from "@/components/dashboard/FleetHeadline"
 import { MoversAndShakers } from "@/components/dashboard/MoversAndShakers"
@@ -42,16 +43,16 @@ export function TodayAtAGlance({ data, variant = "bars" }: TodayAtAGlanceProps) 
 
         {/* Tracker breakdowns — upload and download side by side on lg, stacked on mobile */}
         <div className="flex items-center justify-between">
-          <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
+          <H2 className="uppercase tracking-wider">
             By Tracker
-          </span>
+          </H2>
           <UpdatedAt iso={data.trackerLastUpdated} />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="nm-inset-sm rounded-nm-md p-4 flex flex-col gap-3">
-            <p className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
+            <H2 className="uppercase tracking-wider">
               Upload
-            </p>
+            </H2>
             {variant === "bars" ? (
               <TrackerBreakdownBars trackers={data.trackers} metric="upload" />
             ) : (
@@ -60,9 +61,9 @@ export function TodayAtAGlance({ data, variant = "bars" }: TodayAtAGlanceProps) 
           </div>
 
           <div className="nm-inset-sm rounded-nm-md p-4 flex flex-col gap-3">
-            <p className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
+            <H2 className="uppercase tracking-wider">
               Download
-            </p>
+            </H2>
             {variant === "bars" ? (
               <TrackerBreakdownBars trackers={data.trackers} metric="download" />
             ) : (

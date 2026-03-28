@@ -447,9 +447,7 @@ function AddTrackerDialog({
           data-1p-ignore
         >
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
-              Tracker
-            </span>
+            <H2 className="uppercase tracking-wider">Tracker</H2>
             <TrackerCombobox
               presets={availablePresets}
               value={selectedPreset}

@@ -4,6 +4,7 @@
 
 "use client"
 
+import { H2 } from "@typography"
 import clsx from "clsx"
 import { useRouter } from "next/navigation"
 import { type SyntheticEvent, useCallback, useEffect, useState } from "react"
@@ -254,9 +255,9 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
 
           {/* API Key — show status or change input */}
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
+            <H2 className="uppercase tracking-wider">
               API Key
-            </span>
+            </H2>
             {changingKey ? (
               <div className="flex flex-col gap-2">
                 <Input

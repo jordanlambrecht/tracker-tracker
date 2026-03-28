@@ -2,7 +2,7 @@
 
 "use client"
 
-import { H3, Paragraph, Subheader, Subtext } from "@typography"
+import { H2, H3, Paragraph, Subheader, Subtext } from "@typography"
 import { useCallback, useEffect, useState } from "react"
 import { useActionStatus } from "@/hooks/useActionStatus"
 import { Badge } from "@/components/ui/Badge"
@@ -317,9 +317,9 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
 
       {/* Row 3: Auth */}
       <div className="flex flex-col gap-2">
-        <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
+        <H2 className="uppercase tracking-wider">
           Credentials
-        </span>
+        </H2>
         {changingCredentials ? (
           <div className="flex flex-col gap-3">
             <div className="flex flex-col sm:flex-row gap-4">

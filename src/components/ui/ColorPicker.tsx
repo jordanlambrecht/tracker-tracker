@@ -2,6 +2,7 @@
 
 "use client"
 
+import { H2 } from "@typography"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { HexColorPicker } from "react-colorful"
 import { Button } from "./Button"
@@ -96,9 +97,9 @@ function ColorPicker({ value, onChange, label }: ColorPickerProps) {
   return (
     <div className="flex flex-col gap-1">
       {label && (
-        <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
+        <H2 className="uppercase tracking-wider">
           {label}
-        </span>
+        </H2>
       )}
       <div ref={ref} className="relative">
         <button

@@ -90,9 +90,9 @@ function AddTagGroupForm({ onCreated, onCancel }: AddTagGroupFormProps) {
       <H3>New Tag Group</H3>
       <div className="flex items-end gap-3">
         <div className="flex flex-col gap-1">
-          <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
+          <H2 className="uppercase tracking-wider">
             Emoji
-          </span>
+          </H2>
           <EmojiPickerPopover value={emoji} onChange={setEmoji} disabled={saving} />
         </div>
         <div className="flex-1">
@@ -114,9 +114,9 @@ function AddTagGroupForm({ onCreated, onCancel }: AddTagGroupFormProps) {
 
       {/* Chart type selector */}
       <div className="flex flex-col gap-1.5">
-        <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
+        <H2 className="uppercase tracking-wider">
           Display Type
-        </span>
+        </H2>
         <div className="nm-inset-sm p-1.5 flex gap-1 rounded-nm-md">
           {CHART_TYPE_OPTIONS.map((opt) => (
             <button
@@ -125,7 +125,7 @@ function AddTagGroupForm({ onCreated, onCancel }: AddTagGroupFormProps) {
               onClick={() => setChartType(opt.value)}
               disabled={saving}
               className={clsx(
-                "flex-1 px-3 py-1.5 text-xs font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
+                "flex-1 px-3 py-1.5 text-xs font-mono transition-colors duration-150 cursor-pointer border-none rounded-nm-sm",
                 chartType === opt.value
                   ? "nm-raised-sm text-primary font-semibold"
                   : "bg-transparent text-tertiary hover:text-secondary"
@@ -462,15 +462,15 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
       {/* Emoji + display type row */}
       <div className="flex items-end gap-4 mb-1">
         <div className="flex flex-col gap-1">
-          <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
+          <H2 className="uppercase tracking-wider">
             Emoji
-          </span>
+          </H2>
           <EmojiPickerPopover value={emoji} onChange={setEmoji} />
         </div>
         <div className="flex flex-col gap-1 flex-1">
-          <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
+          <H2 className="uppercase tracking-wider">
             Display Type
-          </span>
+          </H2>
           <div className="nm-inset-sm p-1.5 flex gap-1 rounded-nm-md">
             {CHART_TYPE_OPTIONS.map((opt) => (
               <button
@@ -478,7 +478,7 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
                 type="button"
                 onClick={() => setChartType(opt.value)}
                 className={clsx(
-                  "flex-1 px-3 py-1.5 text-xs font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
+                  "flex-1 px-3 py-1.5 text-xs font-mono transition-colors duration-150 cursor-pointer border-none rounded-nm-sm",
                   chartType === opt.value
                     ? "nm-raised-sm text-primary font-semibold"
                     : "bg-transparent text-tertiary hover:text-secondary"
@@ -502,13 +502,13 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
       {/* Column headers */}
       <div className="flex items-center gap-3 px-3">
         <span className="shrink-0 text-sm leading-none w-4" aria-hidden="true" />
-        <span className="flex-1 text-xs font-sans font-medium text-secondary uppercase tracking-wider">
+        <H2 className="flex-1 uppercase tracking-wider">
           qBT Tag
-        </span>
+        </H2>
         <div className="w-px h-3" />
-        <span className="flex-1 text-xs font-sans font-medium text-secondary uppercase tracking-wider">
+        <H2 className="flex-1 uppercase tracking-wider">
           Display Label
-        </span>
+        </H2>
         <span className="w-4" aria-hidden="true" />
       </div>
 

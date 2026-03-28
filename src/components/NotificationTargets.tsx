@@ -269,7 +269,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
 
       {/* Webhook URL */}
       <div className="flex flex-col gap-2">
-        <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider flex items-center gap-1.5">
+        <H2 className="uppercase tracking-wider flex items-center gap-1.5">
           Webhook URL
           <Tooltip
             content="Encrypted at rest with AES-256-GCM. Never returned in API responses."
@@ -277,7 +277,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
           >
             <span className="text-tertiary cursor-help text-3xs">?</span>
           </Tooltip>
-        </span>
+        </H2>
         {changingConfig ? (
           <div className="flex flex-col gap-3">
             <Input
@@ -323,7 +323,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
 
       {/* Notify when section */}
       <div className="flex flex-col gap-4">
-        <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider flex items-center gap-1.5">
+        <H2 className="uppercase tracking-wider flex items-center gap-1.5">
           Notify when
           <Tooltip
             content="Each event has a snooze window to prevent repeated alerts."
@@ -331,7 +331,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
           >
             <span className="text-tertiary cursor-help text-3xs">?</span>
           </Tooltip>
-        </span>
+        </H2>
 
         <div className="flex flex-col gap-1">
           <Toggle

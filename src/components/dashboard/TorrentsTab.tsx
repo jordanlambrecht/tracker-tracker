@@ -104,14 +104,14 @@ function TorrentsTab({
       {/* Active Transfers */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="flex flex-col gap-3 min-w-0 [&>*:last-child]:flex-1">
-          <H2 className="text-xs font-sans font-medium text-secondary uppercase tracking-wider flex items-center gap-2">
+          <H2 className="uppercase tracking-wider flex items-center gap-2">
             {data.activelyDownloading.length > 0 && (
               <span className="inline-block w-2 h-2 rounded-full bg-warn animate-pulse" />
             )}
             Active Downloads ({data.activelyDownloading.length})
             {data.activelyDownloading.length > 0 && (
               <span className="font-mono text-warn ml-auto mr-2 text-2xs normal-case tracking-normal">
-                {formatBytesNum(data.activelyDownloading.reduce((s, t) => s + t.dlspeed, 0))}/s
+                {formatSpeed(data.activelyDownloading.reduce((s, t) => s + t.dlspeed, 0))}
               </span>
             )}
           </H2>
@@ -123,7 +123,7 @@ function TorrentsTab({
           />
         </div>
         <div className="flex flex-col gap-3 min-w-0 [&>*:last-child]:flex-1">
-          <H2 className="text-xs font-sans font-medium text-secondary uppercase tracking-wider flex items-center gap-2">
+          <H2 className="uppercase tracking-wider flex items-center gap-2">
             {data.activelySeedingTorrents.length > 0 && (
               <span
                 className="inline-block w-2 h-2 rounded-full animate-pulse"
@@ -317,7 +317,7 @@ function TorrentsTab({
       {/* Unsatisfied Torrents */}
       {data.requiredSeedSeconds && (
         <div className="flex flex-col gap-3">
-          <H2 className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
+          <H2 className="uppercase tracking-wider">
             Unsatisfied Torrents ({data.unsatisfiedSorted.length})
           </H2>
           <UnsatisfiedTorrentsTable
@@ -330,7 +330,7 @@ function TorrentsTab({
 
       {/* Top Seeded */}
       <div className="flex flex-col gap-3">
-        <H2 className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
+        <H2 className="uppercase tracking-wider">
           Top Seeded Torrents
         </H2>
         <TorrentRankingTable variant="top-seeded" torrents={data.topBySeeding} />
@@ -364,7 +364,7 @@ function TorrentsTab({
 
       {/* Elder Torrents */}
       <div className="flex flex-col gap-3 lazy-card">
-        <H2 className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
+        <H2 className="uppercase tracking-wider">
           Elder Torrents
         </H2>
         <TorrentRankingTable variant="elder" torrents={data.elderTorrents} />

@@ -4,6 +4,7 @@
 
 "use client"
 
+import { H2 } from "@typography"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { XIcon } from "@/components/ui/Icons"
@@ -137,9 +138,9 @@ function Dialog({
         {title !== undefined ? (
           <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
             {titleIsString ? (
-              <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
+              <H2 className="uppercase tracking-wider">
                 {title}
-              </span>
+              </H2>
             ) : (
               title
             )}

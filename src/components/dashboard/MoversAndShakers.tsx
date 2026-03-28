@@ -2,7 +2,7 @@
 
 "use client"
 
-import { DataCell } from "@typography"
+import { DataCell, H2 } from "@typography"
 import type { ReactNode } from "react"
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import { Tooltip } from "@/components/ui/Tooltip"
@@ -40,9 +40,9 @@ function buildTooltip(entry: TorrentRankListEntry): ReactNode {
 function TorrentRankList({ label, entries }: { label: string; entries: TorrentRankListEntry[] }) {
   return (
     <div className="nm-inset-sm rounded-nm-md p-4 overflow-hidden">
-      <p className="text-xs font-sans font-medium text-secondary uppercase tracking-wider mb-3">
+      <H2 className="uppercase tracking-wider mb-3">
         {label}
-      </p>
+      </H2>
       {entries.length === 0 ? (
         <p className="text-xs text-muted">No activity</p>
       ) : (
