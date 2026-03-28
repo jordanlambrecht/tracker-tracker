@@ -11,7 +11,7 @@ import { ChevronToggle } from "@/components/ui/ChevronToggle"
 interface CollapsibleCardProps {
   /** Always-visible header content (left side — title, badges, meta) */
   header: ReactNode
-  /** Optional content between header and collapsible body (i.e. uptime bars) — always visible */
+  /** Optional content between header and collapsible body (i.e. uptime bars) */
   subheader?: ReactNode
   /** Trailing content in the header row before the chevron (i.e. type label) */
   trailing?: ReactNode
@@ -52,7 +52,7 @@ export function CollapsibleCard({
         type="button"
         onClick={handleToggle}
         aria-expanded={isExpanded}
-        className="flex items-center gap-3 px-5 py-4 w-full text-left cursor-pointer hover:bg-overlay transition-colors duration-100"
+        className="flex items-center gap-3 px-5 py-4 w-full text-left cursor-pointer hover:bg-overlay active:nm-inset-sm active:scale-[0.99] transition-colors duration-100"
       >
         <div className="flex-1 min-w-0 flex items-center gap-3">{header}</div>
         {trailing && <span className="text-xs font-mono text-tertiary shrink-0">{trailing}</span>}

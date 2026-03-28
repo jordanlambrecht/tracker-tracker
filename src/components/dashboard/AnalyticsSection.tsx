@@ -1,7 +1,4 @@
 // src/components/dashboard/AnalyticsSection.tsx
-//
-// Functions: AnalyticsSection
-
 "use client"
 
 import { H2 } from "@typography"
@@ -164,7 +161,7 @@ function AnalyticsSection({ trackerSeries, trackers }: AnalyticsSectionProps) {
         <button
           type="button"
           onClick={() => chartPrefs.collapseAll(allChartIds)}
-          className="timestamp flex items-center gap-1.5 px-2.5 py-1 hover:text-secondary hover:bg-overlay transition-colors cursor-pointer rounded-nm-sm"
+          className="timestamp flex items-center gap-1.5 px-2.5 py-1 hover:text-secondary nm-interactive-inset cursor-pointer rounded-nm-sm"
         >
           <ChevronUpIcon
             width="12"

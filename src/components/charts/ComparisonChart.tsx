@@ -86,7 +86,7 @@ function getValue(snapshot: Snapshot, metric: ChartMetric): number | null {
   }
 }
 
-/** Compute a single "Avg" series — mean of all tracker values at each unified timestamp. */
+/** Compute a single "Avg" series, mean of all tracker values at each unified timestamp. */
 function buildAverageSeries(
   trackerData: TrackerSnapshotSeries[],
   allTimestamps: number[],
@@ -191,7 +191,7 @@ function buildComparisonOption(
 
   const dotSize = adaptiveDotSize(allTimestamps.length)
 
-  // Build series — either per-tracker or single average line
+  // Build series either per-tracker or single average line
   let series: EChartsOption["series"]
 
   if (useTotalOnly) {
@@ -203,7 +203,7 @@ function buildComparisonOption(
       })
     )
 
-    // Build a map of ts → sum across all trackers
+    // Build a map of ts -> sum across all trackers
     const sumByTs = new Map<number, number>()
     for (const series of perTracker) {
       for (const [ts, val] of series) {
@@ -263,7 +263,7 @@ function buildComparisonOption(
       }
 
       // For stacked mode, carry forward the last known value to avoid spike artifacts.
-      // For line mode, use sparse [ts, value][] pairs — time axis handles gaps natively.
+      // For line mode, use sparse [ts, value][] pairs: time axis handles gaps natively.
       let data: [number, number][]
       if (useStacked) {
         data = carryForwardTimeSeries(allTimestamps, tracker.snapshots, fieldFn)
@@ -398,7 +398,7 @@ function ComparisonChart({
               <button
                 type="button"
                 onClick={() => setAverageMode((v) => !v)}
-                className="timestamp nm-raised-sm bg-raised px-2.5 py-1 hover:text-secondary active:nm-inset-sm active:scale-[0.97] transition-all duration-150 cursor-pointer flex items-center gap-1.5 rounded-nm-sm"
+                className="timestamp nm-interactive-sm bg-raised px-2.5 py-1 hover:text-secondary cursor-pointer flex items-center gap-1.5 rounded-nm-sm"
               >
                 {averageMode ? "Avg" : "Per-Tracker"}
               </button>

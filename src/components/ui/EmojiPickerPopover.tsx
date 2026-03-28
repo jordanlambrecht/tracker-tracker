@@ -66,7 +66,7 @@ function EmojiPickerPopover({
           type="button"
           onClick={() => setOpen((v) => !v)}
           disabled={disabled}
-          className="w-14 h-10 flex items-center justify-center text-lg bg-control-bg nm-inset-sm cursor-pointer transition-all duration-150 hover:nm-raised disabled:opacity-40 disabled:cursor-not-allowed rounded-nm-sm"
+          className="w-14 h-10 flex items-center justify-center text-lg bg-control-bg nm-interactive-inset cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed rounded-nm-sm"
           aria-label="Pick emoji"
         >
           {value || <span className="opacity-30">{placeholder}</span>}

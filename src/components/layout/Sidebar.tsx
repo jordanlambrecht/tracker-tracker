@@ -124,12 +124,9 @@ function SortableTrackerItem({
 
   const itemClasses = clsx(
     "w-full flex items-center gap-3 px-4 py-3 text-left group",
-    "transition-all duration-150",
     unlocked ? "animate-jiggle cursor-grab" : "cursor-pointer",
     archived && "opacity-40",
-    isActive
-      ? "text-primary nm-raised-sm"
-      : "text-secondary nm-raised-sm hover:text-primary hover:nm-raised active:nm-inset-sm active:scale-[0.98]"
+    isActive ? "text-primary nm-raised-sm" : "text-secondary nm-interactive-sm hover:text-primary"
   )
 
   const children = (
@@ -626,7 +623,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
           }
         }
       } catch {
-        // silently ignore fetch errors; we'll retry on the next interval
+        // silently ignore fetch errors
       }
     }
 
@@ -679,7 +676,6 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
         sortOrder: i,
       }))
 
-      // Fire-and-forget reorder API call
       const ids = reordered.map((t) => t.id)
       fetch("/api/trackers/reorder", {
         method: "PATCH",
@@ -776,7 +772,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
             </button>
           </div>
 
-          {/* Control bar — collapsible */}
+          {/* Control bar */}
           <div className="border-b border-border shrink-0">
             <button
               type="button"
@@ -872,7 +868,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
               </DndContext>
             )}
 
-            {/* Archive toggle + Add Tracker — inside scrollable nav */}
+            {/* Archive toggle + Add Tracker */}
             <div className="mx-4 mt-4 pt-4 pb-6 border-t border-border flex flex-col gap-2">
               {archivedCount > 0 && (
                 <button

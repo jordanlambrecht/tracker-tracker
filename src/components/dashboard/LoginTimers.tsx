@@ -68,7 +68,7 @@ export function LoginTimers({ trackers }: { trackers: TrackerSummary[] }) {
                 lastAccessAt={lastAccessAt}
                 loginIntervalDays={loginIntervalDays}
                 accentColor={CHART_THEME.success}
-                className="p-3 nm-raised-sm rounded-nm-md group-hover:nm-raised transition-shadow duration-150"
+                className="p-3 nm-interactive-sm rounded-nm-md"
               />
               <span className="absolute top-2 right-2 text-muted opacity-0 group-hover:opacity-60 transition-opacity duration-150">
                 <ExternalLinkIcon width={12} height={12} />

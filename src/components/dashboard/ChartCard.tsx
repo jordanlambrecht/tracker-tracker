@@ -73,7 +73,7 @@ function ChartCard({
               <button
                 type="button"
                 onClick={onToggleCollapse}
-                className="w-7 h-7 flex items-center justify-center text-muted hover:text-secondary hover:bg-overlay transition-colors cursor-pointer rounded-nm-sm"
+                className="w-7 h-7 flex items-center justify-center text-muted hover:text-secondary nm-interactive-inset cursor-pointer rounded-nm-sm"
                 aria-label={collapsed ? "Expand chart" : "Collapse chart"}
               >
                 <ChevronUpIcon
@@ -89,7 +89,7 @@ function ChartCard({
               <button
                 type="button"
                 onClick={onHide}
-                className="w-7 h-7 flex items-center justify-center text-muted hover:text-secondary hover:bg-overlay transition-colors cursor-pointer rounded-nm-sm"
+                className="w-7 h-7 flex items-center justify-center text-muted hover:text-secondary nm-interactive-inset cursor-pointer rounded-nm-sm"
                 aria-label="Hide chart"
               >
                 <EyeOffIcon width="14" height="14" />
