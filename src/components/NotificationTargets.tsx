@@ -22,7 +22,6 @@ import { Tooltip } from "@/components/ui/Tooltip"
 import { DOCS } from "@/lib/constants"
 import { formatTimeAgo } from "@/lib/formatters"
 import type { NotificationTargetType } from "@/lib/notifications/types"
-import { log } from "@/lib/logger"
 
 interface NotificationTarget {
   id: number
@@ -614,7 +613,7 @@ function NotificationTargets() {
       if (!res.ok) return
       setTargets((prev) => prev.filter((t) => t.id !== id))
     } catch {
-      log.debug(`Failed to delete notification target ${id}`)
+      // Fire-and-forget delete — silently ignore network errors
     }
   }, [])
 

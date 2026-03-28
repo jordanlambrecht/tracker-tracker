@@ -18,7 +18,6 @@ import { Select } from "@/components/ui/Select"
 import { Toggle } from "@/components/ui/Toggle"
 import { UptimeBar } from "@/components/ui/UptimeBar"
 import { formatTimeAgo } from "@/lib/formatters"
-import { log } from "@/lib/logger"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -160,7 +159,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
         const data = await res.json()
         if (!cancelled) setUptimeData(data)
       } catch {
-        log.debug(`Failed to fetch uptime for client ${client.id}`)
+        // Silently ignore — uptime is non-critical, retries on interval
       }
     }
     fetchUptime()
