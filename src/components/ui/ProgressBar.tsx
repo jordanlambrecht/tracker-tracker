@@ -7,17 +7,12 @@ import clsx from "clsx"
 type ProgressBarSize = "sm" | "md" | "lg"
 
 interface ProgressBarProps {
-  /** Percentage filled (0-100). Clamped internally. */
   percent: number
-  /** Fill color — accepts any CSS color value or CSS variable. Defaults to accent. */
   color?: string
-  /** Track height. sm=4px, md=8px (default), lg=12px */
   size?: ProgressBarSize
   /** Show the percentage as text inside the bar (only visible on lg size) */
   showLabel?: boolean
-  /** Animate width transitions */
   animated?: boolean
-  /** Additional classes on the outer track */
   className?: string
 }
 
@@ -51,7 +46,7 @@ function ProgressBar({
         style={{
           width: `${clamped}%`,
           backgroundColor: resolvedColor,
-          boxShadow: clamped > 0 ? `0 0 12px ${resolvedColor}60` : undefined,
+          filter: clamped > 0 ? `drop-shadow(0 0 8px ${resolvedColor}60)` : undefined,
         }}
         role="progressbar"
         aria-valuenow={clamped}

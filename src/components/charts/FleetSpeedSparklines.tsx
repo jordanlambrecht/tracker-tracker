@@ -15,8 +15,8 @@ import { CHART_THEME } from "./lib/theme"
 
 // ── Constants ──
 
-const COLOR_UPLOAD = CHART_THEME.accent
-const COLOR_DOWNLOAD = CHART_THEME.warn
+const COLOR_UPLOAD = CHART_THEME.upload
+const COLOR_DOWNLOAD = CHART_THEME.download
 const SPARKLINE_WIDTH = 80
 const SPARKLINE_HEIGHT = 24
 const POLL_INTERVAL_MS = 10_000

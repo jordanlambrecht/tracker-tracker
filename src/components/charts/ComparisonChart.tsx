@@ -42,6 +42,24 @@ import { useLogScale } from "./lib/useLogScale"
 
 type ChartMetric = "uploaded" | "downloaded" | "ratio" | "buffer" | "seedbonus" | "active"
 
+const METRIC_COLOR: Record<ChartMetric, string> = {
+  uploaded: CHART_THEME.upload,
+  downloaded: CHART_THEME.download,
+  ratio: CHART_THEME.positive,
+  buffer: CHART_THEME.upload,
+  seedbonus: CHART_THEME.accent,
+  active: CHART_THEME.accent,
+}
+
+const METRIC_DIM: Record<ChartMetric, string> = {
+  uploaded: CHART_THEME.accentDim,
+  downloaded: CHART_THEME.warnDim,
+  ratio: hexToRgba(CHART_THEME.positive, 0.15),
+  buffer: CHART_THEME.accentDim,
+  seedbonus: CHART_THEME.accentDim,
+  active: CHART_THEME.accentDim,
+}
+
 interface ComparisonChartProps {
   metric: ChartMetric
   trackerData: TrackerSnapshotSeries[]
@@ -101,6 +119,9 @@ function buildAverageSeries(
     data.push([ts, Number(avg.toFixed(3))])
   }
 
+  const color = METRIC_COLOR[metric]
+  const dim = METRIC_DIM[metric]
+
   return [
     {
       name: "Average",
@@ -109,15 +130,15 @@ function buildAverageSeries(
       smooth: true,
       symbol: "circle",
       symbolSize: dotSize,
-      itemStyle: { color: CHART_THEME.accent },
+      itemStyle: { color },
       lineStyle: {
-        color: CHART_THEME.accent,
+        color,
         width: 3,
-        shadowColor: CHART_THEME.accent,
+        shadowColor: color,
         shadowBlur: 12,
       },
       emphasis: {
-        lineStyle: { shadowBlur: 20, shadowColor: CHART_THEME.accent },
+        lineStyle: { shadowBlur: 20, shadowColor: color },
       },
       areaStyle: {
         color: {
@@ -127,8 +148,8 @@ function buildAverageSeries(
           x2: 0,
           y2: 1,
           colorStops: [
-            { offset: 0, color: CHART_THEME.accentDim },
-            { offset: 1, color: hexToRgba(CHART_THEME.accent, 0) },
+            { offset: 0, color: dim },
+            { offset: 1, color: hexToRgba(color, 0) },
           ],
         } as unknown as string,
       },
@@ -193,6 +214,9 @@ function buildComparisonOption(
       .sort(([a], [b]) => a - b)
       .map(([ts, sum]) => [ts, Number(sum.toFixed(3))])
 
+    const totalColor = METRIC_COLOR[metric]
+    const totalDim = METRIC_DIM[metric]
+
     series = [
       {
         name: "Fleet Total",
@@ -209,20 +233,20 @@ function buildComparisonOption(
             x2: 0,
             y2: 1,
             colorStops: [
-              { offset: 0, color: CHART_THEME.accentDim },
-              { offset: 1, color: hexToRgba(CHART_THEME.accent, 0) },
+              { offset: 0, color: totalDim },
+              { offset: 1, color: hexToRgba(totalColor, 0) },
             ],
           } as unknown as string,
         },
-        itemStyle: { color: CHART_THEME.accent },
+        itemStyle: { color: totalColor },
         lineStyle: {
-          color: CHART_THEME.accent,
+          color: totalColor,
           width: 3,
-          shadowColor: CHART_THEME.accent,
+          shadowColor: totalColor,
           shadowBlur: 12,
         },
         emphasis: {
-          lineStyle: { shadowBlur: 20, shadowColor: CHART_THEME.accent },
+          lineStyle: { shadowBlur: 20, shadowColor: totalColor },
         },
       },
     ]

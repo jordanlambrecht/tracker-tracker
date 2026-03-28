@@ -155,11 +155,11 @@ function RankTimeline({ events, accentColor }: RankTimelineProps) {
               <div
                 className="w-2.5 h-2.5 rounded-full shrink-0"
                 style={{
-                  backgroundColor: CHART_THEME.accent,
-                  boxShadow: `0 0 8px ${hexToRgba(CHART_THEME.accent, 0.4)}`,
+                  backgroundColor: accentColor,
+                  boxShadow: `0 0 8px ${hexToRgba(accentColor, 0.4)}`,
                 }}
               />
-              <span className="text-3xs font-mono text-accent whitespace-nowrap">
+              <span className="text-3xs font-mono whitespace-nowrap" style={{ color: accentColor }}>
                 {event.label}
               </span>
             </div>

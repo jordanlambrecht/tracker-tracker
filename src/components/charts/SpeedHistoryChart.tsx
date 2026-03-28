@@ -25,8 +25,8 @@ interface SpeedHistoryChartProps {
   height?: number
 }
 
-const CYAN = CHART_THEME.accent
-const AMBER = CHART_THEME.warn
+const CYAN = CHART_THEME.upload
+const AMBER = CHART_THEME.download
 
 function parseSpeedBytes(val: string | null): number {
   if (!val) return 0

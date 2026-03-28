@@ -9,7 +9,7 @@ import { formatBytesNum } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
-import { CHART_THEME, chartTooltip, escHtml } from "./lib/theme"
+import { buildTagColors, CHART_THEME, chartTooltip, escHtml } from "./lib/theme"
 
 interface FleetStorageTreemapProps {
   torrents: TorrentInfo[]
@@ -50,7 +50,7 @@ function groupTorrentsForTreemap(torrents: TorrentInfo[], trackerTags: string[])
   }
 
   const nodes: TreemapNode[] = []
-  let colorIndex = 0
+  const colorMap = buildTagColors(Array.from(trackerMap.keys()))
 
   for (const [trackerKey, catMap] of trackerMap.entries()) {
     const displayName =
@@ -58,7 +58,7 @@ function groupTorrentsForTreemap(torrents: TorrentInfo[], trackerTags: string[])
         ? "Other"
         : (trackerTags.find((t) => t.toLowerCase() === trackerKey) ?? trackerKey)
 
-    const trackerColor = `hsl(${(colorIndex++ * 137.5) % 360}, 70%, 55%)`
+    const trackerColor = colorMap.get(trackerKey) ?? CHART_THEME.chartFallback
     const totalSize = Array.from(catMap.values()).reduce((a, b) => a + b, 0)
 
     const children: TreemapNode[] = Array.from(catMap.entries()).map(([category, size]) => ({

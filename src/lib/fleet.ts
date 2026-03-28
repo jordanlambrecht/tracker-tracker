@@ -32,14 +32,14 @@ export interface TorrentRaw {
   client_name: string
 }
 
-/** Tracker tag with display metadata — shared by fleet charts */
+/** Tracker tag with display metadata */
 export interface TrackerTag {
   tag: string
   name: string
   color: string
 }
 
-/** Parse comma-separated qBT tag string into trimmed array. Lowercases by default. */
+/** Parse comma-separated qBT tag string into trimmed array */
 export function parseTorrentTags(rawTags: string, lowercase = true): string[] {
   return rawTags
     .split(",")
