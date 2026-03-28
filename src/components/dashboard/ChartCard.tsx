@@ -1,12 +1,9 @@
 // src/components/dashboard/ChartCard.tsx
-//
-// Functions: ChartCard
 
 "use client"
 
 import { H3 } from "@typography"
-import type { ReactNode } from "react"
-import { useEffect, useRef, useState } from "react"
+import { type ReactNode, useEffect, useRef, useState } from "react"
 import { Card } from "@/components/ui/Card"
 import { ChevronUpIcon, EyeOffIcon } from "@/components/ui/Icons"
 import { Tooltip } from "@/components/ui/Tooltip"
@@ -30,13 +27,12 @@ function ChartCard({
 }: ChartCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
-  const shouldMount = !collapsed && visible
-
+  // Defer initial mount until scrolled into view
   useEffect(() => {
     const el = cardRef.current
     if (!el || visible) return
-
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -50,8 +46,19 @@ function ChartCard({
     return () => observer.disconnect()
   }, [visible])
 
+  // Keep children mounted during collapse animation, unmount after it finishes
+  const shouldMount = visible && !collapsed
+  useEffect(() => {
+    if (shouldMount) {
+      setMounted(true)
+    } else if (visible) {
+      const timer = setTimeout(() => setMounted(false), 220)
+      return () => clearTimeout(timer)
+    }
+  }, [shouldMount, visible])
+
   return (
-    <div ref={cardRef} style={{ contentVisibility: 'auto', containIntrinsicSize: '0 500px' }}>
+    <div ref={cardRef}>
       <Card className="flex flex-col gap-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex flex-col gap-1 min-w-0">
@@ -98,7 +105,7 @@ function ChartCard({
           {/* p-6 -m-6: overflow-hidden is required for grid collapse animation,
             but clips neumorphic shadows (nm-raised reaches ~24px). The padding
             pushes the clip boundary out; the negative margin cancels layout shift. */}
-          <div className="overflow-hidden p-6 -m-6">{shouldMount && children}</div>
+          <div className="overflow-hidden p-6 -m-6">{mounted && children}</div>
         </div>
       </Card>
     </div>
