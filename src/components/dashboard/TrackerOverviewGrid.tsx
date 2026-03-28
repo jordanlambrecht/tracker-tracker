@@ -179,7 +179,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                 type="button"
                 onClick={() => setFavoritesOnly((v) => !v)}
                 className={clsx(
-                  "px-2.5 py-1 text-xs font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
+                  "px-2.5 py-1 text-xs font-mono transition-colors duration-150 cursor-pointer border-none rounded-nm-sm",
                   favoritesOnly
                     ? "nm-raised-sm text-accent font-semibold"
                     : "bg-transparent text-muted hover:text-secondary"
@@ -201,7 +201,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                   type="button"
                   onClick={() => setCategoryFilter(null)}
                   className={clsx(
-                    "px-2.5 py-1 text-xs font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
+                    "px-2.5 py-1 text-xs font-mono transition-colors duration-150 cursor-pointer border-none rounded-nm-sm",
                     categoryFilter === null
                       ? "nm-raised-sm text-primary font-semibold"
                       : "bg-transparent text-muted hover:text-secondary"
@@ -215,7 +215,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                     type="button"
                     onClick={() => setCategoryFilter(categoryFilter === cat ? null : cat)}
                     className={clsx(
-                      "px-2.5 py-1 text-xs font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
+                      "px-2.5 py-1 text-xs font-mono transition-colors duration-150 cursor-pointer border-none rounded-nm-sm",
                       categoryFilter === cat
                         ? "nm-raised-sm text-primary font-semibold"
                         : "bg-transparent text-muted hover:text-secondary"

@@ -241,7 +241,7 @@ export function EventsSection() {
           onClick={() => setActiveCategories(new Set(EVENT_CATEGORIES))}
           aria-pressed={allCategoriesActive}
           className={clsx(
-            "px-2 py-0.5 text-2xs font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
+            "px-2 py-0.5 text-2xs font-mono transition-colors duration-150 cursor-pointer border-none rounded-nm-sm",
             allCategoriesActive
               ? "nm-raised-sm text-primary font-semibold"
               : "bg-transparent text-muted hover:text-secondary"
@@ -257,7 +257,7 @@ export function EventsSection() {
             onClick={() => toggleCategory(cat)}
             aria-pressed={activeCategories.has(cat)}
             className={clsx(
-              "px-2 py-0.5 text-2xs font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
+              "px-2 py-0.5 text-2xs font-mono transition-colors duration-150 cursor-pointer border-none rounded-nm-sm",
               activeCategories.has(cat)
                 ? "nm-raised-sm text-primary font-semibold"
                 : "bg-transparent text-muted hover:text-secondary line-through opacity-50"
@@ -278,7 +278,7 @@ export function EventsSection() {
             onClick={() => toggleLevel(level)}
             aria-pressed={activeLevels.has(level)}
             className={clsx(
-              "px-2 py-0.5 text-2xs font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
+              "px-2 py-0.5 text-2xs font-mono transition-colors duration-150 cursor-pointer border-none rounded-nm-sm",
               activeLevels.has(level)
                 ? clsx("nm-raised-sm font-semibold", LEVEL_TEXT_COLORS[level])
                 : "bg-transparent text-muted hover:text-secondary line-through opacity-50"
