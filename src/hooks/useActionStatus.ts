@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react"
 
-type ActionStatus = "idle" | "testing" | "success" | "failed"
+type ActionStatus = "idle" | "pending" | "success" | "failed"
 
 interface UseActionStatusOptions {
   autoResetMs?: number | false
@@ -16,7 +16,7 @@ interface UseActionStatusReturn {
 }
 
 /**
- * Manages a 4-state action lifecycle: idle → testing → success|failed.
+ * Manages a 4-state action lifecycle: idle → pending → success|failed.
  * The caller provides an async function to `execute`; if it throws,
  * the error message is captured and status becomes "failed".
  * On success, auto-resets to "idle" after `autoResetMs` (default 3000).
@@ -31,7 +31,7 @@ export function useActionStatus(opts?: UseActionStatusOptions): UseActionStatusR
   const execute = useCallback(
     async (fn: () => Promise<void>) => {
       if (timerRef.current) clearTimeout(timerRef.current)
-      setStatus("testing")
+      setStatus("pending")
       setError(null)
       try {
         await fn()

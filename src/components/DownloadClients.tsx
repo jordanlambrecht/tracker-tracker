@@ -505,9 +505,9 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
           size="sm"
           variant="secondary"
           onClick={handleTestConnection}
-          disabled={connectionStatus === "testing"}
+          disabled={connectionStatus === "pending"}
         >
-          {connectionStatus === "testing"
+          {connectionStatus === "pending"
             ? "Testing..."
             : connectionStatus === "success"
               ? "Connected"

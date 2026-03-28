@@ -259,10 +259,10 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
             <Button
               size="sm"
               variant="secondary"
-              disabled={!proxyHost.trim() || proxyTestStatus === "testing"}
+              disabled={!proxyHost.trim() || proxyTestStatus === "pending"}
               onClick={handleTestProxy}
             >
-              {proxyTestStatus === "testing"
+              {proxyTestStatus === "pending"
                 ? "Testing..."
                 : proxyTestStatus === "success"
                   ? "Connected"

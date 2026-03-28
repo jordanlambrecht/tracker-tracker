@@ -462,9 +462,9 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
           size="sm"
           variant="secondary"
           onClick={handleTestWebhook}
-          disabled={webhookStatus === "testing" || !target.hasConfig}
+          disabled={webhookStatus === "pending" || !target.hasConfig}
         >
-          {webhookStatus === "testing"
+          {webhookStatus === "pending"
             ? "Sending..."
             : webhookStatus === "success"
               ? "Sent"
