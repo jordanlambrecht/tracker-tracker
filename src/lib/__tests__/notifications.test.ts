@@ -3,13 +3,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import type { notificationTargets } from "@/lib/db/schema"
+import { hexToInt } from "@/lib/formatters"
 import type { SnapshotContext } from "@/lib/notifications/dispatch"
 import type { NotificationTargetType } from "@/lib/notifications/types"
-
-// Convert "#rrggbb" hex string to Discord embed integer — mirrors payload.ts hexToInt
-function hexToInt(hex: string): number {
-  return Number.parseInt(hex.replace("#", ""), 16)
-}
 
 // Mock DB so dispatch.ts can be imported without a live database connection
 vi.mock("@/lib/db", () => ({
@@ -411,12 +407,12 @@ describe("buildDiscordEmbed new event types", () => {
       trackerName: "MyTracker",
       includeTrackerName: true,
       storeUsernames: true,
-      data: { label: "1 year anniversary" },
+      data: { label: "1-year anniversary" },
     })
     expect(embed.title).toBe("Membership Anniversary")
     expect(embed.color).toBe(hexToInt(CHART_THEME.accent))
     expect(embed.description).toContain("MyTracker")
-    expect(embed.description).toContain("1 year anniversary")
+    expect(embed.description).toContain("1-year anniversary")
   })
 
   it("omits tracker name in rank_change embed when includeTrackerName is false", async () => {

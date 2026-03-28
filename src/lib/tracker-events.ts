@@ -135,7 +135,7 @@ export function checkAnniversaryMilestone(
   for (let y = 1; y <= Math.max(yearsSinceJoin + 1, 1); y++) {
     const ann = new Date(joined)
     ann.setFullYear(ann.getFullYear() + y)
-    candidates.push({ date: ann, label: `${y} year anniversary` })
+    candidates.push({ date: ann, label: `${y}-year anniversary` })
   }
 
   for (const { date, label } of candidates) {

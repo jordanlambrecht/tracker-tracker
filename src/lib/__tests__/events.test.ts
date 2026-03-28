@@ -312,7 +312,7 @@ describe("snapshotToEvent — invalid byte strings", () => {
     expect(event.category).toBe("polls")
   })
 
-  it("defaults both to 0.0 GiB when byte fields are empty strings", () => {
+  it("defaults to 0.0 GiB for both when byte fields are empty strings", () => {
     const event = snapshotToEvent({
       id: 100,
       polledAt: "2026-03-22T14:00:00.000Z",

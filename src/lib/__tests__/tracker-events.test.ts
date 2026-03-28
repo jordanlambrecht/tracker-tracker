@@ -278,7 +278,7 @@ describe("checkAnniversaryMilestone with date mocking", () => {
   it("returns 1 year anniversary on exact date", () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date("2026-03-19T12:00:00"))
-    expect(checkAnniversaryMilestone("2025-03-19")).toEqual({ label: "1 year anniversary" })
+    expect(checkAnniversaryMilestone("2025-03-19")).toEqual({ label: "1-year anniversary" })
     vi.useRealTimers()
   })
   it("returns null for invalid date string", () => {
@@ -287,7 +287,7 @@ describe("checkAnniversaryMilestone with date mocking", () => {
   it("matches within the +/-3 day window", () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date("2026-03-21T12:00:00")) // 2 days after 1yr anniversary
-    expect(checkAnniversaryMilestone("2025-03-19")).toEqual({ label: "1 year anniversary" })
+    expect(checkAnniversaryMilestone("2025-03-19")).toEqual({ label: "1-year anniversary" })
     vi.useRealTimers()
   })
   it("does not match outside the +/-3 day window", () => {

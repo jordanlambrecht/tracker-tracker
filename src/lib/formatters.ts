@@ -1,10 +1,12 @@
 // src/lib/formatters.ts
 //
 // Functions: formatBytesFromString, bytesToGiB, formatBytesNum,
-// formatRatio, formatAccountAge, formatJoinedDate, hexToRgba, hexToHsl,
+// formatRatio, formatAccountAge, formatJoinedDate, hexToRgba, hexToInt, hexToHsl,
 // hslToHex, generatePalette, getComplementaryColor, formatStatValue,
 // computeDelta, formatDuration, formatTimeAgo, splitValueUnit, compareBigIntDesc,
-// computePctChange, localDateStr, isUnixTimestampOnDate, formatSpeed
+// computePctChange, floatBytesToBigInt, computeBufferBytes,
+// localDateStr, isUnixTimestampOnDate, formatSpeed,
+// formatRatioDisplay, formatCount, formatPercent, formatDateTime
 
 import type { Snapshot, TrackerLatestStats } from "@/types/api"
 
@@ -14,13 +16,17 @@ import type { Snapshot, TrackerLatestStats } from "@/types/api"
  */
 export function formatBytesFromString(bytesStr: string | null | undefined): string {
   if (!bytesStr) return "—"
-  const bytes = Number(BigInt(bytesStr))
-  const tib = bytes / 1024 ** 4
-  if (tib >= 1) return `${tib.toFixed(2)} TiB`
-  const gib = bytes / 1024 ** 3
-  if (gib >= 1) return `${gib.toFixed(2)} GiB`
-  const mib = bytes / 1024 ** 2
-  return `${Math.round(mib)} MiB`
+  try {
+    const bytes = Number(BigInt(bytesStr))
+    const tib = bytes / 1024 ** 4
+    if (tib >= 1) return `${tib.toFixed(2)} TiB`
+    const gib = bytes / 1024 ** 3
+    if (gib >= 1) return `${gib.toFixed(2)} GiB`
+    const mib = bytes / 1024 ** 2
+    return `${Math.round(mib)} MiB`
+  } catch {
+    return "—"
+  }
 }
 
 /**
@@ -57,6 +63,7 @@ export function formatBytesNum(bytes: number, binary = true): string {
  */
 export function formatRatio(ratio: number | null | undefined): string {
   if (ratio === null || ratio === undefined) return "—"
+  if (!Number.isFinite(ratio)) return "∞"
   return ratio.toFixed(2)
 }
 
@@ -107,6 +114,11 @@ export function hexToRgba(hex: string, alpha: number): string {
   const g = parseInt(safe.slice(3, 5), 16)
   const b = parseInt(safe.slice(5, 7), 16)
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+/** Converts a hex color (#rrggbb) to a 24-bit integer (for Discord embed colors, etc.). */
+export function hexToInt(hex: string): number {
+  return Number.parseInt(hex.replace("#", ""), 16)
 }
 
 /**
@@ -204,10 +216,10 @@ export function formatStatValue(stats: TrackerLatestStats | null, mode: StatMode
 
   switch (mode) {
     case "ratio":
-      return stats.ratio !== null && stats.ratio !== undefined ? `${stats.ratio.toFixed(2)}x` : "—"
+      return formatRatioDisplay(stats.ratio)
     case "seeding":
       return stats.seedingCount !== null && stats.seedingCount !== undefined
-        ? `${stats.seedingCount.toLocaleString()} seeding`
+        ? `${formatCount(stats.seedingCount)} seeding`
         : "—"
     case "uploaded":
       return stats.uploadedBytes ? `${formatBytesFromString(stats.uploadedBytes)} ↑` : "—"
@@ -323,6 +335,16 @@ export function computePctChange(today: string, yesterday: string | null): numbe
   }
 }
 
+/** Converts a float byte count from an API response to a bigint by floor-truncating the fractional part. */
+export function floatBytesToBigInt(n: number | null | undefined): bigint {
+  return BigInt(Math.max(0, Math.floor(n ?? 0)))
+}
+
+/** Computes the buffer (upload minus download), floored to zero. */
+export function computeBufferBytes(uploaded: bigint, downloaded: bigint): bigint {
+  return uploaded > downloaded ? uploaded - downloaded : 0n
+}
+
 /**
  * Returns a YYYY-MM-DD date string in the server's local timezone (respects TZ env).
  */
@@ -343,4 +365,29 @@ export function isUnixTimestampOnDate(unixSeconds: number, dateStr: string): boo
 export function formatSpeed(bytesPerSec: number): string {
   if (!bytesPerSec || bytesPerSec <= 0) return "0 B/s"
   return `${formatBytesNum(bytesPerSec)}/s`
+}
+
+/** Formats a ratio with "x" suffix for display. Returns "—" for null/undefined, "∞x" for Infinity. */
+export function formatRatioDisplay(ratio: number | null | undefined): string {
+  if (ratio === null || ratio === undefined) return "—"
+  if (!Number.isFinite(ratio)) return "∞x"
+  return `${ratio.toFixed(2)}x`
+}
+
+/** Formats an integer with locale-aware thousand separators. Returns "—" for null/undefined. */
+export function formatCount(n: number | null | undefined): string {
+  if (n === null || n === undefined) return "—"
+  return n.toLocaleString("en-US")
+}
+
+/** Formats a percentage value with configurable decimal places. */
+export function formatPercent(value: number, decimals = 1): string {
+  return `${value.toFixed(decimals)}%`
+}
+
+/** Formats a Date, ISO string, or timestamp as a locale-pinned datetime string. */
+export function formatDateTime(dateOrIso: Date | string | number): string {
+  const d =
+    typeof dateOrIso === "string" || typeof dateOrIso === "number" ? new Date(dateOrIso) : dateOrIso
+  return d.toLocaleString("en-US")
 }
