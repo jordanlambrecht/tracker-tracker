@@ -4,11 +4,11 @@
 
 import { desc, eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, parseRouteId } from "@/lib/api-helpers"
+import { authenticate, parseRouteId, type RouteContext } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { clientSnapshots } from "@/lib/db/schema"
 
-export async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
+export async function GET(_request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -25,6 +25,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
   // Serialize bigints to strings for JSON transport
   const serialized = snapshots.map((s) => ({
     ...s,
+    polledAt: s.polledAt.toISOString(),
     uploadSpeedBytes: s.uploadSpeedBytes?.toString() ?? null,
     downloadSpeedBytes: s.downloadSpeedBytes?.toString() ?? null,
     tagStats: (() => {

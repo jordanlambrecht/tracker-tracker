@@ -31,11 +31,11 @@ export async function GET() {
     pollIntervalSeconds: client.pollIntervalSeconds,
     isDefault: client.isDefault,
     crossSeedTags: parseCrossSeedTags(client.crossSeedTags),
-    lastPolledAt: client.lastPolledAt,
+    lastPolledAt: client.lastPolledAt?.toISOString() ?? null,
     lastError: client.lastError,
-    errorSince: client.errorSince,
-    createdAt: client.createdAt,
-    updatedAt: client.updatedAt,
+    errorSince: client.errorSince?.toISOString() ?? null,
+    createdAt: client.createdAt.toISOString(),
+    updatedAt: client.updatedAt.toISOString(),
   }))
 
   return NextResponse.json(safe)

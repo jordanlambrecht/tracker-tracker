@@ -46,6 +46,9 @@ export async function PUT(request: Request) {
   if (typeof body.showLoginTimers === "boolean") {
     merged.showLoginTimers = body.showLoginTimers
   }
+  if (typeof body.showTodayAtAGlance === "boolean") {
+    merged.showTodayAtAGlance = body.showTodayAtAGlance
+  }
 
   const [row] = await db.select({ id: appSettings.id }).from(appSettings).limit(1)
   if (!row) {
