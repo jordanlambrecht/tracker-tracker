@@ -5,15 +5,18 @@
 import { eq } from "drizzle-orm"
 import { MAM_BONUS_CAP } from "@/lib/adapters/constants"
 import { db } from "@/lib/db"
+import type { NotificationTargetRow } from "@/lib/db/schema"
 import { notificationDeliveryState, notificationTargets } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
 import { decryptNotificationConfig } from "@/lib/notifications/decrypt"
 import { deliverDiscordWebhook } from "@/lib/notifications/deliver"
 import { buildDiscordEmbed } from "@/lib/notifications/payload"
-import type {
-  DiscordConfig,
-  NotificationEventType,
-  NotificationThresholds,
+import {
+  type DiscordConfig,
+  type NotificationEventType,
+  type NotificationThresholds,
+  parseThresholds,
+  type SnapshotContext,
 } from "@/lib/notifications/types"
 import {
   checkActiveHnrs,
@@ -31,46 +34,13 @@ import {
   EVENT_SNOOZE_MS,
 } from "@/lib/tracker-events"
 
-export interface SnapshotContext {
-  trackerId: number
-  trackerName: string
-  storeUsernames: boolean
-  currentRatio: number | null
-  previousRatio: number | null
-  currentHnrs: number | null
-  previousHnrs: number | null
-  currentBufferBytes: bigint | null
-  previousBufferBytes: bigint | null
-  trackerDown: boolean
-  trackerError: string | null
-  currentWarned: boolean | null
-  previousWarned: boolean | null
-  currentSeedingCount: number | null
-  currentGroup: string | null
-  previousGroup: string | null
-  trackerIsActive: boolean
-  trackerPausedAt: string | null
-  trackerJoinedAt: string | null
-  minimumRatio: number | undefined
-  // MAM-specific fields grouped into sub-object; undefined for non-MAM trackers
-  mamContext?: {
-    currentSeedbonus: number | null
-    previousSeedbonus: number | null
-    vipUntil: string | null
-    unsatisfiedCount: number | null
-    unsatisfiedLimit: number | null
-    inactiveHnrCount: number | null
-    previousInactiveHnrCount: number | null
-  }
-}
-
 export async function dispatchNotifications(
   ctx: SnapshotContext,
   encryptionKey: Buffer,
-  enabledTargets?: (typeof notificationTargets.$inferSelect)[]
+  enabledTargets?: NotificationTargetRow[]
 ): Promise<void> {
   // Use pre-fetched targets if provided, otherwise query (backward-compat)
-  let targets: (typeof notificationTargets.$inferSelect)[]
+  let targets: NotificationTargetRow[]
   if (enabledTargets) {
     targets = enabledTargets
   } else {
@@ -117,7 +87,7 @@ export async function dispatchNotifications(
       const anniversaryLabel = events.includes("anniversary")
         ? checkAnniversaryMilestone(ctx.trackerJoinedAt)?.label
         : undefined
-      const targetThresholds = (target.thresholds as NotificationThresholds | null) ?? null
+      const targetThresholds = parseThresholds(target.thresholds)
 
       // Only Discord is currently supported — skip unknown types
       if (target.type !== "discord") {
@@ -155,9 +125,7 @@ export async function dispatchNotifications(
             data: buildEventData(event, ctx, targetThresholds, anniversaryLabel),
           })
 
-          const result = await deliverDiscordWebhook(target.id, config.webhookUrl, [
-            embed as unknown as Record<string, unknown>,
-          ])
+          const result = await deliverDiscordWebhook(target.id, config.webhookUrl, [embed])
 
           // Track worst-case status for this target: failed > rate_limited > delivered
           if (
@@ -218,10 +186,10 @@ export async function dispatchNotifications(
 
 export function detectEvents(
   ctx: SnapshotContext,
-  target: typeof notificationTargets.$inferSelect
+  target: NotificationTargetRow
 ): NotificationEventType[] {
   const events: NotificationEventType[] = []
-  const thresholds = (target.thresholds as NotificationThresholds | null) ?? {}
+  const thresholds = parseThresholds(target.thresholds)
 
   if (
     target.notifyRatioDrop &&

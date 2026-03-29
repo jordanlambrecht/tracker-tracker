@@ -2,10 +2,9 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { CHART_THEME } from "@/components/charts/lib/theme"
-import type { notificationTargets } from "@/lib/db/schema"
+import type { NotificationTargetRow } from "@/lib/db/schema"
 import { hexToInt } from "@/lib/formatters"
-import type { SnapshotContext } from "@/lib/notifications/dispatch"
-import type { NotificationTargetType } from "@/lib/notifications/types"
+import type { NotificationTargetType, SnapshotContext } from "@/lib/notifications/types"
 
 // Mock DB so dispatch.ts can be imported without a live database connection
 vi.mock("@/lib/db", () => ({
@@ -21,9 +20,7 @@ vi.mock("@/lib/db", () => ({
 
 // ─── Test helpers ─────────────────────────────────────────────────────────────
 
-function makeTarget(
-  overrides: Partial<typeof notificationTargets.$inferSelect> = {}
-): typeof notificationTargets.$inferSelect {
+function makeTarget(overrides: Partial<NotificationTargetRow> = {}): NotificationTargetRow {
   return {
     id: 1,
     name: "Test Target",
@@ -39,6 +36,10 @@ function makeTarget(
     notifyZeroSeeding: false,
     notifyRankChange: false,
     notifyAnniversary: false,
+    notifyBonusCap: false,
+    notifyVipExpiring: false,
+    notifyUnsatisfiedLimit: false,
+    notifyActiveHnrs: false,
     thresholds: null,
     includeTrackerName: true,
     scope: null,
@@ -48,7 +49,7 @@ function makeTarget(
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
-  } as typeof notificationTargets.$inferSelect
+  }
 }
 
 function makeContext(overrides: Partial<SnapshotContext> = {}): SnapshotContext {

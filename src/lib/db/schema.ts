@@ -427,3 +427,20 @@ export const torrentDailyCheckpoints = pgTable(
     index("idx_torrent_checkpoint_date").on(table.checkpointDate),
   ]
 )
+
+// ── Named type exports ──────────────────────────────────────────────
+export type AppSettingsRow = typeof appSettings.$inferSelect
+export type TrackerRow = typeof trackers.$inferSelect
+export type TrackerSnapshotRow = typeof trackerSnapshots.$inferSelect
+export type TrackerRoleRow = typeof trackerRoles.$inferSelect
+export type DownloadClientRow = typeof downloadClients.$inferSelect
+export type ClientUptimeBucketRow = typeof clientUptimeBuckets.$inferSelect
+export type TagGroupRow = typeof tagGroups.$inferSelect
+export type TagGroupMemberRow = typeof tagGroupMembers.$inferSelect
+export type ClientSnapshotRow = typeof clientSnapshots.$inferSelect
+export type BackupHistoryRow = typeof backupHistory.$inferSelect
+export type DismissedAlertRow = typeof dismissedAlerts.$inferSelect
+export type NotificationTargetRow = typeof notificationTargets.$inferSelect
+export type NotificationDeliveryStateRow = typeof notificationDeliveryState.$inferSelect
+export type TrackerDailyCheckpointRow = typeof trackerDailyCheckpoints.$inferSelect
+export type TorrentDailyCheckpointRow = typeof torrentDailyCheckpoints.$inferSelect

@@ -26,6 +26,7 @@ import {
   trackerSnapshots,
   trackers,
 } from "@/lib/db/schema"
+import type { NotificationTargetRow, TrackerRow } from "@/lib/db/schema"
 import { sanitizeNetworkError } from "@/lib/error-utils"
 import { localDateStr } from "@/lib/formatters"
 import { log } from "@/lib/logger"
@@ -75,7 +76,7 @@ export async function fetchTrackerStats(
   trackerId: number,
   encryptionKey: Buffer,
   proxyAgent?: HttpAgent
-): Promise<{ stats: TrackerStats; tracker: typeof trackers.$inferSelect }> {
+): Promise<{ stats: TrackerStats; tracker: TrackerRow }> {
   const [tracker] = await db.select().from(trackers).where(eq(trackers.id, trackerId)).limit(1)
   if (!tracker?.isActive) throw new Error("Tracker not found or inactive")
 
@@ -128,7 +129,7 @@ export async function pollTracker(
   privacyMode: boolean,
   proxyAgent?: HttpAgent,
   batchTimestamp?: Date,
-  enabledTargets?: (typeof notificationTargets.$inferSelect)[]
+  enabledTargets?: NotificationTargetRow[]
 ): Promise<void> {
   const [tracker] = await db.select().from(trackers).where(eq(trackers.id, trackerId)).limit(1)
 
@@ -447,7 +448,7 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
   const proxyAgent = settings ? buildProxyAgentFromSettings(settings, encryptionKey) : undefined
 
   // Fetch notification targets once for the entire poll cycle (avoids N identical queries)
-  let enabledNotificationTargets: (typeof notificationTargets.$inferSelect)[] = []
+  let enabledNotificationTargets: NotificationTargetRow[] = []
   try {
     enabledNotificationTargets = await db
       .select()
