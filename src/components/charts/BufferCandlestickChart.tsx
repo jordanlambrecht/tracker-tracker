@@ -5,7 +5,8 @@
 "use client"
 
 import type { CandlestickSeriesOption, EChartsOption } from "echarts"
-import { bytesToGiB, hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
+import { bytesToGiB } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import type { FleetChartProps, TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"

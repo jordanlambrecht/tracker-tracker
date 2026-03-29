@@ -1,11 +1,8 @@
 // src/components/charts/PercentileRadarChart.tsx
-//
-// Functions: PercentileRadarChart
-
 "use client"
 
 import { useMemo } from "react"
-import { hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
 import type { GazelleRanks } from "@/types/api"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"

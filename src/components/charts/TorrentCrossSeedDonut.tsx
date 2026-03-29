@@ -1,7 +1,8 @@
 // src/components/charts/TorrentCrossSeedDonut.tsx
 "use client"
 
-import { formatCount, getComplementaryColor, hexToRgba } from "@/lib/formatters"
+import { getComplementaryColor, hexToRgba } from "@/lib/color-utils"
+import { formatCount } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { buildDonutShell } from "./lib/chart-helpers"

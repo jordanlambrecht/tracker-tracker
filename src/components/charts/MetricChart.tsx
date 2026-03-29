@@ -1,13 +1,12 @@
 // src/components/charts/MetricChart.tsx
-//
-// Functions: buildLineOption, buildDailyDeltaOption, MetricChart
-
 "use client"
 
 import type { EChartsOption } from "echarts"
 import { useState } from "react"
 import { TabBar } from "@/components/ui/TabBar"
-import { bytesToGiB, formatCount, getComplementaryColor, isValidHex } from "@/lib/formatters"
+import { getComplementaryColor } from "@/lib/color-utils"
+import { bytesToGiB, formatCount } from "@/lib/formatters"
+import { isValidHex } from "@/lib/validators"
 import type { Snapshot } from "@/types/api"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"

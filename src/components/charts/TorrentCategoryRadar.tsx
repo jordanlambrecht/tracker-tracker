@@ -2,14 +2,8 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import {
-  formatBytesNum,
-  formatCount,
-  formatDuration,
-  formatRatio,
-  generatePalette,
-  hexToRgba,
-} from "@/lib/formatters"
+import { generatePalette, hexToRgba } from "@/lib/color-utils"
+import { formatBytesNum, formatCount, formatDuration, formatRatio } from "@/lib/formatters"
 import type { CategoryStats } from "@/lib/torrent-utils"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"

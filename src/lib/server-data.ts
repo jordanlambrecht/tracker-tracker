@@ -21,6 +21,7 @@
 import "server-only"
 
 import { and, asc, desc, eq, gte, sql } from "drizzle-orm"
+import { DEFAULT_TRACKER_COLOR } from "@/lib/constants"
 import { db } from "@/lib/db"
 import {
   appSettings,
@@ -331,7 +332,7 @@ export async function getProxyTrackers(): Promise<{ id: number; name: string; co
   return rows.map((r) => ({
     id: r.id,
     name: r.name,
-    color: r.color ?? "#00d4ff",
+    color: r.color ?? DEFAULT_TRACKER_COLOR,
   }))
 }
 

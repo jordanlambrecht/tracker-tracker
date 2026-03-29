@@ -10,7 +10,7 @@ import type {
   CustomSeriesRenderItemReturn,
   EChartsOption,
 } from "echarts"
-import { generatePalette } from "@/lib/formatters"
+import { generatePalette } from "@/lib/color-utils"
 import type { FleetChartProps, TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"

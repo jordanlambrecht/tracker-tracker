@@ -1,11 +1,9 @@
 // src/components/charts/StorageSunburst.tsx
-//
-// Functions: StorageSunburst, buildOption
-
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { formatBytesNum, generatePalette, hexToHsl, hslToHex } from "@/lib/formatters"
+import { generatePalette, hexToHsl, hslToHex } from "@/lib/color-utils"
+import { formatBytesNum } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { CHART_THEME, chartDot, chartTooltip, escHtml } from "./lib/theme"

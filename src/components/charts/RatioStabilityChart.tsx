@@ -5,7 +5,8 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { formatRatioDisplay, hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
+import { formatRatioDisplay } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import type { FleetChartProps, TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"

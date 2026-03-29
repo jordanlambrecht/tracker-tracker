@@ -3,7 +3,8 @@
 // Functions: buildDiscordEmbed, buildDescription
 
 import { CHART_THEME } from "@/components/charts/lib/theme"
-import { formatBytesNum, formatCount, formatPercent, formatRatio, hexToInt } from "@/lib/formatters"
+import { hexToInt } from "@/lib/color-utils"
+import { formatBytesNum, formatCount, formatPercent, formatRatio } from "@/lib/formatters"
 import type { NotificationEventType } from "@/lib/notifications/types"
 
 interface EmbedInput {
@@ -36,6 +37,7 @@ const EVENT_COLORS: Record<NotificationEventType, number> = {
   vip_expiring: hexToInt(CHART_THEME.warn),
   unsatisfied_limit: hexToInt(CHART_THEME.danger),
   active_hnrs: hexToInt(CHART_THEME.danger),
+  download_disabled: hexToInt(CHART_THEME.danger),
 }
 
 const EVENT_TITLES: Record<NotificationEventType, string> = {
@@ -52,6 +54,7 @@ const EVENT_TITLES: Record<NotificationEventType, string> = {
   vip_expiring: "VIP Expiring Soon",
   unsatisfied_limit: "Unsatisfied Limit Approaching",
   active_hnrs: "New Inactive Hit & Run",
+  download_disabled: "Download Privileges Revoked",
 }
 
 export function buildDiscordEmbed(input: EmbedInput): DiscordEmbed {
@@ -130,6 +133,8 @@ function buildDescription(
       const count = Number(data.count ?? 0)
       return `${source} has **${count}** active Hit & Run${count !== 1 ? "s" : ""}. Seed them to avoid penalties.`
     }
+    case "download_disabled":
+      return `${source} has lost download privileges — ratio may have dropped or account was restricted`
     default:
       return `${source} triggered a notification`
   }

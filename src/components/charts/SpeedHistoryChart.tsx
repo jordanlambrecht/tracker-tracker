@@ -4,7 +4,8 @@
 
 import type { EChartsOption } from "echarts"
 import type { FleetSnapshot } from "@/lib/fleet"
-import { formatBytesNum, formatSpeed, hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
+import { formatBytesNum, formatSpeed } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { buildAxisPointer, buildTimeXAxis } from "./lib/chart-helpers"

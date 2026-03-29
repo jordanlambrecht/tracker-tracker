@@ -1,11 +1,9 @@
 // src/components/charts/UploadDownloadChart.tsx
-//
-// Functions: buildOption, UploadDownloadChart
-
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { bytesToGiB, getComplementaryColor } from "@/lib/formatters"
+import { getComplementaryColor } from "@/lib/color-utils"
+import { bytesToGiB } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"

@@ -2,7 +2,8 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { generatePalette, localDateStr } from "@/lib/formatters"
+import { generatePalette } from "@/lib/color-utils"
+import { localDateStr } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"

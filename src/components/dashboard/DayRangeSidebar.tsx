@@ -4,7 +4,7 @@
 
 import clsx from "clsx"
 import { CHART_THEME } from "@/components/charts/lib/theme"
-import { hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
 import type { DayRange } from "@/types/api"
 
 const DAY_RANGES: { value: DayRange; label: string }[] = [

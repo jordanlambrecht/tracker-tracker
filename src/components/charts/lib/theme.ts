@@ -18,7 +18,7 @@
 //   chartAxisLabel      - standard axis label styling
 //   chartDataZoom       - standard slider dataZoom configuration
 
-import { hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
 
 export const CHART_THEME = {
   // ── Surfaces ──

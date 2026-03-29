@@ -3,7 +3,7 @@ import { H2 } from "@typography"
 import { cva } from "class-variance-authority"
 import clsx from "clsx"
 import type { CSSProperties, HTMLAttributes } from "react"
-import { hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
 
 type CardElevation = "raised" | "elevated"
 

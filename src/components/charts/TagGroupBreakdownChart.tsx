@@ -6,7 +6,8 @@
 
 import { SlotLabel } from "@typography"
 import type { EChartsOption } from "echarts"
-import { formatCount, formatPercent, hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
+import { formatCount, formatPercent } from "@/lib/formatters"
 import type { TagGroupChartType } from "@/types/api"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"

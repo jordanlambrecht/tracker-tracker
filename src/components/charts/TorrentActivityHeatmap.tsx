@@ -2,7 +2,8 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { formatCount, hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
+import { formatCount } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { DAY_LABELS, HOUR_LABELS } from "./lib/chart-helpers"

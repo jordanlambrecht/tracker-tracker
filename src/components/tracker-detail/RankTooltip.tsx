@@ -5,7 +5,7 @@ import { SlotLabel } from "@typography"
 import { Badge } from "@/components/ui/Badge"
 import { Tooltip } from "@/components/ui/Tooltip"
 import type { TrackerUserClass } from "@/data/tracker-registry"
-import { hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
 
 interface RankTooltipProps {
   currentRank: string

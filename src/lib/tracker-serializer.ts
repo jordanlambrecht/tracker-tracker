@@ -1,15 +1,16 @@
 // src/lib/tracker-serializer.ts
-//
-// Functions: parsePlatformMeta, serializeTrackerResponse
-
 import "server-only"
 
 import type { PlatformType } from "@/lib/adapters/constants"
+import { DEFAULT_TRACKER_COLOR } from "@/lib/constants"
 import type { PlatformMeta } from "@/lib/adapters/types"
 import type { TrackerRow as FullTrackerRow, TrackerSnapshotRow } from "@/lib/db/schema"
 import type { TrackerSummary } from "@/types/api"
 
-type TrackerRow = Omit<FullTrackerRow, "encryptedApiToken" | "avatarData" | "avatarCachedAt" | "avatarRemoteUrl">
+type TrackerRow = Omit<
+  FullTrackerRow,
+  "encryptedApiToken" | "avatarData" | "avatarCachedAt" | "avatarRemoteUrl"
+>
 
 export function parsePlatformMeta(raw: string | null): PlatformMeta | null {
   if (!raw) return null
@@ -36,7 +37,7 @@ export function serializeTrackerResponse(
     consecutiveFailures: tracker.consecutiveFailures,
     pausedAt: tracker.pausedAt?.toISOString() ?? null,
     userPausedAt: tracker.userPausedAt?.toISOString() ?? null,
-    color: tracker.color ?? "#00d4ff",
+    color: tracker.color ?? DEFAULT_TRACKER_COLOR,
     qbtTag: tracker.qbtTag,
     mouseholeUrl: tracker.mouseholeUrl ?? null,
     useProxy: tracker.useProxy,

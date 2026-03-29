@@ -36,12 +36,12 @@ import { Tooltip } from "@/components/ui/Tooltip"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
 import { useUpdateCheck } from "@/hooks/useUpdateCheck"
 import { DOCS_URL } from "@/lib/constants"
+import { hexToRgba } from "@/lib/color-utils"
 import {
   formatBytesNum,
   formatSpeed,
   formatStatValue,
   formatTimeAgo,
-  hexToRgba,
   type StatMode,
 } from "@/lib/formatters"
 import { STORAGE_KEYS } from "@/lib/storage-keys"

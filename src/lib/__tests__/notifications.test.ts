@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import type { NotificationTargetRow } from "@/lib/db/schema"
-import { hexToInt } from "@/lib/formatters"
+import { hexToInt } from "@/lib/color-utils"
 import type { NotificationTargetType, SnapshotContext } from "@/lib/notifications/types"
 
 // Mock DB so dispatch.ts can be imported without a live database connection
@@ -40,6 +40,7 @@ function makeTarget(overrides: Partial<NotificationTargetRow> = {}): Notificatio
     notifyVipExpiring: false,
     notifyUnsatisfiedLimit: false,
     notifyActiveHnrs: false,
+    notifyDownloadDisabled: false,
     thresholds: null,
     includeTrackerName: true,
     scope: null,
@@ -74,7 +75,7 @@ function makeContext(overrides: Partial<SnapshotContext> = {}): SnapshotContext 
     trackerPausedAt: null,
     trackerJoinedAt: "2020-01-01",
     minimumRatio: 0.6,
-    mamContext: undefined,
+    platformContext: undefined,
     ...overrides,
   }
 }
