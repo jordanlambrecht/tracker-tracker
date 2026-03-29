@@ -12,7 +12,7 @@
 //   getTorrents           - Fetch torrent info from qBittorrent (optionally filtered by tag)
 //   getTransferInfo       - Fetch global transfer stats from qBittorrent
 
-import type { QbtTorrent, QbtTransferInfo } from "./types"
+import { isQbtTorrent, type QbtTorrent, type QbtTransferInfo } from "./types"
 
 /** Extract a human-readable detail string from a fetch error.
  *  Node's fetch wraps the real error in `cause`, i.e
@@ -199,16 +199,23 @@ async function qbtFetch(
  */
 export function parseCachedTorrents(raw: unknown): QbtTorrent[] {
   if (!raw) return []
+  let arr: unknown[]
   if (typeof raw === "string") {
     try {
       const parsed = JSON.parse(raw)
-      return Array.isArray(parsed) ? (parsed as QbtTorrent[]) : []
+      if (!Array.isArray(parsed)) return []
+      arr = parsed
     } catch {
       return []
     }
+  } else if (Array.isArray(raw)) {
+    arr = raw
+  } else {
+    return []
   }
-  if (Array.isArray(raw)) return raw as QbtTorrent[]
-  return []
+  if (arr.length === 0) return arr as QbtTorrent[]
+  if (!isQbtTorrent(arr[0])) return []
+  return arr as QbtTorrent[]
 }
 
 export async function getTorrents(

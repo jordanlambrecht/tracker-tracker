@@ -114,5 +114,21 @@ export function isDiscordConfig(config: NotificationConfig): config is DiscordCo
   return "webhookUrl" in config && typeof config.webhookUrl === "string"
 }
 
+export function isNotificationConfig(value: unknown): value is NotificationConfig {
+  if (!value || typeof value !== "object") return false
+  const obj = value as Record<string, unknown>
+  if (typeof obj.webhookUrl === "string") return true
+  if (typeof obj.serverUrl === "string" && typeof obj.appToken === "string") return true
+  if (typeof obj.botToken === "string" && typeof obj.chatId === "string") return true
+  if (
+    typeof obj.host === "string" &&
+    typeof obj.port === "number" &&
+    typeof obj.from === "string" &&
+    typeof obj.to === "string"
+  )
+    return true
+  return false
+}
+
 // Discord webhook URL pattern
 export const DISCORD_WEBHOOK_RE = /^https:\/\/discord\.com\/api\/webhooks\/\d+\/[\w-]+$/

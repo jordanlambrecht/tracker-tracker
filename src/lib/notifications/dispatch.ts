@@ -1,6 +1,4 @@
 // src/lib/notifications/dispatch.ts
-//
-// Functions: dispatchNotifications, detectEvents, buildEventData
 
 import { eq } from "drizzle-orm"
 import { MAM_BONUS_CAP } from "@/lib/adapters/constants"
@@ -13,6 +11,7 @@ import { deliverDiscordWebhook } from "@/lib/notifications/deliver"
 import { buildDiscordEmbed } from "@/lib/notifications/payload"
 import {
   type DiscordConfig,
+  isDiscordConfig,
   type NotificationEventType,
   type NotificationThresholds,
   parseThresholds,
@@ -77,7 +76,7 @@ export async function dispatchNotifications(
 
   for (const target of targets) {
     try {
-      // Scope filter — null means all trackers, array means specific tracker IDs
+      // Scope filter. null means all trackers, array means specific tracker IDs
       if (target.scope !== null && !target.scope.includes(ctx.trackerId)) continue
 
       const events = detectEvents(ctx, target)
@@ -89,7 +88,7 @@ export async function dispatchNotifications(
         : undefined
       const targetThresholds = parseThresholds(target.thresholds)
 
-      // Only Discord is currently supported — skip unknown types
+      // Only Discord is currently supported. Skip unknown types
       if (target.type !== "discord") {
         log.warn(
           `dispatchNotifications: skipping unsupported target type "${target.type}" for "${target.name}" (id=${target.id})`
@@ -99,7 +98,14 @@ export async function dispatchNotifications(
 
       let config: DiscordConfig
       try {
-        config = decryptNotificationConfig(target, encryptionKey) as DiscordConfig
+        const raw = decryptNotificationConfig(target, encryptionKey)
+        if (!isDiscordConfig(raw)) {
+          log.error(
+            `dispatchNotifications: decrypted config is not a valid DiscordConfig for "${target.name}" (id=${target.id})`
+          )
+          continue
+        }
+        config = raw
       } catch {
         log.error(
           `dispatchNotifications: cannot decrypt config for notification target "${target.name}" (id=${target.id})`
@@ -107,13 +113,13 @@ export async function dispatchNotifications(
         continue
       }
 
-      // Collect per-target delivery results — write once after the event loop
+      // Collect per-target delivery results
       let finalStatus: "delivered" | "failed" | "rate_limited" | null = null
       let finalError: string | null = null
 
       for (const event of events) {
         try {
-          // Cooldown check — in-memory lookup from batched query
+          // Cooldown check. In-memory lookup from batched query
           const snoozedUntil = cooldownMap.get(`${target.id}:${event}`)
           if (snoozedUntil && now < snoozedUntil) continue
 
@@ -165,7 +171,7 @@ export async function dispatchNotifications(
         }
       }
 
-      // Write delivery status once per target, not per event
+      // Write delivery status
       if (finalStatus) {
         await db
           .update(notificationTargets)

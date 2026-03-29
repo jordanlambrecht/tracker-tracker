@@ -1,6 +1,4 @@
 // src/lib/notifications/deliver.ts
-//
-// Functions: getCircuits, getCircuitState, resetCircuitBreaker, isCircuitOpen, recordFailure, recordSuccess, deliverDiscordWebhook
 
 import { sanitizeNetworkError } from "@/lib/error-utils"
 import { log } from "@/lib/logger"

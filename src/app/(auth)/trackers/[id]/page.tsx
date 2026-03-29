@@ -9,7 +9,7 @@ import {
   getTagGroupsWithMembers,
   getTrackerForClient,
 } from "@/lib/server-data"
-import type { QbitmanageTagConfig, TrackerSummary } from "@/types/api"
+import type { QbitmanageTagConfig } from "@/types/api"
 import { TrackerDetailClient } from "./TrackerDetailClient"
 
 export default async function TrackerDetailPage(props: {
@@ -50,7 +50,7 @@ export default async function TrackerDetailPage(props: {
   return (
     <TrackerDetailClient
       trackerId={trackerId}
-      initialTracker={tracker as TrackerSummary}
+      initialTracker={tracker}
       initialAllTimeSnapshots={allTimeSnapshots}
       initialTagGroups={tagGroupsData}
       initialQbitmanageConfig={qbitmanageConfig}

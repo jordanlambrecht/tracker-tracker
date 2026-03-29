@@ -1,6 +1,4 @@
 // src/app/api/settings/dashboard/route.ts
-//
-// Functions: GET, PUT
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"

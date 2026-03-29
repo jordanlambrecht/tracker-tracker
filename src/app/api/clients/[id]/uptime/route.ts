@@ -1,6 +1,4 @@
 // src/app/api/clients/[id]/uptime/route.ts
-//
-// Functions: GET
 
 import { and, eq, gte } from "drizzle-orm"
 import { NextResponse } from "next/server"

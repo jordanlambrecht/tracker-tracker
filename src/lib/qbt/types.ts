@@ -58,3 +58,17 @@ export interface ClientStats {
 }
 
 export const VALID_CLIENT_TYPES = ["qbittorrent"] as const
+
+// Spot-checks a single value for the QbtTorrent shape (key fields only).
+// Used to validate the first element of a JSONB array before trusting the rest.
+export function isQbtTorrent(value: unknown): value is QbtTorrent {
+  if (!value || typeof value !== "object") return false
+  const t = value as Record<string, unknown>
+  return (
+    typeof t.hash === "string" &&
+    typeof t.name === "string" &&
+    typeof t.state === "string" &&
+    typeof t.size === "number" &&
+    typeof t.ratio === "number"
+  )
+}

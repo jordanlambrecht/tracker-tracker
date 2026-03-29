@@ -10,7 +10,7 @@ import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
 import { isDecryptionError } from "@/lib/error-utils"
 import { log } from "@/lib/logger"
-import { getTorrents, withSessionRetry } from "@/lib/qbt"
+import { getTorrents, stripSensitiveTorrentFields, withSessionRetry } from "@/lib/qbt"
 
 export async function GET(request: Request, props: RouteContext) {
   const auth = await authenticate()
@@ -65,7 +65,7 @@ export async function GET(request: Request, props: RouteContext) {
       password,
       (baseUrl, sid) => getTorrents(baseUrl, sid, tag.trim())
     )
-    return NextResponse.json(torrents)
+    return NextResponse.json(torrents.map(stripSensitiveTorrentFields))
   } catch (error) {
     const raw = error instanceof Error ? error.message : ""
     let detail = ""
