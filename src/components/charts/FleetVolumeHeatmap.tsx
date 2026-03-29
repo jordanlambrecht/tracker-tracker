@@ -6,18 +6,13 @@ import type { EChartsOption } from "echarts"
 import { useState } from "react"
 import { TabBar } from "@/components/ui/TabBar"
 import { hexToRgba } from "@/lib/formatters"
-import type { TrackerSnapshotSeries } from "@/types/charts"
+import type { FleetChartProps, TrackerSnapshotSeries, VolumeField } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { DAY_LABELS, formatGiB, HOUR_LABELS } from "./lib/chart-helpers"
 import { CHART_THEME, chartAxisLabel, chartTooltip, chartTooltipRow, escHtml } from "./lib/theme"
 
-type VolumeField = "upload" | "download"
-
-interface FleetVolumeHeatmapProps {
-  trackerData: TrackerSnapshotSeries[]
-  height?: number
-}
+interface FleetVolumeHeatmapProps extends FleetChartProps {}
 
 /**
  * Build a 7x24 volume matrix from snapshot series.

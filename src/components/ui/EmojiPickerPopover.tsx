@@ -115,4 +115,5 @@ function EmojiPickerPopover({
   )
 }
 
+export type { EmojiPickerPopoverProps }
 export { EmojiPickerPopover }

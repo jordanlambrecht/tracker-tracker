@@ -7,11 +7,11 @@
 import type { EChartsOption } from "echarts"
 import { useState } from "react"
 import { TabBar } from "@/components/ui/TabBar"
+import { localDateStr } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
-import type { TrackerSnapshotSeries } from "@/types/charts"
+import type { FleetChartProps } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
-import { localDateStr } from "@/lib/formatters"
 import {
   autoByteScale,
   buildAxisPointer,
@@ -39,10 +39,7 @@ import { useLogScale } from "./lib/useLogScale"
 
 type MAWindow = "1" | "3" | "7"
 
-interface BufferVelocityChartProps {
-  trackerData: TrackerSnapshotSeries[]
-  height?: number
-}
+interface BufferVelocityChartProps extends FleetChartProps {}
 
 interface TrackerVelocityData {
   name: string

@@ -88,4 +88,5 @@ function Tooltip({ content, children, className, docs }: TooltipProps) {
   )
 }
 
+export type { TooltipProps }
 export { Tooltip }

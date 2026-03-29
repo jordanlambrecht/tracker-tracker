@@ -1,7 +1,4 @@
 // src/components/ui/CollapsibleCard.tsx
-//
-// Functions: CollapsibleCard
-
 "use client"
 
 import { type ReactNode, useRef, useState } from "react"
@@ -9,21 +6,16 @@ import { Card } from "@/components/ui/Card"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
 
 interface CollapsibleCardProps {
-  /** Always-visible header content (left side — title, badges, meta) */
   header: ReactNode
-  /** Optional content between header and collapsible body (i.e. uptime bars) */
   subheader?: ReactNode
-  /** Trailing content in the header row before the chevron (i.e. type label) */
   trailing?: ReactNode
-  /** Collapsible body content */
   children: ReactNode
-  /** Controlled expanded state — if omitted, uses internal state */
   expanded?: boolean
-  /** Controlled toggle callback */
   onToggle?: () => void
-  /** Start expanded */
   defaultExpanded?: boolean
 }
+
+export type { CollapsibleCardProps }
 
 export function CollapsibleCard({
   header,

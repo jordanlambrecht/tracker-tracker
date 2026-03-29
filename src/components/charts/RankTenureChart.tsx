@@ -11,7 +11,7 @@ import type {
   EChartsOption,
 } from "echarts"
 import { generatePalette } from "@/lib/formatters"
-import type { TrackerSnapshotSeries } from "@/types/charts"
+import type { FleetChartProps, TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import {
@@ -27,10 +27,7 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
-interface RankTenureChartProps {
-  trackerData: TrackerSnapshotSeries[]
-  height?: number
-}
+interface RankTenureChartProps extends FleetChartProps {}
 
 interface RankPeriod {
   tracker: string

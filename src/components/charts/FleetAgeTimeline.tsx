@@ -1,10 +1,8 @@
 // src/components/charts/FleetAgeTimeline.tsx
-//
-// Functions: groupByMonth, FleetAgeTimeline
-
 "use client"
 
 import type { TrackerTag } from "@/lib/fleet"
+import type { StackedAreaSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { buildStackedAreaOption } from "./lib/chart-helpers"
@@ -18,23 +16,17 @@ interface FleetAgeTimelineProps {
   height?: number
 }
 
-interface SeriesData {
-  name: string
-  color: string
-  monthMap: Map<string, number>
-}
-
 function groupByMonth(
   torrents: { addedOn: number; tags: string }[],
   trackerTags: TrackerTag[]
-): { sortedMonths: string[]; series: SeriesData[] } {
+): { sortedMonths: string[]; series: StackedAreaSeries[] } {
   const tagSetLower = trackerTags.map((t) => ({
     tagLower: t.tag.toLowerCase(),
     name: t.name,
     color: t.color,
   }))
 
-  const seriesMap = new Map<string, SeriesData>()
+  const seriesMap = new Map<string, StackedAreaSeries>()
 
   for (const entry of tagSetLower) {
     seriesMap.set(entry.name, {
@@ -44,7 +36,7 @@ function groupByMonth(
     })
   }
 
-  const otherSeries: SeriesData = {
+  const otherSeries: StackedAreaSeries = {
     name: "Other",
     color: CHART_THEME.textTertiary,
     monthMap: new Map(),
@@ -81,7 +73,11 @@ function groupByMonth(
   return { sortedMonths, series }
 }
 
-function FleetAgeTimeline({ torrents, trackerTags = EMPTY_TRACKER_TAGS, height = 320 }: FleetAgeTimelineProps) {
+function FleetAgeTimeline({
+  torrents,
+  trackerTags = EMPTY_TRACKER_TAGS,
+  height = 320,
+}: FleetAgeTimelineProps) {
   const validTorrents = torrents.filter((t) => t.addedOn && t.addedOn > 0)
 
   if (validTorrents.length === 0) {

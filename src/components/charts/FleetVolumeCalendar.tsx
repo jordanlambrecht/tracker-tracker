@@ -5,19 +5,14 @@ import type { EChartsOption } from "echarts"
 import { useState } from "react"
 import { TabBar } from "@/components/ui/TabBar"
 import { hexToRgba, localDateStr } from "@/lib/formatters"
-import type { TrackerSnapshotSeries } from "@/types/charts"
+import type { FleetChartProps, TrackerSnapshotSeries, VolumeField } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { formatGiB } from "./lib/chart-helpers"
 import { computeDailyDeltas } from "./lib/chart-transforms"
 import { CHART_THEME, chartTooltip, chartTooltipRow, escHtml } from "./lib/theme"
 
-type VolumeField = "upload" | "download"
-
-interface FleetVolumeCalendarProps {
-  trackerData: TrackerSnapshotSeries[]
-  height?: number
-}
+interface FleetVolumeCalendarProps extends FleetChartProps {}
 
 /**
  * Aggregate daily upload/download deltas across all trackers.

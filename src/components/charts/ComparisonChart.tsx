@@ -10,7 +10,7 @@ import { TabBar } from "@/components/ui/TabBar"
 import { Tooltip } from "@/components/ui/Tooltip"
 import { bytesToGiB, hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
-import type { TrackerSnapshotSeries } from "@/types/charts"
+import type { FleetChartProps, TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import {
@@ -60,10 +60,8 @@ const METRIC_DIM: Record<ChartMetric, string> = {
   active: CHART_THEME.accentDim,
 }
 
-interface ComparisonChartProps {
+interface ComparisonChartProps extends FleetChartProps {
   metric: ChartMetric
-  trackerData: TrackerSnapshotSeries[]
-  height?: number
   enableLogScale?: boolean
   enableAverage?: boolean
   enableStacked?: boolean
@@ -398,7 +396,7 @@ function ComparisonChart({
               <button
                 type="button"
                 onClick={() => setAverageMode((v) => !v)}
-                className="timestamp nm-interactive-sm bg-raised px-2.5 py-1 hover:text-secondary cursor-pointer flex items-center gap-1.5 rounded-nm-sm"
+                className="timestamp nm-interactive-sm bg-raised px-2.5 py-1 hover:text-secondary cursor-pointer flex items-center gap-2 rounded-nm-sm"
               >
                 {averageMode ? "Avg" : "Per-Tracker"}
               </button>

@@ -8,7 +8,7 @@ import type { EChartsOption } from "echarts"
 import { useState } from "react"
 import { TabBar } from "@/components/ui/TabBar"
 import { hexToRgba } from "@/lib/formatters"
-import type { TrackerSnapshotSeries } from "@/types/charts"
+import type { FleetChartProps, TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import {
@@ -40,10 +40,7 @@ import {
 
 type VolumeMode = "bar" | "river" | "area" | "sums"
 
-interface DailyVolumeChartProps {
-  trackerData: TrackerSnapshotSeries[]
-  height?: number
-}
+interface DailyVolumeChartProps extends FleetChartProps {}
 
 // ---------------------------------------------------------------------------
 // Shared helpers

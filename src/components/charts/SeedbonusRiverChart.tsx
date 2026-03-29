@@ -2,8 +2,8 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import type { TrackerSnapshotSeries } from "@/types/charts"
 import { formatCount } from "@/lib/formatters"
+import type { FleetChartProps, TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { buildAxisPointer, buildThemeRiverSingleAxis } from "./lib/chart-helpers"
@@ -20,10 +20,7 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
-interface SeedbonusRiverChartProps {
-  trackerData: TrackerSnapshotSeries[]
-  height?: number
-}
+interface SeedbonusRiverChartProps extends FleetChartProps {}
 
 // ---------------------------------------------------------------------------
 // Data builder

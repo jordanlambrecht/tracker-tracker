@@ -7,7 +7,7 @@
 import type { EChartsOption } from "echarts"
 import { formatRatioDisplay, hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
-import type { TrackerSnapshotSeries } from "@/types/charts"
+import type { FleetChartProps, TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import {
@@ -31,9 +31,7 @@ import {
 } from "./lib/theme"
 import { useLogScale } from "./lib/useLogScale"
 
-interface RatioStabilityChartProps {
-  trackerData: TrackerSnapshotSeries[]
-  height?: number
+interface RatioStabilityChartProps extends FleetChartProps {
   emaPeriod?: number
   bandWindow?: number
 }

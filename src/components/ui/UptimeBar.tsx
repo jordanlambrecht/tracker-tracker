@@ -63,7 +63,7 @@ function UptimeBar({ buckets, uptimePercent, className = "" }: UptimeBarProps) {
   const percentLabel = uptimePercent != null ? `${uptimePercent}%` : "—"
 
   return (
-    <div className={`flex flex-col gap-1.5 ${className}`}>
+    <div className={`flex flex-col gap-2 ${className}`}>
       <div className="flex items-center justify-between">
         <span className="text-xs font-mono text-tertiary">Uptime (24h)</span>
         <span
@@ -130,4 +130,5 @@ function UptimeBar({ buckets, uptimePercent, className = "" }: UptimeBarProps) {
   )
 }
 
+export type { UptimeBarProps, UptimeBucket }
 export { UptimeBar }

@@ -4,6 +4,7 @@
 
 import type { EChartsOption } from "echarts"
 import { formatCount, hexToRgba } from "@/lib/formatters"
+import type { StackedAreaSeries } from "@/types/charts"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -332,7 +333,7 @@ export function buildDonutShell(overrides?: {
  */
 export function buildStackedAreaOption(
   sortedMonths: string[],
-  series: { name: string; color: string; monthMap: Map<string, number> }[],
+  series: StackedAreaSeries[],
   stackId = "default"
 ): EChartsOption {
   const eChartsSeries: NonNullable<EChartsOption["series"]> = series.map((s) => {

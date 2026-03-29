@@ -8,7 +8,7 @@ import ReactECharts from "echarts-for-react"
 import "echarts-gl"
 import { localDateStr } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
-import type { TrackerSnapshotSeries } from "@/types/charts"
+import type { FleetChartProps, TrackerSnapshotSeries } from "@/types/charts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { autoByteScale, fmtNum } from "./lib/chart-helpers"
 import { CHART_THEME, chartAxisLabel, chartTooltip, escHtml } from "./lib/theme"
@@ -17,10 +17,7 @@ import { CHART_THEME, chartAxisLabel, chartTooltip, escHtml } from "./lib/theme"
 // Types
 // ---------------------------------------------------------------------------
 
-interface VolumeSurface3DProps {
-  trackerData: TrackerSnapshotSeries[]
-  height?: number
-}
+interface VolumeSurface3DProps extends FleetChartProps {}
 
 interface GridResult {
   bucketLabels: string[]

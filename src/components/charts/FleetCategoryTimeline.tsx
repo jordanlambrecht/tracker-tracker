@@ -1,9 +1,8 @@
 // src/components/charts/FleetCategoryTimeline.tsx
-//
-// Functions: groupByCategory, FleetCategoryTimeline
 
 "use client"
 
+import type { StackedAreaSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { buildStackedAreaOption } from "./lib/chart-helpers"
@@ -14,15 +13,9 @@ interface FleetCategoryTimelineProps {
   height?: number
 }
 
-interface CategorySeries {
-  name: string
-  color: string
-  monthMap: Map<string, number>
-}
-
 function groupByCategory(torrents: { addedOn: number; category: string }[]): {
   sortedMonths: string[]
-  series: CategorySeries[]
+  series: StackedAreaSeries[]
 } {
   const categoryMaps = new Map<string, Map<string, number>>()
   const allMonths = new Set<string>()
@@ -55,7 +48,7 @@ function groupByCategory(torrents: { addedOn: number; category: string }[]): {
 
   const colorMap = buildTagColors(entries.map((e) => e.name))
 
-  const series: CategorySeries[] = entries.map((e) => ({
+  const series: StackedAreaSeries[] = entries.map((e) => ({
     name: e.name,
     color: colorMap.get(e.name) ?? CHART_THEME.chartFallback,
     monthMap: e.monthMap,

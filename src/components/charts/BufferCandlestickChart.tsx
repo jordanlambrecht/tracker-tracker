@@ -7,7 +7,7 @@
 import type { CandlestickSeriesOption, EChartsOption } from "echarts"
 import { bytesToGiB, hexToRgba } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
-import type { TrackerSnapshotSeries } from "@/types/charts"
+import type { FleetChartProps, TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import {
@@ -31,10 +31,7 @@ import {
 } from "./lib/theme"
 import { useLogScale } from "./lib/useLogScale"
 
-interface BufferCandlestickChartProps {
-  trackerData: TrackerSnapshotSeries[]
-  height?: number
-}
+interface BufferCandlestickChartProps extends FleetChartProps {}
 
 interface CandlestickResult {
   days: string[]

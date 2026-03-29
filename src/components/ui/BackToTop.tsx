@@ -49,6 +49,8 @@ interface BackToTopProps {
   scrollRef: React.RefObject<HTMLElement | null>
 }
 
+export type { BackToTopProps }
+
 export function BackToTop({ scrollRef }: BackToTopProps) {
   const [visible, setVisible] = useState(false)
   const [scrollProgress, setScrollProgress] = useState(0)

@@ -3,7 +3,8 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import type { TrackerSnapshotSeries } from "@/types/charts"
+import { formatCount } from "@/lib/formatters"
+import type { FleetChartProps, TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import {
@@ -13,7 +14,6 @@ import {
   insideZoom,
 } from "./lib/chart-helpers"
 import { carryForwardTimeSeries, collectUnifiedTimestamps } from "./lib/chart-transforms"
-import { formatCount } from "@/lib/formatters"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -25,10 +25,7 @@ import {
   formatChartTimestamp,
 } from "./lib/theme"
 
-interface FleetCompositionChartProps {
-  trackerData: TrackerSnapshotSeries[]
-  height?: number
-}
+interface FleetCompositionChartProps extends FleetChartProps {}
 
 function buildFleetOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
   // Collect unified ms timestamps for the time axis
