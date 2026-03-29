@@ -1,5 +1,4 @@
 // src/components/ui/TabBar.tsx
-
 "use client"
 
 import clsx from "clsx"
@@ -42,7 +41,7 @@ function TabBar<T extends string>({ tabs, activeTab, onChange, compact = false }
       ref={containerRef}
       className={clsx(
         "relative flex bg-control-bg nm-inset rounded-nm-md",
-        compact ? "gap-0.5 p-1 w-fit rounded-nm-sm" : "gap-1.5 p-2.5"
+        compact ? "gap-0.5 p-1 w-fit rounded-nm-sm" : "gap-2 p-3"
       )}
       role="tablist"
     >

@@ -97,7 +97,7 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
                     i > 0 ? "border-t border-border" : ""
                   )}
                 >
-                  <span className="text-sm font-sans text-tertiary flex items-center gap-1.5">
+                  <span className="text-sm font-sans text-tertiary flex items-center gap-2">
                     {rule.label}
                     <Tooltip content={rule.tip}>
                       <span className="help-icon opacity-50 hover:opacity-80 transition-opacity">

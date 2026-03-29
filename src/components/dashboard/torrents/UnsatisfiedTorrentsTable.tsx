@@ -29,7 +29,7 @@ export function UnsatisfiedTorrentsTable({
       render: (t) => {
         const pct = Math.min((t.seedingTime / requiredSeconds) * 100, 100)
         return (
-          <div className="flex flex-col gap-1.5 min-w-0">
+          <div className="flex flex-col gap-2 min-w-0">
             <MarqueeText className="text-xs font-mono text-secondary">{t.name}</MarqueeText>
             <div className="flex items-center gap-2">
               <div className="flex-1 h-1 rounded-full bg-base overflow-hidden">

@@ -1,5 +1,4 @@
 // src/components/tracker-detail/DebugResponseDialog.tsx
-
 "use client"
 
 import { useEffect, useState } from "react"
@@ -135,7 +134,7 @@ export function DebugResponseDialog({
               <CopyButton
                 value={content}
                 label="Copy"
-                className="absolute top-2 right-2 flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-sans font-medium text-tertiary hover:text-primary bg-elevated nm-raised-sm rounded-nm-sm transition-colors duration-150 cursor-pointer"
+                className="absolute top-2 right-2 flex items-center gap-2 px-2.5 py-1.5 text-xs font-sans font-medium text-tertiary hover:text-primary bg-elevated nm-raised-sm rounded-nm-sm transition-colors duration-150 cursor-pointer"
               />
             )}
           </div>

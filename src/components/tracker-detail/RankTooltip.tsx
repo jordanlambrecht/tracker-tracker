@@ -1,5 +1,4 @@
 // src/components/tracker-detail/RankTooltip.tsx
-
 "use client"
 
 import { SlotLabel } from "@typography"
@@ -47,7 +46,7 @@ export function RankTooltip({ currentRank, userClasses, accentColor }: RankToolt
           color: accentColor,
         }}
       >
-        <span className="flex items-center gap-1.5">
+        <span className="flex items-center gap-2">
           {currentRank}
           <span className="help-icon opacity-70" aria-hidden="true">
             ?

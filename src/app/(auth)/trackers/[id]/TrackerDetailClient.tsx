@@ -1,14 +1,11 @@
 // src/app/(auth)/trackers/[id]/TrackerDetailClient.tsx
-//
-// Functions: TrackerDetailClient
-
 "use client"
 
 import clsx from "clsx"
 import { useRouter } from "next/navigation"
 import { type CSSProperties, useCallback, useEffect, useMemo, useState } from "react"
 import { CHART_THEME } from "@/components/charts/lib/theme"
-import type { DayRange } from "@/components/dashboard/DayRangeSidebar"
+import type { DayRange } from "@/types/api"
 import { RankProgress } from "@/components/dashboard/RankProgress"
 import { TorrentsTab } from "@/components/dashboard/TorrentsTab"
 import { TrackerSettingsDialog } from "@/components/TrackerSettingsDialog"

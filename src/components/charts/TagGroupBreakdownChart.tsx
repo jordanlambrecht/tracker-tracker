@@ -270,7 +270,7 @@ function TagGroupBreakdownChart({
                 className="relative flex flex-col gap-1 p-3 nm-inset-sm rounded-nm-md overflow-hidden"
               >
                 <SlotLabel label={m.label} className="leading-tight" />
-                <div className="flex items-baseline gap-1.5">
+                <div className="flex items-baseline gap-2">
                   <span className="font-mono text-lg font-semibold tabular-nums" style={{ color }}>
                     {formatCount(m.count)}
                   </span>

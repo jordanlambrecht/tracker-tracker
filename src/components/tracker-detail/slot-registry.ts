@@ -483,7 +483,7 @@ const ggnIrcBadgeSlot: SlotDefinition<SlotBadgeProps> = {
     if ((meta as GGnPlatformMeta).onIRC !== true) return null
     const children = createElement(
       "span",
-      { className: "inline-flex items-center gap-1.5" },
+      { className: "inline-flex items-center gap-2" },
       createElement(PulseDot, { status: "healthy", size: "sm" }),
       "IRC"
     )

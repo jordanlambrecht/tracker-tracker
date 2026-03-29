@@ -1,9 +1,4 @@
 // src/components/charts/FleetSpeedSparklines.tsx
-//
-// Pure SVG sparkline cards for per-client upload + download speed history.
-//
-// Functions: buildPolylinePoints, MiniSparkline, ClientSpeedCard, FleetSpeedSparklines
-
 "use client"
 
 import { useEffect, useRef, useState } from "react"
@@ -146,7 +141,7 @@ function ClientSpeedCard({ name, state }: ClientSpeedCardProps) {
         <>
           {/* Upload row */}
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               <span className="text-3xs font-mono" style={{ color: COLOR_UPLOAD }}>
                 ↑
               </span>
@@ -159,7 +154,7 @@ function ClientSpeedCard({ name, state }: ClientSpeedCardProps) {
 
           {/* Download row */}
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               <span className="text-3xs font-mono" style={{ color: COLOR_DOWNLOAD }}>
                 ↓
               </span>

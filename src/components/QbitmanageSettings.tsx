@@ -1,7 +1,4 @@
 // src/components/QbitmanageSettings.tsx
-//
-// Functions: QbitmanageSettings
-
 "use client"
 
 import { Subtext } from "@typography"
@@ -138,9 +135,14 @@ function QbitmanageSettings({ initialEnabled, initialTags }: QbitmanageSettingsP
             </div>
           ))}
 
-          <div className="flex flex-col gap-1.5 pt-2">
+          <div className="flex flex-col gap-2 pt-2">
             <div className="flex items-center gap-3">
-              <Button size="sm" onClick={handleSave} disabled={saving || !dirty} text={saving ? "Saving..." : "Save"} />
+              <Button
+                size="sm"
+                onClick={handleSave}
+                disabled={saving || !dirty}
+                text={saving ? "Saving..." : "Save"}
+              />
               {saved && <span className="text-xs font-mono text-success">Saved</span>}
             </div>
             {saveError && <span className="text-xs font-mono text-danger">{saveError}</span>}

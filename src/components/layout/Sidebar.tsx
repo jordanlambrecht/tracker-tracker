@@ -300,7 +300,7 @@ function ClientSlide({
               Down{client.errorSince ? ` ${formatTimeAgo(client.errorSince)}` : ""}
             </span>
           ) : !expanded && entry.speeds.length > 0 ? (
-            <span className="flex items-center gap-1.5">
+            <span className="flex items-center gap-2">
               <span className="text-accent">
                 {formatSpeed(entry.speeds[entry.speeds.length - 1].up)}↑
               </span>
@@ -466,7 +466,7 @@ function ClientStatusWidget() {
   return (
     <div className="px-3 py-3 border-t border-border shrink-0">
       <div
-        className="nm-inset-sm bg-control-bg px-3 pt-2.5 pb-3.5 flex flex-col gap-1.5 rounded-nm-md touch-pan-y"
+        className="nm-inset-sm bg-control-bg px-3 pt-2.5 pb-3.5 flex flex-col gap-2 rounded-nm-md touch-pan-y"
         onPointerDown={onPointerDownCapture}
         onPointerUp={onPointerUp}
       >
@@ -542,7 +542,7 @@ function ClientStatusWidget() {
 
         {/* Dot indicators for carousel */}
         {entries.length > 1 && (
-          <div className="flex items-center justify-center gap-1.5 pt-0.5">
+          <div className="flex items-center justify-center gap-2 pt-0.5">
             {entries.map((entry, i) => (
               <button
                 key={entry.client.id}

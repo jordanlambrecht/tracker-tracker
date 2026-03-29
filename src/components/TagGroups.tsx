@@ -113,7 +113,7 @@ function AddTagGroupForm({ onCreated, onCancel }: AddTagGroupFormProps) {
       </div>
 
       {/* Chart type selector */}
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2">
         <H2 className="uppercase tracking-wider">
           Display Type
         </H2>

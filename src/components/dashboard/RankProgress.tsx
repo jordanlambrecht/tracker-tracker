@@ -1,7 +1,4 @@
 // src/components/dashboard/RankProgress.tsx
-//
-// Functions: extractRankHistory, RankProgressBar, RankTimeline, RankProgress
-
 "use client"
 
 import { useState } from "react"
@@ -148,10 +145,7 @@ function RankTimeline({ events, accentColor }: RankTimelineProps) {
       {events.map((event) => {
         if (event.kind === "anniversary") {
           return (
-            <div
-              key={`anniv-${event.label}`}
-              className="flex flex-col items-center gap-1.5 shrink-0"
-            >
+            <div key={`anniv-${event.label}`} className="flex flex-col items-center gap-2 shrink-0">
               <div
                 className="w-2.5 h-2.5 rounded-full shrink-0"
                 style={{
@@ -183,7 +177,7 @@ function RankTimeline({ events, accentColor }: RankTimelineProps) {
 
         return (
           <div key={`${event.date}-${event.to}`} className="flex flex-col gap-0.5 shrink-0">
-            <div className="flex items-center gap-1.5 whitespace-nowrap">
+            <div className="flex items-center gap-2 whitespace-nowrap">
               <span className="text-4xs leading-none shrink-0" style={{ color: dirColor }}>
                 {dirIcon}
               </span>

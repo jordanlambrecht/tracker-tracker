@@ -22,7 +22,7 @@ function LogScaleToggle({ effectiveLog, isAuto, onToggle }: LogScaleToggleProps)
       <button
         type="button"
         onClick={onToggle}
-        className="timestamp nm-interactive-sm bg-raised px-2.5 py-1 hover:text-secondary cursor-pointer flex items-center gap-1.5 rounded-nm-sm"
+        className="timestamp nm-interactive-sm bg-raised px-2.5 py-1 hover:text-secondary cursor-pointer flex items-center gap-2 rounded-nm-sm"
       >
         <ActivityIcon width="10" height="10" />
         {effectiveLog ? "Log" : "Linear"}

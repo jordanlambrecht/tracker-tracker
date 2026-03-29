@@ -122,7 +122,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
     <div className="flex flex-col gap-3">
       {/* Filters — only when > 6 trackers */}
       {showFilters && (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           {/* Mobile toggle */}
           <button
             type="button"
@@ -142,7 +142,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
           {/* Filter pills — always visible on md+, collapsible on mobile */}
           <div
             className={clsx(
-              "flex-wrap items-center gap-1.5",
+              "flex-wrap items-center gap-2",
               filtersOpen ? "flex" : "hidden md:flex"
             )}
           >
@@ -195,7 +195,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
               key={t.id}
               type="button"
               onClick={() => router.push(`/trackers/${t.id}`)}
-              className="flex flex-col gap-1.5 px-4 py-3 nm-interactive-sm cursor-pointer text-left h-full rounded-nm-md"
+              className="flex flex-col gap-2 px-4 py-3 nm-interactive-sm cursor-pointer text-left h-full rounded-nm-md"
               style={{ borderLeft: `3px solid ${t.color}` }}
             >
               {/* Row 1: Status + name + ratio + external link */}

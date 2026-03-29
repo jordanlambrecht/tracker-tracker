@@ -140,7 +140,7 @@ function Header({
 
   return (
     <div className="flex items-center justify-between">
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-2">
         <p className="text-xs font-sans font-medium text-tertiary uppercase tracking-wider">
           {label}
         </p>
