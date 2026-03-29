@@ -66,6 +66,7 @@ const DRAFT_KEYS: (keyof NotificationTarget)[] = [
   "notifyVipExpiring",
   "notifyUnsatisfiedLimit",
   "notifyActiveHnrs",
+  "notifyDownloadDisabled",
   "thresholds",
   "includeTrackerName",
   "scope",
@@ -379,14 +380,14 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
           label="Bonus Points Capped"
           checked={draft.notifyBonusCap}
           onChange={(v) => updateDraft({ notifyBonusCap: v })}
-          description="Alert when seedbonus hits the cap (99,999 on MAM)"
+          description="Alert when seedbonus hits the cap (i.e. 99,999 on MAM)"
         />
 
         <Toggle
           label="VIP Expiring Soon"
           checked={draft.notifyVipExpiring}
           onChange={(v) => updateDraft({ notifyVipExpiring: v })}
-          description="Alert when VIP status is about to expire"
+          description="Alert when VIP status is about to expire (MAM, AvistaZ network)"
         />
 
         <Toggle
@@ -401,6 +402,13 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
           checked={draft.notifyActiveHnrs}
           onChange={(v) => updateDraft({ notifyActiveHnrs: v })}
           description="Alert when inactive Hit & Runs are detected"
+        />
+
+        <Toggle
+          label="Download Privileges Revoked"
+          checked={draft.notifyDownloadDisabled}
+          onChange={(v) => updateDraft({ notifyDownloadDisabled: v })}
+          description="Alert when an AvistaZ network tracker revokes download access"
         />
       </div>
 

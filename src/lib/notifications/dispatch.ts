@@ -22,6 +22,7 @@ import {
   checkAnniversaryMilestone,
   checkBonusCapReached,
   checkBufferMilestoneCrossed,
+  checkDownloadDisabled,
   checkHnrIncrease,
   checkRankChange,
   checkRatioBelowMinimumTransition,
@@ -251,8 +252,8 @@ export function detectEvents(
     const capLimit = (thresholds?.bonusCapLimit as number | undefined) ?? MAM_BONUS_CAP
     if (
       checkBonusCapReached(
-        ctx.mamContext?.currentSeedbonus ?? null,
-        ctx.mamContext?.previousSeedbonus ?? null,
+        ctx.platformContext?.currentSeedbonus ?? null,
+        ctx.platformContext?.previousSeedbonus ?? null,
         capLimit
       )
     ) {
@@ -262,7 +263,7 @@ export function detectEvents(
 
   if (target.notifyVipExpiring) {
     const days = (thresholds?.vipExpiringDays as number | undefined) ?? 7
-    if (checkVipExpiringSoon(ctx.mamContext?.vipUntil ?? null, days)) {
+    if (checkVipExpiringSoon(ctx.platformContext?.vipUntil ?? null, days)) {
       events.push("vip_expiring")
     }
   }
@@ -271,8 +272,8 @@ export function detectEvents(
     const pct = (thresholds?.unsatisfiedLimitPercent as number | undefined) ?? 80
     if (
       checkUnsatisfiedLimitApproaching(
-        ctx.mamContext?.unsatisfiedCount ?? null,
-        ctx.mamContext?.unsatisfiedLimit ?? null,
+        ctx.platformContext?.unsatisfiedCount ?? null,
+        ctx.platformContext?.unsatisfiedLimit ?? null,
         pct
       )
     ) {
@@ -283,11 +284,22 @@ export function detectEvents(
   if (target.notifyActiveHnrs) {
     if (
       checkActiveHnrs(
-        ctx.mamContext?.inactiveHnrCount ?? null,
-        ctx.mamContext?.previousInactiveHnrCount ?? null
+        ctx.platformContext?.inactiveHnrCount ?? null,
+        ctx.platformContext?.previousInactiveHnrCount ?? null
       )
     ) {
       events.push("active_hnrs")
+    }
+  }
+
+  if (target.notifyDownloadDisabled) {
+    if (
+      checkDownloadDisabled(
+        ctx.platformContext?.canDownload ?? null,
+        ctx.platformContext?.previousCanDownload ?? null
+      )
+    ) {
+      events.push("download_disabled")
     }
   }
 
@@ -321,17 +333,19 @@ export function buildEventData(
       return { label: anniversaryLabel ?? "Anniversary" }
     case "bonus_cap": {
       const effectiveCap = (thresholds?.bonusCapLimit as number | undefined) ?? MAM_BONUS_CAP
-      return { currentBonus: ctx.mamContext?.currentSeedbonus ?? null, capLimit: effectiveCap }
+      return { currentBonus: ctx.platformContext?.currentSeedbonus ?? null, capLimit: effectiveCap }
     }
     case "vip_expiring":
-      return { vipUntil: ctx.mamContext?.vipUntil ?? null }
+      return { vipUntil: ctx.platformContext?.vipUntil ?? null }
     case "unsatisfied_limit":
       return {
-        count: ctx.mamContext?.unsatisfiedCount ?? null,
-        limit: ctx.mamContext?.unsatisfiedLimit ?? null,
+        count: ctx.platformContext?.unsatisfiedCount ?? null,
+        limit: ctx.platformContext?.unsatisfiedLimit ?? null,
       }
     case "active_hnrs":
-      return { count: ctx.mamContext?.inactiveHnrCount ?? null }
+      return { count: ctx.platformContext?.inactiveHnrCount ?? null }
+    case "download_disabled":
+      return {}
     default:
       return {}
   }

@@ -8,7 +8,7 @@ import { and, desc, eq, isNotNull, lt, notInArray, sql } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { buildFetchOptions, getAdapter } from "@/lib/adapters"
-import type { MamPlatformMeta, TrackerStats } from "@/lib/adapters/types"
+import type { AvistazPlatformMeta, MamPlatformMeta, TrackerStats } from "@/lib/adapters/types"
 import { pruneDismissedAlerts } from "@/lib/alert-pruning"
 import { startBackupScheduler, stopBackupScheduler } from "@/lib/backup-scheduler"
 import {
@@ -155,6 +155,13 @@ export async function pollTracker(
     })
     const stats = await adapter.fetchStats(tracker.baseUrl, apiToken, tracker.apiPath, fetchOptions)
 
+    // Snapshot the previous platformMeta BEFORE writing the current poll's metadata to DB.
+    // dispatchNotifications uses this for change detection (i.e. canDownload transition).
+    const previousPlatformMeta =
+      tracker.platformType === "avistaz" && tracker.platformMeta
+        ? (JSON.parse(tracker.platformMeta) as Record<string, unknown>)
+        : null
+
     // Cache metadata from poll (remoteUserId saves an API call, joinedDate/platformMeta enrich the UI)
     const metaUpdates: Record<string, unknown> = {}
     if (stats.remoteUserId && stats.remoteUserId !== tracker.remoteUserId) {
@@ -255,6 +262,11 @@ export async function pollTracker(
           ? (stats.platformMeta as MamPlatformMeta | undefined)
           : undefined
 
+      const avistazMeta =
+        tracker.platformType === "avistaz"
+          ? (stats.platformMeta as AvistazPlatformMeta | undefined)
+          : undefined
+
       await dispatchNotifications(
         {
           trackerId: tracker.id,
@@ -277,7 +289,7 @@ export async function pollTracker(
           trackerPausedAt: null,
           trackerJoinedAt: tracker.joinedAt ?? null,
           minimumRatio: findRegistryEntry(tracker.baseUrl)?.rules?.minimumRatio,
-          mamContext:
+          platformContext:
             tracker.platformType === "mam"
               ? {
                   currentSeedbonus: stats.seedbonus ?? null,
@@ -287,8 +299,23 @@ export async function pollTracker(
                   unsatisfiedLimit: mamMeta?.unsatisfiedLimit ?? null,
                   inactiveHnrCount: stats.hitAndRuns ?? null,
                   previousInactiveHnrCount: previousSnapshot?.hitAndRuns ?? null,
+                  canDownload: null,
+                  previousCanDownload: null,
                 }
-              : undefined,
+              : tracker.platformType === "avistaz"
+                ? {
+                    currentSeedbonus: stats.seedbonus ?? null,
+                    previousSeedbonus: previousSnapshot?.seedbonus ?? null,
+                    vipUntil: avistazMeta?.vipExpiry ?? null,
+                    unsatisfiedCount: null,
+                    unsatisfiedLimit: null,
+                    inactiveHnrCount: null,
+                    previousInactiveHnrCount: null,
+                    canDownload: avistazMeta?.canDownload ?? null,
+                    previousCanDownload:
+                      (previousPlatformMeta?.canDownload as boolean | null) ?? null,
+                  }
+                : undefined,
         },
         encryptionKey,
         enabledTargets
@@ -362,7 +389,7 @@ export async function pollTracker(
           trackerPausedAt: tracker?.pausedAt?.toISOString() ?? null,
           trackerJoinedAt: tracker?.joinedAt ?? null,
           minimumRatio: undefined,
-          mamContext: undefined,
+          platformContext: undefined,
         },
         encryptionKey,
         enabledTargets

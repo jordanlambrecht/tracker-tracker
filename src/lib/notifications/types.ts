@@ -17,6 +17,7 @@ export const VALID_EVENT_TYPES = [
   "vip_expiring",
   "unsatisfied_limit",
   "active_hnrs",
+  "download_disabled",
 ] as const
 export type NotificationEventType = (typeof VALID_EVENT_TYPES)[number]
 
@@ -79,8 +80,8 @@ export interface SnapshotContext {
   trackerPausedAt: string | null
   trackerJoinedAt: string | null
   minimumRatio: number | undefined
-  // MAM-specific fields grouped into sub-object; undefined for non-MAM trackers
-  mamContext?: {
+  // Platform-specific extended fields; populated for MAM and AvistaZ, undefined for others
+  platformContext?: {
     currentSeedbonus: number | null
     previousSeedbonus: number | null
     vipUntil: string | null
@@ -88,6 +89,8 @@ export interface SnapshotContext {
     unsatisfiedLimit: number | null
     inactiveHnrCount: number | null
     previousInactiveHnrCount: number | null
+    canDownload: boolean | null
+    previousCanDownload: boolean | null
   }
 }
 

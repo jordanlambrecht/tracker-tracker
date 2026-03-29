@@ -82,6 +82,7 @@ export const trackers = pgTable("trackers", {
   platformMeta: text("platform_meta"),
   mouseholeUrl: text("mousehole_url"),
   avatarData: text("avatar_data"),
+  avatarMimeType: varchar("avatar_mime_type", { length: 50 }),
   avatarCachedAt: timestamp("avatar_cached_at"),
   avatarRemoteUrl: text("avatar_remote_url"),
   useProxy: boolean("use_proxy").default(false).notNull(),
@@ -288,6 +289,7 @@ export const notificationTargets = pgTable("notification_targets", {
   notifyVipExpiring: boolean("notify_vip_expiring").default(false).notNull(),
   notifyUnsatisfiedLimit: boolean("notify_unsatisfied_limit").default(false).notNull(),
   notifyActiveHnrs: boolean("notify_active_hnrs").default(false).notNull(),
+  notifyDownloadDisabled: boolean("notify_download_disabled").default(false).notNull(),
 
   // Event thresholds — nullable JSONB; null means use application defaults.
   // Shape: { ratioDropDelta?: number, bufferMilestoneBytes?: number }
