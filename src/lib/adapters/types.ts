@@ -112,11 +112,21 @@ export interface MamPlatformMeta {
   unreadTopics?: number
 }
 
+/** Union of all platform-specific metadata types */
+export type PlatformMeta =
+  | GGnPlatformMeta
+  | GazellePlatformMeta
+  | NebulancePlatformMeta
+  | MamPlatformMeta
+
+export type GazelleAuthStyle = "token" | "raw"
+export type Unit3dAuthStyle = "bearer" | "query"
+
 export interface FetchOptions {
   proxyAgent?: HttpAgent
   remoteUserId?: number
-  authStyle?: "token" | "raw"
-  unit3dAuthStyle?: "bearer" | "query"
+  authStyle?: GazelleAuthStyle
+  unit3dAuthStyle?: Unit3dAuthStyle
   enrich?: boolean
 }
 

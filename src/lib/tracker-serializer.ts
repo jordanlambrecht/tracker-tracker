@@ -4,15 +4,14 @@
 
 import "server-only"
 
-import type { trackerSnapshots, trackers } from "@/lib/db/schema"
+import type { PlatformType } from "@/lib/adapters/constants"
+import type { PlatformMeta } from "@/lib/adapters/types"
+import type { TrackerRow as FullTrackerRow, TrackerSnapshotRow } from "@/lib/db/schema"
+import type { TrackerSummary } from "@/types/api"
 
-type TrackerRow = Omit<
-  typeof trackers.$inferSelect,
-  "encryptedApiToken" | "avatarData" | "avatarCachedAt" | "avatarRemoteUrl"
->
-type SnapshotRow = typeof trackerSnapshots.$inferSelect
+type TrackerRow = Omit<FullTrackerRow, "encryptedApiToken" | "avatarData" | "avatarCachedAt" | "avatarRemoteUrl">
 
-export function parsePlatformMeta(raw: string | null): unknown {
+export function parsePlatformMeta(raw: string | null): PlatformMeta | null {
   if (!raw) return null
   try {
     return JSON.parse(raw)
@@ -23,14 +22,14 @@ export function parsePlatformMeta(raw: string | null): unknown {
 
 export function serializeTrackerResponse(
   tracker: TrackerRow,
-  latest: SnapshotRow | null,
+  latest: TrackerSnapshotRow | null,
   mask: (val: string | null | undefined) => string | null
-) {
+): TrackerSummary {
   return {
     id: tracker.id,
     name: tracker.name,
     baseUrl: tracker.baseUrl,
-    platformType: tracker.platformType,
+    platformType: tracker.platformType as PlatformType,
     isActive: tracker.isActive,
     lastPolledAt: tracker.lastPolledAt?.toISOString() ?? null,
     lastError: tracker.lastError,
@@ -53,8 +52,8 @@ export function serializeTrackerResponse(
     latestStats: latest
       ? {
           ratio: latest.ratio,
-          uploadedBytes: latest.uploadedBytes?.toString(),
-          downloadedBytes: latest.downloadedBytes?.toString(),
+          uploadedBytes: latest.uploadedBytes.toString(),
+          downloadedBytes: latest.downloadedBytes.toString(),
           seedingCount: latest.seedingCount,
           leechingCount: latest.leechingCount,
           requiredRatio: latest.requiredRatio ?? null,

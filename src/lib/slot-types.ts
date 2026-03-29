@@ -3,12 +3,7 @@
 // Functions: (types only)
 
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
-import type {
-  GazellePlatformMeta,
-  GGnPlatformMeta,
-  MamPlatformMeta,
-  NebulancePlatformMeta,
-} from "@/lib/adapters/types"
+import type { PlatformMeta } from "@/lib/adapters/types"
 import type { Snapshot, TrackerSummary } from "@/types/api"
 
 export type SlotCategory = "badge" | "stat-card" | "progress"
@@ -17,7 +12,7 @@ export interface SlotContext {
   tracker: TrackerSummary
   latestSnapshot: Snapshot | null
   snapshots: Snapshot[]
-  meta: GGnPlatformMeta | GazellePlatformMeta | NebulancePlatformMeta | MamPlatformMeta | null
+  meta: PlatformMeta | null
   registry: TrackerRegistryEntry | undefined
   accentColor: string
 }
