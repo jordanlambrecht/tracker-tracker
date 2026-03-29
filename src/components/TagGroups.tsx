@@ -1,6 +1,6 @@
 // src/components/TagGroups.tsx
 //
-// Functions: TagGroups, AddTagGroupForm, TagGroupCard, SortableMemberRow, MemberRow, NewMemberRow
+// Functions: TagGroups, AddTagGroupForm, TagGroupCard, SortableMemberRow, MemberRow
 
 "use client"
 

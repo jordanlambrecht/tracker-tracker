@@ -105,11 +105,19 @@ export function formatJoinedDate(joinedAt: string | null): string | null {
  * Converts a hex color (#rrggbb) to rgba with the given alpha.
  */
 
-const VALID_HEX_RE = /^#[0-9a-fA-F]{6}$/
+const STRICT_HEX_RE = /^#[0-9a-fA-F]{6}$/
+const PERMISSIVE_HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
 const FALLBACK_HEX = "#00d4ff"
 
+export const ISO_8601_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/
+export const HEX_64_RE = /^[0-9a-fA-F]{64}$/
+
+export function isValidHex(value: string, permissive = false): boolean {
+  return permissive ? PERMISSIVE_HEX_RE.test(value) : STRICT_HEX_RE.test(value)
+}
+
 export function hexToRgba(hex: string, alpha: number): string {
-  const safe = VALID_HEX_RE.test(hex) ? hex : FALLBACK_HEX
+  const safe = isValidHex(hex) ? hex : FALLBACK_HEX
   const r = parseInt(safe.slice(1, 3), 16)
   const g = parseInt(safe.slice(3, 5), 16)
   const b = parseInt(safe.slice(5, 7), 16)

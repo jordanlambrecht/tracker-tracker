@@ -1,5 +1,4 @@
 // src/components/ui/Card.tsx
-
 import { H2 } from "@typography"
 import { cva } from "class-variance-authority"
 import clsx from "clsx"

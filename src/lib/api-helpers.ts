@@ -5,7 +5,7 @@
 
 import { NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
-import { localDateStr } from "@/lib/formatters"
+import { isValidHex, localDateStr } from "@/lib/formatters"
 import { isUnsafeNetworkHost } from "@/lib/network"
 
 /** Shared route handler context for dynamic [id] segments */
@@ -66,7 +66,7 @@ export function validateHttpUrl(url: string, label = "baseUrl"): NextResponse | 
 }
 
 export function validateHexColor(color: string): NextResponse | null {
-  if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(color)) {
+  if (!isValidHex(color, true)) {
     return NextResponse.json(
       { error: "Color must be a valid hex color (i.e #00d4ff)" },
       { status: 400 }

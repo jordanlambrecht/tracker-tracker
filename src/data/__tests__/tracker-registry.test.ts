@@ -14,9 +14,9 @@ import { afterAll, describe, expect, it } from "vitest"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { ALL_TRACKERS } from "@/data/trackers"
 import { DEFAULT_API_PATHS } from "@/lib/adapters"
+import { isValidHex } from "@/lib/formatters"
 
 const VALID_PLATFORMS = ["unit3d", "gazelle", "ggn", "nebulance", "mam", "custom"] as const
-const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
 const LOGO_NAME_RE = /^\/tracker-logos\/[a-z0-9_]+_logo\.(svg|png)$/
 const TRACKER_DIR = path.resolve(__dirname, "../../data/trackers")
@@ -229,7 +229,7 @@ describe("tracker registry", () => {
 
         if (tracker.color) {
           it("has a valid hex color", () => {
-            expect(tracker.color).toMatch(HEX_COLOR_RE)
+            expect(isValidHex(tracker.color!)).toBe(true)
           })
         }
 

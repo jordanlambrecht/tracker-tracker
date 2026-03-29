@@ -13,9 +13,9 @@ import path from "node:path"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { ALL_TRACKERS } from "@/data/trackers"
 import { DEFAULT_API_PATHS, VALID_PLATFORM_TYPES } from "@/lib/adapters/constants"
+import { isValidHex } from "@/lib/formatters"
 
 const VALID_PLATFORMS = [...VALID_PLATFORM_TYPES, "custom"] as const
-const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
 const LOGO_NAME_RE = /^\/tracker-logos\/[a-z0-9_]+_logo\.(svg|png)$/
 const PLACEHOLDER_RE = /^TODO$/i
@@ -168,7 +168,7 @@ function validate(slugFilter?: string[]): TrackerResult[] {
     if (dupeCats.length > 0)
       errors.push(`Duplicate categories: ${[...new Set(dupeCats)].join(", ")}`)
 
-    if (tracker.color && !HEX_COLOR_RE.test(tracker.color)) {
+    if (tracker.color && !isValidHex(tracker.color)) {
       errors.push(`Invalid hex color "${tracker.color}"`)
     }
     if (tracker.logo) {
