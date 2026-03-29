@@ -32,7 +32,7 @@ import {
 import { createPrivacyMaskSync } from "@/lib/privacy-db"
 import { parseQbitmanageTags } from "@/lib/qbitmanage-defaults"
 import { serializeTrackerResponse } from "@/lib/tracker-serializer"
-import type { Snapshot, TagGroup, TagGroupChartType } from "@/types/api"
+import type { Snapshot, TagGroup, TagGroupChartType, TrackerSummary } from "@/types/api"
 
 // ---------------------------------------------------------------------------
 // Settings
@@ -163,9 +163,6 @@ export const trackerColumns = {
   createdAt: trackers.createdAt,
   updatedAt: trackers.updatedAt,
 }
-
-/** Return type for serialized tracker + latest snapshot. */
-export type TrackerSummary = ReturnType<typeof serializeTrackerResponse>
 
 /**
  * Fetches all trackers with their latest snapshot for the dashboard.
