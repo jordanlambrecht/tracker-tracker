@@ -1,30 +1,20 @@
 // src/components/charts/TorrentActivityHeatmap.tsx
-//
-// Functions: TorrentActivityHeatmap
-
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
+import { formatCount } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { DAY_LABELS, HOUR_LABELS } from "./lib/chart-helpers"
 import { buildActivityMatrix } from "./lib/chart-transforms"
 import { CHART_THEME, chartAxisLabel, chartTooltip, escHtml } from "./lib/theme"
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface TorrentActivityHeatmapProps {
   torrents: { addedOn: number }[]
   accentColor?: string
   height?: number
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 function TorrentActivityHeatmap({
   torrents,
@@ -49,7 +39,7 @@ function TorrentActivityHeatmap({
         const hourLabel = HOUR_LABELS[hour] ?? ""
         return (
           `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(dayLabel)} at ${escHtml(hourLabel)}</span><br/>` +
-          `<span style="color:${CHART_THEME.textSecondary};">${count.toLocaleString()} torrent${count !== 1 ? "s" : ""} added</span>`
+          `<span style="color:${CHART_THEME.textSecondary};">${formatCount(count)} torrent${count !== 1 ? "s" : ""} added</span>`
         )
       },
     }),

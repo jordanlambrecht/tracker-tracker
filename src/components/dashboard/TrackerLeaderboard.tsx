@@ -1,15 +1,14 @@
 // src/components/dashboard/TrackerLeaderboard.tsx
-//
-// Functions: getBufferBytes, TrackerLeaderboard
-
 "use client"
 
 import { useRouter } from "next/navigation"
+import { DataCell } from "@typography"
 import { Badge } from "@/components/ui/Badge"
 import { PulseDot } from "@/components/ui/PulseDot"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
-import { formatAccountAge, formatBytesFromString, formatRatio } from "@/lib/formatters"
+import { formatAccountAge, formatBytesFromString, formatCount, formatRatioDisplay } from "@/lib/formatters"
+import { computeBufferBytes } from "@/lib/helpers"
 import {
   getHealthBadgeVariant,
   getHealthLabel,
@@ -21,7 +20,7 @@ import type { TrackerSummary } from "@/types/api"
 function getBufferBytes(t: TrackerSummary): bigint {
   const s = t.latestStats
   if (!s?.uploadedBytes || !s?.downloadedBytes) return 0n
-  return BigInt(s.uploadedBytes) - BigInt(s.downloadedBytes)
+  return computeBufferBytes(BigInt(s.uploadedBytes), BigInt(s.downloadedBytes))
 }
 
 const columns: Column<TrackerSummary>[] = [
@@ -50,11 +49,7 @@ const columns: Column<TrackerSummary>[] = [
     align: "right",
     sortable: true,
     sortValue: (t) => t.latestStats?.ratio ?? -1,
-    render: (t) => (
-      <span className="font-mono tabular-nums text-secondary text-xs">
-        {t.latestStats?.ratio != null ? `${formatRatio(t.latestStats.ratio)}×` : "—"}
-      </span>
-    ),
+    render: (t) => <DataCell>{formatRatioDisplay(t.latestStats?.ratio)}</DataCell>,
   },
   {
     key: "uploaded",
@@ -63,11 +58,7 @@ const columns: Column<TrackerSummary>[] = [
     sortable: true,
     sortValue: (t) =>
       t.latestStats?.uploadedBytes ? Number(BigInt(t.latestStats.uploadedBytes)) : -1,
-    render: (t) => (
-      <span className="font-mono tabular-nums text-secondary text-xs">
-        {t.latestStats?.uploadedBytes ? formatBytesFromString(t.latestStats.uploadedBytes) : "—"}
-      </span>
-    ),
+    render: (t) => <DataCell>{formatBytesFromString(t.latestStats?.uploadedBytes)}</DataCell>,
   },
   {
     key: "downloaded",
@@ -76,13 +67,7 @@ const columns: Column<TrackerSummary>[] = [
     sortable: true,
     sortValue: (t) =>
       t.latestStats?.downloadedBytes ? Number(BigInt(t.latestStats.downloadedBytes)) : -1,
-    render: (t) => (
-      <span className="font-mono tabular-nums text-secondary text-xs">
-        {t.latestStats?.downloadedBytes
-          ? formatBytesFromString(t.latestStats.downloadedBytes)
-          : "—"}
-      </span>
-    ),
+    render: (t) => <DataCell>{formatBytesFromString(t.latestStats?.downloadedBytes)}</DataCell>,
   },
   {
     key: "buffer",
@@ -91,11 +76,11 @@ const columns: Column<TrackerSummary>[] = [
     sortable: true,
     sortValue: (t) => Number(getBufferBytes(t)),
     render: (t) => (
-      <span className="font-mono tabular-nums text-secondary text-xs">
+      <DataCell>
         {t.latestStats?.uploadedBytes && t.latestStats?.downloadedBytes
           ? formatBytesFromString(getBufferBytes(t).toString())
           : "—"}
-      </span>
+      </DataCell>
     ),
   },
   {
@@ -104,11 +89,7 @@ const columns: Column<TrackerSummary>[] = [
     align: "right",
     sortable: true,
     sortValue: (t) => t.latestStats?.seedingCount ?? -1,
-    render: (t) => (
-      <span className="font-mono tabular-nums text-secondary text-xs">
-        {t.latestStats?.seedingCount != null ? t.latestStats.seedingCount.toLocaleString() : "—"}
-      </span>
-    ),
+    render: (t) => <DataCell>{formatCount(t.latestStats?.seedingCount)}</DataCell>,
   },
   {
     key: "age",
@@ -117,9 +98,7 @@ const columns: Column<TrackerSummary>[] = [
     sortable: true,
     sortValue: (t) => (t.joinedAt ? new Date(t.joinedAt).getTime() : Infinity),
     render: (t) => (
-      <span className="font-mono tabular-nums text-secondary text-xs whitespace-nowrap">
-        {formatAccountAge(t.joinedAt) ?? "—"}
-      </span>
+      <DataCell className="whitespace-nowrap">{formatAccountAge(t.joinedAt) ?? "—"}</DataCell>
     ),
   },
   {

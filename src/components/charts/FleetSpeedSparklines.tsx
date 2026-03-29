@@ -1,22 +1,17 @@
 // src/components/charts/FleetSpeedSparklines.tsx
-//
-// Pure SVG sparkline cards for per-client upload + download speed history.
-//
-// Functions: buildPolylinePoints, MiniSparkline, ClientSpeedCard, FleetSpeedSparklines
-
 "use client"
 
 import { useEffect, useRef, useState } from "react"
 import { Card } from "@/components/ui/Card"
 import { Tooltip } from "@/components/ui/Tooltip"
-import { formatBytesNum } from "@/lib/formatters"
+import { formatSpeed } from "@/lib/formatters"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { CHART_THEME } from "./lib/theme"
 
 // ── Constants ──
 
-const COLOR_UPLOAD = CHART_THEME.accent
-const COLOR_DOWNLOAD = CHART_THEME.warn
+const COLOR_UPLOAD = CHART_THEME.upload
+const COLOR_DOWNLOAD = CHART_THEME.download
 const SPARKLINE_WIDTH = 80
 const SPARKLINE_HEIGHT = 24
 const POLL_INTERVAL_MS = 10_000
@@ -44,7 +39,7 @@ interface FleetSpeedSparklinesProps {
 
 /**
  * Converts an array of numeric values into SVG polyline `points` attribute string.
- * Maps values onto a viewBox of `width` × `height`, with y-axis inverted (SVG top=0).
+ * Maps values onto a viewBox of `width` x `height`, with y-axis inverted (SVG top=0).
  * Returns empty string when fewer than 2 points exist.
  */
 function buildPolylinePoints(values: number[], width: number, height: number): string {
@@ -69,7 +64,7 @@ interface MiniSparklineProps {
 
 /**
  * Pure SVG sparkline — no ECharts.
- * Renders an 80×24 polyline with a translucent fill beneath the line.
+ * Renders an 80x24 polyline with a translucent fill beneath the line.
  */
 function MiniSparkline({ values, color }: MiniSparklineProps) {
   const points = buildPolylinePoints(values, SPARKLINE_WIDTH, SPARKLINE_HEIGHT)
@@ -146,27 +141,27 @@ function ClientSpeedCard({ name, state }: ClientSpeedCardProps) {
         <>
           {/* Upload row */}
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-mono" style={{ color: COLOR_UPLOAD }}>
+            <div className="flex items-center gap-2">
+              <span className="text-3xs font-mono" style={{ color: COLOR_UPLOAD }}>
                 ↑
               </span>
               <MiniSparkline values={uploadValues} color={COLOR_UPLOAD} />
             </div>
-            <span className="text-[10px] font-mono tabular-nums" style={{ color: COLOR_UPLOAD }}>
-              {formatBytesNum(currentUpload)}/s
+            <span className="text-3xs font-mono tabular-nums" style={{ color: COLOR_UPLOAD }}>
+              {formatSpeed(currentUpload)}
             </span>
           </div>
 
           {/* Download row */}
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-mono" style={{ color: COLOR_DOWNLOAD }}>
+            <div className="flex items-center gap-2">
+              <span className="text-3xs font-mono" style={{ color: COLOR_DOWNLOAD }}>
                 ↓
               </span>
               <MiniSparkline values={downloadValues} color={COLOR_DOWNLOAD} />
             </div>
-            <span className="text-[10px] font-mono tabular-nums" style={{ color: COLOR_DOWNLOAD }}>
-              {formatBytesNum(currentDownload)}/s
+            <span className="text-3xs font-mono tabular-nums" style={{ color: COLOR_DOWNLOAD }}>
+              {formatSpeed(currentDownload)}
             </span>
           </div>
         </>

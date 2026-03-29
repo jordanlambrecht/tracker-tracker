@@ -1,7 +1,4 @@
 // src/components/dashboard/FleetDashboard.tsx
-//
-// Functions: FleetDashboard
-
 "use client"
 
 import { H2 } from "@typography"
@@ -37,30 +34,18 @@ import {
   UploadArrowIcon,
 } from "@/components/ui/Icons"
 import { StatCard } from "@/components/ui/StatCard"
-import type { FleetSnapshot, TorrentRaw, TrackerTag } from "@/lib/fleet"
+import type { FleetSnapshot, TrackerTag } from "@/lib/fleet"
 import { computeFleetStats } from "@/lib/fleet"
-import { formatBytesNum } from "@/lib/formatters"
-import type { TorrentInfo } from "@/lib/torrent-utils"
+import {
+  formatBytesNum,
+  formatCount,
+  formatPercent,
+  formatSpeed,
+  splitValueUnit,
+} from "@/lib/formatters"
+import type { AggregatedTorrentsResponse, TorrentInfo } from "@/lib/torrent-utils"
 import { mapTorrent } from "@/lib/torrent-utils"
 import type { TrackerSummary } from "@/types/api"
-
-function splitBytes(bytes: number, suffix = ""): { value: string; unit: string } {
-  const formatted = formatBytesNum(bytes)
-  const idx = formatted.lastIndexOf(" ")
-  return { value: formatted.slice(0, idx), unit: `${formatted.slice(idx + 1)}${suffix}` }
-}
-
-function splitSpeed(bytes: number): { value: string; unit: string } {
-  return splitBytes(bytes, "/s")
-}
-
-interface FleetTorrentsResponse {
-  torrents: TorrentRaw[]
-  crossSeedTags: string[]
-  clientErrors: string[]
-  clientCount: number
-  cachedAt?: string | null
-}
 
 interface FleetDashboardProps {
   dayRange: number
@@ -103,7 +88,7 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
       ])
 
       if (cachedRes.ok) {
-        const data: FleetTorrentsResponse = await cachedRes.json()
+        const data: AggregatedTorrentsResponse = await cachedRes.json()
         if (data.torrents.length > 0) {
           setTorrents(data.torrents.map(mapTorrent))
           setCrossSeedTags(data.crossSeedTags)
@@ -143,12 +128,12 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
       try {
         const liveRes = await fetch("/api/fleet/torrents", { signal })
         if (liveRes.ok) {
-          const data: FleetTorrentsResponse = await liveRes.json()
+          const data: AggregatedTorrentsResponse = await liveRes.json()
           setTorrents(data.torrents.map(mapTorrent))
           setCrossSeedTags(data.crossSeedTags)
         }
       } catch {
-        // Live fetch failed — cached data stays visible
+        // Live fetch failed. cached data stays visible
       }
     }
 
@@ -189,6 +174,9 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
   }
 
   const stats = computeFleetStats(torrents, crossSeedTags)
+  const uploadSpeedParts = splitValueUnit(formatSpeed(stats.fleetUploadSpeed))
+  const downloadSpeedParts = splitValueUnit(formatSpeed(stats.fleetDownloadSpeed))
+  const librarySizeParts = splitValueUnit(formatBytesNum(stats.totalLibrarySize))
   const hiddenCount =
     FLEET_CHARTS.length - FLEET_CHARTS.filter((c) => !chartPrefs.isHidden(c.id)).length
 
@@ -249,32 +237,35 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
           <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
             <StatCard
               label="Seeding"
-              value={stats.totalSeeding.toLocaleString()}
+              value={formatCount(stats.totalSeeding)}
               icon={<SeedingIcon width="16" height="16" />}
             />
             <StatCard
               label="Leeching"
-              value={stats.totalLeeching.toLocaleString()}
+              value={formatCount(stats.totalLeeching)}
               icon={<LeechingIcon width="16" height="16" />}
             />
             <StatCard
               label="Upload"
-              {...splitSpeed(stats.fleetUploadSpeed)}
+              value={uploadSpeedParts.num}
+              unit={uploadSpeedParts.unit}
               icon={<UploadArrowIcon width="16" height="16" />}
             />
             <StatCard
               label="Download"
-              {...splitSpeed(stats.fleetDownloadSpeed)}
+              value={downloadSpeedParts.num}
+              unit={downloadSpeedParts.unit}
               icon={<DownloadArrowIcon width="16" height="16" />}
             />
             <StatCard
               label="Library"
-              {...splitBytes(stats.totalLibrarySize)}
+              value={librarySizeParts.num}
+              unit={librarySizeParts.unit}
               icon={<BoxIcon width="16" height="16" />}
             />
             <StatCard
               label="Cross-Seed"
-              value={`${stats.crossSeedPercent.toFixed(1)}%`}
+              value={formatPercent(stats.crossSeedPercent)}
               icon={<TagIcon width="16" height="16" />}
             />
           </div>
@@ -286,14 +277,12 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <H2>Fleet Analytics</H2>
-            {hiddenCount > 0 && (
-              <span className="text-[10px] font-mono text-muted">{hiddenCount} hidden</span>
-            )}
+            {hiddenCount > 0 && <span className="timestamp">{hiddenCount} hidden</span>}
           </div>
           <button
             type="button"
             onClick={() => chartPrefs.collapseAll(allChartIds)}
-            className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono text-muted hover:text-secondary hover:bg-overlay transition-colors cursor-pointer rounded-nm-sm"
+            className="timestamp flex items-center gap-2 px-2.5 py-1 hover:text-secondary nm-interactive-inset cursor-pointer rounded-nm-sm"
           >
             <ChevronUpIcon
               width="12"

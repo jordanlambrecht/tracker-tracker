@@ -1,5 +1,4 @@
 // src/components/dashboard/FleetHeadline.tsx
-
 "use client"
 
 import { CHART_THEME } from "@/components/charts/lib/theme"
@@ -11,7 +10,8 @@ import {
   UploadArrowIcon,
 } from "@/components/ui/Icons"
 import { StatCard } from "@/components/ui/StatCard"
-import { computePctChange, formatBytesFromString, splitValueUnit } from "@/lib/formatters"
+import { formatBytesFromString, formatCount, splitValueUnit } from "@/lib/formatters"
+import { computePctChange } from "@/lib/helpers"
 import type { TodayAtAGlance } from "@/types/api"
 
 interface FleetHeadlineProps {
@@ -40,7 +40,7 @@ export function FleetHeadline({ fleet }: FleetHeadlineProps) {
     if (fleet.seedbonusChange === null) return "+0"
     const floored = Math.floor(Math.abs(fleet.seedbonusChange))
     const sign = fleet.seedbonusChange >= 0 ? "+" : "-"
-    return sign + floored.toLocaleString()
+    return sign + formatCount(floored)
   })()
 
   const uploadPct = computePctChange(fleet.uploadDelta, fleet.uploadDeltaYesterday)

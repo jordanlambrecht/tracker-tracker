@@ -63,7 +63,7 @@ function UptimeBar({ buckets, uptimePercent, className = "" }: UptimeBarProps) {
   const percentLabel = uptimePercent != null ? `${uptimePercent}%` : "—"
 
   return (
-    <div className={`flex flex-col gap-1.5 ${className}`}>
+    <div className={`flex flex-col gap-2 ${className}`}>
       <div className="flex items-center justify-between">
         <span className="text-xs font-mono text-tertiary">Uptime (24h)</span>
         <span
@@ -82,8 +82,8 @@ function UptimeBar({ buckets, uptimePercent, className = "" }: UptimeBarProps) {
       </div>
 
       <div className="relative">
-        <div className="nm-inset rounded-md p-[2px]">
-          <div className="flex gap-[1px] rounded-sm overflow-hidden">
+        <div className="nm-inset rounded-md p-0.5">
+          <div className="flex gap-px rounded-sm overflow-hidden">
             {blocks.map((block, i) => (
               // biome-ignore lint/a11y/noStaticElementInteractions: decorative hover for chart tooltip
               <div
@@ -123,11 +123,12 @@ function UptimeBar({ buckets, uptimePercent, className = "" }: UptimeBarProps) {
       </div>
 
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-mono text-tertiary/60">24h ago</span>
-        <span className="text-[10px] font-mono text-tertiary/60">now</span>
+        <span className="text-3xs font-mono text-tertiary/60">24h ago</span>
+        <span className="text-3xs font-mono text-tertiary/60">now</span>
       </div>
     </div>
   )
 }
 
+export type { UptimeBarProps, UptimeBucket }
 export { UptimeBar }

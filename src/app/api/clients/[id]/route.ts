@@ -1,6 +1,4 @@
 // src/app/api/clients/[id]/route.ts
-//
-// Functions: PATCH, DELETE
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
@@ -10,16 +8,18 @@ import {
   parseJsonBody,
   parseRouteId,
   validatePort,
+  type RouteContext,
 } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
+import { sanitizeHost } from "@/lib/helpers"
 import { log } from "@/lib/logger"
 import { PROXY_HOST_PATTERN } from "@/lib/proxy"
 import { VALID_CLIENT_TYPES } from "@/lib/qbt/types"
 import { removeClientFromAccumulator } from "@/lib/uptime"
 
-export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
+export async function PATCH(request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -59,7 +59,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     if (body.host.length > 255) {
       return NextResponse.json({ error: "Host must be 255 characters or fewer" }, { status: 400 })
     }
-    const sanitizedHost = body.host.trim().replace(/^https?:\/\//, "")
+    const sanitizedHost = sanitizeHost(body.host)
     if (!PROXY_HOST_PATTERN.test(sanitizedHost)) {
       return NextResponse.json({ error: "Invalid host format" }, { status: 400 })
     }
@@ -147,7 +147,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
   return NextResponse.json({ success: true })
 }
 
-export async function DELETE(_request: Request, props: { params: Promise<{ id: string }> }) {
+export async function DELETE(_request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 

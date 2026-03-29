@@ -1,8 +1,10 @@
 // src/lib/dashboard.ts
 //
-// Functions: computeAggregateStats, computeAlerts, detectRankChanges, fetchDismissedKeys, postDismissAlert, deleteAllDismissed, computeSystemAlerts
+// Functions: computeAggregateStats, computeAlerts, detectRankChanges, fetchDismissedKeys,
+// postDismissAlert, deleteAllDismissed, computeSystemAlerts
 
 import { findRegistryEntry } from "@/data/tracker-registry"
+import { formatDateTime, formatRatio, formatTimeAgo } from "@/lib/formatters"
 import { isRedacted } from "@/lib/privacy"
 import {
   checkAnniversaryMilestone,
@@ -133,7 +135,7 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
         trackerId: tracker.id,
         trackerName: tracker.name,
         trackerColor: tracker.color,
-        message: `Ratio ${tracker.latestStats?.ratio?.toFixed(2)} is below the minimum of ${minimumRatio}`,
+        message: `Ratio ${formatRatio(tracker.latestStats?.ratio)} is below the minimum of ${minimumRatio}`,
         timestamp: tracker.lastPolledAt ?? undefined,
         dismissible: true,
       })
@@ -142,17 +144,16 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
     // --- Stale data (skip if paused — staleness is expected) ---
     if (!tracker.pausedAt && !tracker.userPausedAt && tracker.lastPolledAt) {
       const lastPolled = new Date(tracker.lastPolledAt)
-      const thresholdMs = 2 * 60 * 60 * 1000 // 2 hours — stale if no poll in this window
+      const thresholdMs = 2 * 60 * 60 * 1000 // 2 hours
       const ageMs = Date.now() - lastPolled.getTime()
       if (ageMs > thresholdMs) {
-        const hoursAgo = Math.floor(ageMs / (1000 * 60 * 60))
         alerts.push({
           key: `stale-data-${tracker.id}`,
           type: "stale-data",
           trackerId: tracker.id,
           trackerName: tracker.name,
           trackerColor: tracker.color,
-          message: `Last polled ${hoursAgo}h ago`,
+          message: `Last polled ${formatTimeAgo(tracker.lastPolledAt)}`,
           timestamp: tracker.lastPolledAt,
           dismissible: true,
         })
@@ -242,7 +243,7 @@ export function detectRankChanges(
       // Skip if same group
       if (current.group === previous.group) continue
 
-      // Found a rank change — check freshness
+      // Found a rank change. check freshness
       const changeTime = new Date(current.polledAt).getTime()
       if (changeTime < cutoff) break // Older than freshness window, stop looking
 
@@ -341,7 +342,7 @@ export function computeSystemAlerts(data: SystemAlertData): DashboardAlert[] {
       trackerId: null,
       trackerName: "Backups",
       trackerColor: "var(--color-danger)",
-      message: `Scheduled backup failed at ${new Date(latest.createdAt).toLocaleString()}`,
+      message: `Scheduled backup failed at ${formatDateTime(latest.createdAt)}`,
       timestamp: latest.createdAt,
       dismissible: true,
     })

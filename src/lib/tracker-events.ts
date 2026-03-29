@@ -4,7 +4,8 @@
 //            checkTrackerError, checkWarned, checkWarnedTransition, checkZeroSeeding,
 //            checkHnrIncrease, checkBufferMilestoneCrossed, checkRankChange,
 //            checkAnniversaryMilestone, checkBonusCapReached, checkVipExpiringSoon,
-//            checkUnsatisfiedLimitApproaching, checkActiveHnrs, EVENT_SNOOZE_MS
+//            checkUnsatisfiedLimitApproaching, checkActiveHnrs, checkDownloadDisabled,
+//            EVENT_SNOOZE_MS
 //
 // Shared pure-function event detection checks. No framework imports, no DB imports.
 // Importable from both client-side dashboard code and server-side scheduler code.
@@ -135,7 +136,7 @@ export function checkAnniversaryMilestone(
   for (let y = 1; y <= Math.max(yearsSinceJoin + 1, 1); y++) {
     const ann = new Date(joined)
     ann.setFullYear(ann.getFullYear() + y)
-    candidates.push({ date: ann, label: `${y} year anniversary` })
+    candidates.push({ date: ann, label: `${y}-year anniversary` })
   }
 
   for (const { date, label } of candidates) {
@@ -194,6 +195,16 @@ export function checkActiveHnrs(
   return true
 }
 
+// ─── Download Privileges ────────────────────────────────────────────────────
+
+export function checkDownloadDisabled(
+  canDownload: boolean | null,
+  previousCanDownload: boolean | null
+): boolean {
+  if (canDownload === null || previousCanDownload === null) return false
+  return previousCanDownload === true && canDownload === false
+}
+
 // ─── Snooze durations ────────────────────────────────────────────────────────
 
 // Per-event-type snooze duration map. Events with different urgency/frequency profiles
@@ -212,4 +223,5 @@ export const EVENT_SNOOZE_MS: Record<NotificationEventType, number> = {
   vip_expiring: 24 * 60 * 60 * 1000, // 24 hours
   unsatisfied_limit: 6 * 60 * 60 * 1000, // 6 hours
   active_hnrs: 6 * 60 * 60 * 1000, // 6 hours
+  download_disabled: 6 * 60 * 60 * 1000, // 6 hours
 }

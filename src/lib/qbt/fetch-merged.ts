@@ -78,7 +78,7 @@ async function fetchClientTorrents(
 /** Per-client deadline for live fetches (seconds). Keeps the UI responsive
  *  when one client is offline — the online client's data arrives immediately
  *  while the offline one is cut short after this deadline instead of waiting
- *  for the full 30s retry cycle (15s timeout × 2 attempts). */
+ *  for the full 30s retry cycle (15s timeout x 2 attempts). */
 const CLIENT_DEADLINE_MS = 5_000
 
 export async function fetchAndMergeTorrents(

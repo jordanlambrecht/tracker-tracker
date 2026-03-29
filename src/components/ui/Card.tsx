@@ -1,9 +1,9 @@
 // src/components/ui/Card.tsx
-
+import { H2 } from "@typography"
 import { cva } from "class-variance-authority"
 import clsx from "clsx"
 import type { CSSProperties, HTMLAttributes } from "react"
-import { hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
 
 type CardElevation = "raised" | "elevated"
 
@@ -12,6 +12,8 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
   glow?: boolean
   glowColor?: string
   trackerColor?: string
+  title?: string
+  lazy?: boolean
 }
 
 const card = cva("p-5", {
@@ -31,6 +33,8 @@ function Card({
   glow = false,
   glowColor,
   trackerColor,
+  title,
+  lazy,
   className,
   style,
   children,
@@ -46,10 +50,11 @@ function Card({
 
   return (
     <div
-      className={clsx(card({ elevation }), "rounded-nm-lg", className)}
+      className={clsx(card({ elevation }), "rounded-nm-lg", lazy && "lazy-card", className)}
       style={{ ...glowStyle, ...style }}
       {...props}
     >
+      {title && <H2 className="card-heading">{title}</H2>}
       {children}
     </div>
   )

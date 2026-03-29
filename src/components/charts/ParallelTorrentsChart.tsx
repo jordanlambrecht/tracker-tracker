@@ -1,11 +1,9 @@
 // src/components/charts/ParallelTorrentsChart.tsx
-//
-// Functions: buildParallelOption, ParallelTorrentsChart
-
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
+import { formatCount } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
@@ -57,7 +55,7 @@ function buildParallelOption(torrents: TorrentInfo[], trackerColor: string): ECh
     }
   }
 
-  // Floor mins to 0 for non-negative dimensions; ensure non-zero range
+  // Floor mins to 0 for non-negative dimensions and ensures non-zero range
   const safeMins = mins.map((m) => Math.max(0, Number.isFinite(m) ? m : 0))
   const safeMaxs = maxs.map((m, i) => {
     const base = Number.isFinite(m) ? m : 1
@@ -100,7 +98,7 @@ function buildParallelOption(torrents: TorrentInfo[], trackerColor: string): ECh
       min: safeMins[DIM_SEEDS],
       max: safeMaxs[DIM_SEEDS],
       axisLabel: {
-        formatter: (v: number) => Math.round(v).toLocaleString(),
+        formatter: (v: number) => formatCount(Math.round(v)),
       },
     },
     {
@@ -129,7 +127,7 @@ function buildParallelOption(torrents: TorrentInfo[], trackerColor: string): ECh
     nameTextStyle: {
       color: CHART_THEME.textSecondary,
       fontFamily: CHART_THEME.fontMono,
-      fontSize: 11,
+      fontSize: CHART_THEME.fontSizeDense,
       fontWeight: 500,
     },
     axisLabel: chartAxisLabel(axis.axisLabel),
@@ -164,11 +162,11 @@ function buildParallelOption(torrents: TorrentInfo[], trackerColor: string): ECh
         const d = p.data
         if (!d) return ""
         return [
-          `<span style="color:${CHART_THEME.textTertiary};font-size:11px;font-family:${CHART_THEME.fontMono};">Torrent</span>`,
+          `<span style="color:${CHART_THEME.textTertiary};font-size:${CHART_THEME.fontSizeDense}px;font-family:${CHART_THEME.fontMono};">Torrent</span>`,
           chartTooltipRow(trackerColor, "Size", `${fmtNum(d[DIM_SIZE], 2)} GiB`),
           chartTooltipRow(trackerColor, "Ratio", fmtNum(d[DIM_RATIO], 2)),
           chartTooltipRow(trackerColor, "Seed Time", `${fmtNum(d[DIM_SEED_TIME], 1)} days`),
-          chartTooltipRow(trackerColor, "Seeds", Math.round(d[DIM_SEEDS]).toLocaleString()),
+          chartTooltipRow(trackerColor, "Seeds", formatCount(Math.round(d[DIM_SEEDS]))),
           chartTooltipRow(trackerColor, "Age", `${fmtNum(d[DIM_AGE], 0)} days`),
           chartTooltipRow(trackerColor, "Availability", fmtNum(d[DIM_AVAILABILITY], 2)),
         ].join("<br/>")

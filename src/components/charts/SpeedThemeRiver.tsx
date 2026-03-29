@@ -7,7 +7,7 @@
 import type { EChartsOption } from "echarts"
 import type { FleetSnapshot } from "@/lib/fleet"
 import { extractTagsFromSnapshots } from "@/lib/fleet"
-import { formatBytesNum } from "@/lib/formatters"
+import { formatSpeed } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { buildAxisPointer, buildThemeRiverSingleAxis } from "./lib/chart-helpers"
@@ -85,7 +85,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
           .filter((item) => item.value[1] > 0)
           .sort((a, b) => b.value[1] - a.value[1])
           .map((item) =>
-            chartTooltipRow(item.color, item.value[2], `${formatBytesNum(item.value[1])}/s`)
+            chartTooltipRow(item.color, item.value[2], formatSpeed(item.value[1]))
           )
           .join("<br/>")
 
@@ -101,7 +101,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
           show: true,
           color: CHART_THEME.textSecondary,
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 10,
+          fontSize: CHART_THEME.fontSizeCompact,
         },
         emphasis: {
           itemStyle: {

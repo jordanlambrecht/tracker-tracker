@@ -1,11 +1,16 @@
 // src/components/dashboard/torrents/ActiveTransfersTable.tsx
-
 "use client"
 
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
-import { formatBytesNum } from "@/lib/formatters"
+import {
+  formatBytesNum,
+  formatPercent,
+  formatRatio,
+  formatSpeed,
+  splitValueUnit,
+} from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 
 interface ActiveTransfersTableProps {
@@ -44,7 +49,7 @@ export function ActiveTransfersTable({
         <div className="flex flex-col gap-1 min-w-0">
           <MarqueeText className="text-xs font-mono text-secondary">{t.name}</MarqueeText>
           {showClientName && t.clientName && (
-            <span className="text-[10px] font-sans text-muted truncate">{t.clientName}</span>
+            <span className="text-3xs font-sans text-muted truncate">{t.clientName}</span>
           )}
           {isDownload && (
             <div className="w-full h-1 rounded-full bg-base overflow-hidden">
@@ -66,14 +71,11 @@ export function ActiveTransfersTable({
       align: "right",
       width: 48,
       render: (t) => {
-        const formatted = formatBytesNum(t.size)
-        const spaceIdx = formatted.indexOf(" ")
-        const num = spaceIdx > -1 ? formatted.slice(0, spaceIdx) : formatted
-        const unit = spaceIdx > -1 ? formatted.slice(spaceIdx + 1) : ""
+        const { num, unit } = splitValueUnit(formatBytesNum(t.size))
         return (
-          <span className="text-[11px] font-mono text-muted text-right leading-none">
+          <span className="torrent-cell text-right leading-none">
             {num}
-            <span className="block text-[9px] mt-px">{unit}</span>
+            <span className="block text-4xs mt-px">{unit}</span>
           </span>
         )
       },
@@ -84,8 +86,8 @@ export function ActiveTransfersTable({
       align: "right",
       width: 36,
       render: (t) => (
-        <span className="text-[11px] font-mono text-muted">
-          {isDownload ? `${(t.progress * 100).toFixed(0)}%` : t.ratio.toFixed(2)}
+        <span className="torrent-cell">
+          {isDownload ? formatPercent(t.progress * 100, 0) : formatRatio(t.ratio)}
         </span>
       ),
     },
@@ -96,17 +98,15 @@ export function ActiveTransfersTable({
       width: 48,
       render: (t) => {
         const raw = isDownload ? t.dlspeed : t.upspeed
-        const formatted = formatBytesNum(raw)
-        const spaceIdx = formatted.indexOf(" ")
-        const num = spaceIdx > -1 ? formatted.slice(0, spaceIdx) : formatted
-        const unit = spaceIdx > -1 ? `${formatted.slice(spaceIdx + 1)}/s` : "/s"
+        const { num, unit: baseUnit } = splitValueUnit(formatSpeed(raw))
+        const unit = baseUnit || "B/s"
         return (
           <span
-            className="text-[11px] font-mono text-right leading-none"
+            className="text-2xs font-mono text-right leading-none"
             style={{ color: accentColor }}
           >
             {num}
-            <span className="block text-[9px] text-muted mt-px">{unit}</span>
+            <span className="block text-4xs text-muted mt-px">{unit}</span>
           </span>
         )
       },
@@ -117,7 +117,7 @@ export function ActiveTransfersTable({
       align: "right",
       width: 36,
       render: (t) => {
-        if (t.lastActivity <= 0) return <span className="text-[11px] font-mono text-muted">—</span>
+        if (t.lastActivity <= 0) return <span className="torrent-cell">—</span>
         const diff = Math.floor(Date.now() / 1000 - t.lastActivity)
         const val =
           diff < 60
@@ -127,7 +127,7 @@ export function ActiveTransfersTable({
               : diff < 86400
                 ? `${Math.floor(diff / 3600)}h`
                 : `${Math.floor(diff / 86400)}d`
-        return <span className="text-[11px] font-mono text-muted">{val}</span>
+        return <span className="torrent-cell">{val}</span>
       },
     },
   ]

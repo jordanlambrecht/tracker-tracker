@@ -1,19 +1,16 @@
 // src/app/api/trackers/[id]/torrents/cached/route.ts
-//
-// Functions: GET
-//
 // Returns cached torrent data from the last successful deep poll.
 // Used as fallback when live qBittorrent connection fails.
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, parseTrackerId } from "@/lib/api-helpers"
+import { authenticate, parseTrackerId, type RouteContext } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { downloadClients, trackers } from "@/lib/db/schema"
-import { parseCrossSeedTags, type QbtTorrent } from "@/lib/qbt"
+import { parseCachedTorrents, parseCrossSeedTags, stripSensitiveTorrentFields, type QbtTorrent } from "@/lib/qbt"
 import { aggregateCrossSeedTags, mergeTorrentLists } from "@/lib/qbt/merge"
 
-export async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
+export async function GET(_request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -67,8 +64,9 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
   // Cached blobs can be 500 KB-5 MB; we map once and reuse for filtering + stamping.
   const parsedCache = new Map<number, QbtTorrent[]>()
   for (const client of clients) {
-    if (!client.cachedTorrents || !Array.isArray(client.cachedTorrents)) continue
-    parsedCache.set(client.id, client.cachedTorrents as QbtTorrent[])
+    const torrents = parseCachedTorrents(client.cachedTorrents)
+    if (torrents.length === 0) continue
+    parsedCache.set(client.id, torrents)
   }
 
   for (const client of clients) {
@@ -108,7 +106,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
   const crossSeedTags = aggregateCrossSeedTags(crossSeedClients)
 
   const stamped = merged.map((t) => ({
-    ...t,
+    ...stripSensitiveTorrentFields(t),
     client_name: (hashClients.get(t.hash) ?? []).join(", "),
   }))
 

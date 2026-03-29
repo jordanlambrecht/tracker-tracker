@@ -21,7 +21,12 @@ export interface TrackerStats {
   lastAccessDate?: string
   shareScore?: number
   avatarUrl?: string
-  platformMeta?: GGnPlatformMeta | GazellePlatformMeta | NebulancePlatformMeta | MamPlatformMeta
+  platformMeta?:
+    | GGnPlatformMeta
+    | GazellePlatformMeta
+    | NebulancePlatformMeta
+    | MamPlatformMeta
+    | AvistazPlatformMeta
 }
 
 export interface GGnPlatformMeta {
@@ -112,11 +117,41 @@ export interface MamPlatformMeta {
   unreadTopics?: number
 }
 
+export interface AvistazPlatformMeta {
+  donor?: boolean
+  vipExpiry?: string | null
+  invites?: number
+  canDownload?: boolean
+  canUpload?: boolean
+  totalUploads?: number
+  totalDownloads?: number
+  reseedRequests?: number
+  twoFactorEnabled?: boolean
+  bonusPerHour?: number
+  bonusBreakdown?: {
+    totalTorrents: { count: number; points: number }
+    oldTorrents: { count: number; points: number }
+    bigTorrents: { count: number; points: number }
+    hugeTorrents: { count: number; points: number }
+  }
+}
+
+/** Union of all platform-specific metadata types */
+export type PlatformMeta =
+  | GGnPlatformMeta
+  | GazellePlatformMeta
+  | NebulancePlatformMeta
+  | MamPlatformMeta
+  | AvistazPlatformMeta
+
+export type GazelleAuthStyle = "token" | "raw"
+export type Unit3dAuthStyle = "bearer" | "query"
+
 export interface FetchOptions {
   proxyAgent?: HttpAgent
   remoteUserId?: number
-  authStyle?: "token" | "raw"
-  unit3dAuthStyle?: "bearer" | "query"
+  authStyle?: GazelleAuthStyle
+  unit3dAuthStyle?: Unit3dAuthStyle
   enrich?: boolean
 }
 

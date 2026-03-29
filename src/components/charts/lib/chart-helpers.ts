@@ -1,9 +1,11 @@
 // src/components/charts/lib/chart-helpers.ts
 //
-// Functions: fmtNum, yAxisPad, formatDateLabel, yAxisAutoRange, autoByteScale, DAY_LABELS, HOUR_LABELS, buildBucketedBarOption, buildGlowAreaStyle, buildAxisPointer, buildThemeRiverSingleAxis, adaptiveDotSize, buildTimeXAxis, insideZoom, buildDonutShell, buildStackedAreaOption
+// Functions: fmtNum, formatGiB, yAxisPad, formatDateLabel, yAxisAutoRange, autoByteScale, DAY_LABELS, HOUR_LABELS, buildBucketedBarOption, buildGlowAreaStyle, buildAxisPointer, buildThemeRiverSingleAxis, adaptiveDotSize, buildTimeXAxis, insideZoom, buildDonutShell, buildStackedAreaOption
 
 import type { EChartsOption } from "echarts"
-import { hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
+import { formatCount } from "@/lib/formatters"
+import type { StackedAreaSeries } from "@/types/charts"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -22,6 +24,11 @@ export function fmtNum(v: number, decimals = 2): string {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   })
+}
+
+/** Formats a GiB value with automatic TiB scaling for display in chart tooltips. */
+export function formatGiB(gib: number): string {
+  return gib >= 1024 ? `${fmtNum(gib / 1024)} TiB` : `${fmtNum(gib)} GiB`
 }
 
 /** Format ISO date string to short locale label (i.e "Mar 15") */
@@ -134,7 +141,7 @@ export function buildBucketedBarOption<TBucket, TTorrent>(
         formatter: markLine.label,
         position: "end",
         color: markLine.color,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
     }
   }
@@ -151,7 +158,7 @@ export function buildBucketedBarOption<TBucket, TTorrent>(
         return (
           chartDot(p.color) +
           `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${labelPrefix} ${getLabel(entry.bucket)}</span><br/>` +
-          `<span style="color:${CHART_THEME.textSecondary};">${entry.count.toLocaleString()} torrents</span>` +
+          `<span style="color:${CHART_THEME.textSecondary};">${formatCount(entry.count)} torrents</span>` +
           `<span style="color:${CHART_THEME.textTertiary};"> · ${pct}%${pctSuffix}</span>`
         )
       },
@@ -327,7 +334,7 @@ export function buildDonutShell(overrides?: {
  */
 export function buildStackedAreaOption(
   sortedMonths: string[],
-  series: { name: string; color: string; monthMap: Map<string, number> }[],
+  series: StackedAreaSeries[],
   stackId = "default"
 ): EChartsOption {
   const eChartsSeries: NonNullable<EChartsOption["series"]> = series.map((s) => {
@@ -369,7 +376,7 @@ export function buildStackedAreaOption(
           .filter((item) => item.value[1] > 0)
           .sort((a, b) => b.value[1] - a.value[1])
           .map((item) =>
-            chartTooltipRow(item.color, item.seriesName, item.value[1].toLocaleString())
+            chartTooltipRow(item.color, item.seriesName, formatCount(item.value[1]))
           )
           .join("<br/>")
         return `${chartTooltipHeader(dateLabel)}${rows}`
@@ -383,7 +390,7 @@ export function buildStackedAreaOption(
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },

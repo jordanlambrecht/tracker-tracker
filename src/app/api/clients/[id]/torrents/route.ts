@@ -4,15 +4,15 @@
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseRouteId } from "@/lib/api-helpers"
+import { authenticate, decodeKey, parseRouteId, type RouteContext } from "@/lib/api-helpers"
 import { decryptClientCredentials } from "@/lib/client-decrypt"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
 import { isDecryptionError } from "@/lib/error-utils"
 import { log } from "@/lib/logger"
-import { getTorrents, withSessionRetry } from "@/lib/qbt"
+import { getTorrents, stripSensitiveTorrentFields, withSessionRetry } from "@/lib/qbt"
 
-export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -65,7 +65,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
       password,
       (baseUrl, sid) => getTorrents(baseUrl, sid, tag.trim())
     )
-    return NextResponse.json(torrents)
+    return NextResponse.json(torrents.map(stripSensitiveTorrentFields))
   } catch (error) {
     const raw = error instanceof Error ? error.message : ""
     let detail = ""

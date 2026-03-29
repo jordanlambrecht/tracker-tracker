@@ -12,7 +12,9 @@ describe("tracker registry", () => {
       expect(tracker.slug).toBeTruthy()
       expect(tracker.name).toBeTruthy()
       expect(tracker.url).toMatch(/^https:\/\//)
-      expect(["unit3d", "gazelle", "ggn", "nebulance", "mam"]).toContain(tracker.platform)
+      expect(["unit3d", "gazelle", "ggn", "nebulance", "mam", "avistaz", "custom"]).toContain(
+        tracker.platform
+      )
       if (tracker.platform === "unit3d") {
         expect(tracker.apiPath).toBe("/api/user")
       } else if (tracker.platform === "gazelle") {
@@ -21,6 +23,8 @@ describe("tracker registry", () => {
         expect(tracker.apiPath).toBe("/api.php")
       } else if (tracker.platform === "mam") {
         expect(tracker.apiPath).toBe("/jsonLoad.php")
+      } else if (tracker.platform === "avistaz") {
+        expect(tracker.apiPath).toBe("/profile")
       }
       expect(tracker.color).toMatch(/^#[0-9a-f]{6}$/i)
     }

@@ -190,7 +190,7 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
         />
         <div className="flex flex-col gap-0.5">
           <span className="text-xs font-sans font-medium text-secondary">Mousehole</span>
-          <span className="text-[10px] font-mono text-danger">{fetchError}</span>
+          <span className="text-3xs font-mono text-danger">{fetchError}</span>
         </div>
       </div>
     )
@@ -281,7 +281,7 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
         <div
           className={clsx(
             "overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out",
-            expanded ? "max-h-[300px] opacity-100" : "max-h-0 opacity-0"
+            expanded ? "max-h-75 opacity-100" : "max-h-0 opacity-0"
           )}
         >
           <div className="flex flex-col gap-2 mt-2.5">
@@ -316,9 +316,7 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
                   {countdown}
                 </span>
               </span>
-              <Button variant="secondary" size="sm" disabled={checking} onClick={handleCheckNow}>
-                {checking ? "Checking..." : "Check Now"}
-              </Button>
+              <Button variant="secondary" size="sm" disabled={checking} onClick={handleCheckNow} text={checking ? "Checking..." : "Check Now"} />
             </div>
           </div>
         </div>

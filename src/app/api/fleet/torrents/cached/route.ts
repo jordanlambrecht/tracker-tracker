@@ -11,7 +11,7 @@ import { NextResponse } from "next/server"
 import { authenticate } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
-import { parseCrossSeedTags, type QbtTorrent } from "@/lib/qbt"
+import { parseCachedTorrents, parseCrossSeedTags, stripSensitiveTorrentFields, type QbtTorrent } from "@/lib/qbt"
 import { aggregateCrossSeedTags, mergeTorrentLists } from "@/lib/qbt/merge"
 
 export async function GET() {
@@ -45,9 +45,8 @@ export async function GET() {
   let oldestCacheAt: Date | null = null
 
   for (const client of clients) {
-    if (!client.cachedTorrents || !Array.isArray(client.cachedTorrents)) continue
-
-    const torrents = client.cachedTorrents as QbtTorrent[]
+    const torrents = parseCachedTorrents(client.cachedTorrents)
+    if (torrents.length === 0) continue
     torrentLists.push(torrents)
 
     for (const t of torrents) {
@@ -69,7 +68,7 @@ export async function GET() {
   const crossSeedTags = aggregateCrossSeedTags(crossSeedClients)
 
   const stamped = merged.map((t) => ({
-    ...t,
+    ...stripSensitiveTorrentFields(t),
     client_name: (hashClients.get(t.hash) ?? []).join(", "),
   }))
 

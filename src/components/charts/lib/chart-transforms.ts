@@ -2,6 +2,7 @@
 //
 // Functions: buildActivityMatrix, computeDailyDeltas, carryForwardValues, buildTimeSeriesData, carryForwardTimeSeries, collectUnifiedTimestamps
 
+import { localDateStr } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 
@@ -28,7 +29,7 @@ export function computeDailyDeltas(snapshots: Snapshot[]): DailyBucket[] {
     const uploadDiff = Number(BigInt(curr.uploadedBytes) - BigInt(prev.uploadedBytes))
     const downloadDiff = Number(BigInt(curr.downloadedBytes) - BigInt(prev.downloadedBytes))
 
-    const dayKey = new Date(curr.polledAt).toISOString().slice(0, 10)
+    const dayKey = localDateStr(new Date(curr.polledAt))
 
     const existing = bucketMap.get(dayKey) ?? { upload: 0, download: 0 }
     existing.upload += uploadDiff
@@ -44,7 +45,7 @@ export function computeDailyDeltas(snapshots: Snapshot[]): DailyBucket[] {
 }
 
 /**
- * Build a 7×24 activity matrix from a list of Unix epoch timestamps (seconds).
+ * Build a 7x24 activity matrix from a list of Unix epoch timestamps (seconds).
  * Returns the flattened [hour, day, count] data array and the maximum count.
  */
 export function buildActivityMatrix(addedOnSeconds: number[]): {

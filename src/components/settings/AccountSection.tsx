@@ -1,7 +1,4 @@
 // src/components/settings/AccountSection.tsx
-//
-// Functions: AccountSection
-
 "use client"
 
 import { H3, Paragraph } from "@typography"
@@ -10,7 +7,8 @@ import { useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
-import { extractApiError } from "@/lib/client-helpers"
+import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
+import { extractApiError } from "@/lib/helpers"
 
 export interface AccountSectionProps {
   initialUsername: string
@@ -113,9 +111,8 @@ export function AccountSection({ initialUsername }: AccountSectionProps) {
             size="sm"
             onClick={handleSaveUsername}
             disabled={savingUsername || username === savedUsername}
-          >
-            {savingUsername ? "Saving…" : "Save Username"}
-          </Button>
+            text={savingUsername ? "Saving…" : "Save Username"}
+          />
         </div>
       </div>
 
@@ -158,20 +155,17 @@ export function AccountSection({ initialUsername }: AccountSectionProps) {
           disabled={savingPassword}
         />
         <Paragraph>Re-encrypts all stored API tokens. You will be logged out.</Paragraph>
-        {passwordError && (
-          <p className="text-xs font-sans text-danger" role="alert">
-            {passwordError}
-          </p>
-        )}
-        <div className="flex justify-end">
-          <Button
-            size="sm"
-            onClick={handleChangePassword}
-            disabled={savingPassword || !currentPassword || !newPassword || !confirmPassword}
-          >
-            {savingPassword ? "Updating…" : "Update Password"}
-          </Button>
-        </div>
+        <SaveDiscardBar
+          dirty
+          saving={savingPassword}
+          onSave={handleChangePassword}
+          error={passwordError}
+          saveLabel="Update Password"
+          savingLabel="Updating…"
+          saveDisabled={!currentPassword || !newPassword || !confirmPassword}
+          justify="end"
+          showDivider={false}
+        />
       </div>
     </SettingsSection>
   )

@@ -21,6 +21,7 @@ import {
   trackerSnapshots,
   trackers,
 } from "@/lib/db/schema"
+import { HEX_64_RE, ISO_8601_RE, isValidHex, isValidPort } from "@/lib/validators"
 import { log } from "@/lib/logger"
 import { VALID_NOTIFICATION_TYPES } from "@/lib/notifications/types"
 import packageJson from "../../package.json"
@@ -214,9 +215,6 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
 
 // ─── Validation helpers ───────────────────────────────────────────────────────
 
-const ISO_8601_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/
-const HEX_64_RE = /^[0-9a-fA-F]{64}$/
-const HEX_COLOR_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
 export const VALID_BACKUP_FREQUENCIES = new Set(["daily", "weekly", "monthly"])
 
 function assertString(value: unknown, label: string): asserts value is string {
@@ -378,7 +376,7 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
 
     if (t.color !== null && t.color !== undefined) {
       assertString(t.color, `${prefix}.color`)
-      if (!HEX_COLOR_RE.test(t.color)) {
+      if (!isValidHex(t.color, true)) {
         throw new Error(`Backup validation: ${prefix}.color must be a valid hex color or null`)
       }
     }
@@ -416,7 +414,7 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
     assertString(c.host, `${prefix}.host`)
 
     assertNumber(c.port, `${prefix}.port`)
-    if (!Number.isInteger(c.port) || c.port < 1 || c.port > 65535) {
+    if (!isValidPort(c.port)) {
       throw new Error(`Backup validation: ${prefix}.port must be an integer between 1 and 65535`)
     }
 

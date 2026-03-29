@@ -1287,8 +1287,6 @@ const BIGINT_COLUMNS = [
   "uploadedBytes",
   "downloadedBytes",
   "bufferBytes",
-  "rawUploadedBytes",
-  "rawDownloadedBytes",
 ]
 
 function checkBigIntSafety(files?: string[]): CheckResult {

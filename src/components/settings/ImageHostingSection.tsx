@@ -1,13 +1,11 @@
 // src/components/settings/ImageHostingSection.tsx
-//
-// Functions: ImageHostingSection
-
 "use client"
 
 import { useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
+import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 import { DOCS } from "@/lib/constants"
 
@@ -124,17 +122,15 @@ export function ImageHostingSection({ initialHasKeys }: ImageHostingSectionProps
                         setEditing((prev) => ({ ...prev, [host.key]: false }))
                         setValues((prev) => ({ ...prev, [host.field]: "" }))
                       }}
-                    >
-                      Cancel
-                    </Button>
+                      text="Cancel"
+                    />
                   )}
                   <Button
                     size="sm"
                     disabled={saving || !values[host.field]}
                     onClick={() => handleSave(host.field, host.key)}
-                  >
-                    {saving ? "Saving…" : "Save Key"}
-                  </Button>
+                    text={saving ? "Saving…" : "Save Key"}
+                  />
                 </div>
               </div>
             ) : (
@@ -143,29 +139,28 @@ export function ImageHostingSection({ initialHasKeys }: ImageHostingSectionProps
                   size="sm"
                   variant="secondary"
                   onClick={() => setEditing((prev) => ({ ...prev, [host.key]: true }))}
-                >
-                  Replace Key
-                </Button>
+                  text="Replace Key"
+                />
                 <Button
                   size="sm"
                   variant="ghost"
                   disabled={saving}
                   onClick={() => handleClear(host.field, host.key)}
-                >
-                  Remove
-                </Button>
+                  text="Remove"
+                />
               </div>
             )}
           </div>
         )
       })}
 
-      {error && (
-        <p className="text-xs font-sans text-danger" role="alert">
-          {error}
-        </p>
-      )}
-      {success && <p className="text-xs font-sans text-success">Image hosting key saved.</p>}
+      <SaveDiscardBar
+        dirty={false}
+        saving={saving}
+        onSave={() => {}}
+        error={error}
+        success={success ? "Image hosting key saved." : null}
+      />
     </SettingsSection>
   )
 }

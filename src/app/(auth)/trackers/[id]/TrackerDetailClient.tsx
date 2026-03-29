@@ -1,14 +1,11 @@
 // src/app/(auth)/trackers/[id]/TrackerDetailClient.tsx
-//
-// Functions: TrackerDetailClient
-
 "use client"
 
 import clsx from "clsx"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { type CSSProperties, useCallback, useEffect, useMemo, useState } from "react"
 import { CHART_THEME } from "@/components/charts/lib/theme"
-import type { DayRange } from "@/components/dashboard/DayRangeSidebar"
+import type { DayRange } from "@/types/api"
 import { RankProgress } from "@/components/dashboard/RankProgress"
 import { TorrentsTab } from "@/components/dashboard/TorrentsTab"
 import { TrackerSettingsDialog } from "@/components/TrackerSettingsDialog"
@@ -21,7 +18,8 @@ import { TrackerInfoTab } from "@/components/tracker-detail/TrackerInfoTab"
 import { TrackerStatusBanner } from "@/components/tracker-detail/TrackerStatusBanner"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { useTrackerTorrents } from "@/hooks/useTrackerTorrents"
-import { computeDelta, hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
+import { computeDelta } from "@/lib/helpers"
 import type { SlotContext } from "@/lib/slot-types"
 import type {
   GazellePlatformMeta,
@@ -41,6 +39,7 @@ interface TrackerDetailClientProps {
   initialAllTimeSnapshots: Snapshot[]
   initialTagGroups: TagGroup[]
   initialQbitmanageConfig: { enabled: boolean; tags: QbitmanageTagConfig } | null
+  initialTab?: string | null
 }
 
 export function TrackerDetailClient({
@@ -49,13 +48,13 @@ export function TrackerDetailClient({
   initialAllTimeSnapshots,
   initialTagGroups,
   initialQbitmanageConfig,
+  initialTab: initialTabProp,
 }: TrackerDetailClientProps) {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const id = String(trackerId)
 
-  const initialTab = VALID_TABS.includes(searchParams.get("tab") as Tab)
-    ? (searchParams.get("tab") as Tab)
+  const initialTab = VALID_TABS.includes(initialTabProp as Tab)
+    ? (initialTabProp as Tab)
     : "analytics"
 
   const [tracker, setTracker] = useState<TrackerSummary>(initialTracker)

@@ -1,12 +1,11 @@
 // src/components/charts/CrossSeedNetwork.tsx
-//
-// Functions: buildNetworkData, buildCrossSeedNetworkOption, CrossSeedNetwork
 
 "use client"
 
 import type { EChartsOption } from "echarts"
 import type { TrackerTag } from "@/lib/fleet"
-import { hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
+import { formatCount } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
@@ -97,7 +96,7 @@ function buildNetworkData(
       label: {
         show: true,
         color: CHART_THEME.textSecondary,
-        fontSize: 11,
+        fontSize: CHART_THEME.fontSizeDense,
         fontFamily: CHART_THEME.fontMono,
       },
     })
@@ -142,7 +141,7 @@ function buildCrossSeedNetworkOption(nodes: NetworkNode[], edges: NetworkEdge[])
           const tgtName = nodes.find((n) => n.id === edge.target)?.name ?? edge.target
           return (
             `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(srcName)} ↔ ${escHtml(tgtName)}</span><br/>` +
-            `<span style="color:${CHART_THEME.accent};">${edge.sharedCount.toLocaleString()} shared torrent${edge.sharedCount !== 1 ? "s" : ""}</span>`
+            `<span style="color:${CHART_THEME.accent};">${formatCount(edge.sharedCount)} shared torrent${edge.sharedCount !== 1 ? "s" : ""}</span>`
           )
         }
 
@@ -151,8 +150,8 @@ function buildCrossSeedNetworkOption(nodes: NetworkNode[], edges: NetworkEdge[])
           node.torrentCount > 0 ? fmtNum((node.crossSeeded / node.torrentCount) * 100, 1) : "0.0"
         return (
           `<span style="color:${node.itemStyle.color};font-weight:600;">${escHtml(node.name)}</span><br/>` +
-          `<span style="color:${CHART_THEME.textSecondary};">${node.torrentCount.toLocaleString()} torrents</span><br/>` +
-          `<span style="color:${CHART_THEME.accent};">${node.crossSeeded.toLocaleString()} cross-seeded</span>` +
+          `<span style="color:${CHART_THEME.textSecondary};">${formatCount(node.torrentCount)} torrents</span><br/>` +
+          `<span style="color:${CHART_THEME.accent};">${formatCount(node.crossSeeded)} cross-seeded</span>` +
           `<span style="color:${CHART_THEME.textTertiary};"> · ${pct}%</span>`
         )
       },

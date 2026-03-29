@@ -1,6 +1,6 @@
 // src/components/ui/Typography.tsx
 //
-// Functions: H1, H2, H3, Subheader, Paragraph, Subtext
+// Functions: H1, H2, H3, Subheader, Paragraph, Subtext, SlotLabel, DataCell
 
 import clsx from "clsx"
 import type { HTMLAttributes } from "react"
@@ -9,7 +9,6 @@ interface TypographyProps extends HTMLAttributes<HTMLElement> {
   as?: keyof HTMLElementTagNameMap
 }
 
-/** Page title — used once per page */
 function H1({ className, children, ...props }: HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h1 className={clsx("text-lg font-sans font-bold text-primary", className)} {...props}>
@@ -18,7 +17,6 @@ function H1({ className, children, ...props }: HTMLAttributes<HTMLHeadingElement
   )
 }
 
-/** Section label — uppercase, small, used above Cards to name sections */
 function H2({ className, children, id, ...props }: HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h2
@@ -34,7 +32,6 @@ function H2({ className, children, id, ...props }: HTMLAttributes<HTMLHeadingEle
   )
 }
 
-/** Sub-section heading — used inside Cards to name feature groups */
 function H3({ className, children, ...props }: HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h3 className={clsx("text-sm font-sans font-semibold text-primary", className)} {...props}>
@@ -43,7 +40,6 @@ function H3({ className, children, ...props }: HTMLAttributes<HTMLHeadingElement
   )
 }
 
-/** Supporting heading — secondary label below or beside a heading */
 function Subheader({ as: Tag = "span", className, children, ...props }: TypographyProps) {
   return (
     <Tag className={clsx("text-xs font-sans font-medium text-secondary", className)} {...props}>
@@ -52,7 +48,6 @@ function Subheader({ as: Tag = "span", className, children, ...props }: Typograp
   )
 }
 
-/** Description text — explanations, help text */
 function Paragraph({ className, children, ...props }: HTMLAttributes<HTMLParagraphElement>) {
   return (
     <p className={clsx("text-xs font-sans text-tertiary leading-relaxed", className)} {...props}>
@@ -61,7 +56,7 @@ function Paragraph({ className, children, ...props }: HTMLAttributes<HTMLParagra
   )
 }
 
-/** Fine print — warnings, disclaimers, footnotes */
+/** Fine print: warnings, disclaimers, footnotes */
 function Subtext({ className, children, ...props }: HTMLAttributes<HTMLParagraphElement>) {
   return (
     <p className={clsx("text-xs font-sans text-muted leading-relaxed", className)} {...props}>
@@ -70,4 +65,32 @@ function Subtext({ className, children, ...props }: HTMLAttributes<HTMLParagraph
   )
 }
 
-export { H1, H2, H3, Paragraph, Subheader, Subtext }
+/** uppercase micro text for slot names, field labels in dense UI */
+function SlotLabel({
+  label,
+  className,
+  children,
+  ...props
+}: { label?: string } & HTMLAttributes<HTMLSpanElement>) {
+  return (
+    <span className={clsx("slot-label", className)} {...props}>
+      {label ?? children}
+    </span>
+  )
+}
+
+/** Mono tabular-nums value for leaderboard/table cells */
+function DataCell({
+  value,
+  className,
+  children,
+  ...props
+}: { value?: string } & HTMLAttributes<HTMLSpanElement>) {
+  return (
+    <span className={clsx("tabular-cell", className)} {...props}>
+      {value ?? children}
+    </span>
+  )
+}
+
+export { DataCell, H1, H2, H3, Paragraph, SlotLabel, Subheader, Subtext }

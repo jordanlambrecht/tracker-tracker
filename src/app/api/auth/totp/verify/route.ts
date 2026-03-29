@@ -19,7 +19,7 @@ import { log } from "@/lib/logger"
 import { startScheduler } from "@/lib/scheduler"
 import { persistSchedulerKey } from "@/lib/scheduler-key-store"
 import type { BackupCodeEntry } from "@/lib/totp"
-import { BACKUP_CODE_PATTERN, verifyAndConsumeBackupCode, verifyTotpCode } from "@/lib/totp"
+import { BACKUP_CODE_PATTERN, TOTP_CODE_RE, verifyAndConsumeBackupCode, verifyTotpCode } from "@/lib/totp"
 
 export async function POST(request: Request) {
   const body = await parseJsonBody(request)
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     if (!BACKUP_CODE_PATTERN.test(code)) {
       return NextResponse.json({ error: "Invalid backup code format" }, { status: 400 })
     }
-  } else if (code.length !== 6 || !/^\d{6}$/.test(code)) {
+  } else if (!TOTP_CODE_RE.test(code)) {
     return NextResponse.json({ error: "Invalid TOTP code — must be 6 digits" }, { status: 400 })
   }
 

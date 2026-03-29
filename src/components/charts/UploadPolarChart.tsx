@@ -7,7 +7,8 @@
 import type { EChartsOption } from "echarts"
 import { useState } from "react"
 import { TabBar } from "@/components/ui/TabBar"
-import { formatBytesNum, hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
+import { formatBytesNum } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
@@ -90,7 +91,7 @@ function buildPolarOption(
     if (b.avgBytes > maxVal) maxVal = b.avgBytes
   }
 
-  // Flatten the 7×24 grid into [hourIdx, dayIdx, value] triples for the heatmap
+  // Flatten the 7x24 grid into [hourIdx, dayIdx, value] triples for the heatmap
   const heatmapData: [number, number, number][] = []
   for (let day = 0; day < 7; day++) {
     for (let hour = 0; hour < 24; hour++) {
@@ -101,7 +102,7 @@ function buildPolarOption(
   const axisLabelStyle = {
     color: CHART_THEME.textTertiary,
     fontFamily: CHART_THEME.fontMono,
-    fontSize: 10,
+    fontSize: CHART_THEME.fontSizeCompact,
   }
 
   const ANGLE_STEP = 360 / 24
@@ -124,7 +125,7 @@ function buildPolarOption(
         const hourLabel = escHtml(HOUR_LABELS[hourIdx] ?? "")
         const formatted = formatBytesNum(val)
         return (
-          `<div style="font-family:var(--font-mono),monospace;font-size:11px;` +
+          `<div style="font-family:var(--font-mono),monospace;font-size:${CHART_THEME.fontSizeDense}px;` +
           `color:${CHART_THEME.textTertiary};margin-bottom:4px;">${dayName} at ${hourLabel}</div>` +
           `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(formatted)}/hr ${dirLabel}</span>`
         )
@@ -151,7 +152,7 @@ function buildPolarOption(
       axisTick: { show: false },
       axisLabel: {
         ...axisLabelStyle,
-        fontSize: 9,
+        fontSize: CHART_THEME.fontSizeMicro,
       },
       splitLine: { show: false },
     },

@@ -1021,17 +1021,17 @@ describe("checkAnniversaryMilestone", () => {
 
   it("returns 1 year anniversary on exact date", () => {
     vi.setSystemTime(new Date("2027-03-15"))
-    expect(checkAnniversaryMilestone("2026-03-15")).toEqual({ label: "1 year anniversary" })
+    expect(checkAnniversaryMilestone("2026-03-15")).toEqual({ label: "1-year anniversary" })
   })
 
   it("returns multi-year anniversary", () => {
     vi.setSystemTime(new Date("2031-03-15"))
-    expect(checkAnniversaryMilestone("2026-03-15")).toEqual({ label: "5 year anniversary" })
+    expect(checkAnniversaryMilestone("2026-03-15")).toEqual({ label: "5-year anniversary" })
   })
 
   it("matches within the ±3 day window", () => {
     vi.setSystemTime(new Date("2027-03-13")) // 2 days before 1yr anniversary
-    expect(checkAnniversaryMilestone("2026-03-15")).toEqual({ label: "1 year anniversary" })
+    expect(checkAnniversaryMilestone("2026-03-15")).toEqual({ label: "1-year anniversary" })
   })
 
   it("does not match outside the ±3 day window", () => {
@@ -1065,7 +1065,7 @@ describe("checkAnniversaryMilestone", () => {
     const alerts = computeAlerts([tracker])
     const anniversary = alerts.find((a) => a.type === "anniversary")
     expect(anniversary).toBeDefined()
-    expect(anniversary?.message).toBe("1 year anniversary")
+    expect(anniversary?.message).toBe("1-year anniversary")
   })
 
   it("does not generate anniversary alert without joinedAt", () => {

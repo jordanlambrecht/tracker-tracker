@@ -12,6 +12,7 @@ import {
   validateHexColor,
   validateHttpUrl,
   validateJoinedAt,
+  type RouteContext,
 } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
@@ -19,7 +20,7 @@ import { trackers } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
 import { getTrackerForClient } from "@/lib/server-data"
 
-export async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
+export async function GET(_request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -32,7 +33,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
   return NextResponse.json(tracker)
 }
 
-export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
+export async function PATCH(request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -78,14 +79,14 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
   if (typeof body.mouseholeUrl === "string") {
     const trimmed = body.mouseholeUrl.trim()
     if (trimmed) {
-      try {
-        const parsed = new URL(trimmed)
-        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-          return NextResponse.json({ error: "Mousehole URL must use http or https" }, { status: 400 })
-        }
-      } catch {
-        return NextResponse.json({ error: "Invalid Mousehole URL format" }, { status: 400 })
+      if (trimmed.length > 500) {
+        return NextResponse.json(
+          { error: "Mousehole URL must be 500 characters or fewer" },
+          { status: 400 }
+        )
       }
+      const mouseUrlErr = validateHttpUrl(trimmed, "Mousehole URL")
+      if (mouseUrlErr) return mouseUrlErr
     }
     updates.mouseholeUrl = trimmed || null
   }
@@ -126,9 +127,9 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
 
   if (typeof body.apiToken === "string") {
     const trimmedToken = (body.apiToken as string).trim()
-    if (trimmedToken.length > 500) {
+    if (trimmedToken.length > 5000) {
       return NextResponse.json(
-        { error: "API token must be 500 characters or fewer" },
+        { error: "API token must be 5000 characters or fewer" },
         { status: 400 }
       )
     }
@@ -141,7 +142,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
   return NextResponse.json({ success: true })
 }
 
-export async function DELETE(_request: Request, props: { params: Promise<{ id: string }> }) {
+export async function DELETE(_request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 

@@ -11,6 +11,7 @@
 import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
 import { type CSSProperties, useCallback, useMemo, useRef, useState } from "react"
+import { Button } from "@/components/ui/Button"
 
 interface ChartEChartsProps {
   option: EChartsOption
@@ -65,13 +66,13 @@ function ChartECharts({
   return (
     <div className="relative">
       {showToggle && (
-        <button
-          type="button"
+        <Button
+          variant="minimal"
+          size="sm"
           onClick={handleToggle}
-          className="absolute top-0 right-0 z-10 px-2.5 py-1 text-[11px] font-mono text-muted hover:text-secondary hover:bg-overlay transition-colors cursor-pointer rounded-nm-sm"
-        >
-          {allSelected ? "None" : "All"}
-        </button>
+          className="torrent-cell absolute top-0 right-0 z-10 hover:bg-overlay"
+          text={allSelected ? "None" : "All"}
+        />
       )}
       <ReactECharts
         ref={chartRef}

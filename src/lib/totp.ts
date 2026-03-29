@@ -14,6 +14,7 @@ const BACKUP_CODE_COUNT = 8
 const BACKUP_CODE_LENGTH = 8
 
 export const BACKUP_CODE_PATTERN = /^[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}$/
+export const TOTP_CODE_RE = /^\d{6}$/
 
 export interface BackupCodeEntry {
   hash: string

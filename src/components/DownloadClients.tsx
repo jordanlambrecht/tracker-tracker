@@ -1,47 +1,33 @@
 // src/components/DownloadClients.tsx
-//
-// Functions: DownloadClients, ClientCard
 
 "use client"
 
-import { H3, Paragraph, Subheader, Subtext } from "@typography"
+import { H2, H3, Paragraph, Subheader, Subtext } from "@typography"
 import { useCallback, useEffect, useState } from "react"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { CollapsibleCard } from "@/components/ui/CollapsibleCard"
+import { ConfirmRemove } from "@/components/ui/ConfirmRemove"
 import { Input } from "@/components/ui/Input"
 import { MaskedSecret } from "@/components/ui/MaskedSecret"
 import { NumberInput } from "@/components/ui/NumberInput"
+import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
 import { Select } from "@/components/ui/Select"
 import { Toggle } from "@/components/ui/Toggle"
 import { UptimeBar } from "@/components/ui/UptimeBar"
+import { useActionStatus } from "@/hooks/useActionStatus"
 import { formatTimeAgo } from "@/lib/formatters"
+import type { SafeDownloadClient } from "@/types/api"
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 type ClientType = "qbittorrent" | "deluge" | "transmission" | "rtorrent"
+type DownloadClient = SafeDownloadClient
 
-interface DownloadClient {
-  id: number
-  name: string
-  type: ClientType
-  enabled: boolean
-  host: string
-  port: number
-  useSsl: boolean
-  hasCredentials: boolean
-  pollIntervalSeconds: number
-  isDefault: boolean
-  crossSeedTags: string[]
-  lastPolledAt: string | null
-  lastError: string | null
-  errorSince: string | null
-}
-
-type ConnectionStatus = "idle" | "testing" | "success" | "failed"
+const EMPTY_TRACKERS: string[] = []
 
 const CLIENT_TYPE_OPTIONS: { value: ClientType; label: string; disabled?: boolean }[] = [
   { value: "qbittorrent", label: "qBittorrent" },
@@ -74,15 +60,16 @@ const DRAFT_KEYS: (keyof DownloadClient)[] = [
   "crossSeedTags",
 ]
 
-function isDirty(draft: DownloadClient, saved: DownloadClient): boolean {
+function buildPatch(draft: DownloadClient, saved: DownloadClient): Record<string, unknown> | null {
+  const patch: Record<string, unknown> = {}
   for (const key of DRAFT_KEYS) {
     const a = draft[key]
     const b = saved[key]
     if (Array.isArray(a) && Array.isArray(b)) {
-      if (a.length !== b.length || a.some((v, i) => v !== b[i])) return true
-    } else if (a !== b) return true
+      if (a.length !== b.length || a.some((v, i) => v !== b[i])) patch[key] = a
+    } else if (a !== b) patch[key] = a
   }
-  return false
+  return Object.keys(patch).length > 0 ? patch : null
 }
 
 function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }: ClientCardProps) {
@@ -90,12 +77,14 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(false)
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("idle")
-  const [connectionError, setConnectionError] = useState<string | null>(null)
-  const [confirmRemove, setConfirmRemove] = useState(false)
+  const {
+    status: connectionStatus,
+    error: connectionError,
+    execute: executeTest,
+  } = useActionStatus()
   const [tagInput, setTagInput] = useState("")
 
-  const dirty = isDirty(draft, client)
+  const dirty = buildPatch(draft, client) !== null
 
   // Sync draft when parent pushes new server state (i.e after another card's setDefault)
   useEffect(() => {
@@ -109,14 +98,8 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
   async function handleSave() {
     setSaving(true)
     setSaveError(null)
-    const patch: Record<string, unknown> = {}
-    for (const key of DRAFT_KEYS) {
-      const a = draft[key]
-      const b = client[key]
-      if (Array.isArray(a) && Array.isArray(b)) {
-        if (a.length !== b.length || a.some((v, i) => v !== b[i])) patch[key] = a
-      } else if (a !== b) patch[key] = a
-    }
+    const patch = buildPatch(draft, client)
+    if (!patch) return
     try {
       const res = await fetch(`/api/clients/${client.id}`, {
         method: "PATCH",
@@ -161,7 +144,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
         const data = await res.json()
         if (!cancelled) setUptimeData(data)
       } catch {
-        // uptime bar is non-critical
+        // Silently ignore — uptime is non-critical, retries on interval
       }
     }
     fetchUptime()
@@ -172,24 +155,14 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
     }
   }, [client.id])
 
-  const handleTestConnection = useCallback(async () => {
-    setConnectionStatus("testing")
-    setConnectionError(null)
-    try {
+  const handleTestConnection = () =>
+    executeTest(async () => {
       const res = await fetch(`/api/clients/${client.id}/test`, { method: "POST" })
-      if (res.ok) {
-        setConnectionStatus("success")
-        setTimeout(() => setConnectionStatus("idle"), 3000)
-      } else {
+      if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        setConnectionError(data.error || "Connection failed")
-        setConnectionStatus("failed")
+        throw new Error(data.error || "Connection failed")
       }
-    } catch {
-      setConnectionError("Network error — could not reach server")
-      setConnectionStatus("failed")
-    }
-  }, [client.id])
+    })
 
   async function handleSaveCredentials() {
     if (!newUsername.trim() || !newPassword.trim()) return
@@ -232,18 +205,18 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
             {client.isDefault && <Badge variant="accent">Default</Badge>}
           </div>
           <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-[10px] font-mono text-tertiary">
+            <span className="text-3xs font-mono text-tertiary">
               {client.lastPolledAt
                 ? `Last seen: ${formatTimeAgo(client.lastPolledAt)}`
                 : "Last seen: Never"}
             </span>
             {client.errorSince && (
-              <span className="text-[10px] font-mono text-danger">
+              <span className="text-3xs font-mono text-danger">
                 Down since {formatTimeAgo(client.errorSince)}
               </span>
             )}
             {client.lastError && !client.errorSince && (
-              <span className="text-[10px] font-mono text-danger">{client.lastError}</span>
+              <span className="text-3xs font-mono text-danger">{client.lastError}</span>
             )}
           </div>
         </div>
@@ -329,9 +302,9 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
 
       {/* Row 3: Auth */}
       <div className="flex flex-col gap-2">
-        <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
+        <H2 className="uppercase tracking-wider">
           Credentials
-        </span>
+        </H2>
         {changingCredentials ? (
           <div className="flex flex-col gap-3">
             <div className="flex flex-col sm:flex-row gap-4">
@@ -365,9 +338,8 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
                 variant="primary"
                 onClick={handleSaveCredentials}
                 disabled={!newUsername.trim() || !newPassword.trim()}
-              >
-                Save Credentials
-              </Button>
+                text="Save Credentials"
+              />
               {client.hasCredentials && (
                 <button
                   type="button"
@@ -377,7 +349,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
                     setNewPassword("")
                     setCredError(null)
                   }}
-                  className="text-xs font-mono text-tertiary hover:text-secondary transition-colors cursor-pointer"
+                  className="ghost-link"
                 >
                   Cancel
                 </button>
@@ -446,16 +418,15 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
                 }
                 setTagInput("")
               }}
-            >
-              Add
-            </Button>
+              text="Add"
+            />
           </div>
           {draft.crossSeedTags.length > 0 && (
-            <div className="flex gap-1.5 flex-wrap">
+            <div className="flex gap-2 flex-wrap">
               {draft.crossSeedTags.map((tag) => (
                 <span
                   key={tag}
-                  className="inline-flex items-center gap-1.5 font-mono text-xs text-primary bg-control-bg nm-inset-sm px-2.5 py-1 rounded-nm-sm"
+                  className="inline-flex items-center gap-2 font-mono text-xs text-primary bg-control-bg nm-inset-sm px-2.5 py-1 rounded-nm-sm"
                 >
                   {tag}
                   <button
@@ -485,7 +456,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
       {linkedTrackers.length > 0 && (
         <div className="flex items-center gap-2">
           <Subheader className="uppercase tracking-wider shrink-0">Linked Trackers</Subheader>
-          <div className="flex gap-1.5 flex-wrap">
+          <div className="flex gap-2 flex-wrap">
             {linkedTrackers.map((name) => (
               <Badge key={name} variant="default">
                 {name}
@@ -500,21 +471,13 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
         settings.
       </Subtext>
 
-      {/* Save / Discard bar — only visible when draft has changes */}
-      {dirty && (
-        <>
-          <div className="border-t border-border" />
-          <div className="flex items-center gap-3">
-            <Button size="sm" onClick={handleSave} disabled={saving}>
-              {saving ? "Saving..." : "Save Changes"}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={handleDiscard} disabled={saving}>
-              Discard
-            </Button>
-            {saveError && <span className="text-xs font-mono text-danger">{saveError}</span>}
-          </div>
-        </>
-      )}
+      <SaveDiscardBar
+        dirty={dirty}
+        saving={saving}
+        onSave={handleSave}
+        onDiscard={handleDiscard}
+        error={saveError}
+      />
 
       <div className="border-t border-border" />
 
@@ -524,9 +487,9 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
           size="sm"
           variant="secondary"
           onClick={handleTestConnection}
-          disabled={connectionStatus === "testing"}
+          disabled={connectionStatus === "pending"}
         >
-          {connectionStatus === "testing"
+          {connectionStatus === "pending"
             ? "Testing..."
             : connectionStatus === "success"
               ? "Connected"
@@ -541,25 +504,10 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
         <div className="flex-1" />
 
         {!client.isDefault && (
-          <Button size="sm" variant="ghost" onClick={() => onSetDefault(client.id)}>
-            Set as Default
-          </Button>
+          <Button size="sm" variant="ghost" onClick={() => onSetDefault(client.id)} text="Set as Default" />
         )}
 
-        {confirmRemove ? (
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="danger" onClick={() => onRemove(client.id)}>
-              Confirm Remove
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setConfirmRemove(false)}>
-              Cancel
-            </Button>
-          </div>
-        ) : (
-          <Button size="sm" variant="danger" onClick={() => setConfirmRemove(true)}>
-            Remove
-          </Button>
-        )}
+        <ConfirmRemove onConfirm={() => onRemove(client.id)} />
       </div>
       {connectionStatus === "failed" && connectionError && (
         <p className="text-xs font-mono text-danger">{connectionError}</p>
@@ -622,7 +570,7 @@ function AddClientForm({
   }
 
   return (
-    <Card elevation="raised" className="flex flex-col gap-4 !p-5">
+    <Card elevation="raised" className="flex flex-col gap-4">
       <H3>Add Download Client</H3>
       <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
         <div className="flex-1">
@@ -672,12 +620,8 @@ function AddClientForm({
       </div>
       {error && <p className="text-sm font-mono text-danger">{error}</p>}
       <div className="flex items-center gap-3">
-        <Button size="sm" onClick={handleSubmit} disabled={!canSubmit || saving}>
-          {saving ? "Creating..." : "Create Client"}
-        </Button>
-        <Button size="sm" variant="ghost" onClick={onCancel}>
-          Cancel
-        </Button>
+        <Button size="sm" onClick={handleSubmit} disabled={!canSubmit || saving} text={saving ? "Creating..." : "Create Client"} />
+        <Button size="sm" variant="ghost" onClick={onCancel} text="Cancel" />
       </div>
     </Card>
   )
@@ -748,9 +692,7 @@ function DownloadClients() {
               download activity.
             </Paragraph>
           </div>
-          <Button size="sm" onClick={() => setShowAddForm(true)}>
-            Add Download Client
-          </Button>
+          <Button size="sm" onClick={() => setShowAddForm(true)} text="Add Download Client" />
         </Card>
       ) : (
         <>
@@ -758,7 +700,7 @@ function DownloadClients() {
             <ClientCard
               key={client.id}
               client={client}
-              linkedTrackers={[]}
+              linkedTrackers={EMPTY_TRACKERS}
               onSaved={handleSaved}
               onRemove={handleRemove}
               onSetDefault={handleSetDefault}
@@ -779,9 +721,8 @@ function DownloadClients() {
               variant="secondary"
               className="self-start"
               onClick={() => setShowAddForm(true)}
-            >
-              + Add Client
-            </Button>
+              text="+ Add Client"
+            />
           )}
         </>
       )}

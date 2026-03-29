@@ -12,37 +12,21 @@ import fs from "node:fs"
 import path from "node:path"
 import { afterAll, describe, expect, it } from "vitest"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
+import {
+  LOGO_NAME_RE,
+  PLACEHOLDER_RE,
+  SLUG_RE,
+  VALID_CONTENT_CATEGORIES,
+  isEmpty,
+  normalizeTrackerUrl,
+} from "@/data/tracker-validation-rules"
 import { ALL_TRACKERS } from "@/data/trackers"
 import { DEFAULT_API_PATHS } from "@/lib/adapters"
+import { isValidHex } from "@/lib/validators"
 
-const VALID_PLATFORMS = ["unit3d", "gazelle", "ggn", "nebulance", "mam", "custom"] as const
-const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
-const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
-const LOGO_NAME_RE = /^\/tracker-logos\/[a-z0-9_]+_logo\.(svg|png)$/
+const VALID_PLATFORMS = ["unit3d", "gazelle", "ggn", "nebulance", "mam", "avistaz", "custom"] as const
 const TRACKER_DIR = path.resolve(__dirname, "../../data/trackers")
 const LOGO_DIR = path.resolve(__dirname, "../../../public/tracker-logos")
-const PLACEHOLDER_RE = /^TODO$/i
-
-// Canonical content categories — add new categories here, not in tracker files.
-// UI filter pills display these directly.
-const VALID_CONTENT_CATEGORIES = new Set([
-  "Movies",
-  "TV",
-  "Music",
-  "Games",
-  "Apps",
-  "Sports",
-  "Books",
-  "Audiobooks",
-  "Comics",
-  "Manga",
-  "Anime",
-  "XXX",
-  "Documentaries",
-  "Education",
-  "Tutorials",
-  "Fanres",
-])
 
 // ---------------------------------------------------------------------------
 // Warning collector — printed after all tests, does not fail CI
@@ -61,13 +45,6 @@ function warn(tracker: string, msg: string) {
 const PRODUCTION_TRACKERS = ALL_TRACKERS.filter((t: TrackerRegistryEntry) => !t.draft)
 const DRAFT_TRACKERS = ALL_TRACKERS.filter((t: TrackerRegistryEntry) => t.draft)
 
-function isEmpty(val: unknown): boolean {
-  if (val === undefined || val === null) return true
-  if (typeof val === "string") return val.trim().length === 0
-  if (Array.isArray(val)) return val.length === 0
-  return false
-}
-
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -82,8 +59,7 @@ describe("tracker registry", () => {
   })
 
   it("has no duplicate URLs", () => {
-    const normalize = (u: string) => u.replace(/\/+$/, "").toLowerCase()
-    const urls = ALL_TRACKERS.map((t: TrackerRegistryEntry) => normalize(t.url))
+    const urls = ALL_TRACKERS.map((t: TrackerRegistryEntry) => normalizeTrackerUrl(t.url))
     const dupes = urls.filter((u: string, i: number) => urls.indexOf(u) !== i)
     expect(dupes, `Duplicate URLs: ${dupes.join(", ")}`).toEqual([])
   })
@@ -229,7 +205,7 @@ describe("tracker registry", () => {
 
         if (tracker.color) {
           it("has a valid hex color", () => {
-            expect(tracker.color).toMatch(HEX_COLOR_RE)
+            expect(isValidHex(tracker.color!)).toBe(true)
           })
         }
 

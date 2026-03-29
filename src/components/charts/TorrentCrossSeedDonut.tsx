@@ -1,18 +1,12 @@
 // src/components/charts/TorrentCrossSeedDonut.tsx
-//
-// Functions: TorrentCrossSeedDonut
-
 "use client"
 
-import { getComplementaryColor, hexToRgba } from "@/lib/formatters"
+import { getComplementaryColor, hexToRgba } from "@/lib/color-utils"
+import { formatCount } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { buildDonutShell } from "./lib/chart-helpers"
 import { CHART_THEME, chartTooltip, escHtml } from "./lib/theme"
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 interface TorrentCrossSeedDonutProps {
   crossSeeded: number
@@ -38,7 +32,7 @@ function TorrentCrossSeedDonut({ crossSeeded, unique, accentColor }: TorrentCros
       formatter: (params: unknown) => {
         const p = params as { name: string; value: number; color: string }
         const pct = total > 0 ? ((p.value / total) * 100).toFixed(1) : "0"
-        return `<span style="color:${p.color};">●</span> <b>${escHtml(p.name)}</b><br/>${p.value.toLocaleString()} torrents · ${pct}%`
+        return `<span style="color:${p.color};">●</span> <b>${escHtml(p.name)}</b><br/>${formatCount(p.value)} torrents · ${pct}%`
       },
     }),
     graphic: [
@@ -62,7 +56,7 @@ function TorrentCrossSeedDonut({ crossSeeded, unique, accentColor }: TorrentCros
         style: {
           text: "cross-seeded",
           fill: CHART_THEME.textTertiary,
-          fontSize: 11,
+          fontSize: CHART_THEME.fontSizeDense,
           fontFamily: CHART_THEME.fontMono,
           textAlign: "center" as const,
         },

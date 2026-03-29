@@ -3,7 +3,8 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { formatBytesNum, generatePalette } from "@/lib/formatters"
+import { generatePalette } from "@/lib/color-utils"
+import { formatBytesNum } from "@/lib/formatters"
 import type { CategoryStats } from "@/lib/torrent-utils"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
@@ -50,7 +51,7 @@ function TorrentSizeBreakdown({ categories, accentColor }: TorrentSizeBreakdownP
       axisLabel: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
         formatter: (val: number) => formatBytesNum(val),
       },
       splitLine: { lineStyle: { color: CHART_THEME.gridLine } },
@@ -61,7 +62,7 @@ function TorrentSizeBreakdown({ categories, accentColor }: TorrentSizeBreakdownP
       axisLabel: {
         color: CHART_THEME.textSecondary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
         width: 80,
         overflow: "truncate",
       },

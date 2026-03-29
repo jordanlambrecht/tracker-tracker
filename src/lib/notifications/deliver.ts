@@ -1,11 +1,10 @@
 // src/lib/notifications/deliver.ts
-//
-// Functions: getCircuits, getCircuitState, resetCircuitBreaker, isCircuitOpen, recordFailure, recordSuccess, deliverDiscordWebhook
 
 import { sanitizeNetworkError } from "@/lib/error-utils"
 import { log } from "@/lib/logger"
+import type { DiscordEmbed } from "./payload"
 
-interface CircuitState {
+export interface CircuitState {
   failures: number
   openUntil: Date | null
 }
@@ -64,7 +63,7 @@ export interface DeliveryResult {
 export async function deliverDiscordWebhook(
   targetId: number,
   webhookUrl: string,
-  embeds: Record<string, unknown>[]
+  embeds: DiscordEmbed[]
 ): Promise<DeliveryResult> {
   if (isCircuitOpen(targetId)) {
     return { success: false, status: "failed", error: "Circuit breaker open — skipping delivery" }

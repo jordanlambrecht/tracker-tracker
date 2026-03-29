@@ -6,14 +6,14 @@ import { readFile, stat, unlink } from "node:fs/promises"
 import path from "node:path"
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, parseRouteId } from "@/lib/api-helpers"
+import { authenticate, parseRouteId, type RouteContext } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { appSettings, backupHistory } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
 
 export async function GET(
   _request: Request,
-  props: { params: Promise<{ id: string }> }
+  props: RouteContext
 ): Promise<NextResponse | Response> {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
@@ -77,7 +77,7 @@ export async function GET(
 
 export async function DELETE(
   _request: Request,
-  props: { params: Promise<{ id: string }> }
+  props: RouteContext
 ): Promise<NextResponse> {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth

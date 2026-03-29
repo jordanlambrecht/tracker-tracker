@@ -2,6 +2,7 @@
 //
 // Functions: GazelleAdapter, GazelleAdapter.fetchStats, GazelleAdapter.fetchRaw
 
+import { computeBufferBytes, floatBytesToBigInt } from "@/lib/helpers"
 import { adapterFetch } from "./adapter-fetch"
 import type {
   DebugApiCall,
@@ -130,8 +131,8 @@ export class GazelleAdapter implements TrackerAdapter {
       throw new Error(`Unexpected response from ${hostname}: missing userstats`)
     }
 
-    const uploaded = BigInt(Math.floor(userStats.uploaded ?? 0))
-    const downloaded = BigInt(Math.floor(userStats.downloaded ?? 0))
+    const uploaded = floatBytesToBigInt(userStats.uploaded)
+    const downloaded = floatBytesToBigInt(userStats.downloaded)
 
     const stats: TrackerStats = {
       username: response.username,
@@ -139,7 +140,7 @@ export class GazelleAdapter implements TrackerAdapter {
       uploadedBytes: uploaded,
       downloadedBytes: downloaded,
       ratio: typeof userStats.ratio === "number" ? userStats.ratio : 0,
-      bufferBytes: uploaded > downloaded ? uploaded - downloaded : BigInt(0),
+      bufferBytes: computeBufferBytes(uploaded, downloaded),
       seedingCount: userStats.seedingcount ?? 0,
       leechingCount: userStats.leechingcount ?? 0,
       seedbonus: userStats.bonusPoints ?? userStats.bonuspoints ?? null,
@@ -188,7 +189,7 @@ export class GazelleAdapter implements TrackerAdapter {
             stats.platformMeta = enriched.platformMeta
           }
         } catch (err) {
-          // security-audit-ignore: enrichment failure is non-fatal — core stats from index are still valid
+          // security-audit-ignore: enrichment failure is non-fatal and core stats from index are still valid
           console.warn(
             `[${hostname}] Enrichment failed: ${err instanceof Error ? err.message : "unknown"}`
           )
@@ -349,7 +350,7 @@ export class GazelleAdapter implements TrackerAdapter {
       warned: resp.personal?.warned ?? false,
       joinedDate: resp.stats?.joinedDate ?? undefined,
       lastAccessDate: resp.stats?.lastAccess ?? undefined,
-      bufferBytes: resp.stats?.buffer != null ? BigInt(Math.floor(resp.stats.buffer)) : undefined,
+      bufferBytes: resp.stats?.buffer != null ? floatBytesToBigInt(resp.stats.buffer) : undefined,
       seedingCount: resp.community?.seeding,
       leechingCount: resp.community?.leeching,
       avatarUrl: resp.avatar || undefined,

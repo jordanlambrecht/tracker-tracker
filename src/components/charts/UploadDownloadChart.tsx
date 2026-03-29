@@ -1,11 +1,9 @@
 // src/components/charts/UploadDownloadChart.tsx
-//
-// Functions: buildOption, UploadDownloadChart
-
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { bytesToGiB, getComplementaryColor } from "@/lib/formatters"
+import { getComplementaryColor } from "@/lib/color-utils"
+import { bytesToGiB } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
@@ -94,7 +92,7 @@ function buildOption(
               chartDot(item.color) +
               `<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> ` +
               `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${primary}</span>` +
-              `<span style="color:${CHART_THEME.textTertiary};font-size:10px;"> (${alt})</span>`
+              `<span style="color:${CHART_THEME.textTertiary};font-size:${CHART_THEME.fontSizeCompact}px;"> (${alt})</span>`
             )
           })
           .join("<br/>")
@@ -111,7 +109,7 @@ function buildOption(
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },

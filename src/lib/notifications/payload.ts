@@ -1,9 +1,10 @@
 // src/lib/notifications/payload.ts
 //
-// Functions: hexToInt, buildDiscordEmbed, buildDescription
+// Functions: buildDiscordEmbed, buildDescription
 
 import { CHART_THEME } from "@/components/charts/lib/theme"
-import { formatBytesNum } from "@/lib/formatters"
+import { hexToInt } from "@/lib/color-utils"
+import { formatBytesNum, formatCount, formatPercent, formatRatio } from "@/lib/formatters"
 import type { NotificationEventType } from "@/lib/notifications/types"
 
 interface EmbedInput {
@@ -14,17 +15,12 @@ interface EmbedInput {
   data: Record<string, unknown>
 }
 
-interface DiscordEmbed {
+export interface DiscordEmbed {
   title: string
   description: string
   color: number
   timestamp: string
   fields?: { name: string; value: string; inline?: boolean }[]
-}
-
-// Convert "#rrggbb" hex string to Discord embed integer
-function hexToInt(hex: string): number {
-  return Number.parseInt(hex.replace("#", ""), 16)
 }
 
 const EVENT_COLORS: Record<NotificationEventType, number> = {
@@ -41,6 +37,7 @@ const EVENT_COLORS: Record<NotificationEventType, number> = {
   vip_expiring: hexToInt(CHART_THEME.warn),
   unsatisfied_limit: hexToInt(CHART_THEME.danger),
   active_hnrs: hexToInt(CHART_THEME.danger),
+  download_disabled: hexToInt(CHART_THEME.danger),
 }
 
 const EVENT_TITLES: Record<NotificationEventType, string> = {
@@ -57,6 +54,7 @@ const EVENT_TITLES: Record<NotificationEventType, string> = {
   vip_expiring: "VIP Expiring Soon",
   unsatisfied_limit: "Unsatisfied Limit Approaching",
   active_hnrs: "New Inactive Hit & Run",
+  download_disabled: "Download Privileges Revoked",
 }
 
 export function buildDiscordEmbed(input: EmbedInput): DiscordEmbed {
@@ -81,8 +79,8 @@ function buildDescription(
 ): string {
   switch (eventType) {
     case "ratio_drop": {
-      const prev = Number(data.previousRatio ?? 0).toFixed(2)
-      const curr = Number(data.currentRatio ?? 0).toFixed(2)
+      const prev = formatRatio(Number(data.previousRatio ?? 0))
+      const curr = formatRatio(Number(data.currentRatio ?? 0))
       return `${source} ratio dropped from **${prev}** to **${curr}**`
     }
     case "hit_and_run":
@@ -97,8 +95,8 @@ function buildDescription(
     case "warned":
       return `${source} has been issued a warning by the tracker`
     case "ratio_danger": {
-      const curr = Number(data.currentRatio ?? 0).toFixed(2)
-      const min = Number(data.minimumRatio ?? 0).toFixed(2)
+      const curr = formatRatio(Number(data.currentRatio ?? 0))
+      const min = formatRatio(Number(data.minimumRatio ?? 0))
       return `${source} ratio **${curr}** is below the required minimum of **${min}**`
     }
     case "zero_seeding":
@@ -116,8 +114,8 @@ function buildDescription(
       return label ? `${source} — ${label}` : `${source} membership anniversary`
     }
     case "bonus_cap": {
-      const current = Number(data.currentBonus ?? 0).toLocaleString()
-      const cap = Number(data.capLimit ?? 0).toLocaleString()
+      const current = formatCount(Number(data.currentBonus ?? 0))
+      const cap = formatCount(Number(data.capLimit ?? 0))
       return `${source} bonus points at **${current}** (cap: ${cap}). Spend them before they're wasted!`
     }
     case "vip_expiring": {
@@ -129,12 +127,14 @@ function buildDescription(
       const count = Number(data.count ?? 0)
       const limit = Number(data.limit ?? 0)
       const pct = limit > 0 ? Math.round((count / limit) * 100) : 0
-      return `${source} unsatisfied torrents at **${count}/${limit}** (${pct}%). Download capacity running low.`
+      return `${source} unsatisfied torrents at **${count}/${limit}** (${formatPercent(pct, 0)}). Download capacity running low.`
     }
     case "active_hnrs": {
       const count = Number(data.count ?? 0)
       return `${source} has **${count}** active Hit & Run${count !== 1 ? "s" : ""}. Seed them to avoid penalties.`
     }
+    case "download_disabled":
+      return `${source} has lost download privileges — ratio may have dropped or account was restricted`
     default:
       return `${source} triggered a notification`
   }

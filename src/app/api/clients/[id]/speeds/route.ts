@@ -1,10 +1,10 @@
 // src/app/api/clients/[id]/speeds/route.ts
 
 import { NextResponse } from "next/server"
-import { authenticate, parseRouteId } from "@/lib/api-helpers"
+import { authenticate, parseRouteId, type RouteContext } from "@/lib/api-helpers"
 import { getSpeedSnapshots } from "@/lib/qbt"
 
-export async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
+export async function GET(_request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 

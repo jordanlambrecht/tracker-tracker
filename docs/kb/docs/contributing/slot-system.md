@@ -38,7 +38,7 @@ Each stat-card slot has a `span` field that determines how many grid rows it occ
 
 | `span`        | CardType in layout                 | Description                                                                                                                             |
 | ------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `1` (default) | `single`                           | Standard 1×1 card — one row tall, one column wide                                                                                       |
+| `1` (default) | `single`                           | Standard 1x1 card — one row tall, one column wide                                                                                       |
 | `2`           | `double` (or `triple` if promoted) | Tall card — two rows tall, one column wide. Can be promoted to `triple` (three rows) by the algorithm when it produces a better layout. |
 
 The algorithm may promote a `double` to a `triple` (three rows) when doing so reduces gaps or eliminates an orphan. This is purely a layout decision — the slot itself only declares `span: 1` or `span: 2`. The `triple` type exists in `CardType` but is never assigned directly by slot authors.
@@ -117,7 +117,7 @@ interface StatCardBasicProps {
   subValue?: string // secondary line, mono font, tertiary color
   trend?: "up" | "down" | "flat"
   tooltip?: string // adds a "?" button with a popover
-  icon?: ReactNode // 16×16 icon in the top-right corner
+  icon?: ReactNode // 16x16 icon in the top-right corner
   accentColor?: string // hex color for the glow effect
   alert?: "warn" | "danger"
   alertReason?: string // shown in a "!" tooltip when alert is set

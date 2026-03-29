@@ -1,13 +1,14 @@
 // src/lib/scheduler.ts
 //
-// Functions: pollTracker, pollAllTrackers, pruneOldSnapshots, pruneOldCheckpoints, startScheduler, stopScheduler, ensureSchedulerRunning, fetchTrackerStats, POLL_FAILURE_THRESHOLD
+// Functions: pollTracker, pollAllTrackers, pruneOldSnapshots, pruneOldCheckpoints,
+// startScheduler, stopScheduler, ensureSchedulerRunning, fetchTrackerStats, POLL_FAILURE_THRESHOLD
 import type { Agent as HttpAgent } from "node:http"
 
 import { and, desc, eq, isNotNull, lt, notInArray, sql } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { buildFetchOptions, getAdapter } from "@/lib/adapters"
-import type { MamPlatformMeta, TrackerStats } from "@/lib/adapters/types"
+import type { AvistazPlatformMeta, MamPlatformMeta, TrackerStats } from "@/lib/adapters/types"
 import { pruneDismissedAlerts } from "@/lib/alert-pruning"
 import { startBackupScheduler, stopBackupScheduler } from "@/lib/backup-scheduler"
 import {
@@ -25,6 +26,7 @@ import {
   trackerSnapshots,
   trackers,
 } from "@/lib/db/schema"
+import type { NotificationTargetRow, TrackerRow } from "@/lib/db/schema"
 import { sanitizeNetworkError } from "@/lib/error-utils"
 import { localDateStr } from "@/lib/formatters"
 import { log } from "@/lib/logger"
@@ -74,7 +76,7 @@ export async function fetchTrackerStats(
   trackerId: number,
   encryptionKey: Buffer,
   proxyAgent?: HttpAgent
-): Promise<{ stats: TrackerStats; tracker: typeof trackers.$inferSelect }> {
+): Promise<{ stats: TrackerStats; tracker: TrackerRow }> {
   const [tracker] = await db.select().from(trackers).where(eq(trackers.id, trackerId)).limit(1)
   if (!tracker?.isActive) throw new Error("Tracker not found or inactive")
 
@@ -104,12 +106,11 @@ export async function fetchTrackerStats(
   }
   if (stats.joinedDate && !tracker.joinedAt) {
     const parsed = new Date(stats.joinedDate)
-    if (!Number.isNaN(parsed.getTime())) metaUpdates.joinedAt = parsed.toISOString().split("T")[0]
+    if (!Number.isNaN(parsed.getTime())) metaUpdates.joinedAt = localDateStr(parsed)
   }
   if (stats.lastAccessDate) {
     const parsed = new Date(stats.lastAccessDate)
-    if (!Number.isNaN(parsed.getTime()))
-      metaUpdates.lastAccessAt = parsed.toISOString().split("T")[0]
+    if (!Number.isNaN(parsed.getTime())) metaUpdates.lastAccessAt = localDateStr(parsed)
   }
   if (stats.platformMeta) metaUpdates.platformMeta = JSON.stringify(stats.platformMeta)
   if (stats.avatarUrl) metaUpdates.avatarRemoteUrl = stats.avatarUrl
@@ -128,7 +129,7 @@ export async function pollTracker(
   privacyMode: boolean,
   proxyAgent?: HttpAgent,
   batchTimestamp?: Date,
-  enabledTargets?: (typeof notificationTargets.$inferSelect)[]
+  enabledTargets?: NotificationTargetRow[]
 ): Promise<void> {
   const [tracker] = await db.select().from(trackers).where(eq(trackers.id, trackerId)).limit(1)
 
@@ -154,6 +155,13 @@ export async function pollTracker(
     })
     const stats = await adapter.fetchStats(tracker.baseUrl, apiToken, tracker.apiPath, fetchOptions)
 
+    // Snapshot the previous platformMeta BEFORE writing the current poll's metadata to DB.
+    // dispatchNotifications uses this for change detection (i.e. canDownload transition).
+    const previousPlatformMeta =
+      tracker.platformType === "avistaz" && tracker.platformMeta
+        ? (JSON.parse(tracker.platformMeta) as Record<string, unknown>)
+        : null
+
     // Cache metadata from poll (remoteUserId saves an API call, joinedDate/platformMeta enrich the UI)
     const metaUpdates: Record<string, unknown> = {}
     if (stats.remoteUserId && stats.remoteUserId !== tracker.remoteUserId) {
@@ -162,13 +170,13 @@ export async function pollTracker(
     if (stats.joinedDate && !tracker.joinedAt) {
       const parsed = new Date(stats.joinedDate)
       if (!Number.isNaN(parsed.getTime())) {
-        metaUpdates.joinedAt = parsed.toISOString().split("T")[0]
+        metaUpdates.joinedAt = localDateStr(parsed)
       }
     }
     if (stats.lastAccessDate) {
       const parsed = new Date(stats.lastAccessDate)
       if (!Number.isNaN(parsed.getTime())) {
-        metaUpdates.lastAccessAt = parsed.toISOString().split("T")[0]
+        metaUpdates.lastAccessAt = localDateStr(parsed)
       }
     }
     if (stats.platformMeta) {
@@ -254,6 +262,11 @@ export async function pollTracker(
           ? (stats.platformMeta as MamPlatformMeta | undefined)
           : undefined
 
+      const avistazMeta =
+        tracker.platformType === "avistaz"
+          ? (stats.platformMeta as AvistazPlatformMeta | undefined)
+          : undefined
+
       await dispatchNotifications(
         {
           trackerId: tracker.id,
@@ -276,7 +289,7 @@ export async function pollTracker(
           trackerPausedAt: null,
           trackerJoinedAt: tracker.joinedAt ?? null,
           minimumRatio: findRegistryEntry(tracker.baseUrl)?.rules?.minimumRatio,
-          mamContext:
+          platformContext:
             tracker.platformType === "mam"
               ? {
                   currentSeedbonus: stats.seedbonus ?? null,
@@ -286,8 +299,23 @@ export async function pollTracker(
                   unsatisfiedLimit: mamMeta?.unsatisfiedLimit ?? null,
                   inactiveHnrCount: stats.hitAndRuns ?? null,
                   previousInactiveHnrCount: previousSnapshot?.hitAndRuns ?? null,
+                  canDownload: null,
+                  previousCanDownload: null,
                 }
-              : undefined,
+              : tracker.platformType === "avistaz"
+                ? {
+                    currentSeedbonus: stats.seedbonus ?? null,
+                    previousSeedbonus: previousSnapshot?.seedbonus ?? null,
+                    vipUntil: avistazMeta?.vipExpiry ?? null,
+                    unsatisfiedCount: null,
+                    unsatisfiedLimit: null,
+                    inactiveHnrCount: null,
+                    previousInactiveHnrCount: null,
+                    canDownload: avistazMeta?.canDownload ?? null,
+                    previousCanDownload:
+                      (previousPlatformMeta?.canDownload as boolean | null) ?? null,
+                  }
+                : undefined,
         },
         encryptionKey,
         enabledTargets
@@ -361,7 +389,7 @@ export async function pollTracker(
           trackerPausedAt: tracker?.pausedAt?.toISOString() ?? null,
           trackerJoinedAt: tracker?.joinedAt ?? null,
           minimumRatio: undefined,
-          mamContext: undefined,
+          platformContext: undefined,
         },
         encryptionKey,
         enabledTargets
@@ -392,15 +420,16 @@ export async function pruneOldSnapshots(retentionDays: number): Promise<number> 
 export async function pruneOldCheckpoints(retentionDays: number): Promise<number> {
   const cutoffDate = localDateStr(Date.now() - retentionDays * 24 * 60 * 60 * 1000)
 
-  const deletedTracker = await db
-    .delete(trackerDailyCheckpoints)
-    .where(lt(trackerDailyCheckpoints.checkpointDate, cutoffDate))
-    .returning({ id: trackerDailyCheckpoints.id })
-
-  const deletedTorrent = await db
-    .delete(torrentDailyCheckpoints)
-    .where(lt(torrentDailyCheckpoints.checkpointDate, cutoffDate))
-    .returning({ id: torrentDailyCheckpoints.id })
+  const [deletedTracker, deletedTorrent] = await Promise.all([
+    db
+      .delete(trackerDailyCheckpoints)
+      .where(lt(trackerDailyCheckpoints.checkpointDate, cutoffDate))
+      .returning({ id: trackerDailyCheckpoints.id }),
+    db
+      .delete(torrentDailyCheckpoints)
+      .where(lt(torrentDailyCheckpoints.checkpointDate, cutoffDate))
+      .returning({ id: torrentDailyCheckpoints.id }),
+  ])
 
   return deletedTracker.length + deletedTorrent.length
 }
@@ -446,7 +475,7 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
   const proxyAgent = settings ? buildProxyAgentFromSettings(settings, encryptionKey) : undefined
 
   // Fetch notification targets once for the entire poll cycle (avoids N identical queries)
-  let enabledNotificationTargets: (typeof notificationTargets.$inferSelect)[] = []
+  let enabledNotificationTargets: NotificationTargetRow[] = []
   try {
     enabledNotificationTargets = await db
       .select()

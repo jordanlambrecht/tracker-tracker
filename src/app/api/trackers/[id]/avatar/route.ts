@@ -6,7 +6,7 @@
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseTrackerId, validateHttpUrl } from "@/lib/api-helpers"
+import { authenticate, decodeKey, parseTrackerId, validateHttpUrl, type RouteContext } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
@@ -14,6 +14,18 @@ import { buildProxyAgentFromSettings, proxyFetch } from "@/lib/proxy"
 
 const STALE_MS = 7 * 24 * 60 * 60 * 1000
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
+
+/** Detect image format from magic bytes. Falls back to image/png. */
+function sniffImageMime(buf: Buffer): string {
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "image/jpeg"
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return "image/png"
+  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) return "image/gif"
+  if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
+      buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50) return "image/webp"
+  if (buf[0] === 0x00 && buf[1] === 0x00 && buf[2] === 0x00 && buf[4] === 0x66 &&
+      buf[5] === 0x74 && buf[6] === 0x79 && buf[7] === 0x70) return "image/avif"
+  return "image/png"
+}
 
 function avatarUrl(
   platformType: string,
@@ -27,7 +39,7 @@ function avatarUrl(
   return null
 }
 
-export async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
+export async function GET(_request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -40,6 +52,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
       remoteUserId: trackers.remoteUserId,
       useProxy: trackers.useProxy,
       avatarData: trackers.avatarData,
+      avatarMimeType: trackers.avatarMimeType,
       avatarCachedAt: trackers.avatarCachedAt,
       avatarRemoteUrl: trackers.avatarRemoteUrl,
     })
@@ -68,7 +81,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
       const data = Buffer.from(tracker.avatarData, "base64")
       return new NextResponse(new Uint8Array(data), {
         headers: {
-          "Content-Type": "image/png",
+          "Content-Type": tracker.avatarMimeType ?? "image/png",
           "Cache-Control": "private, max-age=86400",
         },
       })
@@ -78,6 +91,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
   // Fetch from tracker
   try {
     let imageBuffer: Buffer
+    let mimeType = "image/png"
 
     if (tracker.useProxy) {
       const [settings] = await db
@@ -102,7 +116,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
       const result = await proxyFetch(url, agent, {
         timeoutMs: 10000,
         maxBytes: MAX_AVATAR_BYTES,
-        headers: { Accept: "image/png,image/*" },
+        headers: { Accept: "image/*" },
       })
 
       if (!result.ok) {
@@ -110,6 +124,8 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
       }
 
       imageBuffer = await result.buffer()
+      // proxyFetch doesn't expose content-type; sniff from magic bytes
+      mimeType = sniffImageMime(imageBuffer)
     } else {
       const response = await fetch(url, { signal: AbortSignal.timeout(10000) })
       if (!response.ok) {
@@ -120,6 +136,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
         return NextResponse.json({ error: "Avatar too large" }, { status: 413 })
       }
       imageBuffer = Buffer.from(await response.arrayBuffer())
+      mimeType = response.headers.get("content-type")?.split(";")[0].trim() || sniffImageMime(imageBuffer)
     }
 
     if (imageBuffer.length > MAX_AVATAR_BYTES) {
@@ -131,13 +148,14 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
       .update(trackers)
       .set({
         avatarData: imageBuffer.toString("base64"),
+        avatarMimeType: mimeType,
         avatarCachedAt: new Date(),
       })
       .where(eq(trackers.id, trackerId))
 
     return new NextResponse(new Uint8Array(imageBuffer), {
       headers: {
-        "Content-Type": "image/png",
+        "Content-Type": mimeType,
         "Cache-Control": "private, max-age=86400",
       },
     })
@@ -151,7 +169,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
       const data = Buffer.from(tracker.avatarData, "base64")
       return new NextResponse(new Uint8Array(data), {
         headers: {
-          "Content-Type": "image/png",
+          "Content-Type": tracker.avatarMimeType ?? "image/png",
           "Cache-Control": "private, max-age=3600",
         },
       })

@@ -6,8 +6,9 @@
 
 import ReactECharts from "echarts-for-react"
 import "echarts-gl"
+import { localDateStr } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
-import type { TrackerSnapshotSeries } from "@/types/charts"
+import type { FleetChartProps, TrackerSnapshotSeries } from "@/types/charts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { autoByteScale, fmtNum } from "./lib/chart-helpers"
 import { CHART_THEME, chartAxisLabel, chartTooltip, escHtml } from "./lib/theme"
@@ -16,10 +17,7 @@ import { CHART_THEME, chartAxisLabel, chartTooltip, escHtml } from "./lib/theme"
 // Types
 // ---------------------------------------------------------------------------
 
-interface VolumeSurface3DProps {
-  trackerData: TrackerSnapshotSeries[]
-  height?: number
-}
+interface VolumeSurface3DProps extends FleetChartProps {}
 
 interface GridResult {
   bucketLabels: string[]
@@ -51,7 +49,7 @@ function computeDailyGrid(trackerData: TrackerSnapshotSeries[]): {
     )
     const dayMap = new Map<string, Snapshot>()
     for (const snap of sorted) {
-      const day = new Date(snap.polledAt).toISOString().slice(0, 10)
+      const day = localDateStr(new Date(snap.polledAt))
       dayMap.set(day, snap)
     }
     return dayMap
@@ -108,7 +106,7 @@ function getBucketKey(day: string, granularity: "day" | "week" | "month"): strin
   const dow = d.getDay()
   const monday = new Date(d)
   monday.setDate(d.getDate() - ((dow + 6) % 7))
-  return monday.toISOString().slice(0, 10)
+  return localDateStr(monday)
 }
 
 /** Format a bucket key into a human-readable label. */
@@ -217,10 +215,10 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
     }
   }
 
-  // Adaptive bar size — fewer buckets = fatter bars
+  // Adaptive bar size. fewer buckets = fatter bars
   const barSize = bucketCount > 40 ? 4 : bucketCount > 20 ? 6 : bucketCount > 10 ? 8 : 10
 
-  // Adaptive box width — wider for more buckets
+  // Adaptive box width
   const boxWidth = Math.min(300, Math.max(150, bucketCount * 6))
 
   const periodLabel =
@@ -237,7 +235,7 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
         const formatted = fmtNum(Math.abs(val))
         return (
           `<div style="font-family:var(--font-mono),monospace">` +
-          `<div style="color:${CHART_THEME.textTertiary};font-size:11px;margin-bottom:2px">${escHtml(bucketLabel)}</div>` +
+          `<div style="color:${CHART_THEME.textTertiary};font-size:${CHART_THEME.fontSizeDense}px;margin-bottom:2px">${escHtml(bucketLabel)}</div>` +
           `<div><span style="color:${CHART_THEME.textSecondary}">${escHtml(tracker)}:</span> <b>${formatted} ${unit}</b></div>` +
           `</div>`
         )
@@ -258,10 +256,10 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
       nameTextStyle: {
         color: CHART_THEME.textSecondary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
+        fontSize: CHART_THEME.fontSizeDense,
       },
       axisLabel: chartAxisLabel({
-        fontSize: 9,
+        fontSize: CHART_THEME.fontSizeMicro,
         interval: Math.max(0, Math.floor(displayLabels.length / 8) - 1),
       }),
       axisLine: { lineStyle: { color: CHART_THEME.borderEmphasis } },
@@ -273,7 +271,7 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
       nameTextStyle: {
         color: CHART_THEME.textSecondary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
+        fontSize: CHART_THEME.fontSizeDense,
       },
       axisLabel: chartAxisLabel(),
       axisLine: { lineStyle: { color: CHART_THEME.borderEmphasis } },
@@ -284,9 +282,9 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
       nameTextStyle: {
         color: CHART_THEME.textSecondary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 11,
+        fontSize: CHART_THEME.fontSizeDense,
       },
-      axisLabel: chartAxisLabel({ fontSize: 9 }),
+      axisLabel: chartAxisLabel({ fontSize: CHART_THEME.fontSizeMicro }),
       axisLine: { lineStyle: { color: CHART_THEME.borderEmphasis } },
     },
     grid3D: {

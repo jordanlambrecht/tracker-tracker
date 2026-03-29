@@ -1,25 +1,28 @@
 // src/lib/notifications/dispatch.ts
-//
-// Functions: dispatchNotifications, detectEvents, buildEventData
 
 import { eq } from "drizzle-orm"
 import { MAM_BONUS_CAP } from "@/lib/adapters/constants"
 import { db } from "@/lib/db"
+import type { NotificationTargetRow } from "@/lib/db/schema"
 import { notificationDeliveryState, notificationTargets } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
 import { decryptNotificationConfig } from "@/lib/notifications/decrypt"
 import { deliverDiscordWebhook } from "@/lib/notifications/deliver"
 import { buildDiscordEmbed } from "@/lib/notifications/payload"
-import type {
-  DiscordConfig,
-  NotificationEventType,
-  NotificationThresholds,
+import {
+  type DiscordConfig,
+  isDiscordConfig,
+  type NotificationEventType,
+  type NotificationThresholds,
+  parseThresholds,
+  type SnapshotContext,
 } from "@/lib/notifications/types"
 import {
   checkActiveHnrs,
   checkAnniversaryMilestone,
   checkBonusCapReached,
   checkBufferMilestoneCrossed,
+  checkDownloadDisabled,
   checkHnrIncrease,
   checkRankChange,
   checkRatioBelowMinimumTransition,
@@ -31,46 +34,13 @@ import {
   EVENT_SNOOZE_MS,
 } from "@/lib/tracker-events"
 
-export interface SnapshotContext {
-  trackerId: number
-  trackerName: string
-  storeUsernames: boolean
-  currentRatio: number | null
-  previousRatio: number | null
-  currentHnrs: number | null
-  previousHnrs: number | null
-  currentBufferBytes: bigint | null
-  previousBufferBytes: bigint | null
-  trackerDown: boolean
-  trackerError: string | null
-  currentWarned: boolean | null
-  previousWarned: boolean | null
-  currentSeedingCount: number | null
-  currentGroup: string | null
-  previousGroup: string | null
-  trackerIsActive: boolean
-  trackerPausedAt: string | null
-  trackerJoinedAt: string | null
-  minimumRatio: number | undefined
-  // MAM-specific fields grouped into sub-object; undefined for non-MAM trackers
-  mamContext?: {
-    currentSeedbonus: number | null
-    previousSeedbonus: number | null
-    vipUntil: string | null
-    unsatisfiedCount: number | null
-    unsatisfiedLimit: number | null
-    inactiveHnrCount: number | null
-    previousInactiveHnrCount: number | null
-  }
-}
-
 export async function dispatchNotifications(
   ctx: SnapshotContext,
   encryptionKey: Buffer,
-  enabledTargets?: (typeof notificationTargets.$inferSelect)[]
+  enabledTargets?: NotificationTargetRow[]
 ): Promise<void> {
   // Use pre-fetched targets if provided, otherwise query (backward-compat)
-  let targets: (typeof notificationTargets.$inferSelect)[]
+  let targets: NotificationTargetRow[]
   if (enabledTargets) {
     targets = enabledTargets
   } else {
@@ -107,7 +77,7 @@ export async function dispatchNotifications(
 
   for (const target of targets) {
     try {
-      // Scope filter — null means all trackers, array means specific tracker IDs
+      // Scope filter. null means all trackers, array means specific tracker IDs
       if (target.scope !== null && !target.scope.includes(ctx.trackerId)) continue
 
       const events = detectEvents(ctx, target)
@@ -117,9 +87,9 @@ export async function dispatchNotifications(
       const anniversaryLabel = events.includes("anniversary")
         ? checkAnniversaryMilestone(ctx.trackerJoinedAt)?.label
         : undefined
-      const targetThresholds = (target.thresholds as NotificationThresholds | null) ?? null
+      const targetThresholds = parseThresholds(target.thresholds)
 
-      // Only Discord is currently supported — skip unknown types
+      // Only Discord is currently supported. Skip unknown types
       if (target.type !== "discord") {
         log.warn(
           `dispatchNotifications: skipping unsupported target type "${target.type}" for "${target.name}" (id=${target.id})`
@@ -129,7 +99,14 @@ export async function dispatchNotifications(
 
       let config: DiscordConfig
       try {
-        config = decryptNotificationConfig(target, encryptionKey) as DiscordConfig
+        const raw = decryptNotificationConfig(target, encryptionKey)
+        if (!isDiscordConfig(raw)) {
+          log.error(
+            `dispatchNotifications: decrypted config is not a valid DiscordConfig for "${target.name}" (id=${target.id})`
+          )
+          continue
+        }
+        config = raw
       } catch {
         log.error(
           `dispatchNotifications: cannot decrypt config for notification target "${target.name}" (id=${target.id})`
@@ -137,13 +114,13 @@ export async function dispatchNotifications(
         continue
       }
 
-      // Collect per-target delivery results — write once after the event loop
+      // Collect per-target delivery results
       let finalStatus: "delivered" | "failed" | "rate_limited" | null = null
       let finalError: string | null = null
 
       for (const event of events) {
         try {
-          // Cooldown check — in-memory lookup from batched query
+          // Cooldown check. In-memory lookup from batched query
           const snoozedUntil = cooldownMap.get(`${target.id}:${event}`)
           if (snoozedUntil && now < snoozedUntil) continue
 
@@ -155,9 +132,7 @@ export async function dispatchNotifications(
             data: buildEventData(event, ctx, targetThresholds, anniversaryLabel),
           })
 
-          const result = await deliverDiscordWebhook(target.id, config.webhookUrl, [
-            embed as unknown as Record<string, unknown>,
-          ])
+          const result = await deliverDiscordWebhook(target.id, config.webhookUrl, [embed])
 
           // Track worst-case status for this target: failed > rate_limited > delivered
           if (
@@ -197,7 +172,7 @@ export async function dispatchNotifications(
         }
       }
 
-      // Write delivery status once per target, not per event
+      // Write delivery status
       if (finalStatus) {
         await db
           .update(notificationTargets)
@@ -218,10 +193,10 @@ export async function dispatchNotifications(
 
 export function detectEvents(
   ctx: SnapshotContext,
-  target: typeof notificationTargets.$inferSelect
+  target: NotificationTargetRow
 ): NotificationEventType[] {
   const events: NotificationEventType[] = []
-  const thresholds = (target.thresholds as NotificationThresholds | null) ?? {}
+  const thresholds = parseThresholds(target.thresholds)
 
   if (
     target.notifyRatioDrop &&
@@ -277,8 +252,8 @@ export function detectEvents(
     const capLimit = (thresholds?.bonusCapLimit as number | undefined) ?? MAM_BONUS_CAP
     if (
       checkBonusCapReached(
-        ctx.mamContext?.currentSeedbonus ?? null,
-        ctx.mamContext?.previousSeedbonus ?? null,
+        ctx.platformContext?.currentSeedbonus ?? null,
+        ctx.platformContext?.previousSeedbonus ?? null,
         capLimit
       )
     ) {
@@ -288,7 +263,7 @@ export function detectEvents(
 
   if (target.notifyVipExpiring) {
     const days = (thresholds?.vipExpiringDays as number | undefined) ?? 7
-    if (checkVipExpiringSoon(ctx.mamContext?.vipUntil ?? null, days)) {
+    if (checkVipExpiringSoon(ctx.platformContext?.vipUntil ?? null, days)) {
       events.push("vip_expiring")
     }
   }
@@ -297,8 +272,8 @@ export function detectEvents(
     const pct = (thresholds?.unsatisfiedLimitPercent as number | undefined) ?? 80
     if (
       checkUnsatisfiedLimitApproaching(
-        ctx.mamContext?.unsatisfiedCount ?? null,
-        ctx.mamContext?.unsatisfiedLimit ?? null,
+        ctx.platformContext?.unsatisfiedCount ?? null,
+        ctx.platformContext?.unsatisfiedLimit ?? null,
         pct
       )
     ) {
@@ -309,11 +284,22 @@ export function detectEvents(
   if (target.notifyActiveHnrs) {
     if (
       checkActiveHnrs(
-        ctx.mamContext?.inactiveHnrCount ?? null,
-        ctx.mamContext?.previousInactiveHnrCount ?? null
+        ctx.platformContext?.inactiveHnrCount ?? null,
+        ctx.platformContext?.previousInactiveHnrCount ?? null
       )
     ) {
       events.push("active_hnrs")
+    }
+  }
+
+  if (target.notifyDownloadDisabled) {
+    if (
+      checkDownloadDisabled(
+        ctx.platformContext?.canDownload ?? null,
+        ctx.platformContext?.previousCanDownload ?? null
+      )
+    ) {
+      events.push("download_disabled")
     }
   }
 
@@ -347,17 +333,19 @@ export function buildEventData(
       return { label: anniversaryLabel ?? "Anniversary" }
     case "bonus_cap": {
       const effectiveCap = (thresholds?.bonusCapLimit as number | undefined) ?? MAM_BONUS_CAP
-      return { currentBonus: ctx.mamContext?.currentSeedbonus ?? null, capLimit: effectiveCap }
+      return { currentBonus: ctx.platformContext?.currentSeedbonus ?? null, capLimit: effectiveCap }
     }
     case "vip_expiring":
-      return { vipUntil: ctx.mamContext?.vipUntil ?? null }
+      return { vipUntil: ctx.platformContext?.vipUntil ?? null }
     case "unsatisfied_limit":
       return {
-        count: ctx.mamContext?.unsatisfiedCount ?? null,
-        limit: ctx.mamContext?.unsatisfiedLimit ?? null,
+        count: ctx.platformContext?.unsatisfiedCount ?? null,
+        limit: ctx.platformContext?.unsatisfiedLimit ?? null,
       }
     case "active_hnrs":
-      return { count: ctx.mamContext?.inactiveHnrCount ?? null }
+      return { count: ctx.platformContext?.inactiveHnrCount ?? null }
+    case "download_disabled":
+      return {}
     default:
       return {}
   }

@@ -1,12 +1,10 @@
 // src/components/dashboard/AlertsBanner.tsx
-//
-// Functions: AlertsBanner
-
 "use client"
 
 import Link from "next/link"
 import { useCallback, useState } from "react"
 import type { DashboardAlert } from "@/lib/dashboard"
+import { formatDateTime } from "@/lib/formatters"
 
 interface AlertsBannerProps {
   alerts: DashboardAlert[]
@@ -66,7 +64,7 @@ function AlertsBanner({ alerts, onDismiss, onDismissAll }: AlertsBannerProps) {
           <button
             type="button"
             onClick={handleDismissAll}
-            className="text-[10px] font-mono text-muted hover:text-secondary transition-colors duration-150 cursor-pointer uppercase tracking-wider"
+            className="timestamp hover:text-secondary transition-colors duration-150 cursor-pointer uppercase tracking-wider"
           >
             Clear All
           </button>
@@ -78,7 +76,7 @@ function AlertsBanner({ alerts, onDismiss, onDismissAll }: AlertsBannerProps) {
         return (
           <div
             key={alert.key}
-            className="overflow-hidden transition-all duration-250 ease-out"
+            className="overflow-hidden transition-all duration-200 ease-out"
             style={{
               maxHeight: isDismissing ? 0 : 80,
               marginBottom: isDismissing ? -8 : 0,
@@ -91,7 +89,7 @@ function AlertsBanner({ alerts, onDismiss, onDismissAll }: AlertsBannerProps) {
             }}
           >
             <div
-              className="flex items-start sm:items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 nm-inset-sm bg-control-bg rounded-nm-md transition-transform duration-250 ease-out"
+              className="flex items-start sm:items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 nm-inset-sm bg-control-bg rounded-nm-md transition-transform duration-200 ease-out"
               style={{
                 borderLeft: `3px solid ${config.borderColor}`,
                 transform: isDismissing ? "translateX(-12px)" : "translateX(0)",
@@ -116,8 +114,8 @@ function AlertsBanner({ alerts, onDismiss, onDismissAll }: AlertsBannerProps) {
                 <span className="font-mono text-xs text-tertiary truncate">{alert.message}</span>
               </div>
               {alert.timestamp && (
-                <span className="font-mono text-[10px] text-muted shrink-0 hidden sm:block">
-                  {new Date(alert.timestamp).toLocaleString()}
+                <span className="timestamp shrink-0 hidden sm:block">
+                  {formatDateTime(alert.timestamp)}
                 </span>
               )}
               {alert.dismissible !== false && (
@@ -127,7 +125,7 @@ function AlertsBanner({ alerts, onDismiss, onDismissAll }: AlertsBannerProps) {
                   className="text-muted hover:text-secondary transition-colors duration-150 cursor-pointer shrink-0 px-1 mt-0.5 sm:mt-0"
                   aria-label={`Dismiss ${config.label} alert for ${alert.trackerName}`}
                 >
-                  ×
+                  x
                 </button>
               )}
             </div>

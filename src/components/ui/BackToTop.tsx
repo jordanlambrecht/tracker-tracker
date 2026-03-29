@@ -49,6 +49,8 @@ interface BackToTopProps {
   scrollRef: React.RefObject<HTMLElement | null>
 }
 
+export type { BackToTopProps }
+
 export function BackToTop({ scrollRef }: BackToTopProps) {
   const [visible, setVisible] = useState(false)
   const [scrollProgress, setScrollProgress] = useState(0)
@@ -88,7 +90,7 @@ export function BackToTop({ scrollRef }: BackToTopProps) {
     <button
       type="button"
       onClick={scrollToTop}
-      className="fixed bottom-6 right-6 z-40 w-10 h-10 grid place-items-center rounded-full bg-elevated text-tertiary hover:text-primary cursor-pointer"
+      className="fixed bottom-6 right-6 z-30 w-10 h-10 grid place-items-center rounded-full bg-elevated text-tertiary hover:text-primary cursor-pointer"
       style={{
         boxShadow: buildShadow(scrollProgress),
         opacity: visible ? 1 : 0,

@@ -1,12 +1,12 @@
 // src/app/api/trackers/[id]/roles/route.ts
 import { desc, eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, parseJsonBody, parseTrackerId } from "@/lib/api-helpers"
+import { authenticate, parseJsonBody, parseTrackerId, type RouteContext } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { trackerRoles } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
 
-export async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
+export async function GET(_request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -19,10 +19,15 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
     .where(eq(trackerRoles.trackerId, trackerId))
     .orderBy(desc(trackerRoles.achievedAt))
 
-  return NextResponse.json(roles)
+  return NextResponse.json(
+    roles.map((role) => ({
+      ...role,
+      achievedAt: role.achievedAt?.toISOString() ?? null,
+    }))
+  )
 }
 
-export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -70,5 +75,8 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     .returning()
 
   log.info({ route: "POST /api/trackers/[id]/roles", trackerId }, "role created")
-  return NextResponse.json(role, { status: 201 })
+  return NextResponse.json(
+    { ...role, achievedAt: role.achievedAt?.toISOString() ?? null },
+    { status: 201 }
+  )
 }

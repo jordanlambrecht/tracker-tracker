@@ -5,9 +5,10 @@
 "use client"
 
 import type { CandlestickSeriesOption, EChartsOption } from "echarts"
-import { bytesToGiB, hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
+import { bytesToGiB } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
-import type { TrackerSnapshotSeries } from "@/types/charts"
+import type { FleetChartProps, TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import {
@@ -31,10 +32,7 @@ import {
 } from "./lib/theme"
 import { useLogScale } from "./lib/useLogScale"
 
-interface BufferCandlestickChartProps {
-  trackerData: TrackerSnapshotSeries[]
-  height?: number
-}
+interface BufferCandlestickChartProps extends FleetChartProps {}
 
 interface CandlestickResult {
   days: string[]
@@ -219,7 +217,7 @@ function buildCandlestickOption(
           })
           .join("")
 
-        return `<div style="font-family:${CHART_THEME.fontMono};font-size:11px;">${header}${rows}</div>`
+        return `<div style="font-family:${CHART_THEME.fontMono};font-size:${CHART_THEME.fontSizeDense}px;">${header}${rows}</div>`
       },
     }),
     xAxis: buildTimeXAxis({ boundaryGap: true }),
@@ -230,7 +228,7 @@ function buildCandlestickOption(
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },

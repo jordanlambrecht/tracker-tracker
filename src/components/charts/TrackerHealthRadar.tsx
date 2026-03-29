@@ -1,10 +1,8 @@
 // src/components/charts/TrackerHealthRadar.tsx
-//
-// Functions: computeTrackerMetrics, normalizeMetrics, buildTrackerHealthRadarOption, TrackerHealthRadar
-
 "use client"
 
 import type { EChartsOption } from "echarts"
+import { formatCount, formatPercent, formatRatio } from "@/lib/formatters"
 import type { TrackerTag } from "@/lib/fleet"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 import { ChartECharts } from "./lib/ChartECharts"
@@ -115,9 +113,9 @@ function buildTrackerHealthRadarOption(
         const dot = chartDot(p.color)
         return [
           `${dot}<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(m.name)}</span>`,
-          chartTooltipRow(p.color, "Torrents", m.torrentCount.toLocaleString()),
-          chartTooltipRow(p.color, "Avg Ratio", m.avgRatio.toFixed(2)),
-          chartTooltipRow(p.color, "Freshness", `${m.freshnessPct.toFixed(1)}%`),
+          chartTooltipRow(p.color, "Torrents", formatCount(m.torrentCount)),
+          chartTooltipRow(p.color, "Avg Ratio", formatRatio(m.avgRatio)),
+          chartTooltipRow(p.color, "Freshness", formatPercent(m.freshnessPct)),
           chartTooltipRow(p.color, "Avg Seed Time", `${m.avgSeedTimeDays.toFixed(1)}d`),
         ].join("<br/>")
       },
@@ -136,7 +134,7 @@ function buildTrackerHealthRadarOption(
       axisName: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       splitLine: {
         lineStyle: { color: CHART_THEME.gridLine },

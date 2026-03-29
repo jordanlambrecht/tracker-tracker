@@ -26,9 +26,13 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "All ids must be integers" }, { status: 400 })
   }
 
-  await Promise.all(
-    ids.map((id, index) => db.update(trackers).set({ sortOrder: index }).where(eq(trackers.id, id)))
-  )
+  const uniqueIds = [...new Set(ids)]
 
-  return NextResponse.json({ ok: true })
+  await db.transaction(async (tx) => {
+    for (let i = 0; i < uniqueIds.length; i++) {
+      await tx.update(trackers).set({ sortOrder: i }).where(eq(trackers.id, uniqueIds[i]))
+    }
+  })
+
+  return NextResponse.json({ success: true })
 }

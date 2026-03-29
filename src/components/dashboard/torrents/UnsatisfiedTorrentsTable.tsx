@@ -1,12 +1,11 @@
 // src/components/dashboard/torrents/UnsatisfiedTorrentsTable.tsx
-
 "use client"
 
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
-import { formatBytesNum, formatDuration } from "@/lib/formatters"
+import { formatBytesNum, formatDuration, formatPercent } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 
 interface UnsatisfiedTorrentsTableProps {
@@ -30,7 +29,7 @@ export function UnsatisfiedTorrentsTable({
       render: (t) => {
         const pct = Math.min((t.seedingTime / requiredSeconds) * 100, 100)
         return (
-          <div className="flex flex-col gap-1.5 min-w-0">
+          <div className="flex flex-col gap-2 min-w-0">
             <MarqueeText className="text-xs font-mono text-secondary">{t.name}</MarqueeText>
             <div className="flex items-center gap-2">
               <div className="flex-1 h-1 rounded-full bg-base overflow-hidden">
@@ -42,8 +41,8 @@ export function UnsatisfiedTorrentsTable({
                   }}
                 />
               </div>
-              <span className="text-[10px] font-mono shrink-0" style={{ color: pctColor(pct) }}>
-                {pct.toFixed(0)}%
+              <span className="text-3xs font-mono shrink-0" style={{ color: pctColor(pct) }}>
+                {formatPercent(pct, 0)}
               </span>
             </div>
           </div>

@@ -4,7 +4,7 @@
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseRouteId } from "@/lib/api-helpers"
+import { authenticate, decodeKey, parseRouteId, type RouteContext } from "@/lib/api-helpers"
 import { decryptClientCredentials } from "@/lib/client-decrypt"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
@@ -12,7 +12,7 @@ import { isDecryptionError } from "@/lib/error-utils"
 import { log } from "@/lib/logger"
 import { buildBaseUrl, getTransferInfo, invalidateSession, login } from "@/lib/qbt"
 
-export async function POST(_request: Request, props: { params: Promise<{ id: string }> }) {
+export async function POST(_request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 

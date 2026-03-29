@@ -129,20 +129,20 @@ describe("ProgressBar color prop", () => {
 })
 
 // ---------------------------------------------------------------------------
-// glow / boxShadow
+// glow / drop-shadow filter
 // ---------------------------------------------------------------------------
 
-describe("ProgressBar box shadow", () => {
-  it("applies glow boxShadow when percent > 0", () => {
+describe("ProgressBar glow", () => {
+  it("applies drop-shadow filter when percent > 0", () => {
     const { getByRole } = render(<ProgressBar percent={50} color="#00d4ff" />)
     const bar = getByRole("progressbar")
-    expect(bar.style.boxShadow).toContain("12px")
+    expect(bar.style.filter).toContain("drop-shadow")
   })
 
-  it("does not apply boxShadow when percent is 0 (fill invisible)", () => {
+  it("does not apply filter when percent is 0 (fill invisible)", () => {
     const { getByRole } = render(<ProgressBar percent={0} color="#00d4ff" />)
     const bar = getByRole("progressbar")
-    expect(bar.style.boxShadow).toBe("")
+    expect(bar.style.filter).toBe("")
   })
 })
 

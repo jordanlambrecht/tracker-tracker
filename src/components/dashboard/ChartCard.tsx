@@ -1,12 +1,9 @@
 // src/components/dashboard/ChartCard.tsx
-//
-// Functions: ChartCard
 
 "use client"
 
 import { H3 } from "@typography"
-import type { ReactNode } from "react"
-import { useEffect, useRef, useState } from "react"
+import { type ReactNode, useEffect, useRef, useState } from "react"
 import { Card } from "@/components/ui/Card"
 import { ChevronUpIcon, EyeOffIcon } from "@/components/ui/Icons"
 import { Tooltip } from "@/components/ui/Tooltip"
@@ -30,13 +27,12 @@ function ChartCard({
 }: ChartCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
-  const [shouldMount, setShouldMount] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
-  // Lazy-load: only mount chart content when card scrolls into view
+  // Defer initial mount until scrolled into view
   useEffect(() => {
     const el = cardRef.current
     if (!el || visible) return
-
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -50,9 +46,16 @@ function ChartCard({
     return () => observer.disconnect()
   }, [visible])
 
+  // Keep children mounted during collapse animation, unmount after it finishes
+  const shouldMount = visible && !collapsed
   useEffect(() => {
-    if (!collapsed && visible) setShouldMount(true)
-  }, [collapsed, visible])
+    if (shouldMount) {
+      setMounted(true)
+    } else if (visible) {
+      const timer = setTimeout(() => setMounted(false), 220)
+      return () => clearTimeout(timer)
+    }
+  }, [shouldMount, visible])
 
   return (
     <div ref={cardRef}>
@@ -70,7 +73,7 @@ function ChartCard({
               <button
                 type="button"
                 onClick={onToggleCollapse}
-                className="w-7 h-7 flex items-center justify-center text-muted hover:text-secondary hover:bg-overlay transition-colors cursor-pointer rounded-nm-sm"
+                className="w-7 h-7 flex items-center justify-center text-muted hover:text-secondary nm-interactive-inset cursor-pointer rounded-nm-sm"
                 aria-label={collapsed ? "Expand chart" : "Collapse chart"}
               >
                 <ChevronUpIcon
@@ -86,7 +89,7 @@ function ChartCard({
               <button
                 type="button"
                 onClick={onHide}
-                className="w-7 h-7 flex items-center justify-center text-muted hover:text-secondary hover:bg-overlay transition-colors cursor-pointer rounded-nm-sm"
+                className="w-7 h-7 flex items-center justify-center text-muted hover:text-secondary nm-interactive-inset cursor-pointer rounded-nm-sm"
                 aria-label="Hide chart"
               >
                 <EyeOffIcon width="14" height="14" />
@@ -102,7 +105,7 @@ function ChartCard({
           {/* p-6 -m-6: overflow-hidden is required for grid collapse animation,
             but clips neumorphic shadows (nm-raised reaches ~24px). The padding
             pushes the clip boundary out; the negative margin cancels layout shift. */}
-          <div className="overflow-hidden p-6 -m-6">{shouldMount && children}</div>
+          <div className={`overflow-hidden p-6 -m-6 transition-opacity duration-150 ${collapsed ? "opacity-0" : "opacity-100"}`}>{mounted && children}</div>
         </div>
       </Card>
     </div>

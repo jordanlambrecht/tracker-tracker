@@ -73,6 +73,7 @@ vi.mock("@/lib/db/schema", () => ({
     remoteUserId: "remoteUserId",
     platformMeta: "platformMeta",
     avatarData: "avatarData",
+    avatarMimeType: "avatarMimeType",
     avatarCachedAt: "avatarCachedAt",
     avatarRemoteUrl: "avatarRemoteUrl",
     useProxy: "useProxy",
@@ -311,6 +312,7 @@ describe("serializeTrackerResponse excludes encryptedApiToken", () => {
       remoteUserId: null,
       platformMeta: null,
       avatarData: null,
+      avatarMimeType: null,
       avatarCachedAt: null,
       avatarRemoteUrl: null,
       useProxy: false,
@@ -346,6 +348,7 @@ describe("trackerColumns security invariant", () => {
 
   it("does NOT include avatarData (large binary, served via dedicated route)", () => {
     expect(columnKeys).not.toContain("avatarData")
+    expect(columnKeys).not.toContain("avatarMimeType")
     expect(columnKeys).not.toContain("avatarCachedAt")
     expect(columnKeys).not.toContain("avatarRemoteUrl")
   })

@@ -1,9 +1,7 @@
 // src/components/TrackerSettingsDialog.tsx
-//
-// Functions: TrackerSettingsDialog
-
 "use client"
 
+import { H2 } from "@typography"
 import clsx from "clsx"
 import { useRouter } from "next/navigation"
 import { type SyntheticEvent, useCallback, useEffect, useState } from "react"
@@ -16,6 +14,7 @@ import { Sheet } from "@/components/ui/Sheet"
 import { Toggle } from "@/components/ui/Toggle"
 import { Tooltip } from "@/components/ui/Tooltip"
 import { findRegistryEntry } from "@/data/tracker-registry"
+import { localDateStr } from "@/lib/formatters"
 import type { TrackerSummary } from "@/types/api"
 
 interface TrackerSettingsDialogProps {
@@ -79,6 +78,8 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
 
   const [changingKey, setChangingKey] = useState(false)
   const [newApiToken, setNewApiToken] = useState("")
+  const [editAvistazUsername, setEditAvistazUsername] = useState("")
+  const [editAvistazCookies, setEditAvistazCookies] = useState("")
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
@@ -88,6 +89,8 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
   const resetTransientState = useCallback(() => {
     setChangingKey(false)
     setNewApiToken("")
+    setEditAvistazUsername("")
+    setEditAvistazCookies("")
     setErrors({})
     setSaving(false)
     setConfirmDelete(false)
@@ -113,7 +116,7 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
         validationErrors.baseUrl = "Invalid URL"
       }
     }
-    if (changingKey && !newApiToken.trim()) {
+    if (changingKey && tracker.platformType !== "avistaz" && !newApiToken.trim()) {
       validationErrors.apiToken = "API token cannot be empty"
     }
 
@@ -125,7 +128,20 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
     setErrors({})
     setSaving(true)
 
-    const trimmedToken = newApiToken.trim()
+    let trimmedToken = newApiToken.trim()
+
+    if (changingKey && tracker.platformType === "avistaz") {
+      if (!editAvistazUsername.trim() || !editAvistazCookies.trim()) {
+        setErrors({ apiToken: "Username and cookies are required" })
+        setSaving(false)
+        return
+      }
+      trimmedToken = JSON.stringify({
+        cookies: editAvistazCookies.trim(),
+        userAgent: navigator.userAgent,
+        username: editAvistazUsername.trim(),
+      })
+    }
 
     // Test the new API key before saving
     if (changingKey && trimmedToken) {
@@ -144,6 +160,16 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
           setErrors({ apiToken: (testData as { error?: string }).error ?? "Connection failed" })
           setSaving(false)
           return
+        }
+        if (tracker.platformType === "avistaz") {
+          const testJson = await testRes.json().catch(() => ({}))
+          if ((testJson as Record<string, unknown>).capturedUserAgent) {
+            trimmedToken = JSON.stringify({
+              cookies: editAvistazCookies.trim(),
+              userAgent: (testJson as Record<string, string>).capturedUserAgent,
+              username: editAvistazUsername.trim(),
+            })
+          }
         }
       } catch {
         setErrors({ apiToken: "Could not verify API key — check your connection" })
@@ -254,10 +280,50 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
 
           {/* API Key — show status or change input */}
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
-              API Key
-            </span>
-            {changingKey ? (
+            <H2 className="uppercase tracking-wider">API Key</H2>
+            {changingKey && tracker.platformType === "avistaz" ? (
+              <div className="flex flex-col gap-2">
+                <Input
+                  label="Username"
+                  autoComplete="off"
+                  data-1p-ignore
+                  value={editAvistazUsername}
+                  onChange={(e) => setEditAvistazUsername(e.target.value)}
+                  placeholder="Your username on this tracker"
+                />
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs uppercase tracking-wider text-secondary font-mono">
+                    Browser Cookies
+                  </label>
+                  <textarea
+                    autoComplete="off"
+                    data-1p-ignore
+                    value={editAvistazCookies}
+                    onChange={(e) => setEditAvistazCookies(e.target.value)}
+                    placeholder="Paste Cookie header from DevTools"
+                    rows={3}
+                    className="w-full rounded-nm-sm bg-control-bg px-3 py-2 text-sm text-primary border border-transparent focus:border-accent focus:outline-none font-mono resize-y"
+                  />
+                </div>
+                {errors.apiToken && (
+                  <p className="text-xs font-sans text-danger" role="alert">
+                    {errors.apiToken}
+                  </p>
+                )}
+                <Button
+                  variant="minimal"
+                  size="sm"
+                  text="Cancel"
+                  className="self-start"
+                  onClick={() => {
+                    setChangingKey(false)
+                    setEditAvistazUsername("")
+                    setEditAvistazCookies("")
+                    setErrors({})
+                  }}
+                />
+              </div>
+            ) : changingKey ? (
               <div className="flex flex-col gap-2">
                 <Input
                   type="password"
@@ -268,17 +334,19 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
                   placeholder="Paste API token"
                   error={errors.apiToken}
                 />
-                <button
-                  type="button"
+                <Button
+                  variant="minimal"
+                  size="sm"
+                  text="Cancel"
+                  className="self-start"
                   onClick={() => {
                     setChangingKey(false)
                     setNewApiToken("")
+                    setEditAvistazUsername("")
+                    setEditAvistazCookies("")
                     setErrors({})
                   }}
-                  className="text-xs font-mono text-tertiary hover:text-secondary transition-colors cursor-pointer self-start"
-                >
-                  Cancel
-                </button>
+                />
               </div>
             ) : (
               <MaskedSecret onChangeClick={() => setChangingKey(true)} />
@@ -329,7 +397,7 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
                 id="settings-joined-at"
                 type="date"
                 value={form.joinedAt}
-                max={new Date().toISOString().split("T")[0]}
+                max={localDateStr()}
                 onChange={(e) => updateField("joinedAt", e.target.value)}
                 className={clsx(
                   "w-full font-mono text-sm text-primary cursor-pointer border-0",
@@ -377,12 +445,8 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
 
           {/* Save / Cancel */}
           <div className="flex gap-3 pt-1 justify-end">
-            <Button type="button" variant="ghost" onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? "Saving..." : "Save Changes"}
-            </Button>
+            <Button variant="ghost" onClick={handleClose} text="Cancel" />
+            <Button type="submit" disabled={saving} text={saving ? "Saving..." : "Save Changes"} />
           </div>
         </form>
 
@@ -394,44 +458,36 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
 
           <div className="flex items-center gap-3">
             <Button
-              type="button"
               variant="secondary"
               size="sm"
               onClick={handleArchive}
               disabled={saving}
-            >
-              {tracker.isActive ? "Archive" : "Reactivate"}
-            </Button>
+              text={tracker.isActive ? "Archive" : "Reactivate"}
+            />
 
             {confirmDelete ? (
               <div className="flex items-center gap-2">
                 <Button
-                  type="button"
                   variant="danger"
                   size="sm"
                   onClick={handleDelete}
                   disabled={deleting}
-                >
-                  {deleting ? "Deleting..." : "Confirm Delete"}
-                </Button>
+                  text={deleting ? "Deleting..." : "Confirm Delete"}
+                />
                 <Button
-                  type="button"
                   variant="ghost"
                   size="sm"
                   onClick={() => setConfirmDelete(false)}
-                >
-                  Cancel
-                </Button>
+                  text="Cancel"
+                />
               </div>
             ) : (
               <Button
-                type="button"
                 variant="danger"
                 size="sm"
                 onClick={() => setConfirmDelete(true)}
-              >
-                Delete
-              </Button>
+                text="Delete"
+              />
             )}
           </div>
         </div>

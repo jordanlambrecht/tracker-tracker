@@ -1,11 +1,10 @@
 // src/components/charts/FleetCompositionChart.tsx
-//
-// Functions: buildFleetOption, FleetCompositionChart
 
 "use client"
 
 import type { EChartsOption } from "echarts"
-import type { TrackerSnapshotSeries } from "@/types/charts"
+import { formatCount } from "@/lib/formatters"
+import type { FleetChartProps, TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import {
@@ -26,10 +25,7 @@ import {
   formatChartTimestamp,
 } from "./lib/theme"
 
-interface FleetCompositionChartProps {
-  trackerData: TrackerSnapshotSeries[]
-  height?: number
-}
+interface FleetCompositionChartProps extends FleetChartProps {}
 
 function buildFleetOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
   // Collect unified ms timestamps for the time axis
@@ -81,11 +77,11 @@ function buildFleetOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
         )
 
         const header = chartTooltipHeader(time)
-        const totalRow = `<div style="color:${CHART_THEME.textPrimary};font-weight:600;margin-bottom:4px;">Total: ${total.toLocaleString()} seeding</div>`
+        const totalRow = `<div style="color:${CHART_THEME.textPrimary};font-weight:600;margin-bottom:4px;">Total: ${formatCount(total)} seeding</div>`
         const rows = sorted
           .map((item) => {
             const val = (item.value as [number, number])[1]
-            return chartTooltipRow(item.color, item.seriesName, val.toLocaleString())
+            return chartTooltipRow(item.color, item.seriesName, formatCount(val))
           })
           .join("<br/>")
 
@@ -99,12 +95,12 @@ function buildFleetOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: chartAxisLabel({
-        formatter: (val: number) => val.toLocaleString(),
+        formatter: (val: number) => formatCount(val),
       }),
       splitLine: {
         lineStyle: {

@@ -1,6 +1,7 @@
 // src/components/tracker-detail/platform/GgnAchievementProgress.tsx
 
 import { ProgressBar } from "@/components/ui/ProgressBar"
+import { formatCount } from "@/lib/formatters"
 import type { GGnPlatformMeta } from "@/types/api"
 
 export interface GgnAchievementProgressProps {
@@ -20,13 +21,13 @@ export function GgnAchievementProgress({ ggMeta, accentColor }: GgnAchievementPr
       <div className="flex items-center justify-between text-xs font-mono">
         <span className="text-secondary font-semibold">{userLevel}</span>
         <span className="text-tertiary">
-          {earned.toLocaleString()} / {totalPoints.toLocaleString()} pts
+          {formatCount(earned)} / {formatCount(totalPoints)} pts
         </span>
         <span className="text-muted">{nextLevel}</span>
       </div>
       <ProgressBar percent={pct} color={accentColor} size="sm" />
-      <p className="text-[10px] font-mono text-muted text-right">
-        {pointsToNextLvl.toLocaleString()} pts to {nextLevel}
+      <p className="timestamp text-right">
+        {formatCount(pointsToNextLvl)} pts to {nextLevel}
       </p>
     </div>
   )

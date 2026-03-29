@@ -1,7 +1,4 @@
 // src/components/settings/DangerZoneSection.tsx
-//
-// Functions: DangerZoneSection
-
 "use client"
 
 import { H3, Paragraph } from "@typography"
@@ -11,7 +8,7 @@ import { SettingsSection } from "@/components/settings/SettingsSection"
 import { Button } from "@/components/ui/Button"
 import { Checkbox } from "@/components/ui/Checkbox"
 import { Input } from "@/components/ui/Input"
-import { extractApiError } from "@/lib/client-helpers"
+import { extractApiError } from "@/lib/helpers"
 
 export function DangerZoneSection() {
   const router = useRouter()
@@ -144,9 +141,8 @@ export function DangerZoneSection() {
                 variant="danger"
                 disabled={resetStatsSubmitting || !resetStatsPassword.trim()}
                 onClick={handleResetStats}
-              >
-                {resetStatsSubmitting ? "Resetting…" : "Confirm Reset"}
-              </Button>
+                text={resetStatsSubmitting ? "Resetting…" : "Confirm Reset"}
+              />
               <Button
                 size="sm"
                 variant="ghost"
@@ -155,9 +151,8 @@ export function DangerZoneSection() {
                   setResetStatsPassword("")
                   setResetStatsError(null)
                 }}
-              >
-                Cancel
-              </Button>
+                text="Cancel"
+              />
             </div>
           </div>
         ) : (
@@ -169,9 +164,8 @@ export function DangerZoneSection() {
                 setConfirmResetStats(true)
                 setResetStatsSuccess(false)
               }}
-            >
-              Reset All Stats
-            </Button>
+              text="Reset All Stats"
+            />
             {resetStatsSuccess && (
               <span className="text-xs font-sans text-success">All stats have been reset.</span>
             )}
@@ -242,9 +236,8 @@ export function DangerZoneSection() {
                   !lockdownPassword.trim()
                 }
                 onClick={handleLockdown}
-              >
-                {lockdownSubmitting ? "Locking down…" : "Confirm Lockdown"}
-              </Button>
+                text={lockdownSubmitting ? "Locking down…" : "Confirm Lockdown"}
+              />
               <Button
                 size="sm"
                 variant="ghost"
@@ -254,16 +247,18 @@ export function DangerZoneSection() {
                   setLockdownChecks({ sessions: false, tokens: false, totp: false })
                   setLockdownError(null)
                 }}
-              >
-                Cancel
-              </Button>
+                text="Cancel"
+              />
             </div>
           </div>
         ) : (
           <div>
-            <Button size="sm" variant="danger" onClick={() => setConfirmLockdown(true)}>
-              Initiate Lockdown
-            </Button>
+            <Button
+              size="sm"
+              variant="danger"
+              onClick={() => setConfirmLockdown(true)}
+              text="Initiate Lockdown"
+            />
           </div>
         )}
       </div>
@@ -306,9 +301,8 @@ export function DangerZoneSection() {
                 variant="danger"
                 disabled={nukeSubmitting || !nukePassword.trim()}
                 onClick={handleNuke}
-              >
-                {nukeSubmitting ? "Scrubbing…" : "Delete Everything"}
-              </Button>
+                text={nukeSubmitting ? "Scrubbing…" : "Delete Everything"}
+              />
               <Button
                 size="sm"
                 variant="ghost"
@@ -317,9 +311,8 @@ export function DangerZoneSection() {
                   setNukePassword("")
                   setNukeError(null)
                 }}
-              >
-                Cancel
-              </Button>
+                text="Cancel"
+              />
             </div>
           </div>
         ) : (

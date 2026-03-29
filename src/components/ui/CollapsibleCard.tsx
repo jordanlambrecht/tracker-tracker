@@ -1,7 +1,4 @@
 // src/components/ui/CollapsibleCard.tsx
-//
-// Functions: CollapsibleCard
-
 "use client"
 
 import { type ReactNode, useRef, useState } from "react"
@@ -9,21 +6,16 @@ import { Card } from "@/components/ui/Card"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
 
 interface CollapsibleCardProps {
-  /** Always-visible header content (left side — title, badges, meta) */
   header: ReactNode
-  /** Optional content between header and collapsible body (i.e. uptime bars) — always visible */
   subheader?: ReactNode
-  /** Trailing content in the header row before the chevron (i.e. type label) */
   trailing?: ReactNode
-  /** Collapsible body content */
   children: ReactNode
-  /** Controlled expanded state — if omitted, uses internal state */
   expanded?: boolean
-  /** Controlled toggle callback */
   onToggle?: () => void
-  /** Start expanded */
   defaultExpanded?: boolean
 }
+
+export type { CollapsibleCardProps }
 
 export function CollapsibleCard({
   header,
@@ -47,12 +39,12 @@ export function CollapsibleCard({
   }
 
   return (
-    <Card elevation="raised" className="flex flex-col gap-0 !p-0 overflow-hidden">
+    <Card elevation="raised" className="flex flex-col gap-0 p-0 overflow-hidden">
       <button
         type="button"
         onClick={handleToggle}
         aria-expanded={isExpanded}
-        className="flex items-center gap-3 px-5 py-4 w-full text-left cursor-pointer hover:bg-overlay transition-colors duration-100"
+        className="flex items-center gap-3 px-5 py-4 w-full text-left cursor-pointer hover:bg-overlay active:nm-inset-sm active:scale-[0.99] transition-colors duration-100"
       >
         <div className="flex-1 min-w-0 flex items-center gap-3">{header}</div>
         {trailing && <span className="text-xs font-mono text-tertiary shrink-0">{trailing}</span>}

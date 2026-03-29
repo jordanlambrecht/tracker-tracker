@@ -1,9 +1,6 @@
 // src/components/AddTrackerDialog.tsx
 "use client"
 
-//
-// Functions: AddTrackerDialog
-
 import { H2 } from "@typography"
 import clsx from "clsx"
 import Image from "next/image"
@@ -27,10 +24,11 @@ import { Tooltip } from "@/components/ui/Tooltip"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { TRACKER_REGISTRY } from "@/data/tracker-registry"
 import { useClickOutside } from "@/hooks/useClickOutside"
-import { normalizeUrl } from "@/lib/url"
+import { localDateStr } from "@/lib/formatters"
+import { normalizeUrl } from "@/lib/helpers"
 
 // ---------------------------------------------------------------------------
-// Fuzzy match — matches if all query chars appear in order in the target
+// Fuzzy match
 // ---------------------------------------------------------------------------
 
 function fuzzyMatch(query: string, target: string): boolean {
@@ -44,7 +42,7 @@ function fuzzyMatch(query: string, target: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// TrackerCombobox — searchable dropdown for tracker selection
+// TrackerCombobox
 // ---------------------------------------------------------------------------
 
 interface TrackerComboboxProps {
@@ -71,10 +69,8 @@ function TrackerCombobox({ presets, value, onChange }: TrackerComboboxProps) {
       )
     : presets
 
-  // Close on outside click
   useClickOutside(ref, () => setOpen(false), open)
 
-  // Scroll highlighted item into view
   useEffect(() => {
     if (!open || !listRef.current) return
     const item = listRef.current.children[highlightIndex] as HTMLElement | undefined
@@ -160,7 +156,7 @@ function TrackerCombobox({ presets, value, onChange }: TrackerComboboxProps) {
             ✕
           </button>
         )}
-        <span className="text-tertiary text-[10px] shrink-0" aria-hidden="true">
+        <span className="text-tertiary text-3xs shrink-0" aria-hidden="true">
           ▾
         </span>
       </div>
@@ -168,7 +164,7 @@ function TrackerCombobox({ presets, value, onChange }: TrackerComboboxProps) {
       {open && (
         <div
           ref={listRef}
-          className="absolute top-full left-0 right-0 mt-1 z-50 bg-elevated nm-raised-sm py-1 max-h-60 overflow-y-auto styled-scrollbar rounded-nm-md"
+          className="absolute top-full left-0 right-0 mt-1 z-40 bg-elevated nm-raised-sm py-1 max-h-60 overflow-y-auto styled-scrollbar rounded-nm-md"
           role="listbox"
         >
           {filtered.length === 0 ? (
@@ -206,7 +202,7 @@ function TrackerCombobox({ presets, value, onChange }: TrackerComboboxProps) {
                     <span className="flex items-center gap-1 shrink-0">
                       <TriangleWarningIcon width="13" height="13" className="text-warn" />
                       {entry.warningNote && (
-                        <span className="text-[10px] text-warn">{entry.warningNote}</span>
+                        <span className="text-3xs text-warn">{entry.warningNote}</span>
                       )}
                     </span>
                   </Tooltip>
@@ -246,6 +242,8 @@ function AddTrackerDialog({
   const [nickname, setNickname] = useState("")
   const [baseUrl, setBaseUrl] = useState("")
   const [apiToken, setApiToken] = useState("")
+  const [avistazUsername, setAvistazUsername] = useState("")
+  const [avistazCookies, setAvistazCookies] = useState("")
   const [qbtTag, setQbtTag] = useState("")
   const [mouseholeUrl, setMouseholeUrl] = useState("")
   const [color, setColor] = useState<string>(CHART_THEME.accent)
@@ -259,6 +257,8 @@ function AddTrackerDialog({
     setNickname("")
     setBaseUrl("")
     setApiToken("")
+    setAvistazUsername("")
+    setAvistazCookies("")
     setQbtTag("")
     setMouseholeUrl("")
     setColor(CHART_THEME.accent)
@@ -318,6 +318,8 @@ function AddTrackerDialog({
       setBaseUrl("")
       setColor(CHART_THEME.accent)
     }
+    setAvistazUsername("")
+    setAvistazCookies("")
   }
 
   const availablePresets = useMemo(() => {
@@ -343,7 +345,24 @@ function AddTrackerDialog({
         next.baseUrl = "Invalid URL format"
       }
     }
-    if (!apiToken.trim()) {
+
+    if (selectedEntry?.platform === "avistaz") {
+      if (!avistazUsername.trim()) {
+        next.apiToken = "Username is required"
+      } else if (!avistazCookies.trim()) {
+        next.apiToken = "Browser cookies are required"
+      } else if (!avistazCookies.includes("=")) {
+        next.apiToken =
+          "This doesn't look like a cookie string — it should contain key=value pairs (i.e. cf_clearance=abc123; session=xyz)"
+      } else if (
+        /^(cf_clearance|[a-z]+x_session|remember_web_\w+|XSRF-TOKEN|love)$/i.test(
+          avistazCookies.trim()
+        )
+      ) {
+        next.apiToken =
+          'You pasted a cookie name, not the value. Copy the entire string after "Cookie:" in the request headers.'
+      }
+    } else if (!apiToken.trim()) {
       next.apiToken = "API token is required"
     }
 
@@ -363,13 +382,24 @@ function AddTrackerDialog({
     setLoading(true)
     setTestResult(null)
 
+    const isAvistaz = selectedEntry?.platform === "avistaz"
+    let effectiveApiToken = apiToken
+
+    if (isAvistaz) {
+      effectiveApiToken = JSON.stringify({
+        cookies: avistazCookies.trim(),
+        userAgent: navigator.userAgent,
+        username: avistazUsername.trim(),
+      })
+    }
+
     try {
       const testRes = await fetch("/api/trackers/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           baseUrl,
-          apiToken,
+          apiToken: effectiveApiToken,
           platformType: selectedEntry?.platform ?? "unit3d",
           apiPath: selectedEntry?.apiPath,
         }),
@@ -379,11 +409,18 @@ function AddTrackerDialog({
 
       if (!testRes.ok) {
         setErrors({ apiToken: testData.error ?? "Connection failed" })
-        setLoading(false)
         return
       }
 
       setTestResult({ username: testData.username, group: testData.group })
+
+      if (isAvistaz && testData.capturedUserAgent) {
+        effectiveApiToken = JSON.stringify({
+          cookies: avistazCookies.trim(),
+          userAgent: testData.capturedUserAgent,
+          username: avistazUsername.trim(),
+        })
+      }
 
       const saveRes = await fetch("/api/trackers", {
         method: "POST",
@@ -391,7 +428,7 @@ function AddTrackerDialog({
         body: JSON.stringify({
           name: trackerName,
           baseUrl,
-          apiToken,
+          apiToken: effectiveApiToken,
           platformType: selectedEntry?.platform ?? "unit3d",
           color,
           qbtTag: qbtTag.trim() || undefined,
@@ -404,7 +441,6 @@ function AddTrackerDialog({
 
       if (!saveRes.ok) {
         setErrors({ form: saveData.error ?? "Failed to add tracker" })
-        setLoading(false)
         return
       }
 
@@ -415,6 +451,7 @@ function AddTrackerDialog({
       onAdded(saveData.id)
     } catch {
       setErrors({ form: "Network error — please try again" })
+    } finally {
       setLoading(false)
     }
   }
@@ -430,14 +467,14 @@ function AddTrackerDialog({
         {/* Header */}
         <div className="flex items-center justify-between">
           <H2 className="text-base font-semibold text-primary">Add Tracker</H2>
-          <button
-            type="button"
-            onClick={() => dialogRef.current?.close()}
-            className="text-tertiary hover:text-primary transition-colors cursor-pointer p-1 -m-1 rounded-nm-sm"
+          <Button
+            variant="minimal"
+            size="icon"
+            className="-m-1 hover:text-primary"
             aria-label="Close dialog"
-          >
-            ✕
-          </button>
+            onClick={() => dialogRef.current?.close()}
+            text="✕"
+          />
         </div>
 
         {/* Form */}
@@ -448,9 +485,7 @@ function AddTrackerDialog({
           data-1p-ignore
         >
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
-              Tracker
-            </span>
+            <H2 className="uppercase tracking-wider">Tracker</H2>
             <TrackerCombobox
               presets={availablePresets}
               value={selectedPreset}
@@ -484,33 +519,73 @@ function AddTrackerDialog({
             error={errors.baseUrl}
           />
 
-          <div className="flex flex-col gap-1">
-            <Input
-              label="API Token"
-              name="tracker-api-token"
-              type="password"
-              autoComplete="off"
-              data-1p-ignore
-              value={apiToken}
-              onChange={(e) => setApiToken(e.target.value)}
-              placeholder={
-                selectedEntry?.platform === "mam"
-                  ? "Your mam_id session cookie"
-                  : selectedEntry?.platform === "ggn"
-                    ? "Your GGn API key"
-                    : selectedEntry?.platform === "gazelle"
-                      ? "Your Gazelle API key"
-                      : "Your UNIT3D API token"
-              }
-              error={errors.apiToken}
-            />
-            {testResult && (
-              <p className="text-xs font-sans text-success">
-                Connected as <span className="font-semibold">{testResult.username}</span>
-                {testResult.group ? ` (${testResult.group})` : ""}
-              </p>
-            )}
-          </div>
+          {selectedEntry?.platform === "avistaz" ? (
+            <div className="flex flex-col gap-3">
+              <Input
+                label="AvistaZ Username"
+                name="tracker-avistaz-username"
+                autoComplete="off"
+                data-1p-ignore
+                value={avistazUsername}
+                onChange={(e) => setAvistazUsername(e.target.value)}
+                placeholder="Your username on this tracker"
+              />
+              <div className="flex flex-col gap-1">
+                <label className="text-xs uppercase tracking-wider text-secondary font-mono">
+                  Browser Cookies
+                </label>
+                <textarea
+                  name="tracker-avistaz-cookies"
+                  autoComplete="off"
+                  data-1p-ignore
+                  value={avistazCookies}
+                  onChange={(e) => setAvistazCookies(e.target.value)}
+                  placeholder="Paste Cookie header from browser DevTools (F12 → Network → any request → Cookie)"
+                  rows={3}
+                  className="w-full rounded-nm-sm bg-control-bg px-3 py-2 text-sm text-primary border border-transparent focus:border-accent focus:outline-none font-mono resize-y"
+                />
+                {errors.apiToken && (
+                  <p className="text-xs font-sans text-danger" role="alert">
+                    {errors.apiToken}
+                  </p>
+                )}
+              </div>
+              {testResult && (
+                <p className="text-xs font-sans text-success">
+                  Connected as <span className="font-semibold">{testResult.username}</span>
+                  {testResult.group ? ` (${testResult.group})` : ""}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <Input
+                label="API Token"
+                name="tracker-api-token"
+                type="password"
+                autoComplete="off"
+                data-1p-ignore
+                value={apiToken}
+                onChange={(e) => setApiToken(e.target.value)}
+                placeholder={
+                  selectedEntry?.platform === "mam"
+                    ? "Your mam_id session cookie"
+                    : selectedEntry?.platform === "ggn"
+                      ? "Your GGn API key"
+                      : selectedEntry?.platform === "gazelle"
+                        ? "Your Gazelle API key"
+                        : "Your UNIT3D API token"
+                }
+                error={errors.apiToken}
+              />
+              {testResult && (
+                <p className="text-xs font-sans text-success">
+                  Connected as <span className="font-semibold">{testResult.username}</span>
+                  {testResult.group ? ` (${testResult.group})` : ""}
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="flex flex-col gap-1">
             <Input
@@ -559,7 +634,7 @@ function AddTrackerDialog({
               label="Join Date (optional)"
               type="date"
               value={joinedAt}
-              max={new Date().toISOString().split("T")[0]}
+              max={localDateStr()}
               onChange={(e) => setJoinedAt(e.target.value)}
               placeholder="YYYY-MM-DD"
             />
@@ -573,12 +648,12 @@ function AddTrackerDialog({
 
           {/* Footer */}
           <div className="flex gap-3 pt-1">
-            <Button type="submit" disabled={loading}>
-              {loading ? "Connecting..." : "Add Tracker"}
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => dialogRef.current?.close()}>
-              Cancel
-            </Button>
+            <Button
+              type="submit"
+              disabled={loading}
+              text={loading ? "Connecting..." : "Add Tracker"}
+            />
+            <Button variant="ghost" onClick={() => dialogRef.current?.close()} text="Cancel" />
           </div>
         </form>
       </div>

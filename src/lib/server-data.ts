@@ -21,6 +21,7 @@
 import "server-only"
 
 import { and, asc, desc, eq, gte, sql } from "drizzle-orm"
+import { DEFAULT_TRACKER_COLOR } from "@/lib/constants"
 import { db } from "@/lib/db"
 import {
   appSettings,
@@ -32,7 +33,7 @@ import {
 import { createPrivacyMaskSync } from "@/lib/privacy-db"
 import { parseQbitmanageTags } from "@/lib/qbitmanage-defaults"
 import { serializeTrackerResponse } from "@/lib/tracker-serializer"
-import type { Snapshot, TagGroup, TagGroupChartType } from "@/types/api"
+import type { Snapshot, TagGroup, TagGroupChartType, TrackerSummary } from "@/types/api"
 
 // ---------------------------------------------------------------------------
 // Settings
@@ -163,9 +164,6 @@ export const trackerColumns = {
   createdAt: trackers.createdAt,
   updatedAt: trackers.updatedAt,
 }
-
-/** Return type for serialized tracker + latest snapshot. */
-export type TrackerSummary = ReturnType<typeof serializeTrackerResponse>
 
 /**
  * Fetches all trackers with their latest snapshot for the dashboard.
@@ -334,7 +332,7 @@ export async function getProxyTrackers(): Promise<{ id: number; name: string; co
   return rows.map((r) => ({
     id: r.id,
     name: r.name,
-    color: r.color ?? "#00d4ff",
+    color: r.color ?? DEFAULT_TRACKER_COLOR,
   }))
 }
 

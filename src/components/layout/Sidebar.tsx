@@ -5,7 +5,6 @@
 //   SortableTrackerItem
 //   Sparkline
 //   ClientStatusWidget
-//   formatSidebarSpeed
 //   Sidebar
 
 "use client"
@@ -20,17 +19,16 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { H2 } from "@typography"
 import clsx from "clsx"
+import dynamic from "next/dynamic"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { type CSSProperties, useCallback, useEffect, useRef, useState } from "react"
-import Markdown from "react-markdown"
-import remarkGfm from "remark-gfm"
 import { AddTrackerDialog } from "@/components/AddTrackerDialog"
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import { Button } from "@/components/ui/Button"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
-import { DownloadArrowIcon, EyeIcon, EyeOffIcon, UploadArrowIcon } from "@/components/ui/Icons"
+import { DownloadArrowIcon, EyeIcon, EyeOffIcon, GitHubIcon, UploadArrowIcon } from "@/components/ui/Icons"
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import { PulseDot } from "@/components/ui/PulseDot"
 import { Select } from "@/components/ui/Select"
@@ -38,16 +36,19 @@ import { Tooltip } from "@/components/ui/Tooltip"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
 import { useUpdateCheck } from "@/hooks/useUpdateCheck"
 import { DOCS_URL } from "@/lib/constants"
+import { hexToRgba } from "@/lib/color-utils"
 import {
   formatBytesNum,
+  formatSpeed,
   formatStatValue,
   formatTimeAgo,
-  hexToRgba,
   type StatMode,
 } from "@/lib/formatters"
 import { STORAGE_KEYS } from "@/lib/storage-keys"
 import { getHealthPulseDot, getTrackerHealth } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
+
+const ChangelogContent = dynamic(() => import("./ChangelogContent"), { ssr: false })
 
 // ---------------------------------------------------------------------------
 // Types
@@ -123,12 +124,9 @@ function SortableTrackerItem({
 
   const itemClasses = clsx(
     "w-full flex items-center gap-3 px-4 py-3 text-left group",
-    "transition-all duration-150",
     unlocked ? "animate-jiggle cursor-grab" : "cursor-pointer",
     archived && "opacity-40",
-    isActive
-      ? "text-primary nm-raised-sm"
-      : "text-secondary nm-raised-sm hover:text-primary hover:nm-raised active:nm-inset-sm active:scale-[0.98]"
+    isActive ? "text-primary nm-raised-sm" : "text-secondary nm-interactive-sm hover:text-primary"
   )
 
   const children = (
@@ -146,7 +144,7 @@ function SortableTrackerItem({
       ) : (
         <PulseDot status={getHealthPulseDot(health)} size="sm" />
       )}
-      <span className="flex-1 truncate text-[15px] font-semibold">{tracker.name}</span>
+      <span className="flex-1 truncate text-sm font-semibold">{tracker.name}</span>
       <span className="font-mono text-xs tabular-nums text-tertiary shrink-0">
         {archived ? "Archived" : stat}
       </span>
@@ -296,18 +294,18 @@ function ClientSlide({
       />
       <div className="flex flex-col flex-1 min-w-0">
         <MarqueeText className="text-xs font-mono text-secondary">{client.name}</MarqueeText>
-        <span className="text-[10px] font-mono text-tertiary">
+        <span className="text-3xs font-mono text-tertiary">
           {hasError ? (
             <span className="text-danger">
               Down{client.errorSince ? ` ${formatTimeAgo(client.errorSince)}` : ""}
             </span>
           ) : !expanded && entry.speeds.length > 0 ? (
-            <span className="flex items-center gap-1.5">
+            <span className="flex items-center gap-2">
               <span className="text-accent">
-                {formatSidebarSpeed(entry.speeds[entry.speeds.length - 1].up)}↑
+                {formatSpeed(entry.speeds[entry.speeds.length - 1].up)}↑
               </span>
               <span className="text-warn">
-                {formatSidebarSpeed(entry.speeds[entry.speeds.length - 1].down)}↓
+                {formatSpeed(entry.speeds[entry.speeds.length - 1].down)}↓
               </span>
             </span>
           ) : (
@@ -468,7 +466,7 @@ function ClientStatusWidget() {
   return (
     <div className="px-3 py-3 border-t border-border shrink-0">
       <div
-        className="nm-inset-sm bg-control-bg px-3 pt-2.5 pb-3.5 flex flex-col gap-1.5 rounded-nm-md touch-pan-y"
+        className="nm-inset-sm bg-control-bg px-3 pt-2.5 pb-3.5 flex flex-col gap-2 rounded-nm-md touch-pan-y"
         onPointerDown={onPointerDownCapture}
         onPointerUp={onPointerUp}
       >
@@ -514,7 +512,7 @@ function ClientStatusWidget() {
                         height={16}
                       />
                       <span className="text-xs font-mono text-accent tabular-nums shrink-0">
-                        {formatSidebarSpeed(current.speeds[current.speeds.length - 1].up)}
+                        {formatSpeed(current.speeds[current.speeds.length - 1].up)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -532,7 +530,7 @@ function ClientStatusWidget() {
                         height={16}
                       />
                       <span className="text-xs font-mono text-warn tabular-nums shrink-0">
-                        {formatSidebarSpeed(current.speeds[current.speeds.length - 1].down)}
+                        {formatSpeed(current.speeds[current.speeds.length - 1].down)}
                       </span>
                     </div>
                   </div>
@@ -544,7 +542,7 @@ function ClientStatusWidget() {
 
         {/* Dot indicators for carousel */}
         {entries.length > 1 && (
-          <div className="flex items-center justify-center gap-1.5 pt-0.5">
+          <div className="flex items-center justify-center gap-2 pt-0.5">
             {entries.map((entry, i) => (
               <button
                 key={entry.client.id}
@@ -562,11 +560,6 @@ function ClientStatusWidget() {
       </div>
     </div>
   )
-}
-
-function formatSidebarSpeed(bytesPerSec: number): string {
-  if (!bytesPerSec || bytesPerSec <= 0) return "0 B/s"
-  return `${formatBytesNum(bytesPerSec)}/s`
 }
 
 // ---------------------------------------------------------------------------
@@ -630,7 +623,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
           }
         }
       } catch {
-        // silently ignore fetch errors; we'll retry on the next interval
+        // silently ignore fetch errors
       }
     }
 
@@ -683,7 +676,6 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
         sortOrder: i,
       }))
 
-      // Fire-and-forget reorder API call
       const ids = reordered.map((t) => t.id)
       fetch("/api/trackers/reorder", {
         method: "PATCH",
@@ -731,7 +723,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
       <aside
         className={clsx(
           "h-screen flex flex-col bg-base border-r border-border overflow-hidden",
-          isMobile ? "fixed inset-y-0 left-0 z-40 shrink-0" : "shrink-0"
+          isMobile ? "fixed inset-y-0 left-0 z-30 shrink-0" : "shrink-0"
         )}
         style={
           isMobile
@@ -780,7 +772,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
             </button>
           </div>
 
-          {/* Control bar — collapsible */}
+          {/* Control bar */}
           <div className="border-b border-border shrink-0">
             <button
               type="button"
@@ -789,7 +781,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
               aria-expanded={filtersExpanded}
               aria-label={filtersExpanded ? "Collapse filters" : "Expand filters"}
             >
-              <span className="text-[10px] font-mono uppercase tracking-wider">Filters</span>
+              <span className="text-3xs font-mono uppercase tracking-wider">Filters</span>
               <ChevronToggle expanded={filtersExpanded} variant="flip" />
             </button>
             {filtersExpanded && (
@@ -876,13 +868,13 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
               </DndContext>
             )}
 
-            {/* Archive toggle + Add Tracker — inside scrollable nav */}
+            {/* Archive toggle + Add Tracker */}
             <div className="mx-4 mt-4 pt-4 pb-6 border-t border-border flex flex-col gap-2">
               {archivedCount > 0 && (
                 <button
                   type="button"
                   onClick={() => setShowArchived((s) => !s)}
-                  className="text-tertiary hover:text-secondary text-xs font-mono flex items-center gap-2 transition-colors duration-150 cursor-pointer w-full"
+                  className="ghost-link flex items-center gap-2 duration-150 w-full"
                 >
                   {showArchived ? (
                     <EyeOffIcon width="14" height="14" className="shrink-0" />
@@ -897,9 +889,8 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
                 size="sm"
                 className="w-full"
                 onClick={() => setShowAddDialog(true)}
-              >
-                + Add Tracker
-              </Button>
+                text="+ Add Tracker"
+              />
             </div>
           </nav>
 
@@ -939,7 +930,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
               <button
                 type="button"
                 onClick={openChangelog}
-                className="text-muted hover:text-secondary text-[10px] font-mono transition-colors duration-150 cursor-pointer text-left"
+                className="timestamp hover:text-secondary transition-colors duration-150 cursor-pointer text-left"
               >
                 v{process.env.NEXT_PUBLIC_APP_VERSION}
               </button>
@@ -948,7 +939,7 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
                   href={`https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v${latestVersion}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-1.5 py-0.5 text-[9px] font-mono text-accent hover:bg-accent/25 transition-colors duration-150"
+                  className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-1.5 py-0.5 text-4xs font-mono text-accent hover:bg-accent/25 transition-colors duration-150"
                 >
                   <Tooltip content={`Update available: v${latestVersion}`}>
                     <span className="flex items-center gap-1">
@@ -966,21 +957,13 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
                 className="text-muted hover:text-secondary transition-colors duration-150 shrink-0"
                 aria-label="GitHub repository"
               >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z" />
-                </svg>
+                <GitHubIcon width="12" height="12" />
               </a>
               <a
                 href={DOCS_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-muted hover:text-secondary transition-colors duration-150 shrink-0 text-[11px] font-mono"
+                className="torrent-cell hover:text-secondary transition-colors duration-150 shrink-0"
                 aria-label="Documentation"
               >
                 ?
@@ -1024,21 +1007,21 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
             <H2 className="text-base font-semibold text-primary">
               Changelog — v{process.env.NEXT_PUBLIC_APP_VERSION}
             </H2>
-            <button
-              type="button"
+            <Button
+              variant="minimal"
+              size="icon"
+              className="-m-1 hover:text-primary"
+              aria-label="Close changelog"
               onClick={() => {
                 changelogRef.current?.close()
                 setChangelogOpen(false)
               }}
-              className="text-tertiary hover:text-primary transition-colors cursor-pointer p-1 -m-1 rounded-nm-sm"
-              aria-label="Close changelog"
-            >
-              ✕
-            </button>
+              text="✕"
+            />
           </div>
           <div className="overflow-y-auto px-6 py-5 styled-scrollbar prose prose-invert prose-sm max-w-none prose-headings:font-mono prose-headings:text-primary prose-h1:text-lg prose-h2:text-base prose-h2:text-white prose-h2:border-b prose-h2:border-border prose-h2:pb-2 prose-h3:text-sm prose-li:text-secondary prose-p:text-secondary prose-strong:text-primary prose-a:text-accent">
             {changelogContent ? (
-              <Markdown remarkPlugins={[remarkGfm]}>{changelogContent}</Markdown>
+              <ChangelogContent content={changelogContent} />
             ) : (
               <p className="text-muted">Loading...</p>
             )}

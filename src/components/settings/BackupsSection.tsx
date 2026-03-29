@@ -1,7 +1,4 @@
 // src/components/settings/BackupsSection.tsx
-//
-// Functions: BackupsSection
-
 "use client"
 
 import { H2, Paragraph, Subtext } from "@typography"
@@ -17,10 +14,10 @@ import { Table } from "@/components/ui/Table"
 import { Toggle } from "@/components/ui/Toggle"
 import { Tooltip } from "@/components/ui/Tooltip"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
-import { extractApiError } from "@/lib/client-helpers"
+import { extractApiError } from "@/lib/helpers"
 import { DOCS } from "@/lib/constants"
 import { downloadResponseBlob } from "@/lib/download"
-import { formatBytesNum } from "@/lib/formatters"
+import { formatBytesNum, formatDateTime } from "@/lib/formatters"
 
 export interface BackupRecord {
   id: number
@@ -29,7 +26,7 @@ export interface BackupRecord {
   encrypted: boolean
   frequency: string | null
   status: string
-  storagePath: string | null
+  hasStoredFile: boolean
   notes: string | null
 }
 
@@ -76,7 +73,11 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
   const [isDraggingRestore, setIsDraggingRestore] = useState(false)
   const restoreInputRef = useRef<HTMLInputElement>(null)
 
-  const { saving: savingBackupConfig, patch: patchSettings } = usePatchSettings()
+  const {
+    saving: savingBackupConfig,
+    error: settingsError,
+    patch: patchSettings,
+  } = usePatchSettings()
 
   useEffect(() => {
     fetch("/api/settings/backup/history")
@@ -128,33 +129,27 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
     if (!newBackupPassword) return
     setSavingPassword(true)
     setBackupError(null)
-    try {
-      const result = await patchSettings({ backupPassword: newBackupPassword })
-      if (result !== null) {
-        setHasStoredPassword(true)
-        setNewBackupPassword("")
-      }
-    } catch (err) {
-      setBackupError(err instanceof Error ? err.message : "Failed to save password")
-    } finally {
-      setSavingPassword(false)
+    const result = await patchSettings({ backupPassword: newBackupPassword })
+    if (result === null) {
+      setBackupError(settingsError ?? "Failed to save password")
+    } else {
+      setHasStoredPassword(true)
+      setNewBackupPassword("")
     }
+    setSavingPassword(false)
   }
 
   async function handleClearBackupPassword() {
     setSavingPassword(true)
     setBackupError(null)
-    try {
-      const result = await patchSettings({ backupPassword: null })
-      if (result !== null) {
-        setHasStoredPassword(false)
-        setNewBackupPassword("")
-      }
-    } catch (err) {
-      setBackupError(err instanceof Error ? err.message : "Failed to clear password")
-    } finally {
-      setSavingPassword(false)
+    const result = await patchSettings({ backupPassword: null })
+    if (result === null) {
+      setBackupError(settingsError ?? "Failed to clear password")
+    } else {
+      setHasStoredPassword(false)
+      setNewBackupPassword("")
     }
+    setSavingPassword(false)
   }
 
   async function handleRestoreFileSelect(e: ChangeEvent<HTMLInputElement>) {
@@ -268,7 +263,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
         header: "Date",
         render: (b) => (
           <span className="text-sm font-mono text-primary tabular-nums">
-            {new Date(b.createdAt).toLocaleString()}
+            {formatDateTime(b.createdAt)}
             {b.encrypted && (
               <Tooltip content="Password-protected">
                 <span className="ml-2 text-xs text-accent">🔒</span>
@@ -299,10 +294,13 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
         align: "right",
         render: (b) => (
           <div className="flex gap-2 justify-end">
-            {b.storagePath && (
-              <Button variant="secondary" size="sm" onClick={() => handleDownloadBackup(b.id)}>
-                Download
-              </Button>
+            {b.hasStoredFile && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => handleDownloadBackup(b.id)}
+                text="Download"
+              />
             )}
             <Button
               variant="danger"
@@ -335,9 +333,12 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
 
         <Card elevation="raised" className="flex flex-col gap-4">
           <div className="flex gap-3 items-center">
-            <Button size="sm" onClick={handleBackupNow} disabled={backingUp || backupConfigDirty}>
-              {backingUp ? "Creating Backup…" : "Backup Now"}
-            </Button>
+            <Button
+              size="sm"
+              onClick={handleBackupNow}
+              disabled={backingUp || backupConfigDirty}
+              text={backingUp ? "Creating Backup…" : "Backup Now"}
+            />
             {backupConfigDirty && (
               <span className="text-xs text-warn">Save configuration before exporting</span>
             )}
@@ -459,10 +460,9 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
                 placeholder="RESTORE ALL DATA"
                 autoComplete="off"
                 className="font-mono"
+                hint="This destructive operation cannot be undone. Type the phrase exactly to proceed."
+                hintVariant="danger"
               />
-              <p className="text-xs text-danger/80 mt-2">
-                This destructive operation cannot be undone. Type the phrase exactly to proceed.
-              </p>
             </div>
             <div className="flex gap-3">
               <Button
@@ -475,9 +475,8 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
                   (isEncryptedBackup && !backupPassword) ||
                   restoreConfirmPhrase !== "RESTORE ALL DATA"
                 }
-              >
-                {restoring ? "Restoring…" : "Confirm Restore"}
-              </Button>
+                text={restoring ? "Restoring…" : "Confirm Restore"}
+              />
               <Button
                 size="sm"
                 variant="secondary"
@@ -489,9 +488,8 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
                   setRestoreConfirmPhrase("")
                 }}
                 disabled={restoring}
-              >
-                Cancel
-              </Button>
+                text="Cancel"
+              />
             </div>
           </Card>
         </section>
@@ -527,9 +525,8 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
                     variant="secondary"
                     onClick={handleClearBackupPassword}
                     disabled={savingPassword}
-                  >
-                    Clear
-                  </Button>
+                    text="Clear"
+                  />
                 </div>
               ) : (
                 <Subtext className="text-warn">
@@ -552,9 +549,8 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
                   size="sm"
                   onClick={handleSaveBackupPassword}
                   disabled={!newBackupPassword || savingPassword}
-                >
-                  {savingPassword ? "Saving…" : "Save Password"}
-                </Button>
+                  text={savingPassword ? "Saving…" : "Save Password"}
+                />
               </div>
             </div>
           )}
@@ -619,9 +615,8 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
               size="sm"
               onClick={saveBackupConfig}
               disabled={!backupConfigDirty || savingBackupConfig}
-            >
-              {savingBackupConfig ? "Saving…" : "Save Configuration"}
-            </Button>
+              text={savingBackupConfig ? "Saving…" : "Save Configuration"}
+            />
           </div>
         </Card>
       </section>

@@ -1,11 +1,9 @@
 // src/components/charts/StorageSunburst.tsx
-//
-// Functions: StorageSunburst, buildOption
-
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { formatBytesNum, generatePalette, hexToHsl, hslToHex } from "@/lib/formatters"
+import { generatePalette, hexToHsl, hslToHex } from "@/lib/color-utils"
+import { formatBytesNum } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { CHART_THEME, chartDot, chartTooltip, escHtml } from "./lib/theme"
@@ -97,7 +95,7 @@ function buildOption(
           const catName = path[1].name
           return (
             `${swatch}` +
-            `<span style="color:${CHART_THEME.textTertiary};font-size:10px;">${escHtml(catName)}</span><br/>` +
+            `<span style="color:${CHART_THEME.textTertiary};font-size:${CHART_THEME.fontSizeCompact}px;">${escHtml(catName)}</span><br/>` +
             `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(p.name)}</span><br/>` +
             `<span style="color:${CHART_THEME.textSecondary};">${formatBytesNum(p.value)}</span>`
           )
@@ -110,7 +108,7 @@ function buildOption(
             `${swatch}` +
             `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(p.name)}</span><br/>` +
             `<span style="color:${CHART_THEME.textSecondary};">${formatBytesNum(p.value)}</span>` +
-            `<span style="color:${CHART_THEME.textTertiary};font-size:10px;"> · ${childCount} torrent${childCount !== 1 ? "s" : ""}</span>`
+            `<span style="color:${CHART_THEME.textTertiary};font-size:${CHART_THEME.fontSizeCompact}px;"> · ${childCount} torrent${childCount !== 1 ? "s" : ""}</span>`
           )
         }
 
@@ -136,7 +134,7 @@ function buildOption(
           textStyle: {
             color: CHART_THEME.textSecondary,
             fontFamily: CHART_THEME.fontMono,
-            fontSize: 11,
+            fontSize: CHART_THEME.fontSizeDense,
           },
         },
         upperLabel: {
@@ -144,7 +142,7 @@ function buildOption(
           height: 24,
           color: CHART_THEME.textPrimary,
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 11,
+          fontSize: CHART_THEME.fontSizeDense,
           fontWeight: "bold" as const,
           formatter: (params: unknown) => {
             const p = params as { name: string; value: number }
@@ -155,7 +153,7 @@ function buildOption(
           show: true,
           color: CHART_THEME.textTertiary,
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 9,
+          fontSize: CHART_THEME.fontSizeMicro,
           formatter: "{b}",
           position: "insideTopLeft" as const,
         },

@@ -77,14 +77,14 @@ function Select<T extends string>({
         aria-expanded={open}
       >
         <span className="truncate">{selectedLabel}</span>
-        <span className="text-tertiary text-[10px] shrink-0" aria-hidden="true">
+        <span className="text-tertiary text-3xs shrink-0" aria-hidden="true">
           ▾
         </span>
       </button>
 
       {open && (
         <div
-          className="absolute top-full left-0 right-0 mt-1 z-50 bg-elevated nm-raised-sm py-1 overflow-hidden rounded-nm-md"
+          className="absolute top-full left-0 right-0 mt-1 z-40 bg-elevated nm-raised-sm py-1 overflow-hidden rounded-nm-md"
           role="listbox"
           aria-label={ariaLabel}
         >

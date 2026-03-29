@@ -11,42 +11,21 @@
 import fs from "node:fs"
 import path from "node:path"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
+import {
+  LOGO_NAME_RE,
+  PLACEHOLDER_RE,
+  SLUG_RE,
+  VALID_CONTENT_CATEGORIES,
+  isEmpty,
+  normalizeTrackerUrl,
+} from "@/data/tracker-validation-rules"
 import { ALL_TRACKERS } from "@/data/trackers"
 import { DEFAULT_API_PATHS, VALID_PLATFORM_TYPES } from "@/lib/adapters/constants"
+import { isValidHex } from "@/lib/validators"
 
-const VALID_PLATFORMS = [...VALID_PLATFORM_TYPES, "custom"] as const
-const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
-const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
-const LOGO_NAME_RE = /^\/tracker-logos\/[a-z0-9_]+_logo\.(svg|png)$/
-const PLACEHOLDER_RE = /^TODO$/i
+const VALID_PLATFORMS = VALID_PLATFORM_TYPES
 const LOGO_DIR = path.resolve(__dirname, "../public/tracker-logos")
 const TRACKER_DIR = path.resolve(__dirname, "../src/data/trackers")
-
-const VALID_CONTENT_CATEGORIES = new Set([
-  "Movies",
-  "TV",
-  "Music",
-  "Games",
-  "Apps",
-  "Sports",
-  "Books",
-  "Audiobooks",
-  "Comics",
-  "Manga",
-  "Anime",
-  "XXX",
-  "Documentaries",
-  "Education",
-  "Tutorials",
-  "Fanres",
-])
-
-function isEmpty(val: unknown): boolean {
-  if (val === undefined || val === null) return true
-  if (typeof val === "string") return val.trim().length === 0
-  if (Array.isArray(val)) return val.length === 0
-  return false
-}
 
 interface TrackerResult {
   slug: string
@@ -60,8 +39,7 @@ function validate(slugFilter?: string[]): TrackerResult[] {
   // Check for global issues first
   const allSlugs = ALL_TRACKERS.map((t: TrackerRegistryEntry) => t.slug)
   const dupeSlugs = allSlugs.filter((s: string, i: number) => allSlugs.indexOf(s) !== i)
-  const normalize = (u: string) => u.replace(/\/+$/, "").toLowerCase()
-  const allUrls = ALL_TRACKERS.map((t: TrackerRegistryEntry) => normalize(t.url))
+  const allUrls = ALL_TRACKERS.map((t: TrackerRegistryEntry) => normalizeTrackerUrl(t.url))
   const dupeUrls = allUrls.filter((u: string, i: number) => allUrls.indexOf(u) !== i)
 
   const nonDraft = ALL_TRACKERS.filter((t: TrackerRegistryEntry) => !t.draft)
@@ -75,7 +53,7 @@ function validate(slugFilter?: string[]): TrackerResult[] {
 
     // ── Global duplication checks ─────────────────────────────────────
     if (dupeSlugs.includes(tracker.slug)) errors.push("Duplicate slug")
-    if (dupeUrls.includes(normalize(tracker.url))) errors.push("Duplicate URL")
+    if (dupeUrls.includes(normalizeTrackerUrl(tracker.url))) errors.push("Duplicate URL")
 
     // ── Required fields (errors) ──────────────────────────────────────
     if (!SLUG_RE.test(tracker.slug)) errors.push("Invalid slug format")
@@ -168,7 +146,7 @@ function validate(slugFilter?: string[]): TrackerResult[] {
     if (dupeCats.length > 0)
       errors.push(`Duplicate categories: ${[...new Set(dupeCats)].join(", ")}`)
 
-    if (tracker.color && !HEX_COLOR_RE.test(tracker.color)) {
+    if (tracker.color && !isValidHex(tracker.color)) {
       errors.push(`Invalid hex color "${tracker.color}"`)
     }
     if (tracker.logo) {

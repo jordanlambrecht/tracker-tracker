@@ -80,15 +80,9 @@ export function PrivacySection({ initialStoreUsernames }: PrivacySectionProps) {
             markers. This cannot be undone.
           </Paragraph>
           <div className="flex gap-3">
-            <Button size="sm" variant="danger" onClick={handleScrubYes}>
-              Yes, scrub history
-            </Button>
-            <Button size="sm" variant="primary" onClick={handleScrubNo}>
-              No, keep history
-            </Button>
-            <Button size="sm" variant="ghost" onClick={handleScrubCancel}>
-              Cancel
-            </Button>
+            <Button size="sm" variant="danger" onClick={handleScrubYes} text="Yes, scrub history" />
+            <Button size="sm" variant="primary" onClick={handleScrubNo} text="No, keep history" />
+            <Button size="sm" variant="ghost" onClick={handleScrubCancel} text="Cancel" />
           </div>
         </div>
       )}

@@ -10,46 +10,21 @@ import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { CollapsibleCard } from "@/components/ui/CollapsibleCard"
+import { ConfirmRemove } from "@/components/ui/ConfirmRemove"
 import { Input } from "@/components/ui/Input"
 import { MaskedSecret } from "@/components/ui/MaskedSecret"
 import { NumberInput } from "@/components/ui/NumberInput"
+import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
 import { Select } from "@/components/ui/Select"
 import { Toggle } from "@/components/ui/Toggle"
 import { Tooltip } from "@/components/ui/Tooltip"
+import { useActionStatus } from "@/hooks/useActionStatus"
 import { DOCS } from "@/lib/constants"
 import { formatTimeAgo } from "@/lib/formatters"
 import type { NotificationTargetType } from "@/lib/notifications/types"
+import type { SafeNotificationTarget } from "@/types/api"
 
-interface NotificationTarget {
-  id: number
-  name: string
-  type: NotificationTargetType
-  enabled: boolean
-  hasConfig: boolean
-  notifyRatioDrop: boolean
-  notifyHitAndRun: boolean
-  notifyTrackerDown: boolean
-  notifyBufferMilestone: boolean
-  notifyWarned: boolean
-  notifyRatioDanger: boolean
-  notifyZeroSeeding: boolean
-  notifyRankChange: boolean
-  notifyAnniversary: boolean
-  notifyBonusCap: boolean
-  notifyVipExpiring: boolean
-  notifyUnsatisfiedLimit: boolean
-  notifyActiveHnrs: boolean
-  thresholds: { ratioDropDelta?: number; bufferMilestoneBytes?: number } | null
-  includeTrackerName: boolean
-  scope: number[] | null
-  lastDeliveryStatus: string | null
-  lastDeliveryAt: string | null
-  lastDeliveryError: string | null
-  createdAt: string
-  updatedAt: string
-}
-
-type WebhookStatus = "idle" | "testing" | "success" | "failed"
+type NotificationTarget = SafeNotificationTarget
 
 const NOTIFICATION_TYPE_OPTIONS: {
   value: NotificationTargetType
@@ -91,21 +66,26 @@ const DRAFT_KEYS: (keyof NotificationTarget)[] = [
   "notifyVipExpiring",
   "notifyUnsatisfiedLimit",
   "notifyActiveHnrs",
+  "notifyDownloadDisabled",
   "thresholds",
   "includeTrackerName",
   "scope",
 ]
 
-function isDirty(draft: NotificationTarget, saved: NotificationTarget): boolean {
+function buildPatch(
+  draft: NotificationTarget,
+  saved: NotificationTarget
+): Record<string, unknown> | null {
+  const patch: Record<string, unknown> = {}
   for (const key of DRAFT_KEYS) {
     const a = draft[key]
     const b = saved[key]
     if (a === null && b === null) continue
     if (typeof a === "object" && typeof b === "object" && a !== null && b !== null) {
-      if (JSON.stringify(a) !== JSON.stringify(b)) return true
-    } else if (a !== b) return true
+      if (JSON.stringify(a) !== JSON.stringify(b)) patch[key] = a
+    } else if (a !== b) patch[key] = a
   }
-  return false
+  return Object.keys(patch).length > 0 ? patch : null
 }
 
 function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) {
@@ -113,11 +93,9 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(false)
-  const [webhookStatus, setWebhookStatus] = useState<WebhookStatus>("idle")
-  const [webhookError, setWebhookError] = useState<string | null>(null)
-  const [confirmRemove, setConfirmRemove] = useState(false)
+  const { status: webhookStatus, error: webhookError, execute: executeTest } = useActionStatus()
 
-  const dirty = isDirty(draft, target)
+  const dirty = buildPatch(draft, target) !== null
 
   // Sync draft when parent pushes new server state
   useEffect(() => {
@@ -138,16 +116,8 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
   async function handleSave() {
     setSaving(true)
     setSaveError(null)
-    const patch: Record<string, unknown> = {}
-    for (const key of DRAFT_KEYS) {
-      const a = draft[key]
-      const b = target[key]
-      if (typeof a === "object" && typeof b === "object") {
-        if (JSON.stringify(a) !== JSON.stringify(b)) patch[key] = a
-      } else if (a !== b) {
-        patch[key] = a
-      }
-    }
+    const patch = buildPatch(draft, target)
+    if (!patch) return
     try {
       const res = await fetch(`/api/notifications/${target.id}`, {
         method: "PATCH",
@@ -199,24 +169,14 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
     }
   }
 
-  const handleTestWebhook = useCallback(async () => {
-    setWebhookStatus("testing")
-    setWebhookError(null)
-    try {
+  const handleTestWebhook = () =>
+    executeTest(async () => {
       const res = await fetch(`/api/notifications/${target.id}/test`, { method: "POST" })
-      if (res.ok) {
-        setWebhookStatus("success")
-        setTimeout(() => setWebhookStatus("idle"), 3000)
-      } else {
+      if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        setWebhookError(data.error || "Test failed")
-        setWebhookStatus("failed")
+        throw new Error(data.error || "Test failed")
       }
-    } catch {
-      setWebhookError("Network error — could not reach server")
-      setWebhookStatus("failed")
-    }
-  }, [target.id])
+    })
 
   const ratioDropDelta = draft.thresholds?.ratioDropDelta ?? 0.1
 
@@ -243,7 +203,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
             {typeBadge}
             {statusBadge}
           </div>
-          <span className="text-[10px] font-mono text-tertiary">
+          <span className="text-3xs font-mono text-tertiary">
             {target.lastDeliveryAt
               ? `Last sent: ${formatTimeAgo(target.lastDeliveryAt)}`
               : "Last sent: Never"}
@@ -284,15 +244,15 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
 
       {/* Webhook URL */}
       <div className="flex flex-col gap-2">
-        <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider flex items-center gap-1.5">
+        <H2 className="uppercase tracking-wider flex items-center gap-2">
           Webhook URL
           <Tooltip
             content="Encrypted at rest with AES-256-GCM. Never returned in API responses."
             docs={DOCS.WEBHOOKS}
           >
-            <span className="text-tertiary cursor-help text-[10px]">?</span>
+            <span className="text-tertiary cursor-help text-3xs">?</span>
           </Tooltip>
-        </span>
+        </H2>
         {changingConfig ? (
           <div className="flex flex-col gap-3">
             <Input
@@ -310,9 +270,8 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
                 variant="primary"
                 onClick={handleSaveConfig}
                 disabled={!newWebhookUrl.trim()}
-              >
-                Save URL
-              </Button>
+                text="Save URL"
+              />
               {target.hasConfig && (
                 <button
                   type="button"
@@ -321,7 +280,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
                     setNewWebhookUrl("")
                     setConfigError(null)
                   }}
-                  className="text-xs font-mono text-tertiary hover:text-secondary transition-colors cursor-pointer"
+                  className="ghost-link"
                 >
                   Cancel
                 </button>
@@ -338,15 +297,15 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
 
       {/* Notify when section */}
       <div className="flex flex-col gap-4">
-        <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider flex items-center gap-1.5">
+        <H2 className="uppercase tracking-wider flex items-center gap-2">
           Notify when
           <Tooltip
             content="Each event has a snooze window to prevent repeated alerts."
             docs={DOCS.WEBHOOKS}
           >
-            <span className="text-tertiary cursor-help text-[10px]">?</span>
+            <span className="text-tertiary cursor-help text-3xs">?</span>
           </Tooltip>
-        </span>
+        </H2>
 
         <div className="flex flex-col gap-1">
           <Toggle
@@ -355,7 +314,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
             onChange={(v) => updateDraft({ notifyRatioDrop: v })}
           />
           {draft.notifyRatioDrop && (
-            <div className="ml-[3.75rem] flex items-center gap-3">
+            <div className="ml-15 flex items-center gap-3">
               <span className="text-xs font-mono text-tertiary">Threshold (delta)</span>
               <NumberInput
                 value={Math.round(ratioDropDelta * 100)}
@@ -421,14 +380,14 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
           label="Bonus Points Capped"
           checked={draft.notifyBonusCap}
           onChange={(v) => updateDraft({ notifyBonusCap: v })}
-          description="Alert when seedbonus hits the cap (99,999 on MAM)"
+          description="Alert when seedbonus hits the cap (i.e. 99,999 on MAM)"
         />
 
         <Toggle
           label="VIP Expiring Soon"
           checked={draft.notifyVipExpiring}
           onChange={(v) => updateDraft({ notifyVipExpiring: v })}
-          description="Alert when VIP status is about to expire"
+          description="Alert when VIP status is about to expire (MAM, AvistaZ network)"
         />
 
         <Toggle
@@ -443,6 +402,13 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
           checked={draft.notifyActiveHnrs}
           onChange={(v) => updateDraft({ notifyActiveHnrs: v })}
           description="Alert when inactive Hit & Runs are detected"
+        />
+
+        <Toggle
+          label="Download Privileges Revoked"
+          checked={draft.notifyDownloadDisabled}
+          onChange={(v) => updateDraft({ notifyDownloadDisabled: v })}
+          description="Alert when an AvistaZ network tracker revokes download access"
         />
       </div>
 
@@ -460,21 +426,13 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
         </Subtext>
       </div>
 
-      {/* Save / Discard bar — only visible when draft has changes */}
-      {dirty && (
-        <>
-          <div className="border-t border-border" />
-          <div className="flex items-center gap-3">
-            <Button size="sm" onClick={handleSave} disabled={saving}>
-              {saving ? "Saving..." : "Save Changes"}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={handleDiscard} disabled={saving}>
-              Discard
-            </Button>
-            {saveError && <span className="text-xs font-mono text-danger">{saveError}</span>}
-          </div>
-        </>
-      )}
+      <SaveDiscardBar
+        dirty={dirty}
+        saving={saving}
+        onSave={handleSave}
+        onDiscard={handleDiscard}
+        error={saveError}
+      />
 
       <div className="border-t border-border" />
 
@@ -484,9 +442,9 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
           size="sm"
           variant="secondary"
           onClick={handleTestWebhook}
-          disabled={webhookStatus === "testing" || !target.hasConfig}
+          disabled={webhookStatus === "pending" || !target.hasConfig}
         >
-          {webhookStatus === "testing"
+          {webhookStatus === "pending"
             ? "Sending..."
             : webhookStatus === "success"
               ? "Sent"
@@ -500,20 +458,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
 
         <div className="flex-1" />
 
-        {confirmRemove ? (
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="danger" onClick={() => onRemove(target.id)}>
-              Confirm Remove
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setConfirmRemove(false)}>
-              Cancel
-            </Button>
-          </div>
-        ) : (
-          <Button size="sm" variant="danger" onClick={() => setConfirmRemove(true)}>
-            Remove
-          </Button>
-        )}
+        <ConfirmRemove onConfirm={() => onRemove(target.id)} />
       </div>
       {webhookStatus === "failed" && webhookError && (
         <p className="text-xs font-mono text-danger">{webhookError}</p>
@@ -569,7 +514,7 @@ function AddNotificationForm({
   }
 
   return (
-    <Card elevation="raised" className="flex flex-col gap-4 !p-5">
+    <Card elevation="raised" className="flex flex-col gap-4">
       <H3>Add Notification Target</H3>
       <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
         <div className="flex-1">
@@ -602,12 +547,8 @@ function AddNotificationForm({
       />
       {error && <p className="text-sm font-mono text-danger">{error}</p>}
       <div className="flex items-center gap-3">
-        <Button size="sm" onClick={handleSubmit} disabled={!canSubmit || saving}>
-          {saving ? "Creating..." : "Create Target"}
-        </Button>
-        <Button size="sm" variant="ghost" onClick={onCancel}>
-          Cancel
-        </Button>
+        <Button size="sm" onClick={handleSubmit} disabled={!canSubmit || saving} text={saving ? "Creating..." : "Create Target"} />
+        <Button size="sm" variant="ghost" onClick={onCancel} text="Cancel" />
       </div>
     </Card>
   )
@@ -649,7 +590,7 @@ function NotificationTargets() {
       if (!res.ok) return
       setTargets((prev) => prev.filter((t) => t.id !== id))
     } catch {
-      // Network error — leave state unchanged
+      // Fire-and-forget delete — silently ignore network errors
     }
   }, [])
 
@@ -676,9 +617,7 @@ function NotificationTargets() {
               Add a notification target to receive alerts when your tracker stats change.
             </Paragraph>
           </div>
-          <Button size="sm" onClick={() => setShowAddForm(true)}>
-            Add Notification Target
-          </Button>
+          <Button size="sm" onClick={() => setShowAddForm(true)} text="Add Notification Target" />
         </Card>
       ) : (
         <>
@@ -704,9 +643,8 @@ function NotificationTargets() {
               variant="secondary"
               className="self-start"
               onClick={() => setShowAddForm(true)}
-            >
-              + Add Notification Target
-            </Button>
+              text="+ Add Notification Target"
+            />
           )}
         </>
       )}

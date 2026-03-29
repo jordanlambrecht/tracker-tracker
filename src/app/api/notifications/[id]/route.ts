@@ -4,14 +4,14 @@
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseJsonBody, parseRouteId } from "@/lib/api-helpers"
+import { authenticate, decodeKey, parseJsonBody, parseRouteId, type RouteContext } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { notificationTargets } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
 import { validateNotificationConfig } from "@/lib/notifications/validate"
 
-export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(req: Request, { params }: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -195,7 +195,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   return NextResponse.json({ success: true })
 }
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_req: Request, { params }: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 

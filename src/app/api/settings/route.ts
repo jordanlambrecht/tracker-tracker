@@ -8,12 +8,14 @@ import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { authenticate, decodeKey, parseJsonBody } from "@/lib/api-helpers"
 import { VALID_BACKUP_FREQUENCIES } from "@/lib/backup"
+import { BACKUP_PASSWORD_MAX } from "@/lib/limits"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
 import { scrubSnapshotUsernames } from "@/lib/privacy-db"
 import { PROXY_HOST_PATTERN, VALID_PROXY_TYPES } from "@/lib/proxy"
+import { isValidPort } from "@/lib/validators"
 import { QBITMANAGE_KEYS } from "@/lib/qbitmanage-defaults"
 import { fetchSettings, serializeSettingsResponse } from "@/lib/server-data"
 
@@ -200,7 +202,7 @@ export async function PATCH(request: Request) {
     if (body.proxyPort === null) {
       updates.proxyPort = null
     } else if (typeof body.proxyPort === "number" && Number.isInteger(body.proxyPort)) {
-      if (body.proxyPort < 1 || body.proxyPort > 65535) {
+      if (!isValidPort(body.proxyPort)) {
         return NextResponse.json(
           { error: "Proxy port must be between 1 and 65535" },
           { status: 400 }
@@ -376,9 +378,9 @@ export async function PATCH(request: Request) {
     if (body.backupPassword === null || body.backupPassword === "") {
       updates.encryptedBackupPassword = null
     } else if (typeof body.backupPassword === "string") {
-      if (body.backupPassword.length > 255) {
+      if (body.backupPassword.length > BACKUP_PASSWORD_MAX) {
         return NextResponse.json(
-          { error: "Backup password must be 255 characters or fewer" },
+          { error: "Backup password must be 128 characters or fewer" },
           { status: 400 }
         )
       }
@@ -485,7 +487,7 @@ export async function PATCH(request: Request) {
   const [updated] = await fetchSettings()
   if (!updated) {
     log.error({ route: "PATCH /api/settings" }, "settings re-fetch returned empty after update")
-    throw new Error("Settings update failed")
+    return NextResponse.json({ error: "Settings update failed" }, { status: 500 })
   }
 
   // Restart backup scheduler if schedule settings changed

@@ -62,6 +62,7 @@ export async function POST(request: Request) {
   const trimmedName = name.trim()
   const trimmedBaseUrl = baseUrl.trim()
   const trimmedApiToken = apiToken.trim()
+  const platform = typeof platformType === "string" ? platformType : "unit3d"
 
   if (trimmedName.length > 100) {
     return NextResponse.json({ error: "Name must be 100 characters or fewer" }, { status: 400 })
@@ -71,9 +72,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "URL must be 500 characters or fewer" }, { status: 400 })
   }
 
-  if (trimmedApiToken.length > 500) {
+  const maxTokenLength = platform === "avistaz" ? 5000 : 500
+  if (trimmedApiToken.length > maxTokenLength) {
     return NextResponse.json(
-      { error: "API token must be 500 characters or fewer" },
+      { error: `API token must be ${maxTokenLength} characters or fewer` },
       { status: 400 }
     )
   }
@@ -94,14 +96,14 @@ export async function POST(request: Request) {
   }
 
   if (typeof mouseholeUrl === "string" && mouseholeUrl.trim()) {
-    try {
-      const parsed = new URL(mouseholeUrl.trim())
-      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-        return NextResponse.json({ error: "Mousehole URL must use http or https" }, { status: 400 })
-      }
-    } catch {
-      return NextResponse.json({ error: "Invalid Mousehole URL format" }, { status: 400 })
+    if (mouseholeUrl.trim().length > 500) {
+      return NextResponse.json(
+        { error: "Mousehole URL must be 500 characters or fewer" },
+        { status: 400 }
+      )
     }
+    const mouseUrlErr = validateHttpUrl(mouseholeUrl.trim(), "Mousehole URL")
+    if (mouseUrlErr) return mouseUrlErr
   }
 
   if (typeof joinedAt === "string" && joinedAt) {
@@ -109,7 +111,6 @@ export async function POST(request: Request) {
     if (joinedAtErr) return joinedAtErr
   }
 
-  const platform = typeof platformType === "string" ? platformType : "unit3d"
   if (!VALID_PLATFORM_TYPES.includes(platform as (typeof VALID_PLATFORM_TYPES)[number])) {
     return NextResponse.json({ error: "Invalid platform type" }, { status: 400 })
   }

@@ -10,6 +10,7 @@ import {
   NON_DISMISSIBLE_ALERT_TYPES,
 } from "@/lib/alert-pruning"
 import { authenticate, parseJsonBody } from "@/lib/api-helpers"
+import type { AlertType } from "@/lib/dashboard"
 import { db } from "@/lib/db"
 import { dismissedAlerts } from "@/lib/db/schema"
 
@@ -71,7 +72,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "type must be 30 characters or fewer" }, { status: 400 })
   }
 
-  if (NON_DISMISSIBLE_ALERT_TYPES.has(normalizedType)) {
+  if (NON_DISMISSIBLE_ALERT_TYPES.has(normalizedType as AlertType)) {
     return NextResponse.json({ error: "This alert type cannot be dismissed" }, { status: 400 })
   }
 

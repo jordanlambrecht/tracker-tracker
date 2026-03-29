@@ -1,6 +1,4 @@
 // src/lib/notifications/types.ts
-//
-// Functions: (types only — no runtime code)
 
 export const VALID_NOTIFICATION_TYPES = ["discord", "gotify", "telegram", "slack", "email"] as const
 export type NotificationTargetType = (typeof VALID_NOTIFICATION_TYPES)[number]
@@ -19,18 +17,18 @@ export const VALID_EVENT_TYPES = [
   "vip_expiring",
   "unsatisfied_limit",
   "active_hnrs",
+  "download_disabled",
 ] as const
 export type NotificationEventType = (typeof VALID_EVENT_TYPES)[number]
 
 export interface NotificationThresholds {
-  ratioDropDelta?: number // i.e 0.1 — alert when ratio falls by ≥0.1
-  bufferMilestoneBytes?: number //i.e 10737418240 — alert when buffer crosses 10 GiB
-  bonusCapLimit?: number // default 99999 — fires when seedbonus hits or exceeds cap
-  vipExpiringDays?: number // default 7 — fires when VIP expiry is within N days
-  unsatisfiedLimitPercent?: number // default 80 — fires at 80% of unsatisfied limit
+  ratioDropDelta?: number
+  bufferMilestoneBytes?: number
+  bonusCapLimit?: number // default 99999, used for MAM specifically
+  vipExpiringDays?: number // default 7
+  unsatisfiedLimitPercent?: number // default 80
 }
 
-// Per-type config shapes (decrypted form — never stored plaintext)
 export interface DiscordConfig {
   webhookUrl: string
 }
@@ -61,5 +59,79 @@ export type NotificationConfig =
   | SlackConfig
   | EmailConfig
 
-// Discord webhook URL pattern — used for validation
+export interface SnapshotContext {
+  trackerId: number
+  trackerName: string
+  storeUsernames: boolean
+  currentRatio: number | null
+  previousRatio: number | null
+  currentHnrs: number | null
+  previousHnrs: number | null
+  currentBufferBytes: bigint | null
+  previousBufferBytes: bigint | null
+  trackerDown: boolean
+  trackerError: string | null
+  currentWarned: boolean | null
+  previousWarned: boolean | null
+  currentSeedingCount: number | null
+  currentGroup: string | null
+  previousGroup: string | null
+  trackerIsActive: boolean
+  trackerPausedAt: string | null
+  trackerJoinedAt: string | null
+  minimumRatio: number | undefined
+  // Platform-specific extended fields; populated for MAM and AvistaZ, undefined for others
+  platformContext?: {
+    currentSeedbonus: number | null
+    previousSeedbonus: number | null
+    vipUntil: string | null
+    unsatisfiedCount: number | null
+    unsatisfiedLimit: number | null
+    inactiveHnrCount: number | null
+    previousInactiveHnrCount: number | null
+    canDownload: boolean | null
+    previousCanDownload: boolean | null
+  }
+}
+
+/** Safely parse JSONB thresholds with runtime field validation */
+export function parseThresholds(raw: unknown): NotificationThresholds {
+  if (!raw || typeof raw !== "object") return {}
+  const r = raw as Record<string, unknown>
+  return {
+    ...(typeof r.ratioDropDelta === "number" ? { ratioDropDelta: r.ratioDropDelta } : {}),
+    ...(typeof r.bufferMilestoneBytes === "number"
+      ? { bufferMilestoneBytes: r.bufferMilestoneBytes }
+      : {}),
+    ...(typeof r.bonusCapLimit === "number" ? { bonusCapLimit: r.bonusCapLimit } : {}),
+    ...(typeof r.vipExpiringDays === "number" ? { vipExpiringDays: r.vipExpiringDays } : {}),
+    ...(typeof r.unsatisfiedLimitPercent === "number"
+      ? { unsatisfiedLimitPercent: r.unsatisfiedLimitPercent }
+      : {}),
+  }
+}
+
+// Type guards — validates shape only. Callers must also check target.type
+// since DiscordConfig and SlackConfig share the same { webhookUrl } shape.
+export function isDiscordConfig(config: NotificationConfig): config is DiscordConfig {
+  return "webhookUrl" in config && typeof config.webhookUrl === "string"
+}
+
+export function isNotificationConfig(value: unknown): value is NotificationConfig {
+  if (!value || typeof value !== "object") return false
+  const obj = value as Record<string, unknown>
+  if (typeof obj.webhookUrl === "string") return true
+  if (typeof obj.serverUrl === "string" && typeof obj.appToken === "string") return true
+  if (typeof obj.botToken === "string" && typeof obj.chatId === "string") return true
+  if (
+    typeof obj.host === "string" &&
+    typeof obj.port === "number" &&
+    typeof obj.from === "string" &&
+    typeof obj.to === "string"
+  )
+    return true
+  return false
+}
+
+// Discord webhook URL pattern
 export const DISCORD_WEBHOOK_RE = /^https:\/\/discord\.com\/api\/webhooks\/\d+\/[\w-]+$/

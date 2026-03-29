@@ -1,12 +1,11 @@
 // src/components/dashboard/torrents/TorrentRankingTable.tsx
-
 "use client"
 
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
 import { Tooltip } from "@/components/ui/Tooltip"
-import { formatBytesNum, formatDuration } from "@/lib/formatters"
+import { formatBytesNum, formatDuration, formatRatio, splitValueUnit } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 
 type TorrentTableVariant = "top-seeded" | "elder"
@@ -21,9 +20,7 @@ const seedTimeCol: Column<TorrentInfo> = {
   header: "Seed",
   align: "right",
   width: "8%",
-  render: (t) => (
-    <span className="text-[11px] font-mono text-muted">{formatDuration(t.seedingTime)}</span>
-  ),
+  render: (t) => <span className="torrent-cell">{formatDuration(t.seedingTime)}</span>,
 }
 
 const seedTimeColLast: Column<TorrentInfo> = {
@@ -31,9 +28,7 @@ const seedTimeColLast: Column<TorrentInfo> = {
   header: "Seed",
   align: "right",
   width: "8%",
-  render: (t) => (
-    <span className="text-[11px] font-mono text-muted pr-2">{formatDuration(t.seedingTime)}</span>
-  ),
+  render: (t) => <span className="torrent-cell pr-2">{formatDuration(t.seedingTime)}</span>,
 }
 
 const swarmCol: Column<TorrentInfo> = {
@@ -42,7 +37,7 @@ const swarmCol: Column<TorrentInfo> = {
   align: "right",
   width: "7%",
   render: (t) => (
-    <span className="text-[11px] font-mono text-muted pr-2">
+    <span className="torrent-cell pr-2">
       {t.numComplete}/{t.numIncomplete}
     </span>
   ),
@@ -56,7 +51,7 @@ const addedCol: Column<TorrentInfo> = {
   render: (t) => {
     const d = new Date(t.addedOn * 1000)
     return (
-      <span className="text-[11px] font-mono text-muted">
+      <span className="torrent-cell">
         {d.toLocaleDateString("en-US", { month: "short", year: "2-digit" })}
       </span>
     )
@@ -74,15 +69,13 @@ export function TorrentRankingTable({ torrents, variant }: TorrentRankingTablePr
       key: "rank",
       header: "#",
       width: "3%",
-      render: (_t, i) => (
-        <span className="text-[11px] font-mono text-muted pl-2">{i != null ? i + 1 : ""}</span>
-      ),
+      render: (_t, i) => <span className="torrent-cell pl-2">{i != null ? i + 1 : ""}</span>,
     },
     {
       key: "name",
       header: "Name",
       render: (t) => (
-        <MarqueeText className="text-[11px] font-mono text-secondary" speed={30}>
+        <MarqueeText className="text-2xs font-mono text-secondary" speed={30}>
           {t.name}
         </MarqueeText>
       ),
@@ -93,9 +86,7 @@ export function TorrentRankingTable({ torrents, variant }: TorrentRankingTablePr
       width: "10%",
       render: (t) => (
         <Tooltip content={t.category}>
-          <span className="text-[11px] font-mono text-muted truncate block">
-            {t.category || "\u2014"}
-          </span>
+          <span className="torrent-cell truncate block">{t.category || "\u2014"}</span>
         </Tooltip>
       ),
     },
@@ -105,14 +96,11 @@ export function TorrentRankingTable({ torrents, variant }: TorrentRankingTablePr
       align: "right",
       width: "8%",
       render: (t) => {
-        const formatted = formatBytesNum(t.size)
-        const spaceIdx = formatted.indexOf(" ")
-        const num = spaceIdx > -1 ? formatted.slice(0, spaceIdx) : formatted
-        const unit = spaceIdx > -1 ? formatted.slice(spaceIdx + 1) : ""
+        const { num, unit } = splitValueUnit(formatBytesNum(t.size))
         return (
-          <span className="text-[11px] font-mono text-muted text-right leading-none">
+          <span className="torrent-cell text-right leading-none">
             {num}
-            <span className="block text-[9px] mt-px">{unit}</span>
+            <span className="block text-4xs mt-px">{unit}</span>
           </span>
         )
       },
@@ -122,7 +110,7 @@ export function TorrentRankingTable({ torrents, variant }: TorrentRankingTablePr
       header: "Ratio",
       align: "right",
       width: "8%",
-      render: (t) => <span className="text-[11px] font-mono text-muted">{t.ratio.toFixed(2)}</span>,
+      render: (t) => <span className="torrent-cell">{formatRatio(t.ratio)}</span>,
     },
   ]
 

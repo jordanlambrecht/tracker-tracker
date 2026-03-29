@@ -39,6 +39,10 @@ vi.mock("@/lib/crypto", () => ({
 
 vi.mock("@/lib/qbt", () => ({
   getTorrents: vi.fn(),
+  stripSensitiveTorrentFields: vi.fn((t: Record<string, unknown>) => {
+    const { tracker: _t, content_path: _cp, save_path: _sp, ...rest } = t
+    return rest
+  }),
   // withSessionRetry: by default, call op with a fixed baseUrl+sid so the
   // getTorrents mock still fires normally. Individual tests that need to
   // simulate upstream errors replace this with vi.fn().mockRejectedValue(...).

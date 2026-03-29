@@ -1,15 +1,19 @@
 // src/components/ui/Button.tsx
-
 import { cva } from "class-variance-authority"
 import clsx from "clsx"
-import type { ButtonHTMLAttributes, Ref } from "react"
+import type { ButtonHTMLAttributes, ReactNode, Ref } from "react"
+import { SpinnerIcon } from "@/components/ui/Icons"
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "danger"
-type ButtonSize = "sm" | "md" | "lg"
+type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "minimal"
+type ButtonSize = "icon" | "sm" | "md" | "lg"
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant
   size?: ButtonSize
+  text?: string
+  leftIcon?: ReactNode
+  rightIcon?: ReactNode
+  loading?: boolean
   ref?: Ref<HTMLButtonElement>
 }
 
@@ -31,8 +35,10 @@ const button = cva(
           "bg-transparent text-secondary hover:bg-raised hover:text-primary hover:nm-raised-sm active:scale-[0.96]",
         danger:
           "bg-danger-dim text-danger nm-raised-sm hover:nm-raised active:nm-pressed active:scale-[0.93]",
+        minimal: "bg-transparent text-muted hover:text-secondary",
       },
       size: {
+        icon: "p-1.5 rounded-nm-sm",
         sm: "px-4 py-2 text-xs gap-2 rounded-nm-sm",
         md: "px-5 py-2 text-sm gap-2 rounded-nm-md",
         lg: "px-6 py-3 text-base gap-3 rounded-nm-md",
@@ -48,6 +54,11 @@ const button = cva(
 function Button({
   variant = "primary",
   size = "md",
+  text,
+  leftIcon,
+  rightIcon,
+  loading = false,
+  type = "button",
   className,
   disabled,
   children,
@@ -55,15 +66,21 @@ function Button({
   ref,
   ...props
 }: ButtonProps) {
+  const content = children ?? text
+
   return (
     <button
       ref={ref}
-      disabled={disabled}
+      type={type}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
       className={clsx(button({ variant, size }), className)}
       style={style}
       {...props}
     >
-      {children}
+      {loading ? <SpinnerIcon className="animate-spin h-4 w-4 shrink-0" /> : leftIcon}
+      {content}
+      {rightIcon}
     </button>
   )
 }

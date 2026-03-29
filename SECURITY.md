@@ -153,7 +153,7 @@ All API routes validate inputs — `src/app/api/trackers/route.ts`, `src/app/api
 | qBittorrent tag | string, max 100 chars, trimmed                                                                 |
 | Poll interval   | integer, clamped to 15-1440 minutes                                                            |
 | Tracker ID      | parsed as integer, NaN rejected                                                                |
-| Platform type   | allowlist: `["unit3d", "gazelle", "ggn", "nebulance"]`                                         |
+| Platform type   | allowlist: `["unit3d", "gazelle", "ggn", "nebulance", "mam", "custom"]`                        |
 | Password        | string, 8-128 chars                                                                            |
 | Role name       | string, max 255 chars                                                                          |
 | joinedAt        | regex-validated YYYY-MM-DD or null                                                             |
@@ -330,7 +330,7 @@ If you discover a security vulnerability:
 
 ### Security Testing
 
-Security invariants are verified by 86 automated tests in `src/lib/__tests__/security.test.ts`:
+Security invariants are verified by 106 automated tests in `src/lib/__tests__/security.test.ts`:
 
 | Category         | Tests | What's Verified                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | ---------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -357,7 +357,7 @@ pnpm test:run
 The GitHub Actions workflow (`.github/workflows/ci.yml`) runs on every push and PR to `main`:
 
 1. **Type check** (`pnpm tsc`) — catches type errors before runtime
-2. **Full test suite** (`pnpm test:run`) — all 1250+ tests including security invariants
+2. **Full test suite** (`pnpm test:run`) — all 2050+ tests including security invariants
 3. **Security test count guard** — fails the build if the security test count drops below 78, preventing accidental removal of security tests
 4. **Static security audit** (`scripts/security-audit.ts`) — runs on every PR, comments results on the PR, and fails on critical findings
 

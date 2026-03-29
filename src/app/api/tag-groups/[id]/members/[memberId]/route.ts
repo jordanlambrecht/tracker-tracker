@@ -4,13 +4,13 @@
 
 import { and, eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, parseJsonBody, validateHexColor } from "@/lib/api-helpers"
+import { authenticate, parseJsonBody, validateHexColor, type RouteContext } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { tagGroupMembers } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
 
 async function parseGroupAndMemberId(
-  params: Promise<{ id: string; memberId: string }>
+  params: RouteContext<{ id: string; memberId: string }>["params"]
 ): Promise<NextResponse | { groupId: number; memberId: number }> {
   const { id, memberId } = await params
   const groupId = parseInt(id, 10)
@@ -24,7 +24,7 @@ async function parseGroupAndMemberId(
 
 export async function PATCH(
   request: Request,
-  props: { params: Promise<{ id: string; memberId: string }> }
+  props: RouteContext<{ id: string; memberId: string }>
 ) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
@@ -114,7 +114,7 @@ export async function PATCH(
 
 export async function DELETE(
   _request: Request,
-  props: { params: Promise<{ id: string; memberId: string }> }
+  props: RouteContext<{ id: string; memberId: string }>
 ) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth

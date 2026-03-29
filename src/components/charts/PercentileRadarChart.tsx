@@ -1,11 +1,8 @@
 // src/components/charts/PercentileRadarChart.tsx
-//
-// Functions: PercentileRadarChart
-
 "use client"
 
 import { useMemo } from "react"
-import { hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
 import type { GazelleRanks } from "@/types/api"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
@@ -46,7 +43,7 @@ function PercentileRadarChart({ ranks, accentColor }: PercentileRadarChartProps)
         axisName: {
           color: CHART_THEME.textSecondary,
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 11,
+          fontSize: CHART_THEME.fontSizeDense,
         },
         splitArea: {
           areaStyle: {

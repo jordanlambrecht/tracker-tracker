@@ -1,18 +1,17 @@
 // src/components/settings/EventsSection.tsx
 //
 // Functions: formatTime, getDateKey, formatDateLabel, EventsSection
-
 "use client"
 
 import clsx from "clsx"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
 import { Button } from "@/components/ui/Button"
-import { CopyButton } from "@/components/ui/CopyButton"
-import { DownloadButton } from "@/components/ui/DownloadButton"
+import { CopyButton, DownloadButton } from "@/components/ui/ActionButtons"
+import { FilterPill } from "@/components/ui/FilterPill"
 import { RefreshIcon, TrashIcon } from "@/components/ui/Icons"
 import { Input } from "@/components/ui/Input"
-import { extractApiError } from "@/lib/client-helpers"
+import { extractApiError } from "@/lib/helpers"
 import {
   EVENT_CATEGORIES,
   EVENT_LEVELS,
@@ -20,7 +19,8 @@ import {
   type EventLevel,
   type SystemEvent,
 } from "@/lib/events"
-import { formatBytesNum } from "@/lib/formatters"
+import type { EventsPageResponse } from "@/types/api"
+import { formatBytesNum, localDateStr } from "@/lib/formatters"
 
 const CATEGORY_STYLES: Record<EventCategory, { border: string; icon: string; iconColor: string }> =
   {
@@ -39,7 +39,7 @@ const LEVEL_TEXT_COLORS: Record<EventLevel, string> = {
 }
 
 const ICON_BUTTON_CLASS =
-  "flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-sans font-medium text-tertiary hover:text-primary bg-elevated nm-raised-sm rounded-nm-sm transition-colors duration-150 cursor-pointer"
+  "flex items-center gap-2 px-2.5 py-1.5 text-xs font-sans font-medium text-tertiary hover:text-primary bg-elevated nm-raised-sm rounded-nm-sm transition-colors duration-150 cursor-pointer"
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], {
@@ -90,12 +90,7 @@ export function EventsSection() {
       const params = new URLSearchParams({ category: "all", limit: "1000", offset: "0" })
       const res = await fetch(`/api/settings/events?${params}`)
       if (!res.ok) throw new Error(await extractApiError(res, "Failed to load events"))
-      const data = (await res.json()) as {
-        events: SystemEvent[]
-        total: number
-        hasMore: boolean
-        logSizeBytes?: number
-      }
+      const data = (await res.json()) as EventsPageResponse
       setEvents(data.events)
       if (typeof data.logSizeBytes === "number") setLogSizeBytes(data.logSizeBytes)
     } catch (err) {
@@ -203,13 +198,13 @@ export function EventsSection() {
           placeholder="Search…"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="flex-1 min-w-[120px] max-w-[320px] text-xs"
+          className="flex-1 min-w-30 max-w-80 text-xs"
         />
         <span className="flex-1" />
         <CopyButton value={copyValue} />
         <DownloadButton
           url="/api/settings/logs/download"
-          fallbackFilename={`tracker-tracker-${new Date().toISOString().split("T")[0]}.log`}
+          fallbackFilename={`tracker-tracker-${localDateStr()}.log`}
           onError={setError}
         />
         <button
@@ -226,7 +221,7 @@ export function EventsSection() {
           aria-label={
             logSizeBytes > 0 ? `Clear logs (${formatBytesNum(logSizeBytes)})` : "Clear logs"
           }
-          className={clsx(ICON_BUTTON_CLASS, clearConfirm && "!text-danger")}
+          className={clsx(ICON_BUTTON_CLASS, clearConfirm && "text-danger!")}
         >
           <TrashIcon width="12" height="12" />
         </button>
@@ -235,36 +230,23 @@ export function EventsSection() {
       <div className="border-t border-border my-3" />
 
       {/* ── Filters (categories + levels) ─────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        <button
-          type="button"
+      <div className="flex flex-wrap items-center gap-2">
+        <FilterPill
+          size="sm"
+          active={allCategoriesActive}
           onClick={() => setActiveCategories(new Set(EVENT_CATEGORIES))}
-          aria-pressed={allCategoriesActive}
-          className={clsx(
-            "px-2 py-0.5 text-[11px] font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
-            allCategoriesActive
-              ? "nm-raised-sm text-primary font-semibold"
-              : "bg-transparent text-muted hover:text-secondary"
-          )}
-        >
-          All
-        </button>
+          text="All"
+        />
 
         {EVENT_CATEGORIES.map((cat) => (
-          <button
+          <FilterPill
             key={cat}
-            type="button"
+            size="sm"
+            active={activeCategories.has(cat)}
             onClick={() => toggleCategory(cat)}
-            aria-pressed={activeCategories.has(cat)}
-            className={clsx(
-              "px-2 py-0.5 text-[11px] font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
-              activeCategories.has(cat)
-                ? "nm-raised-sm text-primary font-semibold"
-                : "bg-transparent text-muted hover:text-secondary line-through opacity-50"
-            )}
-          >
-            {cat.charAt(0).toUpperCase() + cat.slice(1)}
-          </button>
+            inactive="strikethrough"
+            text={cat.charAt(0).toUpperCase() + cat.slice(1)}
+          />
         ))}
 
         <span className="flex-1" />
@@ -272,20 +254,15 @@ export function EventsSection() {
         <span className="w-px h-4 bg-border shrink-0 mx-0.5" />
 
         {EVENT_LEVELS.map((level) => (
-          <button
+          <FilterPill
             key={level}
-            type="button"
+            size="sm"
+            active={activeLevels.has(level)}
             onClick={() => toggleLevel(level)}
-            aria-pressed={activeLevels.has(level)}
-            className={clsx(
-              "px-2 py-0.5 text-[11px] font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
-              activeLevels.has(level)
-                ? clsx("nm-raised-sm font-semibold", LEVEL_TEXT_COLORS[level])
-                : "bg-transparent text-muted hover:text-secondary line-through opacity-50"
-            )}
-          >
-            {level.charAt(0).toUpperCase() + level.slice(1)}
-          </button>
+            activeColor={LEVEL_TEXT_COLORS[level]}
+            inactive="strikethrough"
+            text={level.charAt(0).toUpperCase() + level.slice(1)}
+          />
         ))}
       </div>
 
@@ -297,9 +274,13 @@ export function EventsSection() {
           <p className="text-xs font-mono text-danger flex-1">
             Truncate log file? DB events are not affected.
           </p>
-          <Button size="sm" variant="danger" onClick={handleClear} disabled={clearLoading}>
-            {clearLoading ? "Clearing…" : "Confirm"}
-          </Button>
+          <Button
+            size="sm"
+            variant="danger"
+            onClick={handleClear}
+            disabled={clearLoading}
+            text={clearLoading ? "Clearing…" : "Confirm"}
+          />
           <Button
             size="sm"
             variant="ghost"
@@ -307,9 +288,8 @@ export function EventsSection() {
               setClearConfirm(false)
               setClearError(null)
             }}
-          >
-            Cancel
-          </Button>
+            text="Cancel"
+          />
           {clearError && <span className="text-xs text-danger font-mono">{clearError}</span>}
         </div>
       )}
@@ -318,7 +298,7 @@ export function EventsSection() {
       {error && <span className="text-xs text-danger font-mono">{error}</span>}
 
       {/* ── Event stream ─────────────────────────────────────────── */}
-      <div className="nm-inset-sm bg-control-bg overflow-x-auto overflow-y-auto max-h-[560px] styled-scrollbar rounded-nm-md">
+      <div className="nm-inset-sm bg-control-bg overflow-x-auto overflow-y-auto max-h-140 styled-scrollbar rounded-nm-md">
         {loading && events.length === 0 ? (
           <p className="px-3 py-8 text-xs font-mono text-muted text-center">Loading events…</p>
         ) : filteredEvents.length === 0 ? (
@@ -338,13 +318,13 @@ export function EventsSection() {
             return (
               <div key={event.id}>
                 {showDateSep && (
-                  <div className="sticky top-0 z-10 px-3 py-1 text-[10px] font-mono text-tertiary bg-overlay/90 backdrop-blur-sm border-b border-border">
+                  <div className="sticky top-0 z-10 px-3 py-1 text-3xs font-mono text-tertiary bg-overlay/90 backdrop-blur-sm border-b border-border">
                     {formatDateLabel(event.timestamp)}
                   </div>
                 )}
                 {(() => {
                   const rowClass = clsx(
-                    "flex flex-col gap-0 px-3 py-1.5 text-xs font-mono border-l-[3px] w-full text-left",
+                    "flex flex-col gap-0 px-3 py-1.5 text-xs font-mono border-l-3 w-full text-left",
                     style.border,
                     i % 2 === 0 ? "bg-control-bg" : "bg-elevated/50",
                     hasDetail &&
@@ -358,7 +338,7 @@ export function EventsSection() {
                         >
                           {style.icon}
                         </span>
-                        <span className="text-tertiary shrink-0 tabular-nums w-[62px]">
+                        <span className="text-tertiary shrink-0 tabular-nums w-15.5">
                           {formatTime(event.timestamp)}
                         </span>
                         <span className="text-secondary shrink-0">{event.title}</span>
@@ -369,7 +349,7 @@ export function EventsSection() {
                         )}
                       </div>
                       {isExpanded && event.detail && (
-                        <pre className="text-tertiary text-[11px] leading-relaxed whitespace-pre-wrap break-all pl-[calc(0.75rem+62px+0.5rem)] pt-1 pb-0.5 select-text">
+                        <pre className="text-tertiary text-2xs leading-relaxed whitespace-pre-wrap break-all pl-[calc(0.75rem+62px+0.5rem)] pt-1 pb-0.5 select-text">
                           {event.detail}
                         </pre>
                       )}
@@ -395,9 +375,9 @@ export function EventsSection() {
 
       {/* ── Footer ───────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
-        <p className="text-[10px] text-muted font-mono">IPs redacted</p>
+        <p className="timestamp">IPs redacted</p>
         {filteredEvents.length > 0 && (
-          <span className="text-[10px] font-mono text-muted">
+          <span className="timestamp">
             {filteredEvents.length === events.length
               ? `${events.length} events`
               : `${filteredEvents.length} of ${events.length}`}
