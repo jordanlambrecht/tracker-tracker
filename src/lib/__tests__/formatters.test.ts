@@ -1,18 +1,9 @@
 // src/lib/__tests__/formatters.test.ts
 
 import { describe, expect, it } from "vitest"
-import {
-  bytesToGiB,
-  computeBufferBytes,
-  computeDelta,
-  floatBytesToBigInt,
-  formatCount,
-  formatDateTime,
-  formatPercent,
-  formatRatio,
-  formatRatioDisplay,
-  hexToRgba,
-} from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
+import { bytesToGiB, formatCount, formatDateTime, formatPercent, formatRatio, formatRatioDisplay } from "@/lib/formatters"
+import { computeBufferBytes, computeDelta, floatBytesToBigInt } from "@/lib/helpers"
 import type { Snapshot } from "@/types/api"
 
 describe("bytesToGiB", () => {

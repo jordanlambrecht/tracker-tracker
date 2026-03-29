@@ -13,6 +13,7 @@ import {
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
+import { sanitizeHost } from "@/lib/helpers"
 import { log } from "@/lib/logger"
 import { PROXY_HOST_PATTERN } from "@/lib/proxy"
 import { VALID_CLIENT_TYPES } from "@/lib/qbt/types"
@@ -58,7 +59,7 @@ export async function PATCH(request: Request, props: RouteContext) {
     if (body.host.length > 255) {
       return NextResponse.json({ error: "Host must be 255 characters or fewer" }, { status: 400 })
     }
-    const sanitizedHost = body.host.trim().replace(/^https?:\/\//, "")
+    const sanitizedHost = sanitizeHost(body.host)
     if (!PROXY_HOST_PATTERN.test(sanitizedHost)) {
       return NextResponse.json({ error: "Invalid host format" }, { status: 400 })
     }

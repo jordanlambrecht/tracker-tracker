@@ -7,6 +7,7 @@ import { authenticate, decodeKey, parseJsonBody, validatePort } from "@/lib/api-
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
+import { sanitizeHost } from "@/lib/helpers"
 import { log } from "@/lib/logger"
 import { PROXY_HOST_PATTERN } from "@/lib/proxy"
 import { parseCrossSeedTags } from "@/lib/qbt"
@@ -104,7 +105,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Password must be 255 characters or fewer" }, { status: 400 })
   }
 
-  const sanitizedHost = host.trim().replace(/^https?:\/\//, "")
+  const sanitizedHost = sanitizeHost(host)
   if (!PROXY_HOST_PATTERN.test(sanitizedHost)) {
     return NextResponse.json({ error: "Invalid host format" }, { status: 400 })
   }

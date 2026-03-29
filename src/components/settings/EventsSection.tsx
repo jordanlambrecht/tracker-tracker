@@ -1,7 +1,6 @@
 // src/components/settings/EventsSection.tsx
 //
 // Functions: formatTime, getDateKey, formatDateLabel, EventsSection
-
 "use client"
 
 import clsx from "clsx"
@@ -12,7 +11,7 @@ import { CopyButton, DownloadButton } from "@/components/ui/ActionButtons"
 import { FilterPill } from "@/components/ui/FilterPill"
 import { RefreshIcon, TrashIcon } from "@/components/ui/Icons"
 import { Input } from "@/components/ui/Input"
-import { extractApiError } from "@/lib/client-helpers"
+import { extractApiError } from "@/lib/helpers"
 import {
   EVENT_CATEGORIES,
   EVENT_LEVELS,
@@ -222,7 +221,7 @@ export function EventsSection() {
           aria-label={
             logSizeBytes > 0 ? `Clear logs (${formatBytesNum(logSizeBytes)})` : "Clear logs"
           }
-          className={clsx(ICON_BUTTON_CLASS, clearConfirm && "!text-danger")}
+          className={clsx(ICON_BUTTON_CLASS, clearConfirm && "text-danger!")}
         >
           <TrashIcon width="12" height="12" />
         </button>
@@ -275,7 +274,13 @@ export function EventsSection() {
           <p className="text-xs font-mono text-danger flex-1">
             Truncate log file? DB events are not affected.
           </p>
-          <Button size="sm" variant="danger" onClick={handleClear} disabled={clearLoading} text={clearLoading ? "Clearing…" : "Confirm"} />
+          <Button
+            size="sm"
+            variant="danger"
+            onClick={handleClear}
+            disabled={clearLoading}
+            text={clearLoading ? "Clearing…" : "Confirm"}
+          />
           <Button
             size="sm"
             variant="ghost"

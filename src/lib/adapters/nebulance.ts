@@ -6,7 +6,7 @@
 //   - HnR field: present on Nebulance, absent on Anthelion
 //   - Response may be wrapped {"status":"success","response":{...}} or flat
 
-import { computeBufferBytes, floatBytesToBigInt } from "@/lib/formatters"
+import { computeBufferBytes, floatBytesToBigInt } from "@/lib/helpers"
 import { proxyFetch } from "@/lib/proxy"
 import type {
   DebugApiCall,

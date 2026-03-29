@@ -1,7 +1,4 @@
 // src/components/settings/DangerZoneSection.tsx
-//
-// Functions: DangerZoneSection
-
 "use client"
 
 import { H3, Paragraph } from "@typography"
@@ -11,7 +8,7 @@ import { SettingsSection } from "@/components/settings/SettingsSection"
 import { Button } from "@/components/ui/Button"
 import { Checkbox } from "@/components/ui/Checkbox"
 import { Input } from "@/components/ui/Input"
-import { extractApiError } from "@/lib/client-helpers"
+import { extractApiError } from "@/lib/helpers"
 
 export function DangerZoneSection() {
   const router = useRouter()
@@ -256,7 +253,12 @@ export function DangerZoneSection() {
           </div>
         ) : (
           <div>
-            <Button size="sm" variant="danger" onClick={() => setConfirmLockdown(true)} text="Initiate Lockdown" />
+            <Button
+              size="sm"
+              variant="danger"
+              onClick={() => setConfirmLockdown(true)}
+              text="Initiate Lockdown"
+            />
           </div>
         )}
       </div>

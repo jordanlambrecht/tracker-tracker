@@ -1,8 +1,8 @@
 // src/components/dashboard/TrackerBreakdownTicker.tsx
-
 "use client"
 
-import { compareBigIntDesc, formatBytesFromString } from "@/lib/formatters"
+import { formatBytesFromString } from "@/lib/formatters"
+import { compareBigIntDesc } from "@/lib/helpers"
 import type { TodayAtAGlance } from "@/types/api"
 
 interface TrackerBreakdownProps {

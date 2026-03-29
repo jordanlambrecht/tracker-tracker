@@ -1,5 +1,4 @@
 // src/components/settings/ProxySection.tsx
-
 "use client"
 
 import { H3, Paragraph, Subtext } from "@typography"
@@ -10,10 +9,11 @@ import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { NumberInput } from "@/components/ui/NumberInput"
+import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
 import { Select } from "@/components/ui/Select"
 import { Toggle } from "@/components/ui/Toggle"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
-import { extractApiError } from "@/lib/client-helpers"
+import { extractApiError } from "@/lib/helpers"
 import { DOCS } from "@/lib/constants"
 
 export interface ProxySectionProps {
@@ -234,23 +234,17 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
 
           <div className="border-t border-border" />
 
-          {/* Save proxy */}
-          {proxyError && (
-            <p className="text-xs font-sans text-danger" role="alert">
-              {proxyError}
-            </p>
-          )}
-          {proxySuccess && <p className="text-xs font-sans text-success">Proxy settings saved.</p>}
-          {proxyHasChanges && (
-            <div className="flex justify-end">
-              <Button
-                size="sm"
-                disabled={savingProxy || !proxyHost.trim()}
-                onClick={handleSaveProxy}
-                text={savingProxy ? "Saving…" : "Save Proxy"}
-              />
-            </div>
-          )}
+          <SaveDiscardBar
+            dirty={proxyHasChanges}
+            saving={savingProxy}
+            onSave={handleSaveProxy}
+            saveDisabled={!proxyHost.trim()}
+            error={proxyError}
+            success={proxySuccess ? "Proxy settings saved." : null}
+            saveLabel="Save Proxy"
+            justify="end"
+            showDivider={false}
+          />
 
           <div className="border-t border-border" />
 

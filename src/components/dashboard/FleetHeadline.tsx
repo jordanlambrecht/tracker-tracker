@@ -10,12 +10,8 @@ import {
   UploadArrowIcon,
 } from "@/components/ui/Icons"
 import { StatCard } from "@/components/ui/StatCard"
-import {
-  computePctChange,
-  formatBytesFromString,
-  formatCount,
-  splitValueUnit,
-} from "@/lib/formatters"
+import { formatBytesFromString, formatCount, splitValueUnit } from "@/lib/formatters"
+import { computePctChange } from "@/lib/helpers"
 import type { TodayAtAGlance } from "@/types/api"
 
 interface FleetHeadlineProps {

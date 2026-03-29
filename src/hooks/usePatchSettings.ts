@@ -1,9 +1,7 @@
 // src/hooks/usePatchSettings.ts
-//
-// Functions: usePatchSettings
 
 import { useCallback, useState } from "react"
-import { extractApiError } from "@/lib/client-helpers"
+import { extractApiError } from "@/lib/helpers"
 
 interface UsePatchSettingsReturn {
   saving: boolean

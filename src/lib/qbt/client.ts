@@ -12,6 +12,7 @@
 //   getTorrents           - Fetch torrent info from qBittorrent (optionally filtered by tag)
 //   getTransferInfo       - Fetch global transfer stats from qBittorrent
 
+import { sanitizeHost } from "@/lib/helpers"
 import { isQbtTorrent, type QbtTorrent, type QbtTransferInfo } from "./types"
 
 /** Extract a human-readable detail string from a fetch error.
@@ -40,7 +41,7 @@ function describeFetchError(err: unknown): string {
 
 export function buildBaseUrl(host: string, port: number, ssl: boolean): string {
   // Strip any protocol the user may have included (i.e "http://myhost")
-  const cleanHost = host.replace(/^https?:\/\//, "")
+  const cleanHost = sanitizeHost(host)
   return `${ssl ? "https" : "http"}://${cleanHost}:${port}`
 }
 

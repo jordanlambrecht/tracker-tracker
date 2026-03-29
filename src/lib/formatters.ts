@@ -1,14 +1,12 @@
 // src/lib/formatters.ts
 //
 // Functions: formatBytesFromString, bytesToGiB, formatBytesNum,
-// formatRatio, formatAccountAge, formatJoinedDate, hexToRgba, hexToInt, hexToHsl,
-// hslToHex, generatePalette, getComplementaryColor, formatStatValue,
-// computeDelta, formatDuration, formatTimeAgo, splitValueUnit, compareBigIntDesc,
-// computePctChange, floatBytesToBigInt, computeBufferBytes,
-// localDateStr, isUnixTimestampOnDate, formatSpeed,
+// formatRatio, formatAccountAge, formatJoinedDate, formatStatValue,
+// formatDuration, formatTimeAgo, splitValueUnit,
+// localDateStr, formatSpeed,
 // formatRatioDisplay, formatCount, formatPercent, formatDateTime
 
-import type { Snapshot, TrackerLatestStats } from "@/types/api"
+import type { TrackerLatestStats } from "@/types/api"
 
 /**
  * Formats a bigint byte string (from API) to human-readable GiB/TiB.
@@ -101,118 +99,6 @@ export function formatJoinedDate(joinedAt: string | null): string | null {
   return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
 }
 
-/**
- * Converts a hex color (#rrggbb) to rgba with the given alpha.
- */
-
-const STRICT_HEX_RE = /^#[0-9a-fA-F]{6}$/
-const PERMISSIVE_HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
-const FALLBACK_HEX = "#00d4ff"
-
-export const ISO_8601_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/
-export const HEX_64_RE = /^[0-9a-fA-F]{64}$/
-
-export function isValidHex(value: string, permissive = false): boolean {
-  return permissive ? PERMISSIVE_HEX_RE.test(value) : STRICT_HEX_RE.test(value)
-}
-
-export function hexToRgba(hex: string, alpha: number): string {
-  const safe = isValidHex(hex) ? hex : FALLBACK_HEX
-  const r = parseInt(safe.slice(1, 3), 16)
-  const g = parseInt(safe.slice(3, 5), 16)
-  const b = parseInt(safe.slice(5, 7), 16)
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
-}
-
-/** Converts a hex color (#rrggbb) to a 24-bit integer (for Discord embed colors, etc.). */
-export function hexToInt(hex: string): number {
-  return Number.parseInt(hex.replace("#", ""), 16)
-}
-
-/**
- * Converts a hex color (#rrggbb) to HSL components.
- * Returns [hue (0-360), saturation (0-1), lightness (0-1)].
- */
-export function hexToHsl(hex: string): [number, number, number] {
-  const r = parseInt(hex.slice(1, 3), 16) / 255
-  const g = parseInt(hex.slice(3, 5), 16) / 255
-  const b = parseInt(hex.slice(5, 7), 16) / 255
-  const max = Math.max(r, g, b)
-  const min = Math.min(r, g, b)
-  const l = (max + min) / 2
-
-  if (max === min) return [0, 0, l]
-
-  const d = max - min
-  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
-
-  let h = 0
-  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6
-  else if (max === g) h = ((b - r) / d + 2) / 6
-  else h = ((r - g) / d + 4) / 6
-
-  return [h * 360, s, l]
-}
-
-/**
- * Converts HSL components to a hex color string.
- */
-export function hslToHex(h: number, s: number, l: number): string {
-  const hNorm = (((h % 360) + 360) % 360) / 360
-
-  function hue2rgb(p: number, q: number, t: number): number {
-    if (t < 0) t += 1
-    if (t > 1) t -= 1
-    if (t < 1 / 6) return p + (q - p) * 6 * t
-    if (t < 1 / 2) return q
-    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6
-    return p
-  }
-
-  let r: number
-  let g: number
-  let b: number
-  if (s === 0) {
-    r = g = b = l
-  } else {
-    const q = l < 0.5 ? l * (1 + s) : l + s - l * s
-    const p = 2 * l - q
-    r = hue2rgb(p, q, hNorm + 1 / 3)
-    g = hue2rgb(p, q, hNorm)
-    b = hue2rgb(p, q, hNorm - 1 / 3)
-  }
-
-  const toHex = (x: number) =>
-    Math.round(x * 255)
-      .toString(16)
-      .padStart(2, "0")
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`
-}
-
-/**
- * Generates `count` visually distinct colors by rotating hue evenly across
- * 360°, anchored at the hue of `baseColor`. Saturation and lightness are
- * clamped to values that look good on dark backgrounds.
- */
-export function generatePalette(count: number, baseColor: string): string[] {
-  if (count === 0) return []
-  const [baseH, baseS, baseL] = hexToHsl(baseColor)
-  const sat = Math.max(baseS, 0.55)
-  const lit = Math.min(Math.max(baseL, 0.45), 0.65)
-  if (count === 1) return [hslToHex(baseH, sat, lit)]
-  const step = 360 / count
-  return Array.from({ length: count }, (_, i) => hslToHex(baseH + i * step, sat, lit))
-}
-
-/**
- * Generates a visually complementary color by rotating the hue.
- * Ensures visibility on dark backgrounds (min lightness 0.4, min saturation 0.5).
- */
-export function getComplementaryColor(hex: string, rotation = 150): string {
-  const [h, s, l] = hexToHsl(hex)
-  return hslToHex(h + rotation, Math.max(s, 0.5), Math.max(0.4, Math.min(0.7, l)))
-}
-
 export type StatMode = "ratio" | "seeding" | "uploaded" | "downloaded" | "buffer"
 
 /**
@@ -240,49 +126,6 @@ export function formatStatValue(stats: TrackerLatestStats | null, mode: StatMode
       const buf = up - down
       return `${formatBytesFromString(buf.toString())} buf`
     }
-  }
-}
-
-/**
- * Computes the 24-hour upload/download delta from a snapshot array.
- * Sorts snapshots ascending by polledAt before processing, so the result
- * is correct regardless of the order snapshots arrive in.
- * Returns null if fewer than 2 snapshots exist or no snapshot falls within
- * the 24-hour window.
- */
-export function computeDelta(snaps: Snapshot[]): { uploaded: string; downloaded: string } | null {
-  if (snaps.length < 2) return null
-
-  const sorted = [...snaps].sort(
-    (a, b) => new Date(a.polledAt).getTime() - new Date(b.polledAt).getTime()
-  )
-
-  const latest = sorted[sorted.length - 1]
-  const cutoff = Date.now() - 24 * 60 * 60 * 1000
-
-  let earliest: Snapshot | null = null
-  for (const s of sorted) {
-    if (new Date(s.polledAt).getTime() >= cutoff) {
-      earliest = s
-      break
-    }
-  }
-
-  if (!earliest || earliest === latest) return null
-  if (
-    !latest.uploadedBytes ||
-    !earliest.uploadedBytes ||
-    !latest.downloadedBytes ||
-    !earliest.downloadedBytes
-  )
-    return null
-
-  try {
-    const uploadDelta = BigInt(latest.uploadedBytes) - BigInt(earliest.uploadedBytes)
-    const downloadDelta = BigInt(latest.downloadedBytes) - BigInt(earliest.downloadedBytes)
-    return { uploaded: uploadDelta.toString(), downloaded: downloadDelta.toString() }
-  } catch {
-    return null
   }
 }
 
@@ -319,55 +162,12 @@ export function splitValueUnit(formatted: string): { num: string; unit: string }
   return { num: formatted.slice(0, idx), unit: formatted.slice(idx + 1) }
 }
 
-/** Comparator for sorting bigint values in descending order. */
-export function compareBigIntDesc(a: bigint, b: bigint): number {
-  if (b > a) return 1
-  if (b < a) return -1
-  return 0
-}
-
-/** Compute percentage change between two bigint-encoded decimal strings. */
-export function computePctChange(today: string, yesterday: string | null): number | null {
-  if (yesterday === null) return null
-  try {
-    // NOTE: Converting BigInt to Number can lose precision for values larger than
-    // Number.MAX_SAFE_INTEGER (~8 PiB). For typical tracker upload/download totals
-    // this is unlikely to be a problem, but a full bigint arithmetic refactor would
-    // be required to handle extreme values correctly.
-    const y = Number(BigInt(yesterday))
-    if (y === 0) return null
-    const t = Number(BigInt(today))
-    return ((t - y) / y) * 100
-  } catch {
-    return null
-  }
-}
-
-/** Converts a float byte count from an API response to a bigint by floor-truncating the fractional part. */
-export function floatBytesToBigInt(n: number | null | undefined): bigint {
-  return BigInt(Math.max(0, Math.floor(n ?? 0)))
-}
-
-/** Computes the buffer (upload minus download), floored to zero. */
-export function computeBufferBytes(uploaded: bigint, downloaded: bigint): bigint {
-  return uploaded > downloaded ? uploaded - downloaded : 0n
-}
-
 /**
  * Returns a YYYY-MM-DD date string in the server's local timezone (respects TZ env).
  */
 export function localDateStr(date?: Date | number): string {
   const d = date instanceof Date ? date : date !== undefined ? new Date(date) : new Date()
   return d.toLocaleDateString("en-CA")
-}
-
-/**
- * Returns true if a unix timestamp (seconds) falls on the given date string (YYYY-MM-DD)
- * in the server's local timezone. Returns false for timestamps <= 0.
- */
-export function isUnixTimestampOnDate(unixSeconds: number, dateStr: string): boolean {
-  if (unixSeconds <= 0) return false
-  return localDateStr(new Date(unixSeconds * 1000)) === dateStr
 }
 
 export function formatSpeed(bytesPerSec: number): string {

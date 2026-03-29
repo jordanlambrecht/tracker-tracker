@@ -1,5 +1,4 @@
 // src/components/tracker-detail/TrackerInfoTab.tsx
-
 "use client"
 
 import { H2 } from "@typography"
@@ -11,7 +10,8 @@ import { PillTag } from "@/components/ui/PillTag"
 import { SectionToggle } from "@/components/ui/SectionToggle"
 import { Tooltip } from "@/components/ui/Tooltip"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
-import { formatCount, formatRatio, hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
+import { formatCount, formatRatio } from "@/lib/formatters"
 import type { TrackerLatestStats } from "@/types/api"
 
 interface TrackerInfoTabProps {

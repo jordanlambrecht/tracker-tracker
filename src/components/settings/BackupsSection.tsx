@@ -14,7 +14,7 @@ import { Table } from "@/components/ui/Table"
 import { Toggle } from "@/components/ui/Toggle"
 import { Tooltip } from "@/components/ui/Tooltip"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
-import { extractApiError } from "@/lib/client-helpers"
+import { extractApiError } from "@/lib/helpers"
 import { DOCS } from "@/lib/constants"
 import { downloadResponseBlob } from "@/lib/download"
 import { formatBytesNum, formatDateTime } from "@/lib/formatters"
@@ -295,7 +295,12 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
         render: (b) => (
           <div className="flex gap-2 justify-end">
             {b.hasStoredFile && (
-              <Button variant="secondary" size="sm" onClick={() => handleDownloadBackup(b.id)} text="Download" />
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => handleDownloadBackup(b.id)}
+                text="Download"
+              />
             )}
             <Button
               variant="danger"
@@ -328,7 +333,12 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
 
         <Card elevation="raised" className="flex flex-col gap-4">
           <div className="flex gap-3 items-center">
-            <Button size="sm" onClick={handleBackupNow} disabled={backingUp || backupConfigDirty} text={backingUp ? "Creating Backup…" : "Backup Now"} />
+            <Button
+              size="sm"
+              onClick={handleBackupNow}
+              disabled={backingUp || backupConfigDirty}
+              text={backingUp ? "Creating Backup…" : "Backup Now"}
+            />
             {backupConfigDirty && (
               <span className="text-xs text-warn">Save configuration before exporting</span>
             )}

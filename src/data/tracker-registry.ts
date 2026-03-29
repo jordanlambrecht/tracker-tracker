@@ -1,13 +1,8 @@
 // src/data/tracker-registry.ts
-//
-// Exports: RankPerkType, RankPerk, TrackerUserClass, TrackerRules, TrackerRegistryEntry, TRACKER_REGISTRY, getTrackerBySlug, getAllTrackers, findRegistryEntry
-//
-// Type definitions and public API for the tracker registry.
-// Individual tracker data lives in src/data/trackers/.
 
 import type { PlatformType } from "@/lib/adapters/constants"
 import type { GazelleAuthStyle, Unit3dAuthStyle } from "@/lib/adapters/types"
-import { normalizeUrl } from "@/lib/url"
+import { normalizeUrl } from "@/lib/helpers"
 import { ALL_TRACKERS } from "./trackers"
 
 export interface ReleaseGroup {

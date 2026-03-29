@@ -18,7 +18,8 @@ import { TrackerInfoTab } from "@/components/tracker-detail/TrackerInfoTab"
 import { TrackerStatusBanner } from "@/components/tracker-detail/TrackerStatusBanner"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { useTrackerTorrents } from "@/hooks/useTrackerTorrents"
-import { computeDelta, hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
+import { computeDelta } from "@/lib/helpers"
 import type { SlotContext } from "@/lib/slot-types"
 import type {
   GazellePlatformMeta,
