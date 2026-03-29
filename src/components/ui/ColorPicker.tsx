@@ -1,10 +1,13 @@
 // src/components/ui/ColorPicker.tsx
-
 "use client"
 
 import { H2 } from "@typography"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { HexColorPicker } from "react-colorful"
+import { useAnimatedPresence } from "@/hooks/useAnimatedPresence"
+import { useClickOutside } from "@/hooks/useClickOutside"
+import { useEscapeKey } from "@/hooks/useEscapeKey"
+import { isValidHex } from "@/lib/formatters"
 import { Button } from "./Button"
 
 interface ColorPickerProps {
@@ -15,36 +18,10 @@ interface ColorPickerProps {
 
 function ColorPicker({ value, onChange, label }: ColorPickerProps) {
   const [open, setOpen] = useState(false)
-  const [mounted, setMounted] = useState(false)
-  const [visible, setVisible] = useState(false)
   const [draft, setDraft] = useState(value)
   const [hexInput, setHexInput] = useState(value)
   const ref = useRef<HTMLDivElement>(null)
-  const popoverRef = useRef<HTMLDivElement>(null)
-
-  // Sync draft when value changes externally
-  useEffect(() => {
-    setDraft(value)
-    setHexInput(value)
-  }, [value])
-
-  // Mount/unmount with animation
-  useEffect(() => {
-    if (open) {
-      setMounted(true)
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => setVisible(true))
-      })
-    } else {
-      setVisible(false)
-    }
-  }, [open])
-
-  function handleTransitionEnd() {
-    if (!visible) {
-      setMounted(false)
-    }
-  }
+  const { mounted, visible, onTransitionEnd } = useAnimatedPresence(open)
 
   const dismiss = useCallback(() => {
     setDraft(value)
@@ -52,30 +29,8 @@ function ColorPicker({ value, onChange, label }: ColorPickerProps) {
     setOpen(false)
   }, [value])
 
-  // Close on click outside — capture phase to beat dialog handlers
-  useEffect(() => {
-    if (!open) return
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        dismiss()
-      }
-    }
-    document.addEventListener("mousedown", handleClick, true)
-    return () => document.removeEventListener("mousedown", handleClick, true)
-  }, [open, dismiss])
-
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.stopPropagation()
-        dismiss()
-      }
-    }
-    document.addEventListener("keydown", handleKey, true)
-    return () => document.removeEventListener("keydown", handleKey, true)
-  }, [open, dismiss])
+  useClickOutside(ref, dismiss, open)
+  useEscapeKey(dismiss, open, { capture: true, stopPropagation: true })
 
   function handleDraftChange(color: string) {
     setDraft(color)
@@ -84,7 +39,7 @@ function ColorPicker({ value, onChange, label }: ColorPickerProps) {
 
   function handleHexInputChange(v: string) {
     setHexInput(v)
-    if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+    if (isValidHex(v)) {
       setDraft(v)
     }
   }
@@ -96,23 +51,24 @@ function ColorPicker({ value, onChange, label }: ColorPickerProps) {
 
   return (
     <div className="flex flex-col gap-1">
-      {label && (
-        <H2 className="uppercase tracking-wider">
-          {label}
-        </H2>
-      )}
+      {label && <H2 className="uppercase tracking-wider">{label}</H2>}
       <div ref={ref} className="relative">
         <button
           type="button"
-          onClick={() => setOpen((o) => !o)}
+          onClick={() => {
+            if (!open) {
+              setDraft(value)
+              setHexInput(value)
+            }
+            setOpen((o) => !o)
+          }}
           className="h-10 w-14 nm-inset-sm cursor-pointer focus:outline-none rounded-nm-md border border-border"
           style={{ backgroundColor: value }}
           aria-label={`Color: ${value}`}
         />
         {mounted && (
           <div
-            ref={popoverRef}
-            onTransitionEnd={handleTransitionEnd}
+            onTransitionEnd={onTransitionEnd}
             className="absolute bottom-full left-0 mb-2 z-40 nm-raised-sm p-3 bg-elevated rounded-nm-md flex flex-col gap-2 w-55"
             style={{
               transformOrigin: "bottom left",

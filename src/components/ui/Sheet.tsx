@@ -6,7 +6,9 @@
 
 import clsx from "clsx"
 import type { ReactNode } from "react"
-import { useEffect, useRef, useState } from "react"
+import { useEffect } from "react"
+import { useAnimatedPresence } from "@/hooks/useAnimatedPresence"
+import { useEscapeKey } from "@/hooks/useEscapeKey"
 
 interface SheetProps {
   open: boolean
@@ -17,44 +19,8 @@ interface SheetProps {
 }
 
 function Sheet({ open, onClose, title, children, className }: SheetProps) {
-  const [mounted, setMounted] = useState(false)
-  const [visible, setVisible] = useState(false)
-  const panelRef = useRef<HTMLDivElement>(null)
-
-  // Mount → animate in, or animate out
-  useEffect(() => {
-    if (open) {
-      setMounted(true)
-      requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)))
-    } else {
-      setVisible(false)
-    }
-  }, [open])
-
-  // Unmount after exit transition completes
-  useEffect(() => {
-    const panel = panelRef.current
-    if (!panel || visible) return
-
-    function handleEnd(e: TransitionEvent) {
-      if (e.propertyName === "transform" && !visible) {
-        setMounted(false)
-      }
-    }
-
-    panel.addEventListener("transitionend", handleEnd)
-    return () => panel.removeEventListener("transitionend", handleEnd)
-  }, [visible])
-
-  // Escape key
-  useEffect(() => {
-    if (!visible) return
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose()
-    }
-    document.addEventListener("keydown", handleKey)
-    return () => document.removeEventListener("keydown", handleKey)
-  }, [visible, onClose])
+  const { mounted, visible, onTransitionEnd } = useAnimatedPresence(open, "transform")
+  useEscapeKey(onClose, visible)
 
   // Lock body scroll while open
   useEffect(() => {
@@ -82,7 +48,7 @@ function Sheet({ open, onClose, title, children, className }: SheetProps) {
       />
       {/* Panel */}
       <div
-        ref={panelRef}
+        onTransitionEnd={onTransitionEnd}
         className={clsx(
           "relative w-full max-w-md h-full bg-elevated nm-raised-lg flex flex-col transition-transform duration-300 ease-out",
           className

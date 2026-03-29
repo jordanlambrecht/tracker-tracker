@@ -1,5 +1,4 @@
 // src/components/ui/EmojiPickerPopover.tsx
-
 "use client"
 
 import dynamic from "next/dynamic"
@@ -7,6 +6,7 @@ import { EmojiStyle, Theme } from "emoji-picker-react"
 import type { EmojiClickData, PickerProps } from "emoji-picker-react"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
+import { useEscapeKey } from "@/hooks/useEscapeKey"
 
 const EmojiPicker = dynamic<PickerProps>(() => import("emoji-picker-react"), { ssr: false })
 
@@ -35,27 +35,18 @@ function EmojiPickerPopover({
     setPos({ top: rect.bottom + 8, left: rect.left })
   }, [open])
 
+  useEscapeKey(() => setOpen(false), open, { stopPropagation: true })
+
   useEffect(() => {
     if (!open) return
-    function handleEvent(e: MouseEvent | KeyboardEvent) {
-      if (e instanceof KeyboardEvent) {
-        if (e.key === "Escape") {
-          e.stopPropagation()
-          setOpen(false)
-        }
-        return
-      }
+    function handleMouseDown(e: MouseEvent) {
       const target = e.target as Node
       if (containerRef.current?.contains(target)) return
       if (pickerRef.current?.contains(target)) return
       setOpen(false)
     }
-    document.addEventListener("mousedown", handleEvent)
-    document.addEventListener("keydown", handleEvent)
-    return () => {
-      document.removeEventListener("mousedown", handleEvent)
-      document.removeEventListener("keydown", handleEvent)
-    }
+    document.addEventListener("mousedown", handleMouseDown)
+    return () => document.removeEventListener("mousedown", handleMouseDown)
   }, [open])
 
   return (

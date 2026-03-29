@@ -1,13 +1,13 @@
 // src/components/ui/Dialog.tsx
-//
-// Functions: Dialog
-
 "use client"
 
 import { H2 } from "@typography"
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
+import clsx from "clsx"
+import { type ReactNode, useEffect } from "react"
 import { Button } from "@/components/ui/Button"
 import { XIcon } from "@/components/ui/Icons"
+import { useAnimatedPresence } from "@/hooks/useAnimatedPresence"
+import { useEscapeKey } from "@/hooks/useEscapeKey"
 
 type DialogSize = "sm" | "md" | "lg" | "xl" | "full"
 
@@ -26,9 +26,9 @@ interface DialogProps {
   ariaLabel?: string
   /** Preset size. Defaults to "md". Overridden by explicit maxWidth/maxHeight. */
   size?: DialogSize
-  /** Tailwind max-width class (e.g. "max-w-3xl"). Overrides size preset. */
+  /** Tailwind max-width class (i.e "max-w-3xl"). Overrides size preset. */
   maxWidth?: string
-  /** CSS max-height value (e.g. "85vh"). Overrides size preset. */
+  /** CSS max-height value (i.e "85vh"). Overrides size preset. */
   maxHeight?: string
   children: ReactNode
 }
@@ -46,48 +46,8 @@ function Dialog({
   const preset = SIZE_PRESETS[size]
   const resolvedMaxWidth = maxWidth ?? preset.maxWidth
   const resolvedMaxHeight = maxHeight ?? preset.maxHeight
-  const [mounted, setMounted] = useState(false)
-  const [visible, setVisible] = useState(false)
-  const panelRef = useRef<HTMLDivElement>(null)
-
-  // Mount → animate in, or animate out → unmount
-  useEffect(() => {
-    if (open) {
-      setMounted(true)
-      requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)))
-    } else {
-      setVisible(false)
-    }
-  }, [open])
-
-  // Unmount after exit transition completes (wait for opacity/transform on panel)
-  useEffect(() => {
-    const panel = panelRef.current
-    if (!panel || visible) return
-
-    function handleEnd(e: TransitionEvent) {
-      if (e.propertyName === "opacity" && !visible) {
-        setMounted(false)
-      }
-    }
-
-    panel.addEventListener("transitionend", handleEnd)
-    return () => panel.removeEventListener("transitionend", handleEnd)
-  }, [visible])
-
-  // Escape key
-  const handleKey = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose()
-    },
-    [onClose]
-  )
-
-  useEffect(() => {
-    if (!mounted) return
-    document.addEventListener("keydown", handleKey)
-    return () => document.removeEventListener("keydown", handleKey)
-  }, [mounted, handleKey])
+  const { mounted, visible, onTransitionEnd } = useAnimatedPresence(open, "opacity")
+  useEscapeKey(onClose, mounted)
 
   // Body scroll lock
   useEffect(() => {
@@ -117,14 +77,14 @@ function Dialog({
 
       {/* Panel */}
       <div
-        ref={panelRef}
+        onTransitionEnd={onTransitionEnd}
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel ?? (titleIsString ? (title as string) : undefined)}
-        className={[
+        className={clsx(
           "relative z-10 w-full flex flex-col bg-elevated nm-raised rounded-nm-xl overflow-hidden",
-          resolvedMaxWidth,
-        ].join(" ")}
+          resolvedMaxWidth
+        )}
         style={{
           opacity: visible ? 1 : 0,
           transform: visible ? "scale(1)" : "scale(0.95)",
@@ -137,13 +97,7 @@ function Dialog({
         {/* Header */}
         {title !== undefined ? (
           <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-            {titleIsString ? (
-              <H2 className="uppercase tracking-wider">
-                {title}
-              </H2>
-            ) : (
-              title
-            )}
+            {titleIsString ? <H2 className="uppercase tracking-wider">{title}</H2> : title}
             <Button
               variant="ghost"
               size="sm"
