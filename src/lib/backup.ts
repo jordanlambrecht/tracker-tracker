@@ -21,7 +21,7 @@ import {
   trackerSnapshots,
   trackers,
 } from "@/lib/db/schema"
-import { HEX_64_RE, ISO_8601_RE, isValidHex } from "@/lib/formatters"
+import { HEX_64_RE, ISO_8601_RE, isValidHex, isValidPort } from "@/lib/validators"
 import { log } from "@/lib/logger"
 import { VALID_NOTIFICATION_TYPES } from "@/lib/notifications/types"
 import packageJson from "../../package.json"
@@ -414,7 +414,7 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
     assertString(c.host, `${prefix}.host`)
 
     assertNumber(c.port, `${prefix}.port`)
-    if (!Number.isInteger(c.port) || c.port < 1 || c.port > 65535) {
+    if (!isValidPort(c.port)) {
       throw new Error(`Backup validation: ${prefix}.port must be an integer between 1 and 65535`)
     }
 

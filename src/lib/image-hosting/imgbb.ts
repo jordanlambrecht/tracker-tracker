@@ -1,29 +1,10 @@
 // src/lib/image-hosting/imgbb.ts
 
 import type { ImageHostAdapter, UploadOptions, UploadResult } from "./types"
+import { safeImageUrl, validateImageUrl } from "@/lib/validators"
 
 const UPLOAD_URL = "https://api.imgbb.com/1/upload"
 
-function validateImageUrl(url: string): string {
-  try {
-    const parsed = new URL(url)
-    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-      throw new Error("Invalid URL protocol")
-    }
-    return url
-  } catch {
-    throw new Error("Invalid URL in image host response")
-  }
-}
-
-function safeImageUrl(url: string | undefined): string | undefined {
-  if (!url) return undefined
-  try {
-    return validateImageUrl(url)
-  } catch {
-    return undefined
-  }
-}
 const MIN_EXPIRATION = 60
 const MAX_EXPIRATION = 15_552_000
 

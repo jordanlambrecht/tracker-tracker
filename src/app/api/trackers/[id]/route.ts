@@ -127,9 +127,9 @@ export async function PATCH(request: Request, props: RouteContext) {
 
   if (typeof body.apiToken === "string") {
     const trimmedToken = (body.apiToken as string).trim()
-    if (trimmedToken.length > 500) {
+    if (trimmedToken.length > 5000) {
       return NextResponse.json(
-        { error: "API token must be 500 characters or fewer" },
+        { error: "API token must be 5000 characters or fewer" },
         { status: 400 }
       )
     }

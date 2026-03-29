@@ -7,7 +7,7 @@ import { HexColorPicker } from "react-colorful"
 import { useAnimatedPresence } from "@/hooks/useAnimatedPresence"
 import { useClickOutside } from "@/hooks/useClickOutside"
 import { useEscapeKey } from "@/hooks/useEscapeKey"
-import { isValidHex } from "@/lib/formatters"
+import { isValidHex } from "@/lib/validators"
 import { Button } from "./Button"
 
 interface ColorPickerProps {
