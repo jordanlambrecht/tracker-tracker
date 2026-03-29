@@ -4,7 +4,6 @@
 
 import { H2, H3, Paragraph, Subheader, Subtext } from "@typography"
 import { useCallback, useEffect, useState } from "react"
-import { useActionStatus } from "@/hooks/useActionStatus"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
@@ -17,6 +16,7 @@ import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
 import { Select } from "@/components/ui/Select"
 import { Toggle } from "@/components/ui/Toggle"
 import { UptimeBar } from "@/components/ui/UptimeBar"
+import { useActionStatus } from "@/hooks/useActionStatus"
 import { formatTimeAgo } from "@/lib/formatters"
 
 // ---------------------------------------------------------------------------
@@ -353,9 +353,8 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
                 variant="primary"
                 onClick={handleSaveCredentials}
                 disabled={!newUsername.trim() || !newPassword.trim()}
-              >
-                Save Credentials
-              </Button>
+                text="Save Credentials"
+              />
               {client.hasCredentials && (
                 <button
                   type="button"
@@ -434,9 +433,8 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
                 }
                 setTagInput("")
               }}
-            >
-              Add
-            </Button>
+              text="Add"
+            />
           </div>
           {draft.crossSeedTags.length > 0 && (
             <div className="flex gap-1.5 flex-wrap">
@@ -521,9 +519,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
         <div className="flex-1" />
 
         {!client.isDefault && (
-          <Button size="sm" variant="ghost" onClick={() => onSetDefault(client.id)}>
-            Set as Default
-          </Button>
+          <Button size="sm" variant="ghost" onClick={() => onSetDefault(client.id)} text="Set as Default" />
         )}
 
         <ConfirmRemove onConfirm={() => onRemove(client.id)} />
@@ -639,12 +635,8 @@ function AddClientForm({
       </div>
       {error && <p className="text-sm font-mono text-danger">{error}</p>}
       <div className="flex items-center gap-3">
-        <Button size="sm" onClick={handleSubmit} disabled={!canSubmit || saving}>
-          {saving ? "Creating..." : "Create Client"}
-        </Button>
-        <Button size="sm" variant="ghost" onClick={onCancel}>
-          Cancel
-        </Button>
+        <Button size="sm" onClick={handleSubmit} disabled={!canSubmit || saving} text={saving ? "Creating..." : "Create Client"} />
+        <Button size="sm" variant="ghost" onClick={onCancel} text="Cancel" />
       </div>
     </Card>
   )
@@ -715,9 +707,7 @@ function DownloadClients() {
               download activity.
             </Paragraph>
           </div>
-          <Button size="sm" onClick={() => setShowAddForm(true)}>
-            Add Download Client
-          </Button>
+          <Button size="sm" onClick={() => setShowAddForm(true)} text="Add Download Client" />
         </Card>
       ) : (
         <>
@@ -746,9 +736,8 @@ function DownloadClients() {
               variant="secondary"
               className="self-start"
               onClick={() => setShowAddForm(true)}
-            >
-              + Add Client
-            </Button>
+              text="+ Add Client"
+            />
           )}
         </>
       )}

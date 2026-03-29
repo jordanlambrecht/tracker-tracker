@@ -124,17 +124,15 @@ export function ImageHostingSection({ initialHasKeys }: ImageHostingSectionProps
                         setEditing((prev) => ({ ...prev, [host.key]: false }))
                         setValues((prev) => ({ ...prev, [host.field]: "" }))
                       }}
-                    >
-                      Cancel
-                    </Button>
+                      text="Cancel"
+                    />
                   )}
                   <Button
                     size="sm"
                     disabled={saving || !values[host.field]}
                     onClick={() => handleSave(host.field, host.key)}
-                  >
-                    {saving ? "Saving…" : "Save Key"}
-                  </Button>
+                    text={saving ? "Saving…" : "Save Key"}
+                  />
                 </div>
               </div>
             ) : (
@@ -143,17 +141,15 @@ export function ImageHostingSection({ initialHasKeys }: ImageHostingSectionProps
                   size="sm"
                   variant="secondary"
                   onClick={() => setEditing((prev) => ({ ...prev, [host.key]: true }))}
-                >
-                  Replace Key
-                </Button>
+                  text="Replace Key"
+                />
                 <Button
                   size="sm"
                   variant="ghost"
                   disabled={saving}
                   onClick={() => handleClear(host.field, host.key)}
-                >
-                  Remove
-                </Button>
+                  text="Remove"
+                />
               </div>
             )}
           </div>

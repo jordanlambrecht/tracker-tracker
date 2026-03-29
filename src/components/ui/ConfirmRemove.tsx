@@ -19,22 +19,16 @@ function ConfirmRemove({
   if (confirming) {
     return (
       <div className="flex items-center gap-2">
-        <Button size="sm" variant="danger" onClick={onConfirm}>
-          {confirmLabel}
-        </Button>
-        <Button size="sm" variant="ghost" onClick={() => setConfirming(false)}>
-          Cancel
-        </Button>
+        <Button size="sm" variant="danger" onClick={onConfirm} text={confirmLabel} />
+        <Button size="sm" variant="ghost" onClick={() => setConfirming(false)} text="Cancel" />
       </div>
     )
   }
 
   return (
-    <Button size="sm" variant="danger" onClick={() => setConfirming(true)}>
-      {label}
-    </Button>
+    <Button size="sm" variant="danger" onClick={() => setConfirming(true)} text={label} />
   )
 }
 
-export { ConfirmRemove }
 export type { ConfirmRemoveProps }
+export { ConfirmRemove }

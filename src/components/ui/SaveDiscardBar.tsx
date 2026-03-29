@@ -30,14 +30,12 @@ function SaveDiscardBar({
         <Button size="sm" onClick={onSave} disabled={saving}>
           {saving ? savingLabel : saveLabel}
         </Button>
-        <Button size="sm" variant="ghost" onClick={onDiscard} disabled={saving}>
-          Discard
-        </Button>
+        <Button size="sm" variant="ghost" onClick={onDiscard} disabled={saving} text="Discard" />
         {error && <span className="text-xs font-mono text-danger">{error}</span>}
       </div>
     </>
   )
 }
 
-export { SaveDiscardBar }
 export type { SaveDiscardBarProps }
+export { SaveDiscardBar }

@@ -8,8 +8,8 @@ import clsx from "clsx"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
 import { Button } from "@/components/ui/Button"
-import { CopyButton } from "@/components/ui/CopyButton"
-import { DownloadButton } from "@/components/ui/DownloadButton"
+import { CopyButton, DownloadButton } from "@/components/ui/ActionButtons"
+import { FilterPill } from "@/components/ui/FilterPill"
 import { RefreshIcon, TrashIcon } from "@/components/ui/Icons"
 import { Input } from "@/components/ui/Input"
 import { extractApiError } from "@/lib/client-helpers"
@@ -20,7 +20,8 @@ import {
   type EventLevel,
   type SystemEvent,
 } from "@/lib/events"
-import { formatBytesNum } from "@/lib/formatters"
+import type { EventsPageResponse } from "@/types/api"
+import { formatBytesNum, localDateStr } from "@/lib/formatters"
 
 const CATEGORY_STYLES: Record<EventCategory, { border: string; icon: string; iconColor: string }> =
   {
@@ -90,12 +91,7 @@ export function EventsSection() {
       const params = new URLSearchParams({ category: "all", limit: "1000", offset: "0" })
       const res = await fetch(`/api/settings/events?${params}`)
       if (!res.ok) throw new Error(await extractApiError(res, "Failed to load events"))
-      const data = (await res.json()) as {
-        events: SystemEvent[]
-        total: number
-        hasMore: boolean
-        logSizeBytes?: number
-      }
+      const data = (await res.json()) as EventsPageResponse
       setEvents(data.events)
       if (typeof data.logSizeBytes === "number") setLogSizeBytes(data.logSizeBytes)
     } catch (err) {
@@ -209,7 +205,7 @@ export function EventsSection() {
         <CopyButton value={copyValue} />
         <DownloadButton
           url="/api/settings/logs/download"
-          fallbackFilename={`tracker-tracker-${new Date().toISOString().split("T")[0]}.log`}
+          fallbackFilename={`tracker-tracker-${localDateStr()}.log`}
           onError={setError}
         />
         <button
@@ -236,35 +232,22 @@ export function EventsSection() {
 
       {/* ── Filters (categories + levels) ─────────────────────────── */}
       <div className="flex flex-wrap items-center gap-1.5">
-        <button
-          type="button"
+        <FilterPill
+          size="sm"
+          active={allCategoriesActive}
           onClick={() => setActiveCategories(new Set(EVENT_CATEGORIES))}
-          aria-pressed={allCategoriesActive}
-          className={clsx(
-            "px-2 py-0.5 text-2xs font-mono transition-colors duration-150 cursor-pointer border-none rounded-nm-sm",
-            allCategoriesActive
-              ? "nm-raised-sm text-primary font-semibold"
-              : "bg-transparent text-muted hover:text-secondary"
-          )}
-        >
-          All
-        </button>
+          text="All"
+        />
 
         {EVENT_CATEGORIES.map((cat) => (
-          <button
+          <FilterPill
             key={cat}
-            type="button"
+            size="sm"
+            active={activeCategories.has(cat)}
             onClick={() => toggleCategory(cat)}
-            aria-pressed={activeCategories.has(cat)}
-            className={clsx(
-              "px-2 py-0.5 text-2xs font-mono transition-colors duration-150 cursor-pointer border-none rounded-nm-sm",
-              activeCategories.has(cat)
-                ? "nm-raised-sm text-primary font-semibold"
-                : "bg-transparent text-muted hover:text-secondary line-through opacity-50"
-            )}
-          >
-            {cat.charAt(0).toUpperCase() + cat.slice(1)}
-          </button>
+            inactive="strikethrough"
+            text={cat.charAt(0).toUpperCase() + cat.slice(1)}
+          />
         ))}
 
         <span className="flex-1" />
@@ -272,20 +255,15 @@ export function EventsSection() {
         <span className="w-px h-4 bg-border shrink-0 mx-0.5" />
 
         {EVENT_LEVELS.map((level) => (
-          <button
+          <FilterPill
             key={level}
-            type="button"
+            size="sm"
+            active={activeLevels.has(level)}
             onClick={() => toggleLevel(level)}
-            aria-pressed={activeLevels.has(level)}
-            className={clsx(
-              "px-2 py-0.5 text-2xs font-mono transition-colors duration-150 cursor-pointer border-none rounded-nm-sm",
-              activeLevels.has(level)
-                ? clsx("nm-raised-sm font-semibold", LEVEL_TEXT_COLORS[level])
-                : "bg-transparent text-muted hover:text-secondary line-through opacity-50"
-            )}
-          >
-            {level.charAt(0).toUpperCase() + level.slice(1)}
-          </button>
+            activeColor={LEVEL_TEXT_COLORS[level]}
+            inactive="strikethrough"
+            text={level.charAt(0).toUpperCase() + level.slice(1)}
+          />
         ))}
       </div>
 
@@ -297,9 +275,7 @@ export function EventsSection() {
           <p className="text-xs font-mono text-danger flex-1">
             Truncate log file? DB events are not affected.
           </p>
-          <Button size="sm" variant="danger" onClick={handleClear} disabled={clearLoading}>
-            {clearLoading ? "Clearing…" : "Confirm"}
-          </Button>
+          <Button size="sm" variant="danger" onClick={handleClear} disabled={clearLoading} text={clearLoading ? "Clearing…" : "Confirm"} />
           <Button
             size="sm"
             variant="ghost"
@@ -307,9 +283,8 @@ export function EventsSection() {
               setClearConfirm(false)
               setClearError(null)
             }}
-          >
-            Cancel
-          </Button>
+            text="Cancel"
+          />
           {clearError && <span className="text-xs text-danger font-mono">{clearError}</span>}
         </div>
       )}

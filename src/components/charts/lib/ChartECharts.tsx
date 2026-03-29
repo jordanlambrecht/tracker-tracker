@@ -71,9 +71,8 @@ function ChartECharts({
           size="sm"
           onClick={handleToggle}
           className="torrent-cell absolute top-0 right-0 z-10 hover:bg-overlay"
-        >
-          {allSelected ? "None" : "All"}
-        </Button>
+          text={allSelected ? "None" : "All"}
+        />
       )}
       <ReactECharts
         ref={chartRef}

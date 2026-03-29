@@ -145,9 +145,8 @@ export function SetupForm() {
               size="md"
               className="w-full mt-1"
               disabled={isSubmitting}
-            >
-              {isSubmitting ? "Setting up…" : "Create Account"}
-            </Button>
+              text={isSubmitting ? "Setting up…" : "Create Account"}
+            />
           </form>
         </Card>
       </div>

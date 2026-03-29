@@ -889,9 +889,8 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
                 size="sm"
                 className="w-full"
                 onClick={() => setShowAddDialog(true)}
-              >
-                + Add Tracker
-              </Button>
+                text="+ Add Tracker"
+              />
             </div>
           </nav>
 
@@ -1008,17 +1007,17 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
             <H2 className="text-base font-semibold text-primary">
               Changelog — v{process.env.NEXT_PUBLIC_APP_VERSION}
             </H2>
-            <button
-              type="button"
+            <Button
+              variant="minimal"
+              size="icon"
+              className="-m-1 hover:text-primary"
+              aria-label="Close changelog"
               onClick={() => {
                 changelogRef.current?.close()
                 setChangelogOpen(false)
               }}
-              className="text-tertiary hover:text-primary transition-colors cursor-pointer p-1 -m-1 rounded-nm-sm"
-              aria-label="Close changelog"
-            >
-              ✕
-            </button>
+              text="✕"
+            />
           </div>
           <div className="overflow-y-auto px-6 py-5 styled-scrollbar prose prose-invert prose-sm max-w-none prose-headings:font-mono prose-headings:text-primary prose-h1:text-lg prose-h2:text-base prose-h2:text-white prose-h2:border-b prose-h2:border-border prose-h2:pb-2 prose-h3:text-sm prose-li:text-secondary prose-p:text-secondary prose-strong:text-primary prose-a:text-accent">
             {changelogContent ? (

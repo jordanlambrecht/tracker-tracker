@@ -1,20 +1,14 @@
 // src/components/charts/TorrentAgeScatter3D.tsx
-//
-// Functions: TorrentAgeScatter3D
-
 "use client"
 
-import clsx from "clsx"
 import ReactECharts from "echarts-for-react"
 import "echarts-gl"
 import { useState } from "react"
+import { FilterPill } from "@/components/ui/FilterPill"
+import { formatRatio } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { CHART_THEME } from "./lib/theme"
-
-// ---------------------------------------------------------------------------
-// Types & Constants
-// ---------------------------------------------------------------------------
 
 type Scatter3DView = "age-seed" | "seed-ratio"
 
@@ -48,18 +42,10 @@ const SCATTER3D_VIEWS: Record<
   },
 }
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface TorrentAgeScatter3DProps {
   torrents: TorrentInfo[]
   accentColor: string
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 function TorrentAgeScatter3D({ torrents, accentColor }: TorrentAgeScatter3DProps) {
   const [view, setView] = useState<Scatter3DView>("age-seed")
@@ -85,7 +71,11 @@ function TorrentAgeScatter3D({ torrents, accentColor }: TorrentAgeScatter3DProps
       fontFamily: CHART_THEME.fontMono,
       fontSize: CHART_THEME.fontSizeCompact,
     },
-    axisLabel: { color: CHART_THEME.textTertiary, fontFamily: CHART_THEME.fontMono, fontSize: CHART_THEME.fontSizeMicro },
+    axisLabel: {
+      color: CHART_THEME.textTertiary,
+      fontFamily: CHART_THEME.fontMono,
+      fontSize: CHART_THEME.fontSizeMicro,
+    },
     axisLine: { lineStyle: { color: CHART_THEME.borderEmphasis } },
   }
 
@@ -94,7 +84,7 @@ function TorrentAgeScatter3D({ torrents, accentColor }: TorrentAgeScatter3DProps
     tooltip: {
       formatter: (p: { data: number[] }) => {
         const d = p.data
-        return `Age: ${d[0]}d<br/>Seed: ${d[1]}d<br/>Size: ${d[2]} GiB<br/>Ratio: ${d[3].toFixed(2)}`
+        return `Age: ${d[0]}d<br/>Seed: ${d[1]}d<br/>Size: ${d[2]} GiB<br/>Ratio: ${formatRatio(d[3])}`
       },
     },
     visualMap: {
@@ -146,19 +136,15 @@ function TorrentAgeScatter3D({ torrents, accentColor }: TorrentAgeScatter3DProps
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
         {(Object.keys(SCATTER3D_VIEWS) as Scatter3DView[]).map((key) => (
-          <button
+          <FilterPill
             key={key}
-            type="button"
+            size="sm"
+            active={view === key}
             onClick={() => setView(key)}
-            className={clsx(
-              "px-3 py-1.5 text-2xs font-mono rounded-nm-pill transition-colors cursor-pointer",
-              view === key
-                ? "nm-raised-sm text-primary"
-                : "nm-inset-sm text-tertiary hover:text-secondary"
-            )}
-          >
-            {SCATTER3D_VIEWS[key].label}
-          </button>
+            inactive="inset"
+            text={SCATTER3D_VIEWS[key].label}
+            className="px-3 py-1.5 rounded-nm-pill"
+          />
         ))}
       </div>
       <p className="text-xs font-mono text-tertiary">{cfg.description}</p>

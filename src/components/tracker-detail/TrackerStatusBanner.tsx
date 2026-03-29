@@ -82,9 +82,7 @@ export function TrackerStatusBanner({
           {tracker.lastError && (
             <p className="text-xs font-mono text-danger/80 mb-3">Last error: {tracker.lastError}</p>
           )}
-          <Button variant="danger" size="sm" onClick={onResume}>
-            Resume Polling
-          </Button>
+          <Button variant="danger" size="sm" onClick={onResume} text="Resume Polling" />
         </Card>
       )}
       {showLastError && (

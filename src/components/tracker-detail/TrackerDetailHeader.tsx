@@ -135,9 +135,7 @@ export function TrackerDetailHeader({
               )}
             </Button>
           </Tooltip>
-          <Button variant="secondary" size="sm" onClick={onPollNow} disabled={polling}>
-            {polling ? "Polling..." : "Poll Now"}
-          </Button>
+          <Button variant="secondary" size="sm" onClick={onPollNow} disabled={polling} text={polling ? "Polling..." : "Poll Now"} />
           <Button
             variant="secondary"
             size="sm"

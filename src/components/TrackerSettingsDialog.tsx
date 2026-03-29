@@ -16,8 +16,8 @@ import { QbtTagWarning } from "@/components/ui/QbtTagWarning"
 import { Sheet } from "@/components/ui/Sheet"
 import { Toggle } from "@/components/ui/Toggle"
 import { Tooltip } from "@/components/ui/Tooltip"
-import { localDateStr } from "@/lib/formatters"
 import { findRegistryEntry } from "@/data/tracker-registry"
+import { localDateStr } from "@/lib/formatters"
 import type { TrackerSummary } from "@/types/api"
 
 interface TrackerSettingsDialogProps {
@@ -268,17 +268,17 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
                   placeholder="Paste API token"
                   error={errors.apiToken}
                 />
-                <button
-                  type="button"
+                <Button
+                  variant="minimal"
+                  size="sm"
+                  text="Cancel"
+                  className="self-start"
                   onClick={() => {
                     setChangingKey(false)
                     setNewApiToken("")
                     setErrors({})
                   }}
-                  className="ghost-link self-start"
-                >
-                  Cancel
-                </button>
+                />
               </div>
             ) : (
               <MaskedSecret onChangeClick={() => setChangingKey(true)} />
@@ -377,12 +377,8 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
 
           {/* Save / Cancel */}
           <div className="flex gap-3 pt-1 justify-end">
-            <Button type="button" variant="ghost" onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? "Saving..." : "Save Changes"}
-            </Button>
+            <Button variant="ghost" onClick={handleClose} text="Cancel" />
+            <Button type="submit" disabled={saving} text={saving ? "Saving..." : "Save Changes"} />
           </div>
         </form>
 
@@ -394,44 +390,36 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
 
           <div className="flex items-center gap-3">
             <Button
-              type="button"
               variant="secondary"
               size="sm"
               onClick={handleArchive}
               disabled={saving}
-            >
-              {tracker.isActive ? "Archive" : "Reactivate"}
-            </Button>
+              text={tracker.isActive ? "Archive" : "Reactivate"}
+            />
 
             {confirmDelete ? (
               <div className="flex items-center gap-2">
                 <Button
-                  type="button"
                   variant="danger"
                   size="sm"
                   onClick={handleDelete}
                   disabled={deleting}
-                >
-                  {deleting ? "Deleting..." : "Confirm Delete"}
-                </Button>
+                  text={deleting ? "Deleting..." : "Confirm Delete"}
+                />
                 <Button
-                  type="button"
                   variant="ghost"
                   size="sm"
                   onClick={() => setConfirmDelete(false)}
-                >
-                  Cancel
-                </Button>
+                  text="Cancel"
+                />
               </div>
             ) : (
               <Button
-                type="button"
                 variant="danger"
                 size="sm"
                 onClick={() => setConfirmDelete(true)}
-              >
-                Delete
-              </Button>
+                text="Delete"
+              />
             )}
           </div>
         </div>

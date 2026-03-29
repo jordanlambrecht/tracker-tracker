@@ -425,14 +425,14 @@ function AddTrackerDialog({
         {/* Header */}
         <div className="flex items-center justify-between">
           <H2 className="text-base font-semibold text-primary">Add Tracker</H2>
-          <button
-            type="button"
-            onClick={() => dialogRef.current?.close()}
-            className="text-tertiary hover:text-primary transition-colors cursor-pointer p-1 -m-1 rounded-nm-sm"
+          <Button
+            variant="minimal"
+            size="icon"
+            className="-m-1 hover:text-primary"
             aria-label="Close dialog"
-          >
-            ✕
-          </button>
+            onClick={() => dialogRef.current?.close()}
+            text="✕"
+          />
         </div>
 
         {/* Form */}
@@ -566,12 +566,8 @@ function AddTrackerDialog({
 
           {/* Footer */}
           <div className="flex gap-3 pt-1">
-            <Button type="submit" disabled={loading}>
-              {loading ? "Connecting..." : "Add Tracker"}
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => dialogRef.current?.close()}>
-              Cancel
-            </Button>
+            <Button type="submit" disabled={loading} text={loading ? "Connecting..." : "Add Tracker"} />
+            <Button variant="ghost" onClick={() => dialogRef.current?.close()} text="Cancel" />
           </div>
         </form>
       </div>

@@ -224,9 +224,7 @@ export function SecurityPoliciesSection({
         )}
         {lockoutDirty && (
           <div className="flex justify-end">
-            <Button size="sm" disabled={savingLockout} onClick={handleSaveLockout}>
-              {savingLockout ? "Saving…" : "Save Lockout"}
-            </Button>
+            <Button size="sm" disabled={savingLockout} onClick={handleSaveLockout} text={savingLockout ? "Saving…" : "Save Lockout"} />
           </div>
         )}
       </div>
@@ -275,9 +273,7 @@ export function SecurityPoliciesSection({
         )}
         {retentionDirty && (
           <div className="flex justify-end">
-            <Button size="sm" disabled={savingRetention} onClick={handleSaveRetention}>
-              {savingRetention ? "Saving…" : "Save Retention"}
-            </Button>
+            <Button size="sm" disabled={savingRetention} onClick={handleSaveRetention} text={savingRetention ? "Saving…" : "Save Retention"} />
           </div>
         )}
       </div>
@@ -358,9 +354,8 @@ export function SecurityPoliciesSection({
               size="sm"
               disabled={savingTimeout || (autoLogoutEnabled && currentTimeoutTotal === 0)}
               onClick={handleSaveTimeout}
-            >
-              {savingTimeout ? "Saving…" : "Save Timeout"}
-            </Button>
+              text={savingTimeout ? "Saving…" : "Save Timeout"}
+            />
           </div>
         )}
       </div>

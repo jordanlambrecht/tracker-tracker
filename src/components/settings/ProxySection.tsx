@@ -247,9 +247,8 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
                 size="sm"
                 disabled={savingProxy || !proxyHost.trim()}
                 onClick={handleSaveProxy}
-              >
-                {savingProxy ? "Saving…" : "Save Proxy"}
-              </Button>
+                text={savingProxy ? "Saving…" : "Save Proxy"}
+              />
             </div>
           )}
 

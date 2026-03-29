@@ -259,9 +259,7 @@ function TwoFactorSetup() {
             </p>
           )}
           <div>
-            <Button size="sm" onClick={handleStartSetup}>
-              Enable 2FA
-            </Button>
+            <Button size="sm" onClick={handleStartSetup} text="Enable 2FA" />
           </div>
         </>
       )}
@@ -293,13 +291,14 @@ function TwoFactorSetup() {
                 <code className="font-mono text-xs text-primary bg-control-bg nm-inset-sm px-3 py-2 tracking-wider select-all rounded-nm-sm">
                   {setupData.secret}
                 </code>
-                <button
-                  type="button"
+                <Button
+                  variant="minimal"
+                  size="sm"
                   onClick={handleCopySecret}
-                  className="text-xs font-sans text-tertiary hover:text-primary transition-colors cursor-pointer"
+                  className="hover:text-primary"
                 >
-                  {copiedSecret ? "Copied" : "Copy"}
-                </button>
+                  {copiedSecret ? "Copied!" : "Copy secret"}
+                </Button>
               </div>
             </div>
           </div>
@@ -342,9 +341,7 @@ function TwoFactorSetup() {
             >
               {step === "confirming" ? "Verifying..." : "Confirm"}
             </Button>
-            <Button size="sm" variant="ghost" onClick={handleCancel}>
-              Cancel
-            </Button>
+            <Button size="sm" variant="ghost" onClick={handleCancel} text="Cancel" />
           </div>
         </div>
       )}
@@ -366,9 +363,7 @@ function TwoFactorSetup() {
           </div>
 
           <div className="flex items-center gap-3">
-            <Button size="sm" variant="secondary" onClick={handleCopyAll}>
-              {copied ? "Copied" : "Copy All"}
-            </Button>
+            <Button size="sm" variant="secondary" onClick={handleCopyAll} text={copied ? "Copied" : "Copy All"} />
           </div>
 
           <p className="text-xs font-sans leading-relaxed text-warn">
@@ -409,9 +404,8 @@ function TwoFactorSetup() {
                 setError(null)
                 setUseBackupCode(false)
               }}
-            >
-              Disable 2FA
-            </Button>
+              text="Disable 2FA"
+            />
           </div>
         </>
       )}
@@ -478,22 +472,20 @@ function TwoFactorSetup() {
             >
               {step === "disabling" ? "Disabling..." : "Confirm Disable"}
             </Button>
-            <Button size="sm" variant="ghost" onClick={handleCancelDisable}>
-              Cancel
-            </Button>
+            <Button size="sm" variant="ghost" onClick={handleCancelDisable} text="Cancel" />
           </div>
 
-          <button
-            type="button"
+          <Button
+            variant="minimal"
+            size="sm"
+            className="self-start"
             onClick={() => {
               setUseBackupCode(!useBackupCode)
               setDisableCode("")
               setError(null)
             }}
-            className="text-xs font-sans text-tertiary hover:text-secondary transition-colors cursor-pointer self-start"
-          >
-            {useBackupCode ? "Use authenticator code instead" : "Use a backup code instead"}
-          </button>
+            text={useBackupCode ? "Use authenticator code instead" : "Use a backup code instead"}
+          />
         </div>
       )}
     </div>

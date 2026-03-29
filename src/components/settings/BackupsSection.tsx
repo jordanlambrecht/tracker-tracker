@@ -26,7 +26,7 @@ export interface BackupRecord {
   encrypted: boolean
   frequency: string | null
   status: string
-  storagePath: string | null
+  hasStoredFile: boolean
   notes: string | null
 }
 
@@ -294,10 +294,8 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
         align: "right",
         render: (b) => (
           <div className="flex gap-2 justify-end">
-            {b.storagePath && (
-              <Button variant="secondary" size="sm" onClick={() => handleDownloadBackup(b.id)}>
-                Download
-              </Button>
+            {b.hasStoredFile && (
+              <Button variant="secondary" size="sm" onClick={() => handleDownloadBackup(b.id)} text="Download" />
             )}
             <Button
               variant="danger"
@@ -330,9 +328,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
 
         <Card elevation="raised" className="flex flex-col gap-4">
           <div className="flex gap-3 items-center">
-            <Button size="sm" onClick={handleBackupNow} disabled={backingUp || backupConfigDirty}>
-              {backingUp ? "Creating Backup…" : "Backup Now"}
-            </Button>
+            <Button size="sm" onClick={handleBackupNow} disabled={backingUp || backupConfigDirty} text={backingUp ? "Creating Backup…" : "Backup Now"} />
             {backupConfigDirty && (
               <span className="text-xs text-warn">Save configuration before exporting</span>
             )}
@@ -469,9 +465,8 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
                   (isEncryptedBackup && !backupPassword) ||
                   restoreConfirmPhrase !== "RESTORE ALL DATA"
                 }
-              >
-                {restoring ? "Restoring…" : "Confirm Restore"}
-              </Button>
+                text={restoring ? "Restoring…" : "Confirm Restore"}
+              />
               <Button
                 size="sm"
                 variant="secondary"
@@ -483,9 +478,8 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
                   setRestoreConfirmPhrase("")
                 }}
                 disabled={restoring}
-              >
-                Cancel
-              </Button>
+                text="Cancel"
+              />
             </div>
           </Card>
         </section>
@@ -521,9 +515,8 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
                     variant="secondary"
                     onClick={handleClearBackupPassword}
                     disabled={savingPassword}
-                  >
-                    Clear
-                  </Button>
+                    text="Clear"
+                  />
                 </div>
               ) : (
                 <Subtext className="text-warn">
@@ -546,9 +539,8 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
                   size="sm"
                   onClick={handleSaveBackupPassword}
                   disabled={!newBackupPassword || savingPassword}
-                >
-                  {savingPassword ? "Saving…" : "Save Password"}
-                </Button>
+                  text={savingPassword ? "Saving…" : "Save Password"}
+                />
               </div>
             </div>
           )}
@@ -613,9 +605,8 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
               size="sm"
               onClick={saveBackupConfig}
               disabled={!backupConfigDirty || savingBackupConfig}
-            >
-              {savingBackupConfig ? "Saving…" : "Save Configuration"}
-            </Button>
+              text={savingBackupConfig ? "Saving…" : "Save Configuration"}
+            />
           </div>
         </Card>
       </section>

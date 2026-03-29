@@ -113,9 +113,8 @@ export function AccountSection({ initialUsername }: AccountSectionProps) {
             size="sm"
             onClick={handleSaveUsername}
             disabled={savingUsername || username === savedUsername}
-          >
-            {savingUsername ? "Saving…" : "Save Username"}
-          </Button>
+            text={savingUsername ? "Saving…" : "Save Username"}
+          />
         </div>
       </div>
 
@@ -168,9 +167,8 @@ export function AccountSection({ initialUsername }: AccountSectionProps) {
             size="sm"
             onClick={handleChangePassword}
             disabled={savingPassword || !currentPassword || !newPassword || !confirmPassword}
-          >
-            {savingPassword ? "Updating…" : "Update Password"}
-          </Button>
+            text={savingPassword ? "Updating…" : "Update Password"}
+          />
         </div>
       </div>
     </SettingsSection>

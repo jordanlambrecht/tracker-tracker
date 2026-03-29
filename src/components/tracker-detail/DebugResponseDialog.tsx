@@ -3,7 +3,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CopyButton } from "@/components/ui/CopyButton"
+import { CopyButton } from "@/components/ui/ActionButtons"
 import { Dialog } from "@/components/ui/Dialog"
 import { TabBar } from "@/components/ui/TabBar"
 import type { DebugApiCall } from "@/lib/adapters/types"

@@ -3,6 +3,7 @@
 
 import clsx from "clsx"
 import { useState } from "react"
+import { Button } from "@/components/ui/Button"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { formatBytesFromString, formatDateTime, formatRatioDisplay } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
@@ -21,14 +22,14 @@ export function PollLog({ snapshots, lastPolledAt, lastError, userPausedAt }: Po
 
   return (
     <div className="flex flex-col gap-2">
-      <button
-        type="button"
+      <Button
+        variant="minimal"
+        size="sm"
+        leftIcon={<ChevronToggle expanded={open} />}
+        className="w-fit"
         onClick={() => setOpen((o) => !o)}
-        className="ghost-link flex items-center gap-2 duration-150 w-fit"
-      >
-        <ChevronToggle expanded={open} />
-        Last polled: {lastPolledLabel}
-      </button>
+        text={`Last polled: ${lastPolledLabel}`}
+      />
       {open && (
         <div className="nm-inset-sm bg-control-bg overflow-hidden overflow-x-auto styled-scrollbar rounded-nm-md">
           {userPausedAt && (

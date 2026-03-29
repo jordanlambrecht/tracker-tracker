@@ -5,7 +5,7 @@ import { H1 } from "@typography"
 import clsx from "clsx"
 import Link from "next/link"
 import { Button, buttonVariants } from "@/components/ui/Button"
-import { CopyButton } from "@/components/ui/CopyButton"
+import { CopyButton } from "@/components/ui/ActionButtons"
 import { Tooltip } from "@/components/ui/Tooltip"
 
 export function ErrorDisplay({
@@ -40,9 +40,7 @@ export function ErrorDisplay({
           </Tooltip>
         </div>
         <div className="flex gap-3">
-          <Button variant="primary" size="sm" onClick={onRetry}>
-            Try Again
-          </Button>
+          <Button variant="primary" size="sm" onClick={onRetry} text="Try Again" />
           <Link
             href={linkHref}
             className={clsx(buttonVariants({ variant: "ghost", size: "sm" }), "rounded-nm-sm")}

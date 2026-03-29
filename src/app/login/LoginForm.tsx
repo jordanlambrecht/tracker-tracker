@@ -152,9 +152,8 @@ export function LoginForm({ hasUsername }: { hasUsername: boolean }) {
                 size="md"
                 className="w-full mt-1"
                 disabled={isSubmitting}
-              >
-                {isSubmitting ? "Unlocking…" : "Unlock"}
-              </Button>
+                text={isSubmitting ? "Unlocking…" : "Unlock"}
+              />
             </form>
           )}
 
@@ -198,28 +197,25 @@ export function LoginForm({ hasUsername }: { hasUsername: boolean }) {
                 size="md"
                 className="w-full"
                 disabled={isSubmitting}
-              >
-                {isSubmitting ? "Verifying…" : "Verify"}
-              </Button>
+                text={isSubmitting ? "Verifying…" : "Verify"}
+              />
 
               <div className="flex items-center justify-between">
-                <button
-                  type="button"
+                <Button
+                  variant="minimal"
+                  size="sm"
+                  text="Back to password"
                   onClick={handleBackToPassword}
-                  className="text-xs font-sans text-tertiary hover:text-secondary transition-colors cursor-pointer"
-                >
-                  Back to password
-                </button>
-                <button
-                  type="button"
+                />
+                <Button
+                  variant="minimal"
+                  size="sm"
                   onClick={() => {
                     setShowBackupInput(!showBackupInput)
                     setError(null)
                   }}
-                  className="text-xs font-sans text-tertiary hover:text-secondary transition-colors cursor-pointer"
-                >
-                  {showBackupInput ? "Use authenticator" : "Use backup code"}
-                </button>
+                  text={showBackupInput ? "Use authenticator" : "Use backup code"}
+                />
               </div>
             </form>
           )}

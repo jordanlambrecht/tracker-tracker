@@ -13,12 +13,12 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { H2, H3, Paragraph } from "@typography"
-import clsx from "clsx"
 import { type KeyboardEvent, useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { CollapsibleCard } from "@/components/ui/CollapsibleCard"
 import { EmojiPickerPopover } from "@/components/ui/EmojiPickerPopover"
+import { FilterPill } from "@/components/ui/FilterPill"
 import { Input } from "@/components/ui/Input"
 import { QBT_TAG_WARN_PATTERN } from "@/components/ui/QbtTagWarning"
 import { Toggle } from "@/components/ui/Toggle"
@@ -119,31 +119,21 @@ function AddTagGroupForm({ onCreated, onCancel }: AddTagGroupFormProps) {
         </H2>
         <div className="nm-inset-sm p-1.5 flex gap-1 rounded-nm-md">
           {CHART_TYPE_OPTIONS.map((opt) => (
-            <button
+            <FilterPill
               key={opt.value}
-              type="button"
+              active={chartType === opt.value}
               onClick={() => setChartType(opt.value)}
               disabled={saving}
-              className={clsx(
-                "flex-1 px-3 py-1.5 text-xs font-mono transition-colors duration-150 cursor-pointer border-none rounded-nm-sm",
-                chartType === opt.value
-                  ? "nm-raised-sm text-primary font-semibold"
-                  : "bg-transparent text-tertiary hover:text-secondary"
-              )}
-            >
-              {opt.label}
-            </button>
+              text={opt.label}
+              className="flex-1"
+            />
           ))}
         </div>
       </div>
 
       <div className="flex gap-2 justify-end">
-        <Button size="sm" variant="ghost" onClick={onCancel} disabled={saving}>
-          Cancel
-        </Button>
-        <Button size="sm" onClick={handleCreate} disabled={saving || !name.trim()}>
-          {saving ? "Creating…" : "Create"}
-        </Button>
+        <Button size="sm" variant="ghost" onClick={onCancel} disabled={saving} text="Cancel" />
+        <Button size="sm" onClick={handleCreate} disabled={saving || !name.trim()} text={saving ? "Creating…" : "Create"} />
       </div>
     </Card>
   )
@@ -473,19 +463,13 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
           </H2>
           <div className="nm-inset-sm p-1.5 flex gap-1 rounded-nm-md">
             {CHART_TYPE_OPTIONS.map((opt) => (
-              <button
+              <FilterPill
                 key={opt.value}
-                type="button"
+                active={chartType === opt.value}
                 onClick={() => setChartType(opt.value)}
-                className={clsx(
-                  "flex-1 px-3 py-1.5 text-xs font-mono transition-colors duration-150 cursor-pointer border-none rounded-nm-sm",
-                  chartType === opt.value
-                    ? "nm-raised-sm text-primary font-semibold"
-                    : "bg-transparent text-tertiary hover:text-secondary"
-                )}
-              >
-                {opt.label}
-              </button>
+                text={opt.label}
+                className="flex-1"
+              />
             ))}
           </div>
         </div>
@@ -579,17 +563,14 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
           {confirmDelete ? (
             <div className="flex items-center gap-2">
               <span className="text-xs font-sans text-warn">Delete this group?</span>
-              <Button size="sm" variant="danger" onClick={handleDelete} disabled={deleting}>
-                {deleting ? "Deleting…" : "Confirm"}
-              </Button>
+              <Button size="sm" variant="danger" onClick={handleDelete} disabled={deleting} text={deleting ? "Deleting…" : "Confirm"} />
               <Button
                 size="sm"
                 variant="ghost"
                 onClick={() => setConfirmDelete(false)}
                 disabled={deleting}
-              >
-                Cancel
-              </Button>
+                text="Cancel"
+              />
             </div>
           ) : (
             <Button
@@ -597,20 +578,15 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
               variant="ghost"
               onClick={() => setConfirmDelete(true)}
               className="text-danger hover:text-danger"
-            >
-              Delete Group
-            </Button>
+              text="Delete Group"
+            />
           )}
         </div>
         <div className="flex items-center gap-2">
           {isDirty && (
-            <Button size="sm" variant="ghost" onClick={handleDiscard} disabled={saving}>
-              Discard
-            </Button>
+            <Button size="sm" variant="ghost" onClick={handleDiscard} disabled={saving} text="Discard" />
           )}
-          <Button size="sm" onClick={handleSave} disabled={saving || !isDirty || !name.trim()}>
-            {saving ? "Saving…" : "Save"}
-          </Button>
+          <Button size="sm" onClick={handleSave} disabled={saving || !isDirty || !name.trim()} text={saving ? "Saving…" : "Save"} />
         </div>
       </div>
     </CollapsibleCard>
@@ -667,9 +643,7 @@ function TagGroups() {
           </Tooltip>
         </H2>
         {!showAddForm && (
-          <Button size="sm" variant="secondary" onClick={() => setShowAddForm(true)}>
-            + New Group
-          </Button>
+          <Button size="sm" variant="secondary" onClick={() => setShowAddForm(true)} text="+ New Group" />
         )}
       </div>
 

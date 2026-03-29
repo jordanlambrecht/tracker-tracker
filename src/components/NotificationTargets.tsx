@@ -6,7 +6,6 @@
 
 import { H2, H3, Paragraph, Subtext } from "@typography"
 import { useCallback, useEffect, useState } from "react"
-import { useActionStatus } from "@/hooks/useActionStatus"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
@@ -19,6 +18,7 @@ import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
 import { Select } from "@/components/ui/Select"
 import { Toggle } from "@/components/ui/Toggle"
 import { Tooltip } from "@/components/ui/Tooltip"
+import { useActionStatus } from "@/hooks/useActionStatus"
 import { DOCS } from "@/lib/constants"
 import { formatTimeAgo } from "@/lib/formatters"
 import type { NotificationTargetType } from "@/lib/notifications/types"
@@ -295,9 +295,8 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
                 variant="primary"
                 onClick={handleSaveConfig}
                 disabled={!newWebhookUrl.trim()}
-              >
-                Save URL
-              </Button>
+                text="Save URL"
+              />
               {target.hasConfig && (
                 <button
                   type="button"
@@ -566,12 +565,8 @@ function AddNotificationForm({
       />
       {error && <p className="text-sm font-mono text-danger">{error}</p>}
       <div className="flex items-center gap-3">
-        <Button size="sm" onClick={handleSubmit} disabled={!canSubmit || saving}>
-          {saving ? "Creating..." : "Create Target"}
-        </Button>
-        <Button size="sm" variant="ghost" onClick={onCancel}>
-          Cancel
-        </Button>
+        <Button size="sm" onClick={handleSubmit} disabled={!canSubmit || saving} text={saving ? "Creating..." : "Create Target"} />
+        <Button size="sm" variant="ghost" onClick={onCancel} text="Cancel" />
       </div>
     </Card>
   )
@@ -640,9 +635,7 @@ function NotificationTargets() {
               Add a notification target to receive alerts when your tracker stats change.
             </Paragraph>
           </div>
-          <Button size="sm" onClick={() => setShowAddForm(true)}>
-            Add Notification Target
-          </Button>
+          <Button size="sm" onClick={() => setShowAddForm(true)} text="Add Notification Target" />
         </Card>
       ) : (
         <>
@@ -668,9 +661,8 @@ function NotificationTargets() {
               variant="secondary"
               className="self-start"
               onClick={() => setShowAddForm(true)}
-            >
-              + Add Notification Target
-            </Button>
+              text="+ Add Notification Target"
+            />
           )}
         </>
       )}

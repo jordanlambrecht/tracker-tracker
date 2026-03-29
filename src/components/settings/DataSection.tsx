@@ -75,9 +75,7 @@ export function DataSection({ initialPollInterval }: DataSectionProps) {
         )}
         {pollInterval !== savedPollInterval && (
           <div className="flex justify-end">
-            <Button size="sm" disabled={savingPollInterval} onClick={handleSavePollInterval}>
-              {savingPollInterval ? "Saving…" : "Save Interval"}
-            </Button>
+            <Button size="sm" disabled={savingPollInterval} onClick={handleSavePollInterval} text={savingPollInterval ? "Saving…" : "Save Interval"} />
           </div>
         )}
       </div>
