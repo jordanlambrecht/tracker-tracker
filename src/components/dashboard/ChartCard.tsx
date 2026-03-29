@@ -105,7 +105,7 @@ function ChartCard({
           {/* p-6 -m-6: overflow-hidden is required for grid collapse animation,
             but clips neumorphic shadows (nm-raised reaches ~24px). The padding
             pushes the clip boundary out; the negative margin cancels layout shift. */}
-          <div className="overflow-hidden p-6 -m-6">{mounted && children}</div>
+          <div className={`overflow-hidden p-6 -m-6 transition-opacity duration-150 ${collapsed ? "opacity-0" : "opacity-100"}`}>{mounted && children}</div>
         </div>
       </Card>
     </div>
