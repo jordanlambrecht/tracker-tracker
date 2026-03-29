@@ -6,7 +6,7 @@
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseTrackerId, validateHttpUrl } from "@/lib/api-helpers"
+import { authenticate, decodeKey, parseTrackerId, validateHttpUrl, type RouteContext } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
@@ -27,7 +27,7 @@ function avatarUrl(
   return null
 }
 
-export async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
+export async function GET(_request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 

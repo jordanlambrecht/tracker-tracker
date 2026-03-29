@@ -8,6 +8,11 @@ import { getSession } from "@/lib/auth"
 import { localDateStr } from "@/lib/formatters"
 import { isUnsafeNetworkHost } from "@/lib/network"
 
+/** Shared route handler context for dynamic [id] segments */
+export type RouteContext<P = { id: string }> = {
+  params: Promise<P>
+}
+
 export async function authenticate(): Promise<NextResponse | { encryptionKey: string }> {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

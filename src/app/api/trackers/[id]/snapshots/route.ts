@@ -1,10 +1,10 @@
 // src/app/api/trackers/[id]/snapshots/route.ts
 
 import { NextResponse } from "next/server"
-import { authenticate, parseTrackerId } from "@/lib/api-helpers"
+import { authenticate, parseTrackerId, type RouteContext } from "@/lib/api-helpers"
 import { getSnapshotsForTracker } from "@/lib/server-data"
 
-export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 

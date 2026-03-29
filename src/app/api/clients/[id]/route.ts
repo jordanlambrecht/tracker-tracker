@@ -1,6 +1,4 @@
 // src/app/api/clients/[id]/route.ts
-//
-// Functions: PATCH, DELETE
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
@@ -10,6 +8,7 @@ import {
   parseJsonBody,
   parseRouteId,
   validatePort,
+  type RouteContext,
 } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
@@ -19,7 +18,7 @@ import { PROXY_HOST_PATTERN } from "@/lib/proxy"
 import { VALID_CLIENT_TYPES } from "@/lib/qbt/types"
 import { removeClientFromAccumulator } from "@/lib/uptime"
 
-export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
+export async function PATCH(request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -147,7 +146,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
   return NextResponse.json({ success: true })
 }
 
-export async function DELETE(_request: Request, props: { params: Promise<{ id: string }> }) {
+export async function DELETE(_request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 

@@ -1,7 +1,7 @@
 // src/app/api/trackers/[id]/poll/route.ts
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseTrackerId } from "@/lib/api-helpers"
+import { authenticate, decodeKey, parseTrackerId, type RouteContext } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
 import { isDecryptionError } from "@/lib/error-utils"
@@ -11,7 +11,7 @@ import { pollTracker } from "@/lib/scheduler"
 
 const POLL_COOLDOWN_MS = 10_000
 
-export async function POST(_request: Request, props: { params: Promise<{ id: string }> }) {
+export async function POST(_request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
