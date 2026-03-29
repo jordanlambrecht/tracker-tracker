@@ -5,8 +5,7 @@
 import clsx from "clsx"
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import { hexToRgba } from "@/lib/formatters"
-
-type DayRange = 0 | 1 | 7 | 30 | 90 | 365
+import type { DayRange } from "@/types/api"
 
 const DAY_RANGES: { value: DayRange; label: string }[] = [
   { value: 1, label: "24h" },
@@ -60,3 +59,4 @@ function DayRangeSidebar({ days, onChange, accentColor }: DayRangeSidebarProps) 
 
 export type { DayRange, DayRangeSidebarProps }
 export { DAY_RANGES, DayRangeSidebar }
+

@@ -10,7 +10,7 @@
 
 import clsx from "clsx"
 import { type ReactNode, useMemo } from "react"
-import type { DayRange } from "@/components/dashboard/DayRangeSidebar"
+import type { DayRange } from "@/types/api"
 import { AnalyticsCharts } from "@/components/tracker-detail/AnalyticsCharts"
 import { buildCoreStatDescriptors } from "@/components/tracker-detail/CoreStatCards"
 import { PollLog } from "@/components/tracker-detail/PollLog"
@@ -24,7 +24,13 @@ import {
   type LayoutConfig,
 } from "@/lib/grid-layout"
 import type { ResolvedSlot } from "@/lib/slot-types"
-import type { GazellePlatformMeta, Snapshot, TrackerLatestStats, TrackerSummary } from "@/types/api"
+import type {
+  DeltaDisplay,
+  GazellePlatformMeta,
+  Snapshot,
+  TrackerLatestStats,
+  TrackerSummary,
+} from "@/types/api"
 import { renderSlotElement } from "./slot-registry"
 
 interface AnalyticsTabProps {
@@ -36,7 +42,7 @@ interface AnalyticsTabProps {
   accentColor: string
   days: DayRange
   onDaysChange: (d: DayRange) => void
-  delta: { uploaded: string; downloaded: string } | null
+  delta: DeltaDisplay
   minimumRatio?: number
   statCardSlots: ResolvedSlot[]
   progressSlots: ResolvedSlot[]
@@ -121,7 +127,7 @@ export function AnalyticsTab({
       if (!element) return null
 
       return (
-        <div key={card.id} className={clsx(positionClasses, isTall && "[&>*]:h-full")}>
+        <div key={card.id} className={clsx(positionClasses, isTall && "*:h-full")}>
           {element}
         </div>
       )

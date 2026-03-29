@@ -40,7 +40,7 @@ const LEVEL_TEXT_COLORS: Record<EventLevel, string> = {
 }
 
 const ICON_BUTTON_CLASS =
-  "flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-sans font-medium text-tertiary hover:text-primary bg-elevated nm-raised-sm rounded-nm-sm transition-colors duration-150 cursor-pointer"
+  "flex items-center gap-2 px-2.5 py-1.5 text-xs font-sans font-medium text-tertiary hover:text-primary bg-elevated nm-raised-sm rounded-nm-sm transition-colors duration-150 cursor-pointer"
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], {
@@ -231,7 +231,7 @@ export function EventsSection() {
       <div className="border-t border-border my-3" />
 
       {/* ── Filters (categories + levels) ─────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-2">
         <FilterPill
           size="sm"
           active={allCategoriesActive}

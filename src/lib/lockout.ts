@@ -1,13 +1,11 @@
 // src/lib/lockout.ts
-//
-// Functions: checkLockout, recordFailedAttempt, resetFailedAttempts
 
 import { eq, sql } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
 
-interface LockoutSettings {
+export interface LockoutSettings {
   lockoutEnabled: boolean
   lockoutThreshold: number
   lockoutDurationMinutes: number

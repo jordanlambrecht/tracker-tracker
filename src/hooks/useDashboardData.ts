@@ -4,7 +4,7 @@
 
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useCallback, useMemo, useState } from "react"
-import type { DayRange } from "@/components/dashboard/DayRangeSidebar"
+import type { DayRange } from "@/types/api"
 import { useUpdateCheck } from "@/hooks/useUpdateCheck"
 import type { DashboardAlert } from "@/lib/dashboard"
 import {
