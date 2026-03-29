@@ -1,15 +1,12 @@
 // src/components/settings/SecurityPoliciesSection.tsx
-//
-// Functions: SecurityPoliciesSection
-
 "use client"
 
 import { Paragraph } from "@typography"
 import { useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
-import { Button } from "@/components/ui/Button"
 import { Checkbox } from "@/components/ui/Checkbox"
 import { NumberInput } from "@/components/ui/NumberInput"
+import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 
 interface LockoutConfig {
@@ -214,19 +211,17 @@ export function SecurityPoliciesSection({
           Temporarily locks the login page after consecutive failed attempts. Protects against
           brute-force attacks. The lockout resets on successful login.
         </Paragraph>
-        {lockoutError && (
-          <p className="text-xs font-sans text-danger ml-8" role="alert">
-            {lockoutError}
-          </p>
-        )}
-        {lockoutSuccess && (
-          <p className="text-xs font-sans text-success ml-8">Lockout setting saved.</p>
-        )}
-        {lockoutDirty && (
-          <div className="flex justify-end">
-            <Button size="sm" disabled={savingLockout} onClick={handleSaveLockout} text={savingLockout ? "Saving…" : "Save Lockout"} />
-          </div>
-        )}
+        <SaveDiscardBar
+          dirty={lockoutDirty}
+          saving={savingLockout}
+          onSave={handleSaveLockout}
+          error={lockoutError}
+          success={lockoutSuccess ? "Lockout setting saved." : null}
+          saveLabel="Save Lockout"
+          justify="end"
+          showDivider={false}
+          className="ml-8"
+        />
       </div>
 
       <div className="border-t border-border" />
@@ -263,19 +258,17 @@ export function SecurityPoliciesSection({
             Current database size: {databaseSize}
           </p>
         )}
-        {retentionError && (
-          <p className="text-xs font-sans text-danger ml-8" role="alert">
-            {retentionError}
-          </p>
-        )}
-        {retentionSuccess && (
-          <p className="text-xs font-sans text-success ml-8">Retention setting saved.</p>
-        )}
-        {retentionDirty && (
-          <div className="flex justify-end">
-            <Button size="sm" disabled={savingRetention} onClick={handleSaveRetention} text={savingRetention ? "Saving…" : "Save Retention"} />
-          </div>
-        )}
+        <SaveDiscardBar
+          dirty={retentionDirty}
+          saving={savingRetention}
+          onSave={handleSaveRetention}
+          error={retentionError}
+          success={retentionSuccess ? "Retention setting saved." : null}
+          saveLabel="Save Retention"
+          justify="end"
+          showDivider={false}
+          className="ml-8"
+        />
       </div>
 
       <div className="border-t border-border" />
@@ -338,26 +331,18 @@ export function SecurityPoliciesSection({
               All values are zero — auto-logout is effectively disabled.
             </p>
           )}
-        {timeoutError && (
-          <p className="text-xs font-sans text-danger ml-8" role="alert">
-            {timeoutError}
-          </p>
-        )}
-        {timeoutSuccess && (
-          <p className="text-xs font-sans text-success ml-8">
-            Session timeout saved. Takes effect on next page load.
-          </p>
-        )}
-        {timeoutDirty && (
-          <div className="flex justify-end">
-            <Button
-              size="sm"
-              disabled={savingTimeout || (autoLogoutEnabled && currentTimeoutTotal === 0)}
-              onClick={handleSaveTimeout}
-              text={savingTimeout ? "Saving…" : "Save Timeout"}
-            />
-          </div>
-        )}
+        <SaveDiscardBar
+          dirty={timeoutDirty}
+          saving={savingTimeout}
+          onSave={handleSaveTimeout}
+          saveDisabled={autoLogoutEnabled && currentTimeoutTotal === 0}
+          error={timeoutError}
+          success={timeoutSuccess ? "Session timeout saved. Takes effect on next page load." : null}
+          saveLabel="Save Timeout"
+          justify="end"
+          showDivider={false}
+          className="ml-8"
+        />
       </div>
     </SettingsSection>
   )

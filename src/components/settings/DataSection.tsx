@@ -1,13 +1,10 @@
 // src/components/settings/DataSection.tsx
-//
-// Functions: DataSection
-
 "use client"
 
 import { H3, Paragraph } from "@typography"
 import { useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
-import { Button } from "@/components/ui/Button"
+import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
 import { Select } from "@/components/ui/Select"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 
@@ -65,19 +62,16 @@ export function DataSection({ initialPollInterval }: DataSectionProps) {
             { value: "1440", label: "24 hours" },
           ]}
         />
-        {pollIntervalError && (
-          <p className="text-xs font-sans text-danger" role="alert">
-            {pollIntervalError}
-          </p>
-        )}
-        {pollIntervalSuccess && (
-          <p className="text-xs font-sans text-success">Poll interval saved.</p>
-        )}
-        {pollInterval !== savedPollInterval && (
-          <div className="flex justify-end">
-            <Button size="sm" disabled={savingPollInterval} onClick={handleSavePollInterval} text={savingPollInterval ? "Saving…" : "Save Interval"} />
-          </div>
-        )}
+        <SaveDiscardBar
+          dirty={pollInterval !== savedPollInterval}
+          saving={savingPollInterval}
+          onSave={handleSavePollInterval}
+          error={pollIntervalError}
+          success={pollIntervalSuccess ? "Poll interval saved." : null}
+          saveLabel="Save Interval"
+          justify="end"
+          showDivider={false}
+        />
       </div>
     </SettingsSection>
   )

@@ -1,13 +1,11 @@
 // src/components/settings/ImageHostingSection.tsx
-//
-// Functions: ImageHostingSection
-
 "use client"
 
 import { useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
+import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 import { DOCS } from "@/lib/constants"
 
@@ -156,12 +154,13 @@ export function ImageHostingSection({ initialHasKeys }: ImageHostingSectionProps
         )
       })}
 
-      {error && (
-        <p className="text-xs font-sans text-danger" role="alert">
-          {error}
-        </p>
-      )}
-      {success && <p className="text-xs font-sans text-success">Image hosting key saved.</p>}
+      <SaveDiscardBar
+        dirty={false}
+        saving={saving}
+        onSave={() => {}}
+        error={error}
+        success={success ? "Image hosting key saved." : null}
+      />
     </SettingsSection>
   )
 }

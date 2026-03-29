@@ -4,7 +4,7 @@
 import { Subtext } from "@typography"
 import { useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
-import { Button } from "@/components/ui/Button"
+import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
 import { Checkbox } from "@/components/ui/Checkbox"
 import { Input } from "@/components/ui/Input"
 import { Toggle } from "@/components/ui/Toggle"
@@ -135,18 +135,14 @@ function QbitmanageSettings({ initialEnabled, initialTags }: QbitmanageSettingsP
             </div>
           ))}
 
-          <div className="flex flex-col gap-2 pt-2">
-            <div className="flex items-center gap-3">
-              <Button
-                size="sm"
-                onClick={handleSave}
-                disabled={saving || !dirty}
-                text={saving ? "Saving..." : "Save"}
-              />
-              {saved && <span className="text-xs font-sans text-success">Saved</span>}
-            </div>
-            {saveError && <span className="text-xs font-sans text-danger">{saveError}</span>}
-          </div>
+          <SaveDiscardBar
+            dirty={dirty}
+            saving={saving}
+            onSave={handleSave}
+            error={saveError}
+            success={saved ? "Saved" : null}
+            showDivider={false}
+          />
         </>
       )}
     </SettingsSection>
