@@ -188,7 +188,7 @@
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--color-text-tertiary);
+  color: var(--color-tertiary);
 }
 
 /* ─── Typography utilities ─── */

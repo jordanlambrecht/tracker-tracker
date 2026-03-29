@@ -76,7 +76,7 @@ function AlertsBanner({ alerts, onDismiss, onDismissAll }: AlertsBannerProps) {
         return (
           <div
             key={alert.key}
-            className="overflow-hidden transition-all duration-250 ease-out"
+            className="overflow-hidden transition-all duration-200 ease-out"
             style={{
               maxHeight: isDismissing ? 0 : 80,
               marginBottom: isDismissing ? -8 : 0,
@@ -89,7 +89,7 @@ function AlertsBanner({ alerts, onDismiss, onDismissAll }: AlertsBannerProps) {
             }}
           >
             <div
-              className="flex items-start sm:items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 nm-inset-sm bg-control-bg rounded-nm-md transition-transform duration-250 ease-out"
+              className="flex items-start sm:items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 nm-inset-sm bg-control-bg rounded-nm-md transition-transform duration-200 ease-out"
               style={{
                 borderLeft: `3px solid ${config.borderColor}`,
                 transform: isDismissing ? "translateX(-12px)" : "translateX(0)",

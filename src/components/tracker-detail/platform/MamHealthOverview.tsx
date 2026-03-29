@@ -28,7 +28,7 @@ const SEGMENTS = [
   { key: "leeching", label: "Leeching", color: "var(--color-accent)" },
   { key: "inactiveHnr", label: "Inactive HnR", color: "var(--color-danger)" },
   { key: "preHnr", label: "Pre-HnR", color: "var(--color-warn)" },
-  { key: "completed", label: "Completed", color: "var(--color-text-tertiary)" },
+  { key: "completed", label: "Completed", color: "var(--color-tertiary)" },
 ] as const
 
 export function MamHealthOverview({

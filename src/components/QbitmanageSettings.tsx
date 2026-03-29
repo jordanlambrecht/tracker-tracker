@@ -143,9 +143,9 @@ function QbitmanageSettings({ initialEnabled, initialTags }: QbitmanageSettingsP
                 disabled={saving || !dirty}
                 text={saving ? "Saving..." : "Save"}
               />
-              {saved && <span className="text-xs font-mono text-success">Saved</span>}
+              {saved && <span className="text-xs font-sans text-success">Saved</span>}
             </div>
-            {saveError && <span className="text-xs font-mono text-danger">{saveError}</span>}
+            {saveError && <span className="text-xs font-sans text-danger">{saveError}</span>}
           </div>
         </>
       )}
