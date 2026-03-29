@@ -2,8 +2,8 @@
 //
 // Functions: GazelleAdapter, GazelleAdapter.fetchStats, GazelleAdapter.fetchRaw
 
+import { computeBufferBytes, floatBytesToBigInt } from "@/lib/formatters"
 import { adapterFetch } from "./adapter-fetch"
-import { floatBytesToBigInt, computeBufferBytes } from "@/lib/formatters"
 import type {
   DebugApiCall,
   FetchOptions,

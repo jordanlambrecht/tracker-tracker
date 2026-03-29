@@ -5,6 +5,8 @@
 // Type definitions and public API for the tracker registry.
 // Individual tracker data lives in src/data/trackers/.
 
+import type { PlatformType } from "@/lib/adapters/constants"
+import type { GazelleAuthStyle, Unit3dAuthStyle } from "@/lib/adapters/types"
 import { normalizeUrl } from "@/lib/url"
 import { ALL_TRACKERS } from "./trackers"
 
@@ -50,7 +52,7 @@ export interface TrackerRegistryEntry {
   abbreviation?: string
   url: string
   description: string
-  platform: "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "custom"
+  platform: PlatformType
   apiPath: string
   specialty: string
   contentCategories: string[]
@@ -76,9 +78,9 @@ export interface TrackerRegistryEntry {
   warningNote?: string
   supportsTransitPapers?: boolean
   profileUrlPattern?: string
-  gazelleAuthStyle?: "token" | "raw"
+  gazelleAuthStyle?: GazelleAuthStyle
   gazelleEnrich?: boolean
-  unit3dAuthStyle?: "bearer" | "query"
+  unit3dAuthStyle?: Unit3dAuthStyle
 }
 
 export const TRACKER_REGISTRY: TrackerRegistryEntry[] = ALL_TRACKERS.filter((t) => !t.draft)

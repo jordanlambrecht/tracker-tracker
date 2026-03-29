@@ -1,7 +1,7 @@
 // src/lib/adapters/mam.ts
 
+import { computeBufferBytes, floatBytesToBigInt } from "@/lib/formatters"
 import { adapterFetch } from "./adapter-fetch"
-import { floatBytesToBigInt, computeBufferBytes } from "@/lib/formatters"
 import type {
   DebugApiCall,
   FetchOptions,
@@ -39,7 +39,6 @@ interface MamJsonLoadResponse {
   partial?: boolean
   recently_deleted?: number
 
-  // snatch_summary categories (present when ?snatch_summary is set)
   leeching?: MamSnatchCategory
   sSat?: MamSnatchCategory
   seedHnr?: MamSnatchCategory
@@ -54,7 +53,6 @@ interface MamJsonLoadResponse {
   reseed?: { name: string; count: number; inactive: number; red: boolean }
   ite?: { name: string; count: number; latest: number }
 
-  // notif (present when ?notif is set)
   notifs?: {
     pms: number
     aboutToDropClient: number
@@ -64,7 +62,6 @@ interface MamJsonLoadResponse {
     topics: number
   }
 
-  // clientStats (present when ?clientStats is set)
   clientStats?: unknown[]
 }
 

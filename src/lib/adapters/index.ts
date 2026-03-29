@@ -1,7 +1,4 @@
 // src/lib/adapters/index.ts
-//
-// Functions: getAdapter, buildFetchOptions
-// Exports: DEFAULT_API_PATHS
 
 import type { Agent as HttpAgent } from "node:http"
 import { findRegistryEntry } from "@/data/tracker-registry"
@@ -12,6 +9,7 @@ import { NebulanceAdapter } from "./nebulance"
 import type { FetchOptions, TrackerAdapter } from "./types"
 import { Unit3dAdapter } from "./unit3d"
 
+export type { PlatformType } from "./constants"
 export { DEFAULT_API_PATHS, VALID_PLATFORM_TYPES } from "./constants"
 
 const adapters: Record<string, TrackerAdapter> = {
@@ -47,4 +45,10 @@ export function buildFetchOptions(
   return fetchOptions
 }
 
-export type { FetchOptions, TrackerAdapter, TrackerStats } from "./types"
+export type {
+  FetchOptions,
+  GazelleAuthStyle,
+  TrackerAdapter,
+  TrackerStats,
+  Unit3dAuthStyle,
+} from "./types"
