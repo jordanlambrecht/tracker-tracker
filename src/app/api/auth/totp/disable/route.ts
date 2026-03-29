@@ -14,7 +14,7 @@ import { appSettings } from "@/lib/db/schema"
 import { recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import { log } from "@/lib/logger"
 import type { BackupCodeEntry } from "@/lib/totp"
-import { BACKUP_CODE_PATTERN, verifyAndConsumeBackupCode, verifyTotpCode } from "@/lib/totp"
+import { BACKUP_CODE_PATTERN, TOTP_CODE_RE, verifyAndConsumeBackupCode, verifyTotpCode } from "@/lib/totp"
 
 export async function POST(request: Request) {
   const auth = await authenticate()
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
         .where(eq(appSettings.id, settings.id))
     }
   } else {
-    if (code.length !== 6 || !/^\d{6}$/.test(code)) {
+    if (!TOTP_CODE_RE.test(code)) {
       await recordFailedAttempt(settings.id, settings)
       return NextResponse.json({ error: "Invalid TOTP code — must be 6 digits" }, { status: 400 })
     }
