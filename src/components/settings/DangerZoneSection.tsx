@@ -7,6 +7,7 @@ import { useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
 import { Button } from "@/components/ui/Button"
 import { Checkbox } from "@/components/ui/Checkbox"
+import { ConfirmAction } from "@/components/ui/ConfirmAction"
 import { Input } from "@/components/ui/Input"
 import { extractApiError } from "@/lib/helpers"
 
@@ -116,11 +117,19 @@ export function DangerZoneSection() {
         </div>
 
         {confirmResetStats ? (
-          <div className="nm-inset-sm p-4 flex flex-col gap-3 rounded-nm-md bg-danger-dim">
-            <p className="text-sm font-sans text-primary leading-relaxed">
-              This will permanently delete all snapshot history for every tracker and download
-              client. This cannot be undone.
-            </p>
+          <ConfirmAction
+            message="This will permanently delete all snapshot history for every tracker and download client. This cannot be undone."
+            confirmLabel="Confirm Reset"
+            confirmingLabel="Resetting…"
+            onConfirm={handleResetStats}
+            onCancel={() => {
+              setConfirmResetStats(false)
+              setResetStatsPassword("")
+              setResetStatsError(null)
+            }}
+            confirming={resetStatsSubmitting}
+            confirmDisabled={!resetStatsPassword.trim()}
+          >
             <Input
               type="password"
               autoComplete="off"
@@ -135,26 +144,7 @@ export function DangerZoneSection() {
               disabled={resetStatsSubmitting}
               error={resetStatsError ?? undefined}
             />
-            <div className="flex gap-3">
-              <Button
-                size="sm"
-                variant="danger"
-                disabled={resetStatsSubmitting || !resetStatsPassword.trim()}
-                onClick={handleResetStats}
-                text={resetStatsSubmitting ? "Resetting…" : "Confirm Reset"}
-              />
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setConfirmResetStats(false)
-                  setResetStatsPassword("")
-                  setResetStatsError(null)
-                }}
-                text="Cancel"
-              />
-            </div>
-          </div>
+          </ConfirmAction>
         ) : (
           <div className="flex items-center gap-3">
             <Button
@@ -186,10 +176,25 @@ export function DangerZoneSection() {
         </div>
 
         {confirmLockdown ? (
-          <div className="nm-inset-sm p-4 flex flex-col gap-3 rounded-nm-md bg-danger-dim">
-            <p className="text-sm font-sans text-primary leading-relaxed">
-              Confirm you understand the consequences:
-            </p>
+          <ConfirmAction
+            message="Confirm you understand the consequences:"
+            confirmLabel="Confirm Lockdown"
+            confirmingLabel="Locking down…"
+            onConfirm={handleLockdown}
+            onCancel={() => {
+              setConfirmLockdown(false)
+              setLockdownPassword("")
+              setLockdownChecks({ sessions: false, tokens: false, totp: false })
+              setLockdownError(null)
+            }}
+            confirming={lockdownSubmitting}
+            confirmDisabled={
+              !lockdownChecks.sessions ||
+              !lockdownChecks.tokens ||
+              !lockdownChecks.totp ||
+              !lockdownPassword.trim()
+            }
+          >
             <div className="flex flex-col gap-2">
               <Checkbox
                 checked={lockdownChecks.sessions}
@@ -224,33 +229,7 @@ export function DangerZoneSection() {
               disabled={lockdownSubmitting}
               error={lockdownError ?? undefined}
             />
-            <div className="flex gap-3">
-              <Button
-                size="sm"
-                variant="danger"
-                disabled={
-                  lockdownSubmitting ||
-                  !lockdownChecks.sessions ||
-                  !lockdownChecks.tokens ||
-                  !lockdownChecks.totp ||
-                  !lockdownPassword.trim()
-                }
-                onClick={handleLockdown}
-                text={lockdownSubmitting ? "Locking down…" : "Confirm Lockdown"}
-              />
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setConfirmLockdown(false)
-                  setLockdownPassword("")
-                  setLockdownChecks({ sessions: false, tokens: false, totp: false })
-                  setLockdownError(null)
-                }}
-                text="Cancel"
-              />
-            </div>
-          </div>
+          </ConfirmAction>
         ) : (
           <div>
             <Button
@@ -277,10 +256,19 @@ export function DangerZoneSection() {
         </div>
 
         {confirmNuke ? (
-          <div className="nm-inset-sm p-4 flex flex-col gap-3 rounded-nm-md bg-danger-dim">
-            <p className="text-sm font-sans text-primary leading-relaxed">
-              This will permanently destroy all data. There is no recovery.
-            </p>
+          <ConfirmAction
+            message="This will permanently destroy all data. There is no recovery."
+            confirmLabel="Delete Everything"
+            confirmingLabel="Scrubbing…"
+            onConfirm={handleNuke}
+            onCancel={() => {
+              setConfirmNuke(false)
+              setNukePassword("")
+              setNukeError(null)
+            }}
+            confirming={nukeSubmitting}
+            confirmDisabled={!nukePassword.trim()}
+          >
             <Input
               type="password"
               autoComplete="off"
@@ -295,26 +283,7 @@ export function DangerZoneSection() {
               disabled={nukeSubmitting}
               error={nukeError ?? undefined}
             />
-            <div className="flex gap-3">
-              <Button
-                size="sm"
-                variant="danger"
-                disabled={nukeSubmitting || !nukePassword.trim()}
-                onClick={handleNuke}
-                text={nukeSubmitting ? "Scrubbing…" : "Delete Everything"}
-              />
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setConfirmNuke(false)
-                  setNukePassword("")
-                  setNukeError(null)
-                }}
-                text="Cancel"
-              />
-            </div>
-          </div>
+          </ConfirmAction>
         ) : (
           <div>
             <Button size="sm" variant="danger" onClick={() => setConfirmNuke(true)}>

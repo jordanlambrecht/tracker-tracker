@@ -1,13 +1,11 @@
 // src/components/settings/PrivacySection.tsx
-//
-// Functions: PrivacySection
-
 "use client"
 
 import { Paragraph, Subtext } from "@typography"
 import { useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
 import { Button } from "@/components/ui/Button"
+import { ConfirmAction } from "@/components/ui/ConfirmAction"
 import { RedactedText } from "@/components/ui/RedactedText"
 import { Toggle } from "@/components/ui/Toggle"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
@@ -71,20 +69,21 @@ export function PrivacySection({ initialStoreUsernames }: PrivacySectionProps) {
       )}
 
       {scrubState === "confirming" && (
-        <div className="nm-inset-sm p-4 flex flex-col gap-3 rounded-nm-md bg-warn-dim">
-          <p className="text-sm font-sans text-primary leading-relaxed">
-            Also scrub existing usernames from historical data?
-          </p>
+        <ConfirmAction
+          colorScheme="warn"
+          message="Also scrub existing usernames from historical data?"
+          confirmLabel="Yes, scrub history"
+          onConfirm={handleScrubYes}
+          onCancel={handleScrubCancel}
+          additionalActions={
+            <Button size="sm" variant="primary" onClick={handleScrubNo} text="No, keep history" />
+          }
+        >
           <Paragraph>
             This will permanently replace all stored usernames and user classes with redacted
             markers. This cannot be undone.
           </Paragraph>
-          <div className="flex gap-3">
-            <Button size="sm" variant="danger" onClick={handleScrubYes} text="Yes, scrub history" />
-            <Button size="sm" variant="primary" onClick={handleScrubNo} text="No, keep history" />
-            <Button size="sm" variant="ghost" onClick={handleScrubCancel} text="Cancel" />
-          </div>
-        </div>
+        </ConfirmAction>
       )}
 
       {scrubState === "scrubbing" && (
