@@ -9,7 +9,7 @@ import type { TrackerSummary } from "@/types/api"
 
 type TrackerRow = Omit<
   FullTrackerRow,
-  "encryptedApiToken" | "avatarData" | "avatarCachedAt" | "avatarRemoteUrl"
+  "encryptedApiToken" | "avatarData" | "avatarMimeType" | "avatarCachedAt" | "avatarRemoteUrl"
 >
 
 export function parsePlatformMeta(raw: string | null): PlatformMeta | null {

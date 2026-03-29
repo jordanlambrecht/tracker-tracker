@@ -22,6 +22,7 @@ const mockTracker = {
   remoteUserId: null,
   platformMeta: null,
   avatarData: null,
+  avatarMimeType: null,
   avatarCachedAt: null,
   avatarRemoteUrl: null,
   useProxy: false,

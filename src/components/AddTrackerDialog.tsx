@@ -353,7 +353,7 @@ function AddTrackerDialog({
         next.apiToken = "Browser cookies are required"
       } else if (!avistazCookies.includes("=")) {
         next.apiToken =
-          'This doesn\'t look like a cookie string — it should contain key=value pairs (i.e. cf_clearance=abc123; session=xyz)'
+          "This doesn't look like a cookie string — it should contain key=value pairs (i.e. cf_clearance=abc123; session=xyz)"
       } else if (
         /^(cf_clearance|[a-z]+x_session|remember_web_\w+|XSRF-TOKEN|love)$/i.test(
           avistazCookies.trim()
@@ -648,7 +648,11 @@ function AddTrackerDialog({
 
           {/* Footer */}
           <div className="flex gap-3 pt-1">
-            <Button type="submit" disabled={loading} text={loading ? "Connecting..." : "Add Tracker"} />
+            <Button
+              type="submit"
+              disabled={loading}
+              text={loading ? "Connecting..." : "Add Tracker"}
+            />
             <Button variant="ghost" onClick={() => dialogRef.current?.close()} text="Cancel" />
           </div>
         </form>
