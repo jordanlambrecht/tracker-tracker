@@ -6,6 +6,7 @@
 // and successful delivery reset.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import type { DiscordEmbed } from "@/lib/notifications/payload"
 
 vi.mock("@/lib/logger", () => ({
   log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -21,7 +22,9 @@ vi.mock("@/lib/error-utils", async (importOriginal) => {
 
 const TARGET_ID = 42
 const WEBHOOK_URL = "https://discord.com/api/webhooks/123/abc"
-const EMBEDS = [{ title: "test" }] as Record<string, unknown>[]
+const EMBEDS: DiscordEmbed[] = [
+  { title: "test", description: "test description", color: 0, timestamp: new Date().toISOString() },
+]
 
 function mockFetchOk() {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" }))

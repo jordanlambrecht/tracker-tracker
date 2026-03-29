@@ -34,7 +34,7 @@ import {
   UploadArrowIcon,
 } from "@/components/ui/Icons"
 import { StatCard } from "@/components/ui/StatCard"
-import type { FleetSnapshot, TorrentRaw, TrackerTag } from "@/lib/fleet"
+import type { FleetSnapshot, TrackerTag } from "@/lib/fleet"
 import { computeFleetStats } from "@/lib/fleet"
 import {
   formatBytesNum,
@@ -43,17 +43,9 @@ import {
   formatSpeed,
   splitValueUnit,
 } from "@/lib/formatters"
-import type { TorrentInfo } from "@/lib/torrent-utils"
+import type { AggregatedTorrentsResponse, TorrentInfo } from "@/lib/torrent-utils"
 import { mapTorrent } from "@/lib/torrent-utils"
 import type { TrackerSummary } from "@/types/api"
-
-interface FleetTorrentsResponse {
-  torrents: TorrentRaw[]
-  crossSeedTags: string[]
-  clientErrors: string[]
-  clientCount: number
-  cachedAt?: string | null
-}
 
 interface FleetDashboardProps {
   dayRange: number
@@ -96,7 +88,7 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
       ])
 
       if (cachedRes.ok) {
-        const data: FleetTorrentsResponse = await cachedRes.json()
+        const data: AggregatedTorrentsResponse = await cachedRes.json()
         if (data.torrents.length > 0) {
           setTorrents(data.torrents.map(mapTorrent))
           setCrossSeedTags(data.crossSeedTags)
@@ -136,7 +128,7 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
       try {
         const liveRes = await fetch("/api/fleet/torrents", { signal })
         if (liveRes.ok) {
-          const data: FleetTorrentsResponse = await liveRes.json()
+          const data: AggregatedTorrentsResponse = await liveRes.json()
           setTorrents(data.torrents.map(mapTorrent))
           setCrossSeedTags(data.crossSeedTags)
         }
@@ -290,7 +282,7 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
           <button
             type="button"
             onClick={() => chartPrefs.collapseAll(allChartIds)}
-            className="timestamp flex items-center gap-1.5 px-2.5 py-1 hover:text-secondary nm-interactive-inset cursor-pointer rounded-nm-sm"
+            className="timestamp flex items-center gap-2 px-2.5 py-1 hover:text-secondary nm-interactive-inset cursor-pointer rounded-nm-sm"
           >
             <ChevronUpIcon
               width="12"

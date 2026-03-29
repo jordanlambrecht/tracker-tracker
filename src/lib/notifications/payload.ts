@@ -14,7 +14,7 @@ interface EmbedInput {
   data: Record<string, unknown>
 }
 
-interface DiscordEmbed {
+export interface DiscordEmbed {
   title: string
   description: string
   color: number
