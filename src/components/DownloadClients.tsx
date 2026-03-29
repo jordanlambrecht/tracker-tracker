@@ -18,29 +18,14 @@ import { Toggle } from "@/components/ui/Toggle"
 import { UptimeBar } from "@/components/ui/UptimeBar"
 import { useActionStatus } from "@/hooks/useActionStatus"
 import { formatTimeAgo } from "@/lib/formatters"
+import type { SafeDownloadClient } from "@/types/api"
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 type ClientType = "qbittorrent" | "deluge" | "transmission" | "rtorrent"
-
-interface DownloadClient {
-  id: number
-  name: string
-  type: ClientType
-  enabled: boolean
-  host: string
-  port: number
-  useSsl: boolean
-  hasCredentials: boolean
-  pollIntervalSeconds: number
-  isDefault: boolean
-  crossSeedTags: string[]
-  lastPolledAt: string | null
-  lastError: string | null
-  errorSince: string | null
-}
+type DownloadClient = SafeDownloadClient
 
 const EMPTY_TRACKERS: string[] = []
 
@@ -437,11 +422,11 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
             />
           </div>
           {draft.crossSeedTags.length > 0 && (
-            <div className="flex gap-1.5 flex-wrap">
+            <div className="flex gap-2 flex-wrap">
               {draft.crossSeedTags.map((tag) => (
                 <span
                   key={tag}
-                  className="inline-flex items-center gap-1.5 font-mono text-xs text-primary bg-control-bg nm-inset-sm px-2.5 py-1 rounded-nm-sm"
+                  className="inline-flex items-center gap-2 font-mono text-xs text-primary bg-control-bg nm-inset-sm px-2.5 py-1 rounded-nm-sm"
                 >
                   {tag}
                   <button
@@ -471,7 +456,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
       {linkedTrackers.length > 0 && (
         <div className="flex items-center gap-2">
           <Subheader className="uppercase tracking-wider shrink-0">Linked Trackers</Subheader>
-          <div className="flex gap-1.5 flex-wrap">
+          <div className="flex gap-2 flex-wrap">
             {linkedTrackers.map((name) => (
               <Badge key={name} variant="default">
                 {name}

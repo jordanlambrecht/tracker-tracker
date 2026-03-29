@@ -22,35 +22,9 @@ import { useActionStatus } from "@/hooks/useActionStatus"
 import { DOCS } from "@/lib/constants"
 import { formatTimeAgo } from "@/lib/formatters"
 import type { NotificationTargetType } from "@/lib/notifications/types"
+import type { SafeNotificationTarget } from "@/types/api"
 
-interface NotificationTarget {
-  id: number
-  name: string
-  type: NotificationTargetType
-  enabled: boolean
-  hasConfig: boolean
-  notifyRatioDrop: boolean
-  notifyHitAndRun: boolean
-  notifyTrackerDown: boolean
-  notifyBufferMilestone: boolean
-  notifyWarned: boolean
-  notifyRatioDanger: boolean
-  notifyZeroSeeding: boolean
-  notifyRankChange: boolean
-  notifyAnniversary: boolean
-  notifyBonusCap: boolean
-  notifyVipExpiring: boolean
-  notifyUnsatisfiedLimit: boolean
-  notifyActiveHnrs: boolean
-  thresholds: { ratioDropDelta?: number; bufferMilestoneBytes?: number } | null
-  includeTrackerName: boolean
-  scope: number[] | null
-  lastDeliveryStatus: string | null
-  lastDeliveryAt: string | null
-  lastDeliveryError: string | null
-  createdAt: string
-  updatedAt: string
-}
+type NotificationTarget = SafeNotificationTarget
 
 const NOTIFICATION_TYPE_OPTIONS: {
   value: NotificationTargetType
@@ -269,7 +243,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
 
       {/* Webhook URL */}
       <div className="flex flex-col gap-2">
-        <H2 className="uppercase tracking-wider flex items-center gap-1.5">
+        <H2 className="uppercase tracking-wider flex items-center gap-2">
           Webhook URL
           <Tooltip
             content="Encrypted at rest with AES-256-GCM. Never returned in API responses."
@@ -322,7 +296,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
 
       {/* Notify when section */}
       <div className="flex flex-col gap-4">
-        <H2 className="uppercase tracking-wider flex items-center gap-1.5">
+        <H2 className="uppercase tracking-wider flex items-center gap-2">
           Notify when
           <Tooltip
             content="Each event has a snooze window to prevent repeated alerts."
