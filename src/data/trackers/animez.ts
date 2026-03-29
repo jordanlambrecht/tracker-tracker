@@ -1,28 +1,28 @@
-// src/data/trackers/avistaz.ts
+// src/data/trackers/animez.ts
 
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 
-export const avistaz: TrackerRegistryEntry = {
+export const animez: TrackerRegistryEntry = {
   // ── Identity ────────────────────────────────────────────────────────
-  slug: "avistaz",
-  name: "AvistaZ",
-  abbreviation: "AvZ",
-  url: "https://avistaz.to",
+  slug: "animez",
+  name: "AnimeZ",
+  abbreviation: "AnZ",
+  url: "https://animez.to",
   description:
-    "Flagship of the AvistaZ network. Asian movies, TV shows, and some music. Often opens signups.",
+    "Formerly AnimeTorrents. Part of the AvistaZ network, specializing in anime and manga content.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "avistaz",
   apiPath: "/profile",
 
   // ── Content ─────────────────────────────────────────────────────────
-  specialty: "Asian Movies / TV",
-  contentCategories: ["Movies", "TV", "Music"],
+  specialty: "Anime / Manga",
+  contentCategories: ["Anime", "Manga"],
   language: "English",
 
   // ── Visual ──────────────────────────────────────────────────────────
-  color: "#e91e63",
-  logo: "/tracker-logos/avistaz_logo.png",
+  color: "#ff6f00",
+  logo: "/tracker-logos/animez_logo.svg",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",

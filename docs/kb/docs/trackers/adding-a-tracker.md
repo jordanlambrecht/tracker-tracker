@@ -60,6 +60,16 @@ Click the **+** button next to "Trackers" in the sidebar, or go to `/trackers/ne
     | Anthelion | ANT |
     | Nebulance | NBL |
 
+=== "AvistaZ"
+
+    | Name | Abbreviation |
+    |---|---|
+    | AvistaZ | AvZ |
+    | AnimeZ | AnZ |
+    | CinemaZ | CZ |
+    | ExoticaZ | ExZ |
+    | PrivateHD | PHD |
+
 !!! note "Draft entries"
     Some trackers in the registry are marked as drafts — dashed border, "Stats tracking not yet supported." You can pin them as quicklinks but no stats will be polled.
 
@@ -100,6 +110,27 @@ Where to find it depends on the platform:
 
     GGn keys don't expire on their own, but they can be regenerated from your settings.
 
+=== "AvistaZ"
+
+    AvistaZ network trackers use browser cookies instead of API keys.
+
+    1. Open the tracker site in your browser and make sure you're logged in
+    2. Open DevTools (F12 or Cmd+Option+I)
+    3. Go to the **Network** tab
+    4. Refresh the page
+    5. Click any request to the tracker's domain
+    6. In the **Request Headers**, find the `Cookie` header and copy its full value
+
+    You'll also need your **username** on the tracker.
+
+    Paste both into the Add Tracker dialog — the User-Agent is captured automatically.
+
+    !!! warning "Cookie expiration"
+        The Cloudflare `cf_clearance` cookie expires periodically. When polls start failing, refresh the cookie by repeating the steps above.
+
+    !!! warning "Newbie rank cannot use this feature"
+        AvistaZ network sites restrict Newbie accounts to limited site access. You must reach **Member** rank (5 GB upload, ratio >= 1.0, account age >= 7 days) before the profile page exposes the data Tracker Tracker needs. If you are still a Newbie, wait until you are promoted before adding the tracker.
+
 !!! warning "Keep your token private"
     Your API token acts like a password for your account. Tracker Tracker encrypts it before storing it.
 
@@ -135,19 +166,19 @@ The global schedule (default: every 60 minutes) runs all trackers on a shared ti
 
 Not every platform exposes the same stats. Here's what you'll see:
 
-| Stat             | UNIT3D | Gazelle | GGn     | Notes                                                                        |
-| ---------------- | ------ | ------- | ------- | ---------------------------------------------------------------------------- |
-| Upload           | Yes    | Yes     | Yes     |                                                                              |
-| Download         | Yes    | Yes     | Yes     |                                                                              |
-| Ratio            | Yes    | Yes     | Yes     | GGn shows extra decimal precision                                            |
-| Buffer           | Yes    | Yes     | Yes     | UNIT3D returns this directly; others calculate it from upload minus download |
-| Seeding count    | Yes    | Partial | Partial | Some Gazelle forks and GGn may return 0 even when you're seeding             |
-| Leeching count   | Yes    | Partial | Partial | Same as above                                                                |
-| Bonus points     | Yes    | Yes     | Yes     | GGn calls this "gold" — it maps automatically                                |
-| Hit & Runs       | Yes    | No      | Partial | GGn shows unknown for Elite Gamer+ (HNR immunity)                            |
-| Required ratio   | No     | Yes     | Yes     | Not in the UNIT3D API                                                        |
-| Warned status    | No     | Partial | Yes     | Most Gazelle trackers default to false; RED has extended data                |
-| Freeleech tokens | No     | Partial | No      | Not all Gazelle forks expose this                                            |
+| Stat             | UNIT3D | Gazelle | GGn     | AvistaZ | Notes                                                                        |
+| ---------------- | ------ | ------- | ------- | ------- | ---------------------------------------------------------------------------- |
+| Upload           | Yes    | Yes     | Yes     | Yes     |                                                                              |
+| Download         | Yes    | Yes     | Yes     | Yes     |                                                                              |
+| Ratio            | Yes    | Yes     | Yes     | Yes     | GGn shows extra decimal precision                                            |
+| Buffer           | Yes    | Yes     | Yes     | Yes     | UNIT3D returns this directly; others calculate it from upload minus download |
+| Seeding count    | Yes    | Partial | Partial | Yes     | Some Gazelle forks and GGn may return 0 even when you're seeding             |
+| Leeching count   | Yes    | Partial | Partial | Yes     | Same as above                                                                |
+| Bonus points     | Yes    | Yes     | Yes     | Yes     | GGn calls this "gold" — it maps automatically                                |
+| Hit & Runs       | Yes    | No      | Partial | Yes     | GGn shows unknown for Elite Gamer+ (HNR immunity)                            |
+| Required ratio   | No     | Yes     | Yes     | No      | Not in the UNIT3D API                                                        |
+| Warned status    | No     | Partial | Yes     | No      | Most Gazelle trackers default to false; RED has extended data                |
+| Freeleech tokens | No     | Partial | No      | No      | Not all Gazelle forks expose this                                            |
 
 ### Gazelle: enriched data on RED
 

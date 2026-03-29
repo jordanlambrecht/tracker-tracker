@@ -5,7 +5,7 @@ description: Stat availability and behavior differences across UNIT3D, Gazelle, 
 
 # Platform Differences
 
-Tracker Tracker supports multiple tracker platforms: **UNIT3D**, **Gazelle**, **GGn**, **Nebulance**, and **MAM** (MyAnonaMouse). Each platform exposes different stats and uses a different authentication method. This page tells you what to expect when adding a tracker of each type.
+Tracker Tracker supports multiple tracker platforms: **UNIT3D**, **Gazelle**, **GGn**, **Nebulance**, **MAM** (MyAnonaMouse), and **AvistaZ**. Each platform exposes different stats and uses a different authentication method. This page tells you what to expect when adding a tracker of each type.
 
 ---
 
@@ -13,12 +13,13 @@ Tracker Tracker supports multiple tracker platforms: **UNIT3D**, **Gazelle**, **
 
 How you authenticate with each platform's API depends on the platform type. In all cases, Tracker Tracker handles this for you — you just paste your API token when adding the tracker.
 
-| Platform    | How the token is sent                                                                                                                                                  |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **UNIT3D**  | Appended as a query parameter on every request (`?api_token=TOKEN`). HTTPS is required to prevent the token from being exposed in server logs.                         |
-| **Gazelle** | Sent as an HTTP `Authorization` header (`Authorization: token TOKEN`). Some Gazelle forks accept the token without the `token ` prefix — Tracker Tracker handles both. |
-| **GGn**     | Appended as a query parameter (`?key=TOKEN`), similar to UNIT3D but using a different parameter name.                                                                  |
-| **MAM**     | Sent as a `Cookie: mam_id=VALUE` header. Uses a session cookie from MAM's Security Settings page, not a traditional API key. Session cookies rotate monthly.           |
+| Platform    | How the token is sent                                                                                                                                                                                    |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **UNIT3D**  | Appended as a query parameter on every request (`?api_token=TOKEN`). HTTPS is required to prevent the token from being exposed in server logs.                                                           |
+| **Gazelle** | Sent as an HTTP `Authorization` header (`Authorization: token TOKEN`). Some Gazelle forks accept the token without the `token ` prefix — Tracker Tracker handles both.                                   |
+| **GGn**     | Appended as a query parameter (`?key=TOKEN`), similar to UNIT3D but using a different parameter name.                                                                                                    |
+| **MAM**     | Sent as a `Cookie: mam_id=VALUE` header. Uses a session cookie from MAM's Security Settings page, not a traditional API key. Session cookies rotate monthly.                                             |
+| **AvistaZ** | Browser cookies (`cf_clearance` + session cookies) sent as a `Cookie` header, with the matching `User-Agent`. Uses HTML scraping instead of a JSON API. Cookies expire when Cloudflare clearance lapses. |
 
 ---
 
@@ -26,26 +27,26 @@ How you authenticate with each platform's API depends on the platform type. In a
 
 The table below shows which stats Tracker Tracker can collect from each platform. A note in the cell means the stat is available but with caveats.
 
-| Stat                      | UNIT3D                   | Gazelle                          | GGn                              | MAM                                 |
-| ------------------------- | ------------------------ | -------------------------------- | -------------------------------- | ----------------------------------- |
-| Upload / Download / Ratio | Yes                      | Yes                              | Yes                              | Yes (raw bytes + formatted strings) |
-| Buffer                    | Yes (tracker-calculated) | Approximate (calculated locally) | Approximate (calculated locally) | Approximate (calculated locally)    |
-| Seeding count             | Yes                      | Some forks only                  | Paranoia-dependent               | Yes (sum of snatch_summary seeding) |
-| Leeching count            | Yes                      | Some forks only                  | Paranoia-dependent               | Yes                                 |
-| Seedbonus / Bonus Points  | Yes                      | Yes (most forks)                 | Yes (called "gold")              | Yes                                 |
-| Required Ratio            | No                       | Yes                              | Yes                              | No                                  |
-| Hit & Runs                | Yes                      | No                               | Partial (may be null)            | Yes (inactive unsatisfied HnRs)     |
-| Freeleech Tokens          | No                       | Some forks only                  | No                               | Yes (called "wedges")               |
-| Warned status             | No                       | Some sites only                  | Yes                              | No                                  |
-| Class / Rank              | Yes                      | Yes                              | Yes                              | Yes                                 |
-| Join date                 | No                       | Some sites only                  | Yes                              | No                                  |
-| Last access date          | No                       | Some sites only                  | Yes                              | No                                  |
-| Share Score               | No                       | No                               | Yes                              | No                                  |
-| Donor status              | No                       | Some sites only                  | Yes                              | No (VIP status + expiry available)  |
-| Snatched count            | No                       | Some sites only                  | Yes                              | Yes (via snatch_summary categories) |
-| Community / rank data     | No                       | Some sites only                  | Yes                              | No                                  |
-| Upload / download buffs   | No                       | No                               | Yes                              | No                                  |
-| Avatar                    | No                       | Some sites only                  | No                               | No                                  |
+| Stat                      | UNIT3D                   | Gazelle                          | GGn                              | MAM                                 | AvistaZ                           |
+| ------------------------- | ------------------------ | -------------------------------- | -------------------------------- | ----------------------------------- | --------------------------------- |
+| Upload / Download / Ratio | Yes                      | Yes                              | Yes                              | Yes (raw bytes + formatted strings) | Yes (HTML scraped, decimal units) |
+| Buffer                    | Yes (tracker-calculated) | Approximate (calculated locally) | Approximate (calculated locally) | Approximate (calculated locally)    | Yes (tracker-calculated)          |
+| Seeding count             | Yes                      | Some forks only                  | Paranoia-dependent               | Yes (sum of snatch_summary seeding) | Yes                               |
+| Leeching count            | Yes                      | Some forks only                  | Paranoia-dependent               | Yes                                 | Yes                               |
+| Seedbonus / Bonus Points  | Yes                      | Yes (most forks)                 | Yes (called "gold")              | Yes                                 | Yes                               |
+| Required Ratio            | No                       | Yes                              | Yes                              | No                                  | No                                |
+| Hit & Runs                | Yes                      | No                               | Partial (may be null)            | Yes (inactive unsatisfied HnRs)     | Yes                               |
+| Freeleech Tokens          | No                       | Some forks only                  | No                               | Yes (called "wedges")               | No                                |
+| Warned status             | No                       | Some sites only                  | Yes                              | No                                  | No                                |
+| Class / Rank              | Yes                      | Yes                              | Yes                              | Yes                                 | Yes                               |
+| Join date                 | No                       | Some sites only                  | Yes                              | No                                  | Yes                               |
+| Last access date          | No                       | Some sites only                  | Yes                              | No                                  | Yes                               |
+| Share Score               | No                       | No                               | Yes                              | No                                  | No                                |
+| Donor status              | No                       | Some sites only                  | Yes                              | No (VIP status + expiry available)  | Yes                               |
+| Snatched count            | No                       | Some sites only                  | Yes                              | Yes (via snatch_summary categories) | No                                |
+| Community / rank data     | No                       | Some sites only                  | Yes                              | No                                  | No                                |
+| Upload / download buffs   | No                       | No                               | Yes                              | No                                  | No                                |
+| Avatar                    | No                       | Some sites only                  | No                               | No                                  | No                                |
 
 ### Notes on specific cells
 
@@ -123,3 +124,21 @@ MAM uses a single `/jsonLoad.php` endpoint with `?snatch_summary` to return ever
 - FL Wedge count (freeleech tokens)
 
 **Authentication note:** MAM uses a `mam_id` session cookie rather than a traditional API key. The cookie is obtained from MAM's Security Settings page (User Preferences → Security). Session cookies rotate monthly, so users will need to update their token periodically.
+
+### AvistaZ Network
+
+AvistaZ uses cookie-based HTML scraping instead of a JSON API. The profile page provides:
+
+- Donor status and VIP expiry date
+- Invite count
+- Account permission flags (can download, can upload)
+- Total upload and download torrent counts
+- Reseed request count
+- Two-factor authentication status
+- Bonus point earning rate per hour (from the bonus page, enrichment call)
+
+**Authentication note:** AvistaZ uses browser cookies rather than an API key. The cookie string includes a Cloudflare `cf_clearance` token that is tied to a specific User-Agent string. When adding an AvistaZ tracker, paste your browser cookies — the User-Agent is captured automatically. Cookies will need refreshing when the Cloudflare clearance expires (typically every few hours to days).
+
+**Sites in the network:** AvistaZ, AnimeZ, PrivateHD, CinemaZ, ExoticaZ — all share the same platform and HTML structure.
+
+**Minimum rank:** Newbie accounts have restricted profile pages. You must be **Member** rank or above (5 GB upload, ratio >= 1.0, 7+ days) for the adapter to work.

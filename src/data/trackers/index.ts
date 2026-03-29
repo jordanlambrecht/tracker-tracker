@@ -7,6 +7,7 @@ export * from "./abtorrents"
 export * from "./aither"
 export * from "./alpharatio"
 export * from "./animebytes"
+export * from "./animez"
 export * from "./anthelion"
 export * from "./asiancinema"
 export * from "./avistaz"
@@ -55,6 +56,7 @@ import { abtorrents } from "./abtorrents"
 import { aither } from "./aither"
 import { alpharatio } from "./alpharatio"
 import { animebytes } from "./animebytes"
+import { animez } from "./animez"
 import { anthelion } from "./anthelion"
 import { asiancinema } from "./asiancinema"
 import { avistaz } from "./avistaz"
@@ -105,6 +107,7 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   asiancinema,
   alpharatio,
   animebytes,
+  animez,
   anthelion,
   avistaz,
   beyondhd,

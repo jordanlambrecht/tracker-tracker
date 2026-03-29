@@ -25,7 +25,7 @@ import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { TRACKER_REGISTRY } from "@/data/tracker-registry"
 import { useClickOutside } from "@/hooks/useClickOutside"
 import { localDateStr } from "@/lib/formatters"
-import { normalizeUrl } from "@/lib/url"
+import { normalizeUrl } from "@/lib/helpers"
 
 // ---------------------------------------------------------------------------
 // Fuzzy match
@@ -242,6 +242,8 @@ function AddTrackerDialog({
   const [nickname, setNickname] = useState("")
   const [baseUrl, setBaseUrl] = useState("")
   const [apiToken, setApiToken] = useState("")
+  const [avistazUsername, setAvistazUsername] = useState("")
+  const [avistazCookies, setAvistazCookies] = useState("")
   const [qbtTag, setQbtTag] = useState("")
   const [mouseholeUrl, setMouseholeUrl] = useState("")
   const [color, setColor] = useState<string>(CHART_THEME.accent)
@@ -255,6 +257,8 @@ function AddTrackerDialog({
     setNickname("")
     setBaseUrl("")
     setApiToken("")
+    setAvistazUsername("")
+    setAvistazCookies("")
     setQbtTag("")
     setMouseholeUrl("")
     setColor(CHART_THEME.accent)
@@ -314,6 +318,8 @@ function AddTrackerDialog({
       setBaseUrl("")
       setColor(CHART_THEME.accent)
     }
+    setAvistazUsername("")
+    setAvistazCookies("")
   }
 
   const availablePresets = useMemo(() => {
@@ -339,7 +345,24 @@ function AddTrackerDialog({
         next.baseUrl = "Invalid URL format"
       }
     }
-    if (!apiToken.trim()) {
+
+    if (selectedEntry?.platform === "avistaz") {
+      if (!avistazUsername.trim()) {
+        next.apiToken = "Username is required"
+      } else if (!avistazCookies.trim()) {
+        next.apiToken = "Browser cookies are required"
+      } else if (!avistazCookies.includes("=")) {
+        next.apiToken =
+          'This doesn\'t look like a cookie string — it should contain key=value pairs (i.e. cf_clearance=abc123; session=xyz)'
+      } else if (
+        /^(cf_clearance|[a-z]+x_session|remember_web_\w+|XSRF-TOKEN|love)$/i.test(
+          avistazCookies.trim()
+        )
+      ) {
+        next.apiToken =
+          'You pasted a cookie name, not the value. Copy the entire string after "Cookie:" in the request headers.'
+      }
+    } else if (!apiToken.trim()) {
       next.apiToken = "API token is required"
     }
 
@@ -359,13 +382,24 @@ function AddTrackerDialog({
     setLoading(true)
     setTestResult(null)
 
+    const isAvistaz = selectedEntry?.platform === "avistaz"
+    let effectiveApiToken = apiToken
+
+    if (isAvistaz) {
+      effectiveApiToken = JSON.stringify({
+        cookies: avistazCookies.trim(),
+        userAgent: navigator.userAgent,
+        username: avistazUsername.trim(),
+      })
+    }
+
     try {
       const testRes = await fetch("/api/trackers/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           baseUrl,
-          apiToken,
+          apiToken: effectiveApiToken,
           platformType: selectedEntry?.platform ?? "unit3d",
           apiPath: selectedEntry?.apiPath,
         }),
@@ -380,13 +414,21 @@ function AddTrackerDialog({
 
       setTestResult({ username: testData.username, group: testData.group })
 
+      if (isAvistaz && testData.capturedUserAgent) {
+        effectiveApiToken = JSON.stringify({
+          cookies: avistazCookies.trim(),
+          userAgent: testData.capturedUserAgent,
+          username: avistazUsername.trim(),
+        })
+      }
+
       const saveRes = await fetch("/api/trackers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: trackerName,
           baseUrl,
-          apiToken,
+          apiToken: effectiveApiToken,
           platformType: selectedEntry?.platform ?? "unit3d",
           color,
           qbtTag: qbtTag.trim() || undefined,
@@ -477,33 +519,73 @@ function AddTrackerDialog({
             error={errors.baseUrl}
           />
 
-          <div className="flex flex-col gap-1">
-            <Input
-              label="API Token"
-              name="tracker-api-token"
-              type="password"
-              autoComplete="off"
-              data-1p-ignore
-              value={apiToken}
-              onChange={(e) => setApiToken(e.target.value)}
-              placeholder={
-                selectedEntry?.platform === "mam"
-                  ? "Your mam_id session cookie"
-                  : selectedEntry?.platform === "ggn"
-                    ? "Your GGn API key"
-                    : selectedEntry?.platform === "gazelle"
-                      ? "Your Gazelle API key"
-                      : "Your UNIT3D API token"
-              }
-              error={errors.apiToken}
-            />
-            {testResult && (
-              <p className="text-xs font-sans text-success">
-                Connected as <span className="font-semibold">{testResult.username}</span>
-                {testResult.group ? ` (${testResult.group})` : ""}
-              </p>
-            )}
-          </div>
+          {selectedEntry?.platform === "avistaz" ? (
+            <div className="flex flex-col gap-3">
+              <Input
+                label="AvistaZ Username"
+                name="tracker-avistaz-username"
+                autoComplete="off"
+                data-1p-ignore
+                value={avistazUsername}
+                onChange={(e) => setAvistazUsername(e.target.value)}
+                placeholder="Your username on this tracker"
+              />
+              <div className="flex flex-col gap-1">
+                <label className="text-xs uppercase tracking-wider text-secondary font-mono">
+                  Browser Cookies
+                </label>
+                <textarea
+                  name="tracker-avistaz-cookies"
+                  autoComplete="off"
+                  data-1p-ignore
+                  value={avistazCookies}
+                  onChange={(e) => setAvistazCookies(e.target.value)}
+                  placeholder="Paste Cookie header from browser DevTools (F12 → Network → any request → Cookie)"
+                  rows={3}
+                  className="w-full rounded-nm-sm bg-control-bg px-3 py-2 text-sm text-primary border border-transparent focus:border-accent focus:outline-none font-mono resize-y"
+                />
+                {errors.apiToken && (
+                  <p className="text-xs font-sans text-danger" role="alert">
+                    {errors.apiToken}
+                  </p>
+                )}
+              </div>
+              {testResult && (
+                <p className="text-xs font-sans text-success">
+                  Connected as <span className="font-semibold">{testResult.username}</span>
+                  {testResult.group ? ` (${testResult.group})` : ""}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <Input
+                label="API Token"
+                name="tracker-api-token"
+                type="password"
+                autoComplete="off"
+                data-1p-ignore
+                value={apiToken}
+                onChange={(e) => setApiToken(e.target.value)}
+                placeholder={
+                  selectedEntry?.platform === "mam"
+                    ? "Your mam_id session cookie"
+                    : selectedEntry?.platform === "ggn"
+                      ? "Your GGn API key"
+                      : selectedEntry?.platform === "gazelle"
+                        ? "Your Gazelle API key"
+                        : "Your UNIT3D API token"
+                }
+                error={errors.apiToken}
+              />
+              {testResult && (
+                <p className="text-xs font-sans text-success">
+                  Connected as <span className="font-semibold">{testResult.username}</span>
+                  {testResult.group ? ` (${testResult.group})` : ""}
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="flex flex-col gap-1">
             <Input

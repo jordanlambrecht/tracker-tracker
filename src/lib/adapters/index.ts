@@ -2,6 +2,7 @@
 
 import type { Agent as HttpAgent } from "node:http"
 import { findRegistryEntry } from "@/data/tracker-registry"
+import { AvistazAdapter } from "./avistaz"
 import { GazelleAdapter } from "./gazelle"
 import { GGnAdapter } from "./ggn"
 import { MamAdapter } from "./mam"
@@ -13,6 +14,7 @@ export type { PlatformType } from "./constants"
 export { DEFAULT_API_PATHS, VALID_PLATFORM_TYPES } from "./constants"
 
 const adapters: Record<string, TrackerAdapter> = {
+  avistaz: new AvistazAdapter(),
   gazelle: new GazelleAdapter(),
   ggn: new GGnAdapter(),
   mam: new MamAdapter(),

@@ -219,6 +219,7 @@ Which adapter handles API requests for this tracker. This controls how the sched
 | `"ggn"`       | GazelleGames only — custom API different from standard Gazelle |
 | `"nebulance"` | Nebulance-specific API                                         |
 | `"mam"`       | MyAnonaMouse — cookie-based auth via `mam_id` session cookie   |
+| `"avistaz"`   | AvistaZ network — cookie auth + HTML scraping of profile page  |
 | `"custom"`    | Placeholder, not implemented — do not use                      |
 
 #### `gazelleAuthStyle`
@@ -273,6 +274,7 @@ The path appended to `url` when making API requests. Must match the platform's a
 | `gazelle`   | `"/ajax.php"`   |
 | `ggn`       | `"/api.php"`    |
 | `nebulance` | `"/api.php"`    |
+| `avistaz`   | `"/profile"`    |
 
 ```typescript
 // UNIT3D tracker
@@ -283,6 +285,8 @@ apiPath: "/ajax.php"
 ```
 
 Do not change this from the platform default unless you have verified that the tracker uses a non-standard path. Almost no trackers deviate from the defaults above.
+
+AvistaZ trackers use `platform: "avistaz"` and `apiPath: "/profile"`. The adapter scrapes the user's profile page HTML using browser cookies. All five AvistaZ network sites (AvistaZ, AnimeZ, PrivateHD, CinemaZ, ExoticaZ) share the same HTML structure and use the same adapter.
 
 ---
 

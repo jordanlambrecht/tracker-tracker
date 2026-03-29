@@ -555,14 +555,14 @@ describe("PATCH /api/trackers/[id]", () => {
     expect(data.error).toMatch(/color/i)
   })
 
-  it("returns 400 when API token exceeds 500 characters", async () => {
+  it("returns 400 when API token exceeds 5000 characters", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
-      apiToken: "t".repeat(501),
+      apiToken: "t".repeat(5001),
     })
 
     const request = makeRequest(
       "http://localhost/api/trackers/1",
-      { apiToken: "t".repeat(501) },
+      { apiToken: "t".repeat(5001) },
       "PATCH"
     )
     const params = Promise.resolve({ id: "1" })

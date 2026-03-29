@@ -1,7 +1,4 @@
 // src/components/TrackerSettingsDialog.tsx
-//
-// Functions: TrackerSettingsDialog
-
 "use client"
 
 import { H2 } from "@typography"
@@ -81,6 +78,8 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
 
   const [changingKey, setChangingKey] = useState(false)
   const [newApiToken, setNewApiToken] = useState("")
+  const [editAvistazUsername, setEditAvistazUsername] = useState("")
+  const [editAvistazCookies, setEditAvistazCookies] = useState("")
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
@@ -90,6 +89,8 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
   const resetTransientState = useCallback(() => {
     setChangingKey(false)
     setNewApiToken("")
+    setEditAvistazUsername("")
+    setEditAvistazCookies("")
     setErrors({})
     setSaving(false)
     setConfirmDelete(false)
@@ -115,7 +116,7 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
         validationErrors.baseUrl = "Invalid URL"
       }
     }
-    if (changingKey && !newApiToken.trim()) {
+    if (changingKey && tracker.platformType !== "avistaz" && !newApiToken.trim()) {
       validationErrors.apiToken = "API token cannot be empty"
     }
 
@@ -127,7 +128,20 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
     setErrors({})
     setSaving(true)
 
-    const trimmedToken = newApiToken.trim()
+    let trimmedToken = newApiToken.trim()
+
+    if (changingKey && tracker.platformType === "avistaz") {
+      if (!editAvistazUsername.trim() || !editAvistazCookies.trim()) {
+        setErrors({ apiToken: "Username and cookies are required" })
+        setSaving(false)
+        return
+      }
+      trimmedToken = JSON.stringify({
+        cookies: editAvistazCookies.trim(),
+        userAgent: navigator.userAgent,
+        username: editAvistazUsername.trim(),
+      })
+    }
 
     // Test the new API key before saving
     if (changingKey && trimmedToken) {
@@ -146,6 +160,16 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
           setErrors({ apiToken: (testData as { error?: string }).error ?? "Connection failed" })
           setSaving(false)
           return
+        }
+        if (tracker.platformType === "avistaz") {
+          const testJson = await testRes.json().catch(() => ({}))
+          if ((testJson as Record<string, unknown>).capturedUserAgent) {
+            trimmedToken = JSON.stringify({
+              cookies: editAvistazCookies.trim(),
+              userAgent: (testJson as Record<string, string>).capturedUserAgent,
+              username: editAvistazUsername.trim(),
+            })
+          }
         }
       } catch {
         setErrors({ apiToken: "Could not verify API key — check your connection" })
@@ -257,7 +281,49 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
           {/* API Key — show status or change input */}
           <div className="flex flex-col gap-1">
             <H2 className="uppercase tracking-wider">API Key</H2>
-            {changingKey ? (
+            {changingKey && tracker.platformType === "avistaz" ? (
+              <div className="flex flex-col gap-2">
+                <Input
+                  label="Username"
+                  autoComplete="off"
+                  data-1p-ignore
+                  value={editAvistazUsername}
+                  onChange={(e) => setEditAvistazUsername(e.target.value)}
+                  placeholder="Your username on this tracker"
+                />
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs uppercase tracking-wider text-secondary font-mono">
+                    Browser Cookies
+                  </label>
+                  <textarea
+                    autoComplete="off"
+                    data-1p-ignore
+                    value={editAvistazCookies}
+                    onChange={(e) => setEditAvistazCookies(e.target.value)}
+                    placeholder="Paste Cookie header from DevTools"
+                    rows={3}
+                    className="w-full rounded-nm-sm bg-control-bg px-3 py-2 text-sm text-primary border border-transparent focus:border-accent focus:outline-none font-mono resize-y"
+                  />
+                </div>
+                {errors.apiToken && (
+                  <p className="text-xs font-sans text-danger" role="alert">
+                    {errors.apiToken}
+                  </p>
+                )}
+                <Button
+                  variant="minimal"
+                  size="sm"
+                  text="Cancel"
+                  className="self-start"
+                  onClick={() => {
+                    setChangingKey(false)
+                    setEditAvistazUsername("")
+                    setEditAvistazCookies("")
+                    setErrors({})
+                  }}
+                />
+              </div>
+            ) : changingKey ? (
               <div className="flex flex-col gap-2">
                 <Input
                   type="password"
@@ -276,6 +342,8 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
                   onClick={() => {
                     setChangingKey(false)
                     setNewApiToken("")
+                    setEditAvistazUsername("")
+                    setEditAvistazCookies("")
                     setErrors({})
                   }}
                 />
