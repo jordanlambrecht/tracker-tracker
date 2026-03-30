@@ -357,7 +357,7 @@ function TorrentsTab({
       </Card>
 
       {/* Elder Torrents */}
-      <div className="flex flex-col gap-3 lazy-card">
+      <div className="flex flex-col gap-3">
         <H2 className="uppercase tracking-wider">Elder Torrents</H2>
         <TorrentRankingTable variant="elder" torrents={data.elderTorrents} />
       </div>
