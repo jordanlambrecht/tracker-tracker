@@ -5,7 +5,7 @@ description: How to add a private tracker, find your API token, and understand w
 
 # Adding a Tracker
 
-Tracker Tracker supports 40+ trackers across four platforms: UNIT3D, Gazelle, GGn, and Nebulance. Most are in the built-in registry — pick one from the list and the URL and platform fill in automatically.
+Tracker Tracker supports 40+ trackers. Just pick one from the list.
 
 ## Opening the Add Tracker dialog
 
@@ -31,6 +31,8 @@ Click the **+** button next to "Trackers" in the sidebar, or go to `/trackers/ne
     | SkipTheCommercials | STC |
     | Seedpool | SP |
     | Upload.cx | |
+    | DarkPeers | DP |
+    | Luminarr | LUME |
 
 === "Gazelle"
 
