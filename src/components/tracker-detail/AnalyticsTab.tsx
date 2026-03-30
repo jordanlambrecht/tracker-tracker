@@ -83,7 +83,6 @@ export function AnalyticsTab({
   const renderLayoutCards = (layout: LayoutConfig) =>
     layout.cards.map((card) => {
       const positionClasses = getCardClasses(card)
-      const isTall = card.span > 1
       let element: ReactNode = null
 
       if (card.type === "fixed" || card.type === "single") {
@@ -120,7 +119,7 @@ export function AnalyticsTab({
       if (!element) return null
 
       return (
-        <div key={card.id} className={clsx(positionClasses, isTall && "*:h-full")}>
+        <div key={card.id} className={clsx(positionClasses, "*:h-full")}>
           {element}
         </div>
       )

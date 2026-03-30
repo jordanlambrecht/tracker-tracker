@@ -1,7 +1,4 @@
 // src/components/charts/BufferCandlestickChart.tsx
-//
-// Functions: computeCandlestickData, buildCandlestickOption, BufferCandlestickChart
-
 "use client"
 
 import type { CandlestickSeriesOption, EChartsOption } from "echarts"
@@ -220,7 +217,7 @@ function buildCandlestickOption(
         return `<div style="font-family:${CHART_THEME.fontMono};font-size:${CHART_THEME.fontSizeDense}px;">${header}${rows}</div>`
       },
     }),
-    xAxis: buildTimeXAxis({ boundaryGap: true }),
+    xAxis: buildTimeXAxis({ boundaryGap: ["5%", "5%"] }),
     yAxis: {
       type: useLog ? "log" : "value",
       name: useLog ? `${unit} (log)` : unit,

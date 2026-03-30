@@ -265,7 +265,7 @@ export function adaptiveDotSize(count: number, thresholds: [number, number] = [1
 export function buildTimeXAxis(overrides?: Record<string, unknown>): Record<string, unknown> {
   return {
     type: "time",
-    boundaryGap: false,
+    boundaryGap: ["0%", "0%"],
     axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
     axisTick: { show: false },
     axisLabel: chartAxisLabel({
@@ -384,7 +384,7 @@ export function buildStackedAreaOption(
       },
     }),
     legend: chartLegend(),
-    xAxis: buildTimeXAxis({ boundaryGap: false }),
+    xAxis: buildTimeXAxis(),
     yAxis: {
       type: "value",
       name: "Torrents",
