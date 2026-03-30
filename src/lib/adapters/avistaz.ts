@@ -200,21 +200,64 @@ export function parseAvistazProfile(html: string, username: string): TrackerStat
   const twoFaText = textAfterLabel(allRows, "2FA")
 
   // ── Avatar ─────────────────────────────────────────────────────────────────
-  // Custom upload lives in #avatar-uploader img; fallback is a Gravatar in a script template
-  const avatarImg = doc.querySelector("#avatar-uploader img") as HTMLImageElement | null
+  // Try multiple selectors: uploader widget, avatar cell in profile table,
+  // inline profile image, then Gravatar in a script template as last resort.
   let avatarUrl: string | undefined
-  if (avatarImg?.src) {
-    avatarUrl = avatarImg.src
-  } else {
+
+  const avatarSelectors = [
+    "#avatar-uploader img",
+    ".avatar-cell img",
+    "img.avatar-original",
+    "img[src*='gravatar.com/avatar']",
+    "img[src*='/storage/avatars/']",
+    "img[src*='/storage/images/']",
+  ]
+  for (const sel of avatarSelectors) {
+    const img = doc.querySelector(sel)
+    const src = img?.getAttribute("src")?.trim()
+    if (src) {
+      avatarUrl = src.replace(/&amp;/g, "&")
+      break
+    }
+  }
+
+  if (!avatarUrl) {
+    // Fallback: Gravatar URL in a script template (used by some AvistaZ themes)
     const templateEl = doc.querySelector("#avatar-template")
     const gravatarMatch = templateEl?.textContent?.match(
       /https:\/\/www\.gravatar\.com\/avatar\/[^"'\s]+/
     )
     if (gravatarMatch) {
-      // Replace d=mm (mystery-person silhouette, returns 200) with d=404
-      // so the avatar route gets a 404 and the UI falls back to <UserIcon>
-      avatarUrl = gravatarMatch[0].replace(/&amp;/g, "&").replace(/d=mm/, "d=404")
+      avatarUrl = gravatarMatch[0].replace(/&amp;/g, "&")
     }
+  }
+
+  if (!avatarUrl) {
+    // Fallback: scan raw HTML for AvistaZ avatar image URLs (JS-rendered uploader widgets
+    // inject the <img> tag after page load, so querySelector misses it — but the URL
+    // often appears in inline scripts or data attributes in the static HTML)
+    const htmlAvatarMatch = html.match(
+      /https?:\/\/[^"'\s<>]+\/images\/avatar\/[^"'\s<>]+\.(?:jpg|png|gif|webp)/i
+    )
+    if (htmlAvatarMatch) {
+      avatarUrl = htmlAvatarMatch[0].replace(/&amp;/g, "&")
+    }
+  }
+
+  if (!avatarUrl) {
+    // Last resort: scan full HTML for Gravatar URLs
+    const htmlGravatarMatch = html.match(
+      /https:\/\/www\.gravatar\.com\/avatar\/[a-f0-9]+\?[^"'\s<>]+/i
+    )
+    if (htmlGravatarMatch) {
+      avatarUrl = htmlGravatarMatch[0].replace(/&amp;/g, "&")
+    }
+  }
+
+  // Replace Gravatar's default silhouette (d=mm) with d=404
+  // so the avatar route gets a 404 and the UI falls back to <UserIcon>
+  if (avatarUrl?.includes("gravatar.com") && avatarUrl.includes("d=mm")) {
+    avatarUrl = avatarUrl.replace(/d=mm/, "d=404")
   }
 
   // ── Activity summary (.well-sm block) ──────────────────────────────────────

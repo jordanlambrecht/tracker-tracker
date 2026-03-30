@@ -494,6 +494,14 @@ function AddTrackerDialog({
             <Notice variant="warn" box message={selectedEntry.warningNote} />
           )}
 
+          {selectedEntry?.platform === "avistaz" && (
+            <Notice
+              variant="warn"
+              box
+              message="AvistaZ network trackers require Member class or above. New accounts start as Validating and cannot access the profile page needed for stat tracking. This tracker won't work until your account is promoted."
+            />
+          )}
+
           <Input
             label="Nickname (optional)"
             name="tracker-nickname"
