@@ -379,7 +379,7 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
             }
           }}
           onClose={() => setChangelogOpen(false)}
-          className="fixed inset-0 m-auto w-full max-w-2xl max-h-[80vh] bg-elevated p-0 overflow-hidden backdrop:bg-black/60 backdrop:backdrop-blur-sm open:flex open:flex-col nm-raised-lg rounded-nm-xl border-0"
+          className="fixed inset-0 m-auto w-full max-w-2xl max-h-[80vh] bg-elevated p-0 overflow-hidden backdrop:bg-black/60 open:flex open:flex-col nm-raised-lg rounded-nm-xl border-0"
         >
           <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
             <H2 className="text-base font-semibold text-primary">

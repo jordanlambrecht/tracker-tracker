@@ -39,7 +39,7 @@ function Sheet({ open, onClose, title, children, className }: SheetProps) {
       <button
         type="button"
         className={clsx(
-          "absolute inset-0 backdrop-blur-sm bg-black/50 transition-opacity duration-300 ease-out cursor-default",
+          "absolute inset-0 bg-black/50 transition-opacity duration-300 ease-out cursor-default",
           visible ? "opacity-100" : "opacity-0"
         )}
         onClick={onClose}
