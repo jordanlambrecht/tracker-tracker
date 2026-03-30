@@ -2,8 +2,11 @@
 "use client"
 
 import { H2 } from "@typography"
-import { useEffect, useRef, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { useMemo } from "react"
+import { ChartGridSkeleton } from "@/components/ui/skeletons"
 import { CrossSeedNetwork } from "@/components/charts/CrossSeedNetwork"
+import { FleetAgeRose } from "@/components/charts/FleetAgeRose"
 import { FleetAgeTimeline } from "@/components/charts/FleetAgeTimeline"
 import { FleetCategoryBreakdown } from "@/components/charts/FleetCategoryBreakdown"
 import { FleetCategoryTimeline } from "@/components/charts/FleetCategoryTimeline"
@@ -55,111 +58,87 @@ interface FleetDashboardProps {
 const allChartIds = FLEET_CHARTS.map((c) => c.id)
 
 export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashboardProps) {
-  const [torrents, setTorrents] = useState<TorrentInfo[]>([])
-  const [crossSeedTags, setCrossSeedTags] = useState<string[]>([])
-  const [snapshots, setSnapshots] = useState<FleetSnapshot[]>([])
-  const [trackerTags, setTrackerTags] = useState<TrackerTag[]>([])
-  const [clientList, setClientList] = useState<{ id: number; name: string }[]>([])
-  const [loading, setLoading] = useState(true)
-
   const chartPrefs = useFleetChartPreferences()
   const { hydrated: chartPrefsHydrated } = chartPrefs
 
-  const prevDayRange = useRef<number | null>(null)
-  const initialLoaded = useRef(false)
+  const effectiveDays = dayRange === 0 ? 30 : dayRange
 
-  useEffect(() => {
-    const controller = new AbortController()
-    const { signal } = controller
-    const isFirstRun = !initialLoaded.current
+  const { data: snapshots = [] } = useQuery({
+    queryKey: ["fleet-snapshots", effectiveDays],
+    queryFn: async ({ signal }) => {
+      const res = await fetch(`/api/fleet/snapshots?days=${effectiveDays}`, { signal })
+      if (!res.ok) return [] as FleetSnapshot[]
+      return res.json() as Promise<FleetSnapshot[]>
+    },
+  })
 
-    async function loadSnapshots() {
-      const res = await fetch(`/api/fleet/snapshots?days=${dayRange === 0 ? 30 : dayRange}`, {
-        signal,
-      })
-      if (res.ok) setSnapshots(await res.json())
-    }
+  // Fast: DB-cached torrent aggregation (available instantly)
+  const { data: cachedTorrents } = useQuery({
+    queryKey: ["fleet-torrents-cached"],
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/fleet/torrents/cached", { signal })
+      if (!res.ok) return null
+      return res.json() as Promise<AggregatedTorrentsResponse>
+    },
+    staleTime: 60_000,
+  })
 
-    async function loadInitial() {
-      const [cachedRes, clientsRes, trackersRes] = await Promise.all([
-        fetch("/api/fleet/torrents/cached", { signal }),
-        fetch("/api/clients", { signal }),
-        trackersProp ? Promise.resolve(null) : fetch("/api/trackers", { signal }),
-      ])
+  // Slow: Live qBT torrent aggregation (overrides cached when ready)
+  const { data: liveTorrents } = useQuery({
+    queryKey: ["fleet-torrents"],
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/fleet/torrents", { signal })
+      if (!res.ok) return null
+      return res.json() as Promise<AggregatedTorrentsResponse>
+    },
+    staleTime: 60_000,
+  })
 
-      if (cachedRes.ok) {
-        const data: AggregatedTorrentsResponse = await cachedRes.json()
-        if (data.torrents.length > 0) {
-          setTorrents(data.torrents.map(mapTorrent))
-          setCrossSeedTags(data.crossSeedTags)
-        }
-      }
+  // Use live data when available, fall back to cached
+  const torrentData = liveTorrents ?? cachedTorrents
+  const torrents = useMemo(
+    () => torrentData?.torrents.map(mapTorrent) ?? [],
+    [torrentData?.torrents]
+  )
+  const crossSeedTags = torrentData?.crossSeedTags ?? []
 
-      if (clientsRes.ok) {
-        const data: { id: number; name: string }[] = await clientsRes.json()
-        setClientList(data)
-      }
+  const { data: clientList = [] } = useQuery({
+    queryKey: ["clients"],
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/clients", { signal })
+      if (!res.ok) return [] as { id: number; name: string }[]
+      return res.json() as Promise<{ id: number; name: string }[]>
+    },
+  })
 
-      if (trackersProp) {
-        setTrackerTags(
-          trackersProp
-            .filter((t): t is typeof t & { qbtTag: string } => !!t.qbtTag?.trim())
-            .map((t) => ({
-              tag: t.qbtTag.trim(),
-              name: t.name,
-              color: t.color ?? CHART_THEME.accent,
-            }))
-        )
-      } else if (trackersRes?.ok) {
-        const data: { id: number; name: string; color: string; qbtTag: string | null }[] =
-          await trackersRes.json()
-        setTrackerTags(
-          data
-            .filter((t): t is typeof t & { qbtTag: string } => !!t.qbtTag?.trim())
-            .map((t) => ({
-              tag: t.qbtTag.trim(),
-              name: t.name,
-              color: t.color ?? CHART_THEME.accent,
-            }))
-        )
-      }
+  // Trackers: use prop if provided, otherwise fetch
+  const { data: fetchedTrackers } = useQuery({
+    queryKey: ["sidebar-trackers"],
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/trackers", { signal })
+      if (!res.ok) return [] as TrackerSummary[]
+      return res.json() as Promise<TrackerSummary[]>
+    },
+    enabled: !trackersProp,
+  })
 
-      // Background: refresh torrents live (slow — hits qBT clients)
-      try {
-        const liveRes = await fetch("/api/fleet/torrents", { signal })
-        if (liveRes.ok) {
-          const data: AggregatedTorrentsResponse = await liveRes.json()
-          setTorrents(data.torrents.map(mapTorrent))
-          setCrossSeedTags(data.crossSeedTags)
-        }
-      } catch {
-        // Live fetch failed. cached data stays visible
-      }
-    }
+  const trackerSource = trackersProp ?? fetchedTrackers ?? []
+  const trackerTags: TrackerTag[] = useMemo(
+    () =>
+      trackerSource
+        .filter((t): t is typeof t & { qbtTag: string } => !!t.qbtTag?.trim())
+        .map((t) => ({
+          tag: t.qbtTag.trim(),
+          name: t.name,
+          color: t.color ?? CHART_THEME.accent,
+        })),
+    [trackerSource]
+  )
 
-    const tasks = isFirstRun ? [loadInitial(), loadSnapshots()] : [loadSnapshots()]
-
-    Promise.all(tasks)
-      .catch(() => {})
-      .finally(() => {
-        if (isFirstRun) {
-          initialLoaded.current = true
-          setLoading(false)
-        }
-      })
-
-    prevDayRange.current = dayRange
-    return () => controller.abort()
-  }, [dayRange, trackersProp])
+  const loading = !torrentData && !snapshots.length
 
   if (loading) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <p className="text-secondary text-sm font-mono animate-loading-breathe">
-          Loading fleet data...
-        </p>
-      </div>
-    )
+    return <ChartGridSkeleton count={4} />
   }
 
   if (torrents.length === 0 && snapshots.length === 0) {
@@ -215,6 +194,8 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
         )
       case "fleet-seed-time-distribution":
         return <TorrentSeedTimeDistribution torrents={torrents} />
+      case "fleet-age-rose":
+        return <FleetAgeRose torrents={torrents} trackerTags={trackerTags} />
       case "fleet-age-timeline":
         return <FleetAgeTimeline torrents={torrents} trackerTags={trackerTags} />
       case "fleet-category-timeline":

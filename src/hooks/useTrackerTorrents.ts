@@ -2,7 +2,8 @@
 
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { useMemo } from "react"
 import type { TrackerRules } from "@/data/tracker-registry"
 import {
   type AggregatedTorrentsResponse,
@@ -44,7 +45,6 @@ interface QbitmanageBreakdownItem {
 }
 
 interface TrackerTorrentsData {
-  // Fetch state
   torrents: TorrentInfo[]
   crossSeedTags: string[]
   loading: boolean
@@ -54,7 +54,6 @@ interface TrackerTorrentsData {
   stale: boolean
   cachedAt: string | null
 
-  // Derived stats
   seedingTorrents: TorrentInfo[]
   leechingTorrents: TorrentInfo[]
   activelySeedingTorrents: TorrentInfo[]
@@ -76,6 +75,28 @@ interface TrackerTorrentsData {
 }
 
 // ---------------------------------------------------------------------------
+// SessionStorage cache (Phase 0 — instant restore on page refresh)
+// ---------------------------------------------------------------------------
+
+function loadSessionCache(trackerId: number): AggregatedTorrentsResponse | undefined {
+  try {
+    const raw = sessionStorage.getItem(`torrent-cache-${trackerId}`)
+    if (!raw) return undefined
+    return JSON.parse(raw) as AggregatedTorrentsResponse
+  } catch {
+    return undefined
+  }
+}
+
+function saveSessionCache(trackerId: number, data: AggregatedTorrentsResponse) {
+  try {
+    sessionStorage.setItem(`torrent-cache-${trackerId}`, JSON.stringify(data))
+  } catch {
+    // sessionStorage full or unavailable
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
 
@@ -87,178 +108,94 @@ function useTrackerTorrents({
   trackerSeedingCount,
   qbitmanageConfig,
 }: UseTrackerTorrentsParams): TrackerTorrentsData {
-  const [torrents, setTorrents] = useState<TorrentInfo[]>([])
-  const [crossSeedTags, setCrossSeedTags] = useState<string[]>([])
-  const [loading, setLoading] = useState(true)
-  const ready = useRef(false)
-  const [torrentError, setTorrentError] = useState<string | null>(null)
-  const [noClients, setNoClients] = useState(false)
-  const [clientCount, setClientCount] = useState(0)
-  const [stale, setStale] = useState(false)
-  const [cachedAt, setCachedAt] = useState<string | null>(null)
+  const enabled = !!qbtTag
 
-  useEffect(() => {
-    let cancelled = false
-
-    function applyResponse(data: AggregatedTorrentsResponse) {
-      if (cancelled) return
-      setTorrents(data.torrents.map(mapTorrent))
-      setCrossSeedTags(data.crossSeedTags)
-      setClientCount(data.clientCount)
-      setNoClients(data.clientCount === 0)
-    }
-
-    function storeLocal(data: AggregatedTorrentsResponse) {
-      try {
-        sessionStorage.setItem(`torrent-cache-${trackerId}`, JSON.stringify(data))
-      } catch {
-        // sessionStorage full or unavailable — ignore
+  // Phase 0+1: DB-cached torrent data (fast), with sessionStorage for instant display
+  // initialDataUpdatedAt: 0 forces an immediate background refetch from the DB cache endpoint
+  const cachedQuery = useQuery({
+    queryKey: ["tracker-torrents-cached", trackerId] as const,
+    queryFn: async ({ signal }) => {
+      const res = await fetch(`/api/trackers/${trackerId}/torrents/cached`, { signal })
+      if (!res.ok) return null
+      const data = (await res.json()) as AggregatedTorrentsResponse
+      if (data.torrents.length > 0) {
+        saveSessionCache(trackerId, data)
+        return data
       }
-    }
+      return null
+    },
+    enabled,
+    staleTime: 60_000,
+    initialData: loadSessionCache(trackerId) ?? undefined,
+    initialDataUpdatedAt: 0,
+  })
 
-    function loadLocal(): AggregatedTorrentsResponse | null {
-      try {
-        const raw = sessionStorage.getItem(`torrent-cache-${trackerId}`)
-        if (!raw) return null
-        return JSON.parse(raw) as AggregatedTorrentsResponse
-      } catch {
-        return null
+  // Phase 2: Live qBT torrent data (slow — overrides cached when ready)
+  const liveQuery = useQuery({
+    queryKey: ["tracker-torrents", trackerId] as const,
+    queryFn: async ({ signal }) => {
+      const res = await fetch(`/api/trackers/${trackerId}/torrents`, { signal })
+      if (!res.ok) return null
+      const data = (await res.json()) as AggregatedTorrentsResponse
+      saveSessionCache(trackerId, data)
+      return data
+    },
+    enabled,
+    staleTime: 60_000,
+  })
+
+  // Active torrent poll (5s) — only starts after live data has resolved
+  const activeQuery = useQuery({
+    queryKey: ["tracker-torrents-active", trackerId] as const,
+    queryFn: async ({ signal }) => {
+      const res = await fetch(`/api/trackers/${trackerId}/torrents?active=true`, { signal })
+      if (!res.ok) return null
+      return res.json() as Promise<AggregatedTorrentsResponse>
+    },
+    enabled: enabled && liveQuery.isSuccess,
+    refetchInterval: 5_000,
+  })
+
+  // Resolve the best available data source: live > cached > sessionStorage placeholder
+  const baseData = liveQuery.data ?? cachedQuery.data ?? null
+  const stale = !liveQuery.data && !!cachedQuery.data
+  const cachedAt = stale ? (cachedQuery.data?.cachedAt ?? null) : null
+  const loading = enabled && !baseData && (cachedQuery.isLoading || liveQuery.isLoading)
+
+  // Merge active speeds into the base torrent list
+  const torrents = useMemo(() => {
+    if (!baseData) return []
+    const base = baseData.torrents.map(mapTorrent)
+    if (!activeQuery.data) return base
+
+    const activeMap = new Map(
+      activeQuery.data.torrents.map(mapTorrent).map((t) => [t.hash, t] as const)
+    )
+    return base.map((t) => {
+      const active = activeMap.get(t.hash)
+      if (active) {
+        return { ...t, upspeed: active.upspeed, dlspeed: active.dlspeed, state: active.state, progress: active.progress }
       }
-    }
-
-    async function init() {
-      if (!qbtTag) {
-        if (!cancelled) setLoading(false)
-        return
+      if (t.upspeed > 0 || t.dlspeed > 0 || t.state === "uploading" || t.state === "downloading") {
+        return { ...t, upspeed: 0, dlspeed: 0, state: t.state === "downloading" ? "stalledDL" as const : "stalledUP" as const }
       }
+      return t
+    })
+  }, [baseData, activeQuery.data])
 
-      // Phase 0: Instant — restore from sessionStorage (survives page refresh)
-      const local = loadLocal()
-      if (local && local.torrents.length > 0) {
-        applyResponse(local)
-        if (!cancelled) {
-          setStale(true)
-          setLoading(false)
-          ready.current = true
-        }
-      }
+  const crossSeedTags = baseData?.crossSeedTags ?? []
+  const clientCount = baseData?.clientCount ?? 0
+  const noClients = clientCount === 0
 
-      // Phase 1: Load from DB cache (fast, may have newer data than sessionStorage)
-      let hasCachedData = local !== null && local.torrents.length > 0
-      try {
-        const cachedRes = await fetch(`/api/trackers/${trackerId}/torrents/cached`)
-        if (cachedRes.ok) {
-          const data: AggregatedTorrentsResponse = await cachedRes.json()
-          if (data.torrents.length > 0) {
-            applyResponse(data)
-            storeLocal(data)
-            hasCachedData = true
-            if (!cancelled) {
-              setStale(true)
-              setCachedAt(data.cachedAt ?? null)
-              setLoading(false)
-              ready.current = true
-            }
-          }
-        }
-      } catch {
-        // Cache miss — continue to live fetch
-      }
-
-      // Phase 2: Refresh with live data (slow qBT fetch)
-      try {
-        const liveRes = await fetch(`/api/trackers/${trackerId}/torrents`)
-        if (liveRes.ok) {
-          const data: AggregatedTorrentsResponse = await liveRes.json()
-          applyResponse(data)
-          storeLocal(data)
-          if (!cancelled) {
-            setStale(false)
-            setCachedAt(null)
-            setTorrentError(
-              data.clientErrors.length > 0
-                ? `Partial data — some clients failed: ${data.clientErrors.join("; ")}`
-                : null
-            )
-          }
-        }
-      } catch {
-        // Live fetch failed — cached data stays visible
-        if (!hasCachedData && !cancelled) {
-          setTorrentError("Client offline — no cached data available")
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false)
-          ready.current = true
-        }
-      }
+  const torrentError = useMemo(() => {
+    if (liveQuery.data?.clientErrors?.length) {
+      return `Partial data — some clients failed: ${liveQuery.data.clientErrors.join("; ")}`
     }
-
-    init()
-    return () => {
-      cancelled = true
+    if (liveQuery.error && !cachedQuery.data) {
+      return "Client offline — no cached data available"
     }
-  }, [trackerId, qbtTag])
-
-  // Poll active torrents every 5s for live upload/download speeds.
-  // Uses a ref instead of `loading` state to avoid tearing down the
-  // interval if loading ever toggled more than once.
-  useEffect(() => {
-    if (!qbtTag) return
-    let cancelled = false
-
-    async function pollActive() {
-      if (!ready.current) return
-      try {
-        const res = await fetch(`/api/trackers/${trackerId}/torrents?active=true`)
-        if (!res.ok || cancelled) return
-        const data: AggregatedTorrentsResponse = await res.json()
-        if (cancelled) return
-        const activeTorrents = data.torrents.map(mapTorrent)
-        const activeMap = new Map(activeTorrents.map((t) => [t.hash, t]))
-
-        setTorrents((prev) =>
-          prev.map((t) => {
-            const active = activeMap.get(t.hash)
-            if (active) {
-              // Update speed and state from live data
-              return {
-                ...t,
-                upspeed: active.upspeed,
-                dlspeed: active.dlspeed,
-                state: active.state,
-                progress: active.progress,
-              }
-            }
-            // Not in active list — zero out speeds and clear active state
-            if (
-              t.upspeed > 0 ||
-              t.dlspeed > 0 ||
-              t.state === "uploading" ||
-              t.state === "downloading"
-            ) {
-              return {
-                ...t,
-                upspeed: 0,
-                dlspeed: 0,
-                state: t.state === "downloading" ? "stalledDL" : "stalledUP",
-              }
-            }
-            return t
-          })
-        )
-      } catch {
-        // Non-critical — stale speeds are acceptable
-      }
-    }
-
-    const interval = setInterval(pollActive, 5000)
-    return () => {
-      cancelled = true
-      clearInterval(interval)
-    }
-  }, [trackerId, qbtTag])
+    return null
+  }, [liveQuery.data, liveQuery.error, cachedQuery.data])
 
   const derived = useMemo(() => {
     const seedingTorrents = torrents.filter((t) => SEEDING_STATES.has(t.state))
@@ -270,7 +207,6 @@ function useTrackerTorrents({
     const totalUpSpeed = torrents.reduce((sum, t) => sum + t.upspeed, 0)
     const totalSize = torrents.reduce((sum, t) => sum + t.size, 0)
 
-    // Cross-seed: torrents that have at least one cross-seed tag (aggregated from all clients)
     const csTagSet = new Set(crossSeedTags.map((t) => t.toLowerCase()))
     const crossSeeded = torrents.filter((t) => {
       const tags = t.tags
@@ -280,7 +216,6 @@ function useTrackerTorrents({
       return tags.some((tag) => csTagSet.has(tag))
     })
 
-    // Unsatisfied: all torrents below min seed time (regardless of state)
     const requiredSeedSeconds =
       rules?.seedTimeHours != null && rules.seedTimeHours > 0 ? rules.seedTimeHours * 3600 : null
     const unsatisfiedTorrents = requiredSeedSeconds
@@ -288,18 +223,15 @@ function useTrackerTorrents({
       : []
     const unsatisfiedCount = requiredSeedSeconds ? unsatisfiedTorrents.length : null
 
-    // H&R risk: unsatisfied AND not seeding AND not downloading — actually at risk
     const hnrRiskCount = requiredSeedSeconds
       ? unsatisfiedTorrents.filter(
           (t) => !SEEDING_STATES.has(t.state) && !LEECHING_STATES.has(t.state)
         ).length
       : null
 
-    // Dead torrents: client has more torrents than tracker reports seeding
     const deadCount =
       trackerSeedingCount != null ? Math.max(0, seedingTorrents.length - trackerSeedingCount) : null
 
-    // --- Category stats ---
     const categoryMap = new Map<string, TorrentInfo[]>()
     for (const t of torrents) {
       const cat = t.category || "Uncategorized"
@@ -319,24 +251,19 @@ function useTrackerTorrents({
       }))
       .sort((a, b) => b.count - a.count)
 
-    // Top 10 by seed time
     const topBySeeding = [...seedingTorrents]
       .sort((a, b) => b.seedingTime - a.seedingTime)
       .slice(0, 10)
 
-    // Elder torrents — oldest by addedOn
     const elderTorrents = [...torrents]
       .filter((t) => t.addedOn > 0)
       .sort((a, b) => a.addedOn - b.addedOn)
       .slice(0, 10)
 
-    // Unsatisfied torrents — sorted by closest to meeting requirement
     const unsatisfiedSorted = requiredSeedSeconds
       ? [...unsatisfiedTorrents].sort((a, b) => b.seedingTime - a.seedingTime)
       : []
 
-    // --- Tag group breakdowns ---
-    // Pre-compute parsed tags once per torrent (O(n)) instead of per-member per-group (O(n*m))
     const torrentTagSets = torrents.map((t) => new Set(parseTorrentTags(t.tags, false)))
 
     const tagGroupBreakdowns: TagGroupBreakdown[] = (tagGroups ?? [])

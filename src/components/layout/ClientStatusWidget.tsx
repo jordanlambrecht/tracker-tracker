@@ -1,8 +1,9 @@
 // src/components/layout/ClientStatusWidget.tsx
 "use client"
 
+import { useQueries, useQuery } from "@tanstack/react-query"
 import clsx from "clsx"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { DownloadArrowIcon, UploadArrowIcon } from "@/components/ui/Icons"
 import { MarqueeText } from "@/components/ui/MarqueeText"
@@ -91,8 +92,6 @@ function ClientSlide({
 // ---------------------------------------------------------------------------
 
 function ClientStatusWidget() {
-  const [entries, setEntries] = useState<ClientWithSpeeds[]>([])
-  const [loaded, setLoaded] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
   const [direction, setDirection] = useState<"left" | "right">("left")
   const [animating, setAnimating] = useState(false)
@@ -106,6 +105,57 @@ function ClientStatusWidget() {
       }
     } catch {}
   }, [setExpanded])
+
+  // Fetch enabled clients
+  const { data: enabledClients = [] } = useQuery({
+    queryKey: ["clients"],
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/clients", { signal })
+      if (!res.ok) return [] as ClientInfo[]
+      return res.json() as Promise<ClientInfo[]>
+    },
+    refetchInterval: 10_000,
+    select: (all) => all.filter((c) => c.enabled),
+  })
+
+  // Fetch speeds for each enabled client
+  // Cache stores raw API shape so FleetSpeedSparklines (same key) gets correct data
+  const speedQueries = useQueries({
+    queries: enabledClients.map((client) => ({
+      queryKey: ["client-speeds", client.id] as const,
+      queryFn: async ({ signal }: { signal: AbortSignal }) => {
+        const res = await fetch(`/api/clients/${client.id}/speeds`, { signal })
+        if (!res.ok)
+          return [] as { timestamp: number; uploadSpeed: number; downloadSpeed: number }[]
+        return res.json() as Promise<
+          { timestamp: number; uploadSpeed: number; downloadSpeed: number }[]
+        >
+      },
+      select: (
+        snaps: { timestamp: number; uploadSpeed: number; downloadSpeed: number }[]
+      ): SpeedPoint[] => snaps.map((s) => ({ up: s.uploadSpeed, down: s.downloadSpeed })),
+      refetchInterval: 10_000,
+    })),
+  })
+
+  // Combine clients + speeds into entries
+  const entries: ClientWithSpeeds[] = useMemo(
+    () =>
+      enabledClients.map((client, i) => ({
+        client,
+        speeds: speedQueries[i]?.data ?? [],
+      })),
+    [enabledClients, speedQueries]
+  )
+
+  const loaded = enabledClients.length > 0
+
+  // Clamp activeIndex when entries shrink
+  useEffect(() => {
+    if (entries.length > 0 && activeIndex >= entries.length) {
+      setActiveIndex(0)
+    }
+  }, [entries.length, activeIndex])
 
   const goTo = useCallback(
     (next: number) => {
@@ -132,56 +182,6 @@ function ClientStatusWidget() {
     }, 8000)
     return () => clearInterval(timer)
   }, [entries.length, activeIndex, goTo])
-
-  useEffect(() => {
-    let cancelled = false
-
-    async function poll() {
-      try {
-        const clientsRes = await fetch("/api/clients")
-        if (!clientsRes.ok) return
-        const clients: ClientInfo[] = await clientsRes.json()
-        const enabled = clients.filter((c) => c.enabled)
-        if (enabled.length === 0 || cancelled) return
-
-        const results: ClientWithSpeeds[] = await Promise.all(
-          enabled.map(async (client) => {
-            try {
-              const snapRes = await fetch(`/api/clients/${client.id}/speeds`)
-              if (!snapRes.ok) return { client, speeds: [] }
-              const snaps: { timestamp: number; uploadSpeed: number; downloadSpeed: number }[] =
-                await snapRes.json()
-              return {
-                client,
-                speeds: snaps.map((s) => ({
-                  up: s.uploadSpeed,
-                  down: s.downloadSpeed,
-                })),
-              }
-            } catch {
-              return { client, speeds: [] }
-            }
-          })
-        )
-
-        if (!cancelled) {
-          setEntries(results)
-          setActiveIndex((prev) => (prev >= results.length ? 0 : prev))
-        }
-      } catch {
-        // ignore
-      } finally {
-        if (!cancelled) setLoaded(true)
-      }
-    }
-
-    poll()
-    const interval = setInterval(poll, 10_000)
-    return () => {
-      cancelled = true
-      clearInterval(interval)
-    }
-  }, [])
 
   // Swipe/drag gesture for carousel (touch + pointer for desktop)
   const swipeStartX = useRef(0)

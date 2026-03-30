@@ -1,11 +1,12 @@
 // src/components/settings/PrivacySection.tsx
 "use client"
 
-import { Paragraph, Subtext } from "@typography"
+import { Paragraph } from "@typography"
 import { useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
 import { Button } from "@/components/ui/Button"
 import { ConfirmAction } from "@/components/ui/ConfirmAction"
+import { Notice } from "@/components/ui/Notice"
 import { RedactedText } from "@/components/ui/RedactedText"
 import { Toggle } from "@/components/ui/Toggle"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
@@ -87,19 +88,15 @@ export function PrivacySection({ initialStoreUsernames }: PrivacySectionProps) {
       )}
 
       {scrubState === "scrubbing" && (
-        <p className="text-xs font-mono text-warn">Scrubbing historical data...</p>
+        <Notice variant="warn" message="Scrubbing historical data..." />
       )}
 
-      <Subtext>
-        This does not provide strong anonymization. Character count and other data points may still
-        allow correlation. For full protection, deploy on an encrypted filesystem.
-      </Subtext>
+      <Notice
+        variant="info"
+        message="This does not provide strong anonymization. Character count and other data points may still allow correlation. For full protection, deploy on an encrypted filesystem."
+      />
 
-      {error && (
-        <p className="text-xs font-sans text-danger" role="alert">
-          {error}
-        </p>
-      )}
+      <Notice message={error} />
     </SettingsSection>
   )
 }
