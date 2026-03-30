@@ -14,10 +14,10 @@ import { Table } from "@/components/ui/Table"
 import { Toggle } from "@/components/ui/Toggle"
 import { Tooltip } from "@/components/ui/Tooltip"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
-import { extractApiError } from "@/lib/helpers"
 import { DOCS } from "@/lib/constants"
 import { downloadResponseBlob } from "@/lib/download"
 import { formatBytesNum, formatDateTime } from "@/lib/formatters"
+import { extractApiError } from "@/lib/helpers"
 
 export interface BackupRecord {
   id: number

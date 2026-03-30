@@ -18,6 +18,7 @@ import {
 } from "@/lib/client-scheduler"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
+import type { NotificationTargetRow, TrackerRow } from "@/lib/db/schema"
 import {
   appSettings,
   notificationTargets,
@@ -26,7 +27,6 @@ import {
   trackerSnapshots,
   trackers,
 } from "@/lib/db/schema"
-import type { NotificationTargetRow, TrackerRow } from "@/lib/db/schema"
 import { sanitizeNetworkError } from "@/lib/error-utils"
 import { localDateStr } from "@/lib/formatters"
 import { log } from "@/lib/logger"

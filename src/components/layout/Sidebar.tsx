@@ -41,24 +41,14 @@ import { Select } from "@/components/ui/Select"
 import { Tooltip } from "@/components/ui/Tooltip"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
 import { useUpdateCheck } from "@/hooks/useUpdateCheck"
-import { DOCS_URL } from "@/lib/constants"
 import { hexToRgba } from "@/lib/color-utils"
-import {
-  formatBytesNum,
-  formatSpeed,
-  formatStatValue,
-  formatTimeAgo,
-  type StatMode,
-} from "@/lib/formatters"
+import { DOCS_URL } from "@/lib/constants"
+import { formatSpeed, formatStatValue, formatTimeAgo, type StatMode } from "@/lib/formatters"
 import { STORAGE_KEYS } from "@/lib/storage-keys"
 import { getHealthPulseDot, getTrackerHealth } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
 
 const ChangelogContent = dynamic(() => import("./ChangelogContent"), { ssr: false })
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 type SortMode = "index" | "alpha" | "custom"
 
@@ -69,7 +59,7 @@ interface SidebarProps {
 }
 
 // ---------------------------------------------------------------------------
-// Pure helpers
+//  helpers
 // ---------------------------------------------------------------------------
 
 function sortTrackers(trackers: TrackerSummary[], mode: SortMode): TrackerSummary[] {
@@ -955,7 +945,6 @@ function Sidebar({ collapsed: collapsedProp, onToggle, isMobile = false }: Sideb
                   </Tooltip>
                 </a>
               )}
-              {/* biome-ignore lint/a11y/useAnchorContent: aria-label provides accessible content */}
               <a
                 href="https://github.com/jordanlambrecht/tracker-tracker"
                 target="_blank"

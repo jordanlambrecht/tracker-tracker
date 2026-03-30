@@ -33,5 +33,5 @@ function useEscapeKey(handler: () => void, enabled: boolean, options?: UseEscape
   }, [enabled, capture, stop])
 }
 
-export { useEscapeKey }
 export type { UseEscapeKeyOptions }
+export { useEscapeKey }

@@ -1,16 +1,8 @@
 // src/components/tracker-detail/AnalyticsTab.tsx
-//
-// Functions: AnalyticsTab
-//
-// Renders the Data & Analytics tab with a unified bento grid for all stat cards
-// (core stats + slot cards). Three responsive grids: 2-col (mobile), 3-col (md),
-// 3-or-4-col (lg). Each grid uses its own layout algorithm with explicit positioning.
-
 "use client"
 
 import clsx from "clsx"
 import { type ReactNode, useMemo } from "react"
-import type { DayRange } from "@/types/api"
 import { AnalyticsCharts } from "@/components/tracker-detail/AnalyticsCharts"
 import { buildCoreStatDescriptors } from "@/components/tracker-detail/CoreStatCards"
 import { PollLog } from "@/components/tracker-detail/PollLog"
@@ -25,6 +17,7 @@ import {
 } from "@/lib/grid-layout"
 import type { ResolvedSlot } from "@/lib/slot-types"
 import type {
+  DayRange,
   DeltaDisplay,
   GazellePlatformMeta,
   Snapshot,

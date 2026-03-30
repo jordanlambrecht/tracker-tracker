@@ -2,8 +2,8 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { formatCount, formatPercent, formatRatio } from "@/lib/formatters"
 import type { TrackerTag } from "@/lib/fleet"
+import { formatCount, formatPercent, formatRatio } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"

@@ -14,7 +14,12 @@ import { appSettings } from "@/lib/db/schema"
 import { recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import { log } from "@/lib/logger"
 import type { BackupCodeEntry } from "@/lib/totp"
-import { BACKUP_CODE_PATTERN, TOTP_CODE_RE, verifyAndConsumeBackupCode, verifyTotpCode } from "@/lib/totp"
+import {
+  BACKUP_CODE_PATTERN,
+  TOTP_CODE_RE,
+  verifyAndConsumeBackupCode,
+  verifyTotpCode,
+} from "@/lib/totp"
 
 export async function POST(request: Request) {
   const auth = await authenticate()

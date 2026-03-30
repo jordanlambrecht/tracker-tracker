@@ -4,8 +4,8 @@
 import { H1 } from "@typography"
 import clsx from "clsx"
 import Link from "next/link"
-import { Button, buttonVariants } from "@/components/ui/Button"
 import { CopyButton } from "@/components/ui/ActionButtons"
+import { Button, buttonVariants } from "@/components/ui/Button"
 import { Tooltip } from "@/components/ui/Tooltip"
 
 export function ErrorDisplay({

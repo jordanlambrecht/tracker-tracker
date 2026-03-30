@@ -90,9 +90,7 @@ function AddTagGroupForm({ onCreated, onCancel }: AddTagGroupFormProps) {
       <H3>New Tag Group</H3>
       <div className="flex items-end gap-3">
         <div className="flex flex-col gap-1">
-          <H2 className="uppercase tracking-wider">
-            Emoji
-          </H2>
+          <H2 className="uppercase tracking-wider">Emoji</H2>
           <EmojiPickerPopover value={emoji} onChange={setEmoji} disabled={saving} />
         </div>
         <div className="flex-1">
@@ -114,9 +112,7 @@ function AddTagGroupForm({ onCreated, onCancel }: AddTagGroupFormProps) {
 
       {/* Chart type selector */}
       <div className="flex flex-col gap-2">
-        <H2 className="uppercase tracking-wider">
-          Display Type
-        </H2>
+        <H2 className="uppercase tracking-wider">Display Type</H2>
         <div className="nm-inset-sm p-1.5 flex gap-1 rounded-nm-md">
           {CHART_TYPE_OPTIONS.map((opt) => (
             <FilterPill
@@ -133,7 +129,12 @@ function AddTagGroupForm({ onCreated, onCancel }: AddTagGroupFormProps) {
 
       <div className="flex gap-2 justify-end">
         <Button size="sm" variant="ghost" onClick={onCancel} disabled={saving} text="Cancel" />
-        <Button size="sm" onClick={handleCreate} disabled={saving || !name.trim()} text={saving ? "Creating…" : "Create"} />
+        <Button
+          size="sm"
+          onClick={handleCreate}
+          disabled={saving || !name.trim()}
+          text={saving ? "Creating…" : "Create"}
+        />
       </div>
     </Card>
   )
@@ -452,15 +453,11 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
       {/* Emoji + display type row */}
       <div className="flex items-end gap-4 mb-1">
         <div className="flex flex-col gap-1">
-          <H2 className="uppercase tracking-wider">
-            Emoji
-          </H2>
+          <H2 className="uppercase tracking-wider">Emoji</H2>
           <EmojiPickerPopover value={emoji} onChange={setEmoji} />
         </div>
         <div className="flex flex-col gap-1 flex-1">
-          <H2 className="uppercase tracking-wider">
-            Display Type
-          </H2>
+          <H2 className="uppercase tracking-wider">Display Type</H2>
           <div className="nm-inset-sm p-1.5 flex gap-1 rounded-nm-md">
             {CHART_TYPE_OPTIONS.map((opt) => (
               <FilterPill
@@ -486,13 +483,9 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
       {/* Column headers */}
       <div className="flex items-center gap-3 px-3">
         <span className="shrink-0 text-sm leading-none w-4" aria-hidden="true" />
-        <H2 className="flex-1 uppercase tracking-wider">
-          qBT Tag
-        </H2>
+        <H2 className="flex-1 uppercase tracking-wider">qBT Tag</H2>
         <div className="w-px h-3" />
-        <H2 className="flex-1 uppercase tracking-wider">
-          Display Label
-        </H2>
+        <H2 className="flex-1 uppercase tracking-wider">Display Label</H2>
         <span className="w-4" aria-hidden="true" />
       </div>
 
@@ -563,7 +556,13 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
           {confirmDelete ? (
             <div className="flex items-center gap-2">
               <span className="text-xs font-sans text-warn">Delete this group?</span>
-              <Button size="sm" variant="danger" onClick={handleDelete} disabled={deleting} text={deleting ? "Deleting…" : "Confirm"} />
+              <Button
+                size="sm"
+                variant="danger"
+                onClick={handleDelete}
+                disabled={deleting}
+                text={deleting ? "Deleting…" : "Confirm"}
+              />
               <Button
                 size="sm"
                 variant="ghost"
@@ -584,9 +583,20 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
         </div>
         <div className="flex items-center gap-2">
           {isDirty && (
-            <Button size="sm" variant="ghost" onClick={handleDiscard} disabled={saving} text="Discard" />
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleDiscard}
+              disabled={saving}
+              text="Discard"
+            />
           )}
-          <Button size="sm" onClick={handleSave} disabled={saving || !isDirty || !name.trim()} text={saving ? "Saving…" : "Save"} />
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={saving || !isDirty || !name.trim()}
+            text={saving ? "Saving…" : "Save"}
+          />
         </div>
       </div>
     </CollapsibleCard>
@@ -643,7 +653,12 @@ function TagGroups() {
           </Tooltip>
         </H2>
         {!showAddForm && (
-          <Button size="sm" variant="secondary" onClick={() => setShowAddForm(true)} text="+ New Group" />
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => setShowAddForm(true)}
+            text="+ New Group"
+          />
         )}
       </div>
 

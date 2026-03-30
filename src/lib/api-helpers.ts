@@ -7,8 +7,8 @@
 import { NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
 import { localDateStr } from "@/lib/formatters"
-import { DATE_RE, isValidHex, isValidPort } from "@/lib/validators"
 import { isUnsafeNetworkHost } from "@/lib/network"
+import { DATE_RE, isValidHex, isValidPort } from "@/lib/validators"
 
 /** Shared route handler context for dynamic [id] segments */
 export type RouteContext<P = { id: string }> = {
@@ -104,16 +104,15 @@ export function validateIntRange(
   label: string
 ): NextResponse | null {
   if (!Number.isInteger(value) || value < min || value > max) {
-    return NextResponse.json({ error: `${label} must be between ${min} and ${max}` }, { status: 400 })
+    return NextResponse.json(
+      { error: `${label} must be between ${min} and ${max}` },
+      { status: 400 }
+    )
   }
   return null
 }
 
-export function validateMaxLength(
-  value: string,
-  max: number,
-  label: string
-): NextResponse | null {
+export function validateMaxLength(value: string, max: number, label: string): NextResponse | null {
   if (value.length > max) {
     return NextResponse.json(
       { error: `${label} must be ${max} characters or fewer` },

@@ -4,7 +4,7 @@
 
 import { and, eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, parseJsonBody, validateHexColor, type RouteContext } from "@/lib/api-helpers"
+import { authenticate, parseJsonBody, type RouteContext, validateHexColor } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { tagGroupMembers } from "@/lib/db/schema"
 import { log } from "@/lib/logger"

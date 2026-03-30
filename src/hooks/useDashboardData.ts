@@ -4,7 +4,6 @@
 
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useCallback, useMemo, useState } from "react"
-import type { DayRange } from "@/types/api"
 import { useUpdateCheck } from "@/hooks/useUpdateCheck"
 import type { DashboardAlert } from "@/lib/dashboard"
 import {
@@ -14,7 +13,7 @@ import {
   fetchDismissedKeys,
   postDismissAlert as persistDismiss,
 } from "@/lib/dashboard"
-import type { Snapshot, TodayAtAGlance, TrackerSummary } from "@/types/api"
+import type { DayRange, Snapshot, TodayAtAGlance, TrackerSummary } from "@/types/api"
 
 interface DashboardData {
   trackers: TrackerSummary[]

@@ -1,7 +1,6 @@
 // src/lib/__tests__/notification-type-guards.test.ts
 
 import { describe, expect, it } from "vitest"
-import { isDiscordConfig, isNotificationConfig } from "@/lib/notifications/types"
 import type {
   DiscordConfig,
   EmailConfig,
@@ -10,6 +9,7 @@ import type {
   SlackConfig,
   TelegramConfig,
 } from "@/lib/notifications/types"
+import { isDiscordConfig, isNotificationConfig } from "@/lib/notifications/types"
 
 // ─── isDiscordConfig ──────────────────────────────────────────────────────────
 
@@ -208,8 +208,8 @@ describe("isNotificationConfig", () => {
   })
 
   it("returns false when Email host is a number, not a string", () => {
-    expect(
-      isNotificationConfig({ host: 1234, port: 587, from: "a@b.com", to: "c@d.com" })
-    ).toBe(false)
+    expect(isNotificationConfig({ host: 1234, port: 587, from: "a@b.com", to: "c@d.com" })).toBe(
+      false
+    )
   })
 })

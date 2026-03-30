@@ -531,10 +531,14 @@ function AddTrackerDialog({
                 placeholder="Your username on this tracker"
               />
               <div className="flex flex-col gap-1">
-                <label className="text-xs uppercase tracking-wider text-secondary font-mono">
+                <label
+                  htmlFor="tracker-avistaz-cookies"
+                  className="text-xs uppercase tracking-wider text-secondary font-mono"
+                >
                   Browser Cookies
                 </label>
                 <textarea
+                  id="tracker-avistaz-cookies"
                   name="tracker-avistaz-cookies"
                   autoComplete="off"
                   data-1p-ignore

@@ -1,7 +1,4 @@
 // src/components/charts/SpeedThemeRiver.tsx
-//
-// Functions: buildRiverData, buildOption, SpeedThemeRiver
-
 "use client"
 
 import type { EChartsOption } from "echarts"
@@ -84,9 +81,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
         const rows = items
           .filter((item) => item.value[1] > 0)
           .sort((a, b) => b.value[1] - a.value[1])
-          .map((item) =>
-            chartTooltipRow(item.color, item.value[2], formatSpeed(item.value[1]))
-          )
+          .map((item) => chartTooltipRow(item.color, item.value[2], formatSpeed(item.value[1])))
           .join("<br/>")
 
         return `${chartTooltipHeader(dateLabel)}${rows}`

@@ -20,15 +20,11 @@ describe("validateImageUrl", () => {
   })
 
   it("throws for a non-URL string", () => {
-    expect(() => validateImageUrl("not-a-url")).toThrow(
-      "Invalid URL in image host response"
-    )
+    expect(() => validateImageUrl("not-a-url")).toThrow("Invalid URL in image host response")
   })
 
   it("throws for an empty string", () => {
-    expect(() => validateImageUrl("")).toThrow(
-      "Invalid URL in image host response"
-    )
+    expect(() => validateImageUrl("")).toThrow("Invalid URL in image host response")
   })
 })
 
@@ -38,9 +34,7 @@ describe("safeImageUrl", () => {
   })
 
   it("returns the URL for a valid https URL", () => {
-    expect(safeImageUrl("https://example.com/img.png")).toBe(
-      "https://example.com/img.png"
-    )
+    expect(safeImageUrl("https://example.com/img.png")).toBe("https://example.com/img.png")
   })
 
   it("returns undefined for an ftp URL instead of throwing", () => {

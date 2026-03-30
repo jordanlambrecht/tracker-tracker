@@ -2,8 +2,8 @@
 
 import { describe, expect, it } from "vitest"
 import { parseCachedTorrents } from "@/lib/qbt/client"
-import { isQbtTorrent } from "@/lib/qbt/types"
 import type { QbtTorrent } from "@/lib/qbt/types"
+import { isQbtTorrent } from "@/lib/qbt/types"
 
 // ─── Minimal valid torrent fixture ───────────────────────────────────────────
 

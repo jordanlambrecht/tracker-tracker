@@ -41,5 +41,5 @@ function ProgressWidget({
   )
 }
 
-export { ProgressWidget }
 export type { ProgressWidgetProps }
+export { ProgressWidget }

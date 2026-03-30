@@ -21,9 +21,9 @@ import {
   trackerSnapshots,
   trackers,
 } from "@/lib/db/schema"
-import { HEX_64_RE, ISO_8601_RE, isValidHex, isValidPort } from "@/lib/validators"
 import { log } from "@/lib/logger"
 import { VALID_NOTIFICATION_TYPES } from "@/lib/notifications/types"
+import { HEX_64_RE, ISO_8601_RE, isValidHex, isValidPort } from "@/lib/validators"
 import packageJson from "../../package.json"
 
 export const CURRENT_BACKUP_VERSION = 1

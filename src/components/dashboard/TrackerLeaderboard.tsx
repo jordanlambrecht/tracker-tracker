@@ -1,13 +1,18 @@
 // src/components/dashboard/TrackerLeaderboard.tsx
 "use client"
 
-import { useRouter } from "next/navigation"
 import { DataCell } from "@typography"
+import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/Badge"
 import { PulseDot } from "@/components/ui/PulseDot"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
-import { formatAccountAge, formatBytesFromString, formatCount, formatRatioDisplay } from "@/lib/formatters"
+import {
+  formatAccountAge,
+  formatBytesFromString,
+  formatCount,
+  formatRatioDisplay,
+} from "@/lib/formatters"
 import { computeBufferBytes } from "@/lib/helpers"
 import {
   getHealthBadgeVariant,

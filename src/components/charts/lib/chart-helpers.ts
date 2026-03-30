@@ -1,6 +1,9 @@
 // src/components/charts/lib/chart-helpers.ts
 //
-// Functions: fmtNum, formatGiB, yAxisPad, formatDateLabel, yAxisAutoRange, autoByteScale, DAY_LABELS, HOUR_LABELS, buildBucketedBarOption, buildGlowAreaStyle, buildAxisPointer, buildThemeRiverSingleAxis, adaptiveDotSize, buildTimeXAxis, insideZoom, buildDonutShell, buildStackedAreaOption
+// Functions: fmtNum, formatGiB, yAxisPad, formatDateLabel, yAxisAutoRange,
+// autoByteScale, DAY_LABELS, HOUR_LABELS, buildBucketedBarOption, buildGlowAreaStyle,
+// buildAxisPointer, buildThemeRiverSingleAxis, adaptiveDotSize, buildTimeXAxis,
+// insideZoom, buildDonutShell, buildStackedAreaOption
 
 import type { EChartsOption } from "echarts"
 import { hexToRgba } from "@/lib/color-utils"
@@ -375,9 +378,7 @@ export function buildStackedAreaOption(
         const rows = items
           .filter((item) => item.value[1] > 0)
           .sort((a, b) => b.value[1] - a.value[1])
-          .map((item) =>
-            chartTooltipRow(item.color, item.seriesName, formatCount(item.value[1]))
-          )
+          .map((item) => chartTooltipRow(item.color, item.seriesName, formatCount(item.value[1])))
           .join("<br/>")
         return `${chartTooltipHeader(dateLabel)}${rows}`
       },

@@ -316,7 +316,13 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
                   {countdown}
                 </span>
               </span>
-              <Button variant="secondary" size="sm" disabled={checking} onClick={handleCheckNow} text={checking ? "Checking..." : "Check Now"} />
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={checking}
+                onClick={handleCheckNow}
+                text={checking ? "Checking..." : "Check Now"}
+              />
             </div>
           </div>
         </div>

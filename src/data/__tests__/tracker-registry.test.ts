@@ -13,18 +13,26 @@ import path from "node:path"
 import { afterAll, describe, expect, it } from "vitest"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import {
+  isEmpty,
   LOGO_NAME_RE,
+  normalizeTrackerUrl,
   PLACEHOLDER_RE,
   SLUG_RE,
   VALID_CONTENT_CATEGORIES,
-  isEmpty,
-  normalizeTrackerUrl,
 } from "@/data/tracker-validation-rules"
 import { ALL_TRACKERS } from "@/data/trackers"
 import { DEFAULT_API_PATHS } from "@/lib/adapters"
 import { isValidHex } from "@/lib/validators"
 
-const VALID_PLATFORMS = ["unit3d", "gazelle", "ggn", "nebulance", "mam", "avistaz", "custom"] as const
+const VALID_PLATFORMS = [
+  "unit3d",
+  "gazelle",
+  "ggn",
+  "nebulance",
+  "mam",
+  "avistaz",
+  "custom",
+] as const
 const TRACKER_DIR = path.resolve(__dirname, "../../data/trackers")
 const LOGO_DIR = path.resolve(__dirname, "../../../public/tracker-logos")
 
@@ -205,7 +213,7 @@ describe("tracker registry", () => {
 
         if (tracker.color) {
           it("has a valid hex color", () => {
-            expect(isValidHex(tracker.color!)).toBe(true)
+            expect(isValidHex(tracker.color as string)).toBe(true)
           })
         }
 

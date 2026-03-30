@@ -1,9 +1,9 @@
 // src/components/ui/EmojiPickerPopover.tsx
 "use client"
 
-import dynamic from "next/dynamic"
-import { EmojiStyle, Theme } from "emoji-picker-react"
 import type { EmojiClickData, PickerProps } from "emoji-picker-react"
+import { EmojiStyle, Theme } from "emoji-picker-react"
+import dynamic from "next/dynamic"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useEscapeKey } from "@/hooks/useEscapeKey"

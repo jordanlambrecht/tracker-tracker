@@ -48,33 +48,48 @@ describe("validateIntRange", () => {
 
   describe("invalid inputs (returns NextResponse)", () => {
     it("should return error response for value below minimum", () => {
-      const result = validateIntRange(0, 1, 10, "Field") as unknown as { body: { error: string }; status: number }
+      const result = validateIntRange(0, 1, 10, "Field") as unknown as {
+        body: { error: string }
+        status: number
+      }
       expect(result).not.toBeNull()
       expect(result.status).toBe(400)
       expect(result.body.error).toContain("between 1 and 10")
     })
 
     it("should return error response for value above maximum", () => {
-      const result = validateIntRange(11, 1, 10, "Field") as unknown as { body: { error: string }; status: number }
+      const result = validateIntRange(11, 1, 10, "Field") as unknown as {
+        body: { error: string }
+        status: number
+      }
       expect(result).not.toBeNull()
       expect(result.status).toBe(400)
       expect(result.body.error).toContain("between 1 and 10")
     })
 
     it("should return error response for a float (non-integer)", () => {
-      const result = validateIntRange(1.5, 1, 10, "Field") as unknown as { body: { error: string }; status: number }
+      const result = validateIntRange(1.5, 1, 10, "Field") as unknown as {
+        body: { error: string }
+        status: number
+      }
       expect(result).not.toBeNull()
       expect(result.status).toBe(400)
     })
 
     it("should return error response for NaN", () => {
-      const result = validateIntRange(NaN, 1, 10, "Field") as unknown as { body: { error: string }; status: number }
+      const result = validateIntRange(NaN, 1, 10, "Field") as unknown as {
+        body: { error: string }
+        status: number
+      }
       expect(result).not.toBeNull()
       expect(result.status).toBe(400)
     })
 
     it("should include the label in the error message", () => {
-      const result = validateIntRange(0, 1, 10, "PollInterval") as unknown as { body: { error: string }; status: number }
+      const result = validateIntRange(0, 1, 10, "PollInterval") as unknown as {
+        body: { error: string }
+        status: number
+      }
       expect(result.body.error).toContain("PollInterval")
     })
   })
@@ -104,14 +119,21 @@ describe("validateMaxLength", () => {
 
   describe("invalid inputs (returns NextResponse)", () => {
     it("should return error response for a string exceeding the limit", () => {
-      const result = validateMaxLength("12345678901", 10, "Name") as unknown as { body: { error: string }; status: number }
+      const result = validateMaxLength("12345678901", 10, "Name") as unknown as {
+        body: { error: string }
+        status: number
+      }
       expect(result).not.toBeNull()
       expect(result.status).toBe(400)
       expect(result.body.error).toContain("10 characters or fewer")
     })
 
     it("should include the label in the error message", () => {
-      const result = validateMaxLength("this string is way too long", 10, "TrackerName") as unknown as { body: { error: string }; status: number }
+      const result = validateMaxLength(
+        "this string is way too long",
+        10,
+        "TrackerName"
+      ) as unknown as { body: { error: string }; status: number }
       expect(result.body.error).toContain("TrackerName")
     })
   })

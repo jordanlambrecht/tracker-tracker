@@ -1,7 +1,4 @@
 // src/components/TwoFactorSetup.tsx
-//
-// Functions: TwoFactorSetup
-
 "use client"
 
 import { H3, Paragraph, Subtext } from "@typography"
@@ -363,7 +360,12 @@ function TwoFactorSetup() {
           </div>
 
           <div className="flex items-center gap-3">
-            <Button size="sm" variant="secondary" onClick={handleCopyAll} text={copied ? "Copied" : "Copy All"} />
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={handleCopyAll}
+              text={copied ? "Copied" : "Copy All"}
+            />
           </div>
 
           <p className="text-xs font-sans leading-relaxed text-warn">

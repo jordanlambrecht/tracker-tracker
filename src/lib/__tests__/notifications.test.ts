@@ -2,8 +2,8 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { CHART_THEME } from "@/components/charts/lib/theme"
-import type { NotificationTargetRow } from "@/lib/db/schema"
 import { hexToInt } from "@/lib/color-utils"
+import type { NotificationTargetRow } from "@/lib/db/schema"
 import type { NotificationTargetType, SnapshotContext } from "@/lib/notifications/types"
 
 // Mock DB so dispatch.ts can be imported without a live database connection

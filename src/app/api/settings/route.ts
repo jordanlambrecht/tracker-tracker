@@ -8,16 +8,16 @@ import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { authenticate, decodeKey, parseJsonBody } from "@/lib/api-helpers"
 import { VALID_BACKUP_FREQUENCIES } from "@/lib/backup"
-import { BACKUP_PASSWORD_MAX } from "@/lib/limits"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { BACKUP_PASSWORD_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { scrubSnapshotUsernames } from "@/lib/privacy-db"
 import { PROXY_HOST_PATTERN, VALID_PROXY_TYPES } from "@/lib/proxy"
-import { isValidPort } from "@/lib/validators"
 import { QBITMANAGE_KEYS } from "@/lib/qbitmanage-defaults"
 import { fetchSettings, serializeSettingsResponse } from "@/lib/server-data"
+import { isValidPort } from "@/lib/validators"
 
 export async function GET() {
   const auth = await authenticate()

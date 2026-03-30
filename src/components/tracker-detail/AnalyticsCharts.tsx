@@ -5,11 +5,10 @@ import { MetricChart } from "@/components/charts/MetricChart"
 import { PercentileRadarChart } from "@/components/charts/PercentileRadarChart"
 import { UploadDownloadChart } from "@/components/charts/UploadDownloadChart"
 import { UploadPolarChart } from "@/components/charts/UploadPolarChart"
-import type { DayRange } from "@/types/api"
 import { DayRangeSidebar } from "@/components/dashboard/DayRangeSidebar"
 import { Card } from "@/components/ui/Card"
 import { formatBytesFromString } from "@/lib/formatters"
-import type { DeltaDisplay, GazellePlatformMeta, Snapshot } from "@/types/api"
+import type { DayRange, DeltaDisplay, GazellePlatformMeta, Snapshot } from "@/types/api"
 
 interface AnalyticsChartsProps {
   trackerName: string

@@ -1,7 +1,7 @@
 // src/lib/image-hosting/imgbb.ts
 
-import type { ImageHostAdapter, UploadOptions, UploadResult } from "./types"
 import { safeImageUrl, validateImageUrl } from "@/lib/validators"
+import type { ImageHostAdapter, UploadOptions, UploadResult } from "./types"
 
 const UPLOAD_URL = "https://api.imgbb.com/1/upload"
 

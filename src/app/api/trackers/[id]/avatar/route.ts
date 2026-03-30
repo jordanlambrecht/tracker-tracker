@@ -6,7 +6,13 @@
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseTrackerId, validateHttpUrl, type RouteContext } from "@/lib/api-helpers"
+import {
+  authenticate,
+  decodeKey,
+  parseTrackerId,
+  type RouteContext,
+  validateHttpUrl,
+} from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
@@ -20,10 +26,27 @@ function sniffImageMime(buf: Buffer): string {
   if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "image/jpeg"
   if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return "image/png"
   if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) return "image/gif"
-  if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
-      buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50) return "image/webp"
-  if (buf[0] === 0x00 && buf[1] === 0x00 && buf[2] === 0x00 && buf[4] === 0x66 &&
-      buf[5] === 0x74 && buf[6] === 0x79 && buf[7] === 0x70) return "image/avif"
+  if (
+    buf[0] === 0x52 &&
+    buf[1] === 0x49 &&
+    buf[2] === 0x46 &&
+    buf[3] === 0x46 &&
+    buf[8] === 0x57 &&
+    buf[9] === 0x45 &&
+    buf[10] === 0x42 &&
+    buf[11] === 0x50
+  )
+    return "image/webp"
+  if (
+    buf[0] === 0x00 &&
+    buf[1] === 0x00 &&
+    buf[2] === 0x00 &&
+    buf[4] === 0x66 &&
+    buf[5] === 0x74 &&
+    buf[6] === 0x79 &&
+    buf[7] === 0x70
+  )
+    return "image/avif"
   return "image/png"
 }
 
@@ -136,7 +159,8 @@ export async function GET(_request: Request, props: RouteContext) {
         return NextResponse.json({ error: "Avatar too large" }, { status: 413 })
       }
       imageBuffer = Buffer.from(await response.arrayBuffer())
-      mimeType = response.headers.get("content-type")?.split(";")[0].trim() || sniffImageMime(imageBuffer)
+      mimeType =
+        response.headers.get("content-type")?.split(";")[0].trim() || sniffImageMime(imageBuffer)
     }
 
     if (imageBuffer.length > MAX_AVATAR_BYTES) {

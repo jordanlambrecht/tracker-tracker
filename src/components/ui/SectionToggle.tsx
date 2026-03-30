@@ -28,5 +28,5 @@ function SectionToggle({ label, expanded, onToggle, className }: SectionTogglePr
   )
 }
 
-export { SectionToggle }
 export type { SectionToggleProps }
+export { SectionToggle }

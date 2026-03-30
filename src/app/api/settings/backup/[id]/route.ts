@@ -75,10 +75,7 @@ export async function GET(
   })
 }
 
-export async function DELETE(
-  _request: Request,
-  props: RouteContext
-): Promise<NextResponse> {
+export async function DELETE(_request: Request, props: RouteContext): Promise<NextResponse> {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 

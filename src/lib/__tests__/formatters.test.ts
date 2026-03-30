@@ -2,7 +2,14 @@
 
 import { describe, expect, it } from "vitest"
 import { hexToRgba } from "@/lib/color-utils"
-import { bytesToGiB, formatCount, formatDateTime, formatPercent, formatRatio, formatRatioDisplay } from "@/lib/formatters"
+import {
+  bytesToGiB,
+  formatCount,
+  formatDateTime,
+  formatPercent,
+  formatRatio,
+  formatRatioDisplay,
+} from "@/lib/formatters"
 import { computeBufferBytes, computeDelta, floatBytesToBigInt } from "@/lib/helpers"
 import type { Snapshot } from "@/types/api"
 

@@ -91,12 +91,16 @@ describe("FilterPill inactive='transparent' (default)", () => {
 
 describe("FilterPill inactive='strikethrough'", () => {
   it("applies line-through when inactive='strikethrough' and active=false", () => {
-    const { getByRole } = render(<FilterPill active={false} inactive="strikethrough" text="Label" />)
+    const { getByRole } = render(
+      <FilterPill active={false} inactive="strikethrough" text="Label" />
+    )
     expect(getByRole("button").className).toContain("line-through")
   })
 
   it("applies opacity-50 when inactive='strikethrough' and active=false", () => {
-    const { getByRole } = render(<FilterPill active={false} inactive="strikethrough" text="Label" />)
+    const { getByRole } = render(
+      <FilterPill active={false} inactive="strikethrough" text="Label" />
+    )
     expect(getByRole("button").className).toContain("opacity-50")
   })
 })
@@ -114,9 +118,7 @@ describe("FilterPill inactive='inset'", () => {
 
 describe("FilterPill inactive styles suppressed when active=true", () => {
   it("does not apply line-through when active=true despite inactive='strikethrough'", () => {
-    const { getByRole } = render(
-      <FilterPill active={true} inactive="strikethrough" text="Label" />
-    )
+    const { getByRole } = render(<FilterPill active={true} inactive="strikethrough" text="Label" />)
     expect(getByRole("button").className).not.toContain("line-through")
   })
 
@@ -201,9 +203,7 @@ describe("FilterPill onClick", () => {
   it("fires onClick when clicked", async () => {
     const user = userEvent.setup()
     const handler = vi.fn()
-    const { getByRole } = render(
-      <FilterPill active={false} onClick={handler} text="Click me" />
-    )
+    const { getByRole } = render(<FilterPill active={false} onClick={handler} text="Click me" />)
     await user.click(getByRole("button"))
     expect(handler).toHaveBeenCalledTimes(1)
   })

@@ -220,12 +220,20 @@ describe("parseAvistazCredentials", () => {
   })
 
   it("throws when user pastes a cookie name instead of the full header", () => {
-    const json = JSON.stringify({ cookies: "cf_clearance", userAgent: "Mozilla/5.0", username: "user" })
+    const json = JSON.stringify({
+      cookies: "cf_clearance",
+      userAgent: "Mozilla/5.0",
+      username: "user",
+    })
     expect(() => parseAvistazCredentials(json)).toThrow("cookie name")
   })
 
   it("throws when cookie string has no key=value pairs", () => {
-    const json = JSON.stringify({ cookies: "some-random-text-no-equals", userAgent: "Mozilla/5.0", username: "user" })
+    const json = JSON.stringify({
+      cookies: "some-random-text-no-equals",
+      userAgent: "Mozilla/5.0",
+      username: "user",
+    })
     expect(() => parseAvistazCredentials(json)).toThrow("key=value")
   })
 })

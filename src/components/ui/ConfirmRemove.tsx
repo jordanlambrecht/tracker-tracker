@@ -25,9 +25,7 @@ function ConfirmRemove({
     )
   }
 
-  return (
-    <Button size="sm" variant="danger" onClick={() => setConfirming(true)} text={label} />
-  )
+  return <Button size="sm" variant="danger" onClick={() => setConfirming(true)} text={label} />
 }
 
 export type { ConfirmRemoveProps }

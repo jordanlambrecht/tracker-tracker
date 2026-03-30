@@ -292,10 +292,14 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
                   placeholder="Your username on this tracker"
                 />
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs uppercase tracking-wider text-secondary font-mono">
+                  <label
+                    htmlFor="edit-avistaz-cookies"
+                    className="text-xs uppercase tracking-wider text-secondary font-mono"
+                  >
                     Browser Cookies
                   </label>
                   <textarea
+                    id="edit-avistaz-cookies"
                     autoComplete="off"
                     data-1p-ignore
                     value={editAvistazCookies}

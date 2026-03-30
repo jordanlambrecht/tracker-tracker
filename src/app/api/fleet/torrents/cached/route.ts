@@ -11,7 +11,12 @@ import { NextResponse } from "next/server"
 import { authenticate } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
-import { parseCachedTorrents, parseCrossSeedTags, stripSensitiveTorrentFields, type QbtTorrent } from "@/lib/qbt"
+import {
+  parseCachedTorrents,
+  parseCrossSeedTags,
+  type QbtTorrent,
+  stripSensitiveTorrentFields,
+} from "@/lib/qbt"
 import { aggregateCrossSeedTags, mergeTorrentLists } from "@/lib/qbt/merge"
 
 export async function GET() {

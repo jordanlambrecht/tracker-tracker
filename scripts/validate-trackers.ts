@@ -12,12 +12,12 @@ import fs from "node:fs"
 import path from "node:path"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import {
+  isEmpty,
   LOGO_NAME_RE,
+  normalizeTrackerUrl,
   PLACEHOLDER_RE,
   SLUG_RE,
   VALID_CONTENT_CATEGORIES,
-  isEmpty,
-  normalizeTrackerUrl,
 } from "@/data/tracker-validation-rules"
 import { ALL_TRACKERS } from "@/data/trackers"
 import { DEFAULT_API_PATHS, VALID_PLATFORM_TYPES } from "@/lib/adapters/constants"

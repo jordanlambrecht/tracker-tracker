@@ -43,16 +43,12 @@ export function TodayAtAGlance({ data, variant = "bars" }: TodayAtAGlanceProps) 
 
         {/* Tracker breakdowns — upload and download side by side on lg, stacked on mobile */}
         <div className="flex items-center justify-between">
-          <H2 className="uppercase tracking-wider">
-            By Tracker
-          </H2>
+          <H2 className="uppercase tracking-wider">By Tracker</H2>
           <UpdatedAt iso={data.trackerLastUpdated} />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="nm-inset-sm rounded-nm-md p-4 flex flex-col gap-3">
-            <H2 className="uppercase tracking-wider">
-              Upload
-            </H2>
+            <H2 className="uppercase tracking-wider">Upload</H2>
             {variant === "bars" ? (
               <TrackerBreakdownBars trackers={data.trackers} metric="upload" />
             ) : (
@@ -61,9 +57,7 @@ export function TodayAtAGlance({ data, variant = "bars" }: TodayAtAGlanceProps) 
           </div>
 
           <div className="nm-inset-sm rounded-nm-md p-4 flex flex-col gap-3">
-            <H2 className="uppercase tracking-wider">
-              Download
-            </H2>
+            <H2 className="uppercase tracking-wider">Download</H2>
             {variant === "bars" ? (
               <TrackerBreakdownBars trackers={data.trackers} metric="download" />
             ) : (

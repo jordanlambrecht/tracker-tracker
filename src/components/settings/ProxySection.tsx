@@ -3,7 +3,6 @@
 
 import { H3, Paragraph, Subtext } from "@typography"
 import { useState } from "react"
-import { useActionStatus } from "@/hooks/useActionStatus"
 import { SettingsSection } from "@/components/settings/SettingsSection"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
@@ -12,9 +11,10 @@ import { NumberInput } from "@/components/ui/NumberInput"
 import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
 import { Select } from "@/components/ui/Select"
 import { Toggle } from "@/components/ui/Toggle"
+import { useActionStatus } from "@/hooks/useActionStatus"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
-import { extractApiError } from "@/lib/helpers"
 import { DOCS } from "@/lib/constants"
+import { extractApiError } from "@/lib/helpers"
 
 export interface ProxySectionProps {
   initialProxy: {

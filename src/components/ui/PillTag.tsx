@@ -48,5 +48,5 @@ function PillTag({
   )
 }
 
-export { PillTag }
 export type { PillTagColor, PillTagProps }
+export { PillTag }

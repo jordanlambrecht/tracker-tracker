@@ -59,4 +59,3 @@ function DayRangeSidebar({ days, onChange, accentColor }: DayRangeSidebarProps) 
 
 export type { DayRange, DayRangeSidebarProps }
 export { DAY_RANGES, DayRangeSidebar }
-

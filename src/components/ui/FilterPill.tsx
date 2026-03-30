@@ -63,5 +63,5 @@ function FilterPill({
   )
 }
 
-export type { FilterPillProps, FilterPillSize, FilterPillInactive }
+export type { FilterPillInactive, FilterPillProps, FilterPillSize }
 export { FilterPill }

@@ -2,19 +2,28 @@
 //
 // Shared constants for tracker registry validation.
 // Used by both the CI script and the test suite.
-//
-// Constants: SLUG_RE, LOGO_NAME_RE, PLACEHOLDER_RE, VALID_CONTENT_CATEGORIES
-// Functions: isEmpty
-// Re-exports: normalizeTrackerUrl (from helpers.ts)
 
 export const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
 export const LOGO_NAME_RE = /^\/tracker-logos\/[a-z0-9_]+_logo\.(svg|png)$/
 export const PLACEHOLDER_RE = /^TODO$/i
 
 export const VALID_CONTENT_CATEGORIES = new Set([
-  "Movies", "TV", "Music", "Games", "Apps", "Sports",
-  "Books", "Audiobooks", "Comics", "Manga", "Anime", "XXX",
-  "Documentaries", "Education", "Tutorials", "Fanres",
+  "Movies",
+  "TV",
+  "Music",
+  "Games",
+  "Apps",
+  "Sports",
+  "Books",
+  "Audiobooks",
+  "Comics",
+  "Manga",
+  "Anime",
+  "XXX",
+  "Documentaries",
+  "Education",
+  "Tutorials",
+  "Fanres",
 ])
 
 export function isEmpty(val: unknown): boolean {

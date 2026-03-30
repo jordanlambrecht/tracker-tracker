@@ -2,7 +2,6 @@
 
 ## [2.6.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.4.1...v2.6.0) (2026-03-27)
 
-
 ### Features
 
 - **dashboard:** add Today At A Glance server logic, checkpoints, and deep poll fixes ([d3826a1](https://github.com/jordanlambrecht/tracker-tracker/commit/d3826a181c017c6b2ac8bbc6fa9d77f6dfd0edc2))
@@ -14,7 +13,6 @@
 - **schema:** add daily checkpoint tables and TodayAtAGlance types ([636d227](https://github.com/jordanlambrecht/tracker-tracker/commit/636d22701cd43d8827f9afe49a5105820578f892))
 - **security:** enhance security audit checks and improve vulnerability reporting ([23b4cae](https://github.com/jordanlambrecht/tracker-tracker/commit/23b4cae6420d17a1e1f86e9b925841726e28ccfe))
 - **settings:** display database size ([67ff496](https://github.com/jordanlambrecht/tracker-tracker/commit/67ff4961e5d6ba50655ed0a9229ba807a26e1bbe))
-
 
 ### Bug Fixes
 
@@ -36,7 +34,6 @@
 - update drizzle-kit, drizzle-orm, and postgres to specific versions in Dockerfile ([303c6f5](https://github.com/jordanlambrecht/tracker-tracker/commit/303c6f5b21195a9a15a66f227dab4c022eca36b9))
 - update VALID_PLATFORMS to use VALID_PLATFORM_TYPES constant ([8cff4ee](https://github.com/jordanlambrecht/tracker-tracker/commit/8cff4ee6fabc274ca644aac65433a03fedbc0d53))
 - use localDateStr for cutoff date in pruneOldCheckpoints function ([0b465b6](https://github.com/jordanlambrecht/tracker-tracker/commit/0b465b6c139333ebcb8650fcf8224d5a70076bee))
-
 
 ### Refactoring
 

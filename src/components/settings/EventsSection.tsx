@@ -6,12 +6,11 @@
 import clsx from "clsx"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
-import { Button } from "@/components/ui/Button"
 import { CopyButton, DownloadButton } from "@/components/ui/ActionButtons"
+import { Button } from "@/components/ui/Button"
 import { FilterPill } from "@/components/ui/FilterPill"
 import { RefreshIcon, TrashIcon } from "@/components/ui/Icons"
 import { Input } from "@/components/ui/Input"
-import { extractApiError } from "@/lib/helpers"
 import {
   EVENT_CATEGORIES,
   EVENT_LEVELS,
@@ -19,8 +18,9 @@ import {
   type EventLevel,
   type SystemEvent,
 } from "@/lib/events"
-import type { EventsPageResponse } from "@/types/api"
 import { formatBytesNum, localDateStr } from "@/lib/formatters"
+import { extractApiError } from "@/lib/helpers"
+import type { EventsPageResponse } from "@/types/api"
 
 const CATEGORY_STYLES: Record<EventCategory, { border: string; icon: string; iconColor: string }> =
   {

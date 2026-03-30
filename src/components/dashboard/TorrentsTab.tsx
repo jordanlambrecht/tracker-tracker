@@ -2,8 +2,8 @@
 "use client"
 
 import { H2 } from "@typography"
-import { useState } from "react"
 import dynamic from "next/dynamic"
+import { useState } from "react"
 import { ParallelTorrentsChart } from "@/components/charts/ParallelTorrentsChart"
 import { StorageSunburst } from "@/components/charts/StorageSunburst"
 import {

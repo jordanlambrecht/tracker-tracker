@@ -1,7 +1,7 @@
 // src/lib/image-hosting/onlyimage.ts
 
-import type { ImageHostAdapter, UploadOptions, UploadResult } from "./types"
 import { safeImageUrl, validateImageUrl } from "@/lib/validators"
+import type { ImageHostAdapter, UploadOptions, UploadResult } from "./types"
 
 const UPLOAD_URL = "https://onlyimage.org/api/1/upload/"
 

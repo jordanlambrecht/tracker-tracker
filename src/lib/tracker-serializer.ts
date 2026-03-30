@@ -2,8 +2,8 @@
 import "server-only"
 
 import type { PlatformType } from "@/lib/adapters/constants"
-import { DEFAULT_TRACKER_COLOR } from "@/lib/constants"
 import type { PlatformMeta } from "@/lib/adapters/types"
+import { DEFAULT_TRACKER_COLOR } from "@/lib/constants"
 import type { TrackerRow as FullTrackerRow, TrackerSnapshotRow } from "@/lib/db/schema"
 import type { TrackerSummary } from "@/types/api"
 

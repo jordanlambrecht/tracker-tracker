@@ -2,8 +2,8 @@
 import "server-only"
 
 import { decrypt } from "@/lib/crypto"
-import { isNotificationConfig } from "@/lib/notifications/types"
 import type { NotificationConfig } from "@/lib/notifications/types"
+import { isNotificationConfig } from "@/lib/notifications/types"
 
 export function decryptNotificationConfig(
   target: { name: string; encryptedConfig: string },

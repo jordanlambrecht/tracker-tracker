@@ -31,7 +31,9 @@ export function parseAvistazCredentials(apiToken: string): AvistazCredentials {
   try {
     parsed = JSON.parse(apiToken)
   } catch {
-    throw new Error("AvistaZ credentials must be a JSON object with cookies, userAgent, and username")
+    throw new Error(
+      "AvistaZ credentials must be a JSON object with cookies, userAgent, and username"
+    )
   }
 
   if (
@@ -133,19 +135,16 @@ export function parseAvistazProfile(html: string, username: string): TrackerStat
   // ── Ratio bar ──────────────────────────────────────────────────────────────
   const ratioBar = doc.querySelector("div.ratio-bar")
   if (!ratioBar) {
-    throw new Error(
-      "Could not find ratio bar in profile page — the page may not be authenticated"
-    )
+    throw new Error("Could not find ratio bar in profile page — the page may not be authenticated")
   }
 
   const items = Array.from(ratioBar.querySelectorAll("ul.list-inline > li"))
 
   // Username from first badge-user span; group from second
-  const parsedUsername =
-    ratioBar.querySelector("span.badge-user")?.textContent?.trim() ?? username
+  const parsedUsername = ratioBar.querySelector("span.badge-user")?.textContent?.trim() ?? username
   const groupSpans = ratioBar.querySelectorAll("span.badge-user")
   const group =
-    groupSpans.length >= 2 ? groupSpans[1].textContent?.trim() ?? "Unknown" : "Unknown"
+    groupSpans.length >= 2 ? (groupSpans[1].textContent?.trim() ?? "Unknown") : "Unknown"
 
   // Upload / download / ratio from tooltip-titled items
   let uploadedBytes = 0n
@@ -153,8 +152,7 @@ export function parseAvistazProfile(html: string, username: string): TrackerStat
   let ratio = 0
 
   for (const li of items) {
-    const title =
-      li.getAttribute("data-toggle") === "tooltip" ? li.getAttribute("title") : null
+    const title = li.getAttribute("data-toggle") === "tooltip" ? li.getAttribute("title") : null
     // Strip everything except digits, decimal point, and unit letters/spaces
     const text = li.textContent?.replace(/[^\d.a-zA-Z\s]/g, "").trim() ?? ""
 
@@ -168,16 +166,11 @@ export function parseAvistazProfile(html: string, username: string): TrackerStat
     }
   }
 
-  const seedingCount =
-    parseInt(extractRatioBarValue(items, /Seeding:\s*([\d,]+)/), 10) || 0
-  const leechingCount =
-    parseInt(extractRatioBarValue(items, /Leeching:\s*([\d,]+)/), 10) || 0
-  const seedbonus =
-    parseFloat(extractRatioBarValue(items, /Bonus:\s*([\d,.]+)/)) || 0
-  const hitAndRuns =
-    parseInt(extractRatioBarValue(items, /Hit\s*&\s*Run:\s*([\d,]+)/), 10) || 0
-  const reseedRequests =
-    parseInt(extractRatioBarValue(items, /Reseed:\s*([\d,]+)/), 10) || 0
+  const seedingCount = parseInt(extractRatioBarValue(items, /Seeding:\s*([\d,]+)/), 10) || 0
+  const leechingCount = parseInt(extractRatioBarValue(items, /Leeching:\s*([\d,]+)/), 10) || 0
+  const seedbonus = parseFloat(extractRatioBarValue(items, /Bonus:\s*([\d,.]+)/)) || 0
+  const hitAndRuns = parseInt(extractRatioBarValue(items, /Hit\s*&\s*Run:\s*([\d,]+)/), 10) || 0
+  const reseedRequests = parseInt(extractRatioBarValue(items, /Reseed:\s*([\d,]+)/), 10) || 0
 
   // ── Profile table rows ─────────────────────────────────────────────────────
   const allRows = Array.from(
@@ -326,9 +319,7 @@ async function fetchHtml(
       throw new Error(`Request to ${hostname} timed out`)
     }
     const code =
-      err instanceof Error && "code" in err
-        ? (err as NodeJS.ErrnoException).code
-        : undefined
+      err instanceof Error && "code" in err ? (err as NodeJS.ErrnoException).code : undefined
     const detail = code ?? (name || "Unknown")
     const hostname = new URL(url).hostname
     throw new Error(`Failed to connect to ${hostname}: ${detail}`)
@@ -380,12 +371,7 @@ export class AvistazAdapter implements TrackerAdapter {
     const endpoint = `/profile/${creds.username}`
 
     try {
-      const html = await fetchHtml(
-        profileUrl,
-        creds.cookies,
-        creds.userAgent,
-        options?.proxyAgent
-      )
+      const html = await fetchHtml(profileUrl, creds.cookies, creds.userAgent, options?.proxyAgent)
       const stats = parseAvistazProfile(html, creds.username)
       calls.push({ label: "Profile Page", endpoint, data: stats, error: null })
     } catch (err) {
