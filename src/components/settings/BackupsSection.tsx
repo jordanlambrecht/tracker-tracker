@@ -7,6 +7,7 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } f
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
+import { InfoTip } from "@/components/ui/InfoTip"
 import { Input } from "@/components/ui/Input"
 import { Notice } from "@/components/ui/Notice"
 import { NumberInput } from "@/components/ui/NumberInput"
@@ -73,6 +74,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
   const [isEncryptedBackup, setIsEncryptedBackup] = useState(false)
   const [deletingBackupId, setDeletingBackupId] = useState<number | null>(null)
   const [isDraggingRestore, setIsDraggingRestore] = useState(false)
+  const [totpWasDisabled, setTotpWasDisabled] = useState(false)
   const restoreInputRef = useRef<HTMLInputElement>(null)
 
   const {
@@ -80,6 +82,13 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
     error: settingsError,
     patch: patchSettings,
   } = usePatchSettings()
+
+  useEffect(() => {
+    if (sessionStorage.getItem("totp_disabled_on_restore") === "1") {
+      setTotpWasDisabled(true)
+      sessionStorage.removeItem("totp_disabled_on_restore")
+    }
+  }, [])
 
   useEffect(() => {
     fetch("/api/settings/backup/history")
@@ -197,6 +206,9 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
       const data = await res.json()
       if (!res.ok) {
         throw new Error((data as { error?: string }).error ?? "Restore failed")
+      }
+      if ((data as { totpDisabledOnRestore?: boolean }).totpDisabledOnRestore) {
+        sessionStorage.setItem("totp_disabled_on_restore", "1")
       }
       setShowRestoreConfirm(false)
       setRestoreFile(null)
@@ -321,16 +333,21 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
 
   return (
     <>
+      {totpWasDisabled && (
+        <Notice variant="warn" className="mb-4" header="Two-factor authentication disabled">
+          This happened during restore because the backup predated your TOTP setup. Re-enable it in
+          the Security tab to restore 2FA protection.
+        </Notice>
+      )}
+
       {/* ── Export ──────────────────────────────────────────────── */}
       <section aria-labelledby="backup-export-heading">
         <H2 id="backup-export-heading" className="mb-4 flex items-center gap-2">
           Export
-          <Tooltip
+          <InfoTip
             content="Export and restore your trackers, settings, and snapshots."
             docs={DOCS.BACKUPS}
-          >
-            <span className="text-muted hover:text-secondary cursor-help text-sm">&#9432;</span>
-          </Tooltip>
+          />
         </H2>
 
         <Card elevation="raised" className="flex flex-col gap-4">

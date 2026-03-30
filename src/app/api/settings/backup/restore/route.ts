@@ -630,6 +630,11 @@ export async function POST(request: Request) {
         }
       }
 
+      // Detect TOTP being silently wiped: live instance has TOTP but backup predates it
+      if (currentSettings.totpSecret && !totpSecret) {
+        totpDisabledOnRestore = true
+      }
+
       // Update appSettings in place — NEVER delete + re-insert
       await tx
         .update(appSettings)
