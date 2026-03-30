@@ -111,7 +111,7 @@ export function LoginForm({ hasUsername }: { hasUsername: boolean }) {
             className="h-10 w-auto mx-auto"
             priority
           />
-          <p className="mt-2 text-sm text-secondary">
+          <p className="mt-6 text-sm text-secondary">
             {step === "password"
               ? "Enter your credentials to unlock."
               : "Enter the code from your authenticator app."}
