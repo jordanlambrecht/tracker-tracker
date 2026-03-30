@@ -91,7 +91,7 @@
     "commit-and-tag-version": "^12.7.1",
     "dotenv": "^17.3.1",
     "husky": "^9.1.7",
-    "knip": "^6.0.6",
+    "knip": "^6.1.0",
     "postcss": "^8.5.8",
     "prettier": "^3.8.1",
     "tailwindcss": "^4.2.2",
