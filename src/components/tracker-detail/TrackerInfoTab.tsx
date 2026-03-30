@@ -6,6 +6,7 @@ import clsx from "clsx"
 import { useState } from "react"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import { InfoTip } from "@/components/ui/InfoTip"
 import { PillTag } from "@/components/ui/PillTag"
 import { SectionToggle } from "@/components/ui/SectionToggle"
 import { Tooltip } from "@/components/ui/Tooltip"
@@ -99,11 +100,7 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
                 >
                   <span className="text-sm font-sans text-tertiary flex items-center gap-2">
                     {rule.label}
-                    <Tooltip content={rule.tip}>
-                      <span className="help-icon opacity-50 hover:opacity-80 transition-opacity">
-                        ?
-                      </span>
-                    </Tooltip>
+                    <InfoTip icon="question" size="sm" content={rule.tip} />
                   </span>
                   <span className="text-base font-mono font-semibold text-primary">
                     {rule.value}

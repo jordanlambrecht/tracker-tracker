@@ -1,9 +1,9 @@
 // src/components/tracker-detail/platform/MamHealthOverview.tsx
 
 import { SlotLabel } from "@typography"
+import { InfoTip } from "@/components/ui/InfoTip"
 import { Notice } from "@/components/ui/Notice"
 import { ProgressWidget } from "@/components/ui/ProgressWidget"
-import { Tooltip } from "@/components/ui/Tooltip"
 import { MAM_BONUS_CAP } from "@/lib/adapters/constants"
 import type { MamPlatformMeta } from "@/lib/adapters/types"
 import { formatCount } from "@/lib/formatters"
@@ -128,9 +128,10 @@ export function MamHealthOverview({
         <div className="nm-inset-sm bg-control-bg rounded-nm-md p-4 flex flex-col gap-2">
           <div className="flex items-center gap-1">
             <SlotLabel label="Torrent Health" />
-            <Tooltip content="Breakdown of your snatched torrents by seeding status. Green = seeding and satisfied. Amber = seeding but not yet past the 72-hour requirement (pre-HnR or active HnR). Red = not seeding past deadline (Hit & Run). Gray = completed, no longer seeding.">
-              <span className="text-muted hover:text-secondary cursor-help text-3xs">&#9432;</span>
-            </Tooltip>
+            <InfoTip
+              content="Breakdown of your snatched torrents by seeding status. Green = seeding and satisfied. Amber = seeding but not yet past the 72-hour requirement (pre-HnR or active HnR). Red = not seeding past deadline (Hit & Run). Gray = completed, no longer seeding."
+              size="sm"
+            />
           </div>
           <div className="nm-inset h-3 w-full overflow-hidden rounded-nm-pill flex">
             {SEGMENTS.map(({ key, label, color }) => {

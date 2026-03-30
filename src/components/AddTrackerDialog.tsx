@@ -18,6 +18,7 @@ import { CHART_THEME } from "@/components/charts/lib/theme"
 import { Button } from "@/components/ui/Button"
 import { ColorPicker } from "@/components/ui/ColorPicker"
 import { TriangleWarningIcon } from "@/components/ui/Icons"
+import { InfoTip } from "@/components/ui/InfoTip"
 import { Input } from "@/components/ui/Input"
 import { Notice } from "@/components/ui/Notice"
 import { QbtTagWarning } from "@/components/ui/QbtTagWarning"
@@ -601,17 +602,14 @@ function AddTrackerDialog({
                   onChange={(e) => setMouseholeUrl(e.target.value)}
                   placeholder="http://localhost:7001"
                 />
-                <Tooltip
+                <InfoTip
                   content="If you run Mousehole to manage your MAM seedbox IP, enter its URL here to see status and trigger updates from Tracker Tracker."
+                  size="sm"
                   docs={{
                     href: "https://github.com/t-mart/mousehole",
                     description: "Mousehole on GitHub",
                   }}
-                >
-                  <span className="text-muted hover:text-secondary cursor-help text-xs">
-                    &#9432;
-                  </span>
-                </Tooltip>
+                />
               </div>
             </div>
           )}

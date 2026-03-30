@@ -8,6 +8,7 @@
 import clsx from "clsx"
 import type { HTMLAttributes, ReactNode } from "react"
 import { CHART_THEME } from "@/components/charts/lib/theme"
+import { InfoTip } from "@/components/ui/InfoTip"
 import { Tooltip } from "@/components/ui/Tooltip"
 import { hexToRgba } from "@/lib/color-utils"
 
@@ -145,15 +146,7 @@ function Header({
           {label}
         </p>
         {tooltip && (
-          <Tooltip content={<span className="w-52 block">{tooltip}</span>}>
-            <button
-              type="button"
-              className="help-icon text-muted opacity-50 hover:opacity-80 focus:opacity-80 transition-opacity outline-none"
-              aria-label={`Info: ${label}`}
-            >
-              ?
-            </button>
-          </Tooltip>
+          <InfoTip icon="question" size="sm" content={<span className="w-52 block">{tooltip}</span>} />
         )}
         {alertReason && alertColor && (
           <Tooltip content={<span className="w-52 block">{alertReason}</span>}>

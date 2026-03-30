@@ -4,8 +4,8 @@ import { H2 } from "@typography"
 import clsx from "clsx"
 import type { ReactNode } from "react"
 import { Card } from "@/components/ui/Card"
+import { InfoTip } from "@/components/ui/InfoTip"
 import { Notice } from "@/components/ui/Notice"
-import { Tooltip } from "@/components/ui/Tooltip"
 
 interface SettingsSectionProps {
   id: string
@@ -32,11 +32,7 @@ export function SettingsSection({
     <section aria-labelledby={`${id}-heading`}>
       <H2 id={`${id}-heading`} className={clsx("mb-4 flex items-center gap-2", headingClassName)}>
         {title}
-        {tooltip && (
-          <Tooltip content={tooltip} docs={docs}>
-            <span className="text-muted hover:text-secondary cursor-help text-sm">&#9432;</span>
-          </Tooltip>
-        )}
+        {tooltip && <InfoTip content={tooltip} docs={docs} />}
       </H2>
       {notice && (
         <div className="mb-4">

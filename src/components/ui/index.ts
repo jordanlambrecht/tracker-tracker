@@ -32,6 +32,7 @@ export {
   HamburgerIcon,
   LeechingIcon,
   PlusIcon,
+  QuestionIcon,
   RatioIcon,
   RequiredRatioIcon,
   SeedingIcon,
@@ -42,6 +43,8 @@ export {
   UploadArrowIcon,
   UserIcon,
 } from "./Icons"
+export type { InfoTipProps } from "./InfoTip"
+export { InfoTip } from "./InfoTip"
 export type { InputProps } from "./Input"
 export { Input } from "./Input"
 export { MarqueeText } from "./MarqueeText"

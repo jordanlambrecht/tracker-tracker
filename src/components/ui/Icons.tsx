@@ -6,7 +6,7 @@
 //            UserIcon, PlusIcon, ActivityIcon, ShareScoreIcon, ShieldIcon, StarIcon,
 //            LeechingIcon, SeedingIcon, TriangleWarningIcon, RatioIcon, GridIcon,
 //            ClockIcon, BoxIcon, ServerIcon, TagIcon, BugIcon, XIcon, TransitPapersIcon,
-//            SpinnerIcon, InfoIcon
+//            SpinnerIcon, InfoIcon, QuestionIcon
 
 import type { SVGProps } from "react"
 
@@ -747,7 +747,27 @@ function GitHubIcon(props: IconProps) {
   )
 }
 
-// Info circle — used in Notice component info variant
+// Question circle — used in InfoTip question variant
+function QuestionIcon(props: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  )
+}
+
+// Info circle — used in InfoTip info variant, Notice component
 function InfoIcon(props: IconProps) {
   return (
     <svg
@@ -792,6 +812,7 @@ export {
   PauseIcon,
   PlayIcon,
   PlusIcon,
+  QuestionIcon,
   RatioIcon,
   RefreshIcon,
   RequiredRatioIcon,

@@ -9,16 +9,16 @@ import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { CollapsibleCard } from "@/components/ui/CollapsibleCard"
-import { CardListSkeleton } from "@/components/ui/skeletons"
 import { ConfirmRemove } from "@/components/ui/ConfirmRemove"
+import { InfoTip } from "@/components/ui/InfoTip"
 import { Input } from "@/components/ui/Input"
 import { MaskedSecret } from "@/components/ui/MaskedSecret"
 import { Notice } from "@/components/ui/Notice"
 import { NumberInput } from "@/components/ui/NumberInput"
 import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
 import { Select } from "@/components/ui/Select"
+import { CardListSkeleton } from "@/components/ui/skeletons"
 import { Toggle } from "@/components/ui/Toggle"
-import { Tooltip } from "@/components/ui/Tooltip"
 import { useActionStatus } from "@/hooks/useActionStatus"
 import { useCrudCard } from "@/hooks/useCrudCard"
 import { DOCS } from "@/lib/constants"
@@ -221,12 +221,12 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
       <div className="flex flex-col gap-2">
         <H2 className="uppercase tracking-wider flex items-center gap-2">
           Webhook URL
-          <Tooltip
+          <InfoTip
+            icon="question"
+            size="sm"
             content="Encrypted at rest with AES-256-GCM. Never returned in API responses."
             docs={DOCS.WEBHOOKS}
-          >
-            <span className="text-tertiary cursor-help text-3xs">?</span>
-          </Tooltip>
+          />
         </H2>
         {changingConfig ? (
           <div className="flex flex-col gap-3">
@@ -274,12 +274,12 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
       <div className="flex flex-col gap-4">
         <H2 className="uppercase tracking-wider flex items-center gap-2">
           Notify when
-          <Tooltip
+          <InfoTip
+            icon="question"
+            size="sm"
             content="Each event has a snooze window to prevent repeated alerts."
             docs={DOCS.WEBHOOKS}
-          >
-            <span className="text-tertiary cursor-help text-3xs">?</span>
-          </Tooltip>
+          />
         </H2>
 
         <div className="flex flex-col gap-1">
@@ -581,9 +581,7 @@ function NotificationTargets() {
     <div className="flex flex-col gap-6">
       <H2 className="flex items-center gap-2">
         Webhooks
-        <Tooltip content="Get alerts when something happens on your trackers." docs={DOCS.WEBHOOKS}>
-          <span className="text-muted hover:text-secondary cursor-help text-sm">&#9432;</span>
-        </Tooltip>
+        <InfoTip content="Get alerts when something happens on your trackers." docs={DOCS.WEBHOOKS} />
       </H2>
       {targets.length === 0 && !showAddForm ? (
         <Card elevation="raised" className="flex flex-col items-center gap-4 py-10">

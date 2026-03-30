@@ -6,8 +6,8 @@ import Image from "next/image"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
+import { InfoTip } from "@/components/ui/InfoTip"
 import { Notice } from "@/components/ui/Notice"
-import { Tooltip } from "@/components/ui/Tooltip"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
 
 interface MouseholeResponse {
@@ -267,14 +267,12 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
                 {countdown}
               </span>
             </span>
-            <Tooltip
+            <InfoTip
               content="Mousehole keeps your MAM seedbox IP updated automatically."
+              size="sm"
+              className="ml-1"
               docs={{ href: "https://github.com/t-mart/mousehole", description: "Mousehole docs" }}
-            >
-              <span className="text-muted hover:text-secondary cursor-help text-xs ml-1">
-                &#9432;
-              </span>
-            </Tooltip>
+            />
           </div>
         </div>
 

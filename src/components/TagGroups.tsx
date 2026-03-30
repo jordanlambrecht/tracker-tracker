@@ -20,6 +20,7 @@ import { Card } from "@/components/ui/Card"
 import { CollapsibleCard } from "@/components/ui/CollapsibleCard"
 import { EmojiPickerPopover } from "@/components/ui/EmojiPickerPopover"
 import { FilterPill } from "@/components/ui/FilterPill"
+import { InfoTip } from "@/components/ui/InfoTip"
 import { Input } from "@/components/ui/Input"
 import { Notice } from "@/components/ui/Notice"
 import { QBT_TAG_WARN_PATTERN } from "@/components/ui/QbtTagWarning"
@@ -649,12 +650,10 @@ function TagGroups() {
       <div className="flex items-center justify-between mb-2">
         <H2 id="tag-groups-heading" className="flex items-center gap-2">
           Tag Groups
-          <Tooltip
+          <InfoTip
             content="Create tag groups to visualize your qBittorrent tags as charts."
             docs={DOCS.TAG_GROUPS}
-          >
-            <span className="text-muted hover:text-secondary cursor-help text-sm">&#9432;</span>
-          </Tooltip>
+          />
         </H2>
         {!showAddForm && (
           <Button

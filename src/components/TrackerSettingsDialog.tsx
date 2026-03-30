@@ -7,13 +7,13 @@ import { useRouter } from "next/navigation"
 import { type SyntheticEvent, useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { ColorPicker } from "@/components/ui/ColorPicker"
+import { InfoTip } from "@/components/ui/InfoTip"
 import { Input } from "@/components/ui/Input"
 import { MaskedSecret } from "@/components/ui/MaskedSecret"
 import { Notice } from "@/components/ui/Notice"
 import { QbtTagWarning } from "@/components/ui/QbtTagWarning"
 import { Sheet } from "@/components/ui/Sheet"
 import { Toggle } from "@/components/ui/Toggle"
-import { Tooltip } from "@/components/ui/Tooltip"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { localDateStr } from "@/lib/formatters"
 import type { TrackerSummary } from "@/types/api"
@@ -372,15 +372,14 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
                 onChange={(e) => updateField("mouseholeUrl", e.target.value)}
                 placeholder="http://localhost:7001"
               />
-              <Tooltip
+              <InfoTip
                 content="If you run Mousehole to manage your MAM seedbox IP, enter its URL here to see status and trigger updates from Tracker Tracker."
+                size="sm"
                 docs={{
                   href: "https://github.com/t-mart/mousehole",
                   description: "Mousehole on GitHub",
                 }}
-              >
-                <span className="text-muted hover:text-secondary cursor-help text-xs">&#9432;</span>
-              </Tooltip>
+              />
             </div>
           )}
 
