@@ -10,94 +10,29 @@ import { Checkbox } from "@/components/ui/Checkbox"
 import { ConfirmAction } from "@/components/ui/ConfirmAction"
 import { Input } from "@/components/ui/Input"
 import { Notice } from "@/components/ui/Notice"
-import { extractApiError } from "@/lib/helpers"
+import { useDestructiveAction } from "@/hooks/useDestructiveAction"
 
 export function DangerZoneSection() {
   const router = useRouter()
 
-  // --- Reset Stats ---
-  const [confirmResetStats, setConfirmResetStats] = useState(false)
-  const [resetStatsPassword, setResetStatsPassword] = useState("")
-  const [resetStatsSubmitting, setResetStatsSubmitting] = useState(false)
-  const [resetStatsError, setResetStatsError] = useState<string | null>(null)
   const [resetStatsSuccess, setResetStatsSuccess] = useState(false)
 
-  // --- Emergency Lockdown ---
-  const [confirmLockdown, setConfirmLockdown] = useState(false)
-  const [lockdownPassword, setLockdownPassword] = useState("")
+  const resetStats = useDestructiveAction("/api/settings/reset-stats", () => {
+    setResetStatsSuccess(true)
+  })
+
+  const lockdown = useDestructiveAction("/api/settings/lockdown", () => {
+    router.push("/login")
+  })
   const [lockdownChecks, setLockdownChecks] = useState({
     sessions: false,
     tokens: false,
     totp: false,
   })
-  const [lockdownSubmitting, setLockdownSubmitting] = useState(false)
-  const [lockdownError, setLockdownError] = useState<string | null>(null)
 
-  // --- Nuke ---
-  const [confirmNuke, setConfirmNuke] = useState(false)
-  const [nukePassword, setNukePassword] = useState("")
-  const [nukeSubmitting, setNukeSubmitting] = useState(false)
-  const [nukeError, setNukeError] = useState<string | null>(null)
-
-  async function handleResetStats() {
-    setResetStatsSubmitting(true)
-    setResetStatsError(null)
-    try {
-      const res = await fetch("/api/settings/reset-stats", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: resetStatsPassword }),
-      })
-      if (!res.ok) {
-        throw new Error(await extractApiError(res, "Reset failed"))
-      }
-      setResetStatsSuccess(true)
-      setConfirmResetStats(false)
-      setResetStatsPassword("")
-    } catch (err) {
-      setResetStatsError(err instanceof Error ? err.message : "Network error")
-    } finally {
-      setResetStatsSubmitting(false)
-    }
-  }
-
-  async function handleLockdown() {
-    setLockdownSubmitting(true)
-    setLockdownError(null)
-    try {
-      const res = await fetch("/api/settings/lockdown", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: lockdownPassword }),
-      })
-      if (!res.ok) {
-        throw new Error(await extractApiError(res, "Lockdown failed"))
-      }
-      router.push("/login")
-    } catch (err) {
-      setLockdownError(err instanceof Error ? err.message : "Network error")
-      setLockdownSubmitting(false)
-    }
-  }
-
-  async function handleNuke() {
-    setNukeSubmitting(true)
-    setNukeError(null)
-    try {
-      const res = await fetch("/api/settings/nuke", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: nukePassword }),
-      })
-      if (!res.ok) {
-        throw new Error(await extractApiError(res, "Delete failed"))
-      }
-      router.push("/setup")
-    } catch (err) {
-      setNukeError(err instanceof Error ? err.message : "Network error")
-      setNukeSubmitting(false)
-    }
-  }
+  const nuke = useDestructiveAction("/api/settings/nuke", () => {
+    router.push("/setup")
+  })
 
   return (
     <SettingsSection
@@ -117,33 +52,26 @@ export function DangerZoneSection() {
           </Paragraph>
         </div>
 
-        {confirmResetStats ? (
+        {resetStats.confirming ? (
           <ConfirmAction
             message="This will permanently delete all snapshot history for every tracker and download client. This cannot be undone."
             confirmLabel="Confirm Reset"
             confirmingLabel="Resetting…"
-            onConfirm={handleResetStats}
-            onCancel={() => {
-              setConfirmResetStats(false)
-              setResetStatsPassword("")
-              setResetStatsError(null)
-            }}
-            confirming={resetStatsSubmitting}
-            confirmDisabled={!resetStatsPassword.trim()}
+            onConfirm={resetStats.execute}
+            onCancel={resetStats.cancel}
+            confirming={resetStats.submitting}
+            confirmDisabled={!resetStats.password.trim()}
           >
             <Input
               type="password"
               autoComplete="off"
               data-1p-ignore
               label="Master Password"
-              value={resetStatsPassword}
-              onChange={(e) => {
-                setResetStatsPassword(e.target.value)
-                setResetStatsError(null)
-              }}
+              value={resetStats.password}
+              onChange={(e) => resetStats.setPassword(e.target.value)}
               placeholder="Enter your master password to confirm"
-              disabled={resetStatsSubmitting}
-              error={resetStatsError ?? undefined}
+              disabled={resetStats.submitting}
+              error={resetStats.error ?? undefined}
             />
           </ConfirmAction>
         ) : (
@@ -152,7 +80,7 @@ export function DangerZoneSection() {
               size="sm"
               variant="danger"
               onClick={() => {
-                setConfirmResetStats(true)
+                resetStats.open()
                 setResetStatsSuccess(false)
               }}
               text="Reset All Stats"
@@ -174,24 +102,22 @@ export function DangerZoneSection() {
           </Paragraph>
         </div>
 
-        {confirmLockdown ? (
+        {lockdown.confirming ? (
           <ConfirmAction
             message="Confirm you understand the consequences:"
             confirmLabel="Confirm Lockdown"
             confirmingLabel="Locking down…"
-            onConfirm={handleLockdown}
+            onConfirm={lockdown.execute}
             onCancel={() => {
-              setConfirmLockdown(false)
-              setLockdownPassword("")
+              lockdown.cancel()
               setLockdownChecks({ sessions: false, tokens: false, totp: false })
-              setLockdownError(null)
             }}
-            confirming={lockdownSubmitting}
+            confirming={lockdown.submitting}
             confirmDisabled={
               !lockdownChecks.sessions ||
               !lockdownChecks.tokens ||
               !lockdownChecks.totp ||
-              !lockdownPassword.trim()
+              !lockdown.password.trim()
             }
           >
             <div className="flex flex-col gap-2">
@@ -219,14 +145,11 @@ export function DangerZoneSection() {
               autoComplete="off"
               data-1p-ignore
               label="Master Password"
-              value={lockdownPassword}
-              onChange={(e) => {
-                setLockdownPassword(e.target.value)
-                setLockdownError(null)
-              }}
+              value={lockdown.password}
+              onChange={(e) => lockdown.setPassword(e.target.value)}
               placeholder="Enter your master password to confirm"
-              disabled={lockdownSubmitting}
-              error={lockdownError ?? undefined}
+              disabled={lockdown.submitting}
+              error={lockdown.error ?? undefined}
             />
           </ConfirmAction>
         ) : (
@@ -234,7 +157,7 @@ export function DangerZoneSection() {
             <Button
               size="sm"
               variant="danger"
-              onClick={() => setConfirmLockdown(true)}
+              onClick={lockdown.open}
               text="Initiate Lockdown"
             />
           </div>
@@ -254,38 +177,31 @@ export function DangerZoneSection() {
           </Paragraph>
         </div>
 
-        {confirmNuke ? (
+        {nuke.confirming ? (
           <ConfirmAction
             message="This will permanently destroy all data. There is no recovery."
             confirmLabel="Delete Everything"
             confirmingLabel="Scrubbing…"
-            onConfirm={handleNuke}
-            onCancel={() => {
-              setConfirmNuke(false)
-              setNukePassword("")
-              setNukeError(null)
-            }}
-            confirming={nukeSubmitting}
-            confirmDisabled={!nukePassword.trim()}
+            onConfirm={nuke.execute}
+            onCancel={nuke.cancel}
+            confirming={nuke.submitting}
+            confirmDisabled={!nuke.password.trim()}
           >
             <Input
               type="password"
               autoComplete="off"
               data-1p-ignore
               label="Master Password"
-              value={nukePassword}
-              onChange={(e) => {
-                setNukePassword(e.target.value)
-                setNukeError(null)
-              }}
+              value={nuke.password}
+              onChange={(e) => nuke.setPassword(e.target.value)}
               placeholder="Enter your master password to confirm"
-              disabled={nukeSubmitting}
-              error={nukeError ?? undefined}
+              disabled={nuke.submitting}
+              error={nuke.error ?? undefined}
             />
           </ConfirmAction>
         ) : (
           <div>
-            <Button size="sm" variant="danger" onClick={() => setConfirmNuke(true)}>
+            <Button size="sm" variant="danger" onClick={nuke.open}>
               Scrub &amp; Delete
             </Button>
           </div>

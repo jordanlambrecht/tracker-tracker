@@ -3,11 +3,12 @@
 
 import { useQueries, useQuery } from "@tanstack/react-query"
 import clsx from "clsx"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo } from "react"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { DownloadArrowIcon, UploadArrowIcon } from "@/components/ui/Icons"
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import { Sparkline } from "@/components/ui/Sparkline"
+import { useCarousel } from "@/hooks/useCarousel"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
 import { formatSpeed, formatTimeAgo } from "@/lib/formatters"
 import { STORAGE_KEYS } from "@/lib/storage-keys"
@@ -92,9 +93,6 @@ function ClientSlide({
 // ---------------------------------------------------------------------------
 
 function ClientStatusWidget() {
-  const [activeIndex, setActiveIndex] = useState(0)
-  const [direction, setDirection] = useState<"left" | "right">("left")
-  const [animating, setAnimating] = useState(false)
   const [expanded, setExpanded] = useLocalStorage(STORAGE_KEYS.CLIENT_WIDGET_EXPANDED, false)
 
   // Set height-based default on first visit (when no preference is stored)
@@ -150,64 +148,8 @@ function ClientStatusWidget() {
 
   const loaded = enabledClients.length > 0
 
-  // Clamp activeIndex when entries shrink
-  useEffect(() => {
-    if (entries.length > 0 && activeIndex >= entries.length) {
-      setActiveIndex(0)
-    }
-  }, [entries.length, activeIndex])
-
-  const goTo = useCallback(
-    (next: number) => {
-      setActiveIndex((prev) => {
-        setDirection(next > prev || (prev === entries.length - 1 && next === 0) ? "left" : "right")
-        setAnimating(true)
-        return next
-      })
-    },
-    [entries.length]
-  )
-
-  useEffect(() => {
-    if (!animating) return
-    const t = setTimeout(() => setAnimating(false), 300)
-    return () => clearTimeout(t)
-  }, [animating])
-
-  // Auto-rotate carousel
-  useEffect(() => {
-    if (entries.length <= 1) return
-    const timer = setInterval(() => {
-      goTo((activeIndex + 1) % entries.length)
-    }, 8000)
-    return () => clearInterval(timer)
-  }, [entries.length, activeIndex, goTo])
-
-  // Swipe/drag gesture for carousel (touch + pointer for desktop)
-  const swipeStartX = useRef(0)
-  const swipeStartY = useRef(0)
-  const pointerDown = useRef(false)
-
-  const onPointerDownCapture = useCallback((e: React.PointerEvent) => {
-    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-    pointerDown.current = true
-    swipeStartX.current = e.clientX
-    swipeStartY.current = e.clientY
-  }, [])
-
-  const onPointerUp = useCallback(
-    (e: React.PointerEvent) => {
-      if (!pointerDown.current) return
-      pointerDown.current = false
-      if (entries.length <= 1) return
-      const dx = e.clientX - swipeStartX.current
-      const dy = e.clientY - swipeStartY.current
-      if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return
-      if (dx < 0) goTo((activeIndex + 1) % entries.length)
-      else goTo((activeIndex - 1 + entries.length) % entries.length)
-    },
-    [entries.length, activeIndex, goTo]
-  )
+  const { activeIndex, direction, animating, goTo, onPointerDownCapture, onPointerUp } =
+    useCarousel({ itemCount: entries.length, autoRotateMs: 8000 })
 
   if (!loaded || entries.length === 0) return null
 

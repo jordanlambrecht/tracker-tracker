@@ -8,11 +8,12 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
 import { CopyButton, DownloadButton } from "@/components/ui/ActionButtons"
 import { Button } from "@/components/ui/Button"
-import { EventLogSkeleton } from "@/components/ui/skeletons"
 import { FilterPill } from "@/components/ui/FilterPill"
 import { RefreshIcon, TrashIcon } from "@/components/ui/Icons"
 import { Input } from "@/components/ui/Input"
 import { Notice } from "@/components/ui/Notice"
+import { EventLogSkeleton } from "@/components/ui/skeletons"
+import { useSetToggle } from "@/hooks/useSetToggle"
 import {
   EVENT_CATEGORIES,
   EVENT_LEVELS,
@@ -70,12 +71,8 @@ export function EventsSection() {
   const [events, setEvents] = useState<SystemEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeCategories, setActiveCategories] = useState<Set<EventCategory>>(
-    () => new Set(EVENT_CATEGORIES)
-  )
-  const [activeLevels, setActiveLevels] = useState<Set<EventLevel>>(
-    () => new Set<EventLevel>(["info", "warn", "error"])
-  )
+  const categories = useSetToggle<EventCategory>(EVENT_CATEGORIES)
+  const levels = useSetToggle<EventLevel>(["info", "warn", "error"])
   const [searchQuery, setSearchQuery] = useState("")
   const [logSizeBytes, setLogSizeBytes] = useState(0)
 
@@ -108,11 +105,11 @@ export function EventsSection() {
 
   const filteredEvents = useMemo(() => {
     let result = events
-    if (activeCategories.size < EVENT_CATEGORIES.length) {
-      result = result.filter((e) => activeCategories.has(e.category))
+    if (categories.size < EVENT_CATEGORIES.length) {
+      result = result.filter((e) => categories.has(e.category))
     }
-    if (activeLevels.size < EVENT_LEVELS.length) {
-      result = result.filter((e) => activeLevels.has(e.level))
+    if (levels.size < EVENT_LEVELS.length) {
+      result = result.filter((e) => levels.has(e.level))
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
@@ -124,25 +121,7 @@ export function EventsSection() {
       )
     }
     return result
-  }, [events, activeCategories, activeLevels, searchQuery])
-
-  function toggleCategory(cat: EventCategory) {
-    setActiveCategories((prev) => {
-      const next = new Set(prev)
-      if (next.has(cat)) next.delete(cat)
-      else next.add(cat)
-      return next
-    })
-  }
-
-  function toggleLevel(level: EventLevel) {
-    setActiveLevels((prev) => {
-      const next = new Set(prev)
-      if (next.has(level)) next.delete(level)
-      else next.add(level)
-      return next
-    })
-  }
+  }, [events, categories, levels, searchQuery])
 
   const copyValue = useMemo(() => {
     return filteredEvents
@@ -186,7 +165,7 @@ export function EventsSection() {
     })
   }, [])
 
-  const allCategoriesActive = activeCategories.size === EVENT_CATEGORIES.length
+  const allCategoriesActive = categories.size === EVENT_CATEGORIES.length
 
   // Track date separators across the render
   let lastDateKey = ""
@@ -236,7 +215,7 @@ export function EventsSection() {
         <FilterPill
           size="sm"
           active={allCategoriesActive}
-          onClick={() => setActiveCategories(new Set(EVENT_CATEGORIES))}
+          onClick={() => categories.reset(EVENT_CATEGORIES)}
           text="All"
         />
 
@@ -244,8 +223,8 @@ export function EventsSection() {
           <FilterPill
             key={cat}
             size="sm"
-            active={activeCategories.has(cat)}
-            onClick={() => toggleCategory(cat)}
+            active={categories.has(cat)}
+            onClick={() => categories.toggle(cat)}
             inactive="strikethrough"
             text={cat.charAt(0).toUpperCase() + cat.slice(1)}
           />
@@ -259,8 +238,8 @@ export function EventsSection() {
           <FilterPill
             key={level}
             size="sm"
-            active={activeLevels.has(level)}
-            onClick={() => toggleLevel(level)}
+            active={levels.has(level)}
+            onClick={() => levels.toggle(level)}
             activeColor={LEVEL_TEXT_COLORS[level]}
             inactive="strikethrough"
             text={level.charAt(0).toUpperCase() + level.slice(1)}

@@ -26,6 +26,7 @@ import { QBT_TAG_WARN_PATTERN } from "@/components/ui/QbtTagWarning"
 import { CardListSkeleton } from "@/components/ui/skeletons"
 import { Toggle } from "@/components/ui/Toggle"
 import { Tooltip } from "@/components/ui/Tooltip"
+import { useEscapeKey } from "@/hooks/useEscapeKey"
 import { DOCS } from "@/lib/constants"
 import type { TagGroup, TagGroupChartType } from "@/types/api"
 
@@ -83,9 +84,10 @@ function AddTagGroupForm({ onCreated, onCancel }: AddTagGroupFormProps) {
     }
   }
 
+  useEscapeKey(onCancel, true)
+
   function handleKeyDown(e: KeyboardEvent) {
     if (e.key === "Enter") handleCreate()
-    if (e.key === "Escape") onCancel()
   }
 
   return (
@@ -378,12 +380,13 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
     setSaveError(null)
   }
 
+  useEscapeKey(() => {
+    setName(group.name)
+    setEditingName(false)
+  }, editingName)
+
   function handleNameKeyDown(e: KeyboardEvent) {
     if (e.key === "Enter") setEditingName(false)
-    if (e.key === "Escape") {
-      setName(group.name)
-      setEditingName(false)
-    }
   }
 
   async function handleDelete() {

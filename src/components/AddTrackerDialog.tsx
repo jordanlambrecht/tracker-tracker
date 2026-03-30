@@ -200,11 +200,8 @@ function TrackerCombobox({ presets, value, onChange }: TrackerComboboxProps) {
                 <span className="flex-1 truncate">{entry.name}</span>
                 {entry.warning && (
                   <Tooltip content={entry.warningNote ?? "Warning"}>
-                    <span className="flex items-center gap-1 shrink-0">
+                    <span className="shrink-0">
                       <TriangleWarningIcon width="13" height="13" className="text-warn" />
-                      {entry.warningNote && (
-                        <span className="text-3xs text-warn">{entry.warningNote}</span>
-                      )}
                     </span>
                   </Tooltip>
                 )}
@@ -301,11 +298,6 @@ function AddTrackerDialog({
     }
   }
 
-  function handleDialogKeyDown(e: KeyboardEvent<HTMLDialogElement>) {
-    if (e.key === "Escape") {
-      dialogRef.current?.close()
-    }
-  }
 
   function handlePresetChange(slug: string) {
     setSelectedPreset(slug)
@@ -461,8 +453,10 @@ function AddTrackerDialog({
     <dialog
       ref={dialogRef}
       onClick={handleBackdropClick}
-      onKeyDown={handleDialogKeyDown}
-      className="fixed inset-0 m-auto w-full max-w-lg bg-elevated p-0 overflow-visible backdrop:bg-black/60 backdrop:backdrop-blur-sm open:flex open:flex-col nm-raised-lg rounded-nm-xl border-0"
+      onKeyDown={(e) => {
+        if (e.key === "Escape") dialogRef.current?.close()
+      }}
+      className="fixed inset-0 m-auto w-full max-w-lg bg-elevated p-0 overflow-visible backdrop:bg-black/60 open:flex open:flex-col nm-raised-lg rounded-nm-xl border-0"
     >
       <div className="flex flex-col w-full p-6 gap-5">
         {/* Header */}
@@ -494,6 +488,10 @@ function AddTrackerDialog({
             />
             <Notice message={errors.preset} />
           </div>
+
+          {selectedEntry?.warning && selectedEntry.warningNote && (
+            <Notice variant="warn" box message={selectedEntry.warningNote} />
+          )}
 
           <Input
             label="Nickname (optional)"
@@ -620,7 +618,7 @@ function AddTrackerDialog({
 
           <ColorPicker label="Color" value={color} onChange={setColor} />
 
-          {!(selectedEntry?.gazelleEnrich || selectedEntry?.platform === "ggn") && (
+          {!(selectedEntry?.gazelleEnrich || selectedEntry?.platform === "ggn" || selectedEntry?.platform === "avistaz") && (
             <Input
               label="Join Date (optional)"
               type="date"
