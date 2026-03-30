@@ -3,6 +3,7 @@
 "use client"
 
 import { DataCell, H2 } from "@typography"
+import clsx from "clsx"
 import type { ReactNode } from "react"
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import { Tooltip } from "@/components/ui/Tooltip"
@@ -48,7 +49,10 @@ function TorrentRankList({ label, entries }: { label: string; entries: TorrentRa
           {entries.map((entry, index) => (
             <Tooltip key={entry.hash} content={buildTooltip(entry)}>
               <li
-                className={`grid grid-cols-[1fr_auto] items-center gap-3 py-1.5 ${index < entries.length - 1 ? "border-b border-border" : ""}`}
+                className={clsx(
+                  "grid grid-cols-[1fr_auto] items-center gap-3 py-1.5",
+                  index < entries.length - 1 && "border-b border-border"
+                )}
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span

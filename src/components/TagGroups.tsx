@@ -13,16 +13,17 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { H2, H3, Paragraph } from "@typography"
+import clsx from "clsx"
 import { type KeyboardEvent, useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { CollapsibleCard } from "@/components/ui/CollapsibleCard"
-import { CardListSkeleton } from "@/components/ui/skeletons"
 import { EmojiPickerPopover } from "@/components/ui/EmojiPickerPopover"
 import { FilterPill } from "@/components/ui/FilterPill"
 import { Input } from "@/components/ui/Input"
 import { Notice } from "@/components/ui/Notice"
 import { QBT_TAG_WARN_PATTERN } from "@/components/ui/QbtTagWarning"
+import { CardListSkeleton } from "@/components/ui/skeletons"
 import { Toggle } from "@/components/ui/Toggle"
 import { Tooltip } from "@/components/ui/Tooltip"
 import { DOCS } from "@/lib/constants"
@@ -169,11 +170,17 @@ function MemberRow({
   return (
     <div className="flex flex-col gap-1">
       <div
-        className={`nm-inset-sm flex items-center gap-3 px-3 py-2 bg-control-bg rounded-nm-md${isNew ? " border border-dashed border-border" : ""}`}
+        className={clsx(
+          "nm-inset-sm flex items-center gap-3 px-3 py-2 bg-control-bg rounded-nm-md",
+          isNew && "border border-dashed border-border"
+        )}
       >
         {(dragHandle || isNew) && (
           <span
-            className={`shrink-0 text-sm leading-none select-none${isNew ? " text-transparent" : " text-tertiary cursor-grab active:cursor-grabbing"}`}
+            className={clsx(
+              "shrink-0 text-sm leading-none select-none",
+              isNew ? "text-transparent" : "text-tertiary cursor-grab active:cursor-grabbing"
+            )}
             aria-hidden="true"
           >
             ⠿

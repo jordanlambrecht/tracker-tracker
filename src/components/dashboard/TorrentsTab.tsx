@@ -2,9 +2,9 @@
 "use client"
 
 import { H2 } from "@typography"
+import clsx from "clsx"
 import dynamic from "next/dynamic"
 import { useState } from "react"
-import { TorrentTabSkeleton } from "@/components/ui/skeletons"
 import { ParallelTorrentsChart } from "@/components/charts/ParallelTorrentsChart"
 import { StorageSunburst } from "@/components/charts/StorageSunburst"
 import {
@@ -31,6 +31,7 @@ import {
 import { Card } from "@/components/ui/Card"
 import { LazySection } from "@/components/ui/LazySection"
 import { Notice } from "@/components/ui/Notice"
+import { TorrentTabSkeleton } from "@/components/ui/skeletons"
 import type { TrackerTorrentsData } from "@/hooks/useTrackerTorrents"
 import { formatSpeed, formatTimeAgo } from "@/lib/formatters"
 
@@ -65,11 +66,7 @@ function TorrentsTab({
   const [staleDismissed, setStaleDismissed] = useState(false)
 
   if (data.loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <p className="text-sm text-muted font-mono">Loading...</p>
-      </div>
-    )
+    return <TorrentTabSkeleton />
   }
 
   if (data.noClients) return <NoClientState />
@@ -197,7 +194,7 @@ function TorrentsTab({
               <Card
                 key={group.id}
                 trackerColor={accentColor}
-                className={`flex flex-col gap-4${wideCard ? " lg:col-span-2" : ""}`}
+                className={clsx("flex flex-col gap-4", wideCard && "lg:col-span-2")}
               >
                 <H2 className="card-heading">
                   {group.emoji ? `${group.emoji} ` : ""}

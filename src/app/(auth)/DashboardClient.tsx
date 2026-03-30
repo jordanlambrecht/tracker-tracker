@@ -5,6 +5,7 @@ import { H1, H2 } from "@typography"
 import dynamic from "next/dynamic"
 import { useMemo, useState } from "react"
 import { CHART_THEME } from "@/components/charts/lib/theme"
+import { DashboardSkeleton } from "@/app/(auth)/DashboardSkeleton"
 import { AlertsBanner } from "@/components/dashboard/AlertsBanner"
 import { AnalyticsSection } from "@/components/dashboard/AnalyticsSection"
 import { DayRangeSidebar } from "@/components/dashboard/DayRangeSidebar"
@@ -61,13 +62,7 @@ export function DashboardClient({ initialTrackers }: DashboardClientProps) {
   )
 
   if (data.loading) {
-    return (
-      <div className="full-page-loader">
-        <p className="text-secondary text-sm font-mono animate-loading-breathe">
-          Loading dashboard...
-        </p>
-      </div>
-    )
+    return <DashboardSkeleton />
   }
 
   if (data.trackers.length === 0) {

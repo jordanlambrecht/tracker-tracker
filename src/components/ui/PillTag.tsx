@@ -1,48 +1,37 @@
 // src/components/ui/PillTag.tsx
 
+import { cva, type VariantProps } from "class-variance-authority"
 import clsx from "clsx"
 import type { HTMLAttributes } from "react"
 
-type PillTagColor = "accent" | "danger" | "secondary" | "tertiary" | "muted"
-type PillTagSize = "sm" | "md"
+const pillTagVariants = cva("nm-inset-sm bg-control-bg rounded-nm-pill font-mono", {
+  variants: {
+    color: {
+      accent: "text-accent",
+      danger: "text-danger",
+      secondary: "text-secondary",
+      tertiary: "text-tertiary",
+      muted: "text-muted",
+    },
+    size: {
+      sm: "px-1.5 py-0.5 text-3xs",
+      md: "px-3 py-1 text-xs",
+    },
+  },
+  defaultVariants: { color: "tertiary", size: "md" },
+})
 
-const COLOR_MAP: Record<PillTagColor, string> = {
-  accent: "text-accent",
-  danger: "text-danger",
-  secondary: "text-secondary",
-  tertiary: "text-tertiary",
-  muted: "text-muted",
-}
+type PillTagColor = NonNullable<VariantProps<typeof pillTagVariants>["color"]>
 
-const SIZE_MAP: Record<PillTagSize, string> = {
-  sm: "px-1.5 py-0.5 text-3xs",
-  md: "px-3 py-1 text-xs",
-}
-
-interface PillTagProps extends HTMLAttributes<HTMLSpanElement> {
-  color?: PillTagColor
-  size?: PillTagSize
+interface PillTagProps
+  extends Omit<HTMLAttributes<HTMLSpanElement>, "color">,
+    VariantProps<typeof pillTagVariants> {
   label?: string
 }
 
-function PillTag({
-  color = "tertiary",
-  size = "md",
-  label,
-  className,
-  children,
-  ...props
-}: PillTagProps) {
+function PillTag({ color, size, label, className, children, ...props }: PillTagProps) {
   return (
-    <span
-      className={clsx(
-        "nm-inset-sm bg-control-bg rounded-nm-pill font-mono",
-        SIZE_MAP[size],
-        COLOR_MAP[color],
-        className
-      )}
-      {...props}
-    >
+    <span className={clsx(pillTagVariants({ color, size }), className)} {...props}>
       {label ?? children}
     </span>
   )

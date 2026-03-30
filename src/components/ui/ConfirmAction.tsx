@@ -1,7 +1,18 @@
 // src/components/ui/ConfirmAction.tsx
 
+import { cva } from "class-variance-authority"
 import type { ReactNode } from "react"
 import { Button } from "@/components/ui/Button"
+
+const confirmVariants = cva("nm-inset-sm p-4 flex flex-col gap-3 rounded-nm-md", {
+  variants: {
+    colorScheme: {
+      danger: "bg-danger-dim",
+      warn: "bg-warn-dim",
+    },
+  },
+  defaultVariants: { colorScheme: "danger" },
+})
 
 interface ConfirmActionProps {
   colorScheme?: "danger" | "warn"
@@ -29,9 +40,7 @@ function ConfirmAction({
   additionalActions,
 }: ConfirmActionProps) {
   return (
-    <div
-      className={`nm-inset-sm p-4 flex flex-col gap-3 rounded-nm-md ${colorScheme === "warn" ? "bg-warn-dim" : "bg-danger-dim"}`}
-    >
+    <div className={confirmVariants({ colorScheme })}>
       <p className="text-sm font-sans text-primary leading-relaxed">{message}</p>
       {children}
       <div className="flex gap-3">

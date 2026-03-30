@@ -3,6 +3,7 @@
 "use client"
 
 import { H3 } from "@typography"
+import clsx from "clsx"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { Card } from "@/components/ui/Card"
 import { ChevronUpIcon, EyeOffIcon } from "@/components/ui/Icons"
@@ -98,15 +99,17 @@ function ChartCard({
           </div>
         </div>
 
-        {/* Animated content area using CSS grid trick */}
         <div
-          className={`grid transition-[grid-template-rows] duration-200 ease-out ${collapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]"}`}
+          className={clsx(
+            "grid transition-[grid-template-rows] duration-200 ease-out",
+            collapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]"
+          )}
         >
-          {/* p-6 -m-6: overflow-hidden is required for grid collapse animation,
-            but clips neumorphic shadows (nm-raised reaches ~24px). The padding
-            pushes the clip boundary out; the negative margin cancels layout shift. */}
           <div
-            className={`overflow-hidden p-6 -m-6 transition-opacity duration-150 ${collapsed ? "opacity-0" : "opacity-100"}`}
+            className={clsx(
+              "overflow-hidden p-6 -m-6 transition-opacity duration-150",
+              collapsed ? "opacity-0" : "opacity-100"
+            )}
           >
             {mounted && children}
           </div>

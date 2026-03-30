@@ -2,6 +2,7 @@
 "use client"
 
 import { H2, Paragraph, Subtext } from "@typography"
+import clsx from "clsx"
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
@@ -368,11 +369,12 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
         <Card elevation="raised" className="flex flex-col gap-4">
           <button
             type="button"
-            className={`relative flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 transition-colors cursor-pointer w-full ${
+            className={clsx(
+              "relative flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 transition-colors cursor-pointer w-full",
               isDraggingRestore
                 ? "border-accent bg-accent/10"
                 : "border-border hover:border-secondary"
-            }`}
+            )}
             onDragOver={(e) => {
               e.preventDefault()
               setIsDraggingRestore(true)
