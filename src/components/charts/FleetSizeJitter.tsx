@@ -1,7 +1,4 @@
 // src/components/charts/FleetSizeJitter.tsx
-//
-// Functions: buildFleetSizeJitterOption, FleetSizeJitter
-
 "use client"
 
 import type { EChartsOption } from "echarts"
@@ -38,14 +35,14 @@ function buildFleetSizeJitterOption(
   const { divisor, unit } = autoByteScale(maxBytes / 1024 ** 3)
   const scaleDivisor = 1024 ** 3 * divisor
 
-  // Build series — one scatter series per tracker for coloring
+  // Build one scatter series per tracker for coloring
   const series: NonNullable<EChartsOption["series"]> = trackerTags
     .filter((t) => trackerData.has(t.tag.toLowerCase()))
     .map((tt, trackerIndex) => {
       const data = trackerData.get(tt.tag.toLowerCase())
       if (!data) return null
 
-      // Gaussian jitter for beeswarm cloud — wide spread, clamped to avoid overlap with neighbors
+      // Gaussian jitter for beeswarm cloud that's wide spread, clamped to avoid overlap with neighbors
       const points = data.sizes.map((sizeBytes) => {
         const u1 = Math.random()
         const u2 = Math.random()
@@ -127,7 +124,7 @@ function buildFleetSizeJitterOption(
     dataZoom:
       trackerNames.length > 10
         ? [
-            ...chartDataZoom(CHART_THEME.accent).map((z) => ({ ...z, startValue: 0, endValue: 9 })),
+            ...chartDataZoom(CHART_THEME.accent).map((z) => ({ ...z, start: 0, end: 100 })),
             { type: "inside", xAxisIndex: 0 },
           ]
         : undefined,
@@ -136,7 +133,7 @@ function buildFleetSizeJitterOption(
 }
 
 function FleetSizeJitter({ torrents, trackerTags, height = 360 }: FleetSizeJitterProps) {
-  // Build trackerData map; memoized so Math.random() jitter only runs when data changes
+  // Build trackerData map
   const trackerData = useMemo(() => {
     const map = new Map<string, { sizes: number[]; color: string }>()
     for (const tt of trackerTags) {
