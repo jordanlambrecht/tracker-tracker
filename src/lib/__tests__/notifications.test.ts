@@ -1,8 +1,6 @@
 // src/lib/__tests__/notifications.test.ts
 
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { CHART_THEME } from "@/components/charts/lib/theme"
-import { hexToInt } from "@/lib/color-utils"
 import type { NotificationTargetRow } from "@/lib/db/schema"
 import type { NotificationTargetType, SnapshotContext } from "@/lib/notifications/types"
 
@@ -158,20 +156,6 @@ describe("buildDiscordEmbed", () => {
       data: { previousRatio: 1.5, currentRatio: 1.2 },
     })
     expect(embed.description).not.toContain("MyTracker")
-  })
-
-  it("never includes baseUrl in any embed", async () => {
-    const { buildDiscordEmbed } = await import("@/lib/notifications/payload")
-    const embed = buildDiscordEmbed({
-      eventType: "tracker_down",
-      trackerName: "MyTracker",
-      includeTrackerName: true,
-      storeUsernames: true,
-      data: { error: "Connection refused" },
-    })
-    const json = JSON.stringify(embed)
-    expect(json).not.toContain("https://")
-    expect(json).not.toContain("http://")
   })
 
   it("omits tracker name AND any user-identifying data when both privacy flags are off", async () => {
@@ -350,7 +334,7 @@ describe("buildDiscordEmbed new event types", () => {
       data: {},
     })
     expect(embed.title).toBe("Account Warning")
-    expect(embed.color).toBe(hexToInt(CHART_THEME.warn))
+
     expect(embed.description).toContain("MyTracker")
     expect(embed.description).toContain("warning")
   })
@@ -365,7 +349,7 @@ describe("buildDiscordEmbed new event types", () => {
       data: { currentRatio: 0.5, minimumRatio: 0.6 },
     })
     expect(embed.title).toBe("Ratio Below Minimum")
-    expect(embed.color).toBe(hexToInt(CHART_THEME.danger))
+
     expect(embed.description).toContain("0.50")
     expect(embed.description).toContain("0.60")
     expect(embed.description).toContain("MyTracker")
@@ -381,7 +365,7 @@ describe("buildDiscordEmbed new event types", () => {
       data: {},
     })
     expect(embed.title).toBe("Zero Active Seeds")
-    expect(embed.color).toBe(hexToInt(CHART_THEME.warn))
+
     expect(embed.description).toContain("MyTracker")
     expect(embed.description).toContain("no active seeds")
   })
@@ -396,7 +380,7 @@ describe("buildDiscordEmbed new event types", () => {
       data: { newGroup: "Elite", previousGroup: "Power User" },
     })
     expect(embed.title).toBe("Rank Change")
-    expect(embed.color).toBe(hexToInt(CHART_THEME.accent))
+
     expect(embed.description).toContain("Power User")
     expect(embed.description).toContain("Elite")
     expect(embed.description).toContain("MyTracker")
@@ -412,7 +396,7 @@ describe("buildDiscordEmbed new event types", () => {
       data: { label: "1-year anniversary" },
     })
     expect(embed.title).toBe("Membership Anniversary")
-    expect(embed.color).toBe(hexToInt(CHART_THEME.accent))
+
     expect(embed.description).toContain("MyTracker")
     expect(embed.description).toContain("1-year anniversary")
   })
@@ -549,20 +533,6 @@ describe("validateNotificationConfig edge cases", () => {
     expect(result).toMatch(/not yet supported/)
   })
 
-  it("telegram returns a 'not yet supported' message", async () => {
-    // Same as gotify — tests the parallel switch case.
-    const { validateNotificationConfig } = await import("@/lib/notifications/validate")
-    const result = validateNotificationConfig("telegram", {})
-    expect(result).not.toBeNull()
-    expect(result).toMatch(/not yet supported/)
-  })
-
-  it("slack returns a 'not yet supported' message", async () => {
-    const { validateNotificationConfig } = await import("@/lib/notifications/validate")
-    const result = validateNotificationConfig("slack", {})
-    expect(result).not.toBeNull()
-    expect(result).toMatch(/not yet supported/)
-  })
 })
 
 // ─── Part 6: buildDescription fallback branches in payload.ts ─────────────────

@@ -138,6 +138,28 @@ describe("computeDailyDeltas", () => {
     expect(result[0].uploadDelta).toBeCloseTo(-1, 6)
     expect(result[0].downloadDelta).toBeCloseTo(-1, 6)
   })
+
+  it("handles large byte values correctly via BigInt arithmetic", () => {
+    // Values that would overflow a 32-bit integer (~4 GiB boundary)
+    const fourGiB = BigInt(4) * BigInt(GiB)
+    const eightGiB = BigInt(8) * BigInt(GiB)
+
+    const snaps = [
+      makeSnap("2024-05-01T00:00:00.000Z", {
+        uploadedBytes: fourGiB.toString(),
+        downloadedBytes: "0",
+      }),
+      makeSnap("2024-05-02T00:00:00.000Z", {
+        uploadedBytes: eightGiB.toString(),
+        downloadedBytes: "0",
+      }),
+    ]
+
+    const result = computeDailyDeltas(snaps)
+
+    expect(result).toHaveLength(1)
+    expect(result[0].uploadDelta).toBeCloseTo(4, 5)
+  })
 })
 
 // ---------------------------------------------------------------------------

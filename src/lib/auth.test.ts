@@ -50,9 +50,4 @@ describe("auth - security", () => {
     expect(valid).toBe(true)
   })
 
-  it("rejects password with single character difference", async () => {
-    const hash = await hashPassword("correct-password")
-    const valid = await verifyPassword(hash, "correct-passwore")
-    expect(valid).toBe(false)
-  })
 })

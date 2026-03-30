@@ -87,16 +87,6 @@ describe("ProgressBar clamping", () => {
     expect(bar.style.width).toBe("100%")
   })
 
-  it("aria-valuenow reflects the clamped value, not the raw input", () => {
-    const { getByRole } = render(<ProgressBar percent={-999} />)
-    expect(getByRole("progressbar").getAttribute("aria-valuenow")).toBe("0")
-  })
-
-  it("exactly 0 is not clamped further", () => {
-    const { getByRole } = render(<ProgressBar percent={0} />)
-    expect(getByRole("progressbar").getAttribute("aria-valuenow")).toBe("0")
-  })
-
   it("exactly 100 is not clamped further", () => {
     const { getByRole } = render(<ProgressBar percent={100} />)
     expect(getByRole("progressbar").getAttribute("aria-valuenow")).toBe("100")

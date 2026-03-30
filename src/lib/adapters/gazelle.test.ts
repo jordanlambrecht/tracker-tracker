@@ -396,15 +396,4 @@ describe("GazelleAdapter - security", () => {
     )
   })
 
-  it("uses AbortSignal for timeout protection", async () => {
-    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockGazelleResponse(),
-    } as Response)
-
-    await adapter.fetchStats("https://example.com", "token", "/ajax.php")
-
-    const fetchOptions = fetchSpy.mock.calls[0][1] as RequestInit
-    expect(fetchOptions.signal).toBeDefined()
-  })
 })

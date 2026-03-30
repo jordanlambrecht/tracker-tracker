@@ -797,15 +797,10 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
 // 2. Public endpoint documentation
 // ---------------------------------------------------------------------------
 
-describe("Public endpoints: verify routes do NOT require auth", () => {
-  it("POST /api/verify-report is intentionally public (rate-limited, no auth)", () => {
-    // Documented: verify-report and verify-report/fetch-image are public endpoints.
-    // They use in-memory rate limiting instead of authentication.
-    // Moderators verify reports without needing an account.
-    // Do NOT add authenticate() to these routes.
-    expect(true).toBe(true)
-  })
-})
+// NOTE: POST /api/verify-report and /api/verify-report/fetch-image are
+// intentionally public endpoints. They use in-memory rate limiting instead of
+// authentication. Moderators verify reports without needing an account.
+// Do NOT add authenticate() to these routes.
 
 // ---------------------------------------------------------------------------
 // 3. Encrypted tokens never leak in API responses
@@ -1103,34 +1098,8 @@ describe("Input validation: POST /api/trackers", () => {
     mockAuthSuccess()
   })
 
-  it("rejects missing required fields", async () => {
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({})
-    const req = makeRequest("http://localhost/api/trackers", {}, "POST")
-    const res = await POST(req)
-    expect(res.status).toBe(400)
-  })
-
-  it("rejects oversized name (>100 chars)", async () => {
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
-      name: "a".repeat(101),
-      baseUrl: "https://example.com",
-      apiToken: "valid-token",
-    })
-    const req = makeRequest("http://localhost/api/trackers", {}, "POST")
-    const res = await POST(req)
-    expect(res.status).toBe(400)
-  })
-
-  it("rejects invalid URL format", async () => {
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
-      name: "Test",
-      baseUrl: "not-a-url",
-      apiToken: "valid-token",
-    })
-    const req = makeRequest("http://localhost/api/trackers", {}, "POST")
-    const res = await POST(req)
-    expect(res.status).toBe(400)
-  })
+  // "rejects missing required fields", "rejects oversized name", and
+  // "rejects invalid URL format" are covered in tracker-routes.test.ts
 
   it("rejects invalid platform type", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -1209,18 +1178,7 @@ describe("Input validation: additional field constraints", () => {
     ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
   })
 
-  it("rejects oversized API token (>500 chars)", async () => {
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
-      name: "Test",
-      baseUrl: "https://example.com",
-      apiToken: "a".repeat(501),
-    })
-    const req = makeRequest("http://localhost/api/trackers", {}, "POST")
-    const res = await POST(req)
-    expect(res.status).toBe(400)
-    const data = await res.json()
-    expect(data.error).toMatch(/token/i)
-  })
+  // "rejects oversized API token" is covered in tracker-routes.test.ts
 
   it("rejects oversized qbtTag (>100 chars)", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -1311,67 +1269,8 @@ describe("Input validation: additional field constraints", () => {
 })
 
 // ---------------------------------------------------------------------------
-// 6. Crypto round-trip integrity
+// 6. Crypto round-trip integrity — covered by src/lib/crypto.test.ts
 // ---------------------------------------------------------------------------
-
-describe("Crypto integrity", () => {
-  // Use real crypto functions (unmocked)
-  let realEncrypt: typeof import("@/lib/crypto").encrypt
-  let realDecrypt: typeof import("@/lib/crypto").decrypt
-  let realGenerateSalt: typeof import("@/lib/crypto").generateSalt
-  let realDeriveKey: typeof import("@/lib/crypto").deriveKey
-
-  beforeEach(async () => {
-    // Import real crypto module (bypassing mocks)
-    const crypto = await vi.importActual<typeof import("@/lib/crypto")>("@/lib/crypto")
-    realEncrypt = crypto.encrypt
-    realDecrypt = crypto.decrypt
-    realGenerateSalt = crypto.generateSalt
-    realDeriveKey = crypto.deriveKey
-  })
-
-  it("encrypt then decrypt produces the original plaintext", async () => {
-    const key = await realDeriveKey("test-password", realGenerateSalt())
-    const plaintext = "my-secret-api-token-12345"
-    const encrypted = realEncrypt(plaintext, key)
-    const decrypted = realDecrypt(encrypted, key)
-    expect(decrypted).toBe(plaintext)
-  })
-
-  it("decrypt rejects tampered ciphertext", async () => {
-    const key = await realDeriveKey("test-password", realGenerateSalt())
-    const encrypted = realEncrypt("my-secret", key)
-
-    // Tamper with the ciphertext by flipping a byte
-    const tampered = Buffer.from(encrypted, "base64")
-    tampered[tampered.length - 1] ^= 0xff
-    const tamperedStr = tampered.toString("base64")
-
-    expect(() => realDecrypt(tamperedStr, key)).toThrow()
-  })
-
-  it("decrypt rejects wrong key", async () => {
-    const key1 = await realDeriveKey("password-one", realGenerateSalt())
-    const key2 = await realDeriveKey("password-two", realGenerateSalt())
-    const encrypted = realEncrypt("my-secret", key1)
-
-    expect(() => realDecrypt(encrypted, key2)).toThrow()
-  })
-
-  it("decrypt rejects truncated ciphertext", async () => {
-    const key = await realDeriveKey("test-password", realGenerateSalt())
-    const short = Buffer.from("too-short").toString("base64")
-    expect(() => realDecrypt(short, key)).toThrow()
-  })
-
-  it("each encryption produces unique ciphertext (random IV)", async () => {
-    const key = await realDeriveKey("test-password", realGenerateSalt())
-    const plaintext = "same-input"
-    const enc1 = realEncrypt(plaintext, key)
-    const enc2 = realEncrypt(plaintext, key)
-    expect(enc1).not.toBe(enc2)
-  })
-})
 
 // ---------------------------------------------------------------------------
 // 7. Encryption key zeroing on scheduler stop

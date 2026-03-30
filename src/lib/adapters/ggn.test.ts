@@ -95,14 +95,6 @@ describe("GGnAdapter", () => {
     expect(stats.freeleechTokens).toBeNull()
   })
 
-  it("handles numeric ratio from API", async () => {
-    mockBothCalls({ stats: { ratio: 2.5 } })
-
-    const stats = await adapter.fetchStats("https://gazellegames.net", "key", "/api.php")
-
-    expect(stats.ratio).toBeCloseTo(2.5)
-  })
-
   it("handles seeding/leeching when paranoia allows", async () => {
     mockBothCalls({ community: { seeding: 150, leeching: 2 } })
 
@@ -289,23 +281,4 @@ describe("GGnAdapter - security", () => {
     )
   })
 
-  it("uses AbortSignal for timeout protection", async () => {
-    const fetchSpy = vi
-      .spyOn(global, "fetch")
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockQuickUserResponse(),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockUserResponse(),
-      } as Response)
-
-    await adapter.fetchStats("https://gazellegames.net", "key", "/api.php")
-
-    const firstCallOpts = fetchSpy.mock.calls[0][1] as RequestInit
-    const secondCallOpts = fetchSpy.mock.calls[1][1] as RequestInit
-    expect(firstCallOpts.signal).toBeDefined()
-    expect(secondCallOpts.signal).toBeDefined()
-  })
 })

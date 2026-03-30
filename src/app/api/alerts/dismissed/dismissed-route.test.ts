@@ -266,14 +266,6 @@ describe("POST /api/alerts/dismissed — non-dismissible rejection", () => {
     expect(data.error).toBe("This alert type cannot be dismissed")
   })
 
-  it("confirms client-error is in the NON_DISMISSIBLE set", () => {
-    expect(NON_DISMISSIBLE_ALERT_TYPES.has("client-error")).toBe(true)
-  })
-
-  it("confirms poll-paused is in the NON_DISMISSIBLE set", () => {
-    expect(NON_DISMISSIBLE_ALERT_TYPES.has("poll-paused")).toBe(true)
-  })
-
   it("rejects dismissing a poll-paused alert type", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
       key: "poll-paused-1",

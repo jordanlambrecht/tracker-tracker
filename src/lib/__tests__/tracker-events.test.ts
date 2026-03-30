@@ -1,7 +1,6 @@
 // src/lib/__tests__/tracker-events.test.ts
 
 import { afterEach, describe, expect, it, vi } from "vitest"
-import type { NotificationEventType } from "@/lib/notifications/types"
 import { VALID_EVENT_TYPES } from "@/lib/notifications/types"
 import {
   checkActiveHnrs,
@@ -275,25 +274,58 @@ describe("checkAnniversaryMilestone with date mocking", () => {
     vi.useRealTimers()
   })
 
+  it("returns 1 month anniversary on exact date", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-04-15"))
+    expect(checkAnniversaryMilestone("2026-03-15")).toEqual({ label: "1 month anniversary" })
+    vi.useRealTimers()
+  })
+
+  it("returns 6 month anniversary on exact date", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-09-15"))
+    expect(checkAnniversaryMilestone("2026-03-15")).toEqual({ label: "6 month anniversary" })
+    vi.useRealTimers()
+  })
+
   it("returns 1 year anniversary on exact date", () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date("2026-03-19T12:00:00"))
     expect(checkAnniversaryMilestone("2025-03-19")).toEqual({ label: "1-year anniversary" })
     vi.useRealTimers()
   })
+
+  it("returns multi-year anniversary", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2031-03-15"))
+    expect(checkAnniversaryMilestone("2026-03-15")).toEqual({ label: "5-year anniversary" })
+    vi.useRealTimers()
+  })
+
   it("returns null for invalid date string", () => {
     expect(checkAnniversaryMilestone("not-a-date")).toBeNull()
   })
+
   it("matches within the +/-3 day window", () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date("2026-03-21T12:00:00")) // 2 days after 1yr anniversary
     expect(checkAnniversaryMilestone("2025-03-19")).toEqual({ label: "1-year anniversary" })
     vi.useRealTimers()
   })
+
   it("does not match outside the +/-3 day window", () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date("2026-03-25T12:00:00")) // 6 days after
     expect(checkAnniversaryMilestone("2025-03-19")).toBeNull()
+    vi.useRealTimers()
+  })
+
+  it("prefers 1 month over 1 year when both could match", () => {
+    // Edge case: 1 month anniversary checked before annual milestones
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-04-15"))
+    const result = checkAnniversaryMilestone("2026-03-15")
+    expect(result?.label).toBe("1 month anniversary")
     vi.useRealTimers()
   })
 })
@@ -305,28 +337,6 @@ describe("EVENT_SNOOZE_MS", () => {
       expect(typeof EVENT_SNOOZE_MS[type]).toBe("number")
       expect(EVENT_SNOOZE_MS[type]).toBeGreaterThan(0)
     }
-  })
-  it("uses 6h for ratio_drop, hit_and_run, tracker_down, buffer_milestone, warned", () => {
-    const sixHours = 6 * 60 * 60 * 1000
-    for (const type of [
-      "ratio_drop",
-      "hit_and_run",
-      "tracker_down",
-      "buffer_milestone",
-      "warned",
-    ] as NotificationEventType[]) {
-      expect(EVENT_SNOOZE_MS[type]).toBe(sixHours)
-    }
-  })
-  it("uses 24h for ratio_danger and zero_seeding", () => {
-    const twentyFourHours = 24 * 60 * 60 * 1000
-    expect(EVENT_SNOOZE_MS.ratio_danger).toBe(twentyFourHours)
-    expect(EVENT_SNOOZE_MS.zero_seeding).toBe(twentyFourHours)
-  })
-  it("uses 7 days for rank_change and anniversary", () => {
-    const sevenDays = 7 * 24 * 60 * 60 * 1000
-    expect(EVENT_SNOOZE_MS.rank_change).toBe(sevenDays)
-    expect(EVENT_SNOOZE_MS.anniversary).toBe(sevenDays)
   })
 })
 

@@ -647,50 +647,6 @@ describe("deepPollClient lastPolledAt written; heartbeat update does not include
     expect(statusUpdate?.lastPolledAt).toBeInstanceOf(Date)
   })
 
-  // Regression: verifies the scheduling invariant — a client with a recent lastPolledAt
-  // (set during a prior deep poll) should be considered NOT overdue, while a client
-  // with lastPolledAt = null (never polled) should always be considered overdue.
-  // This mirrors the logic in deepPollAllClients without needing to call it directly.
-  it("overdue check: client with null lastPolledAt is always overdue", () => {
-    const pollIntervalSeconds = 30
-    const now = Date.now()
-
-    // Mirrors: const lastPoll = client.lastPolledAt?.getTime() ?? 0
-    // Mirrors: return now - lastPoll >= intervalMs
-    const lastPolledAt = null
-    const intervalMs = pollIntervalSeconds * 1000
-    const lastPoll = lastPolledAt ?? 0
-    const isOverdue = now - lastPoll >= intervalMs
-
-    expect(isOverdue).toBe(true)
-  })
-
-  it("overdue check: client deep-polled within interval is not overdue", () => {
-    const pollIntervalSeconds = 30
-    const now = Date.now()
-
-    // Simulate: heartbeat ran 5s ago but deep poll ran 10s ago (within 30s interval)
-    const lastPolledAt = new Date(now - 10_000) // 10 seconds ago
-    const intervalMs = pollIntervalSeconds * 1000
-    const lastPoll = lastPolledAt.getTime()
-    const isOverdue = now - lastPoll >= intervalMs
-
-    expect(isOverdue).toBe(false)
-  })
-
-  it("overdue check: client whose interval has elapsed is overdue", () => {
-    const pollIntervalSeconds = 30
-    const now = Date.now()
-
-    // Simulate: last deep poll was 35s ago (past the 30s interval)
-    const lastPolledAt = new Date(now - 35_000)
-    const intervalMs = pollIntervalSeconds * 1000
-    const lastPoll = lastPolledAt.getTime()
-    const isOverdue = now - lastPoll >= intervalMs
-
-    expect(isOverdue).toBe(true)
-  })
-
   // Regression: if heartbeat wrote lastPolledAt (the bug), a client polled 5s ago
   // via heartbeat would NOT be considered overdue even after the deep poll interval elapsed.
   // This test documents that scenario: if lastPolledAt reflects a heartbeat timestamp

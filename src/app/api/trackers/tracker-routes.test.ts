@@ -905,30 +905,6 @@ describe("GET /api/trackers/[id]/snapshots", () => {
     expect(response.status).toBe(200)
   })
 
-  it("clamps days to minimum 1", async () => {
-    // Smoke test: clamping logic is verified via Math.max(parseInt(...), 1) in source.
-    // The route returns 200 for any non-negative days value including 0.
-    buildSnapshotDbMock([])
-
-    const request = new Request("http://localhost/api/trackers/1/snapshots?days=0")
-    const params = Promise.resolve({ id: "1" })
-    const response = await SnapshotsGET(request, { params })
-
-    expect(response.status).toBe(200)
-  })
-
-  it("clamps days to maximum 3650", async () => {
-    // Smoke test: clamping logic is verified via Math.min(..., 3650) in source.
-    // The route returns 200 for any days value, clamped internally.
-    buildSnapshotDbMock([])
-
-    const request = new Request("http://localhost/api/trackers/1/snapshots?days=9999")
-    const params = Promise.resolve({ id: "1" })
-    const response = await SnapshotsGET(request, { params })
-
-    expect(response.status).toBe(200)
-  })
-
   it("defaults to 30 days for non-numeric days param", async () => {
     buildSnapshotDbMock([])
 

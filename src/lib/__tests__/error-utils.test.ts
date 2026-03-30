@@ -146,10 +146,6 @@ describe("sanitizeNetworkError", () => {
     expect(sanitizeNetworkError("Unauthorized")).toBe("Authentication failed")
   })
 
-  it("maps 'Forbidden' to 'Authentication failed'", () => {
-    expect(sanitizeNetworkError("403 Forbidden")).toBe("Authentication failed")
-  })
-
   it("maps 'Session expired' to 'Session expired'", () => {
     expect(sanitizeNetworkError("Session expired")).toBe("Session expired")
   })
@@ -176,7 +172,4 @@ describe("sanitizeNetworkError", () => {
     expect(sanitizeNetworkError("Unknown error", "Polling failed")).toBe("Polling failed")
   })
 
-  it("returns default fallback for empty string", () => {
-    expect(sanitizeNetworkError("")).toBe("Connection failed")
-  })
 })

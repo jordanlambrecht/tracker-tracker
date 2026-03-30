@@ -222,18 +222,6 @@ describe("useDashboardData", () => {
     })
   })
 
-  it("uses refetchInterval of 60_000ms (not 60)", () => {
-    // Verify the tracker query uses 60_000 by checking the source
-    // (TanStack Query internals don't expose interval easily in tests,
-    // so we verify the constant is correct at the integration level)
-    const { result } = renderHook(() => useDashboardData({ initialTrackers: [mockTracker] }), {
-      wrapper: createWrapper(),
-    })
-    // If refetchInterval were 60 (ms), we'd see rapid re-fetches
-    // With 60_000 (1 min), a single render cycle won't trigger extra calls
-    expect(result.current.trackers).toHaveLength(1)
-  })
-
   it("exposes refresh function that triggers tracker refetch", async () => {
     const { result } = renderHook(() => useDashboardData({ initialTrackers: [mockTracker] }), {
       wrapper: createWrapper(),

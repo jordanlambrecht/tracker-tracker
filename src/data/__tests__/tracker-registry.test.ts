@@ -11,7 +11,11 @@
 import fs from "node:fs"
 import path from "node:path"
 import { afterAll, describe, expect, it } from "vitest"
-import type { TrackerRegistryEntry } from "@/data/tracker-registry"
+import {
+  getTrackerBySlug,
+  TRACKER_REGISTRY,
+  type TrackerRegistryEntry,
+} from "@/data/tracker-registry"
 import {
   isEmpty,
   LOGO_NAME_RE,
@@ -260,6 +264,23 @@ describe("tracker registry", () => {
         })
       })
     }
+  })
+
+  // ── Migrated from src/data/tracker-registry.test.ts ──────────────────
+
+  it("has at least 2 trackers", () => {
+    expect(TRACKER_REGISTRY.length).toBeGreaterThanOrEqual(2)
+  })
+
+  describe("getTrackerBySlug", () => {
+    it("returns correct tracker", () => {
+      const aither = getTrackerBySlug("aither")
+      expect(aither?.name).toBe("Aither")
+    })
+
+    it("returns undefined for unknown slug", () => {
+      expect(getTrackerBySlug("nonexistent")).toBeUndefined()
+    })
   })
 
   // ── Print collected warnings after all tests ──────────────────────────

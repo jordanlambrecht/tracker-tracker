@@ -136,26 +136,5 @@ describe("Unit3dAdapter - security", () => {
     )
   })
 
-  it("uses AbortSignal for timeout protection", async () => {
-    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        username: "Test",
-        group: "User",
-        uploaded: "0 GiB",
-        downloaded: "0 GiB",
-        ratio: "0",
-        buffer: "0 GiB",
-        seeding: 0,
-        leeching: 0,
-        seedbonus: "0",
-        hit_and_runs: 0,
-      }),
-    } as Response)
-
-    await adapter.fetchStats("https://example.com", "token", "/api/user")
-
-    const fetchOptions = fetchSpy.mock.calls[0][1] as RequestInit
-    expect(fetchOptions.signal).toBeDefined()
-  })
+  // AbortSignal timeout coverage is in adapterFetch — tested via timeout-message test above
 })

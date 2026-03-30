@@ -34,16 +34,6 @@ describe("localDateStr", () => {
     expect(result).toBe(today)
   })
 
-  it("uses en-CA locale formatting (YYYY-MM-DD, not MM/DD/YYYY)", () => {
-    // en-CA produces ISO-style dates; en-US would produce "6/15/2024"
-    const d = new Date(2024, 5, 15)
-    const result = localDateStr(d)
-    // Must not contain slashes
-    expect(result).not.toContain("/")
-    // Must match the ISO date pattern
-    expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/)
-  })
-
   it("handles the first day of the month without off-by-one", () => {
     const d = new Date(2024, 0, 1) // January 1 local
     expect(localDateStr(d)).toBe("2024-01-01")
@@ -74,12 +64,6 @@ describe("formatBytesFromString MiB/GiB threshold", () => {
   const MiB = 1024 * 1024
   const GiB = 1024 * 1024 * 1024
   const TiB = 1024 * 1024 * 1024 * 1024
-
-  it("value of exactly 0 bytes returns MiB scale", () => {
-    // "0" bigint → 0 bytes → 0 MiB
-    const result = formatBytesFromString("0")
-    expect(result).toContain("MiB")
-  })
 
   it("returns '0 MiB' (zero padded rounds to 0) for 0 bytes", () => {
     expect(formatBytesFromString("0")).toBe("0 MiB")

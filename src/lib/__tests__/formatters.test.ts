@@ -197,19 +197,20 @@ describe("formatPercent", () => {
 describe("formatDateTime", () => {
   it("formats an ISO string", () => {
     const result = formatDateTime("2026-03-15T14:30:00.000Z")
-    expect(typeof result).toBe("string")
-    expect(result.length).toBeGreaterThan(5)
-    // Output is locale-dependent on the test runner, so just verify it's not "Invalid Date"
+    expect(result).toContain("2026")
     expect(result).not.toBe("Invalid Date")
   })
 
   it("formats a Date object", () => {
     const result = formatDateTime(new Date("2026-03-15T14:30:00.000Z"))
+    expect(result).toContain("2026")
     expect(result).not.toBe("Invalid Date")
   })
 
   it("formats a numeric timestamp", () => {
-    const result = formatDateTime(1742048400000)
+    // 1710510600000 = 2024-03-15T16:30:00.000Z
+    const result = formatDateTime(1710510600000)
+    expect(result).toContain("2024")
     expect(result).not.toBe("Invalid Date")
   })
 })

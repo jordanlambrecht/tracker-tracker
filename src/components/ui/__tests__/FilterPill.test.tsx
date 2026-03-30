@@ -138,11 +138,6 @@ describe("FilterPill size prop", () => {
     expect(getByRole("button").className).toContain("text-xs")
   })
 
-  it("applies text-xs when size='md' explicitly", () => {
-    const { getByRole } = render(<FilterPill active={false} size="md" text="Label" />)
-    expect(getByRole("button").className).toContain("text-xs")
-  })
-
   it("applies text-2xs when size='sm'", () => {
     const { getByRole } = render(<FilterPill active={false} size="sm" text="Label" />)
     expect(getByRole("button").className).toContain("text-2xs")
@@ -229,10 +224,6 @@ describe("FilterPill type attribute", () => {
     expect(getByRole("button").getAttribute("type")).toBe("button")
   })
 
-  it("has type='button' regardless of active state", () => {
-    const { getByRole } = render(<FilterPill active={true} text="Label" />)
-    expect(getByRole("button").getAttribute("type")).toBe("button")
-  })
 })
 
 // ---------------------------------------------------------------------------
