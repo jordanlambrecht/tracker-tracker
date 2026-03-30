@@ -386,7 +386,7 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
 
           <ColorPicker label="Color" value={form.color} onChange={(v) => updateField("color", v)} />
 
-          {!(registryEntry?.gazelleEnrich || tracker.platformType === "ggn") && (
+          {!(registryEntry?.gazelleEnrich || tracker.platformType === "ggn" || tracker.platformType === "avistaz") && (
             <div>
               <label
                 htmlFor="settings-joined-at"
