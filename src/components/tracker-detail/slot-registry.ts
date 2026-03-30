@@ -11,6 +11,8 @@
 //          mam-vip, mam-connectable, mam-unread
 //   progress: ggn-achievement-progress, ggn-share-score-progress, ggn-buffs,
 //             mam-health-overview
+//   avistaz stat-card: avistaz-activity
+//   avistaz badge: avistaz-download-disabled, avistaz-upload-disabled, avistaz-vip, avistaz-invites
 
 import type { ComponentType, ReactNode } from "react"
 import { createElement } from "react"
@@ -26,10 +28,16 @@ import { PulseDot } from "@/components/ui/PulseDot"
 import type {
   StatCardBasicProps,
   StatCardRingProps,
+  StatCardRow,
   StatCardStackedProps,
 } from "@/components/ui/StatCard"
 import { StatCard } from "@/components/ui/StatCard"
-import type { GazellePlatformMeta, GGnPlatformMeta, MamPlatformMeta } from "@/lib/adapters/types"
+import type {
+  AvistazPlatformMeta,
+  GazellePlatformMeta,
+  GGnPlatformMeta,
+  MamPlatformMeta,
+} from "@/lib/adapters/types"
 import { formatBytesNum, formatCount, formatRatio } from "@/lib/formatters"
 import type { SlotCategory, SlotContext } from "@/lib/slot-types"
 import type { GgnAchievementProgressProps } from "./platform/GgnAchievementProgress"
@@ -465,7 +473,7 @@ const ggnInvitesBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   priority: 21,
   resolve(ctx) {
     const { meta } = ctx
-    if (!meta || !("invites" in meta)) return null
+    if (!meta || !("hourlyGold" in meta)) return null
     const invites = (meta as GGnPlatformMeta).invites
     if (typeof invites !== "number" || invites <= 0) return null
     return { variant: "default", label: `${invites} Invites` }
@@ -716,6 +724,101 @@ const mamHealthOverviewSlot: SlotDefinition<MamHealthOverviewProps> = {
 }
 
 // ---------------------------------------------------------------------------
+// AvistaZ slot definitions
+// ---------------------------------------------------------------------------
+
+function isAvistazMeta(meta: unknown): meta is AvistazPlatformMeta {
+  return !!meta && typeof meta === "object" && "canDownload" in meta
+}
+
+const avistazActivitySlot: SlotDefinition<StatCardStackedProps> = {
+  id: "avistaz-activity",
+  category: "stat-card",
+  component: StatCard as ComponentType<StatCardStackedProps>,
+  priority: 14,
+  span: 2,
+  resolve(ctx) {
+    const { meta, accentColor } = ctx
+    if (!isAvistazMeta(meta)) return null
+    const uploads = meta.totalUploads ?? 0
+    const downloads = meta.totalDownloads ?? 0
+    if (uploads === 0 && downloads === 0 && !meta.bonusPerHour) return null
+    const rows: StatCardRow[] = [
+      { label: "Uploads", value: uploads },
+      { label: "Downloads", value: downloads },
+    ]
+    if (meta.bonusPerHour != null) {
+      rows.push({
+        label: "Bonus/hr",
+        prefix: "+",
+        value: formatCount(Math.floor(meta.bonusPerHour)),
+        colorClass: "text-success",
+      })
+    }
+    return {
+      type: "stacked" as const,
+      title: "Activity",
+      rows,
+      accentColor,
+    }
+  },
+}
+
+const avistazDownloadDisabledBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "avistaz-download-disabled",
+  category: "badge",
+  component: SlotBadge,
+  priority: 12,
+  resolve(ctx) {
+    if (!isAvistazMeta(ctx.meta)) return null
+    if (ctx.meta.canDownload !== false) return null
+    return { variant: "danger", label: "Downloads Disabled" }
+  },
+}
+
+const avistazUploadDisabledBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "avistaz-upload-disabled",
+  category: "badge",
+  component: SlotBadge,
+  priority: 12,
+  resolve(ctx) {
+    if (!isAvistazMeta(ctx.meta)) return null
+    if (ctx.meta.canUpload !== false) return null
+    return { variant: "danger", label: "Uploads Disabled" }
+  },
+}
+
+const avistazVipBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "avistaz-vip",
+  category: "badge",
+  component: SlotBadge,
+  priority: 10,
+  resolve(ctx) {
+    if (!isAvistazMeta(ctx.meta)) return null
+    if (!ctx.meta.vipExpiry) return null
+    const expiry = new Date(ctx.meta.vipExpiry)
+    if (Number.isNaN(expiry.getTime())) return null
+    const ms = expiry.getTime() - Date.now()
+    if (ms <= 0) return null
+    const days = Math.ceil(ms / (1000 * 60 * 60 * 24))
+    return { variant: days <= 7 ? "warn" : "accent", label: `VIP (${days}d)` }
+  },
+}
+
+const avistazInvitesBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "avistaz-invites",
+  category: "badge",
+  component: SlotBadge,
+  priority: 21,
+  resolve(ctx) {
+    if (!isAvistazMeta(ctx.meta)) return null
+    const invites = ctx.meta.invites
+    if (typeof invites !== "number" || invites <= 0) return null
+    return { variant: "default", label: `${invites} Invites` }
+  },
+}
+
+// ---------------------------------------------------------------------------
 // Exported registry
 // ---------------------------------------------------------------------------
 
@@ -759,6 +862,13 @@ export const SLOT_DEFINITIONS: AnySlotDefinition[] = [
   ggnBuffsSlot,
   // MAM slots (progress)
   mamHealthOverviewSlot,
+  // AvistaZ slots (stat-card)
+  avistazActivitySlot,
+  // AvistaZ slots (badge)
+  avistazDownloadDisabledBadgeSlot,
+  avistazUploadDisabledBadgeSlot,
+  avistazVipBadgeSlot,
+  avistazInvitesBadgeSlot,
 ]
 
 // Shared component lookup — single source for rendering resolved slots
