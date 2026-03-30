@@ -7,7 +7,7 @@ import clsx from "clsx"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
 import { CopyButton, DownloadButton } from "@/components/ui/ActionButtons"
-import { Button } from "@/components/ui/Button"
+import { ConfirmAction } from "@/components/ui/ConfirmAction"
 import { FilterPill } from "@/components/ui/FilterPill"
 import { RefreshIcon, TrashIcon } from "@/components/ui/Icons"
 import { Input } from "@/components/ui/Input"
@@ -251,28 +251,19 @@ export function EventsSection() {
 
       {/* ── Clear confirmation ───────────────────────────────────── */}
       {clearConfirm && (
-        <div className="nm-inset-sm p-3 rounded-nm-md bg-danger-dim flex items-center gap-3">
-          <p className="text-xs font-mono text-danger flex-1">
-            Truncate log file? DB events are not affected.
-          </p>
-          <Button
-            size="sm"
-            variant="danger"
-            onClick={handleClear}
-            disabled={clearLoading}
-            text={clearLoading ? "Clearing…" : "Confirm"}
-          />
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              setClearConfirm(false)
-              setClearError(null)
-            }}
-            text="Cancel"
-          />
+        <ConfirmAction
+          message="Truncate log file? DB events are not affected."
+          confirmLabel="Confirm"
+          confirmingLabel="Clearing…"
+          confirming={clearLoading}
+          onConfirm={handleClear}
+          onCancel={() => {
+            setClearConfirm(false)
+            setClearError(null)
+          }}
+        >
           <Notice message={clearError} />
-        </div>
+        </ConfirmAction>
       )}
 
       {/* ── Error ────────────────────────────────────────────────── */}

@@ -18,6 +18,7 @@ import { type KeyboardEvent, useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { CollapsibleCard } from "@/components/ui/CollapsibleCard"
+import { ConfirmRemove } from "@/components/ui/ConfirmRemove"
 import { EmojiPickerPopover } from "@/components/ui/EmojiPickerPopover"
 import { FilterPill } from "@/components/ui/FilterPill"
 import { InfoTip } from "@/components/ui/InfoTip"
@@ -269,7 +270,6 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
-  const [confirmDelete, setConfirmDelete] = useState(false)
 
   // Sync from parent when group prop changes (e.g. after save + refetch)
   useEffect(() => {
@@ -557,35 +557,14 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
       <Notice message={saveError} className="px-1" />
       <Notice message={deleteError} className="px-1" />
       <div className="flex items-center justify-between gap-3">
-        <div>
-          {confirmDelete ? (
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-sans text-warn">Delete this group?</span>
-              <Button
-                size="sm"
-                variant="danger"
-                onClick={handleDelete}
-                disabled={deleting}
-                text={deleting ? "Deleting…" : "Confirm"}
-              />
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setConfirmDelete(false)}
-                disabled={deleting}
-                text="Cancel"
-              />
-            </div>
-          ) : (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setConfirmDelete(true)}
-              className="text-danger hover:text-danger"
-              text="Delete Group"
-            />
-          )}
-        </div>
+        <ConfirmRemove
+          label="Delete Group"
+          confirmLabel={deleting ? "Deleting…" : "Confirm"}
+          variant="ghost"
+          className="text-danger hover:text-danger"
+          busy={deleting}
+          onConfirm={handleDelete}
+        />
         <div className="flex items-center gap-2">
           {isDirty && (
             <Button

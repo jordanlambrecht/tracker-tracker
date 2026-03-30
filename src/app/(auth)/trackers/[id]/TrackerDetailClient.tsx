@@ -7,7 +7,7 @@ import { type CSSProperties, useCallback, useEffect, useMemo, useState } from "r
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import { RankProgress } from "@/components/dashboard/RankProgress"
 import { TorrentsTab } from "@/components/dashboard/TorrentsTab"
-import { TrackerSettingsDialog } from "@/components/TrackerSettingsDialog"
+import { TrackerSettingsSheet } from "@/components/TrackerSettingsSheet"
 import { AnalyticsTab } from "@/components/tracker-detail/AnalyticsTab"
 import type { DebugData } from "@/components/tracker-detail/DebugResponseDialog"
 import { DebugResponseDialog } from "@/components/tracker-detail/DebugResponseDialog"
@@ -331,7 +331,7 @@ export function TrackerDetailClient({
         />
       )}
 
-      <TrackerSettingsDialog
+      <TrackerSettingsSheet
         key={tracker.id}
         open={showSettings}
         tracker={tracker}

@@ -2,8 +2,8 @@
 
 "use client"
 
-import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { useEffect, useMemo, useRef } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { useMemo } from "react"
 import type { TrackerRules } from "@/data/tracker-registry"
 import { usePollingIntervals } from "@/hooks/usePollingIntervals"
 import {
@@ -112,21 +112,7 @@ function useTrackerTorrents({
   const enabled = !!qbtTag
   const intervals = usePollingIntervals()
 
-  // Seed query cache from sessionStorage after hydration (Phase 0).
-  // This runs in useEffect (client-only) so server and client both
-  // start with no data, avoiding a hydration mismatch.
-  const queryClient = useQueryClient()
-  const seededRef = useRef(false)
-  useEffect(() => {
-    if (seededRef.current) return
-    seededRef.current = true
-    const cached = loadSessionCache(trackerId)
-    if (cached) {
-      queryClient.setQueryData(["tracker-torrents-cached", trackerId] as const, cached)
-    }
-  }, [trackerId, queryClient])
-
-  // Phase 1: DB-cached torrent data (fast)
+  // forces an immediate background refetch from the DB cache endpoint
   const cachedQuery = useQuery({
     queryKey: ["tracker-torrents-cached", trackerId] as const,
     queryFn: async ({ signal }) => {
@@ -141,6 +127,8 @@ function useTrackerTorrents({
     },
     enabled,
     staleTime: intervals.trackerRefetchMs,
+    initialData: loadSessionCache(trackerId) ?? undefined,
+    initialDataUpdatedAt: 0,
   })
 
   // Phase 2: Live qBT torrent data (slow — overrides cached when ready)
@@ -187,10 +175,21 @@ function useTrackerTorrents({
     return base.map((t) => {
       const active = activeMap.get(t.hash)
       if (active) {
-        return { ...t, upspeed: active.upspeed, dlspeed: active.dlspeed, state: active.state, progress: active.progress }
+        return {
+          ...t,
+          upspeed: active.upspeed,
+          dlspeed: active.dlspeed,
+          state: active.state,
+          progress: active.progress,
+        }
       }
       if (t.upspeed > 0 || t.dlspeed > 0 || t.state === "uploading" || t.state === "downloading") {
-        return { ...t, upspeed: 0, dlspeed: 0, state: t.state === "downloading" ? "stalledDL" as const : "stalledUP" as const }
+        return {
+          ...t,
+          upspeed: 0,
+          dlspeed: 0,
+          state: t.state === "downloading" ? ("stalledDL" as const) : ("stalledUP" as const),
+        }
       }
       return t
     })

@@ -4,19 +4,11 @@
 import { H2 } from "@typography"
 import clsx from "clsx"
 import Image from "next/image"
-import {
-  type KeyboardEvent,
-  type MouseEvent,
-  type SyntheticEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react"
+import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import { Button } from "@/components/ui/Button"
 import { ColorPicker } from "@/components/ui/ColorPicker"
+import { Dialog } from "@/components/ui/Dialog"
 import { TriangleWarningIcon } from "@/components/ui/Icons"
 import { InfoTip } from "@/components/ui/InfoTip"
 import { Input } from "@/components/ui/Input"
@@ -235,8 +227,6 @@ function AddTrackerDialog({
   onAdded,
   existingBaseUrls = [],
 }: AddTrackerDialogProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null)
-
   const [selectedPreset, setSelectedPreset] = useState("")
   const [nickname, setNickname] = useState("")
   const [baseUrl, setBaseUrl] = useState("")
@@ -267,38 +257,10 @@ function AddTrackerDialog({
     setTestResult(null)
   }, [])
 
-  useEffect(() => {
-    const dialog = dialogRef.current
-    if (!dialog) return
-
-    if (open) {
-      dialog.showModal()
-    } else {
-      dialog.close()
-    }
-  }, [open])
-
-  useEffect(() => {
-    const dialog = dialogRef.current
-    if (!dialog) return
-
-    function handleNativeClose() {
-      resetForm()
-      onClose()
-    }
-
-    dialog.addEventListener("close", handleNativeClose)
-    return () => {
-      dialog.removeEventListener("close", handleNativeClose)
-    }
-  }, [onClose, resetForm])
-
-  function handleBackdropClick(e: MouseEvent<HTMLDialogElement>) {
-    if (e.target === dialogRef.current) {
-      dialogRef.current?.close()
-    }
-  }
-
+  const handleDialogClose = useCallback(() => {
+    resetForm()
+    onClose()
+  }, [resetForm, onClose])
 
   function handlePresetChange(slug: string) {
     setSelectedPreset(slug)
@@ -363,9 +325,7 @@ function AddTrackerDialog({
     return next
   }
 
-  async function handleSubmit(e: SyntheticEvent) {
-    e.preventDefault()
-
+  async function handleSubmit() {
     const validationErrors = validate()
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors)
@@ -451,37 +411,24 @@ function AddTrackerDialog({
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      onClick={handleBackdropClick}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") dialogRef.current?.close()
-      }}
-      className="fixed inset-0 m-auto w-full max-w-lg bg-elevated p-0 overflow-visible backdrop:bg-black/60 open:flex open:flex-col nm-raised-lg rounded-nm-xl border-0"
-    >
-      <div className="flex flex-col w-full p-6 gap-5">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <H2 className="text-base font-semibold text-primary">Add Tracker</H2>
-          <Button
-            variant="minimal"
-            size="icon"
-            className="-m-1 hover:text-primary"
-            aria-label="Close dialog"
-            onClick={() => dialogRef.current?.close()}
-            text="✕"
-          />
+    <Dialog
+      open={open}
+      onClose={handleDialogClose}
+      onSubmit={handleSubmit}
+      formProps={{ autoComplete: "off", "data-1p-ignore": true } as React.HTMLAttributes<HTMLFormElement>}
+      title="Add Tracker"
+      maxWidth="max-w-lg"
+      busy={loading}
+      footer={
+        <div className="flex gap-3">
+          <Button type="submit" disabled={loading} text={loading ? "Connecting..." : "Add Tracker"} />
+          <Button variant="ghost" onClick={handleDialogClose} text="Cancel" />
         </div>
-
-        {/* Form */}
-        <form
-          onSubmit={handleSubmit}
-          className="flex flex-col gap-4"
-          autoComplete="off"
-          data-1p-ignore
-        >
-          <div className="flex flex-col gap-1">
-            <H2 className="uppercase tracking-wider">Tracker</H2>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <H2 className="uppercase tracking-wider">Tracker</H2>
             <TrackerCombobox
               presets={availablePresets}
               value={selectedPreset}
@@ -636,19 +583,8 @@ function AddTrackerDialog({
           )}
 
           <Notice message={errors.form} />
-
-          {/* Footer */}
-          <div className="flex gap-3 pt-1">
-            <Button
-              type="submit"
-              disabled={loading}
-              text={loading ? "Connecting..." : "Add Tracker"}
-            />
-            <Button variant="ghost" onClick={() => dialogRef.current?.close()} text="Cancel" />
-          </div>
-        </form>
       </div>
-    </dialog>
+    </Dialog>
   )
 }
 

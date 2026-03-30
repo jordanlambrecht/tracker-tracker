@@ -253,6 +253,19 @@
   text-align: right;
 }
 
+/* ─── Native dialog backdrop ─── */
+
+dialog[data-overlay]::backdrop {
+  background: rgb(0 0 0 / 0.6);
+  opacity: 0;
+  transition: opacity 150ms ease-in;
+}
+
+dialog[data-overlay][data-visible]::backdrop {
+  opacity: 1;
+  transition: opacity 200ms ease-out;
+}
+
 /* ─── Interactive utilities ─── */
 
 @utility help-icon {

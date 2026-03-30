@@ -1,4 +1,4 @@
-// src/components/TrackerSettingsDialog.tsx
+// src/components/TrackerSettingsSheet.tsx
 "use client"
 
 import { H2 } from "@typography"
@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 import { type SyntheticEvent, useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { ColorPicker } from "@/components/ui/ColorPicker"
+import { ConfirmRemove } from "@/components/ui/ConfirmRemove"
 import { InfoTip } from "@/components/ui/InfoTip"
 import { Input } from "@/components/ui/Input"
 import { MaskedSecret } from "@/components/ui/MaskedSecret"
@@ -18,7 +19,7 @@ import { findRegistryEntry } from "@/data/tracker-registry"
 import { localDateStr } from "@/lib/formatters"
 import type { TrackerSummary } from "@/types/api"
 
-interface TrackerSettingsDialogProps {
+interface TrackerSettingsSheetProps {
   open: boolean
   tracker: TrackerSummary
   onClose: () => void
@@ -51,7 +52,7 @@ function formStateFromTracker(t: TrackerSummary): FormState {
   }
 }
 
-function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSettingsDialogProps) {
+function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSettingsSheetProps) {
   const router = useRouter()
 
   const [form, setForm] = useState<FormState>(() => formStateFromTracker(tracker))
@@ -84,7 +85,6 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   const resetTransientState = useCallback(() => {
@@ -94,7 +94,6 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
     setEditAvistazCookies("")
     setErrors({})
     setSaving(false)
-    setConfirmDelete(false)
     setDeleting(false)
   }, [])
 
@@ -259,7 +258,7 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
   }
 
   return (
-    <Sheet open={open} onClose={handleClose} title="Tracker Settings">
+    <Sheet open={open} onClose={handleClose} title="Tracker Settings" busy={saving || deleting}>
       <div className="flex flex-col p-6 pb-8 gap-5">
         {/* Form */}
         <form onSubmit={handleSave} className="flex flex-col gap-4">
@@ -461,30 +460,13 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
               text={tracker.isActive ? "Archive" : "Reactivate"}
             />
 
-            {confirmDelete ? (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="danger"
-                  size="sm"
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  text={deleting ? "Deleting..." : "Confirm Delete"}
-                />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setConfirmDelete(false)}
-                  text="Cancel"
-                />
-              </div>
-            ) : (
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={() => setConfirmDelete(true)}
-                text="Delete"
-              />
-            )}
+            <ConfirmRemove
+              label="Delete"
+              confirmLabel="Confirm Delete"
+              busyLabel="Deleting..."
+              busy={deleting}
+              onConfirm={handleDelete}
+            />
           </div>
         </div>
       </div>
@@ -492,4 +474,4 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
   )
 }
 
-export { TrackerSettingsDialog }
+export { TrackerSettingsSheet }
