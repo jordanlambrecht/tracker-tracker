@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/Button"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { EyeIcon, EyeOffIcon, GitHubIcon } from "@/components/ui/Icons"
 import { Select } from "@/components/ui/Select"
+import { Shimmer } from "@/components/ui/Shimmer"
 import { Tooltip } from "@/components/ui/Tooltip"
 import { useSidebarPreferences } from "@/hooks/useSidebarPreferences"
 import { useTrackerList } from "@/hooks/useTrackerList"
@@ -44,6 +45,7 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
   const prefs = useSidebarPreferences()
   const {
     trackers,
+    loading: trackersLoading,
     displayedTrackers,
     trackerIds,
     archivedCount,
@@ -211,7 +213,17 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
 
           {/* Tracker list (scrollable) */}
           <nav className="flex-1 overflow-y-auto py-2 styled-scrollbar" aria-label="Trackers">
-            {trackers.length === 0 ? (
+            {trackersLoading ? (
+              <div className="flex flex-col gap-4 px-4">
+                {Array.from({ length: 4 }, (_, i) => (
+                  <div key={i} className="flex items-center gap-3 px-4 py-3">
+                    <Shimmer rounded="full" className="h-4 w-4" />
+                    <Shimmer size="text" className="flex-1" />
+                    <Shimmer size="label" className="w-12" />
+                  </div>
+                ))}
+              </div>
+            ) : trackers.length === 0 ? (
               <p className="px-4 py-3 text-xs text-muted font-mono">No trackers added yet.</p>
             ) : (
               <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -389,7 +401,16 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
             {changelogContent ? (
               <ChangelogContent content={changelogContent} />
             ) : (
-              <p className="text-muted">Loading...</p>
+              <div className="flex flex-col gap-3">
+                <Shimmer size="heading" className="w-48" />
+                <Shimmer size="bar" className="w-full" />
+                <Shimmer size="bar" className="w-5/6" />
+                <Shimmer size="bar" className="w-full" />
+                <Shimmer size="bar" className="w-3/4" />
+                <Shimmer size="heading" className="w-40 mt-2" />
+                <Shimmer size="bar" className="w-full" />
+                <Shimmer size="bar" className="w-4/5" />
+              </div>
             )}
           </div>
         </dialog>

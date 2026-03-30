@@ -17,6 +17,7 @@ interface UseTrackerListParams {
 
 interface UseTrackerListReturn {
   trackers: TrackerSummary[]
+  loading: boolean
   displayedTrackers: TrackerSummary[]
   trackerIds: number[]
   archivedCount: number
@@ -142,6 +143,7 @@ function useTrackerList({
 
   return {
     trackers,
+    loading: trackersQuery.isLoading,
     displayedTrackers,
     trackerIds,
     archivedCount,
