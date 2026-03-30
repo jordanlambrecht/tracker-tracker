@@ -37,7 +37,9 @@ function DayRangeSidebar({ days, onChange, accentColor }: DayRangeSidebarProps) 
             onClick={() => onChange(d.value)}
             className={clsx(
               "px-3 py-1.5 text-xs font-mono cursor-pointer text-center rounded-nm-sm",
-              isActive ? "nm-inset-sm" : "nm-interactive-sm"
+              isActive
+                ? "nm-inset-sm"
+                : "transition-all duration-150 hover:nm-raised-sm active:nm-inset-sm active:scale-[0.96]"
             )}
             style={
               isActive
