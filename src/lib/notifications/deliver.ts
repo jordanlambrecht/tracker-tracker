@@ -10,11 +10,12 @@ export interface CircuitState {
 }
 
 // HMR-safe circuit breaker state — one per notification target
-const CIRCUIT_KEY = "__notificationCircuitBreakers"
+const g = globalThis as typeof globalThis & {
+  __notificationCircuits?: Map<number, CircuitState>
+}
 function getCircuits(): Map<number, CircuitState> {
-  const g = globalThis as Record<string, unknown>
-  if (!g[CIRCUIT_KEY]) g[CIRCUIT_KEY] = new Map<number, CircuitState>()
-  return g[CIRCUIT_KEY] as Map<number, CircuitState>
+  if (!g.__notificationCircuits) g.__notificationCircuits = new Map<number, CircuitState>()
+  return g.__notificationCircuits
 }
 
 const MAX_FAILURES = 3

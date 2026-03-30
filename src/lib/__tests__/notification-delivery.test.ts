@@ -55,8 +55,8 @@ describe("notification delivery circuit breaker", () => {
   beforeEach(async () => {
     vi.resetModules()
     // Clear globalThis circuit breaker state
-    const g = globalThis as Record<string, unknown>
-    delete g.__notificationCircuitBreakers
+    const g = globalThis as typeof globalThis & { __notificationCircuits?: unknown }
+    delete g.__notificationCircuits
 
     const mod = await import("@/lib/notifications/deliver")
     deliverDiscordWebhook = mod.deliverDiscordWebhook
