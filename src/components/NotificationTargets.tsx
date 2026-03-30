@@ -19,6 +19,7 @@ import { Select } from "@/components/ui/Select"
 import { Toggle } from "@/components/ui/Toggle"
 import { Tooltip } from "@/components/ui/Tooltip"
 import { useActionStatus } from "@/hooks/useActionStatus"
+import { useCrudCard } from "@/hooks/useCrudCard"
 import { DOCS } from "@/lib/constants"
 import { formatTimeAgo } from "@/lib/formatters"
 import type { NotificationTargetType } from "@/lib/notifications/types"
@@ -89,57 +90,30 @@ function buildPatch(
 }
 
 function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) {
-  const [draft, setDraft] = useState<NotificationTarget>(target)
-  const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
-  const [expanded, setExpanded] = useState(false)
+  const {
+    draft,
+    setDraft,
+    updateDraft,
+    dirty,
+    saving,
+    saveError,
+    expanded,
+    toggleExpand,
+    handleSave,
+    handleDiscard,
+  } = useCrudCard({
+    item: target,
+    apiEndpoint: "/api/notifications",
+    buildPatch,
+    onSaved,
+  })
   const { status: webhookStatus, error: webhookError, execute: executeTest } = useActionStatus()
-
-  const dirty = buildPatch(draft, target) !== null
-
-  // Sync draft when parent pushes new server state
-  useEffect(() => {
-    if (!dirty) setDraft(target)
-  }, [target, dirty])
-
-  function updateDraft(patch: Partial<NotificationTarget>) {
-    setDraft((prev) => ({ ...prev, ...patch }))
-  }
 
   function updateThreshold(patch: Partial<NonNullable<NotificationTarget["thresholds"]>>) {
     setDraft((prev) => ({
       ...prev,
       thresholds: { ...(prev.thresholds ?? {}), ...patch },
     }))
-  }
-
-  async function handleSave() {
-    setSaving(true)
-    setSaveError(null)
-    const patch = buildPatch(draft, target)
-    if (!patch) return
-    try {
-      const res = await fetch(`/api/notifications/${target.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        setSaveError(data.error || "Failed to save")
-        return
-      }
-      onSaved(target.id, draft)
-    } catch {
-      setSaveError("Network error")
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  function handleDiscard() {
-    setDraft(target)
-    setSaveError(null)
   }
 
   // Webhook config change state
@@ -195,7 +169,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
   return (
     <CollapsibleCard
       expanded={expanded}
-      onToggle={() => setExpanded((e) => !e)}
+      onToggle={toggleExpand}
       header={
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-3">
@@ -547,7 +521,12 @@ function AddNotificationForm({
       />
       {error && <p className="text-sm font-mono text-danger">{error}</p>}
       <div className="flex items-center gap-3">
-        <Button size="sm" onClick={handleSubmit} disabled={!canSubmit || saving} text={saving ? "Creating..." : "Create Target"} />
+        <Button
+          size="sm"
+          onClick={handleSubmit}
+          disabled={!canSubmit || saving}
+          text={saving ? "Creating..." : "Create Target"}
+        />
         <Button size="sm" variant="ghost" onClick={onCancel} text="Cancel" />
       </div>
     </Card>

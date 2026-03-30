@@ -42,8 +42,8 @@ function ConfirmAction({
           onClick={onConfirm}
           text={confirming ? (confirmingLabel ?? confirmLabel) : confirmLabel}
         />
-        <Button size="sm" variant="ghost" onClick={onCancel} disabled={confirming} text="Cancel" />
         {additionalActions}
+        <Button size="sm" variant="ghost" onClick={onCancel} disabled={confirming} text="Cancel" />
       </div>
     </div>
   )

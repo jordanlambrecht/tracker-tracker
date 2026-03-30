@@ -1,5 +1,4 @@
 // src/components/DownloadClients.tsx
-
 "use client"
 
 import { H2, H3, Paragraph, Subheader, Subtext } from "@typography"
@@ -17,6 +16,7 @@ import { Select } from "@/components/ui/Select"
 import { Toggle } from "@/components/ui/Toggle"
 import { UptimeBar } from "@/components/ui/UptimeBar"
 import { useActionStatus } from "@/hooks/useActionStatus"
+import { useCrudCard } from "@/hooks/useCrudCard"
 import { formatTimeAgo } from "@/lib/formatters"
 import type { SafeDownloadClient } from "@/types/api"
 
@@ -73,56 +73,28 @@ function buildPatch(draft: DownloadClient, saved: DownloadClient): Record<string
 }
 
 function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }: ClientCardProps) {
-  const [draft, setDraft] = useState<DownloadClient>(client)
-  const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
-  const [expanded, setExpanded] = useState(false)
+  const {
+    draft,
+    updateDraft,
+    dirty,
+    saving,
+    saveError,
+    expanded,
+    toggleExpand,
+    handleSave,
+    handleDiscard,
+  } = useCrudCard({
+    item: client,
+    apiEndpoint: "/api/clients",
+    buildPatch,
+    onSaved,
+  })
   const {
     status: connectionStatus,
     error: connectionError,
     execute: executeTest,
   } = useActionStatus()
   const [tagInput, setTagInput] = useState("")
-
-  const dirty = buildPatch(draft, client) !== null
-
-  // Sync draft when parent pushes new server state (i.e after another card's setDefault)
-  useEffect(() => {
-    if (!dirty) setDraft(client)
-  }, [client, dirty])
-
-  function updateDraft(patch: Partial<DownloadClient>) {
-    setDraft((prev) => ({ ...prev, ...patch }))
-  }
-
-  async function handleSave() {
-    setSaving(true)
-    setSaveError(null)
-    const patch = buildPatch(draft, client)
-    if (!patch) return
-    try {
-      const res = await fetch(`/api/clients/${client.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        setSaveError(data.error || "Failed to save")
-        return
-      }
-      onSaved(client.id, draft)
-    } catch {
-      setSaveError("Network error")
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  function handleDiscard() {
-    setDraft(client)
-    setSaveError(null)
-  }
 
   // Credential change state — show inputs for new clients (no creds yet) or after "Change"
   const [changingCredentials, setChangingCredentials] = useState(!client.hasCredentials)
@@ -196,7 +168,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
   return (
     <CollapsibleCard
       expanded={expanded}
-      onToggle={() => setExpanded((e) => !e)}
+      onToggle={toggleExpand}
       header={
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-3">
@@ -302,9 +274,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
 
       {/* Row 3: Auth */}
       <div className="flex flex-col gap-2">
-        <H2 className="uppercase tracking-wider">
-          Credentials
-        </H2>
+        <H2 className="uppercase tracking-wider">Credentials</H2>
         {changingCredentials ? (
           <div className="flex flex-col gap-3">
             <div className="flex flex-col sm:flex-row gap-4">
@@ -504,7 +474,12 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
         <div className="flex-1" />
 
         {!client.isDefault && (
-          <Button size="sm" variant="ghost" onClick={() => onSetDefault(client.id)} text="Set as Default" />
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onSetDefault(client.id)}
+            text="Set as Default"
+          />
         )}
 
         <ConfirmRemove onConfirm={() => onRemove(client.id)} />
@@ -620,7 +595,12 @@ function AddClientForm({
       </div>
       {error && <p className="text-sm font-mono text-danger">{error}</p>}
       <div className="flex items-center gap-3">
-        <Button size="sm" onClick={handleSubmit} disabled={!canSubmit || saving} text={saving ? "Creating..." : "Create Client"} />
+        <Button
+          size="sm"
+          onClick={handleSubmit}
+          disabled={!canSubmit || saving}
+          text={saving ? "Creating..." : "Create Client"}
+        />
         <Button size="sm" variant="ghost" onClick={onCancel} text="Cancel" />
       </div>
     </Card>
