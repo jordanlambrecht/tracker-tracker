@@ -517,7 +517,7 @@ function AddTrackerDialog({
           {selectedEntry?.platform === "avistaz" ? (
             <div className="flex flex-col gap-3">
               <Input
-                label="AvistaZ Username"
+                label={`${selectedEntry?.name ?? "AvistaZ"} Username`}
                 name="tracker-avistaz-username"
                 autoComplete="off"
                 data-1p-ignore
