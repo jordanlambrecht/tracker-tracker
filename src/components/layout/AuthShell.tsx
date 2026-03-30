@@ -93,6 +93,8 @@ export function AuthShell({ children }: { children: ReactNode }) {
               height={73}
               className="select-none pointer-events-none"
               draggable={false}
+              loading="eager"
+              priority
             />
           </footer>
         </div>
