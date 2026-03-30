@@ -1,7 +1,4 @@
 // src/app/(auth)/DashboardClient.tsx
-//
-// Functions: buildTrackerSeries, DashboardClient
-
 "use client"
 
 import { H1, H2 } from "@typography"
@@ -65,7 +62,7 @@ export function DashboardClient({ initialTrackers }: DashboardClientProps) {
 
   if (data.loading) {
     return (
-      <div className="flex h-full min-h-[calc(100vh-6rem)] items-center justify-center">
+      <div className="full-page-loader">
         <p className="text-secondary text-sm font-mono animate-loading-breathe">
           Loading dashboard...
         </p>
@@ -75,7 +72,7 @@ export function DashboardClient({ initialTrackers }: DashboardClientProps) {
 
   if (data.trackers.length === 0) {
     return (
-      <div className="flex h-full min-h-[calc(100vh-6rem)] items-center justify-center">
+      <div className="full-page-loader">
         <p className="text-secondary text-sm font-mono">No trackers added yet</p>
       </div>
     )

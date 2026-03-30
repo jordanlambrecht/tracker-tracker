@@ -28,7 +28,13 @@ import { AddTrackerDialog } from "@/components/AddTrackerDialog"
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import { Button } from "@/components/ui/Button"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
-import { DownloadArrowIcon, EyeIcon, EyeOffIcon, GitHubIcon, UploadArrowIcon } from "@/components/ui/Icons"
+import {
+  DownloadArrowIcon,
+  EyeIcon,
+  EyeOffIcon,
+  GitHubIcon,
+  UploadArrowIcon,
+} from "@/components/ui/Icons"
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import { PulseDot } from "@/components/ui/PulseDot"
 import { Select } from "@/components/ui/Select"
@@ -289,7 +295,7 @@ function ClientSlide({
       className="flex items-center gap-2 cursor-pointer w-full text-left"
     >
       <span
-        className={clsx("w-2 h-2 rounded-full shrink-0", hasError ? "bg-danger" : "bg-success")}
+        className={clsx("color-dot", hasError ? "bg-danger" : "bg-success")}
         style={hasError ? undefined : { boxShadow: "0 0 6px var(--color-success)" }}
       />
       <div className="flex flex-col flex-1 min-w-0">

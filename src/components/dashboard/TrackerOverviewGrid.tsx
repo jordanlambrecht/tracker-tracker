@@ -309,10 +309,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                       onChange={() => toggleDraft(dt.slug)}
                     >
                       <span className="flex items-center gap-2">
-                        <span
-                          className="w-2 h-2 rounded-full shrink-0"
-                          style={{ backgroundColor: dt.color }}
-                        />
+                        <span className="color-dot" style={{ backgroundColor: dt.color }} />
                         <span className="text-sm text-secondary">{dt.name}</span>
                       </span>
                     </Checkbox>

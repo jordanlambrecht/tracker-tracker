@@ -186,7 +186,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
       }
     >
       {/* Row 1: Name + Type + Enabled */}
-      <div className="flex flex-col sm:flex-row gap-4 sm:items-end pt-5">
+      <div className="form-responsive-row pt-5">
         <div className="flex-1">
           <Input
             label="Name"
@@ -490,7 +490,7 @@ function AddNotificationForm({
   return (
     <Card elevation="raised" className="flex flex-col gap-4">
       <H3>Add Notification Target</H3>
-      <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
+      <div className="form-responsive-row">
         <div className="flex-1">
           <Input
             label="Name"

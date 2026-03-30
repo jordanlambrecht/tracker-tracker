@@ -40,9 +40,7 @@ function buildTooltip(entry: TorrentRankListEntry): ReactNode {
 function TorrentRankList({ label, entries }: { label: string; entries: TorrentRankListEntry[] }) {
   return (
     <div className="nm-inset-sm rounded-nm-md p-4 overflow-hidden">
-      <H2 className="uppercase tracking-wider mb-3">
-        {label}
-      </H2>
+      <H2 className="uppercase tracking-wider mb-3">{label}</H2>
       {entries.length === 0 ? (
         <p className="text-xs text-muted">No activity</p>
       ) : (
@@ -54,7 +52,7 @@ function TorrentRankList({ label, entries }: { label: string; entries: TorrentRa
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span
-                    className="w-2 h-2 rounded-full shrink-0"
+                    className="color-dot"
                     style={{ backgroundColor: entry.trackerColor ?? "var(--color-accent)" }}
                   />
                   <MarqueeText className="text-xs font-mono text-primary">{entry.name}</MarqueeText>
