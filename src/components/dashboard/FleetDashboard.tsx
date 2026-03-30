@@ -74,7 +74,7 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
     },
   })
 
-  // Fast: DB-cached torrent aggregation (available instantly)
+  // Fast: DB-cached torrent aggregation
   const { data: cachedTorrents } = useQuery({
     queryKey: ["fleet-torrents-cached"],
     queryFn: async ({ signal }) => {
@@ -85,7 +85,7 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
     staleTime: intervals.clientRefetchMs,
   })
 
-  // Slow: Live qBT torrent aggregation (overrides cached when ready)
+  // Slow: Live qBT torrent aggregation (overrides cache when ready)
   const { data: liveTorrents } = useQuery({
     queryKey: ["fleet-torrents"],
     queryFn: async ({ signal }) => {
@@ -102,7 +102,11 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
     () => torrentData?.torrents.map(mapTorrent) ?? [],
     [torrentData?.torrents]
   )
-  const crossSeedTags = torrentData?.crossSeedTags ?? []
+  const crossSeedTags = useMemo(
+    () => torrentData?.crossSeedTags ?? [],
+    [torrentData?.crossSeedTags]
+  )
+  const stats = useMemo(() => computeFleetStats(torrents, crossSeedTags), [torrents, crossSeedTags])
 
   const { data: clientList = [] } = useQuery({
     queryKey: ["clients"],
@@ -154,7 +158,6 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
     )
   }
 
-  const stats = computeFleetStats(torrents, crossSeedTags)
   const uploadSpeedParts = splitValueUnit(formatSpeed(stats.fleetUploadSpeed))
   const downloadSpeedParts = splitValueUnit(formatSpeed(stats.fleetDownloadSpeed))
   const librarySizeParts = splitValueUnit(formatBytesNum(stats.totalLibrarySize))

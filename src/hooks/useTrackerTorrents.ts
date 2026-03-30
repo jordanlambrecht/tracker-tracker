@@ -1,5 +1,4 @@
 // src/hooks/useTrackerTorrents.ts
-
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
@@ -18,7 +17,7 @@ import {
 import type { QbitmanageTagConfig, TagGroup } from "@/types/api"
 
 // ---------------------------------------------------------------------------
-// Params / return types
+// Type defs
 // ---------------------------------------------------------------------------
 
 interface UseTrackerTorrentsParams {
@@ -145,7 +144,7 @@ function useTrackerTorrents({
     staleTime: intervals.trackerRefetchMs,
   })
 
-  // Active torrent poll (5s) — only starts after live data has resolved
+  // Active torrent poll. Only starts after live data has resolved
   const activeQuery = useQuery({
     queryKey: ["tracker-torrents-active", trackerId] as const,
     queryFn: async ({ signal }) => {
@@ -195,7 +194,7 @@ function useTrackerTorrents({
     })
   }, [baseData, activeQuery.data])
 
-  const crossSeedTags = baseData?.crossSeedTags ?? []
+  const crossSeedTags = useMemo(() => baseData?.crossSeedTags ?? [], [baseData?.crossSeedTags])
   const clientCount = baseData?.clientCount ?? 0
   const noClients = clientCount === 0
 
