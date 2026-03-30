@@ -90,7 +90,8 @@ export function SetupForm() {
             alt="Tracker Tracker"
             width={160}
             height={40}
-            className="h-10 w-auto mx-auto"
+            className="mx-auto"
+            style={{ height: 40, width: "auto" }}
             priority
           />
           <H2 className="mt-6 text-secondary text-center">Create an account</H2>

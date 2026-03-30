@@ -108,7 +108,8 @@ export function LoginForm({ hasUsername }: { hasUsername: boolean }) {
             alt="Tracker Tracker"
             width={160}
             height={40}
-            className="h-10 w-auto mx-auto"
+            className="mx-auto"
+            style={{ height: 40, width: "auto" }}
             priority
           />
           <p className="mt-6 text-sm text-secondary">
