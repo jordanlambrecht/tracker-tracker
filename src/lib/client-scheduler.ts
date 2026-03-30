@@ -4,7 +4,7 @@
 //   heartbeat  — lightweight: login + getTransferInfo (2 requests). Runs every 5s.
 //                Stores upload/download speed in memory cache. Updates connection status.
 //                Records success/failure in uptime accumulator (5-min buckets).
-//   deep poll  — heavy: login + getTorrents (all) + filter/dedup + aggregation.
+//   deep poll  — heavy: login + syncMaindata (delta) + post-filter + aggregation.
 //                Runs on each client's configured pollIntervalSeconds.
 //                Stores full tagStats alongside speed data.
 //
@@ -28,18 +28,22 @@ import {
   trackers,
 } from "@/lib/db/schema"
 import { sanitizeNetworkError } from "@/lib/error-utils"
+import { parseTorrentTags } from "@/lib/fleet"
 import { localDateStr } from "@/lib/formatters"
 import { log } from "@/lib/logger"
-import type { QbtTorrent } from "@/lib/qbt"
 import {
   aggregateByTag,
+  applyMaindataUpdate,
   clearAllSessions,
+
   clearSpeedCache,
-  getTorrents,
+  getStoredTorrents,
+  getStoreRevision,
   getTransferInfo,
   parseCrossSeedTags,
   pushSpeedSnapshot,
   stripSensitiveTorrentFields,
+  syncMaindata,
   withSessionRetry,
 } from "@/lib/qbt"
 import { clearUptimeAccumulator, flushCompletedBuckets, recordHeartbeat } from "@/lib/uptime"
@@ -174,9 +178,8 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
     const crossSeedTags = parseCrossSeedTags(client.crossSeedTags)
     const allTags = [...new Set([...trackerTags, ...crossSeedTags])]
 
-    // Fetch torrents per-tag in parallel (avoids downloading the full unfiltered
-    // torrent list). Each request returns only torrents matching that tag.
-    // Dedup by hash in case a torrent has multiple known tags.
+    // Fetch delta from qBT's sync endpoint. First call (rid=0) returns everything;
+    // subsequent calls return only fields that changed since the last rid.
     const { torrents, transfer } = await withSessionRetry(
       client.host,
       client.port,
@@ -184,21 +187,31 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
       username,
       password,
       async (baseUrl, sid) => {
-        const [tagSettled, xfer] = await Promise.all([
-          Promise.allSettled(allTags.map((tag) => getTorrents(baseUrl, sid, tag))),
+        const rid = getStoreRevision(baseUrl)
+        const [data, xfer] = await Promise.all([
+          syncMaindata(baseUrl, sid, rid),
           getTransferInfo(baseUrl, sid),
         ])
-        const seen = new Set<string>()
-        const deduped: QbtTorrent[] = []
-        for (const result of tagSettled) {
-          if (result.status !== "fulfilled") continue
-          for (const t of result.value) {
-            if (seen.has(t.hash)) continue
-            seen.add(t.hash)
-            deduped.push(t)
-          }
+        applyMaindataUpdate(baseUrl, data)
+
+        const changedCount = Object.keys(data.torrents ?? {}).length
+        const removedCount = data.torrents_removed?.length ?? 0
+        if (data.full_update) {
+          log.info(`[deep-poll] client=${clientId} → rid 0→${data.rid} (full sync, ${changedCount} torrents)`)
+        } else {
+          log.debug(`[deep-poll] client=${clientId} → rid ${rid}→${data.rid} (delta, ${changedCount} changed, ${removedCount} removed)`)
         }
-        return { torrents: deduped, transfer: xfer }
+
+        // Post-filter to only torrents carrying at least one app-tracked tag.
+        // Uses parseTorrentTags from fleet.ts — the same function the aggregator uses.
+        const tagSet = new Set(allTags.map((t) => t.toLowerCase()))
+        const allStoredTorrents = getStoredTorrents(baseUrl)
+        const relevant = allStoredTorrents.filter((t) => {
+          if (!t.tags) return false
+          return parseTorrentTags(t.tags).some((tag) => tagSet.has(tag))
+        })
+
+        return { torrents: relevant, transfer: xfer }
       }
     )
 

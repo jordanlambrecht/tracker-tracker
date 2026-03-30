@@ -2,8 +2,9 @@
 
 "use client"
 
-import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
+import { keepPreviousData, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useCallback, useMemo, useState } from "react"
+import { usePollingIntervals } from "@/hooks/usePollingIntervals"
 import { useUpdateCheck } from "@/hooks/useUpdateCheck"
 import type { DashboardAlert } from "@/lib/dashboard"
 import {
@@ -37,6 +38,7 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
   const [dayRange, setDayRange] = useState<DayRange>(30)
   const queryClient = useQueryClient()
   const updateCheck = useUpdateCheck()
+  const intervals = usePollingIntervals()
 
   const dismissedQuery = useQuery({
     queryKey: ["dismissed-alert-keys"],
@@ -63,7 +65,7 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
       const all: TrackerSummary[] = await res.json()
       return all.filter((t) => t.isActive)
     },
-    refetchInterval: 60_000,
+    refetchInterval: intervals.trackerRefetchMs,
     initialData: options?.initialTrackers?.filter((t) => t.isActive),
     initialDataUpdatedAt: options?.initialTrackers ? Date.now() : undefined,
   })
@@ -80,10 +82,11 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
             ? `/api/trackers/${t.id}/snapshots`
             : `/api/trackers/${t.id}/snapshots?days=${dayRange}`
         const res = await fetch(url, { signal })
-        if (!res.ok) return [] as Snapshot[]
+        if (!res.ok) throw new Error(`Snapshot fetch failed: ${res.status}`)
         return res.json() as Promise<Snapshot[]>
       },
-      refetchInterval: 60_000,
+      placeholderData: keepPreviousData,
+      refetchInterval: intervals.trackerRefetchMs,
     })),
   })
 
@@ -94,8 +97,8 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
       if (!res.ok) throw new Error("Failed to fetch today data")
       return res.json()
     },
-    staleTime: 60_000,
-    refetchInterval: 60_000,
+    staleTime: intervals.trackerRefetchMs,
+    refetchInterval: intervals.trackerRefetchMs,
   })
 
   // Secondary queries for alert computation (less frequent)
@@ -109,7 +112,7 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
         { id: number; name: string; enabled: boolean; lastError: string | null }[]
       >
     },
-    refetchInterval: 5 * 60 * 1000,
+    refetchInterval: intervals.clientRefetchMs,
   })
 
   const backupQuery = useQuery({
@@ -119,7 +122,7 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
       if (!res.ok) return [] as { createdAt: string; status: string }[]
       return res.json() as Promise<{ createdAt: string; status: string }[]>
     },
-    refetchInterval: 5 * 60 * 1000,
+    refetchInterval: intervals.clientRefetchMs,
   })
 
   // Derived: snapshotMap

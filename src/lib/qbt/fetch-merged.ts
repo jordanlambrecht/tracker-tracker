@@ -6,8 +6,12 @@ import "server-only"
 
 import { decryptClientCredentials } from "@/lib/client-decrypt"
 import { isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
+import { parseTorrentTags } from "@/lib/fleet"
 import {
+  buildBaseUrl,
+  getStoredTorrents,
   getTorrents,
+  isStoreFresh,
   parseCrossSeedTags,
   type QbtTorrent,
   stripSensitiveTorrentFields,
@@ -42,6 +46,22 @@ async function fetchClientTorrents(
   key: Buffer,
   filter?: string
 ): Promise<QbtTorrent[]> {
+  const baseUrl = buildBaseUrl(client.host, client.port, client.useSsl)
+
+  // Fast path: store is warm from scheduler, serve from memory.
+  // Falls back to live fetch if store is stale (i.e. scheduler missed 2+ cycles).
+  // Skip when filter is requested — active speeds need live qBT data.
+  const STORE_MAX_AGE_MS = 10 * 60 * 1000 // 2× default poll interval
+  if (!filter && isStoreFresh(baseUrl, STORE_MAX_AGE_MS)) {
+    const tagSet = new Set(tags.map((t) => t.toLowerCase()))
+    return getStoredTorrents(baseUrl).filter((t) => {
+      if (!t.tags) return false
+      return parseTorrentTags(t.tags).some((tag) => tagSet.has(tag))
+    })
+  }
+
+  // Cold path: store not yet populated, stale, or filter requested (i.e. active).
+  // Fall back to live per-tag fetch.
   const { username, password } = decryptClientCredentials(client, key)
   return withSessionRetry(
     client.host,
@@ -53,7 +73,6 @@ async function fetchClientTorrents(
       if (tags.length === 1) {
         return getTorrents(baseUrl, sid, tags[0], filter)
       }
-      // Multiple tags: fetch all in parallel, ignore per-tag failures
       const results = await Promise.allSettled(tags.map((tag) => getTorrents(baseUrl, sid, tag)))
       const allTorrents: QbtTorrent[] = []
       for (const result of results) {
@@ -72,7 +91,7 @@ async function fetchClientTorrents(
  * @param clients  Enabled download client rows (credentials encrypted).
  * @param tags     qBT tag(s) to fetch. Single-tag callers may also pass filter.
  * @param key      AES-256-GCM decryption key derived from the master password.
- * @param filter   Optional qBT filter string (e.g. "active"). Only applied when
+ * @param filter   Optional qBT filter string (i.e. "active"). Only applied when
  *                 tags has exactly one entry.
  */
 /** Per-client deadline for live fetches (seconds). Keeps the UI responsive

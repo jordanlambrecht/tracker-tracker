@@ -4,6 +4,7 @@
 import type { EChartsOption } from "echarts"
 import { hexToRgba } from "@/lib/color-utils"
 import type { TrackerTag } from "@/lib/fleet"
+import { parseTorrentTags } from "@/lib/fleet"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { CHART_THEME, chartTooltip, chartTooltipRow, escHtml } from "./lib/theme"
@@ -60,10 +61,7 @@ function bucketTorrents(
     const ageDays = (nowSec - torrent.addedOn) / 86400
     if (ageDays < 0) continue
 
-    const torrentTagList = torrent.tags
-      .split(",")
-      .map((s) => s.trim().toLowerCase())
-      .filter(Boolean)
+    const torrentTagList = parseTorrentTags(torrent.tags)
 
     const matched = tagSetLower.find((e) => torrentTagList.includes(e.tagLower))
     if (!matched) continue

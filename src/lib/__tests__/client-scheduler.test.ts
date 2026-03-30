@@ -11,7 +11,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { deepPollClient } from "@/lib/client-scheduler"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { aggregateByTag, getTorrents, getTransferInfo, withSessionRetry } from "@/lib/qbt"
+import {
+  aggregateByTag,
+  applyMaindataUpdate,
+  getStoredTorrents,
+  getStoreRevision,
+  getTorrents,
+  getTransferInfo,
+  syncMaindata,
+  withSessionRetry,
+} from "@/lib/qbt"
 
 // ---------------------------------------------------------------------------
 // Module mocks (boundaries only)
@@ -32,7 +41,7 @@ vi.mock("@/lib/crypto", () => ({
 
 vi.mock("@/lib/qbt", () => ({
   // withSessionRetry: by default, call op with a fixed baseUrl+sid so the
-  // getTorrents/getTransferInfo mocks still fire normally. Individual tests that
+  // syncMaindata/getTransferInfo mocks still fire normally. Individual tests that
   // need to simulate upstream errors replace this with vi.fn().mockRejectedValue(...).
   withSessionRetry: vi.fn(
     async (
@@ -44,6 +53,8 @@ vi.mock("@/lib/qbt", () => ({
       op: (baseUrl: string, sid: string) => Promise<unknown>
     ) => op("http://192.168.1.100:8080", "sid-token")
   ),
+  // getTorrents is still used by other files (fetch-merged.ts, route handlers) —
+  // kept in the mock module but not asserted on in deep poll tests.
   getTorrents: vi.fn(),
   getTransferInfo: vi.fn(),
   aggregateByTag: vi.fn(),
@@ -55,6 +66,14 @@ vi.mock("@/lib/qbt", () => ({
   pushSpeedSnapshot: vi.fn(),
   clearSpeedCache: vi.fn(),
   clearAllSessions: vi.fn(),
+  // New sync-store exports used by the deep poll path
+  syncMaindata: vi.fn(),
+  applyMaindataUpdate: vi.fn(),
+  getStoredTorrents: vi.fn(),
+  getStoreRevision: vi.fn(),
+  clearAllStores: vi.fn(),
+  isStoreInitialized: vi.fn(),
+  resetStore: vi.fn(),
 }))
 
 // Prevent node-cron from spinning up timers
@@ -103,6 +122,12 @@ const MOCK_TRANSFER_INFO = {
   dl_info_speed: 512,
   up_info_data: 10000000,
   dl_info_data: 5000000,
+}
+
+const MOCK_MAINDATA_RESPONSE = {
+  rid: 1,
+  full_update: true,
+  torrents: {},
 }
 
 // ---------------------------------------------------------------------------
@@ -154,13 +179,15 @@ function mockDbUpdateClient() {
 /**
  * Wires all mocks for a successful deepPollClient run with the given tracker tags.
  * crossSeedTags come from MOCK_CLIENT.crossSeedTags = '["cross-seed"]'.
- * getTorrents returns an empty array per-tag by default (sufficient for happy-path assertions).
+ * syncMaindata returns MOCK_MAINDATA_RESPONSE; getStoredTorrents returns [] by default.
  */
 function setupFullHappyPathMocks(trackerTags: string[]) {
   mockDbSelectSequence(MOCK_CLIENT, trackerTags)
   ;(decrypt as ReturnType<typeof vi.fn>).mockReturnValueOnce("admin").mockReturnValueOnce("secret")
-  // getTorrents is called once per tag (parallel per-tag fetching)
-  ;(getTorrents as ReturnType<typeof vi.fn>).mockResolvedValue([])
+  ;(getStoreRevision as ReturnType<typeof vi.fn>).mockReturnValue(0)
+  ;(syncMaindata as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_MAINDATA_RESPONSE)
+  ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
+  ;(getStoredTorrents as ReturnType<typeof vi.fn>).mockReturnValue([])
   ;(getTransferInfo as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TRANSFER_INFO)
   ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
   mockDbInsertSnapshot()
@@ -182,23 +209,40 @@ describe("deepPollClient per-tag optimization", () => {
   // Single fetch + client-side filter
   // -------------------------------------------------------------------------
 
-  it("calls getTorrents once per tag in parallel", async () => {
+  it("calls syncMaindata once (not per-tag) for a single poll", async () => {
     setupFullHappyPathMocks(["aither", "blutopia"])
 
     await deepPollClient(1, makeEncryptionKey())
 
-    const getTorrentsCalls = (getTorrents as ReturnType<typeof vi.fn>).mock.calls
-    // 2 tracker tags + 1 cross-seed tag = 3 calls
-    expect(getTorrentsCalls).toHaveLength(3)
-    // Each call passes a tag argument
-    const tags = getTorrentsCalls.map((c: unknown[]) => c[2])
-    expect(tags).toContain("aither")
-    expect(tags).toContain("blutopia")
-    expect(tags).toContain("cross-seed")
+    // New flow: a single syncMaindata call instead of N per-tag getTorrents calls
+    expect(syncMaindata as ReturnType<typeof vi.fn>).toHaveBeenCalledOnce()
+    // getTorrents must NOT be called by the deep poll path
+    expect(getTorrents as ReturnType<typeof vi.fn>).not.toHaveBeenCalled()
   })
 
-  it("deduplicates overlapping tracker and cross-seed tags", async () => {
-    // ["aither","shared-tag"] ∪ ["cross-seed","shared-tag"] = 3 unique tags = 3 getTorrents calls
+  it("deduplicates overlapping tracker and cross-seed tags via client-side filter", async () => {
+    const aitherTorrent = {
+      hash: "a1",
+      state: "uploading",
+      tags: "aither, shared-tag",
+      upspeed: 100,
+      dlspeed: 0,
+    }
+    const crossTorrent = {
+      hash: "c1",
+      state: "uploading",
+      tags: "cross-seed, shared-tag",
+      upspeed: 75,
+      dlspeed: 0,
+    }
+    const sharedTorrent = {
+      hash: "shared",
+      state: "uploading",
+      tags: "aither, cross-seed, shared-tag",
+      upspeed: 50,
+      dlspeed: 0,
+    }
+
     const clientWithOverlap = {
       ...MOCK_CLIENT,
       crossSeedTags: ["cross-seed", "shared-tag"],
@@ -207,7 +251,15 @@ describe("deepPollClient per-tag optimization", () => {
     ;(decrypt as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce("admin")
       .mockReturnValueOnce("secret")
-    ;(getTorrents as ReturnType<typeof vi.fn>).mockResolvedValue([])
+    ;(getStoreRevision as ReturnType<typeof vi.fn>).mockReturnValue(0)
+    ;(syncMaindata as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_MAINDATA_RESPONSE)
+    ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
+    // Store contains 3 torrents, all tagged with tracked tags — all should be returned
+    ;(getStoredTorrents as ReturnType<typeof vi.fn>).mockReturnValue([
+      aitherTorrent,
+      crossTorrent,
+      sharedTorrent,
+    ])
     ;(getTransferInfo as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TRANSFER_INFO)
     ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
     mockDbInsertSnapshot()
@@ -215,15 +267,12 @@ describe("deepPollClient per-tag optimization", () => {
 
     await deepPollClient(1, makeEncryptionKey())
 
-    // 3 unique tags = 3 parallel getTorrents calls
-    const getTorrentsCalls = (getTorrents as ReturnType<typeof vi.fn>).mock.calls
-    expect(getTorrentsCalls).toHaveLength(3)
-    const tags = getTorrentsCalls.map((c: unknown[]) => c[2])
-    expect(new Set(tags).size).toBe(3)
+    // syncMaindata called once — no per-tag requests
+    expect(syncMaindata as ReturnType<typeof vi.fn>).toHaveBeenCalledOnce()
   })
 
   // -------------------------------------------------------------------------
-  // Empty tags — zero getTorrents calls, but getTransferInfo still runs
+  // Empty tags — zero relevant torrents, but getTransferInfo still runs
   // -------------------------------------------------------------------------
 
   it("handles zero configured tags gracefully", async () => {
@@ -232,7 +281,11 @@ describe("deepPollClient per-tag optimization", () => {
     ;(decrypt as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce("admin")
       .mockReturnValueOnce("secret")
-    ;(getTorrents as ReturnType<typeof vi.fn>).mockResolvedValue([])
+    ;(getStoreRevision as ReturnType<typeof vi.fn>).mockReturnValue(0)
+    ;(syncMaindata as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_MAINDATA_RESPONSE)
+    ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
+    // Store may have torrents but the tag filter produces nothing
+    ;(getStoredTorrents as ReturnType<typeof vi.fn>).mockReturnValue([])
     ;(getTransferInfo as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TRANSFER_INFO)
     ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue({
       totalSeedingCount: 0,
@@ -246,7 +299,9 @@ describe("deepPollClient per-tag optimization", () => {
 
     await deepPollClient(1, makeEncryptionKey())
 
-    // Zero tags = zero getTorrents calls
+    // syncMaindata still called once — it fetches everything regardless of tag count
+    expect(syncMaindata as ReturnType<typeof vi.fn>).toHaveBeenCalledOnce()
+    // getTorrents must NOT be called
     expect(getTorrents as ReturnType<typeof vi.fn>).not.toHaveBeenCalled()
     // getTransferInfo still runs for speed data
     expect(getTransferInfo as ReturnType<typeof vi.fn>).toHaveBeenCalledOnce()
@@ -258,8 +313,7 @@ describe("deepPollClient per-tag optimization", () => {
   // Result filtering
   // -------------------------------------------------------------------------
 
-  it("passes deduped per-tag results to aggregateByTag", async () => {
-    // isPrivate omitted — real qBT API returns is_private (snake_case), not isPrivate
+  it("passes tag-filtered store results to aggregateByTag", async () => {
     const aitherTorrents = [
       { hash: "a1", state: "uploading", tags: "aither", upspeed: 100, dlspeed: 0 },
       { hash: "a2", state: "uploading", tags: "aither", upspeed: 100, dlspeed: 0 },
@@ -269,15 +323,27 @@ describe("deepPollClient per-tag optimization", () => {
       { hash: "c2", state: "uploading", tags: "cross-seed", upspeed: 100, dlspeed: 0 },
       { hash: "c3", state: "uploading", tags: "cross-seed", upspeed: 100, dlspeed: 0 },
     ]
+    const untrackedTorrent = {
+      hash: "u1",
+      state: "uploading",
+      tags: "untracked-tag",
+      upspeed: 50,
+      dlspeed: 0,
+    }
 
     mockDbSelectSequence(MOCK_CLIENT, ["aither"])
     ;(decrypt as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce("admin")
       .mockReturnValueOnce("secret")
-    // Per-tag: first call returns aither torrents, second returns cross-seed torrents
-    ;(getTorrents as ReturnType<typeof vi.fn>)
-      .mockResolvedValueOnce(aitherTorrents)
-      .mockResolvedValueOnce(crossTorrents)
+    ;(getStoreRevision as ReturnType<typeof vi.fn>).mockReturnValue(0)
+    ;(syncMaindata as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_MAINDATA_RESPONSE)
+    ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
+    // Store returns all torrents including an untracked one — scheduler filters by tags
+    ;(getStoredTorrents as ReturnType<typeof vi.fn>).mockReturnValue([
+      ...aitherTorrents,
+      ...crossTorrents,
+      untrackedTorrent,
+    ])
     ;(getTransferInfo as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TRANSFER_INFO)
     ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
     mockDbInsertSnapshot()
@@ -288,6 +354,7 @@ describe("deepPollClient per-tag optimization", () => {
     const aggregateCalls = (aggregateByTag as ReturnType<typeof vi.fn>).mock.calls
     expect(aggregateCalls).toHaveLength(1)
     const passedTorrents = aggregateCalls[0][0]
+    // 2 aither + 3 cross-seed = 5 (untracked-tag torrent is filtered out)
     expect(passedTorrents).toHaveLength(5)
   })
 
@@ -306,7 +373,7 @@ describe("deepPollClient per-tag optimization", () => {
     await deepPollClient(1, makeEncryptionKey())
 
     expect(withSessionRetry as ReturnType<typeof vi.fn>).not.toHaveBeenCalled()
-    expect(getTorrents as ReturnType<typeof vi.fn>).not.toHaveBeenCalled()
+    expect(syncMaindata as ReturnType<typeof vi.fn>).not.toHaveBeenCalled()
   })
 
   it("returns without error for a non-existent client ID", async () => {
@@ -403,7 +470,6 @@ describe("deepPollClient per-tag optimization", () => {
   // -------------------------------------------------------------------------
 
   it("caches filtered torrents to downloadClients on successful poll", async () => {
-    // isPrivate omitted — real qBT API returns is_private (snake_case), not isPrivate
     const filteredTorrents = [
       {
         hash: "a1",
@@ -427,9 +493,11 @@ describe("deepPollClient per-tag optimization", () => {
     ;(decrypt as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce("admin")
       .mockReturnValueOnce("secret")
-    ;(getTorrents as ReturnType<typeof vi.fn>).mockResolvedValue([])
+    ;(getStoreRevision as ReturnType<typeof vi.fn>).mockReturnValue(0)
+    ;(syncMaindata as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_MAINDATA_RESPONSE)
+    ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
+    ;(getStoredTorrents as ReturnType<typeof vi.fn>).mockReturnValue(filteredTorrents)
     ;(getTransferInfo as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TRANSFER_INFO)
-    ;(getTorrents as ReturnType<typeof vi.fn>).mockResolvedValue(filteredTorrents)
     ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
     mockDbInsertSnapshot()
 
@@ -452,7 +520,6 @@ describe("deepPollClient per-tag optimization", () => {
   })
 
   it("strips tracker, content_path, and save_path from cached torrents", async () => {
-    // isPrivate omitted — real qBT API returns is_private (snake_case), not isPrivate
     const torrentsWithSensitiveFields = [
       {
         hash: "a1",
@@ -471,9 +538,11 @@ describe("deepPollClient per-tag optimization", () => {
     ;(decrypt as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce("admin")
       .mockReturnValueOnce("secret")
-    ;(getTorrents as ReturnType<typeof vi.fn>).mockResolvedValue([])
+    ;(getStoreRevision as ReturnType<typeof vi.fn>).mockReturnValue(0)
+    ;(syncMaindata as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_MAINDATA_RESPONSE)
+    ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
+    ;(getStoredTorrents as ReturnType<typeof vi.fn>).mockReturnValue(torrentsWithSensitiveFields)
     ;(getTransferInfo as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TRANSFER_INFO)
-    ;(getTorrents as ReturnType<typeof vi.fn>).mockResolvedValue(torrentsWithSensitiveFields)
     ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
     mockDbInsertSnapshot()
 
@@ -513,9 +582,11 @@ describe("deepPollClient per-tag optimization", () => {
     ;(decrypt as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce("decrypted-user")
       .mockReturnValueOnce("decrypted-pass")
-    ;(getTorrents as ReturnType<typeof vi.fn>).mockResolvedValue([])
+    ;(getStoreRevision as ReturnType<typeof vi.fn>).mockReturnValue(0)
+    ;(syncMaindata as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_MAINDATA_RESPONSE)
+    ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
+    ;(getStoredTorrents as ReturnType<typeof vi.fn>).mockReturnValue([])
     ;(getTransferInfo as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TRANSFER_INFO)
-    ;(getTorrents as ReturnType<typeof vi.fn>).mockResolvedValue([])
     ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
     mockDbInsertSnapshot()
     mockDbUpdateClient()
@@ -531,7 +602,7 @@ describe("deepPollClient per-tag optimization", () => {
 })
 
 // ---------------------------------------------------------------------------
-// Regression: isPrivate field mismatch — dedup must not rely on t.isPrivate
+// Regression: isPrivate field mismatch — filter must not rely on t.isPrivate
 // ---------------------------------------------------------------------------
 
 describe("deepPollClient dedup without isPrivate", () => {
@@ -539,12 +610,12 @@ describe("deepPollClient dedup without isPrivate", () => {
     vi.resetAllMocks()
   })
 
-  // Regression: prevents dedup from silently dropping all torrents when t.isPrivate
-  // is undefined. The old guard `if (!t.isPrivate || seen.has(t.hash)) continue` would
-  // skip every torrent because `t.isPrivate` is always undefined (the real qBT API
-  // returns `is_private` in snake_case, not camelCase). The fix removed the isPrivate
-  // guard entirely, keeping only the hash-based dedup.
-  it("dedup includes torrents that do not have an isPrivate field", async () => {
+  // Regression: the old per-tag fetch path had a dedup guard `if (!t.isPrivate || seen.has(t.hash)) continue`
+  // which silently dropped all torrents because `t.isPrivate` is always undefined (the real qBT API
+  // returns `is_private` in snake_case, not camelCase). The new syncMaindata path uses a pure tag
+  // filter via parseTorrentTags — no isPrivate check at all. This test verifies that torrents
+  // without isPrivate are still included.
+  it("filter includes torrents that do not have an isPrivate field", async () => {
     // Torrents constructed WITHOUT isPrivate — matching real qBT API response shape
     const torrentsWithoutIsPrivate = [
       { hash: "h1", state: "uploading", tags: "aither", upspeed: 100, dlspeed: 0 },
@@ -561,7 +632,10 @@ describe("deepPollClient dedup without isPrivate", () => {
     ;(decrypt as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce("admin")
       .mockReturnValueOnce("secret")
-    ;(getTorrents as ReturnType<typeof vi.fn>).mockResolvedValue(torrentsWithoutIsPrivate)
+    ;(getStoreRevision as ReturnType<typeof vi.fn>).mockReturnValue(0)
+    ;(syncMaindata as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_MAINDATA_RESPONSE)
+    ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
+    ;(getStoredTorrents as ReturnType<typeof vi.fn>).mockReturnValue(torrentsWithoutIsPrivate)
     ;(getTransferInfo as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TRANSFER_INFO)
     ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
     mockDbInsertSnapshot()
@@ -576,17 +650,14 @@ describe("deepPollClient dedup without isPrivate", () => {
     expect(passedTorrents).toHaveLength(3)
   })
 
-  // Regression: verify that dedup still correctly handles duplicate hashes across tag
-  // fetches even without isPrivate present. The only dedup criterion should be the hash.
-  it("dedup removes duplicate hashes across tag results when isPrivate is absent", async () => {
-    // Same hash "shared" appears in both aither and cross-seed tag responses
-    const aitherResult = [
+  // Regression: the syncMaindata store is hash-keyed, so each torrent hash is naturally
+  // unique in the store. Verify that getStoredTorrents results with distinct hashes are
+  // all passed through without phantom dedup.
+  it("all distinct-hash torrents from the store reach aggregateByTag", async () => {
+    // All three have different hashes — none should be dropped
+    const storedTorrents = [
       { hash: "shared", state: "uploading", tags: "aither, cross-seed", upspeed: 100, dlspeed: 0 },
       { hash: "aither-only", state: "uploading", tags: "aither", upspeed: 50, dlspeed: 0 },
-    ]
-    const crossResult = [
-      // "shared" seen again from the cross-seed tag query — should be deduped
-      { hash: "shared", state: "uploading", tags: "aither, cross-seed", upspeed: 100, dlspeed: 0 },
       { hash: "cross-only", state: "uploading", tags: "cross-seed", upspeed: 75, dlspeed: 0 },
     ]
 
@@ -594,10 +665,10 @@ describe("deepPollClient dedup without isPrivate", () => {
     ;(decrypt as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce("admin")
       .mockReturnValueOnce("secret")
-    // First call (aither tag) returns aitherResult; second (cross-seed tag) returns crossResult
-    ;(getTorrents as ReturnType<typeof vi.fn>)
-      .mockResolvedValueOnce(aitherResult)
-      .mockResolvedValueOnce(crossResult)
+    ;(getStoreRevision as ReturnType<typeof vi.fn>).mockReturnValue(0)
+    ;(syncMaindata as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_MAINDATA_RESPONSE)
+    ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
+    ;(getStoredTorrents as ReturnType<typeof vi.fn>).mockReturnValue(storedTorrents)
     ;(getTransferInfo as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TRANSFER_INFO)
     ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
     mockDbInsertSnapshot()
@@ -609,14 +680,12 @@ describe("deepPollClient dedup without isPrivate", () => {
     expect(aggregateCalls).toHaveLength(1)
     const passedTorrents = aggregateCalls[0][0] as Array<{ hash: string }>
 
-    // 3 unique hashes: "shared", "aither-only", "cross-only"
+    // All 3 unique-hash torrents are tagged with tracked tags — all 3 pass through
     expect(passedTorrents).toHaveLength(3)
     const hashes = passedTorrents.map((t) => t.hash)
     expect(hashes).toContain("shared")
     expect(hashes).toContain("aither-only")
     expect(hashes).toContain("cross-only")
-    // "shared" must appear exactly once
-    expect(hashes.filter((h) => h === "shared")).toHaveLength(1)
   })
 })
 

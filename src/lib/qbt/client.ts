@@ -11,9 +11,11 @@
 //   parseCachedTorrents   - Safely parse JSONB cachedTorrents column (string or object)
 //   getTorrents           - Fetch torrent info from qBittorrent (optionally filtered by tag)
 //   getTransferInfo       - Fetch global transfer stats from qBittorrent
+//   syncMaindata          - Fetch delta sync data from qBittorrent (maindata endpoint)
 
 import { sanitizeHost } from "@/lib/helpers"
-import { isQbtTorrent, type QbtTorrent, type QbtTransferInfo } from "./types"
+import { clearAllStores, resetStore } from "./sync-store"
+import { isQbtMaindataResponse, isQbtTorrent, type QbtMaindataResponse, type QbtTorrent, type QbtTransferInfo } from "./types"
 
 /** Extract a human-readable detail string from a fetch error.
  *  Node's fetch wraps the real error in `cause`, i.e
@@ -75,11 +77,13 @@ export async function getSession(
 /** Invalidate a cached SID (i.e after a 403). */
 export function invalidateSession(baseUrl: string): void {
   sidCache.delete(baseUrl)
+  resetStore(baseUrl)
 }
 
-/** Clear all cached SIDs (called on logout). */
+/** Clear all cached SIDs and torrent stores (called on logout/scheduler stop). */
 export function clearAllSessions(): void {
   sidCache.clear()
+  clearAllStores()
 }
 
 /**
@@ -240,4 +244,19 @@ export async function getTransferInfo(baseUrl: string, sid: string): Promise<Qbt
   const host = new URL(baseUrl).hostname
   const response = await qbtFetch(url, host, baseUrl, sid)
   return response.json() as Promise<QbtTransferInfo>
+}
+
+export async function syncMaindata(
+  baseUrl: string,
+  sid: string,
+  rid: number
+): Promise<QbtMaindataResponse> {
+  const url = `${baseUrl}/api/v2/sync/maindata?rid=${rid}`
+  const host = new URL(baseUrl).hostname
+  const response = await qbtFetch(url, host, baseUrl, sid)
+  const data: unknown = await response.json()
+  if (!isQbtMaindataResponse(data)) {
+    throw new Error("Invalid maindata response from qBittorrent")
+  }
+  return data
 }

@@ -2,14 +2,17 @@
 "use client"
 
 import { H2, H3, Paragraph, Subheader, Subtext } from "@typography"
-import { useCallback, useEffect, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useCallback, useState } from "react"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { CollapsibleCard } from "@/components/ui/CollapsibleCard"
+import { CardListSkeleton } from "@/components/ui/skeletons"
 import { ConfirmRemove } from "@/components/ui/ConfirmRemove"
 import { Input } from "@/components/ui/Input"
 import { MaskedSecret } from "@/components/ui/MaskedSecret"
+import { Notice } from "@/components/ui/Notice"
 import { NumberInput } from "@/components/ui/NumberInput"
 import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
 import { Select } from "@/components/ui/Select"
@@ -102,30 +105,18 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
   const [newPassword, setNewPassword] = useState("")
   const [credError, setCredError] = useState<string | null>(null)
 
-  const [uptimeData, setUptimeData] = useState<{
-    buckets: { bucketTs: string; ok: number; fail: number }[]
-    uptimePercent: number | null
-  } | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    async function fetchUptime() {
-      try {
-        const res = await fetch(`/api/clients/${client.id}/uptime`)
-        if (!res.ok || cancelled) return
-        const data = await res.json()
-        if (!cancelled) setUptimeData(data)
-      } catch {
-        // Silently ignore — uptime is non-critical, retries on interval
-      }
-    }
-    fetchUptime()
-    const interval = setInterval(fetchUptime, 5 * 60 * 1000)
-    return () => {
-      cancelled = true
-      clearInterval(interval)
-    }
-  }, [client.id])
+  const { data: uptimeData = null } = useQuery({
+    queryKey: ["client-uptime", client.id],
+    queryFn: async ({ signal }) => {
+      const res = await fetch(`/api/clients/${client.id}/uptime`, { signal })
+      if (!res.ok) return null
+      return res.json() as Promise<{
+        buckets: { bucketTs: string; ok: number; fail: number }[]
+        uptimePercent: number | null
+      }>
+    },
+    refetchInterval: 5 * 60 * 1000,
+  })
 
   const handleTestConnection = () =>
     executeTest(async () => {
@@ -260,14 +251,16 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
       />
 
       {draft.useSsl && draft.port === 80 && (
-        <p className="text-xs font-mono text-warning">
-          SSL is enabled but port is 80 (standard HTTP). Did you mean port 443?
-        </p>
+        <Notice
+          variant="warn"
+          message="SSL is enabled but port is 80 (standard HTTP). Did you mean port 443?"
+        />
       )}
       {!draft.useSsl && draft.port === 443 && (
-        <p className="text-xs font-mono text-warning">
-          Port 443 is typically used with SSL. Did you mean to enable SSL?
-        </p>
+        <Notice
+          variant="warn"
+          message="Port 443 is typically used with SSL. Did you mean to enable SSL?"
+        />
       )}
 
       <div className="border-t border-border" />
@@ -325,7 +318,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
                 </button>
               )}
             </div>
-            {credError && <p className="text-xs font-mono text-danger">{credError}</p>}
+            <Notice message={credError} />
           </div>
         ) : (
           <MaskedSecret onChangeClick={() => setChangingCredentials(true)} />
@@ -484,9 +477,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
 
         <ConfirmRemove onConfirm={() => onRemove(client.id)} />
       </div>
-      {connectionStatus === "failed" && connectionError && (
-        <p className="text-xs font-mono text-danger">{connectionError}</p>
-      )}
+      {connectionStatus === "failed" && connectionError && <Notice message={connectionError} />}
     </CollapsibleCard>
   )
 }
@@ -593,7 +584,7 @@ function AddClientForm({
           />
         </div>
       </div>
-      {error && <p className="text-sm font-mono text-danger">{error}</p>}
+      <Notice message={error} />
       <div className="flex items-center gap-3">
         <Button
           size="sm"
@@ -608,54 +599,58 @@ function AddClientForm({
 }
 
 function DownloadClients() {
-  const [clients, setClients] = useState<DownloadClient[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [showAddForm, setShowAddForm] = useState(false)
 
-  const fetchClients = useCallback(async () => {
-    try {
-      const res = await fetch("/api/clients")
-      if (!res.ok) return
-      const data: DownloadClient[] = await res.json()
-      setClients(data)
-    } catch {
-      // silently fail
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const { data: clients = [], isLoading: loading } = useQuery({
+    queryKey: ["clients"],
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/clients", { signal })
+      if (!res.ok) return [] as DownloadClient[]
+      return res.json() as Promise<DownloadClient[]>
+    },
+  })
 
-  useEffect(() => {
-    fetchClients()
-  }, [fetchClients])
+  const handleSaved = useCallback(
+    (id: number, updated: DownloadClient) => {
+      queryClient.setQueryData<DownloadClient[]>(["clients"], (prev) =>
+        prev?.map((c) => (c.id === id ? updated : c))
+      )
+    },
+    [queryClient]
+  )
 
-  const handleSaved = useCallback((id: number, updated: DownloadClient) => {
-    setClients((prev) => prev.map((c) => (c.id === id ? updated : c)))
-  }, [])
+  const handleRemove = useCallback(
+    async (id: number) => {
+      await fetch(`/api/clients/${id}`, { method: "DELETE" })
+      queryClient.setQueryData<DownloadClient[]>(["clients"], (prev) => {
+        if (!prev) return prev
+        const next = prev.filter((c) => c.id !== id)
+        if (next.length > 0 && !next.some((c) => c.isDefault)) {
+          next[0] = { ...next[0], isDefault: true }
+        }
+        return next
+      })
+    },
+    [queryClient]
+  )
 
-  const handleRemove = useCallback(async (id: number) => {
-    await fetch(`/api/clients/${id}`, { method: "DELETE" })
-    setClients((prev) => {
-      const next = prev.filter((c) => c.id !== id)
-      // If we removed the default, promote the first remaining client optimistically
-      if (next.length > 0 && !next.some((c) => c.isDefault)) {
-        next[0] = { ...next[0], isDefault: true }
-      }
-      return next
-    })
-  }, [])
-
-  const handleSetDefault = useCallback((id: number) => {
-    setClients((prev) => prev.map((c) => ({ ...c, isDefault: c.id === id })))
-    fetch(`/api/clients/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isDefault: true }),
-    }).catch(() => {})
-  }, [])
+  const handleSetDefault = useCallback(
+    (id: number) => {
+      queryClient.setQueryData<DownloadClient[]>(["clients"], (prev) =>
+        prev?.map((c) => ({ ...c, isDefault: c.id === id }))
+      )
+      fetch(`/api/clients/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isDefault: true }),
+      }).catch(() => {})
+    },
+    [queryClient]
+  )
 
   if (loading) {
-    return <p className="text-sm font-mono text-tertiary">Loading clients...</p>
+    return <CardListSkeleton count={2} />
   }
 
   return (
@@ -691,7 +686,7 @@ function DownloadClients() {
               isFirst={clients.length === 0}
               onCreated={() => {
                 setShowAddForm(false)
-                fetchClients()
+                queryClient.invalidateQueries({ queryKey: ["clients"] })
               }}
               onCancel={() => setShowAddForm(false)}
             />

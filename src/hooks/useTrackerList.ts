@@ -5,6 +5,7 @@ import type { DragEndEvent } from "@dnd-kit/core"
 import { arrayMove } from "@dnd-kit/sortable"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useCallback, useEffect, useMemo, useRef } from "react"
+import { usePollingIntervals } from "@/hooks/usePollingIntervals"
 import { type SortMode, sortTrackers } from "@/lib/sidebar-types"
 import type { TrackerSummary } from "@/types/api"
 
@@ -33,6 +34,7 @@ function useTrackerList({
   onSortModeChange,
 }: UseTrackerListParams): UseTrackerListReturn {
   const queryClient = useQueryClient()
+  const intervals = usePollingIntervals()
 
   const trackersQuery = useQuery({
     queryKey: ["sidebar-trackers"],
@@ -41,7 +43,7 @@ function useTrackerList({
       if (!res.ok) return [] as TrackerSummary[]
       return res.json() as Promise<TrackerSummary[]>
     },
-    refetchInterval: 60_000,
+    refetchInterval: intervals.trackerRefetchMs,
   })
 
   const trackers = trackersQuery.data ?? []

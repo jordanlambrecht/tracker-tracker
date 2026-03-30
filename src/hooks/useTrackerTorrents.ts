@@ -2,9 +2,10 @@
 
 "use client"
 
-import { useQuery } from "@tanstack/react-query"
-import { useMemo } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useEffect, useMemo, useRef } from "react"
 import type { TrackerRules } from "@/data/tracker-registry"
+import { usePollingIntervals } from "@/hooks/usePollingIntervals"
 import {
   type AggregatedTorrentsResponse,
   type CategoryStats,
@@ -109,9 +110,23 @@ function useTrackerTorrents({
   qbitmanageConfig,
 }: UseTrackerTorrentsParams): TrackerTorrentsData {
   const enabled = !!qbtTag
+  const intervals = usePollingIntervals()
 
-  // Phase 0+1: DB-cached torrent data (fast), with sessionStorage for instant display
-  // initialDataUpdatedAt: 0 forces an immediate background refetch from the DB cache endpoint
+  // Seed query cache from sessionStorage after hydration (Phase 0).
+  // This runs in useEffect (client-only) so server and client both
+  // start with no data, avoiding a hydration mismatch.
+  const queryClient = useQueryClient()
+  const seededRef = useRef(false)
+  useEffect(() => {
+    if (seededRef.current) return
+    seededRef.current = true
+    const cached = loadSessionCache(trackerId)
+    if (cached) {
+      queryClient.setQueryData(["tracker-torrents-cached", trackerId] as const, cached)
+    }
+  }, [trackerId, queryClient])
+
+  // Phase 1: DB-cached torrent data (fast)
   const cachedQuery = useQuery({
     queryKey: ["tracker-torrents-cached", trackerId] as const,
     queryFn: async ({ signal }) => {
@@ -125,9 +140,7 @@ function useTrackerTorrents({
       return null
     },
     enabled,
-    staleTime: 60_000,
-    initialData: loadSessionCache(trackerId) ?? undefined,
-    initialDataUpdatedAt: 0,
+    staleTime: intervals.trackerRefetchMs,
   })
 
   // Phase 2: Live qBT torrent data (slow — overrides cached when ready)
@@ -141,7 +154,7 @@ function useTrackerTorrents({
       return data
     },
     enabled,
-    staleTime: 60_000,
+    staleTime: intervals.trackerRefetchMs,
   })
 
   // Active torrent poll (5s) — only starts after live data has resolved

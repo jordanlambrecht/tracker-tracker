@@ -72,3 +72,22 @@ export function isQbtTorrent(value: unknown): value is QbtTorrent {
     typeof t.ratio === "number"
   )
 }
+
+/** Response from GET /api/v2/sync/maindata?rid=N */
+export interface QbtMaindataResponse {
+  rid: number
+  full_update?: boolean
+  torrents?: Record<string, Partial<QbtTorrent>>
+  torrents_removed?: string[]
+  server_state?: Partial<QbtTransferInfo> & Record<string, unknown>
+  tags?: string[]
+  tags_removed?: string[]
+  categories?: Record<string, { name: string; savePath: string }>
+  categories_removed?: string[]
+}
+
+/** Spot-checks a sync/maindata response for basic structural validity. */
+export function isQbtMaindataResponse(value: unknown): value is QbtMaindataResponse {
+  if (!value || typeof value !== "object") return false
+  return typeof (value as Record<string, unknown>).rid === "number"
+}
