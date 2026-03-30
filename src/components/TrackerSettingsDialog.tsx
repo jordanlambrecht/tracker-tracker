@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button"
 import { ColorPicker } from "@/components/ui/ColorPicker"
 import { Input } from "@/components/ui/Input"
 import { MaskedSecret } from "@/components/ui/MaskedSecret"
+import { Notice } from "@/components/ui/Notice"
 import { QbtTagWarning } from "@/components/ui/QbtTagWarning"
 import { Sheet } from "@/components/ui/Sheet"
 import { Toggle } from "@/components/ui/Toggle"
@@ -309,11 +310,7 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
                     className="w-full rounded-nm-sm bg-control-bg px-3 py-2 text-sm text-primary border border-transparent focus:border-accent focus:outline-none font-mono resize-y"
                   />
                 </div>
-                {errors.apiToken && (
-                  <p className="text-xs font-sans text-danger" role="alert">
-                    {errors.apiToken}
-                  </p>
-                )}
+                <Notice message={errors.apiToken} />
                 <Button
                   variant="minimal"
                   size="sm"
@@ -441,11 +438,7 @@ function TrackerSettingsDialog({ open, tracker, onClose, onUpdated }: TrackerSet
             />
           )}
 
-          {errors.form && (
-            <p className="text-xs font-sans text-danger" role="alert">
-              {errors.form}
-            </p>
-          )}
+          <Notice message={errors.form} />
 
           {/* Save / Cancel */}
           <div className="flex gap-3 pt-1 justify-end">

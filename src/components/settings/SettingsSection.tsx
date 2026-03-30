@@ -1,10 +1,9 @@
 // src/components/settings/SettingsSection.tsx
-//
-// Functions: SettingsSection
 
 import { H2 } from "@typography"
 import type { ReactNode } from "react"
 import { Card } from "@/components/ui/Card"
+import { Notice } from "@/components/ui/Notice"
 import { Tooltip } from "@/components/ui/Tooltip"
 
 interface SettingsSectionProps {
@@ -39,9 +38,8 @@ export function SettingsSection({
         )}
       </H2>
       {notice && (
-        <div className="nm-inset-sm rounded-nm-md px-4 py-3 mb-4 border border-warn/20 bg-warn/5">
-          <span className="text-xs text-warn font-medium">{notice.label}</span>
-          <p className="text-xs text-secondary mt-1">{notice.message}</p>
+        <div className="mb-4">
+          <Notice variant="warn" box header={notice.label} message={notice.message} />
         </div>
       )}
       <Card elevation="raised" className={cardClassName}>

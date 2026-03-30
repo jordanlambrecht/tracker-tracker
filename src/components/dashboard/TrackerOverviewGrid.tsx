@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/Checkbox"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { FilterPill } from "@/components/ui/FilterPill"
 import { ExternalLinkIcon, PlusIcon } from "@/components/ui/Icons"
+import { Notice } from "@/components/ui/Notice"
 import { PulseDot } from "@/components/ui/PulseDot"
 import { RedactedText } from "@/components/ui/RedactedText"
 import { findRegistryEntry, type TrackerRegistryEntry } from "@/data/tracker-registry"
@@ -299,9 +300,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
             {/* Draft tracker picker popover */}
             {pickerOpen && (
               <div className="absolute top-full left-0 mt-2 z-40 w-80 max-h-72 overflow-y-auto nm-raised bg-elevated p-3 flex flex-col gap-1 styled-scrollbar rounded-nm-md">
-                <p className="text-3xs font-mono text-warn px-2 py-1.5 nm-inset-sm bg-control-bg mb-2 rounded-nm-sm">
-                  These trackers don't have adapter support yet — links only, no stats tracking.
-                </p>
+                <Notice variant="default" box message="These trackers don't have adapter support yet — links only, no stats tracking." showIcon={false} className="mb-2" />
                 {draftTrackers.map((dt: TrackerRegistryEntry) => (
                   <div key={dt.slug} className="flex items-center gap-2 px-1">
                     <Checkbox

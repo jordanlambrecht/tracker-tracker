@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Checkbox } from "@/components/ui/Checkbox"
 import { Input } from "@/components/ui/Input"
+import { Notice } from "@/components/ui/Notice"
 
 const QRCodeSVG = dynamic(() => import("qrcode.react").then((m) => m.QRCodeSVG), { ssr: false })
 
@@ -250,11 +251,7 @@ function TwoFactorSetup() {
             Add a second layer of security to your login. You&apos;ll need an authenticator app like
             Google Authenticator, Authy, or 1Password.
           </Paragraph>
-          {error && (
-            <p className="text-xs font-sans text-danger" role="alert">
-              {error}
-            </p>
-          )}
+          <Notice message={error} />
           <div>
             <Button size="sm" onClick={handleStartSetup} text="Enable 2FA" />
           </div>
@@ -368,10 +365,7 @@ function TwoFactorSetup() {
             />
           </div>
 
-          <p className="text-xs font-sans leading-relaxed text-warn">
-            Save these codes somewhere safe. Each code can only be used once. You won&apos;t be able
-            to see them again.
-          </p>
+          <Notice variant="warn" message="Save these codes somewhere safe. Each code can only be used once. You won't be able to see them again." />
 
           <div>
             <Button

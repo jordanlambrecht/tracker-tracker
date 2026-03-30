@@ -4,6 +4,7 @@
 import { H2 } from "@typography"
 import dynamic from "next/dynamic"
 import { useState } from "react"
+import { TorrentTabSkeleton } from "@/components/ui/skeletons"
 import { ParallelTorrentsChart } from "@/components/charts/ParallelTorrentsChart"
 import { StorageSunburst } from "@/components/charts/StorageSunburst"
 import {
@@ -29,6 +30,7 @@ import {
 } from "@/components/dashboard/torrents"
 import { Card } from "@/components/ui/Card"
 import { LazySection } from "@/components/ui/LazySection"
+import { Notice } from "@/components/ui/Notice"
 import type { TrackerTorrentsData } from "@/hooks/useTrackerTorrents"
 import { formatSpeed, formatTimeAgo } from "@/lib/formatters"
 
@@ -77,9 +79,7 @@ function TorrentsTab({
     <div className="flex flex-col gap-8">
       {/* Error banner */}
       {data.torrentError && (
-        <div className="px-4 py-3 text-xs font-mono text-warn nm-inset-sm bg-warn-dim rounded-nm-md">
-          {data.torrentError}
-        </div>
+        <Notice variant="warn" box message={data.torrentError} />
       )}
 
       {/* Stale data banner that's dismissible, reappears on next mount */}

@@ -5,6 +5,7 @@ import { Paragraph } from "@typography"
 import { useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
 import { Checkbox } from "@/components/ui/Checkbox"
+import { Notice } from "@/components/ui/Notice"
 import { NumberInput } from "@/components/ui/NumberInput"
 import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
@@ -327,9 +328,11 @@ export function SecurityPoliciesSection({
           autoLogoutDays === 0 &&
           autoLogoutHours === 0 &&
           autoLogoutMinutes === 0 && (
-            <p className="text-xs font-sans leading-relaxed ml-8 text-warn">
-              All values are zero — auto-logout is effectively disabled.
-            </p>
+            <Notice
+              variant="warn"
+              message="All values are zero — auto-logout is effectively disabled."
+              className="ml-8"
+            />
           )}
         <SaveDiscardBar
           dirty={timeoutDirty}

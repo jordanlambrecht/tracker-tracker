@@ -8,9 +8,11 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
 import { CopyButton, DownloadButton } from "@/components/ui/ActionButtons"
 import { Button } from "@/components/ui/Button"
+import { EventLogSkeleton } from "@/components/ui/skeletons"
 import { FilterPill } from "@/components/ui/FilterPill"
 import { RefreshIcon, TrashIcon } from "@/components/ui/Icons"
 import { Input } from "@/components/ui/Input"
+import { Notice } from "@/components/ui/Notice"
 import {
   EVENT_CATEGORIES,
   EVENT_LEVELS,
@@ -290,17 +292,17 @@ export function EventsSection() {
             }}
             text="Cancel"
           />
-          {clearError && <span className="text-xs text-danger font-mono">{clearError}</span>}
+          <Notice message={clearError} />
         </div>
       )}
 
       {/* ── Error ────────────────────────────────────────────────── */}
-      {error && <span className="text-xs text-danger font-mono">{error}</span>}
+      <Notice message={error} />
 
       {/* ── Event stream ─────────────────────────────────────────── */}
       <div className="nm-inset-sm bg-control-bg overflow-x-auto overflow-y-auto max-h-140 styled-scrollbar rounded-nm-md">
         {loading && events.length === 0 ? (
-          <p className="px-3 py-8 text-xs font-mono text-muted text-center">Loading events…</p>
+          <EventLogSkeleton />
         ) : filteredEvents.length === 0 ? (
           <p className="px-3 py-8 text-xs font-mono text-muted text-center">
             {events.length === 0 ? "No events yet." : "No events match the current filters."}

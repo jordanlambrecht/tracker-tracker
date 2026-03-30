@@ -1,6 +1,7 @@
 // src/components/tracker-detail/platform/MamHealthOverview.tsx
 
 import { SlotLabel } from "@typography"
+import { Notice } from "@/components/ui/Notice"
 import { ProgressWidget } from "@/components/ui/ProgressWidget"
 import { Tooltip } from "@/components/ui/Tooltip"
 import { MAM_BONUS_CAP } from "@/lib/adapters/constants"
@@ -170,9 +171,7 @@ export function MamHealthOverview({
             {formatCount(seedbonus ?? 0)} / {formatCount(MAM_BONUS_CAP)}
           </span>
           {wastePerDay > 0 && (
-            <p className="text-3xs font-mono text-warn">
-              ~{formatCount(wastePerDay)} pts/day wasted
-            </p>
+            <Notice variant="warn" message={`~${formatCount(wastePerDay)} pts/day wasted`} />
           )}
         </div>
       )}

@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/Button"
 import { ColorPicker } from "@/components/ui/ColorPicker"
 import { TriangleWarningIcon } from "@/components/ui/Icons"
 import { Input } from "@/components/ui/Input"
+import { Notice } from "@/components/ui/Notice"
 import { QbtTagWarning } from "@/components/ui/QbtTagWarning"
 import { Tooltip } from "@/components/ui/Tooltip"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
@@ -491,11 +492,7 @@ function AddTrackerDialog({
               value={selectedPreset}
               onChange={handlePresetChange}
             />
-            {errors.preset && (
-              <p className="text-xs font-sans text-danger" role="alert">
-                {errors.preset}
-              </p>
-            )}
+            <Notice message={errors.preset} />
           </div>
 
           <Input
@@ -548,17 +545,10 @@ function AddTrackerDialog({
                   rows={3}
                   className="w-full rounded-nm-sm bg-control-bg px-3 py-2 text-sm text-primary border border-transparent focus:border-accent focus:outline-none font-mono resize-y"
                 />
-                {errors.apiToken && (
-                  <p className="text-xs font-sans text-danger" role="alert">
-                    {errors.apiToken}
-                  </p>
-                )}
+                <Notice message={errors.apiToken} />
               </div>
               {testResult && (
-                <p className="text-xs font-sans text-success">
-                  Connected as <span className="font-semibold">{testResult.username}</span>
-                  {testResult.group ? ` (${testResult.group})` : ""}
-                </p>
+                <Notice variant="success">Connected as <span className="font-semibold">{testResult.username}</span>{testResult.group ? ` (${testResult.group})` : ""}</Notice>
               )}
             </div>
           ) : (
@@ -583,10 +573,7 @@ function AddTrackerDialog({
                 error={errors.apiToken}
               />
               {testResult && (
-                <p className="text-xs font-sans text-success">
-                  Connected as <span className="font-semibold">{testResult.username}</span>
-                  {testResult.group ? ` (${testResult.group})` : ""}
-                </p>
+                <Notice variant="success">Connected as <span className="font-semibold">{testResult.username}</span>{testResult.group ? ` (${testResult.group})` : ""}</Notice>
               )}
             </div>
           )}
@@ -644,11 +631,7 @@ function AddTrackerDialog({
             />
           )}
 
-          {errors.form && (
-            <p className="text-xs font-sans text-danger" role="alert">
-              {errors.form}
-            </p>
-          )}
+          <Notice message={errors.form} />
 
           {/* Footer */}
           <div className="flex gap-3 pt-1">

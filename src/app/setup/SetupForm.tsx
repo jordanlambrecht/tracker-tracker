@@ -6,6 +6,7 @@ import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { type SubmitEvent, useState } from "react"
 import { Button, Card, Input } from "@/components/ui"
+import { Notice } from "@/components/ui/Notice"
 
 export function SetupForm() {
   const router = useRouter()
@@ -133,11 +134,7 @@ export function SetupForm() {
               required
             />
 
-            {errors.form && (
-              <p className="text-xs font-sans text-danger" role="alert">
-                {errors.form}
-              </p>
-            )}
+            <Notice message={errors.form} />
 
             <Button
               type="submit"

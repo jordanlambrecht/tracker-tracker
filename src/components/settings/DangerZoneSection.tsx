@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button"
 import { Checkbox } from "@/components/ui/Checkbox"
 import { ConfirmAction } from "@/components/ui/ConfirmAction"
 import { Input } from "@/components/ui/Input"
+import { Notice } from "@/components/ui/Notice"
 import { extractApiError } from "@/lib/helpers"
 
 export function DangerZoneSection() {
@@ -156,9 +157,7 @@ export function DangerZoneSection() {
               }}
               text="Reset All Stats"
             />
-            {resetStatsSuccess && (
-              <span className="text-xs font-sans text-success">All stats have been reset.</span>
-            )}
+            {resetStatsSuccess && <Notice variant="success" message="All stats have been reset." />}
           </div>
         )}
       </div>

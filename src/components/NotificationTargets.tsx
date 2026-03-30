@@ -1,18 +1,19 @@
 // src/components/NotificationTargets.tsx
 //
 // Functions: NotificationTargets, NotificationCard, AddNotificationForm
-
 "use client"
 
-import { H2, H3, Paragraph, Subtext } from "@typography"
+import { H2, H3, Paragraph } from "@typography"
 import { useCallback, useEffect, useState } from "react"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { CollapsibleCard } from "@/components/ui/CollapsibleCard"
+import { CardListSkeleton } from "@/components/ui/skeletons"
 import { ConfirmRemove } from "@/components/ui/ConfirmRemove"
 import { Input } from "@/components/ui/Input"
 import { MaskedSecret } from "@/components/ui/MaskedSecret"
+import { Notice } from "@/components/ui/Notice"
 import { NumberInput } from "@/components/ui/NumberInput"
 import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
 import { Select } from "@/components/ui/Select"
@@ -260,7 +261,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
                 </button>
               )}
             </div>
-            {configError && <p className="text-xs font-mono text-danger">{configError}</p>}
+            <Notice message={configError} />
           </div>
         ) : (
           <MaskedSecret onChangeClick={() => setChangingConfig(true)} />
@@ -395,9 +396,10 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
           checked={draft.includeTrackerName}
           onChange={(v) => updateDraft({ includeTrackerName: v })}
         />
-        <Subtext>
-          Tracker names reveal which private trackers you use. Disable for maximum privacy.
-        </Subtext>
+        <Notice
+          variant="info"
+          message="Tracker names reveal which private trackers you use. Disable for maximum privacy."
+        />
       </div>
 
       <SaveDiscardBar
@@ -434,9 +436,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
 
         <ConfirmRemove onConfirm={() => onRemove(target.id)} />
       </div>
-      {webhookStatus === "failed" && webhookError && (
-        <p className="text-xs font-mono text-danger">{webhookError}</p>
-      )}
+      {webhookStatus === "failed" && webhookError && <Notice message={webhookError} />}
     </CollapsibleCard>
   )
 }
@@ -519,7 +519,7 @@ function AddNotificationForm({
         autoComplete="off"
         data-1p-ignore
       />
-      {error && <p className="text-sm font-mono text-danger">{error}</p>}
+      <Notice message={error} />
       <div className="flex items-center gap-3">
         <Button
           size="sm"
@@ -574,7 +574,7 @@ function NotificationTargets() {
   }, [])
 
   if (loading) {
-    return <p className="text-sm font-mono text-tertiary">Loading notification targets...</p>
+    return <CardListSkeleton count={2} />
   }
 
   return (

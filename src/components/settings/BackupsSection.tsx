@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { Input } from "@/components/ui/Input"
+import { Notice } from "@/components/ui/Notice"
 import { NumberInput } from "@/components/ui/NumberInput"
 import { Select } from "@/components/ui/Select"
 import type { Column } from "@/components/ui/Table"
@@ -340,15 +341,13 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
               text={backingUp ? "Creating Backup…" : "Backup Now"}
             />
             {backupConfigDirty && (
-              <span className="text-xs text-warn">Save configuration before exporting</span>
+              <Notice variant="warn" message="Save configuration before exporting" />
             )}
             {!backupConfigDirty && encryptBackups && !hasStoredPassword && (
-              <span className="text-xs text-warn">
-                Set a backup password in Configuration first
-              </span>
+              <Notice variant="warn" message="Set a backup password in Configuration first" />
             )}
             {!backupConfigDirty && encryptBackups && hasStoredPassword && (
-              <span className="text-xs text-success">Password-protected</span>
+              <Notice variant="success" message="Password-protected" />
             )}
           </div>
           <Paragraph>
@@ -356,7 +355,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
             {backupStoragePath ? `Saved to ${backupStoragePath}.` : "Downloaded to your browser."}
           </Paragraph>
 
-          {backupError && <p className="text-sm text-danger font-mono">{backupError}</p>}
+          <Notice message={backupError} />
         </Card>
       </section>
 
@@ -404,7 +403,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
             <span className="text-xs text-tertiary">.json or .ttbak</span>
           </button>
 
-          {backupError && <p className="text-sm text-danger font-mono">{backupError}</p>}
+          <Notice message={backupError} />
         </Card>
       </section>
 
@@ -415,21 +414,21 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
             Confirm Restore
           </H2>
           <Card elevation="raised" className="flex flex-col gap-4">
-            <div className="p-3 rounded-lg bg-warn/10 border border-warn/30">
-              <p className="text-sm text-warn font-sans font-semibold mb-2">
-                Restoring will replace <strong>all</strong> current data. This action cannot be
-                undone.
-              </p>
-              <ul className="text-sm text-warn font-sans space-y-1 ml-4 list-disc">
+            <Notice
+              variant="warn"
+              box
+              header="Restoring will replace all current data. This action cannot be undone."
+            >
+              <ul className="space-y-1 ml-4 list-disc">
                 <li>Tracker API tokens will be cleared (must re-enter)</li>
                 <li>Download client credentials will be cleared (must re-enter)</li>
                 <li>TOTP/2FA will be disabled (can re-enable after restore)</li>
                 <li>Proxy password will be cleared (must re-enter)</li>
               </ul>
-              <p className="text-xs text-warn/80 font-sans mt-2">
+              <p className="text-xs opacity-70 mt-1">
                 Encrypted secrets stored in your current instance cannot be restored from backups.
               </p>
-            </div>
+            </Notice>
             <p className="text-sm text-secondary font-mono">File: {restoreFile?.name}</p>
             <Input
               label="Master password"
@@ -451,7 +450,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
                 placeholder="Enter backup password"
               />
             )}
-            <div className="p-3 rounded-lg bg-danger/10 border border-danger/30">
+            <Notice variant="danger" box showIcon={false}>
               <Input
                 label="Type RESTORE ALL DATA to confirm"
                 type="text"
@@ -463,7 +462,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
                 hint="This destructive operation cannot be undone. Type the phrase exactly to proceed."
                 hintVariant="danger"
               />
-            </div>
+            </Notice>
             <div className="flex gap-3">
               <Button
                 size="sm"
@@ -529,9 +528,10 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
                   />
                 </div>
               ) : (
-                <Subtext className="text-warn">
-                  No password set. Backups will not be encrypted until a password is saved.
-                </Subtext>
+                <Notice
+                  variant="warn"
+                  message="No password set. Backups will not be encrypted until a password is saved."
+                />
               )}
               <div className="flex items-end gap-3">
                 <div className="flex-1">

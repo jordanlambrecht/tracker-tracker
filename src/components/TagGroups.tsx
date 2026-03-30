@@ -17,9 +17,11 @@ import { type KeyboardEvent, useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { CollapsibleCard } from "@/components/ui/CollapsibleCard"
+import { CardListSkeleton } from "@/components/ui/skeletons"
 import { EmojiPickerPopover } from "@/components/ui/EmojiPickerPopover"
 import { FilterPill } from "@/components/ui/FilterPill"
 import { Input } from "@/components/ui/Input"
+import { Notice } from "@/components/ui/Notice"
 import { QBT_TAG_WARN_PATTERN } from "@/components/ui/QbtTagWarning"
 import { Toggle } from "@/components/ui/Toggle"
 import { Tooltip } from "@/components/ui/Tooltip"
@@ -208,7 +210,7 @@ function MemberRow({
           ✕
         </button>
       </div>
-      {warn && <p className="text-xs font-sans text-warn px-1">{warn}</p>}
+      <Notice variant="warn" message={warn} className="px-1" />
     </div>
   )
 }
@@ -541,16 +543,8 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
       <div className="border-t border-border mt-1" />
 
       {/* Footer: Delete + Save */}
-      {saveError && (
-        <p className="text-xs font-sans text-danger px-1" role="alert">
-          {saveError}
-        </p>
-      )}
-      {deleteError && (
-        <p className="text-xs font-sans text-danger px-1" role="alert">
-          {deleteError}
-        </p>
-      )}
+      <Notice message={saveError} className="px-1" />
+      <Notice message={deleteError} className="px-1" />
       <div className="flex items-center justify-between gap-3">
         <div>
           {confirmDelete ? (
@@ -672,7 +666,7 @@ function TagGroups() {
       )}
 
       {loading ? (
-        <p className="text-sm font-mono text-tertiary py-4">Loading…</p>
+        <CardListSkeleton count={2} />
       ) : groups.length === 0 && !showAddForm ? (
         <p className="text-sm font-mono text-muted py-8 text-center">No tag groups yet</p>
       ) : (
