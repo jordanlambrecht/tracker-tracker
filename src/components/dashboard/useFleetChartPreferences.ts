@@ -1,10 +1,4 @@
 // src/components/dashboard/useFleetChartPreferences.ts
-//
-// Functions: useFleetChartPreferences
-//
-// Manages fleet dashboard chart visibility and collapse state in localStorage.
-// Shared base logic lives in src/hooks/useChartPreferencesBase.ts.
-
 "use client"
 
 import { useChartPreferencesBase } from "@/hooks/useChartPreferencesBase"
@@ -78,6 +72,11 @@ export const FLEET_CHARTS: FleetChartDef[] = [
     id: "fleet-seed-time-distribution",
     label: "Seed Time Distribution",
     description: "Seed time histogram",
+  },
+  {
+    id: "fleet-age-bands",
+    label: "Age Distribution",
+    description: "Torrent count per age band per tracker — heatmap grid",
   },
   {
     id: "fleet-age-timeline",

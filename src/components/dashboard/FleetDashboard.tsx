@@ -1,12 +1,11 @@
 // src/components/dashboard/FleetDashboard.tsx
 "use client"
 
-import { H2 } from "@typography"
 import { useQuery } from "@tanstack/react-query"
+import { H2 } from "@typography"
 import { useMemo } from "react"
-import { ChartGridSkeleton } from "@/components/ui/skeletons"
 import { CrossSeedNetwork } from "@/components/charts/CrossSeedNetwork"
-import { FleetAgeRose } from "@/components/charts/FleetAgeRose"
+import { FleetAgeBandHeatmap } from "@/components/charts/FleetAgeBandHeatmap"
 import { FleetAgeTimeline } from "@/components/charts/FleetAgeTimeline"
 import { FleetCategoryBreakdown } from "@/components/charts/FleetCategoryBreakdown"
 import { FleetCategoryTimeline } from "@/components/charts/FleetCategoryTimeline"
@@ -37,6 +36,8 @@ import {
   UploadArrowIcon,
 } from "@/components/ui/Icons"
 import { StatCard } from "@/components/ui/StatCard"
+import { ChartGridSkeleton } from "@/components/ui/skeletons"
+import { usePollingIntervals } from "@/hooks/usePollingIntervals"
 import type { FleetSnapshot, TrackerTag } from "@/lib/fleet"
 import { computeFleetStats } from "@/lib/fleet"
 import {
@@ -46,7 +47,7 @@ import {
   formatSpeed,
   splitValueUnit,
 } from "@/lib/formatters"
-import type { AggregatedTorrentsResponse, TorrentInfo } from "@/lib/torrent-utils"
+import type { AggregatedTorrentsResponse } from "@/lib/torrent-utils"
 import { mapTorrent } from "@/lib/torrent-utils"
 import type { TrackerSummary } from "@/types/api"
 
@@ -60,6 +61,7 @@ const allChartIds = FLEET_CHARTS.map((c) => c.id)
 export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashboardProps) {
   const chartPrefs = useFleetChartPreferences()
   const { hydrated: chartPrefsHydrated } = chartPrefs
+  const intervals = usePollingIntervals()
 
   const effectiveDays = dayRange === 0 ? 30 : dayRange
 
@@ -80,7 +82,7 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
       if (!res.ok) return null
       return res.json() as Promise<AggregatedTorrentsResponse>
     },
-    staleTime: 60_000,
+    staleTime: intervals.clientRefetchMs,
   })
 
   // Slow: Live qBT torrent aggregation (overrides cached when ready)
@@ -91,7 +93,7 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
       if (!res.ok) return null
       return res.json() as Promise<AggregatedTorrentsResponse>
     },
-    staleTime: 60_000,
+    staleTime: intervals.clientRefetchMs,
   })
 
   // Use live data when available, fall back to cached
@@ -194,8 +196,8 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
         )
       case "fleet-seed-time-distribution":
         return <TorrentSeedTimeDistribution torrents={torrents} />
-      case "fleet-age-rose":
-        return <FleetAgeRose torrents={torrents} trackerTags={trackerTags} />
+      case "fleet-age-bands":
+        return <FleetAgeBandHeatmap torrents={torrents} trackerTags={trackerTags} />
       case "fleet-age-timeline":
         return <FleetAgeTimeline torrents={torrents} trackerTags={trackerTags} />
       case "fleet-category-timeline":
