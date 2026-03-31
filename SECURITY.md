@@ -153,7 +153,7 @@ All API routes validate inputs — `src/app/api/trackers/route.ts`, `src/app/api
 | qBittorrent tag | string, max 100 chars, trimmed                                                                 |
 | Poll interval   | integer, clamped to 15-1440 minutes                                                            |
 | Tracker ID      | parsed as integer, NaN rejected                                                                |
-| Platform type   | allowlist: `["unit3d", "gazelle", "ggn", "nebulance", "mam", "custom"]`                        |
+| Platform type   | allowlist: `["unit3d", "gazelle", "ggn", "nebulance", "avistaz", "mam", "custom"]`             |
 | Password        | string, 8-128 chars                                                                            |
 | Role name       | string, max 255 chars                                                                          |
 | joinedAt        | regex-validated YYYY-MM-DD or null                                                             |

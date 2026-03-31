@@ -23,7 +23,7 @@
     }
   },
   "scripts": {
-    "dev": "rm -rf .next && next dev",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "pnpm tsc && biome check .",

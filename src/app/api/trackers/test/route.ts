@@ -54,7 +54,10 @@ export async function POST(request: Request) {
     const adapter = getAdapter(platform)
     const defaultPath = DEFAULT_API_PATHS[platform] ?? "/api/user"
     const rawPath = typeof apiPath === "string" && apiPath.startsWith("/") ? apiPath : defaultPath
-    const path = rawPath.length > 500 ? rawPath.slice(0, 500) : rawPath
+    if (rawPath.length > 500) {
+      return NextResponse.json({ error: "API path must be 500 characters or fewer" }, { status: 400 })
+    }
+    const path = rawPath
     const fetchOptions = buildFetchOptions(trimmedBaseUrl)
     const stats = await adapter.fetchStats(trimmedBaseUrl, trimmedApiToken, path, fetchOptions)
 

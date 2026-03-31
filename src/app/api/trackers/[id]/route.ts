@@ -127,9 +127,15 @@ export async function PATCH(request: Request, props: RouteContext) {
 
   if (typeof body.apiToken === "string") {
     const trimmedToken = (body.apiToken as string).trim()
-    if (trimmedToken.length > 5000) {
+    const [tracker] = await db
+      .select({ platformType: trackers.platformType })
+      .from(trackers)
+      .where(eq(trackers.id, trackerId))
+      .limit(1)
+    const maxTokenLength = tracker?.platformType === "avistaz" ? 5000 : 500
+    if (trimmedToken.length > maxTokenLength) {
       return NextResponse.json(
-        { error: "API token must be 5000 characters or fewer" },
+        { error: `API token must be ${maxTokenLength} characters or fewer` },
         { status: 400 }
       )
     }
