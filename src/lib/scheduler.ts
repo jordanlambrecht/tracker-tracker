@@ -157,10 +157,17 @@ export async function pollTracker(
 
     // Snapshot the previous platformMeta BEFORE writing the current poll's metadata to DB.
     // dispatchNotifications uses this for change detection (i.e. canDownload transition).
-    const previousPlatformMeta =
-      tracker.platformType === "avistaz" && tracker.platformMeta
-        ? (JSON.parse(tracker.platformMeta) as Record<string, unknown>)
-        : null
+    let previousPlatformMeta: Record<string, unknown> | null = null
+    if (tracker.platformType === "avistaz" && tracker.platformMeta) {
+      try {
+        previousPlatformMeta = JSON.parse(tracker.platformMeta) as Record<string, unknown>
+      } catch (err) {
+        log.warn(
+          { trackerId: tracker.id, error: err instanceof Error ? err.message : "unknown" },
+          "failed to parse previous platformMeta"
+        )
+      }
+    }
 
     // Cache metadata from poll (remoteUserId saves an API call, joinedDate/platformMeta enrich the UI)
     const metaUpdates: Record<string, unknown> = {}
