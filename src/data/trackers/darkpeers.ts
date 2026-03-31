@@ -131,8 +131,8 @@ export const darkpeers: TrackerRegistryEntry = {
   },
 
   // ── Status ──────────────────────────────────────────────────────────
-  warning: true,
-  warningNote: "Unverified! Not tested against a live account.",
+  warning: false,
+  warningNote: "",
 
   // ── Flags ───────────────────────────────────────────────────────────
   draft: false,
