@@ -3,7 +3,7 @@
 // Functions: parseAvistazCredentials, safeParseBytes, textAfterLabel,
 //            extractRatioBarValue, parseAvistazProfile, fetchHtml, AvistazAdapter
 
-import { JSDOM } from "jsdom"
+import { type HTMLElement as ParsedElement, parse as parseHtml } from "node-html-parser"
 import { sanitizeNetworkError } from "@/lib/error-utils"
 import { localDateStr } from "@/lib/formatters"
 import { computeBufferBytes } from "@/lib/helpers"
@@ -90,7 +90,7 @@ function safeParseBytes(text: string): bigint {
 // HTML parsing helpers
 // ---------------------------------------------------------------------------
 
-function textAfterLabel(rows: Element[], label: string): string {
+function textAfterLabel(rows: ParsedElement[], label: string): string {
   for (const row of rows) {
     const cells = row.querySelectorAll("td")
     if (cells.length >= 2 && cells[0].textContent?.includes(label)) {
@@ -105,7 +105,7 @@ function textAfterLabel(rows: Element[], label: string): string {
  * Uses regex-only matching to handle whitespace variations in the DOM
  * (i.e. "Hit & Run:" may have line breaks between words).
  */
-function extractRatioBarValue(items: Element[], labelRegex: RegExp): string {
+function extractRatioBarValue(items: ParsedElement[], labelRegex: RegExp): string {
   for (const li of items) {
     const text = li.textContent?.replace(/\s+/g, " ").trim() ?? ""
     const match = text.match(labelRegex)
@@ -129,8 +129,7 @@ export function parseAvistazProfile(html: string, username: string): TrackerStat
     throw new Error("Cloudflare challenge detected — cf_clearance cookie needs refreshing")
   }
 
-  const dom = new JSDOM(html)
-  const doc = dom.window.document
+  const doc = parseHtml(html)
 
   // ── Ratio bar ──────────────────────────────────────────────────────────────
   const ratioBar = doc.querySelector("div.ratio-bar")
@@ -201,7 +200,7 @@ export function parseAvistazProfile(html: string, username: string): TrackerStat
 
   // ── Avatar ─────────────────────────────────────────────────────────────────
   // On your own profile, the avatar <img> is JS-rendered by the Fine Uploader
-  // widget (JSDOM doesn't execute JS, so querySelector misses it). The URL
+  // widget (static HTML parsing misses it). The URL
   // does appear in the raw HTML though, so we scan for the /images/avatar/ pattern.
   let avatarUrl: string | undefined
 

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button"
 interface SaveDiscardBarProps {
   dirty: boolean
   saving: boolean
-  onSave: () => void
+  onSave?: () => void
   onDiscard?: () => void
   error?: string | null
   success?: string | null
@@ -46,7 +46,7 @@ function SaveDiscardBar({
         <>
           {showDivider && <div className="border-t border-border" />}
           <div className={clsx("flex items-center gap-3", justify === "end" && "justify-end")}>
-            <Button size="sm" onClick={onSave} disabled={saving || saveDisabled}>
+            <Button size="sm" onClick={onSave} disabled={saving || saveDisabled || !onSave}>
               {saving ? savingLabel : saveLabel}
             </Button>
             {onDiscard && (

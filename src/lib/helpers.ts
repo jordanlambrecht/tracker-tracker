@@ -2,7 +2,7 @@
 
 // Functions: computeDelta, compareBigIntDesc, computePctChange,
 //            floatBytesToBigInt, computeBufferBytes, isUnixTimestampOnDate,
-//            sanitizeHost, normalizeUrl, urlHostnameIs, extractApiError
+//            sanitizeHost, normalizeUrl, extractApiError
 
 import { localDateStr } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
@@ -87,15 +87,6 @@ export function sanitizeHost(host: string): string {
 
 export function normalizeUrl(url: string): string {
   return url.replace(/\/+$/, "").toLowerCase()
-}
-
-/** Returns true if a URL's hostname matches the given domain exactly. */
-export function urlHostnameIs(url: string, hostname: string): boolean {
-  try {
-    return new URL(url).hostname === hostname
-  } catch {
-    return false
-  }
 }
 
 export async function extractApiError(res: Response, fallback = "Request failed"): Promise<string> {
