@@ -7,7 +7,7 @@ import { Tooltip } from "@/components/ui"
 import type { DocsEntry } from "@/lib/constants"
 
 const infoTipVariants = cva(
-  "inline-flex items-center text-muted hover:text-secondary cursor-help transition-colors duration-150",
+  "inline-flex items-center text-muted hover:text-secondary cursor-help transition-colors duration-150 bg-transparent border-0 p-0 outline-none focus-visible:text-secondary",
   {
     variants: {
       size: {
@@ -41,9 +41,9 @@ function InfoTip({ content, docs, icon = "info", size, className }: InfoTipProps
 
   return (
     <Tooltip content={content} docs={docs}>
-      <span className={infoTipVariants({ size, className })}>
+      <button type="button" className={infoTipVariants({ size, className })} aria-label="More info">
         <Icon />
-      </span>
+      </button>
     </Tooltip>
   )
 }

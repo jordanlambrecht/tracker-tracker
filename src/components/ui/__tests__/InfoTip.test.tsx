@@ -41,14 +41,14 @@ describe("InfoTip icon variant", () => {
 describe("InfoTip size variant", () => {
   it("applies md size classes by default", () => {
     const { container } = render(<InfoTip content="Help text" />)
-    const wrapper = container.querySelector("span > span")
+    const wrapper = container.querySelector("span > button")
     expect(wrapper?.className).toContain("[&>svg]:w-3.5")
     expect(wrapper?.className).toContain("[&>svg]:h-3.5")
   })
 
   it("applies sm size classes", () => {
     const { container } = render(<InfoTip content="Help text" size="sm" />)
-    const wrapper = container.querySelector("span > span")
+    const wrapper = container.querySelector("span > button")
     expect(wrapper?.className).toContain("[&>svg]:w-3")
     expect(wrapper?.className).toContain("[&>svg]:h-3")
     // Ensure it's not the md classes (w-3.5)
@@ -57,7 +57,7 @@ describe("InfoTip size variant", () => {
 
   it("applies lg size classes", () => {
     const { container } = render(<InfoTip content="Help text" size="lg" />)
-    const wrapper = container.querySelector("span > span")
+    const wrapper = container.querySelector("span > button")
     expect(wrapper?.className).toContain("[&>svg]:w-4")
     expect(wrapper?.className).toContain("[&>svg]:h-4")
   })
@@ -71,7 +71,7 @@ describe("InfoTip tooltip behavior", () => {
   it("shows tooltip content on hover", async () => {
     const user = userEvent.setup()
     const { container } = render(<InfoTip content="Explanation of the thing" />)
-    const trigger = container.querySelector("span > span")
+    const trigger = container.querySelector("span > button")
     if (!trigger) throw new Error("trigger not found")
 
     // Tooltip not visible initially
@@ -85,7 +85,7 @@ describe("InfoTip tooltip behavior", () => {
   it("hides tooltip on unhover", async () => {
     const user = userEvent.setup()
     const { container } = render(<InfoTip content="Goes away" />)
-    const trigger = container.querySelector("span > span")
+    const trigger = container.querySelector("span > button")
     if (!trigger) throw new Error("trigger not found")
 
     await user.hover(trigger)
@@ -105,7 +105,7 @@ describe("InfoTip tooltip behavior", () => {
         docs={{ href: "https://example.com", description: "Example docs" }}
       />
     )
-    const trigger = container.querySelector("span > span")
+    const trigger = container.querySelector("span > button")
     if (!trigger) throw new Error("trigger not found")
     await user.hover(trigger)
 
@@ -124,7 +124,7 @@ describe("InfoTip tooltip behavior", () => {
 describe("InfoTip className prop", () => {
   it("appends custom className to the wrapper", () => {
     const { container } = render(<InfoTip content="Help" className="ml-2" />)
-    const wrapper = container.querySelector("span > span")
+    const wrapper = container.querySelector("span > button")
     expect(wrapper?.className).toContain("ml-2")
     // Base classes still present
     expect(wrapper?.className).toContain("cursor-help")
@@ -138,7 +138,7 @@ describe("InfoTip className prop", () => {
 describe("InfoTip base styles", () => {
   it("has cursor-help and muted text color", () => {
     const { container } = render(<InfoTip content="Help" />)
-    const wrapper = container.querySelector("span > span")
+    const wrapper = container.querySelector("span > button")
     expect(wrapper?.className).toContain("cursor-help")
     expect(wrapper?.className).toContain("text-muted")
   })
