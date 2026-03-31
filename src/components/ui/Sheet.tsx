@@ -3,10 +3,11 @@
 "use client"
 
 import clsx from "clsx"
-import { type ReactNode, useCallback, useEffect, useRef } from "react"
+import { type ReactNode, useCallback, useEffect } from "react"
 import { Button } from "@/components/ui/Button"
 import { XIcon } from "@/components/ui/Icons"
 import { useAnimatedPresence } from "@/hooks/useAnimatedPresence"
+import { useEscapeKey } from "@/hooks/useEscapeKey"
 
 interface SheetProps {
   open: boolean
@@ -23,31 +24,15 @@ interface SheetProps {
 }
 
 function Sheet({ open, onClose, title, footer, busy, onSubmit, children, className }: SheetProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null)
-  const {
-    mounted,
-    visible,
-    onTransitionEnd: baseOnTransitionEnd,
-  } = useAnimatedPresence(open, "transform")
+  const { mounted, visible, onTransitionEnd } = useAnimatedPresence(open, "transform")
 
-  // Wrap transition end to close native dialog before unmount (restores focus to trigger)
-  const onTransitionEnd = useCallback(
-    (e: { propertyName: string }) => {
-      if (!visible) dialogRef.current?.close()
-      baseOnTransitionEnd(e)
-    },
-    [visible, baseOnTransitionEnd]
-  )
+  const handleClose = useCallback(() => {
+    if (!busy) onClose()
+  }, [busy, onClose])
 
-  // Sync native dialog with mount lifecycle
-  useEffect(() => {
-    const dialog = dialogRef.current
-    if (dialog && mounted && !dialog.open) {
-      dialog.showModal()
-    }
-  }, [mounted])
+  useEscapeKey(handleClose, visible && !busy)
 
-  // Body scroll lock — native dialog does not prevent background scrolling
+  // Body scroll lock
   useEffect(() => {
     if (!mounted) return
     document.body.style.overflow = "hidden"
@@ -56,14 +41,10 @@ function Sheet({ open, onClose, title, footer, busy, onSubmit, children, classNa
     }
   }, [mounted])
 
-  const handleClose = useCallback(() => {
-    if (!busy) onClose()
-  }, [busy, onClose])
-
   if (!mounted) return null
 
   const panelCls = clsx(
-    "absolute right-0 top-0 w-full max-w-md h-full bg-elevated nm-raised-lg flex flex-col transition-transform duration-300 ease-out",
+    "relative w-full max-w-md h-full bg-elevated nm-raised-lg flex flex-col transition-transform duration-300 ease-out",
     className
   )
   const panelStyle = {
@@ -98,23 +79,35 @@ function Sheet({ open, onClose, title, footer, busy, onSubmit, children, classNa
     <div className="shrink-0 px-6 py-4 border-t border-border">{footer}</div>
   ) : null
 
+  const panelContent = (
+    <>
+      {header}
+      {body}
+      {footerEl}
+    </>
+  )
+
   return (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: native dialog onCancel handles keyboard (Escape); onClick is backdrop-only dismiss
-    <dialog
-      ref={dialogRef}
-      data-overlay
-      data-visible={visible || undefined}
-      className="fixed inset-0 m-0 p-0 w-screen h-screen bg-transparent flex justify-end outline-none"
+    <div
+      className="fixed inset-0 z-40 flex justify-end"
+      role="dialog"
       aria-modal="true"
       aria-label={title ?? "Panel"}
-      onCancel={(e) => {
-        e.preventDefault()
-        handleClose()
-      }}
-      onClick={(e) => {
-        if (e.target === dialogRef.current) handleClose()
-      }}
     >
+      {/* Backdrop */}
+      <div
+        data-overlay
+        data-visible={visible || undefined}
+        className={clsx(
+          "absolute inset-0 bg-black/60 transition-opacity duration-200 ease-out cursor-default",
+          visible ? "opacity-100" : "opacity-0"
+        )}
+        onClick={handleClose}
+        onKeyDown={() => {}}
+        role="presentation"
+      />
+
+      {/* Panel */}
       {onSubmit ? (
         <form
           onTransitionEnd={onTransitionEnd}
@@ -125,18 +118,14 @@ function Sheet({ open, onClose, title, footer, busy, onSubmit, children, classNa
             onSubmit()
           }}
         >
-          {header}
-          {body}
-          {footerEl}
+          {panelContent}
         </form>
       ) : (
         <div onTransitionEnd={onTransitionEnd} className={panelCls} style={panelStyle}>
-          {header}
-          {body}
-          {footerEl}
+          {panelContent}
         </div>
       )}
-    </dialog>
+    </div>
   )
 }
 

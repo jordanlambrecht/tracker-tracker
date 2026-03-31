@@ -45,10 +45,7 @@ function SortableTrackerItem({
   }
 
   const activeStyle: CSSProperties = isActive
-    ? {
-        backgroundColor: hexToRgba(tc, 0.08),
-        filter: `drop-shadow(0 0 10px ${hexToRgba(tc, 0.15)})`,
-      }
+    ? { backgroundColor: hexToRgba(tc, 0.08) }
     : {}
 
   const itemClasses = clsx(
