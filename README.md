@@ -62,11 +62,11 @@ You can check out a few other, longer, screenshots in the docs folder.
 | ABTorrents            | Custom    | 📋 Needs adapter       |                                                   |
 | AvistaZ               | AvistaZ   | ✅ Verified            | Cookie auth + HTML scraping                       |
 | AnimeZ                | AvistaZ   | 🟡 Unverified          | Same adapter as AvistaZ                           |
-| CinemaZ               | AvistaZ   | 🟡 Unverified          | Same adapter as AvistaZ                           |
+| CinemaZ               | AvistaZ   | ✅ Verified            | Same adapter as AvistaZ                           |
 | ExoticaZ              | AvistaZ   | 🟡 Unverified          | Same adapter as AvistaZ                           |
 | PrivateHD             | AvistaZ   | 🟡 Unverified          | Same adapter as AvistaZ                           |
 | MyAnonamouse (MAM)    | MAM       | ✅ Verified            | Cookie auth via mam_id                            |
-| DarkPeers             | UNIT3D    | 🟡 Unverified          |                                                   |
+| DarkPeers             | UNIT3D    | ✅ Verified            |                                                   |
 | Luminarr              | UNIT3D    | 🟡 Unverified          |                                                   |
 | CathodeRayTube (CRT)  | UNIT3D    | 📋 Draft               |                                                   |
 | DigitalCore           | Custom    | 📋 Needs adapter       |                                                   |
