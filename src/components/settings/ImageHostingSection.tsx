@@ -157,7 +157,6 @@ export function ImageHostingSection({ initialHasKeys }: ImageHostingSectionProps
       <SaveDiscardBar
         dirty={false}
         saving={saving}
-        onSave={() => {}}
         error={error}
         success={success ? "Image hosting key saved." : null}
       />
