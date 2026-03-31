@@ -1,6 +1,6 @@
 // src/lib/__tests__/validators.test.ts
 import { describe, expect, it } from "vitest"
-import { isIntegerInRange, isValidHex, isValidPort } from "@/lib/validators"
+import { isIntegerInRange, isValidHex, isValidPort, parseIntClamped } from "@/lib/validators"
 
 describe("isValidHex", () => {
   describe("strict mode (default)", () => {
@@ -181,5 +181,41 @@ describe("isIntegerInRange", () => {
 
   it("rejects a value outside a single-value range", () => {
     expect(isIntegerInRange(43, 42, 42)).toBe(false)
+  })
+})
+
+describe("parseIntClamped", () => {
+  it("defaults to fallback when null", () => {
+    expect(parseIntClamped(null, 1, 3650, 30)).toBe(30)
+  })
+
+  it("defaults to fallback for non-numeric strings", () => {
+    expect(parseIntClamped("abc", 1, 3650, 30)).toBe(30)
+    expect(parseIntClamped("", 1, 3650, 30)).toBe(30)
+  })
+
+  it("parses valid numeric strings", () => {
+    expect(parseIntClamped("7", 1, 3650, 30)).toBe(7)
+    expect(parseIntClamped("90", 1, 3650, 30)).toBe(90)
+  })
+
+  it("clamps to minimum", () => {
+    expect(parseIntClamped("0", 1, 3650, 30)).toBe(1)
+    expect(parseIntClamped("-5", 1, 3650, 30)).toBe(1)
+  })
+
+  it("clamps to maximum", () => {
+    expect(parseIntClamped("3651", 1, 3650, 30)).toBe(3650)
+    expect(parseIntClamped("999999", 1, 3650, 30)).toBe(3650)
+  })
+
+  it("truncates decimals via parseInt", () => {
+    expect(parseIntClamped("7.9", 1, 3650, 30)).toBe(7)
+  })
+
+  it("works with different min/max/default", () => {
+    expect(parseIntClamped(null, 0, 100, 50)).toBe(50)
+    expect(parseIntClamped("200", 0, 100, 50)).toBe(100)
+    expect(parseIntClamped("-1", 0, 100, 50)).toBe(0)
   })
 })

@@ -3,7 +3,7 @@
 // Pure validation predicates and regex constants.
 // No framework dependencies — usable anywhere.
 //
-// Functions: isValidHex, isValidPort, isIntegerInRange, validateImageUrl, safeImageUrl
+// Functions: isValidHex, isValidPort, isIntegerInRange, parseIntClamped, validateImageUrl, safeImageUrl
 // Constants: ISO_8601_RE, HEX_64_RE, DATE_RE
 
 import { PORT_MAX, PORT_MIN } from "@/lib/limits"
@@ -25,6 +25,12 @@ export function isValidPort(port: number): boolean {
 
 export function isIntegerInRange(value: number, min: number, max: number): boolean {
   return Number.isInteger(value) && value >= min && value <= max
+}
+
+/** Parse a string to int, clamp to [min, max], fall back to defaultValue for null/NaN. */
+export function parseIntClamped(raw: string | null, min: number, max: number, defaultValue: number): number {
+  const parsed = parseInt(raw ?? String(defaultValue), 10)
+  return Math.min(Math.max(min, Number.isNaN(parsed) ? defaultValue : parsed), max)
 }
 
 export function validateImageUrl(url: string): string {
