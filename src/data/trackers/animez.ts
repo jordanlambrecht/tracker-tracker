@@ -30,15 +30,13 @@ export const animez: TrackerRegistryEntry = {
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [
-    { name: "Banned", requirements: "Violated site rules" },
-    { name: "Leech", requirements: "Ratio below 1.0. 1 download per 7 days, 1 week old+ only" },
-    {
-      name: "Newbie",
-      requirements: "New user. 5 downloads/day, 1 week old+ only. No uploads or RSS",
-    },
-    { name: "Member", requirements: "5 GB upload, ratio >= 1.0, 7+ days. 50 downloads/day" },
-    { name: "V.I.P.", requirements: "Donor/distinguished. 100 downloads/day" },
-    { name: "Uploader", requirements: "Staff promoted. 200 downloads/day" },
+    { name: "Banned", requirements: "Violated site rules. Cannot access site" },
+    { name: "Leech", requirements: "Ratio below 1.0 or demoted. 1 download/week, torrents 7+ days old only. No uploads" },
+    { name: "Newbie", requirements: "New user, age ≥ 7 days, ratio ≥ 1.0. 5 downloads/day, torrents 7+ days old only" },
+    { name: "Member", requirements: "Upload ≥ 5 GiB, ratio ≥ 1.0, age ≥ 7 days. 50 downloads/day, can upload" },
+    { name: "Power User", requirements: "Strong upload history and consistent ratio. 50 downloads/day" },
+    { name: "V.I.P.", requirements: "Donor, staff-promoted, or distinguished. 100 downloads/day" },
+    { name: "Uploader", requirements: "Staff-promoted for quality and quantity of uploads. API and tag creation access" },
   ],
   releaseGroups: [],
   bannedGroups: [],
