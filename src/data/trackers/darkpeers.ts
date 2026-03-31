@@ -132,6 +132,7 @@ export const darkpeers: TrackerRegistryEntry = {
 
   // ── Status ──────────────────────────────────────────────────────────
   warning: false,
+  warningNote: "",
 
   // ── Flags ───────────────────────────────────────────────────────────
   draft: false,
