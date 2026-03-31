@@ -49,12 +49,13 @@ export function SetupForm() {
       if (!setupRes.ok) {
         const data = (await setupRes.json()) as { error?: string }
         const msg = data.error ?? "Setup failed. Please try again."
-        if (msg.toLowerCase().includes("username")) {
+        const lowerMsg = msg.toLowerCase()
+        if (lowerMsg.includes("username")) {
           setErrors({ username: msg })
-        } else if (msg.toLowerCase().includes("8 char") || msg.toLowerCase().includes("password")) {
-          setErrors({ password: msg })
-        } else if (msg.toLowerCase().includes("match")) {
+        } else if (lowerMsg.includes("match")) {
           setErrors({ confirmPassword: msg })
+        } else if (lowerMsg.includes("8 char") || lowerMsg.includes("password")) {
+          setErrors({ password: msg })
         } else {
           setErrors({ form: msg })
         }
