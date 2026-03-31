@@ -1,7 +1,6 @@
 // src/app/(auth)/DashboardSkeleton.tsx
 
-import { Card } from "@/components/ui/Card"
-import { Shimmer } from "@/components/ui/Shimmer"
+import { Card, Shimmer } from "@/components/ui"
 
 function DashboardSkeleton() {
   return (
@@ -22,7 +21,10 @@ function DashboardSkeleton() {
           <div className="flex flex-col gap-5">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
               {Array.from({ length: 5 }, (_, i) => (
-                <div key={i} className="bg-raised p-5 flex flex-col gap-3 nm-raised-sm rounded-nm-lg">
+                <div
+                  key={`stat-${i}`}
+                  className="bg-raised p-5 flex flex-col gap-3 nm-raised-sm rounded-nm-lg"
+                >
                   <Shimmer size="text" className="w-24" />
                   <Shimmer size="value" className="w-20" />
                 </div>
@@ -37,7 +39,7 @@ function DashboardSkeleton() {
         <Shimmer size="heading" className="w-28" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 3 }, (_, i) => (
-            <Card key={i}>
+            <Card key={`tracker-${i}`}>
               <div className="flex flex-col gap-3 p-1">
                 <div className="flex items-center gap-3">
                   <Shimmer rounded="full" className="h-8 w-8" />

@@ -12,6 +12,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(__dirname, "./src"),
+      "@icons": resolve(__dirname, "./src/components/ui/Icons"),
       "@typography": resolve(__dirname, "./src/components/ui/Typography"),
       "server-only": resolve(__dirname, "./src/test/server-only-mock.ts"),
     },

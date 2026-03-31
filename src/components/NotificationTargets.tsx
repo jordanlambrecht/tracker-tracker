@@ -581,7 +581,10 @@ function NotificationTargets() {
     <div className="flex flex-col gap-6">
       <H2 className="flex items-center gap-2">
         Webhooks
-        <InfoTip content="Get alerts when something happens on your trackers." docs={DOCS.WEBHOOKS} />
+        <InfoTip
+          content="Get alerts when something happens on your trackers."
+          docs={DOCS.WEBHOOKS}
+        />
       </H2>
       {targets.length === 0 && !showAddForm ? (
         <Card elevation="raised" className="flex flex-col items-center gap-4 py-10">

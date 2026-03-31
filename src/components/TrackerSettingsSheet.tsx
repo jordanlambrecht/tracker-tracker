@@ -5,16 +5,19 @@ import { H2 } from "@typography"
 import clsx from "clsx"
 import { useRouter } from "next/navigation"
 import { type SyntheticEvent, useCallback, useEffect, useState } from "react"
-import { Button } from "@/components/ui/Button"
-import { ColorPicker } from "@/components/ui/ColorPicker"
-import { ConfirmRemove } from "@/components/ui/ConfirmRemove"
-import { InfoTip } from "@/components/ui/InfoTip"
-import { Input } from "@/components/ui/Input"
-import { MaskedSecret } from "@/components/ui/MaskedSecret"
-import { Notice } from "@/components/ui/Notice"
-import { QbtTagWarning } from "@/components/ui/QbtTagWarning"
-import { Sheet } from "@/components/ui/Sheet"
-import { Toggle } from "@/components/ui/Toggle"
+import {
+  Button,
+  ColorPicker,
+  ConfirmRemove,
+  InfoTip,
+  Input,
+  MaskedSecret,
+  Notice,
+  QbtTagWarning,
+  Sheet,
+  Toggle,
+} from "@/components/ui"
+
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { localDateStr } from "@/lib/formatters"
 import type { TrackerSummary } from "@/types/api"
@@ -384,7 +387,11 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
 
           <ColorPicker label="Color" value={form.color} onChange={(v) => updateField("color", v)} />
 
-          {!(registryEntry?.gazelleEnrich || tracker.platformType === "ggn" || tracker.platformType === "avistaz") && (
+          {!(
+            registryEntry?.gazelleEnrich ||
+            tracker.platformType === "ggn" ||
+            tracker.platformType === "avistaz"
+          ) && (
             <div>
               <label
                 htmlFor="settings-joined-at"

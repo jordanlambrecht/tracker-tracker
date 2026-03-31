@@ -31,5 +31,5 @@ function Shimmer({ size, rounded, className }: ShimmerProps) {
   return <div className={clsx(shimmerVariants({ size, rounded }), className)} />
 }
 
-export { Shimmer, shimmerVariants }
 export type { ShimmerProps }
+export { Shimmer, shimmerVariants }

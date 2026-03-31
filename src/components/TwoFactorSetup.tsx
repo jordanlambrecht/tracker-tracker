@@ -4,11 +4,7 @@
 import { H3, Paragraph, Subtext } from "@typography"
 import dynamic from "next/dynamic"
 import { useCallback, useEffect, useState } from "react"
-import { Badge } from "@/components/ui/Badge"
-import { Button } from "@/components/ui/Button"
-import { Checkbox } from "@/components/ui/Checkbox"
-import { Input } from "@/components/ui/Input"
-import { Notice } from "@/components/ui/Notice"
+import { Badge, Button, Checkbox, Input, Notice } from "@/components/ui"
 
 const QRCodeSVG = dynamic(() => import("qrcode.react").then((m) => m.QRCodeSVG), { ssr: false })
 
@@ -365,7 +361,10 @@ function TwoFactorSetup() {
             />
           </div>
 
-          <Notice variant="warn" message="Save these codes somewhere safe. Each code can only be used once. You won't be able to see them again." />
+          <Notice
+            variant="warn"
+            message="Save these codes somewhere safe. Each code can only be used once. You won't be able to see them again."
+          />
 
           <div>
             <Button

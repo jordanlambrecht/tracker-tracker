@@ -415,13 +415,19 @@ function AddTrackerDialog({
       open={open}
       onClose={handleDialogClose}
       onSubmit={handleSubmit}
-      formProps={{ autoComplete: "off", "data-1p-ignore": true } as React.HTMLAttributes<HTMLFormElement>}
+      formProps={
+        { autoComplete: "off", "data-1p-ignore": true } as React.HTMLAttributes<HTMLFormElement>
+      }
       title="Add Tracker"
       maxWidth="max-w-lg"
       busy={loading}
       footer={
         <div className="flex gap-3">
-          <Button type="submit" disabled={loading} text={loading ? "Connecting..." : "Add Tracker"} />
+          <Button
+            type="submit"
+            disabled={loading}
+            text={loading ? "Connecting..." : "Add Tracker"}
+          />
           <Button variant="ghost" onClick={handleDialogClose} text="Cancel" />
         </div>
       }
@@ -429,160 +435,170 @@ function AddTrackerDialog({
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
           <H2 className="uppercase tracking-wider">Tracker</H2>
-            <TrackerCombobox
-              presets={availablePresets}
-              value={selectedPreset}
-              onChange={handlePresetChange}
-            />
-            <Notice message={errors.preset} />
-          </div>
-
-          {selectedEntry?.warning && selectedEntry.warningNote && (
-            <Notice variant="warn" box message={selectedEntry.warningNote} />
-          )}
-
-          {selectedEntry?.platform === "avistaz" && (
-            <Notice
-              variant="warn"
-              box
-              message="AvistaZ network trackers require Member class or above. New accounts start as Validating and cannot access the profile page needed for stat tracking. This tracker won't work until your account is promoted."
-            />
-          )}
-
-          <Input
-            label="Nickname (optional)"
-            name="tracker-nickname"
-            autoComplete="off"
-            data-1p-ignore
-            value={nickname}
-            onChange={(e) => setNickname(e.target.value)}
-            placeholder={selectedEntry?.name ?? "Custom name for this tracker"}
+          <TrackerCombobox
+            presets={availablePresets}
+            value={selectedPreset}
+            onChange={handlePresetChange}
           />
+          <Notice message={errors.preset} />
+        </div>
 
-          <Input
-            label="Base URL"
-            name="tracker-url"
-            autoComplete="off"
-            data-1p-ignore
-            value={baseUrl}
-            onChange={(e) => setBaseUrl(e.target.value)}
-            placeholder="https://aither.cc"
-            error={errors.baseUrl}
+        {selectedEntry?.warning && selectedEntry.warningNote && (
+          <Notice variant="warn" box message={selectedEntry.warningNote} />
+        )}
+
+        {selectedEntry?.platform === "avistaz" && (
+          <Notice
+            variant="warn"
+            box
+            message="AvistaZ network trackers require Member class or above. New accounts start as Validating and cannot access the profile page needed for stat tracking. This tracker won't work until your account is promoted."
           />
+        )}
 
-          {selectedEntry?.platform === "avistaz" ? (
-            <div className="flex flex-col gap-3">
-              <Input
-                label={`${selectedEntry?.name ?? "AvistaZ"} Username`}
-                name="tracker-avistaz-username"
-                autoComplete="off"
-                data-1p-ignore
-                value={avistazUsername}
-                onChange={(e) => setAvistazUsername(e.target.value)}
-                placeholder="Your username on this tracker"
-              />
-              <div className="flex flex-col gap-1">
-                <label
-                  htmlFor="tracker-avistaz-cookies"
-                  className="text-xs uppercase tracking-wider text-secondary font-mono"
-                >
-                  Browser Cookies
-                </label>
-                <textarea
-                  id="tracker-avistaz-cookies"
-                  name="tracker-avistaz-cookies"
-                  autoComplete="off"
-                  data-1p-ignore
-                  value={avistazCookies}
-                  onChange={(e) => setAvistazCookies(e.target.value)}
-                  placeholder="Paste Cookie header from browser DevTools (F12 → Network → any request → Cookie)"
-                  rows={3}
-                  className="w-full rounded-nm-sm bg-control-bg px-3 py-2 text-sm text-primary border border-transparent focus:border-accent focus:outline-none font-mono resize-y"
-                />
-                <Notice message={errors.apiToken} />
-              </div>
-              {testResult && (
-                <Notice variant="success">Connected as <span className="font-semibold">{testResult.username}</span>{testResult.group ? ` (${testResult.group})` : ""}</Notice>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-col gap-1">
-              <Input
-                label="API Token"
-                name="tracker-api-token"
-                type="password"
-                autoComplete="off"
-                data-1p-ignore
-                value={apiToken}
-                onChange={(e) => setApiToken(e.target.value)}
-                placeholder={
-                  selectedEntry?.platform === "mam"
-                    ? "Your mam_id session cookie"
-                    : selectedEntry?.platform === "ggn"
-                      ? "Your GGn API key"
-                      : selectedEntry?.platform === "gazelle"
-                        ? "Your Gazelle API key"
-                        : "Your UNIT3D API token"
-                }
-                error={errors.apiToken}
-              />
-              {testResult && (
-                <Notice variant="success">Connected as <span className="font-semibold">{testResult.username}</span>{testResult.group ? ` (${testResult.group})` : ""}</Notice>
-              )}
-            </div>
-          )}
+        <Input
+          label="Nickname (optional)"
+          name="tracker-nickname"
+          autoComplete="off"
+          data-1p-ignore
+          value={nickname}
+          onChange={(e) => setNickname(e.target.value)}
+          placeholder={selectedEntry?.name ?? "Custom name for this tracker"}
+        />
 
-          <div className="flex flex-col gap-1">
+        <Input
+          label="Base URL"
+          name="tracker-url"
+          autoComplete="off"
+          data-1p-ignore
+          value={baseUrl}
+          onChange={(e) => setBaseUrl(e.target.value)}
+          placeholder="https://aither.cc"
+          error={errors.baseUrl}
+        />
+
+        {selectedEntry?.platform === "avistaz" ? (
+          <div className="flex flex-col gap-3">
             <Input
-              label="qBittorrent Tag"
-              name="tracker-qbt-tag"
+              label={`${selectedEntry?.name ?? "AvistaZ"} Username`}
+              name="tracker-avistaz-username"
               autoComplete="off"
               data-1p-ignore
-              value={qbtTag}
-              onChange={(e) => setQbtTag(e.target.value)}
-              placeholder={selectedEntry ? `i.e, ${selectedEntry.slug}` : "i.e, tracker-name"}
+              value={avistazUsername}
+              onChange={(e) => setAvistazUsername(e.target.value)}
+              placeholder="Your username on this tracker"
             />
-            <QbtTagWarning tag={qbtTag} />
-          </div>
-
-          {selectedEntry?.platform === "mam" && (
             <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1">
-                <Input
-                  label="Mousehole URL (optional)"
-                  name="tracker-mousehole-url"
-                  autoComplete="off"
-                  data-1p-ignore
-                  value={mouseholeUrl}
-                  onChange={(e) => setMouseholeUrl(e.target.value)}
-                  placeholder="http://localhost:7001"
-                />
-                <InfoTip
-                  content="If you run Mousehole to manage your MAM seedbox IP, enter its URL here to see status and trigger updates from Tracker Tracker."
-                  size="sm"
-                  docs={{
-                    href: "https://github.com/t-mart/mousehole",
-                    description: "Mousehole on GitHub",
-                  }}
-                />
-              </div>
+              <label
+                htmlFor="tracker-avistaz-cookies"
+                className="text-xs uppercase tracking-wider text-secondary font-mono"
+              >
+                Browser Cookies
+              </label>
+              <textarea
+                id="tracker-avistaz-cookies"
+                name="tracker-avistaz-cookies"
+                autoComplete="off"
+                data-1p-ignore
+                value={avistazCookies}
+                onChange={(e) => setAvistazCookies(e.target.value)}
+                placeholder="Paste Cookie header from browser DevTools (F12 → Network → any request → Cookie)"
+                rows={3}
+                className="w-full rounded-nm-sm bg-control-bg px-3 py-2 text-sm text-primary border border-transparent focus:border-accent focus:outline-none font-mono resize-y"
+              />
+              <Notice message={errors.apiToken} />
             </div>
-          )}
-
-          <ColorPicker label="Color" value={color} onChange={setColor} />
-
-          {!(selectedEntry?.gazelleEnrich || selectedEntry?.platform === "ggn" || selectedEntry?.platform === "avistaz") && (
+            {testResult && (
+              <Notice variant="success">
+                Connected as <span className="font-semibold">{testResult.username}</span>
+                {testResult.group ? ` (${testResult.group})` : ""}
+              </Notice>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1">
             <Input
-              label="Join Date (optional)"
-              type="date"
-              value={joinedAt}
-              max={localDateStr()}
-              onChange={(e) => setJoinedAt(e.target.value)}
-              placeholder="YYYY-MM-DD"
+              label="API Token"
+              name="tracker-api-token"
+              type="password"
+              autoComplete="off"
+              data-1p-ignore
+              value={apiToken}
+              onChange={(e) => setApiToken(e.target.value)}
+              placeholder={
+                selectedEntry?.platform === "mam"
+                  ? "Your mam_id session cookie"
+                  : selectedEntry?.platform === "ggn"
+                    ? "Your GGn API key"
+                    : selectedEntry?.platform === "gazelle"
+                      ? "Your Gazelle API key"
+                      : "Your UNIT3D API token"
+              }
+              error={errors.apiToken}
             />
-          )}
+            {testResult && (
+              <Notice variant="success">
+                Connected as <span className="font-semibold">{testResult.username}</span>
+                {testResult.group ? ` (${testResult.group})` : ""}
+              </Notice>
+            )}
+          </div>
+        )}
 
-          <Notice message={errors.form} />
+        <div className="flex flex-col gap-1">
+          <Input
+            label="qBittorrent Tag"
+            name="tracker-qbt-tag"
+            autoComplete="off"
+            data-1p-ignore
+            value={qbtTag}
+            onChange={(e) => setQbtTag(e.target.value)}
+            placeholder={selectedEntry ? `i.e, ${selectedEntry.slug}` : "i.e, tracker-name"}
+          />
+          <QbtTagWarning tag={qbtTag} />
+        </div>
+
+        {selectedEntry?.platform === "mam" && (
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-1">
+              <Input
+                label="Mousehole URL (optional)"
+                name="tracker-mousehole-url"
+                autoComplete="off"
+                data-1p-ignore
+                value={mouseholeUrl}
+                onChange={(e) => setMouseholeUrl(e.target.value)}
+                placeholder="http://localhost:7001"
+              />
+              <InfoTip
+                content="If you run Mousehole to manage your MAM seedbox IP, enter its URL here to see status and trigger updates from Tracker Tracker."
+                size="sm"
+                docs={{
+                  href: "https://github.com/t-mart/mousehole",
+                  description: "Mousehole on GitHub",
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        <ColorPicker label="Color" value={color} onChange={setColor} />
+
+        {!(
+          selectedEntry?.gazelleEnrich ||
+          selectedEntry?.platform === "ggn" ||
+          selectedEntry?.platform === "avistaz"
+        ) && (
+          <Input
+            label="Join Date (optional)"
+            type="date"
+            value={joinedAt}
+            max={localDateStr()}
+            onChange={(e) => setJoinedAt(e.target.value)}
+            placeholder="YYYY-MM-DD"
+          />
+        )}
+
+        <Notice message={errors.form} />
       </div>
     </Dialog>
   )

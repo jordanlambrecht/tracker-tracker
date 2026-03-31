@@ -58,7 +58,11 @@ function Dialog({
   const preset = SIZE_PRESETS[size]
   const resolvedMaxWidth = maxWidth ?? preset.maxWidth
   const resolvedMaxHeight = maxHeight ?? preset.maxHeight
-  const { mounted, visible, onTransitionEnd: baseOnTransitionEnd } = useAnimatedPresence(open, "opacity")
+  const {
+    mounted,
+    visible,
+    onTransitionEnd: baseOnTransitionEnd,
+  } = useAnimatedPresence(open, "opacity")
 
   // Wrap transition end to close native dialog before unmount (restores focus to trigger)
   const onTransitionEnd = useCallback(

@@ -15,7 +15,13 @@
 
 import { sanitizeHost } from "@/lib/helpers"
 import { clearAllStores, resetStore } from "./sync-store"
-import { isQbtMaindataResponse, isQbtTorrent, type QbtMaindataResponse, type QbtTorrent, type QbtTransferInfo } from "./types"
+import {
+  isQbtMaindataResponse,
+  isQbtTorrent,
+  type QbtMaindataResponse,
+  type QbtTorrent,
+  type QbtTransferInfo,
+} from "./types"
 
 /** Extract a human-readable detail string from a fetch error.
  *  Node's fetch wraps the real error in `cause`, i.e

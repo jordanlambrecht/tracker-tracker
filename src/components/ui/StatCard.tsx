@@ -146,7 +146,11 @@ function Header({
           {label}
         </p>
         {tooltip && (
-          <InfoTip icon="question" size="sm" content={<span className="w-52 block">{tooltip}</span>} />
+          <InfoTip
+            icon="question"
+            size="sm"
+            content={<span className="w-52 block">{tooltip}</span>}
+          />
         )}
         {alertReason && alertColor && (
           <Tooltip content={<span className="w-52 block">{alertReason}</span>}>

@@ -24,8 +24,7 @@ const pillTagVariants = cva("nm-inset-sm bg-control-bg rounded-nm-pill font-mono
 type PillTagColor = NonNullable<VariantProps<typeof pillTagVariants>["color"]>
 
 interface PillTagProps
-  extends Omit<HTMLAttributes<HTMLSpanElement>, "color">,
-    VariantProps<typeof pillTagVariants> {
+  extends Omit<HTMLAttributes<HTMLSpanElement>, "color">, VariantProps<typeof pillTagVariants> {
   label?: string
 }
 

@@ -205,11 +205,7 @@ export function parseAvistazProfile(html: string, username: string): TrackerStat
   // does appear in the raw HTML though, so we scan for the /images/avatar/ pattern.
   let avatarUrl: string | undefined
 
-  const avatarSelectors = [
-    "#avatar-uploader img",
-    ".avatar-cell img",
-    "img.avatar-original",
-  ]
+  const avatarSelectors = ["#avatar-uploader img", ".avatar-cell img", "img.avatar-original"]
   for (const sel of avatarSelectors) {
     const img = doc.querySelector(sel)
     const src = img?.getAttribute("src")?.trim()

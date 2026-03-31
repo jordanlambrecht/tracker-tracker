@@ -532,7 +532,6 @@ describe("validateNotificationConfig edge cases", () => {
     expect(result).not.toBeNull()
     expect(result).toMatch(/not yet supported/)
   })
-
 })
 
 // ─── Part 6: buildDescription fallback branches in payload.ts ─────────────────

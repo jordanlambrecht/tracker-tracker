@@ -395,5 +395,4 @@ describe("GazelleAdapter - security", () => {
       "Request to example.com timed out"
     )
   })
-
 })

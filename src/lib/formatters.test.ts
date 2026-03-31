@@ -1,11 +1,6 @@
 // src/lib/formatters.test.ts
 import { describe, expect, it } from "vitest"
-import {
-  formatBytesFromString,
-  formatBytesNum,
-  formatRatio,
-  formatStatValue,
-} from "./formatters"
+import { formatBytesFromString, formatBytesNum, formatRatio, formatStatValue } from "./formatters"
 
 describe("formatBytesFromString", () => {
   it("formats GiB values", () => {

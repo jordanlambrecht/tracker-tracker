@@ -171,5 +171,4 @@ describe("sanitizeNetworkError", () => {
   it("uses a custom fallback when provided", () => {
     expect(sanitizeNetworkError("Unknown error", "Polling failed")).toBe("Polling failed")
   })
-
 })

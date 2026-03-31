@@ -272,7 +272,6 @@ describe("MamAdapter - error handling", () => {
       adapter.fetchStats("https://www.myanonamouse.net", "session-id", "/jsonLoad.php")
     ).rejects.toThrow("Request to www.myanonamouse.net timed out")
   })
-
 })
 
 describe("MamAdapter - fetchRaw", () => {

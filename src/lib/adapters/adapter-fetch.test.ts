@@ -50,9 +50,7 @@ describe("adapterFetch - token sanitization", () => {
       new Error(`request to ${urlWithToken} failed, reason: connect ECONNREFUSED`)
     )
 
-    await expect(
-      adapterFetch(`${urlWithToken}`, "example.com")
-    ).rejects.toSatisfy((err: Error) => {
+    await expect(adapterFetch(`${urlWithToken}`, "example.com")).rejects.toSatisfy((err: Error) => {
       expect(err.message).not.toContain(secretToken)
       expect(err.message).toContain("example.com")
       return true

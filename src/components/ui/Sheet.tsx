@@ -24,7 +24,11 @@ interface SheetProps {
 
 function Sheet({ open, onClose, title, footer, busy, onSubmit, children, className }: SheetProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
-  const { mounted, visible, onTransitionEnd: baseOnTransitionEnd } = useAnimatedPresence(open, "transform")
+  const {
+    mounted,
+    visible,
+    onTransitionEnd: baseOnTransitionEnd,
+  } = useAnimatedPresence(open, "transform")
 
   // Wrap transition end to close native dialog before unmount (restores focus to trigger)
   const onTransitionEnd = useCallback(

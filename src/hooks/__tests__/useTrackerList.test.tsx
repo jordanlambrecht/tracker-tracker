@@ -117,10 +117,9 @@ describe("useTrackerList", () => {
 
   it("filters out archived trackers by default", async () => {
     const { Wrapper } = createWrapper()
-    const { result } = renderHook(
-      () => useTrackerList({ ...defaultParams, showArchived: false }),
-      { wrapper: Wrapper }
-    )
+    const { result } = renderHook(() => useTrackerList({ ...defaultParams, showArchived: false }), {
+      wrapper: Wrapper,
+    })
 
     await waitFor(() => {
       expect(result.current.displayedTrackers).toHaveLength(2)
@@ -130,10 +129,9 @@ describe("useTrackerList", () => {
 
   it("includes archived trackers when showArchived is true", async () => {
     const { Wrapper } = createWrapper()
-    const { result } = renderHook(
-      () => useTrackerList({ ...defaultParams, showArchived: true }),
-      { wrapper: Wrapper }
-    )
+    const { result } = renderHook(() => useTrackerList({ ...defaultParams, showArchived: true }), {
+      wrapper: Wrapper,
+    })
 
     await waitFor(() => {
       expect(result.current.displayedTrackers).toHaveLength(3)
@@ -167,9 +165,7 @@ describe("useTrackerList", () => {
     const { result } = renderHook(() => useTrackerList(defaultParams), { wrapper: Wrapper })
 
     await waitFor(() => {
-      expect(result.current.trackerIds).toEqual(
-        result.current.displayedTrackers.map((t) => t.id)
-      )
+      expect(result.current.trackerIds).toEqual(result.current.displayedTrackers.map((t) => t.id))
     })
   })
 
@@ -253,10 +249,9 @@ describe("useTrackerList", () => {
     mockFetchOk(withSortOrder)
 
     const { Wrapper } = createWrapper()
-    renderHook(
-      () => useTrackerList({ ...defaultParams, sortMode: "index", onSortModeChange }),
-      { wrapper: Wrapper }
-    )
+    renderHook(() => useTrackerList({ ...defaultParams, sortMode: "index", onSortModeChange }), {
+      wrapper: Wrapper,
+    })
 
     await waitFor(() => {
       expect(onSortModeChange).toHaveBeenCalledWith("custom")
@@ -269,10 +264,9 @@ describe("useTrackerList", () => {
     mockFetchOk(withSortOrder)
 
     const { Wrapper } = createWrapper()
-    renderHook(
-      () => useTrackerList({ ...defaultParams, sortMode: "alpha", onSortModeChange }),
-      { wrapper: Wrapper }
-    )
+    renderHook(() => useTrackerList({ ...defaultParams, sortMode: "alpha", onSortModeChange }), {
+      wrapper: Wrapper,
+    })
 
     await waitFor(() => {
       // Give effect time to run — it should NOT call onSortModeChange
@@ -285,10 +279,7 @@ describe("useTrackerList", () => {
     mockFetchOk([t({ id: 1, sortOrder: null }), t({ id: 2, sortOrder: null })])
 
     const { Wrapper } = createWrapper()
-    renderHook(
-      () => useTrackerList({ ...defaultParams, onSortModeChange }),
-      { wrapper: Wrapper }
-    )
+    renderHook(() => useTrackerList({ ...defaultParams, onSortModeChange }), { wrapper: Wrapper })
 
     // Wait for data to arrive
     await new Promise((r) => setTimeout(r, 50))

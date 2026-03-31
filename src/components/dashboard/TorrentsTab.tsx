@@ -28,10 +28,7 @@ import {
   TorrentStatCards,
   UnsatisfiedTorrentsTable,
 } from "@/components/dashboard/torrents"
-import { Card } from "@/components/ui/Card"
-import { LazySection } from "@/components/ui/LazySection"
-import { Notice } from "@/components/ui/Notice"
-import { TorrentTabSkeleton } from "@/components/ui/skeletons"
+import { Card, LazySection, Notice, TorrentTabSkeleton } from "@/components/ui"
 import type { TrackerTorrentsData } from "@/hooks/useTrackerTorrents"
 import { formatSpeed, formatTimeAgo } from "@/lib/formatters"
 
@@ -75,9 +72,7 @@ function TorrentsTab({
   return (
     <div className="flex flex-col gap-8">
       {/* Error banner */}
-      {data.torrentError && (
-        <Notice variant="warn" box message={data.torrentError} />
-      )}
+      {data.torrentError && <Notice variant="warn" box message={data.torrentError} />}
 
       {/* Stale data banner that's dismissible, reappears on next mount */}
       {data.stale && data.cachedAt && !staleDismissed && (

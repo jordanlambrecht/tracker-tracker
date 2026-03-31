@@ -13,9 +13,9 @@ describe("InfoTip icon variant", () => {
   it("renders info icon by default (circle + two lines)", () => {
     const { container } = render(<InfoTip content="Help text" />)
     const svg = container.querySelector("svg")
-    expect(svg).not.toBeNull()
+    if (!svg) throw new Error("SVG not found")
     // InfoIcon has a circle + line from y=16→12 (the "i" body) + dot at y=8
-    const lines = svg!.querySelectorAll("line")
+    const lines = svg.querySelectorAll("line")
     expect(lines.length).toBe(2)
     expect(lines[0].getAttribute("y1")).toBe("16")
   })
@@ -23,12 +23,12 @@ describe("InfoTip icon variant", () => {
   it("renders question icon when icon='question'", () => {
     const { container } = render(<InfoTip icon="question" content="Help text" />)
     const svg = container.querySelector("svg")
-    expect(svg).not.toBeNull()
+    if (!svg) throw new Error("SVG not found")
     // QuestionIcon has a circle + path (the "?" curve) + line at y=17
-    const path = svg!.querySelector("path")
-    expect(path).not.toBeNull()
-    expect(path!.getAttribute("d")).toContain("9.09 9a3")
-    const lines = svg!.querySelectorAll("line")
+    const path = svg.querySelector("path")
+    if (!path) throw new Error("path not found")
+    expect(path.getAttribute("d")).toContain("9.09 9a3")
+    const lines = svg.querySelectorAll("line")
     expect(lines.length).toBe(1)
     expect(lines[0].getAttribute("y1")).toBe("17")
   })
@@ -71,7 +71,8 @@ describe("InfoTip tooltip behavior", () => {
   it("shows tooltip content on hover", async () => {
     const user = userEvent.setup()
     const { container } = render(<InfoTip content="Explanation of the thing" />)
-    const trigger = container.querySelector("span > span")!
+    const trigger = container.querySelector("span > span")
+    if (!trigger) throw new Error("trigger not found")
 
     // Tooltip not visible initially
     expect(screen.queryByRole("tooltip")).toBeNull()
@@ -84,7 +85,8 @@ describe("InfoTip tooltip behavior", () => {
   it("hides tooltip on unhover", async () => {
     const user = userEvent.setup()
     const { container } = render(<InfoTip content="Goes away" />)
-    const trigger = container.querySelector("span > span")!
+    const trigger = container.querySelector("span > span")
+    if (!trigger) throw new Error("trigger not found")
 
     await user.hover(trigger)
     expect(screen.getByRole("tooltip")).toBeTruthy()
@@ -103,14 +105,15 @@ describe("InfoTip tooltip behavior", () => {
         docs={{ href: "https://example.com", description: "Example docs" }}
       />
     )
-    const trigger = container.querySelector("span > span")!
+    const trigger = container.querySelector("span > span")
+    if (!trigger) throw new Error("trigger not found")
     await user.hover(trigger)
 
     const tooltip = screen.getByRole("tooltip")
     const link = tooltip.querySelector("a")
-    expect(link).not.toBeNull()
-    expect(link!.getAttribute("href")).toBe("https://example.com")
-    expect(link!.textContent).toContain("Documentation")
+    if (!link) throw new Error("link not found")
+    expect(link.getAttribute("href")).toBe("https://example.com")
+    expect(link.textContent).toContain("Documentation")
   })
 })
 

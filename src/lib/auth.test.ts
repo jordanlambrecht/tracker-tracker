@@ -49,5 +49,4 @@ describe("auth - security", () => {
     const valid = await verifyPassword(hash, unicodePass)
     expect(valid).toBe(true)
   })
-
 })

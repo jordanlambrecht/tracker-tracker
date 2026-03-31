@@ -3,7 +3,7 @@
 import { render } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
-import { FilterPill } from "@/components/ui/FilterPill"
+import { FilterPill } from "@/components/ui"
 
 // ---------------------------------------------------------------------------
 // text prop and children priority
@@ -223,7 +223,6 @@ describe("FilterPill type attribute", () => {
     const { getByRole } = render(<FilterPill active={false} text="Label" />)
     expect(getByRole("button").getAttribute("type")).toBe("button")
   })
-
 })
 
 // ---------------------------------------------------------------------------

@@ -24,6 +24,12 @@ export {
   isStoreInitialized,
   resetStore,
 } from "./sync-store"
-export type { ClientStats, QbtMaindataResponse, QbtTorrent, QbtTransferInfo, TagStats } from "./types"
+export type {
+  ClientStats,
+  QbtMaindataResponse,
+  QbtTorrent,
+  QbtTransferInfo,
+  TagStats,
+} from "./types"
 export { isQbtMaindataResponse } from "./types"
 export { parseCrossSeedTags, stripSensitiveTorrentFields } from "./utils"

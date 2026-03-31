@@ -2,6 +2,7 @@
 
 import { NextResponse } from "next/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+// biome-ignore lint/correctness/noUnusedImports: used in vi.mock factory below
 import { NON_DISMISSIBLE_ALERT_TYPES } from "@/lib/alert-pruning"
 import { authenticate, parseJsonBody } from "@/lib/api-helpers"
 import { db } from "@/lib/db"

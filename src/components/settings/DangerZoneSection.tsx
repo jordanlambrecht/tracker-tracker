@@ -5,11 +5,7 @@ import { H3, Paragraph } from "@typography"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
-import { Button } from "@/components/ui/Button"
-import { Checkbox } from "@/components/ui/Checkbox"
-import { ConfirmAction } from "@/components/ui/ConfirmAction"
-import { Input } from "@/components/ui/Input"
-import { Notice } from "@/components/ui/Notice"
+import { Button, Checkbox, ConfirmAction, Input, Notice } from "@/components/ui"
 import { useDestructiveAction } from "@/hooks/useDestructiveAction"
 
 export function DangerZoneSection() {
@@ -154,12 +150,7 @@ export function DangerZoneSection() {
           </ConfirmAction>
         ) : (
           <div>
-            <Button
-              size="sm"
-              variant="danger"
-              onClick={lockdown.open}
-              text="Initiate Lockdown"
-            />
+            <Button size="sm" variant="danger" onClick={lockdown.open} text="Initiate Lockdown" />
           </div>
         )}
       </div>

@@ -1,14 +1,9 @@
 // src/components/ui/skeletons.tsx
-//
-// Composable skeleton layouts for loading states.
-// All built on the Shimmer primitive with CVA variants.
 
-import { Card } from "@/components/ui/Card"
-import { Shimmer } from "@/components/ui/Shimmer"
+import { Card, Shimmer } from "@/components/ui"
 
 /**
- * A collapsed card shape — header bar with title + badge placeholder.
- * Matches the CollapsibleCard layout used in settings sections.
+ * A collapsed card shape
  */
 function CardSkeleton() {
   return (
@@ -24,43 +19,40 @@ function CardSkeleton() {
 }
 
 /**
- * A list of card skeletons — for settings sections that show a list of
- * CollapsibleCards (i.e., DownloadClients, NotificationTargets, TagGroups).
+ * A list of card skeletons
  */
 function CardListSkeleton({ count = 2 }: { count?: number }) {
   return (
     <div className="flex flex-col gap-6">
       {Array.from({ length: count }, (_, i) => (
-        <CardSkeleton key={i} />
+        <CardSkeleton key={`card-${i}`} />
       ))}
     </div>
   )
 }
 
 /**
- * Event log skeleton — rows of varying-width text inside an inset container.
- * Matches EventsSection's scrollable log area.
+ * Event log skeleton
  */
 function EventLogSkeleton({ rows = 6 }: { rows?: number }) {
   const widths = ["w-full", "w-5/6", "w-4/5", "w-full", "w-3/4", "w-5/6"]
   return (
     <div className="nm-inset-sm rounded-nm-md p-3 flex flex-col gap-2.5">
       {Array.from({ length: rows }, (_, i) => (
-        <Shimmer key={i} size="text" className={widths[i % widths.length]} />
+        <Shimmer key={`log-${i}`} size="text" className={widths[i % widths.length]} />
       ))}
     </div>
   )
 }
 
 /**
- * Chart grid skeleton — placeholder cards in a responsive grid.
- * Matches FleetDashboard's chart card layout.
+ * Chart grid skeleton
  */
 function ChartGridSkeleton({ count = 4 }: { count?: number }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {Array.from({ length: count }, (_, i) => (
-        <Card key={i}>
+        <Card key={`chart-${i}`}>
           <div className="flex flex-col gap-4">
             <Shimmer size="heading" className="w-40" />
             <Shimmer className="h-48 w-full" rounded="md" />
@@ -72,7 +64,7 @@ function ChartGridSkeleton({ count = 4 }: { count?: number }) {
 }
 
 /**
- * Stat row + table skeleton — matches TorrentsTab's header stats + table layout.
+ * Stat row and table skeleton
  */
 function TorrentTabSkeleton() {
   return (
@@ -80,7 +72,7 @@ function TorrentTabSkeleton() {
       {/* Stat pills row */}
       <div className="flex gap-3 flex-wrap">
         {Array.from({ length: 5 }, (_, i) => (
-          <Shimmer key={i} className="h-9 w-28" rounded="md" />
+          <Shimmer key={`stat-${i}`} className="h-9 w-28" rounded="md" />
         ))}
       </div>
       {/* Table-like rows */}
@@ -93,7 +85,7 @@ function TorrentTabSkeleton() {
           <Shimmer size="text" className="w-20" />
         </div>
         {Array.from({ length: 4 }, (_, i) => (
-          <div key={i} className="flex gap-4">
+          <div key={`row-${i}`} className="flex gap-4">
             <Shimmer size="text" className="w-16" />
             <Shimmer size="text" className="w-48" />
             <div className="flex-1" />

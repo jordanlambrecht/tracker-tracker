@@ -280,5 +280,4 @@ describe("GGnAdapter - security", () => {
       "Request to gazellegames.net timed out"
     )
   })
-
 })

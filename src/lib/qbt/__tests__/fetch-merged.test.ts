@@ -128,8 +128,8 @@ describe("fetchAndMergeTorrents — early-exit cases", () => {
     vi.mocked(getStoredTorrents).mockReturnValue([])
     vi.mocked(mergeTorrentLists).mockImplementation((lists: RawTorrent[][]) => lists.flat())
     vi.mocked(decryptClientCredentials).mockReturnValue({ username: "admin", password: "pass" })
-    vi.mocked(withSessionRetry).mockImplementation(
-      async (_h, _p, _s, _u, _pw, op) => op("http://localhost:8080", "test-sid")
+    vi.mocked(withSessionRetry).mockImplementation(async (_h, _p, _s, _u, _pw, op) =>
+      op("http://localhost:8080", "test-sid")
     )
     vi.mocked(getTorrents).mockResolvedValue([])
   })
@@ -157,8 +157,8 @@ describe("fetchAndMergeTorrents — fast path (store is fresh, no filter)", () =
     vi.mocked(buildBaseUrl).mockReturnValue("http://localhost:8080")
     vi.mocked(mergeTorrentLists).mockImplementation((lists: RawTorrent[][]) => lists.flat())
     vi.mocked(decryptClientCredentials).mockReturnValue({ username: "admin", password: "pass" })
-    vi.mocked(withSessionRetry).mockImplementation(
-      async (_h, _p, _s, _u, _pw, op) => op("http://localhost:8080", "test-sid")
+    vi.mocked(withSessionRetry).mockImplementation(async (_h, _p, _s, _u, _pw, op) =>
+      op("http://localhost:8080", "test-sid")
     )
     vi.mocked(getTorrents).mockResolvedValue([])
   })
@@ -212,7 +212,11 @@ describe("fetchAndMergeTorrents — fast path (store is fresh, no filter)", () =
     vi.mocked(isStoreFresh).mockReturnValue(true)
     vi.mocked(getStoredTorrents).mockReturnValue([makeTorrent("h1", { tags: "aither" })])
 
-    const result = await fetchAndMergeTorrents([makeClient({ name: "My Client" })], ["aither"], makeKey())
+    const result = await fetchAndMergeTorrents(
+      [makeClient({ name: "My Client" })],
+      ["aither"],
+      makeKey()
+    )
 
     expect(result.torrents[0].client_name).toBe("My Client")
   })
@@ -221,7 +225,11 @@ describe("fetchAndMergeTorrents — fast path (store is fresh, no filter)", () =
     vi.mocked(isStoreFresh).mockReturnValue(true)
     vi.mocked(getStoredTorrents).mockReturnValue([])
 
-    const result = await fetchAndMergeTorrents([makeClient(), makeClient({ name: "Second" })], ["aither"], makeKey())
+    const result = await fetchAndMergeTorrents(
+      [makeClient(), makeClient({ name: "Second" })],
+      ["aither"],
+      makeKey()
+    )
 
     expect(result.clientCount).toBe(2)
   })
@@ -234,8 +242,8 @@ describe("fetchAndMergeTorrents — fast path tag filtering", () => {
     vi.mocked(isStoreFresh).mockReturnValue(true)
     vi.mocked(mergeTorrentLists).mockImplementation((lists: RawTorrent[][]) => lists.flat())
     vi.mocked(decryptClientCredentials).mockReturnValue({ username: "admin", password: "pass" })
-    vi.mocked(withSessionRetry).mockImplementation(
-      async (_h, _p, _s, _u, _pw, op) => op("http://localhost:8080", "test-sid")
+    vi.mocked(withSessionRetry).mockImplementation(async (_h, _p, _s, _u, _pw, op) =>
+      op("http://localhost:8080", "test-sid")
     )
     vi.mocked(getTorrents).mockResolvedValue([])
   })
@@ -259,10 +267,7 @@ describe("fetchAndMergeTorrents — fast path tag filtering", () => {
   })
 
   it("excludes torrents that have no tags", async () => {
-    const stored = [
-      makeTorrent("has-tag", { tags: "aither" }),
-      makeTorrent("no-tag", { tags: "" }),
-    ]
+    const stored = [makeTorrent("has-tag", { tags: "aither" }), makeTorrent("no-tag", { tags: "" })]
     vi.mocked(getStoredTorrents).mockReturnValue(stored)
 
     const result = await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey())
@@ -272,10 +277,7 @@ describe("fetchAndMergeTorrents — fast path tag filtering", () => {
   })
 
   it("tag matching is case-insensitive", async () => {
-    const stored = [
-      makeTorrent("h1", { tags: "Aither" }),
-      makeTorrent("h2", { tags: "BLUTOPIA" }),
-    ]
+    const stored = [makeTorrent("h1", { tags: "Aither" }), makeTorrent("h2", { tags: "BLUTOPIA" })]
     vi.mocked(getStoredTorrents).mockReturnValue(stored)
 
     // Tags requested in lowercase — stored tags have mixed case
@@ -316,8 +318,8 @@ describe("fetchAndMergeTorrents — fast path skipped when filter is present", (
     vi.mocked(getStoredTorrents).mockReturnValue([makeTorrent("h1", { tags: "aither" })])
     vi.mocked(mergeTorrentLists).mockImplementation((lists: RawTorrent[][]) => lists.flat())
     vi.mocked(decryptClientCredentials).mockReturnValue({ username: "admin", password: "pass" })
-    vi.mocked(withSessionRetry).mockImplementation(
-      async (_h, _p, _s, _u, _pw, op) => op("http://localhost:8080", "test-sid")
+    vi.mocked(withSessionRetry).mockImplementation(async (_h, _p, _s, _u, _pw, op) =>
+      op("http://localhost:8080", "test-sid")
     )
     vi.mocked(getTorrents).mockResolvedValue([])
   })
@@ -341,7 +343,12 @@ describe("fetchAndMergeTorrents — fast path skipped when filter is present", (
 
     await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey(), "active")
 
-    expect(getTorrents).toHaveBeenCalledWith("http://localhost:8080", "test-sid", "aither", "active")
+    expect(getTorrents).toHaveBeenCalledWith(
+      "http://localhost:8080",
+      "test-sid",
+      "aither",
+      "active"
+    )
   })
 })
 
@@ -351,8 +358,8 @@ describe("fetchAndMergeTorrents — fast path skipped when store is stale", () =
     vi.mocked(buildBaseUrl).mockReturnValue("http://localhost:8080")
     vi.mocked(mergeTorrentLists).mockImplementation((lists: RawTorrent[][]) => lists.flat())
     vi.mocked(decryptClientCredentials).mockReturnValue({ username: "admin", password: "pass" })
-    vi.mocked(withSessionRetry).mockImplementation(
-      async (_h, _p, _s, _u, _pw, op) => op("http://localhost:8080", "test-sid")
+    vi.mocked(withSessionRetry).mockImplementation(async (_h, _p, _s, _u, _pw, op) =>
+      op("http://localhost:8080", "test-sid")
     )
     vi.mocked(getTorrents).mockResolvedValue([])
   })
@@ -379,7 +386,12 @@ describe("fetchAndMergeTorrents — fast path skipped when store is stale", () =
 
     const result = await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey())
 
-    expect(getTorrents).toHaveBeenCalledWith("http://localhost:8080", "test-sid", "aither", undefined)
+    expect(getTorrents).toHaveBeenCalledWith(
+      "http://localhost:8080",
+      "test-sid",
+      "aither",
+      undefined
+    )
     expect(result.torrents).toHaveLength(1)
     expect(result.torrents[0].hash).toBe("live1")
   })
@@ -404,8 +416,8 @@ describe("fetchAndMergeTorrents — fast path skipped when store is uninitialize
     vi.mocked(buildBaseUrl).mockReturnValue("http://localhost:8080")
     vi.mocked(mergeTorrentLists).mockImplementation((lists: RawTorrent[][]) => lists.flat())
     vi.mocked(decryptClientCredentials).mockReturnValue({ username: "admin", password: "pass" })
-    vi.mocked(withSessionRetry).mockImplementation(
-      async (_h, _p, _s, _u, _pw, op) => op("http://localhost:8080", "test-sid")
+    vi.mocked(withSessionRetry).mockImplementation(async (_h, _p, _s, _u, _pw, op) =>
+      op("http://localhost:8080", "test-sid")
     )
     vi.mocked(getTorrents).mockResolvedValue([])
   })
@@ -477,8 +489,8 @@ describe("fetchAndMergeTorrents — error handling", () => {
         throw new Error("decrypt credentials failed for client")
       })
       .mockReturnValueOnce({ username: "admin", password: "pass" })
-    vi.mocked(withSessionRetry).mockImplementationOnce(
-      async (_h, _p, _s, _u, _pw, op) => op("http://localhost:8080", "test-sid")
+    vi.mocked(withSessionRetry).mockImplementationOnce(async (_h, _p, _s, _u, _pw, op) =>
+      op("http://localhost:8080", "test-sid")
     )
     vi.mocked(getTorrents).mockResolvedValue([])
 
@@ -499,8 +511,8 @@ describe("fetchAndMergeTorrents — sensitive field stripping", () => {
     vi.mocked(isStoreFresh).mockReturnValue(true)
     vi.mocked(mergeTorrentLists).mockImplementation((lists: RawTorrent[][]) => lists.flat())
     vi.mocked(decryptClientCredentials).mockReturnValue({ username: "admin", password: "pass" })
-    vi.mocked(withSessionRetry).mockImplementation(
-      async (_h, _p, _s, _u, _pw, op) => op("http://localhost:8080", "test-sid")
+    vi.mocked(withSessionRetry).mockImplementation(async (_h, _p, _s, _u, _pw, op) =>
+      op("http://localhost:8080", "test-sid")
     )
     vi.mocked(getTorrents).mockResolvedValue([])
   })

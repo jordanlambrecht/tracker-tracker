@@ -1,23 +1,26 @@
 // src/components/DownloadClients.tsx
 "use client"
 
-import { H2, H3, Paragraph, Subheader, Subtext } from "@typography"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { H2, H3, Paragraph, Subheader, Subtext } from "@typography"
 import { useCallback, useState } from "react"
-import { Badge } from "@/components/ui/Badge"
-import { Button } from "@/components/ui/Button"
-import { Card } from "@/components/ui/Card"
-import { CollapsibleCard } from "@/components/ui/CollapsibleCard"
-import { CardListSkeleton } from "@/components/ui/skeletons"
-import { ConfirmRemove } from "@/components/ui/ConfirmRemove"
-import { Input } from "@/components/ui/Input"
-import { MaskedSecret } from "@/components/ui/MaskedSecret"
-import { Notice } from "@/components/ui/Notice"
-import { NumberInput } from "@/components/ui/NumberInput"
-import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
-import { Select } from "@/components/ui/Select"
-import { Toggle } from "@/components/ui/Toggle"
-import { UptimeBar } from "@/components/ui/UptimeBar"
+import {
+  Badge,
+  Button,
+  Card,
+  CardListSkeleton,
+  CollapsibleCard,
+  ConfirmRemove,
+  Input,
+  MaskedSecret,
+  Notice,
+  NumberInput,
+  SaveDiscardBar,
+  Select,
+  Toggle,
+  UptimeBar,
+} from "@/components/ui"
+
 import { useActionStatus } from "@/hooks/useActionStatus"
 import { useCrudCard } from "@/hooks/useCrudCard"
 import { formatTimeAgo } from "@/lib/formatters"

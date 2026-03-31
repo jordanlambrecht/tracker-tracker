@@ -19,6 +19,9 @@
         "noUnusedImports": "warn",
         "noUnusedVariables": "warn"
       },
+      "suspicious": {
+        "noArrayIndexKey": "off"
+      },
       "complexity": {
         "noImportantStyles": "off"
       }

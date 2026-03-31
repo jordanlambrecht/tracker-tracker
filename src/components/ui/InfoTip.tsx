@@ -1,9 +1,9 @@
 // src/components/ui/InfoTip.tsx
 
+import { InfoIcon, QuestionIcon } from "@icons"
 import { cva, type VariantProps } from "class-variance-authority"
 import type { ReactNode } from "react"
-import { InfoIcon, QuestionIcon } from "@/components/ui/Icons"
-import { Tooltip } from "@/components/ui/Tooltip"
+import { Tooltip } from "@/components/ui"
 import type { DocsEntry } from "@/lib/constants"
 
 const infoTipVariants = cva(
@@ -48,5 +48,5 @@ function InfoTip({ content, docs, icon = "info", size, className }: InfoTipProps
   )
 }
 
-export type { InfoTipProps, InfoTipIcon }
+export type { InfoTipIcon, InfoTipProps }
 export { InfoTip, infoTipVariants }

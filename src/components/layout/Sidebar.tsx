@@ -13,12 +13,8 @@ import { useMemo, useRef, useState } from "react"
 import { AddTrackerDialog } from "@/components/AddTrackerDialog"
 import { ClientStatusWidget } from "@/components/layout/ClientStatusWidget"
 import { SortableTrackerItem } from "@/components/layout/SortableTrackerItem"
-import { Button } from "@/components/ui/Button"
-import { ChevronToggle } from "@/components/ui/ChevronToggle"
-import { EyeIcon, EyeOffIcon, GitHubIcon } from "@/components/ui/Icons"
-import { Select } from "@/components/ui/Select"
-import { Shimmer } from "@/components/ui/Shimmer"
-import { Tooltip } from "@/components/ui/Tooltip"
+import { Button, ChevronToggle, Select, Shimmer, Tooltip } from "@/components/ui"
+import { EyeIcon, EyeOffIcon, GitHubIcon } from "@icons"
 import { useSidebarPreferences } from "@/hooks/useSidebarPreferences"
 import { useTrackerList } from "@/hooks/useTrackerList"
 import { useUpdateCheck } from "@/hooks/useUpdateCheck"
@@ -216,7 +212,7 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
             {trackersLoading ? (
               <div className="flex flex-col gap-4 px-4">
                 {Array.from({ length: 4 }, (_, i) => (
-                  <div key={i} className="flex items-center gap-3 px-4 py-3">
+                  <div key={`tracker-${i}`} className="flex items-center gap-3 px-4 py-3">
                     <Shimmer rounded="full" className="h-4 w-4" />
                     <Shimmer size="text" className="flex-1" />
                     <Shimmer size="label" className="w-12" />
