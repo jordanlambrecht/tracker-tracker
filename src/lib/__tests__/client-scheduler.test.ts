@@ -138,13 +138,8 @@ function makeEncryptionKey(): Buffer {
   return Buffer.alloc(32, 0xab)
 }
 
-/**
- * Builds the db.select chain for pollClient's two sequential queries:
- *   1. db.select().from(downloadClients).where(...).limit(1) → client row
- *   2. db.select({ qbtTag }).from(trackers).where(isNotNull(...)) → tag rows
- *
- * Uses mockReturnValueOnce so each call in sequence gets the right data.
- */
+/** Mocks the db.select chain for deepPollClient's client row lookup.
+ *  Tracker tags are now passed as a parameter, not fetched from DB. */
 function mockDbSelectSequence(client: typeof MOCK_CLIENT | null) {
   // downloadClients lookup (tracker tags are now passed as a parameter, not fetched from DB)
   const clientMockLimit = vi.fn().mockResolvedValue(client ? [client] : [])
@@ -269,7 +264,7 @@ describe("deepPollClient per-tag optimization", () => {
   // Empty tags — zero relevant torrents, but getTransferInfo still runs
   // -------------------------------------------------------------------------
 
-  it("handles zero configured tags gracefully", async () => {
+  it("handles zero cross-seed tags gracefully", async () => {
     const clientNoTags = { ...MOCK_CLIENT, crossSeedTags: [] as string[] }
     mockDbSelectSequence(clientNoTags)
     ;(decrypt as ReturnType<typeof vi.fn>)

@@ -1,10 +1,10 @@
 // src/hooks/useDashboardData.ts
-
 "use client"
 
-import { keepPreviousData, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useCallback, useMemo, useState } from "react"
 import { usePollingIntervals } from "@/hooks/usePollingIntervals"
+import { useStableQueries } from "@/hooks/useStableQueries"
 import { useUpdateCheck } from "@/hooks/useUpdateCheck"
 import type { DashboardAlert } from "@/lib/dashboard"
 import {
@@ -73,7 +73,7 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
   const trackers = trackersQuery.data ?? []
 
   // Per-tracker snapshot queries
-  const snapshotQueries = useQueries({
+  const snapshotQueries = useStableQueries({
     queries: trackers.map((t) => ({
       queryKey: ["snapshots", t.id, dayRange] as const,
       queryFn: async ({ signal }) => {
@@ -126,17 +126,13 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
   })
 
   // Derived: snapshotMap
-
-  const snapshotData = snapshotQueries.map((q) => q.data)
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: spreading individual q.data refs which are referentially stable from TanStack Query — avoids new-array-ref instability from the useQueries result array itself
   const snapshotMap = useMemo(() => {
     const map = new Map<number, Snapshot[]>()
     for (let i = 0; i < trackers.length; i++) {
-      map.set(trackers[i].id, snapshotData[i] ?? [])
+      map.set(trackers[i].id, snapshotQueries[i]?.data ?? [])
     }
     return map
-  }, [trackers, ...snapshotData])
+  }, [trackers, snapshotQueries])
 
   // Derived: alerts
   const visibleAlerts = useMemo(() => {
