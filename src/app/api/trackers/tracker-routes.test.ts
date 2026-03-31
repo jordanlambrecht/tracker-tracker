@@ -555,14 +555,20 @@ describe("PATCH /api/trackers/[id]", () => {
     expect(data.error).toMatch(/color/i)
   })
 
-  it("returns 400 when API token exceeds 5000 characters", async () => {
+  it("returns 400 when API token exceeds limit for non-avistaz tracker", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
-      apiToken: "t".repeat(5001),
+      apiToken: "t".repeat(501),
     })
+
+    // Mock the platformType lookup: select → from → where → limit
+    const mockLimit = vi.fn().mockResolvedValue([{ platformType: "unit3d" }])
+    const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit })
+    const mockFrom = vi.fn().mockReturnValue({ where: mockWhere })
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValueOnce({ from: mockFrom })
 
     const request = makeRequest(
       "http://localhost/api/trackers/1",
-      { apiToken: "t".repeat(5001) },
+      { apiToken: "t".repeat(501) },
       "PATCH"
     )
     const params = Promise.resolve({ id: "1" })
