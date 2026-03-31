@@ -90,12 +90,12 @@ const PROFILE_TABLE_HTML = `
   </tbody>
 </table>`
 
-const AVATAR_TEMPLATE = `
-<script type="text/template" id="avatar-template">
-  <img src="https://www.gravatar.com/avatar/abc123?s=200&amp;d=mm&amp;r=g" class="avatar-original">
-</script>`
+const AVATAR_HTML = `
+<div id="avatar-uploader" class="img-avatar pull-right"><div><div class="qq-uploader-selector text-center">
+  <img src="https://avistaz.to/images/avatar/z/2/k/z2kyjx7a08ea.jpg" class="avatar-original img-thumbnail">
+</div></div></div>`
 
-const FULL_PAGE = `<!doctype html><html><head></head><body>${RATIO_BAR_HTML}<section class="container content" id="content-area">${PROFILE_TABLE_HTML}</section>${AVATAR_TEMPLATE}</body></html>`
+const FULL_PAGE = `<!doctype html><html><head></head><body>${RATIO_BAR_HTML}<section class="container content" id="content-area">${PROFILE_TABLE_HTML}</section>${AVATAR_HTML}</body></html>`
 
 describe("parseAvistazProfile", () => {
   it("extracts core stats from the ratio bar", () => {
@@ -139,9 +139,9 @@ describe("parseAvistazProfile", () => {
     expect(meta.reseedRequests).toBe(0)
   })
 
-  it("extracts avatar URL from Gravatar template", () => {
+  it("extracts avatar URL from profile page", () => {
     const stats = parseAvistazProfile(FULL_PAGE, "testuser")
-    expect(stats.avatarUrl).toBe("https://www.gravatar.com/avatar/abc123?s=200&d=404&r=g")
+    expect(stats.avatarUrl).toBe("https://avistaz.to/images/avatar/z/2/k/z2kyjx7a08ea.jpg")
   })
 
   it("computes bufferBytes as upload minus download", () => {
