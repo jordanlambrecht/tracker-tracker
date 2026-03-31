@@ -4,8 +4,7 @@
 import { H3, Paragraph } from "@typography"
 import { useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
-import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
-import { Select } from "@/components/ui/Select"
+import { SaveDiscardBar, Select } from "@/components/ui"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 
 export interface DataSectionProps {
@@ -26,9 +25,9 @@ export function DataSection({ initialPollInterval }: DataSectionProps) {
 
   async function handleSavePollInterval() {
     const result = await patch({ trackerPollIntervalMinutes: pollInterval })
-    if (result !== null) {
+    if (result.ok) {
       setSavedPollInterval(
-        (result as { trackerPollIntervalMinutes: number }).trackerPollIntervalMinutes
+        (result.data as { trackerPollIntervalMinutes: number }).trackerPollIntervalMinutes
       )
     }
   }

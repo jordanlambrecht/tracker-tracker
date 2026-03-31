@@ -81,9 +81,9 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
     }
 
     const result = await patch(payload)
-    if (!result) return
+    if (!result.ok) return
 
-    const typed = result as {
+    const typed = result.data as {
       proxyEnabled: boolean
       proxyType: string
       proxyHost: string | null

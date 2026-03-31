@@ -4,11 +4,7 @@
 import { Paragraph } from "@typography"
 import { useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
-import { Button } from "@/components/ui/Button"
-import { ConfirmAction } from "@/components/ui/ConfirmAction"
-import { Notice } from "@/components/ui/Notice"
-import { RedactedText } from "@/components/ui/RedactedText"
-import { Toggle } from "@/components/ui/Toggle"
+import { Button, ConfirmAction, Notice, RedactedText, Toggle } from "@/components/ui"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 
 type ScrubState = "idle" | "confirming" | "scrubbing"
@@ -24,8 +20,8 @@ export function PrivacySection({ initialStoreUsernames }: PrivacySectionProps) {
 
   async function patchSettings(payload: { storeUsernames: boolean; scrubExisting?: boolean }) {
     const result = await patchPrivacy(payload)
-    if (result !== null) {
-      setStoreUsernames((result as { storeUsernames: boolean }).storeUsernames)
+    if (result.ok) {
+      setStoreUsernames((result.data as { storeUsernames: boolean }).storeUsernames)
     }
     setScrubState("idle")
   }

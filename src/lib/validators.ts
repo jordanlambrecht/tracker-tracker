@@ -28,7 +28,12 @@ export function isIntegerInRange(value: number, min: number, max: number): boole
 }
 
 /** Parse a string to int, clamp to [min, max], fall back to defaultValue for null/NaN. */
-export function parseIntClamped(raw: string | null, min: number, max: number, defaultValue: number): number {
+export function parseIntClamped(
+  raw: string | null,
+  min: number,
+  max: number,
+  defaultValue: number
+): number {
   const parsed = parseInt(raw ?? String(defaultValue), 10)
   return Math.min(Math.max(min, Number.isNaN(parsed) ? defaultValue : parsed), max)
 }

@@ -4,10 +4,7 @@
 import { Paragraph } from "@typography"
 import { useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
-import { Checkbox } from "@/components/ui/Checkbox"
-import { Notice } from "@/components/ui/Notice"
-import { NumberInput } from "@/components/ui/NumberInput"
-import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
+import { Checkbox, Notice, NumberInput, SaveDiscardBar } from "@/components/ui"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 
 interface LockoutConfig {
@@ -111,8 +108,8 @@ export function SecurityPoliciesSection({
       lockoutThreshold,
       lockoutDurationMinutes: lockoutDuration,
     })
-    if (result !== null) {
-      const r = result as {
+    if (result.ok) {
+      const r = result.data as {
         lockoutEnabled: boolean
         lockoutThreshold: number
         lockoutDurationMinutes: number
@@ -128,9 +125,9 @@ export function SecurityPoliciesSection({
   async function handleSaveRetention() {
     const value = retentionEnabled ? retentionDays : null
     const result = await patchRetention({ snapshotRetentionDays: value })
-    if (result !== null) {
+    if (result.ok) {
       const saved =
-        (result as { snapshotRetentionDays?: number | null }).snapshotRetentionDays ?? null
+        (result.data as { snapshotRetentionDays?: number | null }).snapshotRetentionDays ?? null
       setSavedRetention({
         enabled: saved !== null && saved > 0,
         days: saved ?? 90,
@@ -144,9 +141,9 @@ export function SecurityPoliciesSection({
       : 0
     const currentValue = currentTotal > 0 ? currentTotal : null
     const result = await patchTimeout({ sessionTimeoutMinutes: currentValue })
-    if (result !== null) {
+    if (result.ok) {
       const saved =
-        (result as { sessionTimeoutMinutes?: number | null }).sessionTimeoutMinutes ?? null
+        (result.data as { sessionTimeoutMinutes?: number | null }).sessionTimeoutMinutes ?? null
       setSavedTimeoutMinutes(saved)
     }
   }

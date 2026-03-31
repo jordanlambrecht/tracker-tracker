@@ -48,9 +48,12 @@ export function useActionStatus(opts?: UseActionStatusOptions): UseActionStatusR
   )
 
   // Clear pending timer on unmount
-  useEffect(() => () => {
-    if (timerRef.current) clearTimeout(timerRef.current)
-  }, [])
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    },
+    []
+  )
 
   const reset = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current)

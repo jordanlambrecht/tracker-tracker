@@ -6,7 +6,14 @@ import { ExternalLinkIcon, PlusIcon } from "@icons"
 import clsx from "clsx"
 import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Checkbox, ChevronToggle, FilterPill, Notice, PulseDot, RedactedText } from "@/components/ui"
+import {
+  Checkbox,
+  ChevronToggle,
+  FilterPill,
+  Notice,
+  PulseDot,
+  RedactedText,
+} from "@/components/ui"
 import { findRegistryEntry, type TrackerRegistryEntry } from "@/data/tracker-registry"
 import { ALL_TRACKERS } from "@/data/trackers"
 import { useClickOutside } from "@/hooks/useClickOutside"

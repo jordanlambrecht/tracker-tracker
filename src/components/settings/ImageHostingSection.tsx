@@ -3,9 +3,7 @@
 
 import { useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
-import { Button } from "@/components/ui/Button"
-import { Input } from "@/components/ui/Input"
-import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
+import { Button, Input, SaveDiscardBar } from "@/components/ui"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 import { DOCS } from "@/lib/constants"
 
@@ -52,7 +50,7 @@ export function ImageHostingSection({ initialHasKeys }: ImageHostingSectionProps
   async function handleSave(field: string, hostKey: "ptpimg" | "oeimg" | "imgbb") {
     clearSuccess()
     const result = await patch({ [field]: values[field] })
-    if (result !== null) {
+    if (result.ok) {
       setHasKeys((prev) => ({ ...prev, [hostKey]: !!values[field] }))
       setValues((prev) => ({ ...prev, [field]: "" }))
       setEditing((prev) => ({ ...prev, [hostKey]: false }))
@@ -62,7 +60,7 @@ export function ImageHostingSection({ initialHasKeys }: ImageHostingSectionProps
   async function handleClear(field: string, hostKey: "ptpimg" | "oeimg" | "imgbb") {
     clearSuccess()
     const result = await patch({ [field]: null })
-    if (result !== null) {
+    if (result.ok) {
       setHasKeys((prev) => ({ ...prev, [hostKey]: false }))
       setValues((prev) => ({ ...prev, [field]: "" }))
       setEditing((prev) => ({ ...prev, [hostKey]: false }))

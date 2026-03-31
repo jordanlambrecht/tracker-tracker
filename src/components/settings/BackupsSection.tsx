@@ -4,18 +4,21 @@
 import { H2, Paragraph, Subtext } from "@typography"
 import clsx from "clsx"
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Badge } from "@/components/ui/Badge"
-import { Button } from "@/components/ui/Button"
-import { Card } from "@/components/ui/Card"
-import { InfoTip } from "@/components/ui/InfoTip"
-import { Input } from "@/components/ui/Input"
-import { Notice } from "@/components/ui/Notice"
-import { NumberInput } from "@/components/ui/NumberInput"
-import { Select } from "@/components/ui/Select"
-import type { Column } from "@/components/ui/Table"
-import { Table } from "@/components/ui/Table"
-import { Toggle } from "@/components/ui/Toggle"
-import { Tooltip } from "@/components/ui/Tooltip"
+import {
+  Badge,
+  Button,
+  Card,
+  type Column,
+  InfoTip,
+  Input,
+  Notice,
+  NumberInput,
+  Select,
+  Table,
+  Toggle,
+  Tooltip,
+} from "@/components/ui"
+
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 import { DOCS } from "@/lib/constants"
 import { downloadResponseBlob } from "@/lib/download"
@@ -77,11 +80,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
   const [totpWasDisabled, setTotpWasDisabled] = useState(false)
   const restoreInputRef = useRef<HTMLInputElement>(null)
 
-  const {
-    saving: savingBackupConfig,
-    error: settingsError,
-    patch: patchSettings,
-  } = usePatchSettings()
+  const { saving: savingBackupConfig, patch: patchSettings } = usePatchSettings()
 
   useEffect(() => {
     if (sessionStorage.getItem("totp_disabled_on_restore") === "1") {
@@ -141,8 +140,8 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
     setSavingPassword(true)
     setBackupError(null)
     const result = await patchSettings({ backupPassword: newBackupPassword })
-    if (result === null) {
-      setBackupError(settingsError ?? "Failed to save password")
+    if (!result.ok) {
+      setBackupError(result.error)
     } else {
       setHasStoredPassword(true)
       setNewBackupPassword("")
@@ -154,8 +153,8 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
     setSavingPassword(true)
     setBackupError(null)
     const result = await patchSettings({ backupPassword: null })
-    if (result === null) {
-      setBackupError(settingsError ?? "Failed to clear password")
+    if (!result.ok) {
+      setBackupError(result.error)
     } else {
       setHasStoredPassword(false)
       setNewBackupPassword("")
