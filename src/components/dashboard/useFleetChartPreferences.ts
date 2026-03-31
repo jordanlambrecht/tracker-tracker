@@ -76,7 +76,7 @@ export const FLEET_CHARTS: FleetChartDef[] = [
   {
     id: "fleet-age-bands",
     label: "Age Distribution",
-    description: "Torrent count per age band per tracker — heatmap grid",
+    description: "Torrent count per age band per tracker",
   },
   {
     id: "fleet-age-timeline",
@@ -91,12 +91,12 @@ export const FLEET_CHARTS: FleetChartDef[] = [
   {
     id: "fleet-size-jitter",
     label: "Size Scatter",
-    description: "Torrent size distribution per tracker — jittered scatter plot",
+    description: "Torrent size distribution per tracker",
   },
   {
     id: "fleet-category-breakdown",
     label: "Category Mix",
-    description: "Normalized category breakdown per tracker — stacked percentage bars",
+    description: "Normalized category breakdown per tracker",
   },
 ]
 

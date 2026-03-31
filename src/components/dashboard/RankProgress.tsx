@@ -87,7 +87,7 @@ function RankProgressBar({ userClasses, currentRank, accentColor }: RankProgress
   )
 
   return (
-    <div className="flex items-center gap-1 w-full overflow-x-auto pt-1 pb-3 styled-scrollbar">
+    <div className="flex items-center gap-1 w-full overflow-x-auto p-3 -m-3 styled-scrollbar">
       {userClasses.map((uc, i) => {
         const isPast = currentIndex >= 0 && i < currentIndex
         const isCurrent = i === currentIndex

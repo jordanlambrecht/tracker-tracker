@@ -347,7 +347,6 @@ export function EventsSection() {
 
       {/* ── Footer ───────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
-        <p className="timestamp">IPs redacted</p>
         {filteredEvents.length > 0 && (
           <span className="timestamp">
             {filteredEvents.length === events.length
