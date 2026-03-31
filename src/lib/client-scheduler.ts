@@ -35,7 +35,6 @@ import {
   aggregateByTag,
   applyMaindataUpdate,
   clearAllSessions,
-
   clearSpeedCache,
   getStoredTorrents,
   getStoreRevision,
@@ -77,6 +76,8 @@ const g = globalThis as typeof globalThis & {
 
 let heartbeatInFlight = false
 let deepPollInFlight = false
+let lastPruneAt = 0
+const PRUNE_INTERVAL_MS = 60 * 60 * 1000 // 1 hour
 
 function getHeartbeatTask(): ScheduledTask | null {
   return g.__clientHeartbeatTask ?? null
@@ -155,7 +156,11 @@ async function heartbeatAllClients(encryptionKey: Buffer): Promise<void> {
 // Deep poll
 // ---------------------------------------------------------------------------
 
-export async function deepPollClient(clientId: number, encryptionKey: Buffer): Promise<void> {
+export async function deepPollClient(
+  clientId: number,
+  encryptionKey: Buffer,
+  trackerTags: string[]
+): Promise<void> {
   const [client] = await db
     .select(DEEP_POLL_COLUMNS)
     .from(downloadClients)
@@ -168,13 +173,6 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
   try {
     const { username, password } = decryptClientCredentials(client, encryptionKey)
 
-    // Collect known tags
-    const trackerTagRows = await db
-      .select({ qbtTag: trackers.qbtTag })
-      .from(trackers)
-      .where(isNotNull(trackers.qbtTag))
-
-    const trackerTags = trackerTagRows.map((r) => r.qbtTag as string)
     const crossSeedTags = parseCrossSeedTags(client.crossSeedTags)
     const allTags = [...new Set([...trackerTags, ...crossSeedTags])]
 
@@ -197,9 +195,13 @@ export async function deepPollClient(clientId: number, encryptionKey: Buffer): P
         const changedCount = Object.keys(data.torrents ?? {}).length
         const removedCount = data.torrents_removed?.length ?? 0
         if (data.full_update) {
-          log.info(`[deep-poll] client=${clientId} → rid 0→${data.rid} (full sync, ${changedCount} torrents)`)
+          log.info(
+            `[deep-poll] client=${clientId} → rid 0→${data.rid} (full sync, ${changedCount} torrents)`
+          )
         } else {
-          log.debug(`[deep-poll] client=${clientId} → rid ${rid}→${data.rid} (delta, ${changedCount} changed, ${removedCount} removed)`)
+          log.debug(
+            `[deep-poll] client=${clientId} → rid ${rid}→${data.rid} (delta, ${changedCount} changed, ${removedCount} removed)`
+          )
         }
 
         // Post-filter to only torrents carrying at least one app-tracked tag.
@@ -311,7 +313,14 @@ async function deepPollAllClients(encryptionKey: Buffer): Promise<void> {
 
   if (overdue.length === 0) return
 
-  await Promise.allSettled(overdue.map((c) => deepPollClient(c.id, encryptionKey)))
+  // Fetch tracker tags once for the entire cycle (same for all clients)
+  const trackerTagRows = await db
+    .select({ qbtTag: trackers.qbtTag })
+    .from(trackers)
+    .where(isNotNull(trackers.qbtTag))
+  const trackerTags = trackerTagRows.map((r) => r.qbtTag as string)
+
+  await Promise.allSettled(overdue.map((c) => deepPollClient(c.id, encryptionKey, trackerTags)))
 }
 
 // ---------------------------------------------------------------------------
@@ -344,21 +353,27 @@ export function startClientScheduler(encryptionKey: Buffer): void {
   })
   setHeartbeatTask(hbTask)
 
-  // Deep poll
-  const dpTask = cron.schedule("*/5 * * * *", async () => {
+  // Deep poll — 30s tick so per-client pollIntervalSeconds (min 60s) is honored
+  const dpTask = cron.schedule("*/30 * * * * *", async () => {
     if (deepPollInFlight) return
     deepPollInFlight = true
     try {
       await deepPollAllClients(encryptionKey)
-      // Prune client snapshots + uptime buckets using snapshotRetentionDays
-      const [settings] = await db
-        .select({ retention: appSettings.snapshotRetentionDays })
-        .from(appSettings)
-        .limit(1)
-      const retentionDays = settings?.retention ?? 90
-      const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000)
-      await db.delete(clientSnapshots).where(lt(clientSnapshots.polledAt, cutoff))
-      await db.delete(clientUptimeBuckets).where(lt(clientUptimeBuckets.bucketTs, cutoff))
+      // Prune client snapshots + uptime buckets at most once per hour
+      const now = Date.now()
+      if (now - lastPruneAt >= PRUNE_INTERVAL_MS) {
+        const [settings] = await db
+          .select({ retention: appSettings.snapshotRetentionDays })
+          .from(appSettings)
+          .limit(1)
+        const retentionDays = settings?.retention ?? 90
+        if (retentionDays > 0) {
+          const cutoff = new Date(now - retentionDays * 24 * 60 * 60 * 1000)
+          await db.delete(clientSnapshots).where(lt(clientSnapshots.polledAt, cutoff))
+          await db.delete(clientUptimeBuckets).where(lt(clientUptimeBuckets.bucketTs, cutoff))
+        }
+        lastPruneAt = now
+      }
     } catch (error) {
       log.error(error, "Client deep poll error")
     } finally {
@@ -367,7 +382,7 @@ export function startClientScheduler(encryptionKey: Buffer): void {
   })
   setDeepPollTask(dpTask)
 
-  log.info("Client scheduler started (heartbeat: 5s, deep poll: 5m)")
+  log.info("Client scheduler started (heartbeat: 5s, deep poll: 30s tick)")
 }
 
 export function stopClientScheduler(): void {

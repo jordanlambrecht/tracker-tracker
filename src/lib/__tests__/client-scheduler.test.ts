@@ -145,20 +145,13 @@ function makeEncryptionKey(): Buffer {
  *
  * Uses mockReturnValueOnce so each call in sequence gets the right data.
  */
-function mockDbSelectSequence(client: typeof MOCK_CLIENT | null, trackerTags: string[]) {
-  // First call: downloadClients lookup
+function mockDbSelectSequence(client: typeof MOCK_CLIENT | null) {
+  // downloadClients lookup (tracker tags are now passed as a parameter, not fetched from DB)
   const clientMockLimit = vi.fn().mockResolvedValue(client ? [client] : [])
   const clientMockWhere = vi.fn().mockReturnValue({ limit: clientMockLimit })
   const clientMockFrom = vi.fn().mockReturnValue({ where: clientMockWhere })
 
-  // Second call: trackers qbtTag lookup
-  const tagRows = trackerTags.map((t) => ({ qbtTag: t }))
-  const tagMockWhere = vi.fn().mockResolvedValue(tagRows)
-  const tagMockFrom = vi.fn().mockReturnValue({ where: tagMockWhere })
-
-  ;(db.select as ReturnType<typeof vi.fn>)
-    .mockReturnValueOnce({ from: clientMockFrom })
-    .mockReturnValueOnce({ from: tagMockFrom })
+  ;(db.select as ReturnType<typeof vi.fn>).mockReturnValueOnce({ from: clientMockFrom })
 }
 
 /** Sets up db.insert to succeed silently. Returns the values mock for assertion. */
@@ -177,12 +170,13 @@ function mockDbUpdateClient() {
 }
 
 /**
- * Wires all mocks for a successful deepPollClient run with the given tracker tags.
+ * Wires all mocks for a successful deepPollClient run.
+ * Tracker tags are passed directly to deepPollClient (no longer fetched from DB).
  * crossSeedTags come from MOCK_CLIENT.crossSeedTags = '["cross-seed"]'.
  * syncMaindata returns MOCK_MAINDATA_RESPONSE; getStoredTorrents returns [] by default.
  */
-function setupFullHappyPathMocks(trackerTags: string[]) {
-  mockDbSelectSequence(MOCK_CLIENT, trackerTags)
+function setupFullHappyPathMocks() {
+  mockDbSelectSequence(MOCK_CLIENT)
   ;(decrypt as ReturnType<typeof vi.fn>).mockReturnValueOnce("admin").mockReturnValueOnce("secret")
   ;(getStoreRevision as ReturnType<typeof vi.fn>).mockReturnValue(0)
   ;(syncMaindata as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_MAINDATA_RESPONSE)
@@ -210,9 +204,9 @@ describe("deepPollClient per-tag optimization", () => {
   // -------------------------------------------------------------------------
 
   it("calls syncMaindata once (not per-tag) for a single poll", async () => {
-    setupFullHappyPathMocks(["aither", "blutopia"])
+    setupFullHappyPathMocks()
 
-    await deepPollClient(1, makeEncryptionKey())
+    await deepPollClient(1, makeEncryptionKey(), ["aither"])
 
     // New flow: a single syncMaindata call instead of N per-tag getTorrents calls
     expect(syncMaindata as ReturnType<typeof vi.fn>).toHaveBeenCalledOnce()
@@ -247,7 +241,7 @@ describe("deepPollClient per-tag optimization", () => {
       ...MOCK_CLIENT,
       crossSeedTags: ["cross-seed", "shared-tag"],
     }
-    mockDbSelectSequence(clientWithOverlap, ["aither", "shared-tag"])
+    mockDbSelectSequence(clientWithOverlap)
     ;(decrypt as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce("admin")
       .mockReturnValueOnce("secret")
@@ -265,7 +259,7 @@ describe("deepPollClient per-tag optimization", () => {
     mockDbInsertSnapshot()
     mockDbUpdateClient()
 
-    await deepPollClient(1, makeEncryptionKey())
+    await deepPollClient(1, makeEncryptionKey(), ["aither"])
 
     // syncMaindata called once — no per-tag requests
     expect(syncMaindata as ReturnType<typeof vi.fn>).toHaveBeenCalledOnce()
@@ -277,7 +271,7 @@ describe("deepPollClient per-tag optimization", () => {
 
   it("handles zero configured tags gracefully", async () => {
     const clientNoTags = { ...MOCK_CLIENT, crossSeedTags: [] as string[] }
-    mockDbSelectSequence(clientNoTags, [])
+    mockDbSelectSequence(clientNoTags)
     ;(decrypt as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce("admin")
       .mockReturnValueOnce("secret")
@@ -297,7 +291,7 @@ describe("deepPollClient per-tag optimization", () => {
     mockDbInsertSnapshot()
     mockDbUpdateClient()
 
-    await deepPollClient(1, makeEncryptionKey())
+    await deepPollClient(1, makeEncryptionKey(), ["aither"])
 
     // syncMaindata still called once — it fetches everything regardless of tag count
     expect(syncMaindata as ReturnType<typeof vi.fn>).toHaveBeenCalledOnce()
@@ -331,7 +325,7 @@ describe("deepPollClient per-tag optimization", () => {
       dlspeed: 0,
     }
 
-    mockDbSelectSequence(MOCK_CLIENT, ["aither"])
+    mockDbSelectSequence(MOCK_CLIENT)
     ;(decrypt as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce("admin")
       .mockReturnValueOnce("secret")
@@ -349,7 +343,7 @@ describe("deepPollClient per-tag optimization", () => {
     mockDbInsertSnapshot()
     mockDbUpdateClient()
 
-    await deepPollClient(1, makeEncryptionKey())
+    await deepPollClient(1, makeEncryptionKey(), ["aither"])
 
     const aggregateCalls = (aggregateByTag as ReturnType<typeof vi.fn>).mock.calls
     expect(aggregateCalls).toHaveLength(1)
@@ -370,7 +364,7 @@ describe("deepPollClient per-tag optimization", () => {
     const clientMockFrom = vi.fn().mockReturnValue({ where: clientMockWhere })
     ;(db.select as ReturnType<typeof vi.fn>).mockReturnValueOnce({ from: clientMockFrom })
 
-    await deepPollClient(1, makeEncryptionKey())
+    await deepPollClient(1, makeEncryptionKey(), ["aither"])
 
     expect(withSessionRetry as ReturnType<typeof vi.fn>).not.toHaveBeenCalled()
     expect(syncMaindata as ReturnType<typeof vi.fn>).not.toHaveBeenCalled()
@@ -384,7 +378,7 @@ describe("deepPollClient per-tag optimization", () => {
     ;(db.select as ReturnType<typeof vi.fn>).mockReturnValueOnce({ from: clientMockFrom })
 
     // Must not throw
-    await expect(deepPollClient(999, makeEncryptionKey())).resolves.toBeUndefined()
+    await expect(deepPollClient(999, makeEncryptionKey(), [])).resolves.toBeUndefined()
     expect(withSessionRetry as ReturnType<typeof vi.fn>).not.toHaveBeenCalled()
   })
 
@@ -393,7 +387,7 @@ describe("deepPollClient per-tag optimization", () => {
   // -------------------------------------------------------------------------
 
   it("records sanitized error to DB when qBT login fails and does not re-throw", async () => {
-    mockDbSelectSequence(MOCK_CLIENT, ["aither"])
+    mockDbSelectSequence(MOCK_CLIENT)
     ;(decrypt as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce("admin")
       .mockReturnValueOnce("secret")
@@ -402,7 +396,7 @@ describe("deepPollClient per-tag optimization", () => {
     )
     const { mockSet } = mockDbUpdateClient()
 
-    await expect(deepPollClient(1, makeEncryptionKey())).resolves.toBeUndefined()
+    await expect(deepPollClient(1, makeEncryptionKey(), ["🕵️ Aither"])).resolves.toBeUndefined()
 
     // Raw error is sanitized — IP and port stripped, generic message stored
     expect(mockSet).toHaveBeenCalledWith(
@@ -411,14 +405,14 @@ describe("deepPollClient per-tag optimization", () => {
   })
 
   it("records a generic message when the thrown value is not an Error instance", async () => {
-    mockDbSelectSequence(MOCK_CLIENT, ["aither"])
+    mockDbSelectSequence(MOCK_CLIENT)
     ;(decrypt as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce("admin")
       .mockReturnValueOnce("secret")
     ;(withSessionRetry as ReturnType<typeof vi.fn>).mockRejectedValue("plain string rejection")
     const { mockSet } = mockDbUpdateClient()
 
-    await expect(deepPollClient(1, makeEncryptionKey())).resolves.toBeUndefined()
+    await expect(deepPollClient(1, makeEncryptionKey(), ["🕵️ Aither"])).resolves.toBeUndefined()
 
     // Non-Error throws are sanitized to the generic fallback
     expect(mockSet).toHaveBeenCalledWith(
@@ -431,12 +425,12 @@ describe("deepPollClient per-tag optimization", () => {
   // -------------------------------------------------------------------------
 
   it("clears lastError and sets lastPolledAt on successful poll", async () => {
-    setupFullHappyPathMocks(["aither"])
+    setupFullHappyPathMocks()
 
     // Re-wire update mock so we can inspect the set() argument
     const { mockSet } = mockDbUpdateClient()
 
-    await deepPollClient(1, makeEncryptionKey())
+    await deepPollClient(1, makeEncryptionKey(), ["aither"])
 
     expect(mockSet).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -451,11 +445,11 @@ describe("deepPollClient per-tag optimization", () => {
   // -------------------------------------------------------------------------
 
   it("inserts a client snapshot after a successful poll", async () => {
-    setupFullHappyPathMocks(["aither"])
+    setupFullHappyPathMocks()
     // Re-wire insert mock to capture the values
     const mockValues = mockDbInsertSnapshot()
 
-    await deepPollClient(1, makeEncryptionKey())
+    await deepPollClient(1, makeEncryptionKey(), ["aither"])
 
     expect(mockValues).toHaveBeenCalledOnce()
     const snapshotValues = mockValues.mock.calls[0][0]
@@ -489,7 +483,7 @@ describe("deepPollClient per-tag optimization", () => {
       },
     ]
 
-    mockDbSelectSequence(MOCK_CLIENT, ["aither"])
+    mockDbSelectSequence(MOCK_CLIENT)
     ;(decrypt as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce("admin")
       .mockReturnValueOnce("secret")
@@ -510,7 +504,7 @@ describe("deepPollClient per-tag optimization", () => {
     })
     ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
 
-    await deepPollClient(1, makeEncryptionKey())
+    await deepPollClient(1, makeEncryptionKey(), ["aither"])
 
     // One of the update calls should contain the cached torrents
     const cacheUpdate = updateCalls.find((c) => "cachedTorrents" in c)
@@ -534,7 +528,7 @@ describe("deepPollClient per-tag optimization", () => {
       },
     ]
 
-    mockDbSelectSequence(MOCK_CLIENT, ["aither"])
+    mockDbSelectSequence(MOCK_CLIENT)
     ;(decrypt as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce("admin")
       .mockReturnValueOnce("secret")
@@ -554,7 +548,7 @@ describe("deepPollClient per-tag optimization", () => {
     })
     ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
 
-    await deepPollClient(1, makeEncryptionKey())
+    await deepPollClient(1, makeEncryptionKey(), ["aither"])
 
     const cacheUpdate = updateCalls.find((c) => "cachedTorrents" in c)
     expect(cacheUpdate).toBeDefined()
@@ -578,7 +572,7 @@ describe("deepPollClient per-tag optimization", () => {
   // -------------------------------------------------------------------------
 
   it("passes decrypted credentials to withSessionRetry", async () => {
-    mockDbSelectSequence(MOCK_CLIENT, ["aither"])
+    mockDbSelectSequence(MOCK_CLIENT)
     ;(decrypt as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce("decrypted-user")
       .mockReturnValueOnce("decrypted-pass")
@@ -591,7 +585,7 @@ describe("deepPollClient per-tag optimization", () => {
     mockDbInsertSnapshot()
     mockDbUpdateClient()
 
-    await deepPollClient(1, makeEncryptionKey())
+    await deepPollClient(1, makeEncryptionKey(), ["aither"])
 
     // withSessionRetry(host, port, ssl, username, password, op) — username is index 3, password is 4
     const retryCalls = (withSessionRetry as ReturnType<typeof vi.fn>).mock.calls
@@ -628,7 +622,7 @@ describe("deepPollClient dedup without isPrivate", () => {
       expect(Object.hasOwn(t, "isPrivate")).toBe(false)
     }
 
-    mockDbSelectSequence(MOCK_CLIENT, ["aither"])
+    mockDbSelectSequence(MOCK_CLIENT)
     ;(decrypt as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce("admin")
       .mockReturnValueOnce("secret")
@@ -641,7 +635,7 @@ describe("deepPollClient dedup without isPrivate", () => {
     mockDbInsertSnapshot()
     mockDbUpdateClient()
 
-    await deepPollClient(1, makeEncryptionKey())
+    await deepPollClient(1, makeEncryptionKey(), ["aither"])
 
     // aggregateByTag must have been called with all 3 torrents — none were dropped
     const aggregateCalls = (aggregateByTag as ReturnType<typeof vi.fn>).mock.calls
@@ -661,7 +655,7 @@ describe("deepPollClient dedup without isPrivate", () => {
       { hash: "cross-only", state: "uploading", tags: "cross-seed", upspeed: 75, dlspeed: 0 },
     ]
 
-    mockDbSelectSequence(MOCK_CLIENT, ["aither"])
+    mockDbSelectSequence(MOCK_CLIENT)
     ;(decrypt as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce("admin")
       .mockReturnValueOnce("secret")
@@ -674,7 +668,7 @@ describe("deepPollClient dedup without isPrivate", () => {
     mockDbInsertSnapshot()
     mockDbUpdateClient()
 
-    await deepPollClient(1, makeEncryptionKey())
+    await deepPollClient(1, makeEncryptionKey(), ["aither"])
 
     const aggregateCalls = (aggregateByTag as ReturnType<typeof vi.fn>).mock.calls
     expect(aggregateCalls).toHaveLength(1)
@@ -704,10 +698,10 @@ describe("deepPollClient lastPolledAt written; heartbeat update does not include
   // never be reached after the first heartbeat, and deep polls would stop firing.
   // The fix: heartbeat updates only lastError/errorSince/updatedAt, never lastPolledAt.
   it("deep poll success writes lastPolledAt to the DB", async () => {
-    setupFullHappyPathMocks(["aither"])
+    setupFullHappyPathMocks()
     const { mockSet } = mockDbUpdateClient()
 
-    await deepPollClient(1, makeEncryptionKey())
+    await deepPollClient(1, makeEncryptionKey(), ["aither"])
 
     // At least one update call must include lastPolledAt — this is the status update
     const allSetCalls = mockSet.mock.calls.map((c: unknown[]) => c[0] as Record<string, unknown>)
