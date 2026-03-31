@@ -1,6 +1,6 @@
 // src/hooks/useActionStatus.ts
 
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 type ActionStatus = "idle" | "pending" | "success" | "failed"
 
@@ -46,6 +46,11 @@ export function useActionStatus(opts?: UseActionStatusOptions): UseActionStatusR
     },
     [autoResetMs]
   )
+
+  // Clear pending timer on unmount
+  useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current)
+  }, [])
 
   const reset = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current)
