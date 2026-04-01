@@ -13,18 +13,15 @@ export interface DailyBucket {
 }
 
 /** Compute per-day upload/download deltas (in GiB) from a sorted snapshot list. */
+// INVARIANT: snapshots arrive sorted ascending by polledAt from the API
 export function computeDailyDeltas(snapshots: Snapshot[]): DailyBucket[] {
   if (snapshots.length < 2) return []
 
-  const sorted = [...snapshots].sort(
-    (a, b) => new Date(a.polledAt).getTime() - new Date(b.polledAt).getTime()
-  )
-
   const bucketMap = new Map<string, { upload: number; download: number }>()
 
-  for (let i = 1; i < sorted.length; i++) {
-    const prev = sorted[i - 1]
-    const curr = sorted[i]
+  for (let i = 1; i < snapshots.length; i++) {
+    const prev = snapshots[i - 1]
+    const curr = snapshots[i]
 
     const uploadDiff = Number(BigInt(curr.uploadedBytes) - BigInt(prev.uploadedBytes))
     const downloadDiff = Number(BigInt(curr.downloadedBytes) - BigInt(prev.downloadedBytes))
