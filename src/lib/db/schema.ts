@@ -216,7 +216,10 @@ export const clientSnapshots = pgTable(
     downloadSpeedBytes: bigint("download_speed_bytes", { mode: "bigint" }),
     tagStats: text("tag_stats"),
   },
-  (table) => [index("idx_client_snapshots_client_polled").on(table.clientId, table.polledAt)]
+  (table) => [
+    index("idx_client_snapshots_client_polled").on(table.clientId, table.polledAt),
+    index("idx_client_snapshots_polled_brin").using("brin", table.polledAt),
+  ]
 )
 
 export const backupHistory = pgTable("backup_history", {
