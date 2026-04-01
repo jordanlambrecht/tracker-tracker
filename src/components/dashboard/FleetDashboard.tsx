@@ -115,8 +115,8 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
       if (!res.ok) return [] as { id: number; name: string }[]
       return res.json() as Promise<{ id: number; name: string }[]>
     },
-    // Prevent sidebar's 10s client poll from re-rendering fleet charts.
-    // Client add/remove triggers invalidateQueries which busts through staleTime.
+    // Prevents mount/focus refetch — the sidebar's 10s poll keeps this cache fresh.
+    // structuralSharing (TQ default) prevents re-renders when client data is unchanged.
     staleTime: intervals.clientRefetchMs,
   })
 

@@ -28,7 +28,7 @@ export function pushSpeedSnapshot(clientId: number, up: number, down: number): v
   speedCache.set(clientId, existing)
 }
 
-export function getSpeedSnapshots(clientId: number): SpeedSnapshot[] {
+export function getSpeedSnapshots(clientId: number): readonly SpeedSnapshot[] {
   return speedCache.get(clientId) ?? []
 }
 
