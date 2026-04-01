@@ -2,6 +2,7 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
+import { useMemo } from "react"
 import type { TrackerTag } from "@/lib/fleet"
 import { formatCount, formatPercent, formatRatio } from "@/lib/formatters"
 import type { TorrentInfo } from "@/lib/torrent-utils"
@@ -40,16 +41,21 @@ function computeTrackerMetrics(
 ): TrackerMetrics[] {
   const now = Date.now()
 
+  // Pre-parse tags once to avoid O(T×N) string splitting
+  const parsedTags = torrents.map((t) => ({
+    torrent: t,
+    tagSet: new Set(
+      t.tags
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean)
+    ),
+  }))
+
   return trackerTags
     .map((tracker) => {
       const tagLower = tracker.tag.toLowerCase()
-      const group = torrents.filter((t) => {
-        const tags = t.tags
-          .split(",")
-          .map((s) => s.trim().toLowerCase())
-          .filter(Boolean)
-        return tags.includes(tagLower)
-      })
+      const group = parsedTags.filter((p) => p.tagSet.has(tagLower)).map((p) => p.torrent)
 
       if (group.length === 0) return null
 
@@ -164,7 +170,10 @@ function buildTrackerHealthRadarOption(
 }
 
 function TrackerHealthRadar({ torrents, trackerTags, height = 360 }: TrackerHealthRadarProps) {
-  const metrics = computeTrackerMetrics(torrents, trackerTags)
+  const metrics = useMemo(
+    () => computeTrackerMetrics(torrents, trackerTags),
+    [torrents, trackerTags]
+  )
 
   if (metrics.length < 2) {
     return (

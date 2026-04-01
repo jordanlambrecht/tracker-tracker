@@ -3,8 +3,8 @@
 
 import { H2 } from "@typography"
 import clsx from "clsx"
+import dynamic from "next/dynamic"
 import { useState } from "react"
-import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { InfoTip } from "@/components/ui/InfoTip"
 import { PillTag } from "@/components/ui/PillTag"
@@ -14,6 +14,8 @@ import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { hexToRgba } from "@/lib/color-utils"
 import { formatCount, formatRatio } from "@/lib/formatters"
 import type { TrackerLatestStats } from "@/types/api"
+
+const Markdown = dynamic(() => import("react-markdown"), { ssr: false })
 
 interface TrackerInfoTabProps {
   registryEntry: TrackerRegistryEntry | undefined

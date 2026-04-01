@@ -3,6 +3,7 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
+import { useMemo } from "react"
 import { hexToRgba } from "@/lib/color-utils"
 import type { TrackerTag } from "@/lib/fleet"
 import { formatCount } from "@/lib/formatters"
@@ -197,11 +198,13 @@ function CrossSeedNetwork({
   crossSeedTags,
   height = 450,
 }: CrossSeedNetworkProps) {
+  const { nodes, edges } = useMemo(
+    () => (trackerTags.length === 0 ? { nodes: [], edges: [] } : buildNetworkData(torrents, trackerTags, crossSeedTags)),
+    [torrents, trackerTags, crossSeedTags]
+  )
+
   if (trackerTags.length === 0)
     return <ChartEmptyState height={height} message="No tracker tags configured" />
-
-  const { nodes, edges } = buildNetworkData(torrents, trackerTags, crossSeedTags)
-
   if (nodes.length === 0)
     return <ChartEmptyState height={height} message="No torrent data available" />
   if (edges.length === 0)
