@@ -173,20 +173,19 @@ export const trackerColumns = {
  * Applies privacy masking at response time. Never returns encryptedApiToken.
  */
 export async function getTrackerListForDashboard(): Promise<TrackerSummary[]> {
-  const [allTrackers, [privacySettings]] = await Promise.all([
+  const [allTrackers, [privacySettings], latestSnapshots] = await Promise.all([
     db.select(trackerColumns).from(trackers).orderBy(trackers.createdAt),
     db.select({ storeUsernames: appSettings.storeUsernames }).from(appSettings).limit(1),
+    db
+      .selectDistinctOn([trackerSnapshots.trackerId])
+      .from(trackerSnapshots)
+      .orderBy(trackerSnapshots.trackerId, desc(trackerSnapshots.polledAt)),
   ])
 
   // Enforce masking at response time
   // Fallback true = "store usernames" = no masking. Matches createPrivacyMask()
   // behavior when no settings row exists. Do NOT change to false.
   const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
-
-  const latestSnapshots = await db
-    .selectDistinctOn([trackerSnapshots.trackerId])
-    .from(trackerSnapshots)
-    .orderBy(trackerSnapshots.trackerId, desc(trackerSnapshots.polledAt))
 
   const snapshotByTracker = new Map(latestSnapshots.map((s) => [s.trackerId, s]))
 
