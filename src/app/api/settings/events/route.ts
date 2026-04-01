@@ -118,10 +118,15 @@ export async function GET(request: Request): Promise<NextResponse> {
       // ENOENT is non-fatal — proceed with DB events only
     }
 
-    // Single pass — sort+filter once, then slice for pagination
-    const allMerged = mergeAndSort(dbEvents, logEvents, category, Number.MAX_SAFE_INTEGER, 0)
-    const total = allMerged.length
-    const events = allMerged.slice(offset, offset + limit)
+    // Count total for pagination metadata (filter only, no sort needed for count)
+    const allFiltered =
+      category === "all"
+        ? [...dbEvents, ...logEvents]
+        : [...dbEvents, ...logEvents].filter((e) => e.category === category)
+    const total = allFiltered.length
+
+    // Sort+paginate in one pass — only materializes the requested page
+    const events = mergeAndSort(dbEvents, logEvents, category, limit, offset)
 
     return NextResponse.json({
       events,
