@@ -13,7 +13,7 @@ export async function GET(request: Request, props: RouteContext) {
   if (trackerId instanceof NextResponse) return trackerId
 
   const url = new URL(request.url)
-  const days = parseIntClamped(url.searchParams.get("days"), 1, 3650, 30)
+  const days = parseIntClamped(url.searchParams.get("days"), 0, 3650, 30)
 
   const snapshots = await getSnapshotsForTracker(trackerId, days)
   return NextResponse.json(snapshots)

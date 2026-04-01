@@ -29,7 +29,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   // Parse and validate limit
   const rawLimit = parseInt(searchParams.get("limit") ?? "", 10)
-  const limit = Number.isNaN(rawLimit) ? 50 : Math.min(Math.max(rawLimit, 1), 200)
+  const limit = Number.isNaN(rawLimit) ? 50 : Math.min(Math.max(rawLimit, 1), 1000)
 
   // Parse and validate offset
   const rawOffset = parseInt(searchParams.get("offset") ?? "", 10)
