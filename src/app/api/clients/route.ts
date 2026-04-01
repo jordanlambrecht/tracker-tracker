@@ -17,7 +17,28 @@ export async function GET() {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const clients = await db.select().from(downloadClients).orderBy(downloadClients.createdAt)
+  const clients = await db
+    .select({
+      id: downloadClients.id,
+      name: downloadClients.name,
+      type: downloadClients.type,
+      enabled: downloadClients.enabled,
+      host: downloadClients.host,
+      port: downloadClients.port,
+      useSsl: downloadClients.useSsl,
+      encryptedUsername: downloadClients.encryptedUsername,
+      encryptedPassword: downloadClients.encryptedPassword,
+      pollIntervalSeconds: downloadClients.pollIntervalSeconds,
+      isDefault: downloadClients.isDefault,
+      crossSeedTags: downloadClients.crossSeedTags,
+      lastPolledAt: downloadClients.lastPolledAt,
+      lastError: downloadClients.lastError,
+      errorSince: downloadClients.errorSince,
+      createdAt: downloadClients.createdAt,
+      updatedAt: downloadClients.updatedAt,
+    })
+    .from(downloadClients)
+    .orderBy(downloadClients.createdAt)
 
   // SECURITY: Never return encryptedUsername or encryptedPassword
   const safe = clients.map((client) => ({

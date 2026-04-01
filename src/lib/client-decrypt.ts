@@ -1,11 +1,19 @@
 // src/lib/client-decrypt.ts
-//
-// Functions: decryptClientCredentials
-
 import "server-only"
 
 import { decrypt } from "@/lib/crypto"
+import { downloadClients } from "@/lib/db/schema"
 import { isDecryptionError } from "@/lib/error-utils"
+
+/** Columns needed for client connection + credential decryption. */
+export const CLIENT_CONNECTION_COLUMNS = {
+  name: downloadClients.name,
+  host: downloadClients.host,
+  port: downloadClients.port,
+  useSsl: downloadClients.useSsl,
+  encryptedUsername: downloadClients.encryptedUsername,
+  encryptedPassword: downloadClients.encryptedPassword,
+} as const
 
 export function decryptClientCredentials(
   client: { name: string; encryptedUsername: string; encryptedPassword: string },
@@ -17,7 +25,7 @@ export function decryptClientCredentials(
       password: decrypt(client.encryptedPassword, key),
     }
   } catch (err) {
-    // Use "decrypt" prefix only for genuine AES-GCM auth failures so
+    // Use "decrypt" prefix only for AES-GCM auth failures so
     // isDecryptionError() in callers correctly classifies key mismatches.
     const cause = err instanceof Error ? err.message : String(err)
     if (isDecryptionError(err)) {

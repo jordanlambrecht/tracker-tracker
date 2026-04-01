@@ -2,6 +2,7 @@
 //
 // Functions: pollTracker, pollAllTrackers, pruneOldSnapshots, pruneOldCheckpoints,
 // startScheduler, stopScheduler, ensureSchedulerRunning, fetchTrackerStats, POLL_FAILURE_THRESHOLD
+// Constants: POLL_TRACKER_COLUMNS
 import type { Agent as HttpAgent } from "node:http"
 
 import { and, desc, eq, isNotNull, lt, notInArray, sql } from "drizzle-orm"
@@ -64,6 +65,27 @@ function getPollInFlight(): boolean {
 function setPollInFlight(v: boolean) {
   g.__pollInFlight = v
 }
+
+/** Columns needed for poll cycle — excludes avatarData (~5MB), avatarMimeType, avatarCachedAt, color, qbtTag, etc. */
+const POLL_TRACKER_COLUMNS = {
+  id: trackers.id,
+  name: trackers.name,
+  isActive: trackers.isActive,
+  encryptedApiToken: trackers.encryptedApiToken,
+  platformType: trackers.platformType,
+  baseUrl: trackers.baseUrl,
+  apiPath: trackers.apiPath,
+  useProxy: trackers.useProxy,
+  remoteUserId: trackers.remoteUserId,
+  platformMeta: trackers.platformMeta,
+  joinedAt: trackers.joinedAt,
+  lastPolledAt: trackers.lastPolledAt,
+  lastError: trackers.lastError,
+  consecutiveFailures: trackers.consecutiveFailures,
+  pausedAt: trackers.pausedAt,
+  userPausedAt: trackers.userPausedAt,
+  updatedAt: trackers.updatedAt,
+} as const
 
 /** After this many consecutive poll failures, auto-pause the tracker. */
 export const POLL_FAILURE_THRESHOLD = 4
@@ -132,7 +154,11 @@ export async function pollTracker(
   batchTimestamp?: Date,
   enabledTargets?: NotificationTargetRow[]
 ): Promise<void> {
-  const [tracker] = await db.select().from(trackers).where(eq(trackers.id, trackerId)).limit(1)
+  const [tracker] = await db
+    .select(POLL_TRACKER_COLUMNS)
+    .from(trackers)
+    .where(eq(trackers.id, trackerId))
+    .limit(1)
 
   if (!tracker?.isActive) return
 
@@ -461,7 +487,7 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
 
   const globalIntervalMs = (settings?.trackerPollIntervalMinutes ?? 60) * 60 * 1000
 
-  const allTrackers = await db.select().from(trackers).where(eq(trackers.isActive, true))
+  const allTrackers = await db.select(POLL_TRACKER_COLUMNS).from(trackers).where(eq(trackers.isActive, true))
 
   const now = Date.now()
 

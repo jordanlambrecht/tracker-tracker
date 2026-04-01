@@ -5,7 +5,7 @@
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { authenticate, decodeKey, parseRouteId, type RouteContext } from "@/lib/api-helpers"
-import { decryptClientCredentials } from "@/lib/client-decrypt"
+import { CLIENT_CONNECTION_COLUMNS, decryptClientCredentials } from "@/lib/client-decrypt"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
 import { isDecryptionError } from "@/lib/error-utils"
@@ -20,7 +20,7 @@ export async function POST(_request: Request, props: RouteContext) {
   if (clientId instanceof NextResponse) return clientId
 
   const [client] = await db
-    .select()
+    .select(CLIENT_CONNECTION_COLUMNS)
     .from(downloadClients)
     .where(eq(downloadClients.id, clientId))
     .limit(1)
