@@ -85,6 +85,7 @@ export function TrackerDetailClient({
     tagGroups,
     trackerSeedingCount: tracker.latestStats?.seedingCount,
     qbitmanageConfig,
+    isActive: activeTab === "torrents",
   })
 
   const snapshots = useMemo(() => {
@@ -142,8 +143,7 @@ export function TrackerDetailClient({
         body: JSON.stringify({ pollingPaused: !wasPaused }),
       })
       if (!res.ok) throw new Error("Failed to toggle pause")
-      const trackerRes = await fetch(`/api/trackers/${id}`)
-      if (trackerRes.ok) setTracker(await trackerRes.json())
+      setTracker(await res.json())
     } catch {
       setTracker((prev) => ({ ...prev, userPausedAt: originalUserPausedAt }))
       setPollError("Failed to toggle pause — please try again")

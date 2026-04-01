@@ -30,6 +30,8 @@ interface UseTrackerTorrentsParams {
     enabled: boolean
     tags: QbitmanageTagConfig
   } | null
+  /** When false, disables the 5s active torrent poll (i.e. tab not visible). */
+  isActive?: boolean
 }
 
 interface TagGroupBreakdown {
@@ -107,6 +109,7 @@ function useTrackerTorrents({
   tagGroups,
   trackerSeedingCount,
   qbitmanageConfig,
+  isActive = true,
 }: UseTrackerTorrentsParams): TrackerTorrentsData {
   const enabled = !!qbtTag
   const intervals = usePollingIntervals()
@@ -153,7 +156,7 @@ function useTrackerTorrents({
       return res.json() as Promise<AggregatedTorrentsResponse>
     },
     enabled: enabled && liveQuery.isSuccess,
-    refetchInterval: 5_000,
+    refetchInterval: isActive ? 5_000 : false,
   })
 
   // Resolve the best available data source: live > cached > sessionStorage placeholder
