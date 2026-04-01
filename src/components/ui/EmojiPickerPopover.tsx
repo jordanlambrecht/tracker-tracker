@@ -1,8 +1,7 @@
 // src/components/ui/EmojiPickerPopover.tsx
 "use client"
 
-import type { EmojiClickData, PickerProps } from "emoji-picker-react"
-import { EmojiStyle, Theme } from "emoji-picker-react"
+import type { EmojiClickData, EmojiStyle, PickerProps, Theme } from "emoji-picker-react"
 import dynamic from "next/dynamic"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
@@ -87,8 +86,8 @@ function EmojiPickerPopover({
             onMouseDown={(e) => e.stopPropagation()}
           >
             <EmojiPicker
-              theme={Theme.DARK}
-              emojiStyle={EmojiStyle.APPLE}
+              theme={"dark" as Theme}
+              emojiStyle={"apple" as EmojiStyle}
               width={320}
               height={380}
               lazyLoadEmojis

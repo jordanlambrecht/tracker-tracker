@@ -49,9 +49,9 @@ export function PollLog({ snapshots, lastPolledAt, lastError, userPausedAt }: Po
           {snapshots.length === 0 ? (
             <p className="px-4 py-3 text-xs font-mono text-muted">No poll history yet.</p>
           ) : (
-            [...snapshots]
+            snapshots
+              .slice(-10)
               .reverse()
-              .slice(0, 10)
               .map((snap, i) => (
                 <div
                   key={snap.polledAt}
