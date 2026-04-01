@@ -37,7 +37,15 @@ export async function PUT(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const merged: DashboardSettings = { ...DEFAULTS }
+  const [row] = await db
+    .select({ id: appSettings.id, dashboardSettings: appSettings.dashboardSettings })
+    .from(appSettings)
+    .limit(1)
+  if (!row) {
+    return NextResponse.json({ error: "Not configured" }, { status: 400 })
+  }
+
+  const merged: DashboardSettings = parseSettings(row.dashboardSettings)
   if (typeof body.showHealthIndicators === "boolean") {
     merged.showHealthIndicators = body.showHealthIndicators
   }
@@ -46,11 +54,6 @@ export async function PUT(request: Request) {
   }
   if (typeof body.showTodayAtAGlance === "boolean") {
     merged.showTodayAtAGlance = body.showTodayAtAGlance
-  }
-
-  const [row] = await db.select({ id: appSettings.id }).from(appSettings).limit(1)
-  if (!row) {
-    return NextResponse.json({ error: "Not configured" }, { status: 400 })
   }
 
   await db

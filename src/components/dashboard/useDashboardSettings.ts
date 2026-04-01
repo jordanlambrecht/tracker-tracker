@@ -63,6 +63,18 @@ function useDashboardSettings() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(next),
         })
+          .then((res) => {
+            if (!res.ok) throw new Error(`PUT failed: ${res.status}`)
+          })
+          .catch(() => {
+            // Resync from server to revert the optimistic toggle
+            fetch("/api/settings/dashboard")
+              .then((res) => (res.ok ? res.json() : null))
+              .then((data) => {
+                if (data) setSettings({ ...DEFAULTS, ...(data as Partial<DashboardSettings>) })
+              })
+              .catch(() => {})
+          })
         return next
       })
     },
