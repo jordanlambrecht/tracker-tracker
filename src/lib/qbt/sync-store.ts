@@ -3,6 +3,7 @@
 // Functions:
 //   applyMaindataUpdate  - Merge a maindata delta (or full update) into the store
 //   getStoredTorrents    - Return a snapshot array of all torrents for a client
+//   getFilteredTorrents  - Copy + filter in one pass (avoids copying irrelevant torrents)
 //   getStoreRevision     - Return the current rid for a client (0 if uninitialized)
 //   isStoreInitialized   - Whether the store has received at least one full_update
 //   isStoreFresh         - Whether the store is initialized and updated within a max age
@@ -71,6 +72,21 @@ export function getStoredTorrents(baseUrl: string): QbtTorrent[] {
   const store = stores.get(baseUrl)
   if (!store?.initialized) return []
   return Array.from(store.torrents.values(), (t) => ({ ...t }))
+}
+
+/** Copy + filter in one pass — only copies torrents matching the predicate.
+ *  Avoids the 10K-copy overhead of getStoredTorrents when only ~2K are relevant. */
+export function getFilteredTorrents(
+  baseUrl: string,
+  predicate: (torrent: QbtTorrent) => boolean
+): QbtTorrent[] {
+  const store = stores.get(baseUrl)
+  if (!store?.initialized) return []
+  const result: QbtTorrent[] = []
+  for (const t of store.torrents.values()) {
+    if (predicate(t)) result.push({ ...t })
+  }
+  return result
 }
 
 export function getStoreRevision(baseUrl: string): number {

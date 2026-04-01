@@ -66,7 +66,7 @@ function setPollInFlight(v: boolean) {
   g.__pollInFlight = v
 }
 
-/** Columns needed for poll cycle — excludes avatarData (~5MB), avatarMimeType, avatarCachedAt, color, qbtTag, etc. */
+/** Columns needed for poll cycle. Excludes avatarData (~5MB), avatarMimeType, avatarCachedAt, color, qbtTag, etc. */
 const POLL_TRACKER_COLUMNS = {
   id: trackers.id,
   name: trackers.name,
@@ -87,12 +87,11 @@ const POLL_TRACKER_COLUMNS = {
   updatedAt: trackers.updatedAt,
 } as const
 
-/** After this many consecutive poll failures, auto-pause the tracker. */
 export const POLL_FAILURE_THRESHOLD = 4
 
 /**
  * Fetch fresh stats from a tracker's API without writing a snapshot.
- * Used by the transit papers report route to get live data for the report.
+ * Used by the (currently unreleased) transit papers report route to get live data for the report.
  * Also updates tracker metadata side effects (remoteUserId, joinedAt, lastAccessAt, platformMeta, avatarUrl).
  */
 export async function fetchTrackerStats(
@@ -141,9 +140,8 @@ export async function fetchTrackerStats(
     await db.update(trackers).set(metaUpdates).where(eq(trackers.id, tracker.id))
   }
 
-  // Re-fetch tracker with updated metadata
-  const [freshTracker] = await db.select().from(trackers).where(eq(trackers.id, trackerId))
-  return { stats, tracker: freshTracker }
+  // Merge metadata in-memory instead of re-fetching
+  return { stats, tracker: { ...tracker, ...metaUpdates } as typeof tracker }
 }
 
 export async function pollTracker(
@@ -487,7 +485,10 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
 
   const globalIntervalMs = (settings?.trackerPollIntervalMinutes ?? 60) * 60 * 1000
 
-  const allTrackers = await db.select(POLL_TRACKER_COLUMNS).from(trackers).where(eq(trackers.isActive, true))
+  const allTrackers = await db
+    .select(POLL_TRACKER_COLUMNS)
+    .from(trackers)
+    .where(eq(trackers.isActive, true))
 
   const now = Date.now()
 
@@ -539,7 +540,7 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
     )
   )
 
-  // Prune old snapshots if retention is configured
+  // Prune old snapshots if retention is configured in app settings
   if (settings?.snapshotRetentionDays && settings.snapshotRetentionDays > 0) {
     try {
       const pruned = await pruneOldSnapshots(settings.snapshotRetentionDays)
