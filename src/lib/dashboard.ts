@@ -224,15 +224,11 @@ export function detectRankChanges(
   const cutoff = Date.now() - freshnessDays * 24 * 60 * 60 * 1000
 
   for (const t of trackers) {
-    const raw = snapshotMap.get(t.id)
-    if (!raw || raw.length < 2) continue
+    const snapshots = snapshotMap.get(t.id)
+    if (!snapshots || snapshots.length < 2) continue
 
-    // Sort ascending by polledAt so index 0 is oldest, last is newest
-    const snapshots = [...raw].sort(
-      (a, b) => new Date(a.polledAt).getTime() - new Date(b.polledAt).getTime()
-    )
-
-    // Walk backwards through snapshots to find the most recent rank change
+    // INVARIANT: snapshots arrive sorted ascending by polledAt from the API
+    // Walk backwards to find the most recent rank change
     for (let i = snapshots.length - 1; i > 0; i--) {
       const current = snapshots[i]
       const previous = snapshots[i - 1]
