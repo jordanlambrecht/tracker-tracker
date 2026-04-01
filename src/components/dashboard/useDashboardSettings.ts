@@ -1,7 +1,4 @@
 // src/components/dashboard/useDashboardSettings.ts
-//
-// Functions: useDashboardSettings
-
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
@@ -58,7 +55,9 @@ function useDashboardSettings() {
     <K extends keyof DashboardSettings>(key: K, value: DashboardSettings[K]) => {
       setSettings((prev) => {
         const next = { ...prev, [key]: value }
-        // Fire-and-forget save
+        // Fire-and-forget save inside updater so `next` is guaranteed correct
+        // even under rapid sequential calls (prev is always the latest queued state).
+        // PUT is idempotent — duplicate calls in StrictMode are harmless.
         fetch("/api/settings/dashboard", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },

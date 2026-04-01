@@ -59,6 +59,39 @@ vi.mock("@/lib/privacy-db", () => ({
   createPrivacyMaskSync: vi.fn().mockReturnValue((v: string | null | undefined) => v ?? null),
 }))
 
+vi.mock("@/lib/server-data", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/server-data")>()
+  return {
+    ...actual,
+    getTrackerForClient: vi.fn().mockResolvedValue({
+      id: 1,
+      name: "Test Tracker",
+      baseUrl: "https://example.com",
+      platformType: "unit3d",
+      isActive: true,
+      lastPolledAt: null,
+      lastError: null,
+      consecutiveFailures: 0,
+      pausedAt: null,
+      userPausedAt: null,
+      color: "#00d4ff",
+      qbtTag: null,
+      mouseholeUrl: null,
+      useProxy: false,
+      countCrossSeedUnsatisfied: false,
+      hideUnreadBadges: false,
+      isFavorite: false,
+      sortOrder: null,
+      joinedAt: null,
+      lastAccessAt: null,
+      remoteUserId: null,
+      platformMeta: null,
+      createdAt: "2024-01-01T00:00:00.000Z",
+      latestStats: null,
+    }),
+  }
+})
+
 const VALID_KEY = "abcd1234".repeat(8)
 
 function makeRequest(url: string, body?: Record<string, unknown>, method = "GET"): Request {
@@ -465,7 +498,7 @@ describe("PATCH /api/trackers/[id]", () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.success).toBe(true)
+    expect(data.id).toBe(1)
   })
 
   it("returns 400 when name exceeds 100 characters", async () => {
@@ -594,7 +627,7 @@ describe("PATCH /api/trackers/[id]", () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.success).toBe(true)
+    expect(data.id).toBe(1)
   })
 
   it("returns 401 when unauthenticated", async () => {

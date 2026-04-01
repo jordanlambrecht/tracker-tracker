@@ -145,7 +145,8 @@ export async function PATCH(request: Request, props: RouteContext) {
 
   await db.update(trackers).set(updates).where(eq(trackers.id, trackerId))
 
-  return NextResponse.json({ success: true })
+  const updated = await getTrackerForClient(trackerId)
+  return NextResponse.json(updated ?? { success: true })
 }
 
 export async function DELETE(_request: Request, props: RouteContext) {

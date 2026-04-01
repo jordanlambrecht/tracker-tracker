@@ -60,7 +60,7 @@ export interface EncryptedBackupEnvelope {
   ciphertext: string
 }
 
-// Serialize a single value — converts BigInt to decimal string and Date to ISO 8601.
+// Serialize a single value. Converts BigInt to decimal string and Date to ISO 8601.
 function serializeValue(value: unknown): unknown {
   if (typeof value === "bigint") {
     return value.toString()
@@ -83,7 +83,7 @@ function serializeRow(row: Record<string, unknown>): Record<string, unknown> {
 export async function generateBackupPayload(): Promise<BackupPayload> {
   const now = new Date().toISOString()
 
-  // Parallel fetch — all tables are independent
+  // Parallel fetch with all tables independent
   const [
     [rawSettings],
     rawTrackers,
