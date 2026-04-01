@@ -15,19 +15,21 @@ import { CSS } from "@dnd-kit/utilities"
 import { H2, H3, Paragraph } from "@typography"
 import clsx from "clsx"
 import { type KeyboardEvent, useCallback, useEffect, useState } from "react"
-import { Button } from "@/components/ui/Button"
-import { Card } from "@/components/ui/Card"
-import { CollapsibleCard } from "@/components/ui/CollapsibleCard"
-import { ConfirmRemove } from "@/components/ui/ConfirmRemove"
 import { EmojiPickerPopover } from "@/components/ui/EmojiPickerPopover"
-import { FilterPill } from "@/components/ui/FilterPill"
-import { InfoTip } from "@/components/ui/InfoTip"
-import { Input } from "@/components/ui/Input"
-import { Notice } from "@/components/ui/Notice"
 import { QBT_TAG_WARN_PATTERN } from "@/components/ui/QbtTagWarning"
-import { CardListSkeleton } from "@/components/ui/skeletons"
-import { Toggle } from "@/components/ui/Toggle"
-import { Tooltip } from "@/components/ui/Tooltip"
+import {
+  Toggle,
+  Tooltip,
+  CardListSkeleton,
+  Notice,
+  Input,
+  InfoTip,
+  FilterPill,
+  ConfirmRemove,
+  CollapsibleCard,
+  Card,
+  Button,
+} from "@/components/ui"
 import { useEscapeKey } from "@/hooks/useEscapeKey"
 import { DOCS } from "@/lib/constants"
 import type { TagGroup, TagGroupChartType } from "@/types/api"
@@ -320,7 +322,26 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
     setSaving(true)
     setSaveError(null)
     try {
-      await fetch(`/api/tag-groups/${group.id}`, {
+      const currentIds = new Set(members.filter((m) => m.id !== null).map((m) => m.id))
+      const removes = group.members.filter((m) => !currentIds.has(m.id)).map((m) => m.id)
+
+      const updates: { id: number; tag: string; label: string; sortOrder: number }[] = []
+      const creates: { tag: string; label: string; sortOrder: number }[] = []
+
+      for (let i = 0; i < members.length; i++) {
+        const m = members[i]
+        if (m.id !== null) {
+          const orig = group.members.find((om) => om.id === m.id)
+          const origIndex = group.members.findIndex((om) => om.id === m.id)
+          if (orig && (m.tag !== orig.tag || m.label !== orig.label || i !== origIndex)) {
+            updates.push({ id: m.id, tag: m.tag.trim(), label: m.label.trim(), sortOrder: i })
+          }
+        } else if (m.tag.trim() && m.label.trim()) {
+          creates.push({ tag: m.tag.trim(), label: m.label.trim(), sortOrder: i })
+        }
+      }
+
+      const res = await fetch(`/api/tag-groups/${group.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -328,40 +349,12 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
           emoji: emoji.trim() || null,
           chartType,
           countUnmatched,
+          members: { removes, updates, creates },
         }),
-      }).then((r) => {
-        if (!r.ok) throw new Error("Failed to save group")
       })
-
-      const currentIds = new Set(members.filter((m) => m.id !== null).map((m) => m.id))
-      const removedMembers = group.members.filter((m) => !currentIds.has(m.id))
-      for (const rm of removedMembers) {
-        await fetch(`/api/tag-groups/${group.id}/members/${rm.id}`, { method: "DELETE" })
-      }
-
-      for (let i = 0; i < members.length; i++) {
-        const m = members[i]
-        if (m.id === null) continue
-        const orig = group.members.find((om) => om.id === m.id)
-        const origIndex = group.members.findIndex((om) => om.id === m.id)
-        if (orig && (m.tag !== orig.tag || m.label !== orig.label || i !== origIndex)) {
-          await fetch(`/api/tag-groups/${group.id}/members/${m.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ tag: m.tag.trim(), label: m.label.trim(), sortOrder: i }),
-          })
-        }
-      }
-
-      for (let i = 0; i < members.length; i++) {
-        const m = members[i]
-        if (m.id !== null) continue
-        if (!m.tag.trim() || !m.label.trim()) continue
-        await fetch(`/api/tag-groups/${group.id}/members`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tag: m.tag.trim(), label: m.label.trim(), sortOrder: i }),
-        })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Save failed" }))
+        throw new Error((data as { error?: string }).error ?? "Save failed")
       }
 
       onUpdated()
