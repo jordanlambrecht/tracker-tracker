@@ -92,6 +92,8 @@ function ClientSlide({
 //  ClientStatusWidget
 // ---------------------------------------------------------------------------
 
+const selectEnabled = (all: ClientInfo[]) => all.filter((c) => c.enabled)
+
 function ClientStatusWidget() {
   const [expanded, setExpanded] = useLocalStorage(STORAGE_KEYS.CLIENT_WIDGET_EXPANDED, false)
 
@@ -113,7 +115,7 @@ function ClientStatusWidget() {
       return res.json() as Promise<ClientInfo[]>
     },
     refetchInterval: 10_000,
-    select: (all) => all.filter((c) => c.enabled),
+    select: selectEnabled,
   })
 
   // Fetch speeds for each enabled client
