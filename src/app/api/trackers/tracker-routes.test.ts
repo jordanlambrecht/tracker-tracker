@@ -740,20 +740,15 @@ describe("POST /api/trackers/[id]/poll", () => {
     })
     ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
 
-    // Poll route makes two db.select() calls:
-    //   1. Cooldown check: select({ lastPolledAt }).from(trackers).where(...).limit(1)
-    //   2. Settings: select({...}).from(appSettings).limit(1)
-    let selectCallCount = 0
+    // Poll route:
+    //   1. db.update(trackers).set(...).where(...).returning(...) — atomic cooldown claim
+    //   2. db.select({...}).from(appSettings).limit(1) — settings query
+    const mockReturning = vi.fn().mockResolvedValue([{ id: 1 }])
+    const mockUpdateWhere = vi.fn().mockReturnValue({ returning: mockReturning })
+    const mockSet = vi.fn().mockReturnValue({ where: mockUpdateWhere })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
+
     ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(() => {
-      selectCallCount++
-      if (selectCallCount === 1) {
-        // Cooldown check — return lastPolledAt far enough in the past
-        const mockLimit = vi.fn().mockResolvedValue([{ lastPolledAt: new Date(0) }])
-        const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit })
-        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere })
-        return { from: mockFrom }
-      }
-      // Settings query
       const mockLimit = vi.fn().mockResolvedValue([
         {
           storeUsernames: true,
@@ -807,12 +802,11 @@ describe("POST /api/trackers/[id]/poll", () => {
   })
 
   it("returns 429 when tracker was polled within cooldown period", async () => {
-    ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(() => {
-      const mockLimit = vi.fn().mockResolvedValue([{ lastPolledAt: new Date() }])
-      const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit })
-      const mockFrom = vi.fn().mockReturnValue({ where: mockWhere })
-      return { from: mockFrom }
-    })
+    // Atomic claim returns 0 rows = cooldown still active
+    const mockReturning = vi.fn().mockResolvedValue([])
+    const mockUpdateWhere = vi.fn().mockReturnValue({ returning: mockReturning })
+    const mockSet = vi.fn().mockReturnValue({ where: mockUpdateWhere })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
 
     const request = makeRequest("http://localhost/api/trackers/1/poll", undefined, "POST")
     const params = Promise.resolve({ id: "1" })
@@ -856,17 +850,17 @@ describe("GET /api/trackers/[id]/snapshots", () => {
   })
 
   function buildSnapshotDbMock(result: unknown[]) {
-    // Call 1: db.select().from(trackerSnapshots).where(...).orderBy(...)
+    // Call 1: db.selectDistinctOn([bucket], cols).from(...).where(...).orderBy(...)
+    // (getSnapshotsForTracker uses selectDistinctOn for the default 30-day range)
     const mockOrderBy = vi.fn().mockResolvedValue(result)
     const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy })
     const mockFrom = vi.fn().mockReturnValue({ where: mockWhere })
+    ;(db.selectDistinctOn as ReturnType<typeof vi.fn>).mockReturnValueOnce({ from: mockFrom })
+
     // Call 2: db.select({storeUsernames}).from(appSettings).limit(1)
     const mockSettingsLimit = vi.fn().mockResolvedValue([{ storeUsernames: true }])
     const mockSettingsFrom = vi.fn().mockReturnValue({ limit: mockSettingsLimit })
-
-    ;(db.select as ReturnType<typeof vi.fn>)
-      .mockReturnValueOnce({ from: mockFrom })
-      .mockReturnValueOnce({ from: mockSettingsFrom })
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValueOnce({ from: mockSettingsFrom })
   }
 
   it("returns snapshots with default 30 days and serialized bigints", async () => {
