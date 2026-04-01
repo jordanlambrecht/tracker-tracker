@@ -72,11 +72,10 @@ export const DEEP_POLL_COLUMNS = {
 const g = globalThis as typeof globalThis & {
   __clientHeartbeatTask?: ScheduledTask | null
   __clientDeepPollTask?: ScheduledTask | null
+  __heartbeatInFlight?: boolean
+  __deepPollInFlight?: boolean
+  __lastPruneAt?: number
 }
-
-let heartbeatInFlight = false
-let deepPollInFlight = false
-let lastPruneAt = 0
 const PRUNE_INTERVAL_MS = 60 * 60 * 1000 // 1 hour
 
 function getHeartbeatTask(): ScheduledTask | null {
@@ -340,28 +339,28 @@ export function startClientScheduler(encryptionKey: Buffer): void {
 
   // Heartbeat: every 5 seconds
   const hbTask = cron.schedule("*/5 * * * * *", async () => {
-    if (heartbeatInFlight) return
-    heartbeatInFlight = true
+    if (g.__heartbeatInFlight) return
+    g.__heartbeatInFlight = true
     try {
       await heartbeatAllClients(encryptionKey)
       await flushCompletedBuckets()
     } catch (error) {
       log.error(error, "Client heartbeat error")
     } finally {
-      heartbeatInFlight = false
+      g.__heartbeatInFlight = false
     }
   })
   setHeartbeatTask(hbTask)
 
   // Deep poll — 30s tick so per-client pollIntervalSeconds (min 60s) is honored
   const dpTask = cron.schedule("*/30 * * * * *", async () => {
-    if (deepPollInFlight) return
-    deepPollInFlight = true
+    if (g.__deepPollInFlight) return
+    g.__deepPollInFlight = true
     try {
       await deepPollAllClients(encryptionKey)
       // Prune client snapshots + uptime buckets at most once per hour
       const now = Date.now()
-      if (now - lastPruneAt >= PRUNE_INTERVAL_MS) {
+      if (now - (g.__lastPruneAt ?? 0) >= PRUNE_INTERVAL_MS) {
         const [settings] = await db
           .select({ retention: appSettings.snapshotRetentionDays })
           .from(appSettings)
@@ -372,12 +371,12 @@ export function startClientScheduler(encryptionKey: Buffer): void {
           await db.delete(clientSnapshots).where(lt(clientSnapshots.polledAt, cutoff))
           await db.delete(clientUptimeBuckets).where(lt(clientUptimeBuckets.bucketTs, cutoff))
         }
-        lastPruneAt = now
+        g.__lastPruneAt = now
       }
     } catch (error) {
       log.error(error, "Client deep poll error")
     } finally {
-      deepPollInFlight = false
+      g.__deepPollInFlight = false
     }
   })
   setDeepPollTask(dpTask)
