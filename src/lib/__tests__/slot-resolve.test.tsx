@@ -101,7 +101,6 @@ describe("GGn context", () => {
   const ctx: SlotContext = {
     tracker: makeTracker({ platformType: "ggn" }),
     latestSnapshot: snap,
-    snapshots: [snap],
     meta: ggnMeta,
     registry: undefined,
     accentColor: BASE_ACCENT,
@@ -225,7 +224,6 @@ describe("Gazelle context", () => {
   const ctx: SlotContext = {
     tracker: makeTracker({ platformType: "gazelle" }),
     latestSnapshot: snap,
-    snapshots: [snap],
     meta: gazMeta,
     registry: undefined,
     accentColor: BASE_ACCENT,
@@ -312,7 +310,6 @@ describe("minimal context (no meta, seedbonus present)", () => {
   const ctx: SlotContext = {
     tracker: makeTracker({ platformType: "unit3d" }),
     latestSnapshot: snap,
-    snapshots: [snap],
     meta: null,
     registry: undefined,
     accentColor: BASE_ACCENT,
@@ -350,7 +347,6 @@ describe("null latestSnapshot", () => {
   const ctx: SlotContext = {
     tracker: makeTracker(),
     latestSnapshot: null,
-    snapshots: [],
     meta: null,
     registry: undefined,
     accentColor: BASE_ACCENT,
@@ -395,7 +391,6 @@ describe("priority ordering", () => {
   const ctx: SlotContext = {
     tracker: makeTracker(),
     latestSnapshot: snap,
-    snapshots: [snap],
     meta: ggnMeta,
     registry: undefined,
     accentColor: BASE_ACCENT,
@@ -441,7 +436,6 @@ describe("mutual exclusion: Nebulance snatched-nebulance vs seedbonus", () => {
   const ctx: SlotContext = {
     tracker: makeTracker({ platformType: "nebulance" }),
     latestSnapshot: snap,
-    snapshots: [snap],
     meta: nebMeta,
     registry: undefined,
     accentColor: BASE_ACCENT,
@@ -480,7 +474,6 @@ describe("mutual exclusion: GGn hourlyGold blocks seedbonus", () => {
   const ctx: SlotContext = {
     tracker: makeTracker({ platformType: "ggn" }),
     latestSnapshot: snap,
-    snapshots: [snap],
     meta: ggnMeta,
     registry: undefined,
     accentColor: BASE_ACCENT,
@@ -509,8 +502,7 @@ describe("edge cases", () => {
     const ctx: SlotContext = {
       tracker: makeTracker(),
       latestSnapshot: null,
-      snapshots: [],
-      meta,
+        meta,
       registry: undefined,
       accentColor: BASE_ACCENT,
     }
@@ -524,8 +516,7 @@ describe("edge cases", () => {
     const ctx: SlotContext = {
       tracker: makeTracker(),
       latestSnapshot: null,
-      snapshots: [],
-      meta,
+        meta,
       registry: undefined,
       accentColor: BASE_ACCENT,
     }
@@ -537,8 +528,7 @@ describe("edge cases", () => {
     const ctx: SlotContext = {
       tracker: makeTracker(),
       latestSnapshot: null,
-      snapshots: [],
-      meta,
+        meta,
       registry: undefined,
       accentColor: BASE_ACCENT,
     }
@@ -550,8 +540,7 @@ describe("edge cases", () => {
     const ctx: SlotContext = {
       tracker: makeTracker(),
       latestSnapshot: null,
-      snapshots: [],
-      meta,
+        meta,
       registry: undefined,
       accentColor: BASE_ACCENT,
     }
@@ -563,8 +552,7 @@ describe("edge cases", () => {
     const ctx: SlotContext = {
       tracker: makeTracker(),
       latestSnapshot: null,
-      snapshots: [],
-      meta,
+        meta,
       registry: undefined,
       accentColor: BASE_ACCENT,
     }
@@ -595,8 +583,7 @@ describe("edge cases", () => {
     const ctx: SlotContext = {
       tracker: makeTracker(),
       latestSnapshot: null,
-      snapshots: [],
-      meta,
+        meta,
       registry: undefined,
       accentColor: BASE_ACCENT,
     }
@@ -608,8 +595,7 @@ describe("edge cases", () => {
     const ctx: SlotContext = {
       tracker: makeTracker(),
       latestSnapshot: makeSnapshot({ seedbonus: 100 }),
-      snapshots: [],
-      meta,
+        meta,
       registry: undefined,
       accentColor: BASE_ACCENT,
     }
@@ -620,8 +606,7 @@ describe("edge cases", () => {
     const ctx: SlotContext = {
       tracker: makeTracker(),
       latestSnapshot: null,
-      snapshots: [],
-      meta: null,
+        meta: null,
       registry: undefined,
       accentColor: BASE_ACCENT,
     }
@@ -639,8 +624,7 @@ describe("login-deadline slot", () => {
     const ctx: SlotContext = {
       tracker: makeTracker({ lastAccessAt: "2026-01-01T00:00:00Z" }),
       latestSnapshot: null,
-      snapshots: [],
-      meta: null,
+        meta: null,
       registry: {
         slug: "test",
         name: "Test",
@@ -677,8 +661,7 @@ describe("login-deadline slot", () => {
     const ctx: SlotContext = {
       tracker: makeTracker({ lastAccessAt: null }),
       latestSnapshot: null,
-      snapshots: [],
-      meta: null,
+        meta: null,
       registry: {
         slug: "test",
         name: "Test",
@@ -709,8 +692,7 @@ describe("login-deadline slot", () => {
     const ctx: SlotContext = {
       tracker: makeTracker({ lastAccessAt: "2026-01-01T00:00:00Z" }),
       latestSnapshot: null,
-      snapshots: [],
-      meta: null,
+        meta: null,
       registry: {
         slug: "test",
         name: "Test",
@@ -741,8 +723,7 @@ describe("login-deadline slot", () => {
     const ctx: SlotContext = {
       tracker: makeTracker({ lastAccessAt: "2026-01-01T00:00:00Z" }),
       latestSnapshot: null,
-      snapshots: [],
-      meta: null,
+        meta: null,
       registry: {
         slug: "test",
         name: "Test",
@@ -768,8 +749,7 @@ describe("login-deadline slot", () => {
     const ctx: SlotContext = {
       tracker: makeTracker({ lastAccessAt: "2026-01-01T00:00:00Z" }),
       latestSnapshot: null,
-      snapshots: [],
-      meta: null,
+        meta: null,
       registry: undefined,
       accentColor: BASE_ACCENT,
     }
@@ -809,8 +789,7 @@ describe("security: slot resolution does not expose secrets", () => {
         lastAccessAt: "2026-01-01T00:00:00Z",
       }),
       latestSnapshot: snap,
-      snapshots: [snap],
-      meta: ggnMeta,
+        meta: ggnMeta,
       registry: {
         slug: "test",
         name: "Test",
@@ -864,8 +843,7 @@ describe("security: slot resolution does not expose secrets", () => {
     const ctx: SlotContext = {
       tracker: makeTracker({ platformType: "unit3d" }),
       latestSnapshot: makeSnapshot({ seedbonus: 100 }),
-      snapshots: [],
-      meta: poisonedMeta,
+        meta: poisonedMeta,
       registry: undefined,
       accentColor: BASE_ACCENT,
     }

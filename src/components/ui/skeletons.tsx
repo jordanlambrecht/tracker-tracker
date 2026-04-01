@@ -1,6 +1,7 @@
 // src/components/ui/skeletons.tsx
 
-import { Card, Shimmer } from "@/components/ui"
+import { Card } from "./Card"
+import { Shimmer } from "./Shimmer"
 
 /**
  * A collapsed card shape

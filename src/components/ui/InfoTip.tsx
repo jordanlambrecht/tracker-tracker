@@ -3,7 +3,7 @@
 import { InfoIcon, QuestionIcon } from "@icons"
 import { cva, type VariantProps } from "class-variance-authority"
 import type { ReactNode } from "react"
-import { Tooltip } from "@/components/ui"
+import { Tooltip } from "./Tooltip"
 import type { DocsEntry } from "@/lib/constants"
 
 const infoTipVariants = cva(

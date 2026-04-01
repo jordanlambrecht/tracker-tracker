@@ -11,7 +11,6 @@ export type SlotCategory = "badge" | "stat-card" | "progress"
 export interface SlotContext {
   tracker: TrackerSummary
   latestSnapshot: Snapshot | null
-  snapshots: Snapshot[]
   meta: PlatformMeta | null
   registry: TrackerRegistryEntry | undefined
   accentColor: string

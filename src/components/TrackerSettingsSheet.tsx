@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation"
 import { type SyntheticEvent, useCallback, useEffect, useState } from "react"
 import {
   Button,
-  ColorPicker,
   ConfirmRemove,
   InfoTip,
   Input,
@@ -17,6 +16,7 @@ import {
   Sheet,
   Toggle,
 } from "@/components/ui"
+import { ColorPicker } from "@/components/ui/ColorPicker"
 
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { localDateStr } from "@/lib/formatters"
