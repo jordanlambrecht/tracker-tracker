@@ -144,6 +144,27 @@ export type PlatformMeta =
   | MamPlatformMeta
   | AvistazPlatformMeta
 
+/** Maps platformType string → the corresponding PlatformMeta variant */
+export interface PlatformMetaMap {
+  ggn: GGnPlatformMeta
+  gazelle: GazellePlatformMeta
+  nebulance: NebulancePlatformMeta
+  mam: MamPlatformMeta
+  avistaz: AvistazPlatformMeta
+}
+
+/**
+ * Type-safe narrowing of PlatformMeta using the existing platformType discriminant.
+ * Returns the narrowed meta if `ctx.tracker.platformType` matches, otherwise `null`.
+ */
+export function metaFor<P extends keyof PlatformMetaMap>(
+  ctx: { tracker: { platformType: string }; meta: PlatformMeta | null },
+  platform: P
+): PlatformMetaMap[P] | null {
+  if (!ctx.meta || ctx.tracker.platformType !== platform) return null
+  return ctx.meta as PlatformMetaMap[P]
+}
+
 export type GazelleAuthStyle = "token" | "raw"
 export type Unit3dAuthStyle = "bearer" | "query"
 
