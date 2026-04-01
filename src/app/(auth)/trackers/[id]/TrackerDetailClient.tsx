@@ -349,13 +349,15 @@ export function TrackerDetailClient({
         }}
       />
 
-      <DebugResponseDialog
-        open={showDebugDialog}
-        loading={debugLoading}
-        data={debugData}
-        error={debugError}
-        onClose={() => setShowDebugDialog(false)}
-      />
+      {showDebugDialog && (
+        <DebugResponseDialog
+          open
+          loading={debugLoading}
+          data={debugData}
+          error={debugError}
+          onClose={() => setShowDebugDialog(false)}
+        />
+      )}
     </div>
   )
 }
