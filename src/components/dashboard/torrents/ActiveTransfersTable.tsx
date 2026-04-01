@@ -34,6 +34,7 @@ export function ActiveTransfersTable({
         keyExtractor={(t) => t.hash}
         emptyMessage={`No active ${mode === "downloading" ? "downloads" : "uploads"}`}
         surface="inset"
+        trackerColor={accentColor}
       />
     )
   }
@@ -138,6 +139,7 @@ export function ActiveTransfersTable({
       data={torrents}
       keyExtractor={(t) => t.hash}
       surface="inset"
+      trackerColor={accentColor}
       fixedLayout
       compact
       noHorizontalScroll

@@ -115,7 +115,7 @@ function TorrentAgeScatter3D({ torrents, accentColor }: TorrentAgeScatter3DProps
       boxWidth: 100,
       boxDepth: 80,
       boxHeight: 60,
-      viewControl: { autoRotate: true, autoRotateSpeed: 4 },
+      viewControl: { autoRotate: true, autoRotateSpeed: 4, distance: 220, minDistance: 220 },
       light: {
         main: { intensity: 1.2 },
         ambient: { intensity: 0.3 },

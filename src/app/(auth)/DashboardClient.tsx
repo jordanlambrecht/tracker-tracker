@@ -18,7 +18,7 @@ import { TodayAtAGlanceSkeleton } from "@/components/dashboard/TodayAtAGlanceSke
 import { TrackerLeaderboard } from "@/components/dashboard/TrackerLeaderboard"
 import { TrackerOverviewGrid } from "@/components/dashboard/TrackerOverviewGrid"
 import { useDashboardSettings } from "@/components/dashboard/useDashboardSettings"
-import { Button, GearIcon, TabBar } from "@/components/ui"
+import { Button, Divider, GearIcon, TabBar } from "@/components/ui"
 import { useDashboardData } from "@/hooks/useDashboardData"
 import { computeAggregateStats } from "@/lib/dashboard"
 import type { Snapshot, TrackerSummary } from "@/types/api"
@@ -134,23 +134,13 @@ export function DashboardClient({ initialTrackers }: DashboardClientProps) {
       </div>
 
       {/* Divider */}
-      <div
-        className="h-px"
-        style={{
-          background: `linear-gradient(90deg, transparent, ${CHART_THEME.borderEmphasis}, transparent)`,
-        }}
-      />
+      <Divider />
 
       {/* Aggregate Stats */}
       <EcosystemStatsSection trackers={data.trackers} aggregateStats={aggregateStats} />
 
       {/* Divider */}
-      <div
-        className="h-px"
-        style={{
-          background: `linear-gradient(90deg, transparent, ${CHART_THEME.borderEmphasis}, transparent)`,
-        }}
-      />
+      <Divider />
 
       {/* Tab Switcher */}
       <TabBar

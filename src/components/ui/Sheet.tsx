@@ -13,11 +13,8 @@ interface SheetProps {
   open: boolean
   onClose: () => void
   title?: string
-  /** Sticky footer content (action buttons, etc.) */
   footer?: ReactNode
-  /** When true, disables escape, backdrop click, and close button */
   busy?: boolean
-  /** If provided, the panel renders as a form with this submit handler */
   onSubmit?: () => void
   children: ReactNode
   className?: string
@@ -95,7 +92,8 @@ function Sheet({ open, onClose, title, footer, busy, onSubmit, children, classNa
       aria-label={title ?? "Panel"}
     >
       {/* Backdrop */}
-      <div
+      <button
+        type="button"
         data-overlay
         data-visible={visible || undefined}
         className={clsx(
@@ -103,8 +101,8 @@ function Sheet({ open, onClose, title, footer, busy, onSubmit, children, classNa
           visible ? "opacity-100" : "opacity-0"
         )}
         onClick={handleClose}
-        onKeyDown={() => {}}
-        role="presentation"
+        tabIndex={-1}
+        aria-label="Close"
       />
 
       {/* Panel */}

@@ -1,6 +1,4 @@
 // src/components/dashboard/DashboardSettingsSheet.tsx
-//
-// Functions: SortableChartItem, DashboardSettingsSheet
 
 "use client"
 
@@ -14,13 +12,11 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { H2 } from "@typography"
 import { useCallback, useState } from "react"
-import { CHART_THEME } from "@/components/charts/lib/theme"
 import type { ChartDef } from "@/components/dashboard/useChartPreferences"
 import { useChartPreferences } from "@/components/dashboard/useChartPreferences"
 import { useDashboardSettings } from "@/components/dashboard/useDashboardSettings"
-import { Sheet } from "@/components/ui/Sheet"
-import { TabBar } from "@/components/ui/TabBar"
-import { Toggle } from "@/components/ui/Toggle"
+import { Sheet, TabBar, Toggle } from "@/components/ui"
+import { Divider } from "@/components/ui/Divider"
 
 interface SortableChartItemProps {
   def: ChartDef
@@ -114,12 +110,7 @@ function DashboardSettingsSheet({
           />
         </div>
 
-        <div
-          className="h-px"
-          style={{
-            background: `linear-gradient(90deg, transparent, ${CHART_THEME.borderEmphasis}, transparent)`,
-          }}
-        />
+        <Divider compact />
 
         {/* Chart Visibility & Order */}
         <div className="flex flex-col gap-4">

@@ -17,7 +17,7 @@ interface UnsatisfiedTorrentsTableProps {
 export function UnsatisfiedTorrentsTable({
   torrents,
   requiredSeconds,
-  accentColor: _accentColor,
+  accentColor,
 }: UnsatisfiedTorrentsTableProps) {
   const pctColor = (p: number) =>
     p < 50 ? CHART_THEME.danger : p < 80 ? CHART_THEME.warn : CHART_THEME.positive
@@ -97,6 +97,7 @@ export function UnsatisfiedTorrentsTable({
       keyExtractor={(t) => t.hash}
       emptyMessage="All torrents meet seed time requirements"
       surface="inset"
+      trackerColor={accentColor}
       fixedLayout
       noHorizontalScroll
       maxHeight={torrents.length > 15 ? 720 : undefined}

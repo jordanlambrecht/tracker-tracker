@@ -8,8 +8,7 @@
 import clsx from "clsx"
 import type { HTMLAttributes, ReactNode } from "react"
 import { CHART_THEME } from "@/components/charts/lib/theme"
-import { InfoTip } from "@/components/ui/InfoTip"
-import { Tooltip } from "@/components/ui/Tooltip"
+import { InfoTip, Tooltip } from "@/components/ui"
 import { hexToRgba } from "@/lib/color-utils"
 
 // ---------------------------------------------------------------------------
@@ -106,7 +105,7 @@ function Shell({
       )}
       style={{
         filter: glowColor
-          ? `drop-shadow(0 -2px 12px ${hexToRgba(glowColor, alertColor ? 0.25 : 0.1)})`
+          ? `drop-shadow(0 0 14px ${hexToRgba(glowColor, alertColor ? 0.18 : 0.09)})`
           : undefined,
         outline: alertColor ? `1px solid ${hexToRgba(alertColor, 0.25)}` : undefined,
         outlineOffset: "-1px",

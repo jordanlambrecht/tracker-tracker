@@ -182,6 +182,26 @@
     /* #14151b */ inset -2px -2px 5px oklch(32.94% 0.0266 278.88); /* #323443 */
 }
 
+/* Tracker color accent glow — corner-pooling inset glow via pseudo-element
+ * so it doesn't conflict with the card's nm-raised box-shadow. Four offset
+ * shadows concentrate light in the corners and fade along the edges.
+ * Color passed as --card-accent via inline style. */
+@utility card-accent {
+  position: relative;
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow:
+      inset 5px 5px 14px -5px var(--card-accent, transparent),
+      inset -3px -3px 14px -8px var(--card-accent, transparent),
+      inset 1px 1px 2px 0 rgba(255, 255, 255, 0.05),
+      inset -1px -1px 2px 0 rgba(255, 255, 255, 0.015);
+    pointer-events: none;
+  }
+}
+
 @utility slot-label {
   font-family: var(--font-sans);
   font-size: var(--text-3xs);

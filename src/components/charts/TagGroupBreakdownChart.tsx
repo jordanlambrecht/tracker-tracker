@@ -6,7 +6,6 @@
 
 import { SlotLabel } from "@typography"
 import type { EChartsOption } from "echarts"
-import { hexToRgba } from "@/lib/color-utils"
 import { formatCount, formatPercent } from "@/lib/formatters"
 import type { TagGroupChartType } from "@/types/api"
 import { ChartECharts } from "./lib/ChartECharts"
@@ -33,12 +32,11 @@ interface TagGroupBreakdownChartProps {
 function memberColor(
   accentColor: string,
   member: { color: string | null },
-  index: number,
-  total: number
+  _index: number,
+  _total: number
 ): string {
   if (member.color) return member.color
-  const opacity = Math.max(0.4, 1 - index * (0.6 / Math.max(total - 1, 1)))
-  return hexToRgba(accentColor, opacity)
+  return accentColor
 }
 
 // ---------------------------------------------------------------------------
@@ -235,12 +233,12 @@ function TagGroupBreakdownChart({
     const total = items.reduce((sum, m) => sum + m.count, 0)
     const maxCount = Math.max(...items.map((m) => m.count))
 
-    // Single item: hero layout
+    // Single item: hero layout — fill the card, vertically centered
     if (items.length === 1) {
       const m = items[0]
       const color = memberColor(accentColor, m, 0, 1)
       return (
-        <div className="flex flex-col items-center justify-center gap-2 py-6">
+        <div className="flex flex-col items-center justify-center gap-2 flex-1">
           <span className="font-mono text-5xl font-bold tabular-nums" style={{ color }}>
             {formatCount(m.count)}
           </span>

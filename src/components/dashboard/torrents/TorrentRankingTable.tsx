@@ -13,6 +13,7 @@ type TorrentTableVariant = "top-seeded" | "elder"
 interface TorrentRankingTableProps {
   torrents: TorrentInfo[]
   variant: TorrentTableVariant
+  trackerColor?: string
 }
 
 const seedTimeCol: Column<TorrentInfo> = {
@@ -63,7 +64,7 @@ const variantColumns: Record<TorrentTableVariant, Column<TorrentInfo>[]> = {
   elder: [addedCol, seedTimeColLast],
 }
 
-export function TorrentRankingTable({ torrents, variant }: TorrentRankingTableProps) {
+export function TorrentRankingTable({ torrents, variant, trackerColor }: TorrentRankingTableProps) {
   const sharedColumns: Column<TorrentInfo>[] = [
     {
       key: "rank",
@@ -123,6 +124,7 @@ export function TorrentRankingTable({ torrents, variant }: TorrentRankingTablePr
       keyExtractor={(t) => t.hash}
       emptyMessage="No torrents found"
       surface="inset"
+      trackerColor={trackerColor}
       fixedLayout
       compact
       noHorizontalScroll

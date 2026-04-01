@@ -182,6 +182,9 @@ function TorrentsTab({
       {data.tagGroupBreakdowns.length > 0 && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {data.tagGroupBreakdowns.map(({ group, memberCounts, unmatchedCount }) => {
+            const effectiveCount =
+              memberCounts.length + (group.countUnmatched && unmatchedCount != null ? 1 : 0)
+            const isSingleNumber = group.chartType === "numbers" && effectiveCount === 1
             const wideCard =
               group.chartType === "numbers" &&
               numbersNeedsWideCard(memberCounts.length, group.countUnmatched, unmatchedCount)
@@ -189,7 +192,11 @@ function TorrentsTab({
               <Card
                 key={group.id}
                 trackerColor={accentColor}
-                className={clsx("flex flex-col gap-4", wideCard && "lg:col-span-2")}
+                className={clsx(
+                  "flex flex-col gap-4",
+                  wideCard && "lg:col-span-2",
+                  isSingleNumber && "min-h-48"
+                )}
               >
                 <H2 className="card-heading">
                   {group.emoji ? `${group.emoji} ` : ""}
@@ -242,6 +249,7 @@ function TorrentsTab({
               data.requiredSeedSeconds != null ? data.requiredSeedSeconds / 3600 : null
             }
             accentColor={accentColor}
+            height={280}
           />
         </Card>
       </div>
@@ -262,7 +270,7 @@ function TorrentsTab({
           className="flex flex-col gap-4"
           title="Torrent Add Heatmap"
         >
-          <TorrentActivityHeatmap torrents={data.torrents} accentColor={accentColor} />
+          <TorrentActivityHeatmap torrents={data.torrents} accentColor={accentColor} height={320} />
         </Card>
       </div>
 
@@ -275,12 +283,10 @@ function TorrentsTab({
       <Card
         lazy
         title="Torrents Added by Category"
+        subtitle="Monthly grabs by category"
         trackerColor={accentColor}
         className="flex flex-col gap-4"
       >
-        <p className="text-xs font-mono text-tertiary">
-          Monthly acquisition by category — shows what you've been grabbing
-        </p>
         <TorrentCategoryAcquisition torrents={data.torrents} accentColor={accentColor} />
       </Card>
 
@@ -322,14 +328,15 @@ function TorrentsTab({
       {/* Top Seeded */}
       <div className="flex flex-col gap-3">
         <H2 className="uppercase tracking-wider">Top Seeded Torrents</H2>
-        <TorrentRankingTable variant="top-seeded" torrents={data.topBySeeding} />
+        <TorrentRankingTable
+          variant="top-seeded"
+          torrents={data.topBySeeding}
+          trackerColor={accentColor}
+        />
       </div>
 
       {/* Parallel Coordinates */}
       <Card lazy trackerColor={accentColor} className="flex flex-col gap-4" title="Torrent Profile">
-        <p className="text-xs font-mono text-tertiary -mt-2">
-          Each line is a torrent — hover to inspect, brush axes to filter
-        </p>
         <ParallelTorrentsChart torrents={data.torrents} trackerColor={accentColor} height={380} />
       </Card>
 
@@ -354,7 +361,11 @@ function TorrentsTab({
       {/* Elder Torrents */}
       <div className="flex flex-col gap-3">
         <H2 className="uppercase tracking-wider">Elder Torrents</H2>
-        <TorrentRankingTable variant="elder" torrents={data.elderTorrents} />
+        <TorrentRankingTable
+          variant="elder"
+          torrents={data.elderTorrents}
+          trackerColor={accentColor}
+        />
       </div>
     </div>
   )

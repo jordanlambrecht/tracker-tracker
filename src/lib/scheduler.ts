@@ -33,6 +33,7 @@ import { log } from "@/lib/logger"
 import { dispatchNotifications } from "@/lib/notifications/dispatch"
 import { maskUsername } from "@/lib/privacy"
 import { buildProxyAgentFromSettings } from "@/lib/proxy"
+import { recordDatabaseSize } from "@/lib/server-data"
 import { getPauseState } from "@/lib/tracker-status"
 
 // Store on globalThis to survive HMR in development.
@@ -533,6 +534,13 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
     } catch (error) {
       log.error(error, "Checkpoint pruning failed")
     }
+  }
+
+  // Record daily database size for storage chart
+  try {
+    await recordDatabaseSize()
+  } catch (error) {
+    log.error(error, "Database size recording failed")
   }
 
   // Prune expired dismissed alerts (stale-data and zero-seeding types expire after 24h)

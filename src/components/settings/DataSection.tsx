@@ -3,8 +3,9 @@
 
 import { H3, Paragraph } from "@typography"
 import { useState } from "react"
+import { DatabaseSizeChart } from "@/components/settings/DatabaseSizeChart"
 import { SettingsSection } from "@/components/settings/SettingsSection"
-import { SaveDiscardBar, Select } from "@/components/ui"
+import { Divider, SaveDiscardBar, Select } from "@/components/ui"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 
 export interface DataSectionProps {
@@ -71,6 +72,16 @@ export function DataSection({ initialPollInterval }: DataSectionProps) {
           justify="end"
           showDivider={false}
         />
+      </div>
+
+      {/* Database Size */}
+      <Divider compact />
+      <div className="flex flex-col gap-3">
+        <H3>Storage</H3>
+        <Paragraph>
+          Database size over time. Dashed line shows projected growth at current rate.
+        </Paragraph>
+        <DatabaseSizeChart />
       </div>
     </SettingsSection>
   )

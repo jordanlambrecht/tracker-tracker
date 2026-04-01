@@ -87,7 +87,7 @@ function TorrentSizeBreakdown({ categories, accentColor }: TorrentSizeBreakdownP
   return (
     <ChartECharts
       option={option}
-      style={{ height: Math.max(160, top.length * 36), width: "100%" }}
+      style={{ height: Math.max(280, top.length * 36), width: "100%" }}
     />
   )
 }

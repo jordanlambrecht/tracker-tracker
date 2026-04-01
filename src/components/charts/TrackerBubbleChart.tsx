@@ -1,7 +1,4 @@
 // src/components/charts/TrackerBubbleChart.tsx
-//
-// Functions: computeBubbleSize, buildBubbleOption, TrackerBubbleChart
-
 "use client"
 
 import type { EChartsOption } from "echarts"
@@ -154,7 +151,7 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
 
   return {
     backgroundColor: "transparent",
-    grid: chartGrid({ right: 24, bottom: 48, left: 72 }),
+    grid: chartGrid({ right: 48, bottom: 56, left: 72 }),
     tooltip: chartTooltip("item", {
       formatter: (params: unknown) => {
         const p = params as {
@@ -187,6 +184,8 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
     xAxis: {
       type: useLogX ? "log" : "value",
       name: useLogX ? `Downloaded (${unit}, log)` : `Downloaded (${unit})`,
+      nameLocation: "center",
+      nameGap: 32,
       ...(useLogX ? xLogBounds : { min: 0 }),
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
@@ -240,7 +239,7 @@ function TrackerBubbleChart({ trackers, height = 360 }: TrackerBubbleChartProps)
       : []
   )
 
-  // Hook must be called before any early return (React rules of hooks)
+  // Hook must be called before any early return
   const xValues = validTrackers.map((t) => bytesToGiB(t.downloadedBytes))
   const yValues = validTrackers.map((t) => bytesToGiB(t.uploadedBytes))
   const allValues = [...xValues, ...yValues]

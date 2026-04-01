@@ -8,7 +8,7 @@ import { FleetHeadline } from "@/components/dashboard/FleetHeadline"
 import { MoversAndShakers } from "@/components/dashboard/MoversAndShakers"
 import { TrackerBreakdownBars } from "@/components/dashboard/TrackerBreakdownBars"
 import { TrackerBreakdownTicker } from "@/components/dashboard/TrackerBreakdownTicker"
-import { Card } from "@/components/ui/Card"
+import { Card, Divider } from "@/components/ui"
 import { formatTimeAgo } from "@/lib/formatters"
 import type { TodayAtAGlance as TodayAtAGlanceData } from "@/types/api"
 
@@ -39,7 +39,7 @@ export function TodayAtAGlance({ data, variant = "bars" }: TodayAtAGlanceProps) 
       <div className="flex flex-col gap-5">
         <FleetHeadline fleet={data.fleet} />
 
-        <div className="border-t border-border" />
+        <Divider compact />
 
         {/* Tracker breakdowns — upload and download side by side on lg, stacked on mobile */}
         <div className="flex items-center justify-between">
@@ -68,7 +68,7 @@ export function TodayAtAGlance({ data, variant = "bars" }: TodayAtAGlanceProps) 
 
         {hasActivity && (
           <>
-            <div className="border-t border-border" />
+            <Divider compact />
             <div className="flex items-center justify-between">
               <FleetActivity activity={data.activity} />
               <UpdatedAt iso={data.clientLastUpdated} />

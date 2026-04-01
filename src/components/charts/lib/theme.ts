@@ -24,6 +24,7 @@ export const CHART_THEME = {
   // ── Surfaces ──
   surface: "#282a36", // --color-base
   elevated: "#2e3042", // --color-elevated
+  surfaceElevated: "#343648", // --color-overlay — raised handle surfaces
   overlay: "#343648", // --color-overlay
   controlBg: "#1e2029", // --color-control-bg
   tooltipBg: "#2e3042", // same as elevated
@@ -223,7 +224,7 @@ export function chartGrid(overrides?: {
   return {
     left: 56,
     right: 24,
-    top: 78,
+    top: 16,
     bottom: 40,
     containLabel: false,
     ...overrides,
@@ -251,13 +252,38 @@ export function chartDataZoom(accentColor: string): Record<string, unknown>[] {
     {
       type: "slider",
       borderColor: CHART_THEME.gridLine,
-      backgroundColor: CHART_THEME.surface,
-      fillerColor: hexToRgba(accentColor, 0.094),
-      handleStyle: { color: accentColor, borderColor: accentColor },
-      moveHandleStyle: { color: accentColor },
+      borderRadius: 8,
+      backgroundColor: hexToRgba("#1e2029", 0.8), // control-bg, recessed track
+      fillerColor: hexToRgba(accentColor, 0.08),
+      handleStyle: {
+        color: CHART_THEME.surfaceElevated,
+        borderColor: hexToRgba(accentColor, 0.4),
+        borderWidth: 1,
+        borderRadius: 4,
+        shadowBlur: 4,
+        shadowColor: hexToRgba("#000", 0.3),
+      },
+      moveHandleStyle: {
+        color: hexToRgba(accentColor, 0.3),
+      },
+      emphasis: {
+        handleStyle: {
+          color: CHART_THEME.surfaceElevated,
+          borderColor: accentColor,
+          shadowBlur: 8,
+          shadowColor: hexToRgba(accentColor, 0.3),
+        },
+        moveHandleStyle: {
+          color: hexToRgba(accentColor, 0.5),
+        },
+      },
       selectedDataBackground: {
-        lineStyle: { color: accentColor },
-        areaStyle: { color: hexToRgba(accentColor, 0.188) },
+        lineStyle: { color: hexToRgba(accentColor, 0.6) },
+        areaStyle: { color: hexToRgba(accentColor, 0.12) },
+      },
+      dataBackground: {
+        lineStyle: { color: CHART_THEME.gridLine },
+        areaStyle: { color: hexToRgba("#94a3b8", 0.04) },
       },
       textStyle: {
         color: CHART_THEME.textTertiary,

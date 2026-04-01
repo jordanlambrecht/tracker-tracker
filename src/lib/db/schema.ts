@@ -3,7 +3,7 @@
 // Tables: appSettings, trackers, trackerSnapshots, trackerRoles, downloadClients,
 // tagGroups, tagGroupMembers, clientSnapshots, backupHistory, dismissedAlerts,
 // draftQuicklinks (column on appSettings), notificationTargets, notificationDeliveryState,
-// trackerDailyCheckpoints, torrentDailyCheckpoints
+// trackerDailyCheckpoints, torrentDailyCheckpoints, dbSizeHistory
 
 import {
   bigint,
@@ -430,6 +430,16 @@ export const torrentDailyCheckpoints = pgTable(
   ]
 )
 
+export const dbSizeHistory = pgTable(
+  "db_size_history",
+  {
+    id: serial("id").primaryKey(),
+    recordedAt: date("recorded_at").notNull(),
+    totalBytes: bigint("total_bytes", { mode: "bigint" }).notNull(),
+  },
+  (table) => [uniqueIndex("uq_db_size_recorded_at").on(table.recordedAt)]
+)
+
 // ── Named type exports ──────────────────────────────────────────────
 export type AppSettingsRow = typeof appSettings.$inferSelect
 export type TrackerRow = typeof trackers.$inferSelect
@@ -446,3 +456,4 @@ export type NotificationTargetRow = typeof notificationTargets.$inferSelect
 export type NotificationDeliveryStateRow = typeof notificationDeliveryState.$inferSelect
 export type TrackerDailyCheckpointRow = typeof trackerDailyCheckpoints.$inferSelect
 export type TorrentDailyCheckpointRow = typeof torrentDailyCheckpoints.$inferSelect
+export type DbSizeHistoryRow = typeof dbSizeHistory.$inferSelect

@@ -1,7 +1,4 @@
 // src/components/charts/VolumeSurface3D.tsx
-//
-// Functions: computeDailyGrid, bucketGrid, buildSurfaceOption, VolumeSurface3D
-
 "use client"
 
 import ReactECharts from "echarts-for-react"
@@ -298,6 +295,7 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
         rotateSensitivity: 2,
         zoomSensitivity: 1.5,
         distance: 250,
+        minDistance: 250,
         alpha: 25,
         beta: 40,
       },

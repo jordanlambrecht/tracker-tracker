@@ -7,7 +7,7 @@ import { extractTagsFromSnapshots } from "@/lib/fleet"
 import { formatSpeed } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
-import { buildAxisPointer, buildThemeRiverSingleAxis } from "./lib/chart-helpers"
+import { buildAxisPointer, buildThemeRiverSingleAxis, floorTimestamp } from "./lib/chart-helpers"
 import {
   buildTagColors,
   CHART_THEME,
@@ -23,34 +23,36 @@ interface SpeedThemeRiverProps {
 }
 
 function buildRiverData(snapshots: FleetSnapshot[], tags: string[]): [number, number, string][] {
-  // Group snapshots by timestamp, sum speeds per tag across all clients
-  const timeTagMap = new Map<number, Map<string, number>>()
+  // Bucket snapshots by hour, averaging speeds per tag within each bucket.
+  // This gives the river bands visible width at 7d/30d zoom levels.
+  const bucketMap = new Map<number, Map<string, { sum: number; count: number }>>()
 
   for (const snap of snapshots) {
     if (!snap.tagStats) continue
-    const ts = new Date(snap.polledAt).getTime()
+    const bucket = floorTimestamp(new Date(snap.polledAt).getTime(), "hour")
 
-    let tagAccum = timeTagMap.get(ts)
+    let tagAccum = bucketMap.get(bucket)
     if (!tagAccum) {
-      tagAccum = new Map<string, number>()
-      timeTagMap.set(ts, tagAccum)
+      tagAccum = new Map<string, { sum: number; count: number }>()
+      bucketMap.set(bucket, tagAccum)
     }
 
     for (const stat of snap.tagStats) {
-      const prev = tagAccum.get(stat.tag) ?? 0
-      tagAccum.set(stat.tag, prev + stat.uploadSpeed)
+      const prev = tagAccum.get(stat.tag) ?? { sum: 0, count: 0 }
+      tagAccum.set(stat.tag, { sum: prev.sum + stat.uploadSpeed, count: prev.count + 1 })
     }
   }
 
   const riverData: [number, number, string][] = []
-  const sortedTimestamps = Array.from(timeTagMap.keys()).sort((a, b) => a - b)
+  const sortedBuckets = Array.from(bucketMap.keys()).sort((a, b) => a - b)
 
-  for (const ts of sortedTimestamps) {
-    const tagAccum = timeTagMap.get(ts)
+  for (const bucket of sortedBuckets) {
+    const tagAccum = bucketMap.get(bucket)
     if (!tagAccum) continue
     for (const tag of tags) {
-      const speed = tagAccum.get(tag) ?? 0
-      riverData.push([ts, speed, tag])
+      const entry = tagAccum.get(tag)
+      const avgSpeed = entry ? entry.sum / entry.count : 0
+      riverData.push([bucket, avgSpeed, tag])
     }
   }
 
@@ -92,12 +94,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
       {
         type: "themeRiver",
         data: riverData,
-        label: {
-          show: true,
-          color: CHART_THEME.textSecondary,
-          fontFamily: CHART_THEME.fontMono,
-          fontSize: CHART_THEME.fontSizeCompact,
-        },
+        label: { show: false },
         emphasis: {
           itemStyle: {
             shadowBlur: 20,

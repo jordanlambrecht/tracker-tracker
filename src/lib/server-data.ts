@@ -2,8 +2,9 @@
 //
 // Functions: fetchSettings, serializeSettingsResponse, getSettingsForClient,
 // getTrackerListForDashboard, getTrackerForClient, getSnapshotsForTracker,
-// getTagGroupsWithMembers, getProxyTrackers, getDatabaseSize
-// Constants: settingsColumns, trackerColumns
+// getTagGroupsWithMembers, getProxyTrackers, getDatabaseSize,
+// getDatabaseSizeBytes, recordDatabaseSize, getDbSizeHistory
+// Constants: settingsColumns, trackerColumns, snapshotColumns
 //
 // Server-side data fetchers: single source of truth for safe DB queries
 // that return client-safe shapes. Used by both API route handlers and
@@ -25,11 +26,13 @@ import { DEFAULT_TRACKER_COLOR } from "@/lib/constants"
 import { db } from "@/lib/db"
 import {
   appSettings,
+  dbSizeHistory,
   tagGroupMembers,
   tagGroups as tagGroupsTable,
   trackerSnapshots,
   trackers,
 } from "@/lib/db/schema"
+import { localDateStr } from "@/lib/formatters"
 import { createPrivacyMaskSync } from "@/lib/privacy-db"
 import { parseQbitmanageTags } from "@/lib/qbitmanage-defaults"
 import { serializeTrackerResponse } from "@/lib/tracker-serializer"
@@ -231,9 +234,36 @@ export async function getTrackerForClient(id: number): Promise<TrackerSummary | 
 // Snapshots for a tracker
 // ---------------------------------------------------------------------------
 
+const snapshotColumns = {
+  polledAt: trackerSnapshots.polledAt,
+  uploadedBytes: trackerSnapshots.uploadedBytes,
+  downloadedBytes: trackerSnapshots.downloadedBytes,
+  ratio: trackerSnapshots.ratio,
+  bufferBytes: trackerSnapshots.bufferBytes,
+  seedingCount: trackerSnapshots.seedingCount,
+  leechingCount: trackerSnapshots.leechingCount,
+  seedbonus: trackerSnapshots.seedbonus,
+  hitAndRuns: trackerSnapshots.hitAndRuns,
+  requiredRatio: trackerSnapshots.requiredRatio,
+  warned: trackerSnapshots.warned,
+  freeleechTokens: trackerSnapshots.freeleechTokens,
+  shareScore: trackerSnapshots.shareScore,
+  username: trackerSnapshots.username,
+  group: trackerSnapshots.group,
+}
+
+/** Pick a date_trunc bucket for chart queries based on requested day range. null = raw. */
+function getSnapshotBucket(days: number): "hour" | "day" | null {
+  if (days > 0 && days <= 2) return null
+  if (days > 0 && days <= 90) return "hour"
+  return "day"
+}
+
 /**
  * Fetches snapshots for a tracker, filtered by day range.
- * Pass days=0 for all snapshots. Applies privacy masking.
+ * Pass days=0 for all snapshots. Applies adaptive time-bucketing for
+ * longer ranges (hourly for 3-90d, daily for >90d) to bound response size.
+ * Applies privacy masking.
  */
 export async function getSnapshotsForTracker(trackerId: number, days: number): Promise<Snapshot[]> {
   const safeDays = days === 0 ? 0 : Math.min(Math.max(days, 1), 3650)
@@ -244,22 +274,29 @@ export async function getSnapshotsForTracker(trackerId: number, days: number): P
     conditions.push(gte(trackerSnapshots.polledAt, since))
   }
 
+  const bucket = getSnapshotBucket(safeDays)
+  const whereClause = and(...conditions)
+
   const [snapshots, [privacySettings]] = await Promise.all([
-    db
-      .select()
-      .from(trackerSnapshots)
-      .where(and(...conditions))
-      .orderBy(trackerSnapshots.polledAt),
+    bucket
+      ? (() => {
+          const bucketExpr = sql`date_trunc(${sql.raw(`'${bucket}'`)}, ${trackerSnapshots.polledAt})`
+          return db
+            .selectDistinctOn([bucketExpr], snapshotColumns)
+            .from(trackerSnapshots)
+            .where(whereClause)
+            .orderBy(bucketExpr, desc(trackerSnapshots.polledAt))
+        })()
+      : db
+          .select(snapshotColumns)
+          .from(trackerSnapshots)
+          .where(whereClause)
+          .orderBy(trackerSnapshots.polledAt),
     db.select({ storeUsernames: appSettings.storeUsernames }).from(appSettings).limit(1),
   ])
 
-  // Enforce masking at response time. even if DB has plaintext from before
-  // privacy mode was enabled. Fallback true = "store usernames" = no masking.
   const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
 
-  // Serialize bigints to strings for JSON. Username/group are included because
-  // detectRankChanges needs them. When privacy mode is on, values are masked
-  // before leaving the server.
   return snapshots.map((s) => ({
     polledAt: s.polledAt.toISOString(),
     uploadedBytes: s.uploadedBytes?.toString() ?? "0",
@@ -346,4 +383,94 @@ export async function getDatabaseSize(): Promise<string> {
     sql`SELECT pg_size_pretty(pg_database_size(current_database())) as size`
   )
   return (rows as unknown as Array<{ size: string }>)[0]?.size ?? "Unknown"
+}
+
+/** Returns database size in bytes as a bigint */
+// security-audit-ignore: read-only PostgreSQL system function, no user input
+export async function getDatabaseSizeBytes(): Promise<bigint> {
+  const rows = await db.execute(
+    sql`SELECT pg_database_size(current_database()) as size_bytes`
+  )
+  const raw = (rows as unknown as Array<{ size_bytes: string }>)[0]?.size_bytes
+  return raw ? BigInt(raw) : 0n
+}
+
+/** Record today's database size. Upserts — safe to call multiple times per day. */
+export async function recordDatabaseSize(): Promise<void> {
+  const totalBytes = await getDatabaseSizeBytes()
+  const today = localDateStr(new Date())
+  await db
+    .insert(dbSizeHistory)
+    .values({ recordedAt: today, totalBytes })
+    .onConflictDoUpdate({
+      target: dbSizeHistory.recordedAt,
+      set: { totalBytes },
+    })
+}
+
+export interface DbSizeHistoryRow {
+  date: string
+  bytes: string // bigint serialized as string for JSON
+}
+
+export interface DbSizeResponse {
+  history: DbSizeHistoryRow[]
+  currentBytes: string
+  dailyGrowthBytes: number
+  projectedBytes: string
+  projectionDate: string
+}
+
+/** Fetch full db size history and compute linear projection. */
+export async function getDbSizeHistory(): Promise<DbSizeResponse> {
+  const rows = await db
+    .select({
+      recordedAt: dbSizeHistory.recordedAt,
+      totalBytes: dbSizeHistory.totalBytes,
+    })
+    .from(dbSizeHistory)
+    .orderBy(dbSizeHistory.recordedAt)
+
+  const history: DbSizeHistoryRow[] = rows.map((r) => ({
+    date: r.recordedAt,
+    bytes: r.totalBytes.toString(),
+  }))
+
+  const currentBytes = rows.length > 0 ? rows[rows.length - 1].totalBytes : 0n
+
+  // Compute average daily growth from consecutive deltas
+  let dailyGrowthBytes = 0
+  if (rows.length >= 2) {
+    const deltas: number[] = []
+    for (let i = 1; i < rows.length; i++) {
+      const delta = Number(rows[i].totalBytes - rows[i - 1].totalBytes)
+      // Count days between points (may skip days if scheduler was off)
+      const daysBetween = Math.max(
+        1,
+        Math.round(
+          (new Date(rows[i].recordedAt).getTime() - new Date(rows[i - 1].recordedAt).getTime()) /
+            86_400_000
+        )
+      )
+      deltas.push(delta / daysBetween)
+    }
+    dailyGrowthBytes = Math.round(deltas.reduce((a, b) => a + b, 0) / deltas.length)
+  }
+
+  // Project forward by the same number of days as we have history
+  const historyDays = rows.length
+  const projectedGrowth = Math.max(0, dailyGrowthBytes) * historyDays
+  const projectedBytes = currentBytes + BigInt(Math.round(projectedGrowth))
+
+  const projectionDate = new Date(Date.now() + historyDays * 86_400_000)
+    .toISOString()
+    .slice(0, 10)
+
+  return {
+    history,
+    currentBytes: currentBytes.toString(),
+    dailyGrowthBytes: Math.max(0, dailyGrowthBytes),
+    projectedBytes: projectedBytes.toString(),
+    projectionDate,
+  }
 }

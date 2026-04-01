@@ -1,7 +1,5 @@
 // src/components/dashboard/useChartPreferences.ts
-//
-// Functions: useChartPreferences, orderedCharts
-//
+
 // Manages dashboard chart visibility, collapse state, and display order in localStorage.
 // Single source of truth for both inline chart controls and settings sheet.
 // Order/reorder logic is dashboard-specific; shared base lives in src/hooks/useChartPreferencesBase.ts.
@@ -67,7 +65,7 @@ const DASHBOARD_CHARTS: ChartDef[] = [
   {
     id: "rank-tenure",
     label: "Rank Tenure",
-    description: "Time spent at each rank per tracker — hover segments for duration details",
+    description: "Time spent at each rank per tracker",
     category: "analytics",
   },
   {
@@ -79,13 +77,13 @@ const DASHBOARD_CHARTS: ChartDef[] = [
   {
     id: "buffer-candlestick",
     label: "Buffer Candlestick",
-    description: "Daily buffer open/high/low/close per tracker — like stock price charts",
+    description: "Daily buffer open/high/low/close per tracker",
     category: "analytics",
   },
   {
     id: "tracker-landscape",
     label: "Tracker Landscape",
-    description: "Each tracker as a bubble — position shows upload vs download, size shows fleet",
+    description: "Position shows upload vs download, size shows fleet",
     category: "analytics",
   },
   {

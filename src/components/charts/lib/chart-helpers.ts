@@ -2,8 +2,8 @@
 //
 // Functions: fmtNum, formatGiB, yAxisPad, formatDateLabel, yAxisAutoRange,
 // autoByteScale, DAY_LABELS, HOUR_LABELS, buildBucketedBarOption, buildGlowAreaStyle,
-// buildAxisPointer, buildThemeRiverSingleAxis, adaptiveDotSize, buildTimeXAxis,
-// insideZoom, buildDonutShell, buildStackedAreaOption
+// buildAxisPointer, buildThemeRiverSingleAxis, floorTimestamp, adaptiveDotSize,
+// buildTimeXAxis, insideZoom, buildDonutShell, buildStackedAreaOption
 
 import type { EChartsOption } from "echarts"
 import { hexToRgba } from "@/lib/color-utils"
@@ -242,7 +242,30 @@ export function buildThemeRiverSingleAxis(overrides?: {
     axisLabel: chartAxisLabel(),
     axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
     axisTick: { show: false },
+    splitLine: { lineStyle: { color: CHART_THEME.gridLine, width: 1 } },
   }
+}
+
+type TimeBucket = "minute" | "5min" | "15min" | "hour" | "day"
+
+const BUCKET_MS: Record<TimeBucket, number> = {
+  minute: 60_000,
+  "5min": 300_000,
+  "15min": 900_000,
+  hour: 3_600_000,
+  day: 86_400_000,
+}
+
+/**
+ * Floor a millisecond timestamp to the nearest bucket boundary.
+ * Use to bucket time-series data before charting — eliminates sub-bucket
+ * precision that wastes render cycles with no visual benefit.
+ * @param ms - Unix timestamp in milliseconds
+ * @param granularity - Bucket size (default: "hour")
+ */
+export function floorTimestamp(ms: number, granularity: TimeBucket = "hour"): number {
+  const interval = BUCKET_MS[granularity]
+  return ms - (ms % interval)
 }
 
 /**
