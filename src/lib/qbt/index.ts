@@ -18,6 +18,7 @@ export { clearSpeedCache, getSpeedSnapshots, pushSpeedSnapshot } from "./speed-c
 export {
   applyMaindataUpdate,
   clearAllStores,
+  getFilteredTorrents,
   getStoredTorrents,
   getStoreRevision,
   isStoreFresh,

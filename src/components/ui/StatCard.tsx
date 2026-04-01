@@ -8,7 +8,8 @@
 import clsx from "clsx"
 import type { HTMLAttributes, ReactNode } from "react"
 import { CHART_THEME } from "@/components/charts/lib/theme"
-import { InfoTip, Tooltip } from "@/components/ui"
+import { InfoTip } from "@/components/ui/InfoTip"
+import { Tooltip } from "@/components/ui/Tooltip"
 import { hexToRgba } from "@/lib/color-utils"
 
 // ---------------------------------------------------------------------------

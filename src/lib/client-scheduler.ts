@@ -36,7 +36,7 @@ import {
   applyMaindataUpdate,
   clearAllSessions,
   clearSpeedCache,
-  getStoredTorrents,
+  getFilteredTorrents,
   getStoreRevision,
   getTransferInfo,
   parseCrossSeedTags,
@@ -204,8 +204,7 @@ export async function deepPollClient(
         // Post-filter to only torrents carrying at least one app-tracked tag.
         // Uses parseTorrentTags from fleet.ts — the same function the aggregator uses.
         const tagSet = new Set(allTags.map((t) => t.toLowerCase()))
-        const allStoredTorrents = getStoredTorrents(baseUrl)
-        const relevant = allStoredTorrents.filter((t) => {
+        const relevant = getFilteredTorrents(baseUrl, (t) => {
           if (!t.tags) return false
           return parseTorrentTags(t.tags).some((tag) => tagSet.has(tag))
         })

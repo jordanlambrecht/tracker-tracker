@@ -1,7 +1,4 @@
 // src/components/charts/UploadPolarChart.tsx
-//
-// Functions: computeHourlyAverages, buildPolarOption, UploadPolarChart
-
 "use client"
 
 import type { EChartsOption } from "echarts"
@@ -14,8 +11,6 @@ import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { DAY_LABELS, HOUR_LABELS } from "./lib/chart-helpers"
 import { CHART_THEME, chartTooltip, escHtml } from "./lib/theme"
-
-// ── Types ──
 
 type PolarMode = "upload" | "download"
 
@@ -229,6 +224,11 @@ function buildPolarOption(
 
 // ── Component ──
 
+const POLAR_TABS = [
+  { key: "upload" as const, label: "Upload" },
+  { key: "download" as const, label: "Download" },
+]
+
 function UploadPolarChart({
   snapshots,
   accentColor = CHART_THEME.accent,
@@ -238,11 +238,6 @@ function UploadPolarChart({
 
   const hasEnoughSnapshots = snapshots.length >= 2
   const buckets = hasEnoughSnapshots ? computeHourlyAverages(snapshots, mode) : []
-
-  const POLAR_TABS = [
-    { key: "upload" as const, label: "Upload" },
-    { key: "download" as const, label: "Download" },
-  ]
 
   if (!hasEnoughSnapshots) {
     return (

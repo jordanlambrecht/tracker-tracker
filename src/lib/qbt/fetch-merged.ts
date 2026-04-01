@@ -1,7 +1,4 @@
 // src/lib/qbt/fetch-merged.ts
-//
-// Functions: fetchAndMergeTorrents
-
 import "server-only"
 
 import { decryptClientCredentials } from "@/lib/client-decrypt"
@@ -9,7 +6,7 @@ import { isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
 import { parseTorrentTags } from "@/lib/fleet"
 import {
   buildBaseUrl,
-  getStoredTorrents,
+  getFilteredTorrents,
   getTorrents,
   isStoreFresh,
   parseCrossSeedTags,
@@ -50,11 +47,11 @@ async function fetchClientTorrents(
 
   // Fast path: store is warm from scheduler, serve from memory.
   // Falls back to live fetch if store is stale (i.e. scheduler missed 2+ cycles).
-  // Skip when filter is requested — active speeds need live qBT data.
+  // Skip when filter is requested. Active speeds need live qBT data.
   const STORE_MAX_AGE_MS = 10 * 60 * 1000 // 2× default poll interval
   if (!filter && isStoreFresh(baseUrl, STORE_MAX_AGE_MS)) {
     const tagSet = new Set(tags.map((t) => t.toLowerCase()))
-    return getStoredTorrents(baseUrl).filter((t) => {
+    return getFilteredTorrents(baseUrl, (t) => {
       if (!t.tags) return false
       return parseTorrentTags(t.tags).some((tag) => tagSet.has(tag))
     })
@@ -152,11 +149,11 @@ export async function fetchAndMergeTorrents(
     }
   }
 
-  // All clients failed with decryption errors → the session key is stale.
+  // All clients failed with decryption errors. Which means the session key is stale.
   const sessionExpired =
     clients.length > 0 && torrentLists.length === 0 && decryptionFailureCount === clients.length
 
-  // Build hash → client name(s) lookup before merge flattens provenance
+  // Build hash. Client name lookup before merge flattens provenance
   const hashClients = new Map<string, string[]>()
   for (let i = 0; i < results.length; i++) {
     const result = results[i]

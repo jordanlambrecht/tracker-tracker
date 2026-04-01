@@ -14,7 +14,7 @@ import { db } from "@/lib/db"
 import {
   aggregateByTag,
   applyMaindataUpdate,
-  getStoredTorrents,
+  getFilteredTorrents,
   getStoreRevision,
   getTorrents,
   getTransferInfo,
@@ -69,7 +69,7 @@ vi.mock("@/lib/qbt", () => ({
   // New sync-store exports used by the deep poll path
   syncMaindata: vi.fn(),
   applyMaindataUpdate: vi.fn(),
-  getStoredTorrents: vi.fn(),
+  getFilteredTorrents: vi.fn(),
   getStoreRevision: vi.fn(),
   clearAllStores: vi.fn(),
   isStoreInitialized: vi.fn(),
@@ -168,7 +168,7 @@ function mockDbUpdateClient() {
  * Wires all mocks for a successful deepPollClient run.
  * Tracker tags are passed directly to deepPollClient (no longer fetched from DB).
  * crossSeedTags come from MOCK_CLIENT.crossSeedTags = '["cross-seed"]'.
- * syncMaindata returns MOCK_MAINDATA_RESPONSE; getStoredTorrents returns [] by default.
+ * syncMaindata returns MOCK_MAINDATA_RESPONSE; getFilteredTorrents returns [] by default.
  */
 function setupFullHappyPathMocks() {
   mockDbSelectSequence(MOCK_CLIENT)
@@ -176,7 +176,7 @@ function setupFullHappyPathMocks() {
   ;(getStoreRevision as ReturnType<typeof vi.fn>).mockReturnValue(0)
   ;(syncMaindata as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_MAINDATA_RESPONSE)
   ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
-  ;(getStoredTorrents as ReturnType<typeof vi.fn>).mockReturnValue([])
+  ;(getFilteredTorrents as ReturnType<typeof vi.fn>).mockReturnValue([])
   ;(getTransferInfo as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TRANSFER_INFO)
   ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
   mockDbInsertSnapshot()
@@ -244,11 +244,10 @@ describe("deepPollClient per-tag optimization", () => {
     ;(syncMaindata as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
     // Store contains 3 torrents, all tagged with tracked tags — all should be returned
-    ;(getStoredTorrents as ReturnType<typeof vi.fn>).mockReturnValue([
-      aitherTorrent,
-      crossTorrent,
-      sharedTorrent,
-    ])
+    ;(getFilteredTorrents as ReturnType<typeof vi.fn>).mockImplementation(
+      (_url: string, pred: (t: unknown) => boolean) =>
+        [aitherTorrent, crossTorrent, sharedTorrent].filter(pred)
+    )
     ;(getTransferInfo as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TRANSFER_INFO)
     ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
     mockDbInsertSnapshot()
@@ -274,7 +273,7 @@ describe("deepPollClient per-tag optimization", () => {
     ;(syncMaindata as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
     // Store may have torrents but the tag filter produces nothing
-    ;(getStoredTorrents as ReturnType<typeof vi.fn>).mockReturnValue([])
+    ;(getFilteredTorrents as ReturnType<typeof vi.fn>).mockReturnValue([])
     ;(getTransferInfo as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TRANSFER_INFO)
     ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue({
       totalSeedingCount: 0,
@@ -328,11 +327,10 @@ describe("deepPollClient per-tag optimization", () => {
     ;(syncMaindata as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
     // Store returns all torrents including an untracked one — scheduler filters by tags
-    ;(getStoredTorrents as ReturnType<typeof vi.fn>).mockReturnValue([
-      ...aitherTorrents,
-      ...crossTorrents,
-      untrackedTorrent,
-    ])
+    ;(getFilteredTorrents as ReturnType<typeof vi.fn>).mockImplementation(
+      (_url: string, pred: (t: unknown) => boolean) =>
+        [...aitherTorrents, ...crossTorrents, untrackedTorrent].filter(pred)
+    )
     ;(getTransferInfo as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TRANSFER_INFO)
     ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
     mockDbInsertSnapshot()
@@ -485,7 +483,9 @@ describe("deepPollClient per-tag optimization", () => {
     ;(getStoreRevision as ReturnType<typeof vi.fn>).mockReturnValue(0)
     ;(syncMaindata as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
-    ;(getStoredTorrents as ReturnType<typeof vi.fn>).mockReturnValue(filteredTorrents)
+    ;(getFilteredTorrents as ReturnType<typeof vi.fn>).mockImplementation(
+      (_url: string, pred: (t: unknown) => boolean) => filteredTorrents.filter(pred)
+    )
     ;(getTransferInfo as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TRANSFER_INFO)
     ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
     mockDbInsertSnapshot()
@@ -530,7 +530,9 @@ describe("deepPollClient per-tag optimization", () => {
     ;(getStoreRevision as ReturnType<typeof vi.fn>).mockReturnValue(0)
     ;(syncMaindata as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
-    ;(getStoredTorrents as ReturnType<typeof vi.fn>).mockReturnValue(torrentsWithSensitiveFields)
+    ;(getFilteredTorrents as ReturnType<typeof vi.fn>).mockImplementation(
+      (_url: string, pred: (t: unknown) => boolean) => torrentsWithSensitiveFields.filter(pred)
+    )
     ;(getTransferInfo as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TRANSFER_INFO)
     ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
     mockDbInsertSnapshot()
@@ -574,7 +576,7 @@ describe("deepPollClient per-tag optimization", () => {
     ;(getStoreRevision as ReturnType<typeof vi.fn>).mockReturnValue(0)
     ;(syncMaindata as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
-    ;(getStoredTorrents as ReturnType<typeof vi.fn>).mockReturnValue([])
+    ;(getFilteredTorrents as ReturnType<typeof vi.fn>).mockReturnValue([])
     ;(getTransferInfo as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TRANSFER_INFO)
     ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
     mockDbInsertSnapshot()
@@ -624,7 +626,9 @@ describe("deepPollClient dedup without isPrivate", () => {
     ;(getStoreRevision as ReturnType<typeof vi.fn>).mockReturnValue(0)
     ;(syncMaindata as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
-    ;(getStoredTorrents as ReturnType<typeof vi.fn>).mockReturnValue(torrentsWithoutIsPrivate)
+    ;(getFilteredTorrents as ReturnType<typeof vi.fn>).mockImplementation(
+      (_url: string, pred: (t: unknown) => boolean) => torrentsWithoutIsPrivate.filter(pred)
+    )
     ;(getTransferInfo as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TRANSFER_INFO)
     ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
     mockDbInsertSnapshot()
@@ -657,7 +661,9 @@ describe("deepPollClient dedup without isPrivate", () => {
     ;(getStoreRevision as ReturnType<typeof vi.fn>).mockReturnValue(0)
     ;(syncMaindata as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
-    ;(getStoredTorrents as ReturnType<typeof vi.fn>).mockReturnValue(storedTorrents)
+    ;(getFilteredTorrents as ReturnType<typeof vi.fn>).mockImplementation(
+      (_url: string, pred: (t: unknown) => boolean) => storedTorrents.filter(pred)
+    )
     ;(getTransferInfo as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TRANSFER_INFO)
     ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
     mockDbInsertSnapshot()
