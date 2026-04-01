@@ -175,6 +175,12 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
     })
   }, [visibleAlerts])
 
+  const refresh = useCallback(async () => {
+    await queryClient.refetchQueries({ queryKey: ["trackers"] })
+    await queryClient.invalidateQueries({ queryKey: ["snapshots"] })
+    queryClient.invalidateQueries({ queryKey: ["dashboard-today"] })
+  }, [queryClient])
+
   return {
     trackers,
     snapshotMap,
@@ -186,11 +192,7 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
     setDayRange,
     dismissAlert,
     dismissAllAlerts,
-    refresh: async () => {
-      await trackersQuery.refetch()
-      await queryClient.invalidateQueries({ queryKey: ["snapshots"] })
-      queryClient.invalidateQueries({ queryKey: ["dashboard-today"] })
-    },
+    refresh,
   }
 }
 
