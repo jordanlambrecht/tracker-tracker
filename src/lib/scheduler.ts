@@ -9,6 +9,7 @@ import { and, desc, eq, isNotNull, lt, notInArray, sql } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { buildFetchOptions, getAdapter } from "@/lib/adapters"
+import { ensureIndexes } from "@/lib/db/ensure-indexes"
 import type { AvistazPlatformMeta, MamPlatformMeta, TrackerStats } from "@/lib/adapters/types"
 import { pruneDismissedAlerts } from "@/lib/alert-pruning"
 import { startBackupScheduler, stopBackupScheduler } from "@/lib/backup-scheduler"
@@ -639,4 +640,7 @@ export function ensureSchedulerRunning(encryptionKeyHex: string): void {
   const key = Buffer.from(encryptionKeyHex, "hex")
   startScheduler(key)
   ensureClientSchedulerRunning(encryptionKeyHex)
+  // Fire-and-forget: create covering indexes that Drizzle's schema DSL can't express.
+  // Idempotent (IF NOT EXISTS), guarded by globalThis flag, non-fatal on failure.
+  ensureIndexes().catch(() => {})
 }
