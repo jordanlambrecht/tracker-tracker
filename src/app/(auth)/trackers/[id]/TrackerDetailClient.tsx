@@ -211,6 +211,15 @@ export function TrackerDetailClient({
   const delta = useMemo(() => computeDelta(snapshots), [snapshots])
 
   const tc = tracker?.color || CHART_THEME.accent
+  const trackerStyle = useMemo(
+    () =>
+      ({
+        "--tracker-color": tc,
+        "--tracker-color-dim": hexToRgba(tc, 0.15),
+        "--tracker-color-glow": hexToRgba(tc, 0.25),
+      }) as CSSProperties,
+    [tc]
+  )
   const baseUrl = tracker?.baseUrl
   const registryEntry = useMemo(() => (baseUrl ? findRegistryEntry(baseUrl) : undefined), [baseUrl])
 
@@ -239,13 +248,7 @@ export function TrackerDetailClient({
   return (
     <div
       className="flex flex-col gap-10 max-w-6xl mx-auto pb-24"
-      style={
-        {
-          "--tracker-color": tc,
-          "--tracker-color-dim": hexToRgba(tc, 0.15),
-          "--tracker-color-glow": hexToRgba(tc, 0.25),
-        } as CSSProperties
-      }
+      style={trackerStyle}
     >
       {/* Header */}
       <TrackerDetailHeader
