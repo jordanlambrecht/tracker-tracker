@@ -32,6 +32,7 @@ interface DashboardData {
 
 interface UseDashboardDataOptions {
   initialTrackers?: TrackerSummary[]
+  snapshotRetentionDays?: number | null
 }
 
 function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
@@ -143,6 +144,7 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
       currentVersion: process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0",
       failedBackups: (backupQuery.data ?? []).filter((b) => b.status === "failed"),
       clients: clientsQuery.data ?? [],
+      snapshotRetentionDays: options?.snapshotRetentionDays ?? null,
     })
     const combined = [...trackerAlerts, ...rankAlerts, ...systemAlerts]
     return combined.filter((a) => !dismissedKeys.has(a.key))
@@ -153,6 +155,7 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
     backupQuery.data,
     clientsQuery.data,
     dismissedKeys,
+    options?.snapshotRetentionDays,
   ])
 
   // Dismiss handlers

@@ -5,7 +5,7 @@ import { H2 } from "@typography"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { type SubmitEvent, useState } from "react"
-import { Button, Card, Input } from "@/components/ui"
+import { Button, Card, Input, Toggle } from "@/components/ui"
 import { Notice } from "@/components/ui/Notice"
 
 export function SetupForm() {
@@ -13,6 +13,8 @@ export function SetupForm() {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const [retentionEnabled, setRetentionEnabled] = useState(false)
+  const [retentionDays, setRetentionDays] = useState(365)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -38,7 +40,10 @@ export function SetupForm() {
     setIsSubmitting(true)
 
     try {
-      const payload: Record<string, string> = { password, username: username.trim() }
+      const payload: Record<string, unknown> = { password, username: username.trim() }
+      if (retentionEnabled && retentionDays > 0) {
+        payload.snapshotRetentionDays = retentionDays
+      }
 
       const setupRes = await fetch("/api/auth/setup", {
         method: "POST",
@@ -135,6 +140,32 @@ export function SetupForm() {
               disabled={isSubmitting}
               required
             />
+
+            <div className="border-t border-border pt-4 mt-1">
+              <Toggle
+                label="Enable snapshot retention"
+                description={
+                  retentionEnabled
+                    ? `Snapshots older than ${retentionDays} days will be pruned automatically.`
+                    : "Disabled — snapshots will be kept indefinitely. You can change this later in Settings."
+                }
+                checked={retentionEnabled}
+                onChange={setRetentionEnabled}
+                disabled={isSubmitting}
+              />
+              {retentionEnabled && (
+                <Input
+                  label="Retention (days)"
+                  type="number"
+                  min={7}
+                  max={3650}
+                  value={String(retentionDays)}
+                  onChange={(e) => setRetentionDays(Math.max(7, Math.min(3650, Number(e.target.value) || 365)))}
+                  disabled={isSubmitting}
+                  className="mt-3"
+                />
+              )}
+            </div>
 
             <Notice message={errors.form} />
 

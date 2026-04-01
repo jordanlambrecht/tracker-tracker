@@ -850,6 +850,7 @@ describe("computeSystemAlerts", () => {
       currentVersion: "1.0.0",
       failedBackups: [],
       clients: [],
+      snapshotRetentionDays: 365,
     })
     expect(result).toHaveLength(0)
   })
@@ -860,6 +861,7 @@ describe("computeSystemAlerts", () => {
       currentVersion: "1.0.0",
       failedBackups: [],
       clients: [],
+      snapshotRetentionDays: 365,
     })
     expect(result).toHaveLength(1)
     expect(result[0].type).toBe("update-available")
@@ -877,6 +879,7 @@ describe("computeSystemAlerts", () => {
       currentVersion: "1.0.0",
       failedBackups: [],
       clients: [],
+      snapshotRetentionDays: 365,
     })
     expect(result.find((a) => a.type === "update-available")).toBeUndefined()
   })
@@ -886,6 +889,7 @@ describe("computeSystemAlerts", () => {
       currentVersion: "1.0.0",
       failedBackups: [],
       clients: [],
+      snapshotRetentionDays: 365,
     })
     expect(result.find((a) => a.type === "update-available")).toBeUndefined()
   })
@@ -896,6 +900,7 @@ describe("computeSystemAlerts", () => {
       currentVersion: "1.0.0",
       failedBackups: [{ createdAt }, { createdAt: "2026-01-14T03:00:00.000Z" }],
       clients: [],
+      snapshotRetentionDays: 365,
     })
     const backupAlert = result.find((a) => a.type === "backup-failed")
     expect(backupAlert).toBeDefined()
@@ -915,6 +920,7 @@ describe("computeSystemAlerts", () => {
         { id: 2, name: "Deluge", enabled: false, lastError: "Timed out" },
         { id: 3, name: "Transmission", enabled: true, lastError: null },
       ],
+      snapshotRetentionDays: 365,
     })
     expect(result).toHaveLength(1)
     const clientAlert = result[0]
@@ -926,16 +932,48 @@ describe("computeSystemAlerts", () => {
     expect(clientAlert.dismissible).toBe(false)
   })
 
-  it("generates all three alert types together", () => {
+  it("generates retention-unconfigured alert when snapshotRetentionDays is null", () => {
+    const result = computeSystemAlerts({
+      currentVersion: "1.0.0",
+      failedBackups: [],
+      clients: [],
+      snapshotRetentionDays: null,
+    })
+    const retentionAlert = result.find((a) => a.type === "retention-unconfigured")
+    expect(retentionAlert).toBeDefined()
+    expect(retentionAlert?.key).toBe("retention-unconfigured")
+    expect(retentionAlert?.trackerName).toBe("System")
+    expect(retentionAlert?.message).toContain("retention")
+    expect(retentionAlert?.message).toContain("Settings")
+    expect(retentionAlert?.dismissible).toBe(true)
+  })
+
+  it("does not generate retention alert when snapshotRetentionDays is configured", () => {
+    const result = computeSystemAlerts({
+      currentVersion: "1.0.0",
+      failedBackups: [],
+      clients: [],
+      snapshotRetentionDays: 730,
+    })
+    expect(result.find((a) => a.type === "retention-unconfigured")).toBeUndefined()
+  })
+
+  it("generates all alert types together", () => {
     const result = computeSystemAlerts({
       latestVersion: "2.0.0",
       currentVersion: "1.0.0",
       failedBackups: [{ createdAt: "2026-01-15T03:00:00.000Z" }],
       clients: [{ id: 1, name: "qBt", enabled: true, lastError: "Unreachable" }],
+      snapshotRetentionDays: null,
     })
-    expect(result).toHaveLength(3)
+    expect(result).toHaveLength(4)
     expect(result.map((a) => a.type)).toEqual(
-      expect.arrayContaining(["update-available", "backup-failed", "client-error"])
+      expect.arrayContaining([
+        "update-available",
+        "backup-failed",
+        "client-error",
+        "retention-unconfigured",
+      ])
     )
   })
 })

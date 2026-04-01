@@ -11,7 +11,11 @@ export async function POST(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const { password, username } = body as { password?: string; username?: string }
+  const { password, username, snapshotRetentionDays } = body as {
+    password?: string
+    username?: string
+    snapshotRetentionDays?: number
+  }
   if (!password || typeof password !== "string" || password.length < 8 || password.length > 128) {
     return NextResponse.json(
       { error: "Password must be between 8 and 128 characters" },
@@ -38,6 +42,23 @@ export async function POST(request: Request) {
     )
   }
 
+  // Validate optional retention setting
+  let validatedRetention: number | undefined
+  if (snapshotRetentionDays !== undefined) {
+    if (
+      typeof snapshotRetentionDays !== "number" ||
+      !Number.isInteger(snapshotRetentionDays) ||
+      snapshotRetentionDays < 7 ||
+      snapshotRetentionDays > 3650
+    ) {
+      return NextResponse.json(
+        { error: "snapshotRetentionDays must be an integer between 7 and 3650" },
+        { status: 400 }
+      )
+    }
+    validatedRetention = snapshotRetentionDays
+  }
+
   // Fast pre-flight: skip expensive hashing if already configured
   const preCheck = await db.select({ id: appSettings.id }).from(appSettings).limit(1)
   if (preCheck.length > 0) {
@@ -57,6 +78,7 @@ export async function POST(request: Request) {
         passwordHash,
         encryptionSalt,
         username: validatedUsername,
+        ...(validatedRetention !== undefined && { snapshotRetentionDays: validatedRetention }),
       })
       return true
     },

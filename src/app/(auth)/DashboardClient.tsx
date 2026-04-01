@@ -48,10 +48,11 @@ function buildTrackerSeries(
 
 interface DashboardClientProps {
   initialTrackers: TrackerSummary[]
+  snapshotRetentionDays: number | null
 }
 
-export function DashboardClient({ initialTrackers }: DashboardClientProps) {
-  const data = useDashboardData({ initialTrackers })
+export function DashboardClient({ initialTrackers, snapshotRetentionDays }: DashboardClientProps) {
+  const data = useDashboardData({ initialTrackers, snapshotRetentionDays })
   const dashSettings = useDashboardSettings()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [dashboardTab, setDashboardTab] = useState<"tracker-stats" | "torrent-fleet">(

@@ -40,6 +40,7 @@ export type AlertType =
   | "update-available"
   | "backup-failed"
   | "client-error"
+  | "retention-unconfigured"
 
 export interface DashboardAlert {
   key: string
@@ -311,6 +312,7 @@ export interface SystemAlertData {
   currentVersion: string
   failedBackups: { createdAt: string }[]
   clients: { id: number; name: string; enabled: boolean; lastError: string | null }[]
+  snapshotRetentionDays: number | null
 }
 
 export function computeSystemAlerts(data: SystemAlertData): DashboardAlert[] {
@@ -357,6 +359,20 @@ export function computeSystemAlerts(data: SystemAlertData): DashboardAlert[] {
         dismissible: false,
       })
     }
+  }
+
+  // Snapshot retention unconfigured
+  if (data.snapshotRetentionDays === null) {
+    alerts.push({
+      key: "retention-unconfigured",
+      type: "retention-unconfigured",
+      trackerId: null,
+      trackerName: "System",
+      trackerColor: "var(--color-warn)",
+      message:
+        "Snapshot retention is not configured — database and backups will grow indefinitely. Configure in Settings > Security.",
+      dismissible: true,
+    })
   }
 
   return alerts
