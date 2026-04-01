@@ -2,13 +2,9 @@
 //
 // Functions: GET, POST, DELETE
 
-import { and, eq, inArray, lt } from "drizzle-orm"
+import { eq, inArray } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import {
-  ALERT_EXPIRY_MS,
-  EXPIRING_ALERT_TYPES,
-  NON_DISMISSIBLE_ALERT_TYPES,
-} from "@/lib/alert-pruning"
+import { NON_DISMISSIBLE_ALERT_TYPES, pruneDismissedAlerts } from "@/lib/alert-pruning"
 import { authenticate, parseJsonBody } from "@/lib/api-helpers"
 import type { AlertType } from "@/lib/dashboard"
 import { db } from "@/lib/db"
@@ -18,23 +14,7 @@ export async function GET() {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const cutoff = new Date(Date.now() - ALERT_EXPIRY_MS)
-
-  // Lazily prune expired rows for expiring types
-  const expiredRows = await db
-    .select({ alertKey: dismissedAlerts.alertKey })
-    .from(dismissedAlerts)
-    .where(
-      and(
-        inArray(dismissedAlerts.alertType, EXPIRING_ALERT_TYPES),
-        lt(dismissedAlerts.dismissedAt, cutoff)
-      )
-    )
-
-  if (expiredRows.length > 0) {
-    const expiredKeys = expiredRows.map((r) => r.alertKey)
-    await db.delete(dismissedAlerts).where(inArray(dismissedAlerts.alertKey, expiredKeys))
-  }
+  await pruneDismissedAlerts()
 
   const remaining = await db.select({ alertKey: dismissedAlerts.alertKey }).from(dismissedAlerts)
 
