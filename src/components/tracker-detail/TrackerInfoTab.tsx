@@ -5,7 +5,6 @@ import { H2 } from "@typography"
 import clsx from "clsx"
 import dynamic from "next/dynamic"
 import { useState } from "react"
-import remarkGfm from "remark-gfm"
 import { InfoTip } from "@/components/ui/InfoTip"
 import { PillTag } from "@/components/ui/PillTag"
 import { SectionToggle } from "@/components/ui/SectionToggle"
@@ -15,7 +14,18 @@ import { hexToRgba } from "@/lib/color-utils"
 import { formatCount, formatRatio } from "@/lib/formatters"
 import type { TrackerLatestStats } from "@/types/api"
 
-const Markdown = dynamic(() => import("react-markdown"), { ssr: false })
+const Markdown = dynamic(
+  () =>
+    Promise.all([import("react-markdown"), import("remark-gfm")]).then(
+      ([{ default: ReactMarkdown }, { default: remarkGfm }]) => {
+        function GfmMarkdown(props: { children: string; className?: string }) {
+          return <ReactMarkdown remarkPlugins={[remarkGfm]} {...props} />
+        }
+        return GfmMarkdown
+      }
+    ),
+  { ssr: false }
+)
 
 interface TrackerInfoTabProps {
   registryEntry: TrackerRegistryEntry | undefined
@@ -299,7 +309,7 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
         <div className="flex flex-col gap-3">
           <H2>Full Rules</H2>
           <div className="nm-inset-sm bg-control-bg px-5 py-4 text-sm font-sans text-secondary leading-relaxed rounded-nm-md prose prose-invert prose-sm max-w-none prose-headings:text-primary prose-headings:font-semibold prose-headings:mt-4 prose-headings:mb-2 prose-table:w-full prose-th:text-left prose-th:py-2 prose-th:px-3 prose-th:text-xs prose-th:font-mono prose-th:uppercase prose-th:tracking-wider prose-th:text-tertiary prose-td:py-2 prose-td:px-3 prose-td:font-mono prose-td:text-sm prose-strong:text-primary prose-li:marker:text-muted">
-            <Markdown remarkPlugins={[remarkGfm]}>
+            <Markdown>
               {registryEntry.rules.fullRulesMarkdown.join("\n").replace(/\*\*(\d+)\.\*\*/g, "$1.")}
             </Markdown>
           </div>
