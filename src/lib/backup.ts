@@ -83,8 +83,53 @@ function serializeRow(row: Record<string, unknown>): Record<string, unknown> {
 export async function generateBackupPayload(): Promise<BackupPayload> {
   const now = new Date().toISOString()
 
+  // Parallel fetch — all tables are independent
+  const [
+    [rawSettings],
+    rawTrackers,
+    rawSnapshots,
+    rawRoles,
+    rawClients,
+    rawTagGroups,
+    rawTagGroupMembers,
+    rawClientSnapshots,
+    rawUptimeBuckets,
+    rawDismissedAlerts,
+    allNotificationTargets,
+  ] = await Promise.all([
+    db.select().from(appSettings).limit(1),
+    db.select().from(trackers).orderBy(trackers.id),
+    db.select().from(trackerSnapshots).orderBy(trackerSnapshots.id),
+    db.select().from(trackerRoles).orderBy(trackerRoles.id),
+    db
+      .select({
+        id: downloadClients.id,
+        name: downloadClients.name,
+        type: downloadClients.type,
+        enabled: downloadClients.enabled,
+        host: downloadClients.host,
+        port: downloadClients.port,
+        useSsl: downloadClients.useSsl,
+        encryptedUsername: downloadClients.encryptedUsername,
+        encryptedPassword: downloadClients.encryptedPassword,
+        pollIntervalSeconds: downloadClients.pollIntervalSeconds,
+        isDefault: downloadClients.isDefault,
+        crossSeedTags: downloadClients.crossSeedTags,
+        errorSince: downloadClients.errorSince,
+        createdAt: downloadClients.createdAt,
+        updatedAt: downloadClients.updatedAt,
+      })
+      .from(downloadClients)
+      .orderBy(downloadClients.id),
+    db.select().from(tagGroups).orderBy(tagGroups.id),
+    db.select().from(tagGroupMembers).orderBy(tagGroupMembers.id),
+    db.select().from(clientSnapshots).orderBy(clientSnapshots.id),
+    db.select().from(clientUptimeBuckets).orderBy(clientUptimeBuckets.id),
+    db.select().from(dismissedAlerts).orderBy(dismissedAlerts.id),
+    db.select().from(notificationTargets).orderBy(notificationTargets.id),
+  ])
+
   // appSettings — exclude: id, passwordHash, failedLoginAttempts, encryptedSchedulerKey, createdAt
-  const [rawSettings] = await db.select().from(appSettings).limit(1)
   const settingsPayload: Record<string, unknown> = {}
   if (rawSettings) {
     const {
@@ -101,7 +146,6 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
   }
 
   // trackers — exclude transient runtime state
-  const rawTrackers = await db.select().from(trackers).orderBy(trackers.id)
   const trackersPayload = rawTrackers.map((t) => {
     const {
       lastPolledAt: _lpa,
@@ -113,63 +157,25 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     return serializeRow(rest as Record<string, unknown>)
   })
 
-  // trackerSnapshots — include all columns
-  const rawSnapshots = await db.select().from(trackerSnapshots).orderBy(trackerSnapshots.id)
   const snapshotsPayload = rawSnapshots.map((s) => serializeRow(s as Record<string, unknown>))
-
-  // trackerRoles — include all columns
-  const rawRoles = await db.select().from(trackerRoles).orderBy(trackerRoles.id)
   const rolesPayload = rawRoles.map((r) => serializeRow(r as Record<string, unknown>))
 
-  // downloadClients — exclude: lastPolledAt, lastError, cachedTorrents, cachedTorrentsAt
-  const rawClients = await db.select().from(downloadClients).orderBy(downloadClients.id)
-  const clientsPayload = rawClients.map((c) => {
-    const {
-      lastPolledAt: _lpa,
-      lastError: _le,
-      cachedTorrents: _ct,
-      cachedTorrentsAt: _cta,
-      ...rest
-    } = c
-    return serializeRow(rest as Record<string, unknown>)
-  })
+  // downloadClients — cachedTorrents/cachedTorrentsAt/lastPolledAt/lastError excluded at query level
+  const clientsPayload = rawClients.map((c) => serializeRow(c as Record<string, unknown>))
 
-  // tagGroups — include all columns
-  const rawTagGroups = await db.select().from(tagGroups).orderBy(tagGroups.id)
   const tagGroupsPayload = rawTagGroups.map((g) => serializeRow(g as Record<string, unknown>))
-
-  // tagGroupMembers — include all columns
-  const rawTagGroupMembers = await db.select().from(tagGroupMembers).orderBy(tagGroupMembers.id)
   const tagGroupMembersPayload = rawTagGroupMembers.map((m) =>
     serializeRow(m as Record<string, unknown>)
   )
-
-  // clientSnapshots — include all columns
-  const rawClientSnapshots = await db.select().from(clientSnapshots).orderBy(clientSnapshots.id)
   const clientSnapshotsPayload = rawClientSnapshots.map((cs) =>
     serializeRow(cs as Record<string, unknown>)
   )
-
-  // clientUptimeBuckets — heartbeat history
-  const rawUptimeBuckets = await db
-    .select()
-    .from(clientUptimeBuckets)
-    .orderBy(clientUptimeBuckets.id)
   const uptimeBucketsPayload = rawUptimeBuckets.map((ub) =>
     serializeRow(ub as Record<string, unknown>)
   )
-
-  // dismissedAlerts — include all columns
-  const rawDismissedAlerts = await db.select().from(dismissedAlerts).orderBy(dismissedAlerts.id)
   const dismissedAlertsPayload = rawDismissedAlerts.map((a) =>
     serializeRow(a as Record<string, unknown>)
   )
-
-  // notificationTargets — exclude transient delivery state columns
-  const allNotificationTargets = await db
-    .select()
-    .from(notificationTargets)
-    .orderBy(notificationTargets.id)
   const backupNotificationTargets = allNotificationTargets.map(
     ({ lastDeliveryStatus, lastDeliveryAt, lastDeliveryError, ...rest }) =>
       serializeRow(rest as Record<string, unknown>)
