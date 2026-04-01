@@ -55,6 +55,7 @@ function buildFleetSizeJitterOption(
         type: "scatter" as const,
         name: tt.name,
         data: points,
+        large: true,
         symbolSize: 4,
         itemStyle: {
           color: tt.color,
@@ -72,6 +73,7 @@ function buildFleetSizeJitterOption(
     .filter((s): s is NonNullable<typeof s> => s !== null)
 
   return {
+    animation: false,
     backgroundColor: "transparent",
     tooltip: chartTooltip("item", {
       formatter: (params: unknown) => {

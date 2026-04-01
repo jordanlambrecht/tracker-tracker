@@ -154,6 +154,7 @@ function buildParallelOption(torrents: TorrentInfo[], trackerColor: string): ECh
   const lineEmphasisColor = hexToRgba(trackerColor, 0.75)
 
   return {
+    animation: false,
     backgroundColor: "transparent",
     tooltip: chartTooltip("item", {
       borderColor: trackerColor,
@@ -187,6 +188,7 @@ function buildParallelOption(torrents: TorrentInfo[], trackerColor: string): ECh
       {
         type: "parallel",
         smooth: true,
+        progressive: 500,
         lineStyle: {
           color: lineColor,
           width: 1,
