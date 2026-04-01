@@ -4,7 +4,8 @@
 "use client"
 
 import { H2, H3, Paragraph } from "@typography"
-import { useCallback, useEffect, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useCallback, useState } from "react"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
@@ -538,43 +539,52 @@ function AddNotificationForm({
 // ---------------------------------------------------------------------------
 
 function NotificationTargets() {
-  const [targets, setTargets] = useState<NotificationTarget[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [showAddForm, setShowAddForm] = useState(false)
 
-  const fetchTargets = useCallback(async () => {
-    try {
-      const res = await fetch("/api/notifications")
-      if (!res.ok) return
-      const data: NotificationTarget[] = await res.json()
-      setTargets(data)
-    } catch {
-      // silently fail
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const {
+    data: targets = [],
+    isLoading: loading,
+    error: loadError,
+  } = useQuery({
+    queryKey: ["notification-targets"],
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/notifications", { signal })
+      if (!res.ok) throw new Error("Failed to load notification targets")
+      return res.json() as Promise<NotificationTarget[]>
+    },
+  })
 
-  useEffect(() => {
-    fetchTargets()
-  }, [fetchTargets])
+  const handleSaved = useCallback(
+    (id: number, updated: NotificationTarget) => {
+      queryClient.setQueryData<NotificationTarget[]>(["notification-targets"], (prev) =>
+        prev?.map((t) => (t.id === id ? updated : t))
+      )
+    },
+    [queryClient]
+  )
 
-  const handleSaved = useCallback((id: number, updated: NotificationTarget) => {
-    setTargets((prev) => prev.map((t) => (t.id === id ? updated : t)))
-  }, [])
-
-  const handleRemove = useCallback(async (id: number) => {
-    try {
+  const handleRemove = useCallback(
+    async (id: number) => {
       const res = await fetch(`/api/notifications/${id}`, { method: "DELETE" })
       if (!res.ok) return
-      setTargets((prev) => prev.filter((t) => t.id !== id))
-    } catch {
-      // Fire-and-forget delete — silently ignore network errors
-    }
-  }, [])
+      queryClient.setQueryData<NotificationTarget[]>(["notification-targets"], (prev) =>
+        prev?.filter((t) => t.id !== id)
+      )
+    },
+    [queryClient]
+  )
 
   if (loading) {
     return <CardListSkeleton count={2} />
+  }
+
+  if (loadError) {
+    return (
+      <Notice
+        message={loadError instanceof Error ? loadError.message : "Failed to load notification targets"}
+      />
+    )
   }
 
   return (
@@ -613,7 +623,7 @@ function NotificationTargets() {
             <AddNotificationForm
               onCreated={() => {
                 setShowAddForm(false)
-                fetchTargets()
+                queryClient.invalidateQueries({ queryKey: ["notification-targets"] })
               }}
               onCancel={() => setShowAddForm(false)}
             />

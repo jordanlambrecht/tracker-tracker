@@ -4,7 +4,8 @@
 "use client"
 
 import clsx from "clsx"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useCallback, useMemo, useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
 import { CopyButton, DownloadButton } from "@/components/ui/ActionButtons"
 import { ConfirmAction } from "@/components/ui/ConfirmAction"
@@ -14,13 +15,7 @@ import { Input } from "@/components/ui/Input"
 import { Notice } from "@/components/ui/Notice"
 import { EventLogSkeleton } from "@/components/ui/skeletons"
 import { useSetToggle } from "@/hooks/useSetToggle"
-import {
-  EVENT_CATEGORIES,
-  EVENT_LEVELS,
-  type EventCategory,
-  type EventLevel,
-  type SystemEvent,
-} from "@/lib/events"
+import { EVENT_CATEGORIES, EVENT_LEVELS, type EventCategory, type EventLevel } from "@/lib/events"
 import { formatBytesNum, localDateStr } from "@/lib/formatters"
 import { extractApiError } from "@/lib/helpers"
 import type { EventsPageResponse } from "@/types/api"
@@ -68,40 +63,39 @@ function formatDateLabel(iso: string): string {
 }
 
 export function EventsSection() {
-  const [events, setEvents] = useState<SystemEvent[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
   const categories = useSetToggle<EventCategory>(EVENT_CATEGORIES)
   const levels = useSetToggle<EventLevel>(["info", "warn", "error"])
   const [searchQuery, setSearchQuery] = useState("")
-  const [logSizeBytes, setLogSizeBytes] = useState(0)
 
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set())
 
+  const [downloadError, setDownloadError] = useState<string | null>(null)
   const [clearConfirm, setClearConfirm] = useState(false)
   const [clearLoading, setClearLoading] = useState(false)
   const [clearError, setClearError] = useState<string | null>(null)
 
-  const fetchEvents = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
+  const {
+    data: eventsData,
+    isLoading: loading,
+    error: queryError,
+  } = useQuery({
+    queryKey: ["events"],
+    queryFn: async ({ signal }) => {
       const params = new URLSearchParams({ category: "all", limit: "1000", offset: "0" })
-      const res = await fetch(`/api/settings/events?${params}`)
+      const res = await fetch(`/api/settings/events?${params}`, { signal })
       if (!res.ok) throw new Error(await extractApiError(res, "Failed to load events"))
-      const data = (await res.json()) as EventsPageResponse
-      setEvents(data.events)
-      if (typeof data.logSizeBytes === "number") setLogSizeBytes(data.logSizeBytes)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load events")
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+      return res.json() as Promise<EventsPageResponse>
+    },
+  })
 
-  useEffect(() => {
-    fetchEvents()
-  }, [fetchEvents])
+  const events = eventsData?.events ?? []
+  const logSizeBytes = eventsData?.logSizeBytes ?? 0
+  const error = queryError
+    ? queryError instanceof Error
+      ? queryError.message
+      : "Failed to load events"
+    : null
 
   const filteredEvents = useMemo(() => {
     let result = events
@@ -147,8 +141,7 @@ export function EventsSection() {
         return
       }
       setClearConfirm(false)
-      setLogSizeBytes(0)
-      fetchEvents()
+      queryClient.invalidateQueries({ queryKey: ["events"] })
     } catch {
       setClearError("Failed to clear log file")
     } finally {
@@ -186,11 +179,11 @@ export function EventsSection() {
         <DownloadButton
           url="/api/settings/logs/download"
           fallbackFilename={`tracker-tracker-${localDateStr()}.log`}
-          onError={setError}
+          onError={setDownloadError}
         />
         <button
           type="button"
-          onClick={() => fetchEvents()}
+          onClick={() => queryClient.invalidateQueries({ queryKey: ["events"] })}
           aria-label="Refresh events"
           className={ICON_BUTTON_CLASS}
         >
@@ -267,7 +260,7 @@ export function EventsSection() {
       )}
 
       {/* ── Error ────────────────────────────────────────────────── */}
-      <Notice message={error} />
+      <Notice message={error ?? downloadError} />
 
       {/* ── Event stream ─────────────────────────────────────────── */}
       <div className="nm-inset-sm bg-control-bg overflow-x-auto overflow-y-auto max-h-140 styled-scrollbar rounded-nm-md">

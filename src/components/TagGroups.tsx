@@ -14,7 +14,8 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { H2, H3, Paragraph } from "@typography"
 import clsx from "clsx"
-import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { type KeyboardEvent, useEffect, useRef, useState } from "react"
 import { EmojiPickerPopover } from "@/components/ui/EmojiPickerPopover"
 import { QBT_TAG_WARN_PATTERN } from "@/components/ui/QbtTagWarning"
 import {
@@ -590,34 +591,29 @@ function sortKey(m: EditableMember, i: number): string {
 // ─── TagGroups ────────────────────────────────────────────────────────────────
 
 function TagGroups() {
-  const [groups, setGroups] = useState<TagGroup[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [showAddForm, setShowAddForm] = useState(false)
 
-  const fetchGroups = useCallback(async () => {
-    try {
-      const res = await fetch("/api/tag-groups")
+  const {
+    data: groups = [],
+    isLoading: loading,
+    error: loadError,
+  } = useQuery({
+    queryKey: ["tag-groups"],
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/tag-groups", { signal })
       if (!res.ok) throw new Error("Failed to load tag groups")
-      const data: TagGroup[] = await res.json()
-      setGroups(data)
-    } catch {
-      // Non-critical — list just won't populate
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchGroups()
-  }, [fetchGroups])
+      return res.json() as Promise<TagGroup[]>
+    },
+  })
 
   function handleCreated() {
     setShowAddForm(false)
-    fetchGroups()
+    queryClient.invalidateQueries({ queryKey: ["tag-groups"] })
   }
 
   function handleUpdated() {
-    fetchGroups()
+    queryClient.invalidateQueries({ queryKey: ["tag-groups"] })
   }
 
   return (
@@ -651,6 +647,8 @@ function TagGroups() {
 
       {loading ? (
         <CardListSkeleton count={2} />
+      ) : loadError ? (
+        <Notice message={loadError instanceof Error ? loadError.message : "Failed to load tag groups"} />
       ) : groups.length === 0 && !showAddForm ? (
         <p className="text-sm font-mono text-muted py-8 text-center">No tag groups yet</p>
       ) : (
