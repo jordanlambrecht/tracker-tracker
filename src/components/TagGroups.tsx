@@ -14,7 +14,7 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { H2, H3, Paragraph } from "@typography"
 import clsx from "clsx"
-import { type KeyboardEvent, useCallback, useEffect, useState } from "react"
+import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react"
 import { EmojiPickerPopover } from "@/components/ui/EmojiPickerPopover"
 import { QBT_TAG_WARN_PATTERN } from "@/components/ui/QbtTagWarning"
 import {
@@ -251,6 +251,7 @@ interface EditableMember {
   id: number | null
   tag: string
   label: string
+  _clientId?: number
 }
 
 interface TagGroupCardProps {
@@ -268,6 +269,7 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
   const [members, setMembers] = useState<EditableMember[]>(
     group.members.map((m) => ({ id: m.id, tag: m.tag, label: m.label }))
   )
+  const nextClientId = useRef(0)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -298,7 +300,8 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
   })()
 
   function handleAddRow() {
-    setMembers((prev) => [...prev, { id: null, tag: "", label: "" }])
+    const clientId = ++nextClientId.current
+    setMembers((prev) => [...prev, { id: null, tag: "", label: "", _clientId: clientId }])
   }
 
   function handleRemoveMember(index: number) {
@@ -581,7 +584,7 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
 }
 
 function sortKey(m: EditableMember, i: number): string {
-  return m.id !== null ? `member-${m.id}` : `new-${i}`
+  return m.id !== null ? `member-${m.id}` : `new-${m._clientId ?? i}`
 }
 
 // ─── TagGroups ────────────────────────────────────────────────────────────────

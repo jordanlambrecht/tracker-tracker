@@ -51,11 +51,11 @@ function validateSortOrder(sortOrder: unknown): string | null {
   if (sortOrder === undefined || sortOrder === null) return null
   if (
     typeof sortOrder !== "number" ||
-    !Number.isFinite(sortOrder) ||
+    !Number.isInteger(sortOrder) ||
     sortOrder < 0 ||
     sortOrder > 9999
   ) {
-    return "sortOrder must be a finite integer between 0 and 9999"
+    return "sortOrder must be an integer between 0 and 9999"
   }
   return null
 }
@@ -145,6 +145,13 @@ export async function PATCH(request: Request, props: RouteContext) {
 
   const members = body.members as BatchMembers | undefined
 
+  if (members !== undefined && (typeof members !== "object" || members === null || Array.isArray(members))) {
+    return NextResponse.json(
+      { error: "members must be an object with removes, updates, and creates" },
+      { status: 400 }
+    )
+  }
+
   if (members) {
     // Pre-validate all member mutations before touching the DB
     const removes = members.removes ?? []
@@ -164,6 +171,12 @@ export async function PATCH(request: Request, props: RouteContext) {
       return NextResponse.json({ error: "Too many removes" }, { status: 400 })
     }
 
+    if (!Array.isArray(memberUpdates)) {
+      return NextResponse.json({ error: "members.updates must be an array" }, { status: 400 })
+    }
+    if (memberUpdates.length > 500) {
+      return NextResponse.json({ error: "Too many updates" }, { status: 400 })
+    }
     for (const u of memberUpdates) {
       if (typeof u.id !== "number" || !Number.isInteger(u.id)) {
         return NextResponse.json({ error: "Each update must have an integer id" }, { status: 400 })
@@ -176,23 +189,29 @@ export async function PATCH(request: Request, props: RouteContext) {
         const err = validateMemberLabel(u.label)
         if (err) return NextResponse.json({ error: err }, { status: 400 })
       }
+      if (u.color !== undefined && u.color !== null && (typeof u.color !== "string" || u.color.length > 20)) {
+        return NextResponse.json({ error: "color must be a string of 20 characters or fewer" }, { status: 400 })
+      }
       const sortErr = validateSortOrder(u.sortOrder)
       if (sortErr) return NextResponse.json({ error: sortErr }, { status: 400 })
     }
-    if (memberUpdates.length > 500) {
-      return NextResponse.json({ error: "Too many updates" }, { status: 400 })
-    }
 
+    if (!Array.isArray(creates)) {
+      return NextResponse.json({ error: "members.creates must be an array" }, { status: 400 })
+    }
+    if (creates.length > 500) {
+      return NextResponse.json({ error: "Too many creates" }, { status: 400 })
+    }
     for (const c of creates) {
       const tagErr = validateMemberTag(c.tag)
       if (tagErr) return NextResponse.json({ error: tagErr }, { status: 400 })
       const labelErr = validateMemberLabel(c.label)
       if (labelErr) return NextResponse.json({ error: labelErr }, { status: 400 })
+      if (c.color !== undefined && c.color !== null && (typeof c.color !== "string" || c.color.length > 20)) {
+        return NextResponse.json({ error: "color must be a string of 20 characters or fewer" }, { status: 400 })
+      }
       const sortErr = validateSortOrder(c.sortOrder)
       if (sortErr) return NextResponse.json({ error: sortErr }, { status: 400 })
-    }
-    if (creates.length > 500) {
-      return NextResponse.json({ error: "Too many creates" }, { status: 400 })
     }
 
     // All valid — execute atomically
@@ -212,7 +231,7 @@ export async function PATCH(request: Request, props: RouteContext) {
         const fields: Record<string, unknown> = {}
         if (u.tag !== undefined) fields.tag = u.tag.trim()
         if (u.label !== undefined) fields.label = u.label.trim()
-        if (u.color !== undefined) fields.color = u.color
+        if (u.color !== undefined) fields.color = typeof u.color === "string" ? u.color : null
         if (u.sortOrder !== undefined) fields.sortOrder = Math.floor(u.sortOrder)
         if (Object.keys(fields).length > 0) {
           await tx
