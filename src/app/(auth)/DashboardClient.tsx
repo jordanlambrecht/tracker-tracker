@@ -30,6 +30,11 @@ const DashboardSettingsSheet = dynamic(
   { ssr: false }
 )
 
+const DASHBOARD_TABS = [
+  { key: "tracker-stats" as const, label: "Tracker Stats" },
+  { key: "torrent-fleet" as const, label: "Torrent Fleet" },
+]
+
 function buildTrackerSeries(
   trackers: TrackerSummary[],
   snapshotMap: Map<number, Snapshot[]>
@@ -144,10 +149,7 @@ export function DashboardClient({ initialTrackers }: DashboardClientProps) {
 
       {/* Tab Switcher */}
       <TabBar
-        tabs={[
-          { key: "tracker-stats" as const, label: "Tracker Stats" },
-          { key: "torrent-fleet" as const, label: "Torrent Fleet" },
-        ]}
+        tabs={DASHBOARD_TABS}
         activeTab={dashboardTab}
         onChange={setDashboardTab}
       />

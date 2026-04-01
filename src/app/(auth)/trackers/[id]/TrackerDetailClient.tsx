@@ -33,6 +33,12 @@ type Tab = "analytics" | "info" | "torrents"
 
 const VALID_TABS: Tab[] = ["analytics", "info", "torrents"]
 
+const TRACKER_DETAIL_TABS: { key: Tab; label: string }[] = [
+  { key: "analytics", label: "Data & Analytics" },
+  { key: "info", label: "Tracker Info" },
+  { key: "torrents", label: "Torrents" },
+]
+
 interface TrackerDetailClientProps {
   trackerId: number
   initialTracker: TrackerSummary
@@ -213,7 +219,6 @@ export function TrackerDetailClient({
     const ctx: SlotContext = {
       tracker,
       latestSnapshot,
-      snapshots,
       meta: tracker.platformMeta as SlotContext["meta"],
       registry: registryEntry,
       accentColor: tc,
@@ -224,16 +229,12 @@ export function TrackerDetailClient({
       badgeSlots: resolved.get("badge") ?? [],
       progressSlots: resolved.get("progress") ?? [],
     }
-  }, [tracker, latestSnapshot, snapshots, registryEntry, tc])
+  }, [tracker, latestSnapshot, registryEntry, tc])
 
   const gazelleMeta: GazellePlatformMeta | null =
     tracker.platformType === "gazelle" ? (tracker.platformMeta as GazellePlatformMeta | null) : null
 
-  const tabs: { key: Tab; label: string }[] = [
-    { key: "analytics", label: "Data & Analytics" },
-    { key: "info", label: "Tracker Info" },
-    { key: "torrents", label: "Torrents" },
-  ]
+  const tabs = TRACKER_DETAIL_TABS
 
   return (
     <div

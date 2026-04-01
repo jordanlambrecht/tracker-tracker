@@ -139,6 +139,11 @@ function buildFleetVolumeHeatmapOption(
   }
 }
 
+const VOLUME_FIELD_TABS = [
+  { key: "upload" as const, label: "Upload" },
+  { key: "download" as const, label: "Download" },
+]
+
 function FleetVolumeHeatmap({ trackerData, height = 260 }: FleetVolumeHeatmapProps) {
   const [field, setField] = useState<VolumeField>("upload")
 
@@ -154,10 +159,7 @@ function FleetVolumeHeatmap({ trackerData, height = 260 }: FleetVolumeHeatmapPro
       <div className="flex justify-end pb-2">
         <TabBar
           compact
-          tabs={[
-            { key: "upload" as const, label: "Upload" },
-            { key: "download" as const, label: "Download" },
-          ]}
+          tabs={VOLUME_FIELD_TABS}
           activeTab={field}
           onChange={setField}
         />

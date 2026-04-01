@@ -50,6 +50,11 @@ function SortableChartItem({ def, isHidden, onToggle }: SortableChartItemProps) 
   )
 }
 
+const CHART_SETTINGS_TABS = [
+  { key: "analytics" as const, label: "Analytics" },
+  { key: "torrents" as const, label: "Torrents" },
+]
+
 interface DashboardSettingsSheetProps {
   open: boolean
   onClose: () => void
@@ -116,10 +121,7 @@ function DashboardSettingsSheet({
         <div className="flex flex-col gap-4">
           <H2>Charts</H2>
           <TabBar
-            tabs={[
-              { key: "analytics" as const, label: "Analytics" },
-              { key: "torrents" as const, label: "Torrents" },
-            ]}
+            tabs={CHART_SETTINGS_TABS}
             activeTab={chartSettingsTab}
             onChange={setChartSettingsTab}
           />
