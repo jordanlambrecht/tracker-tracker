@@ -57,6 +57,7 @@ export const HEARTBEAT_COLUMNS = {
   useSsl: downloadClients.useSsl,
   encryptedUsername: downloadClients.encryptedUsername,
   encryptedPassword: downloadClients.encryptedPassword,
+  lastError: downloadClients.lastError,
 } as const
 
 /** Columns needed by deepPollClient. Heartbeat fields + poll config + tags */
@@ -95,16 +96,10 @@ function setDeepPollTask(task: ScheduledTask | null) {
 // Heartbeat
 // ---------------------------------------------------------------------------
 
-async function heartbeatClient(clientId: number, encryptionKey: Buffer): Promise<void> {
-  const [client] = await db
-    .select(HEARTBEAT_COLUMNS)
-    .from(downloadClients)
-    .where(eq(downloadClients.id, clientId))
-    .limit(1)
-
-  if (!client?.enabled) return
-  if (!client.encryptedUsername || !client.encryptedPassword) return
-
+async function heartbeatClient(
+  client: { id: number; name: string; host: string; port: number; useSsl: boolean; encryptedUsername: string; encryptedPassword: string; lastError: string | null },
+  encryptionKey: Buffer
+): Promise<void> {
   try {
     const { username, password } = decryptClientCredentials(client, encryptionKey)
 
@@ -117,15 +112,18 @@ async function heartbeatClient(clientId: number, encryptionKey: Buffer): Promise
       (baseUrl, sid) => getTransferInfo(baseUrl, sid)
     )
 
-    pushSpeedSnapshot(clientId, transfer.up_info_speed, transfer.dl_info_speed)
-    recordHeartbeat(clientId, true)
+    pushSpeedSnapshot(client.id, transfer.up_info_speed, transfer.dl_info_speed)
+    recordHeartbeat(client.id, true)
 
-    await db
-      .update(downloadClients)
-      .set({ lastError: null, errorSince: null, updatedAt: new Date() })
-      .where(eq(downloadClients.id, clientId))
+    // Only write to DB if recovering from error — skip if already healthy
+    if (client.lastError !== null) {
+      await db
+        .update(downloadClients)
+        .set({ lastError: null, errorSince: null, updatedAt: new Date() })
+        .where(eq(downloadClients.id, client.id))
+    }
   } catch (error) {
-    recordHeartbeat(clientId, false)
+    recordHeartbeat(client.id, false)
     const raw = error instanceof Error ? error.message : "Unknown error"
     const message = sanitizeNetworkError(raw)
     await db
@@ -135,20 +133,20 @@ async function heartbeatClient(clientId: number, encryptionKey: Buffer): Promise
         errorSince: sql`COALESCE(${downloadClients.errorSince}, NOW())`,
         updatedAt: new Date(),
       })
-      .where(eq(downloadClients.id, clientId))
-    log.error(`Heartbeat failed for client ${clientId}: ${raw}`)
+      .where(eq(downloadClients.id, client.id))
+    log.error(`Heartbeat failed for client ${client.id}: ${raw}`)
   }
 }
 
 async function heartbeatAllClients(encryptionKey: Buffer): Promise<void> {
   const allClients = await db
-    .select({ id: downloadClients.id })
+    .select(HEARTBEAT_COLUMNS)
     .from(downloadClients)
     .where(eq(downloadClients.enabled, true))
 
   if (allClients.length === 0) return
 
-  await Promise.allSettled(allClients.map((c) => heartbeatClient(c.id, encryptionKey)))
+  await Promise.allSettled(allClients.map((c) => heartbeatClient(c, encryptionKey)))
 }
 
 // ---------------------------------------------------------------------------
@@ -254,28 +252,30 @@ export async function deepPollClient(
 
     // Cache the filtered torrent list for fallback when client is offline.
     const sanitizedTorrents = torrents.map(stripSensitiveTorrentFields)
-    await db
-      .update(downloadClients)
-      .set({
-        cachedTorrents: sanitizedTorrents,
-        cachedTorrentsAt: new Date(),
-      })
-      .where(eq(downloadClients.id, clientId))
+    const now = new Date()
 
-    await db.insert(clientSnapshots).values({
-      clientId,
-      polledAt: new Date(),
-      totalSeedingCount: stats.totalSeedingCount,
-      totalLeechingCount: stats.totalLeechingCount,
-      uploadSpeedBytes: BigInt(transfer.up_info_speed),
-      downloadSpeedBytes: BigInt(transfer.dl_info_speed),
-      tagStats: JSON.stringify(stats.tagStats),
-    })
-
-    await db
-      .update(downloadClients)
-      .set({ lastPolledAt: new Date(), lastError: null, errorSince: null, updatedAt: new Date() })
-      .where(eq(downloadClients.id, clientId))
+    await Promise.all([
+      db
+        .update(downloadClients)
+        .set({
+          cachedTorrents: sanitizedTorrents,
+          cachedTorrentsAt: now,
+          lastPolledAt: now,
+          lastError: null,
+          errorSince: null,
+          updatedAt: now,
+        })
+        .where(eq(downloadClients.id, clientId)),
+      db.insert(clientSnapshots).values({
+        clientId,
+        polledAt: now,
+        totalSeedingCount: stats.totalSeedingCount,
+        totalLeechingCount: stats.totalLeechingCount,
+        uploadSpeedBytes: BigInt(transfer.up_info_speed),
+        downloadSpeedBytes: BigInt(transfer.dl_info_speed),
+        tagStats: JSON.stringify(stats.tagStats),
+      }),
+    ])
   } catch (error) {
     const raw = error instanceof Error ? error.message : "Unknown error"
     const message = sanitizeNetworkError(raw)
