@@ -387,9 +387,7 @@ export async function getDatabaseSize(): Promise<string> {
 /** Returns database size in bytes as a bigint */
 // security-audit-ignore: read-only PostgreSQL system function, no user input
 export async function getDatabaseSizeBytes(): Promise<bigint> {
-  const rows = await db.execute(
-    sql`SELECT pg_database_size(current_database()) as size_bytes`
-  )
+  const rows = await db.execute(sql`SELECT pg_database_size(current_database()) as size_bytes`)
   const raw = (rows as unknown as Array<{ size_bytes: string }>)[0]?.size_bytes
   return raw ? BigInt(raw) : 0n
 }
@@ -398,13 +396,10 @@ export async function getDatabaseSizeBytes(): Promise<bigint> {
 export async function recordDatabaseSize(): Promise<void> {
   const totalBytes = await getDatabaseSizeBytes()
   const today = localDateStr(new Date())
-  await db
-    .insert(dbSizeHistory)
-    .values({ recordedAt: today, totalBytes })
-    .onConflictDoUpdate({
-      target: dbSizeHistory.recordedAt,
-      set: { totalBytes },
-    })
+  await db.insert(dbSizeHistory).values({ recordedAt: today, totalBytes }).onConflictDoUpdate({
+    target: dbSizeHistory.recordedAt,
+    set: { totalBytes },
+  })
 }
 
 export interface DbSizeHistoryRow {
@@ -461,9 +456,7 @@ export async function getDbSizeHistory(): Promise<DbSizeResponse> {
   const projectedGrowth = Math.max(0, dailyGrowthBytes) * historyDays
   const projectedBytes = currentBytes + BigInt(Math.round(projectedGrowth))
 
-  const projectionDate = new Date(Date.now() + historyDays * 86_400_000)
-    .toISOString()
-    .slice(0, 10)
+  const projectionDate = new Date(Date.now() + historyDays * 86_400_000).toISOString().slice(0, 10)
 
   return {
     history,

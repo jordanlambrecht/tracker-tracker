@@ -44,9 +44,7 @@ function SortableTrackerItem({
     opacity: isDragging ? 0.5 : 1,
   }
 
-  const activeStyle: CSSProperties = isActive
-    ? { backgroundColor: hexToRgba(tc, 0.08) }
-    : {}
+  const activeStyle: CSSProperties = isActive ? { backgroundColor: hexToRgba(tc, 0.08) } : {}
 
   const itemClasses = clsx(
     "w-full flex items-center gap-3 px-4 py-3 text-left group rounded-nm-md",

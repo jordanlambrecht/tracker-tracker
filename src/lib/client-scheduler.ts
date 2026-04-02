@@ -97,7 +97,16 @@ function setDeepPollTask(task: ScheduledTask | null) {
 // ---------------------------------------------------------------------------
 
 async function heartbeatClient(
-  client: { id: number; name: string; host: string; port: number; useSsl: boolean; encryptedUsername: string; encryptedPassword: string; lastError: string | null },
+  client: {
+    id: number
+    name: string
+    host: string
+    port: number
+    useSsl: boolean
+    encryptedUsername: string
+    encryptedPassword: string
+    lastError: string | null
+  },
   encryptionKey: Buffer
 ): Promise<void> {
   try {

@@ -780,7 +780,6 @@ describe("POST /api/trackers/[id]/poll", () => {
     const mockUpdateWhere = vi.fn().mockReturnValue({ returning: mockReturning })
     const mockSet = vi.fn().mockReturnValue({ where: mockUpdateWhere })
     ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
-
     ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(() => {
       const mockLimit = vi.fn().mockResolvedValue([
         {

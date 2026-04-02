@@ -2,7 +2,7 @@
 //
 // Functions: GET, POST, DELETE
 
-import { eq, inArray } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { NON_DISMISSIBLE_ALERT_TYPES, pruneDismissedAlerts } from "@/lib/alert-pruning"
 import { authenticate, parseJsonBody } from "@/lib/api-helpers"

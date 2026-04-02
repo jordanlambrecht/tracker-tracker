@@ -157,12 +157,7 @@ function FleetVolumeHeatmap({ trackerData, height = 260 }: FleetVolumeHeatmapPro
   return (
     <div>
       <div className="flex justify-end pb-2">
-        <TabBar
-          compact
-          tabs={VOLUME_FIELD_TABS}
-          activeTab={field}
-          onChange={setField}
-        />
+        <TabBar compact tabs={VOLUME_FIELD_TABS} activeTab={field} onChange={setField} />
       </div>
       <ChartECharts
         option={buildFleetVolumeHeatmapOption(data, maxValue, field)}

@@ -160,7 +160,9 @@ export function SetupForm() {
                   min={7}
                   max={3650}
                   value={String(retentionDays)}
-                  onChange={(e) => setRetentionDays(Math.max(7, Math.min(3650, Number(e.target.value) || 365)))}
+                  onChange={(e) =>
+                    setRetentionDays(Math.max(7, Math.min(3650, Number(e.target.value) || 365)))
+                  }
                   disabled={isSubmitting}
                   className="mt-3"
                 />

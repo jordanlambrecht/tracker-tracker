@@ -178,8 +178,8 @@ describe("fetchAndMergeTorrents — fast path (store is fresh, no filter)", () =
       makeTorrent("abc2", { tags: "aither" }),
     ]
     vi.mocked(isStoreFresh).mockReturnValue(true)
-    vi.mocked(getFilteredTorrents).mockImplementation((_url: string, pred: (t: any) => boolean) =>
-      storedTorrents.filter(pred)
+    vi.mocked(getFilteredTorrents).mockImplementation(
+      (_url: string, pred: (t: QbtTorrent) => boolean) => storedTorrents.filter(pred)
     )
 
     const result = await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey())
@@ -213,8 +213,8 @@ describe("fetchAndMergeTorrents — fast path (store is fresh, no filter)", () =
   it("stamps each torrent with the originating client name", async () => {
     const stampTorrents = [makeTorrent("h1", { tags: "aither" })]
     vi.mocked(isStoreFresh).mockReturnValue(true)
-    vi.mocked(getFilteredTorrents).mockImplementation((_url: string, pred: (t: any) => boolean) =>
-      stampTorrents.filter(pred)
+    vi.mocked(getFilteredTorrents).mockImplementation(
+      (_url: string, pred: (t: QbtTorrent) => boolean) => stampTorrents.filter(pred)
     )
 
     const result = await fetchAndMergeTorrents(
@@ -259,8 +259,8 @@ describe("fetchAndMergeTorrents — fast path tag filtering", () => {
       makeTorrent("match2", { tags: "blutopia" }),
       makeTorrent("no-match", { tags: "untracked-tag" }),
     ]
-    vi.mocked(getFilteredTorrents).mockImplementation((_url: string, pred: (t: any) => boolean) =>
-      stored.filter(pred)
+    vi.mocked(getFilteredTorrents).mockImplementation(
+      (_url: string, pred: (t: QbtTorrent) => boolean) => stored.filter(pred)
     )
 
     const result = await fetchAndMergeTorrents([makeClient()], ["aither", "blutopia"], makeKey())
@@ -275,8 +275,8 @@ describe("fetchAndMergeTorrents — fast path tag filtering", () => {
 
   it("excludes torrents that have no tags", async () => {
     const stored = [makeTorrent("has-tag", { tags: "aither" }), makeTorrent("no-tag", { tags: "" })]
-    vi.mocked(getFilteredTorrents).mockImplementation((_url: string, pred: (t: any) => boolean) =>
-      stored.filter(pred)
+    vi.mocked(getFilteredTorrents).mockImplementation(
+      (_url: string, pred: (t: QbtTorrent) => boolean) => stored.filter(pred)
     )
 
     const result = await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey())
@@ -287,8 +287,8 @@ describe("fetchAndMergeTorrents — fast path tag filtering", () => {
 
   it("tag matching is case-insensitive", async () => {
     const stored = [makeTorrent("h1", { tags: "Aither" }), makeTorrent("h2", { tags: "BLUTOPIA" })]
-    vi.mocked(getFilteredTorrents).mockImplementation((_url: string, pred: (t: any) => boolean) =>
-      stored.filter(pred)
+    vi.mocked(getFilteredTorrents).mockImplementation(
+      (_url: string, pred: (t: QbtTorrent) => boolean) => stored.filter(pred)
     )
 
     // Tags requested in lowercase — stored tags have mixed case
@@ -304,8 +304,8 @@ describe("fetchAndMergeTorrents — fast path tag filtering", () => {
       makeTorrent("only-blu", { tags: "blutopia" }),
       makeTorrent("both", { tags: "aither, blutopia" }),
     ]
-    vi.mocked(getFilteredTorrents).mockImplementation((_url: string, pred: (t: any) => boolean) =>
-      stored.filter(pred)
+    vi.mocked(getFilteredTorrents).mockImplementation(
+      (_url: string, pred: (t: QbtTorrent) => boolean) => stored.filter(pred)
     )
 
     const result = await fetchAndMergeTorrents([makeClient()], ["aither", "blutopia"], makeKey())
@@ -315,8 +315,8 @@ describe("fetchAndMergeTorrents — fast path tag filtering", () => {
 
   it("returns no torrents when none match the tags", async () => {
     const stored = [makeTorrent("h1", { tags: "some-other-tag" })]
-    vi.mocked(getFilteredTorrents).mockImplementation((_url: string, pred: (t: any) => boolean) =>
-      stored.filter(pred)
+    vi.mocked(getFilteredTorrents).mockImplementation(
+      (_url: string, pred: (t: QbtTorrent) => boolean) => stored.filter(pred)
     )
 
     const result = await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey())
@@ -331,8 +331,8 @@ describe("fetchAndMergeTorrents — fast path skipped when filter is present", (
     vi.mocked(buildBaseUrl).mockReturnValue("http://localhost:8080")
     vi.mocked(isStoreFresh).mockReturnValue(true)
     const filterBeforeEachData = [makeTorrent("h1", { tags: "aither" })]
-    vi.mocked(getFilteredTorrents).mockImplementation((_url: string, pred: (t: any) => boolean) =>
-      filterBeforeEachData.filter(pred)
+    vi.mocked(getFilteredTorrents).mockImplementation(
+      (_url: string, pred: (t: QbtTorrent) => boolean) => filterBeforeEachData.filter(pred)
     )
     vi.mocked(mergeTorrentLists).mockImplementation((lists: RawTorrent[][]) => lists.flat())
     vi.mocked(decryptClientCredentials).mockReturnValue({ username: "admin", password: "pass" })
@@ -544,8 +544,8 @@ describe("fetchAndMergeTorrents — sensitive field stripping", () => {
         save_path: "/data",
       }),
     ]
-    vi.mocked(getFilteredTorrents).mockImplementation((_url: string, pred: (t: any) => boolean) =>
-      stripTorrents.filter(pred)
+    vi.mocked(getFilteredTorrents).mockImplementation(
+      (_url: string, pred: (t: QbtTorrent) => boolean) => stripTorrents.filter(pred)
     )
 
     const result = await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey())

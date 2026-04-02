@@ -86,5 +86,5 @@ export async function scrubAndDeleteAll(): Promise<void> {
     await tx.delete(trackers)
     await tx.delete(appSettings)
   })
-  ;(globalThis as any).__backfillDone = false
+  ;(globalThis as unknown as Record<string, unknown>).__backfillDone = false
 }

@@ -12,25 +12,25 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { H2, H3, Paragraph } from "@typography"
 import clsx from "clsx"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
-import { EmojiPickerPopover } from "@/components/ui/EmojiPickerPopover"
-import { QBT_TAG_WARN_PATTERN } from "@/components/ui/QbtTagWarning"
 import {
+  Button,
+  Card,
+  CardListSkeleton,
+  CollapsibleCard,
+  ConfirmRemove,
+  FilterPill,
+  InfoTip,
+  Input,
+  Notice,
   Toggle,
   Tooltip,
-  CardListSkeleton,
-  Notice,
-  Input,
-  InfoTip,
-  FilterPill,
-  ConfirmRemove,
-  CollapsibleCard,
-  Card,
-  Button,
 } from "@/components/ui"
+import { EmojiPickerPopover } from "@/components/ui/EmojiPickerPopover"
+import { QBT_TAG_WARN_PATTERN } from "@/components/ui/QbtTagWarning"
 import { useEscapeKey } from "@/hooks/useEscapeKey"
 import { DOCS } from "@/lib/constants"
 import type { TagGroup, TagGroupChartType } from "@/types/api"
@@ -648,7 +648,9 @@ function TagGroups() {
       {loading ? (
         <CardListSkeleton count={2} />
       ) : loadError ? (
-        <Notice message={loadError instanceof Error ? loadError.message : "Failed to load tag groups"} />
+        <Notice
+          message={loadError instanceof Error ? loadError.message : "Failed to load tag groups"}
+        />
       ) : groups.length === 0 && !showAddForm ? (
         <p className="text-sm font-mono text-muted py-8 text-center">No tag groups yet</p>
       ) : (

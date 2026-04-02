@@ -3,8 +3,8 @@
 import { InfoIcon, QuestionIcon } from "@icons"
 import { cva, type VariantProps } from "class-variance-authority"
 import type { ReactNode } from "react"
-import { Tooltip } from "./Tooltip"
 import type { DocsEntry } from "@/lib/constants"
+import { Tooltip } from "./Tooltip"
 
 const infoTipVariants = cva(
   "inline-flex items-center text-muted hover:text-secondary cursor-help transition-colors duration-150 bg-transparent border-0 p-0 outline-none focus-visible:text-secondary",

@@ -9,7 +9,6 @@ import { and, desc, eq, isNotNull, lt, notInArray, sql } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { buildFetchOptions, getAdapter } from "@/lib/adapters"
-import { ensureIndexes } from "@/lib/db/ensure-indexes"
 import type { AvistazPlatformMeta, MamPlatformMeta, TrackerStats } from "@/lib/adapters/types"
 import { pruneDismissedAlerts } from "@/lib/alert-pruning"
 import { startBackupScheduler, stopBackupScheduler } from "@/lib/backup-scheduler"
@@ -20,6 +19,7 @@ import {
 } from "@/lib/client-scheduler"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
+import { ensureIndexes } from "@/lib/db/ensure-indexes"
 import type { NotificationTargetRow, TrackerRow } from "@/lib/db/schema"
 import {
   appSettings,

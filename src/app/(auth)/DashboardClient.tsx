@@ -149,11 +149,7 @@ export function DashboardClient({ initialTrackers, snapshotRetentionDays }: Dash
       <Divider />
 
       {/* Tab Switcher */}
-      <TabBar
-        tabs={DASHBOARD_TABS}
-        activeTab={dashboardTab}
-        onChange={setDashboardTab}
-      />
+      <TabBar tabs={DASHBOARD_TABS} activeTab={dashboardTab} onChange={setDashboardTab} />
 
       {/*  Analytics / Fleet  */}
       <div className="flex flex-col md:flex-row gap-4 md:gap-8">

@@ -199,7 +199,10 @@ function CrossSeedNetwork({
   height = 450,
 }: CrossSeedNetworkProps) {
   const { nodes, edges } = useMemo(
-    () => (trackerTags.length === 0 ? { nodes: [], edges: [] } : buildNetworkData(torrents, trackerTags, crossSeedTags)),
+    () =>
+      trackerTags.length === 0
+        ? { nodes: [], edges: [] }
+        : buildNetworkData(torrents, trackerTags, crossSeedTags),
     [torrents, trackerTags, crossSeedTags]
   )
 

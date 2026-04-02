@@ -145,7 +145,10 @@ export async function PATCH(request: Request, props: RouteContext) {
 
   const members = body.members as BatchMembers | undefined
 
-  if (members !== undefined && (typeof members !== "object" || members === null || Array.isArray(members))) {
+  if (
+    members !== undefined &&
+    (typeof members !== "object" || members === null || Array.isArray(members))
+  ) {
     return NextResponse.json(
       { error: "members must be an object with removes, updates, and creates" },
       { status: 400 }
@@ -189,8 +192,15 @@ export async function PATCH(request: Request, props: RouteContext) {
         const err = validateMemberLabel(u.label)
         if (err) return NextResponse.json({ error: err }, { status: 400 })
       }
-      if (u.color !== undefined && u.color !== null && (typeof u.color !== "string" || u.color.length > 20)) {
-        return NextResponse.json({ error: "color must be a string of 20 characters or fewer" }, { status: 400 })
+      if (
+        u.color !== undefined &&
+        u.color !== null &&
+        (typeof u.color !== "string" || u.color.length > 20)
+      ) {
+        return NextResponse.json(
+          { error: "color must be a string of 20 characters or fewer" },
+          { status: 400 }
+        )
       }
       const sortErr = validateSortOrder(u.sortOrder)
       if (sortErr) return NextResponse.json({ error: sortErr }, { status: 400 })
@@ -207,8 +217,15 @@ export async function PATCH(request: Request, props: RouteContext) {
       if (tagErr) return NextResponse.json({ error: tagErr }, { status: 400 })
       const labelErr = validateMemberLabel(c.label)
       if (labelErr) return NextResponse.json({ error: labelErr }, { status: 400 })
-      if (c.color !== undefined && c.color !== null && (typeof c.color !== "string" || c.color.length > 20)) {
-        return NextResponse.json({ error: "color must be a string of 20 characters or fewer" }, { status: 400 })
+      if (
+        c.color !== undefined &&
+        c.color !== null &&
+        (typeof c.color !== "string" || c.color.length > 20)
+      ) {
+        return NextResponse.json(
+          { error: "color must be a string of 20 characters or fewer" },
+          { status: 400 }
+        )
       }
       const sortErr = validateSortOrder(c.sortOrder)
       if (sortErr) return NextResponse.json({ error: sortErr }, { status: 400 })

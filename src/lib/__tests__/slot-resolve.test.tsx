@@ -502,7 +502,7 @@ describe("edge cases", () => {
     const ctx: SlotContext = {
       tracker: makeTracker(),
       latestSnapshot: null,
-        meta,
+      meta,
       registry: undefined,
       accentColor: BASE_ACCENT,
     }
@@ -516,7 +516,7 @@ describe("edge cases", () => {
     const ctx: SlotContext = {
       tracker: makeTracker(),
       latestSnapshot: null,
-        meta,
+      meta,
       registry: undefined,
       accentColor: BASE_ACCENT,
     }
@@ -528,7 +528,7 @@ describe("edge cases", () => {
     const ctx: SlotContext = {
       tracker: makeTracker(),
       latestSnapshot: null,
-        meta,
+      meta,
       registry: undefined,
       accentColor: BASE_ACCENT,
     }
@@ -540,7 +540,7 @@ describe("edge cases", () => {
     const ctx: SlotContext = {
       tracker: makeTracker(),
       latestSnapshot: null,
-        meta,
+      meta,
       registry: undefined,
       accentColor: BASE_ACCENT,
     }
@@ -552,7 +552,7 @@ describe("edge cases", () => {
     const ctx: SlotContext = {
       tracker: makeTracker(),
       latestSnapshot: null,
-        meta,
+      meta,
       registry: undefined,
       accentColor: BASE_ACCENT,
     }
@@ -583,7 +583,7 @@ describe("edge cases", () => {
     const ctx: SlotContext = {
       tracker: makeTracker(),
       latestSnapshot: null,
-        meta,
+      meta,
       registry: undefined,
       accentColor: BASE_ACCENT,
     }
@@ -595,7 +595,7 @@ describe("edge cases", () => {
     const ctx: SlotContext = {
       tracker: makeTracker(),
       latestSnapshot: makeSnapshot({ seedbonus: 100 }),
-        meta,
+      meta,
       registry: undefined,
       accentColor: BASE_ACCENT,
     }
@@ -606,7 +606,7 @@ describe("edge cases", () => {
     const ctx: SlotContext = {
       tracker: makeTracker(),
       latestSnapshot: null,
-        meta: null,
+      meta: null,
       registry: undefined,
       accentColor: BASE_ACCENT,
     }
@@ -624,7 +624,7 @@ describe("login-deadline slot", () => {
     const ctx: SlotContext = {
       tracker: makeTracker({ lastAccessAt: "2026-01-01T00:00:00Z" }),
       latestSnapshot: null,
-        meta: null,
+      meta: null,
       registry: {
         slug: "test",
         name: "Test",
@@ -661,7 +661,7 @@ describe("login-deadline slot", () => {
     const ctx: SlotContext = {
       tracker: makeTracker({ lastAccessAt: null }),
       latestSnapshot: null,
-        meta: null,
+      meta: null,
       registry: {
         slug: "test",
         name: "Test",
@@ -692,7 +692,7 @@ describe("login-deadline slot", () => {
     const ctx: SlotContext = {
       tracker: makeTracker({ lastAccessAt: "2026-01-01T00:00:00Z" }),
       latestSnapshot: null,
-        meta: null,
+      meta: null,
       registry: {
         slug: "test",
         name: "Test",
@@ -723,7 +723,7 @@ describe("login-deadline slot", () => {
     const ctx: SlotContext = {
       tracker: makeTracker({ lastAccessAt: "2026-01-01T00:00:00Z" }),
       latestSnapshot: null,
-        meta: null,
+      meta: null,
       registry: {
         slug: "test",
         name: "Test",
@@ -749,7 +749,7 @@ describe("login-deadline slot", () => {
     const ctx: SlotContext = {
       tracker: makeTracker({ lastAccessAt: "2026-01-01T00:00:00Z" }),
       latestSnapshot: null,
-        meta: null,
+      meta: null,
       registry: undefined,
       accentColor: BASE_ACCENT,
     }
@@ -789,7 +789,7 @@ describe("security: slot resolution does not expose secrets", () => {
         lastAccessAt: "2026-01-01T00:00:00Z",
       }),
       latestSnapshot: snap,
-        meta: ggnMeta,
+      meta: ggnMeta,
       registry: {
         slug: "test",
         name: "Test",
@@ -843,7 +843,7 @@ describe("security: slot resolution does not expose secrets", () => {
     const ctx: SlotContext = {
       tracker: makeTracker({ platformType: "unit3d" }),
       latestSnapshot: makeSnapshot({ seedbonus: 100 }),
-        meta: poisonedMeta,
+      meta: poisonedMeta,
       registry: undefined,
       accentColor: BASE_ACCENT,
     }

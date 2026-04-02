@@ -3,8 +3,8 @@
 // Functions: NotificationTargets, NotificationCard, AddNotificationForm
 "use client"
 
-import { H2, H3, Paragraph } from "@typography"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { H2, H3, Paragraph } from "@typography"
 import { useCallback, useState } from "react"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
@@ -582,7 +582,9 @@ function NotificationTargets() {
   if (loadError) {
     return (
       <Notice
-        message={loadError instanceof Error ? loadError.message : "Failed to load notification targets"}
+        message={
+          loadError instanceof Error ? loadError.message : "Failed to load notification targets"
+        }
       />
     )
   }
