@@ -380,7 +380,7 @@ export async function PATCH(request: Request) {
     } else if (typeof body.backupPassword === "string") {
       if (body.backupPassword.length > BACKUP_PASSWORD_MAX) {
         return NextResponse.json(
-          { error: "Backup password must be 128 characters or fewer" },
+          { error: `Backup password must be ${BACKUP_PASSWORD_MAX} characters or fewer` },
           { status: 400 }
         )
       }

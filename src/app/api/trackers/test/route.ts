@@ -71,7 +71,13 @@ export async function POST(request: Request) {
     }
 
     if (platform === "avistaz") {
-      result.capturedUserAgent = request.headers.get("user-agent") ?? ""
+      log.debug(
+        {
+          route: "POST /api/trackers/test",
+          userAgent: request.headers.get("user-agent") ?? "",
+        },
+        "tracker test user agent captured"
+      )
     }
 
     return NextResponse.json(result)

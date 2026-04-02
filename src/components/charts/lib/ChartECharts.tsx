@@ -77,23 +77,28 @@ function ChartECharts({
   const seriesCount = Array.isArray(series) ? series.length : 0
   const showExternalLegend = hasLegend && seriesCount > 1
 
-  // Extract legend items for external rendering
-  const legendItems = useMemo(
-    () => (showExternalLegend ? extractLegendItems(option) : []),
-    [option, showExternalLegend]
-  )
+  // Extract legend items — stabilized by series name+color string, not option reference.
+  // This avoids re-running extractLegendItems on every render when the option object
+  // is reference-unstable (i.e., parent doesn't memoize it).
+  const legendItemsRaw = showExternalLegend ? extractLegendItems(option) : []
+  const legendKey = legendItemsRaw.map((i) => `${i.name}:${i.color}`).join(",")
+  const legendItemsRef = useRef(legendItemsRaw)
+  if (legendKey !== legendItemsRef.current.map((i) => `${i.name}:${i.color}`).join(",")) {
+    legendItemsRef.current = legendItemsRaw
+  }
+  const legendItems = legendItemsRef.current
 
   // Track which series are selected — keyed by series name
   const [selected, setSelected] = useState<Record<string, boolean>>({})
 
-  // Sync selection state when legend items change (i.e. on mount or option update)
-  const legendKey = legendItems.map((i) => i.name).join(",")
-  // biome-ignore lint/correctness/useExhaustiveDependencies: legendKey is a stable string derived from legendItems
+  // Sync selection state when legend items actually change (not on every render)
+  const prevLegendKeyRef = useRef("")
   useEffect(() => {
-    if (legendItems.length > 0) {
+    if (legendKey !== prevLegendKeyRef.current && legendItems.length > 0) {
+      prevLegendKeyRef.current = legendKey
       setSelected(Object.fromEntries(legendItems.map((item) => [item.name, true])))
     }
-  }, [legendKey])
+  }, [legendKey, legendItems])
 
   const allSelected = Object.values(selected).length > 0 && Object.values(selected).every(Boolean)
 
@@ -127,11 +132,11 @@ function ChartECharts({
     instance.dispatchAction({ type: "legendToggleSelect", name })
   }, [])
 
-  // Hide internal legend when rendering externally
-  const modifiedOption = useMemo(() => {
-    if (!showExternalLegend) return option
-    return { ...option, legend: { ...(option.legend as object), show: false } }
-  }, [option, showExternalLegend])
+  // Hide internal legend when rendering externally — mutate in-place since
+  // option is already a fresh object from the parent on each render
+  if (showExternalLegend && option.legend) {
+    ;(option.legend as Record<string, unknown>).show = false
+  }
 
   return (
     <div className="flex flex-col gap-0">
@@ -172,7 +177,7 @@ function ChartECharts({
       <div className="relative">
         <ReactECharts
           ref={chartRef}
-          option={modifiedOption}
+          option={option}
           style={style}
           opts={opts}
           notMerge={notMerge}

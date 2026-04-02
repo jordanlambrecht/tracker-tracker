@@ -19,7 +19,7 @@ import {
 import { readLogTail } from "@/lib/log-reader"
 import { log } from "@/lib/logger"
 
-const MAX_LOG_BYTES = 256 * 1024 // 256 KB tail read
+const MAX_LOG_BYTES = 256 * 1024 // 256 KB
 
 export async function GET(request: Request): Promise<NextResponse> {
   const auth = await authenticate()
@@ -73,7 +73,7 @@ export async function GET(request: Request): Promise<NextResponse> {
         .limit(100),
     ])
 
-    // Convert DB rows to SystemEvent — dates → ISO strings, bigints → strings
+    // Convert DB rows to SystemEvent (dates to ISO strings, bigints to strings)
     const dbEvents = [
       ...snapshotRows.map((row) =>
         snapshotToEvent({
@@ -98,7 +98,7 @@ export async function GET(request: Request): Promise<NextResponse> {
       ),
     ]
 
-    // Positional tail-read of log file — never loads the full file
+    // tail-read of log file
     let logEvents: SystemEvent[] = []
     let logSizeBytes = 0
 
@@ -115,17 +115,16 @@ export async function GET(request: Request): Promise<NextResponse> {
       ) {
         log.error({ route: "GET /api/settings/events" }, "failed to read log file for events")
       }
-      // ENOENT is non-fatal — proceed with DB events only
     }
 
-    // Count total for pagination metadata (filter only, no sort needed for count)
-    const allFiltered =
+    // Count total
+    const total =
       category === "all"
-        ? [...dbEvents, ...logEvents]
-        : [...dbEvents, ...logEvents].filter((e) => e.category === category)
-    const total = allFiltered.length
+        ? dbEvents.length + logEvents.length
+        : dbEvents.reduce((count, e) => (e.category === category ? count + 1 : count), 0) +
+          logEvents.reduce((count, e) => (e.category === category ? count + 1 : count), 0)
 
-    // Sort+paginate in one pass — only materializes the requested page
+    // Sort and paginate
     const events = mergeAndSort(dbEvents, logEvents, category, limit, offset)
 
     return NextResponse.json({

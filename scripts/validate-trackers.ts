@@ -23,7 +23,7 @@ import { ALL_TRACKERS } from "@/data/trackers"
 import { DEFAULT_API_PATHS, VALID_PLATFORM_TYPES } from "@/lib/adapters/constants"
 import { isValidHex } from "@/lib/validators"
 
-const VALID_PLATFORMS = VALID_PLATFORM_TYPES
+const VALID_PLATFORMS = [...VALID_PLATFORM_TYPES, "custom"]
 const LOGO_DIR = path.resolve(__dirname, "../public/tracker-logos")
 const TRACKER_DIR = path.resolve(__dirname, "../src/data/trackers")
 
