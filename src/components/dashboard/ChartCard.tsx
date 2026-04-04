@@ -2,12 +2,10 @@
 
 "use client"
 
-import { H3 } from "@typography"
+import { ChevronUpIcon, EyeOffIcon } from "@icons"
 import clsx from "clsx"
 import { type ReactNode, useEffect, useRef, useState } from "react"
-import { Card } from "@/components/ui/Card"
-import { ChevronUpIcon, EyeOffIcon } from "@/components/ui/Icons"
-import { Tooltip } from "@/components/ui/Tooltip"
+import { Card, ChartShimmer, Tooltip } from "@/components/ui"
 
 interface ChartCardProps {
   title: string
@@ -47,56 +45,49 @@ function ChartCard({
     return () => observer.disconnect()
   }, [visible])
 
-  // Keep children mounted during collapse animation, unmount after it finishes
-  const shouldMount = visible && !collapsed
+  // Mount once visible, stay mounted. The collapse animation uses CSS
+  // (grid-rows-[0fr] + opacity-0) to hide content — no need to destroy
+  // and recreate ECharts instances on every expand/collapse cycle.
   useEffect(() => {
-    if (shouldMount) {
+    if (visible && !collapsed && !mounted) {
       setMounted(true)
-    } else if (visible) {
-      const timer = setTimeout(() => setMounted(false), 220)
-      return () => clearTimeout(timer)
     }
-  }, [shouldMount, visible])
+  }, [visible, collapsed, mounted])
 
   return (
     <div ref={cardRef}>
-      <Card className="flex flex-col gap-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex flex-col gap-1 min-w-0">
-            <H3 className="uppercase tracking-wider text-secondary">{title}</H3>
-            {description && !collapsed && (
-              <p className="text-xs font-mono text-tertiary">{description}</p>
-            )}
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            {/* Collapse toggle */}
-            <Tooltip content={collapsed ? "Expand" : "Collapse"}>
-              <button
-                type="button"
-                onClick={onToggleCollapse}
-                className="w-7 h-7 flex items-center justify-center text-muted hover:text-secondary nm-interactive-inset cursor-pointer rounded-nm-sm"
-                aria-label={collapsed ? "Expand chart" : "Collapse chart"}
-              >
-                <ChevronUpIcon
-                  width="14"
-                  height="14"
-                  className="transition-transform duration-200"
-                  style={{ transform: collapsed ? "rotate(180deg)" : "rotate(0deg)" }}
-                />
-              </button>
-            </Tooltip>
-            {/* Hide */}
-            <Tooltip content="Hide chart">
-              <button
-                type="button"
-                onClick={onHide}
-                className="w-7 h-7 flex items-center justify-center text-muted hover:text-secondary nm-interactive-inset cursor-pointer rounded-nm-sm"
-                aria-label="Hide chart"
-              >
-                <EyeOffIcon width="14" height="14" />
-              </button>
-            </Tooltip>
-          </div>
+      <Card
+        className="relative flex flex-col gap-4"
+        title={title}
+        subtitle={description && !collapsed ? description : undefined}
+      >
+        {/* Collapse / Hide controls — absolute top-right over Card header */}
+        <div className="absolute top-4 right-4 flex items-center gap-1 z-10">
+          <Tooltip content={collapsed ? "Expand" : "Collapse"}>
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              className="w-7 h-7 flex items-center justify-center text-muted hover:text-secondary nm-interactive-inset cursor-pointer rounded-nm-sm"
+              aria-label={collapsed ? "Expand chart" : "Collapse chart"}
+            >
+              <ChevronUpIcon
+                width="14"
+                height="14"
+                className="transition-transform duration-200"
+                style={{ transform: collapsed ? "rotate(180deg)" : "rotate(0deg)" }}
+              />
+            </button>
+          </Tooltip>
+          <Tooltip content="Hide chart">
+            <button
+              type="button"
+              onClick={onHide}
+              className="w-7 h-7 flex items-center justify-center text-muted hover:text-secondary nm-interactive-inset cursor-pointer rounded-nm-sm"
+              aria-label="Hide chart"
+            >
+              <EyeOffIcon width="14" height="14" />
+            </button>
+          </Tooltip>
         </div>
 
         <div
@@ -111,7 +102,7 @@ function ChartCard({
               collapsed ? "opacity-0" : "opacity-100"
             )}
           >
-            {mounted && children}
+            {mounted ? children : visible && !collapsed && <ChartShimmer />}
           </div>
         </div>
       </Card>

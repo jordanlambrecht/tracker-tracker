@@ -33,4 +33,5 @@ export type {
   TagStats,
 } from "./types"
 export { isQbtMaindataResponse } from "./types"
-export { parseCrossSeedTags, stripSensitiveTorrentFields } from "./utils"
+export type { SlimTorrent } from "./utils"
+export { parseCrossSeedTags, slimTorrentForCache, stripSensitiveTorrentFields } from "./utils"

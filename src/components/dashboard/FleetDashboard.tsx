@@ -1,9 +1,9 @@
 // src/components/dashboard/FleetDashboard.tsx
 "use client"
 
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { H2 } from "@typography"
-import { useMemo } from "react"
+import { useCallback, useMemo } from "react"
 import { CrossSeedNetwork } from "@/components/charts/CrossSeedNetwork"
 import { FleetAgeBandHeatmap } from "@/components/charts/FleetAgeBandHeatmap"
 import { FleetAgeTimeline } from "@/components/charts/FleetAgeTimeline"
@@ -26,11 +26,13 @@ import {
   FLEET_CHARTS,
   useFleetChartPreferences,
 } from "@/components/dashboard/useFleetChartPreferences"
+import { Button } from "@/components/ui"
 import {
   BoxIcon,
   ChevronUpIcon,
   DownloadArrowIcon,
   LeechingIcon,
+  RefreshIcon,
   SeedingIcon,
   TagIcon,
   UploadArrowIcon,
@@ -54,11 +56,16 @@ import type { TrackerSummary } from "@/types/api"
 interface FleetDashboardProps {
   dayRange: number
   trackers?: TrackerSummary[]
+  isActive?: boolean
 }
 
 const allChartIds = FLEET_CHARTS.map((c) => c.id)
 
-export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashboardProps) {
+export function FleetDashboard({
+  dayRange,
+  trackers: trackersProp,
+  isActive = true,
+}: FleetDashboardProps) {
   const chartPrefs = useFleetChartPreferences()
   const { hydrated: chartPrefsHydrated } = chartPrefs
   const intervals = usePollingIntervals()
@@ -72,10 +79,11 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
       if (!res.ok) return [] as FleetSnapshot[]
       return res.json() as Promise<FleetSnapshot[]>
     },
+    enabled: isActive,
   })
 
   // Fast: DB-cached torrent aggregation
-  const { data: cachedTorrents } = useQuery({
+  const { data: cachedTorrents, isFetching: fleetFetching } = useQuery({
     queryKey: ["fleet-torrents-cached"],
     queryFn: async ({ signal }) => {
       const res = await fetch("/api/fleet/torrents/cached", { signal })
@@ -83,21 +91,17 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
       return res.json() as Promise<AggregatedTorrentsResponse>
     },
     staleTime: intervals.clientRefetchMs,
+    enabled: isActive,
   })
 
-  // Slow: Live qBT torrent aggregation (overrides cache when ready)
-  const { data: liveTorrents } = useQuery({
-    queryKey: ["fleet-torrents"],
-    queryFn: async ({ signal }) => {
-      const res = await fetch("/api/fleet/torrents", { signal })
-      if (!res.ok) return null
-      return res.json() as Promise<AggregatedTorrentsResponse>
-    },
-    staleTime: intervals.clientRefetchMs,
-  })
+  const torrentData = cachedTorrents ?? null
 
-  // Use live data when available, fall back to cached
-  const torrentData = liveTorrents ?? cachedTorrents
+  const queryClient = useQueryClient()
+
+  const handleRefreshFleet = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["fleet-torrents-cached"] })
+  }, [queryClient])
+
   const torrents = useMemo(
     () => torrentData?.torrents.map(mapTorrent) ?? [],
     [torrentData?.torrents]
@@ -115,7 +119,7 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
       if (!res.ok) return [] as { id: number; name: string }[]
       return res.json() as Promise<{ id: number; name: string }[]>
     },
-    // Prevents mount/focus refetch — the sidebar's 10s poll keeps this cache fresh.
+    // Prevents mount/focus refetch. The sidebar's 10s poll keeps this cache fresh.
     // structuralSharing (TQ default) prevents re-renders when client data is unchanged.
     staleTime: intervals.clientRefetchMs,
   })
@@ -147,7 +151,7 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
   const loading = !torrentData && !snapshots.length
 
   if (loading) {
-    return <ChartGridSkeleton count={4} />
+    return <ChartGridSkeleton count={4} columns={1} chartHeight="h-[360px]" />
   }
 
   if (torrents.length === 0 && snapshots.length === 0) {
@@ -268,23 +272,39 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
             <H2>Fleet Analytics</H2>
             {hiddenCount > 0 && <span className="timestamp">{hiddenCount} hidden</span>}
           </div>
-          <button
-            type="button"
-            onClick={() => chartPrefs.collapseAll(allChartIds)}
-            className="timestamp flex items-center gap-2 px-2.5 py-1 hover:text-secondary nm-interactive-inset cursor-pointer rounded-nm-sm"
-          >
-            <ChevronUpIcon
-              width="12"
-              height="12"
-              className="transition-transform duration-200"
-              style={{
-                transform: chartPrefs.allVisibleCollapsed(allChartIds)
-                  ? "rotate(180deg)"
-                  : "rotate(0deg)",
-              }}
-            />
-            {chartPrefs.allVisibleCollapsed(allChartIds) ? "Expand All" : "Collapse All"}
-          </button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleRefreshFleet}
+              disabled={fleetFetching}
+              aria-label="Refresh fleet data"
+            >
+              <RefreshIcon
+                width="14"
+                height="14"
+                className={fleetFetching ? "animate-spin" : undefined}
+              />
+              {fleetFetching ? "Refreshing…" : "Refresh"}
+            </Button>
+            <button
+              type="button"
+              onClick={() => chartPrefs.collapseAll(allChartIds)}
+              className="timestamp flex items-center gap-2 px-2.5 py-1 hover:text-secondary nm-interactive-inset cursor-pointer rounded-nm-sm"
+            >
+              <ChevronUpIcon
+                width="12"
+                height="12"
+                className="transition-transform duration-200"
+                style={{
+                  transform: chartPrefs.allVisibleCollapsed(allChartIds)
+                    ? "rotate(180deg)"
+                    : "rotate(0deg)",
+                }}
+              />
+              {chartPrefs.allVisibleCollapsed(allChartIds) ? "Expand All" : "Collapse All"}
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-col gap-6">

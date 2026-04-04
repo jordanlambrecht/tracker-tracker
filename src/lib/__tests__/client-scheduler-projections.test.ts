@@ -30,6 +30,7 @@ vi.mock("@/lib/qbt", () => ({
   getTransferInfo: vi.fn(),
   parseCrossSeedTags: vi.fn(() => []),
   pushSpeedSnapshot: vi.fn(),
+  slimTorrentForCache: vi.fn((t: unknown) => t),
   stripSensitiveTorrentFields: vi.fn((t: unknown) => t),
   withSessionRetry: vi.fn(),
 }))

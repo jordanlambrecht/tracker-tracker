@@ -59,7 +59,7 @@ vi.mock("@/lib/qbt", () => ({
   getTransferInfo: vi.fn(),
   aggregateByTag: vi.fn(),
   parseCrossSeedTags: vi.fn((raw: string[] | null) => raw ?? []),
-  stripSensitiveTorrentFields: vi.fn((t: Record<string, unknown>) => {
+  slimTorrentForCache: vi.fn((t: Record<string, unknown>) => {
     const { tracker: _t, content_path: _cp, save_path: _sp, ...rest } = t
     return rest
   }),

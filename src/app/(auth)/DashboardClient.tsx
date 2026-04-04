@@ -3,7 +3,7 @@
 
 import { H1, H2 } from "@typography"
 import dynamic from "next/dynamic"
-import { useMemo, useState } from "react"
+import { useMemo, useState, useTransition } from "react"
 import { DashboardSkeleton } from "@/app/(auth)/DashboardSkeleton"
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import { AlertsBanner } from "@/components/dashboard/AlertsBanner"
@@ -55,9 +55,16 @@ export function DashboardClient({ initialTrackers, snapshotRetentionDays }: Dash
   const data = useDashboardData({ initialTrackers, snapshotRetentionDays })
   const dashSettings = useDashboardSettings()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // Two-state tab pattern: dashboardTab updates immediately (drives TabBar pill animation),
+  // deferredTab updates via startTransition (drives content switch + query gating).
+  // This prevents the 350ms React reconciliation from blocking the pill's CSS transition.
   const [dashboardTab, setDashboardTab] = useState<"tracker-stats" | "torrent-fleet">(
     "tracker-stats"
   )
+  const [deferredTab, setDeferredTab] = useState<"tracker-stats" | "torrent-fleet">(
+    "tracker-stats"
+  )
+  const [, startTransition] = useTransition()
 
   const aggregateStats = useMemo(() => computeAggregateStats(data.trackers), [data.trackers])
   const trackerSeries = useMemo(
@@ -149,15 +156,22 @@ export function DashboardClient({ initialTrackers, snapshotRetentionDays }: Dash
       <Divider />
 
       {/* Tab Switcher */}
-      <TabBar tabs={DASHBOARD_TABS} activeTab={dashboardTab} onChange={setDashboardTab} />
+      <TabBar
+        tabs={DASHBOARD_TABS}
+        activeTab={dashboardTab}
+        onChange={(tab) => {
+          setDashboardTab(tab)
+          startTransition(() => setDeferredTab(tab))
+        }}
+      />
 
       {/*  Analytics / Fleet  */}
       <div className="flex flex-col md:flex-row gap-4 md:gap-8">
         <div className="flex-1 min-w-0">
-          <div className={dashboardTab !== "torrent-fleet" ? "hidden" : undefined}>
-            <FleetDashboard dayRange={data.dayRange} trackers={data.trackers} />
+          <div className={deferredTab !== "torrent-fleet" ? "hidden" : undefined}>
+            <FleetDashboard dayRange={data.dayRange} trackers={data.trackers} isActive={deferredTab === "torrent-fleet"} />
           </div>
-          <div className={dashboardTab !== "tracker-stats" ? "hidden" : undefined}>
+          <div className={deferredTab !== "tracker-stats" ? "hidden" : undefined}>
             <AnalyticsSection trackerSeries={trackerSeries} trackers={data.trackers} />
           </div>
         </div>

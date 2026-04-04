@@ -1,7 +1,7 @@
 // src/components/ui/skeletons.tsx
 
 import { Card } from "./Card"
-import { Shimmer } from "./Shimmer"
+import { ChartShimmer, Shimmer } from "./Shimmer"
 
 /**
  * A collapsed card shape
@@ -49,14 +49,22 @@ function EventLogSkeleton({ rows = 6 }: { rows?: number }) {
 /**
  * Chart grid skeleton
  */
-function ChartGridSkeleton({ count = 4 }: { count?: number }) {
+function ChartGridSkeleton({
+  count = 4,
+  columns = 2,
+  chartHeight = "h-48",
+}: {
+  count?: number
+  columns?: 1 | 2
+  chartHeight?: string
+}) {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className={`grid grid-cols-1 gap-6${columns === 2 ? " lg:grid-cols-2" : ""}`}>
       {Array.from({ length: count }, (_, i) => (
         <Card key={`chart-${i}`}>
           <div className="flex flex-col gap-4">
             <Shimmer size="heading" className="w-40" />
-            <Shimmer className="h-48 w-full" rounded="md" />
+            <ChartShimmer height={chartHeight} />
           </div>
         </Card>
       ))}

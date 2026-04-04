@@ -41,13 +41,13 @@ import {
   getTransferInfo,
   parseCrossSeedTags,
   pushSpeedSnapshot,
-  stripSensitiveTorrentFields,
+  slimTorrentForCache,
   syncMaindata,
   withSessionRetry,
 } from "@/lib/qbt"
 import { clearUptimeAccumulator, flushCompletedBuckets, recordHeartbeat } from "@/lib/uptime"
 
-/** Columns needed by heartbeatClient. Excludes large blobs like cachedTorrents */
+/** Needed by heartbeatClient. Excludes large blobs like cachedTorrents */
 export const HEARTBEAT_COLUMNS = {
   id: downloadClients.id,
   enabled: downloadClients.enabled,
@@ -60,7 +60,7 @@ export const HEARTBEAT_COLUMNS = {
   lastError: downloadClients.lastError,
 } as const
 
-/** Columns needed by deepPollClient. Heartbeat fields + poll config + tags */
+/** Needed by deepPollClient. Heartbeat fields + poll config + tags */
 export const DEEP_POLL_COLUMNS = {
   ...HEARTBEAT_COLUMNS,
   crossSeedTags: downloadClients.crossSeedTags,
@@ -184,7 +184,7 @@ export async function deepPollClient(
 
     // Fetch delta from qBT's sync endpoint. First call (rid=0) returns everything;
     // subsequent calls return only fields that changed since the last rid.
-    const { torrents, transfer } = await withSessionRetry(
+    const { torrents, transfer, hasChanges } = await withSessionRetry(
       client.host,
       client.port,
       client.useSsl,
@@ -210,15 +210,18 @@ export async function deepPollClient(
           )
         }
 
-        // Post-filter to only torrents carrying at least one app-tracked tag.
-        // Uses parseTorrentTags from fleet.ts — the same function the aggregator uses.
+        // Post-filter to only torrents carrying at least one app-tracked tag
         const tagSet = new Set(allTags.map((t) => t.toLowerCase()))
         const relevant = getFilteredTorrents(baseUrl, (t) => {
           if (!t.tags) return false
           return parseTorrentTags(t.tags).some((tag) => tagSet.has(tag))
         })
 
-        return { torrents: relevant, transfer: xfer }
+        const hasChanges =
+          data.full_update ||
+          (data.torrents != null && Object.keys(data.torrents).length > 0) ||
+          (data.torrents_removed != null && data.torrents_removed.length > 0)
+        return { torrents: relevant, transfer: xfer, hasChanges }
       }
     )
 
@@ -259,20 +262,30 @@ export async function deepPollClient(
     const stats = aggregateByTag(torrents, trackerTags, crossSeedTags)
 
     // Cache the filtered torrent list for fallback when client is offline.
-    const sanitizedTorrents = torrents.map(stripSensitiveTorrentFields)
+    const sanitizedTorrents = torrents.map(slimTorrentForCache)
     const now = new Date()
 
     await Promise.all([
       db
         .update(downloadClients)
-        .set({
-          cachedTorrents: sanitizedTorrents,
-          cachedTorrentsAt: now,
-          lastPolledAt: now,
-          lastError: null,
-          errorSince: null,
-          updatedAt: now,
-        })
+        .set(
+          hasChanges
+            ? {
+                cachedTorrents: sanitizedTorrents,
+                cachedTorrentsAt: now,
+                lastPolledAt: now,
+                lastError: null,
+                errorSince: null,
+                updatedAt: now,
+              }
+            : {
+                cachedTorrentsAt: now,
+                lastPolledAt: now,
+                lastError: null,
+                errorSince: null,
+                updatedAt: now,
+              }
+        )
         .where(eq(downloadClients.id, clientId)),
       db.insert(clientSnapshots).values({
         clientId,
@@ -284,6 +297,9 @@ export async function deepPollClient(
         tagStats: JSON.stringify(stats.tagStats),
       }),
     ])
+    if (!hasChanges) {
+      log.debug(`[deep-poll] client=${clientId} → no torrent changes, JSONB write skipped`)
+    }
   } catch (error) {
     const raw = error instanceof Error ? error.message : "Unknown error"
     const message = sanitizeNetworkError(raw)
@@ -360,7 +376,7 @@ export function startClientScheduler(encryptionKey: Buffer): void {
   })
   setHeartbeatTask(hbTask)
 
-  // Deep poll — 30s tick so per-client pollIntervalSeconds (min 60s) is honored
+  // Deep poll: 30s tick so per-client pollIntervalSeconds (min 60s) is honored
   const dpTask = cron.schedule("*/30 * * * * *", async () => {
     if (g.__deepPollInFlight) return
     g.__deepPollInFlight = true
@@ -411,7 +427,7 @@ export function stopClientScheduler(): void {
 }
 
 /**
- * Restarts the client scheduler if it died (i.e, after server restart).
+ * Restarts the client scheduler if it died.
  * Called from ensureSchedulerRunning in scheduler.ts.
  */
 export function ensureClientSchedulerRunning(encryptionKeyHex: string): void {
