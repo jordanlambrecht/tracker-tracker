@@ -15,7 +15,6 @@ import {
   getCardClasses,
   type LayoutConfig,
 } from "@/lib/grid-layout"
-import type { ResolvedSlot } from "@/lib/slot-types"
 import type {
   DayRange,
   DeltaDisplay,
@@ -24,6 +23,7 @@ import type {
   TrackerLatestStats,
   TrackerSummary,
 } from "@/types/api"
+import type { ResolvedSlot } from "@/types/slots"
 import { renderSlotElement } from "./slot-registry"
 
 interface AnalyticsTabProps {

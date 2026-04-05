@@ -6,8 +6,8 @@ import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
 import { isDecryptionError } from "@/lib/error-utils"
 import { log } from "@/lib/logger"
-import { buildProxyAgentFromSettings } from "@/lib/proxy"
 import { pollTracker } from "@/lib/scheduler"
+import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 
 const POLL_COOLDOWN_MS = 10_000
 

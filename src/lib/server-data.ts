@@ -39,7 +39,7 @@ import {
 } from "@/lib/db/schema"
 import { localDateStr } from "@/lib/formatters"
 import { createPrivacyMaskSync } from "@/lib/privacy-db"
-import { parseQbitmanageTags } from "@/lib/qbitmanage-defaults"
+import { parseQbitmanageTags } from "@/lib/qbt/qbitmanage-defaults"
 import { serializeTrackerResponse } from "@/lib/tracker-serializer"
 import type { Snapshot, TagGroup, TagGroupChartType, TrackerSummary } from "@/types/api"
 
@@ -207,8 +207,7 @@ export const notificationTargetColumns = {
   name: notificationTargets.name,
   type: notificationTargets.type,
   enabled: notificationTargets.enabled,
-  hasConfig:
-    sql<boolean>`(${notificationTargets.encryptedConfig} IS NOT NULL)`.as("has_config"),
+  hasConfig: sql<boolean>`(${notificationTargets.encryptedConfig} IS NOT NULL)`.as("has_config"),
   notifyRatioDrop: notificationTargets.notifyRatioDrop,
   notifyHitAndRun: notificationTargets.notifyHitAndRun,
   notifyTrackerDown: notificationTargets.notifyTrackerDown,

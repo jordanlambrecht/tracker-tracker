@@ -121,12 +121,12 @@ vi.mock("@/lib/privacy-db", () => ({
   scrubSnapshotUsernames: vi.fn().mockResolvedValue(0),
 }))
 
-vi.mock("@/lib/proxy", () => ({
+vi.mock("@/lib/tunnel", () => ({
   PROXY_HOST_PATTERN: /^[\w.\-:[\]]+$/,
   VALID_PROXY_TYPES: new Set(["socks5", "http", "https"]),
 }))
 
-vi.mock("@/lib/qbitmanage-defaults", () => ({
+vi.mock("@/lib/qbt/qbitmanage-defaults", () => ({
   parseQbitmanageTags: vi.fn(() => ({})),
   QBITMANAGE_KEYS: [],
 }))

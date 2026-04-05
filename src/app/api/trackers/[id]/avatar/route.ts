@@ -16,7 +16,7 @@ import {
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
-import { buildProxyAgentFromSettings, proxyFetch } from "@/lib/proxy"
+import { buildProxyAgentFromSettings, proxyFetch } from "@/lib/tunnel"
 
 const STALE_MS = 7 * 24 * 60 * 60 * 1000
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024

@@ -14,9 +14,9 @@ import { appSettings } from "@/lib/db/schema"
 import { BACKUP_PASSWORD_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { scrubSnapshotUsernames } from "@/lib/privacy-db"
-import { PROXY_HOST_PATTERN, VALID_PROXY_TYPES } from "@/lib/proxy"
-import { QBITMANAGE_KEYS } from "@/lib/qbitmanage-defaults"
+import { QBITMANAGE_KEYS } from "@/lib/qbt/qbitmanage-defaults"
 import { fetchSettings, serializeSettingsResponse } from "@/lib/server-data"
+import { PROXY_HOST_PATTERN, VALID_PROXY_TYPES } from "@/lib/tunnel"
 import { isValidPort } from "@/lib/validators"
 
 export async function GET() {

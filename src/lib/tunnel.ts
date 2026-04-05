@@ -1,4 +1,4 @@
-// src/lib/proxy.ts
+// src/lib/tunnel.ts
 //
 // Functions: buildProxyUrl, createProxyAgent, proxyFetch, buildProxyAgentFromSettings
 // Exports: VALID_PROXY_TYPES, PROXY_HOST_PATTERN, ProxyType, ProxyConfig, ProxyFetchResult, ProxySettings

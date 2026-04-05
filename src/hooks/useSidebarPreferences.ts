@@ -2,8 +2,8 @@
 "use client"
 
 import { useLocalStorage } from "@/hooks/useLocalStorage"
+import type { SortMode } from "@/hooks/useTrackerList"
 import type { StatMode } from "@/lib/formatters"
-import type { SortMode } from "@/lib/sidebar-types"
 import { STORAGE_KEYS } from "@/lib/storage-keys"
 
 interface UseSidebarPreferencesReturn {

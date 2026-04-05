@@ -6,8 +6,21 @@ import { arrayMove } from "@dnd-kit/sortable"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useCallback, useEffect, useMemo, useRef } from "react"
 import { usePollingIntervals } from "@/hooks/usePollingIntervals"
-import { type SortMode, sortTrackers } from "@/lib/sidebar-types"
 import type { TrackerSummary } from "@/types/api"
+
+type SortMode = "index" | "alpha" | "custom"
+
+function sortTrackers(trackers: TrackerSummary[], mode: SortMode): TrackerSummary[] {
+  const sorted = [...trackers]
+  switch (mode) {
+    case "alpha":
+      return sorted.sort((a, b) => a.name.localeCompare(b.name))
+    case "custom":
+      return sorted.sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity))
+    default:
+      return sorted
+  }
+}
 
 interface UseTrackerListParams {
   sortMode: SortMode
@@ -155,5 +168,5 @@ function useTrackerList({
   }
 }
 
-export type { UseTrackerListParams, UseTrackerListReturn }
+export type { SortMode, UseTrackerListParams, UseTrackerListReturn }
 export { useTrackerList }

@@ -5,13 +5,13 @@
 import { NextResponse } from "next/server"
 import { authenticate, decodeKey, parseJsonBody, validatePort } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
+import { sanitizeHost } from "@/lib/data-transforms"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
-import { sanitizeHost } from "@/lib/helpers"
 import { log } from "@/lib/logger"
-import { PROXY_HOST_PATTERN } from "@/lib/proxy"
-import { fetchClients, serializeClientResponse } from "@/lib/server-data"
 import { VALID_CLIENT_TYPES } from "@/lib/qbt/types"
+import { fetchClients, serializeClientResponse } from "@/lib/server-data"
+import { PROXY_HOST_PATTERN } from "@/lib/tunnel"
 
 export async function GET() {
   const auth = await authenticate()

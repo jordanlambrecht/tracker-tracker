@@ -21,7 +21,6 @@ import {
 import { PulseDot } from "@/components/ui/PulseDot"
 import { Tooltip } from "@/components/ui/Tooltip"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
-import type { ResolvedSlot } from "@/lib/slot-types"
 import {
   getHealthBadgeVariant,
   getHealthDescription,
@@ -29,6 +28,7 @@ import {
   getTrackerHealth,
 } from "@/lib/tracker-status"
 import type { TrackerLatestStats, TrackerSummary } from "@/types/api"
+import type { ResolvedSlot } from "@/types/slots"
 
 interface TrackerDetailHeaderProps {
   tracker: TrackerSummary

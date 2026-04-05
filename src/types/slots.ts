@@ -1,4 +1,4 @@
-// src/lib/slot-types.ts
+// src/types/slots.ts
 //
 // Functions: (types only)
 

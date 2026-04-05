@@ -8,7 +8,7 @@ import { Badge, Button, Input, NumberInput, SaveDiscardBar, Select, Toggle } fro
 import { useActionStatus } from "@/hooks/useActionStatus"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 import { DOCS } from "@/lib/constants"
-import { extractApiError } from "@/lib/helpers"
+import { extractApiError } from "@/lib/extract-api-error"
 
 export interface ProxySectionProps {
   initialProxy: {

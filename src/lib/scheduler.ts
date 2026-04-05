@@ -34,9 +34,9 @@ import { localDateStr } from "@/lib/formatters"
 import { log } from "@/lib/logger"
 import { dispatchNotifications } from "@/lib/notifications/dispatch"
 import { maskUsername } from "@/lib/privacy"
-import { buildProxyAgentFromSettings } from "@/lib/proxy"
 import { recordDatabaseSize } from "@/lib/server-data"
 import { getPauseState } from "@/lib/tracker-status"
+import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 
 // Store on globalThis to survive HMR in development.
 // Without this, each hot-reload orphans the old cron job (it keeps firing)

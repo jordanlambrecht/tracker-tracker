@@ -510,7 +510,6 @@ describe("computeFleetAggregation", () => {
       const t1MonthKey = new Date((BASE_SEC - 86_400 * 15) * 1000)
         .toISOString()
         .substring(0, 7)
-        .replace("-", "-")
       const result = computeFleetAggregation([T1], TRACKER_TAGS, CROSS_SEED_TAGS)
       const aither = result.ageTimeline.find((t) => t.name === "Aither")
       expect(aither).toBeDefined()

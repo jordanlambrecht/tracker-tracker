@@ -1,7 +1,7 @@
 // src/hooks/usePatchSettings.ts
 
 import { useCallback, useState } from "react"
-import { extractApiError } from "@/lib/helpers"
+import { extractApiError } from "@/lib/extract-api-error"
 
 type PatchResult = { ok: true; data: Record<string, unknown> } | { ok: false; error: string }
 

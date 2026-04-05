@@ -144,7 +144,7 @@ vi.mock("@/lib/privacy", () => ({
   isRedacted: vi.fn(() => false),
 }))
 
-vi.mock("@/lib/proxy", () => ({
+vi.mock("@/lib/tunnel", () => ({
   VALID_PROXY_TYPES: new Set(["socks5", "http", "https"]),
   PROXY_HOST_PATTERN: /^[\w.\-:[\]]+$/,
   buildProxyAgentFromSettings: vi.fn().mockReturnValue(undefined),
@@ -164,11 +164,30 @@ vi.mock("@/lib/qbt", () => ({
   getSpeedSnapshots: vi.fn().mockReturnValue([]),
   pushSpeedSnapshot: vi.fn(),
   clearSpeedCache: vi.fn(),
-}))
-
-vi.mock("@/lib/qbt/merge", () => ({
   mergeTorrentLists: vi.fn().mockReturnValue([]),
   aggregateCrossSeedTags: vi.fn().mockReturnValue([]),
+  fetchAndMergeTorrents: vi
+    .fn()
+    .mockResolvedValue({
+      torrents: [],
+      crossSeedTags: [],
+      clientErrors: [],
+      clientCount: 0,
+      sessionExpired: false,
+    }),
+  stripSensitiveTorrentFields: vi.fn((t: Record<string, unknown>) => {
+    const { tracker: _t, content_path: _cp, save_path: _sp, ...rest } = t
+    return rest
+  }),
+  CLIENT_CONNECTION_COLUMNS: {},
+  decryptClientCredentials: vi.fn().mockReturnValue({ username: "admin", password: "pass" }),
+  parseCrossSeedTags: vi.fn((raw: string[] | null) => raw ?? []),
+  slimTorrentForCache: vi.fn((t: Record<string, unknown>) => t),
+  parseCachedTorrents: vi.fn().mockReturnValue([]),
+  STORE_MAX_AGE_MS: 600000,
+  isStoreFresh: vi.fn().mockReturnValue(false),
+  getFilteredTorrents: vi.fn().mockReturnValue([]),
+  VALID_CLIENT_TYPES: ["qbittorrent"],
 }))
 
 vi.mock("@/lib/privacy-db", () => ({

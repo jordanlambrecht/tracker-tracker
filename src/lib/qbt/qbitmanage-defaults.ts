@@ -1,4 +1,4 @@
-// src/lib/qbitmanage-defaults.ts
+// src/lib/qbt/qbitmanage-defaults.ts
 //
 // Functions: QBITMANAGE_TAG_DEFAULTS, QBITMANAGE_KEYS, parseQbitmanageTags
 

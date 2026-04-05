@@ -7,8 +7,8 @@ import type {
   GGnPlatformMeta,
   NebulancePlatformMeta,
 } from "@/lib/adapters/types"
-import type { SlotContext } from "@/lib/slot-types"
 import type { Snapshot, TrackerSummary } from "@/types/api"
+import type { SlotContext } from "@/types/slots"
 
 // ---------------------------------------------------------------------------
 // Fixtures

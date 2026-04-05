@@ -1,6 +1,6 @@
 // src/lib/adapters/mam.ts
 
-import { computeBufferBytes, floatBytesToBigInt } from "@/lib/helpers"
+import { computeBufferBytes, floatBytesToBigInt } from "@/lib/data-transforms"
 import { adapterFetch } from "./adapter-fetch"
 import type {
   DebugApiCall,

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/Input"
 import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
 import { Toggle } from "@/components/ui/Toggle"
 import { DOCS } from "@/lib/constants"
-import { QBITMANAGE_TAG_DEFAULTS } from "@/lib/qbitmanage-defaults"
+import { QBITMANAGE_TAG_DEFAULTS } from "@/lib/qbt/qbitmanage-defaults"
 import type { QbitmanageTagConfig } from "@/types/api"
 
 const QBITMANAGE_STATUSES = [

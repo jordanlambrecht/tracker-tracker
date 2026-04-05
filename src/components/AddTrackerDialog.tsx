@@ -18,8 +18,8 @@ import { Tooltip } from "@/components/ui/Tooltip"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { TRACKER_REGISTRY } from "@/data/tracker-registry"
 import { useClickOutside } from "@/hooks/useClickOutside"
+import { normalizeUrl } from "@/lib/data-transforms"
 import { localDateStr } from "@/lib/formatters"
-import { normalizeUrl } from "@/lib/helpers"
 
 // ---------------------------------------------------------------------------
 // Fuzzy match

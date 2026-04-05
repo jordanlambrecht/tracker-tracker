@@ -13,8 +13,8 @@ import { authenticate, decodeKey } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
-import { buildProxyAgentFromSettings } from "@/lib/proxy"
 import { pollTracker } from "@/lib/scheduler"
+import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 
 export async function POST() {
   const auth = await authenticate()

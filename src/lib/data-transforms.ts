@@ -1,8 +1,8 @@
-// src/lib/helpers.ts
+// src/lib/data-transforms.ts
 
 // Functions: computeDelta, compareBigIntDesc, computePctChange,
 //            floatBytesToBigInt, computeBufferBytes, isUnixTimestampOnDate,
-//            sanitizeHost, normalizeUrl, extractApiError
+//            sanitizeHost, normalizeUrl
 
 import { localDateStr } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
@@ -87,13 +87,4 @@ export function sanitizeHost(host: string): string {
 
 export function normalizeUrl(url: string): string {
   return url.replace(/\/+$/, "").toLowerCase()
-}
-
-export async function extractApiError(res: Response, fallback = "Request failed"): Promise<string> {
-  try {
-    const data: { error?: string } = await res.json()
-    return data.error ?? fallback
-  } catch {
-    return fallback
-  }
 }

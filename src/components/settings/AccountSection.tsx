@@ -7,7 +7,7 @@ import { useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
 import { Button, Input } from "@/components/ui"
 import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
-import { extractApiError } from "@/lib/helpers"
+import { extractApiError } from "@/lib/extract-api-error"
 
 export interface AccountSectionProps {
   initialUsername: string

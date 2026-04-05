@@ -2,7 +2,7 @@
 
 import type { PlatformType } from "@/lib/adapters/constants"
 import type { GazelleAuthStyle, Unit3dAuthStyle } from "@/lib/adapters/types"
-import { normalizeUrl } from "@/lib/helpers"
+import { normalizeUrl } from "@/lib/data-transforms"
 import { ALL_TRACKERS } from "./trackers"
 
 export interface ReleaseGroup {

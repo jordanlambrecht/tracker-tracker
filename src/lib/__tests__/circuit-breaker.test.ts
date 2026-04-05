@@ -40,7 +40,7 @@ vi.mock("@/lib/privacy", () => ({
   maskUsername: vi.fn((v: string) => `▓${v.length}`),
 }))
 
-vi.mock("@/lib/proxy", () => ({
+vi.mock("@/lib/tunnel", () => ({
   buildProxyAgentFromSettings: vi.fn().mockReturnValue(undefined),
   VALID_PROXY_TYPES: new Set(["socks5", "http", "https"]),
 }))

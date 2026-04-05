@@ -4,8 +4,8 @@
 
 import { DataCell } from "@typography"
 import { ProgressBar } from "@/components/ui/ProgressBar"
+import { compareBigIntDesc } from "@/lib/data-transforms"
 import { formatBytesFromString } from "@/lib/formatters"
-import { compareBigIntDesc } from "@/lib/helpers"
 import type { TodayAtAGlance } from "@/types/api"
 
 interface TrackerBreakdownProps {

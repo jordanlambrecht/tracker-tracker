@@ -11,12 +11,12 @@ import {
   validatePort,
 } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
+import { sanitizeHost } from "@/lib/data-transforms"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
-import { sanitizeHost } from "@/lib/helpers"
 import { log } from "@/lib/logger"
-import { PROXY_HOST_PATTERN } from "@/lib/proxy"
 import { VALID_CLIENT_TYPES } from "@/lib/qbt/types"
+import { PROXY_HOST_PATTERN } from "@/lib/tunnel"
 import { removeClientFromAccumulator } from "@/lib/uptime"
 
 export async function PATCH(request: Request, props: RouteContext) {

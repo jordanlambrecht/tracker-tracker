@@ -37,7 +37,7 @@ vi.mock("@/lib/crypto", () => ({
   decrypt: vi.fn().mockReturnValue("decrypted-value"),
 }))
 
-vi.mock("@/lib/proxy", () => ({
+vi.mock("@/lib/tunnel", () => ({
   createProxyAgent: vi.fn(),
   buildProxyAgentFromSettings: vi.fn().mockReturnValue(undefined),
   VALID_PROXY_TYPES: new Set(["socks5", "http", "https"]),

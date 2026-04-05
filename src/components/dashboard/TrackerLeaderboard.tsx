@@ -7,13 +7,13 @@ import { Badge } from "@/components/ui/Badge"
 import { PulseDot } from "@/components/ui/PulseDot"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
+import { computeBufferBytes } from "@/lib/data-transforms"
 import {
   formatAccountAge,
   formatBytesFromString,
   formatCount,
   formatRatioDisplay,
 } from "@/lib/formatters"
-import { computeBufferBytes } from "@/lib/helpers"
 import {
   getHealthBadgeVariant,
   getHealthLabel,

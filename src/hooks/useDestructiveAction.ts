@@ -3,7 +3,7 @@
 "use client"
 
 import { useCallback, useState } from "react"
-import { extractApiError } from "@/lib/helpers"
+import { extractApiError } from "@/lib/extract-api-error"
 
 interface UseDestructiveActionReturn {
   confirming: boolean

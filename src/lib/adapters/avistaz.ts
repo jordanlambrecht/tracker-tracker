@@ -4,9 +4,9 @@
 //            extractRatioBarValue, parseAvistazProfile, fetchHtml, AvistazAdapter
 
 import { type HTMLElement as ParsedElement, parse as parseHtml } from "node-html-parser"
+import { computeBufferBytes } from "@/lib/data-transforms"
 import { sanitizeNetworkError } from "@/lib/error-utils"
 import { localDateStr } from "@/lib/formatters"
-import { computeBufferBytes } from "@/lib/helpers"
 import { parseBytes } from "@/lib/parser"
 import type {
   AvistazPlatformMeta,
@@ -296,7 +296,7 @@ async function fetchHtml(
   }
 
   if (proxyAgent) {
-    const { proxyFetch } = await import("@/lib/proxy")
+    const { proxyFetch } = await import("@/lib/tunnel")
     const result = await proxyFetch(url, proxyAgent, { headers })
     if (!result.ok) {
       throw new Error(

@@ -34,7 +34,7 @@ import type {
 import { StatCard } from "@/components/ui/StatCard"
 import { metaFor } from "@/lib/adapters/types"
 import { formatBytesNum, formatCount, formatRatio } from "@/lib/formatters"
-import type { SlotCategory, SlotContext } from "@/lib/slot-types"
+import type { SlotCategory, SlotContext } from "@/types/slots"
 import type { GgnAchievementProgressProps } from "./platform/GgnAchievementProgress"
 import { GgnAchievementProgress } from "./platform/GgnAchievementProgress"
 import type { GgnBuffsDisplayProps } from "./platform/GgnBuffsDisplay"

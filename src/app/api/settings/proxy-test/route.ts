@@ -14,7 +14,7 @@ import {
   type ProxyType,
   proxyFetch,
   VALID_PROXY_TYPES,
-} from "@/lib/proxy"
+} from "@/lib/tunnel"
 
 const TEST_URL = "https://httpbin.org/ip"
 // Loose IP pattern — IPv4, IPv6, or comma-separated (httpbin returns this)

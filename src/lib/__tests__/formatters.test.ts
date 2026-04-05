@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from "vitest"
 import { hexToRgba } from "@/lib/color-utils"
+import { computeBufferBytes, computeDelta, floatBytesToBigInt } from "@/lib/data-transforms"
 import {
   bytesToGiB,
   formatCount,
@@ -10,7 +11,6 @@ import {
   formatRatio,
   formatRatioDisplay,
 } from "@/lib/formatters"
-import { computeBufferBytes, computeDelta, floatBytesToBigInt } from "@/lib/helpers"
 import type { Snapshot } from "@/types/api"
 
 describe("bytesToGiB", () => {

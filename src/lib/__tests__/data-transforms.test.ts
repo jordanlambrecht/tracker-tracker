@@ -1,15 +1,15 @@
-// src/lib/__tests__/helpers.test.ts
+// src/lib/__tests__/data-transforms.test.ts
 
 import { describe, expect, it } from "vitest"
-import { localDateStr } from "@/lib/formatters"
 import {
   compareBigIntDesc,
   computePctChange,
-  extractApiError,
   isUnixTimestampOnDate,
   normalizeUrl,
   sanitizeHost,
-} from "@/lib/helpers"
+} from "@/lib/data-transforms"
+import { extractApiError } from "@/lib/extract-api-error"
+import { localDateStr } from "@/lib/formatters"
 
 // ---------------------------------------------------------------------------
 // sanitizeHost

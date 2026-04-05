@@ -18,8 +18,7 @@ import { TrackerStatusBanner } from "@/components/tracker-detail/TrackerStatusBa
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { useTrackerTorrents } from "@/hooks/useTrackerTorrents"
 import { hexToRgba } from "@/lib/color-utils"
-import { computeDelta } from "@/lib/helpers"
-import type { SlotContext } from "@/lib/slot-types"
+import { computeDelta } from "@/lib/data-transforms"
 import type {
   DayRange,
   GazellePlatformMeta,
@@ -28,6 +27,7 @@ import type {
   TagGroup,
   TrackerSummary,
 } from "@/types/api"
+import type { SlotContext } from "@/types/slots"
 
 type Tab = "analytics" | "info" | "torrents"
 

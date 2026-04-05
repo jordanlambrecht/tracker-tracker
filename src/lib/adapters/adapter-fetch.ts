@@ -2,7 +2,7 @@
 //
 // Functions: adapterFetch
 
-import { proxyFetch } from "@/lib/proxy"
+import { proxyFetch } from "@/lib/tunnel"
 import type { FetchOptions } from "./types"
 
 async function adapterFetch<T>(

@@ -13,8 +13,8 @@ import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
-import { buildProxyAgentFromSettings } from "@/lib/proxy"
 import { scrubObject } from "@/lib/scrub-object"
+import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 
 function serializeStats(stats: TrackerStats): Record<string, unknown> {
   return {

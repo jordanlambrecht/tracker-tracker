@@ -16,8 +16,8 @@ import { Notice } from "@/components/ui/Notice"
 import { EventLogSkeleton } from "@/components/ui/skeletons"
 import { useSetToggle } from "@/hooks/useSetToggle"
 import { EVENT_CATEGORIES, EVENT_LEVELS, type EventCategory, type EventLevel } from "@/lib/events"
+import { extractApiError } from "@/lib/extract-api-error"
 import { formatBytesNum, localDateStr } from "@/lib/formatters"
-import { extractApiError } from "@/lib/helpers"
 import type { EventsPageResponse } from "@/types/api"
 
 const CATEGORY_STYLES: Record<EventCategory, { border: string; icon: string; iconColor: string }> =
