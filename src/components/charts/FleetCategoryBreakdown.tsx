@@ -2,8 +2,7 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import type { TrackerTag } from "@/lib/fleet"
-import { parseTorrentTags } from "@/lib/fleet"
+import type { TrackerCategoryCount } from "@/lib/fleet-aggregation"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { fmtNum } from "./lib/chart-helpers"
@@ -17,8 +16,7 @@ import {
 } from "./lib/theme"
 
 interface FleetCategoryBreakdownProps {
-  torrents: { addedOn: number; tags: string; category: string }[]
-  trackerTags: TrackerTag[]
+  data: TrackerCategoryCount[]
   height?: number
 }
 
@@ -26,7 +24,7 @@ function buildFleetCategoryBreakdownOption(
   trackerNames: string[],
   categories: string[],
   categoryColors: string[],
-  // tracker name → category → count
+  // tracker name -> category -> count
   data: Map<string, Map<string, number>>
 ): EChartsOption {
   const series: NonNullable<EChartsOption["series"]> = categories.map((cat, catIndex) => {
@@ -128,47 +126,31 @@ const CATEGORY_PALETTE = [
   ...CHART_THEME.scale,
 ]
 
-function FleetCategoryBreakdown({
-  torrents,
-  trackerTags,
-  height = 360,
-}: FleetCategoryBreakdownProps) {
-  if (torrents.length === 0 || trackerTags.length === 0) {
+function FleetCategoryBreakdown({ data, height = 360 }: FleetCategoryBreakdownProps) {
+  if (data.length === 0) {
     return <ChartEmptyState height={height} message="No torrent data available" />
   }
 
-  const tagSetLower = trackerTags.map((tt) => ({
-    tagLower: tt.tag.toLowerCase(),
-    name: tt.name,
-  }))
+  const trackerNames = data.map((d) => d.tracker)
 
-  const data = new Map<string, Map<string, number>>()
   const allCategories = new Set<string>()
-
-  for (const torrent of torrents) {
-    const torrentTagList = parseTorrentTags(torrent.tags)
-    const matched = tagSetLower.find((e) => torrentTagList.includes(e.tagLower))
-    if (!matched) continue
-
-    const cat = torrent.category?.trim() || "Uncategorized"
-    allCategories.add(cat)
-
-    const trackerCats = data.get(matched.name) ?? new Map<string, number>()
-    trackerCats.set(cat, (trackerCats.get(cat) ?? 0) + 1)
-    data.set(matched.name, trackerCats)
+  for (const entry of data) {
+    for (const { name } of entry.categories) allCategories.add(name)
   }
-
-  if (data.size === 0) {
-    return <ChartEmptyState height={height} message="No tagged torrents found" />
-  }
-
-  const trackerNames = trackerTags.map((t) => t.name).filter((name) => data.has(name))
   const categories = Array.from(allCategories).sort()
   const categoryColors = categories.map((_, i) => CATEGORY_PALETTE[i % CATEGORY_PALETTE.length])
 
+  // Build the Map<trackerName, Map<categoryName, count>> the renderer expects
+  const dataMap = new Map<string, Map<string, number>>()
+  for (const entry of data) {
+    const catMap = new Map<string, number>()
+    for (const { name, count } of entry.categories) catMap.set(name, count)
+    dataMap.set(entry.tracker, catMap)
+  }
+
   return (
     <ChartECharts
-      option={buildFleetCategoryBreakdownOption(trackerNames, categories, categoryColors, data)}
+      option={buildFleetCategoryBreakdownOption(trackerNames, categories, categoryColors, dataMap)}
       style={{ height, width: "100%" }}
     />
   )

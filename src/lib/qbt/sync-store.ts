@@ -12,6 +12,9 @@
 
 import { isQbtTorrent, type QbtMaindataResponse, type QbtTorrent } from "./types"
 
+/** How long a sync store entry is considered fresh */
+export const STORE_MAX_AGE_MS = 10 * 60 * 1000
+
 interface TorrentStore {
   rid: number
   torrents: Map<string, QbtTorrent>

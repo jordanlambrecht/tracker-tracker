@@ -3,8 +3,11 @@
 // Functions: fetchSettings, serializeSettingsResponse, getSettingsForClient,
 // getTrackerListForDashboard, getTrackerForClient, getSnapshotsForTracker,
 // getTagGroupsWithMembers, getProxyTrackers, getDatabaseSize,
-// getDatabaseSizeBytes, recordDatabaseSize, getDbSizeHistory
-// Constants: settingsColumns, trackerColumns, snapshotColumns
+// getDatabaseSizeBytes, recordDatabaseSize, getDbSizeHistory,
+// fetchClients, serializeClientResponse, fetchNotificationTargets,
+// serializeNotificationTarget
+// Constants: settingsColumns, trackerColumns, snapshotColumns, clientColumns,
+// notificationTargetColumns
 //
 // Server-side data fetchers: single source of truth for safe DB queries
 // that return client-safe shapes. Used by both API route handlers and
@@ -27,6 +30,8 @@ import { db } from "@/lib/db"
 import {
   appSettings,
   dbSizeHistory,
+  downloadClients,
+  notificationTargets,
   tagGroupMembers,
   tagGroups as tagGroupsTable,
   trackerSnapshots,
@@ -127,6 +132,143 @@ export async function getSettingsForClient() {
   const [row] = await fetchSettings()
   if (!row) return null
   return serializeSettingsResponse(row)
+}
+
+// ---------------------------------------------------------------------------
+// Download clients
+// ---------------------------------------------------------------------------
+
+/**
+ * Explicit column projection for downloadClients. Excludes encryptedUsername
+ * and encryptedPassword at the query level via a SQL boolean expression so the
+ * ciphertext never enters server process memory. Also excludes cachedTorrents
+ * (potentially large JSONB) and cachedTorrentsAt (internal scheduler state).
+ */
+export const clientColumns = {
+  id: downloadClients.id,
+  name: downloadClients.name,
+  type: downloadClients.type,
+  enabled: downloadClients.enabled,
+  host: downloadClients.host,
+  port: downloadClients.port,
+  useSsl: downloadClients.useSsl,
+  hasCredentials:
+    sql<boolean>`(${downloadClients.encryptedUsername} IS NOT NULL AND ${downloadClients.encryptedPassword} IS NOT NULL)`.as(
+      "has_credentials"
+    ),
+  pollIntervalSeconds: downloadClients.pollIntervalSeconds,
+  isDefault: downloadClients.isDefault,
+  crossSeedTags: downloadClients.crossSeedTags,
+  lastPolledAt: downloadClients.lastPolledAt,
+  lastError: downloadClients.lastError,
+  errorSince: downloadClients.errorSince,
+  createdAt: downloadClients.createdAt,
+  updatedAt: downloadClients.updatedAt,
+}
+
+export function fetchClients() {
+  return db.select(clientColumns).from(downloadClients).orderBy(downloadClients.createdAt)
+}
+
+export type ClientRow = Awaited<ReturnType<typeof fetchClients>>[number]
+
+export function serializeClientResponse(row: ClientRow) {
+  return {
+    id: row.id,
+    name: row.name,
+    type: row.type,
+    enabled: row.enabled,
+    host: row.host,
+    port: row.port,
+    useSsl: row.useSsl,
+    hasCredentials: row.hasCredentials,
+    pollIntervalSeconds: row.pollIntervalSeconds,
+    isDefault: row.isDefault,
+    crossSeedTags: row.crossSeedTags ?? [],
+    lastPolledAt: row.lastPolledAt?.toISOString() ?? null,
+    lastError: row.lastError,
+    errorSince: row.errorSince?.toISOString() ?? null,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Notification targets
+// ---------------------------------------------------------------------------
+
+/**
+ * Explicit column projection for notificationTargets. Excludes encryptedConfig
+ * at the query level via a SQL boolean expression so the ciphertext never
+ * enters server process memory.
+ */
+export const notificationTargetColumns = {
+  id: notificationTargets.id,
+  name: notificationTargets.name,
+  type: notificationTargets.type,
+  enabled: notificationTargets.enabled,
+  hasConfig:
+    sql<boolean>`(${notificationTargets.encryptedConfig} IS NOT NULL)`.as("has_config"),
+  notifyRatioDrop: notificationTargets.notifyRatioDrop,
+  notifyHitAndRun: notificationTargets.notifyHitAndRun,
+  notifyTrackerDown: notificationTargets.notifyTrackerDown,
+  notifyBufferMilestone: notificationTargets.notifyBufferMilestone,
+  notifyWarned: notificationTargets.notifyWarned,
+  notifyRatioDanger: notificationTargets.notifyRatioDanger,
+  notifyZeroSeeding: notificationTargets.notifyZeroSeeding,
+  notifyRankChange: notificationTargets.notifyRankChange,
+  notifyAnniversary: notificationTargets.notifyAnniversary,
+  notifyBonusCap: notificationTargets.notifyBonusCap,
+  notifyVipExpiring: notificationTargets.notifyVipExpiring,
+  notifyUnsatisfiedLimit: notificationTargets.notifyUnsatisfiedLimit,
+  notifyActiveHnrs: notificationTargets.notifyActiveHnrs,
+  notifyDownloadDisabled: notificationTargets.notifyDownloadDisabled,
+  thresholds: notificationTargets.thresholds,
+  includeTrackerName: notificationTargets.includeTrackerName,
+  scope: notificationTargets.scope,
+  lastDeliveryStatus: notificationTargets.lastDeliveryStatus,
+  lastDeliveryAt: notificationTargets.lastDeliveryAt,
+  lastDeliveryError: notificationTargets.lastDeliveryError,
+  createdAt: notificationTargets.createdAt,
+  updatedAt: notificationTargets.updatedAt,
+}
+
+export function fetchNotificationTargets() {
+  return db.select(notificationTargetColumns).from(notificationTargets)
+}
+
+export type NotificationTargetRow = Awaited<ReturnType<typeof fetchNotificationTargets>>[number]
+
+export function serializeNotificationTarget(row: NotificationTargetRow) {
+  return {
+    id: row.id,
+    name: row.name,
+    type: row.type,
+    enabled: row.enabled,
+    hasConfig: row.hasConfig,
+    notifyRatioDrop: row.notifyRatioDrop,
+    notifyHitAndRun: row.notifyHitAndRun,
+    notifyTrackerDown: row.notifyTrackerDown,
+    notifyBufferMilestone: row.notifyBufferMilestone,
+    notifyWarned: row.notifyWarned,
+    notifyRatioDanger: row.notifyRatioDanger,
+    notifyZeroSeeding: row.notifyZeroSeeding,
+    notifyRankChange: row.notifyRankChange,
+    notifyAnniversary: row.notifyAnniversary,
+    notifyBonusCap: row.notifyBonusCap,
+    notifyVipExpiring: row.notifyVipExpiring,
+    notifyUnsatisfiedLimit: row.notifyUnsatisfiedLimit,
+    notifyActiveHnrs: row.notifyActiveHnrs,
+    notifyDownloadDisabled: row.notifyDownloadDisabled,
+    thresholds: row.thresholds,
+    includeTrackerName: row.includeTrackerName,
+    scope: row.scope,
+    lastDeliveryStatus: row.lastDeliveryStatus,
+    lastDeliveryAt: row.lastDeliveryAt?.toISOString() ?? null,
+    lastDeliveryError: row.lastDeliveryError,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  }
 }
 
 // ---------------------------------------------------------------------------

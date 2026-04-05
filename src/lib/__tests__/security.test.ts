@@ -857,16 +857,28 @@ describe("Token leakage prevention", () => {
   })
 
   it("GET /api/notifications never includes encryptedConfig in responses", async () => {
+    // Mock returns the shape produced by notificationTargetColumns projection.
+    // encryptedConfig is never selected; hasConfig is a SQL boolean computed at query level.
     const target = {
       id: 1,
       name: "My Discord",
       type: "discord",
       enabled: true,
-      encryptedConfig: "SUPER_SECRET_ENCRYPTED_CONFIG_SHOULD_NOT_APPEAR",
+      hasConfig: true,
       notifyRatioDrop: true,
       notifyHitAndRun: false,
       notifyTrackerDown: true,
       notifyBufferMilestone: false,
+      notifyWarned: false,
+      notifyRatioDanger: false,
+      notifyZeroSeeding: false,
+      notifyRankChange: false,
+      notifyAnniversary: false,
+      notifyBonusCap: false,
+      notifyVipExpiring: false,
+      notifyUnsatisfiedLimit: false,
+      notifyActiveHnrs: false,
+      notifyDownloadDisabled: false,
       thresholds: null,
       includeTrackerName: true,
       scope: null,
@@ -885,11 +897,10 @@ describe("Token leakage prevention", () => {
     const body = await res.json()
     const json = JSON.stringify(body)
 
-    expect(json).not.toContain("SUPER_SECRET_ENCRYPTED_CONFIG_SHOULD_NOT_APPEAR")
     expect(json).not.toContain("encryptedConfig")
-    // Confirm the safe fields are present
     expect(body[0]).toHaveProperty("hasConfig", true)
     expect(body[0]).toHaveProperty("name", "My Discord")
+    expect(body[0]).toHaveProperty("notifyDownloadDisabled", false)
   })
 
   it("GET /api/trackers/[id] does not include encryptedApiToken or apiPath in response", async () => {
@@ -957,12 +968,15 @@ describe("Token leakage prevention", () => {
   })
 
   it("GET /api/settings/image-hosts returns booleans, not ciphertext", async () => {
-    // Mock db.select to return settings with encrypted key values present
+    // Mock returns the shape produced by settingsColumns projection.
+    // The encrypted columns are selected under aliased names (hasPtpimgKey etc.)
+    // and coerced to booleans by the serializer. Ciphertext enters server memory
+    // but never reaches the response.
     const mockLimit = vi.fn().mockResolvedValue([
       {
-        encryptedPtpimgApiKey: "ENCRYPTED_PTPIMG_KEY_CIPHERTEXT",
-        encryptedOeimgApiKey: "ENCRYPTED_OEIMG_KEY_CIPHERTEXT",
-        encryptedImgbbApiKey: null,
+        hasPtpimgKey: "ENCRYPTED_PTPIMG_KEY_CIPHERTEXT",
+        hasOeimgKey: "ENCRYPTED_OEIMG_KEY_CIPHERTEXT",
+        hasImgbbKey: null,
       },
     ])
     const mockFrom = vi.fn().mockReturnValue({ limit: mockLimit })

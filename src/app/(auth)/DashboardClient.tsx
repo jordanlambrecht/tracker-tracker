@@ -61,9 +61,7 @@ export function DashboardClient({ initialTrackers, snapshotRetentionDays }: Dash
   const [dashboardTab, setDashboardTab] = useState<"tracker-stats" | "torrent-fleet">(
     "tracker-stats"
   )
-  const [deferredTab, setDeferredTab] = useState<"tracker-stats" | "torrent-fleet">(
-    "tracker-stats"
-  )
+  const [deferredTab, setDeferredTab] = useState<"tracker-stats" | "torrent-fleet">("tracker-stats")
   const [, startTransition] = useTransition()
 
   const aggregateStats = useMemo(() => computeAggregateStats(data.trackers), [data.trackers])
@@ -169,7 +167,7 @@ export function DashboardClient({ initialTrackers, snapshotRetentionDays }: Dash
       <div className="flex flex-col md:flex-row gap-4 md:gap-8">
         <div className="flex-1 min-w-0">
           <div className={deferredTab !== "torrent-fleet" ? "hidden" : undefined}>
-            <FleetDashboard dayRange={data.dayRange} trackers={data.trackers} isActive={deferredTab === "torrent-fleet"} />
+            <FleetDashboard dayRange={data.dayRange} isActive={deferredTab === "torrent-fleet"} />
           </div>
           <div className={deferredTab !== "tracker-stats" ? "hidden" : undefined}>
             <AnalyticsSection trackerSeries={trackerSeries} trackers={data.trackers} />

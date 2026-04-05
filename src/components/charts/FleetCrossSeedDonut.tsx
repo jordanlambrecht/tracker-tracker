@@ -3,7 +3,6 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { parseTorrentTags } from "@/lib/fleet"
 import { formatCount } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
@@ -11,8 +10,9 @@ import { buildDonutShell } from "./lib/chart-helpers"
 import { CHART_THEME, chartDot, chartTooltip, escHtml } from "./lib/theme"
 
 interface FleetCrossSeedDonutProps {
-  torrents: { tags: string }[]
-  crossSeedTags: string[]
+  crossSeeded: number
+  unique: number
+  total: number
   height?: number
 }
 
@@ -106,27 +106,19 @@ function buildFleetCrossSeedOption(
   }
 }
 
-function FleetCrossSeedDonut({ torrents, crossSeedTags, height = 280 }: FleetCrossSeedDonutProps) {
-  if (crossSeedTags.length === 0) {
-    return <ChartEmptyState height={height} message="No cross-seed tags configured" />
-  }
-
-  if (torrents.length === 0) {
+function FleetCrossSeedDonut({
+  crossSeeded,
+  unique,
+  total,
+  height = 280,
+}: FleetCrossSeedDonutProps) {
+  if (total === 0) {
     return <ChartEmptyState height={height} message="No torrent data available" />
   }
 
-  const csTagSet = new Set(crossSeedTags.map((t) => t.toLowerCase()))
-  let crossSeeded = 0
-  for (const torrent of torrents) {
-    if (parseTorrentTags(torrent.tags).some((tag) => csTagSet.has(tag))) {
-      crossSeeded++
-    }
-  }
-  const unique = torrents.length - crossSeeded
-
   return (
     <ChartECharts
-      option={buildFleetCrossSeedOption(crossSeeded, unique, torrents.length)}
+      option={buildFleetCrossSeedOption(crossSeeded, unique, total)}
       style={{ height, width: "100%" }}
     />
   )

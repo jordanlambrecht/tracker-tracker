@@ -8,12 +8,15 @@
 //   clearAllSessions      - Remove all cached SIDs (called on logout)
 //   withSessionRetry      - Run an operation with automatic session retry on expiry
 //   qbtFetch              - Shared fetch + error handler for authenticated qBT requests
-//   parseCachedTorrents   - Safely parse JSONB cachedTorrents column (string or object)
+//   parseCachedTorrents   - Parse cachedTorrents column (string or object)
 //   getTorrents           - Fetch torrent info from qBittorrent (optionally filtered by tag)
 //   getTransferInfo       - Fetch global transfer stats from qBittorrent
 //   syncMaindata          - Fetch delta sync data from qBittorrent (maindata endpoint)
 
+const QBT_REQUEST_TIMEOUT_MS = 15_000
+
 import { sanitizeHost } from "@/lib/helpers"
+import { log } from "@/lib/logger"
 import { clearAllStores, resetStore } from "./sync-store"
 import {
   isQbtMaindataResponse,
@@ -23,10 +26,7 @@ import {
   type QbtTransferInfo,
 } from "./types"
 
-/** Extract a human-readable detail string from a fetch error.
- *  Node's fetch wraps the real error in `cause`, i.e
- *  TypeError("fetch failed") { cause: Error("ECONNREFUSED ...") }
- */
+// Extract detail string from a fetch error.
 function describeFetchError(err: unknown): string {
   const cause =
     err !== null && typeof err === "object" && "cause" in (err as object)
@@ -80,7 +80,7 @@ export async function getSession(
   return { baseUrl, sid }
 }
 
-/** Invalidate a cached SID (i.e after a 403). */
+/** Invalidate a cached SID */
 export function invalidateSession(baseUrl: string): void {
   sidCache.delete(baseUrl)
   resetStore(baseUrl)
@@ -139,7 +139,7 @@ export async function login(
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body,
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(QBT_REQUEST_TIMEOUT_MS),
     })
   } catch (err) {
     const errName =
@@ -147,7 +147,7 @@ export async function login(
         ? String((err as { name: unknown }).name)
         : ""
     if (errName === "TimeoutError" || errName === "AbortError") {
-      throw new Error(`Request to ${host} timed out after 15s`)
+      throw new Error(`Request to ${host} timed out after ${QBT_REQUEST_TIMEOUT_MS / 1000}s`)
     }
     throw new Error(`Failed to connect to ${baseUrl}: ${describeFetchError(err)}`)
   }
@@ -180,7 +180,7 @@ async function qbtFetch(
   try {
     response = await fetch(url, {
       headers: { Cookie: `SID=${sid}` },
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(QBT_REQUEST_TIMEOUT_MS),
     })
   } catch (err) {
     const errName =
@@ -188,7 +188,7 @@ async function qbtFetch(
         ? String((err as { name: unknown }).name)
         : ""
     if (errName === "TimeoutError" || errName === "AbortError") {
-      throw new Error(`Request to ${host} timed out after 15s`)
+      throw new Error(`Request to ${host} timed out after ${QBT_REQUEST_TIMEOUT_MS / 1000}s`)
     }
     throw new Error(`Failed to connect to ${host}: ${describeFetchError(err)}`)
   }
@@ -214,9 +214,13 @@ export function parseCachedTorrents(raw: unknown): QbtTorrent[] {
   if (typeof raw === "string") {
     try {
       const parsed = JSON.parse(raw)
-      if (!Array.isArray(parsed)) return []
+      if (!Array.isArray(parsed)) {
+        log.warn({ type: typeof parsed }, "parseCachedTorrents: parsed JSON is not an array")
+        return []
+      }
       arr = parsed
-    } catch {
+    } catch (err) {
+      log.warn({ err }, "parseCachedTorrents: JSON parse failed")
       return []
     }
   } else if (Array.isArray(raw)) {
@@ -225,7 +229,10 @@ export function parseCachedTorrents(raw: unknown): QbtTorrent[] {
     return []
   }
   if (arr.length === 0) return arr as QbtTorrent[]
-  if (!isQbtTorrent(arr[0])) return []
+  if (!isQbtTorrent(arr[0])) {
+    log.warn({ sample: arr[0] }, "parseCachedTorrents: first element failed isQbtTorrent check")
+    return []
+  }
   return arr as QbtTorrent[]
 }
 

@@ -1,19 +1,18 @@
 // src/components/charts/FleetStorageTreemap.tsx
 //
-// Functions: groupTorrentsForTreemap, buildFleetStorageTreemapOption, FleetStorageTreemap
+// Functions: buildFleetStorageTreemapOption, FleetStorageTreemap
 
 "use client"
 
 import type { EChartsOption } from "echarts"
+import type { TrackerCategoryStorage } from "@/lib/fleet-aggregation"
 import { formatBytesNum } from "@/lib/formatters"
-import type { TorrentInfo } from "@/lib/torrent-utils"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { buildTagColors, CHART_THEME, chartTooltip, escHtml } from "./lib/theme"
 
 interface FleetStorageTreemapProps {
-  torrents: TorrentInfo[]
-  trackerTags: string[]
+  data: TrackerCategoryStorage[]
   height?: number
 }
 
@@ -25,57 +24,30 @@ interface TreemapNode {
   upperLabel?: { show: boolean; color: string }
 }
 
-function groupTorrentsForTreemap(torrents: TorrentInfo[], trackerTags: string[]): TreemapNode[] {
-  const tagSetLower = trackerTags.map((t) => t.toLowerCase())
-
-  const trackerMap = new Map<string, Map<string, number>>()
-
-  for (const torrent of torrents) {
-    const torrentTagList = torrent.tags
-      .split(",")
-      .map((s) => s.trim().toLowerCase())
-      .filter(Boolean)
-
-    const matchedTag = tagSetLower.find((tag) => torrentTagList.includes(tag))
-    const trackerKey = matchedTag ?? "__other__"
-    const categoryKey = torrent.category || "(uncategorized)"
-
-    if (!trackerMap.has(trackerKey)) {
-      trackerMap.set(trackerKey, new Map())
-    }
-    const catMap = trackerMap.get(trackerKey)
-    if (catMap) {
-      catMap.set(categoryKey, (catMap.get(categoryKey) ?? 0) + torrent.size)
-    }
-  }
+function buildTreemapNodes(data: TrackerCategoryStorage[]): TreemapNode[] {
+  const trackerNames = data.map((d) => d.tracker)
+  const colorMap = buildTagColors(trackerNames)
 
   const nodes: TreemapNode[] = []
-  const colorMap = buildTagColors(Array.from(trackerMap.keys()))
+  for (const d of data) {
+    const trackerColor = colorMap.get(d.tracker) ?? CHART_THEME.chartFallback
+    const totalSize = d.categories.reduce((sum, c) => sum + c.totalSize, 0)
+    if (totalSize === 0) continue
 
-  for (const [trackerKey, catMap] of trackerMap.entries()) {
-    const displayName =
-      trackerKey === "__other__"
-        ? "Other"
-        : (trackerTags.find((t) => t.toLowerCase() === trackerKey) ?? trackerKey)
-
-    const trackerColor = colorMap.get(trackerKey) ?? CHART_THEME.chartFallback
-    const totalSize = Array.from(catMap.values()).reduce((a, b) => a + b, 0)
-
-    const children: TreemapNode[] = Array.from(catMap.entries()).map(([category, size]) => ({
-      name: category,
-      value: size,
+    const children: TreemapNode[] = d.categories.map((c) => ({
+      name: c.name,
+      value: c.totalSize,
       itemStyle: { color: trackerColor },
     }))
 
     nodes.push({
-      name: displayName,
+      name: d.tracker,
       value: totalSize,
       children,
       itemStyle: { color: trackerColor },
       upperLabel: { show: true, color: CHART_THEME.textPrimary },
     })
   }
-
   return nodes
 }
 
@@ -173,12 +145,12 @@ function buildFleetStorageTreemapOption(nodes: TreemapNode[]): EChartsOption {
   }
 }
 
-function FleetStorageTreemap({ torrents, trackerTags, height = 400 }: FleetStorageTreemapProps) {
-  if (torrents.length === 0) {
+function FleetStorageTreemap({ data, height = 400 }: FleetStorageTreemapProps) {
+  if (data.length === 0) {
     return <ChartEmptyState height={height} message="No torrent data available" />
   }
 
-  const nodes = groupTorrentsForTreemap(torrents, trackerTags)
+  const nodes = buildTreemapNodes(data)
 
   if (nodes.length === 0) {
     return <ChartEmptyState height={height} message="No storage data to display" />
@@ -193,4 +165,4 @@ function FleetStorageTreemap({ torrents, trackerTags, height = 400 }: FleetStora
 }
 
 export type { FleetStorageTreemapProps }
-export { FleetStorageTreemap, groupTorrentsForTreemap }
+export { FleetStorageTreemap }

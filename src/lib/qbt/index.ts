@@ -24,6 +24,7 @@ export {
   isStoreFresh,
   isStoreInitialized,
   resetStore,
+  STORE_MAX_AGE_MS,
 } from "./sync-store"
 export type {
   ClientStats,

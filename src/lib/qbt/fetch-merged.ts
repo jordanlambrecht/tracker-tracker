@@ -11,6 +11,7 @@ import {
   isStoreFresh,
   parseCrossSeedTags,
   type QbtTorrent,
+  STORE_MAX_AGE_MS,
   stripSensitiveTorrentFields,
   withSessionRetry,
 } from "@/lib/qbt"
@@ -48,7 +49,6 @@ async function fetchClientTorrents(
   // Fast path: store is warm from scheduler, serve from memory.
   // Falls back to live fetch if store is stale (i.e. scheduler missed 2+ cycles).
   // Skip when filter is requested. Active speeds need live qBT data.
-  const STORE_MAX_AGE_MS = 10 * 60 * 1000 // 2× default poll interval
   if (!filter && isStoreFresh(baseUrl, STORE_MAX_AGE_MS)) {
     const tagSet = new Set(tags.map((t) => t.toLowerCase()))
     return getFilteredTorrents(baseUrl, (t) => {

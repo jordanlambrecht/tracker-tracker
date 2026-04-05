@@ -34,6 +34,7 @@ vi.mock("@/lib/qbt", () => ({
     return rest
   }),
   // sync-store re-exports — controlled per-test
+  STORE_MAX_AGE_MS: 10 * 60 * 1000,
   isStoreFresh: vi.fn(() => false),
   getFilteredTorrents: vi.fn(() => []),
 }))

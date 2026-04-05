@@ -3,7 +3,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { H2 } from "@typography"
-import { useCallback, useMemo } from "react"
+import { useCallback } from "react"
 import { CrossSeedNetwork } from "@/components/charts/CrossSeedNetwork"
 import { FleetAgeBandHeatmap } from "@/components/charts/FleetAgeBandHeatmap"
 import { FleetAgeTimeline } from "@/components/charts/FleetAgeTimeline"
@@ -13,7 +13,6 @@ import { FleetCrossSeedDonut } from "@/components/charts/FleetCrossSeedDonut"
 import { FleetSizeJitter } from "@/components/charts/FleetSizeJitter"
 import { FleetSpeedSparklines } from "@/components/charts/FleetSpeedSparklines"
 import { FleetStorageTreemap } from "@/components/charts/FleetStorageTreemap"
-import { CHART_THEME } from "@/components/charts/lib/theme"
 import { SpeedHistoryChart } from "@/components/charts/SpeedHistoryChart"
 import { SpeedThemeRiver } from "@/components/charts/SpeedThemeRiver"
 import { TagCountTrends } from "@/components/charts/TagCountTrends"
@@ -40,8 +39,8 @@ import {
 import { StatCard } from "@/components/ui/StatCard"
 import { ChartGridSkeleton } from "@/components/ui/skeletons"
 import { usePollingIntervals } from "@/hooks/usePollingIntervals"
-import type { FleetSnapshot, TrackerTag } from "@/lib/fleet"
-import { computeFleetStats } from "@/lib/fleet"
+import type { FleetSnapshot } from "@/lib/fleet"
+import type { FleetAggregation } from "@/lib/fleet-aggregation"
 import {
   formatBytesNum,
   formatCount,
@@ -49,23 +48,15 @@ import {
   formatSpeed,
   splitValueUnit,
 } from "@/lib/formatters"
-import type { AggregatedTorrentsResponse } from "@/lib/torrent-utils"
-import { mapTorrent } from "@/lib/torrent-utils"
-import type { TrackerSummary } from "@/types/api"
 
 interface FleetDashboardProps {
   dayRange: number
-  trackers?: TrackerSummary[]
   isActive?: boolean
 }
 
 const allChartIds = FLEET_CHARTS.map((c) => c.id)
 
-export function FleetDashboard({
-  dayRange,
-  trackers: trackersProp,
-  isActive = true,
-}: FleetDashboardProps) {
+export function FleetDashboard({ dayRange, isActive = true }: FleetDashboardProps) {
   const chartPrefs = useFleetChartPreferences()
   const { hydrated: chartPrefsHydrated } = chartPrefs
   const intervals = usePollingIntervals()
@@ -76,25 +67,23 @@ export function FleetDashboard({
     queryKey: ["fleet-snapshots", effectiveDays],
     queryFn: async ({ signal }) => {
       const res = await fetch(`/api/fleet/snapshots?days=${effectiveDays}`, { signal })
-      if (!res.ok) return [] as FleetSnapshot[]
+      if (!res.ok) throw new Error(`Fleet snapshots failed: ${res.status}`)
       return res.json() as Promise<FleetSnapshot[]>
     },
     enabled: isActive,
   })
 
   // Fast: DB-cached torrent aggregation
-  const { data: cachedTorrents, isFetching: fleetFetching } = useQuery({
+  const { data: aggregation, isFetching: fleetFetching } = useQuery({
     queryKey: ["fleet-torrents-cached"],
     queryFn: async ({ signal }) => {
       const res = await fetch("/api/fleet/torrents/cached", { signal })
-      if (!res.ok) return null
-      return res.json() as Promise<AggregatedTorrentsResponse>
+      if (!res.ok) throw new Error(`Fleet data failed: ${res.status}`)
+      return res.json() as Promise<FleetAggregation>
     },
     staleTime: intervals.clientRefetchMs,
     enabled: isActive,
   })
-
-  const torrentData = cachedTorrents ?? null
 
   const queryClient = useQueryClient()
 
@@ -102,59 +91,25 @@ export function FleetDashboard({
     queryClient.invalidateQueries({ queryKey: ["fleet-torrents-cached"] })
   }, [queryClient])
 
-  const torrents = useMemo(
-    () => torrentData?.torrents.map(mapTorrent) ?? [],
-    [torrentData?.torrents]
-  )
-  const crossSeedTags = useMemo(
-    () => torrentData?.crossSeedTags ?? [],
-    [torrentData?.crossSeedTags]
-  )
-  const stats = useMemo(() => computeFleetStats(torrents, crossSeedTags), [torrents, crossSeedTags])
-
   const { data: clientList = [] } = useQuery({
     queryKey: ["clients"],
     queryFn: async ({ signal }) => {
       const res = await fetch("/api/clients", { signal })
-      if (!res.ok) return [] as { id: number; name: string }[]
+      if (!res.ok) throw new Error(`Client list failed: ${res.status}`)
       return res.json() as Promise<{ id: number; name: string }[]>
     },
     // Prevents mount/focus refetch. The sidebar's 10s poll keeps this cache fresh.
-    // structuralSharing (TQ default) prevents re-renders when client data is unchanged.
+    // structuralSharing prevents re-renders when client data is unchanged.
     staleTime: intervals.clientRefetchMs,
   })
 
-  // Trackers: use prop if provided, otherwise fetch
-  const { data: fetchedTrackers } = useQuery({
-    queryKey: ["sidebar-trackers"],
-    queryFn: async ({ signal }) => {
-      const res = await fetch("/api/trackers", { signal })
-      if (!res.ok) return [] as TrackerSummary[]
-      return res.json() as Promise<TrackerSummary[]>
-    },
-    enabled: !trackersProp,
-  })
-
-  const trackerSource = trackersProp ?? fetchedTrackers ?? []
-  const trackerTags: TrackerTag[] = useMemo(
-    () =>
-      trackerSource
-        .filter((t): t is typeof t & { qbtTag: string } => !!t.qbtTag?.trim())
-        .map((t) => ({
-          tag: t.qbtTag.trim(),
-          name: t.name,
-          color: t.color ?? CHART_THEME.accent,
-        })),
-    [trackerSource]
-  )
-
-  const loading = !torrentData && !snapshots.length
+  const loading = !aggregation && !snapshots.length
 
   if (loading) {
     return <ChartGridSkeleton count={4} columns={1} chartHeight="h-[360px]" />
   }
 
-  if (torrents.length === 0 && snapshots.length === 0) {
+  if (aggregation && aggregation.stats.torrentCount === 0 && snapshots.length === 0) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center flex-col gap-2">
         <p className="text-secondary text-sm font-mono">No torrent data available.</p>
@@ -165,9 +120,18 @@ export function FleetDashboard({
     )
   }
 
-  const uploadSpeedParts = splitValueUnit(formatSpeed(stats.fleetUploadSpeed))
-  const downloadSpeedParts = splitValueUnit(formatSpeed(stats.fleetDownloadSpeed))
-  const librarySizeParts = splitValueUnit(formatBytesNum(stats.totalLibrarySize))
+  // aggregation may still be null here if only snapshots are available.
+  // Stat cards and aggregation-based charts guard on aggregation below
+  const uploadSpeedParts = aggregation
+    ? splitValueUnit(formatSpeed(aggregation.stats.fleetUploadSpeed))
+    : null
+  const downloadSpeedParts = aggregation
+    ? splitValueUnit(formatSpeed(aggregation.stats.fleetDownloadSpeed))
+    : null
+  const librarySizeParts = aggregation
+    ? splitValueUnit(formatBytesNum(aggregation.stats.totalLibrarySize))
+    : null
+
   const hiddenCount =
     FLEET_CHARTS.length - FLEET_CHARTS.filter((c) => !chartPrefs.isHidden(c.id)).length
 
@@ -184,38 +148,47 @@ export function FleetDashboard({
       case "speed-history":
         return <SpeedHistoryChart snapshots={snapshots} />
       case "fleet-ratio-distribution":
-        return <TorrentRatioDistribution torrents={torrents} />
+        return aggregation ? (
+          <TorrentRatioDistribution buckets={aggregation.ratioDistribution} />
+        ) : null
       case "fleet-cross-seed-donut":
-        return <FleetCrossSeedDonut torrents={torrents} crossSeedTags={crossSeedTags} />
-      case "cross-seed-network":
-        return (
-          <CrossSeedNetwork
-            torrents={torrents}
-            trackerTags={trackerTags}
-            crossSeedTags={crossSeedTags}
-            height={400}
+        return aggregation ? (
+          <FleetCrossSeedDonut
+            crossSeeded={aggregation.crossSeed.crossSeeded}
+            unique={aggregation.crossSeed.unique}
+            total={aggregation.crossSeed.total}
           />
-        )
+        ) : null
+      case "cross-seed-network":
+        return aggregation ? (
+          <CrossSeedNetwork network={aggregation.crossSeedNetwork} height={400} />
+        ) : null
       case "tracker-health-radar":
-        return <TrackerHealthRadar torrents={torrents} trackerTags={trackerTags} />
+        return aggregation ? <TrackerHealthRadar metrics={aggregation.trackerHealth} /> : null
       case "fleet-activity-heatmap":
-        return <TorrentActivityHeatmap torrents={torrents} />
+        return aggregation ? <TorrentActivityHeatmap grid={aggregation.activityGrid} /> : null
       case "fleet-storage-treemap":
-        return (
-          <FleetStorageTreemap torrents={torrents} trackerTags={trackerTags.map((t) => t.tag)} />
-        )
+        return aggregation ? (
+          <FleetStorageTreemap data={aggregation.storageByTrackerCategory} />
+        ) : null
       case "fleet-seed-time-distribution":
-        return <TorrentSeedTimeDistribution torrents={torrents} />
+        return aggregation ? (
+          <TorrentSeedTimeDistribution buckets={aggregation.seedTimeDistribution} />
+        ) : null
       case "fleet-age-bands":
-        return <FleetAgeBandHeatmap torrents={torrents} trackerTags={trackerTags} />
+        return aggregation ? <FleetAgeBandHeatmap data={aggregation.ageBands} /> : null
       case "fleet-age-timeline":
-        return <FleetAgeTimeline torrents={torrents} trackerTags={trackerTags} />
+        return aggregation ? <FleetAgeTimeline data={aggregation.ageTimeline} /> : null
       case "fleet-category-timeline":
-        return <FleetCategoryTimeline torrents={torrents} />
+        return aggregation ? <FleetCategoryTimeline data={aggregation.categoryTimeline} /> : null
       case "fleet-size-jitter":
-        return <FleetSizeJitter torrents={torrents} trackerTags={trackerTags} height={360} />
+        return aggregation ? (
+          <FleetSizeJitter data={aggregation.sizesByTracker} height={360} />
+        ) : null
       case "fleet-category-breakdown":
-        return <FleetCategoryBreakdown torrents={torrents} trackerTags={trackerTags} height={360} />
+        return aggregation ? (
+          <FleetCategoryBreakdown data={aggregation.categoryBreakdown} height={360} />
+        ) : null
       default:
         return null
     }
@@ -224,41 +197,41 @@ export function FleetDashboard({
   return (
     <div className="flex flex-col gap-6">
       {/* Fleet Stat Cards */}
-      {!chartPrefs.isHidden("fleet-stat-cards") && (
+      {!chartPrefs.isHidden("fleet-stat-cards") && aggregation && (
         <div className="flex flex-col gap-4">
           <H2>Fleet Overview</H2>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
             <StatCard
               label="Seeding"
-              value={formatCount(stats.totalSeeding)}
+              value={formatCount(aggregation.stats.totalSeeding)}
               icon={<SeedingIcon width="16" height="16" />}
             />
             <StatCard
               label="Leeching"
-              value={formatCount(stats.totalLeeching)}
+              value={formatCount(aggregation.stats.totalLeeching)}
               icon={<LeechingIcon width="16" height="16" />}
             />
             <StatCard
               label="Upload"
-              value={uploadSpeedParts.num}
-              unit={uploadSpeedParts.unit}
+              value={uploadSpeedParts?.num ?? "—"}
+              unit={uploadSpeedParts?.unit}
               icon={<UploadArrowIcon width="16" height="16" />}
             />
             <StatCard
               label="Download"
-              value={downloadSpeedParts.num}
-              unit={downloadSpeedParts.unit}
+              value={downloadSpeedParts?.num ?? "—"}
+              unit={downloadSpeedParts?.unit}
               icon={<DownloadArrowIcon width="16" height="16" />}
             />
             <StatCard
               label="Library"
-              value={librarySizeParts.num}
-              unit={librarySizeParts.unit}
+              value={librarySizeParts?.num ?? "—"}
+              unit={librarySizeParts?.unit}
               icon={<BoxIcon width="16" height="16" />}
             />
             <StatCard
               label="Cross-Seed"
-              value={formatPercent(stats.crossSeedPercent)}
+              value={formatPercent(aggregation.stats.crossSeedPercent)}
               icon={<TagIcon width="16" height="16" />}
             />
           </div>

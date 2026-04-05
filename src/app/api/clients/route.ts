@@ -10,57 +10,15 @@ import { downloadClients } from "@/lib/db/schema"
 import { sanitizeHost } from "@/lib/helpers"
 import { log } from "@/lib/logger"
 import { PROXY_HOST_PATTERN } from "@/lib/proxy"
-import { parseCrossSeedTags } from "@/lib/qbt"
+import { fetchClients, serializeClientResponse } from "@/lib/server-data"
 import { VALID_CLIENT_TYPES } from "@/lib/qbt/types"
 
 export async function GET() {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const clients = await db
-    .select({
-      id: downloadClients.id,
-      name: downloadClients.name,
-      type: downloadClients.type,
-      enabled: downloadClients.enabled,
-      host: downloadClients.host,
-      port: downloadClients.port,
-      useSsl: downloadClients.useSsl,
-      encryptedUsername: downloadClients.encryptedUsername,
-      encryptedPassword: downloadClients.encryptedPassword,
-      pollIntervalSeconds: downloadClients.pollIntervalSeconds,
-      isDefault: downloadClients.isDefault,
-      crossSeedTags: downloadClients.crossSeedTags,
-      lastPolledAt: downloadClients.lastPolledAt,
-      lastError: downloadClients.lastError,
-      errorSince: downloadClients.errorSince,
-      createdAt: downloadClients.createdAt,
-      updatedAt: downloadClients.updatedAt,
-    })
-    .from(downloadClients)
-    .orderBy(downloadClients.createdAt)
-
-  // SECURITY: Never return encryptedUsername or encryptedPassword
-  const safe = clients.map((client) => ({
-    id: client.id,
-    name: client.name,
-    type: client.type,
-    enabled: client.enabled,
-    host: client.host,
-    port: client.port,
-    useSsl: client.useSsl,
-    hasCredentials: !!(client.encryptedUsername && client.encryptedPassword),
-    pollIntervalSeconds: client.pollIntervalSeconds,
-    isDefault: client.isDefault,
-    crossSeedTags: parseCrossSeedTags(client.crossSeedTags),
-    lastPolledAt: client.lastPolledAt?.toISOString() ?? null,
-    lastError: client.lastError,
-    errorSince: client.errorSince?.toISOString() ?? null,
-    createdAt: client.createdAt.toISOString(),
-    updatedAt: client.updatedAt.toISOString(),
-  }))
-
-  return NextResponse.json(safe)
+  const clients = await fetchClients()
+  return NextResponse.json(clients.map(serializeClientResponse))
 }
 
 export async function POST(request: Request) {

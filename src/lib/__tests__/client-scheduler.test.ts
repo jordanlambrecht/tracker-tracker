@@ -565,6 +565,52 @@ describe("deepPollClient per-tag optimization", () => {
   })
 
   // -------------------------------------------------------------------------
+  // JSONB write skip when no changes
+  // -------------------------------------------------------------------------
+
+  it("omits cachedTorrents from the DB update when syncMaindata reports no delta", async () => {
+    // syncMaindata returns a response with no full_update, no torrents changes, no removals.
+    // hasChanges should be false, so the update set() must NOT include cachedTorrents.
+    const noDeltaResponse = {
+      rid: 2,
+      full_update: false,
+      torrents: {},
+      torrents_removed: [],
+    }
+
+    mockDbSelectSequence(MOCK_CLIENT)
+    ;(decrypt as ReturnType<typeof vi.fn>)
+      .mockReturnValueOnce("admin")
+      .mockReturnValueOnce("secret")
+    ;(getStoreRevision as ReturnType<typeof vi.fn>).mockReturnValue(1)
+    ;(syncMaindata as ReturnType<typeof vi.fn>).mockResolvedValue(noDeltaResponse)
+    ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
+    ;(getFilteredTorrents as ReturnType<typeof vi.fn>).mockReturnValue([])
+    ;(getTransferInfo as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TRANSFER_INFO)
+    ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
+    mockDbInsertSnapshot()
+
+    // Capture all set() argument objects across update calls
+    const setCaptured: Record<string, unknown>[] = []
+    const mockWhere = vi.fn().mockResolvedValue(undefined)
+    const mockSet = vi.fn().mockImplementation((values: Record<string, unknown>) => {
+      setCaptured.push(values)
+      return { where: mockWhere }
+    })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
+
+    await deepPollClient(1, makeEncryptionKey(), ["aither"])
+
+    // There must be at least one update call (the status update)
+    expect(setCaptured.length).toBeGreaterThan(0)
+
+    // None of the update set() objects may contain cachedTorrents
+    for (const setObj of setCaptured) {
+      expect(Object.keys(setObj)).not.toContain("cachedTorrents")
+    }
+  })
+
+  // -------------------------------------------------------------------------
   // Credential flow
   // -------------------------------------------------------------------------
 
