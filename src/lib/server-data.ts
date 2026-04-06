@@ -2,7 +2,7 @@
 //
 // Functions: fetchSettings, serializeSettingsResponse, getSettingsForClient,
 // getTrackerListForDashboard, getTrackerForClient, getSnapshotsForTracker,
-// getTagGroupsWithMembers, getProxyTrackers, getDatabaseSize,
+// getFleetSnapshots, getTagGroupsWithMembers, getProxyTrackers, getDatabaseSize,
 // getDatabaseSizeBytes, recordDatabaseSize, getDbSizeHistory,
 // fetchClients, serializeClientResponse, fetchNotificationTargets,
 // serializeNotificationTarget
@@ -37,9 +37,9 @@ import {
   trackerSnapshots,
   trackers,
 } from "@/lib/db/schema"
+import { parseQbitmanageTags } from "@/lib/download-clients/qbt/qbitmanage-defaults"
 import { localDateStr } from "@/lib/formatters"
 import { createPrivacyMaskSync } from "@/lib/privacy-db"
-import { parseQbitmanageTags } from "@/lib/qbt/qbitmanage-defaults"
 import { serializeTrackerResponse } from "@/lib/tracker-serializer"
 import type { Snapshot, TagGroup, TagGroupChartType, TrackerSummary } from "@/types/api"
 
@@ -174,19 +174,9 @@ export type ClientRow = Awaited<ReturnType<typeof fetchClients>>[number]
 
 export function serializeClientResponse(row: ClientRow) {
   return {
-    id: row.id,
-    name: row.name,
-    type: row.type,
-    enabled: row.enabled,
-    host: row.host,
-    port: row.port,
-    useSsl: row.useSsl,
-    hasCredentials: row.hasCredentials,
-    pollIntervalSeconds: row.pollIntervalSeconds,
-    isDefault: row.isDefault,
+    ...row,
     crossSeedTags: row.crossSeedTags ?? [],
     lastPolledAt: row.lastPolledAt?.toISOString() ?? null,
-    lastError: row.lastError,
     errorSince: row.errorSince?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -240,31 +230,8 @@ export type NotificationTargetRow = Awaited<ReturnType<typeof fetchNotificationT
 
 export function serializeNotificationTarget(row: NotificationTargetRow) {
   return {
-    id: row.id,
-    name: row.name,
-    type: row.type,
-    enabled: row.enabled,
-    hasConfig: row.hasConfig,
-    notifyRatioDrop: row.notifyRatioDrop,
-    notifyHitAndRun: row.notifyHitAndRun,
-    notifyTrackerDown: row.notifyTrackerDown,
-    notifyBufferMilestone: row.notifyBufferMilestone,
-    notifyWarned: row.notifyWarned,
-    notifyRatioDanger: row.notifyRatioDanger,
-    notifyZeroSeeding: row.notifyZeroSeeding,
-    notifyRankChange: row.notifyRankChange,
-    notifyAnniversary: row.notifyAnniversary,
-    notifyBonusCap: row.notifyBonusCap,
-    notifyVipExpiring: row.notifyVipExpiring,
-    notifyUnsatisfiedLimit: row.notifyUnsatisfiedLimit,
-    notifyActiveHnrs: row.notifyActiveHnrs,
-    notifyDownloadDisabled: row.notifyDownloadDisabled,
-    thresholds: row.thresholds,
-    includeTrackerName: row.includeTrackerName,
-    scope: row.scope,
-    lastDeliveryStatus: row.lastDeliveryStatus,
+    ...row,
     lastDeliveryAt: row.lastDeliveryAt?.toISOString() ?? null,
-    lastDeliveryError: row.lastDeliveryError,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }
@@ -437,7 +404,30 @@ export async function getSnapshotsForTracker(trackerId: number, days: number): P
 
   const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
 
-  return snapshots.map((s) => ({
+  return snapshots.map((s) => serializeSnapshot(s, mask))
+}
+
+function serializeSnapshot(
+  s: {
+    polledAt: Date
+    uploadedBytes: bigint | null
+    downloadedBytes: bigint | null
+    ratio: number | null
+    bufferBytes: bigint | null
+    seedingCount: number | null
+    leechingCount: number | null
+    seedbonus: number | null
+    hitAndRuns: number | null
+    requiredRatio: number | null
+    warned: boolean | null
+    freeleechTokens: number | null
+    shareScore: number | null
+    username: string | null
+    group: string | null
+  },
+  mask: (v: string | null) => string | null
+): Snapshot {
+  return {
     polledAt: s.polledAt.toISOString(),
     uploadedBytes: s.uploadedBytes?.toString() ?? "0",
     downloadedBytes: s.downloadedBytes?.toString() ?? "0",
@@ -453,7 +443,54 @@ export async function getSnapshotsForTracker(trackerId: number, days: number): P
     shareScore: s.shareScore,
     username: mask(s.username),
     group: mask(s.group),
-  }))
+  }
+}
+
+/**
+ * Fetches bucketed snapshots for ALL trackers in a single query.
+ * Same bucketing logic as getSnapshotsForTracker but partitioned by tracker_id.
+ * Eliminates N+1 queries from the dashboard.
+ */
+export type FleetSnapshotMap = Record<string, Snapshot[]>
+
+export async function getFleetSnapshots(days: number): Promise<FleetSnapshotMap> {
+  const safeDays = days === 0 ? 0 : Math.min(Math.max(days, 1), 3650)
+  const bucket = getSnapshotBucket(safeDays)
+
+  const sinceCondition =
+    safeDays > 0
+      ? gte(trackerSnapshots.polledAt, new Date(Date.now() - safeDays * 24 * 60 * 60 * 1000))
+      : undefined
+
+  const columnsWithTracker = { ...snapshotColumns, trackerId: trackerSnapshots.trackerId }
+
+  const [rows, [privacySettings]] = await Promise.all([
+    bucket
+      ? (() => {
+          const bucketExpr = sql`date_trunc(${sql.raw(`'${bucket}'`)}, ${trackerSnapshots.polledAt})`
+          return db
+            .selectDistinctOn([trackerSnapshots.trackerId, bucketExpr], columnsWithTracker)
+            .from(trackerSnapshots)
+            .where(sinceCondition)
+            .orderBy(trackerSnapshots.trackerId, bucketExpr, desc(trackerSnapshots.polledAt))
+        })()
+      : db
+          .select(columnsWithTracker)
+          .from(trackerSnapshots)
+          .where(sinceCondition)
+          .orderBy(trackerSnapshots.trackerId, trackerSnapshots.polledAt),
+    db.select({ storeUsernames: appSettings.storeUsernames }).from(appSettings).limit(1),
+  ])
+
+  const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
+
+  const result: FleetSnapshotMap = {}
+  for (const s of rows) {
+    const key = String(s.trackerId)
+    if (!result[key]) result[key] = []
+    result[key].push(serializeSnapshot(s, mask))
+  }
+  return result
 }
 
 // ---------------------------------------------------------------------------

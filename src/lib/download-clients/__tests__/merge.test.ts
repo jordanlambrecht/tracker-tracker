@@ -1,4 +1,4 @@
-// src/lib/qbt/__tests__/merge.test.ts
+// src/lib/download-clients/__tests__/merge.test.ts
 
 import { describe, expect, it } from "vitest"
 import { aggregateCrossSeedTags, mergeTorrentLists, type RawTorrent } from "../merge"
@@ -10,14 +10,14 @@ import { aggregateCrossSeedTags, mergeTorrentLists, type RawTorrent } from "../m
 function makeTorrent(overrides: Partial<RawTorrent> & { hash: string }): RawTorrent {
   return {
     hash: overrides.hash,
-    upspeed: overrides.upspeed ?? 1000,
-    dlspeed: overrides.dlspeed ?? 500,
-    seeding_time: overrides.seeding_time ?? 3600,
+    uploadSpeed: overrides.uploadSpeed ?? 1000,
+    downloadSpeed: overrides.downloadSpeed ?? 500,
+    seedingTime: overrides.seedingTime ?? 3600,
     progress: overrides.progress ?? 1.0,
-    num_seeds: overrides.num_seeds ?? 10,
-    num_complete: overrides.num_complete ?? 50,
-    num_leechs: overrides.num_leechs ?? 2,
-    num_incomplete: overrides.num_incomplete ?? 5,
+    seedCount: overrides.seedCount ?? 10,
+    swarmSeeders: overrides.swarmSeeders ?? 50,
+    leechCount: overrides.leechCount ?? 2,
+    swarmLeechers: overrides.swarmLeechers ?? 5,
     uploaded: overrides.uploaded ?? 2_000_000,
     downloaded: overrides.downloaded ?? 1_000_000,
     ratio: overrides.ratio ?? 2.0,
@@ -40,25 +40,25 @@ describe("mergeTorrentLists", () => {
     })
 
     it("preserves all field values when no overlap exists", () => {
-      const a = makeTorrent({ hash: "aaa", upspeed: 100, dlspeed: 200 })
-      const b = makeTorrent({ hash: "bbb", upspeed: 300, dlspeed: 400 })
+      const a = makeTorrent({ hash: "aaa", uploadSpeed: 100, downloadSpeed: 200 })
+      const b = makeTorrent({ hash: "bbb", uploadSpeed: 300, downloadSpeed: 400 })
       const result = mergeTorrentLists([[a], [b]])
       const ra = result.find((t) => t.hash === "aaa")
-      expect(ra?.upspeed).toBe(100)
-      expect(ra?.dlspeed).toBe(200)
+      expect(ra?.uploadSpeed).toBe(100)
+      expect(ra?.downloadSpeed).toBe(200)
       const rb = result.find((t) => t.hash === "bbb")
-      expect(rb?.upspeed).toBe(300)
-      expect(rb?.dlspeed).toBe(400)
+      expect(rb?.uploadSpeed).toBe(300)
+      expect(rb?.downloadSpeed).toBe(400)
     })
   })
 
   describe("full overlap (same hash on two clients)", () => {
-    it("sums upspeed and dlspeed", () => {
-      const t1 = makeTorrent({ hash: "hhh", upspeed: 1000, dlspeed: 200 })
-      const t2 = makeTorrent({ hash: "hhh", upspeed: 500, dlspeed: 100 })
+    it("sums uploadSpeed and downloadSpeed", () => {
+      const t1 = makeTorrent({ hash: "hhh", uploadSpeed: 1000, downloadSpeed: 200 })
+      const t2 = makeTorrent({ hash: "hhh", uploadSpeed: 500, downloadSpeed: 100 })
       const [result] = mergeTorrentLists([[t1], [t2]])
-      expect(result.upspeed).toBe(1500)
-      expect(result.dlspeed).toBe(300)
+      expect(result.uploadSpeed).toBe(1500)
+      expect(result.downloadSpeed).toBe(300)
     })
 
     it("sums uploaded and downloaded", () => {
@@ -69,11 +69,11 @@ describe("mergeTorrentLists", () => {
       expect(result.downloaded).toBe(2_000_000)
     })
 
-    it("takes max for seeding_time", () => {
-      const t1 = makeTorrent({ hash: "hhh", seeding_time: 7200 })
-      const t2 = makeTorrent({ hash: "hhh", seeding_time: 3600 })
+    it("takes max for seedingTime", () => {
+      const t1 = makeTorrent({ hash: "hhh", seedingTime: 7200 })
+      const t2 = makeTorrent({ hash: "hhh", seedingTime: 3600 })
       const [result] = mergeTorrentLists([[t1], [t2]])
-      expect(result.seeding_time).toBe(7200)
+      expect(result.seedingTime).toBe(7200)
     })
 
     it("takes max for progress", () => {
@@ -86,23 +86,23 @@ describe("mergeTorrentLists", () => {
     it("takes max for swarm counts", () => {
       const t1 = makeTorrent({
         hash: "hhh",
-        num_seeds: 5,
-        num_complete: 30,
-        num_leechs: 1,
-        num_incomplete: 3,
+        seedCount: 5,
+        swarmSeeders: 30,
+        leechCount: 1,
+        swarmLeechers: 3,
       })
       const t2 = makeTorrent({
         hash: "hhh",
-        num_seeds: 15,
-        num_complete: 20,
-        num_leechs: 4,
-        num_incomplete: 7,
+        seedCount: 15,
+        swarmSeeders: 20,
+        leechCount: 4,
+        swarmLeechers: 7,
       })
       const [result] = mergeTorrentLists([[t1], [t2]])
-      expect(result.num_seeds).toBe(15)
-      expect(result.num_complete).toBe(30)
-      expect(result.num_leechs).toBe(4)
-      expect(result.num_incomplete).toBe(7)
+      expect(result.seedCount).toBe(15)
+      expect(result.swarmSeeders).toBe(30)
+      expect(result.leechCount).toBe(4)
+      expect(result.swarmLeechers).toBe(7)
     })
 
     it("keeps non-numeric fields from the first occurrence", () => {
@@ -162,15 +162,15 @@ describe("mergeTorrentLists", () => {
   describe("single list with no duplicates", () => {
     it("passes through unchanged when given one list with distinct hashes", () => {
       const torrents = [
-        makeTorrent({ hash: "a1", upspeed: 100 }),
-        makeTorrent({ hash: "a2", upspeed: 200 }),
-        makeTorrent({ hash: "a3", upspeed: 300 }),
+        makeTorrent({ hash: "a1", uploadSpeed: 100 }),
+        makeTorrent({ hash: "a2", uploadSpeed: 200 }),
+        makeTorrent({ hash: "a3", uploadSpeed: 300 }),
       ]
       const result = mergeTorrentLists([torrents])
       expect(result).toHaveLength(3)
       for (const t of torrents) {
         const found = result.find((r) => r.hash === t.hash)
-        expect(found?.upspeed).toBe(t.upspeed)
+        expect(found?.uploadSpeed).toBe(t.uploadSpeed)
       }
     })
   })
@@ -198,12 +198,12 @@ describe("mergeTorrentLists", () => {
 
   describe("three-way overlap", () => {
     it("sums speeds across all three clients", () => {
-      const t1 = makeTorrent({ hash: "tri", upspeed: 100, dlspeed: 10 })
-      const t2 = makeTorrent({ hash: "tri", upspeed: 200, dlspeed: 20 })
-      const t3 = makeTorrent({ hash: "tri", upspeed: 300, dlspeed: 30 })
+      const t1 = makeTorrent({ hash: "tri", uploadSpeed: 100, downloadSpeed: 10 })
+      const t2 = makeTorrent({ hash: "tri", uploadSpeed: 200, downloadSpeed: 20 })
+      const t3 = makeTorrent({ hash: "tri", uploadSpeed: 300, downloadSpeed: 30 })
       const [result] = mergeTorrentLists([[t1], [t2], [t3]])
-      expect(result.upspeed).toBe(600)
-      expect(result.dlspeed).toBe(60)
+      expect(result.uploadSpeed).toBe(600)
+      expect(result.downloadSpeed).toBe(60)
     })
 
     it("sums uploaded and downloaded across all three clients", () => {
@@ -215,12 +215,12 @@ describe("mergeTorrentLists", () => {
       expect(result.downloaded).toBe(3_000_000)
     })
 
-    it("takes max seeding_time across all three clients", () => {
-      const t1 = makeTorrent({ hash: "tri", seeding_time: 1000 })
-      const t2 = makeTorrent({ hash: "tri", seeding_time: 9999 })
-      const t3 = makeTorrent({ hash: "tri", seeding_time: 500 })
+    it("takes max seedingTime across all three clients", () => {
+      const t1 = makeTorrent({ hash: "tri", seedingTime: 1000 })
+      const t2 = makeTorrent({ hash: "tri", seedingTime: 9999 })
+      const t3 = makeTorrent({ hash: "tri", seedingTime: 500 })
       const [result] = mergeTorrentLists([[t1], [t2], [t3]])
-      expect(result.seeding_time).toBe(9999)
+      expect(result.seedingTime).toBe(9999)
     })
 
     it("recalculates ratio from three-way summed totals", () => {

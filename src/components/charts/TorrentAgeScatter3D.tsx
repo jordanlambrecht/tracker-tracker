@@ -5,8 +5,8 @@ import ReactECharts from "echarts-for-react"
 import "echarts-gl"
 import { useState } from "react"
 import { FilterPill } from "@/components/ui/FilterPill"
+import type { TorrentRaw } from "@/lib/fleet"
 import { formatRatio } from "@/lib/formatters"
-import type { TorrentInfo } from "@/lib/torrent-utils"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { CHART_THEME } from "./lib/theme"
 
@@ -43,7 +43,7 @@ const SCATTER3D_VIEWS: Record<
 }
 
 interface TorrentAgeScatter3DProps {
-  torrents: TorrentInfo[]
+  torrents: TorrentRaw[]
   accentColor: string
 }
 
@@ -53,9 +53,9 @@ function TorrentAgeScatter3D({ torrents, accentColor }: TorrentAgeScatter3DProps
 
   const now = Date.now() / 1000
   const data = torrents
-    .filter((t) => t.addedOn > 0)
+    .filter((t) => t.addedAt > 0)
     .map((t) => [
-      Math.floor((now - t.addedOn) / 86400), // 0: age
+      Math.floor((now - t.addedAt) / 86400), // 0: age
       Math.floor(t.seedingTime / 86400), // 1: seed time
       +(t.size / 1024 ** 3).toFixed(2), // 2: size
       Math.min(t.ratio, 10), // 3: ratio

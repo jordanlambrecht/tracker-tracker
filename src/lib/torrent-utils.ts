@@ -1,57 +1,20 @@
 // src/lib/torrent-utils.ts
 //
-// Functions: mapTorrent
-// Types: QbtTorrentRaw, TorrentInfo, AggregatedTorrentsResponse, CategoryStats
+// Types: AggregatedTorrentsResponse, CategoryStats
 //
 // Re-exports SEEDING_STATES, LEECHING_STATES from fleet.ts (single source of truth).
-// QbtTorrentRaw is an alias for TorrentRaw from fleet.ts.
 
 import { LEECHING_STATES, parseTorrentTags, SEEDING_STATES, type TorrentRaw } from "@/lib/fleet"
 
 // Re-export constants and utilities from fleet.ts — single source of truth
 export { LEECHING_STATES, parseTorrentTags, SEEDING_STATES }
 
-// QbtTorrentRaw is the same shape as TorrentRaw (fleet.ts) — aliased here
-// for semantic clarity in per-tracker contexts vs fleet-wide contexts.
-export type QbtTorrentRaw = TorrentRaw
-
-// ---------------------------------------------------------------------------
-// Mapped torrent shape (camelCase for component use)
-// ---------------------------------------------------------------------------
-
-export interface TorrentInfo {
-  hash: string
-  name: string
-  state: string
-  tags: string
-  category: string
-  uploaded: number
-  downloaded: number
-  ratio: number
-  size: number
-  seedingTime: number
-  timeActive: number
-  addedOn: number
-  completionOn: number
-  lastActivity: number
-  amountLeft: number
-  numSeeds: number
-  numLeechs: number
-  numComplete: number
-  numIncomplete: number
-  upspeed: number
-  dlspeed: number
-  availability: number
-  progress: number
-  clientName: string
-}
-
 // ---------------------------------------------------------------------------
 // API response shape
 // ---------------------------------------------------------------------------
 
 export interface AggregatedTorrentsResponse {
-  torrents: QbtTorrentRaw[]
+  torrents: TorrentRaw[]
   crossSeedTags: string[]
   clientErrors: string[]
   clientCount: number
@@ -69,37 +32,4 @@ export interface CategoryStats {
   avgRatio: number
   avgSeedTime: number
   avgSwarmSeeds: number
-}
-
-// ---------------------------------------------------------------------------
-// Mappers
-// ---------------------------------------------------------------------------
-
-export function mapTorrent(raw: QbtTorrentRaw): TorrentInfo {
-  return {
-    hash: raw.hash,
-    name: raw.name,
-    state: raw.state,
-    tags: raw.tags,
-    category: raw.category,
-    uploaded: raw.uploaded,
-    downloaded: raw.downloaded,
-    ratio: raw.ratio,
-    size: raw.size,
-    seedingTime: raw.seeding_time,
-    timeActive: raw.time_active,
-    addedOn: raw.added_on,
-    completionOn: raw.completion_on,
-    lastActivity: raw.last_activity,
-    amountLeft: raw.amount_left,
-    numSeeds: raw.num_seeds,
-    numLeechs: raw.num_leechs,
-    numComplete: raw.num_complete,
-    numIncomplete: raw.num_incomplete,
-    upspeed: raw.upspeed,
-    dlspeed: raw.dlspeed,
-    availability: raw.availability,
-    progress: raw.progress,
-    clientName: raw.client_name,
-  }
 }

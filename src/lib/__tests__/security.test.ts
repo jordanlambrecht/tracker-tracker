@@ -137,7 +137,7 @@ vi.mock("@/lib/nuke", () => ({
   scrubAndDeleteAll: vi.fn(),
 }))
 
-vi.mock("@/lib/client-scheduler", () => ({
+vi.mock("@/lib/download-client-scheduler", () => ({
   startClientScheduler: vi.fn(),
   stopClientScheduler: vi.fn(),
 }))

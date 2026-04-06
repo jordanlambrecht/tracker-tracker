@@ -1,7 +1,7 @@
-// src/lib/qbt/__tests__/client-parse.test.ts
+// src/lib/download-clients/__tests__/client-parse.test.ts
 
 import { describe, expect, it, vi } from "vitest"
-import { parseCachedTorrents } from "@/lib/qbt"
+import { parseCachedTorrents } from "../qbt/transport"
 
 // Silence the warn calls that parseCachedTorrents makes on failure paths
 vi.mock("@/lib/logger", () => ({

@@ -1,4 +1,4 @@
-// src/lib/client-scheduler.ts
+// src/lib/download-client-scheduler.ts
 //
 // Two polling loops with different cadences:
 //   heartbeat  — lightweight: login + getTransferInfo (2 requests). Runs every 5s.
@@ -17,7 +17,6 @@
 
 import { eq, isNotNull, lt, sql } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
-import { decryptClientCredentials } from "@/lib/client-decrypt"
 import { db } from "@/lib/db"
 import {
   appSettings,
@@ -27,24 +26,23 @@ import {
   torrentDailyCheckpoints,
   trackers,
 } from "@/lib/db/schema"
-import { sanitizeNetworkError } from "@/lib/error-utils"
-import { parseTorrentTags } from "@/lib/fleet"
-import { localDateStr } from "@/lib/formatters"
-import { log } from "@/lib/logger"
 import {
   aggregateByTag,
   applyMaindataUpdate,
   clearAllSessions,
   clearSpeedCache,
+  createAdapterForClient,
   getFilteredTorrents,
   getStoreRevision,
-  getTransferInfo,
-  parseCrossSeedTags,
   pushSpeedSnapshot,
+  replaceStoreTorrents,
   slimTorrentForCache,
-  syncMaindata,
-  withSessionRetry,
-} from "@/lib/qbt"
+} from "@/lib/download-clients"
+import { sanitizeNetworkError } from "@/lib/error-utils"
+import { parseTorrentTags } from "@/lib/fleet"
+import { localDateStr } from "@/lib/formatters"
+import { SNAPSHOT_RETENTION_DEFAULT } from "@/lib/limits"
+import { log } from "@/lib/logger"
 import { clearUptimeAccumulator, flushCompletedBuckets, recordHeartbeat } from "@/lib/uptime"
 
 /** Needed by heartbeatClient. Excludes large blobs like cachedTorrents */
@@ -52,18 +50,19 @@ export const HEARTBEAT_COLUMNS = {
   id: downloadClients.id,
   enabled: downloadClients.enabled,
   name: downloadClients.name,
+  type: downloadClients.type,
   host: downloadClients.host,
   port: downloadClients.port,
   useSsl: downloadClients.useSsl,
   encryptedUsername: downloadClients.encryptedUsername,
   encryptedPassword: downloadClients.encryptedPassword,
+  crossSeedTags: downloadClients.crossSeedTags,
   lastError: downloadClients.lastError,
 } as const
 
-/** Needed by deepPollClient. Heartbeat fields + poll config + tags */
+/** Needed by deepPollClient. Heartbeat fields + poll config */
 export const DEEP_POLL_COLUMNS = {
   ...HEARTBEAT_COLUMNS,
-  crossSeedTags: downloadClients.crossSeedTags,
   pollIntervalSeconds: downloadClients.pollIntervalSeconds,
   lastPolledAt: downloadClients.lastPolledAt,
 } as const
@@ -100,28 +99,21 @@ async function heartbeatClient(
   client: {
     id: number
     name: string
+    type: string
     host: string
     port: number
     useSsl: boolean
     encryptedUsername: string
     encryptedPassword: string
+    crossSeedTags: string[] | null
     lastError: string | null
   },
   encryptionKey: Buffer
 ): Promise<void> {
   try {
-    const { username, password } = decryptClientCredentials(client, encryptionKey)
-
-    const transfer = await withSessionRetry(
-      client.host,
-      client.port,
-      client.useSsl,
-      username,
-      password,
-      (baseUrl, sid) => getTransferInfo(baseUrl, sid)
-    )
-
-    pushSpeedSnapshot(client.id, transfer.up_info_speed, transfer.dl_info_speed)
+    const adapter = createAdapterForClient(client, encryptionKey)
+    const stats = await adapter.getTransferInfo()
+    pushSpeedSnapshot(client.id, stats)
     recordHeartbeat(client.id, true)
 
     // Only write to DB if recovering from error — skip if already healthy
@@ -177,53 +169,52 @@ export async function deepPollClient(
   if (!client.encryptedUsername || !client.encryptedPassword) return
 
   try {
-    const { username, password } = decryptClientCredentials(client, encryptionKey)
+    const adapter = createAdapterForClient(client, encryptionKey)
 
-    const crossSeedTags = parseCrossSeedTags(client.crossSeedTags)
+    const crossSeedTags = client.crossSeedTags ?? []
     const allTags = [...new Set([...trackerTags, ...crossSeedTags])]
 
-    // Fetch delta from qBT's sync endpoint. First call (rid=0) returns everything;
-    // subsequent calls return only fields that changed since the last rid.
-    const { torrents, transfer, hasChanges } = await withSessionRetry(
-      client.host,
-      client.port,
-      client.useSsl,
-      username,
-      password,
-      async (baseUrl, sid) => {
-        const rid = getStoreRevision(baseUrl)
-        const [data, xfer] = await Promise.all([
-          syncMaindata(baseUrl, sid, rid),
-          getTransferInfo(baseUrl, sid),
-        ])
-        applyMaindataUpdate(baseUrl, data)
+    let hasChanges = false
 
-        const changedCount = Object.keys(data.torrents ?? {}).length
-        const removedCount = data.torrents_removed?.length ?? 0
-        if (data.full_update) {
-          log.info(
-            `[deep-poll] client=${clientId} → rid 0→${data.rid} (full sync, ${changedCount} torrents)`
-          )
-        } else {
-          log.debug(
-            `[deep-poll] client=${clientId} → rid ${rid}→${data.rid} (delta, ${changedCount} changed, ${removedCount} removed)`
-          )
-        }
+    if (adapter.getDeltaSync) {
+      // Delta sync path (qBittorrent). First call (rid=0) returns everything;
+      // subsequent calls return only changed fields.
+      const rid = getStoreRevision(adapter.baseUrl)
+      const data = await adapter.getDeltaSync(rid)
+      applyMaindataUpdate(adapter.baseUrl, data)
 
-        // Post-filter to only torrents carrying at least one app-tracked tag
-        const tagSet = new Set(allTags.map((t) => t.toLowerCase()))
-        const relevant = getFilteredTorrents(baseUrl, (t) => {
-          if (!t.tags) return false
-          return parseTorrentTags(t.tags).some((tag) => tagSet.has(tag))
-        })
-
-        const hasChanges =
-          data.full_update ||
-          (data.torrents != null && Object.keys(data.torrents).length > 0) ||
-          (data.torrents_removed != null && data.torrents_removed.length > 0)
-        return { torrents: relevant, transfer: xfer, hasChanges }
+      const changedCount = Object.keys(data.torrents ?? {}).length
+      const removedCount = data.torrentsRemoved?.length ?? 0
+      if (data.fullUpdate) {
+        log.info(
+          `[deep-poll] client=${clientId} → rid 0→${data.rid} (full sync, ${changedCount} torrents)`
+        )
+      } else {
+        log.debug(
+          `[deep-poll] client=${clientId} → rid ${rid}→${data.rid} (delta, ${changedCount} changed, ${removedCount} removed)`
+        )
       }
-    )
+
+      hasChanges =
+        data.fullUpdate ||
+        (data.torrents != null && Object.keys(data.torrents).length > 0) ||
+        (data.torrentsRemoved != null && data.torrentsRemoved.length > 0)
+    } else {
+      // Full fetch path (rTorrent and other non-delta clients).
+      const allTorrents = await adapter.getTorrents()
+      replaceStoreTorrents(adapter.baseUrl, allTorrents)
+      hasChanges = true
+      log.info(`[deep-poll] client=${clientId} → full fetch, ${allTorrents.length} torrents`)
+    }
+
+    const stats = await adapter.getTransferInfo()
+
+    // Post-filter to only torrents carrying at least one app-tracked tag
+    const tagSet = new Set(allTags.map((t) => t.toLowerCase()))
+    const torrents = getFilteredTorrents(adapter.baseUrl, (t) => {
+      if (!t.tags) return false
+      return parseTorrentTags(t.tags).some((tag) => tagSet.has(tag))
+    })
 
     log.debug(
       `[deep-poll] client=${clientId} → ${torrents.length} relevant torrents (${allTags.length} tags)`
@@ -259,7 +250,7 @@ export async function deepPollClient(
       }
     }
 
-    const stats = aggregateByTag(torrents, trackerTags, crossSeedTags)
+    const tagStatsResult = aggregateByTag(torrents, trackerTags, crossSeedTags)
 
     // Cache the filtered torrent list for fallback when client is offline.
     const sanitizedTorrents = torrents.map(slimTorrentForCache)
@@ -290,11 +281,11 @@ export async function deepPollClient(
       db.insert(clientSnapshots).values({
         clientId,
         polledAt: now,
-        totalSeedingCount: stats.totalSeedingCount,
-        totalLeechingCount: stats.totalLeechingCount,
-        uploadSpeedBytes: BigInt(transfer.up_info_speed),
-        downloadSpeedBytes: BigInt(transfer.dl_info_speed),
-        tagStats: JSON.stringify(stats.tagStats),
+        totalSeedingCount: tagStatsResult.totalSeedingCount,
+        totalLeechingCount: tagStatsResult.totalLeechingCount,
+        uploadSpeedBytes: BigInt(stats.uploadSpeed),
+        downloadSpeedBytes: BigInt(stats.downloadSpeed),
+        tagStats: JSON.stringify(tagStatsResult.tagStats),
       }),
     ])
     if (!hasChanges) {
@@ -389,7 +380,7 @@ export function startClientScheduler(encryptionKey: Buffer): void {
           .select({ retention: appSettings.snapshotRetentionDays })
           .from(appSettings)
           .limit(1)
-        const retentionDays = settings?.retention ?? 90
+        const retentionDays = settings?.retention ?? SNAPSHOT_RETENTION_DEFAULT
         if (retentionDays > 0) {
           const cutoff = new Date(now - retentionDays * 24 * 60 * 60 * 1000)
           await db.delete(clientSnapshots).where(lt(clientSnapshots.polledAt, cutoff))

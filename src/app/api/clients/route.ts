@@ -3,7 +3,14 @@
 // Functions: GET, POST
 
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseJsonBody, validateIntRange, validateMaxLength, validatePort } from "@/lib/api-helpers"
+import {
+  authenticate,
+  decodeKey,
+  parseJsonBody,
+  validateIntRange,
+  validateMaxLength,
+  validatePort,
+} from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { sanitizeHost } from "@/lib/data-transforms"
 import { db } from "@/lib/db"
@@ -129,7 +136,9 @@ export async function POST(request: Request) {
 
   if (
     resolvedTags.length > 0 &&
-    !resolvedTags.every((t: unknown) => typeof t === "string" && t.length > 0 && t.length <= CROSS_SEED_TAG_MAX)
+    !resolvedTags.every(
+      (t: unknown) => typeof t === "string" && t.length > 0 && t.length <= CROSS_SEED_TAG_MAX
+    )
   ) {
     return NextResponse.json(
       { error: "Each cross-seed tag must be a non-empty string of 100 characters or fewer" },

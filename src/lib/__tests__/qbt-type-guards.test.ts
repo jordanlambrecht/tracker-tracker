@@ -1,9 +1,9 @@
 // src/lib/__tests__/qbt-type-guards.test.ts
 
 import { describe, expect, it } from "vitest"
-import { parseCachedTorrents } from "@/lib/qbt/client"
-import type { QbtTorrent } from "@/lib/qbt/types"
-import { isQbtTorrent } from "@/lib/qbt/types"
+import { parseCachedTorrents } from "@/lib/download-clients/qbt/transport"
+import type { QbtTorrent } from "@/lib/download-clients/qbt/types"
+import { isQbtTorrent } from "@/lib/download-clients/qbt/types"
 
 // ─── Minimal valid torrent fixture ───────────────────────────────────────────
 

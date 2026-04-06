@@ -4,16 +4,16 @@
 //
 // Master scheduler orchestrator. Coordinates all three polling subsystems:
 //   tracker-scheduler  — polls tracker APIs for stats
-//   client-scheduler   — polls download clients for torrent data
+//   download-client-scheduler — polls download clients for torrent data
 //   backup-scheduler   — runs automated backups
 
 import { startBackupScheduler, stopBackupScheduler } from "@/lib/backup-scheduler"
+import { ensureIndexes } from "@/lib/db/ensure-indexes"
 import {
   ensureClientSchedulerRunning,
   startClientScheduler,
   stopClientScheduler,
-} from "@/lib/client-scheduler"
-import { ensureIndexes } from "@/lib/db/ensure-indexes"
+} from "@/lib/download-client-scheduler"
 import {
   isTrackerPollingRunning,
   startTrackerPolling,

@@ -30,21 +30,21 @@ function makeTorrent(overrides: Partial<TorrentRaw> & { hash: string }): Torrent
     downloaded: overrides.downloaded ?? 500_000,
     ratio: overrides.ratio ?? 2.0,
     size: overrides.size ?? 5_000_000_000,
-    seeding_time: overrides.seeding_time ?? 86_400,
-    time_active: overrides.time_active ?? 90_000,
-    added_on: overrides.added_on ?? BASE_SEC - 86_400 * 15,
-    completion_on: overrides.completion_on ?? BASE_SEC - 86_400 * 14,
-    last_activity: overrides.last_activity ?? BASE_SEC - 3_600,
-    amount_left: overrides.amount_left ?? 0,
-    num_seeds: overrides.num_seeds ?? 10,
-    num_leechs: overrides.num_leechs ?? 2,
-    num_complete: overrides.num_complete ?? 50,
-    num_incomplete: overrides.num_incomplete ?? 5,
-    upspeed: overrides.upspeed ?? 102_400,
-    dlspeed: overrides.dlspeed ?? 0,
+    seedingTime: overrides.seedingTime ?? 86_400,
+    activeTime: overrides.activeTime ?? 90_000,
+    addedAt: overrides.addedAt ?? BASE_SEC - 86_400 * 15,
+    completedAt: overrides.completedAt ?? BASE_SEC - 86_400 * 14,
+    lastActivityAt: overrides.lastActivityAt ?? BASE_SEC - 3_600,
+    remaining: overrides.remaining ?? 0,
+    seedCount: overrides.seedCount ?? 10,
+    leechCount: overrides.leechCount ?? 2,
+    swarmSeeders: overrides.swarmSeeders ?? 50,
+    swarmLeechers: overrides.swarmLeechers ?? 5,
+    uploadSpeed: overrides.uploadSpeed ?? 102_400,
+    downloadSpeed: overrides.downloadSpeed ?? 0,
     availability: overrides.availability ?? 1.0,
     progress: overrides.progress ?? 1.0,
-    client_name: overrides.client_name ?? "qbt-1",
+    clientName: overrides.clientName ?? "qbt-1",
   }
 }
 
@@ -61,10 +61,10 @@ const T1 = makeTorrent({
   category: "movies",
   ratio: 2.0,
   size: 5_000_000_000,
-  seeding_time: 86_400,
-  upspeed: 102_400,
-  added_on: BASE_SEC - 86_400 * 15,
-  last_activity: BASE_SEC - 3_600, // fresh (1 hour ago)
+  seedingTime: 86_400,
+  uploadSpeed: 102_400,
+  addedAt: BASE_SEC - 86_400 * 15,
+  lastActivityAt: BASE_SEC - 3_600, // fresh (1 hour ago)
 })
 
 // T2: Blutopia, seeding, ratio 0.3 (under 0.5 bucket), tv, 60 days ago, stale
@@ -76,10 +76,10 @@ const T2 = makeTorrent({
   category: "tv",
   ratio: 0.3,
   size: 2_000_000_000,
-  seeding_time: 604_800 * 2, // 14 days
-  upspeed: 50_000,
-  added_on: BASE_SEC - 86_400 * 60,
-  last_activity: BASE_SEC - 86_400 * 35, // stale (>30 days)
+  seedingTime: 604_800 * 2, // 14 days
+  uploadSpeed: 50_000,
+  addedAt: BASE_SEC - 86_400 * 60,
+  lastActivityAt: BASE_SEC - 86_400 * 35, // stale (>30 days)
 })
 
 // T3: Aither, leeching, ratio 0.0
@@ -91,11 +91,11 @@ const T3 = makeTorrent({
   category: "movies",
   ratio: 0.0,
   size: 8_000_000_000,
-  seeding_time: 0,
-  upspeed: 0,
-  dlspeed: 512_000,
-  added_on: BASE_SEC - 86_400 * 5,
-  last_activity: BASE_SEC - 600,
+  seedingTime: 0,
+  uploadSpeed: 0,
+  downloadSpeed: 512_000,
+  addedAt: BASE_SEC - 86_400 * 5,
+  lastActivityAt: BASE_SEC - 600,
 })
 
 // T4: Aither + Blutopia (cross-seeded by name), no cross-seed tag
@@ -107,9 +107,9 @@ const T4_AITHER = makeTorrent({
   category: "movies",
   ratio: 1.5,
   size: 4_000_000_000,
-  upspeed: 20_000,
-  added_on: BASE_SEC - 86_400 * 10,
-  last_activity: BASE_SEC - 7_200,
+  uploadSpeed: 20_000,
+  addedAt: BASE_SEC - 86_400 * 10,
+  lastActivityAt: BASE_SEC - 7_200,
 })
 
 const T4_BLUTOPIA = makeTorrent({
@@ -120,9 +120,9 @@ const T4_BLUTOPIA = makeTorrent({
   category: "movies",
   ratio: 1.8,
   size: 4_000_000_000,
-  upspeed: 30_000,
-  added_on: BASE_SEC - 86_400 * 10,
-  last_activity: BASE_SEC - 7_200,
+  uploadSpeed: 30_000,
+  addedAt: BASE_SEC - 86_400 * 10,
+  lastActivityAt: BASE_SEC - 7_200,
 })
 
 // T5: cross-seed tag present
@@ -134,9 +134,9 @@ const T5 = makeTorrent({
   category: "movies",
   ratio: 5.5,
   size: 5_000_000_000,
-  upspeed: 10_000,
-  added_on: BASE_SEC - 86_400 * 20,
-  last_activity: BASE_SEC - 1_800,
+  uploadSpeed: 10_000,
+  addedAt: BASE_SEC - 86_400 * 20,
+  lastActivityAt: BASE_SEC - 1_800,
 })
 
 const ALL_TORRENTS: TorrentRaw[] = [T1, T2, T3, T4_AITHER, T4_BLUTOPIA, T5]
@@ -217,8 +217,8 @@ describe("computeFleetAggregation", () => {
       expect(total).toBe(5)
     })
 
-    it("buckets seeding torrents by seeding_time", () => {
-      // T1 has seeding_time=86400 (exactly 1d) -> 1-7d bucket (max=604800, not <86400)
+    it("buckets seeding torrents by seedingTime", () => {
+      // T1 has seedingTime=86400 (exactly 1d) -> 1-7d bucket (max=604800, not <86400)
       const result = computeFleetAggregation([T1], TRACKER_TAGS, CROSS_SEED_TAGS)
       const under1d = result.seedTimeDistribution.find((b) => b.label === "<1d")
       const one7d = result.seedTimeDistribution.find((b) => b.label === "1-7d")
@@ -267,9 +267,9 @@ describe("computeFleetAggregation", () => {
       expect(result.activityGrid.data).toHaveLength(168)
     })
 
-    it("populates correct hour/day cell from added_on", () => {
+    it("populates correct hour/day cell from addedAt", () => {
       // Use a known timestamp and derive expected day/hour from local time (same as Date.getDay/getHours)
-      const torrent = makeTorrent({ hash: "grid1", added_on: BASE_SEC })
+      const torrent = makeTorrent({ hash: "grid1", addedAt: BASE_SEC })
       const localDate = new Date(BASE_SEC * 1000)
       const expectedDay = localDate.getDay()
       const expectedHour = localDate.getHours()
@@ -298,8 +298,8 @@ describe("computeFleetAggregation", () => {
 
     it("sums upload and download speeds", () => {
       const result = computeFleetAggregation([T1, T3], TRACKER_TAGS, CROSS_SEED_TAGS)
-      expect(result.stats.fleetUploadSpeed).toBe(T1.upspeed + T3.upspeed)
-      expect(result.stats.fleetDownloadSpeed).toBe(T1.dlspeed + T3.dlspeed)
+      expect(result.stats.fleetUploadSpeed).toBe(T1.uploadSpeed + T3.uploadSpeed)
+      expect(result.stats.fleetDownloadSpeed).toBe(T1.downloadSpeed + T3.downloadSpeed)
     })
 
     it("sums library sizes", () => {
@@ -307,17 +307,17 @@ describe("computeFleetAggregation", () => {
       expect(result.stats.totalLibrarySize).toBe(T1.size + T2.size)
     })
 
-    it("counts stale torrents (last_activity > 30 days ago)", () => {
+    it("counts stale torrents (lastActivityAt > 30 days ago)", () => {
       const nowSec = Math.floor(Date.now() / 1000)
       const recentTorrent = makeTorrent({
         hash: "stale-fresh",
         tags: "aither",
-        last_activity: nowSec - 3_600, // 1 hour ago, not stale
+        lastActivityAt: nowSec - 3_600, // 1 hour ago, not stale
       })
       const staleTorrent = makeTorrent({
         hash: "stale-old",
         tags: "aither",
-        last_activity: nowSec - 86_400 * 35, // 35 days ago, stale
+        lastActivityAt: nowSec - 86_400 * 35, // 35 days ago, stale
       })
       const result = computeFleetAggregation(
         [recentTorrent, staleTorrent],
@@ -348,23 +348,23 @@ describe("computeFleetAggregation", () => {
     it("computes uploadSpeedSum correctly", () => {
       const result = computeFleetAggregation([T1, T4_AITHER], TRACKER_TAGS, CROSS_SEED_TAGS)
       const aither = result.trackerHealth.find((t) => t.name === "Aither")
-      expect(aither?.uploadSpeedSum).toBe(T1.upspeed + T4_AITHER.upspeed)
+      expect(aither?.uploadSpeedSum).toBe(T1.uploadSpeed + T4_AITHER.uploadSpeed)
     })
 
     it("computes freshnessPct for recently active torrents", () => {
-      // T1 last_activity = BASE_SEC - 3600 (1 hour ago = fresh)
-      // T2 last_activity = BASE_SEC - 86400*35 (35 days ago = stale)
-      // Use real now so we need torrents whose last_activity is within 7 days of now
+      // T1 lastActivityAt = BASE_SEC - 3600 (1 hour ago = fresh)
+      // T2 lastActivityAt = BASE_SEC - 86400*35 (35 days ago = stale)
+      // Use real now so we need torrents whose lastActivityAt is within 7 days of now
       const nowSec = Math.floor(Date.now() / 1000)
       const fresh = makeTorrent({
         hash: "fresh1",
         tags: "blutopia",
-        last_activity: nowSec - 3_600, // 1 hour ago
+        lastActivityAt: nowSec - 3_600, // 1 hour ago
       })
       const stale = makeTorrent({
         hash: "stale1",
         tags: "blutopia",
-        last_activity: nowSec - 86_400 * 10, // 10 days ago
+        lastActivityAt: nowSec - 86_400 * 10, // 10 days ago
       })
       const result = computeFleetAggregation([fresh, stale], TRACKER_TAGS, CROSS_SEED_TAGS)
       const blutopia = result.trackerHealth.find((t) => t.name === "Blutopia")
@@ -374,7 +374,7 @@ describe("computeFleetAggregation", () => {
     it("computes avgSeedTimeDays only from seeding torrents", () => {
       const result = computeFleetAggregation([T1], TRACKER_TAGS, CROSS_SEED_TAGS)
       const aither = result.trackerHealth.find((t) => t.name === "Aither")
-      // T1 seeding_time = 86400 / 86400 = 1 day, torrentCount=1
+      // T1 seedingTime = 86400 / 86400 = 1 day, torrentCount=1
       expect(aither?.avgSeedTimeDays).toBeCloseTo(1 / 1, 5)
     })
 
@@ -506,10 +506,8 @@ describe("computeFleetAggregation", () => {
   // 10. Age timeline monthly counts
   describe("ageTimeline", () => {
     it("produces correct monthly counts per tracker", () => {
-      // T1 added_on = BASE_SEC - 86400*15 (June 2024 - 15 days = ~May/June 2024)
-      const t1MonthKey = new Date((BASE_SEC - 86_400 * 15) * 1000)
-        .toISOString()
-        .substring(0, 7)
+      // T1 addedAt = BASE_SEC - 86400*15 (June 2024 - 15 days = ~May/June 2024)
+      const t1MonthKey = new Date((BASE_SEC - 86_400 * 15) * 1000).toISOString().substring(0, 7)
       const result = computeFleetAggregation([T1], TRACKER_TAGS, CROSS_SEED_TAGS)
       const aither = result.ageTimeline.find((t) => t.name === "Aither")
       expect(aither).toBeDefined()
@@ -522,9 +520,9 @@ describe("computeFleetAggregation", () => {
       const early = makeTorrent({
         hash: "early",
         tags: "aither",
-        added_on: BASE_SEC - 86_400 * 120,
+        addedAt: BASE_SEC - 86_400 * 120,
       })
-      const late = makeTorrent({ hash: "late", tags: "aither", added_on: BASE_SEC - 86_400 * 5 })
+      const late = makeTorrent({ hash: "late", tags: "aither", addedAt: BASE_SEC - 86_400 * 5 })
       const result = computeFleetAggregation([late, early], TRACKER_TAGS, CROSS_SEED_TAGS)
       const aither = result.ageTimeline.find((t) => t.name === "Aither")
       const months = aither?.months ?? []
@@ -557,13 +555,13 @@ describe("computeFleetAggregation", () => {
         hash: "ce",
         tags: "aither",
         category: "movies",
-        added_on: BASE_SEC - 86_400 * 120,
+        addedAt: BASE_SEC - 86_400 * 120,
       })
       const late = makeTorrent({
         hash: "cl",
         tags: "aither",
         category: "movies",
-        added_on: BASE_SEC - 86_400 * 5,
+        addedAt: BASE_SEC - 86_400 * 5,
       })
       const result = computeFleetAggregation([late, early], TRACKER_TAGS, CROSS_SEED_TAGS)
       const movies = result.categoryTimeline.find((c) => c.category === "movies")
@@ -649,7 +647,7 @@ describe("computeFleetAggregation", () => {
         tags: "someunknowntracker",
         state: "uploading",
         category: "movies",
-        added_on: BASE_SEC - 86_400 * 3,
+        addedAt: BASE_SEC - 86_400 * 3,
       })
 
       it("is counted in stats.totalSeeding", () => {
@@ -677,7 +675,7 @@ describe("computeFleetAggregation", () => {
         expect(result.ageTimeline).toHaveLength(0)
       })
 
-      it("does appear in activityGrid when it has a valid added_on", () => {
+      it("does appear in activityGrid when it has a valid addedAt", () => {
         const result = computeFleetAggregation([orphan], TRACKER_TAGS, CROSS_SEED_TAGS)
         const totalActivity = result.activityGrid.data.reduce((sum, [, , count]) => sum + count, 0)
         expect(totalActivity).toBe(1)
@@ -694,19 +692,19 @@ describe("computeFleetAggregation", () => {
 
     // Mixed seeding/leeching for seed time and avgSeedTimeDays
     describe("mixed seeding and leeching torrents for the same tracker", () => {
-      // Seeding torrent: state uploading, seeding_time 86400 (1 day)
+      // Seeding torrent: state uploading, seedingTime 86400 (1 day)
       const seedingTorrent = makeTorrent({
         hash: "mix-seed",
         tags: "aither",
         state: "uploading",
-        seeding_time: 86_400,
+        seedingTime: 86_400,
       })
-      // Leeching torrent: state downloading, seeding_time 0 (never seeded)
+      // Leeching torrent: state downloading, seedingTime 0 (never seeded)
       const leechingTorrent = makeTorrent({
         hash: "mix-leech",
         tags: "aither",
         state: "downloading",
-        seeding_time: 0,
+        seedingTime: 0,
       })
 
       it("seedTimeDistribution only counts the seeding torrent", () => {
@@ -719,7 +717,7 @@ describe("computeFleetAggregation", () => {
         expect(total).toBe(1)
       })
 
-      it("trackerHealth.avgSeedTimeDays averages seeding_time across all tracker torrents", () => {
+      it("trackerHealth.avgSeedTimeDays averages seedingTime across all tracker torrents", () => {
         // seedTimeDaysSum = (86400/86400) + (0/86400) = 1.0 + 0 = 1.0
         // torrentCount = 2
         // avgSeedTimeDays = 1.0 / 2 = 0.5

@@ -1,13 +1,13 @@
-// src/lib/qbt/__tests__/fetch-merged.test.ts
+// src/lib/download-clients/__tests__/fetch-merged.test.ts
 //
 // Functions:
-//   makeClient  - Build a minimal ClientRow for tests
-//   makeTorrent - Build a minimal QbtTorrent for tests
+//   makeClient  - Build a minimal DownloadClientRow for tests
+//   makeTorrent - Build a minimal TorrentRecord for tests
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import type { ClientRow } from "../fetch-merged"
-import { fetchAndMergeTorrents } from "../fetch-merged"
-import type { QbtTorrent } from "../types"
+import type { TorrentRecord } from "@/lib/download-clients"
+import { fetchAndMergeTorrents } from "../fetch"
+import type { DownloadClientRow } from "../types"
 
 // ---------------------------------------------------------------------------
 // Module mocks
@@ -15,58 +15,47 @@ import type { QbtTorrent } from "../types"
 
 vi.mock("server-only", () => ({}))
 
-vi.mock("@/lib/qbt", () => ({
+const mockAdapter = {
+  type: "qbittorrent" as const,
+  baseUrl: "http://localhost:8080",
+  testConnection: vi.fn(),
+  getTorrents: vi.fn().mockResolvedValue([]),
+  getTransferInfo: vi.fn().mockResolvedValue({ uploadSpeed: 0, downloadSpeed: 0 }),
+  getDeltaSync: vi.fn(),
+  dispose: vi.fn(),
+}
+
+vi.mock("@/lib/download-clients/factory", () => ({
+  createAdapterForClient: vi.fn(() => mockAdapter),
+}))
+
+vi.mock("../qbt/transport", () => ({
   buildBaseUrl: vi.fn(() => "http://localhost:8080"),
-  getTorrents: vi.fn(),
-  withSessionRetry: vi.fn(
-    async (
-      _h: string,
-      _p: number,
-      _s: boolean,
-      _u: string,
-      _pw: string,
-      op: (baseUrl: string, sid: string) => Promise<unknown>
-    ) => op("http://localhost:8080", "test-sid")
-  ),
+}))
+
+vi.mock("../transforms", () => ({
   parseCrossSeedTags: vi.fn((raw: string[] | null) => raw ?? []),
-  stripSensitiveTorrentFields: vi.fn((t: Record<string, unknown>) => {
-    const { tracker: _t, content_path: _cp, save_path: _sp, ...rest } = t
-    return rest
-  }),
-  // sync-store re-exports — controlled per-test
+}))
+
+vi.mock("../sync-store", () => ({
   STORE_MAX_AGE_MS: 10 * 60 * 1000,
   isStoreFresh: vi.fn(() => false),
   getFilteredTorrents: vi.fn(() => []),
-}))
-
-vi.mock("@/lib/qbt/merge", () => ({
-  mergeTorrentLists: vi.fn(),
-  aggregateCrossSeedTags: vi.fn(() => []),
-}))
-
-vi.mock("@/lib/client-decrypt", () => ({
-  decryptClientCredentials: vi.fn(() => ({ username: "admin", password: "pass" })),
 }))
 
 // ---------------------------------------------------------------------------
 // Re-import mocked modules for assertions
 // ---------------------------------------------------------------------------
 
-import { decryptClientCredentials } from "@/lib/client-decrypt"
-import {
-  buildBaseUrl,
-  getFilteredTorrents,
-  getTorrents,
-  isStoreFresh,
-  withSessionRetry,
-} from "@/lib/qbt"
-import { mergeTorrentLists, type RawTorrent } from "@/lib/qbt/merge"
+import { createAdapterForClient } from "@/lib/download-clients/factory"
+import { buildBaseUrl } from "../qbt/transport"
+import { getFilteredTorrents, isStoreFresh } from "../sync-store"
 
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
 
-function makeClient(overrides: Partial<ClientRow> = {}): ClientRow {
+function makeClient(overrides: Partial<DownloadClientRow> = {}): DownloadClientRow {
   return {
     name: "Home qBT",
     host: "localhost",
@@ -75,39 +64,40 @@ function makeClient(overrides: Partial<ClientRow> = {}): ClientRow {
     encryptedUsername: "enc-admin",
     encryptedPassword: "enc-pass",
     crossSeedTags: null,
+    type: "qbittorrent",
     ...overrides,
   }
 }
 
-function makeTorrent(hash: string, overrides: Partial<QbtTorrent> = {}): QbtTorrent {
+function makeTorrent(hash: string, overrides: Partial<TorrentRecord> = {}): TorrentRecord {
   return {
     hash,
     name: `Torrent ${hash}`,
     state: "stalledUP",
     tags: "aither",
     category: "movies",
-    upspeed: 0,
-    dlspeed: 0,
+    uploadSpeed: 0,
+    downloadSpeed: 0,
     uploaded: 1000,
     downloaded: 500,
     ratio: 2.0,
     size: 1_000_000,
-    num_seeds: 5,
-    num_leechs: 1,
-    num_complete: 10,
-    num_incomplete: 2,
+    seedCount: 5,
+    leechCount: 1,
+    swarmSeeders: 10,
+    swarmLeechers: 2,
     tracker: "https://tracker.example.com/announce",
-    added_on: 1700000000,
-    completion_on: 1700001000,
-    last_activity: 1700002000,
-    seeding_time: 86400,
-    time_active: 86400,
-    seen_complete: 1700001500,
+    addedAt: 1700000000,
+    completedAt: 1700001000,
+    lastActivityAt: 1700002000,
+    seedingTime: 86400,
+    activeTime: 86400,
+    lastSeenComplete: 1700001500,
     availability: 1.0,
-    amount_left: 0,
+    remaining: 0,
     progress: 1.0,
-    content_path: "/data/movies/torrent",
-    save_path: "/data/movies",
+    contentPath: "/data/movies/torrent",
+    savePath: "/data/movies",
     ...overrides,
   }
 }
@@ -127,12 +117,9 @@ describe("fetchAndMergeTorrents — early-exit cases", () => {
     vi.mocked(buildBaseUrl).mockReturnValue("http://localhost:8080")
     vi.mocked(isStoreFresh).mockReturnValue(false)
     vi.mocked(getFilteredTorrents).mockReturnValue([])
-    vi.mocked(mergeTorrentLists).mockImplementation((lists: RawTorrent[][]) => lists.flat())
-    vi.mocked(decryptClientCredentials).mockReturnValue({ username: "admin", password: "pass" })
-    vi.mocked(withSessionRetry).mockImplementation(async (_h, _p, _s, _u, _pw, op) =>
-      op("http://localhost:8080", "test-sid")
-    )
-    vi.mocked(getTorrents).mockResolvedValue([])
+
+    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
+    mockAdapter.getTorrents.mockResolvedValue([])
   })
 
   it("returns empty result when no clients are provided", async () => {
@@ -140,7 +127,7 @@ describe("fetchAndMergeTorrents — early-exit cases", () => {
     expect(result.torrents).toEqual([])
     expect(result.clientErrors).toEqual([])
     expect(result.clientCount).toBe(0)
-    expect(withSessionRetry).not.toHaveBeenCalled()
+    expect(createAdapterForClient).not.toHaveBeenCalled()
   })
 
   it("returns empty result when no tags are provided", async () => {
@@ -148,7 +135,7 @@ describe("fetchAndMergeTorrents — early-exit cases", () => {
     expect(result.torrents).toEqual([])
     expect(result.clientErrors).toEqual([])
     expect(result.clientCount).toBe(0)
-    expect(withSessionRetry).not.toHaveBeenCalled()
+    expect(createAdapterForClient).not.toHaveBeenCalled()
   })
 })
 
@@ -156,21 +143,18 @@ describe("fetchAndMergeTorrents — fast path (store is fresh, no filter)", () =
   beforeEach(() => {
     vi.resetAllMocks()
     vi.mocked(buildBaseUrl).mockReturnValue("http://localhost:8080")
-    vi.mocked(mergeTorrentLists).mockImplementation((lists: RawTorrent[][]) => lists.flat())
-    vi.mocked(decryptClientCredentials).mockReturnValue({ username: "admin", password: "pass" })
-    vi.mocked(withSessionRetry).mockImplementation(async (_h, _p, _s, _u, _pw, op) =>
-      op("http://localhost:8080", "test-sid")
-    )
-    vi.mocked(getTorrents).mockResolvedValue([])
+
+    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
+    mockAdapter.getTorrents.mockResolvedValue([])
   })
 
-  it("does NOT call withSessionRetry when store is fresh and no filter is provided", async () => {
+  it("does NOT call createAdapterForClient when store is fresh and no filter is provided", async () => {
     vi.mocked(isStoreFresh).mockReturnValue(true)
     vi.mocked(getFilteredTorrents).mockReturnValue([])
 
     await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey())
 
-    expect(withSessionRetry).not.toHaveBeenCalled()
+    expect(createAdapterForClient).not.toHaveBeenCalled()
   })
 
   it("serves torrents from the store when fast path is taken", async () => {
@@ -180,12 +164,12 @@ describe("fetchAndMergeTorrents — fast path (store is fresh, no filter)", () =
     ]
     vi.mocked(isStoreFresh).mockReturnValue(true)
     vi.mocked(getFilteredTorrents).mockImplementation(
-      (_url: string, pred: (t: QbtTorrent) => boolean) => storedTorrents.filter(pred)
+      (_url: string, pred: (t: TorrentRecord) => boolean) => storedTorrents.filter(pred)
     )
 
     const result = await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey())
 
-    expect(withSessionRetry).not.toHaveBeenCalled()
+    expect(createAdapterForClient).not.toHaveBeenCalled()
     expect(result.torrents).toHaveLength(2)
     const hashes = result.torrents.map((t) => t.hash)
     expect(hashes).toContain("abc1")
@@ -215,7 +199,7 @@ describe("fetchAndMergeTorrents — fast path (store is fresh, no filter)", () =
     const stampTorrents = [makeTorrent("h1", { tags: "aither" })]
     vi.mocked(isStoreFresh).mockReturnValue(true)
     vi.mocked(getFilteredTorrents).mockImplementation(
-      (_url: string, pred: (t: QbtTorrent) => boolean) => stampTorrents.filter(pred)
+      (_url: string, pred: (t: TorrentRecord) => boolean) => stampTorrents.filter(pred)
     )
 
     const result = await fetchAndMergeTorrents(
@@ -224,7 +208,7 @@ describe("fetchAndMergeTorrents — fast path (store is fresh, no filter)", () =
       makeKey()
     )
 
-    expect(result.torrents[0].client_name).toBe("My Client")
+    expect(result.torrents[0].clientName).toBe("My Client")
   })
 
   it("reports correct clientCount", async () => {
@@ -246,12 +230,9 @@ describe("fetchAndMergeTorrents — fast path tag filtering", () => {
     vi.resetAllMocks()
     vi.mocked(buildBaseUrl).mockReturnValue("http://localhost:8080")
     vi.mocked(isStoreFresh).mockReturnValue(true)
-    vi.mocked(mergeTorrentLists).mockImplementation((lists: RawTorrent[][]) => lists.flat())
-    vi.mocked(decryptClientCredentials).mockReturnValue({ username: "admin", password: "pass" })
-    vi.mocked(withSessionRetry).mockImplementation(async (_h, _p, _s, _u, _pw, op) =>
-      op("http://localhost:8080", "test-sid")
-    )
-    vi.mocked(getTorrents).mockResolvedValue([])
+
+    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
+    mockAdapter.getTorrents.mockResolvedValue([])
   })
 
   it("only returns torrents whose tags match the requested tags", async () => {
@@ -261,12 +242,12 @@ describe("fetchAndMergeTorrents — fast path tag filtering", () => {
       makeTorrent("no-match", { tags: "untracked-tag" }),
     ]
     vi.mocked(getFilteredTorrents).mockImplementation(
-      (_url: string, pred: (t: QbtTorrent) => boolean) => stored.filter(pred)
+      (_url: string, pred: (t: TorrentRecord) => boolean) => stored.filter(pred)
     )
 
     const result = await fetchAndMergeTorrents([makeClient()], ["aither", "blutopia"], makeKey())
 
-    expect(withSessionRetry).not.toHaveBeenCalled()
+    expect(createAdapterForClient).not.toHaveBeenCalled()
     expect(result.torrents).toHaveLength(2)
     const hashes = result.torrents.map((t) => t.hash)
     expect(hashes).toContain("match1")
@@ -277,7 +258,7 @@ describe("fetchAndMergeTorrents — fast path tag filtering", () => {
   it("excludes torrents that have no tags", async () => {
     const stored = [makeTorrent("has-tag", { tags: "aither" }), makeTorrent("no-tag", { tags: "" })]
     vi.mocked(getFilteredTorrents).mockImplementation(
-      (_url: string, pred: (t: QbtTorrent) => boolean) => stored.filter(pred)
+      (_url: string, pred: (t: TorrentRecord) => boolean) => stored.filter(pred)
     )
 
     const result = await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey())
@@ -289,13 +270,13 @@ describe("fetchAndMergeTorrents — fast path tag filtering", () => {
   it("tag matching is case-insensitive", async () => {
     const stored = [makeTorrent("h1", { tags: "Aither" }), makeTorrent("h2", { tags: "BLUTOPIA" })]
     vi.mocked(getFilteredTorrents).mockImplementation(
-      (_url: string, pred: (t: QbtTorrent) => boolean) => stored.filter(pred)
+      (_url: string, pred: (t: TorrentRecord) => boolean) => stored.filter(pred)
     )
 
     // Tags requested in lowercase — stored tags have mixed case
     const result = await fetchAndMergeTorrents([makeClient()], ["aither", "blutopia"], makeKey())
 
-    expect(withSessionRetry).not.toHaveBeenCalled()
+    expect(createAdapterForClient).not.toHaveBeenCalled()
     expect(result.torrents).toHaveLength(2)
   })
 
@@ -306,7 +287,7 @@ describe("fetchAndMergeTorrents — fast path tag filtering", () => {
       makeTorrent("both", { tags: "aither, blutopia" }),
     ]
     vi.mocked(getFilteredTorrents).mockImplementation(
-      (_url: string, pred: (t: QbtTorrent) => boolean) => stored.filter(pred)
+      (_url: string, pred: (t: TorrentRecord) => boolean) => stored.filter(pred)
     )
 
     const result = await fetchAndMergeTorrents([makeClient()], ["aither", "blutopia"], makeKey())
@@ -317,7 +298,7 @@ describe("fetchAndMergeTorrents — fast path tag filtering", () => {
   it("returns no torrents when none match the tags", async () => {
     const stored = [makeTorrent("h1", { tags: "some-other-tag" })]
     vi.mocked(getFilteredTorrents).mockImplementation(
-      (_url: string, pred: (t: QbtTorrent) => boolean) => stored.filter(pred)
+      (_url: string, pred: (t: TorrentRecord) => boolean) => stored.filter(pred)
     )
 
     const result = await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey())
@@ -333,21 +314,18 @@ describe("fetchAndMergeTorrents — fast path skipped when filter is present", (
     vi.mocked(isStoreFresh).mockReturnValue(true)
     const filterBeforeEachData = [makeTorrent("h1", { tags: "aither" })]
     vi.mocked(getFilteredTorrents).mockImplementation(
-      (_url: string, pred: (t: QbtTorrent) => boolean) => filterBeforeEachData.filter(pred)
+      (_url: string, pred: (t: TorrentRecord) => boolean) => filterBeforeEachData.filter(pred)
     )
-    vi.mocked(mergeTorrentLists).mockImplementation((lists: RawTorrent[][]) => lists.flat())
-    vi.mocked(decryptClientCredentials).mockReturnValue({ username: "admin", password: "pass" })
-    vi.mocked(withSessionRetry).mockImplementation(async (_h, _p, _s, _u, _pw, op) =>
-      op("http://localhost:8080", "test-sid")
-    )
-    vi.mocked(getTorrents).mockResolvedValue([])
+
+    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
+    mockAdapter.getTorrents.mockResolvedValue([])
   })
 
-  it("calls withSessionRetry instead of reading the store when filter is provided", async () => {
+  it("calls createAdapterForClient instead of reading the store when filter is provided", async () => {
     // Store is fresh but filter is present — must fall back to live fetch
     await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey(), "active")
 
-    expect(withSessionRetry).toHaveBeenCalledOnce()
+    expect(createAdapterForClient).toHaveBeenCalled()
   })
 
   it("does NOT read from getFilteredTorrents when filter bypasses the fast path", async () => {
@@ -358,16 +336,11 @@ describe("fetchAndMergeTorrents — fast path skipped when filter is present", (
   })
 
   it("passes the filter to getTorrents on the cold path for single-tag requests", async () => {
-    vi.mocked(getTorrents).mockResolvedValue([])
+    mockAdapter.getTorrents.mockResolvedValue([])
 
     await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey(), "active")
 
-    expect(getTorrents).toHaveBeenCalledWith(
-      "http://localhost:8080",
-      "test-sid",
-      "aither",
-      "active"
-    )
+    expect(mockAdapter.getTorrents).toHaveBeenCalledWith({ tag: "aither", filter: "active" })
   })
 })
 
@@ -375,20 +348,17 @@ describe("fetchAndMergeTorrents — fast path skipped when store is stale", () =
   beforeEach(() => {
     vi.resetAllMocks()
     vi.mocked(buildBaseUrl).mockReturnValue("http://localhost:8080")
-    vi.mocked(mergeTorrentLists).mockImplementation((lists: RawTorrent[][]) => lists.flat())
-    vi.mocked(decryptClientCredentials).mockReturnValue({ username: "admin", password: "pass" })
-    vi.mocked(withSessionRetry).mockImplementation(async (_h, _p, _s, _u, _pw, op) =>
-      op("http://localhost:8080", "test-sid")
-    )
-    vi.mocked(getTorrents).mockResolvedValue([])
+
+    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
+    mockAdapter.getTorrents.mockResolvedValue([])
   })
 
-  it("calls withSessionRetry when the store is stale (isStoreFresh returns false)", async () => {
+  it("calls createAdapterForClient when the store is stale (isStoreFresh returns false)", async () => {
     vi.mocked(isStoreFresh).mockReturnValue(false)
 
     await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey())
 
-    expect(withSessionRetry).toHaveBeenCalledOnce()
+    expect(createAdapterForClient).toHaveBeenCalled()
   })
 
   it("does NOT call getFilteredTorrents when store is stale", async () => {
@@ -401,30 +371,25 @@ describe("fetchAndMergeTorrents — fast path skipped when store is stale", () =
 
   it("falls back to per-tag live fetch for a single tag", async () => {
     vi.mocked(isStoreFresh).mockReturnValue(false)
-    vi.mocked(getTorrents).mockResolvedValue([makeTorrent("live1", { tags: "aither" })])
+    mockAdapter.getTorrents.mockResolvedValue([makeTorrent("live1", { tags: "aither" })])
 
     const result = await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey())
 
-    expect(getTorrents).toHaveBeenCalledWith(
-      "http://localhost:8080",
-      "test-sid",
-      "aither",
-      undefined
-    )
+    expect(mockAdapter.getTorrents).toHaveBeenCalledWith({ tag: "aither" })
     expect(result.torrents).toHaveLength(1)
     expect(result.torrents[0].hash).toBe("live1")
   })
 
   it("falls back to parallel per-tag live fetch for multiple tags", async () => {
     vi.mocked(isStoreFresh).mockReturnValue(false)
-    vi.mocked(getTorrents)
+    mockAdapter.getTorrents
       .mockResolvedValueOnce([makeTorrent("a1", { tags: "aither" })])
       .mockResolvedValueOnce([makeTorrent("b1", { tags: "blutopia" })])
 
     const result = await fetchAndMergeTorrents([makeClient()], ["aither", "blutopia"], makeKey())
 
     // Two tags → two getTorrents calls (no filter passed)
-    expect(getTorrents).toHaveBeenCalledTimes(2)
+    expect(mockAdapter.getTorrents).toHaveBeenCalledTimes(2)
     expect(result.torrents).toHaveLength(2)
   })
 })
@@ -433,21 +398,18 @@ describe("fetchAndMergeTorrents — fast path skipped when store is uninitialize
   beforeEach(() => {
     vi.resetAllMocks()
     vi.mocked(buildBaseUrl).mockReturnValue("http://localhost:8080")
-    vi.mocked(mergeTorrentLists).mockImplementation((lists: RawTorrent[][]) => lists.flat())
-    vi.mocked(decryptClientCredentials).mockReturnValue({ username: "admin", password: "pass" })
-    vi.mocked(withSessionRetry).mockImplementation(async (_h, _p, _s, _u, _pw, op) =>
-      op("http://localhost:8080", "test-sid")
-    )
-    vi.mocked(getTorrents).mockResolvedValue([])
+
+    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
+    mockAdapter.getTorrents.mockResolvedValue([])
   })
 
-  it("calls withSessionRetry when store has never been initialized (isStoreFresh returns false)", async () => {
+  it("calls createAdapterForClient when store has never been initialized (isStoreFresh returns false)", async () => {
     // isStoreFresh returns false for both stale AND uninitialized stores
     vi.mocked(isStoreFresh).mockReturnValue(false)
 
     await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey())
 
-    expect(withSessionRetry).toHaveBeenCalledOnce()
+    expect(createAdapterForClient).toHaveBeenCalled()
     expect(getFilteredTorrents).not.toHaveBeenCalled()
   })
 })
@@ -458,13 +420,13 @@ describe("fetchAndMergeTorrents — error handling", () => {
     vi.mocked(buildBaseUrl).mockReturnValue("http://localhost:8080")
     vi.mocked(isStoreFresh).mockReturnValue(false)
     vi.mocked(getFilteredTorrents).mockReturnValue([])
-    vi.mocked(mergeTorrentLists).mockImplementation((lists: RawTorrent[][]) => lists.flat())
-    vi.mocked(decryptClientCredentials).mockReturnValue({ username: "admin", password: "pass" })
-    vi.mocked(getTorrents).mockResolvedValue([])
+
+    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
+    mockAdapter.getTorrents.mockResolvedValue([])
   })
 
-  it("records a client error and does not throw when withSessionRetry rejects", async () => {
-    vi.mocked(withSessionRetry).mockRejectedValue(new Error("connect ECONNREFUSED"))
+  it("records a client error and does not throw when getTorrents rejects", async () => {
+    mockAdapter.getTorrents.mockRejectedValue(new Error("connect ECONNREFUSED"))
 
     const result = await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey())
 
@@ -474,12 +436,11 @@ describe("fetchAndMergeTorrents — error handling", () => {
 
   it("records errors per failing client while succeeding clients still contribute", async () => {
     const goodTorrent = makeTorrent("good", { tags: "aither" })
-    vi.mocked(withSessionRetry)
+
+    // First call (Bad Client) fails, second call (Good Client) succeeds
+    mockAdapter.getTorrents
       .mockRejectedValueOnce(new Error("refused"))
-      .mockImplementationOnce(async (_h, _p, _s, _u, _pw, op) =>
-        op("http://localhost:8080", "test-sid")
-      )
-    vi.mocked(getTorrents).mockResolvedValue([goodTorrent])
+      .mockResolvedValueOnce([goodTorrent])
 
     const failClient = makeClient({ name: "Bad Client" })
     const goodClient = makeClient({ name: "Good Client" })
@@ -492,7 +453,7 @@ describe("fetchAndMergeTorrents — error handling", () => {
   })
 
   it("sets sessionExpired when all clients fail with decryption errors", async () => {
-    vi.mocked(decryptClientCredentials).mockImplementation(() => {
+    vi.mocked(createAdapterForClient).mockImplementation(() => {
       throw new Error("decrypt credentials failed for client")
     })
 
@@ -503,15 +464,13 @@ describe("fetchAndMergeTorrents — error handling", () => {
   })
 
   it("does not set sessionExpired when only some clients have decryption failures", async () => {
-    vi.mocked(decryptClientCredentials)
+    vi.mocked(createAdapterForClient)
       .mockImplementationOnce(() => {
         throw new Error("decrypt credentials failed for client")
       })
-      .mockReturnValueOnce({ username: "admin", password: "pass" })
-    vi.mocked(withSessionRetry).mockImplementationOnce(async (_h, _p, _s, _u, _pw, op) =>
-      op("http://localhost:8080", "test-sid")
-    )
-    vi.mocked(getTorrents).mockResolvedValue([])
+      .mockReturnValueOnce(mockAdapter)
+
+    mockAdapter.getTorrents.mockResolvedValue([])
 
     const result = await fetchAndMergeTorrents(
       [makeClient({ name: "Failing" }), makeClient({ name: "Working" })],
@@ -528,33 +487,30 @@ describe("fetchAndMergeTorrents — sensitive field stripping", () => {
     vi.resetAllMocks()
     vi.mocked(buildBaseUrl).mockReturnValue("http://localhost:8080")
     vi.mocked(isStoreFresh).mockReturnValue(true)
-    vi.mocked(mergeTorrentLists).mockImplementation((lists: RawTorrent[][]) => lists.flat())
-    vi.mocked(decryptClientCredentials).mockReturnValue({ username: "admin", password: "pass" })
-    vi.mocked(withSessionRetry).mockImplementation(async (_h, _p, _s, _u, _pw, op) =>
-      op("http://localhost:8080", "test-sid")
-    )
-    vi.mocked(getTorrents).mockResolvedValue([])
+
+    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
+    mockAdapter.getTorrents.mockResolvedValue([])
   })
 
-  it("strips tracker, content_path, and save_path from fast-path results", async () => {
+  it("strips tracker, contentPath, and savePath from fast-path results", async () => {
     const stripTorrents = [
       makeTorrent("h1", {
         tags: "aither",
         tracker: "https://aither.cc/announce?passkey=SECRET",
-        content_path: "/data/Secret.mkv",
-        save_path: "/data",
+        contentPath: "/data/Secret.mkv",
+        savePath: "/data",
       }),
     ]
     vi.mocked(getFilteredTorrents).mockImplementation(
-      (_url: string, pred: (t: QbtTorrent) => boolean) => stripTorrents.filter(pred)
+      (_url: string, pred: (t: TorrentRecord) => boolean) => stripTorrents.filter(pred)
     )
 
     const result = await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey())
 
     expect(result.torrents).toHaveLength(1)
     expect(result.torrents[0]).not.toHaveProperty("tracker")
-    expect(result.torrents[0]).not.toHaveProperty("content_path")
-    expect(result.torrents[0]).not.toHaveProperty("save_path")
+    expect(result.torrents[0]).not.toHaveProperty("contentPath")
+    expect(result.torrents[0]).not.toHaveProperty("savePath")
     expect(result.torrents[0]).toHaveProperty("hash", "h1")
   })
 })

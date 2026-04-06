@@ -2,7 +2,7 @@
 
 import { NextResponse } from "next/server"
 import { authenticate, parseRouteId, type RouteContext } from "@/lib/api-helpers"
-import { getSpeedSnapshots } from "@/lib/qbt"
+import { getSpeedSnapshots } from "@/lib/download-clients"
 
 export async function GET(_request: Request, props: RouteContext) {
   const auth = await authenticate()

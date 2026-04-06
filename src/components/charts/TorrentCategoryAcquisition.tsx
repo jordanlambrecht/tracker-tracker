@@ -3,20 +3,20 @@
 
 import type { EChartsOption } from "echarts"
 import { generatePalette } from "@/lib/color-utils"
+import type { TorrentRaw } from "@/lib/fleet"
 import { localDateStr } from "@/lib/formatters"
-import type { TorrentInfo } from "@/lib/torrent-utils"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { buildTimeXAxis } from "./lib/chart-helpers"
 import { CHART_THEME, chartGrid, chartTooltip } from "./lib/theme"
 
 interface TorrentCategoryAcquisitionProps {
-  torrents: TorrentInfo[]
+  torrents: TorrentRaw[]
   accentColor: string
 }
 
 function TorrentCategoryAcquisition({ torrents, accentColor }: TorrentCategoryAcquisitionProps) {
-  const withDates = torrents.filter((t) => t.addedOn > 0)
+  const withDates = torrents.filter((t) => t.addedAt > 0)
   if (withDates.length < 2) {
     return <ChartEmptyState height={280} message="Need 2+ torrents with dates" />
   }
@@ -26,7 +26,7 @@ function TorrentCategoryAcquisition({ torrents, accentColor }: TorrentCategoryAc
   const allCategories = new Set<string>()
 
   for (const t of withDates) {
-    const month = localDateStr(new Date(t.addedOn * 1000)).slice(0, 7) // YYYY-MM
+    const month = localDateStr(new Date(t.addedAt * 1000)).slice(0, 7) // YYYY-MM
     const cat = t.category || "Uncategorized"
     allCategories.add(cat)
     if (!monthCatMap.has(month)) monthCatMap.set(month, new Map())

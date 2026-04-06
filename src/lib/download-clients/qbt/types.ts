@@ -1,4 +1,4 @@
-// src/lib/qbt/types.ts
+// src/lib/download-clients/qbt/types.ts
 
 // From GET /api/v2/torrents/info
 export interface QbtTorrent {
@@ -57,7 +57,9 @@ export interface ClientStats {
   tagStats: TagStats[]
 }
 
-export const VALID_CLIENT_TYPES = ["qbittorrent"] as const
+// Re-exported from client-adapters/types.ts (the single source of truth).
+// Kept here for backwards compatibility with existing consumers.
+export { VALID_CLIENT_TYPES } from "../types"
 
 // Spot-checks a single value for the QbtTorrent shape (key fields only).
 // Used to validate the first element of a JSONB array before trusting the rest.

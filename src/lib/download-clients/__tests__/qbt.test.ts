@@ -1,9 +1,9 @@
-// src/lib/qbt/qbt.test.ts
+// src/lib/download-clients/__tests__/qbt.test.ts
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { aggregateByTag } from "./aggregator"
-import { buildBaseUrl, getTorrents, getTransferInfo, login } from "./client"
-import type { QbtTorrent } from "./types"
-import { parseCrossSeedTags } from "./utils"
+import type { TorrentRecord } from "@/lib/download-clients"
+import { aggregateByTag } from "../aggregator"
+import { buildBaseUrl, getTorrents, getTransferInfo, login } from "../qbt/transport"
+import type { QbtTorrent } from "../qbt/types"
 
 // ---------------------------------------------------------------------------
 // buildBaseUrl
@@ -334,47 +334,42 @@ describe("getTransferInfo", () => {
 // ---------------------------------------------------------------------------
 
 describe("aggregateByTag", () => {
-  // Regression: prevents isPrivate camelCase/snake_case mismatch from masking real API shape.
-  // The real qBT API returns `is_private` (snake_case), not `isPrivate`. Tests that set
-  // `isPrivate: true` would hide bugs that relied on that field being defined. This factory
-  // deliberately omits it to match the real API response shape.
-  function makeTorrent(overrides: Partial<QbtTorrent>): QbtTorrent {
+  // Factory uses TorrentRecord (normalized camelCase) shape — what the aggregator receives.
+  function makeTorrent(overrides: Partial<TorrentRecord>): TorrentRecord {
     return {
       hash: "deadbeef",
       name: "Test Torrent",
       state: "uploading",
       tags: "",
       category: "",
-      upspeed: 0,
-      dlspeed: 0,
+      uploadSpeed: 0,
+      downloadSpeed: 0,
       uploaded: 0,
       downloaded: 0,
       ratio: 0,
       size: 0,
-      num_seeds: 0,
-      num_leechs: 0,
-      num_complete: 0,
-      num_incomplete: 0,
+      seedCount: 0,
+      leechCount: 0,
+      swarmSeeders: 0,
+      swarmLeechers: 0,
       tracker: "",
-      added_on: 0,
-      completion_on: -1,
-      last_activity: 0,
-      seeding_time: 0,
-      time_active: 0,
-      seen_complete: 0,
+      addedAt: 0,
+      completedAt: -1,
+      lastActivityAt: 0,
+      seedingTime: 0,
+      activeTime: 0,
+      lastSeenComplete: 0,
       availability: -1,
-      amount_left: 0,
+      remaining: 0,
       progress: 1,
-      content_path: "/downloads/Test Torrent",
-      save_path: "/downloads",
-      // isPrivate intentionally omitted — real qBT API returns `is_private` (snake_case).
-      // Only override explicitly in tests that specifically need to test isPrivate handling.
+      contentPath: "/downloads/Test Torrent",
+      savePath: "/downloads",
       ...overrides,
     }
   }
 
   it("counts seeding torrents for a matched tag", () => {
-    const torrents = [makeTorrent({ state: "uploading", tags: "aither", upspeed: 512 })]
+    const torrents = [makeTorrent({ state: "uploading", tags: "aither", uploadSpeed: 512 })]
     const result = aggregateByTag(torrents, ["aither"], [])
 
     expect(result.totalSeedingCount).toBe(1)
@@ -385,7 +380,7 @@ describe("aggregateByTag", () => {
   })
 
   it("counts leeching torrents for a matched tag", () => {
-    const torrents = [makeTorrent({ state: "downloading", tags: "aither", dlspeed: 1024 })]
+    const torrents = [makeTorrent({ state: "downloading", tags: "aither", downloadSpeed: 1024 })]
     const result = aggregateByTag(torrents, ["aither"], [])
 
     expect(result.totalLeechingCount).toBe(1)
@@ -396,7 +391,9 @@ describe("aggregateByTag", () => {
   })
 
   it("routes torrents with no matching tag into untagged bucket", () => {
-    const torrents = [makeTorrent({ state: "uploading", tags: "some-other-tracker", upspeed: 200 })]
+    const torrents = [
+      makeTorrent({ state: "uploading", tags: "some-other-tracker", uploadSpeed: 200 }),
+    ]
     const result = aggregateByTag(torrents, ["aither"], [])
 
     const untagged = result.tagStats.find((t) => t.tag === "untagged")
@@ -415,7 +412,9 @@ describe("aggregateByTag", () => {
   })
 
   it("handles torrents with multiple tags, crediting all matched buckets", () => {
-    const torrents = [makeTorrent({ state: "uploading", tags: "aither, cross-seed", upspeed: 300 })]
+    const torrents = [
+      makeTorrent({ state: "uploading", tags: "aither, cross-seed", uploadSpeed: 300 }),
+    ]
     const result = aggregateByTag(torrents, ["aither"], ["cross-seed"])
 
     const aitherStats = result.tagStats.find((t) => t.tag === "aither")
@@ -494,8 +493,8 @@ describe("aggregateByTag", () => {
 
   it("sums speeds across multiple seeding torrents for the same tag", () => {
     const torrents = [
-      makeTorrent({ state: "uploading", tags: "aither", upspeed: 100 }),
-      makeTorrent({ state: "stalledUP", tags: "aither", upspeed: 200 }),
+      makeTorrent({ state: "uploading", tags: "aither", uploadSpeed: 100 }),
+      makeTorrent({ state: "stalledUP", tags: "aither", uploadSpeed: 200 }),
     ]
     const result = aggregateByTag(torrents, ["aither"], [])
     const aitherStats = result.tagStats.find((t) => t.tag === "aither")
@@ -510,16 +509,6 @@ describe("aggregateByTag", () => {
     expect(crossSeedStats?.seedingCount).toBe(1)
     const untagged = result.tagStats.find((t) => t.tag === "untagged")
     expect(untagged).toBeUndefined()
-  })
-})
-
-// ---------------------------------------------------------------------------
-// parseCrossSeedTags
-// ---------------------------------------------------------------------------
-
-describe("parseCrossSeedTags", () => {
-  it("returns an empty array for null", () => {
-    expect(parseCrossSeedTags(null)).toEqual([])
   })
 })
 
@@ -587,48 +576,48 @@ describe("makeTorrent factory shape", () => {
 // ---------------------------------------------------------------------------
 
 describe("aggregateByTag case-insensitive tag matching", () => {
-  // Local helper that does NOT include isPrivate, matching real API shape
-  function makeRealTorrent(overrides: Partial<QbtTorrent>): QbtTorrent {
+  // Factory uses TorrentRecord (normalized camelCase) shape.
+  function makeRealTorrent(overrides: Partial<TorrentRecord>): TorrentRecord {
     return {
       hash: "deadbeef",
       name: "Test Torrent",
       state: "uploading",
       tags: "",
       category: "",
-      upspeed: 0,
-      dlspeed: 0,
+      uploadSpeed: 0,
+      downloadSpeed: 0,
       uploaded: 0,
       downloaded: 0,
       ratio: 0,
       size: 0,
-      num_seeds: 0,
-      num_leechs: 0,
-      num_complete: 0,
-      num_incomplete: 0,
+      seedCount: 0,
+      leechCount: 0,
+      swarmSeeders: 0,
+      swarmLeechers: 0,
       tracker: "",
-      added_on: 0,
-      completion_on: -1,
-      last_activity: 0,
-      seeding_time: 0,
-      time_active: 0,
-      seen_complete: 0,
+      addedAt: 0,
+      completedAt: -1,
+      lastActivityAt: 0,
+      seedingTime: 0,
+      activeTime: 0,
+      lastSeenComplete: 0,
       availability: -1,
-      amount_left: 0,
+      remaining: 0,
       progress: 1,
-      content_path: "/downloads/Test Torrent",
-      save_path: "/downloads",
+      contentPath: "/downloads/Test Torrent",
+      savePath: "/downloads",
       ...overrides,
     }
   }
 
   // Regression: prevents tag case mismatch between DB-stored tags and parseTorrentTags output.
   // aggregateByTag builds its internal map with lowercase keys. parseTorrentTags lowercases
-  // torrent tags by default. If the map were built with original-case keys (e.g. "Blutopia"),
+  // torrent tags by default. If the map were built with original-case keys (i.e. "Blutopia"),
   // a torrent tagged "blutopia" (lowercased by parseTorrentTags) would never match and would
   // fall into the untagged bucket instead.
   it("matches torrent tags case-insensitively when DB tag has title case", () => {
     // Torrent tags as parseTorrentTags returns them: lowercase
-    const torrents = [makeRealTorrent({ state: "uploading", tags: "blutopia", upspeed: 512 })]
+    const torrents = [makeRealTorrent({ state: "uploading", tags: "blutopia", uploadSpeed: 512 })]
     // DB stores the tag with title case
     const result = aggregateByTag(torrents, ["Blutopia"], [])
 
@@ -645,9 +634,9 @@ describe("aggregateByTag case-insensitive tag matching", () => {
   // Regression: verifies the fix handles all common tracker tag casing patterns from DB.
   it("handles mixed case tags from DB — ALL_CAPS, lowercase, TitleCase", () => {
     const torrents = [
-      makeRealTorrent({ state: "uploading", tags: "red", upspeed: 100 }),
-      makeRealTorrent({ state: "uploading", tags: "ops", upspeed: 200 }),
-      makeRealTorrent({ state: "uploading", tags: "nebulance", upspeed: 300 }),
+      makeRealTorrent({ state: "uploading", tags: "red", uploadSpeed: 100 }),
+      makeRealTorrent({ state: "uploading", tags: "ops", uploadSpeed: 200 }),
+      makeRealTorrent({ state: "uploading", tags: "nebulance", uploadSpeed: 300 }),
     ]
     // DB may store these as "RED", "ops", "Nebulance"
     const result = aggregateByTag(torrents, ["RED", "ops", "Nebulance"], [])
@@ -669,7 +658,7 @@ describe("aggregateByTag case-insensitive tag matching", () => {
   })
 
   it("cross-seed tags from DB are also lowercased for matching", () => {
-    const torrents = [makeRealTorrent({ state: "uploading", tags: "cross-seed", upspeed: 50 })]
+    const torrents = [makeRealTorrent({ state: "uploading", tags: "cross-seed", uploadSpeed: 50 })]
     // DB cross-seed tag stored with mixed case
     const result = aggregateByTag(torrents, [], ["Cross-Seed"])
 

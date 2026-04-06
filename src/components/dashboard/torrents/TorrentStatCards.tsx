@@ -10,8 +10,8 @@ import {
   TriangleWarningIcon,
 } from "@/components/ui/Icons"
 import { StatCard } from "@/components/ui/StatCard"
+import type { TorrentRaw } from "@/lib/fleet"
 import { formatBytesNum, formatCount, formatDuration, splitValueUnit } from "@/lib/formatters"
-import type { TorrentInfo } from "@/lib/torrent-utils"
 
 const ICONS = {
   seeding: <SeedingIcon width={16} height={16} />,
@@ -22,8 +22,8 @@ const ICONS = {
 }
 
 interface TorrentStatCardsProps {
-  torrents: TorrentInfo[]
-  seedingTorrents: TorrentInfo[]
+  torrents: TorrentRaw[]
+  seedingTorrents: TorrentRaw[]
   totalSize: number
   crossSeededCount: number
   deadCount: number | null

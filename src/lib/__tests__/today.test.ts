@@ -180,8 +180,8 @@ function makeTorrent(
   tags: string,
   uploaded: number,
   downloaded: number,
-  addedOn = 0,
-  completionOn = -1
+  addedAt = 0,
+  completedAt = -1
 ) {
   return {
     hash,
@@ -189,28 +189,24 @@ function makeTorrent(
     state: "uploading",
     tags,
     category: "",
-    upspeed: 0,
-    dlspeed: 0,
+    uploadSpeed: 0,
+    downloadSpeed: 0,
     uploaded,
     downloaded,
     ratio: 1.0,
     size: downloaded || 1,
-    num_seeds: 5,
-    num_leechs: 0,
-    num_complete: 5,
-    num_incomplete: 0,
-    tracker: "",
-    added_on: addedOn,
-    completion_on: completionOn,
-    last_activity: 0,
-    seeding_time: 0,
-    time_active: 0,
-    seen_complete: 0,
+    seedCount: 5,
+    leechCount: 0,
+    swarmSeeders: 5,
+    swarmLeechers: 0,
+    addedAt,
+    completedAt,
+    lastActivityAt: 0,
+    seedingTime: 0,
+    activeTime: 0,
     availability: 1,
-    amount_left: 0,
+    remaining: 0,
     progress: 1,
-    content_path: "",
-    save_path: "",
   }
 }
 
@@ -668,7 +664,7 @@ describe("computeTodayAtAGlance — ratio weighted average", () => {
 // ---------------------------------------------------------------------------
 
 describe("computeTodayAtAGlance — activity counts", () => {
-  it("counts torrents whose added_on unix timestamp falls on today", async () => {
+  it("counts torrents whose addedAt unix timestamp falls on today", async () => {
     const tracker = makeTracker(1, { qbtTag: "aither" })
     const snap1 = makeSnapshot(1, new Date(Date.now() - 3600000), "1000000000", "500000000")
     const snap2 = makeSnapshot(1, new Date(), "2000000000", "1000000000")
@@ -691,7 +687,7 @@ describe("computeTodayAtAGlance — activity counts", () => {
     expect(result.activity.addedToday).toBe(1)
   })
 
-  it("does not count torrents with added_on of 0 (unix epoch, not today)", async () => {
+  it("does not count torrents with addedAt of 0 (unix epoch, not today)", async () => {
     const tracker = makeTracker(1, { qbtTag: "aither" })
     const snap1 = makeSnapshot(1, new Date(Date.now() - 3600000), "1000000000", "500000000")
     const snap2 = makeSnapshot(1, new Date(), "2000000000", "1000000000")
@@ -703,7 +699,7 @@ describe("computeTodayAtAGlance — activity counts", () => {
     expect(result.activity.addedToday).toBe(0)
   })
 
-  it("counts torrents whose completion_on unix timestamp falls on today", async () => {
+  it("counts torrents whose completedAt unix timestamp falls on today", async () => {
     const tracker = makeTracker(1, { qbtTag: "aither" })
     const snap1 = makeSnapshot(1, new Date(Date.now() - 3600000), "1000000000", "500000000")
     const snap2 = makeSnapshot(1, new Date(), "2000000000", "1000000000")
@@ -726,7 +722,7 @@ describe("computeTodayAtAGlance — activity counts", () => {
     expect(result.activity.completedToday).toBe(1)
   })
 
-  it("ignores completion_on of -1 (torrent is still downloading)", async () => {
+  it("ignores completedAt of -1 (torrent is still downloading)", async () => {
     const tracker = makeTracker(1, { qbtTag: "aither" })
     const snap1 = makeSnapshot(1, new Date(Date.now() - 3600000), "1000000000", "500000000")
     const snap2 = makeSnapshot(1, new Date(), "2000000000", "1000000000")
@@ -738,7 +734,7 @@ describe("computeTodayAtAGlance — activity counts", () => {
     expect(result.activity.completedToday).toBe(0)
   })
 
-  it("ignores completion_on of 0 (qBittorrent sentinel for 'not completed')", async () => {
+  it("ignores completedAt of 0 (qBittorrent sentinel for 'not completed')", async () => {
     const tracker = makeTracker(1, { qbtTag: "aither" })
     const snap1 = makeSnapshot(1, new Date(Date.now() - 3600000), "1000000000", "500000000")
     const snap2 = makeSnapshot(1, new Date(), "2000000000", "1000000000")

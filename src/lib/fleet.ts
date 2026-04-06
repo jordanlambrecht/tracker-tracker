@@ -5,7 +5,7 @@
 
 import { CHART_THEME } from "@/components/charts/lib/theme"
 
-/** Raw torrent data from qBittorrent — shared by fleet charts */
+/** Normalized torrent record shape returned by the API — shared by fleet charts and components */
 export interface TorrentRaw {
   hash: string
   name: string
@@ -16,21 +16,21 @@ export interface TorrentRaw {
   downloaded: number
   ratio: number
   size: number
-  seeding_time: number
-  time_active: number
-  added_on: number
-  completion_on: number
-  last_activity: number
-  amount_left: number
-  num_seeds: number
-  num_leechs: number
-  num_complete: number
-  num_incomplete: number
-  upspeed: number
-  dlspeed: number
+  seedingTime: number
+  activeTime: number
+  addedAt: number
+  completedAt: number
+  lastActivityAt: number
+  remaining: number
+  seedCount: number
+  leechCount: number
+  swarmSeeders: number
+  swarmLeechers: number
+  uploadSpeed: number
+  downloadSpeed: number
   availability: number
   progress: number
-  client_name: string
+  clientName: string
 }
 
 /** Tracker tag with display metadata */
