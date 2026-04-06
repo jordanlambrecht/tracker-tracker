@@ -12,7 +12,7 @@ import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { useMemo, useRef, useState } from "react"
 import { AddTrackerDialog } from "@/components/AddTrackerDialog"
-import { ClientStatusWidget } from "@/components/layout/ClientStatusWidget"
+import { DownloadClientStatusWidget } from "@/components/layout/DownloadClientStatusWidget"
 import { SortableTrackerItem } from "@/components/layout/SortableTrackerItem"
 import { Button, ChevronToggle, Select, Shimmer, Tooltip } from "@/components/ui"
 import { useSidebarPreferences } from "@/hooks/useSidebarPreferences"
@@ -270,7 +270,7 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
           </nav>
 
           {/* Client status widget */}
-          <ClientStatusWidget />
+          <DownloadClientStatusWidget />
 
           {/* Bottom controls — pinned */}
           <div className="px-3 py-4 border-t border-border shrink-0 flex flex-col gap-1">

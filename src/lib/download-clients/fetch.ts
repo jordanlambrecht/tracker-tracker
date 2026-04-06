@@ -1,35 +1,36 @@
-// src/lib/qbt/fetch-merged.ts
+// src/lib/download-clients/fetch.ts
 import "server-only"
 
-import { decryptClientCredentials } from "@/lib/client-decrypt"
 import { isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
 import { parseTorrentTags } from "@/lib/fleet"
-import {
-  buildBaseUrl,
-  getFilteredTorrents,
-  getTorrents,
-  isStoreFresh,
-  parseCrossSeedTags,
-  type QbtTorrent,
-  STORE_MAX_AGE_MS,
-  stripSensitiveTorrentFields,
-  withSessionRetry,
-} from "@/lib/qbt"
-import { aggregateCrossSeedTags, mergeTorrentLists } from "@/lib/qbt/merge"
+import { createAdapterForClient } from "./factory"
+import { aggregateCrossSeedTags, mergeTorrentLists, stampClientNames } from "./merge"
+import { buildBaseUrl } from "./qbt/transport"
+import { getFilteredTorrents, isStoreFresh, STORE_MAX_AGE_MS } from "./sync-store"
+import type { DownloadClientRow, TorrentRecord } from "./types"
 
-export interface ClientRow {
-  name: string
-  host: string
-  port: number
-  useSsl: boolean
-  encryptedUsername: string
-  encryptedPassword: string
-  crossSeedTags: string[] | null
+// ---------------------------------------------------------------------------
+// Sensitive field stripping
+// ---------------------------------------------------------------------------
+
+/**
+ * Strips tracker announce URL, contentPath, and savePath from a torrent object.
+ * These fields may contain passkeys or expose server filesystem paths.
+ */
+export function stripSensitiveTorrentFields<
+  T extends Pick<TorrentRecord, "tracker" | "contentPath" | "savePath">,
+>(torrent: T): Omit<T, "tracker" | "contentPath" | "savePath"> {
+  const { tracker: _t, contentPath: _cp, savePath: _sp, ...rest } = torrent
+  return rest
 }
 
+// ---------------------------------------------------------------------------
+// Fetch + merge orchestration
+// ---------------------------------------------------------------------------
+
 export interface MergedResult {
-  torrents: (Omit<QbtTorrent, "tracker" | "content_path" | "save_path"> & {
-    client_name: string
+  torrents: (Omit<TorrentRecord, "tracker" | "contentPath" | "savePath"> & {
+    clientName: string
   })[]
   crossSeedTags: string[]
   clientErrors: string[]
@@ -39,11 +40,11 @@ export interface MergedResult {
 }
 
 async function fetchClientTorrents(
-  client: ClientRow,
+  client: DownloadClientRow,
   tags: string[],
   key: Buffer,
   filter?: string
-): Promise<QbtTorrent[]> {
+): Promise<TorrentRecord[]> {
   const baseUrl = buildBaseUrl(client.host, client.port, client.useSsl)
 
   // Fast path: store is warm from scheduler, serve from memory.
@@ -59,25 +60,18 @@ async function fetchClientTorrents(
 
   // Cold path: store not yet populated, stale, or filter requested (i.e. active).
   // Fall back to live per-tag fetch.
-  const { username, password } = decryptClientCredentials(client, key)
-  return withSessionRetry(
-    client.host,
-    client.port,
-    client.useSsl,
-    username,
-    password,
-    async (baseUrl, sid) => {
-      if (tags.length === 1) {
-        return getTorrents(baseUrl, sid, tags[0], filter)
-      }
-      const results = await Promise.allSettled(tags.map((tag) => getTorrents(baseUrl, sid, tag)))
-      const allTorrents: QbtTorrent[] = []
-      for (const result of results) {
-        if (result.status === "fulfilled") allTorrents.push(...result.value)
-      }
-      return allTorrents
-    }
-  )
+  const adapter = createAdapterForClient(client, key)
+
+  if (tags.length === 1) {
+    return adapter.getTorrents({ tag: tags[0], filter: filter as "active" | undefined })
+  }
+
+  const results = await Promise.allSettled(tags.map((tag) => adapter.getTorrents({ tag })))
+  const allTorrents: TorrentRecord[] = []
+  for (const result of results) {
+    if (result.status === "fulfilled") allTorrents.push(...result.value)
+  }
+  return allTorrents
 }
 
 /**
@@ -98,7 +92,7 @@ async function fetchClientTorrents(
 const CLIENT_DEADLINE_MS = 5_000
 
 export async function fetchAndMergeTorrents(
-  clients: ClientRow[],
+  clients: DownloadClientRow[],
   tags: string[],
   key: Buffer,
   filter?: string
@@ -122,14 +116,14 @@ export async function fetchAndMergeTorrents(
       )
       const work = (async () => ({
         clientName: client.name,
-        crossSeedTags: parseCrossSeedTags(client.crossSeedTags),
+        crossSeedTags: client.crossSeedTags ?? [],
         torrents: await fetchClientTorrents(client, tags, key, filter),
       }))()
       return Promise.race([work, deadline])
     })
   )
 
-  const torrentLists: QbtTorrent[][] = []
+  const clientTorrents: { clientName: string; torrents: TorrentRecord[] }[] = []
   const crossSeedClients: { crossSeedTags: string[] }[] = []
   const clientErrors: string[] = []
   let decryptionFailureCount = 0
@@ -137,7 +131,10 @@ export async function fetchAndMergeTorrents(
   for (let i = 0; i < results.length; i++) {
     const result = results[i]
     if (result.status === "fulfilled") {
-      torrentLists.push(result.value.torrents)
+      clientTorrents.push({
+        clientName: result.value.clientName,
+        torrents: result.value.torrents,
+      })
       crossSeedClients.push({ crossSeedTags: result.value.crossSeedTags })
     } else {
       const clientName = clients[i].name
@@ -151,28 +148,13 @@ export async function fetchAndMergeTorrents(
 
   // All clients failed with decryption errors. Which means the session key is stale.
   const sessionExpired =
-    clients.length > 0 && torrentLists.length === 0 && decryptionFailureCount === clients.length
+    clients.length > 0 && clientTorrents.length === 0 && decryptionFailureCount === clients.length
 
-  // Build hash. Client name lookup before merge flattens provenance
-  const hashClients = new Map<string, string[]>()
-  for (let i = 0; i < results.length; i++) {
-    const result = results[i]
-    if (result.status === "fulfilled") {
-      for (const torrent of result.value.torrents) {
-        const names = hashClients.get(torrent.hash) ?? []
-        names.push(result.value.clientName)
-        hashClients.set(torrent.hash, names)
-      }
-    }
-  }
-
-  const merged = mergeTorrentLists(torrentLists)
+  const merged = mergeTorrentLists(clientTorrents.map((c) => c.torrents))
   const crossSeedTags = aggregateCrossSeedTags(crossSeedClients)
 
-  // Strip sensitive fields, then stamp client name(s).
-  const torrents = merged.map((t) => ({
+  const torrents = stampClientNames(clientTorrents, merged).map((t) => ({
     ...stripSensitiveTorrentFields(t),
-    client_name: (hashClients.get(t.hash) ?? []).join(", "),
   }))
 
   return {

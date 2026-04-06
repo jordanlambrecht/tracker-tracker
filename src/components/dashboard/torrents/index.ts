@@ -2,7 +2,7 @@
 
 export { ActiveTransfersTable } from "./ActiveTransfersTable"
 export { CategoryCard } from "./CategoryCard"
-export { NoClientState, NoTagState } from "./TorrentEmptyStates"
+export { NoDownloadClientState, NoTagState } from "./TorrentEmptyStates"
 export type { TorrentTableVariant } from "./TorrentRankingTable"
 export { TorrentRankingTable } from "./TorrentRankingTable"
 export { TorrentStatCards } from "./TorrentStatCards"

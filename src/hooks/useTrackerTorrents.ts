@@ -5,14 +5,13 @@ import { useQuery } from "@tanstack/react-query"
 import { useMemo } from "react"
 import type { TrackerRules } from "@/data/tracker-registry"
 import { usePollingIntervals } from "@/hooks/usePollingIntervals"
+import type { TorrentRaw } from "@/lib/fleet"
 import {
   type AggregatedTorrentsResponse,
   type CategoryStats,
   LEECHING_STATES,
-  mapTorrent,
   parseTorrentTags,
   SEEDING_STATES,
-  type TorrentInfo,
 } from "@/lib/torrent-utils"
 import type { QbitmanageTagConfig, TagGroup } from "@/types/api"
 
@@ -47,7 +46,7 @@ interface QbitmanageBreakdownItem {
 }
 
 interface TrackerTorrentsData {
-  torrents: TorrentInfo[]
+  torrents: TorrentRaw[]
   crossSeedTags: string[]
   loading: boolean
   torrentError: string | null
@@ -56,22 +55,22 @@ interface TrackerTorrentsData {
   stale: boolean
   cachedAt: string | null
 
-  seedingTorrents: TorrentInfo[]
-  leechingTorrents: TorrentInfo[]
-  activelySeedingTorrents: TorrentInfo[]
-  activelyDownloading: TorrentInfo[]
+  seedingTorrents: TorrentRaw[]
+  leechingTorrents: TorrentRaw[]
+  activelySeedingTorrents: TorrentRaw[]
+  activelyDownloading: TorrentRaw[]
   totalUpSpeed: number
   totalSize: number
-  crossSeeded: TorrentInfo[]
+  crossSeeded: TorrentRaw[]
   requiredSeedSeconds: number | null
-  unsatisfiedTorrents: TorrentInfo[]
-  unsatisfiedSorted: TorrentInfo[]
+  unsatisfiedTorrents: TorrentRaw[]
+  unsatisfiedSorted: TorrentRaw[]
   unsatisfiedCount: number | null
   hnrRiskCount: number | null
   deadCount: number | null
   categoryStats: CategoryStats[]
-  topBySeeding: TorrentInfo[]
-  elderTorrents: TorrentInfo[]
+  topBySeeding: TorrentRaw[]
+  elderTorrents: TorrentRaw[]
   tagGroupBreakdowns: TagGroupBreakdown[]
   qbitmanageBreakdown: QbitmanageBreakdownItem[]
 }
@@ -168,28 +167,31 @@ function useTrackerTorrents({
   // Merge active speeds into the base torrent list
   const torrents = useMemo(() => {
     if (!baseData) return []
-    const base = baseData.torrents.map(mapTorrent)
+    const base: TorrentRaw[] = baseData.torrents
     if (!activeQuery.data) return base
 
-    const activeMap = new Map(
-      activeQuery.data.torrents.map(mapTorrent).map((t) => [t.hash, t] as const)
-    )
+    const activeMap = new Map(activeQuery.data.torrents.map((t) => [t.hash, t] as const))
     return base.map((t) => {
       const active = activeMap.get(t.hash)
       if (active) {
         return {
           ...t,
-          upspeed: active.upspeed,
-          dlspeed: active.dlspeed,
+          uploadSpeed: active.uploadSpeed,
+          downloadSpeed: active.downloadSpeed,
           state: active.state,
           progress: active.progress,
         }
       }
-      if (t.upspeed > 0 || t.dlspeed > 0 || t.state === "uploading" || t.state === "downloading") {
+      if (
+        t.uploadSpeed > 0 ||
+        t.downloadSpeed > 0 ||
+        t.state === "uploading" ||
+        t.state === "downloading"
+      ) {
         return {
           ...t,
-          upspeed: 0,
-          dlspeed: 0,
+          uploadSpeed: 0,
+          downloadSpeed: 0,
           state: t.state === "downloading" ? ("stalledDL" as const) : ("stalledUP" as const),
         }
       }
@@ -216,9 +218,9 @@ function useTrackerTorrents({
     const leechingTorrents = torrents.filter((t) => LEECHING_STATES.has(t.state))
     const activelySeedingTorrents = torrents.filter((t) => t.state === "uploading")
     const activelyDownloading = torrents.filter(
-      (t) => LEECHING_STATES.has(t.state) && t.dlspeed > 0
+      (t) => LEECHING_STATES.has(t.state) && t.downloadSpeed > 0
     )
-    const totalUpSpeed = torrents.reduce((sum, t) => sum + t.upspeed, 0)
+    const totalUpSpeed = torrents.reduce((sum, t) => sum + t.uploadSpeed, 0)
     const totalSize = torrents.reduce((sum, t) => sum + t.size, 0)
 
     const csTagSet = new Set(crossSeedTags.map((t) => t.toLowerCase()))
@@ -246,7 +248,7 @@ function useTrackerTorrents({
     const deadCount =
       trackerSeedingCount != null ? Math.max(0, seedingTorrents.length - trackerSeedingCount) : null
 
-    const categoryMap = new Map<string, TorrentInfo[]>()
+    const categoryMap = new Map<string, TorrentRaw[]>()
     for (const t of torrents) {
       const cat = t.category || "Uncategorized"
       const arr = categoryMap.get(cat) ?? []
@@ -261,7 +263,7 @@ function useTrackerTorrents({
         totalSize: items.reduce((s, t) => s + t.size, 0),
         avgRatio: items.reduce((s, t) => s + t.ratio, 0) / items.length,
         avgSeedTime: items.reduce((s, t) => s + t.seedingTime, 0) / items.length,
-        avgSwarmSeeds: items.reduce((s, t) => s + t.numComplete, 0) / items.length,
+        avgSwarmSeeds: items.reduce((s, t) => s + t.swarmSeeders, 0) / items.length,
       }))
       .sort((a, b) => b.count - a.count)
 
@@ -270,8 +272,8 @@ function useTrackerTorrents({
       .slice(0, 10)
 
     const elderTorrents = [...torrents]
-      .filter((t) => t.addedOn > 0)
-      .sort((a, b) => a.addedOn - b.addedOn)
+      .filter((t) => t.addedAt > 0)
+      .sort((a, b) => a.addedAt - b.addedAt)
       .slice(0, 10)
 
     const unsatisfiedSorted = requiredSeedSeconds

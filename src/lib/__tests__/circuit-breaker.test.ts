@@ -67,7 +67,7 @@ vi.mock("@/lib/backup-scheduler", () => ({
   stopBackupScheduler: vi.fn(),
 }))
 
-vi.mock("@/lib/client-scheduler", () => ({
+vi.mock("@/lib/download-client-scheduler", () => ({
   startClientScheduler: vi.fn(),
   stopClientScheduler: vi.fn(),
   ensureClientSchedulerRunning: vi.fn(),

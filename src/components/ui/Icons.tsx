@@ -549,7 +549,7 @@ function BoxIcon(props: IconProps) {
   )
 }
 
-// Server rack — used in TorrentsTab NoClientState empty state
+// Server rack — used in TorrentsTab NoDownloadClientState empty state
 function ServerIcon(props: IconProps) {
   return (
     <svg

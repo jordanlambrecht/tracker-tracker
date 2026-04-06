@@ -3,15 +3,15 @@
 
 import type { EChartsOption } from "echarts"
 import { hexToRgba } from "@/lib/color-utils"
+import type { TorrentRaw } from "@/lib/fleet"
 import { formatCount } from "@/lib/formatters"
-import type { TorrentInfo } from "@/lib/torrent-utils"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { fmtNum } from "./lib/chart-helpers"
 import { CHART_THEME, chartAxisLabel, chartTooltip, chartTooltipRow } from "./lib/theme"
 
 interface ParallelTorrentsChartProps {
-  torrents: TorrentInfo[]
+  torrents: TorrentRaw[]
   trackerColor: string
   height?: number
 }
@@ -31,7 +31,7 @@ const DIM_AVAILABILITY = 5
 // Option builder
 // ---------------------------------------------------------------------------
 
-function buildParallelOption(torrents: TorrentInfo[], trackerColor: string): EChartsOption {
+function buildParallelOption(torrents: TorrentRaw[], trackerColor: string): EChartsOption {
   const nowSec = Date.now() / 1000
 
   // Pre-compute derived values

@@ -1,6 +1,7 @@
-// src/lib/qbt/__tests__/sync-store.test.ts
+// src/lib/download-clients/__tests__/sync-store.test.ts
 
 import { afterEach, describe, expect, it, vi } from "vitest"
+import type { DeltaSyncResponse } from "@/lib/download-clients"
 import {
   applyMaindataUpdate,
   clearAllStores,
@@ -8,13 +9,14 @@ import {
   getStoreRevision,
   isStoreFresh,
   isStoreInitialized,
+  replaceStoreTorrents,
   resetStore,
 } from "../sync-store"
-import type { QbtMaindataResponse } from "../types"
 
 afterEach(() => clearAllStores())
 
 const BASE_URL = "http://localhost:8080"
+const BASE = BASE_URL
 
 function makeTorrent(hash: string, overrides: Record<string, unknown> = {}) {
   return {
@@ -23,28 +25,28 @@ function makeTorrent(hash: string, overrides: Record<string, unknown> = {}) {
     state: "stalledUP",
     tags: "🕵️ Aither",
     category: "movies",
-    upspeed: 0,
-    dlspeed: 0,
+    uploadSpeed: 0,
+    downloadSpeed: 0,
     uploaded: 1000,
     downloaded: 500,
     ratio: 2.0,
     size: 1_000_000,
-    num_seeds: 5,
-    num_leechs: 1,
-    num_complete: 10,
-    num_incomplete: 2,
+    seedCount: 5,
+    leechCount: 1,
+    swarmSeeders: 10,
+    swarmLeechers: 2,
     tracker: "https://tracker.example.com/announce",
-    added_on: 1700000000,
-    completion_on: 1700001000,
-    last_activity: 1700002000,
-    seeding_time: 86400,
-    time_active: 86400,
-    seen_complete: 1700001500,
+    addedAt: 1700000000,
+    completedAt: 1700001000,
+    lastActivityAt: 1700002000,
+    seedingTime: 86400,
+    activeTime: 86400,
+    lastSeenComplete: 1700001500,
     availability: 1.0,
-    amount_left: 0,
+    remaining: 0,
     progress: 1.0,
-    content_path: "/data/movies/torrent",
-    save_path: "/data/movies",
+    contentPath: "/data/movies/torrent",
+    savePath: "/data/movies",
     ...overrides,
   }
 }
@@ -57,9 +59,9 @@ describe("sync-store", () => {
   })
 
   it("applies a full update (rid=0 response)", () => {
-    const response: QbtMaindataResponse = {
+    const response: DeltaSyncResponse = {
       rid: 1,
-      full_update: true,
+      fullUpdate: true,
       torrents: {
         abc123: makeTorrent("abc123"),
         def456: makeTorrent("def456", { name: "Second Torrent" }),
@@ -76,30 +78,30 @@ describe("sync-store", () => {
     // Initial full sync
     applyMaindataUpdate(BASE_URL, {
       rid: 1,
-      full_update: true,
+      fullUpdate: true,
       torrents: {
-        abc123: makeTorrent("abc123", { seeding_time: 100, uploaded: 1000 }),
+        abc123: makeTorrent("abc123", { seedingTime: 100, uploaded: 1000 }),
       },
     })
 
-    // Delta: only seeding_time changed
+    // Delta: only seedingTime changed
     applyMaindataUpdate(BASE_URL, {
       rid: 2,
-      torrents: { abc123: { seeding_time: 200 } },
+      torrents: { abc123: { seedingTime: 200 } },
     })
 
     expect(getStoreRevision(BASE_URL)).toBe(2)
     const torrents = getStoredTorrents(BASE_URL)
     expect(torrents).toHaveLength(1)
-    expect(torrents[0].seeding_time).toBe(200) // updated
+    expect(torrents[0].seedingTime).toBe(200) // updated
     expect(torrents[0].uploaded).toBe(1000) // preserved
     expect(torrents[0].name).toBe("Torrent abc123") // preserved
   })
 
-  it("handles torrents_removed", () => {
+  it("handles torrentsRemoved", () => {
     applyMaindataUpdate(BASE_URL, {
       rid: 1,
-      full_update: true,
+      fullUpdate: true,
       torrents: {
         abc123: makeTorrent("abc123"),
         def456: makeTorrent("def456"),
@@ -108,17 +110,17 @@ describe("sync-store", () => {
 
     applyMaindataUpdate(BASE_URL, {
       rid: 2,
-      torrents_removed: ["abc123"],
+      torrentsRemoved: ["abc123"],
     })
 
     expect(getStoredTorrents(BASE_URL)).toHaveLength(1)
     expect(getStoredTorrents(BASE_URL)[0].hash).toBe("def456")
   })
 
-  it("adds new torrents via delta (not full_update)", () => {
+  it("adds new torrents via delta (not fullUpdate)", () => {
     applyMaindataUpdate(BASE_URL, {
       rid: 1,
-      full_update: true,
+      fullUpdate: true,
       torrents: { abc123: makeTorrent("abc123") },
     })
 
@@ -130,17 +132,17 @@ describe("sync-store", () => {
     expect(getStoredTorrents(BASE_URL)).toHaveLength(2)
   })
 
-  it("full_update clears existing data before applying", () => {
+  it("fullUpdate clears existing data before applying", () => {
     applyMaindataUpdate(BASE_URL, {
       rid: 1,
-      full_update: true,
+      fullUpdate: true,
       torrents: { abc123: makeTorrent("abc123") },
     })
 
-    // Second full_update with different data
+    // Second fullUpdate with different data
     applyMaindataUpdate(BASE_URL, {
       rid: 5,
-      full_update: true,
+      fullUpdate: true,
       torrents: { xyz999: makeTorrent("xyz999") },
     })
 
@@ -152,7 +154,7 @@ describe("sync-store", () => {
   it("resetStore clears state and forces re-sync", () => {
     applyMaindataUpdate(BASE_URL, {
       rid: 10,
-      full_update: true,
+      fullUpdate: true,
       torrents: { abc123: makeTorrent("abc123") },
     })
 
@@ -166,12 +168,12 @@ describe("sync-store", () => {
   it("isolates stores by baseUrl", () => {
     applyMaindataUpdate("http://client-a:8080", {
       rid: 1,
-      full_update: true,
+      fullUpdate: true,
       torrents: { aaa: makeTorrent("aaa") },
     })
     applyMaindataUpdate("http://client-b:8080", {
       rid: 1,
-      full_update: true,
+      fullUpdate: true,
       torrents: { bbb: makeTorrent("bbb"), ccc: makeTorrent("ccc") },
     })
 
@@ -182,7 +184,7 @@ describe("sync-store", () => {
   it("returns a snapshot array, not a live reference", () => {
     applyMaindataUpdate(BASE_URL, {
       rid: 1,
-      full_update: true,
+      fullUpdate: true,
       torrents: { abc123: makeTorrent("abc123") },
     })
 
@@ -193,7 +195,7 @@ describe("sync-store", () => {
   })
 
   it("delta on uninitialized store does NOT mark it initialized", () => {
-    // A delta without a prior full_update should not be trusted
+    // A delta without a prior fullUpdate should not be trusted
     applyMaindataUpdate(BASE_URL, {
       rid: 5,
       torrents: { abc123: makeTorrent("abc123") },
@@ -207,7 +209,7 @@ describe("sync-store", () => {
   it("handles empty delta (no changes)", () => {
     applyMaindataUpdate(BASE_URL, {
       rid: 1,
-      full_update: true,
+      fullUpdate: true,
       torrents: { abc123: makeTorrent("abc123") },
     })
 
@@ -218,16 +220,16 @@ describe("sync-store", () => {
     expect(getStoreRevision(BASE_URL)).toBe(2)
   })
 
-  it("torrents_removed for non-existent hash is a no-op", () => {
+  it("torrentsRemoved for non-existent hash is a no-op", () => {
     applyMaindataUpdate(BASE_URL, {
       rid: 1,
-      full_update: true,
+      fullUpdate: true,
       torrents: { abc123: makeTorrent("abc123") },
     })
 
     applyMaindataUpdate(BASE_URL, {
       rid: 2,
-      torrents_removed: ["nonexistent"],
+      torrentsRemoved: ["nonexistent"],
     })
 
     expect(getStoredTorrents(BASE_URL)).toHaveLength(1)
@@ -236,14 +238,14 @@ describe("sync-store", () => {
   it("skips incomplete new torrents in delta (missing required fields)", () => {
     applyMaindataUpdate(BASE_URL, {
       rid: 1,
-      full_update: true,
+      fullUpdate: true,
       torrents: { abc123: makeTorrent("abc123") },
     })
 
     // Delta adds a torrent with only partial fields (no name, state, size, ratio)
     applyMaindataUpdate(BASE_URL, {
       rid: 2,
-      torrents: { incomplete: { upspeed: 100 } },
+      torrents: { incomplete: { uploadSpeed: 100 } },
     })
 
     // Should NOT add the incomplete torrent
@@ -260,7 +262,7 @@ describe("sync-store", () => {
       vi.setSystemTime(new Date("2026-01-01T00:00:00Z"))
       applyMaindataUpdate(BASE_URL, {
         rid: 1,
-        full_update: true,
+        fullUpdate: true,
         torrents: { abc123: makeTorrent("abc123") },
       })
 
@@ -281,7 +283,7 @@ describe("sync-store", () => {
   it("returned torrents are shallow copies — mutating them does not corrupt the store", () => {
     applyMaindataUpdate(BASE_URL, {
       rid: 1,
-      full_update: true,
+      fullUpdate: true,
       torrents: { abc123: makeTorrent("abc123", { uploaded: 1000 }) },
     })
 
@@ -290,5 +292,30 @@ describe("sync-store", () => {
 
     const second = getStoredTorrents(BASE_URL)
     expect(second[0].uploaded).toBe(1000) // store unaffected
+  })
+})
+
+describe("replaceStoreTorrents", () => {
+  it("replaces all torrents for a client", () => {
+    replaceStoreTorrents(BASE, [makeTorrent("h1"), makeTorrent("h2")])
+    expect(getStoredTorrents(BASE)).toHaveLength(2)
+  })
+
+  it("marks store as initialized", () => {
+    replaceStoreTorrents(BASE, [])
+    expect(isStoreInitialized(BASE)).toBe(true)
+  })
+
+  it("clears previous torrents before replacing", () => {
+    replaceStoreTorrents(BASE, [makeTorrent("old")])
+    replaceStoreTorrents(BASE, [makeTorrent("new")])
+    const stored = getStoredTorrents(BASE)
+    expect(stored).toHaveLength(1)
+    expect(stored[0].hash).toBe("new")
+  })
+
+  it("updates lastUpdatedAt so isStoreFresh returns true", () => {
+    replaceStoreTorrents(BASE, [])
+    expect(isStoreFresh(BASE, 60_000)).toBe(true)
   })
 })

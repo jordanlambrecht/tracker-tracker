@@ -1,23 +1,24 @@
-// src/lib/qbt/sync-store.ts
+// src/lib/download-clients/sync-store.ts
 //
 // Functions:
-//   applyMaindataUpdate  - Merge a maindata delta (or full update) into the store
-//   getStoredTorrents    - Return a snapshot array of all torrents for a client
-//   getFilteredTorrents  - Copy + filter in one pass (avoids copying irrelevant torrents)
-//   getStoreRevision     - Return the current rid for a client (0 if uninitialized)
-//   isStoreInitialized   - Whether the store has received at least one full_update
-//   isStoreFresh         - Whether the store is initialized and updated within a max age
-//   resetStore           - Clear a single client's store (forces rid=0 on next sync)
-//   clearAllStores       - Clear all stores (called on logout/scheduler stop)
+//   applyMaindataUpdate    - Merge a maindata delta (or full update) into the store
+//   getStoredTorrents      - Return a snapshot array of all torrents for a client
+//   getFilteredTorrents    - Copy + filter in one pass (avoids copying irrelevant torrents)
+//   getStoreRevision       - Return the current rid for a client (0 if uninitialized)
+//   isStoreInitialized     - Whether the store has received at least one fullUpdate
+//   isStoreFresh           - Whether the store is initialized and updated within a max age
+//   resetStore             - Clear a single client's store (forces rid=0 on next sync)
+//   clearAllStores         - Clear all stores (called on logout/scheduler stop)
+//   replaceStoreTorrents   - Replace all torrents for a client (for non-delta-sync clients)
 
-import { isQbtTorrent, type QbtMaindataResponse, type QbtTorrent } from "./types"
+import type { DeltaSyncResponse, TorrentRecord } from "./types"
 
 /** How long a sync store entry is considered fresh */
 export const STORE_MAX_AGE_MS = 10 * 60 * 1000
 
 interface TorrentStore {
   rid: number
-  torrents: Map<string, QbtTorrent>
+  torrents: Map<string, TorrentRecord>
   lastUpdatedAt: number
   initialized: boolean
 }
@@ -37,10 +38,24 @@ function getOrCreateStore(baseUrl: string): TorrentStore {
   return store
 }
 
-export function applyMaindataUpdate(baseUrl: string, data: QbtMaindataResponse): void {
+// Spot-checks a value for the TorrentRecord shape (key fields only).
+// Used to validate new torrents before inserting into the store.
+function isTorrentRecord(value: unknown): value is TorrentRecord {
+  if (!value || typeof value !== "object") return false
+  const t = value as Record<string, unknown>
+  return (
+    typeof t.hash === "string" &&
+    typeof t.name === "string" &&
+    typeof t.state === "string" &&
+    typeof t.size === "number" &&
+    typeof t.ratio === "number"
+  )
+}
+
+export function applyMaindataUpdate(baseUrl: string, data: DeltaSyncResponse): void {
   const store = getOrCreateStore(baseUrl)
 
-  if (data.full_update) {
+  if (data.fullUpdate) {
     store.torrents.clear()
     store.initialized = true
   }
@@ -54,15 +69,15 @@ export function applyMaindataUpdate(baseUrl: string, data: QbtMaindataResponse):
         // New torrent — validate it has required fields before inserting.
         // qBT sends all fields for new torrents, but guard against partials.
         const candidate = { ...partial, hash }
-        if (isQbtTorrent(candidate)) {
-          store.torrents.set(hash, candidate as QbtTorrent)
+        if (isTorrentRecord(candidate)) {
+          store.torrents.set(hash, candidate as TorrentRecord)
         }
       }
     }
   }
 
-  if (data.torrents_removed) {
-    for (const hash of data.torrents_removed) {
+  if (data.torrentsRemoved) {
+    for (const hash of data.torrentsRemoved) {
       store.torrents.delete(hash)
     }
   }
@@ -71,7 +86,7 @@ export function applyMaindataUpdate(baseUrl: string, data: QbtMaindataResponse):
   store.lastUpdatedAt = Date.now()
 }
 
-export function getStoredTorrents(baseUrl: string): QbtTorrent[] {
+export function getStoredTorrents(baseUrl: string): TorrentRecord[] {
   const store = stores.get(baseUrl)
   if (!store?.initialized) return []
   return Array.from(store.torrents.values(), (t) => ({ ...t }))
@@ -81,11 +96,11 @@ export function getStoredTorrents(baseUrl: string): QbtTorrent[] {
  *  Avoids the 10K-copy overhead of getStoredTorrents when only ~2K are relevant. */
 export function getFilteredTorrents(
   baseUrl: string,
-  predicate: (torrent: QbtTorrent) => boolean
-): QbtTorrent[] {
+  predicate: (torrent: TorrentRecord) => boolean
+): TorrentRecord[] {
   const store = stores.get(baseUrl)
   if (!store?.initialized) return []
-  const result: QbtTorrent[] = []
+  const result: TorrentRecord[] = []
   for (const t of store.torrents.values()) {
     if (predicate(t)) result.push({ ...t })
   }
@@ -119,4 +134,14 @@ export function resetStore(baseUrl: string): void {
 
 export function clearAllStores(): void {
   stores.clear()
+}
+
+export function replaceStoreTorrents(baseUrl: string, torrents: TorrentRecord[]): void {
+  const store = getOrCreateStore(baseUrl)
+  store.torrents.clear()
+  for (const t of torrents) {
+    store.torrents.set(t.hash, t)
+  }
+  store.initialized = true
+  store.lastUpdatedAt = Date.now()
 }

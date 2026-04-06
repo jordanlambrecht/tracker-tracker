@@ -19,7 +19,7 @@ interface PreAggregatedProps {
 
 // Raw torrents props (per-tracker page path)
 interface RawTorrentsProps {
-  torrents: { addedOn: number }[]
+  torrents: { addedAt: number }[]
   accentColor?: string
   height?: number
 }
@@ -120,7 +120,7 @@ function TorrentActivityHeatmap(props: TorrentActivityHeatmapProps) {
 
   // Per-tracker path: raw torrents
   const { torrents } = props
-  const validTimestamps = torrents.map((t) => t.addedOn).filter((ts) => ts > 0)
+  const validTimestamps = torrents.map((t) => t.addedAt).filter((ts) => ts > 0)
   const { data, maxCount } = buildActivityMatrix(validTimestamps)
 
   if (maxCount === 0) {

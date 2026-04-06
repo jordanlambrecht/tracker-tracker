@@ -3,7 +3,14 @@
 // Functions: GET, POST
 
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseJsonBody, validateIntRange, validateMaxLength, validatePort } from "@/lib/api-helpers"
+import {
+  authenticate,
+  decodeKey,
+  parseJsonBody,
+  validateIntRange,
+  validateMaxLength,
+  validatePort,
+} from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { sanitizeHost } from "@/lib/data-transforms"
 import { db } from "@/lib/db"
@@ -18,15 +25,15 @@ import {
   HOST_MAX,
 } from "@/lib/limits"
 import { log } from "@/lib/logger"
-import { fetchClients, serializeClientResponse } from "@/lib/server-data"
+import { fetchDownloadClients, serializeDownloadClientResponse } from "@/lib/server-data"
 import { PROXY_HOST_PATTERN } from "@/lib/tunnel"
 
 export async function GET() {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const clients = await fetchClients()
-  return NextResponse.json(clients.map(serializeClientResponse))
+  const clients = await fetchDownloadClients()
+  return NextResponse.json(clients.map(serializeDownloadClientResponse))
 }
 
 export async function POST(request: Request) {
@@ -129,7 +136,9 @@ export async function POST(request: Request) {
 
   if (
     resolvedTags.length > 0 &&
-    !resolvedTags.every((t: unknown) => typeof t === "string" && t.length > 0 && t.length <= CROSS_SEED_TAG_MAX)
+    !resolvedTags.every(
+      (t: unknown) => typeof t === "string" && t.length > 0 && t.length <= CROSS_SEED_TAG_MAX
+    )
   ) {
     return NextResponse.json(
       { error: "Each cross-seed tag must be a non-empty string of 100 characters or fewer" },

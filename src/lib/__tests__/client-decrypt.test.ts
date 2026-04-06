@@ -9,7 +9,7 @@ vi.mock("@/lib/crypto", () => ({
 import { decrypt } from "@/lib/crypto"
 import { isDecryptionError } from "@/lib/error-utils"
 
-const { decryptClientCredentials } = await import("@/lib/client-decrypt")
+const { decryptClientCredentials } = await import("@/lib/download-clients/credentials")
 
 describe("decryptClientCredentials", () => {
   it("returns decrypted username and password", () => {

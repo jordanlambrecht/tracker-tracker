@@ -4,7 +4,7 @@
 import Link from "next/link"
 import { ServerIcon, TagIcon } from "@/components/ui/Icons"
 
-export function NoClientState() {
+export function NoDownloadClientState() {
   return (
     <div className="flex flex-col items-center justify-center gap-4 py-16 nm-inset-sm bg-control-bg rounded-nm-lg">
       <ServerIcon width={40} height={40} className="text-muted" />

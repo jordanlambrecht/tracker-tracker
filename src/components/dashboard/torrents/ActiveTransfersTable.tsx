@@ -4,6 +4,7 @@
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
+import type { TorrentRaw } from "@/lib/fleet"
 import {
   formatBytesNum,
   formatPercent,
@@ -11,10 +12,9 @@ import {
   formatSpeed,
   splitValueUnit,
 } from "@/lib/formatters"
-import type { TorrentInfo } from "@/lib/torrent-utils"
 
 interface ActiveTransfersTableProps {
-  torrents: TorrentInfo[]
+  torrents: TorrentRaw[]
   mode: "downloading" | "uploading"
   accentColor: string
   showClientName: boolean
@@ -28,7 +28,7 @@ export function ActiveTransfersTable({
 }: ActiveTransfersTableProps) {
   if (torrents.length === 0) {
     return (
-      <Table<TorrentInfo>
+      <Table<TorrentRaw>
         columns={[]}
         data={[]}
         keyExtractor={(t) => t.hash}
@@ -41,7 +41,7 @@ export function ActiveTransfersTable({
 
   const isDownload = mode === "downloading"
 
-  const columns: Column<TorrentInfo>[] = [
+  const columns: Column<TorrentRaw>[] = [
     {
       key: "name",
       header: "Name",
@@ -98,7 +98,7 @@ export function ActiveTransfersTable({
       align: "right",
       width: 48,
       render: (t) => {
-        const raw = isDownload ? t.dlspeed : t.upspeed
+        const raw = isDownload ? t.downloadSpeed : t.uploadSpeed
         const { num, unit: baseUnit } = splitValueUnit(formatSpeed(raw))
         const unit = baseUnit || "B/s"
         return (
@@ -118,8 +118,8 @@ export function ActiveTransfersTable({
       align: "right",
       width: 36,
       render: (t) => {
-        if (t.lastActivity <= 0) return <span className="torrent-cell">—</span>
-        const diff = Math.floor(Date.now() / 1000 - t.lastActivity)
+        if (t.lastActivityAt <= 0) return <span className="torrent-cell">—</span>
+        const diff = Math.floor(Date.now() / 1000 - t.lastActivityAt)
         const val =
           diff < 60
             ? `${diff}s`
@@ -134,7 +134,7 @@ export function ActiveTransfersTable({
   ]
 
   return (
-    <Table<TorrentInfo>
+    <Table<TorrentRaw>
       columns={columns}
       data={torrents}
       keyExtractor={(t) => t.hash}

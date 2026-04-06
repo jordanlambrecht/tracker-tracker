@@ -457,7 +457,7 @@ dialog[data-overlay][data-visible]::backdrop {
   animation-play-state: paused;
 }
 
-/* Carousel slide animations — used by ClientStatusWidget */
+/* Carousel slide animations — used by DownloadClientStatusWidget */
 @keyframes slideInLeft {
   from {
     opacity: 0;

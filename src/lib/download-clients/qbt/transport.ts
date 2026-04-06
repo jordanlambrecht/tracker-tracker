@@ -1,4 +1,4 @@
-// src/lib/qbt/transport.ts
+// src/lib/download-clients/qbt/transport.ts
 //
 // Available functions:
 //   buildBaseUrl          - Construct base URL from host/port/ssl
@@ -13,11 +13,11 @@
 //   getTransferInfo       - Fetch global transfer stats from qBittorrent
 //   syncMaindata          - Fetch delta sync data from qBittorrent (maindata endpoint)
 
-const QBT_REQUEST_TIMEOUT_MS = 15_000
-
 import { sanitizeHost } from "@/lib/data-transforms"
+import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import { log } from "@/lib/logger"
-import { clearAllStores, resetStore } from "./sync-store"
+import { clearAllStores, resetStore } from "../sync-store"
+import type { SlimTorrent } from "../transforms"
 import {
   isQbtMaindataResponse,
   isQbtTorrent,
@@ -139,7 +139,7 @@ export async function login(
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body,
-      signal: AbortSignal.timeout(QBT_REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
     })
   } catch (err) {
     const errName =
@@ -147,7 +147,7 @@ export async function login(
         ? String((err as { name: unknown }).name)
         : ""
     if (errName === "TimeoutError" || errName === "AbortError") {
-      throw new Error(`Request to ${host} timed out after ${QBT_REQUEST_TIMEOUT_MS / 1000}s`)
+      throw new Error(`Request to ${host} timed out after ${ADAPTER_FETCH_TIMEOUT_MS / 1000}s`)
     }
     throw new Error(`Failed to connect to ${baseUrl}: ${describeFetchError(err)}`)
   }
@@ -180,7 +180,7 @@ async function qbtFetch(
   try {
     response = await fetch(url, {
       headers: { Cookie: `SID=${sid}` },
-      signal: AbortSignal.timeout(QBT_REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
     })
   } catch (err) {
     const errName =
@@ -188,7 +188,7 @@ async function qbtFetch(
         ? String((err as { name: unknown }).name)
         : ""
     if (errName === "TimeoutError" || errName === "AbortError") {
-      throw new Error(`Request to ${host} timed out after ${QBT_REQUEST_TIMEOUT_MS / 1000}s`)
+      throw new Error(`Request to ${host} timed out after ${ADAPTER_FETCH_TIMEOUT_MS / 1000}s`)
     }
     throw new Error(`Failed to connect to ${host}: ${describeFetchError(err)}`)
   }
@@ -208,7 +208,7 @@ async function qbtFetch(
 /**
  * Parses the cachedTorrents JSONB column
  */
-export function parseCachedTorrents(raw: unknown): QbtTorrent[] {
+export function parseCachedTorrents(raw: unknown): SlimTorrent[] {
   if (!raw) return []
   let arr: unknown[]
   if (typeof raw === "string") {
@@ -228,12 +228,12 @@ export function parseCachedTorrents(raw: unknown): QbtTorrent[] {
   } else {
     return []
   }
-  if (arr.length === 0) return arr as QbtTorrent[]
+  if (arr.length === 0) return arr as SlimTorrent[]
   if (!isQbtTorrent(arr[0])) {
     log.warn({ sample: arr[0] }, "parseCachedTorrents: first element failed isQbtTorrent check")
     return []
   }
-  return arr as QbtTorrent[]
+  return arr as SlimTorrent[]
 }
 
 export async function getTorrents(

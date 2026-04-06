@@ -5,18 +5,18 @@ import { MarqueeText } from "@/components/ui/MarqueeText"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
 import { Tooltip } from "@/components/ui/Tooltip"
+import type { TorrentRaw } from "@/lib/fleet"
 import { formatBytesNum, formatDuration, formatRatio, splitValueUnit } from "@/lib/formatters"
-import type { TorrentInfo } from "@/lib/torrent-utils"
 
 type TorrentTableVariant = "top-seeded" | "elder"
 
 interface TorrentRankingTableProps {
-  torrents: TorrentInfo[]
+  torrents: TorrentRaw[]
   variant: TorrentTableVariant
   trackerColor?: string
 }
 
-const seedTimeCol: Column<TorrentInfo> = {
+const seedTimeCol: Column<TorrentRaw> = {
   key: "seedTime",
   header: "Seed",
   align: "right",
@@ -24,7 +24,7 @@ const seedTimeCol: Column<TorrentInfo> = {
   render: (t) => <span className="torrent-cell">{formatDuration(t.seedingTime)}</span>,
 }
 
-const seedTimeColLast: Column<TorrentInfo> = {
+const seedTimeColLast: Column<TorrentRaw> = {
   key: "seedTime",
   header: "Seed",
   align: "right",
@@ -32,25 +32,25 @@ const seedTimeColLast: Column<TorrentInfo> = {
   render: (t) => <span className="torrent-cell pr-2">{formatDuration(t.seedingTime)}</span>,
 }
 
-const swarmCol: Column<TorrentInfo> = {
+const swarmCol: Column<TorrentRaw> = {
   key: "swarm",
   header: "S/L",
   align: "right",
   width: "7%",
   render: (t) => (
     <span className="torrent-cell pr-2">
-      {t.numComplete}/{t.numIncomplete}
+      {t.swarmSeeders}/{t.swarmLeechers}
     </span>
   ),
 }
 
-const addedCol: Column<TorrentInfo> = {
+const addedCol: Column<TorrentRaw> = {
   key: "added",
   header: "Added",
   align: "right",
   width: "9%",
   render: (t) => {
-    const d = new Date(t.addedOn * 1000)
+    const d = new Date(t.addedAt * 1000)
     return (
       <span className="torrent-cell">
         {d.toLocaleDateString("en-US", { month: "short", year: "2-digit" })}
@@ -59,13 +59,13 @@ const addedCol: Column<TorrentInfo> = {
   },
 }
 
-const variantColumns: Record<TorrentTableVariant, Column<TorrentInfo>[]> = {
+const variantColumns: Record<TorrentTableVariant, Column<TorrentRaw>[]> = {
   "top-seeded": [seedTimeCol, swarmCol],
   elder: [addedCol, seedTimeColLast],
 }
 
 export function TorrentRankingTable({ torrents, variant, trackerColor }: TorrentRankingTableProps) {
-  const sharedColumns: Column<TorrentInfo>[] = [
+  const sharedColumns: Column<TorrentRaw>[] = [
     {
       key: "rank",
       header: "#",
@@ -118,7 +118,7 @@ export function TorrentRankingTable({ torrents, variant, trackerColor }: Torrent
   const columns = [...sharedColumns, ...variantColumns[variant]]
 
   return (
-    <Table<TorrentInfo>
+    <Table<TorrentRaw>
       columns={columns}
       data={torrents}
       keyExtractor={(t) => t.hash}

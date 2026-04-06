@@ -1,4 +1,4 @@
-// src/components/layout/ClientStatusWidget.tsx
+// src/components/layout/DownloadClientStatusWidget.tsx
 "use client"
 
 import { useQueries, useQuery } from "@tanstack/react-query"
@@ -89,12 +89,12 @@ function ClientSlide({
 }
 
 // ---------------------------------------------------------------------------
-//  ClientStatusWidget
+//  DownloadClientStatusWidget
 // ---------------------------------------------------------------------------
 
 const selectEnabled = (all: ClientInfo[]) => all.filter((c) => c.enabled)
 
-function ClientStatusWidget() {
+function DownloadClientStatusWidget() {
   const [expanded, setExpanded] = useLocalStorage(STORAGE_KEYS.CLIENT_WIDGET_EXPANDED, false)
 
   // Set height-based default on first visit (when no preference is stored)
@@ -243,4 +243,4 @@ function ClientStatusWidget() {
   )
 }
 
-export { ClientStatusWidget }
+export { DownloadClientStatusWidget }

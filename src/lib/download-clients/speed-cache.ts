@@ -1,9 +1,11 @@
-// src/lib/qbt/speed-cache.ts
+// src/lib/download-clients/speed-cache.ts
 //
 // Available functions:
 //   pushSpeedSnapshot  - Append a speed sample for a client, trimming to MAX_ENTRIES
 //   getSpeedSnapshots  - Return the speed history array for a client (empty if none)
 //   clearSpeedCache    - Wipe all in-memory speed data (called on logout)
+
+import type { TransferStats } from "./types"
 
 const MAX_ENTRIES = 60
 
@@ -19,9 +21,13 @@ const g = globalThis as typeof globalThis & {
 if (!g.__qbtSpeedCache) g.__qbtSpeedCache = new Map()
 const speedCache = g.__qbtSpeedCache
 
-export function pushSpeedSnapshot(clientId: number, up: number, down: number): void {
+export function pushSpeedSnapshot(clientId: number, stats: TransferStats): void {
   const existing = speedCache.get(clientId) ?? []
-  existing.push({ timestamp: Date.now(), uploadSpeed: up, downloadSpeed: down })
+  existing.push({
+    timestamp: Date.now(),
+    uploadSpeed: stats.uploadSpeed,
+    downloadSpeed: stats.downloadSpeed,
+  })
   if (existing.length > MAX_ENTRIES) {
     existing.splice(0, existing.length - MAX_ENTRIES)
   }

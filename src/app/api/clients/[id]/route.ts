@@ -27,7 +27,7 @@ import {
 } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { PROXY_HOST_PATTERN } from "@/lib/tunnel"
-import { removeClientFromAccumulator } from "@/lib/uptime"
+import { removeDownloadClientFromAccumulator } from "@/lib/uptime"
 
 export async function PATCH(request: Request, props: RouteContext) {
   const auth = await authenticate()
@@ -167,7 +167,7 @@ export async function DELETE(_request: Request, props: RouteContext) {
     return NextResponse.json({ error: "Client not found" }, { status: 404 })
   }
 
-  removeClientFromAccumulator(clientId)
+  removeDownloadClientFromAccumulator(clientId)
 
   await db.transaction(async (tx) => {
     await tx.delete(downloadClients).where(eq(downloadClients.id, clientId))

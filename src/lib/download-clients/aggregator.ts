@@ -1,10 +1,11 @@
-// src/lib/qbt/aggregator.ts
+// src/lib/download-clients/aggregator.ts
 
 import { LEECHING_STATES, parseTorrentTags, SEEDING_STATES } from "@/lib/fleet"
-import type { ClientStats, QbtTorrent, TagStats } from "./types"
+import type { ClientStats, TagStats } from "./qbt/types"
+import type { TorrentRecord } from "./types"
 
 export function aggregateByTag(
-  torrents: QbtTorrent[],
+  torrents: TorrentRecord[],
   trackerTags: string[],
   crossSeedTags: string[]
 ): ClientStats {
@@ -49,12 +50,12 @@ export function aggregateByTag(
     if (matchedTags.length === 0) {
       if (seeding) {
         untaggedBucket.seedingCount++
-        untaggedBucket.uploadSpeed += torrent.upspeed
-        untaggedBucket.downloadSpeed += torrent.dlspeed
+        untaggedBucket.uploadSpeed += torrent.uploadSpeed
+        untaggedBucket.downloadSpeed += torrent.downloadSpeed
       } else if (leeching) {
         untaggedBucket.leechingCount++
-        untaggedBucket.uploadSpeed += torrent.upspeed
-        untaggedBucket.downloadSpeed += torrent.dlspeed
+        untaggedBucket.uploadSpeed += torrent.uploadSpeed
+        untaggedBucket.downloadSpeed += torrent.downloadSpeed
       }
     } else {
       for (const matchedTag of matchedTags) {
@@ -62,12 +63,12 @@ export function aggregateByTag(
         if (!bucket) continue
         if (seeding) {
           bucket.seedingCount++
-          bucket.uploadSpeed += torrent.upspeed
-          bucket.downloadSpeed += torrent.dlspeed
+          bucket.uploadSpeed += torrent.uploadSpeed
+          bucket.downloadSpeed += torrent.downloadSpeed
         } else if (leeching) {
           bucket.leechingCount++
-          bucket.uploadSpeed += torrent.upspeed
-          bucket.downloadSpeed += torrent.dlspeed
+          bucket.uploadSpeed += torrent.uploadSpeed
+          bucket.downloadSpeed += torrent.downloadSpeed
         }
       }
     }

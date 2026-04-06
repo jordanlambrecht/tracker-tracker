@@ -223,10 +223,10 @@ export function computeFleetAggregation(
     const isSeeding = SEEDING_STATES.has(torrent.state)
     if (isSeeding) totalSeeding++
     else totalLeeching++
-    fleetUploadSpeed += torrent.upspeed
-    fleetDownloadSpeed += torrent.dlspeed
+    fleetUploadSpeed += torrent.uploadSpeed
+    fleetDownloadSpeed += torrent.downloadSpeed
     totalLibrarySize += torrent.size
-    if (torrent.last_activity > 0 && now - torrent.last_activity * 1000 > STALE_THRESHOLD_MS) {
+    if (torrent.lastActivityAt > 0 && now - torrent.lastActivityAt * 1000 > STALE_THRESHOLD_MS) {
       staleCount++
     }
     if (isCrossSeed) crossSeededCount++
@@ -242,19 +242,19 @@ export function computeFleetAggregation(
 
     // -- Seed time bucket (seeding torrents only) --
     if (isSeeding) {
-      const sBucketIdx = SEED_TIME_BUCKETS.findIndex((b: Bucket) => torrent.seeding_time < b.max)
+      const sBucketIdx = SEED_TIME_BUCKETS.findIndex((b: Bucket) => torrent.seedingTime < b.max)
       seedTimeCounts[sBucketIdx === -1 ? SEED_TIME_BUCKETS.length - 1 : sBucketIdx]++
     }
 
     // -- Activity matrix --
-    if (torrent.added_on > 0) {
-      addedOnTimestamps.push(torrent.added_on)
+    if (torrent.addedAt > 0) {
+      addedOnTimestamps.push(torrent.addedAt)
     }
 
     // -- Category timeline --
-    if (torrent.added_on > 0) {
+    if (torrent.addedAt > 0) {
       const category = normalizeCategory(torrent.category)
-      const monthKey = toMonthKey(torrent.added_on)
+      const monthKey = toMonthKey(torrent.addedAt)
       const catMap = categoryMonthMap.get(category) ?? new Map<string, number>()
       catMap.set(monthKey, (catMap.get(monthKey) ?? 0) + 1)
       categoryMonthMap.set(category, catMap)
@@ -279,9 +279,12 @@ export function computeFleetAggregation(
           acc.ratioSum += torrent.ratio
           acc.validRatioCount++
         }
-        acc.uploadSpeedSum += torrent.upspeed
-        acc.seedTimeDaysSum += torrent.seeding_time / 86400
-        if (torrent.last_activity > 0 && now - torrent.last_activity * 1000 < FRESHNESS_WINDOW_MS) {
+        acc.uploadSpeedSum += torrent.uploadSpeed
+        acc.seedTimeDaysSum += torrent.seedingTime / 86400
+        if (
+          torrent.lastActivityAt > 0 &&
+          now - torrent.lastActivityAt * 1000 < FRESHNESS_WINDOW_MS
+        ) {
           acc.freshnessCount++
         }
         acc.sizes.push(torrent.size)
@@ -294,14 +297,14 @@ export function computeFleetAggregation(
         acc.categoryStorage.set(cat, catEntry)
 
         // Age timeline
-        if (torrent.added_on > 0) {
-          const monthKey = toMonthKey(torrent.added_on)
+        if (torrent.addedAt > 0) {
+          const monthKey = toMonthKey(torrent.addedAt)
           acc.monthCounts.set(monthKey, (acc.monthCounts.get(monthKey) ?? 0) + 1)
         }
 
         // Age bands
-        if (torrent.added_on > 0) {
-          const ageDays = (nowSec - torrent.added_on) / 86400
+        if (torrent.addedAt > 0) {
+          const ageDays = (nowSec - torrent.addedAt) / 86400
           if (ageDays >= 0) {
             acc.ageTotalDays += ageDays
             const idx = AGE_BUCKETS.findIndex((b: AgeBucket) => ageDays < b.maxDays)

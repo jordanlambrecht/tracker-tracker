@@ -4,7 +4,7 @@
 // Buckets are 5 minutes wide. The accumulator lives on globalThis
 // to survive HMR reloads in development.
 //
-// Functions: floorToFiveMin, recordHeartbeat, flushCompletedBuckets, removeClientFromAccumulator, clearUptimeAccumulator
+// Functions: floorToFiveMin, recordHeartbeat, flushCompletedBuckets, removeDownloadClientFromAccumulator, clearUptimeAccumulator
 
 import { db } from "@/lib/db"
 import { clientUptimeBuckets } from "@/lib/db/schema"
@@ -100,8 +100,8 @@ export async function flushCompletedBuckets(): Promise<number> {
   return entries.length
 }
 
-/** Remove a single client from the accumulator and flush queue. Called when a client is deleted. */
-export function removeClientFromAccumulator(clientId: number): void {
+/** Remove a single download client from the accumulator and flush queue. Called when a client is deleted. */
+export function removeDownloadClientFromAccumulator(clientId: number): void {
   getAccumulator().delete(clientId)
   const queue = getFlushQueue()
   const filtered = queue.filter((e) => e.clientId !== clientId)

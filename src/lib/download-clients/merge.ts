@@ -1,22 +1,21 @@
-// src/lib/qbt/merge.ts
+// src/lib/download-clients/merge.ts
 //
 // Functions: mergeTorrentLists, aggregateCrossSeedTags
 
 /**
- * Raw torrent shape returned by the qBT API (snake_case).
- * Intentionally minimal — only fields the merge logic touches.
+ * Minimal torrent shape the merge algorithm touches.
  * The full object passes through untouched.
  */
 export interface RawTorrent {
   hash: string
-  upspeed: number
-  dlspeed: number
-  seeding_time: number
+  uploadSpeed: number
+  downloadSpeed: number
+  seedingTime: number
   progress: number
-  num_seeds: number
-  num_complete: number
-  num_leechs: number
-  num_incomplete: number
+  seedCount: number
+  swarmSeeders: number
+  leechCount: number
+  swarmLeechers: number
   uploaded: number
   downloaded: number
   ratio: number
@@ -27,7 +26,7 @@ export interface RawTorrent {
  *
  * Same hash across clients = same torrent seeded from multiple places.
  *   - Speeds are summed (different peers per client)
- *   - seeding_time takes the max (longest-running instance)
+ *   - seedingTime takes the max (longest-running instance)
  *   - progress takes the max (most complete instance)
  *   - Swarm counts take the max (best visibility)
  *   - uploaded/downloaded are summed (total contribution across clients)
@@ -44,23 +43,17 @@ export function mergeTorrentLists<T extends RawTorrent>(lists: T[][]): T[] {
         continue
       }
 
-      // Sum speeds — each client contributes to different peers
-      existing.upspeed += torrent.upspeed
-      existing.dlspeed += torrent.dlspeed
-
-      // Sum total transfer — cumulative contribution
+      existing.uploadSpeed += torrent.uploadSpeed
+      existing.downloadSpeed += torrent.downloadSpeed
       existing.uploaded += torrent.uploaded
       existing.downloaded += torrent.downloaded
-
-      // Take best values
-      existing.seeding_time = Math.max(existing.seeding_time, torrent.seeding_time)
+      existing.seedingTime = Math.max(existing.seedingTime, torrent.seedingTime)
       existing.progress = Math.max(existing.progress, torrent.progress)
-      existing.num_seeds = Math.max(existing.num_seeds, torrent.num_seeds)
-      existing.num_complete = Math.max(existing.num_complete, torrent.num_complete)
-      existing.num_leechs = Math.max(existing.num_leechs, torrent.num_leechs)
-      existing.num_incomplete = Math.max(existing.num_incomplete, torrent.num_incomplete)
+      existing.seedCount = Math.max(existing.seedCount, torrent.seedCount)
+      existing.swarmSeeders = Math.max(existing.swarmSeeders, torrent.swarmSeeders)
+      existing.leechCount = Math.max(existing.leechCount, torrent.leechCount)
+      existing.swarmLeechers = Math.max(existing.swarmLeechers, torrent.swarmLeechers)
 
-      // Recalculate ratio from summed transfer totals
       existing.ratio =
         existing.downloaded > 0
           ? existing.uploaded / existing.downloaded
@@ -69,6 +62,28 @@ export function mergeTorrentLists<T extends RawTorrent>(lists: T[][]): T[] {
   }
 
   return [...merged.values()]
+}
+
+/**
+ * Build a hash → client name(s) lookup from per-client torrent lists,
+ * then stamp each merged torrent with a `clientName` field.
+ */
+export function stampClientNames<T extends { hash: string }>(
+  clientTorrents: { clientName: string; torrents: T[] }[],
+  merged: T[]
+): (T & { clientName: string })[] {
+  const hashClients = new Map<string, string[]>()
+  for (const { clientName, torrents } of clientTorrents) {
+    for (const t of torrents) {
+      const names = hashClients.get(t.hash) ?? []
+      names.push(clientName)
+      hashClients.set(t.hash, names)
+    }
+  }
+  return merged.map((t) => ({
+    ...t,
+    clientName: (hashClients.get(t.hash) ?? []).join(", "),
+  }))
 }
 
 /**

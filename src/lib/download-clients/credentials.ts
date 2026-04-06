@@ -1,4 +1,4 @@
-// src/lib/client-decrypt.ts
+// src/lib/download-clients/credentials.ts
 import "server-only"
 
 import { decrypt } from "@/lib/crypto"

@@ -5,11 +5,11 @@ import { CHART_THEME } from "@/components/charts/lib/theme"
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
+import type { TorrentRaw } from "@/lib/fleet"
 import { formatBytesNum, formatDuration, formatPercent } from "@/lib/formatters"
-import type { TorrentInfo } from "@/lib/torrent-utils"
 
 interface UnsatisfiedTorrentsTableProps {
-  torrents: TorrentInfo[]
+  torrents: TorrentRaw[]
   requiredSeconds: number
   accentColor: string
 }
@@ -22,7 +22,7 @@ export function UnsatisfiedTorrentsTable({
   const pctColor = (p: number) =>
     p < 50 ? CHART_THEME.danger : p < 80 ? CHART_THEME.warn : CHART_THEME.positive
 
-  const columns: Column<TorrentInfo>[] = [
+  const columns: Column<TorrentRaw>[] = [
     {
       key: "name",
       header: "Name",
@@ -91,7 +91,7 @@ export function UnsatisfiedTorrentsTable({
   ]
 
   return (
-    <Table<TorrentInfo>
+    <Table<TorrentRaw>
       columns={columns}
       data={torrents}
       keyExtractor={(t) => t.hash}

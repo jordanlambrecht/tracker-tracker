@@ -126,7 +126,7 @@ vi.mock("@/lib/tunnel", () => ({
   VALID_PROXY_TYPES: new Set(["socks5", "http", "https"]),
 }))
 
-vi.mock("@/lib/qbt/qbitmanage-defaults", () => ({
+vi.mock("@/lib/download-clients/qbt/qbitmanage-defaults", () => ({
   parseQbitmanageTags: vi.fn(() => ({})),
   QBITMANAGE_KEYS: [],
 }))
@@ -175,7 +175,9 @@ describe("PATCH /api/settings route validation", () => {
     const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
 
     expect(response.status).toBe(400)
-    await expect(response.json()).resolves.toEqual({ error: "Invalid poll interval" })
+    await expect(response.json()).resolves.toEqual({
+      error: "Poll interval must be between 15 and 1440 minutes",
+    })
   })
 
   it("rejects trackerPollIntervalMinutes below 15 minutes", async () => {
@@ -187,7 +189,7 @@ describe("PATCH /api/settings route validation", () => {
 
     expect(response.status).toBe(400)
     await expect(response.json()).resolves.toEqual({
-      error: "Poll interval must be between 15 minutes and 24 hours",
+      error: "Poll interval must be between 15 and 1440 minutes",
     })
   })
 
@@ -200,8 +202,54 @@ describe("PATCH /api/settings route validation", () => {
 
     expect(response.status).toBe(400)
     await expect(response.json()).resolves.toEqual({
-      error: "Poll interval must be between 15 minutes and 24 hours",
+      error: "Poll interval must be between 15 and 1440 minutes",
     })
+  })
+
+  // ─── Username validation ──────────────────────────────────────
+
+  it("rejects username shorter than 3 characters", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ username: "ab" })
+
+    const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({
+      error: "Username must be between 3 and 100 characters",
+    })
+  })
+
+  it("accepts username of exactly 3 characters", async () => {
+    const set = vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([]) })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set })
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ username: "joe" })
+
+    const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
+
+    expect(response.status).toBe(200)
+  })
+
+  it("rejects username longer than 100 characters", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      username: "a".repeat(101),
+    })
+
+    const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({
+      error: "Username must be between 3 and 100 characters",
+    })
+  })
+
+  it("accepts null username to clear it", async () => {
+    const set = vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([]) })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set })
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ username: null })
+
+    const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
+
+    expect(response.status).toBe(200)
   })
 
   it("returns 401 when unauthenticated", async () => {
