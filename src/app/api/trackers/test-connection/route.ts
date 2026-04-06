@@ -1,4 +1,4 @@
-// src/app/api/trackers/test/route.ts
+// src/app/api/trackers/test-connection/route.ts
 import { NextResponse } from "next/server"
 import {
   buildFetchOptions,
@@ -6,7 +6,13 @@ import {
   getAdapter,
   VALID_PLATFORM_TYPES,
 } from "@/lib/adapters"
-import { authenticate, parseJsonBody, validateHttpUrl } from "@/lib/api-helpers"
+import { authenticate, parseJsonBody, validateHttpUrl, validateMaxLength } from "@/lib/api-helpers"
+import {
+  AVISTAZ_TOKEN_MAX,
+  LONG_STRING_MAX,
+  TRACKER_TOKEN_MAX,
+  TRACKER_URL_MAX,
+} from "@/lib/limits"
 import { log } from "@/lib/logger"
 
 export async function POST(request: Request) {
@@ -31,17 +37,12 @@ export async function POST(request: Request) {
   const trimmedApiToken = apiToken.trim()
   const platform = typeof platformType === "string" ? platformType : "unit3d"
 
-  const maxTokenLength = platform === "avistaz" ? 5000 : 500
-  if (trimmedApiToken.length > maxTokenLength) {
-    return NextResponse.json(
-      { error: `API token must be ${maxTokenLength} characters or fewer` },
-      { status: 400 }
-    )
-  }
+  const maxTokenLength = platform === "avistaz" ? AVISTAZ_TOKEN_MAX : TRACKER_TOKEN_MAX
+  const tokenErr = validateMaxLength(trimmedApiToken, maxTokenLength, "API token")
+  if (tokenErr) return tokenErr
 
-  if (trimmedBaseUrl.length > 500) {
-    return NextResponse.json({ error: "URL must be 500 characters or fewer" }, { status: 400 })
-  }
+  const urlLenErr = validateMaxLength(trimmedBaseUrl, TRACKER_URL_MAX, "URL")
+  if (urlLenErr) return urlLenErr
 
   const urlErr = validateHttpUrl(trimmedBaseUrl)
   if (urlErr) return urlErr
@@ -54,12 +55,8 @@ export async function POST(request: Request) {
     const adapter = getAdapter(platform)
     const defaultPath = DEFAULT_API_PATHS[platform] ?? "/api/user"
     const rawPath = typeof apiPath === "string" && apiPath.startsWith("/") ? apiPath : defaultPath
-    if (rawPath.length > 500) {
-      return NextResponse.json(
-        { error: "API path must be 500 characters or fewer" },
-        { status: 400 }
-      )
-    }
+    const pathLenErr = validateMaxLength(rawPath, LONG_STRING_MAX, "API path")
+    if (pathLenErr) return pathLenErr
     const path = rawPath
     const fetchOptions = buildFetchOptions(trimmedBaseUrl)
     const stats = await adapter.fetchStats(trimmedBaseUrl, trimmedApiToken, path, fetchOptions)
@@ -73,7 +70,7 @@ export async function POST(request: Request) {
     if (platform === "avistaz") {
       log.debug(
         {
-          route: "POST /api/trackers/test",
+          route: "POST /api/trackers/test-connection",
           userAgent: request.headers.get("user-agent") ?? "",
         },
         "tracker test user agent captured"
@@ -84,7 +81,7 @@ export async function POST(request: Request) {
   } catch (error) {
     log.warn(
       {
-        route: "POST /api/trackers/test",
+        route: "POST /api/trackers/test-connection",
         error: String(error),
       },
       "tracker connection test failed"

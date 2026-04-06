@@ -149,7 +149,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
     // Test the new API key before saving
     if (changingKey && trimmedToken) {
       try {
-        const testRes = await fetch("/api/trackers/test", {
+        const testRes = await fetch("/api/trackers/test-connection", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

@@ -29,6 +29,14 @@ import {
   trackerSnapshots,
   trackers,
 } from "@/lib/db/schema"
+import {
+  BACKUP_PASSWORD_MAX,
+  BACKUP_RESTORE_MAX_BYTES,
+  LOCKOUT_DURATION_DEFAULT,
+  LOCKOUT_THRESHOLD_DEFAULT,
+  PASSWORD_MAX,
+  POLL_INTERVAL_DEFAULT,
+} from "@/lib/limits"
 import { checkLockout, recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import { log } from "@/lib/logger"
 import { stopScheduler } from "@/lib/scheduler"
@@ -86,8 +94,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Backup file is required" }, { status: 400 })
   }
 
-  const MAX_BACKUP_SIZE = 50 * 1024 * 1024 // 50 MB
-  if (file.size > MAX_BACKUP_SIZE) {
+  if (file.size > BACKUP_RESTORE_MAX_BYTES) {
     return NextResponse.json(
       { error: "Backup file exceeds maximum size of 50 MB" },
       { status: 400 }
@@ -99,7 +106,7 @@ export async function POST(request: Request) {
     !masterPassword ||
     typeof masterPassword !== "string" ||
     masterPassword.length === 0 ||
-    masterPassword.length > 128
+    masterPassword.length > PASSWORD_MAX
   ) {
     return NextResponse.json(
       { error: "Master password is required to restore backups" },
@@ -134,7 +141,7 @@ export async function POST(request: Request) {
           { status: 400 }
         )
       }
-      if (backupPassword.length > 128) {
+      if (backupPassword.length > BACKUP_PASSWORD_MAX) {
         return NextResponse.json(
           { error: "Backup password must be 128 characters or fewer" },
           { status: 400 }
@@ -645,12 +652,15 @@ export async function POST(request: Request) {
           totpBackupCodes,
           sessionTimeoutMinutes: (payload.settings.sessionTimeoutMinutes as number | null) ?? null,
           lockoutEnabled: (payload.settings.lockoutEnabled as boolean) ?? true,
-          lockoutThreshold: (payload.settings.lockoutThreshold as number) ?? 5,
-          lockoutDurationMinutes: (payload.settings.lockoutDurationMinutes as number) ?? 15,
+          lockoutThreshold:
+            (payload.settings.lockoutThreshold as number) ?? LOCKOUT_THRESHOLD_DEFAULT,
+          lockoutDurationMinutes:
+            (payload.settings.lockoutDurationMinutes as number) ?? LOCKOUT_DURATION_DEFAULT,
           failedLoginAttempts: 0,
           lockedUntil: null,
           snapshotRetentionDays: (payload.settings.snapshotRetentionDays as number | null) ?? null,
-          trackerPollIntervalMinutes: (payload.settings.trackerPollIntervalMinutes as number) ?? 60,
+          trackerPollIntervalMinutes:
+            (payload.settings.trackerPollIntervalMinutes as number) ?? POLL_INTERVAL_DEFAULT,
           proxyEnabled: payload.settings.proxyEnabled as boolean,
           proxyType: payload.settings.proxyType as string,
           proxyHost: (payload.settings.proxyHost as string | null) ?? null,

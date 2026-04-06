@@ -1,5 +1,6 @@
 // src/lib/notifications/types.ts
 
+export const SUPPORTED_NOTIFICATION_TYPES = ["discord"] as const
 export const VALID_NOTIFICATION_TYPES = ["discord", "gotify", "telegram", "slack", "email"] as const
 export type NotificationTargetType = (typeof VALID_NOTIFICATION_TYPES)[number]
 

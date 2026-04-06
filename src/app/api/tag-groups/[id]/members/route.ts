@@ -13,6 +13,7 @@ import {
 } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { tagGroupMembers, tagGroups } from "@/lib/db/schema"
+import { SHORT_NAME_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 
 export async function GET(_request: Request, props: RouteContext) {
@@ -66,11 +67,11 @@ export async function POST(request: Request, props: RouteContext) {
     return NextResponse.json({ error: "label is required" }, { status: 400 })
   }
 
-  if (tag.length > 100) {
+  if (tag.length > SHORT_NAME_MAX) {
     return NextResponse.json({ error: "Tag must be 100 characters or fewer" }, { status: 400 })
   }
 
-  if (label.length > 100) {
+  if (label.length > SHORT_NAME_MAX) {
     return NextResponse.json({ error: "Label must be 100 characters or fewer" }, { status: 400 })
   }
 

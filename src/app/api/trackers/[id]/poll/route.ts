@@ -5,11 +5,10 @@ import { authenticate, decodeKey, parseTrackerId, type RouteContext } from "@/li
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
 import { isDecryptionError } from "@/lib/error-utils"
+import { POLL_MANUAL_COOLDOWN_MS } from "@/lib/limits"
 import { log } from "@/lib/logger"
-import { pollTracker } from "@/lib/scheduler"
+import { pollTracker } from "@/lib/tracker-scheduler"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
-
-const POLL_COOLDOWN_MS = 10_000
 
 export async function POST(_request: Request, props: RouteContext) {
   const auth = await authenticate()
@@ -19,7 +18,7 @@ export async function POST(_request: Request, props: RouteContext) {
   if (trackerId instanceof NextResponse) return trackerId
 
   // Atomically claim poll slot — prevents TOCTOU race with multiple tabs
-  const threshold = new Date(Date.now() - POLL_COOLDOWN_MS)
+  const threshold = new Date(Date.now() - POLL_MANUAL_COOLDOWN_MS)
   const [claimed] = await db
     .update(trackers)
     .set({ lastPolledAt: new Date() })
@@ -65,7 +64,7 @@ export async function POST(_request: Request, props: RouteContext) {
         { route: "POST /api/trackers/[id]/poll", trackerId },
         "manual poll failed — stale session key"
       )
-      return NextResponse.json({ error: "Session expired — please log in again" }, { status: 401 })
+      return NextResponse.json({ error: "Session expired. Please log in again." }, { status: 401 })
     }
     log.error(
       { route: "POST /api/trackers/[id]/poll", trackerId, error: String(error) },

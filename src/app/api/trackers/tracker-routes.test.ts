@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import { authenticate, parseJsonBody, parseTrackerId } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
-import { pollTracker } from "@/lib/scheduler"
+import { pollTracker } from "@/lib/tracker-scheduler"
 import { POST as PollPOST } from "./[id]/poll/route"
 import { GET as RolesGET, POST as RolesPOST } from "./[id]/roles/route"
 import { DELETE, PATCH } from "./[id]/route"
@@ -43,7 +43,7 @@ vi.mock("@/lib/tunnel", () => ({
   VALID_PROXY_TYPES: new Set(["socks5", "http", "https"]),
 }))
 
-vi.mock("@/lib/scheduler", () => ({
+vi.mock("@/lib/tracker-scheduler", () => ({
   pollTracker: vi.fn(),
 }))
 

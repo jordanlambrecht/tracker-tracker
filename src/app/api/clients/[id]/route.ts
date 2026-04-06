@@ -8,14 +8,24 @@ import {
   parseJsonBody,
   parseRouteId,
   type RouteContext,
+  validateIntRange,
+  validateMaxLength,
   validatePort,
 } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { sanitizeHost } from "@/lib/data-transforms"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
+import { VALID_CLIENT_TYPES } from "@/lib/download-clients"
+import {
+  CLIENT_POLL_INTERVAL_MAX,
+  CLIENT_POLL_INTERVAL_MIN,
+  CREDENTIAL_MAX,
+  CROSS_SEED_TAG_MAX,
+  CROSS_SEED_TAGS_MAX,
+  HOST_MAX,
+} from "@/lib/limits"
 import { log } from "@/lib/logger"
-import { VALID_CLIENT_TYPES } from "@/lib/qbt/types"
 import { PROXY_HOST_PATTERN } from "@/lib/tunnel"
 import { removeClientFromAccumulator } from "@/lib/uptime"
 
@@ -49,16 +59,14 @@ export async function PATCH(request: Request, props: RouteContext) {
   }
 
   if (typeof body.name === "string") {
-    if (body.name.length > 255) {
-      return NextResponse.json({ error: "Name must be 255 characters or fewer" }, { status: 400 })
-    }
+    const nameErr = validateMaxLength(body.name, CREDENTIAL_MAX, "Name")
+    if (nameErr) return nameErr
     updates.name = body.name.trim()
   }
 
   if (typeof body.host === "string") {
-    if (body.host.length > 255) {
-      return NextResponse.json({ error: "Host must be 255 characters or fewer" }, { status: 400 })
-    }
+    const hostErr = validateMaxLength(body.host, HOST_MAX, "Host")
+    if (hostErr) return hostErr
     const sanitizedHost = sanitizeHost(body.host)
     if (!PROXY_HOST_PATTERN.test(sanitizedHost)) {
       return NextResponse.json({ error: "Invalid host format" }, { status: 400 })
@@ -83,12 +91,14 @@ export async function PATCH(request: Request, props: RouteContext) {
   if (typeof body.enabled === "boolean") updates.enabled = body.enabled
 
   if (typeof body.pollIntervalSeconds === "number") {
-    if (body.pollIntervalSeconds < 60 || body.pollIntervalSeconds > 86400) {
-      return NextResponse.json(
-        { error: "Poll interval must be between 60 and 86400 seconds" },
-        { status: 400 }
-      )
-    }
+    const pollErr = validateIntRange(
+      body.pollIntervalSeconds,
+      CLIENT_POLL_INTERVAL_MIN,
+      CLIENT_POLL_INTERVAL_MAX,
+      "pollIntervalSeconds",
+      `Poll interval must be between ${CLIENT_POLL_INTERVAL_MIN} and ${CLIENT_POLL_INTERVAL_MAX} seconds`
+    )
+    if (pollErr) return pollErr
     updates.pollIntervalSeconds = body.pollIntervalSeconds
   }
 
@@ -96,7 +106,7 @@ export async function PATCH(request: Request, props: RouteContext) {
     if (!Array.isArray(body.crossSeedTags)) {
       return NextResponse.json({ error: "crossSeedTags must be an array" }, { status: 400 })
     }
-    if (body.crossSeedTags.length > 50) {
+    if (body.crossSeedTags.length > CROSS_SEED_TAGS_MAX) {
       return NextResponse.json(
         { error: "Cannot specify more than 50 cross-seed tags" },
         { status: 400 }
@@ -104,7 +114,7 @@ export async function PATCH(request: Request, props: RouteContext) {
     }
     if (
       !body.crossSeedTags.every(
-        (t: unknown) => typeof t === "string" && t.length > 0 && t.length <= 100
+        (t: unknown) => typeof t === "string" && t.length > 0 && t.length <= CROSS_SEED_TAG_MAX
       )
     ) {
       return NextResponse.json(
@@ -116,22 +126,14 @@ export async function PATCH(request: Request, props: RouteContext) {
   }
 
   if (typeof body.username === "string") {
-    if (body.username.length > 255) {
-      return NextResponse.json(
-        { error: "Username must be 255 characters or fewer" },
-        { status: 400 }
-      )
-    }
+    const usernameErr = validateMaxLength(body.username, CREDENTIAL_MAX, "Username")
+    if (usernameErr) return usernameErr
     updates.encryptedUsername = encrypt(body.username, getKey())
   }
 
   if (typeof body.password === "string") {
-    if (body.password.length > 255) {
-      return NextResponse.json(
-        { error: "Password must be 255 characters or fewer" },
-        { status: 400 }
-      )
-    }
+    const passwordErr = validateMaxLength(body.password, CREDENTIAL_MAX, "Password")
+    if (passwordErr) return passwordErr
     updates.encryptedPassword = encrypt(body.password, getKey())
   }
 

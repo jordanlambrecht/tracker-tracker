@@ -9,6 +9,7 @@ import { extractClientIp } from "@/lib/client-ip"
 import { deriveKey } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { PASSWORD_MAX } from "@/lib/limits"
 import { checkLockout, recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import { log } from "@/lib/logger"
 import { startScheduler } from "@/lib/scheduler"
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
   const clientIp = extractClientIp(request.headers)
 
   const password = body.password as string | undefined
-  if (!password || typeof password !== "string" || password.length > 128) {
+  if (!password || typeof password !== "string" || password.length > PASSWORD_MAX) {
     return NextResponse.json({ error: "Invalid password" }, { status: 400 })
   }
 

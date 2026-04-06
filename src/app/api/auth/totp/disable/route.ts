@@ -11,6 +11,7 @@ import { verifyPassword } from "@/lib/auth"
 import { decrypt, encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { PASSWORD_MAX } from "@/lib/limits"
 import { recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import { log } from "@/lib/logger"
 import type { BackupCodeEntry } from "@/lib/totp"
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
   }
 
   // Password re-verification required to disable 2FA
-  if (!password || typeof password !== "string" || password.length > 128) {
+  if (!password || typeof password !== "string" || password.length > PASSWORD_MAX) {
     return NextResponse.json(
       { error: "Master password is required to disable 2FA" },
       { status: 400 }

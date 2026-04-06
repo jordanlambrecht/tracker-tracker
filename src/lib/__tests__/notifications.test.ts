@@ -129,7 +129,7 @@ describe("validateNotificationConfig", () => {
       "carrier_pigeon" as unknown as NotificationTargetType,
       {}
     )
-    expect(result).toMatch(/Unsupported/)
+    expect(result).toMatch(/not yet supported/)
   })
 })
 

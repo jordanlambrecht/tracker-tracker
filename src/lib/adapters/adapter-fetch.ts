@@ -1,7 +1,6 @@
 // src/lib/adapters/adapter-fetch.ts
-//
-// Functions: adapterFetch
 
+import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import { proxyFetch } from "@/lib/tunnel"
 import type { FetchOptions } from "./types"
 
@@ -36,7 +35,7 @@ async function adapterFetch<T>(
   try {
     response = await fetch(url, {
       headers: mergedHeaders,
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
     })
   } catch (err) {
     const name =

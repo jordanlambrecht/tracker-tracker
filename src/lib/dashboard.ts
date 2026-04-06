@@ -10,7 +10,6 @@ import {
   checkAnniversaryMilestone,
   checkRatioBelowMinimum,
   checkTrackerError,
-  checkWarned,
   checkZeroSeeding,
 } from "@/lib/tracker-events"
 import type { Snapshot, TrackerSummary } from "@/types/api"
@@ -176,7 +175,7 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
     }
 
     // --- Warned by tracker ---
-    if (checkWarned(tracker.latestStats?.warned)) {
+    if (tracker.latestStats?.warned === true) {
       alerts.push({
         key: `warned-${tracker.id}`,
         type: "warned",

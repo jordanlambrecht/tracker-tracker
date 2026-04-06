@@ -4,7 +4,6 @@
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useCallback, useMemo, useState } from "react"
 import { usePollingIntervals } from "@/hooks/usePollingIntervals"
-import { useStableQueries } from "@/hooks/useStableQueries"
 import { useUpdateCheck } from "@/hooks/useUpdateCheck"
 import type { DashboardAlert } from "@/lib/dashboard"
 import {
@@ -73,22 +72,20 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
 
   const trackers = trackersQuery.data ?? []
 
-  // Per-tracker snapshot queries
-  const snapshotQueries = useStableQueries({
-    queries: trackers.map((t) => ({
-      queryKey: ["snapshots", t.id, dayRange] as const,
-      queryFn: async ({ signal }) => {
-        const url =
-          dayRange === 0
-            ? `/api/trackers/${t.id}/snapshots`
-            : `/api/trackers/${t.id}/snapshots?days=${dayRange}`
-        const res = await fetch(url, { signal })
-        if (!res.ok) throw new Error(`Snapshot fetch failed: ${res.status}`)
-        return res.json() as Promise<Snapshot[]>
-      },
-      placeholderData: keepPreviousData,
-      refetchInterval: intervals.trackerRefetchMs,
-    })),
+  // Fleet snapshot query (all trackers in one request)
+  const fleetSnapshotsQuery = useQuery({
+    queryKey: ["fleet-snapshots", dayRange],
+    queryFn: async ({ signal }) => {
+      const url =
+        dayRange === 0
+          ? "/api/trackers/snapshots/fleet"
+          : `/api/trackers/snapshots/fleet?days=${dayRange}`
+      const res = await fetch(url, { signal })
+      if (!res.ok) throw new Error(`Fleet snapshot fetch failed: ${res.status}`)
+      return res.json() as Promise<Record<string, Snapshot[]>>
+    },
+    placeholderData: keepPreviousData,
+    refetchInterval: intervals.trackerRefetchMs,
   })
 
   const todayQuery = useQuery({
@@ -126,14 +123,17 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
     refetchInterval: intervals.clientRefetchMs,
   })
 
-  // Derived: snapshotMap
+  // Derived: snapshotMap (built from fleet response keyed by tracker ID)
   const snapshotMap = useMemo(() => {
     const map = new Map<number, Snapshot[]>()
-    for (let i = 0; i < trackers.length; i++) {
-      map.set(trackers[i].id, snapshotQueries[i]?.data ?? [])
+    const data = fleetSnapshotsQuery.data
+    if (data) {
+      for (const [key, snapshots] of Object.entries(data)) {
+        map.set(Number(key), snapshots)
+      }
     }
     return map
-  }, [trackers, snapshotQueries])
+  }, [fleetSnapshotsQuery.data])
 
   // Derived: alerts
   const visibleAlerts = useMemo(() => {
@@ -180,7 +180,7 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
 
   const refresh = useCallback(async () => {
     await queryClient.refetchQueries({ queryKey: ["trackers"] })
-    await queryClient.invalidateQueries({ queryKey: ["snapshots"] })
+    await queryClient.invalidateQueries({ queryKey: ["fleet-snapshots"] })
     queryClient.invalidateQueries({ queryKey: ["dashboard-today"] })
   }, [queryClient])
 

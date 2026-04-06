@@ -1,7 +1,7 @@
 // src/lib/tracker-events.ts
 //
 // Functions: checkRatioBelowMinimum, checkRatioDelta, checkRatioBelowMinimumTransition,
-//            checkTrackerError, checkWarned, checkWarnedTransition, checkZeroSeeding,
+//            checkTrackerError, checkWarnedTransition, checkZeroSeeding,
 //            checkHnrIncrease, checkBufferMilestoneCrossed, checkRankChange,
 //            checkAnniversaryMilestone, checkBonusCapReached, checkVipExpiringSoon,
 //            checkUnsatisfiedLimitApproaching, checkActiveHnrs, checkDownloadDisabled,
@@ -56,10 +56,6 @@ export function checkTrackerError(
   if (pausedAt) return { paused: true, pausedByUser: false, hasError: false }
   if (lastError) return { paused: false, pausedByUser: false, hasError: true }
   return { paused: false, pausedByUser: false, hasError: false }
-}
-
-export function checkWarned(warned: boolean | null | undefined): boolean {
-  return warned === true
 }
 
 export function checkWarnedTransition(

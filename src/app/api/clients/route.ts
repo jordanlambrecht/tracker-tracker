@@ -3,13 +3,21 @@
 // Functions: GET, POST
 
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseJsonBody, validatePort } from "@/lib/api-helpers"
+import { authenticate, decodeKey, parseJsonBody, validateIntRange, validateMaxLength, validatePort } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { sanitizeHost } from "@/lib/data-transforms"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
+import { VALID_CLIENT_TYPES } from "@/lib/download-clients"
+import {
+  CLIENT_POLL_INTERVAL_MAX,
+  CLIENT_POLL_INTERVAL_MIN,
+  CREDENTIAL_MAX,
+  CROSS_SEED_TAG_MAX,
+  CROSS_SEED_TAGS_MAX,
+  HOST_MAX,
+} from "@/lib/limits"
 import { log } from "@/lib/logger"
-import { VALID_CLIENT_TYPES } from "@/lib/qbt/types"
 import { fetchClients, serializeClientResponse } from "@/lib/server-data"
 import { PROXY_HOST_PATTERN } from "@/lib/tunnel"
 
@@ -68,21 +76,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid field types" }, { status: 400 })
   }
 
-  if (name.length > 255) {
-    return NextResponse.json({ error: "Name must be 255 characters or fewer" }, { status: 400 })
-  }
+  const nameErr = validateMaxLength(name, CREDENTIAL_MAX, "Name")
+  if (nameErr) return nameErr
 
-  if (host.length > 255) {
-    return NextResponse.json({ error: "Host must be 255 characters or fewer" }, { status: 400 })
-  }
+  const hostErr = validateMaxLength(host, HOST_MAX, "Host")
+  if (hostErr) return hostErr
 
-  if (username.length > 255) {
-    return NextResponse.json({ error: "Username must be 255 characters or fewer" }, { status: 400 })
-  }
+  const usernameErr = validateMaxLength(username, CREDENTIAL_MAX, "Username")
+  if (usernameErr) return usernameErr
 
-  if (password.length > 255) {
-    return NextResponse.json({ error: "Password must be 255 characters or fewer" }, { status: 400 })
-  }
+  const passwordErr = validateMaxLength(password, CREDENTIAL_MAX, "Password")
+  if (passwordErr) return passwordErr
 
   const sanitizedHost = sanitizeHost(host)
   if (!PROXY_HOST_PATTERN.test(sanitizedHost)) {
@@ -98,14 +102,15 @@ export async function POST(request: Request) {
   const portErr = validatePort(resolvedPort)
   if (portErr) return portErr
 
-  if (
-    typeof pollIntervalSeconds === "number" &&
-    (pollIntervalSeconds < 60 || pollIntervalSeconds > 86400)
-  ) {
-    return NextResponse.json(
-      { error: "Poll interval must be between 60 and 86400 seconds" },
-      { status: 400 }
+  if (typeof pollIntervalSeconds === "number") {
+    const pollErr = validateIntRange(
+      pollIntervalSeconds,
+      CLIENT_POLL_INTERVAL_MIN,
+      CLIENT_POLL_INTERVAL_MAX,
+      "pollIntervalSeconds",
+      `Poll interval must be between ${CLIENT_POLL_INTERVAL_MIN} and ${CLIENT_POLL_INTERVAL_MAX} seconds`
     )
+    if (pollErr) return pollErr
   }
 
   const key = decodeKey(auth)
@@ -115,7 +120,7 @@ export async function POST(request: Request) {
   const resolvedIsDefault = typeof isDefault === "boolean" ? isDefault : false
   const resolvedTags = Array.isArray(crossSeedTags) ? crossSeedTags : []
 
-  if (resolvedTags.length > 50) {
+  if (resolvedTags.length > CROSS_SEED_TAGS_MAX) {
     return NextResponse.json(
       { error: "Cannot specify more than 50 cross-seed tags" },
       { status: 400 }
@@ -124,7 +129,7 @@ export async function POST(request: Request) {
 
   if (
     resolvedTags.length > 0 &&
-    !resolvedTags.every((t: unknown) => typeof t === "string" && t.length > 0 && t.length <= 100)
+    !resolvedTags.every((t: unknown) => typeof t === "string" && t.length > 0 && t.length <= CROSS_SEED_TAG_MAX)
   ) {
     return NextResponse.json(
       { error: "Each cross-seed tag must be a non-empty string of 100 characters or fewer" },

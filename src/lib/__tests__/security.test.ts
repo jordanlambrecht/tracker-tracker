@@ -40,10 +40,18 @@ vi.mock("@/lib/crypto", () => ({
   generateSalt: vi.fn().mockReturnValue("a".repeat(64)),
 }))
 
-vi.mock("@/lib/scheduler", () => ({
+vi.mock("@/lib/tracker-scheduler", () => ({
   pollTracker: vi.fn(),
-  stopScheduler: vi.fn(),
+  startTrackerPolling: vi.fn(),
+  stopTrackerPolling: vi.fn(),
+  isTrackerPollingRunning: vi.fn(() => false),
   fetchTrackerStats: vi.fn(),
+}))
+
+vi.mock("@/lib/scheduler", () => ({
+  startScheduler: vi.fn(),
+  stopScheduler: vi.fn(),
+  ensureSchedulerRunning: vi.fn(),
 }))
 
 vi.mock("@/lib/transit-papers/report-generator", () => ({
@@ -151,7 +159,7 @@ vi.mock("@/lib/tunnel", () => ({
   proxyFetch: vi.fn(),
 }))
 
-vi.mock("@/lib/qbt", () => ({
+vi.mock("@/lib/download-clients", () => ({
   buildBaseUrl: vi.fn().mockReturnValue("http://localhost:8080"),
   getSession: vi.fn(),
   getTorrents: vi.fn().mockResolvedValue([]),
@@ -166,15 +174,13 @@ vi.mock("@/lib/qbt", () => ({
   clearSpeedCache: vi.fn(),
   mergeTorrentLists: vi.fn().mockReturnValue([]),
   aggregateCrossSeedTags: vi.fn().mockReturnValue([]),
-  fetchAndMergeTorrents: vi
-    .fn()
-    .mockResolvedValue({
-      torrents: [],
-      crossSeedTags: [],
-      clientErrors: [],
-      clientCount: 0,
-      sessionExpired: false,
-    }),
+  fetchAndMergeTorrents: vi.fn().mockResolvedValue({
+    torrents: [],
+    crossSeedTags: [],
+    clientErrors: [],
+    clientCount: 0,
+    sessionExpired: false,
+  }),
   stripSensitiveTorrentFields: vi.fn((t: Record<string, unknown>) => {
     const { tracker: _t, content_path: _cp, save_path: _sp, ...rest } = t
     return rest
@@ -281,7 +287,7 @@ import { GET as TrackerTorrentsGET } from "@/app/api/trackers/[id]/torrents/rout
 import { POST as PollAllPOST } from "@/app/api/trackers/poll-all/route"
 import { PATCH as ReorderPATCH } from "@/app/api/trackers/reorder/route"
 import { GET, POST } from "@/app/api/trackers/route"
-import { POST as TestPOST } from "@/app/api/trackers/test/route"
+import { POST as TestPOST } from "@/app/api/trackers/test-connection/route"
 import { POST as UploadImagePOST } from "@/app/api/upload-image/route"
 
 // ---------------------------------------------------------------------------
@@ -1311,20 +1317,20 @@ describe("Input validation: additional field constraints", () => {
 
 describe("Encryption key zeroing", () => {
   it("stopScheduler zero-fills the encryption key buffer", async () => {
-    const { startScheduler, stopScheduler, _getSchedulerKeyForTest } =
-      await vi.importActual<typeof import("@/lib/scheduler")>("@/lib/scheduler")
+    const { startTrackerPolling, stopTrackerPolling, _getSchedulerKeyForTest } =
+      await vi.importActual<typeof import("@/lib/tracker-scheduler")>("@/lib/tracker-scheduler")
 
     const key = Buffer.from("a]1b2c3d4e5f6".repeat(3).slice(0, 32))
     const originalBytes = Buffer.from(key) // snapshot before zeroing
 
-    startScheduler(key)
+    startTrackerPolling(key)
 
     // Key reference should be stored
     const storedKey = _getSchedulerKeyForTest()
     expect(storedKey).not.toBeNull()
     expect(storedKey).toBe(key) // same Buffer instance
 
-    stopScheduler()
+    stopTrackerPolling()
 
     // Buffer bytes should all be zero
     expect(key.every((byte) => byte === 0)).toBe(true)
@@ -1335,14 +1341,14 @@ describe("Encryption key zeroing", () => {
   })
 
   it("stopScheduler is safe to call when no scheduler is running", async () => {
-    const { stopScheduler, _getSchedulerKeyForTest } =
-      await vi.importActual<typeof import("@/lib/scheduler")>("@/lib/scheduler")
+    const { stopTrackerPolling, _getSchedulerKeyForTest } =
+      await vi.importActual<typeof import("@/lib/tracker-scheduler")>("@/lib/tracker-scheduler")
 
     // Ensure clean state
-    stopScheduler()
+    stopTrackerPolling()
     expect(_getSchedulerKeyForTest()).toBeNull()
     // Should not throw
-    expect(() => stopScheduler()).not.toThrow()
+    expect(() => stopTrackerPolling()).not.toThrow()
   })
 })
 

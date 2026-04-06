@@ -24,6 +24,7 @@ import { DOCS } from "@/lib/constants"
 import { downloadResponseBlob } from "@/lib/download"
 import { extractApiError } from "@/lib/extract-api-error"
 import { formatBytesNum, formatDateTime } from "@/lib/formatters"
+import { BACKUP_RETENTION_MAX, BACKUP_RETENTION_MIN } from "@/lib/limits"
 
 export interface BackupRecord {
   id: number
@@ -603,8 +604,8 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
                   label="Retention"
                   value={backupRetentionCount}
                   onChange={setBackupRetentionCount}
-                  min={1}
-                  max={365}
+                  min={BACKUP_RETENTION_MIN}
+                  max={BACKUP_RETENTION_MAX}
                 />
               </div>
               <Subtext className="-mt-1">

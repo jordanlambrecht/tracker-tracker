@@ -15,7 +15,6 @@ import {
   checkTrackerError,
   checkUnsatisfiedLimitApproaching,
   checkVipExpiringSoon,
-  checkWarned,
   checkWarnedTransition,
   checkZeroSeeding,
   EVENT_SNOOZE_MS,
@@ -84,21 +83,6 @@ describe("checkTrackerError", () => {
     expect(result.paused).toBe(true)
     expect(result.pausedByUser).toBe(true)
     expect(result.hasError).toBe(false)
-  })
-})
-
-describe("checkWarned", () => {
-  it("returns true when warned is true", () => {
-    expect(checkWarned(true)).toBe(true)
-  })
-  it("returns false when warned is false", () => {
-    expect(checkWarned(false)).toBe(false)
-  })
-  it("returns false when warned is null", () => {
-    expect(checkWarned(null)).toBe(false)
-  })
-  it("returns false when warned is undefined", () => {
-    expect(checkWarned(undefined)).toBe(false)
   })
 })
 

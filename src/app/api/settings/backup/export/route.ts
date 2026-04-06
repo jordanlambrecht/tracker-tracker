@@ -8,6 +8,7 @@ import { encryptBackupPayload, generateBackupPayload } from "@/lib/backup"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings, backupHistory } from "@/lib/db/schema"
+import { BACKUP_PASSWORD_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 
 export async function POST(request: Request) {
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
     // Resolve backup password: explicit form value > stored encrypted password
     let backupPassword: string | null = null
     if (formPassword && typeof formPassword === "string" && formPassword.length > 0) {
-      if (formPassword.length > 128) {
+      if (formPassword.length > BACKUP_PASSWORD_MAX) {
         return NextResponse.json(
           { error: "Backup password must be 128 characters or fewer" },
           { status: 400 }

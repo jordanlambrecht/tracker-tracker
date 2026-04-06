@@ -9,6 +9,7 @@ import { useActionStatus } from "@/hooks/useActionStatus"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 import { DOCS } from "@/lib/constants"
 import { extractApiError } from "@/lib/extract-api-error"
+import { PORT_MAX, PORT_MIN } from "@/lib/limits"
 
 export interface ProxySectionProps {
   initialProxy: {
@@ -189,8 +190,8 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
               label="Port"
               value={proxyPort}
               onChange={setProxyPort}
-              min={1}
-              max={65535}
+              min={PORT_MIN}
+              max={PORT_MAX}
             />
           </div>
 

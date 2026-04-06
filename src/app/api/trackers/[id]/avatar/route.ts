@@ -15,11 +15,11 @@ import {
 } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
+import { AVATAR_FETCH_MAX_BYTES } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { buildProxyAgentFromSettings, proxyFetch } from "@/lib/tunnel"
 
 const STALE_MS = 7 * 24 * 60 * 60 * 1000
-const MAX_AVATAR_BYTES = 5 * 1024 * 1024
 
 /** Detect image format from magic bytes. Falls back to image/png. */
 function sniffImageMime(buf: Buffer): string {
@@ -138,7 +138,7 @@ export async function GET(_request: Request, props: RouteContext) {
 
       const result = await proxyFetch(url, agent, {
         timeoutMs: 10000,
-        maxBytes: MAX_AVATAR_BYTES,
+        maxBytes: AVATAR_FETCH_MAX_BYTES,
         headers: { Accept: "image/*" },
       })
 
@@ -155,7 +155,7 @@ export async function GET(_request: Request, props: RouteContext) {
         return NextResponse.json({ error: "Avatar not found" }, { status: 404 })
       }
       const contentLength = response.headers.get("content-length")
-      if (contentLength && parseInt(contentLength, 10) > MAX_AVATAR_BYTES) {
+      if (contentLength && parseInt(contentLength, 10) > AVATAR_FETCH_MAX_BYTES) {
         return NextResponse.json({ error: "Avatar too large" }, { status: 413 })
       }
       imageBuffer = Buffer.from(await response.arrayBuffer())
@@ -163,7 +163,7 @@ export async function GET(_request: Request, props: RouteContext) {
         response.headers.get("content-type")?.split(";")[0].trim() || sniffImageMime(imageBuffer)
     }
 
-    if (imageBuffer.length > MAX_AVATAR_BYTES) {
+    if (imageBuffer.length > AVATAR_FETCH_MAX_BYTES) {
       return NextResponse.json({ error: "Avatar too large" }, { status: 413 })
     }
 

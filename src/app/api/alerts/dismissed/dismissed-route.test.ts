@@ -8,10 +8,14 @@ import { authenticate, parseJsonBody } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { DELETE, GET, POST } from "./route"
 
-vi.mock("@/lib/api-helpers", () => ({
-  authenticate: vi.fn(),
-  parseJsonBody: vi.fn(),
-}))
+vi.mock("@/lib/api-helpers", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/api-helpers")>()
+  return {
+    ...actual,
+    authenticate: vi.fn(),
+    parseJsonBody: vi.fn(),
+  }
+})
 
 vi.mock("@/lib/db", () => ({
   db: {

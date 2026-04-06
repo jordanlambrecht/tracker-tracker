@@ -10,6 +10,7 @@ import { NextResponse } from "next/server"
 import { authenticate } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { clientSnapshots, downloadClients } from "@/lib/db/schema"
+import { FLEET_SNAPSHOT_QUERY_MAX } from "@/lib/limits"
 
 export async function GET(request: Request) {
   const auth = await authenticate()
@@ -17,7 +18,10 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url)
   const daysParam = parseInt(url.searchParams.get("days") ?? "7", 10)
-  const days = Math.min(Math.max(1, Number.isNaN(daysParam) ? 7 : daysParam), 365)
+  const days = Math.min(
+    Math.max(1, Number.isNaN(daysParam) ? 7 : daysParam),
+    FLEET_SNAPSHOT_QUERY_MAX
+  )
 
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 

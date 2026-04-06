@@ -5,6 +5,12 @@ import { MAM_BONUS_CAP } from "@/lib/adapters/constants"
 import { db } from "@/lib/db"
 import type { NotificationTargetRow } from "@/lib/db/schema"
 import { notificationDeliveryState, notificationTargets } from "@/lib/db/schema"
+import {
+  BUFFER_MILESTONE_DEFAULT_BYTES,
+  RATIO_DROP_DELTA_DEFAULT,
+  UNSATISFIED_LIMIT_PCT_DEFAULT,
+  VIP_EXPIRING_DAYS_DEFAULT,
+} from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { decryptNotificationConfig } from "@/lib/notifications/decrypt"
 import { deliverDiscordWebhook } from "@/lib/notifications/deliver"
@@ -200,7 +206,11 @@ export function detectEvents(
 
   if (
     target.notifyRatioDrop &&
-    checkRatioDelta(ctx.previousRatio, ctx.currentRatio, thresholds.ratioDropDelta ?? 0.1)
+    checkRatioDelta(
+      ctx.previousRatio,
+      ctx.currentRatio,
+      thresholds.ratioDropDelta ?? RATIO_DROP_DELTA_DEFAULT
+    )
   ) {
     events.push("ratio_drop")
   }
@@ -218,7 +228,7 @@ export function detectEvents(
     checkBufferMilestoneCrossed(
       ctx.currentBufferBytes,
       ctx.previousBufferBytes,
-      BigInt(thresholds.bufferMilestoneBytes ?? 10737418240)
+      BigInt(thresholds.bufferMilestoneBytes ?? BUFFER_MILESTONE_DEFAULT_BYTES)
     )
   ) {
     events.push("buffer_milestone")
@@ -262,14 +272,15 @@ export function detectEvents(
   }
 
   if (target.notifyVipExpiring) {
-    const days = (thresholds?.vipExpiringDays as number | undefined) ?? 7
+    const days = (thresholds?.vipExpiringDays as number | undefined) ?? VIP_EXPIRING_DAYS_DEFAULT
     if (checkVipExpiringSoon(ctx.platformContext?.vipUntil ?? null, days)) {
       events.push("vip_expiring")
     }
   }
 
   if (target.notifyUnsatisfiedLimit) {
-    const pct = (thresholds?.unsatisfiedLimitPercent as number | undefined) ?? 80
+    const pct =
+      (thresholds?.unsatisfiedLimitPercent as number | undefined) ?? UNSATISFIED_LIMIT_PCT_DEFAULT
     if (
       checkUnsatisfiedLimitApproaching(
         ctx.platformContext?.unsatisfiedCount ?? null,

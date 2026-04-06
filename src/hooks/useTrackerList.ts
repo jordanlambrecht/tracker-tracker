@@ -169,4 +169,4 @@ function useTrackerList({
 }
 
 export type { SortMode, UseTrackerListParams, UseTrackerListReturn }
-export { useTrackerList }
+export { sortTrackers, useTrackerList }

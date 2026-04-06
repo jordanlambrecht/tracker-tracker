@@ -69,10 +69,7 @@ export function validateHttpUrl(url: string, label = "baseUrl"): NextResponse | 
 
 export function validateHexColor(color: string): NextResponse | null {
   if (!isValidHex(color, true)) {
-    return NextResponse.json(
-      { error: "Color must be a valid hex color (i.e #00d4ff)" },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: "Color must be a valid hex color" }, { status: 400 })
   }
   return null
 }
@@ -101,11 +98,12 @@ export function validateIntRange(
   value: number,
   min: number,
   max: number,
-  label: string
+  label: string,
+  message?: string
 ): NextResponse | null {
   if (!Number.isInteger(value) || value < min || value > max) {
     return NextResponse.json(
-      { error: `${label} must be between ${min} and ${max}` },
+      { error: message ?? `${label} must be between ${min} and ${max}` },
       { status: 400 }
     )
   }

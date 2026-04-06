@@ -1,6 +1,7 @@
 // src/lib/notifications/deliver.ts
 
 import { sanitizeNetworkError } from "@/lib/error-utils"
+import { NOTIFICATION_COOLDOWN_MAX_MS } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import type { DiscordEmbed } from "./payload"
 
@@ -88,7 +89,7 @@ export async function deliverDiscordWebhook(
       const rawRetryAfter = Number(res.headers.get("Retry-After") ?? "60")
       const retryAfter = Math.min(
         Number.isFinite(rawRetryAfter) ? rawRetryAfter * 1000 : 60_000,
-        300_000
+        NOTIFICATION_COOLDOWN_MAX_MS
       ) // cap at 5 min
       recordFailure(targetId, retryAfter)
       log.warn(`Discord rate limit for target ${targetId} — retry after ${retryAfter}ms`)

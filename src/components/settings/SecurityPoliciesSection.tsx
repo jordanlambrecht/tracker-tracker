@@ -6,6 +6,14 @@ import { useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
 import { Checkbox, Notice, NumberInput, SaveDiscardBar } from "@/components/ui"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
+import {
+  LOCKOUT_DURATION_MAX,
+  LOCKOUT_DURATION_MIN,
+  LOCKOUT_THRESHOLD_MAX,
+  LOCKOUT_THRESHOLD_MIN,
+  SNAPSHOT_RETENTION_MAX,
+  SNAPSHOT_RETENTION_MIN,
+} from "@/lib/limits"
 
 interface LockoutConfig {
   enabled: boolean
@@ -186,8 +194,8 @@ export function SecurityPoliciesSection({
               setLockoutThreshold(v)
               clearLockoutSuccess()
             }}
-            min={1}
-            max={99}
+            min={LOCKOUT_THRESHOLD_MIN}
+            max={LOCKOUT_THRESHOLD_MAX}
             disabled={!lockoutEnabled}
             className="mx-1 inline-flex align-middle"
           />{" "}
@@ -198,8 +206,8 @@ export function SecurityPoliciesSection({
               setLockoutDuration(v)
               clearLockoutSuccess()
             }}
-            min={1}
-            max={1440}
+            min={LOCKOUT_DURATION_MIN}
+            max={LOCKOUT_DURATION_MAX}
             disabled={!lockoutEnabled}
             className="mx-1 inline-flex align-middle"
           />{" "}
@@ -240,8 +248,8 @@ export function SecurityPoliciesSection({
               setRetentionDays(v)
               clearRetentionSuccess()
             }}
-            min={7}
-            max={3650}
+            min={SNAPSHOT_RETENTION_MIN}
+            max={SNAPSHOT_RETENTION_MAX}
             disabled={!retentionEnabled}
             className="mx-1 inline-flex align-middle"
           />{" "}

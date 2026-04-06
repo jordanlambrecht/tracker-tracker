@@ -12,7 +12,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { renderHook, waitFor } from "@testing-library/react"
 import { act, type ReactNode } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { useTrackerList } from "@/hooks/useTrackerList"
+import { sortTrackers, useTrackerList } from "@/hooks/useTrackerList"
 import type { TrackerSummary } from "@/types/api"
 
 const base: TrackerSummary = {
@@ -269,7 +269,7 @@ describe("useTrackerList", () => {
     })
 
     await waitFor(() => {
-      // Give effect time to run — it should NOT call onSortModeChange
+      // Give effect time to run
       expect(onSortModeChange).not.toHaveBeenCalled()
     })
   })
@@ -308,5 +308,47 @@ describe("useTrackerList", () => {
       ).length
       expect(callsAfter).toBeGreaterThan(callsBefore)
     })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// sortTrackers
+// ---------------------------------------------------------------------------
+
+describe("sortTrackers", () => {
+  const trackers: TrackerSummary[] = [
+    { ...base, id: 1, name: "Charlie", sortOrder: 2 },
+    { ...base, id: 2, name: "Alpha", sortOrder: 0 },
+    { ...base, id: 3, name: "Bravo", sortOrder: 1 },
+  ]
+
+  it("returns input order for index mode", () => {
+    const result = sortTrackers(trackers, "index")
+    expect(result.map((t) => t.name)).toEqual(["Charlie", "Alpha", "Bravo"])
+  })
+
+  it("sorts alphabetically for alpha mode", () => {
+    const result = sortTrackers(trackers, "alpha")
+    expect(result.map((t) => t.name)).toEqual(["Alpha", "Bravo", "Charlie"])
+  })
+
+  it("sorts by sortOrder for custom mode", () => {
+    const result = sortTrackers(trackers, "custom")
+    expect(result.map((t) => t.name)).toEqual(["Alpha", "Bravo", "Charlie"])
+  })
+
+  it("treats null sortOrder as Infinity in custom mode", () => {
+    const withNull: TrackerSummary[] = [
+      { ...base, id: 1, name: "A", sortOrder: null },
+      { ...base, id: 2, name: "B", sortOrder: 0 },
+    ]
+    const result = sortTrackers(withNull, "custom")
+    expect(result.map((t) => t.name)).toEqual(["B", "A"])
+  })
+
+  it("does not mutate the input array", () => {
+    const original = [...trackers]
+    sortTrackers(trackers, "alpha")
+    expect(trackers).toEqual(original)
   })
 })

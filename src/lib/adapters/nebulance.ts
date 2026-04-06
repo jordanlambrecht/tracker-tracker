@@ -7,6 +7,7 @@
 //   - Response may be wrapped {"status":"success","response":{...}} or flat
 
 import { computeBufferBytes, floatBytesToBigInt } from "@/lib/data-transforms"
+import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import { proxyFetch } from "@/lib/tunnel"
 import type {
   DebugApiCall,
@@ -88,7 +89,7 @@ export class NebulanceAdapter implements TrackerAdapter {
       } else {
         const response = await fetch(url.toString(), {
           headers,
-          signal: AbortSignal.timeout(15000),
+          signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
         })
         ok = response.ok
         status = response.status
@@ -199,7 +200,7 @@ export class NebulanceAdapter implements TrackerAdapter {
       } else {
         const response = await fetch(url.toString(), {
           headers,
-          signal: AbortSignal.timeout(15000),
+          signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
         })
         data = await response.json()
       }

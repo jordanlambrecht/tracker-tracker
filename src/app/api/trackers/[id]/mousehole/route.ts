@@ -7,6 +7,7 @@ import { NextResponse } from "next/server"
 import { authenticate, parseTrackerId, type RouteContext } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { trackers } from "@/lib/db/schema"
+import { MOUSEHOLE_BODY_MAX_BYTES } from "@/lib/limits"
 import { log } from "@/lib/logger"
 
 const GET_TIMEOUT_MS = 10_000
@@ -132,9 +133,8 @@ export async function POST(request: Request, { params }: RouteContext) {
 
   const { mouseholeBase } = resolved
 
-  const MAX_BODY_SIZE = 256
   const contentLength = Number(request.headers.get("content-length") ?? 0)
-  if (contentLength > MAX_BODY_SIZE) {
+  if (contentLength > MOUSEHOLE_BODY_MAX_BYTES) {
     return NextResponse.json({ error: "Request body too large" }, { status: 413 })
   }
 

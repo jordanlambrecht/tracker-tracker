@@ -10,10 +10,12 @@ import {
   parseJsonBody,
   parseRouteId,
   type RouteContext,
+  validateMaxLength,
 } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { notificationTargets } from "@/lib/db/schema"
+import { SHORT_NAME_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { validateNotificationConfig } from "@/lib/notifications/validate"
 
@@ -51,9 +53,8 @@ export async function PATCH(req: Request, { params }: RouteContext) {
     if (typeof fields.name !== "string" || !fields.name.trim()) {
       return NextResponse.json({ error: "name must be a non-empty string" }, { status: 400 })
     }
-    if (fields.name.length > 100) {
-      return NextResponse.json({ error: "name must be ≤100 characters" }, { status: 400 })
-    }
+    const nameErr = validateMaxLength(fields.name, SHORT_NAME_MAX, "name")
+    if (nameErr) return nameErr
     updates.name = fields.name.trim()
   }
 

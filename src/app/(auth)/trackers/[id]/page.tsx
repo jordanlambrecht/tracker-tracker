@@ -3,7 +3,7 @@
 import { notFound } from "next/navigation"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
-import { parseQbitmanageTags } from "@/lib/qbt/qbitmanage-defaults"
+import { parseQbitmanageTags } from "@/lib/download-clients/qbt/qbitmanage-defaults"
 import {
   getSnapshotsForTracker,
   getTagGroupsWithMembers,

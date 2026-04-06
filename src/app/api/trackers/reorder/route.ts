@@ -4,6 +4,7 @@ import { NextResponse } from "next/server"
 import { authenticate, parseJsonBody } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { trackers } from "@/lib/db/schema"
+import { REORDER_IDS_MAX } from "@/lib/limits"
 
 export async function PATCH(request: Request) {
   const auth = await authenticate()
@@ -18,7 +19,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "ids must be a non-empty array of numbers" }, { status: 400 })
   }
 
-  if (ids.length > 500) {
+  if (ids.length > REORDER_IDS_MAX) {
     return NextResponse.json({ error: "Too many ids" }, { status: 400 })
   }
 

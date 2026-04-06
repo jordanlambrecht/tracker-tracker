@@ -16,6 +16,7 @@ import {
   type SystemEvent,
   snapshotToEvent,
 } from "@/lib/events"
+import { EVENTS_LIMIT_CAP, EVENTS_LIMIT_DEFAULT } from "@/lib/limits"
 import { readLogTail } from "@/lib/log-reader"
 import { log } from "@/lib/logger"
 
@@ -29,7 +30,9 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   // Parse and validate limit
   const rawLimit = parseInt(searchParams.get("limit") ?? "", 10)
-  const limit = Number.isNaN(rawLimit) ? 50 : Math.min(Math.max(rawLimit, 1), 1000)
+  const limit = Number.isNaN(rawLimit)
+    ? EVENTS_LIMIT_DEFAULT
+    : Math.min(Math.max(rawLimit, 1), EVENTS_LIMIT_CAP)
 
   // Parse and validate offset
   const rawOffset = parseInt(searchParams.get("offset") ?? "", 10)

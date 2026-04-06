@@ -7,6 +7,14 @@ import { NextResponse } from "next/server"
 import { authenticate, parseJsonBody, parseRouteId, type RouteContext } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { tagGroupMembers, tagGroups } from "@/lib/db/schema"
+import {
+  BATCH_MEMBERS_MAX,
+  COLOR_STRING_MAX,
+  EMOJI_MAX,
+  LONG_STRING_MAX,
+  SHORT_NAME_MAX,
+  SORT_ORDER_MAX,
+} from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { VALID_CHART_TYPES } from "@/types/api"
 
@@ -37,13 +45,13 @@ interface BatchMembers {
 
 function validateMemberTag(tag: unknown): string | null {
   if (typeof tag !== "string" || tag.trim().length === 0) return "tag is required"
-  if (tag.length > 100) return "Tag must be 100 characters or fewer"
+  if (tag.length > SHORT_NAME_MAX) return "Tag must be 100 characters or fewer"
   return null
 }
 
 function validateMemberLabel(label: unknown): string | null {
   if (typeof label !== "string" || label.trim().length === 0) return "label is required"
-  if (label.length > 100) return "Label must be 100 characters or fewer"
+  if (label.length > SHORT_NAME_MAX) return "Label must be 100 characters or fewer"
   return null
 }
 
@@ -53,9 +61,9 @@ function validateSortOrder(sortOrder: unknown): string | null {
     typeof sortOrder !== "number" ||
     !Number.isInteger(sortOrder) ||
     sortOrder < 0 ||
-    sortOrder > 9999
+    sortOrder > SORT_ORDER_MAX
   ) {
-    return "sortOrder must be an integer between 0 and 9999"
+    return `sortOrder must be an integer between 0 and ${SORT_ORDER_MAX}`
   }
   return null
 }
@@ -80,14 +88,14 @@ export async function PATCH(request: Request, props: RouteContext) {
     if (body.name.trim().length === 0) {
       return NextResponse.json({ error: "Name cannot be empty" }, { status: 400 })
     }
-    if (body.name.length > 100) {
+    if (body.name.length > SHORT_NAME_MAX) {
       return NextResponse.json({ error: "Name must be 100 characters or fewer" }, { status: 400 })
     }
     updates.name = body.name.trim()
   }
 
   if (typeof body.description === "string") {
-    if (body.description.length > 500) {
+    if (body.description.length > LONG_STRING_MAX) {
       return NextResponse.json(
         { error: "Description must be 500 characters or fewer" },
         { status: 400 }
@@ -99,7 +107,7 @@ export async function PATCH(request: Request, props: RouteContext) {
   }
 
   if (typeof body.emoji === "string") {
-    if (body.emoji.length > 10) {
+    if (body.emoji.length > EMOJI_MAX) {
       return NextResponse.json({ error: "Emoji must be 10 characters or fewer" }, { status: 400 })
     }
     updates.emoji = body.emoji.trim() || null
@@ -118,7 +126,7 @@ export async function PATCH(request: Request, props: RouteContext) {
   }
 
   if (typeof body.sortOrder === "number") {
-    if (!Number.isFinite(body.sortOrder) || body.sortOrder < 0 || body.sortOrder > 9999) {
+    if (!Number.isFinite(body.sortOrder) || body.sortOrder < 0 || body.sortOrder > SORT_ORDER_MAX) {
       return NextResponse.json(
         { error: "sortOrder must be a finite integer between 0 and 9999" },
         { status: 400 }
@@ -170,14 +178,14 @@ export async function PATCH(request: Request, props: RouteContext) {
         { status: 400 }
       )
     }
-    if (removes.length > 500) {
+    if (removes.length > BATCH_MEMBERS_MAX) {
       return NextResponse.json({ error: "Too many removes" }, { status: 400 })
     }
 
     if (!Array.isArray(memberUpdates)) {
       return NextResponse.json({ error: "members.updates must be an array" }, { status: 400 })
     }
-    if (memberUpdates.length > 500) {
+    if (memberUpdates.length > BATCH_MEMBERS_MAX) {
       return NextResponse.json({ error: "Too many updates" }, { status: 400 })
     }
     for (const u of memberUpdates) {
@@ -195,7 +203,7 @@ export async function PATCH(request: Request, props: RouteContext) {
       if (
         u.color !== undefined &&
         u.color !== null &&
-        (typeof u.color !== "string" || u.color.length > 20)
+        (typeof u.color !== "string" || u.color.length > COLOR_STRING_MAX)
       ) {
         return NextResponse.json(
           { error: "color must be a string of 20 characters or fewer" },
@@ -209,7 +217,7 @@ export async function PATCH(request: Request, props: RouteContext) {
     if (!Array.isArray(creates)) {
       return NextResponse.json({ error: "members.creates must be an array" }, { status: 400 })
     }
-    if (creates.length > 500) {
+    if (creates.length > BATCH_MEMBERS_MAX) {
       return NextResponse.json({ error: "Too many creates" }, { status: 400 })
     }
     for (const c of creates) {
@@ -220,7 +228,7 @@ export async function PATCH(request: Request, props: RouteContext) {
       if (
         c.color !== undefined &&
         c.color !== null &&
-        (typeof c.color !== "string" || c.color.length > 20)
+        (typeof c.color !== "string" || c.color.length > COLOR_STRING_MAX)
       ) {
         return NextResponse.json(
           { error: "color must be a string of 20 characters or fewer" },

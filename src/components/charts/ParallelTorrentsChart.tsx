@@ -38,8 +38,8 @@ function buildParallelOption(torrents: TorrentInfo[], trackerColor: string): ECh
   const rows = torrents.map((t) => {
     const sizeGiB = t.size / 1024 ** 3
     const seedDays = t.seedingTime / 86400
-    const ageDays = (nowSec - t.addedOn) / 86400
-    return [sizeGiB, t.ratio, seedDays, t.numSeeds, ageDays, Math.max(0, t.availability ?? 0)]
+    const ageDays = (nowSec - t.addedAt) / 86400
+    return [sizeGiB, t.ratio, seedDays, t.seedCount, ageDays, Math.max(0, t.availability ?? 0)]
   })
 
   // Compute per-dimension min/max from data for reasonable axis ranges
@@ -218,7 +218,7 @@ function ParallelTorrentsChart({
   trackerColor,
   height = 420,
 }: ParallelTorrentsChartProps) {
-  const filtered = torrents.filter((t) => t.addedOn !== 0 && t.size !== 0)
+  const filtered = torrents.filter((t) => t.addedAt !== 0 && t.size !== 0)
 
   if (filtered.length === 0) {
     return <ChartEmptyState height={height} message="No torrent data available for parallel view" />

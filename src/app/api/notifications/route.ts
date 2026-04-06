@@ -3,12 +3,13 @@
 // Functions: GET, POST
 
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseJsonBody } from "@/lib/api-helpers"
+import { authenticate, decodeKey, parseJsonBody, validateMaxLength } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { notificationTargets } from "@/lib/db/schema"
+import { SHORT_NAME_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
-import { VALID_NOTIFICATION_TYPES } from "@/lib/notifications/types"
+import { SUPPORTED_NOTIFICATION_TYPES } from "@/lib/notifications/types"
 import { validateNotificationConfig } from "@/lib/notifications/validate"
 import { fetchNotificationTargets, serializeNotificationTarget } from "@/lib/server-data"
 
@@ -31,15 +32,15 @@ export async function POST(req: Request) {
 
   if (typeof name !== "string" || !name.trim())
     return NextResponse.json({ error: "name is required" }, { status: 400 })
-  if (name.length > 100)
-    return NextResponse.json({ error: "name must be ≤100 characters" }, { status: 400 })
+  const nameErr = validateMaxLength(name, SHORT_NAME_MAX, "name")
+  if (nameErr) return nameErr
 
   if (
     typeof type !== "string" ||
-    !VALID_NOTIFICATION_TYPES.includes(type as (typeof VALID_NOTIFICATION_TYPES)[number])
+    !SUPPORTED_NOTIFICATION_TYPES.includes(type as (typeof SUPPORTED_NOTIFICATION_TYPES)[number])
   )
     return NextResponse.json(
-      { error: `type must be one of: ${VALID_NOTIFICATION_TYPES.join(", ")}` },
+      { error: `type must be one of: ${SUPPORTED_NOTIFICATION_TYPES.join(", ")}` },
       { status: 400 }
     )
 
@@ -47,7 +48,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "config object is required" }, { status: 400 })
 
   const validationError = validateNotificationConfig(
-    type as (typeof VALID_NOTIFICATION_TYPES)[number],
+    type as (typeof SUPPORTED_NOTIFICATION_TYPES)[number],
     config as Record<string, unknown>
   )
   if (validationError) return NextResponse.json({ error: validationError }, { status: 400 })

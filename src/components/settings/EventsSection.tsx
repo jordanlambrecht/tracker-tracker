@@ -18,6 +18,7 @@ import { useSetToggle } from "@/hooks/useSetToggle"
 import { EVENT_CATEGORIES, EVENT_LEVELS, type EventCategory, type EventLevel } from "@/lib/events"
 import { extractApiError } from "@/lib/extract-api-error"
 import { formatBytesNum, localDateStr } from "@/lib/formatters"
+import { EVENTS_LIMIT_CAP } from "@/lib/limits"
 import type { EventsPageResponse } from "@/types/api"
 
 const CATEGORY_STYLES: Record<EventCategory, { border: string; icon: string; iconColor: string }> =
@@ -82,7 +83,11 @@ export function EventsSection() {
   } = useQuery({
     queryKey: ["events"],
     queryFn: async ({ signal }) => {
-      const params = new URLSearchParams({ category: "all", limit: "1000", offset: "0" })
+      const params = new URLSearchParams({
+        category: "all",
+        limit: String(EVENTS_LIMIT_CAP),
+        offset: "0",
+      })
       const res = await fetch(`/api/settings/events?${params}`, { signal })
       if (!res.ok) throw new Error(await extractApiError(res, "Failed to load events"))
       return res.json() as Promise<EventsPageResponse>

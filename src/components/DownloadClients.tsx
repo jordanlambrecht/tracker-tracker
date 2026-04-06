@@ -24,6 +24,7 @@ import {
 import { useActionStatus } from "@/hooks/useActionStatus"
 import { useCrudCard } from "@/hooks/useCrudCard"
 import { formatTimeAgo } from "@/lib/formatters"
+import { PORT_MAX, PORT_MIN } from "@/lib/limits"
 import type { SafeDownloadClient } from "@/types/api"
 
 // ---------------------------------------------------------------------------
@@ -241,8 +242,8 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
           label="Port"
           value={draft.port}
           onChange={(v) => updateDraft({ port: v })}
-          min={1}
-          max={65535}
+          min={PORT_MIN}
+          max={PORT_MAX}
         />
       </div>
 
@@ -559,7 +560,7 @@ function AddClientForm({
               placeholder="localhost"
             />
           </div>
-          <NumberInput label="Port" value={port} onChange={setPort} min={1} max={65535} />
+          <NumberInput label="Port" value={port} onChange={setPort} min={PORT_MIN} max={PORT_MAX} />
         </div>
       </div>
       <div className="flex flex-col sm:flex-row gap-4">

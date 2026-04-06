@@ -14,6 +14,7 @@ import { extractClientIp } from "@/lib/client-ip"
 import { decrypt, encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { TOTP_TOKEN_MAX } from "@/lib/limits"
 import { checkLockout, recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import { log } from "@/lib/logger"
 import { startScheduler } from "@/lib/scheduler"
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
     isBackupCode?: boolean
   }
 
-  if (!pendingToken || typeof pendingToken !== "string" || pendingToken.length > 2048) {
+  if (!pendingToken || typeof pendingToken !== "string" || pendingToken.length > TOTP_TOKEN_MAX) {
     return NextResponse.json({ error: "Missing pending token" }, { status: 400 })
   }
   if (!code || typeof code !== "string") {

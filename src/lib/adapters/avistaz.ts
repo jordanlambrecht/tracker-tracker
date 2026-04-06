@@ -7,6 +7,7 @@ import { type HTMLElement as ParsedElement, parse as parseHtml } from "node-html
 import { computeBufferBytes } from "@/lib/data-transforms"
 import { sanitizeNetworkError } from "@/lib/error-utils"
 import { localDateStr } from "@/lib/formatters"
+import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import { parseBytes } from "@/lib/parser"
 import type {
   AvistazPlatformMeta,
@@ -53,7 +54,7 @@ export function parseAvistazCredentials(apiToken: string): AvistazCredentials {
   if (!userAgent.trim()) throw new Error("AvistaZ credentials: userAgent cannot be empty")
   if (!username.trim()) throw new Error("AvistaZ credentials: username cannot be empty")
 
-  // Detect common copy-paste mistakes — user copied the cookie name instead of the value
+  // Detect common copy-paste mistakes (like a user copied the cookie name instead of the value)
   const trimmedCookies = cookies.trim()
   const cookieNameOnly = /^(cf_clearance|[a-z]+x_session|remember_web_\w+|XSRF-TOKEN|love)$/i
   if (cookieNameOnly.test(trimmedCookies)) {
@@ -313,7 +314,7 @@ async function fetchHtml(
   try {
     response = await fetch(url, {
       headers,
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
       redirect: "manual",
     })
   } catch (err) {
@@ -332,7 +333,7 @@ async function fetchHtml(
     throw new Error(`Failed to connect to ${hostname}: ${detail}`)
   }
 
-  // 302 redirect typically means the session expired and the server redirected to login
+  // 302 redirect usually means the session expired and the server redirected to login
   if (response.status === 302) {
     throw new Error("Session expired — browser cookies need to be refreshed")
   }

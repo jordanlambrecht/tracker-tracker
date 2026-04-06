@@ -15,6 +15,7 @@ import { clearSession, hashPassword, verifyPassword } from "@/lib/auth"
 import { decrypt, deriveKey, encrypt, reencrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings, downloadClients, notificationTargets, trackers } from "@/lib/db/schema"
+import { PASSWORD_MAX, PASSWORD_MIN } from "@/lib/limits"
 import { recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import { log } from "@/lib/logger"
 import { stopScheduler } from "@/lib/scheduler"
@@ -32,17 +33,21 @@ export async function POST(request: Request) {
     newPassword?: string
   }
 
-  if (!currentPassword || typeof currentPassword !== "string" || currentPassword.length > 128) {
+  if (
+    !currentPassword ||
+    typeof currentPassword !== "string" ||
+    currentPassword.length > PASSWORD_MAX
+  ) {
     return NextResponse.json({ error: "Current password is required" }, { status: 400 })
   }
   if (
     !newPassword ||
     typeof newPassword !== "string" ||
-    newPassword.length < 8 ||
-    newPassword.length > 128
+    newPassword.length < PASSWORD_MIN ||
+    newPassword.length > PASSWORD_MAX
   ) {
     return NextResponse.json(
-      { error: "New password must be between 8 and 128 characters" },
+      { error: `New password must be between ${PASSWORD_MIN} and ${PASSWORD_MAX} characters` },
       { status: 400 }
     )
   }
