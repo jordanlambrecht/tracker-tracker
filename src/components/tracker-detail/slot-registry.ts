@@ -11,6 +11,8 @@
 //          mam-vip, mam-connectable, mam-unread
 //   progress: ggn-achievement-progress, ggn-share-score-progress, ggn-buffs,
 //             mam-health-overview
+//   avistaz stat-card: avistaz-activity
+//   avistaz badge: avistaz-download-disabled, avistaz-upload-disabled, avistaz-vip, avistaz-invites
 
 import type { ComponentType, ReactNode } from "react"
 import { createElement } from "react"
@@ -26,12 +28,13 @@ import { PulseDot } from "@/components/ui/PulseDot"
 import type {
   StatCardBasicProps,
   StatCardRingProps,
+  StatCardRow,
   StatCardStackedProps,
 } from "@/components/ui/StatCard"
 import { StatCard } from "@/components/ui/StatCard"
-import type { GazellePlatformMeta, GGnPlatformMeta, MamPlatformMeta } from "@/lib/adapters/types"
-import { formatBytesNum } from "@/lib/formatters"
-import type { SlotCategory, SlotContext } from "@/lib/slot-types"
+import { metaFor } from "@/lib/adapters/types"
+import { formatBytesNum, formatCount, formatRatio } from "@/lib/formatters"
+import type { SlotCategory, SlotContext } from "@/types/slots"
 import type { GgnAchievementProgressProps } from "./platform/GgnAchievementProgress"
 import { GgnAchievementProgress } from "./platform/GgnAchievementProgress"
 import type { GgnBuffsDisplayProps } from "./platform/GgnBuffsDisplay"
@@ -91,24 +94,22 @@ const goldSlot: SlotDefinition<StatCardStackedProps> = {
   priority: 10,
   span: 2,
   resolve(ctx) {
-    const { meta, latestSnapshot, accentColor } = ctx
-    if (!meta || !("hourlyGold" in meta)) return null
-    if (latestSnapshot?.seedbonus == null) return null
-    const ggMeta = meta as GGnPlatformMeta
-    const gold = Math.floor(latestSnapshot.seedbonus)
+    const ggMeta = metaFor(ctx, "ggn")
+    if (!ggMeta) return null
+    if (ctx.latestSnapshot?.seedbonus == null) return null
+    const gold = Math.floor(ctx.latestSnapshot.seedbonus)
     return {
       type: "stacked" as const,
       title: "Gold",
       rows: [
-        { label: "Balance", value: gold.toLocaleString() },
+        { label: "Balance", value: formatCount(gold) },
         {
           label: "Per Hour",
-          value:
-            ggMeta.hourlyGold != null ? `+${Math.floor(ggMeta.hourlyGold).toLocaleString()}` : "—",
+          value: ggMeta.hourlyGold != null ? `+${formatCount(Math.floor(ggMeta.hourlyGold))}` : "—",
           colorClass: ggMeta.hourlyGold ? "text-success" : undefined,
         },
       ],
-      accentColor,
+      accentColor: ctx.accentColor,
     }
   },
 }
@@ -119,16 +120,12 @@ const snatchedNebulanceSlot: SlotDefinition<StatCardBasicProps> = {
   component: StatCard as ComponentType<StatCardBasicProps>,
   priority: 10,
   resolve(ctx) {
-    const { meta, accentColor } = ctx
-    if (!meta) return null
-    if (!("snatched" in meta)) return null
-    if ("hourlyGold" in meta) return null
-    if ("community" in meta) return null
-    const value = (meta as { snatched: number }).snatched
+    const nebMeta = metaFor(ctx, "nebulance")
+    if (!nebMeta || nebMeta.snatched == null) return null
     return {
       label: "Snatched",
-      value,
-      accentColor,
+      value: nebMeta.snatched,
+      accentColor: ctx.accentColor,
       icon: icon16(DownloadArrowIcon),
     }
   },
@@ -140,15 +137,13 @@ const seedbonusSlot: SlotDefinition<StatCardBasicProps> = {
   component: StatCard as ComponentType<StatCardBasicProps>,
   priority: 10,
   resolve(ctx) {
-    const { meta, latestSnapshot, accentColor } = ctx
-    if (latestSnapshot?.seedbonus == null) return null
-    if (meta && "hourlyGold" in meta) return null
-    if (meta && "snatched" in meta) return null
+    if (ctx.latestSnapshot?.seedbonus == null) return null
+    if (metaFor(ctx, "ggn") || metaFor(ctx, "gazelle") || metaFor(ctx, "nebulance")) return null
     return {
       label: "Seedbonus",
-      value: Math.floor(latestSnapshot.seedbonus).toLocaleString(),
+      value: formatCount(Math.floor(ctx.latestSnapshot.seedbonus)),
       unit: "BON",
-      accentColor,
+      accentColor: ctx.accentColor,
       icon: icon16(StarIcon),
     }
   },
@@ -160,13 +155,13 @@ const ggnShareScoreCardSlot: SlotDefinition<StatCardBasicProps> = {
   component: StatCard as ComponentType<StatCardBasicProps>,
   priority: 15,
   resolve(ctx) {
-    const { meta, latestSnapshot, accentColor } = ctx
-    if (latestSnapshot?.shareScore == null) return null
-    if (!meta || !("hourlyGold" in meta)) return null
+    const ggMeta = metaFor(ctx, "ggn")
+    if (!ggMeta) return null
+    if (ctx.latestSnapshot?.shareScore == null) return null
     return {
       label: "Share Score",
-      value: latestSnapshot.shareScore.toFixed(2),
-      accentColor,
+      value: formatRatio(ctx.latestSnapshot.shareScore),
+      accentColor: ctx.accentColor,
       icon: icon16(ShareScoreIcon),
     }
   },
@@ -179,12 +174,11 @@ const gazelleTokensSlot: SlotDefinition<StatCardStackedProps> = {
   priority: 20,
   span: 2,
   resolve(ctx) {
-    const { meta, accentColor } = ctx
-    if (!meta) return null
-    const hasGift = "giftTokens" in meta && meta.giftTokens != null
-    const hasMerit = "meritTokens" in meta && meta.meritTokens != null
+    const gazMeta = metaFor(ctx, "gazelle")
+    if (!gazMeta) return null
+    const hasGift = gazMeta.giftTokens != null
+    const hasMerit = gazMeta.meritTokens != null
     if (!hasGift && !hasMerit) return null
-    const gazMeta = meta as GazellePlatformMeta
     const gift = gazMeta.giftTokens ?? 0
     const merit = gazMeta.meritTokens ?? 0
     return {
@@ -195,7 +189,7 @@ const gazelleTokensSlot: SlotDefinition<StatCardStackedProps> = {
         { label: "Merit", value: hasMerit ? merit : "—" },
       ],
       total: { label: "Total", value: String(gift + merit) },
-      accentColor,
+      accentColor: ctx.accentColor,
     }
   },
 }
@@ -206,15 +200,14 @@ const perfectFlacsSlot: SlotDefinition<StatCardBasicProps> = {
   component: StatCard as ComponentType<StatCardBasicProps>,
   priority: 22,
   resolve(ctx) {
-    const { meta, accentColor } = ctx
-    if (!meta || !("community" in meta)) return null
-    const gazMeta = meta as GazellePlatformMeta
+    const gazMeta = metaFor(ctx, "gazelle")
+    if (!gazMeta) return null
     if (gazMeta.community?.perfectFlacs == null) return null
     if (gazMeta.community.perfectFlacs <= 0) return null
     return {
       label: "Perfect FLACs",
       value: gazMeta.community.perfectFlacs,
-      accentColor,
+      accentColor: ctx.accentColor,
       icon: icon16(UploadArrowIcon),
     }
   },
@@ -226,14 +219,13 @@ const snatchedGazelleSlot: SlotDefinition<StatCardBasicProps> = {
   component: StatCard as ComponentType<StatCardBasicProps>,
   priority: 23,
   resolve(ctx) {
-    const { meta, accentColor } = ctx
-    if (!meta || !("community" in meta)) return null
-    const gazMeta = meta as GazellePlatformMeta
+    const gazMeta = metaFor(ctx, "gazelle")
+    if (!gazMeta) return null
     if (gazMeta.community?.snatched == null) return null
     return {
       label: "Snatched",
       value: gazMeta.community.snatched,
-      accentColor,
+      accentColor: ctx.accentColor,
       icon: icon16(DownloadArrowIcon),
     }
   },
@@ -245,15 +237,14 @@ const torrentsUploadedSlot: SlotDefinition<StatCardBasicProps> = {
   component: StatCard as ComponentType<StatCardBasicProps>,
   priority: 24,
   resolve(ctx) {
-    const { meta, accentColor } = ctx
-    if (!meta || !("community" in meta)) return null
-    const gazMeta = meta as GazellePlatformMeta
+    const gazMeta = metaFor(ctx, "gazelle")
+    if (!gazMeta) return null
     if (gazMeta.community?.uploaded == null) return null
     if (gazMeta.community.uploaded <= 0) return null
     return {
       label: "Torrents Uploaded",
       value: gazMeta.community.uploaded,
-      accentColor,
+      accentColor: ctx.accentColor,
       icon: icon16(UploadArrowIcon),
     }
   },
@@ -265,15 +256,14 @@ const requestsFilledSlot: SlotDefinition<StatCardBasicProps> = {
   component: StatCard as ComponentType<StatCardBasicProps>,
   priority: 25,
   resolve(ctx) {
-    const { meta, accentColor } = ctx
-    if (!meta || !("community" in meta)) return null
-    const gazMeta = meta as GazellePlatformMeta
+    const gazMeta = metaFor(ctx, "gazelle")
+    if (!gazMeta) return null
     if (gazMeta.community?.requestsFilled == null) return null
     if (gazMeta.community.requestsFilled <= 0) return null
     return {
       label: "Requests Filled",
       value: gazMeta.community.requestsFilled,
-      accentColor,
+      accentColor: ctx.accentColor,
       icon: icon16(UploadArrowIcon),
     }
   },
@@ -285,15 +275,14 @@ const groupsContributedSlot: SlotDefinition<StatCardBasicProps> = {
   component: StatCard as ComponentType<StatCardBasicProps>,
   priority: 26,
   resolve(ctx) {
-    const { meta, accentColor } = ctx
-    if (!meta || !("community" in meta)) return null
-    const gazMeta = meta as GazellePlatformMeta
+    const gazMeta = metaFor(ctx, "gazelle")
+    if (!gazMeta) return null
     if (gazMeta.community?.groups == null) return null
     if (gazMeta.community.groups <= 0) return null
     return {
       label: "Groups Contributed",
       value: gazMeta.community.groups,
-      accentColor,
+      accentColor: ctx.accentColor,
       icon: icon16(ShieldIcon),
     }
   },
@@ -305,15 +294,14 @@ const invitedSlot: SlotDefinition<StatCardBasicProps> = {
   component: StatCard as ComponentType<StatCardBasicProps>,
   priority: 27,
   resolve(ctx) {
-    const { meta, accentColor } = ctx
-    if (!meta || !("community" in meta)) return null
-    const gazMeta = meta as GazellePlatformMeta
+    const gazMeta = metaFor(ctx, "gazelle")
+    if (!gazMeta) return null
     if (gazMeta.community?.invited == null) return null
     if (gazMeta.community.invited <= 0) return null
     return {
       label: "Invited",
       value: gazMeta.community.invited,
-      accentColor,
+      accentColor: ctx.accentColor,
       icon: icon16(UserIcon),
     }
   },
@@ -326,9 +314,8 @@ const gazelleBountySlot: SlotDefinition<StatCardStackedProps> = {
   priority: 21,
   span: 2,
   resolve(ctx) {
-    const { meta, accentColor } = ctx
-    if (!meta || !("community" in meta)) return null
-    const gazMeta = meta as GazellePlatformMeta
+    const gazMeta = metaFor(ctx, "gazelle")
+    if (!gazMeta) return null
     if (!gazMeta.community) return null
     if (gazMeta.community.bountyEarned == null && gazMeta.community.bountySpent == null) return null
     const earned = gazMeta.community.bountyEarned ?? 0
@@ -349,7 +336,7 @@ const gazelleBountySlot: SlotDefinition<StatCardStackedProps> = {
         },
       ],
       total: { label: "Net", value: formatBytesNum(earned - spent) },
-      accentColor,
+      accentColor: ctx.accentColor,
     }
   },
 }
@@ -361,9 +348,8 @@ const gazelleCommentsSlot: SlotDefinition<StatCardStackedProps> = {
   priority: 29,
   span: 2,
   resolve(ctx) {
-    const { meta, accentColor } = ctx
-    if (!meta || !("community" in meta)) return null
-    const gazMeta = meta as GazellePlatformMeta
+    const gazMeta = metaFor(ctx, "gazelle")
+    if (!gazMeta) return null
     if (!gazMeta.community) return null
     const c = gazMeta.community
     const total =
@@ -381,7 +367,7 @@ const gazelleCommentsSlot: SlotDefinition<StatCardStackedProps> = {
         { label: "Collage", value: c.collageComments },
         { label: "Request", value: c.requestComments },
       ],
-      accentColor,
+      accentColor: ctx.accentColor,
     }
   },
 }
@@ -426,9 +412,10 @@ const donorBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   component: SlotBadge,
   priority: 11,
   resolve(ctx) {
-    const { meta } = ctx
-    if (!meta || !("donor" in meta)) return null
-    if ((meta as { donor?: boolean }).donor !== true) return null
+    const ggMeta = metaFor(ctx, "ggn")
+    const gazMeta = metaFor(ctx, "gazelle")
+    const isDonor = ggMeta?.donor ?? gazMeta?.donor
+    if (isDonor !== true) return null
     return { variant: "accent", label: "Donor" }
   },
 }
@@ -439,9 +426,10 @@ const disabledBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   component: SlotBadge,
   priority: 12,
   resolve(ctx) {
-    const { meta } = ctx
-    if (!meta || !("enabled" in meta)) return null
-    if ((meta as { enabled?: boolean }).enabled !== false) return null
+    const ggMeta = metaFor(ctx, "ggn")
+    const gazMeta = metaFor(ctx, "gazelle")
+    const enabled = ggMeta?.enabled ?? gazMeta?.enabled
+    if (enabled !== false) return null
     return { variant: "danger", label: "Disabled" }
   },
 }
@@ -452,9 +440,8 @@ const ggnParkedBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   component: SlotBadge,
   priority: 20,
   resolve(ctx) {
-    const { meta } = ctx
-    if (!meta || !("parked" in meta)) return null
-    if ((meta as GGnPlatformMeta).parked !== true) return null
+    const ggMeta = metaFor(ctx, "ggn")
+    if (!ggMeta || ggMeta.parked !== true) return null
     return { variant: "warn", label: "Parked" }
   },
 }
@@ -465,9 +452,9 @@ const ggnInvitesBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   component: SlotBadge,
   priority: 21,
   resolve(ctx) {
-    const { meta } = ctx
-    if (!meta || !("invites" in meta)) return null
-    const invites = (meta as GGnPlatformMeta).invites
+    const ggMeta = metaFor(ctx, "ggn")
+    if (!ggMeta) return null
+    const invites = ggMeta.invites
     if (typeof invites !== "number" || invites <= 0) return null
     return { variant: "default", label: `${invites} Invites` }
   },
@@ -479,12 +466,11 @@ const ggnIrcBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   component: SlotBadge,
   priority: 22,
   resolve(ctx) {
-    const { meta } = ctx
-    if (!meta || !("onIRC" in meta)) return null
-    if ((meta as GGnPlatformMeta).onIRC !== true) return null
+    const ggMeta = metaFor(ctx, "ggn")
+    if (!ggMeta || ggMeta.onIRC !== true) return null
     const children = createElement(
       "span",
-      { className: "inline-flex items-center gap-1.5" },
+      { className: "inline-flex items-center gap-2" },
       createElement(PulseDot, { status: "healthy", size: "sm" }),
       "IRC"
     )
@@ -498,9 +484,8 @@ const gazelleParanoiaBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   component: SlotBadge,
   priority: 30,
   resolve(ctx) {
-    const { meta } = ctx
-    if (!meta || !("paranoiaText" in meta)) return null
-    const gazMeta = meta as GazellePlatformMeta
+    const gazMeta = metaFor(ctx, "gazelle")
+    if (!gazMeta) return null
     if (!gazMeta.paranoiaText || gazMeta.paranoiaText === "Off") return null
     return { variant: "default", label: `Paranoia: ${gazMeta.paranoiaText}` }
   },
@@ -513,10 +498,8 @@ const gazelleUnreadBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   priority: 31,
   resolve(ctx) {
     if (ctx.tracker.hideUnreadBadges) return null
-    const { meta } = ctx
-    if (!meta || !("notifications" in meta)) return null
-    const gazMeta = meta as GazellePlatformMeta
-    if (!gazMeta.notifications) return null
+    const gazMeta = metaFor(ctx, "gazelle")
+    if (!gazMeta?.notifications) return null
     if (gazMeta.notifications.messages <= 0) return null
     return { variant: "warn", label: `${gazMeta.notifications.messages} Unread` }
   },
@@ -529,10 +512,8 @@ const gazelleAnnouncementBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   priority: 32,
   resolve(ctx) {
     if (ctx.tracker.hideUnreadBadges) return null
-    const { meta } = ctx
-    if (!meta || !("notifications" in meta)) return null
-    const gazMeta = meta as GazellePlatformMeta
-    if (!gazMeta.notifications?.newAnnouncement) return null
+    const gazMeta = metaFor(ctx, "gazelle")
+    if (!gazMeta?.notifications?.newAnnouncement) return null
     return { variant: "accent", label: "New Announcement" }
   },
 }
@@ -547,11 +528,9 @@ const ggnAchievementProgressSlot: SlotDefinition<GgnAchievementProgressProps> = 
   component: GgnAchievementProgress as ComponentType<GgnAchievementProgressProps>,
   priority: 10,
   resolve(ctx) {
-    const { meta, accentColor } = ctx
-    if (!meta || !("achievements" in meta)) return null
-    const ggMeta = meta as GGnPlatformMeta
-    if (!ggMeta.achievements) return null
-    return { ggMeta, accentColor }
+    const ggMeta = metaFor(ctx, "ggn")
+    if (!ggMeta?.achievements) return null
+    return { ggMeta, accentColor: ctx.accentColor }
   },
 }
 
@@ -561,10 +540,10 @@ const ggnShareScoreProgressSlot: SlotDefinition<GgnShareScoreProgressProps> = {
   component: GgnShareScoreProgress as ComponentType<GgnShareScoreProgressProps>,
   priority: 11,
   resolve(ctx) {
-    const { meta, latestSnapshot, accentColor } = ctx
-    if (!meta || !("hourlyGold" in meta)) return null
-    if (latestSnapshot?.shareScore == null) return null
-    return { latestSnapshot, accentColor }
+    const ggMeta = metaFor(ctx, "ggn")
+    if (!ggMeta) return null
+    if (ctx.latestSnapshot?.shareScore == null) return null
+    return { latestSnapshot: ctx.latestSnapshot, accentColor: ctx.accentColor }
   },
 }
 
@@ -574,21 +553,15 @@ const ggnBuffsSlot: SlotDefinition<GgnBuffsDisplayProps> = {
   component: GgnBuffsDisplay as ComponentType<GgnBuffsDisplayProps>,
   priority: 12,
   resolve(ctx) {
-    const { meta, accentColor } = ctx
-    if (!meta || !("buffs" in meta)) return null
-    const ggMeta = meta as GGnPlatformMeta
-    if (!ggMeta.buffs || Object.keys(ggMeta.buffs).length === 0) return null
-    return { ggMeta, accentColor }
+    const ggMeta = metaFor(ctx, "ggn")
+    if (!ggMeta?.buffs || Object.keys(ggMeta.buffs).length === 0) return null
+    return { ggMeta, accentColor: ctx.accentColor }
   },
 }
 
 // ---------------------------------------------------------------------------
 // MAM slot definitions
 // ---------------------------------------------------------------------------
-
-function isMamMeta(meta: unknown): meta is MamPlatformMeta {
-  return !!meta && typeof meta === "object" && "vipUntil" in meta
-}
 
 function getDaysUntilVipExpiry(vipUntil: string): number | null {
   const expiry = new Date(vipUntil)
@@ -604,13 +577,13 @@ const mamWedgesSlot: SlotDefinition<StatCardBasicProps> = {
   component: StatCard as ComponentType<StatCardBasicProps>,
   priority: 14,
   resolve(ctx) {
-    const { meta, latestSnapshot, accentColor } = ctx
-    if (!isMamMeta(meta)) return null
-    if (latestSnapshot?.freeleechTokens == null) return null
+    const mamMeta = metaFor(ctx, "mam")
+    if (!mamMeta) return null
+    if (ctx.latestSnapshot?.freeleechTokens == null) return null
     return {
       label: "FL Wedges",
-      value: Math.floor(latestSnapshot.freeleechTokens).toLocaleString(),
-      accentColor,
+      value: formatCount(Math.floor(ctx.latestSnapshot.freeleechTokens)),
+      accentColor: ctx.accentColor,
       icon: icon16(StarIcon),
     }
   },
@@ -622,13 +595,12 @@ const mamCompletedSlot: SlotDefinition<StatCardBasicProps> = {
   component: StatCard as ComponentType<StatCardBasicProps>,
   priority: 22,
   resolve(ctx) {
-    const { meta, accentColor } = ctx
-    if (!isMamMeta(meta)) return null
-    if (meta.inactiveSatisfiedCount == null) return null
+    const mamMeta = metaFor(ctx, "mam")
+    if (!mamMeta || mamMeta.inactiveSatisfiedCount == null) return null
     return {
       label: "Completed",
-      value: meta.inactiveSatisfiedCount,
-      accentColor,
+      value: mamMeta.inactiveSatisfiedCount,
+      accentColor: ctx.accentColor,
       icon: icon16(DownloadArrowIcon),
     }
   },
@@ -640,13 +612,12 @@ const mamTrackerErrorsSlot: SlotDefinition<StatCardBasicProps> = {
   component: StatCard as ComponentType<StatCardBasicProps>,
   priority: 23,
   resolve(ctx) {
-    const { meta, accentColor } = ctx
-    if (!isMamMeta(meta)) return null
-    if (meta.trackerErrorCount == null || meta.trackerErrorCount <= 0) return null
+    const mamMeta = metaFor(ctx, "mam")
+    if (!mamMeta || mamMeta.trackerErrorCount == null || mamMeta.trackerErrorCount <= 0) return null
     return {
       label: "Tracker Errors",
-      value: meta.trackerErrorCount,
-      accentColor,
+      value: mamMeta.trackerErrorCount,
+      accentColor: ctx.accentColor,
       alert: "danger" as const,
     }
   },
@@ -658,8 +629,9 @@ const mamVipBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   component: SlotBadge,
   priority: 10,
   resolve(ctx) {
-    if (!isMamMeta(ctx.meta) || !ctx.meta.vipUntil) return null
-    const days = getDaysUntilVipExpiry(ctx.meta.vipUntil)
+    const mamMeta = metaFor(ctx, "mam")
+    if (!mamMeta?.vipUntil) return null
+    const days = getDaysUntilVipExpiry(mamMeta.vipUntil)
     if (days == null) return null
     return { variant: days <= 7 ? "warn" : "accent", label: `VIP (${days}d)` }
   },
@@ -671,8 +643,9 @@ const mamConnectableBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   component: SlotBadge,
   priority: 20,
   resolve(ctx) {
-    if (!isMamMeta(ctx.meta) || ctx.meta.connectable == null) return null
-    const lower = ctx.meta.connectable.toLowerCase()
+    const mamMeta = metaFor(ctx, "mam")
+    if (!mamMeta || mamMeta.connectable == null) return null
+    const lower = mamMeta.connectable.toLowerCase()
     const isOnline = lower === "yes" || lower === "true" || lower === "online"
     return {
       variant: isOnline ? "default" : "danger",
@@ -688,8 +661,9 @@ const mamUnreadBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   priority: 30,
   resolve(ctx) {
     if (ctx.tracker.hideUnreadBadges) return null
-    if (!isMamMeta(ctx.meta)) return null
-    const count = (ctx.meta.unreadPMs ?? 0) + (ctx.meta.unreadTopics ?? 0)
+    const mamMeta = metaFor(ctx, "mam")
+    if (!mamMeta) return null
+    const count = (mamMeta.unreadPMs ?? 0) + (mamMeta.unreadTopics ?? 0)
     if (count <= 0) return null
     return { variant: "warn", label: `${count} Unread` }
   },
@@ -701,18 +675,111 @@ const mamHealthOverviewSlot: SlotDefinition<MamHealthOverviewProps> = {
   component: MamHealthOverview as ComponentType<MamHealthOverviewProps>,
   priority: 10,
   resolve(ctx) {
-    if (!isMamMeta(ctx.meta)) return null
+    const mamMeta = metaFor(ctx, "mam")
+    if (!mamMeta) return null
     return {
-      meta: ctx.meta,
+      meta: mamMeta,
       seedingCount: ctx.latestSnapshot?.seedingCount ?? 0,
       leechingCount: ctx.latestSnapshot?.leechingCount ?? 0,
       hitAndRuns: ctx.latestSnapshot?.hitAndRuns ?? 0,
       seedbonus: ctx.latestSnapshot?.seedbonus ?? null,
       accentColor: ctx.accentColor,
-      vipUntil: ctx.meta.vipUntil ?? null,
-      unsatisfiedCount: ctx.meta.unsatisfiedCount ?? null,
-      unsatisfiedLimit: ctx.meta.unsatisfiedLimit ?? null,
+      vipUntil: mamMeta.vipUntil ?? null,
+      unsatisfiedCount: mamMeta.unsatisfiedCount ?? null,
+      unsatisfiedLimit: mamMeta.unsatisfiedLimit ?? null,
     }
+  },
+}
+
+// ---------------------------------------------------------------------------
+// AvistaZ slot definitions
+// ---------------------------------------------------------------------------
+
+const avistazActivitySlot: SlotDefinition<StatCardStackedProps> = {
+  id: "avistaz-activity",
+  category: "stat-card",
+  component: StatCard as ComponentType<StatCardStackedProps>,
+  priority: 14,
+  span: 2,
+  resolve(ctx) {
+    const avMeta = metaFor(ctx, "avistaz")
+    if (!avMeta) return null
+    const uploads = avMeta.totalUploads ?? 0
+    const downloads = avMeta.totalDownloads ?? 0
+    if (uploads === 0 && downloads === 0 && !avMeta.bonusPerHour) return null
+    const rows: StatCardRow[] = [
+      { label: "Uploads", value: uploads },
+      { label: "Downloads", value: downloads },
+    ]
+    if (avMeta.bonusPerHour != null) {
+      rows.push({
+        label: "Bonus/hr",
+        prefix: "+",
+        value: formatCount(Math.floor(avMeta.bonusPerHour)),
+        colorClass: "text-success",
+      })
+    }
+    return {
+      type: "stacked" as const,
+      title: "Activity",
+      rows,
+      accentColor: ctx.accentColor,
+    }
+  },
+}
+
+const avistazDownloadDisabledBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "avistaz-download-disabled",
+  category: "badge",
+  component: SlotBadge,
+  priority: 12,
+  resolve(ctx) {
+    const avMeta = metaFor(ctx, "avistaz")
+    if (!avMeta || avMeta.canDownload !== false) return null
+    return { variant: "danger", label: "Downloads Disabled" }
+  },
+}
+
+const avistazUploadDisabledBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "avistaz-upload-disabled",
+  category: "badge",
+  component: SlotBadge,
+  priority: 12,
+  resolve(ctx) {
+    const avMeta = metaFor(ctx, "avistaz")
+    if (!avMeta || avMeta.canUpload !== false) return null
+    return { variant: "danger", label: "Uploads Disabled" }
+  },
+}
+
+const avistazVipBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "avistaz-vip",
+  category: "badge",
+  component: SlotBadge,
+  priority: 10,
+  resolve(ctx) {
+    const avMeta = metaFor(ctx, "avistaz")
+    if (!avMeta?.vipExpiry) return null
+    const expiry = new Date(avMeta.vipExpiry)
+    if (Number.isNaN(expiry.getTime())) return null
+    const ms = expiry.getTime() - Date.now()
+    if (ms <= 0) return null
+    const days = Math.ceil(ms / (1000 * 60 * 60 * 24))
+    return { variant: days <= 7 ? "warn" : "accent", label: `VIP (${days}d)` }
+  },
+}
+
+const avistazInvitesBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "avistaz-invites",
+  category: "badge",
+  component: SlotBadge,
+  priority: 21,
+  resolve(ctx) {
+    const avMeta = metaFor(ctx, "avistaz")
+    if (!avMeta) return null
+    const invites = avMeta.invites
+    if (typeof invites !== "number" || invites <= 0) return null
+    return { variant: "default", label: `${invites} Invites` }
   },
 }
 
@@ -760,6 +827,13 @@ export const SLOT_DEFINITIONS: AnySlotDefinition[] = [
   ggnBuffsSlot,
   // MAM slots (progress)
   mamHealthOverviewSlot,
+  // AvistaZ slots (stat-card)
+  avistazActivitySlot,
+  // AvistaZ slots (badge)
+  avistazDownloadDisabledBadgeSlot,
+  avistazUploadDisabledBadgeSlot,
+  avistazVipBadgeSlot,
+  avistazInvitesBadgeSlot,
 ]
 
 // Shared component lookup — single source for rendering resolved slots

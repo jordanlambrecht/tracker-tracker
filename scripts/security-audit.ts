@@ -1283,13 +1283,7 @@ function checkProxyAllowlistSync(): CheckResult {
 // ── Check 20: BigInt fields use string serialization (warning) ───────────
 
 // Column names that hold BigInt values in the DB schema
-const BIGINT_COLUMNS = [
-  "uploadedBytes",
-  "downloadedBytes",
-  "bufferBytes",
-  "rawUploadedBytes",
-  "rawDownloadedBytes",
-]
+const BIGINT_COLUMNS = ["uploadedBytes", "downloadedBytes", "bufferBytes"]
 
 function checkBigIntSafety(files?: string[]): CheckResult {
   const findings: Finding[] = []

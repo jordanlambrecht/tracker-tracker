@@ -1,6 +1,4 @@
 // src/components/tracker-detail/CoreStatCards.tsx
-//
-// Functions: buildCoreStatDescriptors
 
 import type { ReactNode } from "react"
 import {
@@ -14,7 +12,12 @@ import {
   UploadArrowIcon,
 } from "@/components/ui/Icons"
 import type { AlertLevel } from "@/components/ui/StatCard"
-import { formatBytesFromString, formatRatio } from "@/lib/formatters"
+import {
+  formatBytesFromString,
+  formatCount,
+  formatRatio,
+  formatRatioDisplay,
+} from "@/lib/formatters"
 import type { Snapshot, TrackerLatestStats } from "@/types/api"
 
 export interface StatDescriptor {
@@ -46,7 +49,7 @@ export function buildCoreStatDescriptors(
     stats?.ratio != null && effectiveRequiredRatio != null && stats.ratio < effectiveRequiredRatio
   const ratioAlertReason =
     ratioBelowRequired && effectiveRequiredRatio != null
-      ? `Below required ratio (${formatRatio(effectiveRequiredRatio)}x)`
+      ? `Below required ratio (${formatRatioDisplay(effectiveRequiredRatio)})`
       : undefined
   const bufferNegative = latestSnapshot?.bufferBytes?.startsWith("-")
 
@@ -95,19 +98,19 @@ export function buildCoreStatDescriptors(
       key: "seeding",
       label: "Seeding",
       icon: <SeedingIcon width="16" height="16" />,
-      value: stats?.seedingCount != null ? stats.seedingCount.toLocaleString() : "—",
+      value: formatCount(stats?.seedingCount),
     },
     {
       key: "leeching",
       label: "Leeching",
       icon: <LeechingIcon width="16" height="16" />,
-      value: stats?.leechingCount != null ? stats.leechingCount.toLocaleString() : "—",
+      value: formatCount(stats?.leechingCount),
     },
     {
       key: "hnr",
       label: "Hit & Runs",
       icon: <TriangleWarningIcon width="16" height="16" />,
-      value: latestSnapshot?.hitAndRuns != null ? String(latestSnapshot.hitAndRuns) : "—",
+      value: formatCount(latestSnapshot?.hitAndRuns),
     },
     {
       key: "req-ratio",

@@ -1,17 +1,13 @@
 // src/app/(auth)/trackers/[id]/TrackerDetailClient.tsx
-//
-// Functions: TrackerDetailClient
-
 "use client"
 
 import clsx from "clsx"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { type CSSProperties, useCallback, useEffect, useMemo, useState } from "react"
 import { CHART_THEME } from "@/components/charts/lib/theme"
-import type { DayRange } from "@/components/dashboard/DayRangeSidebar"
 import { RankProgress } from "@/components/dashboard/RankProgress"
 import { TorrentsTab } from "@/components/dashboard/TorrentsTab"
-import { TrackerSettingsDialog } from "@/components/TrackerSettingsDialog"
+import { TrackerSettingsSheet } from "@/components/TrackerSettingsSheet"
 import { AnalyticsTab } from "@/components/tracker-detail/AnalyticsTab"
 import type { DebugData } from "@/components/tracker-detail/DebugResponseDialog"
 import { DebugResponseDialog } from "@/components/tracker-detail/DebugResponseDialog"
@@ -21,19 +17,27 @@ import { TrackerInfoTab } from "@/components/tracker-detail/TrackerInfoTab"
 import { TrackerStatusBanner } from "@/components/tracker-detail/TrackerStatusBanner"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { useTrackerTorrents } from "@/hooks/useTrackerTorrents"
-import { computeDelta, hexToRgba } from "@/lib/formatters"
-import type { SlotContext } from "@/lib/slot-types"
+import { hexToRgba } from "@/lib/color-utils"
+import { computeDelta } from "@/lib/data-transforms"
 import type {
+  DayRange,
   GazellePlatformMeta,
   QbitmanageTagConfig,
   Snapshot,
   TagGroup,
   TrackerSummary,
 } from "@/types/api"
+import type { SlotContext } from "@/types/slots"
 
 type Tab = "analytics" | "info" | "torrents"
 
 const VALID_TABS: Tab[] = ["analytics", "info", "torrents"]
+
+const TRACKER_DETAIL_TABS: { key: Tab; label: string }[] = [
+  { key: "analytics", label: "Data & Analytics" },
+  { key: "info", label: "Tracker Info" },
+  { key: "torrents", label: "Torrents" },
+]
 
 interface TrackerDetailClientProps {
   trackerId: number
@@ -41,6 +45,7 @@ interface TrackerDetailClientProps {
   initialAllTimeSnapshots: Snapshot[]
   initialTagGroups: TagGroup[]
   initialQbitmanageConfig: { enabled: boolean; tags: QbitmanageTagConfig } | null
+  initialTab?: string | null
 }
 
 export function TrackerDetailClient({
@@ -49,13 +54,13 @@ export function TrackerDetailClient({
   initialAllTimeSnapshots,
   initialTagGroups,
   initialQbitmanageConfig,
+  initialTab: initialTabProp,
 }: TrackerDetailClientProps) {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const id = String(trackerId)
 
-  const initialTab = VALID_TABS.includes(searchParams.get("tab") as Tab)
-    ? (searchParams.get("tab") as Tab)
+  const initialTab = VALID_TABS.includes(initialTabProp as Tab)
+    ? (initialTabProp as Tab)
     : "analytics"
 
   const [tracker, setTracker] = useState<TrackerSummary>(initialTracker)
@@ -80,6 +85,7 @@ export function TrackerDetailClient({
     tagGroups,
     trackerSeedingCount: tracker.latestStats?.seedingCount,
     qbitmanageConfig,
+    isActive: activeTab === "torrents",
   })
 
   const snapshots = useMemo(() => {
@@ -137,8 +143,7 @@ export function TrackerDetailClient({
         body: JSON.stringify({ pollingPaused: !wasPaused }),
       })
       if (!res.ok) throw new Error("Failed to toggle pause")
-      const trackerRes = await fetch(`/api/trackers/${id}`)
-      if (trackerRes.ok) setTracker(await trackerRes.json())
+      setTracker(await res.json())
     } catch {
       setTracker((prev) => ({ ...prev, userPausedAt: originalUserPausedAt }))
       setPollError("Failed to toggle pause — please try again")
@@ -206,6 +211,15 @@ export function TrackerDetailClient({
   const delta = useMemo(() => computeDelta(snapshots), [snapshots])
 
   const tc = tracker?.color || CHART_THEME.accent
+  const trackerStyle = useMemo(
+    () =>
+      ({
+        "--tracker-color": tc,
+        "--tracker-color-dim": hexToRgba(tc, 0.15),
+        "--tracker-color-glow": hexToRgba(tc, 0.25),
+      }) as CSSProperties,
+    [tc]
+  )
   const baseUrl = tracker?.baseUrl
   const registryEntry = useMemo(() => (baseUrl ? findRegistryEntry(baseUrl) : undefined), [baseUrl])
 
@@ -214,7 +228,6 @@ export function TrackerDetailClient({
     const ctx: SlotContext = {
       tracker,
       latestSnapshot,
-      snapshots,
       meta: tracker.platformMeta as SlotContext["meta"],
       registry: registryEntry,
       accentColor: tc,
@@ -225,28 +238,15 @@ export function TrackerDetailClient({
       badgeSlots: resolved.get("badge") ?? [],
       progressSlots: resolved.get("progress") ?? [],
     }
-  }, [tracker, latestSnapshot, snapshots, registryEntry, tc])
+  }, [tracker, latestSnapshot, registryEntry, tc])
 
   const gazelleMeta: GazellePlatformMeta | null =
     tracker.platformType === "gazelle" ? (tracker.platformMeta as GazellePlatformMeta | null) : null
 
-  const tabs: { key: Tab; label: string }[] = [
-    { key: "analytics", label: "Data & Analytics" },
-    { key: "info", label: "Tracker Info" },
-    { key: "torrents", label: "Torrents" },
-  ]
+  const tabs = TRACKER_DETAIL_TABS
 
   return (
-    <div
-      className="flex flex-col gap-10 max-w-6xl mx-auto pb-24"
-      style={
-        {
-          "--tracker-color": tc,
-          "--tracker-color-dim": hexToRgba(tc, 0.15),
-          "--tracker-color-glow": hexToRgba(tc, 0.25),
-        } as CSSProperties
-      }
-    >
+    <div className="flex flex-col gap-10 max-w-6xl mx-auto pb-24" style={trackerStyle}>
       {/* Header */}
       <TrackerDetailHeader
         tracker={tracker}
@@ -332,7 +332,7 @@ export function TrackerDetailClient({
         />
       )}
 
-      <TrackerSettingsDialog
+      <TrackerSettingsSheet
         key={tracker.id}
         open={showSettings}
         tracker={tracker}
@@ -349,13 +349,15 @@ export function TrackerDetailClient({
         }}
       />
 
-      <DebugResponseDialog
-        open={showDebugDialog}
-        loading={debugLoading}
-        data={debugData}
-        error={debugError}
-        onClose={() => setShowDebugDialog(false)}
-      />
+      {showDebugDialog && (
+        <DebugResponseDialog
+          open
+          loading={debugLoading}
+          data={debugData}
+          error={debugError}
+          onClose={() => setShowDebugDialog(false)}
+        />
+      )}
     </div>
   )
 }

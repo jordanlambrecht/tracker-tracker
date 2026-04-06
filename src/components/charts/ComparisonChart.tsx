@@ -8,9 +8,10 @@ import type { EChartsOption } from "echarts"
 import { useState } from "react"
 import { TabBar } from "@/components/ui/TabBar"
 import { Tooltip } from "@/components/ui/Tooltip"
-import { bytesToGiB, hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
+import { bytesToGiB } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
-import type { TrackerSnapshotSeries } from "@/types/charts"
+import type { FleetChartProps, TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import {
@@ -42,10 +43,26 @@ import { useLogScale } from "./lib/useLogScale"
 
 type ChartMetric = "uploaded" | "downloaded" | "ratio" | "buffer" | "seedbonus" | "active"
 
-interface ComparisonChartProps {
+const METRIC_COLOR: Record<ChartMetric, string> = {
+  uploaded: CHART_THEME.upload,
+  downloaded: CHART_THEME.download,
+  ratio: CHART_THEME.positive,
+  buffer: CHART_THEME.upload,
+  seedbonus: CHART_THEME.accent,
+  active: CHART_THEME.accent,
+}
+
+const METRIC_DIM: Record<ChartMetric, string> = {
+  uploaded: CHART_THEME.accentDim,
+  downloaded: CHART_THEME.warnDim,
+  ratio: hexToRgba(CHART_THEME.positive, 0.15),
+  buffer: CHART_THEME.accentDim,
+  seedbonus: CHART_THEME.accentDim,
+  active: CHART_THEME.accentDim,
+}
+
+interface ComparisonChartProps extends FleetChartProps {
   metric: ChartMetric
-  trackerData: TrackerSnapshotSeries[]
-  height?: number
   enableLogScale?: boolean
   enableAverage?: boolean
   enableStacked?: boolean
@@ -68,7 +85,7 @@ function getValue(snapshot: Snapshot, metric: ChartMetric): number | null {
   }
 }
 
-/** Compute a single "Avg" series — mean of all tracker values at each unified timestamp. */
+/** Compute a single "Avg" series, mean of all tracker values at each unified timestamp. */
 function buildAverageSeries(
   trackerData: TrackerSnapshotSeries[],
   allTimestamps: number[],
@@ -101,6 +118,9 @@ function buildAverageSeries(
     data.push([ts, Number(avg.toFixed(3))])
   }
 
+  const color = METRIC_COLOR[metric]
+  const dim = METRIC_DIM[metric]
+
   return [
     {
       name: "Average",
@@ -109,15 +129,15 @@ function buildAverageSeries(
       smooth: true,
       symbol: "circle",
       symbolSize: dotSize,
-      itemStyle: { color: CHART_THEME.accent },
+      itemStyle: { color },
       lineStyle: {
-        color: CHART_THEME.accent,
+        color,
         width: 3,
-        shadowColor: CHART_THEME.accent,
+        shadowColor: color,
         shadowBlur: 12,
       },
       emphasis: {
-        lineStyle: { shadowBlur: 20, shadowColor: CHART_THEME.accent },
+        lineStyle: { shadowBlur: 20, shadowColor: color },
       },
       areaStyle: {
         color: {
@@ -127,8 +147,8 @@ function buildAverageSeries(
           x2: 0,
           y2: 1,
           colorStops: [
-            { offset: 0, color: CHART_THEME.accentDim },
-            { offset: 1, color: hexToRgba(CHART_THEME.accent, 0) },
+            { offset: 0, color: dim },
+            { offset: 1, color: hexToRgba(color, 0) },
           ],
         } as unknown as string,
       },
@@ -150,7 +170,7 @@ function buildComparisonOption(
   const allTimestamps = collectUnifiedTimestamps(trackerData)
 
   // Determine unit and divisor per metric type
-  let unit = "×"
+  let unit = "x"
   let divisor = 1
   if (metric === "seedbonus") {
     unit = "pts"
@@ -170,7 +190,7 @@ function buildComparisonOption(
 
   const dotSize = adaptiveDotSize(allTimestamps.length)
 
-  // Build series — either per-tracker or single average line
+  // Build series either per-tracker or single average line
   let series: EChartsOption["series"]
 
   if (useTotalOnly) {
@@ -182,7 +202,7 @@ function buildComparisonOption(
       })
     )
 
-    // Build a map of ts → sum across all trackers
+    // Build a map of ts -> sum across all trackers
     const sumByTs = new Map<number, number>()
     for (const series of perTracker) {
       for (const [ts, val] of series) {
@@ -192,6 +212,9 @@ function buildComparisonOption(
     const data: [number, number][] = [...sumByTs.entries()]
       .sort(([a], [b]) => a - b)
       .map(([ts, sum]) => [ts, Number(sum.toFixed(3))])
+
+    const totalColor = METRIC_COLOR[metric]
+    const totalDim = METRIC_DIM[metric]
 
     series = [
       {
@@ -209,20 +232,20 @@ function buildComparisonOption(
             x2: 0,
             y2: 1,
             colorStops: [
-              { offset: 0, color: CHART_THEME.accentDim },
-              { offset: 1, color: hexToRgba(CHART_THEME.accent, 0) },
+              { offset: 0, color: totalDim },
+              { offset: 1, color: hexToRgba(totalColor, 0) },
             ],
           } as unknown as string,
         },
-        itemStyle: { color: CHART_THEME.accent },
+        itemStyle: { color: totalColor },
         lineStyle: {
-          color: CHART_THEME.accent,
+          color: totalColor,
           width: 3,
-          shadowColor: CHART_THEME.accent,
+          shadowColor: totalColor,
           shadowBlur: 12,
         },
         emphasis: {
-          lineStyle: { shadowBlur: 20, shadowColor: CHART_THEME.accent },
+          lineStyle: { shadowBlur: 20, shadowColor: totalColor },
         },
       },
     ]
@@ -239,7 +262,7 @@ function buildComparisonOption(
       }
 
       // For stacked mode, carry forward the last known value to avoid spike artifacts.
-      // For line mode, use sparse [ts, value][] pairs — time axis handles gaps natively.
+      // For line mode, use sparse [ts, value][] pairs: time axis handles gaps natively.
       let data: [number, number][]
       if (useStacked) {
         data = carryForwardTimeSeries(allTimestamps, tracker.snapshots, fieldFn)
@@ -276,7 +299,7 @@ function buildComparisonOption(
     nameTextStyle: {
       color: CHART_THEME.textTertiary,
       fontFamily: CHART_THEME.fontMono,
-      fontSize: 10,
+      fontSize: CHART_THEME.fontSizeCompact,
     },
     axisLine: { show: false },
     axisTick: { show: false },
@@ -305,7 +328,7 @@ function buildComparisonOption(
           .filter((item) => item.value != null && item.value[1] != null)
           .map((item) => {
             const val = item.value[1]
-            const display = metric === "ratio" ? `${fmtNum(val)} ×` : `${fmtNum(val)} ${unit}`
+            const display = metric === "ratio" ? `${fmtNum(val)} x` : `${fmtNum(val)} ${unit}`
             return chartTooltipRow(item.color, item.seriesName, display)
           })
           .join("<br/>")
@@ -374,7 +397,7 @@ function ComparisonChart({
               <button
                 type="button"
                 onClick={() => setAverageMode((v) => !v)}
-                className="nm-raised-sm bg-raised px-2.5 py-1 text-[10px] font-mono text-muted hover:text-secondary active:nm-inset-sm active:scale-[0.97] transition-all duration-150 cursor-pointer flex items-center gap-1.5 rounded-nm-sm"
+                className="timestamp nm-interactive-sm bg-raised px-2.5 py-1 hover:text-secondary cursor-pointer flex items-center gap-2 rounded-nm-sm"
               >
                 {averageMode ? "Avg" : "Per-Tracker"}
               </button>

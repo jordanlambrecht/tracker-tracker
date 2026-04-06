@@ -3,15 +3,35 @@
 import clsx from "clsx"
 import { type InputHTMLAttributes, type Ref, useId } from "react"
 
+type HintVariant = "default" | "danger"
+
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string
   error?: string
+  hint?: string
+  hintVariant?: HintVariant
   ref?: Ref<HTMLInputElement>
 }
 
-function Input({ label, error, className, id, ref, ...props }: InputProps) {
+const HINT_COLORS: Record<HintVariant, string> = {
+  default: "text-muted",
+  danger: "text-danger/80",
+}
+
+function Input({
+  label,
+  error,
+  hint,
+  hintVariant = "default",
+  className,
+  id,
+  ref,
+  ...props
+}: InputProps) {
   const generatedId = useId()
   const inputId = id ?? generatedId
+  const hintId = hint ? `${inputId}-hint` : undefined
+  const describedBy = [error && `${inputId}-error`, hintId].filter(Boolean).join(" ") || undefined
 
   return (
     <div className="flex flex-col gap-1 w-full">
@@ -38,12 +58,17 @@ function Input({ label, error, className, id, ref, ...props }: InputProps) {
           className
         )}
         aria-invalid={error ? "true" : undefined}
-        aria-describedby={error ? `${inputId}-error` : undefined}
+        aria-describedby={describedBy}
         {...props}
       />
       {error && (
         <p id={`${inputId}-error`} className="text-xs font-sans text-danger" role="alert">
           {error}
+        </p>
+      )}
+      {hint && (
+        <p id={hintId} className={clsx("text-xs font-sans", HINT_COLORS[hintVariant])}>
+          {hint}
         </p>
       )}
     </div>

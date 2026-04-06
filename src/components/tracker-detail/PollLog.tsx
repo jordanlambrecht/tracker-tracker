@@ -1,11 +1,11 @@
 // src/components/tracker-detail/PollLog.tsx
-
 "use client"
 
 import clsx from "clsx"
 import { useState } from "react"
+import { Button } from "@/components/ui/Button"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
-import { formatBytesFromString } from "@/lib/formatters"
+import { formatBytesFromString, formatDateTime, formatRatioDisplay } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 
 interface PollLogProps {
@@ -18,26 +18,24 @@ interface PollLogProps {
 export function PollLog({ snapshots, lastPolledAt, lastError, userPausedAt }: PollLogProps) {
   const [open, setOpen] = useState(false)
 
-  const lastPolledLabel = lastPolledAt ? new Date(lastPolledAt).toLocaleString() : "Never"
+  const lastPolledLabel = lastPolledAt ? formatDateTime(lastPolledAt) : "Never"
 
   return (
     <div className="flex flex-col gap-2">
-      <button
-        type="button"
+      <Button
+        variant="minimal"
+        size="sm"
+        leftIcon={<ChevronToggle expanded={open} />}
+        className="w-fit"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 text-xs text-tertiary font-mono hover:text-secondary transition-colors duration-150 cursor-pointer w-fit"
-      >
-        <ChevronToggle expanded={open} />
-        Last polled: {lastPolledLabel}
-      </button>
+        text={`Last polled: ${lastPolledLabel}`}
+      />
       {open && (
         <div className="nm-inset-sm bg-control-bg overflow-hidden overflow-x-auto styled-scrollbar rounded-nm-md">
           {userPausedAt && (
             <div className="flex items-center gap-2 px-4 py-2.5 text-xs font-mono text-warn border-b border-border whitespace-nowrap min-w-fit">
               <span className="shrink-0">⏸</span>
-              <span className="text-tertiary shrink-0 w-[160px]">
-                {new Date(userPausedAt).toLocaleString()}
-              </span>
+              <span className="text-tertiary shrink-0 w-40">{formatDateTime(userPausedAt)}</span>
               <span>Polling paused</span>
             </div>
           )}
@@ -51,9 +49,9 @@ export function PollLog({ snapshots, lastPolledAt, lastError, userPausedAt }: Po
           {snapshots.length === 0 ? (
             <p className="px-4 py-3 text-xs font-mono text-muted">No poll history yet.</p>
           ) : (
-            [...snapshots]
+            snapshots
+              .slice(-10)
               .reverse()
-              .slice(0, 10)
               .map((snap, i) => (
                 <div
                   key={snap.polledAt}
@@ -63,8 +61,8 @@ export function PollLog({ snapshots, lastPolledAt, lastError, userPausedAt }: Po
                   )}
                 >
                   <span className="text-success shrink-0">✓</span>
-                  <span className="text-tertiary shrink-0 w-[160px]">
-                    {new Date(snap.polledAt).toLocaleString()}
+                  <span className="text-tertiary shrink-0 w-40">
+                    {formatDateTime(snap.polledAt)}
                   </span>
                   <span className="text-secondary">
                     {formatBytesFromString(snap.uploadedBytes)} ↑
@@ -72,9 +70,7 @@ export function PollLog({ snapshots, lastPolledAt, lastError, userPausedAt }: Po
                   <span className="text-secondary">
                     {formatBytesFromString(snap.downloadedBytes)} ↓
                   </span>
-                  <span className="text-secondary">
-                    {snap.ratio !== null ? `${snap.ratio.toFixed(2)}x` : "—"}
-                  </span>
+                  <span className="text-secondary">{formatRatioDisplay(snap.ratio)}</span>
                 </div>
               ))
           )}

@@ -5,9 +5,10 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
+import { formatRatioDisplay } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
-import type { TrackerSnapshotSeries } from "@/types/charts"
+import type { FleetChartProps, TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import {
@@ -31,9 +32,7 @@ import {
 } from "./lib/theme"
 import { useLogScale } from "./lib/useLogScale"
 
-interface RatioStabilityChartProps {
-  trackerData: TrackerSnapshotSeries[]
-  height?: number
+interface RatioStabilityChartProps extends FleetChartProps {
   emaPeriod?: number
   bandWindow?: number
 }
@@ -214,7 +213,7 @@ function buildRatioStabilityOption(
             return (
               chartDot(item.color) +
               `<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> ` +
-              `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${emaVal.toFixed(2)}×</span>` +
+              `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${formatRatioDisplay(emaVal)}</span>` +
               ` <span style="color:${CHART_THEME.textTertiary};">(EMA)</span>` +
               sigmaStr
             )
@@ -233,7 +232,7 @@ function buildRatioStabilityOption(
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },

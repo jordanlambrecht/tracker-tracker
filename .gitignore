@@ -44,6 +44,7 @@ docs/audit/
 docs/superpowers/*
 docs/superpowers/specs/
 .claude/
+CLAUDE.md
 .history/
 .vscode/
 .serena/

@@ -3,9 +3,10 @@
 // Functions: GET, POST
 
 import { NextResponse } from "next/server"
-import { authenticate, parseJsonBody } from "@/lib/api-helpers"
+import { authenticate, parseJsonBody, validateMaxLength } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { tagGroups } from "@/lib/db/schema"
+import { EMOJI_MAX, LONG_STRING_MAX, SHORT_NAME_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { getTagGroupsWithMembers } from "@/lib/server-data"
 import { VALID_CHART_TYPES } from "@/types/api"
@@ -37,11 +38,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "name is required" }, { status: 400 })
   }
 
-  if (name.length > 100) {
-    return NextResponse.json({ error: "Name must be 100 characters or fewer" }, { status: 400 })
-  }
+  const nameErr = validateMaxLength(name, SHORT_NAME_MAX, "Name")
+  if (nameErr) return nameErr
 
-  if (typeof description === "string" && description.length > 500) {
+  if (typeof description === "string" && description.length > LONG_STRING_MAX) {
     return NextResponse.json(
       { error: "Description must be 500 characters or fewer" },
       { status: 400 }
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     )
   }
 
-  if (typeof emoji === "string" && emoji.length > 10) {
+  if (typeof emoji === "string" && emoji.length > EMOJI_MAX) {
     return NextResponse.json({ error: "Emoji must be 10 characters or fewer" }, { status: 400 })
   }
 

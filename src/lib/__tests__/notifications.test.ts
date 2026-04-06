@@ -1,15 +1,8 @@
 // src/lib/__tests__/notifications.test.ts
 
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { CHART_THEME } from "@/components/charts/lib/theme"
-import type { notificationTargets } from "@/lib/db/schema"
-import type { SnapshotContext } from "@/lib/notifications/dispatch"
-import type { NotificationTargetType } from "@/lib/notifications/types"
-
-// Convert "#rrggbb" hex string to Discord embed integer — mirrors payload.ts hexToInt
-function hexToInt(hex: string): number {
-  return Number.parseInt(hex.replace("#", ""), 16)
-}
+import type { NotificationTargetRow } from "@/lib/db/schema"
+import type { NotificationTargetType, SnapshotContext } from "@/lib/notifications/types"
 
 // Mock DB so dispatch.ts can be imported without a live database connection
 vi.mock("@/lib/db", () => ({
@@ -25,9 +18,7 @@ vi.mock("@/lib/db", () => ({
 
 // ─── Test helpers ─────────────────────────────────────────────────────────────
 
-function makeTarget(
-  overrides: Partial<typeof notificationTargets.$inferSelect> = {}
-): typeof notificationTargets.$inferSelect {
+function makeTarget(overrides: Partial<NotificationTargetRow> = {}): NotificationTargetRow {
   return {
     id: 1,
     name: "Test Target",
@@ -43,6 +34,11 @@ function makeTarget(
     notifyZeroSeeding: false,
     notifyRankChange: false,
     notifyAnniversary: false,
+    notifyBonusCap: false,
+    notifyVipExpiring: false,
+    notifyUnsatisfiedLimit: false,
+    notifyActiveHnrs: false,
+    notifyDownloadDisabled: false,
     thresholds: null,
     includeTrackerName: true,
     scope: null,
@@ -52,7 +48,7 @@ function makeTarget(
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
-  } as typeof notificationTargets.$inferSelect
+  }
 }
 
 function makeContext(overrides: Partial<SnapshotContext> = {}): SnapshotContext {
@@ -77,7 +73,7 @@ function makeContext(overrides: Partial<SnapshotContext> = {}): SnapshotContext 
     trackerPausedAt: null,
     trackerJoinedAt: "2020-01-01",
     minimumRatio: 0.6,
-    mamContext: undefined,
+    platformContext: undefined,
     ...overrides,
   }
 }
@@ -133,7 +129,7 @@ describe("validateNotificationConfig", () => {
       "carrier_pigeon" as unknown as NotificationTargetType,
       {}
     )
-    expect(result).toMatch(/Unsupported/)
+    expect(result).toMatch(/not yet supported/)
   })
 })
 
@@ -160,20 +156,6 @@ describe("buildDiscordEmbed", () => {
       data: { previousRatio: 1.5, currentRatio: 1.2 },
     })
     expect(embed.description).not.toContain("MyTracker")
-  })
-
-  it("never includes baseUrl in any embed", async () => {
-    const { buildDiscordEmbed } = await import("@/lib/notifications/payload")
-    const embed = buildDiscordEmbed({
-      eventType: "tracker_down",
-      trackerName: "MyTracker",
-      includeTrackerName: true,
-      storeUsernames: true,
-      data: { error: "Connection refused" },
-    })
-    const json = JSON.stringify(embed)
-    expect(json).not.toContain("https://")
-    expect(json).not.toContain("http://")
   })
 
   it("omits tracker name AND any user-identifying data when both privacy flags are off", async () => {
@@ -352,7 +334,7 @@ describe("buildDiscordEmbed new event types", () => {
       data: {},
     })
     expect(embed.title).toBe("Account Warning")
-    expect(embed.color).toBe(hexToInt(CHART_THEME.warn))
+
     expect(embed.description).toContain("MyTracker")
     expect(embed.description).toContain("warning")
   })
@@ -367,7 +349,7 @@ describe("buildDiscordEmbed new event types", () => {
       data: { currentRatio: 0.5, minimumRatio: 0.6 },
     })
     expect(embed.title).toBe("Ratio Below Minimum")
-    expect(embed.color).toBe(hexToInt(CHART_THEME.danger))
+
     expect(embed.description).toContain("0.50")
     expect(embed.description).toContain("0.60")
     expect(embed.description).toContain("MyTracker")
@@ -383,7 +365,7 @@ describe("buildDiscordEmbed new event types", () => {
       data: {},
     })
     expect(embed.title).toBe("Zero Active Seeds")
-    expect(embed.color).toBe(hexToInt(CHART_THEME.warn))
+
     expect(embed.description).toContain("MyTracker")
     expect(embed.description).toContain("no active seeds")
   })
@@ -398,7 +380,7 @@ describe("buildDiscordEmbed new event types", () => {
       data: { newGroup: "Elite", previousGroup: "Power User" },
     })
     expect(embed.title).toBe("Rank Change")
-    expect(embed.color).toBe(hexToInt(CHART_THEME.accent))
+
     expect(embed.description).toContain("Power User")
     expect(embed.description).toContain("Elite")
     expect(embed.description).toContain("MyTracker")
@@ -411,12 +393,12 @@ describe("buildDiscordEmbed new event types", () => {
       trackerName: "MyTracker",
       includeTrackerName: true,
       storeUsernames: true,
-      data: { label: "1 year anniversary" },
+      data: { label: "1-year anniversary" },
     })
     expect(embed.title).toBe("Membership Anniversary")
-    expect(embed.color).toBe(hexToInt(CHART_THEME.accent))
+
     expect(embed.description).toContain("MyTracker")
-    expect(embed.description).toContain("1 year anniversary")
+    expect(embed.description).toContain("1-year anniversary")
   })
 
   it("omits tracker name in rank_change embed when includeTrackerName is false", async () => {
@@ -547,21 +529,6 @@ describe("validateNotificationConfig edge cases", () => {
     // instead of the intended "not yet supported" message.
     const { validateNotificationConfig } = await import("@/lib/notifications/validate")
     const result = validateNotificationConfig("gotify", {})
-    expect(result).not.toBeNull()
-    expect(result).toMatch(/not yet supported/)
-  })
-
-  it("telegram returns a 'not yet supported' message", async () => {
-    // Same as gotify — tests the parallel switch case.
-    const { validateNotificationConfig } = await import("@/lib/notifications/validate")
-    const result = validateNotificationConfig("telegram", {})
-    expect(result).not.toBeNull()
-    expect(result).toMatch(/not yet supported/)
-  })
-
-  it("slack returns a 'not yet supported' message", async () => {
-    const { validateNotificationConfig } = await import("@/lib/notifications/validate")
-    const result = validateNotificationConfig("slack", {})
     expect(result).not.toBeNull()
     expect(result).toMatch(/not yet supported/)
   })

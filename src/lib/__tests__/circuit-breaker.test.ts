@@ -40,7 +40,7 @@ vi.mock("@/lib/privacy", () => ({
   maskUsername: vi.fn((v: string) => `▓${v.length}`),
 }))
 
-vi.mock("@/lib/proxy", () => ({
+vi.mock("@/lib/tunnel", () => ({
   buildProxyAgentFromSettings: vi.fn().mockReturnValue(undefined),
   VALID_PROXY_TYPES: new Set(["socks5", "http", "https"]),
 }))
@@ -67,7 +67,7 @@ vi.mock("@/lib/backup-scheduler", () => ({
   stopBackupScheduler: vi.fn(),
 }))
 
-vi.mock("@/lib/client-scheduler", () => ({
+vi.mock("@/lib/download-client-scheduler", () => ({
   startClientScheduler: vi.fn(),
   stopClientScheduler: vi.fn(),
   ensureClientSchedulerRunning: vi.fn(),
@@ -105,7 +105,7 @@ import { getAdapter } from "@/lib/adapters"
 import { authenticate, parseTrackerId } from "@/lib/api-helpers"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { POLL_FAILURE_THRESHOLD, pollAllTrackers, pollTracker } from "@/lib/scheduler"
+import { POLL_FAILURE_THRESHOLD, pollAllTrackers, pollTracker } from "@/lib/tracker-scheduler"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -727,7 +727,7 @@ describe("pruneOldSnapshots: excludes snapshots for user-paused trackers", () =>
   })
 
   it("passes an AND clause that excludes user-paused tracker IDs from deletion", async () => {
-    const { pruneOldSnapshots } = await import("@/lib/scheduler")
+    const { pruneOldSnapshots } = await import("@/lib/tracker-scheduler")
 
     // db.select() subquery chain (used inside notInArray)
     const subqueryWhere = vi.fn().mockReturnValue([])
@@ -760,7 +760,7 @@ describe("pruneOldSnapshots: excludes snapshots for user-paused trackers", () =>
   })
 
   it("returns count of deleted snapshots", async () => {
-    const { pruneOldSnapshots } = await import("@/lib/scheduler")
+    const { pruneOldSnapshots } = await import("@/lib/tracker-scheduler")
 
     const mockReturning = vi.fn().mockResolvedValue([{ id: 1 }, { id: 2 }, { id: 3 }])
     const mockWhere = vi.fn().mockReturnValue({ returning: mockReturning })
@@ -775,7 +775,7 @@ describe("pruneOldSnapshots: excludes snapshots for user-paused trackers", () =>
   })
 
   it("returns 0 when no snapshots fall outside retention window", async () => {
-    const { pruneOldSnapshots } = await import("@/lib/scheduler")
+    const { pruneOldSnapshots } = await import("@/lib/tracker-scheduler")
 
     const mockReturning = vi.fn().mockResolvedValue([])
     const mockWhere = vi.fn().mockReturnValue({ returning: mockReturning })

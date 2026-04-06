@@ -7,6 +7,7 @@ export * from "./abtorrents"
 export * from "./aither"
 export * from "./alpharatio"
 export * from "./animebytes"
+export * from "./animez"
 export * from "./anthelion"
 export * from "./asiancinema"
 export * from "./avistaz"
@@ -18,6 +19,8 @@ export * from "./cathoderaytube"
 export * from "./cinemageddon"
 export * from "./cinemaz"
 export * from "./concertos"
+export * from "./darkpeers"
+export * from "./digitalcore"
 export * from "./empornium"
 export * from "./exoticaz"
 export * from "./fearnopeer"
@@ -29,6 +32,7 @@ export * from "./hdbits"
 export * from "./hdtorrents"
 export * from "./iptorrents"
 export * from "./lst"
+export * from "./luminarr"
 export * from "./morethantv"
 export * from "./myanonamouse"
 export * from "./nebulance"
@@ -55,6 +59,7 @@ import { abtorrents } from "./abtorrents"
 import { aither } from "./aither"
 import { alpharatio } from "./alpharatio"
 import { animebytes } from "./animebytes"
+import { animez } from "./animez"
 import { anthelion } from "./anthelion"
 import { asiancinema } from "./asiancinema"
 import { avistaz } from "./avistaz"
@@ -66,6 +71,8 @@ import { cathoderaytube } from "./cathoderaytube"
 import { cinemageddon } from "./cinemageddon"
 import { cinemaz } from "./cinemaz"
 import { concertos } from "./concertos"
+import { darkpeers } from "./darkpeers"
+import { digitalcore } from "./digitalcore"
 import { empornium } from "./empornium"
 import { exoticaz } from "./exoticaz"
 import { fearnopeer } from "./fearnopeer"
@@ -77,6 +84,7 @@ import { hdbits } from "./hdbits"
 import { hdtorrents } from "./hdtorrents"
 import { iptorrents } from "./iptorrents"
 import { lst } from "./lst"
+import { luminarr } from "./luminarr"
 import { morethantv } from "./morethantv"
 import { myanonamouse } from "./myanonamouse"
 import { nebulance } from "./nebulance"
@@ -105,6 +113,7 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   asiancinema,
   alpharatio,
   animebytes,
+  animez,
   anthelion,
   avistaz,
   beyondhd,
@@ -115,6 +124,8 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   cinemageddon,
   cinemaz,
   concertos,
+  darkpeers,
+  digitalcore,
   empornium,
   exoticaz,
   fearnopeer,
@@ -126,6 +137,7 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   hdtorrents,
   iptorrents,
   lst,
+  luminarr,
   morethantv,
   myanonamouse,
   nebulance,

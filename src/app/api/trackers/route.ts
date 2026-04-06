@@ -12,10 +12,19 @@ import {
   validateHexColor,
   validateHttpUrl,
   validateJoinedAt,
+  validateMaxLength,
 } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { trackers } from "@/lib/db/schema"
+import {
+  AVISTAZ_TOKEN_MAX,
+  LONG_STRING_MAX,
+  TRACKER_NAME_MAX,
+  TRACKER_TAG_MAX,
+  TRACKER_TOKEN_MAX,
+  TRACKER_URL_MAX,
+} from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { getTrackerListForDashboard } from "@/lib/server-data"
 
@@ -62,21 +71,17 @@ export async function POST(request: Request) {
   const trimmedName = name.trim()
   const trimmedBaseUrl = baseUrl.trim()
   const trimmedApiToken = apiToken.trim()
+  const platform = typeof platformType === "string" ? platformType : "unit3d"
 
-  if (trimmedName.length > 100) {
-    return NextResponse.json({ error: "Name must be 100 characters or fewer" }, { status: 400 })
-  }
+  const nameErr = validateMaxLength(trimmedName, TRACKER_NAME_MAX, "Name")
+  if (nameErr) return nameErr
 
-  if (trimmedBaseUrl.length > 500) {
-    return NextResponse.json({ error: "URL must be 500 characters or fewer" }, { status: 400 })
-  }
+  const urlLenErr = validateMaxLength(trimmedBaseUrl, TRACKER_URL_MAX, "URL")
+  if (urlLenErr) return urlLenErr
 
-  if (trimmedApiToken.length > 500) {
-    return NextResponse.json(
-      { error: "API token must be 500 characters or fewer" },
-      { status: 400 }
-    )
-  }
+  const maxTokenLength = platform === "avistaz" ? AVISTAZ_TOKEN_MAX : TRACKER_TOKEN_MAX
+  const tokenErr = validateMaxLength(trimmedApiToken, maxTokenLength, "API token")
+  if (tokenErr) return tokenErr
 
   const urlErr = validateHttpUrl(trimmedBaseUrl)
   if (urlErr) return urlErr
@@ -86,22 +91,16 @@ export async function POST(request: Request) {
     if (colorErr) return colorErr
   }
 
-  if (typeof qbtTag === "string" && qbtTag.length > 100) {
-    return NextResponse.json(
-      { error: "qBittorrent tag must be 100 characters or fewer" },
-      { status: 400 }
-    )
+  if (typeof qbtTag === "string") {
+    const qbtTagErr = validateMaxLength(qbtTag, TRACKER_TAG_MAX, "qBittorrent tag")
+    if (qbtTagErr) return qbtTagErr
   }
 
   if (typeof mouseholeUrl === "string" && mouseholeUrl.trim()) {
-    try {
-      const parsed = new URL(mouseholeUrl.trim())
-      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-        return NextResponse.json({ error: "Mousehole URL must use http or https" }, { status: 400 })
-      }
-    } catch {
-      return NextResponse.json({ error: "Invalid Mousehole URL format" }, { status: 400 })
-    }
+    const mouseholeUrlErr = validateMaxLength(mouseholeUrl.trim(), LONG_STRING_MAX, "Mousehole URL")
+    if (mouseholeUrlErr) return mouseholeUrlErr
+    const mouseUrlErr = validateHttpUrl(mouseholeUrl.trim(), "Mousehole URL")
+    if (mouseUrlErr) return mouseUrlErr
   }
 
   if (typeof joinedAt === "string" && joinedAt) {
@@ -109,7 +108,6 @@ export async function POST(request: Request) {
     if (joinedAtErr) return joinedAtErr
   }
 
-  const platform = typeof platformType === "string" ? platformType : "unit3d"
   if (!VALID_PLATFORM_TYPES.includes(platform as (typeof VALID_PLATFORM_TYPES)[number])) {
     return NextResponse.json({ error: "Invalid platform type" }, { status: 400 })
   }

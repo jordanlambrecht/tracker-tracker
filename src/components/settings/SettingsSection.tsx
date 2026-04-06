@@ -1,11 +1,11 @@
 // src/components/settings/SettingsSection.tsx
-//
-// Functions: SettingsSection
 
 import { H2 } from "@typography"
+import clsx from "clsx"
 import type { ReactNode } from "react"
 import { Card } from "@/components/ui/Card"
-import { Tooltip } from "@/components/ui/Tooltip"
+import { InfoTip } from "@/components/ui/InfoTip"
+import { Notice } from "@/components/ui/Notice"
 
 interface SettingsSectionProps {
   id: string
@@ -30,18 +30,13 @@ export function SettingsSection({
 }: SettingsSectionProps) {
   return (
     <section aria-labelledby={`${id}-heading`}>
-      <H2 id={`${id}-heading`} className={`mb-4 flex items-center gap-2 ${headingClassName ?? ""}`}>
+      <H2 id={`${id}-heading`} className={clsx("mb-4 flex items-center gap-2", headingClassName)}>
         {title}
-        {tooltip && (
-          <Tooltip content={tooltip} docs={docs}>
-            <span className="text-muted hover:text-secondary cursor-help text-sm">&#9432;</span>
-          </Tooltip>
-        )}
+        {tooltip && <InfoTip content={tooltip} docs={docs} />}
       </H2>
       {notice && (
-        <div className="nm-inset-sm rounded-nm-md px-4 py-3 mb-4 border border-warn/20 bg-warn/5">
-          <span className="text-xs text-warn font-medium">{notice.label}</span>
-          <p className="text-xs text-secondary mt-1">{notice.message}</p>
+        <div className="mb-4">
+          <Notice variant="warn" box header={notice.label} message={notice.message} />
         </div>
       )}
       <Card elevation="raised" className={cardClassName}>

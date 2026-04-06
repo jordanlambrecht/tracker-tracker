@@ -4,7 +4,7 @@
 //
 // Verifies a TOTP code (or backup code) during login. Exchanges a pending
 // token + valid code for a full session. This route is public (no session
-// cookie required — the user is mid-login).
+// cookie required since the user is mid-login).
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
@@ -14,12 +14,18 @@ import { extractClientIp } from "@/lib/client-ip"
 import { decrypt, encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { TOTP_TOKEN_MAX } from "@/lib/limits"
 import { checkLockout, recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import { log } from "@/lib/logger"
 import { startScheduler } from "@/lib/scheduler"
 import { persistSchedulerKey } from "@/lib/scheduler-key-store"
 import type { BackupCodeEntry } from "@/lib/totp"
-import { BACKUP_CODE_PATTERN, verifyAndConsumeBackupCode, verifyTotpCode } from "@/lib/totp"
+import {
+  BACKUP_CODE_PATTERN,
+  TOTP_CODE_RE,
+  verifyAndConsumeBackupCode,
+  verifyTotpCode,
+} from "@/lib/totp"
 
 export async function POST(request: Request) {
   const body = await parseJsonBody(request)
@@ -33,7 +39,7 @@ export async function POST(request: Request) {
     isBackupCode?: boolean
   }
 
-  if (!pendingToken || typeof pendingToken !== "string" || pendingToken.length > 2048) {
+  if (!pendingToken || typeof pendingToken !== "string" || pendingToken.length > TOTP_TOKEN_MAX) {
     return NextResponse.json({ error: "Missing pending token" }, { status: 400 })
   }
   if (!code || typeof code !== "string") {
@@ -45,7 +51,7 @@ export async function POST(request: Request) {
     if (!BACKUP_CODE_PATTERN.test(code)) {
       return NextResponse.json({ error: "Invalid backup code format" }, { status: 400 })
     }
-  } else if (code.length !== 6 || !/^\d{6}$/.test(code)) {
+  } else if (!TOTP_CODE_RE.test(code)) {
     return NextResponse.json({ error: "Invalid TOTP code — must be 6 digits" }, { status: 400 })
   }
 
@@ -107,7 +113,7 @@ export async function POST(request: Request) {
     }
   }
 
-  // Code verified — login fully successful, reset failed attempts
+  // Code verified
   await resetFailedAttempts(settings.id)
 
   await createSession(pending.encryptionKey, settings.sessionTimeoutMinutes)

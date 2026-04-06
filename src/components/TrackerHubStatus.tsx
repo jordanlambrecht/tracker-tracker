@@ -109,7 +109,7 @@ function TrackerHubStatus({
   const trackerHubUrl = `${TRACKERHUB_HISTORY}/${trackerHubSlug}`
 
   return (
-    <div className="nm-inset-sm bg-control-bg flex flex-col px-4 py-3.5 min-w-[320px] max-w-xl rounded-nm-md">
+    <div className="nm-inset-sm bg-control-bg flex flex-col px-4 py-3.5 min-w-80 max-w-xl rounded-nm-md">
       {/* Header row — always visible */}
       <div className="flex items-center justify-between gap-6 w-full">
         <button
@@ -165,7 +165,7 @@ function TrackerHubStatus({
       <div
         className={clsx(
           "overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out",
-          expanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+          expanded ? "max-h-125 opacity-100" : "max-h-0 opacity-0"
         )}
       >
         <div className="flex flex-col gap-2.5 mt-2.5">
@@ -211,7 +211,7 @@ function TrackerHubStatus({
                 height={12}
                 aria-hidden="true"
               />
-              <span className="text-[10px] font-mono">Powered by TrackerHub</span>
+              <span className="text-3xs font-mono">Powered by TrackerHub</span>
             </a>
           </div>
         </div>

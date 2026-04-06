@@ -1,16 +1,8 @@
 // src/components/tracker-detail/AnalyticsTab.tsx
-//
-// Functions: AnalyticsTab
-//
-// Renders the Data & Analytics tab with a unified bento grid for all stat cards
-// (core stats + slot cards). Three responsive grids: 2-col (mobile), 3-col (md),
-// 3-or-4-col (lg). Each grid uses its own layout algorithm with explicit positioning.
-
 "use client"
 
 import clsx from "clsx"
 import { type ReactNode, useMemo } from "react"
-import type { DayRange } from "@/components/dashboard/DayRangeSidebar"
 import { AnalyticsCharts } from "@/components/tracker-detail/AnalyticsCharts"
 import { buildCoreStatDescriptors } from "@/components/tracker-detail/CoreStatCards"
 import { PollLog } from "@/components/tracker-detail/PollLog"
@@ -23,8 +15,15 @@ import {
   getCardClasses,
   type LayoutConfig,
 } from "@/lib/grid-layout"
-import type { ResolvedSlot } from "@/lib/slot-types"
-import type { GazellePlatformMeta, Snapshot, TrackerLatestStats, TrackerSummary } from "@/types/api"
+import type {
+  DayRange,
+  DeltaDisplay,
+  GazellePlatformMeta,
+  Snapshot,
+  TrackerLatestStats,
+  TrackerSummary,
+} from "@/types/api"
+import type { ResolvedSlot } from "@/types/slots"
 import { renderSlotElement } from "./slot-registry"
 
 interface AnalyticsTabProps {
@@ -36,7 +35,7 @@ interface AnalyticsTabProps {
   accentColor: string
   days: DayRange
   onDaysChange: (d: DayRange) => void
-  delta: { uploaded: string; downloaded: string } | null
+  delta: DeltaDisplay
   minimumRatio?: number
   statCardSlots: ResolvedSlot[]
   progressSlots: ResolvedSlot[]
@@ -84,7 +83,6 @@ export function AnalyticsTab({
   const renderLayoutCards = (layout: LayoutConfig) =>
     layout.cards.map((card) => {
       const positionClasses = getCardClasses(card)
-      const isTall = card.span > 1
       let element: ReactNode = null
 
       if (card.type === "fixed" || card.type === "single") {
@@ -121,7 +119,7 @@ export function AnalyticsTab({
       if (!element) return null
 
       return (
-        <div key={card.id} className={clsx(positionClasses, isTall && "[&>*]:h-full")}>
+        <div key={card.id} className={clsx(positionClasses, "*:h-full")}>
           {element}
         </div>
       )

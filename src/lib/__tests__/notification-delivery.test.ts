@@ -6,6 +6,7 @@
 // and successful delivery reset.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import type { DiscordEmbed } from "@/lib/notifications/payload"
 
 vi.mock("@/lib/logger", () => ({
   log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -21,7 +22,9 @@ vi.mock("@/lib/error-utils", async (importOriginal) => {
 
 const TARGET_ID = 42
 const WEBHOOK_URL = "https://discord.com/api/webhooks/123/abc"
-const EMBEDS = [{ title: "test" }] as Record<string, unknown>[]
+const EMBEDS: DiscordEmbed[] = [
+  { title: "test", description: "test description", color: 0, timestamp: new Date().toISOString() },
+]
 
 function mockFetchOk() {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" }))
@@ -52,8 +55,8 @@ describe("notification delivery circuit breaker", () => {
   beforeEach(async () => {
     vi.resetModules()
     // Clear globalThis circuit breaker state
-    const g = globalThis as Record<string, unknown>
-    delete g.__notificationCircuitBreakers
+    const g = globalThis as typeof globalThis & { __notificationCircuits?: unknown }
+    delete g.__notificationCircuits
 
     const mod = await import("@/lib/notifications/deliver")
     deliverDiscordWebhook = mod.deliverDiscordWebhook
@@ -205,22 +208,28 @@ describe("notification delivery circuit breaker", () => {
     const errorUtils = await import("@/lib/error-utils")
     vi.spyOn(errorUtils, "sanitizeNetworkError")
     mockFetchThrow("connect ECONNREFUSED 192.168.1.100:443")
-    await deliverDiscordWebhook(TARGET_ID, WEBHOOK_URL, EMBEDS)
+    const result = await deliverDiscordWebhook(TARGET_ID, WEBHOOK_URL, EMBEDS)
     expect(errorUtils.sanitizeNetworkError).toHaveBeenCalledWith(
       "connect ECONNREFUSED 192.168.1.100:443",
       "Delivery failed"
     )
+    // Raw IP/port details must not leak through — sanitizeNetworkError maps ECONNREFUSED → "Connection refused"
+    expect(result.error).not.toBe("connect ECONNREFUSED 192.168.1.100:443")
+    expect(result.error).toBe("Connection refused")
   })
 
   it("sanitizes error messages from non-ok HTTP responses", async () => {
     const errorUtils = await import("@/lib/error-utils")
     vi.spyOn(errorUtils, "sanitizeNetworkError")
     mockFetchError(403, "Forbidden")
-    await deliverDiscordWebhook(TARGET_ID, WEBHOOK_URL, EMBEDS)
+    const result = await deliverDiscordWebhook(TARGET_ID, WEBHOOK_URL, EMBEDS)
     expect(errorUtils.sanitizeNetworkError).toHaveBeenCalledWith(
       "Webhook API error: 403 Forbidden",
       "Delivery failed"
     )
+    // 403 Forbidden matches the 401|403|Unauthorized|Forbidden pattern → "Authentication failed"
+    expect(result.error).not.toBe("Webhook API error: 403 Forbidden")
+    expect(result.error).toBe("Authentication failed")
   })
 
   // ─── Isolation between targets ────────────────────────────────────────

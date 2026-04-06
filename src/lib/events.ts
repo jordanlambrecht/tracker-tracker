@@ -4,6 +4,7 @@
 //            pinoLevelToSeverity, snapshotToEvent, backupToEvent, mergeAndSort
 
 import { sanitizeNetworkError } from "@/lib/error-utils"
+import { bytesToGiB, formatBytesNum, formatRatioDisplay } from "@/lib/formatters"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -187,12 +188,12 @@ export function snapshotToEvent(row: SnapshotRow): SystemEvent {
   let upGib = "0.0"
   let downGib = "0.0"
   try {
-    upGib = (Number(BigInt(row.uploadedBytes)) / 1024 ** 3).toFixed(1)
-    downGib = (Number(BigInt(row.downloadedBytes)) / 1024 ** 3).toFixed(1)
+    upGib = bytesToGiB(row.uploadedBytes).toFixed(1)
+    downGib = bytesToGiB(row.downloadedBytes).toFixed(1)
   } catch {
     // Non-numeric byte strings default to 0
   }
-  const ratioStr = row.ratio !== null ? `${row.ratio.toFixed(2)}×` : ""
+  const ratioStr = row.ratio !== null ? formatRatioDisplay(row.ratio) : ""
 
   return {
     id: `snap-${row.id}`,
@@ -219,7 +220,6 @@ interface BackupRow {
 }
 
 export function backupToEvent(row: BackupRow): SystemEvent {
-  const sizeKb = Math.round(row.sizeBytes / 1024)
   const isError = row.status === "failed"
 
   return {
@@ -228,7 +228,7 @@ export function backupToEvent(row: BackupRow): SystemEvent {
     category: "backups",
     level: isError ? "error" : "info",
     title: `Backup ${row.status}`,
-    detail: [row.frequency, row.encrypted ? "encrypted" : null, `${sizeKb} KB`]
+    detail: [row.frequency, row.encrypted ? "encrypted" : null, formatBytesNum(row.sizeBytes)]
       .filter(Boolean)
       .join(" — "),
     trackerId: null,

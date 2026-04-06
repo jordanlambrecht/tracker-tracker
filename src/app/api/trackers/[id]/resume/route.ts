@@ -1,12 +1,12 @@
 // src/app/api/trackers/[id]/resume/route.ts
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, parseTrackerId } from "@/lib/api-helpers"
+import { authenticate, parseTrackerId, type RouteContext } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { trackers } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
 
-export async function POST(_request: Request, props: { params: Promise<{ id: string }> }) {
+export async function POST(_request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 

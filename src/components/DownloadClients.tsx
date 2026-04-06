@@ -1,47 +1,40 @@
 // src/components/DownloadClients.tsx
-//
-// Functions: DownloadClients, ClientCard
-
 "use client"
 
-import { H3, Paragraph, Subheader, Subtext } from "@typography"
-import { useCallback, useEffect, useState } from "react"
-import { Badge } from "@/components/ui/Badge"
-import { Button } from "@/components/ui/Button"
-import { Card } from "@/components/ui/Card"
-import { CollapsibleCard } from "@/components/ui/CollapsibleCard"
-import { Input } from "@/components/ui/Input"
-import { MaskedSecret } from "@/components/ui/MaskedSecret"
-import { NumberInput } from "@/components/ui/NumberInput"
-import { Select } from "@/components/ui/Select"
-import { Toggle } from "@/components/ui/Toggle"
-import { UptimeBar } from "@/components/ui/UptimeBar"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { H2, H3, Paragraph, Subheader, Subtext } from "@typography"
+import { useCallback, useState } from "react"
+import {
+  Badge,
+  Button,
+  Card,
+  CardListSkeleton,
+  CollapsibleCard,
+  ConfirmRemove,
+  Input,
+  MaskedSecret,
+  Notice,
+  NumberInput,
+  SaveDiscardBar,
+  Select,
+  Toggle,
+  UptimeBar,
+} from "@/components/ui"
+
+import { useActionStatus } from "@/hooks/useActionStatus"
+import { useCrudCard } from "@/hooks/useCrudCard"
 import { formatTimeAgo } from "@/lib/formatters"
+import { PORT_MAX, PORT_MIN } from "@/lib/limits"
+import type { SafeDownloadClient } from "@/types/api"
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 type ClientType = "qbittorrent" | "deluge" | "transmission" | "rtorrent"
+type DownloadClient = SafeDownloadClient
 
-interface DownloadClient {
-  id: number
-  name: string
-  type: ClientType
-  enabled: boolean
-  host: string
-  port: number
-  useSsl: boolean
-  hasCredentials: boolean
-  pollIntervalSeconds: number
-  isDefault: boolean
-  crossSeedTags: string[]
-  lastPolledAt: string | null
-  lastError: string | null
-  errorSince: string | null
-}
-
-type ConnectionStatus = "idle" | "testing" | "success" | "failed"
+const EMPTY_TRACKERS: string[] = []
 
 const CLIENT_TYPE_OPTIONS: { value: ClientType; label: string; disabled?: boolean }[] = [
   { value: "qbittorrent", label: "qBittorrent" },
@@ -74,72 +67,41 @@ const DRAFT_KEYS: (keyof DownloadClient)[] = [
   "crossSeedTags",
 ]
 
-function isDirty(draft: DownloadClient, saved: DownloadClient): boolean {
+function buildPatch(draft: DownloadClient, saved: DownloadClient): Record<string, unknown> | null {
+  const patch: Record<string, unknown> = {}
   for (const key of DRAFT_KEYS) {
     const a = draft[key]
     const b = saved[key]
     if (Array.isArray(a) && Array.isArray(b)) {
-      if (a.length !== b.length || a.some((v, i) => v !== b[i])) return true
-    } else if (a !== b) return true
+      if (a.length !== b.length || a.some((v, i) => v !== b[i])) patch[key] = a
+    } else if (a !== b) patch[key] = a
   }
-  return false
+  return Object.keys(patch).length > 0 ? patch : null
 }
 
 function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }: ClientCardProps) {
-  const [draft, setDraft] = useState<DownloadClient>(client)
-  const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
-  const [expanded, setExpanded] = useState(false)
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("idle")
-  const [connectionError, setConnectionError] = useState<string | null>(null)
-  const [confirmRemove, setConfirmRemove] = useState(false)
+  const {
+    draft,
+    updateDraft,
+    dirty,
+    saving,
+    saveError,
+    expanded,
+    toggleExpand,
+    handleSave,
+    handleDiscard,
+  } = useCrudCard({
+    item: client,
+    apiEndpoint: "/api/clients",
+    buildPatch,
+    onSaved,
+  })
+  const {
+    status: connectionStatus,
+    error: connectionError,
+    execute: executeTest,
+  } = useActionStatus()
   const [tagInput, setTagInput] = useState("")
-
-  const dirty = isDirty(draft, client)
-
-  // Sync draft when parent pushes new server state (i.e after another card's setDefault)
-  useEffect(() => {
-    if (!dirty) setDraft(client)
-  }, [client, dirty])
-
-  function updateDraft(patch: Partial<DownloadClient>) {
-    setDraft((prev) => ({ ...prev, ...patch }))
-  }
-
-  async function handleSave() {
-    setSaving(true)
-    setSaveError(null)
-    const patch: Record<string, unknown> = {}
-    for (const key of DRAFT_KEYS) {
-      const a = draft[key]
-      const b = client[key]
-      if (Array.isArray(a) && Array.isArray(b)) {
-        if (a.length !== b.length || a.some((v, i) => v !== b[i])) patch[key] = a
-      } else if (a !== b) patch[key] = a
-    }
-    try {
-      const res = await fetch(`/api/clients/${client.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        setSaveError(data.error || "Failed to save")
-        return
-      }
-      onSaved(client.id, draft)
-    } catch {
-      setSaveError("Network error")
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  function handleDiscard() {
-    setDraft(client)
-    setSaveError(null)
-  }
 
   // Credential change state — show inputs for new clients (no creds yet) or after "Change"
   const [changingCredentials, setChangingCredentials] = useState(!client.hasCredentials)
@@ -147,49 +109,27 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
   const [newPassword, setNewPassword] = useState("")
   const [credError, setCredError] = useState<string | null>(null)
 
-  const [uptimeData, setUptimeData] = useState<{
-    buckets: { bucketTs: string; ok: number; fail: number }[]
-    uptimePercent: number | null
-  } | null>(null)
+  const { data: uptimeData = null } = useQuery({
+    queryKey: ["client-uptime", client.id],
+    queryFn: async ({ signal }) => {
+      const res = await fetch(`/api/clients/${client.id}/uptime`, { signal })
+      if (!res.ok) return null
+      return res.json() as Promise<{
+        buckets: { bucketTs: string; ok: number; fail: number }[]
+        uptimePercent: number | null
+      }>
+    },
+    refetchInterval: 5 * 60 * 1000,
+  })
 
-  useEffect(() => {
-    let cancelled = false
-    async function fetchUptime() {
-      try {
-        const res = await fetch(`/api/clients/${client.id}/uptime`)
-        if (!res.ok || cancelled) return
-        const data = await res.json()
-        if (!cancelled) setUptimeData(data)
-      } catch {
-        // uptime bar is non-critical
-      }
-    }
-    fetchUptime()
-    const interval = setInterval(fetchUptime, 5 * 60 * 1000)
-    return () => {
-      cancelled = true
-      clearInterval(interval)
-    }
-  }, [client.id])
-
-  const handleTestConnection = useCallback(async () => {
-    setConnectionStatus("testing")
-    setConnectionError(null)
-    try {
+  const handleTestConnection = () =>
+    executeTest(async () => {
       const res = await fetch(`/api/clients/${client.id}/test`, { method: "POST" })
-      if (res.ok) {
-        setConnectionStatus("success")
-        setTimeout(() => setConnectionStatus("idle"), 3000)
-      } else {
+      if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        setConnectionError(data.error || "Connection failed")
-        setConnectionStatus("failed")
+        throw new Error(data.error || "Connection failed")
       }
-    } catch {
-      setConnectionError("Network error — could not reach server")
-      setConnectionStatus("failed")
-    }
-  }, [client.id])
+    })
 
   async function handleSaveCredentials() {
     if (!newUsername.trim() || !newPassword.trim()) return
@@ -223,7 +163,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
   return (
     <CollapsibleCard
       expanded={expanded}
-      onToggle={() => setExpanded((e) => !e)}
+      onToggle={toggleExpand}
       header={
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-3">
@@ -232,18 +172,18 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
             {client.isDefault && <Badge variant="accent">Default</Badge>}
           </div>
           <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-[10px] font-mono text-tertiary">
+            <span className="text-3xs font-mono text-tertiary">
               {client.lastPolledAt
                 ? `Last seen: ${formatTimeAgo(client.lastPolledAt)}`
                 : "Last seen: Never"}
             </span>
             {client.errorSince && (
-              <span className="text-[10px] font-mono text-danger">
+              <span className="text-3xs font-mono text-danger">
                 Down since {formatTimeAgo(client.errorSince)}
               </span>
             )}
             {client.lastError && !client.errorSince && (
-              <span className="text-[10px] font-mono text-danger">{client.lastError}</span>
+              <span className="text-3xs font-mono text-danger">{client.lastError}</span>
             )}
           </div>
         </div>
@@ -258,7 +198,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
       }
     >
       {/* Row 1: Name + Type + Enabled */}
-      <div className="flex flex-col sm:flex-row gap-4 sm:items-end pt-5">
+      <div className="form-responsive-row pt-5">
         <div className="flex-1">
           <Input
             label="Name"
@@ -289,7 +229,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
       <div className="border-t border-border" />
 
       {/* Row 2: Host + Port + SSL */}
-      <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
+      <div className="form-responsive-row">
         <div className="flex-1">
           <Input
             label="Host"
@@ -302,8 +242,8 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
           label="Port"
           value={draft.port}
           onChange={(v) => updateDraft({ port: v })}
-          min={1}
-          max={65535}
+          min={PORT_MIN}
+          max={PORT_MAX}
         />
       </div>
 
@@ -315,23 +255,23 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
       />
 
       {draft.useSsl && draft.port === 80 && (
-        <p className="text-xs font-mono text-warning">
-          SSL is enabled but port is 80 (standard HTTP). Did you mean port 443?
-        </p>
+        <Notice
+          variant="warn"
+          message="SSL is enabled but port is 80 (standard HTTP). Did you mean port 443?"
+        />
       )}
       {!draft.useSsl && draft.port === 443 && (
-        <p className="text-xs font-mono text-warning">
-          Port 443 is typically used with SSL. Did you mean to enable SSL?
-        </p>
+        <Notice
+          variant="warn"
+          message="Port 443 is typically used with SSL. Did you mean to enable SSL?"
+        />
       )}
 
       <div className="border-t border-border" />
 
       {/* Row 3: Auth */}
       <div className="flex flex-col gap-2">
-        <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
-          Credentials
-        </span>
+        <H2 className="uppercase tracking-wider">Credentials</H2>
         {changingCredentials ? (
           <div className="flex flex-col gap-3">
             <div className="flex flex-col sm:flex-row gap-4">
@@ -365,9 +305,8 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
                 variant="primary"
                 onClick={handleSaveCredentials}
                 disabled={!newUsername.trim() || !newPassword.trim()}
-              >
-                Save Credentials
-              </Button>
+                text="Save Credentials"
+              />
               {client.hasCredentials && (
                 <button
                   type="button"
@@ -377,13 +316,13 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
                     setNewPassword("")
                     setCredError(null)
                   }}
-                  className="text-xs font-mono text-tertiary hover:text-secondary transition-colors cursor-pointer"
+                  className="ghost-link"
                 >
                   Cancel
                 </button>
               )}
             </div>
-            {credError && <p className="text-xs font-mono text-danger">{credError}</p>}
+            <Notice message={credError} />
           </div>
         ) : (
           <MaskedSecret onChangeClick={() => setChangingCredentials(true)} />
@@ -446,16 +385,15 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
                 }
                 setTagInput("")
               }}
-            >
-              Add
-            </Button>
+              text="Add"
+            />
           </div>
           {draft.crossSeedTags.length > 0 && (
-            <div className="flex gap-1.5 flex-wrap">
+            <div className="flex gap-2 flex-wrap">
               {draft.crossSeedTags.map((tag) => (
                 <span
                   key={tag}
-                  className="inline-flex items-center gap-1.5 font-mono text-xs text-primary bg-control-bg nm-inset-sm px-2.5 py-1 rounded-nm-sm"
+                  className="inline-flex items-center gap-2 font-mono text-xs text-primary bg-control-bg nm-inset-sm px-2.5 py-1 rounded-nm-sm"
                 >
                   {tag}
                   <button
@@ -485,7 +423,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
       {linkedTrackers.length > 0 && (
         <div className="flex items-center gap-2">
           <Subheader className="uppercase tracking-wider shrink-0">Linked Trackers</Subheader>
-          <div className="flex gap-1.5 flex-wrap">
+          <div className="flex gap-2 flex-wrap">
             {linkedTrackers.map((name) => (
               <Badge key={name} variant="default">
                 {name}
@@ -500,21 +438,13 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
         settings.
       </Subtext>
 
-      {/* Save / Discard bar — only visible when draft has changes */}
-      {dirty && (
-        <>
-          <div className="border-t border-border" />
-          <div className="flex items-center gap-3">
-            <Button size="sm" onClick={handleSave} disabled={saving}>
-              {saving ? "Saving..." : "Save Changes"}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={handleDiscard} disabled={saving}>
-              Discard
-            </Button>
-            {saveError && <span className="text-xs font-mono text-danger">{saveError}</span>}
-          </div>
-        </>
-      )}
+      <SaveDiscardBar
+        dirty={dirty}
+        saving={saving}
+        onSave={handleSave}
+        onDiscard={handleDiscard}
+        error={saveError}
+      />
 
       <div className="border-t border-border" />
 
@@ -524,9 +454,9 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
           size="sm"
           variant="secondary"
           onClick={handleTestConnection}
-          disabled={connectionStatus === "testing"}
+          disabled={connectionStatus === "pending"}
         >
-          {connectionStatus === "testing"
+          {connectionStatus === "pending"
             ? "Testing..."
             : connectionStatus === "success"
               ? "Connected"
@@ -541,29 +471,17 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
         <div className="flex-1" />
 
         {!client.isDefault && (
-          <Button size="sm" variant="ghost" onClick={() => onSetDefault(client.id)}>
-            Set as Default
-          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onSetDefault(client.id)}
+            text="Set as Default"
+          />
         )}
 
-        {confirmRemove ? (
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="danger" onClick={() => onRemove(client.id)}>
-              Confirm Remove
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setConfirmRemove(false)}>
-              Cancel
-            </Button>
-          </div>
-        ) : (
-          <Button size="sm" variant="danger" onClick={() => setConfirmRemove(true)}>
-            Remove
-          </Button>
-        )}
+        <ConfirmRemove onConfirm={() => onRemove(client.id)} />
       </div>
-      {connectionStatus === "failed" && connectionError && (
-        <p className="text-xs font-mono text-danger">{connectionError}</p>
-      )}
+      {connectionStatus === "failed" && connectionError && <Notice message={connectionError} />}
     </CollapsibleCard>
   )
 }
@@ -622,9 +540,9 @@ function AddClientForm({
   }
 
   return (
-    <Card elevation="raised" className="flex flex-col gap-4 !p-5">
+    <Card elevation="raised" className="flex flex-col gap-4">
       <H3>Add Download Client</H3>
-      <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
+      <div className="form-responsive-row">
         <div className="flex-1">
           <Input
             label="Name"
@@ -642,7 +560,7 @@ function AddClientForm({
               placeholder="localhost"
             />
           </div>
-          <NumberInput label="Port" value={port} onChange={setPort} min={1} max={65535} />
+          <NumberInput label="Port" value={port} onChange={setPort} min={PORT_MIN} max={PORT_MAX} />
         </div>
       </div>
       <div className="flex flex-col sm:flex-row gap-4">
@@ -670,68 +588,73 @@ function AddClientForm({
           />
         </div>
       </div>
-      {error && <p className="text-sm font-mono text-danger">{error}</p>}
+      <Notice message={error} />
       <div className="flex items-center gap-3">
-        <Button size="sm" onClick={handleSubmit} disabled={!canSubmit || saving}>
-          {saving ? "Creating..." : "Create Client"}
-        </Button>
-        <Button size="sm" variant="ghost" onClick={onCancel}>
-          Cancel
-        </Button>
+        <Button
+          size="sm"
+          onClick={handleSubmit}
+          disabled={!canSubmit || saving}
+          text={saving ? "Creating..." : "Create Client"}
+        />
+        <Button size="sm" variant="ghost" onClick={onCancel} text="Cancel" />
       </div>
     </Card>
   )
 }
 
 function DownloadClients() {
-  const [clients, setClients] = useState<DownloadClient[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [showAddForm, setShowAddForm] = useState(false)
 
-  const fetchClients = useCallback(async () => {
-    try {
-      const res = await fetch("/api/clients")
-      if (!res.ok) return
-      const data: DownloadClient[] = await res.json()
-      setClients(data)
-    } catch {
-      // silently fail
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const { data: clients = [], isLoading: loading } = useQuery({
+    queryKey: ["clients"],
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/clients", { signal })
+      if (!res.ok) return [] as DownloadClient[]
+      return res.json() as Promise<DownloadClient[]>
+    },
+  })
 
-  useEffect(() => {
-    fetchClients()
-  }, [fetchClients])
+  const handleSaved = useCallback(
+    (id: number, updated: DownloadClient) => {
+      queryClient.setQueryData<DownloadClient[]>(["clients"], (prev) =>
+        prev?.map((c) => (c.id === id ? updated : c))
+      )
+    },
+    [queryClient]
+  )
 
-  const handleSaved = useCallback((id: number, updated: DownloadClient) => {
-    setClients((prev) => prev.map((c) => (c.id === id ? updated : c)))
-  }, [])
+  const handleRemove = useCallback(
+    async (id: number) => {
+      await fetch(`/api/clients/${id}`, { method: "DELETE" })
+      queryClient.setQueryData<DownloadClient[]>(["clients"], (prev) => {
+        if (!prev) return prev
+        const next = prev.filter((c) => c.id !== id)
+        if (next.length > 0 && !next.some((c) => c.isDefault)) {
+          next[0] = { ...next[0], isDefault: true }
+        }
+        return next
+      })
+    },
+    [queryClient]
+  )
 
-  const handleRemove = useCallback(async (id: number) => {
-    await fetch(`/api/clients/${id}`, { method: "DELETE" })
-    setClients((prev) => {
-      const next = prev.filter((c) => c.id !== id)
-      // If we removed the default, promote the first remaining client optimistically
-      if (next.length > 0 && !next.some((c) => c.isDefault)) {
-        next[0] = { ...next[0], isDefault: true }
-      }
-      return next
-    })
-  }, [])
-
-  const handleSetDefault = useCallback((id: number) => {
-    setClients((prev) => prev.map((c) => ({ ...c, isDefault: c.id === id })))
-    fetch(`/api/clients/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isDefault: true }),
-    }).catch(() => {})
-  }, [])
+  const handleSetDefault = useCallback(
+    (id: number) => {
+      queryClient.setQueryData<DownloadClient[]>(["clients"], (prev) =>
+        prev?.map((c) => ({ ...c, isDefault: c.id === id }))
+      )
+      fetch(`/api/clients/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isDefault: true }),
+      }).catch(() => {})
+    },
+    [queryClient]
+  )
 
   if (loading) {
-    return <p className="text-sm font-mono text-tertiary">Loading clients...</p>
+    return <CardListSkeleton count={2} />
   }
 
   return (
@@ -748,9 +671,7 @@ function DownloadClients() {
               download activity.
             </Paragraph>
           </div>
-          <Button size="sm" onClick={() => setShowAddForm(true)}>
-            Add Download Client
-          </Button>
+          <Button size="sm" onClick={() => setShowAddForm(true)} text="Add Download Client" />
         </Card>
       ) : (
         <>
@@ -758,7 +679,7 @@ function DownloadClients() {
             <ClientCard
               key={client.id}
               client={client}
-              linkedTrackers={[]}
+              linkedTrackers={EMPTY_TRACKERS}
               onSaved={handleSaved}
               onRemove={handleRemove}
               onSetDefault={handleSetDefault}
@@ -769,7 +690,7 @@ function DownloadClients() {
               isFirst={clients.length === 0}
               onCreated={() => {
                 setShowAddForm(false)
-                fetchClients()
+                queryClient.invalidateQueries({ queryKey: ["clients"] })
               }}
               onCancel={() => setShowAddForm(false)}
             />
@@ -779,9 +700,8 @@ function DownloadClients() {
               variant="secondary"
               className="self-start"
               onClick={() => setShowAddForm(true)}
-            >
-              + Add Client
-            </Button>
+              text="+ Add Client"
+            />
           )}
         </>
       )}

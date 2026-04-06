@@ -1,7 +1,7 @@
 // src/components/tracker-detail/platform/GgnBuffsDisplay.tsx
 
 import { H2 } from "@typography"
-import { hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
 import type { GGnPlatformMeta } from "@/types/api"
 
 export interface GgnBuffsDisplayProps {

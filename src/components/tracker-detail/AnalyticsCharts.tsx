@@ -1,18 +1,14 @@
 // src/components/tracker-detail/AnalyticsCharts.tsx
-//
-// Functions: AnalyticsCharts
 
-import { H2 } from "@typography"
 import { BufferCandlestickChart } from "@/components/charts/BufferCandlestickChart"
 import { MetricChart } from "@/components/charts/MetricChart"
 import { PercentileRadarChart } from "@/components/charts/PercentileRadarChart"
 import { UploadDownloadChart } from "@/components/charts/UploadDownloadChart"
 import { UploadPolarChart } from "@/components/charts/UploadPolarChart"
-import type { DayRange } from "@/components/dashboard/DayRangeSidebar"
 import { DayRangeSidebar } from "@/components/dashboard/DayRangeSidebar"
 import { Card } from "@/components/ui/Card"
 import { formatBytesFromString } from "@/lib/formatters"
-import type { GazellePlatformMeta, Snapshot } from "@/types/api"
+import type { DayRange, DeltaDisplay, GazellePlatformMeta, Snapshot } from "@/types/api"
 
 interface AnalyticsChartsProps {
   trackerName: string
@@ -21,7 +17,7 @@ interface AnalyticsChartsProps {
   accentColor: string
   days: DayRange
   onDaysChange: (d: DayRange) => void
-  delta: { uploaded: string; downloaded: string } | null
+  delta: DeltaDisplay
   gazelleMeta: GazellePlatformMeta | null
   minimumRatio?: number
 }
@@ -42,8 +38,7 @@ export function AnalyticsCharts({
     <div className="flex flex-col md:flex-row gap-8">
       <div className="flex-1 flex flex-col gap-8 min-w-0">
         {/* Upload/Download chart */}
-        <Card trackerColor={tc} className="flex flex-col gap-4">
-          <H2>Upload / Download History</H2>
+        <Card title="Upload / Download History" trackerColor={tc} className="flex flex-col gap-4">
           {delta && (
             <p className="text-xs font-mono text-tertiary">
               24h: <span className="text-primary">{formatBytesFromString(delta.uploaded)}</span> ↑{" "}
@@ -58,8 +53,7 @@ export function AnalyticsCharts({
         </Card>
 
         {/* Ratio */}
-        <Card trackerColor={tc} className="flex flex-col gap-4">
-          <H2>Ratio</H2>
+        <Card lazy title="Ratio" trackerColor={tc} className="flex flex-col gap-4">
           <MetricChart
             metric="ratio"
             snapshots={snapshots}
@@ -69,43 +63,42 @@ export function AnalyticsCharts({
         </Card>
 
         {/* Buffer */}
-        <Card trackerColor={tc} className="flex flex-col gap-4">
-          <H2>Buffer</H2>
+        <Card lazy title="Buffer" trackerColor={tc} className="flex flex-col gap-4">
           <MetricChart metric="buffer" snapshots={snapshots} accentColor={tc} />
         </Card>
 
         {/* Buffer Candlestick */}
-        <Card trackerColor={tc} className="flex flex-col gap-4">
-          <H2>Daily Buffer</H2>
+        <Card lazy title="Daily Buffer" trackerColor={tc} className="flex flex-col gap-4">
           <BufferCandlestickChart trackerData={candlestickData} height={320} />
         </Card>
 
         {/* Seedbonus / Gold */}
-        <Card trackerColor={tc} className="flex flex-col gap-4">
-          <H2>{platformType === "ggn" ? "Gold" : "Seedbonus"}</H2>
+        <Card
+          lazy
+          title={platformType === "ggn" ? "Gold" : "Seedbonus"}
+          trackerColor={tc}
+          className="flex flex-col gap-4"
+        >
           <MetricChart metric="seedbonus" snapshots={snapshots} accentColor={tc} />
         </Card>
 
         {/* GGn Share Score chart */}
         {platformType === "ggn" && (
-          <Card trackerColor={tc} className="flex flex-col gap-4">
-            <H2>Share Score</H2>
+          <Card lazy title="Share Score" trackerColor={tc} className="flex flex-col gap-4">
             <MetricChart metric="shareScore" snapshots={snapshots} accentColor={tc} />
           </Card>
         )}
 
         {/* FL Wedges (MAM only) */}
         {platformType === "mam" && (
-          <Card trackerColor={tc} className="flex flex-col gap-4">
-            <H2>FL Wedges</H2>
+          <Card lazy title="FL Wedges" trackerColor={tc} className="flex flex-col gap-4">
             <MetricChart metric="freeleechTokens" snapshots={snapshots} accentColor={tc} />
           </Card>
         )}
 
         {/* Gazelle Percentile Radar */}
         {gazelleMeta?.ranks && (
-          <Card trackerColor={tc} className="flex flex-col gap-4">
-            <H2>Percentile Ranks</H2>
+          <Card lazy title="Percentile Ranks" trackerColor={tc} className="flex flex-col gap-4">
             <p className="text-xs font-mono text-tertiary">
               Your standing relative to all users — {gazelleMeta.ranks.overall}th percentile overall
             </p>
@@ -114,20 +107,22 @@ export function AnalyticsCharts({
         )}
 
         {/* Seeding Count */}
-        <Card trackerColor={tc} className="flex flex-col gap-4">
-          <H2>Seeding Count</H2>
+        <Card lazy title="Seeding Count" trackerColor={tc} className="flex flex-col gap-4">
           <MetricChart metric="seedingCount" snapshots={snapshots} accentColor={tc} />
         </Card>
 
         {/* Daily Activity */}
-        <Card trackerColor={tc} className="flex flex-col gap-4">
-          <H2>Daily Activity</H2>
+        <Card lazy title="Daily Activity" trackerColor={tc} className="flex flex-col gap-4">
           <MetricChart metric="dailyDelta" snapshots={snapshots} accentColor={tc} />
         </Card>
 
         {/* Activity by Time of Day */}
-        <Card trackerColor={tc} className="flex flex-col gap-4">
-          <H2>Activity by Time of Day</H2>
+        <Card
+          lazy
+          title="Activity by Time of Day"
+          trackerColor={tc}
+          className="flex flex-col gap-4"
+        >
           <UploadPolarChart snapshots={snapshots} accentColor={tc} />
         </Card>
       </div>

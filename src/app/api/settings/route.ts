@@ -6,16 +6,46 @@ import { access, mkdir } from "node:fs/promises"
 import path from "node:path"
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseJsonBody } from "@/lib/api-helpers"
+import {
+  authenticate,
+  decodeKey,
+  parseJsonBody,
+  validateIntRange,
+  validateMaxLength,
+} from "@/lib/api-helpers"
 import { VALID_BACKUP_FREQUENCIES } from "@/lib/backup"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { QBITMANAGE_KEYS } from "@/lib/download-clients/qbt/qbitmanage-defaults"
+import {
+  BACKUP_PASSWORD_MAX,
+  BACKUP_RETENTION_MAX,
+  BACKUP_RETENTION_MIN,
+  CREDENTIAL_MAX,
+  HOST_MAX,
+  LOCKOUT_DURATION_MAX,
+  LOCKOUT_DURATION_MIN,
+  LOCKOUT_THRESHOLD_MAX,
+  LOCKOUT_THRESHOLD_MIN,
+  LONG_STRING_MAX,
+  POLL_INTERVAL_MAX,
+  POLL_INTERVAL_MIN,
+  PORT_MAX,
+  PORT_MIN,
+  SESSION_TIMEOUT_MAX,
+  SESSION_TIMEOUT_MIN,
+  SHORT_NAME_MAX,
+  SNAPSHOT_RETENTION_MAX,
+  SNAPSHOT_RETENTION_MIN,
+  USERNAME_MAX,
+  USERNAME_MIN,
+} from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { scrubSnapshotUsernames } from "@/lib/privacy-db"
-import { PROXY_HOST_PATTERN, VALID_PROXY_TYPES } from "@/lib/proxy"
-import { QBITMANAGE_KEYS } from "@/lib/qbitmanage-defaults"
 import { fetchSettings, serializeSettingsResponse } from "@/lib/server-data"
+import { PROXY_HOST_PATTERN, VALID_PROXY_TYPES } from "@/lib/tunnel"
+import { isValidPort } from "@/lib/validators"
 
 export async function GET() {
   const auth = await authenticate()
@@ -49,9 +79,9 @@ export async function PATCH(request: Request) {
     if (body.username === null || body.username === "") {
       updates.username = null
     } else if (typeof body.username === "string") {
-      if (body.username.length < 6 || body.username.length > 100) {
+      if (body.username.length < USERNAME_MIN || body.username.length > USERNAME_MAX) {
         return NextResponse.json(
-          { error: "Username must be between 6 and 100 characters" },
+          { error: `Username must be between ${USERNAME_MIN} and ${USERNAME_MAX} characters` },
           { status: 400 }
         )
       }
@@ -69,9 +99,14 @@ export async function PATCH(request: Request) {
       typeof body.sessionTimeoutMinutes === "number" &&
       Number.isInteger(body.sessionTimeoutMinutes)
     ) {
-      if (body.sessionTimeoutMinutes < 1 || body.sessionTimeoutMinutes > 525960) {
+      if (
+        body.sessionTimeoutMinutes < SESSION_TIMEOUT_MIN ||
+        body.sessionTimeoutMinutes > SESSION_TIMEOUT_MAX
+      ) {
         return NextResponse.json(
-          { error: "Session timeout must be between 1 minute and 1 year" },
+          {
+            error: `Session timeout must be between ${SESSION_TIMEOUT_MIN} and ${SESSION_TIMEOUT_MAX} minutes`,
+          },
           { status: 400 }
         )
       }
@@ -94,31 +129,32 @@ export async function PATCH(request: Request) {
   }
 
   if (body.lockoutThreshold !== undefined) {
-    if (typeof body.lockoutThreshold !== "number" || !Number.isInteger(body.lockoutThreshold)) {
+    if (typeof body.lockoutThreshold !== "number") {
       return NextResponse.json({ error: "Invalid lockout threshold" }, { status: 400 })
     }
-    if (body.lockoutThreshold < 1 || body.lockoutThreshold > 99) {
-      return NextResponse.json(
-        { error: "Lockout threshold must be between 1 and 99" },
-        { status: 400 }
-      )
-    }
+    const thresholdErr = validateIntRange(
+      body.lockoutThreshold,
+      LOCKOUT_THRESHOLD_MIN,
+      LOCKOUT_THRESHOLD_MAX,
+      "lockoutThreshold",
+      `Lockout threshold must be between ${LOCKOUT_THRESHOLD_MIN} and ${LOCKOUT_THRESHOLD_MAX}`
+    )
+    if (thresholdErr) return thresholdErr
     updates.lockoutThreshold = body.lockoutThreshold
   }
 
   if (body.lockoutDurationMinutes !== undefined) {
-    if (
-      typeof body.lockoutDurationMinutes !== "number" ||
-      !Number.isInteger(body.lockoutDurationMinutes)
-    ) {
+    if (typeof body.lockoutDurationMinutes !== "number") {
       return NextResponse.json({ error: "Invalid lockout duration" }, { status: 400 })
     }
-    if (body.lockoutDurationMinutes < 1 || body.lockoutDurationMinutes > 1440) {
-      return NextResponse.json(
-        { error: "Lockout duration must be between 1 minute and 24 hours" },
-        { status: 400 }
-      )
-    }
+    const durationErr = validateIntRange(
+      body.lockoutDurationMinutes,
+      LOCKOUT_DURATION_MIN,
+      LOCKOUT_DURATION_MAX,
+      "lockoutDurationMinutes",
+      `Lockout duration must be between ${LOCKOUT_DURATION_MIN} and ${LOCKOUT_DURATION_MAX} minutes`
+    )
+    if (durationErr) return durationErr
     updates.lockoutDurationMinutes = body.lockoutDurationMinutes
   }
 
@@ -130,9 +166,14 @@ export async function PATCH(request: Request) {
       typeof body.snapshotRetentionDays === "number" &&
       Number.isInteger(body.snapshotRetentionDays)
     ) {
-      if (body.snapshotRetentionDays < 7 || body.snapshotRetentionDays > 3650) {
+      if (
+        body.snapshotRetentionDays < SNAPSHOT_RETENTION_MIN ||
+        body.snapshotRetentionDays > SNAPSHOT_RETENTION_MAX
+      ) {
         return NextResponse.json(
-          { error: "Snapshot retention must be between 7 days and 10 years" },
+          {
+            error: `Snapshot retention must be between ${SNAPSHOT_RETENTION_MIN} and ${SNAPSHOT_RETENTION_MAX} days`,
+          },
           { status: 400 }
         )
       }
@@ -144,18 +185,17 @@ export async function PATCH(request: Request) {
 
   // --- Tracker poll interval ---
   if (body.trackerPollIntervalMinutes !== undefined) {
-    if (
-      typeof body.trackerPollIntervalMinutes !== "number" ||
-      !Number.isInteger(body.trackerPollIntervalMinutes)
-    ) {
+    if (typeof body.trackerPollIntervalMinutes !== "number") {
       return NextResponse.json({ error: "Invalid poll interval" }, { status: 400 })
     }
-    if (body.trackerPollIntervalMinutes < 15 || body.trackerPollIntervalMinutes > 1440) {
-      return NextResponse.json(
-        { error: "Poll interval must be between 15 minutes and 24 hours" },
-        { status: 400 }
-      )
-    }
+    const pollErr = validateIntRange(
+      body.trackerPollIntervalMinutes,
+      POLL_INTERVAL_MIN,
+      POLL_INTERVAL_MAX,
+      "trackerPollIntervalMinutes",
+      `Poll interval must be between ${POLL_INTERVAL_MIN} and ${POLL_INTERVAL_MAX} minutes`
+    )
+    if (pollErr) return pollErr
     updates.trackerPollIntervalMinutes = body.trackerPollIntervalMinutes
   }
 
@@ -181,12 +221,8 @@ export async function PATCH(request: Request) {
     if (body.proxyHost === null || body.proxyHost === "") {
       updates.proxyHost = null
     } else if (typeof body.proxyHost === "string") {
-      if (body.proxyHost.length > 255) {
-        return NextResponse.json(
-          { error: "Proxy host must be 255 characters or fewer" },
-          { status: 400 }
-        )
-      }
+      const proxyHostErr = validateMaxLength(body.proxyHost, HOST_MAX, "Proxy host")
+      if (proxyHostErr) return proxyHostErr
       if (!PROXY_HOST_PATTERN.test(body.proxyHost)) {
         return NextResponse.json({ error: "Invalid proxy host format" }, { status: 400 })
       }
@@ -200,9 +236,9 @@ export async function PATCH(request: Request) {
     if (body.proxyPort === null) {
       updates.proxyPort = null
     } else if (typeof body.proxyPort === "number" && Number.isInteger(body.proxyPort)) {
-      if (body.proxyPort < 1 || body.proxyPort > 65535) {
+      if (!isValidPort(body.proxyPort)) {
         return NextResponse.json(
-          { error: "Proxy port must be between 1 and 65535" },
+          { error: `Proxy port must be between ${PORT_MIN} and ${PORT_MAX}` },
           { status: 400 }
         )
       }
@@ -216,12 +252,12 @@ export async function PATCH(request: Request) {
     if (body.proxyUsername === null || body.proxyUsername === "") {
       updates.proxyUsername = null
     } else if (typeof body.proxyUsername === "string") {
-      if (body.proxyUsername.length > 255) {
-        return NextResponse.json(
-          { error: "Proxy username must be 255 characters or fewer" },
-          { status: 400 }
-        )
-      }
+      const proxyUsernameErr = validateMaxLength(
+        body.proxyUsername,
+        CREDENTIAL_MAX,
+        "Proxy username"
+      )
+      if (proxyUsernameErr) return proxyUsernameErr
       updates.proxyUsername = body.proxyUsername
     } else {
       return NextResponse.json({ error: "Invalid proxy username" }, { status: 400 })
@@ -232,12 +268,12 @@ export async function PATCH(request: Request) {
     if (body.proxyPassword === null || body.proxyPassword === "") {
       updates.encryptedProxyPassword = null
     } else if (typeof body.proxyPassword === "string") {
-      if (body.proxyPassword.length > 255) {
-        return NextResponse.json(
-          { error: "Proxy password must be 255 characters or fewer" },
-          { status: 400 }
-        )
-      }
+      const proxyPasswordErr = validateMaxLength(
+        body.proxyPassword,
+        CREDENTIAL_MAX,
+        "Proxy password"
+      )
+      if (proxyPasswordErr) return proxyPasswordErr
       const key = decodeKey(auth)
       updates.encryptedProxyPassword = encrypt(body.proxyPassword, key)
     } else {
@@ -307,7 +343,7 @@ export async function PATCH(request: Request) {
           { status: 400 }
         )
       }
-      if (tag.length === 0 || tag.length > 100) {
+      if (tag.length === 0 || tag.length > SHORT_NAME_MAX) {
         return NextResponse.json(
           { error: `qbitmanageTags.${key}.tag must be between 1 and 100 characters` },
           { status: 400 }
@@ -343,18 +379,17 @@ export async function PATCH(request: Request) {
   }
 
   if (body.backupRetentionCount !== undefined) {
-    if (
-      typeof body.backupRetentionCount !== "number" ||
-      !Number.isInteger(body.backupRetentionCount)
-    ) {
+    if (typeof body.backupRetentionCount !== "number") {
       return NextResponse.json({ error: "Invalid backup retention count" }, { status: 400 })
     }
-    if (body.backupRetentionCount < 1 || body.backupRetentionCount > 365) {
-      return NextResponse.json(
-        { error: "Backup retention count must be between 1 and 365" },
-        { status: 400 }
-      )
-    }
+    const retentionErr = validateIntRange(
+      body.backupRetentionCount,
+      BACKUP_RETENTION_MIN,
+      BACKUP_RETENTION_MAX,
+      "backupRetentionCount",
+      `Backup retention count must be between ${BACKUP_RETENTION_MIN} and ${BACKUP_RETENTION_MAX}`
+    )
+    if (retentionErr) return retentionErr
     updates.backupRetentionCount = body.backupRetentionCount
   }
 
@@ -376,12 +411,12 @@ export async function PATCH(request: Request) {
     if (body.backupPassword === null || body.backupPassword === "") {
       updates.encryptedBackupPassword = null
     } else if (typeof body.backupPassword === "string") {
-      if (body.backupPassword.length > 255) {
-        return NextResponse.json(
-          { error: "Backup password must be 255 characters or fewer" },
-          { status: 400 }
-        )
-      }
+      const backupPasswordErr = validateMaxLength(
+        body.backupPassword,
+        BACKUP_PASSWORD_MAX,
+        "Backup password"
+      )
+      if (backupPasswordErr) return backupPasswordErr
       const key = decodeKey(auth)
       updates.encryptedBackupPassword = encrypt(body.backupPassword, key)
     } else {
@@ -394,12 +429,12 @@ export async function PATCH(request: Request) {
     if (body.ptpimgApiKey === null || body.ptpimgApiKey === "") {
       updates.encryptedPtpimgApiKey = null
     } else if (typeof body.ptpimgApiKey === "string") {
-      if (body.ptpimgApiKey.length > 500) {
-        return NextResponse.json(
-          { error: "PTPimg API key must be 500 characters or fewer" },
-          { status: 400 }
-        )
-      }
+      const ptpimgApiKeyErr = validateMaxLength(
+        body.ptpimgApiKey,
+        LONG_STRING_MAX,
+        "PTPimg API key"
+      )
+      if (ptpimgApiKeyErr) return ptpimgApiKeyErr
       const key = decodeKey(auth)
       updates.encryptedPtpimgApiKey = encrypt(body.ptpimgApiKey, key)
     } else {
@@ -411,12 +446,12 @@ export async function PATCH(request: Request) {
     if (body.oeimgApiKey === null || body.oeimgApiKey === "") {
       updates.encryptedOeimgApiKey = null
     } else if (typeof body.oeimgApiKey === "string") {
-      if (body.oeimgApiKey.length > 500) {
-        return NextResponse.json(
-          { error: "OnlyImage API key must be 500 characters or fewer" },
-          { status: 400 }
-        )
-      }
+      const oeimgApiKeyErr = validateMaxLength(
+        body.oeimgApiKey,
+        LONG_STRING_MAX,
+        "OnlyImage API key"
+      )
+      if (oeimgApiKeyErr) return oeimgApiKeyErr
       const key = decodeKey(auth)
       updates.encryptedOeimgApiKey = encrypt(body.oeimgApiKey, key)
     } else {
@@ -428,12 +463,8 @@ export async function PATCH(request: Request) {
     if (body.imgbbApiKey === null || body.imgbbApiKey === "") {
       updates.encryptedImgbbApiKey = null
     } else if (typeof body.imgbbApiKey === "string") {
-      if (body.imgbbApiKey.length > 500) {
-        return NextResponse.json(
-          { error: "ImgBB API key must be 500 characters or fewer" },
-          { status: 400 }
-        )
-      }
+      const imgbbApiKeyErr = validateMaxLength(body.imgbbApiKey, LONG_STRING_MAX, "ImgBB API key")
+      if (imgbbApiKeyErr) return imgbbApiKeyErr
       const key = decodeKey(auth)
       updates.encryptedImgbbApiKey = encrypt(body.imgbbApiKey, key)
     } else {
@@ -446,12 +477,12 @@ export async function PATCH(request: Request) {
       updates.backupStoragePath = null
     } else if (typeof body.backupStoragePath === "string") {
       const trimmedPath = body.backupStoragePath.trim()
-      if (trimmedPath.length > 500) {
-        return NextResponse.json(
-          { error: "Backup storage path must be 500 characters or fewer" },
-          { status: 400 }
-        )
-      }
+      const backupStoragePathErr = validateMaxLength(
+        trimmedPath,
+        LONG_STRING_MAX,
+        "Backup storage path"
+      )
+      if (backupStoragePathErr) return backupStoragePathErr
       if (!path.isAbsolute(trimmedPath) || trimmedPath.includes("..")) {
         return NextResponse.json(
           { error: "Backup storage path must be an absolute path with no '..' segments" },
@@ -485,7 +516,7 @@ export async function PATCH(request: Request) {
   const [updated] = await fetchSettings()
   if (!updated) {
     log.error({ route: "PATCH /api/settings" }, "settings re-fetch returned empty after update")
-    throw new Error("Settings update failed")
+    return NextResponse.json({ error: "Settings update failed" }, { status: 500 })
   }
 
   // Restart backup scheduler if schedule settings changed

@@ -5,39 +5,45 @@ import { H2 } from "@typography"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { type SubmitEvent, useState } from "react"
-import { Button, Card, Input } from "@/components/ui"
+import { Button, Card, Input, Toggle } from "@/components/ui"
+import { Notice } from "@/components/ui/Notice"
 
 export function SetupForm() {
   const router = useRouter()
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
-  const [error, setError] = useState<string | null>(null)
+  const [retentionEnabled, setRetentionEnabled] = useState(false)
+  const [retentionDays, setRetentionDays] = useState(365)
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   async function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
-    setError(null)
+    setErrors({})
 
     if (!username.trim() || username.trim().length < 3) {
-      setError("Username must be at least 3 characters.")
+      setErrors({ username: "Username must be at least 3 characters." })
       return
     }
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters.")
+      setErrors({ password: "Password must be at least 8 characters." })
       return
     }
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match.")
+      setErrors({ confirmPassword: "Passwords do not match." })
       return
     }
 
     setIsSubmitting(true)
 
     try {
-      const payload: Record<string, string> = { password, username: username.trim() }
+      const payload: Record<string, unknown> = { password, username: username.trim() }
+      if (retentionEnabled && retentionDays > 0) {
+        payload.snapshotRetentionDays = retentionDays
+      }
 
       const setupRes = await fetch("/api/auth/setup", {
         method: "POST",
@@ -47,7 +53,17 @@ export function SetupForm() {
 
       if (!setupRes.ok) {
         const data = (await setupRes.json()) as { error?: string }
-        setError(data.error ?? "Setup failed. Please try again.")
+        const msg = data.error ?? "Setup failed. Please try again."
+        const lowerMsg = msg.toLowerCase()
+        if (lowerMsg.includes("username")) {
+          setErrors({ username: msg })
+        } else if (lowerMsg.includes("match")) {
+          setErrors({ confirmPassword: msg })
+        } else if (lowerMsg.includes("8 char") || lowerMsg.includes("password")) {
+          setErrors({ password: msg })
+        } else {
+          setErrors({ form: msg })
+        }
         return
       }
 
@@ -59,13 +75,13 @@ export function SetupForm() {
 
       if (!loginRes.ok) {
         const data = (await loginRes.json()) as { error?: string }
-        setError(data.error ?? "Login after setup failed. Please go to the login page.")
+        setErrors({ form: data.error ?? "Login after setup failed. Please go to the login page." })
         return
       }
 
       router.push("/")
     } catch {
-      setError("An unexpected error occurred. Please try again.")
+      setErrors({ form: "An unexpected error occurred. Please try again." })
     } finally {
       setIsSubmitting(false)
     }
@@ -80,7 +96,8 @@ export function SetupForm() {
             alt="Tracker Tracker"
             width={160}
             height={40}
-            className="h-10 w-auto mx-auto"
+            className="mx-auto"
+            style={{ height: 40, width: "auto" }}
             priority
           />
           <H2 className="mt-6 text-secondary text-center">Create an account</H2>
@@ -96,7 +113,7 @@ export function SetupForm() {
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              error={error?.toLowerCase().includes("username") ? error : undefined}
+              error={errors.username}
               disabled={isSubmitting}
             />
 
@@ -107,7 +124,7 @@ export function SetupForm() {
               placeholder="Min. 8 characters"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              error={error?.toLowerCase().includes("8 char") ? error : undefined}
+              error={errors.password}
               disabled={isSubmitting}
               required
             />
@@ -119,19 +136,40 @@ export function SetupForm() {
               placeholder="Re-enter password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              error={error?.toLowerCase().includes("match") ? error : undefined}
+              error={errors.confirmPassword}
               disabled={isSubmitting}
               required
             />
 
-            {error &&
-              !error?.toLowerCase().includes("8 char") &&
-              !error?.toLowerCase().includes("match") &&
-              !error?.toLowerCase().includes("username") && (
-                <p className="text-xs font-sans text-danger" role="alert">
-                  {error}
-                </p>
+            <div className="border-t border-border pt-4 mt-1">
+              <Toggle
+                label="Enable snapshot retention"
+                description={
+                  retentionEnabled
+                    ? `Snapshots older than ${retentionDays} days will be pruned automatically.`
+                    : "Disabled — snapshots will be kept indefinitely. You can change this later in Settings."
+                }
+                checked={retentionEnabled}
+                onChange={setRetentionEnabled}
+                disabled={isSubmitting}
+              />
+              {retentionEnabled && (
+                <Input
+                  label="Retention (days)"
+                  type="number"
+                  min={7}
+                  max={3650}
+                  value={String(retentionDays)}
+                  onChange={(e) =>
+                    setRetentionDays(Math.max(7, Math.min(3650, Number(e.target.value) || 365)))
+                  }
+                  disabled={isSubmitting}
+                  className="mt-3"
+                />
               )}
+            </div>
+
+            <Notice message={errors.form} />
 
             <Button
               type="submit"
@@ -139,9 +177,8 @@ export function SetupForm() {
               size="md"
               className="w-full mt-1"
               disabled={isSubmitting}
-            >
-              {isSubmitting ? "Setting up…" : "Create Account"}
-            </Button>
+              text={isSubmitting ? "Setting up…" : "Create Account"}
+            />
           </form>
         </Card>
       </div>

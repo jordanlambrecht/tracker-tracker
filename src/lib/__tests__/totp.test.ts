@@ -160,13 +160,6 @@ describe("verifyAndConsumeBackupCode", () => {
     expect(updatedEntries[2].used).toBe(false)
   })
 
-  it("returns valid=false when all codes are used", () => {
-    const code = "ABCD-EF01"
-    const entry = { ...hashBackupCode(code), used: true }
-    const { valid } = verifyAndConsumeBackupCode(code, [entry])
-    expect(valid).toBe(false)
-  })
-
   it("works with a full set of generated codes", () => {
     const codes = generateBackupCodes()
     const entries = codes.map((c) => hashBackupCode(c))

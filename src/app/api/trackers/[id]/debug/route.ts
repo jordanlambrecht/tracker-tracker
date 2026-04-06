@@ -8,13 +8,13 @@ import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { buildFetchOptions, getAdapter } from "@/lib/adapters"
 import type { DebugApiCall, TrackerStats } from "@/lib/adapters/types"
-import { authenticate, decodeKey, parseTrackerId } from "@/lib/api-helpers"
+import { authenticate, decodeKey, parseTrackerId, type RouteContext } from "@/lib/api-helpers"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
-import { buildProxyAgentFromSettings } from "@/lib/proxy"
 import { scrubObject } from "@/lib/scrub-object"
+import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 
 function serializeStats(stats: TrackerStats): Record<string, unknown> {
   return {
@@ -39,7 +39,7 @@ function serializeStats(stats: TrackerStats): Record<string, unknown> {
   }
 }
 
-export async function POST(_request: Request, props: { params: Promise<{ id: string }> }) {
+export async function POST(_request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 

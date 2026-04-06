@@ -1,11 +1,8 @@
 // src/components/charts/TrackerBubbleChart.tsx
-//
-// Functions: computeBubbleSize, buildBubbleOption, TrackerBubbleChart
-
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { bytesToGiB } from "@/lib/formatters"
+import { bytesToGiB, formatCount, formatRatioDisplay } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { autoByteScale, fmtNum } from "./lib/chart-helpers"
@@ -120,7 +117,7 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
               formatter: "1:1 ratio",
               color: CHART_THEME.textTertiary,
               fontFamily: CHART_THEME.fontMono,
-              fontSize: 10,
+              fontSize: CHART_THEME.fontSizeCompact,
             },
             data: [
               [
@@ -154,7 +151,7 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
 
   return {
     backgroundColor: "transparent",
-    grid: chartGrid({ right: 24, bottom: 48, left: 72 }),
+    grid: chartGrid({ right: 48, bottom: 56, left: 72 }),
     tooltip: chartTooltip("item", {
       formatter: (params: unknown) => {
         const p = params as {
@@ -170,15 +167,15 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
         const match = scaled.find((d) => d.tracker.name === p.seriesName)
         const seedingCount = match?.tracker.seedingCount ?? 0
 
-        const ratio = downloadVal > 0 ? (uploadVal / downloadVal).toFixed(2) : "∞"
+        const ratio = formatRatioDisplay(downloadVal > 0 ? uploadVal / downloadVal : Infinity)
 
         return [
-          `<div style="font-family:${CHART_THEME.fontMono};font-size:12px;">`,
+          `<div style="font-family:${CHART_THEME.fontMono};font-size:${CHART_THEME.fontSizeSmall}px;">`,
           `${chartDot(color.startsWith("#") ? color : CHART_THEME.neutral)}<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(p.seriesName)}</span>`,
           `<br/><span style="color:${CHART_THEME.textSecondary};">Uploaded:</span> <span style="color:${CHART_THEME.textPrimary};">${fmtNum(uploadVal)} ${unit}</span>`,
           `<br/><span style="color:${CHART_THEME.textSecondary};">Downloaded:</span> <span style="color:${CHART_THEME.textPrimary};">${fmtNum(downloadVal)} ${unit}</span>`,
-          `<br/><span style="color:${CHART_THEME.textSecondary};">Seeding:</span> <span style="color:${CHART_THEME.textPrimary};">${seedingCount.toLocaleString()} torrents</span>`,
-          `<br/><span style="color:${CHART_THEME.textSecondary};">Ratio:</span> <span style="color:${CHART_THEME.textPrimary};">${ratio}×</span>`,
+          `<br/><span style="color:${CHART_THEME.textSecondary};">Seeding:</span> <span style="color:${CHART_THEME.textPrimary};">${formatCount(seedingCount)} torrents</span>`,
+          `<br/><span style="color:${CHART_THEME.textSecondary};">Ratio:</span> <span style="color:${CHART_THEME.textPrimary};">${ratio}</span>`,
           "</div>",
         ].join("")
       },
@@ -187,11 +184,13 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
     xAxis: {
       type: useLogX ? "log" : "value",
       name: useLogX ? `Downloaded (${unit}, log)` : `Downloaded (${unit})`,
+      nameLocation: "center",
+      nameGap: 32,
       ...(useLogX ? xLogBounds : { min: 0 }),
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
       axisTick: { show: false },
@@ -209,7 +208,7 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },
@@ -240,7 +239,7 @@ function TrackerBubbleChart({ trackers, height = 360 }: TrackerBubbleChartProps)
       : []
   )
 
-  // Hook must be called before any early return (React rules of hooks)
+  // Hook must be called before any early return
   const xValues = validTrackers.map((t) => bytesToGiB(t.downloadedBytes))
   const yValues = validTrackers.map((t) => bytesToGiB(t.uploadedBytes))
   const allValues = [...xValues, ...yValues]

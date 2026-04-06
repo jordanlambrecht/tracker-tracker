@@ -73,6 +73,7 @@ vi.mock("@/lib/db/schema", () => ({
     remoteUserId: "remoteUserId",
     platformMeta: "platformMeta",
     avatarData: "avatarData",
+    avatarMimeType: "avatarMimeType",
     avatarCachedAt: "avatarCachedAt",
     avatarRemoteUrl: "avatarRemoteUrl",
     useProxy: "useProxy",
@@ -87,6 +88,54 @@ vi.mock("@/lib/db/schema", () => ({
   trackerSnapshots: {
     trackerId: "trackerId",
     polledAt: "polledAt",
+  },
+  downloadClients: {
+    id: "id",
+    name: "name",
+    type: "type",
+    enabled: "enabled",
+    host: "host",
+    port: "port",
+    useSsl: "useSsl",
+    encryptedUsername: "encryptedUsername",
+    encryptedPassword: "encryptedPassword",
+    pollIntervalSeconds: "pollIntervalSeconds",
+    isDefault: "isDefault",
+    crossSeedTags: "crossSeedTags",
+    lastPolledAt: "lastPolledAt",
+    lastError: "lastError",
+    errorSince: "errorSince",
+    createdAt: "createdAt",
+    updatedAt: "updatedAt",
+  },
+  notificationTargets: {
+    id: "id",
+    name: "name",
+    type: "type",
+    enabled: "enabled",
+    encryptedConfig: "encryptedConfig",
+    notifyRatioDrop: "notifyRatioDrop",
+    notifyHitAndRun: "notifyHitAndRun",
+    notifyTrackerDown: "notifyTrackerDown",
+    notifyBufferMilestone: "notifyBufferMilestone",
+    notifyWarned: "notifyWarned",
+    notifyRatioDanger: "notifyRatioDanger",
+    notifyZeroSeeding: "notifyZeroSeeding",
+    notifyRankChange: "notifyRankChange",
+    notifyAnniversary: "notifyAnniversary",
+    notifyBonusCap: "notifyBonusCap",
+    notifyVipExpiring: "notifyVipExpiring",
+    notifyUnsatisfiedLimit: "notifyUnsatisfiedLimit",
+    notifyActiveHnrs: "notifyActiveHnrs",
+    notifyDownloadDisabled: "notifyDownloadDisabled",
+    thresholds: "thresholds",
+    includeTrackerName: "includeTrackerName",
+    scope: "scope",
+    lastDeliveryStatus: "lastDeliveryStatus",
+    lastDeliveryAt: "lastDeliveryAt",
+    lastDeliveryError: "lastDeliveryError",
+    createdAt: "createdAt",
+    updatedAt: "updatedAt",
   },
 }))
 
@@ -311,6 +360,7 @@ describe("serializeTrackerResponse excludes encryptedApiToken", () => {
       remoteUserId: null,
       platformMeta: null,
       avatarData: null,
+      avatarMimeType: null,
       avatarCachedAt: null,
       avatarRemoteUrl: null,
       useProxy: false,
@@ -346,6 +396,7 @@ describe("trackerColumns security invariant", () => {
 
   it("does NOT include avatarData (large binary, served via dedicated route)", () => {
     expect(columnKeys).not.toContain("avatarData")
+    expect(columnKeys).not.toContain("avatarMimeType")
     expect(columnKeys).not.toContain("avatarCachedAt")
     expect(columnKeys).not.toContain("avatarRemoteUrl")
   })

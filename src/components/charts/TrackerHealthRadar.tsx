@@ -1,12 +1,9 @@
 // src/components/charts/TrackerHealthRadar.tsx
-//
-// Functions: computeTrackerMetrics, normalizeMetrics, buildTrackerHealthRadarOption, TrackerHealthRadar
-
 "use client"
 
 import type { EChartsOption } from "echarts"
-import type { TrackerTag } from "@/lib/fleet"
-import type { TorrentInfo } from "@/lib/torrent-utils"
+import type { TrackerHealthMetric } from "@/lib/fleet-aggregation"
+import { formatCount, formatPercent, formatRatio } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import {
@@ -19,68 +16,11 @@ import {
 } from "./lib/theme"
 
 interface TrackerHealthRadarProps {
-  torrents: TorrentInfo[]
-  trackerTags: TrackerTag[]
+  metrics: TrackerHealthMetric[]
   height?: number
 }
 
-interface TrackerMetrics {
-  name: string
-  color: string
-  torrentCount: number
-  avgRatio: number
-  uploadSpeedSum: number
-  freshnessPct: number
-  avgSeedTimeDays: number
-}
-
-const FRESHNESS_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
-
-function computeTrackerMetrics(
-  torrents: TorrentInfo[],
-  trackerTags: TrackerTag[]
-): TrackerMetrics[] {
-  const now = Date.now()
-
-  return trackerTags
-    .map((tracker) => {
-      const tagLower = tracker.tag.toLowerCase()
-      const group = torrents.filter((t) => {
-        const tags = t.tags
-          .split(",")
-          .map((s) => s.trim().toLowerCase())
-          .filter(Boolean)
-        return tags.includes(tagLower)
-      })
-
-      if (group.length === 0) return null
-
-      const avgRatio = group.reduce((sum, t) => sum + t.ratio, 0) / group.length
-
-      const uploadSpeedSum = group.reduce((sum, t) => sum + t.upspeed, 0)
-
-      const recentCount = group.filter(
-        (t) => t.lastActivity > 0 && now - t.lastActivity * 1000 < FRESHNESS_WINDOW_MS
-      ).length
-      const freshnessPct = (recentCount / group.length) * 100
-
-      const avgSeedTimeDays =
-        group.reduce((sum, t) => sum + t.seedingTime, 0) / group.length / 86400
-
-      return {
-        name: tracker.name,
-        color: tracker.color,
-        torrentCount: group.length,
-        avgRatio,
-        uploadSpeedSum,
-        freshnessPct,
-        avgSeedTimeDays,
-      } satisfies TrackerMetrics
-    })
-    .filter((m): m is TrackerMetrics => m !== null)
-}
-
-function normalizeMetrics(metrics: TrackerMetrics[]): number[][] {
+function normalizeMetrics(metrics: TrackerHealthMetric[]): number[][] {
   const maxTorrentCount = Math.max(...metrics.map((m) => m.torrentCount), 1)
   const maxAvgRatio = Math.max(...metrics.map((m) => m.avgRatio), 1)
   const maxUploadSpeed = Math.max(...metrics.map((m) => m.uploadSpeedSum), 1)
@@ -97,7 +37,7 @@ function normalizeMetrics(metrics: TrackerMetrics[]): number[][] {
 }
 
 function buildTrackerHealthRadarOption(
-  metrics: TrackerMetrics[],
+  metrics: TrackerHealthMetric[],
   normalized: number[][]
 ): EChartsOption {
   return {
@@ -115,9 +55,9 @@ function buildTrackerHealthRadarOption(
         const dot = chartDot(p.color)
         return [
           `${dot}<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(m.name)}</span>`,
-          chartTooltipRow(p.color, "Torrents", m.torrentCount.toLocaleString()),
-          chartTooltipRow(p.color, "Avg Ratio", m.avgRatio.toFixed(2)),
-          chartTooltipRow(p.color, "Freshness", `${m.freshnessPct.toFixed(1)}%`),
+          chartTooltipRow(p.color, "Torrents", formatCount(m.torrentCount)),
+          chartTooltipRow(p.color, "Avg Ratio", formatRatio(m.avgRatio)),
+          chartTooltipRow(p.color, "Freshness", formatPercent(m.freshnessPct)),
           chartTooltipRow(p.color, "Avg Seed Time", `${m.avgSeedTimeDays.toFixed(1)}d`),
         ].join("<br/>")
       },
@@ -136,7 +76,7 @@ function buildTrackerHealthRadarOption(
       axisName: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       splitLine: {
         lineStyle: { color: CHART_THEME.gridLine },
@@ -165,9 +105,7 @@ function buildTrackerHealthRadarOption(
   }
 }
 
-function TrackerHealthRadar({ torrents, trackerTags, height = 360 }: TrackerHealthRadarProps) {
-  const metrics = computeTrackerMetrics(torrents, trackerTags)
-
+function TrackerHealthRadar({ metrics, height = 360 }: TrackerHealthRadarProps) {
   if (metrics.length < 2) {
     return (
       <ChartEmptyState
@@ -188,4 +126,4 @@ function TrackerHealthRadar({ torrents, trackerTags, height = 360 }: TrackerHeal
 }
 
 export type { TrackerHealthRadarProps }
-export { computeTrackerMetrics, normalizeMetrics, TrackerHealthRadar }
+export { normalizeMetrics, TrackerHealthRadar }

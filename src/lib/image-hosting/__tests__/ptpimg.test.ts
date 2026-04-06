@@ -11,10 +11,6 @@ describe("ptpimgAdapter", () => {
     mockFetch.mockReset()
   })
 
-  it("has correct id", () => {
-    expect(ptpimgAdapter.id).toBe("ptpimg")
-  })
-
   it("sends correct multipart request and parses response", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,

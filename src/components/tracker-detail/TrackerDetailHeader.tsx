@@ -21,7 +21,6 @@ import {
 import { PulseDot } from "@/components/ui/PulseDot"
 import { Tooltip } from "@/components/ui/Tooltip"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
-import type { ResolvedSlot } from "@/lib/slot-types"
 import {
   getHealthBadgeVariant,
   getHealthDescription,
@@ -29,6 +28,7 @@ import {
   getTrackerHealth,
 } from "@/lib/tracker-status"
 import type { TrackerLatestStats, TrackerSummary } from "@/types/api"
+import type { ResolvedSlot } from "@/types/slots"
 
 interface TrackerDetailHeaderProps {
   tracker: TrackerSummary
@@ -135,9 +135,13 @@ export function TrackerDetailHeader({
               )}
             </Button>
           </Tooltip>
-          <Button variant="secondary" size="sm" onClick={onPollNow} disabled={polling}>
-            {polling ? "Polling..." : "Poll Now"}
-          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onPollNow}
+            disabled={polling}
+            text={polling ? "Polling..." : "Poll Now"}
+          />
           <Button
             variant="secondary"
             size="sm"

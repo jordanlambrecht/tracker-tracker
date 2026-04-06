@@ -1,39 +1,40 @@
 // src/app/api/trackers/[id]/poll/route.ts
-import { eq } from "drizzle-orm"
+import { and, eq, sql } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseTrackerId } from "@/lib/api-helpers"
+import { authenticate, decodeKey, parseTrackerId, type RouteContext } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
 import { isDecryptionError } from "@/lib/error-utils"
+import { POLL_MANUAL_COOLDOWN_MS } from "@/lib/limits"
 import { log } from "@/lib/logger"
-import { buildProxyAgentFromSettings } from "@/lib/proxy"
-import { pollTracker } from "@/lib/scheduler"
+import { pollTracker } from "@/lib/tracker-scheduler"
+import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 
-const POLL_COOLDOWN_MS = 10_000
-
-export async function POST(_request: Request, props: { params: Promise<{ id: string }> }) {
+export async function POST(_request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
   const trackerId = await parseTrackerId(props.params)
   if (trackerId instanceof NextResponse) return trackerId
 
-  // Rate limit: reject if this tracker was polled within the last 60 seconds
-  const [tracker] = await db
-    .select({ lastPolledAt: trackers.lastPolledAt })
-    .from(trackers)
-    .where(eq(trackers.id, trackerId))
-    .limit(1)
-
-  if (tracker?.lastPolledAt) {
-    const elapsed = Date.now() - tracker.lastPolledAt.getTime()
-    if (elapsed < POLL_COOLDOWN_MS) {
-      const waitSec = Math.ceil((POLL_COOLDOWN_MS - elapsed) / 1000)
-      return NextResponse.json(
-        { error: `Poll cooldown: try again in ${waitSec}s` },
-        { status: 429 }
+  // Atomically claim poll slot — prevents TOCTOU race with multiple tabs
+  const threshold = new Date(Date.now() - POLL_MANUAL_COOLDOWN_MS)
+  const [claimed] = await db
+    .update(trackers)
+    .set({ lastPolledAt: new Date() })
+    .where(
+      and(
+        eq(trackers.id, trackerId),
+        sql`(${trackers.lastPolledAt} IS NULL OR ${trackers.lastPolledAt} <= ${threshold})`
       )
-    }
+    )
+    .returning({ id: trackers.id })
+
+  if (!claimed) {
+    return NextResponse.json(
+      { error: "Poll cooldown: try again in a few seconds" },
+      { status: 429 }
+    )
   }
 
   const key = decodeKey(auth)
@@ -63,7 +64,7 @@ export async function POST(_request: Request, props: { params: Promise<{ id: str
         { route: "POST /api/trackers/[id]/poll", trackerId },
         "manual poll failed — stale session key"
       )
-      return NextResponse.json({ error: "Session expired — please log in again" }, { status: 401 })
+      return NextResponse.json({ error: "Session expired. Please log in again." }, { status: 401 })
     }
     log.error(
       { route: "POST /api/trackers/[id]/poll", trackerId, error: String(error) },

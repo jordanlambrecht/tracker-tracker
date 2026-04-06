@@ -1,7 +1,6 @@
 // src/lib/adapters/mam.ts
-//
-// Functions: MamAdapter, MamAdapter.fetchStats, MamAdapter.fetchRaw
 
+import { computeBufferBytes, floatBytesToBigInt } from "@/lib/data-transforms"
 import { adapterFetch } from "./adapter-fetch"
 import type {
   DebugApiCall,
@@ -40,7 +39,6 @@ interface MamJsonLoadResponse {
   partial?: boolean
   recently_deleted?: number
 
-  // snatch_summary categories (present when ?snatch_summary is set)
   leeching?: MamSnatchCategory
   sSat?: MamSnatchCategory
   seedHnr?: MamSnatchCategory
@@ -55,7 +53,6 @@ interface MamJsonLoadResponse {
   reseed?: { name: string; count: number; inactive: number; red: boolean }
   ite?: { name: string; count: number; latest: number }
 
-  // notif (present when ?notif is set)
   notifs?: {
     pms: number
     aboutToDropClient: number
@@ -65,7 +62,6 @@ interface MamJsonLoadResponse {
     topics: number
   }
 
-  // clientStats (present when ?clientStats is set)
   clientStats?: unknown[]
 }
 
@@ -89,8 +85,8 @@ export class MamAdapter implements TrackerAdapter {
       throw new Error(`Unexpected response from ${hostname}: missing username`)
     }
 
-    const uploaded = BigInt(Math.floor(data.uploaded_bytes ?? 0))
-    const downloaded = BigInt(Math.floor(data.downloaded_bytes ?? 0))
+    const uploaded = floatBytesToBigInt(data.uploaded_bytes)
+    const downloaded = floatBytesToBigInt(data.downloaded_bytes)
 
     const seedingCount =
       (data.sSat?.count ?? 0) +
@@ -121,7 +117,7 @@ export class MamAdapter implements TrackerAdapter {
       uploadedBytes: uploaded,
       downloadedBytes: downloaded,
       ratio: typeof data.ratio === "number" ? data.ratio : parseFloat(String(data.ratio)) || 0,
-      bufferBytes: uploaded > downloaded ? uploaded - downloaded : BigInt(0),
+      bufferBytes: computeBufferBytes(uploaded, downloaded),
       seedingCount,
       leechingCount: data.leeching?.count ?? 0,
       seedbonus: data.seedbonus ?? null,

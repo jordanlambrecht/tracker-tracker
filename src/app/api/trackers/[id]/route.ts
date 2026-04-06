@@ -9,17 +9,27 @@ import {
   decodeKey,
   parseJsonBody,
   parseTrackerId,
+  type RouteContext,
   validateHexColor,
   validateHttpUrl,
   validateJoinedAt,
+  validateMaxLength,
 } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { trackers } from "@/lib/db/schema"
+import {
+  AVISTAZ_TOKEN_MAX,
+  LONG_STRING_MAX,
+  TRACKER_NAME_MAX,
+  TRACKER_TAG_MAX,
+  TRACKER_TOKEN_MAX,
+  TRACKER_URL_MAX,
+} from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { getTrackerForClient } from "@/lib/server-data"
 
-export async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
+export async function GET(_request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -32,7 +42,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
   return NextResponse.json(tracker)
 }
 
-export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
+export async function PATCH(request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -45,15 +55,13 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
   const updates: Record<string, unknown> = { updatedAt: new Date() }
 
   if (typeof body.name === "string") {
-    if (body.name.length > 100) {
-      return NextResponse.json({ error: "Name must be 100 characters or fewer" }, { status: 400 })
-    }
+    const nameErr = validateMaxLength(body.name, TRACKER_NAME_MAX, "Name")
+    if (nameErr) return nameErr
     updates.name = body.name.trim()
   }
   if (typeof body.baseUrl === "string") {
-    if (body.baseUrl.length > 500) {
-      return NextResponse.json({ error: "URL must be 500 characters or fewer" }, { status: 400 })
-    }
+    const urlLenErr = validateMaxLength(body.baseUrl, TRACKER_URL_MAX, "URL")
+    if (urlLenErr) return urlLenErr
     const urlErr = validateHttpUrl(body.baseUrl as string)
     if (urlErr) return urlErr
     updates.baseUrl = (body.baseUrl as string).trim()
@@ -66,26 +74,18 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
   }
 
   if (typeof body.qbtTag === "string") {
-    if (body.qbtTag.length > 100) {
-      return NextResponse.json(
-        { error: "qBittorrent tag must be 100 characters or fewer" },
-        { status: 400 }
-      )
-    }
+    const qbtTagErr = validateMaxLength(body.qbtTag, TRACKER_TAG_MAX, "qBittorrent tag")
+    if (qbtTagErr) return qbtTagErr
     updates.qbtTag = body.qbtTag.trim() || null
   }
 
   if (typeof body.mouseholeUrl === "string") {
     const trimmed = body.mouseholeUrl.trim()
     if (trimmed) {
-      try {
-        const parsed = new URL(trimmed)
-        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-          return NextResponse.json({ error: "Mousehole URL must use http or https" }, { status: 400 })
-        }
-      } catch {
-        return NextResponse.json({ error: "Invalid Mousehole URL format" }, { status: 400 })
-      }
+      const mouseholeUrlErr = validateMaxLength(trimmed, LONG_STRING_MAX, "Mousehole URL")
+      if (mouseholeUrlErr) return mouseholeUrlErr
+      const mouseUrlErr = validateHttpUrl(trimmed, "Mousehole URL")
+      if (mouseUrlErr) return mouseUrlErr
     }
     updates.mouseholeUrl = trimmed || null
   }
@@ -126,22 +126,26 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
 
   if (typeof body.apiToken === "string") {
     const trimmedToken = (body.apiToken as string).trim()
-    if (trimmedToken.length > 500) {
-      return NextResponse.json(
-        { error: "API token must be 500 characters or fewer" },
-        { status: 400 }
-      )
-    }
+    const [tracker] = await db
+      .select({ platformType: trackers.platformType })
+      .from(trackers)
+      .where(eq(trackers.id, trackerId))
+      .limit(1)
+    const maxTokenLength =
+      tracker?.platformType === "avistaz" ? AVISTAZ_TOKEN_MAX : TRACKER_TOKEN_MAX
+    const tokenErr = validateMaxLength(trimmedToken, maxTokenLength, "API token")
+    if (tokenErr) return tokenErr
     const key = decodeKey(auth)
     updates.encryptedApiToken = encrypt(trimmedToken, key)
   }
 
   await db.update(trackers).set(updates).where(eq(trackers.id, trackerId))
 
-  return NextResponse.json({ success: true })
+  const updated = await getTrackerForClient(trackerId)
+  return NextResponse.json(updated ?? { success: true })
 }
 
-export async function DELETE(_request: Request, props: { params: Promise<{ id: string }> }) {
+export async function DELETE(_request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 

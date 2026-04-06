@@ -1,15 +1,13 @@
 // src/app/(auth)/DashboardClient.tsx
-//
-// Functions: buildTrackerSeries, DashboardClient
-
 "use client"
 
 import { H1, H2 } from "@typography"
-import { useMemo, useState } from "react"
+import dynamic from "next/dynamic"
+import { useMemo, useState, useTransition } from "react"
+import { DashboardSkeleton } from "@/app/(auth)/DashboardSkeleton"
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import { AlertsBanner } from "@/components/dashboard/AlertsBanner"
 import { AnalyticsSection } from "@/components/dashboard/AnalyticsSection"
-import { DashboardSettingsSheet } from "@/components/dashboard/DashboardSettingsSheet"
 import { DayRangeSidebar } from "@/components/dashboard/DayRangeSidebar"
 import { EcosystemStatsSection } from "@/components/dashboard/EcosystemStatsSection"
 import { FleetDashboard } from "@/components/dashboard/FleetDashboard"
@@ -20,13 +18,22 @@ import { TodayAtAGlanceSkeleton } from "@/components/dashboard/TodayAtAGlanceSke
 import { TrackerLeaderboard } from "@/components/dashboard/TrackerLeaderboard"
 import { TrackerOverviewGrid } from "@/components/dashboard/TrackerOverviewGrid"
 import { useDashboardSettings } from "@/components/dashboard/useDashboardSettings"
-import { Button } from "@/components/ui/Button"
-import { GearIcon } from "@/components/ui/Icons"
-import { TabBar } from "@/components/ui/TabBar"
+import { Button, Divider, GearIcon, TabBar } from "@/components/ui"
 import { useDashboardData } from "@/hooks/useDashboardData"
 import { computeAggregateStats } from "@/lib/dashboard"
 import type { Snapshot, TrackerSummary } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
+
+const DashboardSettingsSheet = dynamic(
+  () =>
+    import("@/components/dashboard/DashboardSettingsSheet").then((m) => m.DashboardSettingsSheet),
+  { ssr: false }
+)
+
+const DASHBOARD_TABS = [
+  { key: "tracker-stats" as const, label: "Tracker Stats" },
+  { key: "torrent-fleet" as const, label: "Torrent Fleet" },
+]
 
 function buildTrackerSeries(
   trackers: TrackerSummary[],
@@ -41,15 +48,21 @@ function buildTrackerSeries(
 
 interface DashboardClientProps {
   initialTrackers: TrackerSummary[]
+  snapshotRetentionDays: number | null
 }
 
-export function DashboardClient({ initialTrackers }: DashboardClientProps) {
-  const data = useDashboardData({ initialTrackers })
+export function DashboardClient({ initialTrackers, snapshotRetentionDays }: DashboardClientProps) {
+  const data = useDashboardData({ initialTrackers, snapshotRetentionDays })
   const dashSettings = useDashboardSettings()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // Two-state tab pattern: dashboardTab updates immediately (drives TabBar pill animation),
+  // deferredTab updates via startTransition (drives content switch + query gating).
+  // This prevents the 350ms React reconciliation from blocking the pill's CSS transition.
   const [dashboardTab, setDashboardTab] = useState<"tracker-stats" | "torrent-fleet">(
     "tracker-stats"
   )
+  const [deferredTab, setDeferredTab] = useState<"tracker-stats" | "torrent-fleet">("tracker-stats")
+  const [, startTransition] = useTransition()
 
   const aggregateStats = useMemo(() => computeAggregateStats(data.trackers), [data.trackers])
   const trackerSeries = useMemo(
@@ -58,18 +71,12 @@ export function DashboardClient({ initialTrackers }: DashboardClientProps) {
   )
 
   if (data.loading) {
-    return (
-      <div className="flex h-full min-h-[calc(100vh-6rem)] items-center justify-center">
-        <p className="text-secondary text-sm font-mono animate-loading-breathe">
-          Loading dashboard...
-        </p>
-      </div>
-    )
+    return <DashboardSkeleton />
   }
 
   if (data.trackers.length === 0) {
     return (
-      <div className="flex h-full min-h-[calc(100vh-6rem)] items-center justify-center">
+      <div className="full-page-loader">
         <p className="text-secondary text-sm font-mono">No trackers added yet</p>
       </div>
     )
@@ -138,41 +145,31 @@ export function DashboardClient({ initialTrackers }: DashboardClientProps) {
       </div>
 
       {/* Divider */}
-      <div
-        className="h-px"
-        style={{
-          background: `linear-gradient(90deg, transparent, ${CHART_THEME.borderEmphasis}, transparent)`,
-        }}
-      />
+      <Divider />
 
       {/* Aggregate Stats */}
       <EcosystemStatsSection trackers={data.trackers} aggregateStats={aggregateStats} />
 
       {/* Divider */}
-      <div
-        className="h-px"
-        style={{
-          background: `linear-gradient(90deg, transparent, ${CHART_THEME.borderEmphasis}, transparent)`,
-        }}
-      />
+      <Divider />
 
       {/* Tab Switcher */}
       <TabBar
-        tabs={[
-          { key: "tracker-stats" as const, label: "Tracker Stats" },
-          { key: "torrent-fleet" as const, label: "Torrent Fleet" },
-        ]}
+        tabs={DASHBOARD_TABS}
         activeTab={dashboardTab}
-        onChange={setDashboardTab}
+        onChange={(tab) => {
+          setDashboardTab(tab)
+          startTransition(() => setDeferredTab(tab))
+        }}
       />
 
       {/*  Analytics / Fleet  */}
       <div className="flex flex-col md:flex-row gap-4 md:gap-8">
         <div className="flex-1 min-w-0">
-          <div className={dashboardTab !== "torrent-fleet" ? "hidden" : undefined}>
-            <FleetDashboard dayRange={data.dayRange} trackers={data.trackers} />
+          <div className={deferredTab !== "torrent-fleet" ? "hidden" : undefined}>
+            <FleetDashboard dayRange={data.dayRange} isActive={deferredTab === "torrent-fleet"} />
           </div>
-          <div className={dashboardTab !== "tracker-stats" ? "hidden" : undefined}>
+          <div className={deferredTab !== "tracker-stats" ? "hidden" : undefined}>
             <AnalyticsSection trackerSeries={trackerSeries} trackers={data.trackers} />
           </div>
         </div>

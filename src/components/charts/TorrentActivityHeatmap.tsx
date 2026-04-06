@@ -1,44 +1,37 @@
 // src/components/charts/TorrentActivityHeatmap.tsx
-//
-// Functions: TorrentActivityHeatmap
-
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
+import { formatCount } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { DAY_LABELS, HOUR_LABELS } from "./lib/chart-helpers"
 import { buildActivityMatrix } from "./lib/chart-transforms"
 import { CHART_THEME, chartAxisLabel, chartTooltip, escHtml } from "./lib/theme"
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
-interface TorrentActivityHeatmapProps {
-  torrents: { addedOn: number }[]
+// Pre-aggregated props (fleet dashboard path)
+interface PreAggregatedProps {
+  grid: { data: [number, number, number][]; maxCount: number }
   accentColor?: string
   height?: number
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
+// Raw torrents props (per-tracker page path)
+interface RawTorrentsProps {
+  torrents: { addedAt: number }[]
+  accentColor?: string
+  height?: number
+}
 
-function TorrentActivityHeatmap({
-  torrents,
-  accentColor = CHART_THEME.accent,
-  height = 240,
-}: TorrentActivityHeatmapProps) {
-  const validTimestamps = torrents.map((t) => t.addedOn).filter((ts) => ts > 0)
-  const { data, maxCount } = buildActivityMatrix(validTimestamps)
+type TorrentActivityHeatmapProps = PreAggregatedProps | RawTorrentsProps
 
-  if (maxCount === 0) {
-    return <ChartEmptyState height={height} message="No activity data" />
-  }
-
-  const option: EChartsOption = {
+function buildHeatmapOption(
+  data: [number, number, number][],
+  maxCount: number,
+  accentColor: string
+): EChartsOption {
+  return {
     backgroundColor: "transparent",
     tooltip: chartTooltip("item", {
       borderColor: accentColor,
@@ -49,7 +42,7 @@ function TorrentActivityHeatmap({
         const hourLabel = HOUR_LABELS[hour] ?? ""
         return (
           `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(dayLabel)} at ${escHtml(hourLabel)}</span><br/>` +
-          `<span style="color:${CHART_THEME.textSecondary};">${count.toLocaleString()} torrent${count !== 1 ? "s" : ""} added</span>`
+          `<span style="color:${CHART_THEME.textSecondary};">${formatCount(count)} torrent${count !== 1 ? "s" : ""} added</span>`
         )
       },
     }),
@@ -105,8 +98,41 @@ function TorrentActivityHeatmap({
       },
     ],
   }
+}
 
-  return <ChartECharts option={option} style={{ height, width: "100%" }} />
+function TorrentActivityHeatmap(props: TorrentActivityHeatmapProps) {
+  const { accentColor = CHART_THEME.accent, height = 240 } = props
+
+  if ("grid" in props) {
+    // Fleet path: pre-aggregated grid
+    if (!props.grid) return <ChartEmptyState height={height} message="No activity data" />
+    const { grid } = props
+    if (grid.maxCount === 0) {
+      return <ChartEmptyState height={height} message="No activity data" />
+    }
+    return (
+      <ChartECharts
+        option={buildHeatmapOption(grid.data, grid.maxCount, accentColor)}
+        style={{ height, width: "100%" }}
+      />
+    )
+  }
+
+  // Per-tracker path: raw torrents
+  const { torrents } = props
+  const validTimestamps = torrents.map((t) => t.addedAt).filter((ts) => ts > 0)
+  const { data, maxCount } = buildActivityMatrix(validTimestamps)
+
+  if (maxCount === 0) {
+    return <ChartEmptyState height={height} message="No activity data" />
+  }
+
+  return (
+    <ChartECharts
+      option={buildHeatmapOption(data, maxCount, accentColor)}
+      style={{ height, width: "100%" }}
+    />
+  )
 }
 
 export type { TorrentActivityHeatmapProps }

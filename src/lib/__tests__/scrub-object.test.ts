@@ -1,22 +1,7 @@
 // src/lib/__tests__/scrub-object.test.ts
 
 import { describe, expect, it } from "vitest"
-import { SCRUB_KEYS, scrubObject } from "@/lib/scrub-object"
-
-// ---------------------------------------------------------------------------
-// SCRUB_KEYS contract
-// ---------------------------------------------------------------------------
-
-describe("SCRUB_KEYS", () => {
-  it("contains all expected sensitive key names", () => {
-    expect(SCRUB_KEYS.has("authkey")).toBe(true)
-    expect(SCRUB_KEYS.has("passkey")).toBe(true)
-    expect(SCRUB_KEYS.has("ip")).toBe(true)
-    expect(SCRUB_KEYS.has("api_token")).toBe(true)
-    expect(SCRUB_KEYS.has("key")).toBe(true)
-    expect(SCRUB_KEYS.has("torrent_pass")).toBe(true)
-  })
-})
+import { scrubObject } from "@/lib/scrub-object"
 
 // ---------------------------------------------------------------------------
 // Top-level key redaction

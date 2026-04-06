@@ -10,7 +10,7 @@ function useClickOutside(ref: RefObject<HTMLElement | null>, handler: () => void
   useEffect(() => {
     if (!enabled) return
     function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      if (ref.current && e.target instanceof Node && !ref.current.contains(e.target)) {
         handlerRef.current()
       }
     }

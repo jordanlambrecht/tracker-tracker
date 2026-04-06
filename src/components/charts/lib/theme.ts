@@ -18,16 +18,17 @@
 //   chartAxisLabel      - standard axis label styling
 //   chartDataZoom       - standard slider dataZoom configuration
 
-import { hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
 
 export const CHART_THEME = {
   // ── Surfaces ──
   surface: "#282a36", // --color-base
   elevated: "#2e3042", // --color-elevated
+  surfaceElevated: "#343648", // --color-overlay — raised handle surfaces
   overlay: "#343648", // --color-overlay
   controlBg: "#1e2029", // --color-control-bg
   tooltipBg: "#2e3042", // same as elevated
-  surfaceSemi: "rgba(40, 42, 54, 0.6)", // semi-transparent base for slider backgrounds
+  surfaceSemi: hexToRgba("#282a36", 0.6), // semi-transparent base for slider backgrounds
 
   // ── Text ──
   textPrimary: "#e2e8f0", // --color-primary
@@ -36,10 +37,10 @@ export const CHART_THEME = {
   fontMono: "var(--font-mono), monospace",
 
   // ── Borders ──
-  tooltipBorder: "rgba(148, 163, 184, 0.2)",
-  gridLine: "rgba(148, 163, 184, 0.08)", // --color-border
-  borderEmphasis: "rgba(148, 163, 184, 0.15)", // --color-border-emphasis
-  borderMid: "rgba(148, 163, 184, 0.3)", // axis pointers, label lines
+  tooltipBorder: hexToRgba("#94a3b8", 0.2),
+  gridLine: hexToRgba("#94a3b8", 0.08), // --color-border
+  borderEmphasis: hexToRgba("#94a3b8", 0.15), // --color-border-emphasis
+  borderMid: hexToRgba("#94a3b8", 0.3), // axis pointers, label lines
 
   // ── Layer 1: Raw colors ──
   cyan: "#00d4ff",
@@ -62,18 +63,25 @@ export const CHART_THEME = {
   positive: "#22c55e",
   negative: "#ef4444",
   neutral: "#94a3b8",
-  chartFallback: "#6b7280", // gray-500, replaces "#888" in multi-series charts
+  chartFallback: "#6b7280",
 
   // Ordinal scale for ratio/seed-time distribution buckets
   scale: ["#ef4444", "#f59e0b", "#10b981", "#00d4ff", "#8b5cf6", "#06b6d4"] as const,
 
   // ── Glow variants (for areaStyle fills, shadows) ──
-  accentDim: "rgba(0, 212, 255, 0.15)",
-  accentGlow: "rgba(0, 212, 255, 0.3)",
-  accentGlow40: "rgba(0, 212, 255, 0.4)",
-  accentGlow60: "rgba(0, 212, 255, 0.6)",
-  warnDim: "rgba(245, 158, 11, 0.15)",
-  warnGlow: "rgba(245, 158, 11, 0.3)",
+  accentDim: hexToRgba("#00d4ff", 0.15),
+  accentGlow: hexToRgba("#00d4ff", 0.3),
+  accentGlow40: hexToRgba("#00d4ff", 0.4),
+  accentGlow60: hexToRgba("#00d4ff", 0.6),
+  warnDim: hexToRgba("#f59e0b", 0.15),
+  warnGlow: hexToRgba("#f59e0b", 0.3),
+
+  // ── Font sizes (raw numbers — ECharts cannot read CSS vars) ──
+  // Keep in sync with @theme inline tokens in globals.css.
+  fontSizeMicro: 9, // text-4xs — unit suffixes in chart tooltips
+  fontSizeCompact: 10, // text-3xs — axis labels, legend items
+  fontSizeDense: 10, // text-2xs — same as compact today; bump to 11 if needed
+  fontSizeSmall: 12, // text-xs  — tooltip body, larger labels
 } as const
 
 /** Escape HTML entities in untrusted strings before injecting into ECharts tooltip HTML */
@@ -115,7 +123,7 @@ export function formatChartTimestamp(ts: number): string {
 
 /** Timestamp header div for tooltip content */
 export function chartTooltipHeader(label: string): string {
-  return `<div style="font-family:var(--font-mono),monospace;font-size:11px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${escHtml(label)}</div>`
+  return `<div style="font-family:var(--font-mono),monospace;font-size:${CHART_THEME.fontSizeDense}px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${escHtml(label)}</div>`
 }
 
 /** Standard legend configuration — plain wrapping, toggle handled by ChartECharts wrapper */
@@ -132,7 +140,7 @@ export function chartLegend(overrides?: Record<string, unknown>): Record<string,
     textStyle: {
       color: CHART_THEME.textTertiary,
       fontFamily: CHART_THEME.fontMono,
-      fontSize: 11,
+      fontSize: CHART_THEME.fontSizeDense,
     },
     ...overrides,
   }
@@ -189,7 +197,7 @@ export function chartTooltip(
     textStyle: {
       color: CHART_THEME.textPrimary,
       fontFamily: CHART_THEME.fontMono,
-      fontSize: 12,
+      fontSize: CHART_THEME.fontSizeSmall,
     },
     ...(trigger === "axis"
       ? {
@@ -216,7 +224,7 @@ export function chartGrid(overrides?: {
   return {
     left: 56,
     right: 24,
-    top: 78,
+    top: 16,
     bottom: 40,
     containLabel: false,
     ...overrides,
@@ -230,7 +238,7 @@ export function chartAxisLabel(overrides?: Record<string, unknown>): Record<stri
   return {
     color: CHART_THEME.textTertiary,
     fontFamily: CHART_THEME.fontMono,
-    fontSize: 10,
+    fontSize: CHART_THEME.fontSizeCompact,
     ...overrides,
   }
 }
@@ -244,18 +252,43 @@ export function chartDataZoom(accentColor: string): Record<string, unknown>[] {
     {
       type: "slider",
       borderColor: CHART_THEME.gridLine,
-      backgroundColor: CHART_THEME.surface,
-      fillerColor: hexToRgba(accentColor, 0.094),
-      handleStyle: { color: accentColor, borderColor: accentColor },
-      moveHandleStyle: { color: accentColor },
+      borderRadius: 8,
+      backgroundColor: hexToRgba("#1e2029", 0.8), // control-bg, recessed track
+      fillerColor: hexToRgba(accentColor, 0.08),
+      handleStyle: {
+        color: CHART_THEME.surfaceElevated,
+        borderColor: hexToRgba(accentColor, 0.4),
+        borderWidth: 1,
+        borderRadius: 4,
+        shadowBlur: 4,
+        shadowColor: hexToRgba("#000", 0.3),
+      },
+      moveHandleStyle: {
+        color: hexToRgba(accentColor, 0.3),
+      },
+      emphasis: {
+        handleStyle: {
+          color: CHART_THEME.surfaceElevated,
+          borderColor: accentColor,
+          shadowBlur: 8,
+          shadowColor: hexToRgba(accentColor, 0.3),
+        },
+        moveHandleStyle: {
+          color: hexToRgba(accentColor, 0.5),
+        },
+      },
       selectedDataBackground: {
-        lineStyle: { color: accentColor },
-        areaStyle: { color: hexToRgba(accentColor, 0.188) },
+        lineStyle: { color: hexToRgba(accentColor, 0.6) },
+        areaStyle: { color: hexToRgba(accentColor, 0.12) },
+      },
+      dataBackground: {
+        lineStyle: { color: CHART_THEME.gridLine },
+        areaStyle: { color: hexToRgba("#94a3b8", 0.04) },
       },
       textStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       height: 24,
       bottom: 8,

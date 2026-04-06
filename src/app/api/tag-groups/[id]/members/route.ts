@@ -4,12 +4,19 @@
 
 import { and, asc, eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, parseJsonBody, parseRouteId, validateHexColor } from "@/lib/api-helpers"
+import {
+  authenticate,
+  parseJsonBody,
+  parseRouteId,
+  type RouteContext,
+  validateHexColor,
+} from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { tagGroupMembers, tagGroups } from "@/lib/db/schema"
+import { SHORT_NAME_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 
-export async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
+export async function GET(_request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -35,7 +42,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
   return NextResponse.json(members)
 }
 
-export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -60,11 +67,11 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     return NextResponse.json({ error: "label is required" }, { status: 400 })
   }
 
-  if (tag.length > 100) {
+  if (tag.length > SHORT_NAME_MAX) {
     return NextResponse.json({ error: "Tag must be 100 characters or fewer" }, { status: 400 })
   }
 
-  if (label.length > 100) {
+  if (label.length > SHORT_NAME_MAX) {
     return NextResponse.json({ error: "Label must be 100 characters or fewer" }, { status: 400 })
   }
 

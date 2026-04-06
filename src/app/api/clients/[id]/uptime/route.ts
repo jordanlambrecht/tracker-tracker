@@ -1,14 +1,12 @@
 // src/app/api/clients/[id]/uptime/route.ts
-//
-// Functions: GET
 
 import { and, eq, gte } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, parseRouteId } from "@/lib/api-helpers"
+import { authenticate, parseRouteId, type RouteContext } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { clientUptimeBuckets, downloadClients } from "@/lib/db/schema"
 
-export async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
+export async function GET(_request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -44,5 +42,9 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
   const total = totalOk + totalFail
   const uptimePercent = total > 0 ? Math.round((totalOk / total) * 1000) / 10 : null
 
-  return NextResponse.json({ buckets, uptimePercent })
+  const serializedBuckets = buckets.map((b) => ({
+    ...b,
+    bucketTs: b.bucketTs.toISOString(),
+  }))
+  return NextResponse.json({ buckets: serializedBuckets, uptimePercent })
 }

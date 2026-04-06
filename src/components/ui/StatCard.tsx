@@ -8,8 +8,9 @@
 import clsx from "clsx"
 import type { HTMLAttributes, ReactNode } from "react"
 import { CHART_THEME } from "@/components/charts/lib/theme"
+import { InfoTip } from "@/components/ui/InfoTip"
 import { Tooltip } from "@/components/ui/Tooltip"
-import { hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
 
 // ---------------------------------------------------------------------------
 //  types
@@ -105,7 +106,7 @@ function Shell({
       )}
       style={{
         filter: glowColor
-          ? `drop-shadow(0 -2px 12px ${hexToRgba(glowColor, alertColor ? 0.25 : 0.1)})`
+          ? `drop-shadow(0 0 14px ${hexToRgba(glowColor, alertColor ? 0.18 : 0.09)})`
           : undefined,
         outline: alertColor ? `1px solid ${hexToRgba(alertColor, 0.25)}` : undefined,
         outlineOffset: "-1px",
@@ -140,26 +141,22 @@ function Header({
 
   return (
     <div className="flex items-center justify-between">
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-2">
         <p className="text-xs font-sans font-medium text-tertiary uppercase tracking-wider">
           {label}
         </p>
         {tooltip && (
-          <Tooltip content={<span className="w-52 block">{tooltip}</span>}>
-            <button
-              type="button"
-              className="cursor-help text-[9px] font-bold text-muted opacity-50 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current hover:opacity-80 focus:opacity-80 transition-opacity outline-none"
-              aria-label={`Info: ${label}`}
-            >
-              ?
-            </button>
-          </Tooltip>
+          <InfoTip
+            icon="question"
+            size="sm"
+            content={<span className="w-52 block">{tooltip}</span>}
+          />
         )}
         {alertReason && alertColor && (
           <Tooltip content={<span className="w-52 block">{alertReason}</span>}>
             <button
               type="button"
-              className="cursor-help text-[9px] font-bold inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current hover:opacity-80 transition-opacity outline-none"
+              className="help-icon hover:opacity-80 transition-opacity outline-none"
               style={{ color: alertColor }}
               aria-label={`Alert: ${alertReason}`}
             >
@@ -383,12 +380,10 @@ function RingContent({
           <span className="font-mono text-lg font-bold leading-none" style={{ color }}>
             {valueText}
           </span>
-          {!isOverdue && (
-            <span className="font-mono text-[10px] text-muted mt-0.5">{unitText}</span>
-          )}
+          {!isOverdue && <span className="timestamp mt-0.5">{unitText}</span>}
         </div>
       </div>
-      <p className="font-mono text-[10px] text-muted text-center">
+      <p className="timestamp text-center">
         {isOverdue
           ? `${overdueDays} ${overdueDays === 1 ? "day" : "days"} overdue`
           : `by ${deadlineDateStr}`}

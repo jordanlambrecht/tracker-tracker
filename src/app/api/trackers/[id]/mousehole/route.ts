@@ -4,22 +4,21 @@
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, parseTrackerId } from "@/lib/api-helpers"
+import { authenticate, parseTrackerId, type RouteContext } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { trackers } from "@/lib/db/schema"
+import { MOUSEHOLE_BODY_MAX_BYTES } from "@/lib/limits"
 import { log } from "@/lib/logger"
 
 const GET_TIMEOUT_MS = 10_000
 const POST_TIMEOUT_MS = 15_000
-
-type RouteContext = { params: Promise<{ id: string }> }
 
 // ---------------------------------------------------------------------------
 // Shared guards
 // ---------------------------------------------------------------------------
 
 async function resolveMouseholeBase(
-  params: Promise<{ id: string }>
+  params: RouteContext["params"]
 ): Promise<NextResponse | { mouseholeBase: string }> {
   const trackerId = await parseTrackerId(params)
   if (trackerId instanceof NextResponse) return trackerId
@@ -134,9 +133,8 @@ export async function POST(request: Request, { params }: RouteContext) {
 
   const { mouseholeBase } = resolved
 
-  const MAX_BODY_SIZE = 256
   const contentLength = Number(request.headers.get("content-length") ?? 0)
-  if (contentLength > MAX_BODY_SIZE) {
+  if (contentLength > MOUSEHOLE_BODY_MAX_BYTES) {
     return NextResponse.json({ error: "Request body too large" }, { status: 413 })
   }
 

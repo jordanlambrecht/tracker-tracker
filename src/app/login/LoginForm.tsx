@@ -108,10 +108,11 @@ export function LoginForm({ hasUsername }: { hasUsername: boolean }) {
             alt="Tracker Tracker"
             width={160}
             height={40}
-            className="h-10 w-auto mx-auto"
+            className="mx-auto"
+            style={{ height: 40, width: "auto" }}
             priority
           />
-          <p className="mt-2 text-sm text-secondary">
+          <p className="mt-6 text-sm text-secondary">
             {step === "password"
               ? "Enter your credentials to unlock."
               : "Enter the code from your authenticator app."}
@@ -152,9 +153,8 @@ export function LoginForm({ hasUsername }: { hasUsername: boolean }) {
                 size="md"
                 className="w-full mt-1"
                 disabled={isSubmitting}
-              >
-                {isSubmitting ? "Unlocking…" : "Unlock"}
-              </Button>
+                text={isSubmitting ? "Unlocking…" : "Unlock"}
+              />
             </form>
           )}
 
@@ -198,28 +198,25 @@ export function LoginForm({ hasUsername }: { hasUsername: boolean }) {
                 size="md"
                 className="w-full"
                 disabled={isSubmitting}
-              >
-                {isSubmitting ? "Verifying…" : "Verify"}
-              </Button>
+                text={isSubmitting ? "Verifying…" : "Verify"}
+              />
 
               <div className="flex items-center justify-between">
-                <button
-                  type="button"
+                <Button
+                  variant="minimal"
+                  size="sm"
+                  text="Back to password"
                   onClick={handleBackToPassword}
-                  className="text-xs font-sans text-tertiary hover:text-secondary transition-colors cursor-pointer"
-                >
-                  Back to password
-                </button>
-                <button
-                  type="button"
+                />
+                <Button
+                  variant="minimal"
+                  size="sm"
                   onClick={() => {
                     setShowBackupInput(!showBackupInput)
                     setError(null)
                   }}
-                  className="text-xs font-sans text-tertiary hover:text-secondary transition-colors cursor-pointer"
-                >
-                  {showBackupInput ? "Use authenticator" : "Use backup code"}
-                </button>
+                  text={showBackupInput ? "Use authenticator" : "Use backup code"}
+                />
               </div>
             </form>
           )}

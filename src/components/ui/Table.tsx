@@ -1,8 +1,7 @@
 // src/components/ui/Table.tsx
-//
-// Functions: Table
-
 "use client"
+
+// TODO: Add support for CVA
 
 import { useAutoAnimate } from "@formkit/auto-animate/react"
 import clsx from "clsx"
@@ -29,6 +28,7 @@ interface TableProps<T> {
   keyExtractor: (item: T) => string | number
   emptyMessage?: string
   surface?: TableSurface
+  trackerColor?: string
   className?: string
   onRowClick?: (item: T) => void
   rowStyle?: (item: T) => CSSProperties | undefined
@@ -58,6 +58,7 @@ function Table<T>({
   keyExtractor,
   emptyMessage = "No data",
   surface = "inset",
+  trackerColor,
   className,
   onRowClick,
   rowStyle,
@@ -108,8 +109,9 @@ function Table<T>({
   return (
     <Card
       elevation="raised"
+      trackerColor={trackerColor}
       className={clsx(
-        "!p-0 overflow-hidden",
+        "p-0! overflow-hidden",
         sortedData.length === 0 && "flex flex-col",
         className
       )}

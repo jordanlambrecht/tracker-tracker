@@ -55,7 +55,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
       {isMobile && (
         <div
           className={clsx(
-            "fixed inset-0 z-30 bg-black/50 transition-opacity duration-300 ease-in-out",
+            "fixed inset-0 z-20 bg-black/50 transition-opacity duration-300 ease-in-out",
             effectiveCollapsed ? "opacity-0 pointer-events-none" : "opacity-100"
           )}
           onClick={toggle}
@@ -71,7 +71,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
           <button
             type="button"
             onClick={toggle}
-            className="fixed top-4 left-4 z-50 p-2 bg-base text-secondary hover:text-primary transition-colors duration-150 cursor-pointer nm-raised-sm rounded-nm-sm"
+            className="fixed top-4 left-4 z-40 p-2 bg-base text-secondary hover:text-primary transition-colors duration-150 cursor-pointer nm-raised-sm rounded-nm-sm"
             aria-label="Open sidebar"
           >
             <HamburgerIcon width="20" height="20" />
@@ -93,6 +93,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
               height={73}
               className="select-none pointer-events-none"
               draggable={false}
+              priority
             />
           </footer>
         </div>

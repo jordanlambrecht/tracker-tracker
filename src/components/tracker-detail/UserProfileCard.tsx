@@ -1,6 +1,4 @@
 // src/components/tracker-detail/UserProfileCard.tsx
-//
-// Functions: UserProfileCard
 
 import { RankTooltip } from "@/components/tracker-detail/RankTooltip"
 import { TrackerAvatar } from "@/components/tracker-detail/TrackerAvatar"
@@ -8,7 +6,8 @@ import { Badge } from "@/components/ui/Badge"
 import { UserIcon } from "@/components/ui/Icons"
 import { RedactedText } from "@/components/ui/RedactedText"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
-import { formatAccountAge, formatJoinedDate, hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
+import { formatAccountAge, formatJoinedDate } from "@/lib/formatters"
 import { isRedacted } from "@/lib/privacy"
 import type { TrackerLatestStats, TrackerSummary } from "@/types/api"
 

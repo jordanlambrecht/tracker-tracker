@@ -1,19 +1,17 @@
 // src/components/charts/ParallelTorrentsChart.tsx
-//
-// Functions: buildParallelOption, ParallelTorrentsChart
-
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { hexToRgba } from "@/lib/formatters"
-import type { TorrentInfo } from "@/lib/torrent-utils"
+import { hexToRgba } from "@/lib/color-utils"
+import type { TorrentRaw } from "@/lib/fleet"
+import { formatCount } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { fmtNum } from "./lib/chart-helpers"
 import { CHART_THEME, chartAxisLabel, chartTooltip, chartTooltipRow } from "./lib/theme"
 
 interface ParallelTorrentsChartProps {
-  torrents: TorrentInfo[]
+  torrents: TorrentRaw[]
   trackerColor: string
   height?: number
 }
@@ -33,15 +31,15 @@ const DIM_AVAILABILITY = 5
 // Option builder
 // ---------------------------------------------------------------------------
 
-function buildParallelOption(torrents: TorrentInfo[], trackerColor: string): EChartsOption {
+function buildParallelOption(torrents: TorrentRaw[], trackerColor: string): EChartsOption {
   const nowSec = Date.now() / 1000
 
   // Pre-compute derived values
   const rows = torrents.map((t) => {
     const sizeGiB = t.size / 1024 ** 3
     const seedDays = t.seedingTime / 86400
-    const ageDays = (nowSec - t.addedOn) / 86400
-    return [sizeGiB, t.ratio, seedDays, t.numSeeds, ageDays, Math.max(0, t.availability ?? 0)]
+    const ageDays = (nowSec - t.addedAt) / 86400
+    return [sizeGiB, t.ratio, seedDays, t.seedCount, ageDays, Math.max(0, t.availability ?? 0)]
   })
 
   // Compute per-dimension min/max from data for reasonable axis ranges
@@ -57,7 +55,7 @@ function buildParallelOption(torrents: TorrentInfo[], trackerColor: string): ECh
     }
   }
 
-  // Floor mins to 0 for non-negative dimensions; ensure non-zero range
+  // Floor mins to 0 for non-negative dimensions and ensures non-zero range
   const safeMins = mins.map((m) => Math.max(0, Number.isFinite(m) ? m : 0))
   const safeMaxs = maxs.map((m, i) => {
     const base = Number.isFinite(m) ? m : 1
@@ -100,7 +98,7 @@ function buildParallelOption(torrents: TorrentInfo[], trackerColor: string): ECh
       min: safeMins[DIM_SEEDS],
       max: safeMaxs[DIM_SEEDS],
       axisLabel: {
-        formatter: (v: number) => Math.round(v).toLocaleString(),
+        formatter: (v: number) => formatCount(Math.round(v)),
       },
     },
     {
@@ -129,7 +127,7 @@ function buildParallelOption(torrents: TorrentInfo[], trackerColor: string): ECh
     nameTextStyle: {
       color: CHART_THEME.textSecondary,
       fontFamily: CHART_THEME.fontMono,
-      fontSize: 11,
+      fontSize: CHART_THEME.fontSizeDense,
       fontWeight: 500,
     },
     axisLabel: chartAxisLabel(axis.axisLabel),
@@ -156,6 +154,7 @@ function buildParallelOption(torrents: TorrentInfo[], trackerColor: string): ECh
   const lineEmphasisColor = hexToRgba(trackerColor, 0.75)
 
   return {
+    animation: false,
     backgroundColor: "transparent",
     tooltip: chartTooltip("item", {
       borderColor: trackerColor,
@@ -164,11 +163,11 @@ function buildParallelOption(torrents: TorrentInfo[], trackerColor: string): ECh
         const d = p.data
         if (!d) return ""
         return [
-          `<span style="color:${CHART_THEME.textTertiary};font-size:11px;font-family:${CHART_THEME.fontMono};">Torrent</span>`,
+          `<span style="color:${CHART_THEME.textTertiary};font-size:${CHART_THEME.fontSizeDense}px;font-family:${CHART_THEME.fontMono};">Torrent</span>`,
           chartTooltipRow(trackerColor, "Size", `${fmtNum(d[DIM_SIZE], 2)} GiB`),
           chartTooltipRow(trackerColor, "Ratio", fmtNum(d[DIM_RATIO], 2)),
           chartTooltipRow(trackerColor, "Seed Time", `${fmtNum(d[DIM_SEED_TIME], 1)} days`),
-          chartTooltipRow(trackerColor, "Seeds", Math.round(d[DIM_SEEDS]).toLocaleString()),
+          chartTooltipRow(trackerColor, "Seeds", formatCount(Math.round(d[DIM_SEEDS]))),
           chartTooltipRow(trackerColor, "Age", `${fmtNum(d[DIM_AGE], 0)} days`),
           chartTooltipRow(trackerColor, "Availability", fmtNum(d[DIM_AVAILABILITY], 2)),
         ].join("<br/>")
@@ -189,6 +188,7 @@ function buildParallelOption(torrents: TorrentInfo[], trackerColor: string): ECh
       {
         type: "parallel",
         smooth: true,
+        progressive: 500,
         lineStyle: {
           color: lineColor,
           width: 1,
@@ -218,7 +218,7 @@ function ParallelTorrentsChart({
   trackerColor,
   height = 420,
 }: ParallelTorrentsChartProps) {
-  const filtered = torrents.filter((t) => t.addedOn !== 0 && t.size !== 0)
+  const filtered = torrents.filter((t) => t.addedAt !== 0 && t.size !== 0)
 
   if (filtered.length === 0) {
     return <ChartEmptyState height={height} message="No torrent data available for parallel view" />

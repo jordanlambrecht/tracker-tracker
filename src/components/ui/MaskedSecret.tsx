@@ -14,9 +14,7 @@ function MaskedSecret({ onChangeClick, label = "Change" }: MaskedSecretProps) {
       <span className="text-sm font-mono text-tertiary nm-inset bg-control-bg px-4 py-3 flex-1 rounded-nm-md">
         ••••••••••••••••
       </span>
-      <Button type="button" variant="ghost" size="sm" onClick={onChangeClick}>
-        {label}
-      </Button>
+      <Button variant="ghost" size="sm" onClick={onChangeClick} text={label} />
     </div>
   )
 }

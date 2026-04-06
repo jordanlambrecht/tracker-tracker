@@ -4,14 +4,22 @@
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseJsonBody, parseRouteId } from "@/lib/api-helpers"
+import {
+  authenticate,
+  decodeKey,
+  parseJsonBody,
+  parseRouteId,
+  type RouteContext,
+  validateMaxLength,
+} from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { notificationTargets } from "@/lib/db/schema"
+import { SHORT_NAME_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { validateNotificationConfig } from "@/lib/notifications/validate"
 
-export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(req: Request, { params }: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -45,9 +53,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (typeof fields.name !== "string" || !fields.name.trim()) {
       return NextResponse.json({ error: "name must be a non-empty string" }, { status: 400 })
     }
-    if (fields.name.length > 100) {
-      return NextResponse.json({ error: "name must be ≤100 characters" }, { status: 400 })
-    }
+    const nameErr = validateMaxLength(fields.name, SHORT_NAME_MAX, "name")
+    if (nameErr) return nameErr
     updates.name = fields.name.trim()
   }
 
@@ -195,7 +202,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   return NextResponse.json({ success: true })
 }
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_req: Request, { params }: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 

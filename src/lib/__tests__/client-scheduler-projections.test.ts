@@ -22,7 +22,7 @@ vi.mock("node-cron", () => ({
   },
 }))
 
-vi.mock("@/lib/qbt", () => ({
+vi.mock("@/lib/download-clients", () => ({
   aggregateByTag: vi.fn(),
   clearAllSessions: vi.fn(),
   clearSpeedCache: vi.fn(),
@@ -30,6 +30,7 @@ vi.mock("@/lib/qbt", () => ({
   getTransferInfo: vi.fn(),
   parseCrossSeedTags: vi.fn(() => []),
   pushSpeedSnapshot: vi.fn(),
+  slimTorrentForCache: vi.fn((t: unknown) => t),
   stripSensitiveTorrentFields: vi.fn((t: unknown) => t),
   withSessionRetry: vi.fn(),
 }))
@@ -40,7 +41,7 @@ vi.mock("@/lib/uptime", () => ({
   recordHeartbeat: vi.fn(),
 }))
 
-import { DEEP_POLL_COLUMNS, HEARTBEAT_COLUMNS } from "@/lib/client-scheduler"
+import { DEEP_POLL_COLUMNS, HEARTBEAT_COLUMNS } from "@/lib/download-client-scheduler"
 
 type HeartbeatRequiredFields = {
   id: number

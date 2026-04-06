@@ -91,3 +91,6 @@ export const DOCS = {
     description: "Error messages and what they mean",
   },
 } as const satisfies Record<string, DocsEntry>
+
+// ─── Defaults ─────────────────────────────────────────────────────────────────
+export const DEFAULT_TRACKER_COLOR = "#00d4ff"

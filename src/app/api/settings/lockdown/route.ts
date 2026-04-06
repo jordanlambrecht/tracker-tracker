@@ -12,6 +12,7 @@ import { clearSession, verifyPassword } from "@/lib/auth"
 import { generateSalt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
+import { PASSWORD_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { stopScheduler } from "@/lib/scheduler"
 import { clearSchedulerKey } from "@/lib/scheduler-key-store"
@@ -24,7 +25,7 @@ export async function POST(request: Request) {
   if (body instanceof NextResponse) return body
 
   const { password } = body as { password?: string }
-  if (!password || typeof password !== "string" || password.length > 128) {
+  if (!password || typeof password !== "string" || password.length > PASSWORD_MAX) {
     return NextResponse.json({ error: "Master password is required" }, { status: 400 })
   }
 

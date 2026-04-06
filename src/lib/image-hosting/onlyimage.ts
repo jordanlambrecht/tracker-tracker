@@ -1,31 +1,9 @@
 // src/lib/image-hosting/onlyimage.ts
-//
-// Functions: upload (via onlyimageAdapter), secondsToIsoDuration
 
+import { safeImageUrl, validateImageUrl } from "@/lib/validators"
 import type { ImageHostAdapter, UploadOptions, UploadResult } from "./types"
 
 const UPLOAD_URL = "https://onlyimage.org/api/1/upload/"
-
-function validateImageUrl(url: string): string {
-  try {
-    const parsed = new URL(url)
-    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-      throw new Error("Invalid URL protocol")
-    }
-    return url
-  } catch {
-    throw new Error("Invalid URL in image host response")
-  }
-}
-
-function safeImageUrl(url: string | undefined): string | undefined {
-  if (!url) return undefined
-  try {
-    return validateImageUrl(url)
-  } catch {
-    return undefined
-  }
-}
 
 interface CheveretoResponse {
   status_code: number

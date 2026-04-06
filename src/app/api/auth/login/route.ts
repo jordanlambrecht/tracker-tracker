@@ -9,6 +9,7 @@ import { extractClientIp } from "@/lib/client-ip"
 import { deriveKey } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { PASSWORD_MAX } from "@/lib/limits"
 import { checkLockout, recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import { log } from "@/lib/logger"
 import { startScheduler } from "@/lib/scheduler"
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
   const clientIp = extractClientIp(request.headers)
 
   const password = body.password as string | undefined
-  if (!password || typeof password !== "string" || password.length > 128) {
+  if (!password || typeof password !== "string" || password.length > PASSWORD_MAX) {
     return NextResponse.json({ error: "Invalid password" }, { status: 400 })
   }
 
@@ -41,17 +42,20 @@ export async function POST(request: Request) {
       typeof username === "string" && username.toLowerCase() === settings.username.toLowerCase()
   }
 
-  // Always run Argon2 to normalize timing — prevents username oracle
-  const passwordOk = await verifyPassword(settings.passwordHash, password)
+  // Run Argon2 + scrypt in parallel — both depend only on password + settings, not each other.
+  // Argon2 always runs to normalize timing (prevents username oracle).
+  // scrypt runs even on failure — improves timing normalization and is acceptable
+  // for a single-user app with rate limiting.
+  const [passwordOk, key] = await Promise.all([
+    verifyPassword(settings.passwordHash, password),
+    deriveKey(password, settings.encryptionSalt),
+  ])
 
   if (!usernameOk || !passwordOk) {
     await recordFailedAttempt(settings.id, settings)
     log.warn({ event: "login_failed", ip: clientIp }, "Failed login attempt")
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
   }
-
-  // Derive encryption key
-  const key = await deriveKey(password, settings.encryptionSalt)
   const keyHex = key.toString("hex")
 
   // If TOTP is enrolled, return a pending token instead of a full session.

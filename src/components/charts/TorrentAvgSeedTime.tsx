@@ -3,7 +3,7 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import type { TorrentInfo } from "@/lib/torrent-utils"
+import type { TorrentRaw } from "@/lib/fleet"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { buildGlowAreaStyle, buildTimeXAxis } from "./lib/chart-helpers"
@@ -14,7 +14,7 @@ import { CHART_THEME, chartGrid, chartTooltip, chartTooltipRow } from "./lib/the
 // ---------------------------------------------------------------------------
 
 interface TorrentAvgSeedTimeProps {
-  torrents: TorrentInfo[]
+  torrents: TorrentRaw[]
   accentColor: string
 }
 
@@ -23,12 +23,12 @@ interface TorrentAvgSeedTimeProps {
 // ---------------------------------------------------------------------------
 
 function TorrentAvgSeedTime({ torrents, accentColor }: TorrentAvgSeedTimeProps) {
-  const withDates = torrents.filter((t) => t.addedOn > 0 && t.seedingTime > 0)
+  const withDates = torrents.filter((t) => t.addedAt > 0 && t.seedingTime > 0)
   if (withDates.length === 0) return <ChartEmptyState height={280} message="No seed time data" />
 
   const byMonth = new Map<string, { total: number; count: number }>()
   for (const t of withDates) {
-    const d = new Date(t.addedOn * 1000)
+    const d = new Date(t.addedAt * 1000)
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
     const entry = byMonth.get(key) ?? { total: 0, count: 0 }
     entry.total += t.seedingTime
@@ -55,7 +55,7 @@ function TorrentAvgSeedTime({ torrents, accentColor }: TorrentAvgSeedTimeProps) 
           year: "numeric",
         })
         return (
-          `<div style="margin-bottom:4px;color:${CHART_THEME.textTertiary};font-size:11px;">${label}</div>` +
+          `<div style="margin-bottom:4px;color:${CHART_THEME.textTertiary};font-size:${CHART_THEME.fontSizeDense}px;">${label}</div>` +
           chartTooltipRow(accentColor, "Avg Seed Time", `${p.value[1]}d`)
         )
       },
@@ -68,12 +68,12 @@ function TorrentAvgSeedTime({ torrents, accentColor }: TorrentAvgSeedTimeProps) 
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLabel: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       splitLine: { lineStyle: { color: CHART_THEME.gridLine } },
     },

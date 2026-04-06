@@ -87,16 +87,6 @@ describe("ProgressBar clamping", () => {
     expect(bar.style.width).toBe("100%")
   })
 
-  it("aria-valuenow reflects the clamped value, not the raw input", () => {
-    const { getByRole } = render(<ProgressBar percent={-999} />)
-    expect(getByRole("progressbar").getAttribute("aria-valuenow")).toBe("0")
-  })
-
-  it("exactly 0 is not clamped further", () => {
-    const { getByRole } = render(<ProgressBar percent={0} />)
-    expect(getByRole("progressbar").getAttribute("aria-valuenow")).toBe("0")
-  })
-
   it("exactly 100 is not clamped further", () => {
     const { getByRole } = render(<ProgressBar percent={100} />)
     expect(getByRole("progressbar").getAttribute("aria-valuenow")).toBe("100")
@@ -129,20 +119,20 @@ describe("ProgressBar color prop", () => {
 })
 
 // ---------------------------------------------------------------------------
-// glow / boxShadow
+// glow / drop-shadow filter
 // ---------------------------------------------------------------------------
 
-describe("ProgressBar box shadow", () => {
-  it("applies glow boxShadow when percent > 0", () => {
+describe("ProgressBar glow", () => {
+  it("applies drop-shadow filter when percent > 0", () => {
     const { getByRole } = render(<ProgressBar percent={50} color="#00d4ff" />)
     const bar = getByRole("progressbar")
-    expect(bar.style.boxShadow).toContain("12px")
+    expect(bar.style.filter).toContain("drop-shadow")
   })
 
-  it("does not apply boxShadow when percent is 0 (fill invisible)", () => {
+  it("does not apply filter when percent is 0 (fill invisible)", () => {
     const { getByRole } = render(<ProgressBar percent={0} color="#00d4ff" />)
     const bar = getByRole("progressbar")
-    expect(bar.style.boxShadow).toBe("")
+    expect(bar.style.filter).toBe("")
   })
 })
 

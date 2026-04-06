@@ -1,12 +1,13 @@
 // src/components/ui/EmojiPickerPopover.tsx
-//
-// Functions: EmojiPickerPopover
-
 "use client"
 
-import EmojiPicker, { EmojiStyle, Theme } from "emoji-picker-react"
-import { useEffect, useRef, useState } from "react"
+import type { EmojiClickData, EmojiStyle, PickerProps, Theme } from "emoji-picker-react"
+import dynamic from "next/dynamic"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
+import { useEscapeKey } from "@/hooks/useEscapeKey"
+
+const EmojiPicker = dynamic<PickerProps>(() => import("emoji-picker-react"), { ssr: false })
 
 interface EmojiPickerPopoverProps {
   value: string
@@ -27,33 +28,24 @@ function EmojiPickerPopover({
   const containerRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open || !triggerRef.current) return
     const rect = triggerRef.current.getBoundingClientRect()
     setPos({ top: rect.bottom + 8, left: rect.left })
   }, [open])
 
+  useEscapeKey(() => setOpen(false), open, { stopPropagation: true })
+
   useEffect(() => {
     if (!open) return
-    function handleEvent(e: MouseEvent | KeyboardEvent) {
-      if (e instanceof KeyboardEvent) {
-        if (e.key === "Escape") {
-          e.stopPropagation()
-          setOpen(false)
-        }
-        return
-      }
+    function handleMouseDown(e: MouseEvent) {
       const target = e.target as Node
       if (containerRef.current?.contains(target)) return
       if (pickerRef.current?.contains(target)) return
       setOpen(false)
     }
-    document.addEventListener("mousedown", handleEvent)
-    document.addEventListener("keydown", handleEvent)
-    return () => {
-      document.removeEventListener("mousedown", handleEvent)
-      document.removeEventListener("keydown", handleEvent)
-    }
+    document.addEventListener("mousedown", handleMouseDown)
+    return () => document.removeEventListener("mousedown", handleMouseDown)
   }, [open])
 
   return (
@@ -64,7 +56,7 @@ function EmojiPickerPopover({
           type="button"
           onClick={() => setOpen((v) => !v)}
           disabled={disabled}
-          className="w-14 h-10 flex items-center justify-center text-lg bg-control-bg nm-inset-sm cursor-pointer transition-all duration-150 hover:nm-raised disabled:opacity-40 disabled:cursor-not-allowed rounded-nm-sm"
+          className="w-14 h-10 flex items-center justify-center text-lg bg-control-bg nm-interactive-inset cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed rounded-nm-sm"
           aria-label="Pick emoji"
         >
           {value || <span className="opacity-30">{placeholder}</span>}
@@ -76,7 +68,7 @@ function EmojiPickerPopover({
               e.stopPropagation()
               onChange("")
             }}
-            className="absolute -top-1.5 -right-1.5 w-4 h-4 flex items-center justify-center bg-elevated text-muted hover:text-danger text-[10px] leading-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 cursor-pointer rounded-nm-pill"
+            className="absolute -top-1.5 -right-1.5 w-4 h-4 flex items-center justify-center bg-elevated text-muted hover:text-danger text-3xs leading-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 cursor-pointer rounded-nm-pill"
             aria-label="Clear emoji"
           >
             ✕
@@ -89,19 +81,19 @@ function EmojiPickerPopover({
           // biome-ignore lint/a11y/noStaticElementInteractions: onMouseDown prevents blur-close when clicking inside the picker
           <div
             ref={pickerRef}
-            className="emoji-picker-wrapper fixed z-50 nm-raised-lg"
+            className="emoji-picker-wrapper fixed z-40 nm-raised-lg"
             style={{ top: pos.top, left: pos.left }}
             onMouseDown={(e) => e.stopPropagation()}
           >
             <EmojiPicker
-              theme={Theme.DARK}
-              emojiStyle={EmojiStyle.APPLE}
+              theme={"dark" as Theme}
+              emojiStyle={"apple" as EmojiStyle}
               width={320}
               height={380}
               lazyLoadEmojis
               searchPlaceholder="Search emojis…"
               previewConfig={{ showPreview: false }}
-              onEmojiClick={(emojiData) => {
+              onEmojiClick={(emojiData: EmojiClickData) => {
                 onChange(emojiData.emoji)
                 setOpen(false)
               }}
@@ -113,4 +105,5 @@ function EmojiPickerPopover({
   )
 }
 
+export type { EmojiPickerPopoverProps }
 export { EmojiPickerPopover }

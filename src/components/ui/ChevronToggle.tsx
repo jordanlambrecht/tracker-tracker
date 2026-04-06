@@ -1,5 +1,4 @@
 // src/components/ui/ChevronToggle.tsx
-
 import { clsx } from "clsx"
 
 interface ChevronToggleProps {
@@ -13,7 +12,7 @@ function ChevronToggle({ expanded, variant = "pivot", className }: ChevronToggle
     return (
       <span
         className={clsx(
-          "inline-block transition-transform duration-150 text-tertiary text-sm shrink-0",
+          "inline-block transition-transform duration-150 ease-in-out text-tertiary text-sm shrink-0",
           expanded ? "rotate-0" : "rotate-180",
           className
         )}
@@ -26,7 +25,7 @@ function ChevronToggle({ expanded, variant = "pivot", className }: ChevronToggle
   return (
     <span
       className={clsx(
-        "inline-block transition-transform duration-150 text-[10px]",
+        "inline-block transition-transform duration-150 text-3xs",
         expanded ? "rotate-90" : "rotate-0",
         className
       )}

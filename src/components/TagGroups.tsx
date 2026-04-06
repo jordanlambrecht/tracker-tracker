@@ -1,6 +1,6 @@
 // src/components/TagGroups.tsx
 //
-// Functions: TagGroups, AddTagGroupForm, TagGroupCard, SortableMemberRow, MemberRow, NewMemberRow
+// Functions: TagGroups, AddTagGroupForm, TagGroupCard, SortableMemberRow, MemberRow
 
 "use client"
 
@@ -12,17 +12,26 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { H2, H3, Paragraph } from "@typography"
 import clsx from "clsx"
-import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react"
-import { Button } from "@/components/ui/Button"
-import { Card } from "@/components/ui/Card"
-import { CollapsibleCard } from "@/components/ui/CollapsibleCard"
+import { type KeyboardEvent, useEffect, useRef, useState } from "react"
+import {
+  Button,
+  Card,
+  CardListSkeleton,
+  CollapsibleCard,
+  ConfirmRemove,
+  FilterPill,
+  InfoTip,
+  Input,
+  Notice,
+  Toggle,
+  Tooltip,
+} from "@/components/ui"
 import { EmojiPickerPopover } from "@/components/ui/EmojiPickerPopover"
-import { Input } from "@/components/ui/Input"
 import { QBT_TAG_WARN_PATTERN } from "@/components/ui/QbtTagWarning"
-import { Toggle } from "@/components/ui/Toggle"
-import { Tooltip } from "@/components/ui/Tooltip"
+import { useEscapeKey } from "@/hooks/useEscapeKey"
 import { DOCS } from "@/lib/constants"
 import type { TagGroup, TagGroupChartType } from "@/types/api"
 
@@ -80,9 +89,10 @@ function AddTagGroupForm({ onCreated, onCancel }: AddTagGroupFormProps) {
     }
   }
 
+  useEscapeKey(onCancel, true)
+
   function handleKeyDown(e: KeyboardEvent) {
     if (e.key === "Enter") handleCreate()
-    if (e.key === "Escape") onCancel()
   }
 
   return (
@@ -90,9 +100,7 @@ function AddTagGroupForm({ onCreated, onCancel }: AddTagGroupFormProps) {
       <H3>New Tag Group</H3>
       <div className="flex items-end gap-3">
         <div className="flex flex-col gap-1">
-          <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
-            Emoji
-          </span>
+          <H2 className="uppercase tracking-wider">Emoji</H2>
           <EmojiPickerPopover value={emoji} onChange={setEmoji} disabled={saving} />
         </div>
         <div className="flex-1">
@@ -113,37 +121,30 @@ function AddTagGroupForm({ onCreated, onCancel }: AddTagGroupFormProps) {
       </div>
 
       {/* Chart type selector */}
-      <div className="flex flex-col gap-1.5">
-        <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
-          Display Type
-        </span>
+      <div className="flex flex-col gap-2">
+        <H2 className="uppercase tracking-wider">Display Type</H2>
         <div className="nm-inset-sm p-1.5 flex gap-1 rounded-nm-md">
           {CHART_TYPE_OPTIONS.map((opt) => (
-            <button
+            <FilterPill
               key={opt.value}
-              type="button"
+              active={chartType === opt.value}
               onClick={() => setChartType(opt.value)}
               disabled={saving}
-              className={clsx(
-                "flex-1 px-3 py-1.5 text-xs font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
-                chartType === opt.value
-                  ? "nm-raised-sm text-primary font-semibold"
-                  : "bg-transparent text-tertiary hover:text-secondary"
-              )}
-            >
-              {opt.label}
-            </button>
+              text={opt.label}
+              className="flex-1"
+            />
           ))}
         </div>
       </div>
 
       <div className="flex gap-2 justify-end">
-        <Button size="sm" variant="ghost" onClick={onCancel} disabled={saving}>
-          Cancel
-        </Button>
-        <Button size="sm" onClick={handleCreate} disabled={saving || !name.trim()}>
-          {saving ? "Creating…" : "Create"}
-        </Button>
+        <Button size="sm" variant="ghost" onClick={onCancel} disabled={saving} text="Cancel" />
+        <Button
+          size="sm"
+          onClick={handleCreate}
+          disabled={saving || !name.trim()}
+          text={saving ? "Creating…" : "Create"}
+        />
       </div>
     </Card>
   )
@@ -159,6 +160,7 @@ interface MemberRowProps {
   onRemove: () => void
   disabled?: boolean
   dragHandle?: boolean
+  isNew?: boolean
 }
 
 function MemberRow({
@@ -169,14 +171,23 @@ function MemberRow({
   onRemove,
   disabled,
   dragHandle,
+  isNew,
 }: MemberRowProps) {
-  const warn = tagWarning(tag)
+  const warn = tag ? tagWarning(tag) : null
   return (
     <div className="flex flex-col gap-1">
-      <div className="nm-inset-sm flex items-center gap-3 px-3 py-2 bg-control-bg rounded-nm-md">
-        {dragHandle && (
+      <div
+        className={clsx(
+          "nm-inset-sm flex items-center gap-3 px-3 py-2 bg-control-bg rounded-nm-md",
+          isNew && "border border-dashed border-border"
+        )}
+      >
+        {(dragHandle || isNew) && (
           <span
-            className="text-tertiary shrink-0 text-sm leading-none select-none cursor-grab active:cursor-grabbing"
+            className={clsx(
+              "shrink-0 text-sm leading-none select-none",
+              isNew ? "text-transparent" : "text-tertiary cursor-grab active:cursor-grabbing"
+            )}
             aria-hidden="true"
           >
             ⠿
@@ -189,7 +200,7 @@ function MemberRow({
             onChange={(e) => onTagChange(e.target.value)}
             placeholder="qbt-tag"
             disabled={disabled}
-            aria-label="qBT Tag"
+            aria-label={isNew ? "New qBT Tag" : "qBT Tag"}
           />
         </div>
         <div className="w-px h-4 bg-border shrink-0" />
@@ -200,7 +211,7 @@ function MemberRow({
             onChange={(e) => onLabelChange(e.target.value)}
             placeholder="Display Label"
             disabled={disabled}
-            aria-label="Display Label"
+            aria-label={isNew ? "New Display Label" : "Display Label"}
           />
         </div>
         <button
@@ -213,7 +224,7 @@ function MemberRow({
           ✕
         </button>
       </div>
-      {warn && <p className="text-xs font-sans text-warn px-1">{warn}</p>}
+      <Notice variant="warn" message={warn} className="px-1" />
     </div>
   )
 }
@@ -235,78 +246,13 @@ function SortableMemberRow({ sortId, ...props }: SortableMemberRowProps) {
   )
 }
 
-// ─── NewMemberRow (always visible) ────────────────────────────────────────────
-
-interface NewMemberRowProps {
-  tag: string
-  label: string
-  onTagChange: (v: string) => void
-  onLabelChange: (v: string) => void
-  onRemove: () => void
-  disabled?: boolean
-}
-
-function NewMemberRow({
-  tag,
-  label,
-  onTagChange,
-  onLabelChange,
-  onRemove,
-  disabled,
-}: NewMemberRowProps) {
-  const warn = tag ? tagWarning(tag) : null
-
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="nm-inset-sm flex items-center gap-3 px-3 py-2 bg-control-bg border border-dashed border-border rounded-nm-md">
-        <span
-          className="text-transparent shrink-0 text-sm leading-none select-none"
-          aria-hidden="true"
-        >
-          ⠿
-        </span>
-        <div className="flex-1 min-w-0">
-          <input
-            className="w-full font-mono text-sm text-primary bg-transparent focus:outline-none placeholder:text-muted disabled:opacity-40"
-            value={tag}
-            onChange={(e) => onTagChange(e.target.value)}
-            placeholder="qbt-tag"
-            disabled={disabled}
-            aria-label="New qBT Tag"
-          />
-        </div>
-        <div className="w-px h-4 bg-border shrink-0" />
-        <div className="flex-1 min-w-0">
-          <input
-            className="w-full font-mono text-sm text-primary bg-transparent focus:outline-none placeholder:text-muted disabled:opacity-40"
-            value={label}
-            onChange={(e) => onLabelChange(e.target.value)}
-            placeholder="Display Label"
-            disabled={disabled}
-            aria-label="New Display Label"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={onRemove}
-          disabled={disabled}
-          className="shrink-0 text-tertiary hover:text-danger transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed text-base leading-none"
-          aria-label="Remove row"
-        >
-          ✕
-        </button>
-      </div>
-      {warn && <p className="text-xs font-sans text-warn px-1">{warn}</p>}
-    </div>
-  )
-}
-
 // ─── TagGroupCard ─────────────────────────────────────────────────────────────
 
 interface EditableMember {
   id: number | null
   tag: string
   label: string
+  _clientId?: number
 }
 
 interface TagGroupCardProps {
@@ -324,16 +270,14 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
   const [members, setMembers] = useState<EditableMember[]>(
     group.members.map((m) => ({ id: m.id, tag: m.tag, label: m.label }))
   )
+  const nextClientId = useRef(0)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
-  const [confirmDelete, setConfirmDelete] = useState(false)
 
   // Sync from parent when group prop changes (e.g. after save + refetch)
-  const groupIdRef = useRef(group.id)
   useEffect(() => {
-    if (groupIdRef.current !== group.id) groupIdRef.current = group.id
     setName(group.name)
     setEmoji(group.emoji ?? "")
     setChartType(group.chartType)
@@ -357,7 +301,8 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
   })()
 
   function handleAddRow() {
-    setMembers((prev) => [...prev, { id: null, tag: "", label: "" }])
+    const clientId = ++nextClientId.current
+    setMembers((prev) => [...prev, { id: null, tag: "", label: "", _clientId: clientId }])
   }
 
   function handleRemoveMember(index: number) {
@@ -381,7 +326,26 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
     setSaving(true)
     setSaveError(null)
     try {
-      await fetch(`/api/tag-groups/${group.id}`, {
+      const currentIds = new Set(members.filter((m) => m.id !== null).map((m) => m.id))
+      const removes = group.members.filter((m) => !currentIds.has(m.id)).map((m) => m.id)
+
+      const updates: { id: number; tag: string; label: string; sortOrder: number }[] = []
+      const creates: { tag: string; label: string; sortOrder: number }[] = []
+
+      for (let i = 0; i < members.length; i++) {
+        const m = members[i]
+        if (m.id !== null) {
+          const orig = group.members.find((om) => om.id === m.id)
+          const origIndex = group.members.findIndex((om) => om.id === m.id)
+          if (orig && (m.tag !== orig.tag || m.label !== orig.label || i !== origIndex)) {
+            updates.push({ id: m.id, tag: m.tag.trim(), label: m.label.trim(), sortOrder: i })
+          }
+        } else if (m.tag.trim() && m.label.trim()) {
+          creates.push({ tag: m.tag.trim(), label: m.label.trim(), sortOrder: i })
+        }
+      }
+
+      const res = await fetch(`/api/tag-groups/${group.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -389,40 +353,12 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
           emoji: emoji.trim() || null,
           chartType,
           countUnmatched,
+          members: { removes, updates, creates },
         }),
-      }).then((r) => {
-        if (!r.ok) throw new Error("Failed to save group")
       })
-
-      const currentIds = new Set(members.filter((m) => m.id !== null).map((m) => m.id))
-      const removedMembers = group.members.filter((m) => !currentIds.has(m.id))
-      for (const rm of removedMembers) {
-        await fetch(`/api/tag-groups/${group.id}/members/${rm.id}`, { method: "DELETE" })
-      }
-
-      for (let i = 0; i < members.length; i++) {
-        const m = members[i]
-        if (m.id === null) continue
-        const orig = group.members.find((om) => om.id === m.id)
-        const origIndex = group.members.findIndex((om) => om.id === m.id)
-        if (orig && (m.tag !== orig.tag || m.label !== orig.label || i !== origIndex)) {
-          await fetch(`/api/tag-groups/${group.id}/members/${m.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ tag: m.tag.trim(), label: m.label.trim(), sortOrder: i }),
-          })
-        }
-      }
-
-      for (let i = 0; i < members.length; i++) {
-        const m = members[i]
-        if (m.id !== null) continue
-        if (!m.tag.trim() || !m.label.trim()) continue
-        await fetch(`/api/tag-groups/${group.id}/members`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tag: m.tag.trim(), label: m.label.trim(), sortOrder: i }),
-        })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Save failed" }))
+        throw new Error((data as { error?: string }).error ?? "Save failed")
       }
 
       onUpdated()
@@ -442,12 +378,13 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
     setSaveError(null)
   }
 
+  useEscapeKey(() => {
+    setName(group.name)
+    setEditingName(false)
+  }, editingName)
+
   function handleNameKeyDown(e: KeyboardEvent) {
     if (e.key === "Enter") setEditingName(false)
-    if (e.key === "Escape") {
-      setName(group.name)
-      setEditingName(false)
-    }
   }
 
   async function handleDelete() {
@@ -526,30 +463,20 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
       {/* Emoji + display type row */}
       <div className="flex items-end gap-4 mb-1">
         <div className="flex flex-col gap-1">
-          <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
-            Emoji
-          </span>
+          <H2 className="uppercase tracking-wider">Emoji</H2>
           <EmojiPickerPopover value={emoji} onChange={setEmoji} />
         </div>
         <div className="flex flex-col gap-1 flex-1">
-          <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
-            Display Type
-          </span>
+          <H2 className="uppercase tracking-wider">Display Type</H2>
           <div className="nm-inset-sm p-1.5 flex gap-1 rounded-nm-md">
             {CHART_TYPE_OPTIONS.map((opt) => (
-              <button
+              <FilterPill
                 key={opt.value}
-                type="button"
+                active={chartType === opt.value}
                 onClick={() => setChartType(opt.value)}
-                className={clsx(
-                  "flex-1 px-3 py-1.5 text-xs font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
-                  chartType === opt.value
-                    ? "nm-raised-sm text-primary font-semibold"
-                    : "bg-transparent text-tertiary hover:text-secondary"
-                )}
-              >
-                {opt.label}
-              </button>
+                text={opt.label}
+                className="flex-1"
+              />
             ))}
           </div>
         </div>
@@ -566,13 +493,9 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
       {/* Column headers */}
       <div className="flex items-center gap-3 px-3">
         <span className="shrink-0 text-sm leading-none w-4" aria-hidden="true" />
-        <span className="flex-1 text-xs font-sans font-medium text-secondary uppercase tracking-wider">
-          qBT Tag
-        </span>
+        <H2 className="flex-1 uppercase tracking-wider">qBT Tag</H2>
         <div className="w-px h-3" />
-        <span className="flex-1 text-xs font-sans font-medium text-secondary uppercase tracking-wider">
-          Display Label
-        </span>
+        <H2 className="flex-1 uppercase tracking-wider">Display Label</H2>
         <span className="w-4" aria-hidden="true" />
       </div>
 
@@ -596,7 +519,7 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
                 disabled={saving}
               />
             ) : (
-              <NewMemberRow
+              <MemberRow
                 key={sortIds[i]}
                 tag={m.tag}
                 label={m.label}
@@ -608,6 +531,7 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
                 }
                 onRemove={() => handleRemoveMember(i)}
                 disabled={saving}
+                isNew
               />
             )
           )}
@@ -627,53 +551,33 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
       <div className="border-t border-border mt-1" />
 
       {/* Footer: Delete + Save */}
-      {saveError && (
-        <p className="text-xs font-sans text-danger px-1" role="alert">
-          {saveError}
-        </p>
-      )}
-      {deleteError && (
-        <p className="text-xs font-sans text-danger px-1" role="alert">
-          {deleteError}
-        </p>
-      )}
+      <Notice message={saveError} className="px-1" />
+      <Notice message={deleteError} className="px-1" />
       <div className="flex items-center justify-between gap-3">
-        <div>
-          {confirmDelete ? (
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-sans text-warn">Delete this group?</span>
-              <Button size="sm" variant="danger" onClick={handleDelete} disabled={deleting}>
-                {deleting ? "Deleting…" : "Confirm"}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setConfirmDelete(false)}
-                disabled={deleting}
-              >
-                Cancel
-              </Button>
-            </div>
-          ) : (
+        <ConfirmRemove
+          label="Delete Group"
+          confirmLabel={deleting ? "Deleting…" : "Confirm"}
+          variant="ghost"
+          className="text-danger hover:text-danger"
+          busy={deleting}
+          onConfirm={handleDelete}
+        />
+        <div className="flex items-center gap-2">
+          {isDirty && (
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => setConfirmDelete(true)}
-              className="text-danger hover:text-danger"
-            >
-              Delete Group
-            </Button>
+              onClick={handleDiscard}
+              disabled={saving}
+              text="Discard"
+            />
           )}
-        </div>
-        <div className="flex items-center gap-2">
-          {isDirty && (
-            <Button size="sm" variant="ghost" onClick={handleDiscard} disabled={saving}>
-              Discard
-            </Button>
-          )}
-          <Button size="sm" onClick={handleSave} disabled={saving || !isDirty || !name.trim()}>
-            {saving ? "Saving…" : "Save"}
-          </Button>
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={saving || !isDirty || !name.trim()}
+            text={saving ? "Saving…" : "Save"}
+          />
         </div>
       </div>
     </CollapsibleCard>
@@ -681,40 +585,35 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
 }
 
 function sortKey(m: EditableMember, i: number): string {
-  return m.id !== null ? `member-${m.id}` : `new-${i}`
+  return m.id !== null ? `member-${m.id}` : `new-${m._clientId ?? i}`
 }
 
 // ─── TagGroups ────────────────────────────────────────────────────────────────
 
 function TagGroups() {
-  const [groups, setGroups] = useState<TagGroup[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [showAddForm, setShowAddForm] = useState(false)
 
-  const fetchGroups = useCallback(async () => {
-    try {
-      const res = await fetch("/api/tag-groups")
+  const {
+    data: groups = [],
+    isLoading: loading,
+    error: loadError,
+  } = useQuery({
+    queryKey: ["tag-groups"],
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/tag-groups", { signal })
       if (!res.ok) throw new Error("Failed to load tag groups")
-      const data: TagGroup[] = await res.json()
-      setGroups(data)
-    } catch {
-      // Non-critical — list just won't populate
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchGroups()
-  }, [fetchGroups])
+      return res.json() as Promise<TagGroup[]>
+    },
+  })
 
   function handleCreated() {
     setShowAddForm(false)
-    fetchGroups()
+    queryClient.invalidateQueries({ queryKey: ["tag-groups"] })
   }
 
   function handleUpdated() {
-    fetchGroups()
+    queryClient.invalidateQueries({ queryKey: ["tag-groups"] })
   }
 
   return (
@@ -722,17 +621,18 @@ function TagGroups() {
       <div className="flex items-center justify-between mb-2">
         <H2 id="tag-groups-heading" className="flex items-center gap-2">
           Tag Groups
-          <Tooltip
+          <InfoTip
             content="Create tag groups to visualize your qBittorrent tags as charts."
             docs={DOCS.TAG_GROUPS}
-          >
-            <span className="text-muted hover:text-secondary cursor-help text-sm">&#9432;</span>
-          </Tooltip>
+          />
         </H2>
         {!showAddForm && (
-          <Button size="sm" variant="secondary" onClick={() => setShowAddForm(true)}>
-            + New Group
-          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => setShowAddForm(true)}
+            text="+ New Group"
+          />
         )}
       </div>
 
@@ -746,7 +646,11 @@ function TagGroups() {
       )}
 
       {loading ? (
-        <p className="text-sm font-mono text-tertiary py-4">Loading…</p>
+        <CardListSkeleton count={2} />
+      ) : loadError ? (
+        <Notice
+          message={loadError instanceof Error ? loadError.message : "Failed to load tag groups"}
+        />
       ) : groups.length === 0 && !showAddForm ? (
         <p className="text-sm font-mono text-muted py-8 text-center">No tag groups yet</p>
       ) : (

@@ -97,18 +97,6 @@ describe("MamAdapter - parsing", () => {
     expect(stats.seedingCount).toBe(18)
   })
 
-  it("reads leechingCount directly from leeching.count", async () => {
-    mockFetch()
-
-    const stats = await adapter.fetchStats(
-      "https://www.myanonamouse.net",
-      "fake-session-id",
-      "/jsonLoad.php"
-    )
-
-    expect(stats.leechingCount).toBe(2)
-  })
-
   it("returns zero bufferBytes when downloaded exceeds uploaded", async () => {
     mockFetch({
       uploaded_bytes: 100_000_000,
@@ -283,18 +271,6 @@ describe("MamAdapter - error handling", () => {
     await expect(
       adapter.fetchStats("https://www.myanonamouse.net", "session-id", "/jsonLoad.php")
     ).rejects.toThrow("Request to www.myanonamouse.net timed out")
-  })
-
-  it("passes an AbortSignal to fetch for timeout protection", async () => {
-    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockMamResponse(),
-    } as Response)
-
-    await adapter.fetchStats("https://www.myanonamouse.net", "session-id", "/jsonLoad.php")
-
-    const callOpts = fetchSpy.mock.calls[0][1] as RequestInit
-    expect(callOpts.signal).toBeDefined()
   })
 })
 

@@ -4,15 +4,15 @@
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseRouteId } from "@/lib/api-helpers"
+import { authenticate, decodeKey, parseRouteId, type RouteContext } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { notificationTargets } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
 import { decryptNotificationConfig } from "@/lib/notifications/decrypt"
 import { deliverDiscordWebhook } from "@/lib/notifications/deliver"
-import type { DiscordConfig } from "@/lib/notifications/types"
+import { type DiscordConfig, isDiscordConfig } from "@/lib/notifications/types"
 
-export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(_req: Request, { params }: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -33,7 +33,11 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
   let config: DiscordConfig
   try {
-    config = decryptNotificationConfig(target, key) as DiscordConfig
+    const raw = decryptNotificationConfig(target, key)
+    if (!isDiscordConfig(raw)) {
+      return NextResponse.json({ error: "Invalid notification config shape" }, { status: 422 })
+    }
+    config = raw
   } catch {
     log.error(
       { route: "POST /api/notifications/[id]/test", targetId: id },

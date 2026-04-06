@@ -1,10 +1,9 @@
 // src/hooks/useDashboardData.ts
-
 "use client"
 
-import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useCallback, useMemo, useState } from "react"
-import type { DayRange } from "@/components/dashboard/DayRangeSidebar"
+import { usePollingIntervals } from "@/hooks/usePollingIntervals"
 import { useUpdateCheck } from "@/hooks/useUpdateCheck"
 import type { DashboardAlert } from "@/lib/dashboard"
 import {
@@ -14,7 +13,7 @@ import {
   fetchDismissedKeys,
   postDismissAlert as persistDismiss,
 } from "@/lib/dashboard"
-import type { Snapshot, TodayAtAGlance, TrackerSummary } from "@/types/api"
+import type { DayRange, Snapshot, TodayAtAGlance, TrackerSummary } from "@/types/api"
 
 interface DashboardData {
   trackers: TrackerSummary[]
@@ -32,12 +31,14 @@ interface DashboardData {
 
 interface UseDashboardDataOptions {
   initialTrackers?: TrackerSummary[]
+  snapshotRetentionDays?: number | null
 }
 
 function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
   const [dayRange, setDayRange] = useState<DayRange>(30)
   const queryClient = useQueryClient()
   const updateCheck = useUpdateCheck()
+  const intervals = usePollingIntervals()
 
   const dismissedQuery = useQuery({
     queryKey: ["dismissed-alert-keys"],
@@ -64,28 +65,27 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
       const all: TrackerSummary[] = await res.json()
       return all.filter((t) => t.isActive)
     },
-    refetchInterval: 60_000,
+    refetchInterval: intervals.trackerRefetchMs,
     initialData: options?.initialTrackers?.filter((t) => t.isActive),
     initialDataUpdatedAt: options?.initialTrackers ? Date.now() : undefined,
   })
 
   const trackers = trackersQuery.data ?? []
 
-  // Per-tracker snapshot queries
-  const snapshotQueries = useQueries({
-    queries: trackers.map((t) => ({
-      queryKey: ["snapshots", t.id, dayRange] as const,
-      queryFn: async ({ signal }) => {
-        const url =
-          dayRange === 0
-            ? `/api/trackers/${t.id}/snapshots`
-            : `/api/trackers/${t.id}/snapshots?days=${dayRange}`
-        const res = await fetch(url, { signal })
-        if (!res.ok) return [] as Snapshot[]
-        return res.json() as Promise<Snapshot[]>
-      },
-      refetchInterval: 60_000,
-    })),
+  // Fleet snapshot query (all trackers in one request)
+  const fleetSnapshotsQuery = useQuery({
+    queryKey: ["fleet-snapshots", dayRange],
+    queryFn: async ({ signal }) => {
+      const url =
+        dayRange === 0
+          ? "/api/trackers/snapshots/fleet"
+          : `/api/trackers/snapshots/fleet?days=${dayRange}`
+      const res = await fetch(url, { signal })
+      if (!res.ok) throw new Error(`Fleet snapshot fetch failed: ${res.status}`)
+      return res.json() as Promise<Record<string, Snapshot[]>>
+    },
+    placeholderData: keepPreviousData,
+    refetchInterval: intervals.trackerRefetchMs,
   })
 
   const todayQuery = useQuery({
@@ -95,8 +95,8 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
       if (!res.ok) throw new Error("Failed to fetch today data")
       return res.json()
     },
-    staleTime: 60_000,
-    refetchInterval: 60_000,
+    staleTime: intervals.trackerRefetchMs,
+    refetchInterval: intervals.trackerRefetchMs,
   })
 
   // Secondary queries for alert computation (less frequent)
@@ -110,7 +110,7 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
         { id: number; name: string; enabled: boolean; lastError: string | null }[]
       >
     },
-    refetchInterval: 5 * 60 * 1000,
+    refetchInterval: intervals.clientRefetchMs,
   })
 
   const backupQuery = useQuery({
@@ -120,21 +120,20 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
       if (!res.ok) return [] as { createdAt: string; status: string }[]
       return res.json() as Promise<{ createdAt: string; status: string }[]>
     },
-    refetchInterval: 5 * 60 * 1000,
+    refetchInterval: intervals.clientRefetchMs,
   })
 
-  // Derived: snapshotMap
-
-  const snapshotData = snapshotQueries.map((q) => q.data)
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: spreading individual q.data refs which are referentially stable from TanStack Query — avoids new-array-ref instability from the useQueries result array itself
+  // Derived: snapshotMap (built from fleet response keyed by tracker ID)
   const snapshotMap = useMemo(() => {
     const map = new Map<number, Snapshot[]>()
-    for (let i = 0; i < trackers.length; i++) {
-      map.set(trackers[i].id, snapshotData[i] ?? [])
+    const data = fleetSnapshotsQuery.data
+    if (data) {
+      for (const [key, snapshots] of Object.entries(data)) {
+        map.set(Number(key), snapshots)
+      }
     }
     return map
-  }, [trackers, ...snapshotData])
+  }, [fleetSnapshotsQuery.data])
 
   // Derived: alerts
   const visibleAlerts = useMemo(() => {
@@ -145,6 +144,7 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
       currentVersion: process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0",
       failedBackups: (backupQuery.data ?? []).filter((b) => b.status === "failed"),
       clients: clientsQuery.data ?? [],
+      snapshotRetentionDays: options?.snapshotRetentionDays ?? null,
     })
     const combined = [...trackerAlerts, ...rankAlerts, ...systemAlerts]
     return combined.filter((a) => !dismissedKeys.has(a.key))
@@ -155,6 +155,7 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
     backupQuery.data,
     clientsQuery.data,
     dismissedKeys,
+    options?.snapshotRetentionDays,
   ])
 
   // Dismiss handlers
@@ -177,6 +178,12 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
     })
   }, [visibleAlerts])
 
+  const refresh = useCallback(async () => {
+    await queryClient.refetchQueries({ queryKey: ["trackers"] })
+    await queryClient.invalidateQueries({ queryKey: ["fleet-snapshots"] })
+    queryClient.invalidateQueries({ queryKey: ["dashboard-today"] })
+  }, [queryClient])
+
   return {
     trackers,
     snapshotMap,
@@ -188,11 +195,7 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
     setDayRange,
     dismissAlert,
     dismissAllAlerts,
-    refresh: async () => {
-      await trackersQuery.refetch()
-      await queryClient.invalidateQueries({ queryKey: ["snapshots"] })
-      queryClient.invalidateQueries({ queryKey: ["dashboard-today"] })
-    },
+    refresh,
   }
 }
 

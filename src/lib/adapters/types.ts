@@ -21,7 +21,12 @@ export interface TrackerStats {
   lastAccessDate?: string
   shareScore?: number
   avatarUrl?: string
-  platformMeta?: GGnPlatformMeta | GazellePlatformMeta | NebulancePlatformMeta | MamPlatformMeta
+  platformMeta?:
+    | GGnPlatformMeta
+    | GazellePlatformMeta
+    | NebulancePlatformMeta
+    | MamPlatformMeta
+    | AvistazPlatformMeta
 }
 
 export interface GGnPlatformMeta {
@@ -112,11 +117,62 @@ export interface MamPlatformMeta {
   unreadTopics?: number
 }
 
+export interface AvistazPlatformMeta {
+  donor?: boolean
+  vipExpiry?: string | null
+  invites?: number
+  canDownload?: boolean
+  canUpload?: boolean
+  totalUploads?: number
+  totalDownloads?: number
+  reseedRequests?: number
+  twoFactorEnabled?: boolean
+  bonusPerHour?: number
+  bonusBreakdown?: {
+    totalTorrents: { count: number; points: number }
+    oldTorrents: { count: number; points: number }
+    bigTorrents: { count: number; points: number }
+    hugeTorrents: { count: number; points: number }
+  }
+}
+
+/** Union of all platform-specific metadata types */
+export type PlatformMeta =
+  | GGnPlatformMeta
+  | GazellePlatformMeta
+  | NebulancePlatformMeta
+  | MamPlatformMeta
+  | AvistazPlatformMeta
+
+/** Maps platformType string → the corresponding PlatformMeta variant */
+export interface PlatformMetaMap {
+  ggn: GGnPlatformMeta
+  gazelle: GazellePlatformMeta
+  nebulance: NebulancePlatformMeta
+  mam: MamPlatformMeta
+  avistaz: AvistazPlatformMeta
+}
+
+/**
+ * Type-safe narrowing of PlatformMeta using the existing platformType discriminant.
+ * Returns the narrowed meta if `ctx.tracker.platformType` matches, otherwise `null`.
+ */
+export function metaFor<P extends keyof PlatformMetaMap>(
+  ctx: { tracker: { platformType: string }; meta: PlatformMeta | null },
+  platform: P
+): PlatformMetaMap[P] | null {
+  if (!ctx.meta || ctx.tracker.platformType !== platform) return null
+  return ctx.meta as PlatformMetaMap[P]
+}
+
+export type GazelleAuthStyle = "token" | "raw"
+export type Unit3dAuthStyle = "bearer" | "query"
+
 export interface FetchOptions {
   proxyAgent?: HttpAgent
   remoteUserId?: number
-  authStyle?: "token" | "raw"
-  unit3dAuthStyle?: "bearer" | "query"
+  authStyle?: GazelleAuthStyle
+  unit3dAuthStyle?: Unit3dAuthStyle
   enrich?: boolean
 }
 

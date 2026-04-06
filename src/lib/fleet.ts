@@ -1,10 +1,11 @@
 // src/lib/fleet.ts
 //
-// Functions: parseTorrentTags, getRatioBuckets, getSeedTimeBuckets, computeFleetStats, extractTagsFromSnapshots
+// Functions: parseTorrentTags, getRatioBuckets, getSeedTimeBuckets,
+// extractTagsFromSnapshots, normalizeCategory, toMonthKey
 
 import { CHART_THEME } from "@/components/charts/lib/theme"
 
-/** Raw torrent data from qBittorrent — shared by fleet charts */
+/** Normalized torrent record shape returned by the API — shared by fleet charts and components */
 export interface TorrentRaw {
   hash: string
   name: string
@@ -15,32 +16,33 @@ export interface TorrentRaw {
   downloaded: number
   ratio: number
   size: number
-  seeding_time: number
-  time_active: number
-  added_on: number
-  completion_on: number
-  last_activity: number
-  amount_left: number
-  num_seeds: number
-  num_leechs: number
-  num_complete: number
-  num_incomplete: number
-  upspeed: number
-  dlspeed: number
+  seedingTime: number
+  activeTime: number
+  addedAt: number
+  completedAt: number
+  lastActivityAt: number
+  remaining: number
+  seedCount: number
+  leechCount: number
+  swarmSeeders: number
+  swarmLeechers: number
+  uploadSpeed: number
+  downloadSpeed: number
   availability: number
   progress: number
-  client_name: string
+  clientName: string
 }
 
-/** Tracker tag with display metadata — shared by fleet charts */
+/** Tracker tag with display metadata */
 export interface TrackerTag {
   tag: string
   name: string
   color: string
 }
 
-/** Parse comma-separated qBT tag string into trimmed array. Lowercases by default. */
+/** Parse comma-separated qBT tag string into trimmed array */
 export function parseTorrentTags(rawTags: string, lowercase = true): string[] {
+  if (!rawTags) return []
   return rawTags
     .split(",")
     .map((t) => (lowercase ? t.trim().toLowerCase() : t.trim()))
@@ -104,6 +106,33 @@ export const SEED_TIME_BUCKETS: Bucket[] = [
   { label: "90d+", max: Infinity, color: CHART_THEME.scale[4] },
 ]
 
+/** Age band bucket definitions for torrent age distribution charts */
+export interface AgeBucket {
+  label: string
+  maxDays: number
+}
+
+export const AGE_BUCKETS: readonly AgeBucket[] = [
+  { label: "0-30d", maxDays: 30 },
+  { label: "1-3mo", maxDays: 90 },
+  { label: "3-6mo", maxDays: 180 },
+  { label: "6mo-1y", maxDays: 365 },
+  { label: "1-2y", maxDays: 730 },
+  { label: "2y+", maxDays: Infinity },
+]
+
+/** Normalize a qBT category string to a consistent display value */
+export function normalizeCategory(raw: string | undefined | null): string {
+  const trimmed = raw?.trim()
+  return trimmed || "Uncategorized"
+}
+
+/** Convert a Unix timestamp (seconds) to a YYYY-MM month key */
+export function toMonthKey(addedOnSeconds: number): string {
+  const d = new Date(addedOnSeconds * 1000)
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`
+}
+
 /** Ratio buckets with optional accent color override on the "2-5" range */
 export function getRatioBuckets(accentColor?: string): Bucket[] {
   if (!accentColor) return RATIO_BUCKETS
@@ -146,48 +175,4 @@ export const LEECHING_STATES = new Set([
   "queuedDL",
   "metaDL",
 ])
-const STALE_THRESHOLD_MS = 30 * 24 * 60 * 60 * 1000
-
-export function computeFleetStats(
-  torrents: {
-    state: string
-    upspeed: number
-    dlspeed: number
-    size: number
-    lastActivity: number
-    tags: string
-  }[],
-  crossSeedTags: string[]
-): FleetStats {
-  const csTagSet = new Set(crossSeedTags.map((t) => t.toLowerCase()))
-  const now = Date.now()
-  let totalSeeding = 0
-  let totalLeeching = 0
-  let fleetUploadSpeed = 0
-  let fleetDownloadSpeed = 0
-  let totalLibrarySize = 0
-  let crossSeeded = 0
-  let staleCount = 0
-
-  for (const t of torrents) {
-    if (SEEDING_STATES.has(t.state)) totalSeeding++
-    else totalLeeching++
-    fleetUploadSpeed += t.upspeed
-    fleetDownloadSpeed += t.dlspeed
-    totalLibrarySize += t.size
-    if (t.lastActivity > 0 && now - t.lastActivity * 1000 > STALE_THRESHOLD_MS) staleCount++
-    if (csTagSet.size > 0) {
-      if (parseTorrentTags(t.tags).some((tag) => csTagSet.has(tag))) crossSeeded++
-    }
-  }
-
-  return {
-    totalSeeding,
-    totalLeeching,
-    fleetUploadSpeed,
-    fleetDownloadSpeed,
-    totalLibrarySize,
-    crossSeedPercent: torrents.length > 0 ? (crossSeeded / torrents.length) * 100 : 0,
-    staleCount,
-  }
-}
+export const STALE_THRESHOLD_MS = 30 * 24 * 60 * 60 * 1000

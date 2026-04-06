@@ -1,10 +1,8 @@
 // src/components/ui/Tooltip.tsx
-//
-// Functions: Tooltip
 
 "use client"
 
-import { type ReactNode, useEffect, useRef, useState } from "react"
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import type { DocsEntry } from "@/lib/constants"
 
@@ -38,7 +36,7 @@ function Tooltip({ content, children, className, docs }: TooltipProps) {
     []
   )
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!visible || !triggerRef.current) return
     const rect = triggerRef.current.getBoundingClientRect()
     setPos({ top: rect.bottom + 6, left: rect.left })
@@ -62,14 +60,14 @@ function Tooltip({ content, children, className, docs }: TooltipProps) {
           <div
             ref={tooltipRef}
             role="tooltip"
-            className="fixed z-[9999] px-3 py-2 text-[11px] font-sans font-normal normal-case tracking-normal text-secondary leading-relaxed whitespace-normal bg-overlay nm-raised-sm rounded-nm-sm"
+            className="fixed z-50 px-3 py-2 text-2xs font-sans font-normal normal-case tracking-normal text-secondary leading-relaxed whitespace-normal bg-overlay nm-raised-sm rounded-nm-sm"
             style={{ top: pos.top, left: pos.left }}
             onMouseEnter={show}
             onMouseLeave={hide}
           >
             {content}
             {docs?.description && !docs.href && (
-              <p className="mt-1.5 pt-1.5 border-t border-border text-muted text-[10px]">
+              <p className="mt-1.5 pt-1.5 border-t border-border text-muted text-3xs">
                 {docs.description}
               </p>
             )}
@@ -78,7 +76,7 @@ function Tooltip({ content, children, className, docs }: TooltipProps) {
                 href={docs.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block mt-1.5 pt-1.5 border-t border-border text-accent hover:underline text-[10px]"
+                className="block mt-1.5 pt-1.5 border-t border-border text-accent hover:underline text-3xs"
               >
                 Documentation →
               </a>
@@ -90,4 +88,5 @@ function Tooltip({ content, children, className, docs }: TooltipProps) {
   )
 }
 
+export type { TooltipProps }
 export { Tooltip }

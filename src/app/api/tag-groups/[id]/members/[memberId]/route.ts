@@ -4,13 +4,14 @@
 
 import { and, eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, parseJsonBody, validateHexColor } from "@/lib/api-helpers"
+import { authenticate, parseJsonBody, type RouteContext, validateHexColor } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { tagGroupMembers } from "@/lib/db/schema"
+import { SHORT_NAME_MAX, SORT_ORDER_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 
 async function parseGroupAndMemberId(
-  params: Promise<{ id: string; memberId: string }>
+  params: RouteContext<{ id: string; memberId: string }>["params"]
 ): Promise<NextResponse | { groupId: number; memberId: number }> {
   const { id, memberId } = await params
   const groupId = parseInt(id, 10)
@@ -24,7 +25,7 @@ async function parseGroupAndMemberId(
 
 export async function PATCH(
   request: Request,
-  props: { params: Promise<{ id: string; memberId: string }> }
+  props: RouteContext<{ id: string; memberId: string }>
 ) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
@@ -52,7 +53,7 @@ export async function PATCH(
     if (body.tag.trim().length === 0) {
       return NextResponse.json({ error: "Tag cannot be empty" }, { status: 400 })
     }
-    if (body.tag.length > 100) {
+    if (body.tag.length > SHORT_NAME_MAX) {
       return NextResponse.json({ error: "Tag must be 100 characters or fewer" }, { status: 400 })
     }
     if (body.tag.trim() !== existing.tag) {
@@ -76,7 +77,7 @@ export async function PATCH(
     if (body.label.trim().length === 0) {
       return NextResponse.json({ error: "Label cannot be empty" }, { status: 400 })
     }
-    if (body.label.length > 100) {
+    if (body.label.length > SHORT_NAME_MAX) {
       return NextResponse.json({ error: "Label must be 100 characters or fewer" }, { status: 400 })
     }
     updates.label = body.label.trim()
@@ -91,9 +92,9 @@ export async function PATCH(
   }
 
   if (typeof body.sortOrder === "number") {
-    if (!Number.isFinite(body.sortOrder) || body.sortOrder < 0 || body.sortOrder > 9999) {
+    if (!Number.isFinite(body.sortOrder) || body.sortOrder < 0 || body.sortOrder > SORT_ORDER_MAX) {
       return NextResponse.json(
-        { error: "sortOrder must be a finite integer between 0 and 9999" },
+        { error: `sortOrder must be a finite integer between 0 and ${SORT_ORDER_MAX}` },
         { status: 400 }
       )
     }
@@ -114,7 +115,7 @@ export async function PATCH(
 
 export async function DELETE(
   _request: Request,
-  props: { params: Promise<{ id: string; memberId: string }> }
+  props: RouteContext<{ id: string; memberId: string }>
 ) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth

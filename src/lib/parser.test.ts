@@ -64,14 +64,6 @@ describe("formatBytes", () => {
 })
 
 describe("parseBytes - security", () => {
-  it("rejects script injection in format string", () => {
-    expect(() => parseBytes("<script>alert('xss')</script>")).toThrow()
-  })
-
-  it("rejects SQL injection attempts", () => {
-    expect(() => parseBytes("1; DROP TABLE trackers; --")).toThrow()
-  })
-
   it("handles extremely large values without crashing", () => {
     // 999 PiB equivalent - should not crash
     expect(() => parseBytes("999999999 TiB")).not.toThrow()

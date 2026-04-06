@@ -2,38 +2,20 @@
 //
 // Functions: GET, POST, DELETE
 
-import { and, eq, inArray, lt } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import {
-  ALERT_EXPIRY_MS,
-  EXPIRING_ALERT_TYPES,
-  NON_DISMISSIBLE_ALERT_TYPES,
-} from "@/lib/alert-pruning"
-import { authenticate, parseJsonBody } from "@/lib/api-helpers"
+import { NON_DISMISSIBLE_ALERT_TYPES, pruneDismissedAlerts } from "@/lib/alert-pruning"
+import { authenticate, parseJsonBody, validateMaxLength } from "@/lib/api-helpers"
+import type { AlertType } from "@/lib/dashboard"
 import { db } from "@/lib/db"
 import { dismissedAlerts } from "@/lib/db/schema"
+import { ALERT_KEY_MAX, ALERT_TYPE_MAX } from "@/lib/limits"
 
 export async function GET() {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const cutoff = new Date(Date.now() - ALERT_EXPIRY_MS)
-
-  // Lazily prune expired rows for expiring types
-  const expiredRows = await db
-    .select({ alertKey: dismissedAlerts.alertKey })
-    .from(dismissedAlerts)
-    .where(
-      and(
-        inArray(dismissedAlerts.alertType, EXPIRING_ALERT_TYPES),
-        lt(dismissedAlerts.dismissedAt, cutoff)
-      )
-    )
-
-  if (expiredRows.length > 0) {
-    const expiredKeys = expiredRows.map((r) => r.alertKey)
-    await db.delete(dismissedAlerts).where(inArray(dismissedAlerts.alertKey, expiredKeys))
-  }
+  await pruneDismissedAlerts()
 
   const remaining = await db.select({ alertKey: dismissedAlerts.alertKey }).from(dismissedAlerts)
 
@@ -56,9 +38,8 @@ export async function POST(request: Request) {
   if (normalizedKey.length === 0) {
     return NextResponse.json({ error: "key must be a non-empty string" }, { status: 400 })
   }
-  if (normalizedKey.length > 255) {
-    return NextResponse.json({ error: "key must be 255 characters or fewer" }, { status: 400 })
-  }
+  const keyErr = validateMaxLength(normalizedKey, ALERT_KEY_MAX, "key")
+  if (keyErr) return keyErr
 
   if (typeof type !== "string") {
     return NextResponse.json({ error: "type must be a non-empty string" }, { status: 400 })
@@ -67,11 +48,10 @@ export async function POST(request: Request) {
   if (normalizedType.length === 0) {
     return NextResponse.json({ error: "type must be a non-empty string" }, { status: 400 })
   }
-  if (normalizedType.length > 30) {
-    return NextResponse.json({ error: "type must be 30 characters or fewer" }, { status: 400 })
-  }
+  const typeErr = validateMaxLength(normalizedType, ALERT_TYPE_MAX, "type")
+  if (typeErr) return typeErr
 
-  if (NON_DISMISSIBLE_ALERT_TYPES.has(normalizedType)) {
+  if (NON_DISMISSIBLE_ALERT_TYPES.has(normalizedType as AlertType)) {
     return NextResponse.json({ error: "This alert type cannot be dismissed" }, { status: 400 })
   }
 

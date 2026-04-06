@@ -1,7 +1,4 @@
 // src/components/dashboard/EcosystemStatsSection.tsx
-//
-// Functions: EcosystemStatsSection
-
 "use client"
 
 import { H2 } from "@typography"
@@ -17,7 +14,7 @@ import {
 } from "@/components/ui/Icons"
 import { StatCard } from "@/components/ui/StatCard"
 import type { AggregateStats } from "@/lib/dashboard"
-import { formatBytesFromString, formatRatio, splitValueUnit } from "@/lib/formatters"
+import { formatBytesFromString, formatCount, formatRatio, splitValueUnit } from "@/lib/formatters"
 import type { TrackerSummary } from "@/types/api"
 
 const AGGREGATE_ICONS: Record<string, ReactNode> = {
@@ -83,12 +80,12 @@ function EcosystemStatsSection({ trackers, aggregateStats }: EcosystemStatsSecti
         />
         <StatCard
           label="Seeding"
-          value={aggregateStats.totalSeeding.toLocaleString()}
+          value={formatCount(aggregateStats.totalSeeding)}
           icon={AGGREGATE_ICONS.seeding}
         />
         <StatCard
           label="Leeching"
-          value={aggregateStats.totalLeeching.toLocaleString()}
+          value={formatCount(aggregateStats.totalLeeching)}
           icon={AGGREGATE_ICONS.leeching}
         />
       </div>

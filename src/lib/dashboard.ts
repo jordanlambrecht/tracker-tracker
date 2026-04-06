@@ -1,14 +1,15 @@
 // src/lib/dashboard.ts
 //
-// Functions: computeAggregateStats, computeAlerts, detectRankChanges, fetchDismissedKeys, postDismissAlert, deleteAllDismissed, computeSystemAlerts
+// Functions: computeAggregateStats, computeAlerts, detectRankChanges, fetchDismissedKeys,
+// postDismissAlert, deleteAllDismissed, computeSystemAlerts
 
 import { findRegistryEntry } from "@/data/tracker-registry"
+import { formatDateTime, formatRatio, formatTimeAgo } from "@/lib/formatters"
 import { isRedacted } from "@/lib/privacy"
 import {
   checkAnniversaryMilestone,
   checkRatioBelowMinimum,
   checkTrackerError,
-  checkWarned,
   checkZeroSeeding,
 } from "@/lib/tracker-events"
 import type { Snapshot, TrackerSummary } from "@/types/api"
@@ -38,6 +39,7 @@ export type AlertType =
   | "update-available"
   | "backup-failed"
   | "client-error"
+  | "retention-unconfigured"
 
 export interface DashboardAlert {
   key: string
@@ -133,7 +135,7 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
         trackerId: tracker.id,
         trackerName: tracker.name,
         trackerColor: tracker.color,
-        message: `Ratio ${tracker.latestStats?.ratio?.toFixed(2)} is below the minimum of ${minimumRatio}`,
+        message: `Ratio ${formatRatio(tracker.latestStats?.ratio)} is below the minimum of ${minimumRatio}`,
         timestamp: tracker.lastPolledAt ?? undefined,
         dismissible: true,
       })
@@ -142,17 +144,16 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
     // --- Stale data (skip if paused — staleness is expected) ---
     if (!tracker.pausedAt && !tracker.userPausedAt && tracker.lastPolledAt) {
       const lastPolled = new Date(tracker.lastPolledAt)
-      const thresholdMs = 2 * 60 * 60 * 1000 // 2 hours — stale if no poll in this window
+      const thresholdMs = 2 * 60 * 60 * 1000 // 2 hours
       const ageMs = Date.now() - lastPolled.getTime()
       if (ageMs > thresholdMs) {
-        const hoursAgo = Math.floor(ageMs / (1000 * 60 * 60))
         alerts.push({
           key: `stale-data-${tracker.id}`,
           type: "stale-data",
           trackerId: tracker.id,
           trackerName: tracker.name,
           trackerColor: tracker.color,
-          message: `Last polled ${hoursAgo}h ago`,
+          message: `Last polled ${formatTimeAgo(tracker.lastPolledAt)}`,
           timestamp: tracker.lastPolledAt,
           dismissible: true,
         })
@@ -174,7 +175,7 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
     }
 
     // --- Warned by tracker ---
-    if (checkWarned(tracker.latestStats?.warned)) {
+    if (tracker.latestStats?.warned === true) {
       alerts.push({
         key: `warned-${tracker.id}`,
         type: "warned",
@@ -223,15 +224,11 @@ export function detectRankChanges(
   const cutoff = Date.now() - freshnessDays * 24 * 60 * 60 * 1000
 
   for (const t of trackers) {
-    const raw = snapshotMap.get(t.id)
-    if (!raw || raw.length < 2) continue
+    const snapshots = snapshotMap.get(t.id)
+    if (!snapshots || snapshots.length < 2) continue
 
-    // Sort ascending by polledAt so index 0 is oldest, last is newest
-    const snapshots = [...raw].sort(
-      (a, b) => new Date(a.polledAt).getTime() - new Date(b.polledAt).getTime()
-    )
-
-    // Walk backwards through snapshots to find the most recent rank change
+    // INVARIANT: snapshots arrive sorted ascending by polledAt from the API
+    // Walk backwards to find the most recent rank change
     for (let i = snapshots.length - 1; i > 0; i--) {
       const current = snapshots[i]
       const previous = snapshots[i - 1]
@@ -242,7 +239,7 @@ export function detectRankChanges(
       // Skip if same group
       if (current.group === previous.group) continue
 
-      // Found a rank change — check freshness
+      // Found a rank change. check freshness
       const changeTime = new Date(current.polledAt).getTime()
       if (changeTime < cutoff) break // Older than freshness window, stop looking
 
@@ -314,6 +311,7 @@ export interface SystemAlertData {
   currentVersion: string
   failedBackups: { createdAt: string }[]
   clients: { id: number; name: string; enabled: boolean; lastError: string | null }[]
+  snapshotRetentionDays: number | null
 }
 
 export function computeSystemAlerts(data: SystemAlertData): DashboardAlert[] {
@@ -341,7 +339,7 @@ export function computeSystemAlerts(data: SystemAlertData): DashboardAlert[] {
       trackerId: null,
       trackerName: "Backups",
       trackerColor: "var(--color-danger)",
-      message: `Scheduled backup failed at ${new Date(latest.createdAt).toLocaleString()}`,
+      message: `Scheduled backup failed at ${formatDateTime(latest.createdAt)}`,
       timestamp: latest.createdAt,
       dismissible: true,
     })
@@ -360,6 +358,20 @@ export function computeSystemAlerts(data: SystemAlertData): DashboardAlert[] {
         dismissible: false,
       })
     }
+  }
+
+  // Snapshot retention unconfigured
+  if (data.snapshotRetentionDays === null) {
+    alerts.push({
+      key: "retention-unconfigured",
+      type: "retention-unconfigured",
+      trackerId: null,
+      trackerName: "System",
+      trackerColor: "var(--color-warn)",
+      message:
+        "Snapshot retention is not configured — database and backups will grow indefinitely. Configure in Settings > Security.",
+      dismissible: true,
+    })
   }
 
   return alerts

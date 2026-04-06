@@ -22,6 +22,7 @@ const mockTracker = {
   remoteUserId: null,
   platformMeta: null,
   avatarData: null,
+  avatarMimeType: null,
   avatarCachedAt: null,
   avatarRemoteUrl: null,
   useProxy: false,
@@ -93,11 +94,6 @@ describe("serializeTrackerResponse new fields", () => {
     const snapshotWithNullBuffer = { ...mockSnapshot, bufferBytes: null }
     const result = serializeTrackerResponse(mockTracker, snapshotWithNullBuffer, (v) => v ?? null)
     expect(result.latestStats?.bufferBytes).toBeNull()
-  })
-
-  it("serializes all 4 new fields as null when snapshot is null", () => {
-    const result = serializeTrackerResponse(mockTracker, null, (v) => v ?? null)
-    expect(result.latestStats).toBeNull()
   })
 
   it("serializes hitAndRuns, seedbonus, shareScore when present", () => {

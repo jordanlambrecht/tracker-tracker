@@ -1,8 +1,8 @@
 // src/components/dashboard/TrackerBreakdownTicker.tsx
-
 "use client"
 
-import { compareBigIntDesc, formatBytesFromString } from "@/lib/formatters"
+import { compareBigIntDesc } from "@/lib/data-transforms"
+import { formatBytesFromString } from "@/lib/formatters"
 import type { TodayAtAGlance } from "@/types/api"
 
 interface TrackerBreakdownProps {
@@ -26,7 +26,7 @@ export function TrackerBreakdownTicker({ trackers }: TrackerBreakdownProps) {
             key={tracker.id}
             className="nm-raised-sm rounded-full px-3 py-1 flex items-center gap-2"
           >
-            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: dotColor }} />
+            <span className="color-dot" style={{ backgroundColor: dotColor }} />
             <span className="text-xs font-sans text-primary">{tracker.name}</span>
             <span className="text-xs font-mono text-secondary">
               {formatBytesFromString(tracker.uploadDelta)}

@@ -1,16 +1,14 @@
 // src/components/settings/AccountSection.tsx
-//
-// Functions: AccountSection
-
 "use client"
 
 import { H3, Paragraph } from "@typography"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
-import { Button } from "@/components/ui/Button"
-import { Input } from "@/components/ui/Input"
-import { extractApiError } from "@/lib/client-helpers"
+import { Button, Input } from "@/components/ui"
+import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
+import { extractApiError } from "@/lib/extract-api-error"
+import { PASSWORD_MIN, USERNAME_MIN } from "@/lib/limits"
 
 export interface AccountSectionProps {
   initialUsername: string
@@ -28,8 +26,8 @@ export function AccountSection({ initialUsername }: AccountSectionProps) {
   async function handleSaveUsername() {
     setUsernameError(null)
     const trimmed = username.trim()
-    if (trimmed && trimmed.length < 6) {
-      setUsernameError("Username must be at least 6 characters")
+    if (trimmed && trimmed.length < USERNAME_MIN) {
+      setUsernameError(`Username must be at least ${USERNAME_MIN} characters`)
       return
     }
     setSavingUsername(true)
@@ -65,8 +63,8 @@ export function AccountSection({ initialUsername }: AccountSectionProps) {
       setPasswordError("Current password is required")
       return
     }
-    if (newPassword.length < 8) {
-      setPasswordError("New password must be at least 8 characters")
+    if (newPassword.length < PASSWORD_MIN) {
+      setPasswordError(`New password must be at least ${PASSWORD_MIN} characters`)
       return
     }
     if (newPassword !== confirmPassword) {
@@ -103,7 +101,7 @@ export function AccountSection({ initialUsername }: AccountSectionProps) {
             setUsername(e.target.value)
             setUsernameError(null)
           }}
-          placeholder="Min. 6 characters (optional)"
+          placeholder={`Min. ${USERNAME_MIN} characters (optional)`}
           error={usernameError ?? undefined}
           disabled={savingUsername}
         />
@@ -113,9 +111,8 @@ export function AccountSection({ initialUsername }: AccountSectionProps) {
             size="sm"
             onClick={handleSaveUsername}
             disabled={savingUsername || username === savedUsername}
-          >
-            {savingUsername ? "Saving…" : "Save Username"}
-          </Button>
+            text={savingUsername ? "Saving…" : "Save Username"}
+          />
         </div>
       </div>
 
@@ -158,20 +155,17 @@ export function AccountSection({ initialUsername }: AccountSectionProps) {
           disabled={savingPassword}
         />
         <Paragraph>Re-encrypts all stored API tokens. You will be logged out.</Paragraph>
-        {passwordError && (
-          <p className="text-xs font-sans text-danger" role="alert">
-            {passwordError}
-          </p>
-        )}
-        <div className="flex justify-end">
-          <Button
-            size="sm"
-            onClick={handleChangePassword}
-            disabled={savingPassword || !currentPassword || !newPassword || !confirmPassword}
-          >
-            {savingPassword ? "Updating…" : "Update Password"}
-          </Button>
-        </div>
+        <SaveDiscardBar
+          dirty
+          saving={savingPassword}
+          onSave={handleChangePassword}
+          error={passwordError}
+          saveLabel="Update Password"
+          savingLabel="Updating…"
+          saveDisabled={!currentPassword || !newPassword || !confirmPassword}
+          justify="end"
+          showDivider={false}
+        />
       </div>
     </SettingsSection>
   )

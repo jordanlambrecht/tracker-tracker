@@ -1,30 +1,23 @@
 // src/components/charts/FleetVolumeHeatmap.tsx
-//
-// Functions: buildVolumeMatrix, buildFleetVolumeHeatmapOption, FleetVolumeHeatmap
 
 "use client"
 
 import type { EChartsOption } from "echarts"
 import { useState } from "react"
 import { TabBar } from "@/components/ui/TabBar"
-import { hexToRgba } from "@/lib/formatters"
-import type { TrackerSnapshotSeries } from "@/types/charts"
+import { hexToRgba } from "@/lib/color-utils"
+import type { FleetChartProps, TrackerSnapshotSeries, VolumeField } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
-import { DAY_LABELS, fmtNum, HOUR_LABELS } from "./lib/chart-helpers"
+import { DAY_LABELS, formatGiB, HOUR_LABELS } from "./lib/chart-helpers"
 import { CHART_THEME, chartAxisLabel, chartTooltip, chartTooltipRow, escHtml } from "./lib/theme"
 
-type VolumeField = "upload" | "download"
-
-interface FleetVolumeHeatmapProps {
-  trackerData: TrackerSnapshotSeries[]
-  height?: number
-}
+interface FleetVolumeHeatmapProps extends FleetChartProps {}
 
 /**
- * Build a 7×24 volume matrix from snapshot series.
+ * Build a 7x24 volume matrix from snapshot series.
  * For each consecutive snapshot pair, compute the byte delta and bucket
- * it by the dayOfWeek × hourOfDay of the later snapshot.
+ * it by the dayOfWeek x hourOfDay of the later snapshot.
  * Returns values in GiB.
  */
 function buildVolumeMatrix(
@@ -86,7 +79,7 @@ function buildFleetVolumeHeatmapOption(
             `<span style="color:${CHART_THEME.textTertiary};">No data</span>`
           )
         }
-        const display = gib >= 1024 ? `${fmtNum(gib / 1024)} TiB` : `${fmtNum(gib)} GiB`
+        const display = formatGiB(gib)
         return (
           `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(dayLabel)} at ${escHtml(hourLabel)}</span><br/>` +
           chartTooltipRow(color, label, display)
@@ -146,6 +139,11 @@ function buildFleetVolumeHeatmapOption(
   }
 }
 
+const VOLUME_FIELD_TABS = [
+  { key: "upload" as const, label: "Upload" },
+  { key: "download" as const, label: "Download" },
+]
+
 function FleetVolumeHeatmap({ trackerData, height = 260 }: FleetVolumeHeatmapProps) {
   const [field, setField] = useState<VolumeField>("upload")
 
@@ -159,15 +157,7 @@ function FleetVolumeHeatmap({ trackerData, height = 260 }: FleetVolumeHeatmapPro
   return (
     <div>
       <div className="flex justify-end pb-2">
-        <TabBar
-          compact
-          tabs={[
-            { key: "upload" as const, label: "Upload" },
-            { key: "download" as const, label: "Download" },
-          ]}
-          activeTab={field}
-          onChange={setField}
-        />
+        <TabBar compact tabs={VOLUME_FIELD_TABS} activeTab={field} onChange={setField} />
       </div>
       <ChartECharts
         option={buildFleetVolumeHeatmapOption(data, maxValue, field)}

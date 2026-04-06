@@ -2,6 +2,7 @@
 //
 // Functions: buildActivityMatrix, computeDailyDeltas, carryForwardValues, buildTimeSeriesData, carryForwardTimeSeries, collectUnifiedTimestamps
 
+import { localDateStr } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 
@@ -12,23 +13,20 @@ export interface DailyBucket {
 }
 
 /** Compute per-day upload/download deltas (in GiB) from a sorted snapshot list. */
+// INVARIANT: snapshots arrive sorted ascending by polledAt from the API
 export function computeDailyDeltas(snapshots: Snapshot[]): DailyBucket[] {
   if (snapshots.length < 2) return []
 
-  const sorted = [...snapshots].sort(
-    (a, b) => new Date(a.polledAt).getTime() - new Date(b.polledAt).getTime()
-  )
-
   const bucketMap = new Map<string, { upload: number; download: number }>()
 
-  for (let i = 1; i < sorted.length; i++) {
-    const prev = sorted[i - 1]
-    const curr = sorted[i]
+  for (let i = 1; i < snapshots.length; i++) {
+    const prev = snapshots[i - 1]
+    const curr = snapshots[i]
 
     const uploadDiff = Number(BigInt(curr.uploadedBytes) - BigInt(prev.uploadedBytes))
     const downloadDiff = Number(BigInt(curr.downloadedBytes) - BigInt(prev.downloadedBytes))
 
-    const dayKey = new Date(curr.polledAt).toISOString().slice(0, 10)
+    const dayKey = localDateStr(new Date(curr.polledAt))
 
     const existing = bucketMap.get(dayKey) ?? { upload: 0, download: 0 }
     existing.upload += uploadDiff
@@ -44,7 +42,7 @@ export function computeDailyDeltas(snapshots: Snapshot[]): DailyBucket[] {
 }
 
 /**
- * Build a 7×24 activity matrix from a list of Unix epoch timestamps (seconds).
+ * Build a 7x24 activity matrix from a list of Unix epoch timestamps (seconds).
  * Returns the flattened [hour, day, count] data array and the maximum count.
  */
 export function buildActivityMatrix(addedOnSeconds: number[]): {

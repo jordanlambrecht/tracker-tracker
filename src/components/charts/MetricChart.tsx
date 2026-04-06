@@ -1,13 +1,12 @@
 // src/components/charts/MetricChart.tsx
-//
-// Functions: buildLineOption, buildDailyDeltaOption, MetricChart
-
 "use client"
 
 import type { EChartsOption } from "echarts"
 import { useState } from "react"
 import { TabBar } from "@/components/ui/TabBar"
-import { bytesToGiB, getComplementaryColor } from "@/lib/formatters"
+import { getComplementaryColor } from "@/lib/color-utils"
+import { bytesToGiB, formatCount } from "@/lib/formatters"
+import { isValidHex } from "@/lib/validators"
 import type { Snapshot } from "@/types/api"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
@@ -75,7 +74,7 @@ const METRIC_CONFIGS: Record<Exclude<Metric, "dailyDelta">, MetricConfig> = {
   },
   ratio: {
     label: "Ratio",
-    unit: "×",
+    unit: "x",
     getValue: (s) => s.ratio,
   },
   buffer: {
@@ -155,7 +154,7 @@ function buildLineOption(
         const pair = items[0].value
         if (!pair || pair[1] === null || pair[1] === undefined) return ""
         const val = pair[1]
-        const display = config.isInteger ? Math.round(val).toLocaleString() : fmtNum(val)
+        const display = config.isInteger ? formatCount(Math.round(val)) : fmtNum(val)
         const ts = formatChartTimestamp(pair[0])
         return (
           chartTooltipHeader(ts) +
@@ -173,13 +172,13 @@ function buildLineOption(
       nameTextStyle: {
         color: TERTIARY_COLOR,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: chartAxisLabel({
         formatter: config.isInteger
-          ? (val: number) => Math.round(val).toLocaleString()
+          ? (val: number) => formatCount(Math.round(val))
           : (val: number) => fmtNum(val, 1),
       }),
       splitLine: { lineStyle: { color: BORDER_SOFT, width: 1 } },
@@ -215,7 +214,7 @@ function buildLineOption(
                   formatter: `Min: ${baselineValue}`,
                   position: "insideEndTop",
                   color: CHART_THEME.danger,
-                  fontSize: 10,
+                  fontSize: CHART_THEME.fontSizeCompact,
                   fontFamily: CHART_THEME.fontMono,
                 },
                 data: [{ yAxis: baselineValue }],
@@ -287,7 +286,7 @@ function buildDailyDeltaOption(
       nameTextStyle: {
         color: TERTIARY_COLOR,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },
@@ -366,7 +365,7 @@ function MetricChart({
 }: MetricChartProps) {
   const [deltaMode, setDeltaMode] = useState<DeltaMode>("bar")
 
-  const safeAccent = /^#[0-9a-fA-F]{6}$/.test(accentColor) ? accentColor : CHART_THEME.accent
+  const safeAccent = isValidHex(accentColor) ? accentColor : CHART_THEME.accent
 
   const config = metric !== "dailyDelta" ? METRIC_CONFIGS[metric] : null
   const ratioValues = config

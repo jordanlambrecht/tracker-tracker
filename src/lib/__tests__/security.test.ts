@@ -40,10 +40,18 @@ vi.mock("@/lib/crypto", () => ({
   generateSalt: vi.fn().mockReturnValue("a".repeat(64)),
 }))
 
-vi.mock("@/lib/scheduler", () => ({
+vi.mock("@/lib/tracker-scheduler", () => ({
   pollTracker: vi.fn(),
-  stopScheduler: vi.fn(),
+  startTrackerPolling: vi.fn(),
+  stopTrackerPolling: vi.fn(),
+  isTrackerPollingRunning: vi.fn(() => false),
   fetchTrackerStats: vi.fn(),
+}))
+
+vi.mock("@/lib/scheduler", () => ({
+  startScheduler: vi.fn(),
+  stopScheduler: vi.fn(),
+  ensureSchedulerRunning: vi.fn(),
 }))
 
 vi.mock("@/lib/transit-papers/report-generator", () => ({
@@ -129,7 +137,7 @@ vi.mock("@/lib/nuke", () => ({
   scrubAndDeleteAll: vi.fn(),
 }))
 
-vi.mock("@/lib/client-scheduler", () => ({
+vi.mock("@/lib/download-client-scheduler", () => ({
   startClientScheduler: vi.fn(),
   stopClientScheduler: vi.fn(),
 }))
@@ -144,14 +152,14 @@ vi.mock("@/lib/privacy", () => ({
   isRedacted: vi.fn(() => false),
 }))
 
-vi.mock("@/lib/proxy", () => ({
+vi.mock("@/lib/tunnel", () => ({
   VALID_PROXY_TYPES: new Set(["socks5", "http", "https"]),
   PROXY_HOST_PATTERN: /^[\w.\-:[\]]+$/,
   buildProxyAgentFromSettings: vi.fn().mockReturnValue(undefined),
   proxyFetch: vi.fn(),
 }))
 
-vi.mock("@/lib/qbt", () => ({
+vi.mock("@/lib/download-clients", () => ({
   buildBaseUrl: vi.fn().mockReturnValue("http://localhost:8080"),
   getSession: vi.fn(),
   getTorrents: vi.fn().mockResolvedValue([]),
@@ -164,11 +172,28 @@ vi.mock("@/lib/qbt", () => ({
   getSpeedSnapshots: vi.fn().mockReturnValue([]),
   pushSpeedSnapshot: vi.fn(),
   clearSpeedCache: vi.fn(),
-}))
-
-vi.mock("@/lib/qbt/merge", () => ({
   mergeTorrentLists: vi.fn().mockReturnValue([]),
   aggregateCrossSeedTags: vi.fn().mockReturnValue([]),
+  fetchAndMergeTorrents: vi.fn().mockResolvedValue({
+    torrents: [],
+    crossSeedTags: [],
+    clientErrors: [],
+    clientCount: 0,
+    sessionExpired: false,
+  }),
+  stripSensitiveTorrentFields: vi.fn((t: Record<string, unknown>) => {
+    const { tracker: _t, content_path: _cp, save_path: _sp, ...rest } = t
+    return rest
+  }),
+  CLIENT_CONNECTION_COLUMNS: {},
+  decryptClientCredentials: vi.fn().mockReturnValue({ username: "admin", password: "pass" }),
+  parseCrossSeedTags: vi.fn((raw: string[] | null) => raw ?? []),
+  slimTorrentForCache: vi.fn((t: Record<string, unknown>) => t),
+  parseCachedTorrents: vi.fn().mockReturnValue([]),
+  STORE_MAX_AGE_MS: 600000,
+  isStoreFresh: vi.fn().mockReturnValue(false),
+  getFilteredTorrents: vi.fn().mockReturnValue([]),
+  VALID_CLIENT_TYPES: ["qbittorrent"],
 }))
 
 vi.mock("@/lib/privacy-db", () => ({
@@ -262,7 +287,7 @@ import { GET as TrackerTorrentsGET } from "@/app/api/trackers/[id]/torrents/rout
 import { POST as PollAllPOST } from "@/app/api/trackers/poll-all/route"
 import { PATCH as ReorderPATCH } from "@/app/api/trackers/reorder/route"
 import { GET, POST } from "@/app/api/trackers/route"
-import { POST as TestPOST } from "@/app/api/trackers/test/route"
+import { POST as TestPOST } from "@/app/api/trackers/test-connection/route"
 import { POST as UploadImagePOST } from "@/app/api/upload-image/route"
 
 // ---------------------------------------------------------------------------
@@ -797,15 +822,10 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
 // 2. Public endpoint documentation
 // ---------------------------------------------------------------------------
 
-describe("Public endpoints: verify routes do NOT require auth", () => {
-  it("POST /api/verify-report is intentionally public (rate-limited, no auth)", () => {
-    // Documented: verify-report and verify-report/fetch-image are public endpoints.
-    // They use in-memory rate limiting instead of authentication.
-    // Moderators verify reports without needing an account.
-    // Do NOT add authenticate() to these routes.
-    expect(true).toBe(true)
-  })
-})
+// NOTE: POST /api/verify-report and /api/verify-report/fetch-image are
+// intentionally public endpoints. They use in-memory rate limiting instead of
+// authentication. Moderators verify reports without needing an account.
+// Do NOT add authenticate() to these routes.
 
 // ---------------------------------------------------------------------------
 // 3. Encrypted tokens never leak in API responses
@@ -862,16 +882,28 @@ describe("Token leakage prevention", () => {
   })
 
   it("GET /api/notifications never includes encryptedConfig in responses", async () => {
+    // Mock returns the shape produced by notificationTargetColumns projection.
+    // encryptedConfig is never selected; hasConfig is a SQL boolean computed at query level.
     const target = {
       id: 1,
       name: "My Discord",
       type: "discord",
       enabled: true,
-      encryptedConfig: "SUPER_SECRET_ENCRYPTED_CONFIG_SHOULD_NOT_APPEAR",
+      hasConfig: true,
       notifyRatioDrop: true,
       notifyHitAndRun: false,
       notifyTrackerDown: true,
       notifyBufferMilestone: false,
+      notifyWarned: false,
+      notifyRatioDanger: false,
+      notifyZeroSeeding: false,
+      notifyRankChange: false,
+      notifyAnniversary: false,
+      notifyBonusCap: false,
+      notifyVipExpiring: false,
+      notifyUnsatisfiedLimit: false,
+      notifyActiveHnrs: false,
+      notifyDownloadDisabled: false,
       thresholds: null,
       includeTrackerName: true,
       scope: null,
@@ -890,11 +922,10 @@ describe("Token leakage prevention", () => {
     const body = await res.json()
     const json = JSON.stringify(body)
 
-    expect(json).not.toContain("SUPER_SECRET_ENCRYPTED_CONFIG_SHOULD_NOT_APPEAR")
     expect(json).not.toContain("encryptedConfig")
-    // Confirm the safe fields are present
     expect(body[0]).toHaveProperty("hasConfig", true)
     expect(body[0]).toHaveProperty("name", "My Discord")
+    expect(body[0]).toHaveProperty("notifyDownloadDisabled", false)
   })
 
   it("GET /api/trackers/[id] does not include encryptedApiToken or apiPath in response", async () => {
@@ -962,12 +993,15 @@ describe("Token leakage prevention", () => {
   })
 
   it("GET /api/settings/image-hosts returns booleans, not ciphertext", async () => {
-    // Mock db.select to return settings with encrypted key values present
+    // Mock returns the shape produced by settingsColumns projection.
+    // The encrypted columns are selected under aliased names (hasPtpimgKey etc.)
+    // and coerced to booleans by the serializer. Ciphertext enters server memory
+    // but never reaches the response.
     const mockLimit = vi.fn().mockResolvedValue([
       {
-        encryptedPtpimgApiKey: "ENCRYPTED_PTPIMG_KEY_CIPHERTEXT",
-        encryptedOeimgApiKey: "ENCRYPTED_OEIMG_KEY_CIPHERTEXT",
-        encryptedImgbbApiKey: null,
+        hasPtpimgKey: "ENCRYPTED_PTPIMG_KEY_CIPHERTEXT",
+        hasOeimgKey: "ENCRYPTED_OEIMG_KEY_CIPHERTEXT",
+        hasImgbbKey: null,
       },
     ])
     const mockFrom = vi.fn().mockReturnValue({ limit: mockLimit })
@@ -1103,34 +1137,8 @@ describe("Input validation: POST /api/trackers", () => {
     mockAuthSuccess()
   })
 
-  it("rejects missing required fields", async () => {
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({})
-    const req = makeRequest("http://localhost/api/trackers", {}, "POST")
-    const res = await POST(req)
-    expect(res.status).toBe(400)
-  })
-
-  it("rejects oversized name (>100 chars)", async () => {
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
-      name: "a".repeat(101),
-      baseUrl: "https://example.com",
-      apiToken: "valid-token",
-    })
-    const req = makeRequest("http://localhost/api/trackers", {}, "POST")
-    const res = await POST(req)
-    expect(res.status).toBe(400)
-  })
-
-  it("rejects invalid URL format", async () => {
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
-      name: "Test",
-      baseUrl: "not-a-url",
-      apiToken: "valid-token",
-    })
-    const req = makeRequest("http://localhost/api/trackers", {}, "POST")
-    const res = await POST(req)
-    expect(res.status).toBe(400)
-  })
+  // "rejects missing required fields", "rejects oversized name", and
+  // "rejects invalid URL format" are covered in tracker-routes.test.ts
 
   it("rejects invalid platform type", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -1209,18 +1217,7 @@ describe("Input validation: additional field constraints", () => {
     ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
   })
 
-  it("rejects oversized API token (>500 chars)", async () => {
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
-      name: "Test",
-      baseUrl: "https://example.com",
-      apiToken: "a".repeat(501),
-    })
-    const req = makeRequest("http://localhost/api/trackers", {}, "POST")
-    const res = await POST(req)
-    expect(res.status).toBe(400)
-    const data = await res.json()
-    expect(data.error).toMatch(/token/i)
-  })
+  // "rejects oversized API token" is covered in tracker-routes.test.ts
 
   it("rejects oversized qbtTag (>100 chars)", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -1311,67 +1308,8 @@ describe("Input validation: additional field constraints", () => {
 })
 
 // ---------------------------------------------------------------------------
-// 6. Crypto round-trip integrity
+// 6. Crypto round-trip integrity — covered by src/lib/crypto.test.ts
 // ---------------------------------------------------------------------------
-
-describe("Crypto integrity", () => {
-  // Use real crypto functions (unmocked)
-  let realEncrypt: typeof import("@/lib/crypto").encrypt
-  let realDecrypt: typeof import("@/lib/crypto").decrypt
-  let realGenerateSalt: typeof import("@/lib/crypto").generateSalt
-  let realDeriveKey: typeof import("@/lib/crypto").deriveKey
-
-  beforeEach(async () => {
-    // Import real crypto module (bypassing mocks)
-    const crypto = await vi.importActual<typeof import("@/lib/crypto")>("@/lib/crypto")
-    realEncrypt = crypto.encrypt
-    realDecrypt = crypto.decrypt
-    realGenerateSalt = crypto.generateSalt
-    realDeriveKey = crypto.deriveKey
-  })
-
-  it("encrypt then decrypt produces the original plaintext", async () => {
-    const key = await realDeriveKey("test-password", realGenerateSalt())
-    const plaintext = "my-secret-api-token-12345"
-    const encrypted = realEncrypt(plaintext, key)
-    const decrypted = realDecrypt(encrypted, key)
-    expect(decrypted).toBe(plaintext)
-  })
-
-  it("decrypt rejects tampered ciphertext", async () => {
-    const key = await realDeriveKey("test-password", realGenerateSalt())
-    const encrypted = realEncrypt("my-secret", key)
-
-    // Tamper with the ciphertext by flipping a byte
-    const tampered = Buffer.from(encrypted, "base64")
-    tampered[tampered.length - 1] ^= 0xff
-    const tamperedStr = tampered.toString("base64")
-
-    expect(() => realDecrypt(tamperedStr, key)).toThrow()
-  })
-
-  it("decrypt rejects wrong key", async () => {
-    const key1 = await realDeriveKey("password-one", realGenerateSalt())
-    const key2 = await realDeriveKey("password-two", realGenerateSalt())
-    const encrypted = realEncrypt("my-secret", key1)
-
-    expect(() => realDecrypt(encrypted, key2)).toThrow()
-  })
-
-  it("decrypt rejects truncated ciphertext", async () => {
-    const key = await realDeriveKey("test-password", realGenerateSalt())
-    const short = Buffer.from("too-short").toString("base64")
-    expect(() => realDecrypt(short, key)).toThrow()
-  })
-
-  it("each encryption produces unique ciphertext (random IV)", async () => {
-    const key = await realDeriveKey("test-password", realGenerateSalt())
-    const plaintext = "same-input"
-    const enc1 = realEncrypt(plaintext, key)
-    const enc2 = realEncrypt(plaintext, key)
-    expect(enc1).not.toBe(enc2)
-  })
-})
 
 // ---------------------------------------------------------------------------
 // 7. Encryption key zeroing on scheduler stop
@@ -1379,20 +1317,20 @@ describe("Crypto integrity", () => {
 
 describe("Encryption key zeroing", () => {
   it("stopScheduler zero-fills the encryption key buffer", async () => {
-    const { startScheduler, stopScheduler, _getSchedulerKeyForTest } =
-      await vi.importActual<typeof import("@/lib/scheduler")>("@/lib/scheduler")
+    const { startTrackerPolling, stopTrackerPolling, _getSchedulerKeyForTest } =
+      await vi.importActual<typeof import("@/lib/tracker-scheduler")>("@/lib/tracker-scheduler")
 
     const key = Buffer.from("a]1b2c3d4e5f6".repeat(3).slice(0, 32))
     const originalBytes = Buffer.from(key) // snapshot before zeroing
 
-    startScheduler(key)
+    startTrackerPolling(key)
 
     // Key reference should be stored
     const storedKey = _getSchedulerKeyForTest()
     expect(storedKey).not.toBeNull()
     expect(storedKey).toBe(key) // same Buffer instance
 
-    stopScheduler()
+    stopTrackerPolling()
 
     // Buffer bytes should all be zero
     expect(key.every((byte) => byte === 0)).toBe(true)
@@ -1403,14 +1341,14 @@ describe("Encryption key zeroing", () => {
   })
 
   it("stopScheduler is safe to call when no scheduler is running", async () => {
-    const { stopScheduler, _getSchedulerKeyForTest } =
-      await vi.importActual<typeof import("@/lib/scheduler")>("@/lib/scheduler")
+    const { stopTrackerPolling, _getSchedulerKeyForTest } =
+      await vi.importActual<typeof import("@/lib/tracker-scheduler")>("@/lib/tracker-scheduler")
 
     // Ensure clean state
-    stopScheduler()
+    stopTrackerPolling()
     expect(_getSchedulerKeyForTest()).toBeNull()
     // Should not throw
-    expect(() => stopScheduler()).not.toThrow()
+    expect(() => stopTrackerPolling()).not.toThrow()
   })
 })
 

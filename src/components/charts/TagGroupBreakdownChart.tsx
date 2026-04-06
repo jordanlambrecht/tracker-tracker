@@ -4,8 +4,9 @@
 
 "use client"
 
+import { SlotLabel } from "@typography"
 import type { EChartsOption } from "echarts"
-import { hexToRgba } from "@/lib/formatters"
+import { formatCount, formatPercent } from "@/lib/formatters"
 import type { TagGroupChartType } from "@/types/api"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
@@ -31,12 +32,11 @@ interface TagGroupBreakdownChartProps {
 function memberColor(
   accentColor: string,
   member: { color: string | null },
-  index: number,
-  total: number
+  _index: number,
+  _total: number
 ): string {
   if (member.color) return member.color
-  const opacity = Math.max(0.4, 1 - index * (0.6 / Math.max(total - 1, 1)))
-  return hexToRgba(accentColor, opacity)
+  return accentColor
 }
 
 // ---------------------------------------------------------------------------
@@ -75,7 +75,7 @@ function barOption(
       axisLabel: {
         color: CHART_THEME.textSecondary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },
@@ -99,7 +99,7 @@ function barOption(
           position: "right",
           formatter: "{c}",
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 10,
+          fontSize: CHART_THEME.fontSizeCompact,
           color: CHART_THEME.textSecondary,
         },
       },
@@ -135,14 +135,18 @@ function donutOption(
           show: true,
           color: CHART_THEME.textSecondary,
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 10,
+          fontSize: CHART_THEME.fontSizeCompact,
           formatter: "{b}: {c}",
         },
         labelLine: {
           lineStyle: { color: CHART_THEME.textTertiary },
         },
         emphasis: {
-          label: { fontSize: 12, fontWeight: "bold", color: CHART_THEME.textPrimary },
+          label: {
+            fontSize: CHART_THEME.fontSizeSmall,
+            fontWeight: "bold",
+            color: CHART_THEME.textPrimary,
+          },
         },
         data: members.map((m, i) => ({
           name: m.label,
@@ -182,7 +186,7 @@ function treemapOption(
         label: {
           show: true,
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 11,
+          fontSize: CHART_THEME.fontSizeDense,
           color: CHART_THEME.textPrimary,
           formatter: "{b}\n{c}",
         },
@@ -229,14 +233,14 @@ function TagGroupBreakdownChart({
     const total = items.reduce((sum, m) => sum + m.count, 0)
     const maxCount = Math.max(...items.map((m) => m.count))
 
-    // Single item: hero layout
+    // Single item: hero layout — fill the card, vertically centered
     if (items.length === 1) {
       const m = items[0]
       const color = memberColor(accentColor, m, 0, 1)
       return (
-        <div className="flex flex-col items-center justify-center gap-2 py-6">
+        <div className="flex flex-col items-center justify-center gap-2 flex-1">
           <span className="font-mono text-5xl font-bold tabular-nums" style={{ color }}>
-            {m.count.toLocaleString()}
+            {formatCount(m.count)}
           </span>
           <span className="text-sm font-sans font-medium text-secondary">{m.label}</span>
         </div>
@@ -264,14 +268,12 @@ function TagGroupBreakdownChart({
                 key={m.label}
                 className="relative flex flex-col gap-1 p-3 nm-inset-sm rounded-nm-md overflow-hidden"
               >
-                <span className="text-[10px] font-sans font-medium text-tertiary uppercase tracking-wider leading-tight">
-                  {m.label}
-                </span>
-                <div className="flex items-baseline gap-1.5">
+                <SlotLabel label={m.label} className="leading-tight" />
+                <div className="flex items-baseline gap-2">
                   <span className="font-mono text-lg font-semibold tabular-nums" style={{ color }}>
-                    {m.count.toLocaleString()}
+                    {formatCount(m.count)}
                   </span>
-                  <span className="text-[10px] font-mono text-tertiary">{pct.toFixed(0)}%</span>
+                  <span className="text-3xs font-mono text-tertiary">{formatPercent(pct, 0)}</span>
                 </div>
                 {/* Proportional bar */}
                 <div className="h-0.5 mt-0.5 rounded-full bg-control-bg">
@@ -286,9 +288,7 @@ function TagGroupBreakdownChart({
         </div>
         {/* Total footer */}
         <div className="flex justify-end px-1">
-          <span className="text-[10px] font-mono text-tertiary">
-            Total: {total.toLocaleString()}
-          </span>
+          <span className="text-3xs font-mono text-tertiary">Total: {formatCount(total)}</span>
         </div>
       </div>
     )

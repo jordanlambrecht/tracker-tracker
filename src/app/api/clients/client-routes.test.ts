@@ -7,9 +7,8 @@
 import { NextResponse } from "next/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { authenticate } from "@/lib/api-helpers"
-import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { getTorrents, withSessionRetry } from "@/lib/qbt"
+import { createAdapterForClient } from "@/lib/download-clients"
 import { GET } from "./[id]/torrents/route"
 
 // ---------------------------------------------------------------------------
@@ -33,25 +32,22 @@ vi.mock("@/lib/db", () => ({
   },
 }))
 
-vi.mock("@/lib/crypto", () => ({
-  decrypt: vi.fn(),
-}))
+const mockAdapter = {
+  type: "qbittorrent" as const,
+  baseUrl: "http://192.168.1.100:8080",
+  testConnection: vi.fn(),
+  getTorrents: vi.fn().mockResolvedValue([]),
+  getTransferInfo: vi.fn().mockResolvedValue({ uploadSpeed: 0, downloadSpeed: 0 }),
+  getDeltaSync: vi.fn(),
+  dispose: vi.fn(),
+}
 
-vi.mock("@/lib/qbt", () => ({
-  getTorrents: vi.fn(),
-  // withSessionRetry: by default, call op with a fixed baseUrl+sid so the
-  // getTorrents mock still fires normally. Individual tests that need to
-  // simulate upstream errors replace this with vi.fn().mockRejectedValue(...).
-  withSessionRetry: vi.fn(
-    async (
-      _host: string,
-      _port: number,
-      _ssl: boolean,
-      _username: string,
-      _password: string,
-      op: (baseUrl: string, sid: string) => Promise<unknown>
-    ) => op("http://192.168.1.100:8080", "sid-token")
-  ),
+vi.mock("@/lib/download-clients", () => ({
+  createAdapterForClient: vi.fn(() => mockAdapter),
+  stripSensitiveTorrentFields: vi.fn((t: Record<string, unknown>) => {
+    const { tracker: _t, content_path: _cp, save_path: _sp, ...rest } = t
+    return rest
+  }),
 }))
 
 // ---------------------------------------------------------------------------
@@ -139,6 +135,8 @@ describe("GET /api/clients/[id]/torrents", () => {
     ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
       encryptionKey: VALID_KEY,
     })
+    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
+    mockAdapter.getTorrents.mockResolvedValue([])
   })
 
   // -------------------------------------------------------------------------
@@ -240,8 +238,10 @@ describe("GET /api/clients/[id]/torrents", () => {
 
   it("returns 401 when credential decryption fails", async () => {
     mockDbSelectClient(MOCK_CLIENT)
-    ;(decrypt as ReturnType<typeof vi.fn>).mockImplementation(() => {
-      throw new Error("decryption error")
+    // Decryption now happens inside createAdapterForClient. Simulate it throwing
+    // an AES-GCM authentication failure, which isDecryptionError detects as 401.
+    vi.mocked(createAdapterForClient).mockImplementation(() => {
+      throw new Error("EVP_DecryptFinal_ex: bad decrypt")
     })
 
     const request = makeRequest("http://localhost/api/clients/1/torrents?tag=aither")
@@ -251,7 +251,6 @@ describe("GET /api/clients/[id]/torrents", () => {
 
     expect(response.status).toBe(401)
     expect(data.error).toMatch(/session expired/i)
-    // Response body must not contain the encryption key or the encrypted credential strings
     const body = JSON.stringify(data)
     expect(body).not.toContain(VALID_KEY)
     expect(body).not.toContain(MOCK_CLIENT.encryptedUsername)
@@ -264,10 +263,7 @@ describe("GET /api/clients/[id]/torrents", () => {
 
   it("returns 502 when qBT login fails with authentication error", async () => {
     mockDbSelectClient(MOCK_CLIENT)
-    ;(decrypt as ReturnType<typeof vi.fn>)
-      .mockReturnValueOnce("admin")
-      .mockReturnValueOnce("secret")
-    ;(withSessionRetry as ReturnType<typeof vi.fn>).mockRejectedValue(
+    mockAdapter.getTorrents.mockRejectedValue(
       new Error("Authentication failed — check username and password")
     )
 
@@ -282,12 +278,7 @@ describe("GET /api/clients/[id]/torrents", () => {
 
   it("returns 502 when qBT connection times out", async () => {
     mockDbSelectClient(MOCK_CLIENT)
-    ;(decrypt as ReturnType<typeof vi.fn>)
-      .mockReturnValueOnce("admin")
-      .mockReturnValueOnce("secret")
-    ;(withSessionRetry as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error("Request to 192.168.1.100 timed out")
-    )
+    mockAdapter.getTorrents.mockRejectedValue(new Error("Request to 192.168.1.100 timed out"))
 
     const request = makeRequest("http://localhost/api/clients/1/torrents?tag=aither")
     const params = Promise.resolve({ id: "1" })
@@ -300,12 +291,7 @@ describe("GET /api/clients/[id]/torrents", () => {
 
   it("returns 502 when getTorrents fails", async () => {
     mockDbSelectClient(MOCK_CLIENT)
-    ;(decrypt as ReturnType<typeof vi.fn>)
-      .mockReturnValueOnce("admin")
-      .mockReturnValueOnce("secret")
-    ;(getTorrents as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error("qBittorrent API error: 403 Forbidden")
-    )
+    mockAdapter.getTorrents.mockRejectedValue(new Error("qBittorrent API error: 403 Forbidden"))
 
     const request = makeRequest("http://localhost/api/clients/1/torrents?tag=aither")
     const params = Promise.resolve({ id: "1" })
@@ -324,10 +310,7 @@ describe("GET /api/clients/[id]/torrents", () => {
     // Note: if the upstream error already contains them, that is a known risk
     // outside this handler's control — this test validates the handler itself.
     mockDbSelectClient(MOCK_CLIENT)
-    ;(decrypt as ReturnType<typeof vi.fn>)
-      .mockReturnValueOnce("plaintext-user")
-      .mockReturnValueOnce("plaintext-pass")
-    ;(withSessionRetry as ReturnType<typeof vi.fn>).mockRejectedValue(
+    mockAdapter.getTorrents.mockRejectedValue(
       new Error("upstream error with no credential content")
     )
 
@@ -336,7 +319,7 @@ describe("GET /api/clients/[id]/torrents", () => {
     const response = await GET(request, { params })
     const data = await response.json()
 
-    // The handler must not inject the plaintext credentials into its own error output
+    // The handler must not inject plaintext credentials into its own error output
     expect(data.error).not.toContain("plaintext-user")
     expect(data.error).not.toContain("plaintext-pass")
   })
@@ -347,10 +330,7 @@ describe("GET /api/clients/[id]/torrents", () => {
 
   it("returns torrent array on success", async () => {
     mockDbSelectClient(MOCK_CLIENT)
-    ;(decrypt as ReturnType<typeof vi.fn>)
-      .mockReturnValueOnce("admin")
-      .mockReturnValueOnce("secret")
-    ;(getTorrents as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_TORRENTS)
+    mockAdapter.getTorrents.mockResolvedValue(MOCK_TORRENTS)
 
     const request = makeRequest("http://localhost/api/clients/1/torrents?tag=aither")
     const params = Promise.resolve({ id: "1" })
@@ -370,36 +350,26 @@ describe("GET /api/clients/[id]/torrents", () => {
 
   it("passes the tag to getTorrents for server-side filtering", async () => {
     mockDbSelectClient(MOCK_CLIENT)
-    ;(decrypt as ReturnType<typeof vi.fn>)
-      .mockReturnValueOnce("admin")
-      .mockReturnValueOnce("secret")
-    ;(getTorrents as ReturnType<typeof vi.fn>).mockResolvedValue([])
 
     const request = makeRequest("http://localhost/api/clients/1/torrents?tag=aither")
     const params = Promise.resolve({ id: "1" })
     await GET(request, { params })
 
-    // If this assertion fails, the route is not passing the tag to getTorrents,
+    // If this assertion fails, the route is not passing the tag to adapter.getTorrents,
     // meaning it would fall back to fetching all torrents — the optimization is broken.
-    const getTorrentsCalls = (getTorrents as ReturnType<typeof vi.fn>).mock.calls
-    expect(getTorrentsCalls).toHaveLength(1)
-    expect(getTorrentsCalls[0][2]).toBe("aither")
+    expect(mockAdapter.getTorrents).toHaveBeenCalledOnce()
+    expect(mockAdapter.getTorrents).toHaveBeenCalledWith({ tag: "aither" })
   })
 
   it("trims whitespace from tag before querying getTorrents", async () => {
     mockDbSelectClient(MOCK_CLIENT)
-    ;(decrypt as ReturnType<typeof vi.fn>)
-      .mockReturnValueOnce("admin")
-      .mockReturnValueOnce("secret")
-    ;(getTorrents as ReturnType<typeof vi.fn>).mockResolvedValue([])
 
     // %20aither%20 decodes to " aither " — should be trimmed to "aither"
     const request = makeRequest("http://localhost/api/clients/1/torrents?tag=%20aither%20")
     const params = Promise.resolve({ id: "1" })
     await GET(request, { params })
 
-    const getTorrentsCalls = (getTorrents as ReturnType<typeof vi.fn>).mock.calls
-    expect(getTorrentsCalls).toHaveLength(1)
-    expect(getTorrentsCalls[0][2]).toBe("aither")
+    expect(mockAdapter.getTorrents).toHaveBeenCalledOnce()
+    expect(mockAdapter.getTorrents).toHaveBeenCalledWith({ tag: "aither" })
   })
 })
