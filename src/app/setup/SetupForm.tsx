@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 import { type SubmitEvent, useState } from "react"
 import { Button, Card, Input, Toggle } from "@/components/ui"
 import { Notice } from "@/components/ui/Notice"
+import { SNAPSHOT_RETENTION_MAX, SNAPSHOT_RETENTION_MIN } from "@/lib/limits"
 
 export function SetupForm() {
   const router = useRouter()
@@ -157,11 +158,16 @@ export function SetupForm() {
                 <Input
                   label="Retention (days)"
                   type="number"
-                  min={7}
-                  max={3650}
+                  min={SNAPSHOT_RETENTION_MIN}
+                  max={SNAPSHOT_RETENTION_MAX}
                   value={String(retentionDays)}
                   onChange={(e) =>
-                    setRetentionDays(Math.max(7, Math.min(3650, Number(e.target.value) || 365)))
+                    setRetentionDays(
+                      Math.max(
+                        SNAPSHOT_RETENTION_MIN,
+                        Math.min(SNAPSHOT_RETENTION_MAX, Number(e.target.value) || 365)
+                      )
+                    )
                   }
                   disabled={isSubmitting}
                   className="mt-3"

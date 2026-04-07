@@ -12,7 +12,7 @@ Supports UNIT3D, Gazelle, GGn, Nebulance, MAM, and AvistaZ networks. Over 40 tra
 
 - [Installation guide](getting-started/installation.md) — get running in a few minutes with Docker
 - [Adding a tracker](trackers/adding-a-tracker.md) — connect your first tracker
-- [Troubleshooting](troubleshooting/common-errors.md) — something not working?
+- [Troubleshooting](troubleshooting.md) — something not working?
 
 ## Features
 

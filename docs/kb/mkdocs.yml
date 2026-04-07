@@ -51,6 +51,7 @@ nav:
       - Tag Groups: features/tag-groups.md
       - qbitmanage Integration: features/qbitmanage.md
       - Webhooks: features/webhooks.md
+      - Transit Papers: features/transit-papers.md
   - Reference:
       - Settings Guide: reference/settings.md
       - Stats Explained: reference/stats-explained.md

@@ -84,10 +84,6 @@ export function getTrackerBySlug(slug: string): TrackerRegistryEntry | undefined
   return TRACKER_REGISTRY.find((t) => t.slug === slug)
 }
 
-export function getAllTrackers(): TrackerRegistryEntry[] {
-  return TRACKER_REGISTRY
-}
-
 export function findRegistryEntry(baseUrl: string): TrackerRegistryEntry | undefined {
   const normalized = normalizeUrl(baseUrl)
   return TRACKER_REGISTRY.find((r) => normalizeUrl(r.url) === normalized)

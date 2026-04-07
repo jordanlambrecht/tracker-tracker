@@ -18,6 +18,7 @@ import { downloadClients } from "@/lib/db/schema"
 import { VALID_CLIENT_TYPES } from "@/lib/download-clients"
 import { errMsg } from "@/lib/error-utils"
 import {
+  CLIENT_POLL_INTERVAL_DEFAULT,
   CLIENT_POLL_INTERVAL_MAX,
   CLIENT_POLL_INTERVAL_MIN,
   CREDENTIAL_MAX,
@@ -162,7 +163,7 @@ export async function POST(request: Request) {
           useSsl: typeof useSsl === "boolean" ? useSsl : false,
           encryptedUsername,
           encryptedPassword,
-          pollIntervalSeconds: typeof pollIntervalSeconds === "number" ? pollIntervalSeconds : 300,
+          pollIntervalSeconds: typeof pollIntervalSeconds === "number" ? pollIntervalSeconds : CLIENT_POLL_INTERVAL_DEFAULT,
           isDefault: resolvedIsDefault,
           crossSeedTags: resolvedTags,
         })

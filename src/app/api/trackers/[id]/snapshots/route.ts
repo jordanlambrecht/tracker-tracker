@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server"
 import { authenticate, parseTrackerId, type RouteContext } from "@/lib/api-helpers"
 import { errMsg } from "@/lib/error-utils"
+import { SNAPSHOT_QUERY_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { getSnapshotsForTracker } from "@/lib/server-data"
 import { parseIntClamped } from "@/lib/validators"
@@ -15,7 +16,7 @@ export async function GET(request: Request, props: RouteContext) {
   if (trackerId instanceof NextResponse) return trackerId
 
   const url = new URL(request.url)
-  const days = parseIntClamped(url.searchParams.get("days"), 0, 3650, 30)
+  const days = parseIntClamped(url.searchParams.get("days"), 0, SNAPSHOT_QUERY_MAX, 30)
 
   try {
     const snapshots = await getSnapshotsForTracker(trackerId, days)

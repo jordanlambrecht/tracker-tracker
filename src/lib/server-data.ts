@@ -39,6 +39,7 @@ import {
 } from "@/lib/db/schema"
 import { parseQbitmanageTags } from "@/lib/download-clients/qbt/qbitmanage-defaults"
 import { localDateStr } from "@/lib/formatters"
+import { SNAPSHOT_QUERY_MAX } from "@/lib/limits"
 import { createPrivacyMaskSync } from "@/lib/privacy-db"
 import { serializeTrackerResponse } from "@/lib/tracker-serializer"
 import type { Snapshot, TagGroup, TagGroupChartType, TrackerSummary } from "@/types/api"
@@ -373,7 +374,7 @@ function getSnapshotBucket(days: number): "hour" | "day" | null {
  * Applies privacy masking.
  */
 export async function getSnapshotsForTracker(trackerId: number, days: number): Promise<Snapshot[]> {
-  const safeDays = days === 0 ? 0 : Math.min(Math.max(days, 1), 3650)
+  const safeDays = days === 0 ? 0 : Math.min(Math.max(days, 1), SNAPSHOT_QUERY_MAX)
 
   const conditions = [eq(trackerSnapshots.trackerId, trackerId)]
   if (safeDays > 0) {
@@ -454,7 +455,7 @@ function serializeSnapshot(
 export type FleetSnapshotMap = Record<string, Snapshot[]>
 
 export async function getFleetSnapshots(days: number): Promise<FleetSnapshotMap> {
-  const safeDays = days === 0 ? 0 : Math.min(Math.max(days, 1), 3650)
+  const safeDays = days === 0 ? 0 : Math.min(Math.max(days, 1), SNAPSHOT_QUERY_MAX)
   const bucket = getSnapshotBucket(safeDays)
 
   const sinceCondition =

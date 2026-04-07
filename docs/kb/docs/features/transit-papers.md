@@ -44,7 +44,7 @@ Upload your Proof directly to an image host for a shareable URL. This is most re
 | **OnlyImage** | onlyimage.org. Accepted by OnlyEncodes and other trackers.                         |
 | **ImgBB**     | Supports auto-delete timers if you want expiring links. May recompress large PNGs. |
 
-Configure API keys in **Settings → General → Image Hosting**. See the [Image Hosting](image-hosting.md) docs for setup instructions.
+Configure API keys in **Settings → General → Image Hosting**.
 
 ### Manual sharing
 
@@ -183,7 +183,7 @@ The verification tool is a standalone static page, completely separate from Trac
 
 ## Image Host Setup
 
-Configure API keys in **Settings → General → Image Hosting**. See [Image Hosting](image-hosting.md) for full setup instructions.
+Configure API keys in **Settings → General → Image Hosting**.
 
 | Host      | Where to find your key                                     | Notes                                                                             |
 | --------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------- |

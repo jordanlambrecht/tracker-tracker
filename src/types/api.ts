@@ -160,35 +160,6 @@ export interface TodayAtAGlance {
 }
 
 /** Response from GET /api/auth/status */
-export interface AuthStatusResponse {
-  configured: boolean
-  authenticated: boolean
-  totpEnabled: boolean
-  hasUsername: boolean
-}
-
-/** Response from POST /api/settings/backup/restore */
-export interface BackupRestoreResult {
-  success: true
-  restored: {
-    trackers: number
-    trackerSnapshots: number
-    trackerRoles: number
-    downloadClients: number
-    tagGroups: number
-    tagGroupMembers: number
-    clientSnapshots: number
-    clientUptimeBuckets: number
-    dismissedAlerts: number
-    notificationTargets: number
-  }
-  tokensPreserved: number
-  tokensCleared: number
-  clientCredentialsCleared: number
-  totpDisabledOnRestore: boolean
-  requiresRelogin: boolean
-}
-
 /** Response from GET /api/settings/events */
 export interface EventsPageResponse {
   events: SystemEvent[]
