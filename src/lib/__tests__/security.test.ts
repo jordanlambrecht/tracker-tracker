@@ -260,6 +260,7 @@ import { POST as BackupExportPOST } from "@/app/api/settings/backup/export/route
 import { GET as BackupHistoryGET } from "@/app/api/settings/backup/history/route"
 import { POST as BackupRestorePOST } from "@/app/api/settings/backup/restore/route"
 import { GET as DashboardGET, PUT as DashboardPUT } from "@/app/api/settings/dashboard/route"
+import { GET as DbSizeGET } from "@/app/api/settings/db-size/route"
 import { GET as EventsGET } from "@/app/api/settings/events/route"
 import { GET as ImageHostsGET } from "@/app/api/settings/image-hosts/route"
 import { POST as LockdownPOST } from "@/app/api/settings/lockdown/route"
@@ -788,6 +789,12 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
 
   it("GET /api/settings/image-hosts returns 401", async () => {
     const res = await ImageHostsGET()
+    expect(res.status).toBe(401)
+  })
+
+  it("GET /api/settings/db-size returns 401", async () => {
+    const req = makeRequest("http://localhost/api/settings/db-size")
+    const res = await DbSizeGET()
     expect(res.status).toBe(401)
   })
 
