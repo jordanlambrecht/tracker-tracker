@@ -39,19 +39,20 @@ export function LoginForm({ hasUsername }: { hasUsername: boolean }) {
 
       if (!res.ok) {
         setError(data.error ?? "Login failed. Please try again.")
+        setIsSubmitting(false)
         return
       }
 
       if (data.requiresTotp) {
         setPendingToken(data.pendingToken)
         setStep("totp")
+        setIsSubmitting(false)
         return
       }
 
       router.push("/")
     } catch {
       setError("An unexpected error occurred. Please try again.")
-    } finally {
       setIsSubmitting(false)
     }
   }
@@ -79,13 +80,13 @@ export function LoginForm({ hasUsername }: { hasUsername: boolean }) {
 
       if (!res.ok) {
         setError(data.error ?? "Verification failed.")
+        setIsSubmitting(false)
         return
       }
 
       router.push("/")
     } catch {
       setError("An unexpected error occurred. Please try again.")
-    } finally {
       setIsSubmitting(false)
     }
   }
