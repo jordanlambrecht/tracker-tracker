@@ -300,20 +300,18 @@ describe("POST /api/alerts/dismissed — non-dismissible rejection", () => {
     expect(res.status).toBe(200)
   })
 
-  it("allows dismissing an arbitrary non-blocked type", async () => {
+  it("rejects unknown alert types with 400", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
       key: "some-key",
       type: "custom-type",
     })
 
-    const mockOnConflictDoNothing = vi.fn().mockResolvedValue(undefined)
-    const mockValues = vi.fn().mockReturnValue({ onConflictDoNothing: mockOnConflictDoNothing })
-    ;(db.insert as ReturnType<typeof vi.fn>).mockReturnValue({ values: mockValues })
-
     const req = makeRequest("http://localhost/api/alerts/dismissed", undefined, "POST")
     const res = await POST(req)
 
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(400)
+    const data = await res.json()
+    expect(data.error).toBe("Unknown alert type")
   })
 })
 

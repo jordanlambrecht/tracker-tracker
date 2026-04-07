@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { NON_DISMISSIBLE_ALERT_TYPES, pruneDismissedAlerts } from "@/lib/alert-pruning"
 import { authenticate, parseJsonBody, validateMaxLength } from "@/lib/api-helpers"
-import type { AlertType } from "@/lib/dashboard"
+import { VALID_ALERT_TYPES } from "@/lib/dashboard"
 import { db } from "@/lib/db"
 import { dismissedAlerts } from "@/lib/db/schema"
 import { ALERT_KEY_MAX, ALERT_TYPE_MAX } from "@/lib/limits"
@@ -51,7 +51,10 @@ export async function POST(request: Request) {
   const typeErr = validateMaxLength(normalizedType, ALERT_TYPE_MAX, "type")
   if (typeErr) return typeErr
 
-  if (NON_DISMISSIBLE_ALERT_TYPES.has(normalizedType as AlertType)) {
+  if (!(VALID_ALERT_TYPES as Set<string>).has(normalizedType)) {
+    return NextResponse.json({ error: "Unknown alert type" }, { status: 400 })
+  }
+  if ((NON_DISMISSIBLE_ALERT_TYPES as Set<string>).has(normalizedType)) {
     return NextResponse.json({ error: "This alert type cannot be dismissed" }, { status: 400 })
   }
 
