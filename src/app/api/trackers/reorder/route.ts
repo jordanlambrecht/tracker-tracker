@@ -29,12 +29,14 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "All ids must be integers" }, { status: 400 })
   }
 
-  const uniqueIds = [...new Set(ids)]
+  if (new Set(ids).size !== ids.length) {
+    return NextResponse.json({ error: "Duplicate ids are not allowed" }, { status: 400 })
+  }
 
   try {
     await db.transaction(async (tx) => {
-      for (let i = 0; i < uniqueIds.length; i++) {
-        await tx.update(trackers).set({ sortOrder: i }).where(eq(trackers.id, uniqueIds[i]))
+      for (let i = 0; i < ids.length; i++) {
+        await tx.update(trackers).set({ sortOrder: i }).where(eq(trackers.id, ids[i]))
       }
     })
     return NextResponse.json({ success: true })

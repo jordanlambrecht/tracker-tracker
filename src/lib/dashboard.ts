@@ -27,19 +27,22 @@ export interface AggregateStats {
   totalLeeching: number
 }
 
-export type AlertType =
-  | "error"
-  | "poll-paused"
-  | "ratio-danger"
-  | "stale-data"
-  | "rank-change"
-  | "zero-seeding"
-  | "warned"
-  | "anniversary"
-  | "update-available"
-  | "backup-failed"
-  | "client-error"
-  | "retention-unconfigured"
+export const VALID_ALERT_TYPES = new Set([
+  "error",
+  "poll-paused",
+  "ratio-danger",
+  "stale-data",
+  "rank-change",
+  "zero-seeding",
+  "warned",
+  "anniversary",
+  "update-available",
+  "backup-failed",
+  "client-error",
+  "retention-unconfigured",
+] as const)
+
+export type AlertType = typeof VALID_ALERT_TYPES extends Set<infer T> ? T : never
 
 export interface DashboardAlert {
   key: string
