@@ -74,7 +74,7 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
 
   // Fleet snapshot query (all trackers in one request)
   const fleetSnapshotsQuery = useQuery({
-    queryKey: ["fleet-snapshots", dayRange],
+    queryKey: ["tracker-snapshots-fleet", dayRange],
     queryFn: async ({ signal }) => {
       const url =
         dayRange === 0
@@ -136,21 +136,29 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
   }, [fleetSnapshotsQuery.data])
 
   // Derived: alerts
+  // System alerts depend on client-only queries (update check, clients, backups).
+  // Only include them once those queries have fetched to avoid SSR/client mismatch.
+  const clientQueriesReady =
+    !updateCheck.loading && !clientsQuery.isLoading && !backupQuery.isLoading
+
   const visibleAlerts = useMemo(() => {
     const trackerAlerts = computeAlerts(trackers)
     const rankAlerts = detectRankChanges(trackers, snapshotMap, 7)
-    const systemAlerts = computeSystemAlerts({
-      latestVersion: updateCheck.latestVersion ?? undefined,
-      currentVersion: process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0",
-      failedBackups: (backupQuery.data ?? []).filter((b) => b.status === "failed"),
-      clients: clientsQuery.data ?? [],
-      snapshotRetentionDays: options?.snapshotRetentionDays ?? null,
-    })
+    const systemAlerts = clientQueriesReady
+      ? computeSystemAlerts({
+          latestVersion: updateCheck.latestVersion ?? undefined,
+          currentVersion: process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0",
+          failedBackups: (backupQuery.data ?? []).filter((b) => b.status === "failed"),
+          clients: clientsQuery.data ?? [],
+          snapshotRetentionDays: options?.snapshotRetentionDays ?? null,
+        })
+      : []
     const combined = [...trackerAlerts, ...rankAlerts, ...systemAlerts]
     return combined.filter((a) => !dismissedKeys.has(a.key))
   }, [
     trackers,
     snapshotMap,
+    clientQueriesReady,
     updateCheck.latestVersion,
     backupQuery.data,
     clientsQuery.data,
@@ -180,7 +188,8 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
 
   const refresh = useCallback(async () => {
     await queryClient.refetchQueries({ queryKey: ["trackers"] })
-    await queryClient.invalidateQueries({ queryKey: ["fleet-snapshots"] })
+    queryClient.invalidateQueries({ queryKey: ["tracker-snapshots-fleet"] })
+    queryClient.invalidateQueries({ queryKey: ["download-client-snapshots"] })
     queryClient.invalidateQueries({ queryKey: ["dashboard-today"] })
   }, [queryClient])
 

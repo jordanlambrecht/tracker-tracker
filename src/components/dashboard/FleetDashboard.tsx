@@ -64,7 +64,7 @@ export function FleetDashboard({ dayRange, isActive = true }: FleetDashboardProp
   const effectiveDays = dayRange === 0 ? 30 : dayRange
 
   const { data: snapshots = [] } = useQuery({
-    queryKey: ["fleet-snapshots", effectiveDays],
+    queryKey: ["download-client-snapshots", effectiveDays],
     queryFn: async ({ signal }) => {
       const res = await fetch(`/api/fleet/snapshots?days=${effectiveDays}`, { signal })
       if (!res.ok) throw new Error(`Fleet snapshots failed: ${res.status}`)
