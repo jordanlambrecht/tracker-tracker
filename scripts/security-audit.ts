@@ -2026,10 +2026,10 @@ function checkBackupPasswordBounds(): CheckResult {
 
     if (!readsBackupPw || !callsDeriveOrEncrypt) continue
 
-    // Must have an upper-bound length check (e.g., .length > 128)
+    // Must have an upper-bound length check (e.g., .length > 128 or .length > BACKUP_PASSWORD_MAX)
     const hasUpperBound =
-      /backupPassword\.length\s*>\s*\d+/.test(content) ||
-      /formPassword\.length\s*>\s*\d+/.test(content)
+      /backupPassword\.length\s*>\s*(\d+|[A-Z][A-Z0-9_]*)/.test(content) ||
+      /formPassword\.length\s*>\s*(\d+|[A-Z][A-Z0-9_]*)/.test(content)
 
     if (!hasUpperBound) {
       findings.push({
