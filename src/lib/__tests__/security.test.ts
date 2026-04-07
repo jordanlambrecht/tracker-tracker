@@ -793,7 +793,6 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
   })
 
   it("GET /api/settings/db-size returns 401", async () => {
-    const req = makeRequest("http://localhost/api/settings/db-size")
     const res = await DbSizeGET()
     expect(res.status).toBe(401)
   })

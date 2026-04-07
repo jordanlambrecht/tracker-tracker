@@ -14,7 +14,10 @@ export async function GET() {
     const data = await getDbSizeHistory()
     return NextResponse.json(data)
   } catch (err) {
-    log.error({ route: "GET /api/settings/db-size", error: errMsg(err) }, "Failed to fetch DB size history")
+    log.error(
+      { route: "GET /api/settings/db-size", error: errMsg(err) },
+      "Failed to fetch DB size history"
+    )
     return NextResponse.json({ error: "Failed to load database size history" }, { status: 500 })
   }
 }

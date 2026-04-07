@@ -7,34 +7,34 @@ repo_name: jordanlambrecht/tracker-tracker
 edit_uri: edit/main/docs/kb/docs/
 
 theme:
-    name: material
-    palette:
-        scheme: slate
-        primary: cyan
-        accent: cyan
-    features:
-      - navigation.instant
-      - navigation.sections
-      - navigation.top
-      - navigation.expand
-      - content.code.copy
-      - content.action.edit
-    icon:
-        repo: fontawesome/brands/github
+  name: material
+  palette:
+    scheme: slate
+    primary: cyan
+    accent: cyan
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.top
+    - navigation.expand
+    - content.code.copy
+    - content.action.edit
+  icon:
+    repo: fontawesome/brands/github
 
 markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
   - pymdownx.tabbed:
-        alternate_style: true
+      alternate_style: true
   - pymdownx.highlight:
-        anchor_linenums: true
+      anchor_linenums: true
   - pymdownx.inlinehilite
   - attr_list
   - md_in_html
   - toc:
-        permalink: true
+      permalink: true
 
 nav:
   - Home: index.md

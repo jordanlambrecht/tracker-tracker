@@ -163,7 +163,10 @@ export async function POST(request: Request) {
           useSsl: typeof useSsl === "boolean" ? useSsl : false,
           encryptedUsername,
           encryptedPassword,
-          pollIntervalSeconds: typeof pollIntervalSeconds === "number" ? pollIntervalSeconds : CLIENT_POLL_INTERVAL_DEFAULT,
+          pollIntervalSeconds:
+            typeof pollIntervalSeconds === "number"
+              ? pollIntervalSeconds
+              : CLIENT_POLL_INTERVAL_DEFAULT,
           isDefault: resolvedIsDefault,
           crossSeedTags: resolvedTags,
         })
