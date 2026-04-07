@@ -26,14 +26,15 @@ export default async function TrackerDetailPage(props: {
   const [tracker, allTimeSnapshots, tagGroupsData, settingsRow] = await Promise.all([
     getTrackerForClient(trackerId),
     getSnapshotsForTracker(trackerId, 0),
-    getTagGroupsWithMembers(),
+    getTagGroupsWithMembers().catch(() => []),
     db
       .select({
         qbitmanageEnabled: appSettings.qbitmanageEnabled,
         qbitmanageTags: appSettings.qbitmanageTags,
       })
       .from(appSettings)
-      .limit(1),
+      .limit(1)
+      .catch(() => []),
   ])
 
   if (!tracker) notFound()

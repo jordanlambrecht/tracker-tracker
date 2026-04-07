@@ -7,8 +7,8 @@ import { SettingsClient } from "./SettingsClient"
 export default async function SettingsPage() {
   const [settings, proxyTrackers, databaseSize] = await Promise.all([
     getSettingsForClient(),
-    getProxyTrackers(),
-    getDatabaseSize(),
+    getProxyTrackers().catch(() => []),
+    getDatabaseSize().catch(() => "Unknown"),
   ])
 
   // If settings don't exist, this page shouldn't be reachable

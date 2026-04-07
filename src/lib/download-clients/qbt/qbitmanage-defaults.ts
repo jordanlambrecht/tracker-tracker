@@ -1,6 +1,4 @@
 // src/lib/download-clients/qbt/qbitmanage-defaults.ts
-//
-// Functions: QBITMANAGE_TAG_DEFAULTS, QBITMANAGE_KEYS, parseQbitmanageTags
 
 import type { QbitmanageTagConfig } from "@/types/api"
 
@@ -32,7 +30,9 @@ export function parseQbitmanageTags(raw: string | null): QbitmanageTagConfig {
       }
     }
     return result
-  } catch {
+  } catch (err) {
+    // console.warn because this file is imported by client components (can't use pino logger)
+    console.warn("Malformed qbitmanage tag config, falling back to defaults:", String(err))
     return { ...QBITMANAGE_TAG_DEFAULTS }
   }
 }

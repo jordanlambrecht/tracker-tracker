@@ -8,7 +8,7 @@ import { authenticate, decodeKey, parseRouteId, type RouteContext } from "@/lib/
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
 import { createAdapterForClient, stripSensitiveTorrentFields } from "@/lib/download-clients"
-import { classifyConnectionError, isDecryptionError } from "@/lib/error-utils"
+import { isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
 import { log } from "@/lib/logger"
 
 export async function GET(request: Request, props: RouteContext) {
@@ -55,18 +55,15 @@ export async function GET(request: Request, props: RouteContext) {
       return NextResponse.json({ error: "Session expired. Please log in again" }, { status: 401 })
     }
     const raw = error instanceof Error ? error.message : ""
-    const detail = classifyConnectionError(raw)
+    const message = sanitizeNetworkError(raw, "Failed to fetch torrents")
     log.error(
       {
         route: "GET /api/clients/[id]/torrents",
         clientId,
-        error: `Failed to fetch torrents${detail}`,
+        error: message,
       },
       "torrent fetch failed"
     )
-    return NextResponse.json(
-      { error: `Failed to fetch torrents from client${detail}` },
-      { status: 502 }
-    )
+    return NextResponse.json({ error: message }, { status: 502 })
   }
 }

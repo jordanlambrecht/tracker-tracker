@@ -7,6 +7,7 @@ import { authenticate, decodeKey, parseJsonBody, validateMaxLength } from "@/lib
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { notificationTargets } from "@/lib/db/schema"
+import { errMsg } from "@/lib/error-utils"
 import { SHORT_NAME_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { SUPPORTED_NOTIFICATION_TYPES } from "@/lib/notifications/types"
@@ -53,21 +54,29 @@ export async function POST(req: Request) {
   )
   if (validationError) return NextResponse.json({ error: validationError }, { status: 400 })
 
-  const key = decodeKey(auth)
-  const encryptedConfig = encrypt(JSON.stringify(config), key)
+  try {
+    const key = decodeKey(auth)
+    const encryptedConfig = encrypt(JSON.stringify(config), key)
 
-  const [inserted] = await db
-    .insert(notificationTargets)
-    .values({
-      name: name.trim(),
-      type,
-      encryptedConfig,
-    })
-    .returning({ id: notificationTargets.id, name: notificationTargets.name })
+    const [inserted] = await db
+      .insert(notificationTargets)
+      .values({
+        name: name.trim(),
+        type,
+        encryptedConfig,
+      })
+      .returning({ id: notificationTargets.id, name: notificationTargets.name })
 
-  log.info(
-    { route: "POST /api/notifications", targetId: inserted.id },
-    "notification target created"
-  )
-  return NextResponse.json(inserted, { status: 201 })
+    log.info(
+      { route: "POST /api/notifications", targetId: inserted.id },
+      "notification target created"
+    )
+    return NextResponse.json(inserted, { status: 201 })
+  } catch (err) {
+    log.error(
+      { route: "POST /api/notifications", error: errMsg(err) },
+      "Failed to create notification target"
+    )
+    return NextResponse.json({ error: "Failed to create notification target" }, { status: 500 })
+  }
 }

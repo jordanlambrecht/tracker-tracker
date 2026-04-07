@@ -29,8 +29,11 @@ function createLogger(): pino.Logger {
         level: "trace",
         stream: pino.destination({ dest: logFile, mkdir: false, sync: false }),
       })
-    } catch {
-      // Can't create log directory (e.g. /data on macOS without root) — stdout only
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      process.stderr.write(
+        `[logger] Cannot write to log file "${logFile}": ${msg}. Falling back to stdout only.\n`
+      )
     }
   }
 

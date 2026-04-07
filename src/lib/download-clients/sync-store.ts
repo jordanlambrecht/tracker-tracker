@@ -11,6 +11,7 @@
 //   clearAllStores         - Clear all stores (called on logout/scheduler stop)
 //   replaceStoreTorrents   - Replace all torrents for a client (for non-delta-sync clients)
 
+import { log } from "@/lib/logger"
 import type { DeltaSyncResponse, TorrentRecord } from "./types"
 
 /** How long a sync store entry is considered fresh */
@@ -38,7 +39,7 @@ function getOrCreateStore(baseUrl: string): TorrentStore {
   return store
 }
 
-// Spot-checks a value for the TorrentRecord shape (key fields only).
+// Checks a value for the TorrentRecord shape (key fields only).
 // Used to validate new torrents before inserting into the store.
 function isTorrentRecord(value: unknown): value is TorrentRecord {
   if (!value || typeof value !== "object") return false
@@ -66,11 +67,16 @@ export function applyMaindataUpdate(baseUrl: string, data: DeltaSyncResponse): v
       if (existing) {
         Object.assign(existing, partial)
       } else {
-        // New torrent — validate it has required fields before inserting.
+        // New torrent. Validate it has required fields before inserting.
         // qBT sends all fields for new torrents, but guard against partials.
         const candidate = { ...partial, hash }
         if (isTorrentRecord(candidate)) {
           store.torrents.set(hash, candidate as TorrentRecord)
+        } else {
+          log.warn(
+            { hash, keys: Object.keys(partial) },
+            "sync-store: dropped new torrent, failed shape check"
+          )
         }
       }
     }
@@ -92,8 +98,7 @@ export function getStoredTorrents(baseUrl: string): TorrentRecord[] {
   return Array.from(store.torrents.values(), (t) => ({ ...t }))
 }
 
-/** Copy + filter in one pass — only copies torrents matching the predicate.
- *  Avoids the 10K-copy overhead of getStoredTorrents when only ~2K are relevant. */
+// Copy + filter in one pass. Only copies torrents matching the predicate.
 export function getFilteredTorrents(
   baseUrl: string,
   predicate: (torrent: TorrentRecord) => boolean

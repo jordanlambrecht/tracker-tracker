@@ -29,6 +29,7 @@ import {
   trackerSnapshots,
   trackers,
 } from "@/lib/db/schema"
+import { errMsg } from "@/lib/error-utils"
 import {
   BACKUP_PASSWORD_MAX,
   BACKUP_RESTORE_MAX_BYTES,
@@ -76,7 +77,7 @@ function reencryptField(
     return reencrypt(ciphertext, backupKey, currentKey)
   } catch (err) {
     log.warn(
-      { error: err instanceof Error ? err.message : String(err), field: context },
+      { error: errMsg(err), field: context },
       "Failed to re-encrypt field during restore, value will be cleared"
     )
     return ""
@@ -232,10 +233,7 @@ export async function POST(request: Request) {
     backupKey = await deriveKey(masterPassword, backupSalt)
     currentKey = sameSalt ? backupKey : await deriveKey(masterPassword, currentSalt)
   } catch (err) {
-    log.error(
-      { error: err instanceof Error ? err.message : String(err) },
-      "Backup restore aborted: encryption key derivation failed"
-    )
+    log.error({ error: errMsg(err) }, "Backup restore aborted: encryption key derivation failed")
     return NextResponse.json(
       { error: "Failed to derive encryption keys. Restore cannot proceed safely." },
       { status: 500 }
@@ -751,7 +749,7 @@ export async function POST(request: Request) {
     log.error(
       {
         event: "restore_failed",
-        error: err instanceof Error ? err.message : String(err),
+        error: errMsg(err),
         fileNameHash: hashFileName(fileName),
       },
       "Restore operation failed"

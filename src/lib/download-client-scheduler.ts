@@ -127,15 +127,21 @@ async function heartbeatClient(
     recordHeartbeat(client.id, false)
     const raw = error instanceof Error ? error.message : "Unknown error"
     const message = sanitizeNetworkError(raw)
-    await db
-      .update(downloadClients)
-      .set({
-        lastError: message,
-        errorSince: sql`COALESCE(${downloadClients.errorSince}, NOW())`,
-        updatedAt: new Date(),
-      })
-      .where(eq(downloadClients.id, client.id))
     log.error(`Heartbeat failed for client ${client.id}: ${raw}`)
+    try {
+      await db
+        .update(downloadClients)
+        .set({
+          lastError: message,
+          errorSince: sql`COALESCE(${downloadClients.errorSince}, NOW())`,
+          updatedAt: new Date(),
+        })
+        .where(eq(downloadClients.id, client.id))
+    } catch (dbErr) {
+      log.error(
+        `Failed to record heartbeat error for client ${client.id}: ${dbErr instanceof Error ? dbErr.message : String(dbErr)}`
+      )
+    }
   }
 }
 
@@ -294,15 +300,21 @@ export async function deepPollClient(
   } catch (error) {
     const raw = error instanceof Error ? error.message : "Unknown error"
     const message = sanitizeNetworkError(raw)
-    await db
-      .update(downloadClients)
-      .set({
-        lastError: message,
-        errorSince: sql`COALESCE(${downloadClients.errorSince}, NOW())`,
-        updatedAt: new Date(),
-      })
-      .where(eq(downloadClients.id, clientId))
     log.error(`Deep poll failed for client ${clientId}: ${raw}`)
+    try {
+      await db
+        .update(downloadClients)
+        .set({
+          lastError: message,
+          errorSince: sql`COALESCE(${downloadClients.errorSince}, NOW())`,
+          updatedAt: new Date(),
+        })
+        .where(eq(downloadClients.id, clientId))
+    } catch (dbErr) {
+      log.error(
+        `Failed to record deep poll error for client ${clientId}: ${dbErr instanceof Error ? dbErr.message : String(dbErr)}`
+      )
+    }
   }
 }
 
@@ -413,7 +425,9 @@ export function stopClientScheduler(): void {
   clearAllSessions()
   clearSpeedCache()
 
-  flushCompletedBuckets().catch(() => {})
+  flushCompletedBuckets().catch((err) => {
+    log.warn(err, "Failed to flush uptime buckets during scheduler stop")
+  })
   clearUptimeAccumulator()
 }
 

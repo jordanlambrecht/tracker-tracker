@@ -5,6 +5,7 @@ import { NextResponse } from "next/server"
 import { authenticate, parseJsonBody } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
 import { DASHBOARD_SETTINGS_DEFAULTS, type DashboardSettings } from "@/types/api"
 
 const DEFAULTS = DASHBOARD_SETTINGS_DEFAULTS
@@ -13,7 +14,8 @@ function parseSettings(raw: string | null): DashboardSettings {
   if (!raw) return { ...DEFAULTS }
   try {
     return { ...DEFAULTS, ...(JSON.parse(raw) as Partial<DashboardSettings>) }
-  } catch {
+  } catch (err) {
+    log.warn({ error: String(err) }, "Corrupt dashboardSettings JSON in DB, returning defaults")
     return { ...DEFAULTS }
   }
 }

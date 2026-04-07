@@ -278,27 +278,29 @@ export async function fetchDismissedKeys(): Promise<Set<string>> {
   }
 }
 
-export async function postDismissAlert(key: string, type: string): Promise<void> {
+export async function postDismissAlert(key: string, type: string): Promise<boolean> {
   try {
-    await fetch("/api/alerts/dismissed", {
+    const res = await fetch("/api/alerts/dismissed", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ key, type }),
       signal: AbortSignal.timeout(5000),
     })
+    return res.ok
   } catch {
-    // security-audit-ignore: best-effort. alert will reappear on next load if POST failed
+    return false
   }
 }
 
-export async function deleteAllDismissed(): Promise<void> {
+export async function deleteAllDismissed(): Promise<boolean> {
   try {
-    await fetch("/api/alerts/dismissed", {
+    const res = await fetch("/api/alerts/dismissed", {
       method: "DELETE",
       signal: AbortSignal.timeout(5000),
     })
+    return res.ok
   } catch {
-    // security-audit-ignore: best-effort. dismissals will be re-fetched on next load
+    return false
   }
 }
 

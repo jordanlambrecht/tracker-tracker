@@ -76,8 +76,9 @@ export async function getSession(): Promise<{ encryptionKey: string } | null> {
   const token = cookieStore.get(SESSION_COOKIE)?.value
   if (!token) return null
 
+  const key = getSessionKey() // Config errors propagate as 500, not silent 401
   try {
-    const { payload } = await jwtDecrypt(token, getSessionKey())
+    const { payload } = await jwtDecrypt(token, key)
     return { encryptionKey: payload.ek as string }
   } catch {
     return null
@@ -105,8 +106,9 @@ export async function createPendingToken(encryptionKey: string): Promise<string>
 }
 
 export async function verifyPendingToken(token: string): Promise<{ encryptionKey: string } | null> {
+  const key = getSessionKey()
   try {
-    const { payload } = await jwtDecrypt(token, getSessionKey())
+    const { payload } = await jwtDecrypt(token, key)
     if (payload.purpose !== "pending") return null
     return { encryptionKey: payload.ek as string }
   } catch {
@@ -135,8 +137,9 @@ export async function createSetupToken(
 export async function verifySetupToken(
   token: string
 ): Promise<{ totpSecret: string; backupCodesJson: string } | null> {
+  const key = getSessionKey()
   try {
-    const { payload } = await jwtDecrypt(token, getSessionKey())
+    const { payload } = await jwtDecrypt(token, key)
     if (payload.purpose !== "setup") return null
     return {
       totpSecret: payload.ts as string,

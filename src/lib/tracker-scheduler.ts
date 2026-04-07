@@ -22,7 +22,7 @@ import {
   trackerSnapshots,
   trackers,
 } from "@/lib/db/schema"
-import { sanitizeNetworkError } from "@/lib/error-utils"
+import { errMsg, sanitizeNetworkError } from "@/lib/error-utils"
 import { localDateStr } from "@/lib/formatters"
 import { POLL_INTERVAL_DEFAULT } from "@/lib/limits"
 import { log } from "@/lib/logger"
@@ -101,7 +101,7 @@ export async function fetchTrackerStats(
   try {
     apiToken = decrypt(tracker.encryptedApiToken, encryptionKey)
   } catch (err) {
-    const cause = err instanceof Error ? err.message : String(err)
+    const cause = errMsg(err)
     throw new Error(`API key is missing or invalid for tracker "${tracker.name}": ${cause}`)
   }
 
@@ -162,7 +162,7 @@ export async function pollTracker(
     try {
       apiToken = decrypt(tracker.encryptedApiToken, encryptionKey)
     } catch (err) {
-      const cause = err instanceof Error ? err.message : String(err)
+      const cause = errMsg(err)
       throw new Error(`API key is missing or invalid for tracker "${tracker.name}": ${cause}`)
     }
     const adapter = getAdapter(tracker.platformType)
@@ -421,8 +421,14 @@ export async function pollTracker(
         encryptionKey,
         enabledTargets
       )
-    } catch {
-      // security-audit-ignore: notification dispatch is non-critical, errors logged inside dispatchNotifications
+    } catch (err) {
+      log.warn(
+        {
+          trackerId: tracker?.id ?? trackerId,
+          error: errMsg(err),
+        },
+        "Error-path notification dispatch failed"
+      )
     }
   }
 }

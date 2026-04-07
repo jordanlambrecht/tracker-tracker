@@ -66,18 +66,23 @@ export async function dispatchNotifications(
   if (targets.length === 0) return
 
   // Batch-fetch all cooldown state for this tracker in one query
-  const cooldownRows = await db
-    .select({
-      targetId: notificationDeliveryState.targetId,
-      eventType: notificationDeliveryState.eventType,
-      snoozedUntil: notificationDeliveryState.snoozedUntil,
-    })
-    .from(notificationDeliveryState)
-    .where(eq(notificationDeliveryState.trackerId, ctx.trackerId))
+  let cooldownMap = new Map<string, Date | null>()
+  try {
+    const cooldownRows = await db
+      .select({
+        targetId: notificationDeliveryState.targetId,
+        eventType: notificationDeliveryState.eventType,
+        snoozedUntil: notificationDeliveryState.snoozedUntil,
+      })
+      .from(notificationDeliveryState)
+      .where(eq(notificationDeliveryState.trackerId, ctx.trackerId))
 
-  const cooldownMap = new Map(
-    cooldownRows.map((r) => [`${r.targetId}:${r.eventType}`, r.snoozedUntil])
-  )
+    cooldownMap = new Map(cooldownRows.map((r) => [`${r.targetId}:${r.eventType}`, r.snoozedUntil]))
+  } catch (err) {
+    log.error(
+      `dispatchNotifications: failed to fetch cooldown state for tracker ${ctx.trackerId}: ${err instanceof Error ? err.message : "Unknown"}. Proceeding without cooldown checks.`
+    )
+  }
 
   const now = new Date()
 
@@ -152,24 +157,30 @@ export async function dispatchNotifications(
 
           // Record cooldown only if delivered successfully
           if (result.success) {
-            const snoozedUntilDate = new Date(now.getTime() + EVENT_SNOOZE_MS[event])
-            await db
-              .insert(notificationDeliveryState)
-              .values({
-                targetId: target.id,
-                trackerId: ctx.trackerId,
-                eventType: event,
-                lastNotifiedAt: now,
-                snoozedUntil: snoozedUntilDate,
-              })
-              .onConflictDoUpdate({
-                target: [
-                  notificationDeliveryState.targetId,
-                  notificationDeliveryState.trackerId,
-                  notificationDeliveryState.eventType,
-                ],
-                set: { lastNotifiedAt: now, snoozedUntil: snoozedUntilDate },
-              })
+            try {
+              const snoozedUntilDate = new Date(now.getTime() + EVENT_SNOOZE_MS[event])
+              await db
+                .insert(notificationDeliveryState)
+                .values({
+                  targetId: target.id,
+                  trackerId: ctx.trackerId,
+                  eventType: event,
+                  lastNotifiedAt: now,
+                  snoozedUntil: snoozedUntilDate,
+                })
+                .onConflictDoUpdate({
+                  target: [
+                    notificationDeliveryState.targetId,
+                    notificationDeliveryState.trackerId,
+                    notificationDeliveryState.eventType,
+                  ],
+                  set: { lastNotifiedAt: now, snoozedUntil: snoozedUntilDate },
+                })
+            } catch (cooldownErr) {
+              log.error(
+                `dispatchNotifications: delivered "${event}" to "${target.name}" but failed to record cooldown (may re-send next cycle): ${cooldownErr instanceof Error ? cooldownErr.message : "Unknown"}`
+              )
+            }
           }
         } catch (err) {
           log.error(
@@ -180,14 +191,20 @@ export async function dispatchNotifications(
 
       // Write delivery status
       if (finalStatus) {
-        await db
-          .update(notificationTargets)
-          .set({
-            lastDeliveryStatus: finalStatus,
-            lastDeliveryAt: now,
-            lastDeliveryError: finalError,
-          })
-          .where(eq(notificationTargets.id, target.id))
+        try {
+          await db
+            .update(notificationTargets)
+            .set({
+              lastDeliveryStatus: finalStatus,
+              lastDeliveryAt: now,
+              lastDeliveryError: finalError,
+            })
+            .where(eq(notificationTargets.id, target.id))
+        } catch (statusErr) {
+          log.error(
+            `dispatchNotifications: delivered to "${target.name}" but failed to write delivery status: ${statusErr instanceof Error ? statusErr.message : "Unknown"}`
+          )
+        }
       }
     } catch (err) {
       log.error(

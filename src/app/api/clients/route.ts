@@ -16,6 +16,7 @@ import { sanitizeHost } from "@/lib/data-transforms"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
 import { VALID_CLIENT_TYPES } from "@/lib/download-clients"
+import { errMsg } from "@/lib/error-utils"
 import {
   CLIENT_POLL_INTERVAL_MAX,
   CLIENT_POLL_INTERVAL_MIN,
@@ -146,27 +147,35 @@ export async function POST(request: Request) {
     )
   }
 
-  if (resolvedIsDefault) {
-    await db.update(downloadClients).set({ isDefault: false })
-  }
-
-  const [client] = await db
-    .insert(downloadClients)
-    .values({
-      name: name.trim(),
-      host: sanitizedHost,
-      type: resolvedType,
-      port: resolvedPort,
-      useSsl: typeof useSsl === "boolean" ? useSsl : false,
-      encryptedUsername,
-      encryptedPassword,
-      pollIntervalSeconds: typeof pollIntervalSeconds === "number" ? pollIntervalSeconds : 300,
-      isDefault: resolvedIsDefault,
-      crossSeedTags: resolvedTags,
+  try {
+    const [client] = await db.transaction(async (tx) => {
+      if (resolvedIsDefault) {
+        await tx.update(downloadClients).set({ isDefault: false })
+      }
+      return tx
+        .insert(downloadClients)
+        .values({
+          name: name.trim(),
+          host: sanitizedHost,
+          type: resolvedType,
+          port: resolvedPort,
+          useSsl: typeof useSsl === "boolean" ? useSsl : false,
+          encryptedUsername,
+          encryptedPassword,
+          pollIntervalSeconds: typeof pollIntervalSeconds === "number" ? pollIntervalSeconds : 300,
+          isDefault: resolvedIsDefault,
+          crossSeedTags: resolvedTags,
+        })
+        .returning()
     })
-    .returning()
 
-  // SECURITY: Only return safe fields
-  log.info({ route: "POST /api/clients", clientId: client.id }, "download client created")
-  return NextResponse.json({ id: client.id, name: client.name }, { status: 201 })
+    log.info({ route: "POST /api/clients", clientId: client.id }, "download client created")
+    return NextResponse.json({ id: client.id, name: client.name }, { status: 201 })
+  } catch (err) {
+    log.error(
+      { route: "POST /api/clients", error: errMsg(err) },
+      "Failed to create download client"
+    )
+    return NextResponse.json({ error: "Failed to create download client" }, { status: 500 })
+  }
 }

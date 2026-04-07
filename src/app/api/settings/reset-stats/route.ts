@@ -7,6 +7,7 @@ import { authenticate, parseJsonBody } from "@/lib/api-helpers"
 import { verifyPassword } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { appSettings, clientSnapshots, trackerSnapshots, trackers } from "@/lib/db/schema"
+import { errMsg } from "@/lib/error-utils"
 import { PASSWORD_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 
@@ -37,14 +38,17 @@ export async function POST(request: Request) {
   }
 
   log.info({ route: "POST /api/settings/reset-stats" }, "stats reset initiated")
-  // Delete all tracker snapshots
-  await db.delete(trackerSnapshots)
 
-  // Delete all client snapshots
-  await db.delete(clientSnapshots)
-
-  // Clear lastPolledAt and lastError on all trackers so they re-poll fresh
-  await db.update(trackers).set({ lastPolledAt: null, lastError: null })
+  try {
+    await db.transaction(async (tx) => {
+      await tx.delete(trackerSnapshots)
+      await tx.delete(clientSnapshots)
+      await tx.update(trackers).set({ lastPolledAt: null, lastError: null })
+    })
+  } catch (err) {
+    log.error({ route: "POST /api/settings/reset-stats", error: errMsg(err) }, "stats reset failed")
+    return NextResponse.json({ error: "Stats reset failed" }, { status: 500 })
+  }
 
   return NextResponse.json({ success: true })
 }

@@ -15,6 +15,7 @@ import {
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { notificationTargets } from "@/lib/db/schema"
+import { errMsg } from "@/lib/error-utils"
 import { SHORT_NAME_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { validateNotificationConfig } from "@/lib/notifications/validate"
@@ -197,9 +198,16 @@ export async function PATCH(req: Request, { params }: RouteContext) {
     updates.scope = fields.scope
   }
 
-  await db.update(notificationTargets).set(updates).where(eq(notificationTargets.id, id))
-
-  return NextResponse.json({ success: true })
+  try {
+    await db.update(notificationTargets).set(updates).where(eq(notificationTargets.id, id))
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    log.error(
+      { route: "PATCH /api/notifications/[id]", targetId: id, error: errMsg(err) },
+      "Failed to update notification target"
+    )
+    return NextResponse.json({ error: "Failed to update notification target" }, { status: 500 })
+  }
 }
 
 export async function DELETE(_req: Request, { params }: RouteContext) {
@@ -209,10 +217,18 @@ export async function DELETE(_req: Request, { params }: RouteContext) {
   const id = await parseRouteId(params, "notification target ID")
   if (id instanceof NextResponse) return id
 
-  // notificationDeliveryState rows are cleaned up automatically via FK cascade
-  // (onDelete: "cascade" on targetId)
-  await db.delete(notificationTargets).where(eq(notificationTargets.id, id))
-
-  log.info({ route: "DELETE /api/notifications/[id]", targetId: id }, "notification target deleted")
-  return NextResponse.json({ success: true })
+  try {
+    await db.delete(notificationTargets).where(eq(notificationTargets.id, id))
+    log.info(
+      { route: "DELETE /api/notifications/[id]", targetId: id },
+      "notification target deleted"
+    )
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    log.error(
+      { route: "DELETE /api/notifications/[id]", targetId: id, error: errMsg(err) },
+      "Failed to delete notification target"
+    )
+    return NextResponse.json({ error: "Failed to delete notification target" }, { status: 500 })
+  }
 }

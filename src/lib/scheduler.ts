@@ -14,6 +14,7 @@ import {
   startClientScheduler,
   stopClientScheduler,
 } from "@/lib/download-client-scheduler"
+import { log } from "@/lib/logger"
 import {
   isTrackerPollingRunning,
   startTrackerPolling,
@@ -43,5 +44,7 @@ export function ensureSchedulerRunning(encryptionKeyHex: string): void {
   ensureClientSchedulerRunning(encryptionKeyHex)
   // Fire-and-forget: create covering indexes that Drizzle's schema DSL can't express.
   // Idempotent (IF NOT EXISTS), guarded by globalThis flag, non-fatal on failure.
-  ensureIndexes().catch(() => {})
+  ensureIndexes().catch((err) => {
+    log.warn(err, "ensureIndexes fire-and-forget failed")
+  })
 }

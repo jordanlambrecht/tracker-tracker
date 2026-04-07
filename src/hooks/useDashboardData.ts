@@ -61,7 +61,7 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
     queryKey: ["trackers"],
     queryFn: async ({ signal }) => {
       const res = await fetch("/api/trackers", { signal })
-      if (!res.ok) return [] as TrackerSummary[]
+      if (!res.ok) throw new Error(`Tracker fetch failed: ${res.status}`)
       const all: TrackerSummary[] = await res.json()
       return all.filter((t) => t.isActive)
     },
@@ -104,8 +104,7 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
     queryKey: ["clients-for-alerts"],
     queryFn: async ({ signal }) => {
       const res = await fetch("/api/clients", { signal })
-      if (!res.ok)
-        return [] as { id: number; name: string; enabled: boolean; lastError: string | null }[]
+      if (!res.ok) throw new Error(`Client fetch failed: ${res.status}`)
       return res.json() as Promise<
         { id: number; name: string; enabled: boolean; lastError: string | null }[]
       >
@@ -117,7 +116,7 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
     queryKey: ["backup-history-for-alerts"],
     queryFn: async ({ signal }) => {
       const res = await fetch("/api/settings/backup/history", { signal })
-      if (!res.ok) return [] as { createdAt: string; status: string }[]
+      if (!res.ok) throw new Error(`Backup history fetch failed: ${res.status}`)
       return res.json() as Promise<{ createdAt: string; status: string }[]>
     },
     refetchInterval: intervals.clientRefetchMs,
@@ -139,7 +138,11 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
   // System alerts depend on client-only queries (update check, clients, backups).
   // Only include them once those queries have fetched to avoid SSR/client mismatch.
   const clientQueriesReady =
-    !updateCheck.loading && !clientsQuery.isLoading && !backupQuery.isLoading
+    !updateCheck.loading &&
+    !clientsQuery.isLoading &&
+    !backupQuery.isLoading &&
+    !clientsQuery.isError &&
+    !backupQuery.isError
 
   const visibleAlerts = useMemo(() => {
     const trackerAlerts = computeAlerts(trackers)

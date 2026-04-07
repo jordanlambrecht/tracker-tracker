@@ -17,7 +17,6 @@ vi.mock("@/lib/crypto", () => ({ encrypt: vi.fn(), decrypt: vi.fn() }))
 vi.mock("@/lib/error-utils", () => ({
   isDecryptionError: vi.fn(),
   sanitizeNetworkError: vi.fn(),
-  classifyConnectionError: vi.fn(),
 }))
 vi.mock("@/lib/logger", () => ({
   log: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },

@@ -5,7 +5,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 // ---------------------------------------------------------------------------
-// Module mocks (must be before any imports from the module under test)
+// Module mocks
 // ---------------------------------------------------------------------------
 
 vi.mock("server-only", () => ({}))
@@ -78,11 +78,11 @@ vi.mock("../factory", () => ({
 }))
 
 vi.mock("@/lib/error-utils", () => ({
-  classifyConnectionError: vi.fn((raw: string) => {
-    if (/timed?\s*out/i.test(raw)) return " (timed out)"
-    if (/ECONNREFUSED/i.test(raw)) return " (connection refused)"
-    if (/40[13]/.test(raw)) return " (auth failed)"
-    return ""
+  sanitizeNetworkError: vi.fn((raw: string, fallback = "Connection failed") => {
+    if (/timed?\s*out/i.test(raw)) return "Request timed out"
+    if (/ECONNREFUSED/i.test(raw)) return "Connection refused"
+    if (/40[13]|Unauthorized|Forbidden/i.test(raw)) return "Authentication failed"
+    return fallback
   }),
   isDecryptionError: vi.fn((err: unknown) => {
     if (!(err instanceof Error)) return false
@@ -229,43 +229,43 @@ describe("testClientConnection", () => {
     )
   })
 
-  it("returns 422 with '(timed out)' detail on timeout error", async () => {
+  it("returns 422 with descriptive message on timeout error", async () => {
     setupDbSelect([makeClientRow()])
     mockAdapter.testConnection.mockRejectedValue(new Error("request timed out after 10s"))
 
     const result = await testClientConnection(1, FAKE_KEY)
 
     expect(result).toEqual({
-      error: "Connection test failed (timed out)",
+      error: "Request timed out",
       status: 422,
     })
   })
 
-  it("returns 422 with '(connection refused)' detail on ECONNREFUSED", async () => {
+  it("returns 422 with descriptive message on ECONNREFUSED", async () => {
     setupDbSelect([makeClientRow()])
     mockAdapter.testConnection.mockRejectedValue(new Error("connect ECONNREFUSED 127.0.0.1:8080"))
 
     const result = await testClientConnection(1, FAKE_KEY)
 
     expect(result).toEqual({
-      error: "Connection test failed (connection refused)",
+      error: "Connection refused",
       status: 422,
     })
   })
 
-  it("returns 422 with '(auth failed)' detail on 403 error", async () => {
+  it("returns 422 with descriptive message on 403 error", async () => {
     setupDbSelect([makeClientRow()])
     mockAdapter.testConnection.mockRejectedValue(new Error("HTTP 403 Forbidden"))
 
     const result = await testClientConnection(1, FAKE_KEY)
 
     expect(result).toEqual({
-      error: "Connection test failed (auth failed)",
+      error: "Authentication failed",
       status: 422,
     })
   })
 
-  it("returns 422 with no detail suffix for unknown errors", async () => {
+  it("returns 422 with fallback message for unknown errors", async () => {
     setupDbSelect([makeClientRow()])
     mockAdapter.testConnection.mockRejectedValue(new Error("some unexpected problem"))
 

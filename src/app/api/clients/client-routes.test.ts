@@ -1,8 +1,4 @@
 // src/app/api/clients/client-routes.test.ts
-//
-// Functions:
-//   mockDbSelectClient  - Sets up db.select chain returning one client or empty
-//   makeRequest         - Constructs a Request for GET handler calls
 
 import { NextResponse } from "next/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
@@ -273,7 +269,7 @@ describe("GET /api/clients/[id]/torrents", () => {
     const data = await response.json()
 
     expect(response.status).toBe(502)
-    expect(data.error).toBe("Failed to fetch torrents from client")
+    expect(data.error).toBe("Failed to fetch torrents")
   })
 
   it("returns 502 when qBT connection times out", async () => {

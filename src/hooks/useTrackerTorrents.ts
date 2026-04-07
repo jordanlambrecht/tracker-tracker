@@ -137,7 +137,7 @@ function useTrackerTorrents({
     queryKey: ["tracker-torrents", trackerId] as const,
     queryFn: async ({ signal }) => {
       const res = await fetch(`/api/trackers/${trackerId}/torrents`, { signal })
-      if (!res.ok) return null
+      if (!res.ok) throw new Error(`Torrent fetch failed: ${res.status}`)
       const data = (await res.json()) as AggregatedTorrentsResponse
       saveSessionCache(trackerId, data)
       return data

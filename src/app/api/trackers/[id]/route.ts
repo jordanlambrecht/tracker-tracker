@@ -18,6 +18,7 @@ import {
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { trackers } from "@/lib/db/schema"
+import { errMsg } from "@/lib/error-utils"
 import {
   AVISTAZ_TOKEN_MAX,
   LONG_STRING_MAX,
@@ -36,10 +37,17 @@ export async function GET(_request: Request, props: RouteContext) {
   const trackerId = await parseTrackerId(props.params)
   if (trackerId instanceof NextResponse) return trackerId
 
-  const tracker = await getTrackerForClient(trackerId)
-  if (!tracker) return NextResponse.json({ error: "Tracker not found" }, { status: 404 })
-
-  return NextResponse.json(tracker)
+  try {
+    const tracker = await getTrackerForClient(trackerId)
+    if (!tracker) return NextResponse.json({ error: "Tracker not found" }, { status: 404 })
+    return NextResponse.json(tracker)
+  } catch (err) {
+    log.error(
+      { route: "GET /api/trackers/[id]", trackerId, error: errMsg(err) },
+      "Failed to fetch tracker"
+    )
+    return NextResponse.json({ error: "Failed to load tracker" }, { status: 500 })
+  }
 }
 
 export async function PATCH(request: Request, props: RouteContext) {
@@ -139,10 +147,17 @@ export async function PATCH(request: Request, props: RouteContext) {
     updates.encryptedApiToken = encrypt(trimmedToken, key)
   }
 
-  await db.update(trackers).set(updates).where(eq(trackers.id, trackerId))
-
-  const updated = await getTrackerForClient(trackerId)
-  return NextResponse.json(updated ?? { success: true })
+  try {
+    await db.update(trackers).set(updates).where(eq(trackers.id, trackerId))
+    const updated = await getTrackerForClient(trackerId)
+    return NextResponse.json(updated ?? { success: true })
+  } catch (err) {
+    log.error(
+      { route: "PATCH /api/trackers/[id]", trackerId, error: errMsg(err) },
+      "Failed to update tracker"
+    )
+    return NextResponse.json({ error: "Failed to update tracker" }, { status: 500 })
+  }
 }
 
 export async function DELETE(_request: Request, props: RouteContext) {
@@ -152,8 +167,15 @@ export async function DELETE(_request: Request, props: RouteContext) {
   const trackerId = await parseTrackerId(props.params)
   if (trackerId instanceof NextResponse) return trackerId
 
-  await db.delete(trackers).where(eq(trackers.id, trackerId))
-
-  log.info({ route: "DELETE /api/trackers/[id]", trackerId }, "tracker deleted")
-  return NextResponse.json({ success: true })
+  try {
+    await db.delete(trackers).where(eq(trackers.id, trackerId))
+    log.info({ route: "DELETE /api/trackers/[id]", trackerId }, "tracker deleted")
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    log.error(
+      { route: "DELETE /api/trackers/[id]", trackerId, error: errMsg(err) },
+      "Failed to delete tracker"
+    )
+    return NextResponse.json({ error: "Failed to delete tracker" }, { status: 500 })
+  }
 }

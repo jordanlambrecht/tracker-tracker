@@ -17,6 +17,7 @@ import {
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { trackers } from "@/lib/db/schema"
+import { errMsg } from "@/lib/error-utils"
 import {
   AVISTAZ_TOKEN_MAX,
   LONG_STRING_MAX,
@@ -32,8 +33,13 @@ export async function GET() {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const trackerList = await getTrackerListForDashboard()
-  return NextResponse.json(trackerList)
+  try {
+    const trackerList = await getTrackerListForDashboard()
+    return NextResponse.json(trackerList)
+  } catch (err) {
+    log.error({ route: "GET /api/trackers", error: errMsg(err) }, "Failed to fetch trackers")
+    return NextResponse.json({ error: "Failed to load trackers" }, { status: 500 })
+  }
 }
 
 export async function POST(request: Request) {
@@ -112,26 +118,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid platform type" }, { status: 400 })
   }
 
-  const key = decodeKey(auth)
-  const encryptedApiToken = encrypt(trimmedApiToken, key)
+  try {
+    const key = decodeKey(auth)
+    const encryptedApiToken = encrypt(trimmedApiToken, key)
 
-  const [tracker] = await db
-    .insert(trackers)
-    .values({
-      name: trimmedName,
-      baseUrl: trimmedBaseUrl,
-      apiPath: DEFAULT_API_PATHS[platform] ?? "/api/user",
-      encryptedApiToken,
-      platformType: platform,
-      color: (color as string) || CHART_THEME.accent,
-      qbtTag: typeof qbtTag === "string" ? qbtTag.trim() : null,
-      mouseholeUrl:
-        typeof mouseholeUrl === "string" && mouseholeUrl.trim() ? mouseholeUrl.trim() : null,
-      joinedAt: typeof joinedAt === "string" && joinedAt ? joinedAt : null,
-    })
-    .returning()
+    const [tracker] = await db
+      .insert(trackers)
+      .values({
+        name: trimmedName,
+        baseUrl: trimmedBaseUrl,
+        apiPath: DEFAULT_API_PATHS[platform] ?? "/api/user",
+        encryptedApiToken,
+        platformType: platform,
+        color: (color as string) || CHART_THEME.accent,
+        qbtTag: typeof qbtTag === "string" ? qbtTag.trim() : null,
+        mouseholeUrl:
+          typeof mouseholeUrl === "string" && mouseholeUrl.trim() ? mouseholeUrl.trim() : null,
+        joinedAt: typeof joinedAt === "string" && joinedAt ? joinedAt : null,
+      })
+      .returning()
 
-  // SECURITY: Only return safe fields
-  log.info({ route: "POST /api/trackers", trackerId: tracker.id }, "tracker created")
-  return NextResponse.json({ id: tracker.id, name: tracker.name }, { status: 201 })
+    // SECURITY: Only return safe fields
+    log.info({ route: "POST /api/trackers", trackerId: tracker.id }, "tracker created")
+    return NextResponse.json({ id: tracker.id, name: tracker.name }, { status: 201 })
+  } catch (err) {
+    log.error({ route: "POST /api/trackers", error: errMsg(err) }, "Failed to create tracker")
+    return NextResponse.json({ error: "Failed to create tracker" }, { status: 500 })
+  }
 }

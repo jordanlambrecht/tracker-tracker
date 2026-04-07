@@ -14,6 +14,7 @@ import { extractClientIp } from "@/lib/client-ip"
 import { decrypt, encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { errMsg } from "@/lib/error-utils"
 import { TOTP_TOKEN_MAX } from "@/lib/limits"
 import { checkLockout, recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import { log } from "@/lib/logger"
@@ -105,7 +106,13 @@ export async function POST(request: Request) {
       .where(eq(appSettings.id, settings.id))
   } else {
     // Verify TOTP code
-    const totpSecret = decrypt(settings.totpSecret, key)
+    let totpSecret: string
+    try {
+      totpSecret = decrypt(settings.totpSecret, key)
+    } catch {
+      log.error({ route: "POST /api/auth/totp/verify" }, "TOTP verify failed: decrypt error")
+      return NextResponse.json({ error: "Failed to decrypt TOTP secret" }, { status: 500 })
+    }
     if (!verifyTotpCode(totpSecret, code)) {
       await recordFailedAttempt(settings.id, settings)
       log.warn({ event: "totp_failed", method: "totp", ip: clientIp }, "Failed TOTP code attempt")
@@ -116,9 +123,23 @@ export async function POST(request: Request) {
   // Code verified
   await resetFailedAttempts(settings.id)
 
-  await createSession(pending.encryptionKey, settings.sessionTimeoutMinutes)
-  await persistSchedulerKey(key, settings.id)
-  startScheduler(key)
+  try {
+    await createSession(pending.encryptionKey, settings.sessionTimeoutMinutes)
+    await persistSchedulerKey(key, settings.id)
+    startScheduler(key)
+  } catch (err) {
+    log.error(
+      {
+        route: "POST /api/auth/totp/verify",
+        error: errMsg(err),
+      },
+      "Session creation failed after successful 2FA"
+    )
+    return NextResponse.json(
+      { error: "Login succeeded but session creation failed. Check server configuration." },
+      { status: 500 }
+    )
+  }
   log.info(
     { event: "login_success", method: isBackupCode ? "backup_code" : "totp", ip: clientIp },
     "Login successful (2FA verified)"

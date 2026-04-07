@@ -14,7 +14,7 @@ import { floorToFiveMin, flushCompletedBuckets, recordHeartbeat } from "@/lib/up
 function mockDbInsert() {
   const chain = {
     values: vi.fn().mockReturnValue({
-      onConflictDoNothing: vi.fn().mockResolvedValue(undefined),
+      onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
     }),
   }
   vi.mocked(db.insert).mockReturnValue(chain as never)

@@ -819,9 +819,9 @@ describe("fetchDismissedKeys / postDismissAlert / deleteAllDismissed", () => {
     )
   })
 
-  it("postDismissAlert silently swallows fetch errors (best-effort)", async () => {
+  it("postDismissAlert returns false on fetch error (best-effort)", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network error")))
-    await expect(postDismissAlert("some-key", "error")).resolves.toBeUndefined()
+    await expect(postDismissAlert("some-key", "error")).resolves.toBe(false)
   })
 
   it("deleteAllDismissed sends DELETE request", async () => {
@@ -834,9 +834,9 @@ describe("fetchDismissedKeys / postDismissAlert / deleteAllDismissed", () => {
     )
   })
 
-  it("deleteAllDismissed silently swallows fetch errors (best-effort)", async () => {
+  it("deleteAllDismissed returns false on fetch error (best-effort)", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network error")))
-    await expect(deleteAllDismissed()).resolves.toBeUndefined()
+    await expect(deleteAllDismissed()).resolves.toBe(false)
   })
 })
 

@@ -20,8 +20,12 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
   if (!settings) redirect("/setup")
   if (!session) redirect("/login")
 
-  // Auto-restart scheduler if it died (i.e, server restart).
-  ensureSchedulerRunning(session.encryptionKey)
+  // Auto-restart scheduler if it died (i.e. server restart).
+  try {
+    ensureSchedulerRunning(session.encryptionKey)
+  } catch (err) {
+    console.error("[auth-layout] Scheduler startup failed:", err)
+  }
 
   return (
     <QueryProvider>

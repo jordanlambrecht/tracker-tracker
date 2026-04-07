@@ -17,6 +17,7 @@ import { sanitizeHost } from "@/lib/data-transforms"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
 import { VALID_CLIENT_TYPES } from "@/lib/download-clients"
+import { errMsg } from "@/lib/error-utils"
 import {
   CLIENT_POLL_INTERVAL_MAX,
   CLIENT_POLL_INTERVAL_MIN,
@@ -138,15 +139,26 @@ export async function PATCH(request: Request, props: RouteContext) {
   }
 
   if (body.isDefault === true) {
-    await db.update(downloadClients).set({ isDefault: false })
     updates.isDefault = true
   } else if (body.isDefault === false) {
     updates.isDefault = false
   }
 
-  await db.update(downloadClients).set(updates).where(eq(downloadClients.id, clientId))
-
-  return NextResponse.json({ success: true })
+  try {
+    await db.transaction(async (tx) => {
+      if (body.isDefault === true) {
+        await tx.update(downloadClients).set({ isDefault: false })
+      }
+      await tx.update(downloadClients).set(updates).where(eq(downloadClients.id, clientId))
+    })
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    log.error(
+      { route: "PATCH /api/clients/[id]", clientId, error: errMsg(err) },
+      "Failed to update download client"
+    )
+    return NextResponse.json({ error: "Failed to update download client" }, { status: 500 })
+  }
 }
 
 export async function DELETE(_request: Request, props: RouteContext) {

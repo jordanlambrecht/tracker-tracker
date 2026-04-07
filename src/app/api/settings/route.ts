@@ -18,6 +18,7 @@ import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
 import { QBITMANAGE_KEYS } from "@/lib/download-clients/qbt/qbitmanage-defaults"
+import { errMsg } from "@/lib/error-utils"
 import {
   BACKUP_PASSWORD_MAX,
   BACKUP_RETENTION_MAX,
@@ -509,28 +510,33 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 })
   }
 
-  await db.update(appSettings).set(updates).where(eq(appSettings.id, settings.id))
-  log.info({ route: "PATCH /api/settings", fields: Object.keys(updates) }, "settings updated")
+  try {
+    await db.update(appSettings).set(updates).where(eq(appSettings.id, settings.id))
+    log.info({ route: "PATCH /api/settings", fields: Object.keys(updates) }, "settings updated")
 
-  // Re-fetch to return current state
-  const [updated] = await fetchSettings()
-  if (!updated) {
-    log.error({ route: "PATCH /api/settings" }, "settings re-fetch returned empty after update")
-    return NextResponse.json({ error: "Settings update failed" }, { status: 500 })
-  }
-
-  // Restart backup scheduler if schedule settings changed
-  if (
-    updates.backupScheduleEnabled !== undefined ||
-    updates.backupScheduleFrequency !== undefined
-  ) {
-    const { stopBackupScheduler, startBackupScheduler } = await import("@/lib/backup-scheduler")
-    stopBackupScheduler()
-    if (updated.backupScheduleEnabled) {
-      const key = decodeKey(auth)
-      startBackupScheduler(key)
+    // Re-fetch to return current state
+    const [updated] = await fetchSettings()
+    if (!updated) {
+      log.error({ route: "PATCH /api/settings" }, "settings re-fetch returned empty after update")
+      return NextResponse.json({ error: "Settings update failed" }, { status: 500 })
     }
-  }
 
-  return NextResponse.json(serializeSettingsResponse(updated))
+    // Restart backup scheduler if schedule settings changed
+    if (
+      updates.backupScheduleEnabled !== undefined ||
+      updates.backupScheduleFrequency !== undefined
+    ) {
+      const { stopBackupScheduler, startBackupScheduler } = await import("@/lib/backup-scheduler")
+      stopBackupScheduler()
+      if (updated.backupScheduleEnabled) {
+        const key = decodeKey(auth)
+        startBackupScheduler(key)
+      }
+    }
+
+    return NextResponse.json(serializeSettingsResponse(updated))
+  } catch (err) {
+    log.error({ route: "PATCH /api/settings", error: errMsg(err) }, "Failed to save settings")
+    return NextResponse.json({ error: "Failed to save settings" }, { status: 500 })
+  }
 }

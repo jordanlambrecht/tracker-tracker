@@ -12,7 +12,7 @@ import "server-only"
 import { eq, isNotNull } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { downloadClients, trackers } from "@/lib/db/schema"
-import { classifyConnectionError, isDecryptionError } from "@/lib/error-utils"
+import { isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
 import { parseTorrentTags } from "@/lib/fleet"
 import { computeFleetAggregation, type FleetAggregation } from "@/lib/fleet-aggregation"
 import { CLIENT_CONNECTION_COLUMNS } from "./credentials"
@@ -165,6 +165,7 @@ export async function fetchFleetAggregation(): Promise<FleetAggregationResponse>
   }
 
   const clientTorrents: { clientName: string; torrents: (TorrentRecord | SlimTorrent)[] }[] = []
+  const clientErrors: string[] = []
   let oldestCacheAt: Date | null = null
 
   for (const client of clients) {
@@ -182,7 +183,12 @@ export async function fetchFleetAggregation(): Promise<FleetAggregationResponse>
       torrents = row ? parseCachedTorrents(row.cachedTorrents) : []
     }
 
-    if (torrents.length === 0) continue
+    if (torrents.length === 0) {
+      if (client.cachedTorrentsAt) {
+        clientErrors.push(`${client.name}: cached data unavailable or corrupt`)
+      }
+      continue
+    }
     clientTorrents.push({ clientName: client.name, torrents })
 
     if (client.cachedTorrentsAt) {
@@ -199,7 +205,7 @@ export async function fetchFleetAggregation(): Promise<FleetAggregationResponse>
 
   return {
     ...aggregation,
-    clientErrors: [],
+    clientErrors,
     clientCount: clients.length,
     cachedAt: oldestCacheAt?.toISOString() ?? null,
   }
@@ -327,7 +333,6 @@ export async function testClientConnection(
       return { error: "Session expired. Please log in again", status: 401 }
     }
     const raw = error instanceof Error ? error.message : ""
-    const detail = classifyConnectionError(raw)
-    return { error: `Connection test failed${detail}`, status: 422 }
+    return { error: sanitizeNetworkError(raw, "Connection test failed"), status: 422 }
   }
 }

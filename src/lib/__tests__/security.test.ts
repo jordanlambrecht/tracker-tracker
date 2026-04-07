@@ -92,6 +92,8 @@ vi.mock("@/lib/totp", () => ({
   hashBackupCode: vi.fn().mockReturnValue({ hash: "abc", salt: "def", used: false }),
   verifyTotpCode: vi.fn().mockReturnValue(false),
   verifyAndConsumeBackupCode: vi.fn().mockReturnValue({ valid: false, updatedEntries: [] }),
+  TOTP_CODE_RE: /^\d{6}$/,
+  BACKUP_CODE_PATTERN: /^[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}$/,
 }))
 
 vi.mock("@/lib/db/schema", () => ({
@@ -229,10 +231,12 @@ import {
   POST as AlertDismissedPOST,
 } from "@/app/api/alerts/dismissed/route"
 import { POST as ChangePasswordPOST } from "@/app/api/auth/change-password/route"
+import { POST as LoginPOST } from "@/app/api/auth/login/route"
 import { POST as LogoutPOST } from "@/app/api/auth/logout/route"
 import { POST as TotpConfirmPOST } from "@/app/api/auth/totp/confirm/route"
 import { POST as TotpDisablePOST } from "@/app/api/auth/totp/disable/route"
 import { POST as TotpSetupPOST } from "@/app/api/auth/totp/setup/route"
+import { POST as TotpVerifyPOST } from "@/app/api/auth/totp/verify/route"
 import { GET as ChangelogGET } from "@/app/api/changelog/route"
 import { DELETE as ClientDELETE, PATCH as ClientPATCH } from "@/app/api/clients/[id]/route"
 import { GET as ClientSnapshotsGET } from "@/app/api/clients/[id]/snapshots/route"
@@ -1852,7 +1856,151 @@ describe("Backup restore: new notify* column round-trip", () => {
 })
 
 // ---------------------------------------------------------------------------
-// 10. Backup restore: security hardening
+// 10. Login route: crypto failure produces 500
+// ---------------------------------------------------------------------------
+
+describe("Login route crypto failure handling", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it("returns 500 with safe message when verifyPassword throws (corrupted hash)", async () => {
+    vi.mocked(db.select).mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        limit: vi
+          .fn()
+          .mockResolvedValue([
+            { id: 1, passwordHash: "corrupted-not-argon2", encryptionSalt: "a".repeat(64) },
+          ]),
+      }),
+    } as unknown as ReturnType<typeof db.select>)
+
+    vi.mocked(parseJsonBody).mockResolvedValue({ password: "test-password-123" })
+
+    const { verifyPassword } = await import("@/lib/auth")
+    vi.mocked(verifyPassword).mockRejectedValue(
+      new Error("pchstr must contain a $ as the first character")
+    )
+
+    const req = new Request("http://localhost/api/auth/login", { method: "POST" })
+    const res = await LoginPOST(req)
+
+    expect(res.status).toBe(500)
+    const data = await res.json()
+    expect(data.error).toBe("Login system error. Contact administrator.")
+    expect(JSON.stringify(data)).not.toContain("pchstr")
+    expect(JSON.stringify(data)).not.toContain("argon2")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 11. TOTP verify: decrypt failure produces 500
+// ---------------------------------------------------------------------------
+
+describe("TOTP verify decrypt failure handling", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it("returns 500 with safe message when TOTP secret decrypt fails", async () => {
+    const { verifyPendingToken } = await import("@/lib/auth")
+    const { decrypt } = await import("@/lib/crypto")
+
+    vi.mocked(parseJsonBody).mockResolvedValue({
+      pendingToken: "valid-pending-token",
+      code: "123456",
+    })
+
+    vi.mocked(verifyPendingToken).mockResolvedValue({
+      encryptionKey: "a".repeat(64),
+    })
+
+    vi.mocked(db.select).mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        limit: vi.fn().mockResolvedValue([
+          {
+            id: 1,
+            totpSecret: "corrupt-ciphertext",
+            passwordHash: "hash",
+            encryptionSalt: "a".repeat(64),
+          },
+        ]),
+      }),
+    } as unknown as ReturnType<typeof db.select>)
+
+    vi.mocked(decrypt).mockImplementation(() => {
+      throw new Error("Unsupported state or unable to authenticate data")
+    })
+
+    const req = new Request("http://localhost/api/auth/totp/verify", { method: "POST" })
+    const res = await TotpVerifyPOST(req)
+
+    expect(res.status).toBe(500)
+    const data = await res.json()
+    expect(data.error).toBe("Failed to decrypt TOTP secret")
+    expect(JSON.stringify(data)).not.toContain("authenticate data")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 12. Backup export: decrypt failure returns 500, not unencrypted backup
+// ---------------------------------------------------------------------------
+
+describe("Backup export decrypt failure handling", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it("returns 500 when backup password decrypt fails (not unencrypted backup)", async () => {
+    const { decrypt } = await import("@/lib/crypto")
+    const { generateBackupPayload } = await import("@/lib/backup")
+
+    vi.mocked(authenticate).mockResolvedValue({ encryptionKey: "a".repeat(64) })
+
+    vi.mocked(db.select).mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        limit: vi.fn().mockResolvedValue([
+          {
+            id: 1,
+            backupEncryptionEnabled: true,
+            encryptedBackupPassword: "corrupt-ciphertext",
+            backupStoragePath: "/data/backups",
+          },
+        ]),
+      }),
+    } as unknown as ReturnType<typeof db.select>)
+
+    vi.mocked(generateBackupPayload).mockResolvedValue({
+      manifest: { version: 1 },
+      settings: {},
+      trackers: [],
+      trackerSnapshots: [],
+      trackerRoles: [],
+      downloadClients: [],
+      tagGroups: [],
+      tagGroupMembers: [],
+      clientSnapshots: [],
+    } as unknown as Awaited<ReturnType<typeof generateBackupPayload>>)
+
+    vi.mocked(decrypt).mockImplementation(() => {
+      throw new Error("Invalid ciphertext: too short")
+    })
+
+    const formData = new FormData()
+    const req = new Request("http://localhost/api/settings/backup/export", { method: "POST" })
+    req.formData = vi.fn().mockResolvedValue(formData)
+
+    const res = await BackupExportPOST(req)
+
+    expect(res.status).toBe(500)
+    const data = await res.json()
+    expect(data.error).toContain("Failed to decrypt backup password")
+    expect(JSON.stringify(data)).not.toContain("ciphertext")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 13. Backup restore: security hardening
 // ---------------------------------------------------------------------------
 
 describe("Backup restore security hardening", () => {
@@ -1886,10 +2034,7 @@ describe("Backup restore security hardening", () => {
     clientSnapshots: [],
   }
 
-  function createRestoreRequest(
-    fileContent: string,
-    masterPassword: string
-  ): Request {
+  function createRestoreRequest(fileContent: string, masterPassword: string): Request {
     const blob = new Blob([fileContent], { type: "application/json" })
     const formData = new FormData()
     formData.append("file", blob, "backup.json")

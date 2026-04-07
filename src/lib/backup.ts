@@ -1,6 +1,6 @@
 // src/lib/backup.ts
 //
-// Functions: generateBackupPayload, validateBackupJson, encryptBackupPayload, decryptBackupPayload, pruneOldBackups
+// Functions: generateBackupPayload, validateBackupJson, encryptBackupPayload, decryptBackupPayload, resolveBackupPassword, pruneOldBackups
 
 import { unlink } from "node:fs/promises"
 import path from "node:path"
@@ -479,6 +479,20 @@ export function decryptBackupPayload(
   }
   validateBackupJson(parsed)
   return parsed
+}
+
+/**
+ * Decrypts the stored backup password if encryption is enabled.
+ * Returns null if encryption is not enabled or no password is stored.
+ * Throws on decrypt failure (callers handle errors differently).
+ */
+export function resolveBackupPassword(
+  encryptionEnabled: boolean,
+  encryptedPassword: string | null,
+  key: Buffer
+): string | null {
+  if (!encryptionEnabled || !encryptedPassword) return null
+  return decrypt(encryptedPassword, key)
 }
 
 // ─── Pruning ──────────────────────────────────────────────────────────────────

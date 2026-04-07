@@ -5,6 +5,7 @@
 
 import { sql } from "drizzle-orm"
 import { db } from "@/lib/db"
+import { errMsg } from "@/lib/error-utils"
 import { log } from "@/lib/logger"
 
 const g = globalThis as typeof globalThis & { __indexesEnsured?: boolean }
@@ -22,7 +23,6 @@ const g = globalThis as typeof globalThis & { __indexesEnsured?: boolean }
  */
 export async function ensureIndexes(): Promise<void> {
   if (g.__indexesEnsured) return
-  g.__indexesEnsured = true
 
   try {
     await db.execute(sql`
@@ -35,12 +35,13 @@ export async function ensureIndexes(): Promise<void> {
         username, group_name
       )
     `)
+    g.__indexesEnsured = true
     log.debug("Covering index on tracker_snapshots verified")
   } catch (err) {
     // Non-fatal. The app works without the covering index, just slower for
     // long-range chart queries. Log and continue.
     log.warn(
-      { error: err instanceof Error ? err.message : String(err) },
+      { error: errMsg(err) },
       "Failed to create covering index on tracker_snapshots — chart queries may be slow for long ranges"
     )
   }

@@ -33,7 +33,11 @@ export function formatBytesFromString(bytesStr: string | null | undefined): stri
  */
 export function bytesToGiB(bytesStr: string | null | undefined): number {
   if (!bytesStr) return 0
-  return Number(BigInt(bytesStr)) / 1024 ** 3
+  try {
+    return Number(BigInt(bytesStr)) / 1024 ** 3
+  } catch {
+    return 0
+  }
 }
 
 /**
@@ -43,6 +47,7 @@ export function bytesToGiB(bytesStr: string | null | undefined): number {
  * Adaptive precision: 0dp for ≥100, 1dp for ≥10, 2dp for <10.
  */
 export function formatBytesNum(bytes: number, binary = true): string {
+  if (!Number.isFinite(bytes)) return "—"
   if (bytes === 0) return "0 B"
   const sign = bytes < 0 ? "-" : ""
   const abs = Math.abs(bytes)
@@ -59,10 +64,10 @@ export function formatBytesNum(bytes: number, binary = true): string {
  * Formats a ratio number to 2 decimal places.
  * Returns "—" for null/undefined.
  */
-export function formatRatio(ratio: number | null | undefined): string {
+export function formatRatio(ratio: number | null | undefined, suffix = ""): string {
   if (ratio === null || ratio === undefined) return "—"
-  if (!Number.isFinite(ratio)) return "∞"
-  return ratio.toFixed(2)
+  if (!Number.isFinite(ratio)) return `∞${suffix}`
+  return `${ratio.toFixed(2)}${suffix}`
 }
 
 /**
@@ -134,6 +139,7 @@ export function formatStatValue(stats: TrackerLatestStats | null, mode: StatMode
  * i.e 90 → "1m", 7200 → "2.0h", 172800 → "2.0d"
  */
 export function formatDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return "—"
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
   if (seconds < 86400) return `${(seconds / 3600).toFixed(1)}h`
   return `${(seconds / 86400).toFixed(1)}d`
@@ -144,6 +150,7 @@ export function formatDuration(seconds: number): string {
  */
 export function formatTimeAgo(dateOrIso: Date | string): string {
   const ms = typeof dateOrIso === "string" ? new Date(dateOrIso).getTime() : dateOrIso.getTime()
+  if (Number.isNaN(ms)) return "—"
   const seconds = Math.floor((Date.now() - ms) / 1000)
   if (seconds < 60) return "just now"
   const minutes = Math.floor(seconds / 60)
@@ -177,9 +184,7 @@ export function formatSpeed(bytesPerSec: number): string {
 
 /** Formats a ratio with "x" suffix for display. Returns "—" for null/undefined, "∞x" for Infinity. */
 export function formatRatioDisplay(ratio: number | null | undefined): string {
-  if (ratio === null || ratio === undefined) return "—"
-  if (!Number.isFinite(ratio)) return "∞x"
-  return `${ratio.toFixed(2)}x`
+  return formatRatio(ratio, "x")
 }
 
 /** Formats an integer with locale-aware thousand separators. Returns "—" for null/undefined. */
@@ -190,6 +195,7 @@ export function formatCount(n: number | null | undefined): string {
 
 /** Formats a percentage value with configurable decimal places. */
 export function formatPercent(value: number, decimals = 1): string {
+  if (!Number.isFinite(value)) return "—"
   return `${value.toFixed(decimals)}%`
 }
 
@@ -197,5 +203,6 @@ export function formatPercent(value: number, decimals = 1): string {
 export function formatDateTime(dateOrIso: Date | string | number): string {
   const d =
     typeof dateOrIso === "string" || typeof dateOrIso === "number" ? new Date(dateOrIso) : dateOrIso
+  if (Number.isNaN(d.getTime())) return "—"
   return d.toLocaleString("en-US")
 }

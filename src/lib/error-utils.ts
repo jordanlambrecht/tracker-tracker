@@ -1,6 +1,11 @@
 // src/lib/error-utils.ts
 //
-// Functions: sanitizeNetworkError, isDecryptionError, classifyConnectionError
+// Functions: errMsg, sanitizeNetworkError, isDecryptionError
+
+/** Extracts a string message from an unknown error value. */
+export function errMsg(err: unknown): string {
+  return err instanceof Error ? err.message : String(err)
+}
 
 /**
  * Returns true when an error originates from AES-256-GCM authentication failure
@@ -32,16 +37,4 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   const apiMatch = raw.match(/Tracker API error: (\d+)/i)
   if (apiMatch) return `API returned ${apiMatch[1]}`
   return fallback
-}
-
-/**
- * Classify a connection error for user-facing display. Returns a parenthesized
- * detail suffix (i.e. " (timed out)") or empty string if unrecognized.
- * Used by route handlers and coordinator to append context to error messages.
- */
-export function classifyConnectionError(raw: string): string {
-  if (/timed?\s*out/i.test(raw)) return " (timed out)"
-  if (/ECONNREFUSED/i.test(raw)) return " (connection refused)"
-  if (/40[13]/.test(raw)) return " (auth failed)"
-  return ""
 }

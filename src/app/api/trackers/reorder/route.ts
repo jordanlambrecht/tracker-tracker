@@ -4,7 +4,9 @@ import { NextResponse } from "next/server"
 import { authenticate, parseJsonBody } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { trackers } from "@/lib/db/schema"
+import { errMsg } from "@/lib/error-utils"
 import { REORDER_IDS_MAX } from "@/lib/limits"
+import { log } from "@/lib/logger"
 
 export async function PATCH(request: Request) {
   const auth = await authenticate()
@@ -29,11 +31,18 @@ export async function PATCH(request: Request) {
 
   const uniqueIds = [...new Set(ids)]
 
-  await db.transaction(async (tx) => {
-    for (let i = 0; i < uniqueIds.length; i++) {
-      await tx.update(trackers).set({ sortOrder: i }).where(eq(trackers.id, uniqueIds[i]))
-    }
-  })
-
-  return NextResponse.json({ success: true })
+  try {
+    await db.transaction(async (tx) => {
+      for (let i = 0; i < uniqueIds.length; i++) {
+        await tx.update(trackers).set({ sortOrder: i }).where(eq(trackers.id, uniqueIds[i]))
+      }
+    })
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    log.error(
+      { route: "PATCH /api/trackers/reorder", error: errMsg(err) },
+      "Failed to reorder trackers"
+    )
+    return NextResponse.json({ error: "Failed to reorder trackers" }, { status: 500 })
+  }
 }

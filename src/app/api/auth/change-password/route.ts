@@ -109,7 +109,11 @@ export async function POST(request: Request) {
   for (const tracker of allTrackers) {
     try {
       trackerPlaintexts.set(tracker.id, decrypt(tracker.encryptedApiToken, oldKey))
-    } catch {
+    } catch (err) {
+      log.warn(
+        { trackerId: tracker.id, error: String(err) },
+        "Failed to decrypt tracker API token during password change"
+      )
       failedTrackers.push(tracker.name)
     }
   }
@@ -120,7 +124,11 @@ export async function POST(request: Request) {
         username: decrypt(client.encryptedUsername, oldKey),
         password: decrypt(client.encryptedPassword, oldKey),
       })
-    } catch {
+    } catch (err) {
+      log.warn(
+        { clientId: client.id, error: String(err) },
+        "Failed to decrypt client credentials during password change"
+      )
       failedClients.push(client.name)
     }
   }
@@ -128,7 +136,11 @@ export async function POST(request: Request) {
   for (const nt of allNotifications) {
     try {
       notificationPlaintexts.set(nt.id, decrypt(nt.encryptedConfig, oldKey))
-    } catch {
+    } catch (err) {
+      log.warn(
+        { targetId: nt.id, error: String(err) },
+        "Failed to decrypt notification config during password change"
+      )
       failedNotifications.push(nt.name)
     }
   }
@@ -140,8 +152,11 @@ export async function POST(request: Request) {
   if (settings.totpSecret) {
     try {
       settingsUpdates.totpSecret = reencrypt(settings.totpSecret, oldKey, newKey)
-    } catch {
-      // security-audit-ignore: re-encryption failed — clearing TOTP is the safe fallback
+    } catch (err) {
+      log.warn(
+        { error: String(err) },
+        "TOTP secret re-encryption failed during password change, disabling 2FA"
+      )
       settingsUpdates.totpSecret = null
       settingsUpdates.totpBackupCodes = null
       totpDisabled = true
@@ -150,8 +165,11 @@ export async function POST(request: Request) {
   if (settings.totpBackupCodes && !settingsUpdates.totpBackupCodes && !totpDisabled) {
     try {
       settingsUpdates.totpBackupCodes = reencrypt(settings.totpBackupCodes, oldKey, newKey)
-    } catch {
-      // security-audit-ignore: clearing backup codes is safe when re-encryption fails
+    } catch (err) {
+      log.warn(
+        { error: String(err) },
+        "TOTP backup codes re-encryption failed during password change"
+      )
       settingsUpdates.totpBackupCodes = null
     }
   }

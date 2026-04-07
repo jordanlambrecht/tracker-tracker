@@ -227,3 +227,38 @@ describe("auth JWE real crypto", () => {
     expect(token1).not.toBe(token2)
   })
 })
+
+// ---------------------------------------------------------------------------
+// getSessionKey config error propagation
+// ---------------------------------------------------------------------------
+
+describe("getSession config error propagation", () => {
+  it("should throw (not return null) when SESSION_SECRET is unset", async () => {
+    // Create a valid token with a good secret first
+    vi.stubEnv("SESSION_SECRET", TEST_SECRET_A)
+    const { createSession: createWithGoodKey } = await loadAuth()
+    const token = await createWithGoodKey(SAMPLE_KEY, 10)
+
+    // Now unset the secret and try to read the session
+    vi.stubEnv("SESSION_SECRET", "")
+    cookieState.set("tt_session", { value: token })
+    const { getSession } = await loadAuth()
+
+    // getSession must throw (config error), not return null (expired/invalid token)
+    await expect(getSession()).rejects.toThrow("SESSION_SECRET")
+  })
+
+  it("should throw (not return null) when SESSION_SECRET is too short", async () => {
+    // Create a valid token with a good secret
+    vi.stubEnv("SESSION_SECRET", TEST_SECRET_A)
+    const { createSession } = await loadAuth()
+    const token = await createSession(SAMPLE_KEY, 10)
+
+    // Now set a short secret
+    vi.stubEnv("SESSION_SECRET", "tooshort")
+    cookieState.set("tt_session", { value: token })
+    const { getSession } = await loadAuth()
+
+    await expect(getSession()).rejects.toThrow("at least 32 characters")
+  })
+})

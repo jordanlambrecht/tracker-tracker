@@ -8,6 +8,7 @@ import { authenticate, parseJsonBody, validateMaxLength } from "@/lib/api-helper
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
 import { QUICKLINK_SLUG_MAX, QUICKLINK_SLUGS_MAX } from "@/lib/limits"
+import { log } from "@/lib/logger"
 
 export async function GET() {
   const auth = await authenticate()
@@ -29,7 +30,8 @@ export async function GET() {
       if (Array.isArray(parsed) && parsed.every((s) => typeof s === "string")) {
         slugs = parsed
       }
-    } catch {
+    } catch (err) {
+      log.warn({ error: String(err) }, "Corrupt draftQuicklinks JSON in DB, returning empty")
       slugs = []
     }
   }

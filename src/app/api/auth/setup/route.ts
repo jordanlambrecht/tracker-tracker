@@ -5,6 +5,7 @@ import { hashPassword } from "@/lib/auth"
 import { generateSalt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { errMsg } from "@/lib/error-utils"
 import {
   PASSWORD_MAX,
   PASSWORD_MIN,
@@ -88,23 +89,32 @@ export async function POST(request: Request) {
   const encryptionSalt = generateSalt()
 
   // Atomic check-and-insert with serializable isolation: prevents TOCTOU race
-  const inserted = await db.transaction(
-    async (tx) => {
-      const existing = await tx.select({ id: appSettings.id }).from(appSettings).limit(1)
-      if (existing.length > 0) return false
-      await tx.insert(appSettings).values({
-        passwordHash,
-        encryptionSalt,
-        username: validatedUsername,
-        ...(validatedRetention !== undefined && { snapshotRetentionDays: validatedRetention }),
-      })
-      return true
-    },
-    { isolationLevel: "serializable" }
-  )
+  let inserted: boolean
+  try {
+    inserted = await db.transaction(
+      async (tx) => {
+        const existing = await tx.select({ id: appSettings.id }).from(appSettings).limit(1)
+        if (existing.length > 0) return false
+        await tx.insert(appSettings).values({
+          passwordHash,
+          encryptionSalt,
+          username: validatedUsername,
+          ...(validatedRetention !== undefined && { snapshotRetentionDays: validatedRetention }),
+        })
+        return true
+      },
+      { isolationLevel: "serializable" }
+    )
+  } catch (err) {
+    log.error({ route: "POST /api/auth/setup", error: errMsg(err) }, "Setup transaction failed")
+    return NextResponse.json(
+      { error: "Setup failed due to a database error. Please try again." },
+      { status: 500 }
+    )
+  }
 
   if (!inserted) {
-    log.warn({ route: "POST /api/auth/setup" }, "setup rejected — race condition")
+    log.warn({ route: "POST /api/auth/setup" }, "setup rejected: race condition")
     return NextResponse.json({ error: "Already configured" }, { status: 400 })
   }
 

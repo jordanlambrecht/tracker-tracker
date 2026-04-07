@@ -846,7 +846,7 @@ describe("fetchFleetAggregation", () => {
     expect(mergeTorrentLists).toHaveBeenCalledWith([])
   })
 
-  it("should always return empty clientErrors array", async () => {
+  it("should report clientErrors when a client with cachedTorrentsAt returns 0 torrents", async () => {
     vi.mocked(isStoreFresh).mockReturnValue(true)
     vi.mocked(getFilteredTorrents).mockReturnValue([])
 
@@ -854,7 +854,7 @@ describe("fetchFleetAggregation", () => {
 
     const result = await fetchFleetAggregation()
 
-    expect(result.clientErrors).toEqual([])
+    expect(result.clientErrors).toEqual(["Home qBT: cached data unavailable or corrupt"])
   })
 
   it("should build the correct allTags set from trackers and crossSeedTags", async () => {

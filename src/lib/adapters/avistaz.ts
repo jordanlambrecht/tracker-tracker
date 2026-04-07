@@ -79,12 +79,10 @@ export function parseAvistazCredentials(apiToken: string): AvistazCredentials {
 // AvistaZ uses decimal units (GB, KB).
 // ---------------------------------------------------------------------------
 
-function safeParseBytes(text: string): bigint {
-  try {
-    return parseBytes(text.trim())
-  } catch {
-    return 0n
-  }
+function strictParseBytes(text: string, field: string): bigint {
+  const trimmed = text.trim()
+  if (!trimmed) throw new Error(`AvistaZ: empty ${field} byte string`)
+  return parseBytes(trimmed)
 }
 
 // ---------------------------------------------------------------------------
@@ -157,13 +155,19 @@ export function parseAvistazProfile(html: string, username: string): TrackerStat
     const text = li.textContent?.replace(/[^\d.a-zA-Z\s]/g, "").trim() ?? ""
 
     if (title === "Upload") {
-      uploadedBytes = safeParseBytes(text)
+      uploadedBytes = strictParseBytes(text, "upload")
     } else if (title === "Download") {
-      downloadedBytes = safeParseBytes(text)
+      downloadedBytes = strictParseBytes(text, "download")
     } else if (title === "Ratio") {
       const ratioMatch = text.match(/([\d.]+)/)
       ratio = ratioMatch ? parseFloat(ratioMatch[1]) : 0
     }
+  }
+
+  if (uploadedBytes === 0n && downloadedBytes === 0n) {
+    throw new Error(
+      "Could not extract upload/download bytes from AvistaZ ratio bar. The page structure may have changed."
+    )
   }
 
   const seedingCount = parseInt(extractRatioBarValue(items, /Seeding:\s*([\d,]+)/), 10) || 0
