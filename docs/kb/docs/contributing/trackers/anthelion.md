@@ -11,7 +11,7 @@
 
 ## Notes
 
-Anthelion uses the Nebulance platform, which is a Gazelle-derived fork. It uses `api.php` as the endpoint path (not `ajax.php`) and authenticates via query parameter rather than HTTP header. Sister site of Nebulance (NBL).
+Anthelion runs on Nebulance, a Gazelle fork. It has two quirks: the endpoint is `api.php` (not `ajax.php`), and it authenticates via query parameter instead of HTTP header. It's the sister site to Nebulance (NBL).
 
 ## Slots
 

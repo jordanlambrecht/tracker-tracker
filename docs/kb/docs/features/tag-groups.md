@@ -5,7 +5,7 @@ description: Bundle qBittorrent tags into named groups to see breakdown charts o
 
 # Tag Groups
 
-If you tag your torrents in qBittorrent, tag groups let you visualize those tags as charts on each tracker's Torrents tab. You define the groups once, and they show up on every tracker.
+Tag groups turn qBittorrent tags into charts on each tracker's Torrents tab. Define them once and they appear everywhere.
 
 ## What They're For
 
@@ -33,13 +33,13 @@ This is what the Priority group looks like on a tracker's Torrents tab:
 
 ## Creating a Tag Group
 
-1. Go to **Settings → Download Clients** (scroll past your client cards).
-2. Click **Add Tag Group**.
-3. Name it and pick an emoji.
-4. Add rows — each row maps a **qBittorrent tag** (the exact tag string as it appears in qBit) to a **display label** (what shows up in the chart).
-5. Save.
+1. Go to **Settings → Download Clients** and scroll past your client cards
+2. Click **Add Tag Group**
+3. Name it and pick an emoji
+4. Add rows mapping **qBittorrent tags** (exact strings) to **display labels** (what appears in the chart)
+5. Save
 
-The group immediately appears on the Torrents tab of every tracker that has matching torrents. Trackers with no matching torrents skip the chart silently.
+The group appears instantly on the Torrents tab for trackers with matching torrents. If there are no matches, the chart won't appear.
 
 ## Display Types
 
@@ -54,11 +54,11 @@ Each group can use a different chart style:
 
 ## Count Unmatched Tags
 
-When enabled, the chart includes an extra segment for torrents that don't match _any_ tag in the group. Useful for seeing how many torrents aren't categorized yet.
+Enable this to add a segment showing torrents with no tag in the group. Great for seeing what's still uncategorized.
 
 ## Tag Matching
 
-Tags must match **exactly** — same capitalization, same spacing, same characters. If your qBittorrent tag is `High Priority` and you type `high priority` in the group, it won't match.
+Tags are case-sensitive and must match exactly. If qBittorrent says `High Priority`, typing `high priority` won't work.
 
 !!! tip "Check your qBittorrent tags"
     Open qBittorrent and look at the tag list in the sidebar to see the exact tag names. Copy them character-for-character into Tracker Tracker.
@@ -69,13 +69,13 @@ If you use [qbitmanage](https://github.com/StuffAnThings/qbit_manage) to automat
 
 ## Editing and Reordering
 
-- **Rename a group** — double-click the group name.
-- **Reorder tags** — drag the handle on the left side of each row.
-- **Remove a tag** — click the X on the right.
-- **Delete a group** — click Delete Group at the bottom (requires confirmation).
+- **Rename** — double-click the group name
+- **Reorder tags** — drag the handle on the left
+- **Remove a tag** — click the X on the right
+- **Delete a group** — click Delete Group at the bottom (requires confirmation)
 
 ## Good to Know
 
-- Tag groups are global — they apply to all trackers, not just one. If a group's tags don't match any torrents on a particular tracker, the chart simply doesn't appear there.
-- Changes in settings take effect on the next page load of a tracker detail page.
-- Tag groups are included in backups and restored automatically.
+- Tag groups are global — one group works across all trackers.
+- Changes take effect when you reload a tracker page.
+- Backups include tag groups and restore them automatically.

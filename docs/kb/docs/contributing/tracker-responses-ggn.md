@@ -1,19 +1,19 @@
 # GGn (GazelleGames) API Response
 
-GGn shares Gazelle's overall architecture but differs enough to warrant its own adapter. It uses query-parameter auth instead of headers, a two-step fetch on first poll, and its own field naming conventions.
+GGn is Gazelle-based but uses query-param auth (not headers), two calls on first poll, and different field names. Hence its own adapter.
 
 ## Endpoint
 
-Two requests per poll (first poll only — subsequent polls skip step 1 using the cached `remoteUserId`):
+First poll: two requests. Subsequent polls: one request (using cached `remoteUserId`).
 
-```
+```bash
 GET {baseUrl}/api.php?request=quick_user&key={TOKEN}
 GET {baseUrl}/api.php?request=user&id={USER_ID}&key={TOKEN}
 ```
 
 ## Authentication
 
-API token passed as a query parameter: `?key=TOKEN`. No authorization header.
+API token as query parameter: `?key=TOKEN`. No authorization header.
 
 ## Example quick_user Response
 
@@ -27,7 +27,7 @@ API token passed as a query parameter: `?key=TOKEN`. No authorization header.
 }
 ```
 
-The only purpose of this call is to resolve the user's numeric ID. Once the adapter has stored this as `remoteUserId` in the database, it skips this call on all future polls and goes straight to `request=user`.
+Gets your numeric ID. After caching as `remoteUserId`, we skip this and go straight to `request=user` on subsequent polls.
 
 ## Example user Response
 
@@ -151,22 +151,21 @@ The only purpose of this call is to resolve the user's numeric ID. Once the adap
 
 ## Quirks
 
-**`ratio` is a string.** Unlike every other platform, GGn returns `stats.ratio` as a string (`"0.99699"`), not a number. The adapter handles this with:
+**`ratio` is a string.** Returns as `"0.99699"` instead of a number:
 
 ```typescript
-const ratio =
-  typeof resp.stats.ratio === "number" ? resp.stats.ratio : parseFloat(resp.stats.ratio) || 0
+const ratio = typeof resp.stats.ratio === "number" ? resp.stats.ratio : parseFloat(resp.stats.ratio) || 0
 ```
 
-**Seedbonus is called `gold`.** GGn has a currency called gold, not bonus points. The adapter maps `stats.gold` → `seedbonus` in the `TrackerStats` output so the dashboard can display it consistently.
+**Seedbonus is called `gold`.** We map `stats.gold` → `seedbonus` so dashboards are consistent.
 
-**Seeding and leeching are paranoia-dependent.** `community.seeding` and `community.leeching` return `null` when the user's paranoia level hides community stats. The adapter defaults to `0` in that case, but `null` in the raw response is expected and normal for many GGn users.
+**Seeding/leeching are paranoia-dependent.** Users with paranoia enabled return `null`. We default to `0`.
 
-**`hnrs` (hit and runs) can be `null`.** GGn tracks hit-and-runs as `personal.hnrs`, but it can be `null` if the user has none or the field is hidden. The adapter passes `null` through directly to `hitAndRuns`.
+**`hnrs` can be `null`.** Stored in `personal.hnrs`, null if hidden. Passed through as-is.
 
-**Two-step fetch, first poll only.** The `quick_user` call exists solely to resolve the numeric user ID. After the first successful poll, the adapter stores `remoteUserId` in the database and skips `quick_user` on all subsequent polls, going directly to `request=user&id=X`. This saves one round-trip per poll cycle.
+**Two-step fetch, first poll only.** Afterward, we cache `remoteUserId` and hit `request=user&id=X` directly.
 
-**Buffs are upload/download multipliers.** The `buffs` object contains per-category multipliers active on the user's account (e.g. `Upload: 2` means 2x upload credit). These are stored in `GGnPlatformMeta.buffs` but not currently used in the dashboard display — tracked for future buffer projection features.
+**Buffs are multipliers.** Stored in `GGnPlatformMeta.buffs` (e.g., `Upload: 2` = 2x credit). Not displayed yet, but reserved for buffer projections.
 
 ## Supported Trackers
 

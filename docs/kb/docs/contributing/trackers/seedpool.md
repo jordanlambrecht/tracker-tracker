@@ -11,13 +11,11 @@
 
 ## Notes
 
-Standard UNIT3D configuration. No tracker-specific quirks.
+Standard UNIT3D setup, but Seed Pool has its own promotion system based on seedsize instead of upload amount. The class names are all pool-themed: User → Pool → PowerPool → SuperPool → UberPool → MegaPool → GodPool. There's also a ProPool class you can buy on IRC.
 
-Seed Pool uses a seedsize-based promotion system rather than upload amount. All class names are pool-themed (User → Pool → PowerPool → SuperPool → UberPool → MegaPool → GodPool). There is also a purchasable ProPool class available via IRC.
+Fall below a 1.0 ratio and you'll hit `Cesspool` — you lose download privileges. `KiddiePool` is a timeout zone.
 
-The `Cesspool` class is a demotion for users whose ratio drops below 1 — download privileges are revoked. `KiddiePool` is a timeout zone.
-
-Status page available at `https://status.seedpool.org/`.
+Check the status page at `https://status.seedpool.org/`.
 
 ## Slots
 

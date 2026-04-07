@@ -1,5 +1,8 @@
 # Empornium (EMP)
 
+!!! Warning
+    This tracker is marked **Unvalidated** and has not been tested it against a real account yet. The field names and response structure should match the standard Gazelle layout, but there's no proof yet.
+
 | Field        | Value                                     |
 | ------------ | ----------------------------------------- |
 | Platform     | Gazelle                                   |
@@ -11,13 +14,13 @@
 
 ## Notes
 
-Standard Gazelle configuration. This tracker is marked **Unvalidated** — the API integration has not been confirmed against a live account. Field names and response structure are assumed to match the standard Gazelle layout.
+Uses standard Gazelle.
 
 ## Slots
 
 **Profile Card:** username · group (no avatar or join date — no enrichment)
 
-**Badges:** `warned` (conditional — always `false` without enrichment)
+**Badges:** `warned` (conditional — always `false` since there's no enrichment)
 
 **Stat Cards:** `seedbonus`, `login-deadline` (loginIntervalDays: 90)
 

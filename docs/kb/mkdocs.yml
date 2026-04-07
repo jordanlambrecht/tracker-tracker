@@ -7,34 +7,34 @@ repo_name: jordanlambrecht/tracker-tracker
 edit_uri: edit/main/docs/kb/docs/
 
 theme:
-  name: material
-  palette:
-    scheme: slate
-    primary: cyan
-    accent: cyan
-  features:
-    - navigation.instant
-    - navigation.sections
-    - navigation.top
-    - navigation.expand
-    - content.code.copy
-    - content.action.edit
-  icon:
-    repo: fontawesome/brands/github
+    name: material
+    palette:
+        scheme: slate
+        primary: cyan
+        accent: cyan
+    features:
+      - navigation.instant
+      - navigation.sections
+      - navigation.top
+      - navigation.expand
+      - content.code.copy
+      - content.action.edit
+    icon:
+        repo: fontawesome/brands/github
 
 markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
   - pymdownx.tabbed:
-      alternate_style: true
+        alternate_style: true
   - pymdownx.highlight:
-      anchor_linenums: true
+        anchor_linenums: true
   - pymdownx.inlinehilite
   - attr_list
   - md_in_html
   - toc:
-      permalink: true
+        permalink: true
 
 nav:
   - Home: index.md
@@ -46,7 +46,6 @@ nav:
       - Adding a Tracker: trackers/adding-a-tracker.md
   - Features:
       - Proxy Support: features/proxies.md
-      - Two-Factor Auth (TOTP): features/totp.md
       - Backups & Restore: features/backups.md
       - Download Clients: features/download-clients.md
       - Tag Groups: features/tag-groups.md
@@ -56,12 +55,8 @@ nav:
       - Settings Guide: reference/settings.md
       - Stats Explained: reference/stats-explained.md
       - Platform Differences: reference/platform-differences.md
-  - Troubleshooting:
-      - Tracker Shows Offline: troubleshooting/tracker-offline.md
-      - Ratio Not Updating: troubleshooting/ratio-not-updating.md
-      - Common Errors: troubleshooting/common-errors.md
+  - Troubleshooting: troubleshooting.md
   - Contributing:
-      - Overview: contributing/index.md
       - Adding a Tracker: contributing/adding-a-tracker.md
       - Bento Grid Slot System: contributing/slot-system.md
       - Tracker API Responses:

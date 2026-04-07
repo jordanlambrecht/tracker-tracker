@@ -1,5 +1,8 @@
 # Orpheus (OPS)
 
+!!! Outdated
+    This doc page needs to be updated with correct response shapes.
+
 | Field        | Value                                     |
 | ------------ | ----------------------------------------- |
 | Platform     | Gazelle                                   |
@@ -11,7 +14,7 @@
 
 ## Notes
 
-Standard Gazelle configuration. No tracker-specific quirks. Similar to REDacted — both are based on What.CD's Gazelle fork.
+Standard Gazelle setup with no quirks. Like REDacted, it's built on the What.CD Gazelle fork.
 
 ## Slots
 

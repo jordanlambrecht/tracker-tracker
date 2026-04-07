@@ -2,15 +2,15 @@
 
 ## Endpoint
 
-```
+```bash
 GET {baseUrl}/api/user?api_token={TOKEN}
 ```
 
-The path `/api/user` comes from the tracker's `apiPath` field in the database. Most UNIT3D sites use this default.
+Most UNIT3D sites use `/api/user` by default. Override via the tracker's `apiPath` field if needed.
 
 ## Authentication
 
-API token passed as a query parameter: `?api_token=TOKEN`. No request headers required beyond the default `User-Agent`.
+Pass API token as a query parameter: `?api_token=TOKEN`. No special headers required.
 
 ## Example Response
 
@@ -29,7 +29,7 @@ API token passed as a query parameter: `?api_token=TOKEN`. No request headers re
 }
 ```
 
-All byte values are **formatted strings** (`"500.25 GiB"`), not integers. The `ratio`, `buffer`, and `seedbonus` fields are also strings even though they represent numbers. The adapter runs everything through `parseBytes()` or `parseFloat()` accordingly.
+Byte values return as formatted strings (`"500.25 GiB"`), not integers. Same for `ratio`, `buffer`, and `seedbonus` — all strings. The adapter parses via `parseBytes()` or `parseFloat()`.
 
 ## Field Mapping
 
@@ -49,7 +49,7 @@ All byte values are **formatted strings** (`"500.25 GiB"`), not integers. The `r
 | `warned`           | —              | —        | Always `null` — not in UNIT3D API    |
 | `freeleechTokens`  | —              | —        | Always `null` — not in UNIT3D API    |
 
-UNIT3D makes a single API call per poll. No enrichment step.
+One API call per poll, no enrichment step.
 
 ## Supported Trackers
 

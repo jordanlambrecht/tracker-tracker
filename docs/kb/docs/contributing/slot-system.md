@@ -1,16 +1,16 @@
 # Bento Grid Slot System
 
-The tracker detail page's Data & Analytics tab uses a slot-based bento grid to render per-platform stat cards alongside the universal core stats. This document covers how the system works and how to add a new stat card.
+The tracker detail page's Data & Analytics tab uses a slot-based bento grid to render platform-specific stat cards alongside universal core stats. Learn how it works and how to add a new card.
 
 ---
 
 ## What is the bento grid?
 
-The analytics tab combines eight fixed core stats (Uploaded, Downloaded, Ratio, Buffer, Seeding, Leeching, Hit & Runs, Required Ratio) with a variable number of platform-specific slot cards. Slots are registered centrally and each slot decides at render time whether it has anything to show for the current tracker — if not, it returns `null` and is excluded entirely from the layout.
+The analytics tab combines eight fixed core stats with platform-specific slot cards. Slots decide at render time whether to show — return `null` to hide.
 
-The grid needs to pack single-height and double-height cards into a clean rectangular layout without orphaned cells or large gaps. Rather than using CSS auto-placement (which can leave unpredictable holes), the layout algorithm runs ahead of time and produces explicit `row-start`, `col-start`, and `row-span` classes for every card. Each responsive breakpoint has its own algorithm and produces an independent placement.
+The grid packs 1-tall and 2-tall cards cleanly without orphans or gaps. Instead of CSS auto-placement, the layout algorithm pre-computes `row-start`, `col-start`, and `row-span` classes per breakpoint.
 
-**Why explicit positioning?** Tailwind's CSS grid auto-placement works fine for uniform grids, but breaks down when mixing 1-tall and 2-tall cards across multiple breakpoints. Explicit positioning gives full control over where each card lands and eliminates gaps.
+**Why explicit positioning?** Tailwind auto-placement leaves holes when mixing 1-tall and 2-tall cards. Explicit positioning gives full control.
 
 ---
 
@@ -34,14 +34,12 @@ This document focuses on **`stat-card`** slots, as they are the most common thin
 
 ## Slot sizes
 
-Each stat-card slot has a `span` field that determines how many grid rows it occupies.
+| `span` | CardType | Description |
+| --- | --- | --- |
+| `1` (default) | `single` | 1x1 card |
+| `2` | `double` or `triple` | 2-row tall card; algorithm may promote to `triple` (3 rows) for better layout |
 
-| `span`        | CardType in layout                 | Description                                                                                                                             |
-| ------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `1` (default) | `single`                           | Standard 1x1 card — one row tall, one column wide                                                                                       |
-| `2`           | `double` (or `triple` if promoted) | Tall card — two rows tall, one column wide. Can be promoted to `triple` (three rows) by the algorithm when it produces a better layout. |
-
-The algorithm may promote a `double` to a `triple` (three rows) when doing so reduces gaps or eliminates an orphan. This is purely a layout decision — the slot itself only declares `span: 1` or `span: 2`. The `triple` type exists in `CardType` but is never assigned directly by slot authors.
+Promotion happens automatically when it reduces gaps. You only declare `span: 1` or `span: 2` — the algorithm handles `triple`.
 
 ---
 
@@ -49,25 +47,24 @@ The algorithm may promote a `double` to a `triple` (three rows) when doing so re
 
 ### SlotContext
 
-The object passed to every slot's `resolve` function:
+Data your slot's `resolve` function receives:
 
 ```ts
-// src/lib/slot-types.ts
 export interface SlotContext {
-  tracker: TrackerSummary // DB row + computed fields
+  tracker: TrackerSummary
   latestSnapshot: Snapshot | null
   snapshots: Snapshot[]
   meta: GGnPlatformMeta | GazellePlatformMeta | NebulancePlatformMeta | null
   registry: TrackerRegistryEntry | undefined
-  accentColor: string // tracker's hex color, e.g. "#00d4ff"
+  accentColor: string // hex, e.g. "#00d4ff"
 }
 ```
 
-`meta` is the platform-specific extra data returned by the adapter. It is `null` for UNIT3D trackers (they have no extra meta yet). Always guard with `if (!meta)` before accessing platform fields.
+`meta` is null for UNIT3D trackers and platforms without extra data. Always guard `if (!meta)` before accessing platform fields.
 
 ### ResolvedSlot
 
-What the registry produces after calling `resolve`:
+What the registry produces after it calls `resolve`:
 
 ```ts
 // src/lib/slot-types.ts
@@ -101,26 +98,26 @@ interface SlotDefinition<P = Record<string, unknown>> {
 
 ## StatCard variants
 
-All stat-card slots render via the unified `StatCard` component in `src/components/ui/StatCard.tsx`. It has three variants selected by the `type` prop.
+All stat-card slots use `StatCard` from `src/components/ui/StatCard.tsx`. Pick one of three variants via `type`.
 
 ### `basic` (default)
 
-Single hero value. Use for any scalar metric.
+Single hero value for any scalar metric.
 
 ```ts
 interface StatCardBasicProps {
-  type?: "basic" // optional — "basic" is the default
-  label: string // card title, displayed uppercase
-  value: string | number // large hero number
-  unit?: string // displayed small next to value, e.g. "BON", "GiB"
-  subtitle?: string // small text below the value
-  subValue?: string // secondary line, mono font, tertiary color
+  type?: "basic"
+  label: string
+  value: string | number
+  unit?: string // "BON", "GiB", etc.
+  subtitle?: string
+  subValue?: string
   trend?: "up" | "down" | "flat"
-  tooltip?: string // adds a "?" button with a popover
-  icon?: ReactNode // 16x16 icon in the top-right corner
-  accentColor?: string // hex color for the glow effect
+  tooltip?: string // shows "?" button with popover
+  icon?: ReactNode // 16x16
+  accentColor?: string
   alert?: "warn" | "danger"
-  alertReason?: string // shown in a "!" tooltip when alert is set
+  alertReason?: string // shown in "!" tooltip
 }
 ```
 
@@ -153,18 +150,18 @@ interface StatCardStackedProps {
 }
 ```
 
-A `stacked` card with `span: 2` occupies two grid rows, giving the rows more vertical breathing room.
+A `stacked` card with `span: 2` takes two grid rows, giving rows more vertical space.
 
 ### `ring`
 
-Countdown progress ring. Used exclusively for the Login Deadline card. Renders an SVG ring that fills as the deadline approaches and turns amber → red as it gets close.
+Countdown progress ring for login deadlines. Renders an SVG ring that fills and turns amber → red as the deadline nears.
 
 ```ts
 interface StatCardRingProps {
-  type: "ring" // required
+  type: "ring"
   title?: string // defaults to "Login Deadline"
-  lastAccessAt: string // ISO date string of last tracker visit
-  loginIntervalDays: number // from registry entry's rules.loginIntervalDays
+  lastAccessAt: string // ISO date
+  loginIntervalDays: number
   tooltip?: string
   accentColor?: string
   alert?: "warn" | "danger"
@@ -172,7 +169,7 @@ interface StatCardRingProps {
 }
 ```
 
-The ring variant is driven by data from `ctx.tracker.lastAccessAt` and `ctx.registry?.rules?.loginIntervalDays`. It is unlikely you will need a second ring card.
+You'll rarely need more than one ring card.
 
 ---
 
@@ -180,7 +177,7 @@ The ring variant is driven by data from `ctx.tracker.lastAccessAt` and `ctx.regi
 
 ### 1. Decide what data you need
 
-Look at `SlotContext` above. If your data is in `latestSnapshot`, you can read it directly. If it requires platform-specific `meta`, check what fields are available on the relevant `*PlatformMeta` type in `src/lib/adapters/types.ts`.
+If your data is in `latestSnapshot`, read it directly. For platform-specific `meta`, check `*PlatformMeta` in `src/lib/adapters/types.ts`.
 
 ### 2. Write the slot definition
 
@@ -238,22 +235,19 @@ const myTrackerTokensSlot: SlotDefinition<StatCardStackedProps> = {
 
 ### 3. Register it
 
-Add the slot to the `SLOT_DEFINITIONS` array at the bottom of `slot-registry.ts`. The array order does not determine layout position — `priority` does. Lower priority numbers appear first (leftmost in the first available row).
+Add the slot to `SLOT_DEFINITIONS` in `slot-registry.ts`. Array order doesn't matter — `priority` does. Lower priority = renders first.
 
 ```ts
 export const SLOT_DEFINITIONS: AnySlotDefinition[] = [
-  // stat-card slots
   loginDeadlineSlot,
   goldSlot,
-  // ... existing slots ...
   myTrackerInvitesSlot, // add here
   myTrackerTokensSlot,
-  // badge slots
   // ...
 ]
 ```
 
-That is all. The resolver, layout algorithm, and renderer pick it up automatically.
+Done. The system picks it up automatically.
 
 ### 4. Verify the resolve guard
 
@@ -292,29 +286,29 @@ The first N cards in the `single` pool are marked `fixed` (N = number of columns
 
 ### 4-column breakpoint (`findOptimalLayout4Col`)
 
-This is the primary desktop layout. It brute-forces all valid combinations of column count (3 or 4) and double-to-triple promotions, then ranks them by:
+This is the main desktop layout. It tries all valid combinations of column count (3 or 4) and promotions, ranking by:
 
 1. No orphaned card in the last row (preferred)
 2. Fewest gap cells
 3. Prefer 4 columns over 3
-4. Fewest triples (promotions)
+4. Fewest promotions
 
-The winning configuration's cards each receive a `{ row, col, span }` placement. `getCardClasses` turns these into static Tailwind classes (`row-start-N col-start-N row-span-N`). The row/col start classes are pre-enumerated as lookup tables (up to 30 rows) rather than generated dynamically, because Tailwind v4 requires static class names for its JIT scanner.
+The winner's cards get a `{ row, col, span }` placement. `getCardClasses` converts these to static Tailwind classes (`row-start-N col-start-N row-span-N`). Row/col classes are pre-enumerated lookup tables (up to 30 rows) instead of generated, because Tailwind v4 requires static class names.
 
-**Placement order within the winner:**
+**Placement order:**
 
 - Row 1: core stat singles (up to 4)
-- Triple-height blocks: promoted doubles fill columns left to right; remaining columns in the same row block are filled with singles stacked 3-tall
-- Double-height blocks: doubles fill columns left to right; remaining columns filled with pairs of singles
-- Remaining singles: flow left to right, top to bottom in remaining rows
+- Triple-height blocks: promoted doubles fill columns left to right; other columns get stacked singles
+- Double-height blocks: doubles fill columns left to right; other columns get pairs of singles
+- Remaining singles: flow left to right, top to bottom
 
 ### 3-column breakpoint (`findOptimalLayout3Col`)
 
-Fixed 3 columns. Same brute-force promotion strategy but ranks by: no-orphan → fewest gaps → fewest triples (no column-count preference since columns are fixed). Implemented and tested. **Currently wired into the `md` breakpoint** (`hidden md:grid md:grid-cols-3 lg:hidden`).
+Fixed 3 columns. Same brute-force strategy, ranks by: no-orphan → fewest gaps → fewest triples. **Currently wired to the `md` breakpoint** (`hidden md:grid md:grid-cols-3 lg:hidden`).
 
 ### 2-column breakpoint (`findOptimalLayout2Col`)
 
-Fixed 2 columns. Deterministic: promotes at most one double to a triple when the total cell count is odd (to keep columns balanced). **Currently wired into the mobile grid** (`grid grid-cols-2 md:hidden`).
+Fixed 2 columns. Deterministic: promotes at most one double to triple when the total cell count is odd. **Currently wired to mobile** (`grid grid-cols-2 md:hidden`).
 
 ### Breakpoint wiring (current status)
 
@@ -324,39 +318,39 @@ Fixed 2 columns. Deterministic: promotes at most one double to a triple when the
 | Medium (`md` to `lg`) | `md:grid-cols-3`                     | `findOptimalLayout3Col` | Wired and active |
 | Large (`>= lg`)       | `lg:grid-cols-3` or `lg:grid-cols-4` | `findOptimalLayout4Col` | Wired and active |
 
-The large grid uses `lg:grid-cols-4` when the algorithm selects 4 columns, or `lg:grid-cols-3` when it finds 3 columns produces fewer gaps.
+The large grid uses `lg:grid-cols-4` when the algorithm picks 4 columns, or `lg:grid-cols-3` when 3 produces fewer gaps.
 
 ---
 
 ## How the renderer maps cards to content
 
-In `AnalyticsTab.tsx`, `renderLayoutCards` iterates the placed cards and maps each card ID to a React element:
+In `AnalyticsTab.tsx`, `renderLayoutCards` iterates placed cards and maps each ID to a React element:
 
-- `s1` through `s{coreCount}` → core stat descriptors from `buildCoreStatDescriptors`
-- `s{coreCount + 1}` onward → `span: 1` slot cards in priority order
-- `t1`, `t2`, ... → the first T promoted slot doubles (triples)
-- `d1`, `d2`, ... → the remaining slot doubles (at offset T)
+- `s1` through `s{coreCount}` → core stat descriptors
+- `s{coreCount + 1}` onward → `span: 1` slot cards, by priority
+- `t1`, `t2`, ... → the first T promoted doubles (triples)
+- `d1`, `d2`, ... → remaining doubles (offset by T)
 
-The full pipeline for stat-card slots:
+The full pipeline:
 
-```
-SlotContext built in tracker detail page
-  → SLOT_DEFINITIONS[n].resolve(ctx) called for each definition
-  → null returns filtered out
-  → surviving slots sorted by priority
-  → split into singleSlots (span=1) and doubleSlots (span=2)
-  → counts passed to layout algorithms
-  → layout algorithms return PlacedCard[]
+```md
+Build SlotContext in tracker detail page
+  → Call SLOT_DEFINITIONS[n].resolve(ctx) for each
+  → Filter out null returns
+  → Sort survivors by priority
+  → Split into singleSlots (span=1) and doubleSlots (span=2)
+  → Pass counts to layout algorithms
+  → Layout algorithms return PlacedCard[]
   → renderLayoutCards maps card IDs to elements
   → getCardClasses(card) produces positioning classes
-  → rendered as <div className={positionClasses}>{element}</div>
+  → Render as <div className={positionClasses}>{element}</div>
 ```
 
 ---
 
 ## Adding a new badge slot
 
-Badge slots follow the same `SlotDefinition` shape but use `SlotBadge` as the component:
+Badge slots use the same `SlotDefinition` shape but render via `SlotBadge`:
 
 ```ts
 const myBadgeSlot: SlotDefinition<SlotBadgeProps> = {
@@ -371,7 +365,7 @@ const myBadgeSlot: SlotDefinition<SlotBadgeProps> = {
 }
 ```
 
-`SlotBadgeProps` variants: `"default"`, `"accent"`, `"warn"`, `"danger"`. Badges are collected separately from stat-card slots and rendered as a horizontal pill row, not inside the bento grid.
+`SlotBadgeProps` variants: `"default"`, `"accent"`, `"warn"`, `"danger"`. Badges are collected separately and rendered as a horizontal pill row above the bento grid.
 
 ---
 

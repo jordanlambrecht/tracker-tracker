@@ -5,7 +5,7 @@ description: Connect qBittorrent to track per-tracker torrent stats, seeding cou
 
 # Download Clients
 
-Tracker Tracker connects to qBittorrent's web interface to pull live torrent data. This powers the Torrents tab on the dashboard — showing active downloads and uploads, speeds, seeding counts, ratio histograms, and cross-seed stats.
+Tracker Tracker connects to qBittorrent's web interface to pull live torrent data. This powers the Torrents tab with active downloads and uploads, speeds, seeding counts, ratio histograms, and cross-seed stats.
 
 ## Supported Clients
 
@@ -18,7 +18,7 @@ Tracker Tracker connects to qBittorrent's web interface to pull live torrent dat
 
 ## Adding a Client
 
-Go to **Settings → Download Clients** and fill in the connection details:
+Go to **Settings → Download Clients** and fill in your connection details:
 
 | Field    | Notes                                                       |
 | -------- | ----------------------------------------------------------- |
@@ -36,33 +36,27 @@ After saving, use the **Test Connection** button to confirm Tracker Tracker can 
 
 ## Linking Trackers to a Client
 
-Each tracker can have a **qBittorrent tag** assigned to it. Set this tag to match the label you use in qBittorrent for that tracker's torrents.
-
-When Tracker Tracker polls for torrent data, it fetches only torrents with the matching tag — so you get per-tracker stats rather than a combined total.
-
-To assign a tag, open the tracker's settings page and fill in the qBittorrent tag field.
+Assign each tracker a **qBittorrent tag** that matches the label you use for that tracker's torrents. When polling, Tracker Tracker fetches only torrents with the matching tag for per-tracker stats. Open the tracker's settings and fill in the qBittorrent tag field.
 
 ## How Polling Works
 
-Tracker Tracker uses two separate polling loops:
+Tracker Tracker runs two polling loops:
 
 === "Live speed (every 30 seconds)"
 
-    Fetches current upload/download speeds from qBittorrent. This is a single lightweight request. The result shows in the sidebar speed display and in the uptime tracker.
+    Lightweight request for current upload/download speeds. Displayed in the sidebar and uptime tracker.
 
 === "Full torrent data (every 5 minutes)"
 
-    Fetches the full torrent list for each configured tag, then aggregates per-tag stats: seeding count, leeching count, speeds. The result is saved as a snapshot.
+    Fetches the full torrent list per tag and aggregates stats: seeding count, leeching count, speeds. Cached as snapshots so the Torrents tab works even if qBittorrent is briefly offline.
 
-    This loop also caches the torrent list so the Torrents tab has data to show even if qBittorrent is briefly unreachable.
-
-Both loops reuse the existing session. qBittorrent only re-authenticates if the session expires (which shows up as a 403 response).
+Both loops reuse the same session. qBittorrent only re-authenticates on 403 responses.
 
 ## Cross-Seed Detection
 
-If you use [cross-seed](https://cross-seed.org/) to find matching torrents across trackers, you can configure cross-seed tags on the download client. Any torrent tagged with one of those tags is counted separately in the cross-seed stats on the Torrents tab — so you can see how many of your torrents are cross-seeded vs. original grabs.
+Use [cross-seed](https://cross-seed.org/) to find matching torrents across trackers? Configure cross-seed tags on the download client. Any torrent with one of those tags is counted separately in the cross-seed stats — so you can see how many torrents are cross-seeded vs. original grabs.
 
-Set the cross-seed tags in the client's settings after adding it. Common tags are `cross-seed` (the default from cross-seed) or category-based variants like `cs-link-movies`, `cs-link-tv`.
+Set cross-seed tags in the client settings after adding it. Common tags are `cross-seed` (the default) or category-based like `cs-link-movies`, `cs-link-tv`.
 
 ![Cross-seed ratio chart showing 741 cross-seeded vs 1307 unique](../assets/images/tracker-page-cross-seed-chart.png)
 
@@ -70,16 +64,16 @@ For more on setting up cross-seed itself, see the [cross-seed documentation](htt
 
 ## Privacy: What Gets Stripped
 
-Tracker Tracker deliberately removes certain fields from torrent data before caching or displaying it:
+Tracker Tracker removes these fields from torrent data before caching or displaying:
 
-- Announce URLs (these contain your tracker passkey)
+- Announce URLs (which contain your tracker passkey)
 - File paths on disk
 
-This applies everywhere — the dashboard, the cached torrent list, and any API response.
+This applies everywhere: dashboard, cached lists, API responses.
 
 ## Credential Security
 
-Your qBittorrent username and password are encrypted at rest. They're decrypted in memory only when a poll is about to run, used for authentication, and never written to logs.
+Your qBittorrent username and password are encrypted at rest. They're decrypted in memory only when polling starts, used for authentication, and never logged.
 
 ## Troubleshooting
 
@@ -91,4 +85,4 @@ Your qBittorrent username and password are encrypted at rest. They're decrypted 
 | `Authentication failed — check username and password`      | Wrong credentials                                                                                 |
 | `Authentication failed — SID cookie not found in response` | Unexpected response from qBittorrent — check that the Web UI is enabled in qBittorrent's settings |
 
-If the Test Connection button reports an error, it always forces a fresh login attempt — it won't reuse a cached session. So the error you see reflects the actual current state.
+The Test Connection button forces a fresh login, so errors reflect the current state.

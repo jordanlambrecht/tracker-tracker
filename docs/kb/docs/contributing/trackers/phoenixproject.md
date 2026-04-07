@@ -11,7 +11,7 @@
 
 ## Notes
 
-Enrichment is enabled, which means a second `?action=user&id=X` call is made after the index request to retrieve `warned` status, join date, last access date, and more accurate seeding/leeching counts.
+Enrichment is on, so we make a second `?action=user&id=X` call after the first one to grab `warned` status, join date, last access, and better seeding/leeching numbers.
 
 ## Slots
 
@@ -23,4 +23,4 @@ Enrichment is enabled, which means a second `?action=user&id=X` call is made aft
 
 **Progress:** none
 
-> `login-deadline` does not resolve for Phoenix Project because `loginIntervalDays` is set to `0` in the registry.
+> `login-deadline` won't show for Phoenix Project because we set `loginIntervalDays` to `0` in the registry.

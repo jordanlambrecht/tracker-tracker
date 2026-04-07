@@ -35,7 +35,7 @@ export const DOCS = {
     description: "Route tracker requests through a SOCKS5, HTTP, or HTTPS proxy",
   },
   TOTP: {
-    href: `${DOCS_URL}/features/totp/`,
+    href: `${DOCS_URL}/reference/settings/#two-factor-authentication`,
     description: "Two-factor authentication with backup codes",
   },
   BACKUPS: {
@@ -59,7 +59,7 @@ export const DOCS = {
     description: "Get alerts in Discord when something happens on your trackers",
   },
   IMAGE_HOSTING: {
-    href: `${DOCS_URL}/features/image-hosting/`,
+    href: `${DOCS_URL}/features/`,
     description: "Upload tracker proof to image hosting sites",
   },
   TRANSIT_PAPERS: {
@@ -79,15 +79,15 @@ export const DOCS = {
 
   // Troubleshooting
   TRACKER_OFFLINE: {
-    href: `${DOCS_URL}/troubleshooting/tracker-offline/`,
+    href: `${DOCS_URL}/troubleshooting/`,
     description: "Tracker shows offline or polling is paused",
   },
   RATIO_NOT_UPDATING: {
-    href: `${DOCS_URL}/troubleshooting/ratio-not-updating/`,
+    href: `${DOCS_URL}/troubleshooting/`,
     description: "Ratio or stats appear stuck",
   },
   COMMON_ERRORS: {
-    href: `${DOCS_URL}/troubleshooting/common-errors/`,
+    href: `${DOCS_URL}/troubleshooting/`,
     description: "Error messages and what they mean",
   },
 } as const satisfies Record<string, DocsEntry>

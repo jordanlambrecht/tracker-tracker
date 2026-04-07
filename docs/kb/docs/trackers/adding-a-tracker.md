@@ -5,15 +5,15 @@ description: How to add a private tracker, find your API token, and understand w
 
 # Adding a Tracker
 
-Tracker Tracker supports 40+ trackers. Just pick one from the list.
+Tracker Tracker works with 40+ trackers. Pick one from the list below.
 
-## Opening the Add Tracker dialog
+## Open the Add Tracker dialog
 
 Click the **+** button next to "Trackers" in the sidebar, or go to `/trackers/new`.
 
 ![Add Tracker dialog](../assets/images/adding-a-tracker-dialog.png)
 
-## The tracker registry
+## Tracker registry
 
 === "UNIT3D"
 
@@ -73,100 +73,89 @@ Click the **+** button next to "Trackers" in the sidebar, or go to `/trackers/ne
     | PrivateHD | PHD |
 
 !!! note "Draft entries"
-    Some trackers in the registry are marked as drafts — dashed border, "Stats tracking not yet supported." You can pin them as quicklinks but no stats will be polled.
+    Some trackers show a dashed border saying "Stats tracking not yet supported." You can pin them as quicklinks, but they won't poll yet.
 
-Trackers you've already added are hidden from the list automatically.
+Added trackers hide from the list automatically.
 
 ## Required fields
 
 ### Base URL
 
-The full HTTPS address for the tracker.
+The tracker's full HTTPS address.
 
 ### API token
 
-Where to find it depends on the platform:
+Location varies by platform:
 
 === "UNIT3D"
 
-    Go to your account settings. Look for `Settings → Security → API Token` or `Settings → API`.
+    Go to **Settings → Security → API Token** or **Settings → API** in your account.
 
-    The token is a long alphanumeric string — copy the whole thing.
+    Copy the entire alphanumeric string.
 
     !!! tip "Token rotation"
         Some UNIT3D trackers regenerate your token when you change your password. If polls stop working after a password change, grab a fresh token.
 
 === "Gazelle"
 
-    - **RED / OPS** — `Settings → Access Settings → API Keys`. Create a new key. Read-only is sufficient.
-    - **BTN / PTP / AB / others** — check `Settings → Security`, `Settings → API`, or your profile page.
+    - **RED / OPS** — **Settings → Access Settings → API Keys**. Create a new key (read-only is fine).
+    - **BTN / PTP / AB / others** — Check **Settings → Security**, **Settings → API**, or your profile.
 
-    Gazelle keys are usually shown only once when created. Copy it immediately.
+    Gazelle shows keys only once when created, so copy it right away.
 
     !!! tip "Scoped keys"
-        Some Gazelle forks let you create keys with limited permissions. Tracker Tracker only reads your stats — read-only works fine.
+        Some Gazelle forks support limited-permission keys. Since Tracker Tracker only reads your stats, read-only access works great.
 
 === "GGn"
 
-    Go to `Settings → Access Settings → API Key`. Copy the full key.
+    Go to **Settings → Access Settings → API Key** and copy it.
 
-    GGn keys don't expire on their own, but they can be regenerated from your settings.
+    GGn keys don't expire automatically, but you can regenerate them anytime from your settings.
 
 === "AvistaZ"
 
-    AvistaZ network trackers use browser cookies instead of API keys.
+    AvistaZ uses browser cookies instead of API keys.
 
-    1. Open the tracker site in your browser and make sure you're logged in
+    1. Open the tracker in your browser and log in
     2. Open DevTools (F12 or Cmd+Option+I)
     3. Go to the **Network** tab
     4. Refresh the page
     5. Click any request to the tracker's domain
-    6. In the **Request Headers**, find the `Cookie` header and copy its full value
+    6. Find the `Cookie` header in **Request Headers** and copy its full value
 
-    You'll also need your **username** on the tracker.
+    You'll also need your **username** on that tracker.
 
-    Paste both into the Add Tracker dialog — the User-Agent is captured automatically.
+    Paste both into the Add Tracker dialog. The User-Agent gets captured automatically.
 
     !!! warning "Cookie expiration"
-        The Cloudflare `cf_clearance` cookie expires periodically. When polls start failing, refresh the cookie by repeating the steps above.
+        The Cloudflare `cf_clearance` cookie expires periodically. When polling fails, refresh it by repeating the steps above.
 
-    !!! warning "Newbie rank cannot use this feature"
-        AvistaZ network sites restrict Newbie accounts to limited site access. You must reach **Member** rank (5 GB upload, ratio >= 1.0, account age >= 7 days) before the profile page exposes the data Tracker Tracker needs. If you are still a Newbie, wait until you are promoted before adding the tracker.
+    !!! warning "Newbie rank not supported"
+        AvistaZ restricts Newbie accounts to limited site access. You need **Member** rank (5 GB upload, ratio ≥ 1.0, 7+ days old) before the profile page shows the data Tracker Tracker needs. Wait until promotion before adding the tracker.
 
 !!! warning "Keep your token private"
-    Your API token acts like a password for your account. Tracker Tracker encrypts it before storing it.
+    Your API token works like a password. Tracker Tracker encrypts it before storing it.
 
 ## Optional fields
 
 ### Proxy
 
-If the tracker needs a proxy (e.g., for geo-restrictions), toggle **Use Proxy** on the tracker's settings page. See [Proxy Support](../features/proxies.md) for setup.
+If the tracker needs a proxy (i.e., for geo-restrictions), toggle **Use Proxy** on the tracker's settings page. See [Proxy Support](../features/proxies.md) for setup.
 
-## What happens after you save
+!!! tip "Getting a red dot?"
+    Check your API token — most often it's a copy-paste error or a token that rotated after you saved it.
 
-1. The tracker is saved and an immediate poll runs.
-2. The **PulseDot** on the tracker card shows the result:
-   - Breathing cyan — poll succeeded
-   - Amber — warning or partial data
-   - Red — poll failed (bad token, network error, etc.)
-3. The tracker appears in the dashboard and sidebar.
+## Poll manually
 
-![PulseDot states showing healthy, warning, and error](../assets/images/pulsedots-states.png)
+The **Poll Now** button on any tracker's detail page fetches stats immediately. Use it after updating a token or testing connectivity.
 
-!!! tip "Red dot right after adding?"
-    Check your API token. The most common cause is a copy-paste error or a token that was rotated after you copied it.
-
-## Polling manually
-
-The **Poll Now** button on any tracker's detail page runs an immediate fetch outside the normal schedule. Use it after updating a token or testing connectivity.
-
-The global schedule (default: every 60 minutes) runs all trackers on a shared timer. Manual polls don't change it.
+Manual polls don't interfere with the global schedule (default: every 60 minutes).
 
 ---
 
-## What's tracked per platform
+## What stats each platform provides
 
-Not every platform exposes the same stats. Here's what you'll see:
+Different platforms expose different stats. Here's what you'll get:
 
 | Stat             | UNIT3D | Gazelle | GGn     | AvistaZ | Notes                                                                        |
 | ---------------- | ------ | ------- | ------- | ------- | ---------------------------------------------------------------------------- |
@@ -182,36 +171,36 @@ Not every platform exposes the same stats. Here's what you'll see:
 | Warned status    | No     | Partial | Yes     | No      | Most Gazelle trackers default to false; RED has extended data                |
 | Freeleech tokens | No     | Partial | No      | No      | Not all Gazelle forks expose this                                            |
 
-### Gazelle: enriched data on RED
+### Gazelle: extra data on RED
 
-REDacted (and Phoenix Project) fetch additional data beyond the standard stats — including warned status, join date, avatar, and more detailed seeding/leeching counts. If you're on RED, you'll see richer data than on other Gazelle trackers.
+REDacted and Phoenix Project return additional fields — warned status, join date, avatar, and detailed seeding/leeching counts — giving you richer info than other Gazelle trackers.
 
 ### GGn quirks
 
-- **Seeding/leeching can show 0** — GGn's API doesn't always return these counts. Not a polling error.
-- **Hit & Runs shows unknown** for Elite Gamer and above — those classes are HNR-immune, so GGn returns null.
-- **Gold, not seedbonus** — GGn's bonus currency is called "gold." Tracker Tracker maps it to the same field as bonus points on other trackers.
+- **Seeding/leeching can show 0** — GGn's API doesn't always expose these counts. That's normal.
+- **Hit & Runs shows unknown** for Elite Gamer and above — those classes are HNR-immune.
+- **Gold, not seedbonus** — GGn calls bonus currency "gold," which we map to the bonus points field.
 
 ---
 
-## Common issues
+## Troubleshooting
 
 ### Token not working
 
-Make sure you copied the full token. UNIT3D tokens are typically 60-80 characters. Gazelle keys are shown only once when created.
+Make sure you copied the full token. UNIT3D tokens are usually 60-80 characters. Gazelle shows keys only once when you create them.
 
 ### Poll fails with 401
 
-Your token has expired or been regenerated. Copy the current token from the tracker's settings and update it in Tracker Tracker.
+Your token expired or was regenerated. Get a fresh token from the tracker's settings and update it.
 
-### Bonus points show as unavailable
+### Bonus points show unavailable
 
-A small number of heavily customized Gazelle forks don't include bonus points in their API. Nothing to configure — the tracker doesn't expose it.
+Some heavily customized Gazelle forks don't include bonus points in their API. The tracker just doesn't expose it.
 
-### Seeding count is always 0
+### Seeding count always shows 0
 
-Some Gazelle forks and GGn don't include seeding counts in their standard API response. If you're actively seeding and see 0, it's a platform limitation.
+Some Gazelle forks and GGn don't expose seeding counts via their API. If you're seeding but see 0, it's a platform limitation.
 
-### Warned status is always false
+### Warned status always shows false
 
-Expected for most Gazelle trackers. Only RED and Phoenix Project provide this data.
+That's expected for most Gazelle trackers. Only RED and Phoenix Project provide this.
