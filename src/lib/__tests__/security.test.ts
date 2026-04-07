@@ -1850,3 +1850,153 @@ describe("Backup restore: new notify* column round-trip", () => {
     expect(ntInsert?.notifyAnniversary).toBe(false)
   })
 })
+
+// ---------------------------------------------------------------------------
+// 10. Backup restore: security hardening
+// ---------------------------------------------------------------------------
+
+describe("Backup restore security hardening", () => {
+  const VALID_BACKUP = {
+    manifest: {
+      version: 1,
+      appVersion: "1.0.0",
+      createdAt: new Date().toISOString(),
+      encrypted: false,
+      counts: {
+        trackers: 0,
+        trackerSnapshots: 0,
+        trackerRoles: 0,
+        downloadClients: 0,
+        tagGroups: 0,
+        tagGroupMembers: 0,
+        clientSnapshots: 0,
+      },
+    },
+    settings: {
+      encryptionSalt: "a".repeat(64),
+      backupScheduleFrequency: "daily",
+      backupRetentionCount: 7,
+    },
+    trackers: [],
+    trackerSnapshots: [],
+    trackerRoles: [],
+    downloadClients: [],
+    tagGroups: [],
+    tagGroupMembers: [],
+    clientSnapshots: [],
+  }
+
+  function createRestoreRequest(
+    fileContent: string,
+    masterPassword: string
+  ): Request {
+    const blob = new Blob([fileContent], { type: "application/json" })
+    const formData = new FormData()
+    formData.append("file", blob, "backup.json")
+    formData.append("masterPassword", masterPassword)
+
+    const req = new Request("http://localhost/api/settings/backup/restore", {
+      method: "POST",
+    })
+    req.formData = vi.fn().mockResolvedValue(formData)
+    return req
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it("rejects master password shorter than PASSWORD_MIN with 400", async () => {
+    const { POST } = await import("@/app/api/settings/backup/restore/route")
+
+    vi.mocked(authenticate).mockResolvedValue({
+      encryptionKey: "a".repeat(64),
+    })
+
+    const req = createRestoreRequest(JSON.stringify(VALID_BACKUP), "short")
+    const res = await POST(req)
+
+    expect(res.status).toBe(400)
+    const data = await res.json()
+    expect(data.error).toBe("Master password is required to restore backups")
+    // Must reject before any DB interaction
+    expect(db.select).not.toHaveBeenCalled()
+  })
+
+  it("returns 500 when key derivation fails instead of proceeding", async () => {
+    const { POST } = await import("@/app/api/settings/backup/restore/route")
+    const { verifyPassword } = await import("@/lib/auth")
+    const { deriveKey } = await import("@/lib/crypto")
+    const { validateBackupJson } = await import("@/lib/backup")
+
+    vi.mocked(authenticate).mockResolvedValue({
+      encryptionKey: "a".repeat(64),
+    })
+    vi.mocked(verifyPassword).mockResolvedValue(true)
+    vi.mocked(validateBackupJson).mockImplementation(() => undefined)
+
+    vi.mocked(db.select).mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        limit: vi.fn().mockResolvedValue([
+          {
+            id: 1,
+            passwordHash: "hashed_password",
+            encryptionSalt: "a".repeat(64),
+          },
+        ]),
+      }),
+    } as unknown as ReturnType<typeof db.select>)
+
+    // deriveKey throws (simulating scrypt OOM or crypto failure)
+    vi.mocked(deriveKey).mockRejectedValue(new Error("scrypt: memory allocation failed"))
+
+    const req = createRestoreRequest(JSON.stringify(VALID_BACKUP), "a]3$kF9!mZq2vR7x")
+    const res = await POST(req)
+
+    expect(res.status).toBe(500)
+    const data = await res.json()
+    expect(data.error).toContain("derive encryption keys")
+    // Must NOT start the destructive transaction
+    expect(db.transaction).not.toHaveBeenCalled()
+  })
+
+  it("restarts scheduler after failed transaction (DB rolled back)", async () => {
+    const { POST } = await import("@/app/api/settings/backup/restore/route")
+    const { verifyPassword } = await import("@/lib/auth")
+    const { deriveKey } = await import("@/lib/crypto")
+    const { validateBackupJson } = await import("@/lib/backup")
+    const { stopScheduler, ensureSchedulerRunning } = await import("@/lib/scheduler")
+
+    vi.mocked(authenticate).mockResolvedValue({
+      encryptionKey: "a".repeat(64),
+    })
+    vi.mocked(deriveKey).mockResolvedValue(Buffer.from("a".repeat(32)))
+    vi.mocked(verifyPassword).mockResolvedValue(true)
+    vi.mocked(validateBackupJson).mockImplementation(() => undefined)
+
+    vi.mocked(db.select).mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        limit: vi.fn().mockResolvedValue([
+          {
+            id: 1,
+            passwordHash: "hashed_password",
+            encryptionSalt: "a".repeat(64),
+          },
+        ]),
+      }),
+    } as unknown as ReturnType<typeof db.select>)
+
+    // Transaction throws (simulating DB constraint violation)
+    ;(db.transaction as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("unique constraint violation")
+    )
+
+    const req = createRestoreRequest(JSON.stringify(VALID_BACKUP), "a]3$kF9!mZq2vR7x")
+    const res = await POST(req)
+
+    expect(res.status).toBe(500)
+    expect(stopScheduler).toHaveBeenCalledOnce()
+    expect(ensureSchedulerRunning).toHaveBeenCalledOnce()
+    expect(ensureSchedulerRunning).toHaveBeenCalledWith("a".repeat(64))
+  })
+})

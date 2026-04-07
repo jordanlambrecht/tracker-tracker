@@ -35,11 +35,12 @@ import {
   LOCKOUT_DURATION_DEFAULT,
   LOCKOUT_THRESHOLD_DEFAULT,
   PASSWORD_MAX,
+  PASSWORD_MIN,
   POLL_INTERVAL_DEFAULT,
 } from "@/lib/limits"
 import { checkLockout, recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import { log } from "@/lib/logger"
-import { stopScheduler } from "@/lib/scheduler"
+import { ensureSchedulerRunning, stopScheduler } from "@/lib/scheduler"
 
 const BATCH_SIZE = 500
 
@@ -64,11 +65,20 @@ async function batchInsert<T extends Record<string, unknown>>(
 
 // Attempt to decrypt a field with the backup key and re-encrypt with the current key.
 // Returns the re-encrypted ciphertext, or "" if the field is empty or re-encryption fails.
-function reencryptField(ciphertext: string, backupKey: Buffer, currentKey: Buffer): string {
+function reencryptField(
+  ciphertext: string,
+  backupKey: Buffer,
+  currentKey: Buffer,
+  context: string
+): string {
   if (!ciphertext) return ""
   try {
     return reencrypt(ciphertext, backupKey, currentKey)
-  } catch {
+  } catch (err) {
+    log.warn(
+      { error: err instanceof Error ? err.message : String(err), field: context },
+      "Failed to re-encrypt field during restore, value will be cleared"
+    )
     return ""
   }
 }
@@ -105,7 +115,7 @@ export async function POST(request: Request) {
   if (
     !masterPassword ||
     typeof masterPassword !== "string" ||
-    masterPassword.length === 0 ||
+    masterPassword.length < PASSWORD_MIN ||
     masterPassword.length > PASSWORD_MAX
   ) {
     return NextResponse.json(
@@ -222,9 +232,14 @@ export async function POST(request: Request) {
     backupKey = await deriveKey(masterPassword, backupSalt)
     currentKey = sameSalt ? backupKey : await deriveKey(masterPassword, currentSalt)
   } catch (err) {
-    log.warn({ err }, "Backup restore: key derivation failed, encrypted fields will be cleared")
-    backupKey = Buffer.alloc(0)
-    currentKey = Buffer.alloc(0)
+    log.error(
+      { error: err instanceof Error ? err.message : String(err) },
+      "Backup restore aborted: encryption key derivation failed"
+    )
+    return NextResponse.json(
+      { error: "Failed to derive encryption keys. Restore cannot proceed safely." },
+      { status: 500 }
+    )
   }
 
   const canReencrypt = backupKey.length === 32
@@ -238,6 +253,7 @@ export async function POST(request: Request) {
   let tokensCleared = 0
   let clientCredentialsCleared = 0
   let totpDisabledOnRestore = false
+  let orphanedRecordsSkipped = 0
 
   try {
     await db.transaction(async (tx) => {
@@ -264,7 +280,12 @@ export async function POST(request: Request) {
           // Same instance — keep ciphertext as-is
           apiToken = (fields.encryptedApiToken as string) || ""
         } else if (canReencrypt) {
-          apiToken = reencryptField(fields.encryptedApiToken as string, backupKey, currentKey)
+          apiToken = reencryptField(
+            fields.encryptedApiToken as string,
+            backupKey,
+            currentKey,
+            `tracker '${fields.name}' apiToken`
+          )
         } else {
           apiToken = ""
         }
@@ -313,8 +334,18 @@ export async function POST(request: Request) {
           encUsername = (fields.encryptedUsername as string) || ""
           encPassword = (fields.encryptedPassword as string) || ""
         } else if (canReencrypt) {
-          encUsername = reencryptField(fields.encryptedUsername as string, backupKey, currentKey)
-          encPassword = reencryptField(fields.encryptedPassword as string, backupKey, currentKey)
+          encUsername = reencryptField(
+            fields.encryptedUsername as string,
+            backupKey,
+            currentKey,
+            `downloadClient '${fields.name}' username`
+          )
+          encPassword = reencryptField(
+            fields.encryptedPassword as string,
+            backupKey,
+            currentKey,
+            `downloadClient '${fields.name}' password`
+          )
         } else {
           encUsername = ""
           encPassword = ""
@@ -340,6 +371,10 @@ export async function POST(request: Request) {
                   try {
                     return JSON.parse(fields.crossSeedTags as string) as string[]
                   } catch {
+                    log.warn(
+                      { client: fields.name },
+                      "Malformed crossSeedTags in backup, defaulting to empty"
+                    )
                     return []
                   }
                 })(),
@@ -379,7 +414,10 @@ export async function POST(request: Request) {
       for (const s of payload.trackerSnapshots) {
         const fields = s as Record<string, unknown>
         const newTrackerId = trackerIdMap.get(fields.trackerId as number)
-        if (!newTrackerId) continue
+        if (!newTrackerId) {
+          orphanedRecordsSkipped++
+          continue
+        }
         snapshotRows.push({
           trackerId: newTrackerId,
           polledAt: new Date(fields.polledAt as string),
@@ -405,7 +443,10 @@ export async function POST(request: Request) {
       for (const r of payload.trackerRoles) {
         const fields = r as Record<string, unknown>
         const newTrackerId = trackerIdMap.get(fields.trackerId as number)
-        if (!newTrackerId) continue
+        if (!newTrackerId) {
+          orphanedRecordsSkipped++
+          continue
+        }
         await tx.insert(trackerRoles).values({
           trackerId: newTrackerId,
           roleName: fields.roleName as string,
@@ -418,7 +459,10 @@ export async function POST(request: Request) {
       for (const m of payload.tagGroupMembers) {
         const fields = m as Record<string, unknown>
         const newGroupId = tagGroupIdMap.get(fields.groupId as number)
-        if (!newGroupId) continue
+        if (!newGroupId) {
+          orphanedRecordsSkipped++
+          continue
+        }
         await tx.insert(tagGroupMembers).values({
           groupId: newGroupId,
           tag: fields.tag as string,
@@ -433,7 +477,10 @@ export async function POST(request: Request) {
       for (const cs of payload.clientSnapshots) {
         const fields = cs as Record<string, unknown>
         const newClientId = clientIdMap.get(fields.clientId as number)
-        if (!newClientId) continue
+        if (!newClientId) {
+          orphanedRecordsSkipped++
+          continue
+        }
         clientSnapshotRows.push({
           clientId: newClientId,
           polledAt: new Date(fields.polledAt as string),
@@ -456,7 +503,10 @@ export async function POST(request: Request) {
         for (const ub of payload.clientUptimeBuckets) {
           const fields = ub as Record<string, unknown>
           const newClientId = clientIdMap.get(fields.clientId as number)
-          if (!newClientId) continue
+          if (!newClientId) {
+            orphanedRecordsSkipped++
+            continue
+          }
           uptimeRows.push({
             clientId: newClientId,
             bucketTs: new Date(fields.bucketTs as string),
@@ -504,7 +554,8 @@ export async function POST(request: Request) {
             encryptedConfig = reencryptField(
               fields.encryptedConfig as string,
               backupKey,
-              currentKey
+              currentKey,
+              `notificationTarget '${fields.name}' config`
             )
           } else {
             encryptedConfig = ""
@@ -546,7 +597,8 @@ export async function POST(request: Request) {
           const result = reencryptField(
             payload.settings.encryptedProxyPassword as string,
             backupKey,
-            currentKey
+            currentKey,
+            "settings proxyPassword"
           )
           proxyPassword = result || null
         }
@@ -561,7 +613,8 @@ export async function POST(request: Request) {
           const result = reencryptField(
             payload.settings.encryptedBackupPassword as string,
             backupKey,
-            currentKey
+            currentKey,
+            "settings backupPassword"
           )
           backupPasswordEncrypted = result || null
         }
@@ -577,7 +630,8 @@ export async function POST(request: Request) {
             reencryptField(
               payload.settings.encryptedPtpimgApiKey as string,
               backupKey,
-              currentKey
+              currentKey,
+              "settings ptpimgApiKey"
             ) || null
         }
       }
@@ -591,7 +645,8 @@ export async function POST(request: Request) {
             reencryptField(
               payload.settings.encryptedOeimgApiKey as string,
               backupKey,
-              currentKey
+              currentKey,
+              "settings oeimgApiKey"
             ) || null
         }
       }
@@ -605,7 +660,8 @@ export async function POST(request: Request) {
             reencryptField(
               payload.settings.encryptedImgbbApiKey as string,
               backupKey,
-              currentKey
+              currentKey,
+              "settings imgbbApiKey"
             ) || null
         }
       }
@@ -621,13 +677,18 @@ export async function POST(request: Request) {
           const reencryptedSecret = reencryptField(
             payload.settings.totpSecret as string,
             backupKey,
-            currentKey
+            currentKey,
+            "settings totpSecret"
           )
           if (reencryptedSecret) {
             totpSecret = reencryptedSecret
             totpBackupCodes = payload.settings.totpBackupCodes
-              ? reencryptField(payload.settings.totpBackupCodes as string, backupKey, currentKey) ||
-                null
+              ? reencryptField(
+                  payload.settings.totpBackupCodes as string,
+                  backupKey,
+                  currentKey,
+                  "settings totpBackupCodes"
+                ) || null
               : null
           } else {
             totpDisabledOnRestore = true
@@ -696,7 +757,10 @@ export async function POST(request: Request) {
       "Restore operation failed"
     )
 
-    return NextResponse.json({ error: "Backup restore failed" }, { status: 409 })
+    // Transaction rolled back, DB unchanged. Restart the scheduler we stopped.
+    ensureSchedulerRunning(auth.encryptionKey)
+
+    return NextResponse.json({ error: "Backup restore failed" }, { status: 500 })
   } finally {
     if (backupKey.length > 0) backupKey.fill(0)
     if (currentKey !== backupKey && currentKey.length > 0) currentKey.fill(0)
@@ -717,6 +781,7 @@ export async function POST(request: Request) {
       tokensCleared,
       clientCredentialsCleared,
       totpDisabledOnRestore,
+      orphanedRecordsSkipped,
       restored: {
         trackers: payload.trackers.length,
         trackerSnapshots: payload.trackerSnapshots.length,
@@ -756,6 +821,7 @@ export async function POST(request: Request) {
     tokensCleared,
     clientCredentialsCleared,
     totpDisabledOnRestore,
+    orphanedRecordsSkipped,
     requiresRelogin: false,
   })
 }
