@@ -72,6 +72,12 @@ Click the **+** button next to "Trackers" in the sidebar, or go to `/trackers/ne
     | ExoticaZ | ExZ |
     | PrivateHD | PHD |
 
+=== "DigitalCore"
+
+    | Name | Abbreviation |
+    |---|---|
+    | DigitalCore | DC |
+
 !!! note "Draft entries"
     Some trackers show a dashed border saying "Stats tracking not yet supported." You can pin them as quicklinks, but they won't poll yet.
 
@@ -133,6 +139,30 @@ Location varies by platform:
     !!! warning "Newbie rank not supported"
         AvistaZ restricts Newbie accounts to limited site access. You need **Member** rank (5 GB upload, ratio ≥ 1.0, 7+ days old) before the profile page shows the data Tracker Tracker needs. Wait until promotion before adding the tracker.
 
+=== "DigitalCore"
+
+    DigitalCore uses session cookies instead of API keys.
+
+    1. Open [digitalcore.club](https://digitalcore.club) in your browser and log in
+    2. Open DevTools (F12 or Cmd+Option+I)
+    3. Go to the **Network** tab
+    4. Refresh the page
+    5. Click any request to `digitalcore.club`
+    6. Find the `Cookie` header in **Request Headers** and copy its full value
+
+    The string will contain `uid=...` and `pass=...` among other values. Paste the entire thing into the Add Tracker dialog. Tracker Tracker extracts what it needs automatically.
+
+    ![Cookie header in DevTools](../assets/images/digitalcore-cookie.png)
+
+    !!! tip "Alternative: Application tab method"
+        Go to **Application** → **Cookies** → `digitalcore.club` and copy the `uid` and `pass` values. Paste them as `uid=12345; pass=abc123...`.
+
+    !!! warning "Cookie expiration"
+        Session cookies expire when you log out or after extended inactivity. If polling fails with "Session expired," log back into DigitalCore and re-copy the cookie values.
+
+    !!! info "DigitalCore's API key won't work"
+        DigitalCore has an API key feature, but it only allows access to torrent search endpoints. User stats require session cookies, which is why Tracker Tracker uses the cookie approach.
+
 !!! warning "Keep your token private"
     Your API token works like a password. Tracker Tracker encrypts it before storing it.
 
@@ -157,19 +187,19 @@ Manual polls don't interfere with the global schedule (default: every 60 minutes
 
 Different platforms expose different stats. Here's what you'll get:
 
-| Stat             | UNIT3D | Gazelle | GGn     | AvistaZ | Notes                                                                        |
-| ---------------- | ------ | ------- | ------- | ------- | ---------------------------------------------------------------------------- |
-| Upload           | Yes    | Yes     | Yes     | Yes     |                                                                              |
-| Download         | Yes    | Yes     | Yes     | Yes     |                                                                              |
-| Ratio            | Yes    | Yes     | Yes     | Yes     | GGn shows extra decimal precision                                            |
-| Buffer           | Yes    | Yes     | Yes     | Yes     | UNIT3D returns this directly; others calculate it from upload minus download |
-| Seeding count    | Yes    | Partial | Partial | Yes     | Some Gazelle forks and GGn may return 0 even when you're seeding             |
-| Leeching count   | Yes    | Partial | Partial | Yes     | Same as above                                                                |
-| Bonus points     | Yes    | Yes     | Yes     | Yes     | GGn calls this "gold" — it maps automatically                                |
-| Hit & Runs       | Yes    | No      | Partial | Yes     | GGn shows unknown for Elite Gamer+ (HNR immunity)                            |
-| Required ratio   | No     | Yes     | Yes     | No      | Not in the UNIT3D API                                                        |
-| Warned status    | No     | Partial | Yes     | No      | Most Gazelle trackers default to false; RED has extended data                |
-| Freeleech tokens | No     | Partial | No      | No      | Not all Gazelle forks expose this                                            |
+| Stat             | UNIT3D | Gazelle | GGn     | AvistaZ | DigitalCore | Notes                                                                        |
+| ---------------- | ------ | ------- | ------- | ------- | ----------- | ---------------------------------------------------------------------------- |
+| Upload           | Yes    | Yes     | Yes     | Yes     | Yes         |                                                                              |
+| Download         | Yes    | Yes     | Yes     | Yes     | Yes         |                                                                              |
+| Ratio            | Yes    | Yes     | Yes     | Yes     | Yes         | GGn shows extra decimal precision                                            |
+| Buffer           | Yes    | Yes     | Yes     | Yes     | Yes         | UNIT3D returns this directly; others calculate it from upload minus download |
+| Seeding count    | Yes    | Partial | Partial | Yes     | Yes         | Some Gazelle forks and GGn may return 0 even when you're seeding             |
+| Leeching count   | Yes    | Partial | Partial | Yes     | Yes         | Same as above                                                                |
+| Bonus points     | Yes    | Yes     | Yes     | Yes     | Yes         | GGn calls this "gold," DigitalCore calls it "bonuspoang"                     |
+| Hit & Runs       | Yes    | No      | Partial | Yes     | Yes         | GGn shows unknown for Elite Gamer+ (HNR immunity)                            |
+| Required ratio   | No     | Yes     | Yes     | No      | No          | Not in the UNIT3D or DigitalCore API                                         |
+| Warned status    | No     | Partial | Yes     | No      | Yes         | Most Gazelle trackers default to false; RED has extended data                |
+| Freeleech tokens | No     | Partial | No      | No      | No          | Not all Gazelle forks expose this                                            |
 
 ### Gazelle: extra data on RED
 

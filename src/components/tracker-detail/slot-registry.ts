@@ -13,6 +13,9 @@
 //             mam-health-overview
 //   avistaz stat-card: avistaz-activity
 //   avistaz badge: avistaz-download-disabled, avistaz-upload-disabled, avistaz-vip, avistaz-invites
+//   dc stat-card: dc-activity, dc-real-data
+//   dc badge: dc-download-ban, dc-upload-ban, dc-hnr-warned, dc-parked,
+//             dc-unconnectable, dc-seedbox-donor, dc-invites, dc-hearts
 
 import type { ComponentType, ReactNode } from "react"
 import { createElement } from "react"
@@ -414,7 +417,8 @@ const donorBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   resolve(ctx) {
     const ggMeta = metaFor(ctx, "ggn")
     const gazMeta = metaFor(ctx, "gazelle")
-    const isDonor = ggMeta?.donor ?? gazMeta?.donor
+    const dcMeta = metaFor(ctx, "digitalcore")
+    const isDonor = ggMeta?.donor ?? gazMeta?.donor ?? dcMeta?.donor
     if (isDonor !== true) return null
     return { variant: "accent", label: "Donor" }
   },
@@ -428,7 +432,8 @@ const disabledBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   resolve(ctx) {
     const ggMeta = metaFor(ctx, "ggn")
     const gazMeta = metaFor(ctx, "gazelle")
-    const enabled = ggMeta?.enabled ?? gazMeta?.enabled
+    const dcMeta = metaFor(ctx, "digitalcore")
+    const enabled = ggMeta?.enabled ?? gazMeta?.enabled ?? dcMeta?.enabled
     if (enabled !== false) return null
     return { variant: "danger", label: "Disabled" }
   },
@@ -784,6 +789,173 @@ const avistazInvitesBadgeSlot: SlotDefinition<SlotBadgeProps> = {
 }
 
 // ---------------------------------------------------------------------------
+// DigitalCore slot definitions
+// ---------------------------------------------------------------------------
+
+const dcActivitySlot: SlotDefinition<StatCardStackedProps> = {
+  id: "dc-activity",
+  category: "stat-card",
+  component: StatCard as ComponentType<StatCardStackedProps>,
+  priority: 14,
+  span: 2,
+  resolve(ctx) {
+    const dcMeta = metaFor(ctx, "digitalcore")
+    if (!dcMeta) return null
+    const torrents = dcMeta.torrents ?? 0
+    const posts = dcMeta.forumPosts ?? 0
+    const comments = dcMeta.torrentComments ?? 0
+    if (torrents === 0 && posts === 0 && comments === 0) return null
+    return {
+      type: "stacked" as const,
+      title: "Activity",
+      rows: [
+        { label: "Uploads", value: torrents },
+        { label: "Forum Posts", value: posts },
+        { label: "Comments", value: comments },
+      ],
+      accentColor: ctx.accentColor,
+    }
+  },
+}
+
+const dcRealDataSlot: SlotDefinition<StatCardStackedProps> = {
+  id: "dc-real-data",
+  category: "stat-card",
+  component: StatCard as ComponentType<StatCardStackedProps>,
+  priority: 15,
+  span: 2,
+  resolve(ctx) {
+    const dcMeta = metaFor(ctx, "digitalcore")
+    if (!dcMeta) return null
+    if (dcMeta.uploadedReal == null && dcMeta.downloadedReal == null) return null
+    const upReal = dcMeta.uploadedReal ?? 0
+    const downReal = dcMeta.downloadedReal ?? 0
+    const upCredited = Number(ctx.latestSnapshot?.uploadedBytes ?? 0)
+    const downCredited = Number(ctx.latestSnapshot?.downloadedBytes ?? 0)
+    const upDiff = upCredited - upReal
+    const downDiff = downCredited - downReal
+    if (upDiff === 0 && downDiff === 0) return null
+    return {
+      type: "stacked" as const,
+      title: "Freeleech Impact",
+      rows: [
+        {
+          label: "Upload bonus",
+          value: upDiff > 0 ? `+${formatBytesNum(upDiff)}` : "—",
+          colorClass: upDiff > 0 ? "text-success" : undefined,
+        },
+        {
+          label: "Download saved",
+          value: downDiff < 0 ? formatBytesNum(Math.abs(downDiff)) : "—",
+          colorClass: downDiff < 0 ? "text-success" : undefined,
+        },
+      ],
+      accentColor: ctx.accentColor,
+    }
+  },
+}
+
+const dcDownloadBanBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "dc-download-ban",
+  category: "badge",
+  component: SlotBadge,
+  priority: 13,
+  resolve(ctx) {
+    const dcMeta = metaFor(ctx, "digitalcore")
+    if (!dcMeta || dcMeta.downloadBan !== true) return null
+    return { variant: "danger", label: "Download Ban" }
+  },
+}
+
+const dcUploadBanBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "dc-upload-ban",
+  category: "badge",
+  component: SlotBadge,
+  priority: 13,
+  resolve(ctx) {
+    const dcMeta = metaFor(ctx, "digitalcore")
+    if (!dcMeta || dcMeta.uploadBan !== true) return null
+    return { variant: "danger", label: "Upload Ban" }
+  },
+}
+
+const dcHnrWarnedBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "dc-hnr-warned",
+  category: "badge",
+  component: SlotBadge,
+  priority: 14,
+  resolve(ctx) {
+    const dcMeta = metaFor(ctx, "digitalcore")
+    if (!dcMeta || dcMeta.hnrWarned !== true) return null
+    return { variant: "warn", label: "HnR Warned" }
+  },
+}
+
+const dcParkedBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "dc-parked",
+  category: "badge",
+  component: SlotBadge,
+  priority: 20,
+  resolve(ctx) {
+    const dcMeta = metaFor(ctx, "digitalcore")
+    if (!dcMeta || dcMeta.parked !== true) return null
+    return { variant: "warn", label: "Parked" }
+  },
+}
+
+const dcUnconnectableBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "dc-unconnectable",
+  category: "badge",
+  component: SlotBadge,
+  priority: 20,
+  resolve(ctx) {
+    const dcMeta = metaFor(ctx, "digitalcore")
+    if (!dcMeta || dcMeta.connectable !== false) return null
+    return { variant: "warn", label: "Not Connectable" }
+  },
+}
+
+const dcSeedboxDonorBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "dc-seedbox-donor",
+  category: "badge",
+  component: SlotBadge,
+  priority: 11,
+  resolve(ctx) {
+    const dcMeta = metaFor(ctx, "digitalcore")
+    if (!dcMeta || dcMeta.seedboxDonor !== true) return null
+    return { variant: "accent", label: "Seedbox Donor" }
+  },
+}
+
+const dcInvitesBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "dc-invites",
+  category: "badge",
+  component: SlotBadge,
+  priority: 21,
+  resolve(ctx) {
+    const dcMeta = metaFor(ctx, "digitalcore")
+    if (!dcMeta) return null
+    const invites = dcMeta.invites
+    if (typeof invites !== "number" || invites <= 0) return null
+    return { variant: "default", label: `${invites} Invites` }
+  },
+}
+
+const dcHeartsBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "dc-hearts",
+  category: "badge",
+  component: SlotBadge,
+  priority: 22,
+  resolve(ctx) {
+    const dcMeta = metaFor(ctx, "digitalcore")
+    if (!dcMeta) return null
+    const hearts = dcMeta.hearts
+    if (typeof hearts !== "number" || hearts <= 0) return null
+    return { variant: "accent", label: `${hearts} Hearts` }
+  },
+}
+
+// ---------------------------------------------------------------------------
 // Exported registry
 // ---------------------------------------------------------------------------
 
@@ -834,6 +1006,18 @@ export const SLOT_DEFINITIONS: AnySlotDefinition[] = [
   avistazUploadDisabledBadgeSlot,
   avistazVipBadgeSlot,
   avistazInvitesBadgeSlot,
+  // DigitalCore slots (stat-card)
+  dcActivitySlot,
+  dcRealDataSlot,
+  // DigitalCore slots (badge)
+  dcDownloadBanBadgeSlot,
+  dcUploadBanBadgeSlot,
+  dcHnrWarnedBadgeSlot,
+  dcParkedBadgeSlot,
+  dcUnconnectableBadgeSlot,
+  dcSeedboxDonorBadgeSlot,
+  dcInvitesBadgeSlot,
+  dcHeartsBadgeSlot,
 ]
 
 // Shared component lookup — single source for rendering resolved slots

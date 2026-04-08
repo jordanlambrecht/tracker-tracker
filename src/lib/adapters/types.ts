@@ -27,6 +27,7 @@ export interface TrackerStats {
     | NebulancePlatformMeta
     | MamPlatformMeta
     | AvistazPlatformMeta
+    | DigitalCorePlatformMeta
 }
 
 export interface GGnPlatformMeta {
@@ -117,6 +118,32 @@ export interface MamPlatformMeta {
   unreadTopics?: number
 }
 
+export interface DigitalCorePlatformMeta {
+  donor?: boolean
+  seedboxDonor?: boolean
+  parked?: boolean
+  enabled?: boolean
+  invites?: number
+  invitees?: number
+  leechBonus?: number
+  uploadedReal?: number
+  downloadedReal?: number
+  torrents?: number
+  requests?: number
+  forumPosts?: number
+  torrentComments?: number
+  hnr?: number
+  hnrWarned?: boolean
+  downloadBan?: boolean
+  uploadBan?: boolean
+  connectable?: boolean
+  crown?: boolean
+  skull?: boolean
+  pokal?: boolean
+  coin?: boolean
+  hearts?: number
+}
+
 export interface AvistazPlatformMeta {
   donor?: boolean
   vipExpiry?: string | null
@@ -143,6 +170,7 @@ export type PlatformMeta =
   | NebulancePlatformMeta
   | MamPlatformMeta
   | AvistazPlatformMeta
+  | DigitalCorePlatformMeta
 
 /** Maps platformType string → the corresponding PlatformMeta variant */
 export interface PlatformMetaMap {
@@ -151,6 +179,7 @@ export interface PlatformMetaMap {
   nebulance: NebulancePlatformMeta
   mam: MamPlatformMeta
   avistaz: AvistazPlatformMeta
+  digitalcore: DigitalCorePlatformMeta
 }
 
 /**

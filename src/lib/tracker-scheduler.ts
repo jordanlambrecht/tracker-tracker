@@ -9,7 +9,12 @@ import { and, desc, eq, isNotNull, lt, notInArray, sql } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { buildFetchOptions, getAdapter } from "@/lib/adapters"
-import type { AvistazPlatformMeta, MamPlatformMeta, TrackerStats } from "@/lib/adapters/types"
+import type {
+  AvistazPlatformMeta,
+  DigitalCorePlatformMeta,
+  MamPlatformMeta,
+  TrackerStats,
+} from "@/lib/adapters/types"
 import { pruneDismissedAlerts } from "@/lib/alert-pruning"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
@@ -178,7 +183,7 @@ export async function pollTracker(
     // Snapshot the previous platformMeta BEFORE writing the current poll's metadata to DB.
     // dispatchNotifications uses this for change detection (i.e. canDownload transition).
     let previousPlatformMeta: Record<string, unknown> | null = null
-    if (tracker.platformType === "avistaz" && tracker.platformMeta) {
+    if ((tracker.platformType === "avistaz" || tracker.platformType === "digitalcore") && tracker.platformMeta) {
       try {
         previousPlatformMeta = JSON.parse(tracker.platformMeta) as Record<string, unknown>
       } catch (err) {
@@ -294,6 +299,11 @@ export async function pollTracker(
           ? (stats.platformMeta as AvistazPlatformMeta | undefined)
           : undefined
 
+      const dcMeta =
+        tracker.platformType === "digitalcore"
+          ? (stats.platformMeta as DigitalCorePlatformMeta | undefined)
+          : undefined
+
       await dispatchNotifications(
         {
           trackerId: tracker.id,
@@ -342,7 +352,22 @@ export async function pollTracker(
                     previousCanDownload:
                       (previousPlatformMeta?.canDownload as boolean | null) ?? null,
                   }
-                : undefined,
+                : tracker.platformType === "digitalcore"
+                  ? {
+                      currentSeedbonus: stats.seedbonus ?? null,
+                      previousSeedbonus: previousSnapshot?.seedbonus ?? null,
+                      vipUntil: null,
+                      unsatisfiedCount: null,
+                      unsatisfiedLimit: null,
+                      inactiveHnrCount: null,
+                      previousInactiveHnrCount: null,
+                      canDownload: dcMeta?.downloadBan === true ? false : dcMeta?.downloadBan === false ? true : null,
+                      previousCanDownload:
+                        previousPlatformMeta?.downloadBan === true ? false
+                          : previousPlatformMeta?.downloadBan === false ? true
+                          : null,
+                    }
+                  : undefined,
         },
         encryptionKey,
         enabledTargets

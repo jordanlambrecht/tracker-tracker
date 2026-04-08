@@ -1,6 +1,8 @@
 // src/types/api.ts
 
 export type {
+  AvistazPlatformMeta,
+  DigitalCorePlatformMeta,
   GazellePlatformMeta,
   GazelleRanks,
   GGnPlatformMeta,

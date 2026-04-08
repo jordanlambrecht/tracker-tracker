@@ -26,17 +26,10 @@ import {
 } from "@/data/tracker-validation-rules"
 import { ALL_TRACKERS } from "@/data/trackers"
 import { DEFAULT_API_PATHS } from "@/lib/adapters"
+import { VALID_PLATFORM_TYPES } from "@/lib/adapters/constants"
 import { isValidHex } from "@/lib/validators"
 
-const VALID_PLATFORMS = [
-  "unit3d",
-  "gazelle",
-  "ggn",
-  "nebulance",
-  "mam",
-  "avistaz",
-  "custom",
-] as const
+const VALID_PLATFORMS = VALID_PLATFORM_TYPES
 const TRACKER_DIR = path.resolve(__dirname, "../../data/trackers")
 const LOGO_DIR = path.resolve(__dirname, "../../../public/tracker-logos")
 

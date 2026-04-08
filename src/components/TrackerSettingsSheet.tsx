@@ -19,6 +19,7 @@ import {
 import { ColorPicker } from "@/components/ui/ColorPicker"
 
 import { findRegistryEntry } from "@/data/tracker-registry"
+import { DOCS } from "@/lib/constants"
 import { localDateStr } from "@/lib/formatters"
 import type { TrackerSummary } from "@/types/api"
 
@@ -85,6 +86,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
   const [newApiToken, setNewApiToken] = useState("")
   const [editAvistazUsername, setEditAvistazUsername] = useState("")
   const [editAvistazCookies, setEditAvistazCookies] = useState("")
+  const [editDcCookies, setEditDcCookies] = useState("")
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
@@ -95,6 +97,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
     setNewApiToken("")
     setEditAvistazUsername("")
     setEditAvistazCookies("")
+    setEditDcCookies("")
     setErrors({})
     setSaving(false)
     setDeleting(false)
@@ -119,7 +122,18 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
         validationErrors.baseUrl = "Invalid URL"
       }
     }
-    if (changingKey && tracker.platformType !== "avistaz" && !newApiToken.trim()) {
+    if (changingKey && tracker.platformType === "digitalcore") {
+      const trimmed = editDcCookies.trim()
+      if (!trimmed) {
+        validationErrors.apiToken = "Session cookies are required"
+      } else {
+        const hasUid = /(?:^|;\s*)uid=([^;]+)/.test(trimmed)
+        const hasPass = /(?:^|;\s*)pass=([^;]+)/.test(trimmed)
+        if (!hasUid || !hasPass) {
+          validationErrors.apiToken = "Cookie string must contain both uid and pass values"
+        }
+      }
+    } else if (changingKey && tracker.platformType !== "avistaz" && !newApiToken.trim()) {
       validationErrors.apiToken = "API token cannot be empty"
     }
 
@@ -143,6 +157,19 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
         cookies: editAvistazCookies.trim(),
         userAgent: navigator.userAgent,
         username: editAvistazUsername.trim(),
+      })
+    } else if (changingKey && tracker.platformType === "digitalcore") {
+      const trimmed = editDcCookies.trim()
+      const uidMatch = trimmed.match(/(?:^|;\s*)uid=([^;]+)/)
+      const passMatch = trimmed.match(/(?:^|;\s*)pass=([^;]+)/)
+      if (!uidMatch || !passMatch) {
+        setErrors({ apiToken: "Cookie string must contain both uid and pass values" })
+        setSaving(false)
+        return
+      }
+      trimmedToken = JSON.stringify({
+        uid: uidMatch[1].trim(),
+        pass: passMatch[1].trim(),
       })
     }
 
@@ -326,6 +353,44 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
                   }}
                 />
               </div>
+            ) : changingKey && tracker.platformType === "digitalcore" ? (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-1">
+                  <label
+                    htmlFor="edit-dc-cookies"
+                    className="text-xs uppercase tracking-wider text-secondary font-sans font-medium"
+                  >
+                    Session Cookies
+                  </label>
+                  <InfoTip
+                    content="Open DevTools (F12) → Network → any request → copy the Cookie header value."
+                    size="sm"
+                    docs={DOCS.ADDING_A_TRACKER}
+                  />
+                </div>
+                <textarea
+                  id="edit-dc-cookies"
+                  autoComplete="off"
+                  data-1p-ignore
+                  value={editDcCookies}
+                  onChange={(e) => setEditDcCookies(e.target.value)}
+                  placeholder="uid=56954; pass=abc123def456..."
+                  rows={2}
+                  className="w-full font-mono text-sm text-primary bg-control-bg rounded-nm-md px-4 py-3 placeholder:text-muted nm-inset focus:outline-none focus:nm-inset border-0 resize-y"
+                />
+                <Notice message={errors.apiToken} />
+                <Button
+                  variant="minimal"
+                  size="sm"
+                  text="Cancel"
+                  className="self-start"
+                  onClick={() => {
+                    setChangingKey(false)
+                    setEditDcCookies("")
+                    setErrors({})
+                  }}
+                />
+              </div>
             ) : changingKey ? (
               <div className="flex flex-col gap-2">
                 <Input
@@ -390,7 +455,8 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
           {!(
             registryEntry?.gazelleEnrich ||
             tracker.platformType === "ggn" ||
-            tracker.platformType === "avistaz"
+            tracker.platformType === "avistaz" ||
+            tracker.platformType === "digitalcore"
           ) && (
             <div>
               <label

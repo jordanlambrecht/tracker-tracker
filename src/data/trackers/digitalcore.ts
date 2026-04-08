@@ -12,8 +12,8 @@ export const digitalcore: TrackerRegistryEntry = {
     "Scene-oriented 0day/general tracker with 1.5M+ torrents. Movies, TV, music, apps, games, ebooks.",
 
   // ── Platform & API ──────────────────────────────────────────────────
-  platform: "custom",
-  apiPath: "/api/user",
+  platform: "digitalcore",
+  apiPath: "/api/v1/status",
 
   // ── Content ─────────────────────────────────────────────────────────
   specialty: "0day / General",
@@ -22,11 +22,11 @@ export const digitalcore: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#ffffff",
-  logo: "",
+  logo: "/tracker-logos/digitalcore_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",
-  statusPageUrl: "",
+  statusPageUrl: "https://status.digitalcore.club/status/digitalcore",
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [
@@ -67,7 +67,7 @@ export const digitalcore: TrackerRegistryEntry = {
   // ── Rules ───────────────────────────────────────────────────────────
   rules: {
     minimumRatio: 0.5,
-    seedTimeHours: 0,
+    seedTimeHours: 120,
     loginIntervalDays: 90,
     fullRulesMarkdown: [
       "## Ratio",
@@ -81,8 +81,13 @@ export const digitalcore: TrackerRegistryEntry = {
       "",
       "## Hit & Run",
       "",
-      "- No explicit minimum seed time, but HnR system exists",
-      "- Must not abandon torrents after snatching",
+      "- A download is any torrent you have started to download 10% or more",
+      "- Seed for 5 days or to 1:1 ratio, whichever comes first",
+      "- If no announce for 1 hour, it shows as a Hit & Run",
+      "- 10 day grace period to fix it before it becomes permanent",
+      "- Permanent HnRs can be removed with bonus points, upload credit, or donation",
+      "- 5 active HnRs triggers an account warning",
+      "- Continued HnRs result in a download ban",
       "",
       "## Account Inactivity",
       "",
@@ -103,7 +108,7 @@ export const digitalcore: TrackerRegistryEntry = {
   warningNote: "",
 
   // ── Flags ───────────────────────────────────────────────────────────
-  draft: true,
+  draft: false,
   supportsTransitPapers: false,
   profileUrlPattern: "",
 }

@@ -7,6 +7,7 @@ export const VALID_PLATFORM_TYPES = [
   "nebulance",
   "mam",
   "avistaz",
+  "digitalcore",
   "custom",
 ] as const
 export type PlatformType = (typeof VALID_PLATFORM_TYPES)[number]
@@ -20,4 +21,5 @@ export const DEFAULT_API_PATHS: Record<string, string> = {
   nebulance: "/api.php",
   mam: "/jsonLoad.php",
   avistaz: "/profile",
+  digitalcore: "/api/v1/status",
 }

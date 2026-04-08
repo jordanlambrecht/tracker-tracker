@@ -36,11 +36,18 @@ function Tooltip({ content, children, className, docs }: TooltipProps) {
     []
   )
 
+  // Portal into the nearest <dialog> ancestor if one exists (top-layer stacking),
+  // otherwise fall back to document.body.
+  const portalTarget = useRef<HTMLElement | null>(null)
+
   useLayoutEffect(() => {
     if (!visible || !triggerRef.current) return
     const rect = triggerRef.current.getBoundingClientRect()
     setPos({ top: rect.bottom + 6, left: rect.left })
+    portalTarget.current = triggerRef.current.closest("dialog") ?? document.body
   }, [visible])
+
+  const resolvedTarget = portalTarget.current ?? (typeof document !== "undefined" ? document.body : null)
 
   return (
     <>
@@ -55,12 +62,12 @@ function Tooltip({ content, children, className, docs }: TooltipProps) {
       >
         {children}
       </span>
-      {visible &&
+      {visible && resolvedTarget &&
         createPortal(
           <div
             ref={tooltipRef}
             role="tooltip"
-            className="fixed z-50 px-3 py-2 text-2xs font-sans font-normal normal-case tracking-normal text-secondary leading-relaxed whitespace-normal bg-overlay nm-raised-sm rounded-nm-sm"
+            className="fixed z-50 px-3 py-2 text-2xs font-sans font-normal normal-case tracking-normal text-secondary leading-relaxed whitespace-normal bg-overlay nm-raised-sm rounded-nm-sm max-w-xs"
             style={{ top: pos.top, left: pos.left }}
             onMouseEnter={show}
             onMouseLeave={hide}
@@ -82,7 +89,7 @@ function Tooltip({ content, children, className, docs }: TooltipProps) {
               </a>
             )}
           </div>,
-          document.body
+          resolvedTarget
         )}
     </>
   )

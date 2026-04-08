@@ -232,6 +232,59 @@ describe("MamAdapter - auth", () => {
   })
 })
 
+describe("MamAdapter - mam_id validation", () => {
+  const adapter = new MamAdapter()
+
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it("strips mam_id= prefix if user pasted the full cookie", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockMamResponse(),
+    } as Response)
+
+    await adapter.fetchStats("https://www.myanonamouse.net", "mam_id=abc123session", "/jsonLoad.php")
+
+    const headers = (fetchSpy.mock.calls[0][1] as RequestInit).headers as Record<string, string>
+    expect(headers.Cookie).toBe("mam_id=abc123session")
+  })
+
+  it("throws on empty token", async () => {
+    await expect(
+      adapter.fetchStats("https://www.myanonamouse.net", "  ", "/jsonLoad.php")
+    ).rejects.toThrow("cannot be empty")
+  })
+
+  it("throws when token contains semicolons", async () => {
+    await expect(
+      adapter.fetchStats("https://www.myanonamouse.net", "abc;evil=1", "/jsonLoad.php")
+    ).rejects.toThrow("invalid characters")
+  })
+
+  it("throws when token contains newlines", async () => {
+    await expect(
+      adapter.fetchStats("https://www.myanonamouse.net", "abc\nSet-Cookie: evil", "/jsonLoad.php")
+    ).rejects.toThrow("invalid characters")
+  })
+
+  it("allows non-hex characters in session cookies", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockMamResponse(),
+    } as Response)
+
+    // MAM cookies can contain alphanumeric + other safe chars
+    const stats = await adapter.fetchStats(
+      "https://www.myanonamouse.net",
+      "abc123XYZ_session.value",
+      "/jsonLoad.php"
+    )
+    expect(stats.username).toBe("trackerfan")
+  })
+})
+
 describe("MamAdapter - error handling", () => {
   const adapter = new MamAdapter()
 

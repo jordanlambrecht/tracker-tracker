@@ -66,8 +66,8 @@ function TorrentsTab({
     return <TorrentTabSkeleton />
   }
 
-  if (data.noClients) return <NoDownloadClientState />
   if (!qbtTag) return <NoTagState trackerName={trackerName ?? "this tracker"} />
+  if (data.noClients) return <NoDownloadClientState />
 
   return (
     <div className="flex flex-col gap-8">

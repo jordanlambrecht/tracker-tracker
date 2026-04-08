@@ -1,5 +1,5 @@
 // src/app/api/trackers/[id]/poll/route.ts
-import { and, eq, sql } from "drizzle-orm"
+import { and, eq, isNull, lte, or } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { authenticate, decodeKey, parseTrackerId, type RouteContext } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
@@ -25,7 +25,7 @@ export async function POST(_request: Request, props: RouteContext) {
     .where(
       and(
         eq(trackers.id, trackerId),
-        sql`(${trackers.lastPolledAt} IS NULL OR ${trackers.lastPolledAt} <= ${threshold})`
+        or(isNull(trackers.lastPolledAt), lte(trackers.lastPolledAt, threshold))
       )
     )
     .returning({ id: trackers.id })

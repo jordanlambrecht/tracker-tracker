@@ -18,6 +18,7 @@ import { Tooltip } from "@/components/ui/Tooltip"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { TRACKER_REGISTRY } from "@/data/tracker-registry"
 import { useClickOutside } from "@/hooks/useClickOutside"
+import { DOCS } from "@/lib/constants"
 import { normalizeUrl } from "@/lib/data-transforms"
 import { localDateStr } from "@/lib/formatters"
 
@@ -233,6 +234,7 @@ function AddTrackerDialog({
   const [apiToken, setApiToken] = useState("")
   const [avistazUsername, setAvistazUsername] = useState("")
   const [avistazCookies, setAvistazCookies] = useState("")
+  const [dcCookies, setDcCookies] = useState("")
   const [qbtTag, setQbtTag] = useState("")
   const [mouseholeUrl, setMouseholeUrl] = useState("")
   const [color, setColor] = useState<string>(CHART_THEME.accent)
@@ -248,6 +250,7 @@ function AddTrackerDialog({
     setApiToken("")
     setAvistazUsername("")
     setAvistazCookies("")
+    setDcCookies("")
     setQbtTag("")
     setMouseholeUrl("")
     setColor(CHART_THEME.accent)
@@ -276,6 +279,7 @@ function AddTrackerDialog({
     }
     setAvistazUsername("")
     setAvistazCookies("")
+    setDcCookies("")
   }
 
   const availablePresets = useMemo(() => {
@@ -318,6 +322,19 @@ function AddTrackerDialog({
         next.apiToken =
           'You pasted a cookie name, not the value. Copy the entire string after "Cookie:" in the request headers.'
       }
+    } else if (selectedEntry?.platform === "digitalcore") {
+      const trimmed = dcCookies.trim()
+      if (!trimmed) {
+        next.apiToken = "Session cookies are required"
+      } else {
+        const uidMatch = trimmed.match(/(?:^|;\s*)uid=([^;]+)/)
+        const passMatch = trimmed.match(/(?:^|;\s*)pass=([^;]+)/)
+        if (!uidMatch) {
+          next.apiToken = "Cookie string is missing uid value. Paste the full Cookie header from DevTools."
+        } else if (!passMatch) {
+          next.apiToken = "Cookie string is missing pass value. Paste the full Cookie header from DevTools."
+        }
+      }
     } else if (!apiToken.trim()) {
       next.apiToken = "API token is required"
     }
@@ -337,6 +354,7 @@ function AddTrackerDialog({
     setTestResult(null)
 
     const isAvistaz = selectedEntry?.platform === "avistaz"
+    const isDigitalCore = selectedEntry?.platform === "digitalcore"
     let effectiveApiToken = apiToken
 
     if (isAvistaz) {
@@ -344,6 +362,14 @@ function AddTrackerDialog({
         cookies: avistazCookies.trim(),
         userAgent: navigator.userAgent,
         username: avistazUsername.trim(),
+      })
+    } else if (isDigitalCore) {
+      const trimmed = dcCookies.trim()
+      const uidMatch = trimmed.match(/(?:^|;\s*)uid=([^;]+)/)
+      const passMatch = trimmed.match(/(?:^|;\s*)pass=([^;]+)/)
+      effectiveApiToken = JSON.stringify({
+        uid: uidMatch?.[1]?.trim() ?? "",
+        pass: passMatch?.[1]?.trim() ?? "",
       })
     }
 
@@ -514,6 +540,40 @@ function AddTrackerDialog({
               </Notice>
             )}
           </div>
+        ) : selectedEntry?.platform === "digitalcore" ? (
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-1">
+              <label
+                htmlFor="tracker-dc-cookies"
+                className="text-xs uppercase tracking-wider text-secondary font-sans font-medium"
+              >
+                Session Cookies
+              </label>
+              <InfoTip
+                content="DigitalCore uses session cookies instead of API keys. Open DevTools (F12) → Network → any request → copy the Cookie header value."
+                size="sm"
+                docs={DOCS.ADDING_A_TRACKER}
+              />
+            </div>
+            <textarea
+              id="tracker-dc-cookies"
+              name="tracker-dc-cookies"
+              autoComplete="off"
+              data-1p-ignore
+              value={dcCookies}
+              onChange={(e) => setDcCookies(e.target.value)}
+              placeholder="uid=56954; pass=abc123def456..."
+              rows={2}
+              className="w-full font-mono text-sm text-primary bg-control-bg rounded-nm-md px-4 py-3 placeholder:text-muted nm-inset focus:outline-none focus:nm-inset border-0 resize-y"
+            />
+            <Notice message={errors.apiToken} />
+            {testResult && (
+              <Notice variant="success">
+                Connected as <span className="font-semibold">{testResult.username}</span>
+                {testResult.group ? ` (${testResult.group})` : ""}
+              </Notice>
+            )}
+          </div>
         ) : (
           <div className="flex flex-col gap-1">
             <Input
@@ -586,7 +646,8 @@ function AddTrackerDialog({
         {!(
           selectedEntry?.gazelleEnrich ||
           selectedEntry?.platform === "ggn" ||
-          selectedEntry?.platform === "avistaz"
+          selectedEntry?.platform === "avistaz" ||
+          selectedEntry?.platform === "digitalcore"
         ) && (
           <Input
             label="Join Date (optional)"

@@ -33,6 +33,7 @@ function serializeStats(stats: TrackerStats): Record<string, unknown> {
     freeleechTokens: stats.freeleechTokens,
     remoteUserId: stats.remoteUserId ?? null,
     joinedDate: stats.joinedDate ?? null,
+    lastAccessDate: stats.lastAccessDate ?? null,
     shareScore: stats.shareScore ?? null,
     avatarUrl: stats.avatarUrl ?? null,
     platformMeta: stats.platformMeta ?? null,

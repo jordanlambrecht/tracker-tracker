@@ -65,13 +65,21 @@ interface MamJsonLoadResponse {
   clientStats?: unknown[]
 }
 
-// mam_id is a server-issued hex session cookie. Validate before interpolation
-// to prevent header injection via semicolons, CRLF, or non-hex characters.
+// Validate mam_id before interpolation into Cookie header to prevent injection.
+// Strips "mam_id=" prefix if someone pasted the full cookie name+value.
 function validateMamId(token: string): string {
-  const trimmed = token.trim()
+  let trimmed = token.trim()
   if (!trimmed) throw new Error("MAM session cookie (mam_id) cannot be empty")
-  if (/[^a-fA-F0-9]/.test(trimmed)) {
-    throw new Error("MAM session cookie (mam_id) should be a hex string. Check that you copied the cookie value, not the name.")
+
+  // Common copy-paste mistake: user pastes "mam_id=abc123" instead of just "abc123"
+  if (trimmed.toLowerCase().startsWith("mam_id=")) {
+    trimmed = trimmed.slice(7).trim()
+    if (!trimmed) throw new Error("MAM session cookie value is empty after stripping mam_id= prefix")
+  }
+
+  // Block header injection characters
+  if (/[;\r\n]/.test(trimmed)) {
+    throw new Error("MAM session cookie (mam_id) contains invalid characters (semicolons or newlines)")
   }
   return trimmed
 }

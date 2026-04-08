@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest"
 import { resolveSlots } from "@/components/tracker-detail/resolve-slots"
 import type {
+  DigitalCorePlatformMeta,
   GazellePlatformMeta,
   GGnPlatformMeta,
   NebulancePlatformMeta,
@@ -856,5 +857,129 @@ describe("security: slot resolution does not expose secrets", () => {
     expect(cards).toContain("seedbonus")
     // Should not throw
     expect(() => resolveSlots(ctx)).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// DigitalCore context
+// ---------------------------------------------------------------------------
+
+describe("slot resolution — DigitalCore", () => {
+  const dcMeta: DigitalCorePlatformMeta = {
+    donor: true,
+    seedboxDonor: true,
+    parked: false,
+    enabled: true,
+    invites: 3,
+    leechBonus: 0,
+    uploadedReal: 500000000000,
+    downloadedReal: 1800000000000,
+    torrents: 15,
+    forumPosts: 42,
+    torrentComments: 8,
+    hnr: 0,
+    hnrWarned: false,
+    downloadBan: false,
+    uploadBan: false,
+    connectable: true,
+    hearts: 5,
+  }
+
+  function dcCtx(
+    metaOverrides?: Partial<DigitalCorePlatformMeta>,
+    snapOverrides?: Partial<Snapshot>
+  ): SlotContext {
+    return {
+      tracker: makeTracker({ platformType: "digitalcore" }),
+      latestSnapshot: makeSnapshot({
+        seedbonus: 4200,
+        uploadedBytes: "717751051245",
+        downloadedBytes: "252473792698",
+        ...snapOverrides,
+      }),
+      meta: { ...dcMeta, ...metaOverrides },
+      registry: undefined,
+      accentColor: BASE_ACCENT,
+    }
+  }
+
+  it("resolves donor badge for DC donor", () => {
+    expect(slotIds(dcCtx(), "badge")).toContain("donor")
+  })
+
+  it("does not resolve donor badge when donor is false", () => {
+    expect(slotIds(dcCtx({ donor: false }), "badge")).not.toContain("donor")
+  })
+
+  it("resolves seedbox donor badge", () => {
+    expect(slotIds(dcCtx(), "badge")).toContain("dc-seedbox-donor")
+  })
+
+  it("resolves download ban badge when banned", () => {
+    expect(slotIds(dcCtx({ downloadBan: true }), "badge")).toContain("dc-download-ban")
+  })
+
+  it("does not resolve download ban badge when not banned", () => {
+    expect(slotIds(dcCtx(), "badge")).not.toContain("dc-download-ban")
+  })
+
+  it("resolves upload ban badge when banned", () => {
+    expect(slotIds(dcCtx({ uploadBan: true }), "badge")).toContain("dc-upload-ban")
+  })
+
+  it("resolves HnR warned badge when warned", () => {
+    expect(slotIds(dcCtx({ hnrWarned: true }), "badge")).toContain("dc-hnr-warned")
+  })
+
+  it("resolves parked badge when parked", () => {
+    expect(slotIds(dcCtx({ parked: true }), "badge")).toContain("dc-parked")
+  })
+
+  it("resolves unconnectable badge when not connectable", () => {
+    expect(slotIds(dcCtx({ connectable: false }), "badge")).toContain("dc-unconnectable")
+  })
+
+  it("does not resolve unconnectable badge when connectable", () => {
+    expect(slotIds(dcCtx(), "badge")).not.toContain("dc-unconnectable")
+  })
+
+  it("resolves invites badge when invites > 0", () => {
+    expect(slotIds(dcCtx(), "badge")).toContain("dc-invites")
+  })
+
+  it("does not resolve invites badge when invites is 0", () => {
+    expect(slotIds(dcCtx({ invites: 0 }), "badge")).not.toContain("dc-invites")
+  })
+
+  it("resolves hearts badge when hearts > 0", () => {
+    expect(slotIds(dcCtx(), "badge")).toContain("dc-hearts")
+  })
+
+  it("resolves activity stat card when community data exists", () => {
+    expect(slotIds(dcCtx(), "stat-card")).toContain("dc-activity")
+  })
+
+  it("does not resolve activity card when all community counts are 0", () => {
+    expect(
+      slotIds(dcCtx({ torrents: 0, forumPosts: 0, torrentComments: 0 }), "stat-card")
+    ).not.toContain("dc-activity")
+  })
+
+  it("resolves freeleech impact card when real differs from credited", () => {
+    expect(slotIds(dcCtx(), "stat-card")).toContain("dc-real-data")
+  })
+
+  it("does not resolve freeleech impact card when real equals credited", () => {
+    expect(
+      slotIds(dcCtx({ uploadedReal: 717751051245, downloadedReal: 252473792698 }), "stat-card")
+    ).not.toContain("dc-real-data")
+  })
+
+  it("resolves generic seedbonus card (not excluded by DC)", () => {
+    expect(slotIds(dcCtx(), "stat-card")).toContain("seedbonus")
+  })
+
+  it("resolves disabled badge when enabled is false", () => {
+    expect(slotIds(dcCtx({ enabled: false }), "badge")).toContain("disabled")
   })
 })
