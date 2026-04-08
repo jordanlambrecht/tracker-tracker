@@ -79,6 +79,7 @@ export async function getSession(): Promise<{ encryptionKey: string } | null> {
   const key = getSessionKey() // Config errors propagate as 500, not silent 401
   try {
     const { payload } = await jwtDecrypt(token, key)
+    if (payload.purpose) return null // reject pending/setup tokens
     return { encryptionKey: payload.ek as string }
   } catch {
     return null

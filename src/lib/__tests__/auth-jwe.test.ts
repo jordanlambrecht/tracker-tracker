@@ -163,6 +163,28 @@ describe("auth JWE real crypto", () => {
     expect(result).toBeNull()
   })
 
+  it("should reject a pending token as a session (getSession ignores purpose tokens)", async () => {
+    const { createPendingToken, getSession } = await loadAuth()
+
+    const pendingToken = await createPendingToken(SAMPLE_KEY)
+
+    // Simulate an attacker manually setting the pending token as the session cookie
+    cookieState.set("tt_session", { value: pendingToken })
+
+    const session = await getSession()
+    expect(session).toBeNull()
+  })
+
+  it("should reject a setup token as a session (getSession ignores purpose tokens)", async () => {
+    const { createSetupToken, getSession } = await loadAuth()
+
+    const setupToken = await createSetupToken("JBSWY3DPEHPK3PXP", "[]")
+    cookieState.set("tt_session", { value: setupToken })
+
+    const session = await getSession()
+    expect(session).toBeNull()
+  })
+
   // ---- 5. Setup token round-trip -----------------------------------------
 
   it("should round-trip a setup token preserving totpSecret and backupCodesJson", async () => {
