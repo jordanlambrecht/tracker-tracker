@@ -1360,6 +1360,14 @@ describe("Encryption key zeroing", () => {
     // Should not throw
     expect(() => stopTrackerPolling()).not.toThrow()
   })
+
+  it("SIGTERM handler is registered on scheduler module import", async () => {
+    const before = process.listenerCount("SIGTERM")
+    // Import the real scheduler module to trigger the side effect
+    await vi.importActual<typeof import("@/lib/scheduler")>("@/lib/scheduler")
+    const after = process.listenerCount("SIGTERM")
+    expect(after).toBeGreaterThan(before)
+  })
 })
 
 describe("Backup restore authenticated flows", () => {

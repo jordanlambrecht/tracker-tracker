@@ -33,6 +33,15 @@ export function stopScheduler(): void {
   stopBackupScheduler()
 }
 
+// Graceful shutdown: zero-fill encryption key and stop cron tasks before exit.
+// Without this, Docker stop leaves the key buffer in process memory until the
+// OS reclaims the pages and skips any flush/cleanup in subsystem stop functions.
+process.on("SIGTERM", () => {
+  log.info("SIGTERM received, shutting down")
+  stopScheduler()
+  process.exit(0)
+})
+
 /**
  * Restarts all schedulers if they died (i.e. after server restart).
  * Called from the auth layout on every authenticated page load.
