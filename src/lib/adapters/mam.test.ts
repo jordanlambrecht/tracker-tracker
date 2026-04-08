@@ -66,7 +66,7 @@ describe("MamAdapter - parsing", () => {
 
     const stats = await adapter.fetchStats(
       "https://www.myanonamouse.net",
-      "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+      "a1b2c3a1b2c3a1b2c3a1b2c3a1b2c3a1",
       "/jsonLoad.php"
     )
 
@@ -89,7 +89,7 @@ describe("MamAdapter - parsing", () => {
 
     const stats = await adapter.fetchStats(
       "https://www.myanonamouse.net",
-      "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+      "a1b2c3a1b2c3a1b2c3a1b2c3a1b2c3a1",
       "/jsonLoad.php"
     )
 
@@ -105,7 +105,7 @@ describe("MamAdapter - parsing", () => {
 
     const stats = await adapter.fetchStats(
       "https://www.myanonamouse.net",
-      "ff00ff00ff00ff00ff00ff00ff00ff00",
+      "f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0",
       "/jsonLoad.php"
     )
 
@@ -124,7 +124,7 @@ describe("MamAdapter - parsing", () => {
 
     const stats = await adapter.fetchStats(
       "https://www.myanonamouse.net",
-      "ff00ff00ff00ff00ff00ff00ff00ff00",
+      "f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0",
       "/jsonLoad.php"
     )
 
@@ -138,7 +138,7 @@ describe("MamAdapter - parsing", () => {
 
     const stats = await adapter.fetchStats(
       "https://www.myanonamouse.net",
-      "ff00ff00ff00ff00ff00ff00ff00ff00",
+      "f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0",
       "/jsonLoad.php"
     )
 
@@ -150,7 +150,7 @@ describe("MamAdapter - parsing", () => {
 
     const stats = await adapter.fetchStats(
       "https://www.myanonamouse.net",
-      "ff00ff00ff00ff00ff00ff00ff00ff00",
+      "f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0",
       "/jsonLoad.php"
     )
 
@@ -162,7 +162,7 @@ describe("MamAdapter - parsing", () => {
 
     const stats = await adapter.fetchStats(
       "https://www.myanonamouse.net",
-      "ff00ff00ff00ff00ff00ff00ff00ff00",
+      "f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0",
       "/jsonLoad.php"
     )
 
@@ -210,11 +210,11 @@ describe("MamAdapter - auth", () => {
       json: async () => mockMamResponse(),
     } as Response)
 
-    await adapter.fetchStats("https://www.myanonamouse.net", "deadbeef1234567890abcdef12345678", "/jsonLoad.php")
+    await adapter.fetchStats("https://www.myanonamouse.net", "abc123abc123abc123abc123abc123ab", "/jsonLoad.php")
 
     const callOpts = fetchSpy.mock.calls[0][1] as RequestInit
     const headers = callOpts.headers as Record<string, string>
-    expect(headers.Cookie).toBe("mam_id=deadbeef1234567890abcdef12345678")
+    expect(headers.Cookie).toBe("mam_id=abc123abc123abc123abc123abc123ab")
   })
 
   it("includes snatch_summary in the request URL", async () => {
@@ -223,7 +223,7 @@ describe("MamAdapter - auth", () => {
       json: async () => mockMamResponse(),
     } as Response)
 
-    await adapter.fetchStats("https://www.myanonamouse.net", "ff00ff00ff00ff00ff00ff00ff00ff00", "/jsonLoad.php")
+    await adapter.fetchStats("https://www.myanonamouse.net", "f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0", "/jsonLoad.php")
 
     const calledUrl = fetchSpy.mock.calls[0][0] as string
     expect(calledUrl).toContain("snatch_summary")
@@ -299,12 +299,12 @@ describe("MamAdapter - error handling", () => {
     } as Response)
 
     await expect(
-      adapter.fetchStats("https://www.myanonamouse.net", "ff00ff00ff00ff00ff00ff00ff00ff00", "/jsonLoad.php")
+      adapter.fetchStats("https://www.myanonamouse.net", "f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0", "/jsonLoad.php")
     ).rejects.toThrow("missing username")
   })
 
   it("does not leak the session cookie in error messages", async () => {
-    const secretToken = "aabbccddeeff00112233445566778899"
+    const secretToken = "aabbccaabbccaabbccaabbccaabbccaa"
 
     vi.spyOn(global, "fetch").mockRejectedValueOnce(new Error("fetch failed"))
 
@@ -322,7 +322,7 @@ describe("MamAdapter - error handling", () => {
     vi.spyOn(global, "fetch").mockRejectedValueOnce(timeoutError)
 
     await expect(
-      adapter.fetchStats("https://www.myanonamouse.net", "ff00ff00ff00ff00ff00ff00ff00ff00", "/jsonLoad.php")
+      adapter.fetchStats("https://www.myanonamouse.net", "f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0", "/jsonLoad.php")
     ).rejects.toThrow("Request to www.myanonamouse.net timed out")
   })
 })
@@ -342,7 +342,7 @@ describe("MamAdapter - fetchRaw", () => {
 
     const calls = await adapter.fetchRaw(
       "https://www.myanonamouse.net",
-      "ff00ff00ff00ff00ff00ff00ff00ff00",
+      "f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0",
       "/jsonLoad.php"
     )
 
