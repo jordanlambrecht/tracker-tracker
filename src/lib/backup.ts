@@ -22,6 +22,7 @@ import {
   trackers,
 } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
+import { isUnsafeNetworkHost } from "@/lib/network"
 import { VALID_NOTIFICATION_TYPES } from "@/lib/notifications/types"
 import { HEX_64_RE, ISO_8601_RE, isValidHex, isValidPort } from "@/lib/validators"
 import packageJson from "../../package.json"
@@ -371,10 +372,19 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
     }
 
     assertString(t.baseUrl, `${prefix}.baseUrl`)
+    let parsedUrl: URL
     try {
-      new URL(t.baseUrl)
+      parsedUrl = new URL(t.baseUrl)
     } catch {
       throw new Error(`Backup validation: ${prefix}.baseUrl is not a valid URL`)
+    }
+    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+      throw new Error(`Backup validation: ${prefix}.baseUrl must use http or https`)
+    }
+    if (isUnsafeNetworkHost(parsedUrl.hostname)) {
+      throw new Error(
+        `Backup validation: ${prefix}.baseUrl must not target localhost or a private network address`
+      )
     }
 
     assertString(t.encryptedApiToken, `${prefix}.encryptedApiToken`)

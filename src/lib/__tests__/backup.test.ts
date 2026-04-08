@@ -184,6 +184,30 @@ describe("validateBackupJson", () => {
     expect(() => validateBackupJson(p)).toThrow("trackers[0].baseUrl")
   })
 
+  it("rejects tracker with non-http/https protocol", () => {
+    const p = validPayload()
+    ;(p.trackers[0] as Record<string, unknown>).baseUrl = "ftp://example.com"
+    expect(() => validateBackupJson(p)).toThrow("must use http or https")
+  })
+
+  it("rejects tracker baseUrl targeting localhost", () => {
+    const p = validPayload()
+    ;(p.trackers[0] as Record<string, unknown>).baseUrl = "http://localhost/api"
+    expect(() => validateBackupJson(p)).toThrow("must not target localhost")
+  })
+
+  it("rejects tracker baseUrl targeting private IP", () => {
+    const p = validPayload()
+    ;(p.trackers[0] as Record<string, unknown>).baseUrl = "http://192.168.1.1/api"
+    expect(() => validateBackupJson(p)).toThrow("must not target localhost")
+  })
+
+  it("rejects tracker baseUrl targeting cloud metadata endpoint", () => {
+    const p = validPayload()
+    ;(p.trackers[0] as Record<string, unknown>).baseUrl = "http://169.254.169.254/latest"
+    expect(() => validateBackupJson(p)).toThrow("must not target localhost")
+  })
+
   it("accepts tracker with empty API token (post-restore backups)", () => {
     const p = validPayload()
     ;(p.trackers[0] as Record<string, unknown>).encryptedApiToken = ""
