@@ -18,7 +18,8 @@
 //   checkBackupPasswordBounds, checkWebhookRedirectPolicy,
 //   checkSessionSecretLengthGuard, checkNotificationSsrfValidation,
 //   checkErrorMessageDisclosure, checkDockerCopySensitiveFiles,
-//   checkClientEnvLeak, runAudit
+//   checkClientEnvLeak, checkAdapterCookieInjection, checkAdapterCredentialLogging,
+//   runAudit
 //
 // Usage: npx tsx scripts/security-audit.ts [--changed-only file1 file2 ...]
 // If --changed-only is provided, only those files are scanned for
@@ -2384,6 +2385,137 @@ function checkClientEnvLeak(): CheckResult {
   }
 }
 
+// ── Check 37: Adapter Cookie header injection guard ────────────────────
+//
+// Adapters that construct Cookie: headers with template-literal interpolation
+// (i.e. Cookie: `name=${value}`) must validate the interpolated values against
+// injection characters (semicolons, carriage returns, newlines) BEFORE use.
+// Without this, a malicious or malformed credential value could inject extra
+// cookies or HTTP headers.
+//
+// AvistaZ is not flagged because it passes a pre-assembled cookie string
+// (Cookie: cookies) rather than interpolating individual values.
+
+function checkAdapterCookieInjection(): CheckResult {
+  const findings: Finding[] = []
+  const adaptersDir = path.resolve(SRC_DIR, "lib/adapters")
+  const adapterFiles = walkFiles(adaptersDir, ".ts")
+
+  // Matches: Cookie: `...${...}...`  (template literal with interpolation)
+  const COOKIE_INTERPOLATION_RE = /Cookie:\s*`[^`]*\$\{/
+
+  // Matches evidence that the file validates cookie values before interpolation.
+  // Two approaches are valid:
+  //   1. Blocklist: reject specific injection chars like [;\r\n]
+  //   2. Allowlist: only permit safe characters like [a-fA-F0-9]
+  const INJECTION_GUARD_PATTERNS = [
+    /\[;\\r\\n\]/,           // blocklist regex literal [;\r\n]
+    /\[;\\r\\n]/,            // alternate escaping
+    /unsafeChars/,           // variable name convention from DC adapter
+    /\[\^a-fA-F0-9\]/,      // hex-only allowlist (stricter than blocklist)
+    /\[\^a-f0-9\]/i,        // hex-only allowlist variant
+    /\[\^\\w\]/,             // word-char-only allowlist
+    /injection.*guard/i,     // explicit labeling
+    /header.*injection/i,    // explicit labeling
+    /validateMam/,           // MAM-specific validation function
+  ]
+
+  for (const file of adapterFiles) {
+    if (isTestFile(file)) continue
+    const content = fs.readFileSync(file, "utf8")
+    const lines = content.split("\n")
+    const rel = relativePath(file)
+
+    // Find lines with Cookie template interpolation
+    const cookieLines: number[] = []
+    for (let i = 0; i < lines.length; i++) {
+      if (COOKIE_INTERPOLATION_RE.test(lines[i])) {
+        cookieLines.push(i)
+      }
+    }
+
+    if (cookieLines.length === 0) continue
+
+    // Check if the file contains ANY injection guard pattern
+    const hasGuard = INJECTION_GUARD_PATTERNS.some((re) => re.test(content))
+
+    if (!hasGuard) {
+      for (const lineIdx of cookieLines) {
+        findings.push({
+          file: rel,
+          line: lineIdx + 1,
+          detail:
+            "Cookie header uses template interpolation but no injection guard (validation against [;\\r\\n]) found in this file. User-provided values could inject extra cookies or headers.",
+        })
+      }
+    }
+  }
+
+  return {
+    id: "adapter-cookie-injection",
+    name: "Adapter Cookie headers guard against injection",
+    severity: "critical",
+    status: findings.length === 0 ? "pass" : "fail",
+    findings,
+  }
+}
+
+// ── Check 38: Adapter credential logging ───────────────────────────────
+//
+// Adapter files must never log credential material (api tokens, cookies,
+// passwords, passkeys). console.log/warn/error calls in adapters are checked
+// to ensure they don't reference credential variables.
+
+function checkAdapterCredentialLogging(): CheckResult {
+  const findings: Finding[] = []
+  const adaptersDir = path.resolve(SRC_DIR, "lib/adapters")
+  const adapterFiles = walkFiles(adaptersDir, ".ts")
+
+  // Variable names that hold credentials in adapter code
+  const CREDENTIAL_VARS = [
+    "apiToken",
+    "creds\\.uid",
+    "creds\\.pass",
+    "creds\\.cookies",
+    "cookies",
+    "trimmedToken",
+    "trimmedPass",
+    "trimmedUid",
+  ]
+  const CRED_IN_LOG_RE = new RegExp(
+    `console\\.(log|warn|error)\\s*\\([^)]*\\b(${CREDENTIAL_VARS.join("|")})\\b`,
+  )
+
+  for (const file of adapterFiles) {
+    if (isTestFile(file)) continue
+    const content = fs.readFileSync(file, "utf8")
+    const lines = content.split("\n")
+    const rel = relativePath(file)
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const trimmed = line.trim()
+      if (trimmed.startsWith("//") || trimmed.startsWith("*")) continue
+
+      if (CRED_IN_LOG_RE.test(line)) {
+        findings.push({
+          file: rel,
+          line: i + 1,
+          detail: "Adapter logs a credential variable. This could expose secrets in server logs.",
+        })
+      }
+    }
+  }
+
+  return {
+    id: "adapter-credential-logging",
+    name: "Adapter files do not log credential values",
+    severity: "critical",
+    status: findings.length === 0 ? "pass" : "fail",
+    findings,
+  }
+}
+
 // ── Run all checks ──────────────────────────────────────────────────────
 
 function runAudit(changedFiles?: string[]): AuditOutput {
@@ -2420,6 +2552,8 @@ function runAudit(changedFiles?: string[]): AuditOutput {
     checkNotificationSsrfValidation(),
     checkDockerCopySensitiveFiles(),
     checkClientEnvLeak(),
+    checkAdapterCookieInjection(),
+    checkAdapterCredentialLogging(),
     // Warning — flag but don't fail
     checkConsoleLogInRoutes(absChangedFiles),
     checkTodoInSecurityFiles(),

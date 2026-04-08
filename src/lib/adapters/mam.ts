@@ -65,6 +65,17 @@ interface MamJsonLoadResponse {
   clientStats?: unknown[]
 }
 
+// mam_id is a server-issued hex session cookie. Validate before interpolation
+// to prevent header injection via semicolons, CRLF, or non-hex characters.
+function validateMamId(token: string): string {
+  const trimmed = token.trim()
+  if (!trimmed) throw new Error("MAM session cookie (mam_id) cannot be empty")
+  if (/[^a-fA-F0-9]/.test(trimmed)) {
+    throw new Error("MAM session cookie (mam_id) should be a hex string. Check that you copied the cookie value, not the name.")
+  }
+  return trimmed
+}
+
 export class MamAdapter implements TrackerAdapter {
   async fetchStats(
     baseUrl: string,
@@ -72,13 +83,14 @@ export class MamAdapter implements TrackerAdapter {
     apiPath: string,
     options?: FetchOptions
   ): Promise<TrackerStats> {
+    const mamId = validateMamId(apiToken)
     const hostname = new URL(baseUrl).hostname
     const url = new URL(apiPath, baseUrl)
     url.searchParams.set("snatch_summary", "")
     url.searchParams.set("notif", "")
 
     const data = await adapterFetch<MamJsonLoadResponse>(url.toString(), hostname, options, {
-      Cookie: `mam_id=${apiToken}`,
+      Cookie: `mam_id=${mamId}`,
     })
 
     if (!data.username) {
@@ -135,6 +147,7 @@ export class MamAdapter implements TrackerAdapter {
     apiPath: string,
     options?: FetchOptions
   ): Promise<DebugApiCall[]> {
+    const mamId = validateMamId(apiToken)
     const hostname = new URL(baseUrl).hostname
     const calls: DebugApiCall[] = []
 
@@ -145,7 +158,7 @@ export class MamAdapter implements TrackerAdapter {
 
     try {
       const data = await adapterFetch<Record<string, unknown>>(url.toString(), hostname, options, {
-        Cookie: `mam_id=${apiToken}`,
+        Cookie: `mam_id=${mamId}`,
       })
       calls.push({ label: "User Stats", endpoint, data, error: null })
     } catch (err) {
