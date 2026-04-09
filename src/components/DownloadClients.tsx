@@ -25,6 +25,7 @@ import { useActionStatus } from "@/hooks/useActionStatus"
 import { useCrudCard } from "@/hooks/useCrudCard"
 import { formatTimeAgo } from "@/lib/formatters"
 import { PORT_MAX, PORT_MIN } from "@/lib/limits"
+import { clientQueryOptions } from "@/lib/query-options"
 import type { SafeDownloadClient } from "@/types/api"
 
 // ---------------------------------------------------------------------------
@@ -607,17 +608,12 @@ function DownloadClients() {
   const [showAddForm, setShowAddForm] = useState(false)
 
   const { data: clients = [], isLoading: loading } = useQuery({
-    queryKey: ["clients"],
-    queryFn: async ({ signal }) => {
-      const res = await fetch("/api/clients", { signal })
-      if (!res.ok) return [] as DownloadClient[]
-      return res.json() as Promise<DownloadClient[]>
-    },
+    ...clientQueryOptions,
   })
 
   const handleSaved = useCallback(
     (id: number, updated: DownloadClient) => {
-      queryClient.setQueryData<DownloadClient[]>(["clients"], (prev) =>
+      queryClient.setQueryData<DownloadClient[]>(clientQueryOptions.queryKey, (prev) =>
         prev?.map((c) => (c.id === id ? updated : c))
       )
     },
@@ -627,7 +623,7 @@ function DownloadClients() {
   const handleRemove = useCallback(
     async (id: number) => {
       await fetch(`/api/clients/${id}`, { method: "DELETE" })
-      queryClient.setQueryData<DownloadClient[]>(["clients"], (prev) => {
+      queryClient.setQueryData<DownloadClient[]>(clientQueryOptions.queryKey, (prev) => {
         if (!prev) return prev
         const next = prev.filter((c) => c.id !== id)
         if (next.length > 0 && !next.some((c) => c.isDefault)) {
@@ -641,7 +637,7 @@ function DownloadClients() {
 
   const handleSetDefault = useCallback(
     (id: number) => {
-      queryClient.setQueryData<DownloadClient[]>(["clients"], (prev) =>
+      queryClient.setQueryData<DownloadClient[]>(clientQueryOptions.queryKey, (prev) =>
         prev?.map((c) => ({ ...c, isDefault: c.id === id }))
       )
       fetch(`/api/clients/${id}`, {
@@ -690,7 +686,7 @@ function DownloadClients() {
               isFirst={clients.length === 0}
               onCreated={() => {
                 setShowAddForm(false)
-                queryClient.invalidateQueries({ queryKey: ["clients"] })
+                queryClient.invalidateQueries({ queryKey: clientQueryOptions.queryKey })
               }}
               onCancel={() => setShowAddForm(false)}
             />

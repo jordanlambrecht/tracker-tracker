@@ -3,6 +3,8 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
+import { clientQueryOptions } from "@/lib/query-options"
+import type { SafeDownloadClient } from "@/types/api"
 
 interface PollingIntervals {
   /** Tracker + dashboard refetch interval in ms (from trackerPollIntervalMinutes) */
@@ -13,6 +15,12 @@ interface PollingIntervals {
 
 const DEFAULT_TRACKER_MS = 60_000
 const DEFAULT_CLIENT_MS = 5 * 60 * 1000
+
+export function selectMinPollInterval(clients: SafeDownloadClient[]): number | null {
+  const enabled = clients.filter((c) => c.enabled)
+  if (enabled.length === 0) return null
+  return Math.min(...enabled.map((c) => c.pollIntervalSeconds))
+}
 
 // Reads poll intervals from app settings and client config
 
@@ -32,17 +40,8 @@ export function usePollingIntervals(): PollingIntervals {
   })
 
   const { data: clientsData } = useQuery({
-    queryKey: ["polling-intervals-clients"],
-    queryFn: async ({ signal }) => {
-      const res = await fetch("/api/clients", { signal })
-      if (!res.ok) return null
-      const clients = (await res.json()) as { pollIntervalSeconds: number; enabled: boolean }[]
-      const enabled = clients.filter((c) => c.enabled)
-      if (enabled.length === 0) return null
-      return Math.min(...enabled.map((c) => c.pollIntervalSeconds))
-    },
-    staleTime: 5 * 60 * 1000,
-    refetchInterval: 5 * 60 * 1000,
+    ...clientQueryOptions,
+    select: selectMinPollInterval,
   })
 
   const trackerRefetchMs = settingsData?.trackerPollIntervalMinutes

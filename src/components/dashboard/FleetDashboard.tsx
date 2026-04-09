@@ -48,6 +48,7 @@ import {
   formatSpeed,
   splitValueUnit,
 } from "@/lib/formatters"
+import { clientQueryOptions } from "@/lib/query-options"
 
 interface FleetDashboardProps {
   dayRange: number
@@ -58,7 +59,7 @@ const allChartIds = FLEET_CHARTS.map((c) => c.id)
 
 // Stable select: narrows ["clients"] cache to {id, name} so lastPolledAt
 // changes from the sidebar's 10s poll don't trigger re-renders here.
-const selectClientIdName = (data: { id: number; name: string }[]) =>
+export const selectClientIdName = (data: { id: number; name: string }[]) =>
   data.map(({ id, name }) => ({ id, name }))
 
 export function FleetDashboard({ dayRange, isActive = true }: FleetDashboardProps) {
@@ -96,15 +97,10 @@ export function FleetDashboard({ dayRange, isActive = true }: FleetDashboardProp
     queryClient.invalidateQueries({ queryKey: ["fleet-torrents-cached"] })
   }, [queryClient])
 
+  // Sidebar's 10s poll keeps this cache fresh. select narrows to {id, name}
+  // so lastPolledAt/updatedAt changes don't trigger re-renders.
   const { data: clientList = [] } = useQuery({
-    queryKey: ["clients"],
-    queryFn: async ({ signal }) => {
-      const res = await fetch("/api/clients", { signal })
-      if (!res.ok) throw new Error(`Client list failed: ${res.status}`)
-      return res.json() as Promise<{ id: number; name: string }[]>
-    },
-    // Sidebar's 10s poll keeps this cache fresh. select narrows to {id, name}
-    // so lastPolledAt/updatedAt changes don't trigger re-renders.
+    ...clientQueryOptions,
     staleTime: intervals.clientRefetchMs,
     select: selectClientIdName,
   })

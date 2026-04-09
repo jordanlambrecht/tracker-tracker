@@ -177,6 +177,17 @@ describe("useTrackerList", () => {
 
     await waitFor(() => expect(result.current.trackers).toHaveLength(3))
 
+    // After PATCH succeeds, the invalidation refetch should return updated data
+    fetchMock.mockImplementation((url: string) => {
+      if (typeof url === "string" && url.includes("/api/trackers/2")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve([trackerA, { ...trackerB, isFavorite: true }, trackerC]),
+      })
+    })
+
     act(() => {
       result.current.toggleFavorite(2, false)
     })

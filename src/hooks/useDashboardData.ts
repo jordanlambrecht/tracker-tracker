@@ -13,7 +13,16 @@ import {
   fetchDismissedKeys,
   postDismissAlert as persistDismiss,
 } from "@/lib/dashboard"
-import type { DayRange, Snapshot, TodayAtAGlance, TrackerSummary } from "@/types/api"
+import { clientQueryOptions, trackerQueryOptions } from "@/lib/query-options"
+import type { DayRange, SafeDownloadClient, Snapshot, TodayAtAGlance, TrackerSummary } from "@/types/api"
+
+export function selectActiveTrackers(trackers: TrackerSummary[]) {
+  return trackers.filter((t) => t.isActive)
+}
+
+export function selectClientsForAlerts(clients: SafeDownloadClient[]) {
+  return clients.map(({ id, name, enabled, lastError }) => ({ id, name, enabled, lastError }))
+}
 
 interface DashboardData {
   trackers: TrackerSummary[]
@@ -58,15 +67,10 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
 
   // Tracker list query
   const trackersQuery = useQuery({
-    queryKey: ["trackers"],
-    queryFn: async ({ signal }) => {
-      const res = await fetch("/api/trackers", { signal })
-      if (!res.ok) throw new Error(`Tracker fetch failed: ${res.status}`)
-      const all: TrackerSummary[] = await res.json()
-      return all.filter((t) => t.isActive)
-    },
+    ...trackerQueryOptions,
     refetchInterval: intervals.trackerRefetchMs,
-    initialData: options?.initialTrackers?.filter((t) => t.isActive),
+    select: selectActiveTrackers,
+    initialData: options?.initialTrackers,
     initialDataUpdatedAt: options?.initialTrackers ? Date.now() : undefined,
   })
 
@@ -99,17 +103,10 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
     refetchInterval: intervals.trackerRefetchMs,
   })
 
-  // Secondary queries for alert computation (less frequent)
+  // Secondary queries for alert computation (sidebar's 10s poll drives fetches)
   const clientsQuery = useQuery({
-    queryKey: ["clients-for-alerts"],
-    queryFn: async ({ signal }) => {
-      const res = await fetch("/api/clients", { signal })
-      if (!res.ok) throw new Error(`Client fetch failed: ${res.status}`)
-      return res.json() as Promise<
-        { id: number; name: string; enabled: boolean; lastError: string | null }[]
-      >
-    },
-    refetchInterval: intervals.clientRefetchMs,
+    ...clientQueryOptions,
+    select: selectClientsForAlerts,
   })
 
   const backupQuery = useQuery({
@@ -190,7 +187,7 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
   }, [visibleAlerts])
 
   const refresh = useCallback(async () => {
-    await queryClient.refetchQueries({ queryKey: ["trackers"] })
+    await queryClient.refetchQueries({ queryKey: trackerQueryOptions.queryKey })
     queryClient.invalidateQueries({ queryKey: ["tracker-snapshots-fleet"] })
     queryClient.invalidateQueries({ queryKey: ["download-client-snapshots"] })
     queryClient.invalidateQueries({ queryKey: ["dashboard-today"] })

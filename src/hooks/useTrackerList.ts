@@ -6,6 +6,7 @@ import { arrayMove } from "@dnd-kit/sortable"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useCallback, useEffect, useMemo, useRef } from "react"
 import { usePollingIntervals } from "@/hooks/usePollingIntervals"
+import { trackerQueryOptions } from "@/lib/query-options"
 import type { TrackerSummary } from "@/types/api"
 
 type SortMode = "index" | "alpha" | "custom"
@@ -50,12 +51,7 @@ function useTrackerList({
   const intervals = usePollingIntervals()
 
   const trackersQuery = useQuery({
-    queryKey: ["sidebar-trackers"],
-    queryFn: async ({ signal }) => {
-      const res = await fetch("/api/trackers", { signal })
-      if (!res.ok) return [] as TrackerSummary[]
-      return res.json() as Promise<TrackerSummary[]>
-    },
+    ...trackerQueryOptions,
     refetchInterval: intervals.trackerRefetchMs,
   })
 
@@ -92,7 +88,7 @@ function useTrackerList({
   const toggleFavorite = useCallback(
     (id: number, current: boolean) => {
       const next = !current
-      queryClient.setQueryData<TrackerSummary[]>(["sidebar-trackers"], (prev) =>
+      queryClient.setQueryData<TrackerSummary[]>(trackerQueryOptions.queryKey, (prev) =>
         prev?.map((t) => (t.id === id ? { ...t, isFavorite: next } : t))
       )
       fetch(`/api/trackers/${id}`, {
@@ -102,10 +98,10 @@ function useTrackerList({
       })
         .then((res) => {
           if (!res.ok) throw new Error()
-          queryClient.invalidateQueries({ queryKey: ["trackers"] })
+          queryClient.invalidateQueries({ queryKey: trackerQueryOptions.queryKey })
         })
         .catch(() => {
-          queryClient.setQueryData<TrackerSummary[]>(["sidebar-trackers"], (prev) =>
+          queryClient.setQueryData<TrackerSummary[]>(trackerQueryOptions.queryKey, (prev) =>
             prev?.map((t) => (t.id === id ? { ...t, isFavorite: current } : t))
           )
         })
@@ -118,9 +114,9 @@ function useTrackerList({
       const { active, over } = event
       if (!over || active.id === over.id) return
 
-      const snapshot = queryClient.getQueryData<TrackerSummary[]>(["sidebar-trackers"])
+      const snapshot = queryClient.getQueryData<TrackerSummary[]>(trackerQueryOptions.queryKey)
 
-      queryClient.setQueryData<TrackerSummary[]>(["sidebar-trackers"], (prev) => {
+      queryClient.setQueryData<TrackerSummary[]>(trackerQueryOptions.queryKey, (prev) => {
         if (!prev) return prev
         const oldIndex = prev.findIndex((t) => t.id === active.id)
         const newIndex = prev.findIndex((t) => t.id === over.id)
@@ -131,7 +127,7 @@ function useTrackerList({
         }))
       })
 
-      const reordered = queryClient.getQueryData<TrackerSummary[]>(["sidebar-trackers"])
+      const reordered = queryClient.getQueryData<TrackerSummary[]>(trackerQueryOptions.queryKey)
       const ids = reordered?.map((t) => t.id) ?? []
 
       fetch("/api/trackers/reorder", {
@@ -141,10 +137,10 @@ function useTrackerList({
       })
         .then((res) => {
           if (!res.ok) throw new Error()
-          queryClient.invalidateQueries({ queryKey: ["trackers"] })
+          queryClient.invalidateQueries({ queryKey: trackerQueryOptions.queryKey })
         })
         .catch(() => {
-          queryClient.setQueryData(["sidebar-trackers"], snapshot)
+          queryClient.setQueryData(trackerQueryOptions.queryKey, snapshot)
         })
 
       onSortModeChange("custom")
@@ -153,7 +149,7 @@ function useTrackerList({
   )
 
   const refresh = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ["sidebar-trackers"] })
+    queryClient.invalidateQueries({ queryKey: trackerQueryOptions.queryKey })
   }, [queryClient])
 
   return {

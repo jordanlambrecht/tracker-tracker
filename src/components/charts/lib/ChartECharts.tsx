@@ -37,7 +37,7 @@ const DEFAULT_OPTS = { renderer: "canvas" as const }
 // function values (i.e. tooltip formatters), so two options with identical data
 // but different formatter closures produce the same string. Returns true when
 // style changes so echarts-for-react's resize() check still fires.
-function defaultShouldSetOption(
+export function defaultShouldSetOption(
   prev: { option?: unknown; style?: unknown },
   next: { option?: unknown; style?: unknown }
 ): boolean {

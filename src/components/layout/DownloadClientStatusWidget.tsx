@@ -11,6 +11,7 @@ import { Sparkline } from "@/components/ui/Sparkline"
 import { useCarousel } from "@/hooks/useCarousel"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
 import { formatSpeed, formatTimeAgo } from "@/lib/formatters"
+import { clientQueryOptions } from "@/lib/query-options"
 import { STORAGE_KEYS } from "@/lib/storage-keys"
 
 interface ClientInfo {
@@ -106,14 +107,9 @@ function DownloadClientStatusWidget() {
     } catch {}
   }, [setExpanded])
 
-  // Fetch enabled clients
+  // Fetch enabled clients — refetchInterval: 10_000 drives the cache for all consumers
   const { data: enabledClients = [] } = useQuery({
-    queryKey: ["clients"],
-    queryFn: async ({ signal }) => {
-      const res = await fetch("/api/clients", { signal })
-      if (!res.ok) return [] as ClientInfo[]
-      return res.json() as Promise<ClientInfo[]>
-    },
+    ...clientQueryOptions,
     refetchInterval: 10_000,
     select: selectEnabled,
   })
