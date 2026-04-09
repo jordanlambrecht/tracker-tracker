@@ -118,13 +118,17 @@ function extractRatioBarValue(items: ParsedElement[], labelRegex: RegExp): strin
 // ---------------------------------------------------------------------------
 
 export function parseAvistazProfile(html: string, username: string): TrackerStats {
-  // Detect login redirect — meta refresh to /auth/login
-  if (html.includes("/auth/login")) {
+  // Detect login redirect. AvistaZ uses /auth/login, AnimeZ and others use /login.
+  if (html.includes("/auth/login") || html.includes('action="/login"')) {
     throw new Error("Session expired — browser cookies need to be refreshed")
   }
 
-  // Detect Cloudflare JS challenge
-  if (html.includes("<title>Just a moment...</title>") || html.includes("cf_chl_opt")) {
+  // Detect Cloudflare challenge (classic JS challenge or Turnstile widget)
+  if (
+    html.includes("<title>Just a moment...</title>") ||
+    html.includes("cf_chl_opt") ||
+    html.includes("challenges.cloudflare.com/turnstile")
+  ) {
     throw new Error("Cloudflare challenge detected — cf_clearance cookie needs refreshing")
   }
 
@@ -150,13 +154,18 @@ export function parseAvistazProfile(html: string, username: string): TrackerStat
   let ratio = 0
 
   for (const li of items) {
-    const title = li.getAttribute("data-toggle") === "tooltip" ? li.getAttribute("title") : null
+    // AvistaZ (BS3): data-toggle="tooltip" title="Upload"
+    // AnimeZ (BS5): data-bs-toggle="tooltip" title="Uploaded"
+    const isTooltip =
+      li.getAttribute("data-toggle") === "tooltip" ||
+      li.getAttribute("data-bs-toggle") === "tooltip"
+    const title = isTooltip ? li.getAttribute("title")?.trim() ?? null : null
     // Strip everything except digits, decimal point, and unit letters/spaces
     const text = li.textContent?.replace(/[^\d.a-zA-Z\s]/g, "").trim() ?? ""
 
-    if (title === "Upload") {
+    if (title === "Upload" || title === "Uploaded") {
       uploadedBytes = strictParseBytes(text, "upload")
-    } else if (title === "Download") {
+    } else if (title === "Download" || title === "Downloaded") {
       downloadedBytes = strictParseBytes(text, "download")
     } else if (title === "Ratio") {
       const ratioMatch = text.match(/([\d.]+)/)

@@ -180,6 +180,27 @@ describe("parseAvistazProfile", () => {
     const stats = parseAvistazProfile(minimalPage, "fallbackuser")
     expect(stats.username).toBe("fallbackuser")
   })
+
+  it("parses BS5 ratio bar (data-bs-toggle, Uploaded/Downloaded titles)", () => {
+    const bs5Page = `<!doctype html><html><head></head><body>
+      <div class="ratio-bar"><div class="container"><ul class="list-inline">
+        <li class="list-inline-item"><span class="badge-user">bs5user</span></li>
+        <li class="list-inline-item"><span class="badge-user">Power User</span></li>
+        <li class="list-inline-item" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Uploaded">
+          <i class="fa fa-arrow-up"></i> 27.05 GB</li>
+        <li class="list-inline-item" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Downloaded">
+          <i class="fa fa-arrow-down"></i> 6.44 GB</li>
+        <li class="list-inline-item" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Ratio">
+          <i class="fa fa-exchange"></i> 4.20</li>
+      </ul></div></div>
+    </body></html>`
+    const stats = parseAvistazProfile(bs5Page, "bs5user")
+    expect(stats.username).toBe("bs5user")
+    expect(stats.group).toBe("Power User")
+    expect(stats.uploadedBytes).toBe(27050000000n)
+    expect(stats.downloadedBytes).toBe(6440000000n)
+    expect(stats.ratio).toBeCloseTo(4.2)
+  })
 })
 
 describe("parseAvistazCredentials", () => {
