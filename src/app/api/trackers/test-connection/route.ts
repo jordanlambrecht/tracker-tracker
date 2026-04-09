@@ -6,7 +6,9 @@ import {
   getAdapter,
   VALID_PLATFORM_TYPES,
 } from "@/lib/adapters"
-import { authenticate, parseJsonBody, validateHttpUrl, validateMaxLength } from "@/lib/api-helpers"
+import { authenticate, decodeKey, parseJsonBody, validateHttpUrl, validateMaxLength } from "@/lib/api-helpers"
+import { db } from "@/lib/db"
+import { appSettings } from "@/lib/db/schema"
 import { sanitizeNetworkError } from "@/lib/error-utils"
 import {
   AVISTAZ_TOKEN_MAX,
@@ -15,6 +17,7 @@ import {
   TRACKER_URL_MAX,
 } from "@/lib/limits"
 import { log } from "@/lib/logger"
+import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 
 export async function POST(request: Request) {
   const auth = await authenticate()
@@ -53,13 +56,30 @@ export async function POST(request: Request) {
   }
 
   try {
+    const key = decodeKey(auth)
+    const [settings] = await db
+      .select({
+        proxyEnabled: appSettings.proxyEnabled,
+        proxyType: appSettings.proxyType,
+        proxyHost: appSettings.proxyHost,
+        proxyPort: appSettings.proxyPort,
+        proxyUsername: appSettings.proxyUsername,
+        encryptedProxyPassword: appSettings.encryptedProxyPassword,
+      })
+      .from(appSettings)
+      .limit(1)
+
+    const proxyAgent = settings ? buildProxyAgentFromSettings(settings, key) : undefined
+
     const adapter = getAdapter(platform)
     const defaultPath = DEFAULT_API_PATHS[platform] ?? "/api/user"
     const rawPath = typeof apiPath === "string" && apiPath.startsWith("/") ? apiPath : defaultPath
     const pathLenErr = validateMaxLength(rawPath, LONG_STRING_MAX, "API path")
     if (pathLenErr) return pathLenErr
     const path = rawPath
-    const fetchOptions = buildFetchOptions(trimmedBaseUrl)
+    const fetchOptions = buildFetchOptions(trimmedBaseUrl, {
+      proxyAgent: proxyAgent ?? undefined,
+    })
     const stats = await adapter.fetchStats(trimmedBaseUrl, trimmedApiToken, path, fetchOptions)
 
     const result: Record<string, unknown> = {
