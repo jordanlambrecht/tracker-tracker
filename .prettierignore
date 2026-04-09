@@ -2,3 +2,4 @@ docs/**/*.md
 CHANGELOG.md
 LICENSE
 README.md
+pnpm-lock.yaml

@@ -1,4 +1,37 @@
 // commitlint.config.mjs
 export default {
   extends: ["@commitlint/config-conventional"],
+  rules: {
+    "scope-enum": [
+      2,
+      "always",
+      [
+        "tracker-adapters",
+        "alerts",
+        "api",
+        "auth",
+        "backups",
+        "charts",
+        "dashboard",
+        "db",
+        "events",
+        "db-fleet",
+        "login",
+        "release",
+        "user-proxy",
+        "scheduler",
+        "ci",
+        "circuit-breaker",
+        "deps",
+        "deps-dev",
+        "schema",
+        "security",
+        "settings",
+        "sidebar",
+        "trackers",
+        "ui",
+        "webhooks",
+      ],
+    ],
+  },
 }

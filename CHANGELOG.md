@@ -1,30 +1,28 @@
 # Changelog
 
-## [2.8.3](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.8.2...v2.8.3) (2026-04-09)
-
+## [2.8.3](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v2.8.3) (2026-04-09)
 
 ### Features
 
-- **logging:** added classifyFetchError for better error messages
-
+* **logging:** added classifyFetchError for better error messages
 
 ### Bug Fixes
 
-- **circuit-breaker:** reset consecutiveFailures on resume, add lastErrorAt + isManual tracking
-- **proxy:** proxy now works with test connection endpoint
-- **sidebar:** filter and sort dropdowns were clipping
-- **trackers:** tooltip extraction in parseAvistazProfile
+* **circuit-breaker:** reset consecutiveFailures on resume, add lastErrorAt + isManual tracking
+* **proxy:** proxy now works with test connection endpoint
+* **sidebar:** filter and sort dropdowns were clipping
+* **trackers:** tooltip extraction in parseAvistazProfile
 
-## [2.8.2](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.8.1...v2.8.2) (2026-04-09)
+## [2.8.2](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v2.8.2) (2026-04-09)
 
-## [2.8.1](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.8.0...v2.8.1) (2026-04-09)
+## [2.8.1](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v2.8.1) (2026-04-09)
 
 ### Features
 
 * **charts:** chart components now use useMemo
 * **fleet:** added bucketed queries
 
-## [2.8.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.7.3...v2.8.0) (2026-04-08)
+## [2.8.0](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v2.8.0) (2026-04-08)
 
 ### Features
 
@@ -51,25 +49,25 @@
 * tag group batch validation
 * **trackers:** force unique ids and boost validation in PATCH handler
 
-## [2.7.3](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.7.2...v2.7.3) (2026-03-31)
+## [2.7.3](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v2.7.3) (2026-03-31)
 
 ### Features
 
 * **trackers:** update user classes requirements for animez tracker
 
-## [2.7.2](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.7.1...v2.7.2) (2026-03-31)
+## [2.7.2](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v2.7.2) (2026-03-31)
 
 ### Features
 
 * **trackers:** details for digitalcore and luminarr (thanks @DGeyzer)
 
-## [2.7.1](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.7.0...v2.7.1) (2026-03-31)
+## [2.7.1](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v2.7.1) (2026-03-31)
 
 ### Bug Fixes
 
 * minor stuff
 
-## [2.7.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.6.0...v2.7.0) (2026-03-31)
+## [2.7.0](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v2.7.0) (2026-03-31)
 
 ### Features
 
@@ -151,7 +149,7 @@
 * wrong Content-Type for cached avatar images
 * x-axis was showing wrong values, zoom bug
 
-## [2.5.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.4.2...v2.5.0) (2026-03-26)
+## [2.5.0](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v2.5.0) (2026-03-26)
 
 ### Features
 
@@ -166,7 +164,7 @@
 * **Icons:** update DownloadArrowIcon stroke width
 * **ui:** prevent StatCard DOM prop leak
 
-## [2.4.2](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.4.1...v2.4.2) (2026-03-25)
+## [2.4.2](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v2.4.2) (2026-03-25)
 
 ### Features
 
@@ -178,7 +176,7 @@
 * **Dockerfile:** update package.json for drizzle-kit with esbuild overrides
 * preload fleet dashboard tab
 
-## [2.4.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.3.0...v2.4.0) (2026-03-23)
+## [2.4.0](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v2.4.0) (2026-03-23)
 
 ### Features
 
@@ -208,7 +206,7 @@
 * update workflow triggers to include development branch for pull requests
 * wrong postgres setup in docker-compose
 
-## [2.2.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.1.1...v2.2.0) (2026-03-20)
+## [2.2.0](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v2.2.0) (2026-03-20)
 
 ### Features
 
@@ -225,15 +223,15 @@
 * replace manual polling with TanStack Query
 * wire notification dispatch into tracker polling scheduler
 
-## [2.1.1](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.1.0...v2.1.1) (2026-03-18)
+## [2.1.1](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v2.1.1) (2026-03-18)
 
-## [2.1.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.0.2...v2.1.0) (2026-03-18)
+## [2.1.0](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v2.1.0) (2026-03-18)
 
-## [2.0.2](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.0.1...v2.0.2) (2026-03-18)
+## [2.0.2](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v2.0.2) (2026-03-18)
 
-## [2.0.1](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.0.0...v2.0.1) (2026-03-18)
+## [2.0.1](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v2.0.1) (2026-03-18)
 
-## [2.0.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.11.3...v2.0.0) (2026-03-18)
+## [2.0.0](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v2.0.0) (2026-03-18)
 
 ### Features
 
@@ -260,7 +258,7 @@
 * hopefully fixed un/pw field flashing on login screen
 * wrap scrub-and-delete in a transaction
 
-## [1.11.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.10.4...v1.11.0) (2026-03-16)
+## [1.11.0](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v1.11.0) (2026-03-16)
 
 ### Features
 
@@ -286,13 +284,13 @@
 * update PUBLIC_PREFIX to include additional paths for image loading
 * validate and trim inputs on tracker test and create routes
 
-## [1.10.2](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.10.1...v1.10.2) (2026-03-16)
+## [1.10.2](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v1.10.2) (2026-03-16)
 
 ### Bug Fixes
 
 * update jsdom to v29.0.0 and dom-selector to v7.0.3
 
-## [1.10.1](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.10.0...v1.10.1) (2026-03-16)
+## [1.10.1](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v1.10.1) (2026-03-16)
 
 ### Features
 
@@ -311,7 +309,7 @@
 * update tracker file detection method and enhance session secret length
 * update Trivy to version 0.35.0 in CI and release workflows
 
-## [1.9.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.8.5...v1.9.0) (2026-03-16)
+## [1.9.0](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v1.9.0) (2026-03-16)
 
 ### Features
 
@@ -328,25 +326,25 @@
 * commit-msg hook
 * construct DATABASE_URL from POSTGRES env vars when not set
 
-## [1.8.5](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.8.4...v1.8.5) (2026-03-15)
+## [1.8.5](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v1.8.5) (2026-03-15)
 
 ### Bug Fixes
 
 * remove redundant comment
 
-## [1.8.4](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.8.3...v1.8.4) (2026-03-15)
+## [1.8.4](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v1.8.4) (2026-03-15)
 
 ### Bug Fixes
 
 * collapse tracker validation warnings
 
-## [1.8.3](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.8.2...v1.8.3) (2026-03-15)
+## [1.8.3](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v1.8.3) (2026-03-15)
 
 ### Bug Fixes
 
 * update release scripts to push tags to specific origin
 
-## [1.8.2](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.8.1...v1.8.2) (2026-03-15)
+## [1.8.2](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v1.8.2) (2026-03-15)
 
 ### Features
 
@@ -357,15 +355,15 @@
 * encode PostgreSQL password in DATABASE_URL and update healthcheck command
 * refine tracker validation logic to exclude drafts and improve error messages
 
-## [1.8.1](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.8.0...v1.8.1) (2026-03-15)
+## [1.8.1](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v1.8.1) (2026-03-15)
 
 ### Bug Fixes
 
 * move DEFAULT_API_PATHS to constants module
 
-## [1.8.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v1.7.0...v1.8.0) (2026-03-15)
+## [1.8.0](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v1.8.0) (2026-03-15)
 
-## [1.7.0](https://github.com/jordanlambrecht/tracker-tracker/compare/312a990527a7cb16ff6cfde5b97f00fa98386b5c...v1.7.0) (2026-03-15)
+## [1.7.0](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v1.7.0) (2026-03-15)
 
 ### Features
 
