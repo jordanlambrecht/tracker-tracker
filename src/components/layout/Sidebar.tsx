@@ -75,7 +75,7 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
     <>
       <aside
         className={clsx(
-          "h-screen flex flex-col bg-base border-r border-border overflow-hidden",
+          "h-screen flex flex-col bg-base border-r border-border overflow-x-clip",
           isMobile ? "fixed inset-y-0 left-0 z-30 shrink-0" : "shrink-0"
         )}
         style={
@@ -144,7 +144,7 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
                 opacity: prefs.filtersExpanded ? 1 : 0,
               }}
             >
-              <div className="overflow-hidden">
+              <div className={prefs.filtersExpanded ? "overflow-visible" : "overflow-hidden"}>
                 <div className="px-3 pb-2 flex items-center gap-2">
                   <Select
                     value={prefs.statMode}
