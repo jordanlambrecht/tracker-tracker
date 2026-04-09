@@ -150,16 +150,7 @@ export function parseAvistazProfile(html: string, username: string): TrackerStat
   let ratio = 0
 
   for (const li of items) {
-    // AvistaZ uses Bootstrap tooltips. BS4 uses data-toggle="tooltip",
-    // BS5 uses data-bs-toggle="tooltip". Check both for forward compat.
-    const isTooltip =
-      li.getAttribute("data-toggle") === "tooltip" ||
-      li.getAttribute("data-bs-toggle") === "tooltip"
-    const title = isTooltip
-      ? (li.getAttribute("title") ??
-         li.getAttribute("data-original-title") ??
-         li.getAttribute("data-bs-original-title"))
-      : null
+    const title = li.getAttribute("data-toggle") === "tooltip" ? li.getAttribute("title") : null
     // Strip everything except digits, decimal point, and unit letters/spaces
     const text = li.textContent?.replace(/[^\d.a-zA-Z\s]/g, "").trim() ?? ""
 

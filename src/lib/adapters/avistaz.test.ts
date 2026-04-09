@@ -1,7 +1,7 @@
 // src/lib/adapters/avistaz.test.ts
 
-import { describe, expect, it } from "vitest"
-import { parseAvistazCredentials, parseAvistazProfile } from "./avistaz"
+import { beforeEach, describe, expect, it, vi } from "vitest"
+import { AvistazAdapter, parseAvistazCredentials, parseAvistazProfile } from "./avistaz"
 import type { AvistazPlatformMeta } from "./types"
 
 // Minimal ratio bar HTML fixture matching the real AvistaZ DOM structure
@@ -235,5 +235,86 @@ describe("parseAvistazCredentials", () => {
       username: "user",
     })
     expect(() => parseAvistazCredentials(json)).toThrow("key=value")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// AvistazAdapter.fetchStats — fetchHtml network error paths
+// These tests verify that classifyFetchError is correctly wired in fetchHtml,
+// i.e. that TypeError-wrapping from Node.js native fetch is unwrapped into a
+// useful message before propagating up to the caller.
+// ---------------------------------------------------------------------------
+
+describe("AvistazAdapter.fetchStats — network error classification", () => {
+  const adapter = new AvistazAdapter()
+  const validToken = JSON.stringify({
+    cookies: "cf_clearance=aaaa; session=bbbb",
+    userAgent: "Mozilla/5.0",
+    username: "testuser",
+  })
+
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it("unwraps TypeError wrapping ECONNREFUSED (Node.js native fetch pattern)", async () => {
+    const cause = Object.assign(new Error("connect ECONNREFUSED 192.0.2.1:443"), {
+      code: "ECONNREFUSED",
+    })
+    vi.spyOn(global, "fetch").mockRejectedValueOnce(new TypeError("fetch failed", { cause }))
+
+    await expect(adapter.fetchStats("https://avistaz.to", validToken, "")).rejects.toThrow(
+      "Failed to connect to avistaz.to: ECONNREFUSED"
+    )
+  })
+
+  it("unwraps TypeError wrapping ENOTFOUND", async () => {
+    const cause = Object.assign(new Error("getaddrinfo ENOTFOUND avistaz.to"), {
+      code: "ENOTFOUND",
+    })
+    vi.spyOn(global, "fetch").mockRejectedValueOnce(new TypeError("fetch failed", { cause }))
+
+    await expect(adapter.fetchStats("https://avistaz.to", validToken, "")).rejects.toThrow(
+      "Failed to connect to avistaz.to: ENOTFOUND"
+    )
+  })
+
+  it("produces a timeout message when the AbortSignal fires (TypeError wrapping TimeoutError)", async () => {
+    const cause = new DOMException("The operation was timed out.", "TimeoutError")
+    vi.spyOn(global, "fetch").mockRejectedValueOnce(new TypeError("fetch failed", { cause }))
+
+    await expect(adapter.fetchStats("https://avistaz.to", validToken, "")).rejects.toThrow(
+      "Request to avistaz.to timed out"
+    )
+  })
+
+  it("produces a timeout message for a bare DOMException TimeoutError", async () => {
+    vi.spyOn(global, "fetch").mockRejectedValueOnce(
+      new DOMException("signal timed out", "TimeoutError")
+    )
+
+    await expect(adapter.fetchStats("https://avistaz.to", validToken, "")).rejects.toThrow(
+      "Request to avistaz.to timed out"
+    )
+  })
+
+  it("produces a useful message for a bare TypeError with no cause", async () => {
+    vi.spyOn(global, "fetch").mockRejectedValueOnce(new TypeError("fetch failed"))
+
+    await expect(adapter.fetchStats("https://avistaz.to", validToken, "")).rejects.toThrow(
+      "Failed to connect to avistaz.to"
+    )
+  })
+
+  it("propagates session-expired error when server returns 302 redirect", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: false,
+      status: 302,
+      statusText: "Found",
+    } as Response)
+
+    await expect(adapter.fetchStats("https://avistaz.to", validToken, "")).rejects.toThrow(
+      "Session expired"
+    )
   })
 })

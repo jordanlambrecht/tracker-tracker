@@ -37,6 +37,51 @@ describe("adapterFetch - AbortSignal", () => {
   })
 })
 
+describe("adapterFetch - TypeError unwrapping (Node.js native fetch)", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it("unwraps TypeError wrapping ECONNREFUSED into a readable message", async () => {
+    const cause = Object.assign(new Error("connect ECONNREFUSED 104.21.0.1:443"), {
+      code: "ECONNREFUSED",
+    })
+    vi.spyOn(global, "fetch").mockRejectedValueOnce(new TypeError("fetch failed", { cause }))
+
+    await expect(adapterFetch("https://tracker.example/api", "tracker.example")).rejects.toThrow(
+      "Failed to connect to tracker.example: ECONNREFUSED"
+    )
+  })
+
+  it("unwraps TypeError wrapping ENOTFOUND into a readable message", async () => {
+    const cause = Object.assign(new Error("getaddrinfo ENOTFOUND tracker.example"), {
+      code: "ENOTFOUND",
+    })
+    vi.spyOn(global, "fetch").mockRejectedValueOnce(new TypeError("fetch failed", { cause }))
+
+    await expect(adapterFetch("https://tracker.example/api", "tracker.example")).rejects.toThrow(
+      "Failed to connect to tracker.example: ENOTFOUND"
+    )
+  })
+
+  it("unwraps TypeError wrapping a DOMException TimeoutError", async () => {
+    const cause = new DOMException("The operation was timed out.", "TimeoutError")
+    vi.spyOn(global, "fetch").mockRejectedValueOnce(new TypeError("fetch failed", { cause }))
+
+    await expect(adapterFetch("https://tracker.example/api", "tracker.example")).rejects.toThrow(
+      "Request to tracker.example timed out"
+    )
+  })
+
+  it("produces a useful fallback for a TypeError with no cause property", async () => {
+    vi.spyOn(global, "fetch").mockRejectedValueOnce(new TypeError("fetch failed"))
+
+    await expect(adapterFetch("https://tracker.example/api", "tracker.example")).rejects.toThrow(
+      "Failed to connect to tracker.example"
+    )
+  })
+})
+
 describe("adapterFetch - token sanitization", () => {
   beforeEach(() => {
     vi.restoreAllMocks()
