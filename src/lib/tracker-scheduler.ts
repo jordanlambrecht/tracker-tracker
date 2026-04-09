@@ -90,6 +90,14 @@ const POLL_TRACKER_COLUMNS = {
 export const POLL_FAILURE_THRESHOLD = 4
 
 /**
+ * Tolerance window for the overdue check. Trackers that would become overdue
+ * within this window are included in the current batch instead of waiting for
+ * the next cron cycle. Prevents permanent drift caused by manual polls or
+ * missed batches from keeping a tracker in its own solo cycle forever.
+ */
+const BATCH_TOLERANCE_MS = 60_000
+
+/**
  * Fetch fresh stats from a tracker's API without writing a snapshot.
  * Used by the (currently unreleased) transit papers report route to get live data for the report.
  * Also updates tracker metadata side effects (remoteUserId, joinedAt, lastAccessAt, platformMeta, avatarUrl).
@@ -593,7 +601,7 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
       return false
     }
     const lastPoll = tracker.lastPolledAt?.getTime() ?? 0
-    return now - lastPoll >= globalIntervalMs
+    return now - lastPoll >= globalIntervalMs - BATCH_TOLERANCE_MS
   })
 
   if (overdue.length === 0) return
