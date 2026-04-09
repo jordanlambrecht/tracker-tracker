@@ -1,11 +1,11 @@
 // src/lib/server-data.ts
 //
 // Functions: fetchSettings, serializeSettingsResponse, getSettingsForClient,
-// getTrackerListForDashboard, getTrackerForClient, getSnapshotsForTracker,
-// getFleetSnapshots, getTagGroupsWithMembers, getProxyTrackers, getDatabaseSize,
-// getDatabaseSizeBytes, recordDatabaseSize, getDbSizeHistory,
-// fetchDownloadClients, serializeDownloadClientResponse, fetchNotificationTargets,
-// serializeNotificationTarget
+// getTrackerListForDashboard, getTrackerForClient, getSnapshotBucket,
+// getSnapshotsForTracker, getFleetSnapshots, getTagGroupsWithMembers,
+// getProxyTrackers, getDatabaseSize, getDatabaseSizeBytes, recordDatabaseSize,
+// getDbSizeHistory, fetchDownloadClients, serializeDownloadClientResponse,
+// fetchNotificationTargets, serializeNotificationTarget
 // Constants: settingsColumns, trackerColumns, snapshotColumns, clientColumns,
 // notificationTargetColumns
 //
@@ -361,7 +361,7 @@ const snapshotColumns = {
 }
 
 /** Pick a date_trunc bucket for chart queries based on requested day range. null = raw. */
-function getSnapshotBucket(days: number): "hour" | "day" | null {
+export function getSnapshotBucket(days: number): "hour" | "day" | null {
   if (days > 0 && days <= 2) return null
   if (days > 0 && days <= 90) return "hour"
   return "day"
