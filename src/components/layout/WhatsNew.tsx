@@ -12,10 +12,12 @@ const STORAGE_KEY = "lastSeenVersion"
 export function WhatsNew() {
   const [open, setOpen] = useState(false)
   const [changes, setChanges] = useState<string[] | null>(null)
+  const [lastSeen, setLastSeen] = useState<string | null>(null)
 
   useEffect(() => {
     const seen = localStorage.getItem(STORAGE_KEY)
     if (seen === APP_VERSION) return
+    setLastSeen(seen)
     setOpen(true)
   }, [])
 
@@ -25,7 +27,7 @@ export function WhatsNew() {
     fetch("/api/changelog")
       .then((r) => r.json())
       .then((data: { content: string }) => {
-        setChanges(parseLatestRelease(data.content))
+        setChanges(parseMissedReleases(data.content, lastSeen))
       })
       .catch(() => setChanges([]))
   }, [open])
@@ -73,19 +75,29 @@ export function WhatsNew() {
   )
 }
 
-/** Extract bullet items from the first version section of the changelog */
-function parseLatestRelease(content: string): string[] {
+/**
+ * Extract bullet items from all changelog sections between the current
+ * version and the last version the user saw. If lastSeen is null (i.e.
+ * localStorage was cleared or first install), only show the latest release
+ * to avoid dumping the entire history.
+ */
+function parseMissedReleases(content: string, lastSeen: string | null): string[] {
   const lines = content.split("\n")
   const items: string[] = []
-  let inFirstRelease = false
+  let collecting = false
+  let releasesCollected = 0
+  const maxReleases = lastSeen === null ? 1 : 10
 
   for (const line of lines) {
     if (line.startsWith("## ")) {
-      if (inFirstRelease) break
-      inFirstRelease = true
+      const version = line.match(/## (\d+\.\d+\.\d+)/)?.[1]
+      if (version === lastSeen) break
+      collecting = true
+      releasesCollected++
+      if (releasesCollected > maxReleases) break
       continue
     }
-    if (!inFirstRelease) continue
+    if (!collecting) continue
 
     const match = line.match(/^\*\s+(?:\*\*[^*]+\*\*\s*)?(.+)/)
     if (match) {
