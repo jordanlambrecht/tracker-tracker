@@ -47,7 +47,8 @@ function Tooltip({ content, children, className, docs }: TooltipProps) {
     portalTarget.current = triggerRef.current.closest("dialog") ?? document.body
   }, [visible])
 
-  const resolvedTarget = portalTarget.current ?? (typeof document !== "undefined" ? document.body : null)
+  const resolvedTarget =
+    portalTarget.current ?? (typeof document !== "undefined" ? document.body : null)
 
   return (
     <>
@@ -62,7 +63,8 @@ function Tooltip({ content, children, className, docs }: TooltipProps) {
       >
         {children}
       </span>
-      {visible && resolvedTarget &&
+      {visible &&
+        resolvedTarget &&
         createPortal(
           <div
             ref={tooltipRef}

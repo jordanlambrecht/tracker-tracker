@@ -14,7 +14,13 @@ import {
   postDismissAlert as persistDismiss,
 } from "@/lib/dashboard"
 import { clientQueryOptions, trackerQueryOptions } from "@/lib/query-options"
-import type { DayRange, SafeDownloadClient, Snapshot, TodayAtAGlance, TrackerSummary } from "@/types/api"
+import type {
+  DayRange,
+  SafeDownloadClient,
+  Snapshot,
+  TodayAtAGlance,
+  TrackerSummary,
+} from "@/types/api"
 
 export function selectActiveTrackers(trackers: TrackerSummary[]) {
   return trackers.filter((t) => t.isActive)

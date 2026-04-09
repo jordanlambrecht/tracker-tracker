@@ -330,9 +330,11 @@ function AddTrackerDialog({
         const uidMatch = trimmed.match(/(?:^|;\s*)uid=([^;]+)/)
         const passMatch = trimmed.match(/(?:^|;\s*)pass=([^;]+)/)
         if (!uidMatch) {
-          next.apiToken = "Cookie string is missing uid value. Paste the full Cookie header from DevTools."
+          next.apiToken =
+            "Cookie string is missing uid value. Paste the full Cookie header from DevTools."
         } else if (!passMatch) {
-          next.apiToken = "Cookie string is missing pass value. Paste the full Cookie header from DevTools."
+          next.apiToken =
+            "Cookie string is missing pass value. Paste the full Cookie header from DevTools."
         }
       }
     } else if (!apiToken.trim()) {

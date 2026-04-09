@@ -91,7 +91,9 @@ function TorrentRatioDistribution(props: TorrentRatioDistributionProps) {
       return null
     }
     const coloredBuckets = getRatioBuckets(accentColor)
-    const colors = fleetBuckets.map((_b, i) => coloredBuckets[i]?.color ?? CHART_THEME.chartFallback)
+    const colors = fleetBuckets.map(
+      (_b, i) => coloredBuckets[i]?.color ?? CHART_THEME.chartFallback
+    )
     return buildRatioBucketedOption(fleetBuckets, colors, "Ratio")
   }, [fleetBuckets, accentColor])
 

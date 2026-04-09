@@ -2409,15 +2409,15 @@ function checkAdapterCookieInjection(): CheckResult {
   //   1. Blocklist: reject specific injection chars like [;\r\n]
   //   2. Allowlist: only permit safe characters like [a-fA-F0-9]
   const INJECTION_GUARD_PATTERNS = [
-    /\[;\\r\\n\]/,           // blocklist regex literal [;\r\n]
-    /\[;\\r\\n]/,            // alternate escaping
-    /unsafeChars/,           // variable name convention from DC adapter
-    /\[\^a-fA-F0-9\]/,      // hex-only allowlist (stricter than blocklist)
-    /\[\^a-f0-9\]/i,        // hex-only allowlist variant
-    /\[\^\\w\]/,             // word-char-only allowlist
-    /injection.*guard/i,     // explicit labeling
-    /header.*injection/i,    // explicit labeling
-    /validateMam/,           // MAM-specific validation function
+    /\[;\\r\\n\]/, // blocklist regex literal [;\r\n]
+    /\[;\\r\\n]/, // alternate escaping
+    /unsafeChars/, // variable name convention from DC adapter
+    /\[\^a-fA-F0-9\]/, // hex-only allowlist (stricter than blocklist)
+    /\[\^a-f0-9\]/i, // hex-only allowlist variant
+    /\[\^\\w\]/, // word-char-only allowlist
+    /injection.*guard/i, // explicit labeling
+    /header.*injection/i, // explicit labeling
+    /validateMam/, // MAM-specific validation function
   ]
 
   for (const file of adapterFiles) {
@@ -2483,7 +2483,7 @@ function checkAdapterCredentialLogging(): CheckResult {
     "trimmedUid",
   ]
   const CRED_IN_LOG_RE = new RegExp(
-    `console\\.(log|warn|error)\\s*\\([^)]*\\b(${CREDENTIAL_VARS.join("|")})\\b`,
+    `console\\.(log|warn|error)\\s*\\([^)]*\\b(${CREDENTIAL_VARS.join("|")})\\b`
   )
 
   for (const file of adapterFiles) {

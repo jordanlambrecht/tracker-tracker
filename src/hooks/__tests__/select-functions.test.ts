@@ -89,7 +89,14 @@ describe("selectClientIdName", () => {
   })
 
   it("strips all fields except id and name", () => {
-    const input = [makeClient({ id: 11, name: "Only These", lastPolledAt: "2024-01-01T00:00:00.000Z", lastError: "boom" })]
+    const input = [
+      makeClient({
+        id: 11,
+        name: "Only These",
+        lastPolledAt: "2024-01-01T00:00:00.000Z",
+        lastError: "boom",
+      }),
+    ]
     const result = selectClientIdName(input)
     expect(result[0]).toStrictEqual({ id: 11, name: "Only These" })
     expect(Object.keys(result[0])).toHaveLength(2)
@@ -151,9 +158,7 @@ describe("selectMinPollInterval", () => {
   })
 
   it("returns null when the only enabled client list is mixed with all disabled", () => {
-    const clients = [
-      makeClient({ id: 1, enabled: false, pollIntervalSeconds: 30 }),
-    ]
+    const clients = [makeClient({ id: 1, enabled: false, pollIntervalSeconds: 30 })]
     expect(selectMinPollInterval(clients)).toBeNull()
   })
 })
@@ -202,9 +207,7 @@ describe("selectActiveTrackers", () => {
 
 describe("selectClientsForAlerts", () => {
   it("narrows each client to only id, name, enabled, lastError", () => {
-    const clients = [
-      makeClient({ id: 1, name: "Local", enabled: true, lastError: null }),
-    ]
+    const clients = [makeClient({ id: 1, name: "Local", enabled: true, lastError: null })]
     const result = selectClientsForAlerts(clients)
     expect(result[0]).toStrictEqual({ id: 1, name: "Local", enabled: true, lastError: null })
     expect(Object.keys(result[0])).toHaveLength(4)
@@ -226,11 +229,18 @@ describe("selectClientsForAlerts", () => {
     expect(result[0]).not.toHaveProperty("host")
     expect(result[0]).not.toHaveProperty("port")
     expect(result[0]).not.toHaveProperty("lastPolledAt")
-    expect(result[0]).toStrictEqual({ id: 2, name: "Remote", enabled: false, lastError: "connection refused" })
+    expect(result[0]).toStrictEqual({
+      id: 2,
+      name: "Remote",
+      enabled: false,
+      lastError: "connection refused",
+    })
   })
 
   it("preserves lastError value when it is a non-null string", () => {
-    const clients = [makeClient({ id: 3, name: "Errored", enabled: true, lastError: "auth failed" })]
+    const clients = [
+      makeClient({ id: 3, name: "Errored", enabled: true, lastError: "auth failed" }),
+    ]
     const result = selectClientsForAlerts(clients)
     expect(result[0].lastError).toBe("auth failed")
   })

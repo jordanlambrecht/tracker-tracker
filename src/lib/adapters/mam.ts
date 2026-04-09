@@ -74,12 +74,15 @@ function validateMamId(token: string): string {
   // Common copy-paste mistake: user pastes "mam_id=abc123" instead of just "abc123"
   if (trimmed.toLowerCase().startsWith("mam_id=")) {
     trimmed = trimmed.slice(7).trim()
-    if (!trimmed) throw new Error("MAM session cookie value is empty after stripping mam_id= prefix")
+    if (!trimmed)
+      throw new Error("MAM session cookie value is empty after stripping mam_id= prefix")
   }
 
   // Block header injection characters
   if (/[;\r\n]/.test(trimmed)) {
-    throw new Error("MAM session cookie (mam_id) contains invalid characters (semicolons or newlines)")
+    throw new Error(
+      "MAM session cookie (mam_id) contains invalid characters (semicolons or newlines)"
+    )
   }
   return trimmed
 }

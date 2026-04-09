@@ -37,12 +37,16 @@ describe("defaultShouldSetOption", () => {
 
   it("returns true when style goes from defined to undefined", () => {
     const option = { series: [] }
-    expect(defaultShouldSetOption({ option, style: { height: "300px" } }, { option, style: undefined })).toBe(true)
+    expect(
+      defaultShouldSetOption({ option, style: { height: "300px" } }, { option, style: undefined })
+    ).toBe(true)
   })
 
   it("returns true when style goes from undefined to defined", () => {
     const option = { series: [] }
-    expect(defaultShouldSetOption({ option, style: undefined }, { option, style: { height: "300px" } })).toBe(true)
+    expect(
+      defaultShouldSetOption({ option, style: undefined }, { option, style: { height: "300px" } })
+    ).toBe(true)
   })
 
   // -------------------------------------------------------------------------

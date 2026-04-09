@@ -210,7 +210,11 @@ describe("MamAdapter - auth", () => {
       json: async () => mockMamResponse(),
     } as Response)
 
-    await adapter.fetchStats("https://www.myanonamouse.net", "abc123abc123abc123abc123abc123ab", "/jsonLoad.php")
+    await adapter.fetchStats(
+      "https://www.myanonamouse.net",
+      "abc123abc123abc123abc123abc123ab",
+      "/jsonLoad.php"
+    )
 
     const callOpts = fetchSpy.mock.calls[0][1] as RequestInit
     const headers = callOpts.headers as Record<string, string>
@@ -223,7 +227,11 @@ describe("MamAdapter - auth", () => {
       json: async () => mockMamResponse(),
     } as Response)
 
-    await adapter.fetchStats("https://www.myanonamouse.net", "f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0", "/jsonLoad.php")
+    await adapter.fetchStats(
+      "https://www.myanonamouse.net",
+      "f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0",
+      "/jsonLoad.php"
+    )
 
     const calledUrl = fetchSpy.mock.calls[0][0] as string
     expect(calledUrl).toContain("snatch_summary")
@@ -245,7 +253,11 @@ describe("MamAdapter - mam_id validation", () => {
       json: async () => mockMamResponse(),
     } as Response)
 
-    await adapter.fetchStats("https://www.myanonamouse.net", "mam_id=abc123session", "/jsonLoad.php")
+    await adapter.fetchStats(
+      "https://www.myanonamouse.net",
+      "mam_id=abc123session",
+      "/jsonLoad.php"
+    )
 
     const headers = (fetchSpy.mock.calls[0][1] as RequestInit).headers as Record<string, string>
     expect(headers.Cookie).toBe("mam_id=abc123session")
@@ -299,7 +311,11 @@ describe("MamAdapter - error handling", () => {
     } as Response)
 
     await expect(
-      adapter.fetchStats("https://www.myanonamouse.net", "f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0", "/jsonLoad.php")
+      adapter.fetchStats(
+        "https://www.myanonamouse.net",
+        "f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0",
+        "/jsonLoad.php"
+      )
     ).rejects.toThrow("missing username")
   })
 
@@ -322,7 +338,11 @@ describe("MamAdapter - error handling", () => {
     vi.spyOn(global, "fetch").mockRejectedValueOnce(timeoutError)
 
     await expect(
-      adapter.fetchStats("https://www.myanonamouse.net", "f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0", "/jsonLoad.php")
+      adapter.fetchStats(
+        "https://www.myanonamouse.net",
+        "f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0",
+        "/jsonLoad.php"
+      )
     ).rejects.toThrow("Request to www.myanonamouse.net timed out")
   })
 })

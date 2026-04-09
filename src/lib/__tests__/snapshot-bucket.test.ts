@@ -19,7 +19,9 @@ vi.mock("server-only", () => ({}))
 
 vi.mock("@/lib/db", () => ({
   db: {
-    select: vi.fn().mockReturnValue({ from: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue([]) }) }),
+    select: vi
+      .fn()
+      .mockReturnValue({ from: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue([]) }) }),
     execute: vi.fn().mockResolvedValue([]),
   },
 }))
