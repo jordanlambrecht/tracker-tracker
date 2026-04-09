@@ -2,6 +2,7 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
+import { useMemo } from "react"
 import { getSeedTimeBuckets, SEEDING_STATES } from "@/lib/fleet"
 import { formatCount } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
@@ -112,49 +113,51 @@ function buildSeedTimeBucketedOption(
 function TorrentSeedTimeDistribution(props: TorrentSeedTimeDistributionProps) {
   const { seedTimeHours = null, height = 200 } = props
 
-  if ("buckets" in props) {
-    // Fleet path: pre-aggregated buckets (already filtered to seeding torrents)
-    if (!props.buckets)
-      return <ChartEmptyState height={height} message="No seeding torrents found" />
-    const { buckets } = props
-    if (buckets.length === 0 || buckets.every((b) => b.count === 0)) {
+  const isFleet = "buckets" in props
+  const fleetBuckets = isFleet ? (props as PreAggregatedProps).buckets : null
+  const rawTorrents = !isFleet ? (props as RawTorrentsProps).torrents : []
+  const accentColor = !isFleet
+    ? ((props as RawTorrentsProps).accentColor ?? CHART_THEME.accent)
+    : CHART_THEME.accent
+
+  const fleetOption = useMemo<EChartsOption | null>(() => {
+    if (!fleetBuckets || fleetBuckets.length === 0 || fleetBuckets.every((b) => b.count === 0)) {
+      return null
+    }
+    const markLine = computeMarkLine(fleetBuckets, seedTimeHours)
+    return buildSeedTimeBucketedOption(fleetBuckets, markLine)
+  }, [fleetBuckets, seedTimeHours])
+
+  const perTrackerOption = useMemo<EChartsOption | null>(() => {
+    if (isFleet) return null
+    const seeding = rawTorrents.filter((t) => SEEDING_STATES.has(t.state))
+    if (seeding.length === 0) return null
+    const buckets = getSeedTimeBuckets(accentColor)
+    const markLine = computeMarkLine(buckets, seedTimeHours)
+    return buildBucketedBarOption({
+      buckets,
+      torrents: seeding,
+      getThreshold: (b) => b.max,
+      getValue: (t) => t.seedingTime,
+      getLabel: (b) => b.label,
+      getColor: (b) => b.color,
+      labelPrefix: "Seed Time",
+      markLine,
+    })
+  }, [isFleet, rawTorrents, accentColor, seedTimeHours])
+
+  if (isFleet) {
+    if (!fleetOption) {
       return <ChartEmptyState height={height} message="No seeding torrents found" />
     }
-
-    const markLine = computeMarkLine(buckets, seedTimeHours)
-
-    return (
-      <ChartECharts
-        option={buildSeedTimeBucketedOption(buckets, markLine)}
-        style={{ height, width: "100%" }}
-      />
-    )
+    return <ChartECharts option={fleetOption} style={{ height, width: "100%" }} />
   }
 
-  // Per-tracker path: raw torrents
-  const { torrents, accentColor = CHART_THEME.accent } = props
-  const seeding = torrents.filter((t) => SEEDING_STATES.has(t.state))
-
-  if (seeding.length === 0) {
+  if (!perTrackerOption) {
     return <ChartEmptyState height={height} message="No seeding torrents found" />
   }
 
-  const buckets = getSeedTimeBuckets(accentColor)
-
-  const markLine = computeMarkLine(buckets, seedTimeHours)
-
-  const option = buildBucketedBarOption({
-    buckets,
-    torrents: seeding,
-    getThreshold: (b) => b.max,
-    getValue: (t) => t.seedingTime,
-    getLabel: (b) => b.label,
-    getColor: (b) => b.color,
-    labelPrefix: "Seed Time",
-    markLine,
-  })
-
-  return <ChartECharts option={option} style={{ height, width: "100%" }} />
+  return <ChartECharts option={perTrackerOption} style={{ height, width: "100%" }} />
 }
 
 export type { TorrentSeedTimeDistributionProps }

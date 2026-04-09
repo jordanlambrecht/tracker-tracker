@@ -2,6 +2,7 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
+import { useMemo } from "react"
 import type { TrackerHealthMetric } from "@/lib/fleet-aggregation"
 import { formatCount, formatPercent, formatRatio } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
@@ -106,6 +107,11 @@ function buildTrackerHealthRadarOption(
 }
 
 function TrackerHealthRadar({ metrics, height = 360 }: TrackerHealthRadarProps) {
+  const option = useMemo(() => {
+    const normalized = normalizeMetrics(metrics)
+    return buildTrackerHealthRadarOption(metrics, normalized)
+  }, [metrics])
+
   if (metrics.length < 2) {
     return (
       <ChartEmptyState
@@ -115,14 +121,7 @@ function TrackerHealthRadar({ metrics, height = 360 }: TrackerHealthRadarProps) 
     )
   }
 
-  const normalized = normalizeMetrics(metrics)
-
-  return (
-    <ChartECharts
-      option={buildTrackerHealthRadarOption(metrics, normalized)}
-      style={{ height, width: "100%" }}
-    />
-  )
+  return <ChartECharts option={option} style={{ height, width: "100%" }} />
 }
 
 export type { TrackerHealthRadarProps }

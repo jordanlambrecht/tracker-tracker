@@ -2,6 +2,7 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
+import { useMemo } from "react"
 import { hexToRgba } from "@/lib/color-utils"
 import { AGE_BUCKETS } from "@/lib/fleet"
 import type { AgeBandEntry } from "@/lib/fleet-aggregation"
@@ -120,18 +121,14 @@ function buildAgeBandHeatmapOption(trackers: AgeBandEntry[]): EChartsOption {
 }
 
 function FleetAgeBandHeatmap({ data, height = 300 }: FleetAgeBandHeatmapProps) {
+  const option = useMemo(() => buildAgeBandHeatmapOption(data), [data])
+  const dynamicHeight = Math.max(height, 60 + data.length * 36)
+
   if (data.length === 0) {
     return <ChartEmptyState height={height} message="No torrent age data available" />
   }
 
-  const dynamicHeight = Math.max(height, 60 + data.length * 36)
-
-  return (
-    <ChartECharts
-      option={buildAgeBandHeatmapOption(data)}
-      style={{ height: dynamicHeight, width: "100%" }}
-    />
-  )
+  return <ChartECharts option={option} style={{ height: dynamicHeight, width: "100%" }} />
 }
 
 export type { FleetAgeBandHeatmapProps }

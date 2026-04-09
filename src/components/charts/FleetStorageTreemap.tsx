@@ -5,6 +5,7 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
+import { useMemo } from "react"
 import type { TrackerCategoryStorage } from "@/lib/fleet-aggregation"
 import { formatBytesNum } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
@@ -146,22 +147,20 @@ function buildFleetStorageTreemapOption(nodes: TreemapNode[]): EChartsOption {
 }
 
 function FleetStorageTreemap({ data, height = 400 }: FleetStorageTreemapProps) {
+  const { nodes, option } = useMemo(() => {
+    const n = buildTreemapNodes(data)
+    return { nodes: n, option: buildFleetStorageTreemapOption(n) }
+  }, [data])
+
   if (data.length === 0) {
     return <ChartEmptyState height={height} message="No torrent data available" />
   }
-
-  const nodes = buildTreemapNodes(data)
 
   if (nodes.length === 0) {
     return <ChartEmptyState height={height} message="No storage data to display" />
   }
 
-  return (
-    <ChartECharts
-      option={buildFleetStorageTreemapOption(nodes)}
-      style={{ height, width: "100%" }}
-    />
-  )
+  return <ChartECharts option={option} style={{ height, width: "100%" }} />
 }
 
 export type { FleetStorageTreemapProps }

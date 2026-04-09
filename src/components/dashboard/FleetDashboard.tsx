@@ -56,6 +56,11 @@ interface FleetDashboardProps {
 
 const allChartIds = FLEET_CHARTS.map((c) => c.id)
 
+// Stable select: narrows ["clients"] cache to {id, name} so lastPolledAt
+// changes from the sidebar's 10s poll don't trigger re-renders here.
+const selectClientIdName = (data: { id: number; name: string }[]) =>
+  data.map(({ id, name }) => ({ id, name }))
+
 export function FleetDashboard({ dayRange, isActive = true }: FleetDashboardProps) {
   const chartPrefs = useFleetChartPreferences()
   const { hydrated: chartPrefsHydrated } = chartPrefs
@@ -98,9 +103,10 @@ export function FleetDashboard({ dayRange, isActive = true }: FleetDashboardProp
       if (!res.ok) throw new Error(`Client list failed: ${res.status}`)
       return res.json() as Promise<{ id: number; name: string }[]>
     },
-    // Prevents mount/focus refetch. The sidebar's 10s poll keeps this cache fresh.
-    // structuralSharing prevents re-renders when client data is unchanged.
+    // Sidebar's 10s poll keeps this cache fresh. select narrows to {id, name}
+    // so lastPolledAt/updatedAt changes don't trigger re-renders.
     staleTime: intervals.clientRefetchMs,
+    select: selectClientIdName,
   })
 
   const loading = !aggregation && !snapshots.length
@@ -138,7 +144,9 @@ export function FleetDashboard({ dayRange, isActive = true }: FleetDashboardProp
   function renderChart(id: string) {
     switch (id) {
       case "fleet-speed-sparklines":
-        return clientList.length > 0 ? <FleetSpeedSparklines clients={clientList} /> : null
+        return clientList.length > 0 ? (
+          <FleetSpeedSparklines clients={clientList} isActive={isActive} />
+        ) : null
       case "speed-theme-river":
         return <SpeedThemeRiver snapshots={snapshots} />
       case "seeding-count-trends":

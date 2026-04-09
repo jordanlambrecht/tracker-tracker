@@ -34,6 +34,7 @@ interface ClientSpeedState {
 
 interface FleetSpeedSparklinesProps {
   clients: { id: number; name: string }[]
+  isActive?: boolean
 }
 
 // ── Helpers ──
@@ -147,7 +148,8 @@ function ClientSpeedCard({ name, state }: { name: string; state: ClientSpeedStat
 // ── Accumulate history across refetches ──
 
 function useAccumulatedSpeeds(
-  clients: { id: number; name: string }[]
+  clients: { id: number; name: string }[],
+  isActive: boolean
 ): Record<number, ClientSpeedState> {
   const historyRef = useRef<Record<number, SpeedEntry[]>>({})
 
@@ -159,7 +161,7 @@ function useAccumulatedSpeeds(
         if (!res.ok) throw new Error("fetch error")
         return res.json() as Promise<SpeedEntry[]>
       },
-      refetchInterval: 10_000,
+      refetchInterval: isActive ? 10_000 : false,
     })),
   })
 
@@ -206,8 +208,8 @@ function useAccumulatedSpeeds(
 
 // ── Main component ──
 
-function FleetSpeedSparklines({ clients }: FleetSpeedSparklinesProps) {
-  const speedMap = useAccumulatedSpeeds(clients)
+function FleetSpeedSparklines({ clients, isActive = true }: FleetSpeedSparklinesProps) {
+  const speedMap = useAccumulatedSpeeds(clients, isActive)
 
   if (clients.length === 0) {
     return <ChartEmptyState height={120} message="No download clients configured." />

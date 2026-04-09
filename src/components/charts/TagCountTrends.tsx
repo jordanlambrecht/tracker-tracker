@@ -2,6 +2,7 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
+import { useMemo } from "react"
 import type { FleetSnapshot } from "@/lib/fleet"
 import { extractTagsFromSnapshots } from "@/lib/fleet"
 import { formatCount } from "@/lib/formatters"
@@ -142,6 +143,8 @@ function buildOption(snapshots: FleetSnapshot[], mode: TagCountMode): EChartsOpt
 }
 
 function TagCountTrends({ snapshots, mode, height = 360 }: TagCountTrendsProps) {
+  const option = useMemo(() => buildOption(snapshots, mode), [snapshots, mode])
+
   const hasTagStats = snapshots.some((s) => s.tagStats && s.tagStats.length > 0)
 
   if (!hasTagStats) {
@@ -157,7 +160,7 @@ function TagCountTrends({ snapshots, mode, height = 360 }: TagCountTrendsProps) 
     )
   }
 
-  return <ChartECharts option={buildOption(snapshots, mode)} style={{ height, width: "100%" }} />
+  return <ChartECharts option={option} style={{ height, width: "100%" }} />
 }
 
 export type { TagCountTrendsProps }

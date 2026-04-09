@@ -2,6 +2,7 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
+import { useMemo } from "react"
 import type { TrackerCategoryCount } from "@/lib/fleet-aggregation"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
@@ -127,33 +128,31 @@ const CATEGORY_PALETTE = [
 ]
 
 function FleetCategoryBreakdown({ data, height = 360 }: FleetCategoryBreakdownProps) {
+  const option = useMemo(() => {
+    const trackerNames = data.map((d) => d.tracker)
+
+    const allCategories = new Set<string>()
+    for (const entry of data) {
+      for (const { name } of entry.categories) allCategories.add(name)
+    }
+    const categories = Array.from(allCategories).sort()
+    const categoryColors = categories.map((_, i) => CATEGORY_PALETTE[i % CATEGORY_PALETTE.length])
+
+    const dataMap = new Map<string, Map<string, number>>()
+    for (const entry of data) {
+      const catMap = new Map<string, number>()
+      for (const { name, count } of entry.categories) catMap.set(name, count)
+      dataMap.set(entry.tracker, catMap)
+    }
+
+    return buildFleetCategoryBreakdownOption(trackerNames, categories, categoryColors, dataMap)
+  }, [data])
+
   if (data.length === 0) {
     return <ChartEmptyState height={height} message="No torrent data available" />
   }
 
-  const trackerNames = data.map((d) => d.tracker)
-
-  const allCategories = new Set<string>()
-  for (const entry of data) {
-    for (const { name } of entry.categories) allCategories.add(name)
-  }
-  const categories = Array.from(allCategories).sort()
-  const categoryColors = categories.map((_, i) => CATEGORY_PALETTE[i % CATEGORY_PALETTE.length])
-
-  // Build the Map<trackerName, Map<categoryName, count>> the renderer expects
-  const dataMap = new Map<string, Map<string, number>>()
-  for (const entry of data) {
-    const catMap = new Map<string, number>()
-    for (const { name, count } of entry.categories) catMap.set(name, count)
-    dataMap.set(entry.tracker, catMap)
-  }
-
-  return (
-    <ChartECharts
-      option={buildFleetCategoryBreakdownOption(trackerNames, categories, categoryColors, dataMap)}
-      style={{ height, width: "100%" }}
-    />
-  )
+  return <ChartECharts option={option} style={{ height, width: "100%" }} />
 }
 
 export type { FleetCategoryBreakdownProps }

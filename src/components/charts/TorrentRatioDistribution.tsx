@@ -2,6 +2,7 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
+import { useMemo } from "react"
 import { getRatioBuckets } from "@/lib/fleet"
 import { formatCount } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
@@ -81,41 +82,45 @@ function buildRatioBucketedOption(
 function TorrentRatioDistribution(props: TorrentRatioDistributionProps) {
   const { accentColor = CHART_THEME.accent, height = 280 } = props
 
-  if ("buckets" in props) {
-    // Fleet path: pre-aggregated buckets
-    if (!props.buckets)
-      return <ChartEmptyState height={height} message="No torrent data available" />
-    const { buckets } = props
-    if (buckets.length === 0 || buckets.every((b) => b.count === 0)) {
+  const isFleet = "buckets" in props
+  const fleetBuckets = isFleet ? (props as PreAggregatedProps).buckets : null
+  const rawTorrents = !isFleet ? (props as RawTorrentsProps).torrents : []
+
+  const fleetOption = useMemo<EChartsOption | null>(() => {
+    if (!fleetBuckets || fleetBuckets.length === 0 || fleetBuckets.every((b) => b.count === 0)) {
+      return null
+    }
+    const coloredBuckets = getRatioBuckets(accentColor)
+    const colors = fleetBuckets.map((_b, i) => coloredBuckets[i]?.color ?? CHART_THEME.chartFallback)
+    return buildRatioBucketedOption(fleetBuckets, colors, "Ratio")
+  }, [fleetBuckets, accentColor])
+
+  const perTrackerOption = useMemo<EChartsOption | null>(() => {
+    if (isFleet || rawTorrents.length === 0) return null
+    const buckets = getRatioBuckets(accentColor)
+    return buildBucketedBarOption({
+      buckets,
+      torrents: rawTorrents,
+      getThreshold: (b) => b.max,
+      getValue: (t) => t.ratio,
+      getLabel: (b) => b.label,
+      getColor: (b) => b.color,
+      labelPrefix: "Ratio",
+    })
+  }, [isFleet, rawTorrents, accentColor])
+
+  if (isFleet) {
+    if (!fleetOption) {
       return <ChartEmptyState height={height} message="No torrent data available" />
     }
-
-    const coloredBuckets = getRatioBuckets(accentColor)
-    const colors = buckets.map((_b, i) => coloredBuckets[i]?.color ?? CHART_THEME.chartFallback)
-    const option = buildRatioBucketedOption(buckets, colors, "Ratio")
-
-    return <ChartECharts option={option} style={{ height, width: "100%" }} />
+    return <ChartECharts option={fleetOption} style={{ height, width: "100%" }} />
   }
 
-  // Per-tracker path: raw torrents
-  const { torrents } = props
-  if (torrents.length === 0) {
+  if (!perTrackerOption) {
     return <ChartEmptyState height={height} message="No torrent data available" />
   }
 
-  const buckets = getRatioBuckets(accentColor)
-
-  const option = buildBucketedBarOption({
-    buckets,
-    torrents,
-    getThreshold: (b) => b.max,
-    getValue: (t) => t.ratio,
-    getLabel: (b) => b.label,
-    getColor: (b) => b.color,
-    labelPrefix: "Ratio",
-  })
-
-  return <ChartECharts option={option} style={{ height, width: "100%" }} />
+  return <ChartECharts option={perTrackerOption} style={{ height, width: "100%" }} />
 }
 
 export type { TorrentRatioDistributionProps }

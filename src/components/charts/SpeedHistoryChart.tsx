@@ -3,6 +3,7 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
+import { useMemo } from "react"
 import { hexToRgba } from "@/lib/color-utils"
 import type { FleetSnapshot } from "@/lib/fleet"
 import { formatSpeed } from "@/lib/formatters"
@@ -183,6 +184,8 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
 }
 
 function SpeedHistoryChart({ snapshots, height = 360 }: SpeedHistoryChartProps) {
+  const option = useMemo(() => buildOption(snapshots), [snapshots])
+
   const hasSpeedData = snapshots.some(
     (s) => s.uploadSpeedBytes !== null || s.downloadSpeedBytes !== null
   )
@@ -191,7 +194,7 @@ function SpeedHistoryChart({ snapshots, height = 360 }: SpeedHistoryChartProps) 
     return <ChartEmptyState height={height} message="No speed history data available yet." />
   }
 
-  return <ChartECharts option={buildOption(snapshots)} style={{ height, width: "100%" }} />
+  return <ChartECharts option={option} style={{ height, width: "100%" }} />
 }
 
 export type { SpeedHistoryChartProps }

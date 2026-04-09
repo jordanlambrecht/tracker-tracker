@@ -3,6 +3,7 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
+import { useMemo } from "react"
 import { hexToRgba } from "@/lib/color-utils"
 import type { CrossSeedEdge, CrossSeedNode } from "@/lib/fleet-aggregation"
 import { formatCount } from "@/lib/formatters"
@@ -143,20 +144,18 @@ function buildCrossSeedNetworkOption(nodes: NetworkNode[], edges: NetworkEdge[])
 function CrossSeedNetwork({ network, height = 450 }: CrossSeedNetworkProps) {
   const { nodes: aggregatedNodes, edges: aggregatedEdges } = network
 
+  const option = useMemo(() => {
+    const nodes = buildStyledNodes(aggregatedNodes)
+    const edges = buildStyledEdges(aggregatedEdges)
+    return buildCrossSeedNetworkOption(nodes, edges)
+  }, [aggregatedNodes, aggregatedEdges])
+
   if (aggregatedNodes.length === 0)
     return <ChartEmptyState height={height} message="No torrent data available" />
   if (aggregatedEdges.length === 0)
     return <ChartEmptyState height={height} message="No cross-seeded content detected" />
 
-  const nodes = buildStyledNodes(aggregatedNodes)
-  const edges = buildStyledEdges(aggregatedEdges)
-
-  return (
-    <ChartECharts
-      option={buildCrossSeedNetworkOption(nodes, edges)}
-      style={{ height, width: "100%" }}
-    />
-  )
+  return <ChartECharts option={option} style={{ height, width: "100%" }} />
 }
 
 export type { CrossSeedNetworkProps }

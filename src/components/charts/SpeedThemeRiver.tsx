@@ -2,6 +2,7 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
+import { useMemo } from "react"
 import type { FleetSnapshot } from "@/lib/fleet"
 import { extractTagsFromSnapshots } from "@/lib/fleet"
 import { formatSpeed } from "@/lib/formatters"
@@ -107,13 +108,15 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
 }
 
 function SpeedThemeRiver({ snapshots, height = 360 }: SpeedThemeRiverProps) {
+  const option = useMemo(() => buildOption(snapshots), [snapshots])
+
   const hasTagStats = snapshots.some((s) => s.tagStats && s.tagStats.length > 0)
 
   if (!hasTagStats) {
     return <ChartEmptyState height={height} message="No tag speed data available yet." />
   }
 
-  return <ChartECharts option={buildOption(snapshots)} style={{ height, width: "100%" }} />
+  return <ChartECharts option={option} style={{ height, width: "100%" }} />
 }
 
 export type { SpeedThemeRiverProps }

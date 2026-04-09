@@ -2,6 +2,7 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
+import { useMemo } from "react"
 import { hexToRgba } from "@/lib/color-utils"
 import { formatCount } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
@@ -103,36 +104,35 @@ function buildHeatmapOption(
 function TorrentActivityHeatmap(props: TorrentActivityHeatmapProps) {
   const { accentColor = CHART_THEME.accent, height = 240 } = props
 
-  if ("grid" in props) {
-    // Fleet path: pre-aggregated grid
-    if (!props.grid) return <ChartEmptyState height={height} message="No activity data" />
-    const { grid } = props
-    if (grid.maxCount === 0) {
+  const isFleet = "grid" in props
+  const fleetGrid = isFleet ? (props as PreAggregatedProps).grid : null
+  const rawTorrents = !isFleet ? (props as RawTorrentsProps).torrents : []
+
+  const fleetOption = useMemo<EChartsOption | null>(() => {
+    if (!fleetGrid || fleetGrid.maxCount === 0) return null
+    return buildHeatmapOption(fleetGrid.data, fleetGrid.maxCount, accentColor)
+  }, [fleetGrid, accentColor])
+
+  const perTrackerOption = useMemo<EChartsOption | null>(() => {
+    if (isFleet) return null
+    const validTimestamps = rawTorrents.map((t) => t.addedAt).filter((ts) => ts > 0)
+    const { data, maxCount } = buildActivityMatrix(validTimestamps)
+    if (maxCount === 0) return null
+    return buildHeatmapOption(data, maxCount, accentColor)
+  }, [isFleet, rawTorrents, accentColor])
+
+  if (isFleet) {
+    if (!fleetGrid || fleetGrid.maxCount === 0 || !fleetOption) {
       return <ChartEmptyState height={height} message="No activity data" />
     }
-    return (
-      <ChartECharts
-        option={buildHeatmapOption(grid.data, grid.maxCount, accentColor)}
-        style={{ height, width: "100%" }}
-      />
-    )
+    return <ChartECharts option={fleetOption} style={{ height, width: "100%" }} />
   }
 
-  // Per-tracker path: raw torrents
-  const { torrents } = props
-  const validTimestamps = torrents.map((t) => t.addedAt).filter((ts) => ts > 0)
-  const { data, maxCount } = buildActivityMatrix(validTimestamps)
-
-  if (maxCount === 0) {
+  if (!perTrackerOption) {
     return <ChartEmptyState height={height} message="No activity data" />
   }
 
-  return (
-    <ChartECharts
-      option={buildHeatmapOption(data, maxCount, accentColor)}
-      style={{ height, width: "100%" }}
-    />
-  )
+  return <ChartECharts option={perTrackerOption} style={{ height, width: "100%" }} />
 }
 
 export type { TorrentActivityHeatmapProps }

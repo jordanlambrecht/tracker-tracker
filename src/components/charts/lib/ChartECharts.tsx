@@ -25,9 +25,26 @@ interface ChartEChartsProps {
   opts?: { renderer?: "canvas" | "svg" }
   notMerge?: boolean
   lazyUpdate?: boolean
+  shouldSetOption?: (
+    prevProps: { option?: unknown; style?: unknown },
+    nextProps: { option?: unknown; style?: unknown }
+  ) => boolean
 }
 
 const DEFAULT_OPTS = { renderer: "canvas" as const }
+
+// Skips setOption when the option data hasn't changed. JSON.stringify drops
+// function values (i.e. tooltip formatters), so two options with identical data
+// but different formatter closures produce the same string. Returns true when
+// style changes so echarts-for-react's resize() check still fires.
+function defaultShouldSetOption(
+  prev: { option?: unknown; style?: unknown },
+  next: { option?: unknown; style?: unknown }
+): boolean {
+  if (prev.style !== next.style) return true
+  if (prev.option === next.option) return false
+  return JSON.stringify(prev.option) !== JSON.stringify(next.option)
+}
 
 /** Extract legend items from ECharts option — series names + colors */
 function extractLegendItems(option: EChartsOption): LegendItem[] {
@@ -65,6 +82,7 @@ function ChartECharts({
   opts = DEFAULT_OPTS,
   notMerge = false,
   lazyUpdate = true,
+  shouldSetOption = defaultShouldSetOption,
 }: ChartEChartsProps) {
   const chartRef = useRef<ReactECharts | null>(null)
 
@@ -176,6 +194,7 @@ function ChartECharts({
           notMerge={notMerge}
           lazyUpdate={lazyUpdate}
           onEvents={onEvents}
+          shouldSetOption={shouldSetOption}
         />
       </div>
     </div>

@@ -3,6 +3,7 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
+import { useMemo } from "react"
 import { formatCount } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
@@ -112,16 +113,16 @@ function FleetCrossSeedDonut({
   total,
   height = 280,
 }: FleetCrossSeedDonutProps) {
+  const option = useMemo(
+    () => buildFleetCrossSeedOption(crossSeeded, unique, total),
+    [crossSeeded, unique, total]
+  )
+
   if (total === 0) {
     return <ChartEmptyState height={height} message="No torrent data available" />
   }
 
-  return (
-    <ChartECharts
-      option={buildFleetCrossSeedOption(crossSeeded, unique, total)}
-      style={{ height, width: "100%" }}
-    />
-  )
+  return <ChartECharts option={option} style={{ height, width: "100%" }} />
 }
 
 export type { FleetCrossSeedDonutProps }
