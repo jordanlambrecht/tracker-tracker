@@ -13,7 +13,6 @@ import type {
   AvistazPlatformMeta,
   DigitalCorePlatformMeta,
   MamPlatformMeta,
-  TrackerStats,
 } from "@/lib/adapters/types"
 import { pruneDismissedAlerts } from "@/lib/alert-pruning"
 import { decrypt } from "@/lib/crypto"
@@ -98,8 +97,12 @@ export async function fetchTrackerStats(
   trackerId: number,
   encryptionKey: Buffer,
   proxyAgent?: HttpAgent
-): Promise<{ stats: TrackerStats; tracker: TrackerRow }> {
-  const [tracker] = await db.select().from(trackers).where(eq(trackers.id, trackerId)).limit(1)
+) {
+  const [tracker] = await db
+    .select(POLL_TRACKER_COLUMNS)
+    .from(trackers)
+    .where(eq(trackers.id, trackerId))
+    .limit(1)
   if (!tracker?.isActive) throw new Error("Tracker not found or inactive")
 
   let apiToken: string
@@ -122,7 +125,7 @@ export async function fetchTrackerStats(
   const stats = await adapter.fetchStats(tracker.baseUrl, apiToken, tracker.apiPath, fetchOptions)
 
   // Write metadata side effects
-  const metaUpdates: Record<string, unknown> = {}
+  const metaUpdates: Partial<TrackerRow> = {}
   if (stats.remoteUserId && stats.remoteUserId !== tracker.remoteUserId) {
     metaUpdates.remoteUserId = stats.remoteUserId
   }
@@ -141,7 +144,7 @@ export async function fetchTrackerStats(
   }
 
   // Merge metadata in-memory instead of re-fetching
-  return { stats, tracker: { ...tracker, ...metaUpdates } as typeof tracker }
+  return { stats, tracker: { ...tracker, ...metaUpdates } }
 }
 
 export async function pollTracker(
