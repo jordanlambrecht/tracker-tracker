@@ -42,6 +42,7 @@ const mockTracker: TrackerSummary = {
   isActive: true,
   lastPolledAt: null,
   lastError: null,
+  lastErrorAt: null,
   consecutiveFailures: 0,
   pausedAt: null,
   userPausedAt: null,
@@ -77,6 +78,7 @@ const mockSnapshot: Snapshot = {
   shareScore: null,
   username: null,
   group: null,
+  isManual: false,
 }
 
 function createWrapper() {

@@ -37,6 +37,7 @@ const baseSnapshot: Snapshot = {
   shareScore: null,
   username: "test",
   group: "User",
+  isManual: false,
 }
 
 describe("buildCoreStatDescriptors alerts", () => {

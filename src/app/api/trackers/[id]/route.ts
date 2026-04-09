@@ -109,6 +109,7 @@ export async function PATCH(request: Request, props: RouteContext) {
       updates.pausedAt = null
       updates.consecutiveFailures = 0
       updates.lastError = null
+      updates.lastErrorAt = null
     }
     log.info(
       {

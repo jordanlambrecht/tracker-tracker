@@ -12,6 +12,7 @@ const mockTracker = {
   isActive: true,
   lastPolledAt: new Date("2026-01-01"),
   lastError: null,
+  lastErrorAt: null,
   consecutiveFailures: 0,
   pausedAt: null,
   userPausedAt: null,
@@ -54,6 +55,7 @@ const mockSnapshot = {
   seedbonus: null,
   hitAndRuns: null,
   shareScore: null,
+  isManual: false,
 }
 
 describe("parsePlatformMeta", () => {

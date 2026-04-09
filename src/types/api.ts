@@ -46,6 +46,7 @@ export interface TrackerSummary {
   isActive: boolean
   lastPolledAt: string | null
   lastError: string | null
+  lastErrorAt: string | null
   consecutiveFailures: number
   pausedAt: string | null
   userPausedAt: string | null
@@ -70,6 +71,7 @@ export interface Snapshot extends TrackerStatFields {
   uploadedBytes: string
   downloadedBytes: string
   bufferBytes: string
+  isManual: boolean
 }
 
 export interface TagGroupMember {

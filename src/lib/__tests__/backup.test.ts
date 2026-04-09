@@ -339,6 +339,13 @@ describe("Backup security invariants", () => {
     expect(tracker).not.toHaveProperty("pausedAt")
     expect(tracker).not.toHaveProperty("paused_at")
   })
+
+  it("lastErrorAt is excluded from tracker backup payload (transient runtime state)", () => {
+    const p = validPayload()
+    const tracker = p.trackers[0]
+    expect(tracker).not.toHaveProperty("lastErrorAt")
+    expect(tracker).not.toHaveProperty("last_error_at")
+  })
 })
 
 // ---------------------------------------------------------------------------

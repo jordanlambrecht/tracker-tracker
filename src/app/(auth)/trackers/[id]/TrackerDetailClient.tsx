@@ -133,7 +133,9 @@ export function TrackerDetailClient({
     setTracker((prev) => ({
       ...prev,
       userPausedAt: wasPaused ? null : new Date().toISOString(),
-      ...(wasPaused ? { pausedAt: null, consecutiveFailures: 0, lastError: null } : {}),
+      ...(wasPaused
+        ? { pausedAt: null, consecutiveFailures: 0, lastError: null, lastErrorAt: null }
+        : {}),
     }))
 
     try {

@@ -80,6 +80,7 @@ const POLL_TRACKER_COLUMNS = {
   joinedAt: trackers.joinedAt,
   lastPolledAt: trackers.lastPolledAt,
   lastError: trackers.lastError,
+  lastErrorAt: trackers.lastErrorAt,
   consecutiveFailures: trackers.consecutiveFailures,
   pausedAt: trackers.pausedAt,
   userPausedAt: trackers.userPausedAt,
@@ -153,7 +154,8 @@ export async function pollTracker(
   privacyMode: boolean,
   proxyAgent?: HttpAgent,
   batchTimestamp?: Date,
-  enabledTargets?: NotificationTargetRow[]
+  enabledTargets?: NotificationTargetRow[],
+  isManual = false
 ): Promise<void> {
   const [tracker] = await db
     .select(POLL_TRACKER_COLUMNS)
@@ -260,6 +262,7 @@ export async function pollTracker(
       shareScore: stats.shareScore ?? null,
       username: privacyMode ? maskUsername(stats.username) : stats.username,
       group: privacyMode ? maskUsername(stats.group) : stats.group,
+      isManual,
     })
 
     try {
@@ -391,20 +394,45 @@ export async function pollTracker(
       )
     }
 
+    const wasPaused = !!tracker.pausedAt
+    const hadFailures = tracker.consecutiveFailures > 0
+
     await db
       .update(trackers)
       .set({
         lastPolledAt: timestamp,
         lastError: null,
+        lastErrorAt: null,
         consecutiveFailures: 0,
         pausedAt: null,
         updatedAt: timestamp,
       })
       .where(eq(trackers.id, tracker.id))
+
+    if (wasPaused || hadFailures) {
+      log.info(
+        {
+          trackerId: tracker.id,
+          trackerName: tracker.name,
+          previousFailures: tracker.consecutiveFailures,
+          wasPaused,
+          source: isManual ? "manual" : "scheduled",
+        },
+        "circuit breaker reset by successful poll"
+      )
+    }
   } catch (error) {
     const raw = error instanceof Error ? error.message : "Unknown error"
     const message = sanitizeNetworkError(raw, "Poll failed")
-    log.error(`Poll failed for tracker ${trackerId}: ${raw}`)
+    log.error(
+      {
+        trackerId,
+        trackerName: tracker?.name,
+        source: isManual ? "manual" : "scheduled",
+        previousFailures: tracker?.consecutiveFailures ?? "unknown",
+      },
+      `Poll failed for tracker ${trackerId}: ${raw}`
+    )
 
     try {
       const now = new Date()
@@ -412,6 +440,7 @@ export async function pollTracker(
         .update(trackers)
         .set({
           lastError: message,
+          lastErrorAt: now,
           consecutiveFailures: sql`${trackers.consecutiveFailures} + 1`,
           pausedAt: sql`CASE WHEN ${trackers.consecutiveFailures} + 1 >= ${POLL_FAILURE_THRESHOLD} THEN ${now.toISOString()}::timestamp ELSE ${trackers.pausedAt} END`,
           updatedAt: now,
@@ -424,7 +453,23 @@ export async function pollTracker(
 
       if (updated?.pausedAt) {
         log.warn(
+          {
+            trackerId,
+            trackerName: tracker?.name,
+            consecutiveFailures: updated.consecutiveFailures,
+            threshold: POLL_FAILURE_THRESHOLD,
+            lastError: message,
+          },
           `Tracker ${trackerId} auto-paused after ${updated.consecutiveFailures} consecutive failures`
+        )
+      } else if (updated) {
+        log.info(
+          {
+            trackerId,
+            consecutiveFailures: updated.consecutiveFailures,
+            threshold: POLL_FAILURE_THRESHOLD,
+          },
+          `Poll failure ${updated.consecutiveFailures}/${POLL_FAILURE_THRESHOLD} for tracker ${trackerId}`
         )
       }
     } catch (dbError) {
@@ -535,7 +580,16 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
   const overdue = allTrackers.filter((tracker) => {
     const pause = getPauseState(tracker)
     if (pause.isPaused) {
-      log.debug({ tracker: tracker.name, reason: pause.reason }, "skipping paused tracker")
+      log.debug(
+        {
+          tracker: tracker.name,
+          reason: pause.reason,
+          consecutiveFailures: tracker.consecutiveFailures,
+          pausedAt: tracker.pausedAt?.toISOString() ?? null,
+          userPausedAt: tracker.userPausedAt?.toISOString() ?? null,
+        },
+        "skipping paused tracker"
+      )
       return false
     }
     const lastPoll = tracker.lastPolledAt?.getTime() ?? 0

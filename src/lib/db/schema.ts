@@ -73,6 +73,7 @@ export const trackers = pgTable("trackers", {
   isActive: boolean("is_active").default(true).notNull(),
   lastPolledAt: timestamp("last_polled_at"),
   lastError: text("last_error"),
+  lastErrorAt: timestamp("last_error_at"),
   consecutiveFailures: integer("consecutive_failures").default(0).notNull(),
   pausedAt: timestamp("paused_at"),
   userPausedAt: timestamp("user_paused_at"),
@@ -119,6 +120,7 @@ export const trackerSnapshots = pgTable(
     shareScore: real("share_score"),
     username: varchar("username", { length: 255 }),
     group: varchar("group_name", { length: 255 }),
+    isManual: boolean("is_manual").default(false).notNull(),
   },
   (table) => [
     index("idx_snapshots_tracker_polled").on(table.trackerId, table.polledAt),

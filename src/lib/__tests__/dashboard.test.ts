@@ -36,6 +36,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     isActive: true,
     lastPolledAt: new Date().toISOString(),
     lastError: null,
+    lastErrorAt: null,
     consecutiveFailures: 0,
     pausedAt: null,
     userPausedAt: null,
@@ -109,6 +110,7 @@ const makeSnapshot = (overrides: Partial<Snapshot> = {}): Snapshot => ({
   shareScore: null,
   username: "testuser",
   group: "User",
+  isManual: false,
   ...overrides,
 })
 

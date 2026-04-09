@@ -50,6 +50,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     isActive: true,
     lastPolledAt: null,
     lastError: null,
+    lastErrorAt: null,
     consecutiveFailures: 0,
     pausedAt: null,
     userPausedAt: null,

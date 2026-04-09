@@ -62,6 +62,7 @@ const makeSnap = (polledAt: string, up: string, down: string): Snapshot => ({
   shareScore: null,
   username: null,
   group: null,
+  isManual: false,
 })
 
 describe("computeDelta", () => {

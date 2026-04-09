@@ -56,7 +56,7 @@ export async function POST(_request: Request, props: RouteContext) {
   const proxyAgent = settings ? buildProxyAgentFromSettings(settings, key) : undefined
 
   try {
-    await pollTracker(trackerId, key, privacyMode, proxyAgent)
+    await pollTracker(trackerId, key, privacyMode, proxyAgent, undefined, undefined, true)
     return NextResponse.json({ success: true })
   } catch (error) {
     if (isDecryptionError(error)) {

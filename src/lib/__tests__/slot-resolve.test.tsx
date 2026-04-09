@@ -24,6 +24,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     isActive: true,
     lastPolledAt: null,
     lastError: null,
+    lastErrorAt: null,
     consecutiveFailures: 0,
     pausedAt: null,
     userPausedAt: null,
@@ -62,6 +63,7 @@ function makeSnapshot(overrides: Partial<Snapshot> = {}): Snapshot {
     shareScore: null,
     username: "testuser",
     group: null,
+    isManual: false,
     ...overrides,
   }
 }

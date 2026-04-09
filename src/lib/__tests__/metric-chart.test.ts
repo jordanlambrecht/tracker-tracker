@@ -24,6 +24,7 @@ const makeSnapshot = (overrides: Partial<Snapshot> = {}): Snapshot => ({
   shareScore: null,
   username: "testuser",
   group: "User",
+  isManual: false,
   ...overrides,
 })
 

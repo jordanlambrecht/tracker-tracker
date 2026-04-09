@@ -26,6 +26,7 @@ function makeSnap(polledAt: string, overrides?: Partial<Snapshot>): Snapshot {
     username: null,
     shareScore: null,
     group: null,
+    isManual: false,
     ...overrides,
   }
 }

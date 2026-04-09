@@ -257,6 +257,7 @@ export const trackerColumns = {
   isActive: trackers.isActive,
   lastPolledAt: trackers.lastPolledAt,
   lastError: trackers.lastError,
+  lastErrorAt: trackers.lastErrorAt,
   consecutiveFailures: trackers.consecutiveFailures,
   pausedAt: trackers.pausedAt,
   userPausedAt: trackers.userPausedAt,
@@ -358,6 +359,7 @@ const snapshotColumns = {
   shareScore: trackerSnapshots.shareScore,
   username: trackerSnapshots.username,
   group: trackerSnapshots.group,
+  isManual: trackerSnapshots.isManual,
 }
 
 /** Pick a date_trunc bucket for chart queries based on requested day range. null = raw. */
@@ -425,6 +427,7 @@ function serializeSnapshot(
     shareScore: number | null
     username: string | null
     group: string | null
+    isManual: boolean
   },
   mask: (v: string | null) => string | null
 ): Snapshot {
@@ -444,6 +447,7 @@ function serializeSnapshot(
     shareScore: s.shareScore,
     username: mask(s.username),
     group: mask(s.group),
+    isManual: s.isManual,
   }
 }
 

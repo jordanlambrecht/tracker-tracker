@@ -34,6 +34,7 @@ export function serializeTrackerResponse(
     isActive: tracker.isActive,
     lastPolledAt: tracker.lastPolledAt?.toISOString() ?? null,
     lastError: tracker.lastError,
+    lastErrorAt: tracker.lastErrorAt?.toISOString() ?? null,
     consecutiveFailures: tracker.consecutiveFailures,
     pausedAt: tracker.pausedAt?.toISOString() ?? null,
     userPausedAt: tracker.userPausedAt?.toISOString() ?? null,

@@ -14,7 +14,11 @@ export async function POST(_request: Request, props: RouteContext) {
   if (trackerId instanceof NextResponse) return trackerId
 
   const [tracker] = await db
-    .select({ pausedAt: trackers.pausedAt })
+    .select({
+      pausedAt: trackers.pausedAt,
+      consecutiveFailures: trackers.consecutiveFailures,
+      lastError: trackers.lastError,
+    })
     .from(trackers)
     .where(eq(trackers.id, trackerId))
     .limit(1)
@@ -24,18 +28,49 @@ export async function POST(_request: Request, props: RouteContext) {
   }
 
   if (!tracker.pausedAt) {
-    return NextResponse.json({ error: "Tracker is not paused" }, { status: 400 })
+    log.info(
+      {
+        route: "POST /api/trackers/[id]/resume",
+        trackerId,
+        consecutiveFailures: tracker.consecutiveFailures,
+        lastError: tracker.lastError,
+      },
+      "resume called but tracker is not paused (idempotent OK)"
+    )
+    return NextResponse.json({ success: true, alreadyResumed: true })
   }
+
+  log.info(
+    {
+      route: "POST /api/trackers/[id]/resume",
+      trackerId,
+      pausedAt: tracker.pausedAt.toISOString(),
+      consecutiveFailures: tracker.consecutiveFailures,
+      lastError: tracker.lastError,
+    },
+    "resuming auto-paused tracker"
+  )
 
   try {
     await db
       .update(trackers)
-      .set({ pausedAt: null, lastError: null, updatedAt: new Date() })
+      .set({
+        pausedAt: null,
+        lastError: null,
+        lastErrorAt: null,
+        consecutiveFailures: 0,
+        updatedAt: new Date(),
+      })
       .where(eq(trackers.id, trackerId))
   } catch (error) {
     log.error(error, `Failed to resume tracker ${trackerId}`)
     return NextResponse.json({ error: "Failed to resume tracker" }, { status: 500 })
   }
+
+  log.info(
+    { route: "POST /api/trackers/[id]/resume", trackerId },
+    "tracker resumed, consecutiveFailures reset to 0"
+  )
 
   return NextResponse.json({ success: true })
 }

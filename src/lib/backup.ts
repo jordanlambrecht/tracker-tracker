@@ -151,6 +151,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     const {
       lastPolledAt: _lpa,
       lastError: _le,
+      lastErrorAt: _lea,
       consecutiveFailures: _cf,
       pausedAt: _pa,
       ...rest

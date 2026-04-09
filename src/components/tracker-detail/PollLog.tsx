@@ -12,10 +12,17 @@ interface PollLogProps {
   snapshots: Snapshot[]
   lastPolledAt: string | null
   lastError: string | null
+  lastErrorAt: string | null
   userPausedAt?: string | null
 }
 
-export function PollLog({ snapshots, lastPolledAt, lastError, userPausedAt }: PollLogProps) {
+export function PollLog({
+  snapshots,
+  lastPolledAt,
+  lastError,
+  lastErrorAt,
+  userPausedAt,
+}: PollLogProps) {
   const [open, setOpen] = useState(false)
 
   const lastPolledLabel = lastPolledAt ? formatDateTime(lastPolledAt) : "Never"
@@ -42,7 +49,9 @@ export function PollLog({ snapshots, lastPolledAt, lastError, userPausedAt }: Po
           {lastError && !userPausedAt && (
             <div className="flex items-center gap-2 px-4 py-2.5 text-xs font-mono text-danger border-b border-border whitespace-nowrap min-w-fit">
               <span className="shrink-0">✕</span>
-              <span className="text-tertiary">{lastPolledLabel}</span>
+              <span className="text-tertiary shrink-0 w-40">
+                {lastErrorAt ? formatDateTime(lastErrorAt) : lastPolledLabel}
+              </span>
               <span className="truncate">{lastError}</span>
             </div>
           )}
@@ -71,6 +80,11 @@ export function PollLog({ snapshots, lastPolledAt, lastError, userPausedAt }: Po
                     {formatBytesFromString(snap.downloadedBytes)} ↓
                   </span>
                   <span className="text-secondary">{formatRatioDisplay(snap.ratio)}</span>
+                  {snap.isManual && (
+                    <span className="text-accent/60 text-[10px] uppercase tracking-wider">
+                      Manual
+                    </span>
+                  )}
                 </div>
               ))
           )}
