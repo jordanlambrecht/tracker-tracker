@@ -1,7 +1,7 @@
 // src/lib/__tests__/error-utils.test.ts
 
 import { describe, expect, it } from "vitest"
-import { isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
+import { classifyFetchError, isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
 
 // ---------------------------------------------------------------------------
 // isDecryptionError
@@ -170,5 +170,73 @@ describe("sanitizeNetworkError", () => {
 
   it("uses a custom fallback when provided", () => {
     expect(sanitizeNetworkError("Unknown error", "Polling failed")).toBe("Polling failed")
+  })
+})
+
+// classifyFetchError
+// ---------------------------------------------------------------------------
+
+describe("classifyFetchError", () => {
+  const host = "avistaz.to"
+
+  it("unwraps TypeError wrapping ECONNREFUSED (Node.js native fetch)", () => {
+    const cause = Object.assign(new Error("connect ECONNREFUSED 104.21.0.1:443"), {
+      code: "ECONNREFUSED",
+    })
+    const outer = new TypeError("fetch failed", { cause })
+    const result = classifyFetchError(outer, host)
+    expect(result.message).toBe("Failed to connect to avistaz.to: ECONNREFUSED")
+  })
+
+  it("unwraps TypeError wrapping ENOTFOUND", () => {
+    const cause = Object.assign(new Error("getaddrinfo ENOTFOUND avistaz.to"), {
+      code: "ENOTFOUND",
+    })
+    const outer = new TypeError("fetch failed", { cause })
+    const result = classifyFetchError(outer, host)
+    expect(result.message).toBe("Failed to connect to avistaz.to: ENOTFOUND")
+  })
+
+  it("unwraps TypeError wrapping a timeout DOMException", () => {
+    const cause = new DOMException("The operation was timed out.", "TimeoutError")
+    const outer = new TypeError("fetch failed", { cause })
+    const result = classifyFetchError(outer, host)
+    expect(result.message).toBe("Request to avistaz.to timed out")
+  })
+
+  it("handles direct DOMException TimeoutError (non-wrapped)", () => {
+    const err = new DOMException("timeout", "TimeoutError")
+    const result = classifyFetchError(err, host)
+    expect(result.message).toBe("Request to avistaz.to timed out")
+  })
+
+  it("handles direct DOMException AbortError", () => {
+    const err = new DOMException("aborted", "AbortError")
+    const result = classifyFetchError(err, host)
+    expect(result.message).toBe("Request to avistaz.to timed out")
+  })
+
+  it("handles direct ECONNREFUSED error (no TypeError wrapper)", () => {
+    const err = Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" })
+    const result = classifyFetchError(err, host)
+    expect(result.message).toBe("Failed to connect to avistaz.to: ECONNREFUSED")
+  })
+
+  it("uses inner message when cause has no code", () => {
+    const cause = new Error("some TLS error")
+    const outer = new TypeError("fetch failed", { cause })
+    const result = classifyFetchError(outer, host)
+    expect(result.message).toBe("Failed to connect to avistaz.to: some TLS error")
+  })
+
+  it("returns TypeError for bare TypeError with no cause", () => {
+    const err = new TypeError("fetch failed")
+    const result = classifyFetchError(err, host)
+    expect(result.message).toBe("Failed to connect to avistaz.to: TypeError")
+  })
+
+  it("returns Unknown for non-Error values", () => {
+    const result = classifyFetchError("string error", host)
+    expect(result.message).toBe("Failed to connect to avistaz.to: Unknown")
   })
 })

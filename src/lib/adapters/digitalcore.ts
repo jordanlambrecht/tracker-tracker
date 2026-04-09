@@ -4,7 +4,7 @@
 //            fetchDCJson, DigitalCoreAdapter
 
 import { computeBufferBytes } from "@/lib/data-transforms"
-import { sanitizeNetworkError } from "@/lib/error-utils"
+import { classifyFetchError, sanitizeNetworkError } from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import type {
   DebugApiCall,
@@ -211,17 +211,7 @@ async function fetchDCJson<T>(
       signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
     })
   } catch (err) {
-    const name =
-      err !== null && typeof err === "object" && "name" in (err as object)
-        ? String((err as { name: unknown }).name)
-        : ""
-    if (name === "TimeoutError" || name === "AbortError") {
-      throw new Error(`Request to ${hostname} timed out`)
-    }
-    const code =
-      err instanceof Error && "code" in err ? (err as NodeJS.ErrnoException).code : undefined
-    const detail = code ?? (name || "Unknown")
-    throw new Error(`Failed to connect to ${hostname}: ${detail}`)
+    throw classifyFetchError(err, hostname)
   }
 
   if (response.status === 401) {

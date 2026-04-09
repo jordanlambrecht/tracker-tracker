@@ -7,6 +7,7 @@ import {
   VALID_PLATFORM_TYPES,
 } from "@/lib/adapters"
 import { authenticate, parseJsonBody, validateHttpUrl, validateMaxLength } from "@/lib/api-helpers"
+import { sanitizeNetworkError } from "@/lib/error-utils"
 import {
   AVISTAZ_TOKEN_MAX,
   LONG_STRING_MAX,
@@ -79,13 +80,17 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result)
   } catch (error) {
+    const raw = error instanceof Error ? error.message : String(error)
+    const safeError = sanitizeNetworkError(raw, "Tracker test failed")
     log.warn(
       {
         route: "POST /api/trackers/test-connection",
-        error: String(error),
+        platform,
+        baseUrl: trimmedBaseUrl,
+        error: raw,
       },
-      "tracker connection test failed"
+      `tracker test failed: ${safeError}`
     )
-    return NextResponse.json({ error: "Tracker test failed" }, { status: 422 })
+    return NextResponse.json({ error: safeError }, { status: 422 })
   }
 }

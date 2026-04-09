@@ -5,7 +5,7 @@
 
 import { type HTMLElement as ParsedElement, parse as parseHtml } from "node-html-parser"
 import { computeBufferBytes } from "@/lib/data-transforms"
-import { sanitizeNetworkError } from "@/lib/error-utils"
+import { classifyFetchError, sanitizeNetworkError } from "@/lib/error-utils"
 import { localDateStr } from "@/lib/formatters"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import { parseBytes } from "@/lib/parser"
@@ -150,7 +150,16 @@ export function parseAvistazProfile(html: string, username: string): TrackerStat
   let ratio = 0
 
   for (const li of items) {
-    const title = li.getAttribute("data-toggle") === "tooltip" ? li.getAttribute("title") : null
+    // AvistaZ uses Bootstrap tooltips. BS4 uses data-toggle="tooltip",
+    // BS5 uses data-bs-toggle="tooltip". Check both for forward compat.
+    const isTooltip =
+      li.getAttribute("data-toggle") === "tooltip" ||
+      li.getAttribute("data-bs-toggle") === "tooltip"
+    const title = isTooltip
+      ? (li.getAttribute("title") ??
+         li.getAttribute("data-original-title") ??
+         li.getAttribute("data-bs-original-title"))
+      : null
     // Strip everything except digits, decimal point, and unit letters/spaces
     const text = li.textContent?.replace(/[^\d.a-zA-Z\s]/g, "").trim() ?? ""
 
@@ -322,19 +331,7 @@ async function fetchHtml(
       redirect: "manual",
     })
   } catch (err) {
-    const name =
-      err !== null && typeof err === "object" && "name" in (err as object)
-        ? String((err as { name: unknown }).name)
-        : ""
-    if (name === "TimeoutError" || name === "AbortError") {
-      const hostname = new URL(url).hostname
-      throw new Error(`Request to ${hostname} timed out`)
-    }
-    const code =
-      err instanceof Error && "code" in err ? (err as NodeJS.ErrnoException).code : undefined
-    const detail = code ?? (name || "Unknown")
-    const hostname = new URL(url).hostname
-    throw new Error(`Failed to connect to ${hostname}: ${detail}`)
+    throw classifyFetchError(err, new URL(url).hostname)
   }
 
   // 302 redirect usually means the session expired and the server redirected to login

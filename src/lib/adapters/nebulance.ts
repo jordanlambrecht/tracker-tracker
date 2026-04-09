@@ -7,6 +7,7 @@
 //   - Response may be wrapped {"status":"success","response":{...}} or flat
 
 import { computeBufferBytes, floatBytesToBigInt } from "@/lib/data-transforms"
+import { classifyFetchError } from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import { proxyFetch } from "@/lib/tunnel"
 import type {
@@ -96,15 +97,7 @@ export class NebulanceAdapter implements TrackerAdapter {
         data = (await response.json()) as NebulanceResponse
       }
     } catch (err) {
-      if (
-        err instanceof DOMException &&
-        (err.name === "TimeoutError" || err.name === "AbortError")
-      ) {
-        throw new Error(`Request to ${hostname} timed out`)
-      }
-      throw new Error(
-        `Failed to connect to ${hostname}: ${err instanceof Error ? err.message : "Unknown"}`
-      )
+      throw classifyFetchError(err, hostname)
     }
 
     if (!ok || "error" in data) {
