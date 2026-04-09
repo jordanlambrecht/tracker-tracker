@@ -188,6 +188,7 @@ function buildLineOption(
       {
         name: config.label,
         type: "line",
+        sampling: "lttb",
         data,
         smooth: true,
         symbol: "circle",
@@ -302,6 +303,7 @@ function buildDailyDeltaOption(
             {
               name: "Upload Δ",
               type: "line",
+              sampling: "lttb",
               data: finalUpload,
               smooth: true,
               symbol: "circle",
@@ -314,6 +316,7 @@ function buildDailyDeltaOption(
             {
               name: "Download Δ",
               type: "line",
+              sampling: "lttb",
               data: finalDownload,
               smooth: true,
               symbol: "circle",

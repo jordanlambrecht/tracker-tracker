@@ -180,6 +180,7 @@ function buildBufferVelocityOption(
     return {
       name: tracker.name,
       type: "line",
+      sampling: "lttb",
       data,
       smooth: false,
       symbol: "circle",

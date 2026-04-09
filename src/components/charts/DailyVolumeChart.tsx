@@ -308,6 +308,7 @@ function buildAreaOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
     return {
       name: tracker.name,
       type: "line",
+      sampling: "lttb",
       stack: "upload",
       areaStyle: { opacity: 0.6 },
       smooth: true,
@@ -454,6 +455,7 @@ function buildSumsOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
       {
         name: "Upload",
         type: "line",
+        sampling: "lttb",
         data: uploadSums,
         smooth: true,
         symbol: "circle",
@@ -483,6 +485,7 @@ function buildSumsOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
       {
         name: "Download",
         type: "line",
+        sampling: "lttb",
         data: downloadSums,
         smooth: true,
         symbol: "circle",

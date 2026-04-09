@@ -125,6 +125,7 @@ function buildAverageSeries(
     {
       name: "Average",
       type: "line",
+      sampling: "lttb",
       data,
       smooth: true,
       symbol: "circle",
@@ -220,6 +221,7 @@ function buildComparisonOption(
       {
         name: "Fleet Total",
         type: "line",
+        sampling: "lttb",
         data,
         smooth: true,
         symbol: "circle",
@@ -273,6 +275,7 @@ function buildComparisonOption(
       return {
         name: tracker.name,
         type: "line",
+        sampling: "lttb",
         data,
         smooth: true,
         symbol: useStacked ? "none" : "circle",

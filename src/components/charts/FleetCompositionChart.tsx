@@ -38,6 +38,7 @@ function buildFleetOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
     return {
       name: tracker.name,
       type: "line",
+      sampling: "lttb",
       stack: "fleet",
       data,
       smooth: true,

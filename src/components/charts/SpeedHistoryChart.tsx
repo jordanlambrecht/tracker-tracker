@@ -132,6 +132,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
         data: uploadData,
         smooth: true,
         symbol: "none",
+        sampling: "lttb",
         itemStyle: { color: CYAN },
         lineStyle: { color: CYAN, width: 2, shadowColor: CYAN, shadowBlur: 8 },
         emphasis: {
@@ -159,6 +160,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
         data: downloadData,
         smooth: true,
         symbol: "none",
+        sampling: "lttb",
         itemStyle: { color: AMBER },
         lineStyle: { color: AMBER, width: 2, shadowColor: AMBER, shadowBlur: 8 },
         emphasis: {

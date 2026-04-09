@@ -128,6 +128,7 @@ function buildOption(
       {
         name: "Uploaded",
         type: "line",
+        sampling: "lttb",
         data: uploadData,
         smooth: true,
         symbol: "circle",
@@ -150,6 +151,7 @@ function buildOption(
       {
         name: "Downloaded",
         type: "line",
+        sampling: "lttb",
         data: downloadData,
         smooth: true,
         symbol: "circle",

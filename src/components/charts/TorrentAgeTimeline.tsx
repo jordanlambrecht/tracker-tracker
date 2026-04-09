@@ -74,6 +74,7 @@ function TorrentAgeTimeline({ torrents, accentColor }: TorrentAgeTimelineProps) 
     series: [
       {
         type: "line",
+        sampling: "lttb",
         data: seriesData,
         smooth: true,
         symbol: "none",

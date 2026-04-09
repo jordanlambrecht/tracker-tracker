@@ -123,6 +123,7 @@ function buildRatioStabilityOption(
     series.push({
       name: `${tracker.name}-lower`,
       type: "line",
+      sampling: "lttb",
       stack: stackId,
       data: lower,
       symbol: "none",
@@ -137,6 +138,7 @@ function buildRatioStabilityOption(
     series.push({
       name: `${tracker.name}-band`,
       type: "line",
+      sampling: "lttb",
       stack: stackId,
       data: bandDiffData,
       symbol: "none",
@@ -153,6 +155,7 @@ function buildRatioStabilityOption(
     series.push({
       name: tracker.name,
       type: "line",
+      sampling: "lttb",
       data: ema,
       symbol: "none",
       smooth: true,

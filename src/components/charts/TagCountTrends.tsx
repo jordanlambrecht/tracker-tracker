@@ -82,6 +82,7 @@ function buildOption(snapshots: FleetSnapshot[], mode: TagCountMode): EChartsOpt
       type: "line",
       data: seriesMap.get(tag) ?? [],
       smooth: true,
+      sampling: "lttb",
       lineStyle: { width: isSeeding ? 2 : 1.5, color },
       itemStyle: { color },
       ...(isSeeding

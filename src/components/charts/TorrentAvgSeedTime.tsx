@@ -80,6 +80,7 @@ function TorrentAvgSeedTime({ torrents, accentColor }: TorrentAvgSeedTimeProps) 
     series: [
       {
         type: "line",
+        sampling: "lttb",
         data: seriesData,
         smooth: true,
         symbol: "circle",
