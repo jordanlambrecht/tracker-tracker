@@ -3,6 +3,7 @@
 // Available: DEFAULT_LOG_FILE, DOCS_URL, DOCS, DocsEntry
 
 export const DEFAULT_LOG_FILE = "/data/logs/tracker-tracker.log"
+export const DEV_LOG_FILE = ".next/tracker-tracker.log"
 
 export const DOCS_URL = "https://jordanlambrecht.github.io/tracker-tracker"
 

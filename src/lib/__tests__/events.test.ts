@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest"
 import {
   backupToEvent,
+  groupPollBatches,
   mergeAndSort,
   parseLogLine,
   type SystemEvent,
@@ -401,5 +402,86 @@ describe("classifyLogEvent — priority ordering", () => {
     })
     const event = parseLogLine(line)
     expect(event?.category).toBe("backups")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// groupPollBatches
+// ---------------------------------------------------------------------------
+
+function makePollEvent(id: string, timestamp: string, trackerName: string): SystemEvent {
+  return {
+    id,
+    timestamp,
+    category: "polls",
+    level: "info",
+    title: "Poll succeeded",
+    detail: `${trackerName} — ↑ 1.0 GiB — ↓ 0.5 GiB — 2.00x`,
+    trackerId: 1,
+    trackerName,
+    source: "db",
+  }
+}
+
+describe("groupPollBatches", () => {
+  it("collapses same-timestamp polls into a single batch with children", () => {
+    const ts = "2026-04-09T12:00:00.000Z"
+    const events = [
+      makePollEvent("s-1", ts, "RED"),
+      makePollEvent("s-2", ts, "OPS"),
+      makePollEvent("s-3", ts, "Aither"),
+    ]
+    const grouped = groupPollBatches(events)
+    expect(grouped).toHaveLength(1)
+    expect(grouped[0].title).toBe("Poll succeeded for 3 trackers")
+    expect(grouped[0].children).toHaveLength(3)
+    expect(grouped[0].detail).toContain("RED")
+    expect(grouped[0].detail).toContain("OPS")
+    expect(grouped[0].detail).toContain("Aither")
+  })
+
+  it("leaves a single poll event ungrouped", () => {
+    const events = [makePollEvent("s-1", "2026-04-09T12:00:00.000Z", "RED")]
+    const grouped = groupPollBatches(events)
+    expect(grouped).toHaveLength(1)
+    expect(grouped[0].children).toBeUndefined()
+    expect(grouped[0].title).toBe("Poll succeeded")
+  })
+
+  it("does not group polls with different timestamps", () => {
+    const events = [
+      makePollEvent("s-1", "2026-04-09T12:00:00.000Z", "RED"),
+      makePollEvent("s-2", "2026-04-09T12:05:00.000Z", "OPS"),
+    ]
+    const grouped = groupPollBatches(events)
+    expect(grouped).toHaveLength(2)
+    expect(grouped[0].children).toBeUndefined()
+    expect(grouped[1].children).toBeUndefined()
+  })
+
+  it("does not group non-poll events even with matching timestamps", () => {
+    const ts = "2026-04-09T12:00:00.000Z"
+    const events: SystemEvent[] = [
+      { id: "b-1", timestamp: ts, category: "backups", level: "info", title: "Backup completed", detail: null, trackerId: null, trackerName: null, source: "db" },
+      { id: "b-2", timestamp: ts, category: "backups", level: "info", title: "Backup completed", detail: null, trackerId: null, trackerName: null, source: "db" },
+    ]
+    const grouped = groupPollBatches(events)
+    expect(grouped).toHaveLength(2)
+  })
+
+  it("preserves interleaved non-poll events between batches", () => {
+    const ts = "2026-04-09T12:00:00.000Z"
+    const events: SystemEvent[] = [
+      makePollEvent("s-1", ts, "RED"),
+      makePollEvent("s-2", ts, "OPS"),
+      { id: "auth-1", timestamp: ts, category: "auth", level: "info", title: "Login", detail: null, trackerId: null, trackerName: null, source: "log" },
+      makePollEvent("s-3", ts, "Aither"),
+    ]
+    const grouped = groupPollBatches(events)
+    // First two polls grouped, auth passes through, last poll is standalone
+    expect(grouped).toHaveLength(3)
+    expect(grouped[0].title).toBe("Poll succeeded for 2 trackers")
+    expect(grouped[1].title).toBe("Login")
+    expect(grouped[2].title).toBe("Poll succeeded")
   })
 })

@@ -181,6 +181,8 @@ export async function deepPollClient(
     const allTags = [...new Set([...trackerTags, ...crossSeedTags])]
 
     let hasChanges = false
+    let syncSummary = ""
+    let isFullSync = false
 
     if (adapter.getDeltaSync) {
       // Delta sync path (qBittorrent). First call (rid=0) returns everything;
@@ -192,13 +194,10 @@ export async function deepPollClient(
       const changedCount = Object.keys(data.torrents ?? {}).length
       const removedCount = data.torrentsRemoved?.length ?? 0
       if (data.fullUpdate) {
-        log.info(
-          `[deep-poll] client=${clientId} → rid 0→${data.rid} (full sync, ${changedCount} torrents)`
-        )
+        isFullSync = true
+        syncSummary = `rid 0→${data.rid} (full sync, ${changedCount} torrents)`
       } else {
-        log.debug(
-          `[deep-poll] client=${clientId} → rid ${rid}→${data.rid} (delta, ${changedCount} changed, ${removedCount} removed)`
-        )
+        syncSummary = `rid ${rid}→${data.rid} (delta, ${changedCount} changed, ${removedCount} removed)`
       }
 
       hasChanges =
@@ -210,7 +209,8 @@ export async function deepPollClient(
       const allTorrents = await adapter.getTorrents()
       replaceStoreTorrents(adapter.baseUrl, allTorrents)
       hasChanges = true
-      log.info(`[deep-poll] client=${clientId} → full fetch, ${allTorrents.length} torrents`)
+      isFullSync = true
+      syncSummary = `full fetch, ${allTorrents.length} torrents`
     }
 
     const stats = await adapter.getTransferInfo()
@@ -222,9 +222,9 @@ export async function deepPollClient(
       return parseTorrentTags(t.tags).some((tag) => tagSet.has(tag))
     })
 
-    log.debug(
-      `[deep-poll] client=${clientId} → ${torrents.length} relevant torrents (${allTags.length} tags)`
-    )
+    const syncMsg = `[deep-poll] client=${clientId} → ${syncSummary}, ${torrents.length} relevant (${allTags.length} tags)`
+    if (isFullSync) log.info(syncMsg)
+    else log.debug(syncMsg)
 
     // Write daily torrent checkpoints for "Movers & Shakers" — first-seen-today wins
     const checkpointDate = localDateStr()

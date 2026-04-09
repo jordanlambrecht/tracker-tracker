@@ -52,8 +52,14 @@ export function classifyFetchError(err: unknown, hostname: string): Error {
   const effective =
     inner ??
     (err instanceof Error
-      ? { name: err.name, message: err.message, code: "code" in err ? String((err as NodeJS.ErrnoException).code) : undefined }
-      : err !== null && typeof err === "object" && typeof (err as Record<string, unknown>).name === "string"
+      ? {
+          name: err.name,
+          message: err.message,
+          code: "code" in err ? String((err as NodeJS.ErrnoException).code) : undefined,
+        }
+      : err !== null &&
+          typeof err === "object" &&
+          typeof (err as Record<string, unknown>).name === "string"
         ? { name: String((err as Record<string, unknown>).name), message: "", code: undefined }
         : null)
 

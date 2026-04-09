@@ -2,10 +2,12 @@
 //
 // Functions: GET, DELETE
 
+import { existsSync } from "node:fs"
 import { writeFile } from "node:fs/promises"
+import { dirname } from "node:path"
 import { NextResponse } from "next/server"
 import { authenticate } from "@/lib/api-helpers"
-import { DEFAULT_LOG_FILE } from "@/lib/constants"
+import { DEFAULT_LOG_FILE, DEV_LOG_FILE } from "@/lib/constants"
 import { readLogTail } from "@/lib/log-reader"
 import { log } from "@/lib/logger"
 
@@ -31,7 +33,9 @@ export async function DELETE(_request: Request): Promise<NextResponse> {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
-  const logFile = process.env.LOG_FILE || DEFAULT_LOG_FILE
+  const logFile =
+    process.env.LOG_FILE ??
+    (existsSync(dirname(DEFAULT_LOG_FILE)) ? DEFAULT_LOG_FILE : DEV_LOG_FILE)
   try {
     await writeFile(logFile, "", "utf8")
     log.info({ route: "DELETE /api/settings/logs" }, "log file cleared by user")

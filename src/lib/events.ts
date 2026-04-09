@@ -1,7 +1,7 @@
 // src/lib/events.ts
 //
-// Functions: parseLogLine, sanitizeLogDetail, classifyLogEvent,
-//            pinoLevelToSeverity, snapshotToEvent, backupToEvent, mergeAndSort
+// Functions: parseLogLine, sanitizeLogDetail, classifyLogEvent, pinoLevelToSeverity,
+//            snapshotToEvent, backupToEvent, mergeAndSort, groupPollBatches
 
 import { sanitizeNetworkError } from "@/lib/error-utils"
 import { bytesToGiB, formatBytesNum, formatRatioDisplay } from "@/lib/formatters"
@@ -23,6 +23,7 @@ export interface SystemEvent {
   trackerId: number | null
   trackerName: string | null
   source: "log" | "db"
+  children?: SystemEvent[]
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -258,4 +259,61 @@ export function mergeAndSort(
 
   // Paginate
   return combined.slice(offset, offset + limit)
+}
+
+// ── Batch Grouping ──────────────────────────────────────────────────────────
+
+/**
+ * Collapses consecutive "Poll succeeded" events that share the same timestamp
+ * (from a single scheduler batch) into a single parent event with children.
+ * Non-poll events and lone polls pass through unchanged.
+ */
+export function groupPollBatches(events: SystemEvent[]): SystemEvent[] {
+  const result: SystemEvent[] = []
+
+  let i = 0
+  while (i < events.length) {
+    const event = events[i]
+
+    if (event.category !== "polls" || event.title !== "Poll succeeded") {
+      result.push(event)
+      i++
+      continue
+    }
+
+    // Collect consecutive poll-succeeded events with the same timestamp
+    const batch: SystemEvent[] = [event]
+    let j = i + 1
+    while (
+      j < events.length &&
+      events[j].category === "polls" &&
+      events[j].title === "Poll succeeded" &&
+      events[j].timestamp === event.timestamp
+    ) {
+      batch.push(events[j])
+      j++
+    }
+
+    if (batch.length === 1) {
+      result.push(event)
+    } else {
+      const names = batch.map((e) => e.trackerName ?? "Unknown").join(", ")
+      result.push({
+        id: `batch-${event.timestamp}`,
+        timestamp: event.timestamp,
+        category: "polls",
+        level: "info",
+        title: `Poll succeeded for ${batch.length} trackers`,
+        detail: names,
+        trackerId: null,
+        trackerName: null,
+        source: "db",
+        children: batch,
+      })
+    }
+
+    i = j
+  }
+
+  return result
 }

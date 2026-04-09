@@ -2,17 +2,22 @@
 //
 // Exports: log
 
-import { mkdirSync } from "node:fs"
+import { existsSync, mkdirSync } from "node:fs"
 import { dirname } from "node:path"
 import pino from "pino"
 import pretty from "pino-pretty"
-import { DEFAULT_LOG_FILE } from "@/lib/constants"
+import { DEFAULT_LOG_FILE, DEV_LOG_FILE } from "@/lib/constants"
 
 const g = globalThis as typeof globalThis & { __logger?: pino.Logger }
 
 function createLogger(): pino.Logger {
   const level = process.env.LOG_LEVEL || "info"
-  const logFile = process.env.LOG_FILE ?? DEFAULT_LOG_FILE
+  // Explicit LOG_FILE always wins. Otherwise use the Docker path if it exists,
+  // or fall back to a local .next/ file so the events tab works in dev.
+  const explicitLogFile = process.env.LOG_FILE
+  const logFile =
+    explicitLogFile ??
+    (existsSync(dirname(DEFAULT_LOG_FILE)) ? DEFAULT_LOG_FILE : DEV_LOG_FILE)
 
   const prettyStream = pretty({
     colorize: process.stdout.isTTY ?? false,
@@ -31,9 +36,7 @@ function createLogger(): pino.Logger {
       })
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      process.stderr.write(
-        `[logger] Cannot write to log file "${logFile}": ${msg}. Falling back to stdout only.\n`
-      )
+      process.stderr.write(`[logger] Log file "${logFile}" unavailable: ${msg}\n`)
     }
   }
 

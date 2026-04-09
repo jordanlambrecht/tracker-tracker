@@ -163,7 +163,9 @@ export function EventsSection() {
     })
   }, [])
 
-  const allCategoriesActive = categories.size === EVENT_CATEGORIES.length
+  // "errors" category is always active (filtered by level instead), so exclude from pills
+  const displayCategories = EVENT_CATEGORIES.filter((c) => c !== "errors")
+  const allDisplayActive = displayCategories.every((c) => categories.has(c))
 
   // Track date separators across the render
   let lastDateKey = ""
@@ -184,6 +186,7 @@ export function EventsSection() {
         <DownloadButton
           url="/api/settings/logs/download"
           fallbackFilename={`tracker-tracker-${localDateStr()}.log`}
+          notFoundMessage="Log file not available (file logging is only active in Docker)"
           onError={setDownloadError}
         />
         <button
@@ -212,12 +215,16 @@ export function EventsSection() {
       <div className="flex flex-wrap items-center gap-2">
         <FilterPill
           size="sm"
-          active={allCategoriesActive}
-          onClick={() => categories.reset(EVENT_CATEGORIES)}
-          text="All"
+          active={allDisplayActive}
+          onClick={() =>
+            allDisplayActive
+              ? categories.reset(["errors"])
+              : categories.reset(EVENT_CATEGORIES)
+          }
+          text={allDisplayActive ? "None" : "All"}
         />
 
-        {EVENT_CATEGORIES.map((cat) => (
+        {displayCategories.map((cat) => (
           <FilterPill
             key={cat}
             size="sm"
@@ -277,13 +284,25 @@ export function EventsSection() {
           </p>
         ) : (
           filteredEvents.map((event, i) => {
-            const style = CATEGORY_STYLES[event.category]
+            const baseStyle = CATEGORY_STYLES[event.category]
+            const levelOverride =
+              event.level === "error" || event.level === "warn"
+                ? {
+                    border: event.level === "error" ? "border-l-danger" : "border-l-warn",
+                    icon: event.level === "error" ? "✕" : "⚠",
+                    iconColor:
+                      event.level === "error" ? "text-danger" : "text-warn",
+                  }
+                : null
+            const style = levelOverride ?? baseStyle
             const dateKey = getDateKey(event.timestamp)
             const showDateSep = dateKey !== lastDateKey
             lastDateKey = dateKey
 
             const isExpanded = expandedIds.has(event.id)
-            const hasDetail = Boolean(event.detail)
+            const hasBatch = Boolean(event.children?.length)
+            const hasDetail = Boolean(event.detail) || hasBatch
+            const isExpandable = hasDetail
 
             return (
               <div key={event.id}>
@@ -297,7 +316,7 @@ export function EventsSection() {
                     "flex flex-col gap-0 px-3 py-1.5 text-xs font-mono border-l-3 w-full text-left",
                     style.border,
                     i % 2 === 0 ? "bg-control-bg" : "bg-elevated/50",
-                    hasDetail &&
+                    isExpandable &&
                       "cursor-pointer hover:bg-elevated/80 transition-colors duration-100"
                   )
                   const inner = (
@@ -306,26 +325,27 @@ export function EventsSection() {
                         <span
                           className={clsx("shrink-0 w-3 text-center leading-none", style.iconColor)}
                         >
-                          {style.icon}
+                          {hasBatch ? (isExpanded ? "▾" : "▸") : style.icon}
                         </span>
                         <span className="text-tertiary shrink-0 tabular-nums w-15.5">
                           {formatTime(event.timestamp)}
                         </span>
                         <span className="text-secondary shrink-0">{event.title}</span>
-                        {hasDetail && !isExpanded && (
+                        {hasDetail && !isExpanded && !hasBatch && (
                           <span className="text-tertiary truncate whitespace-nowrap">
                             — {event.detail}
                           </span>
                         )}
                       </div>
-                      {isExpanded && event.detail && (
+                      {isExpanded && !hasBatch && event.detail && (
                         <pre className="text-tertiary text-2xs leading-relaxed whitespace-pre-wrap break-all pl-[calc(0.75rem+62px+0.5rem)] pt-1 pb-0.5 select-text">
                           {event.detail}
                         </pre>
                       )}
                     </>
                   )
-                  return hasDetail ? (
+
+                  const row = isExpandable ? (
                     <button
                       type="button"
                       onClick={() => handleToggleExpand(event.id)}
@@ -335,6 +355,32 @@ export function EventsSection() {
                     </button>
                   ) : (
                     <div className={rowClass}>{inner}</div>
+                  )
+
+                  return (
+                    <>
+                      {row}
+                      {isExpanded && hasBatch && (
+                        <div className="border-l-3 border-l-accent/30">
+                          {event.children!.map((child, ci) => (
+                            <div
+                              key={child.id}
+                              className={clsx(
+                                "flex items-baseline gap-2 px-3 py-1 text-xs font-mono pl-8",
+                                ci % 2 === 0 ? "bg-control-bg/60" : "bg-elevated/30"
+                              )}
+                            >
+                              <span className="text-success shrink-0 w-3 text-center text-2xs">
+                                ✓
+                              </span>
+                              <span className="text-tertiary truncate">
+                                {child.detail}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
                   )
                 })()}
               </div>

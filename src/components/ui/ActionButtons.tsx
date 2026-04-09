@@ -56,11 +56,19 @@ interface DownloadButtonProps {
   url: string
   fallbackFilename: string
   label?: string
+  notFoundMessage?: string
   onError?: (message: string) => void
   className?: string
 }
 
-function DownloadButton({ url, fallbackFilename, label, onError, className }: DownloadButtonProps) {
+function DownloadButton({
+  url,
+  fallbackFilename,
+  label,
+  notFoundMessage = "File not found",
+  onError,
+  className,
+}: DownloadButtonProps) {
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
 
@@ -69,7 +77,7 @@ function DownloadButton({ url, fallbackFilename, label, onError, className }: Do
     try {
       const res = await fetch(url)
       if (!res.ok) {
-        onError?.(res.status === 404 ? "File not found" : "Download failed")
+        onError?.(res.status === 404 ? notFoundMessage : "Download failed")
         return
       }
       await downloadResponseBlob(res, fallbackFilename)
@@ -80,7 +88,7 @@ function DownloadButton({ url, fallbackFilename, label, onError, className }: Do
     } finally {
       setLoading(false)
     }
-  }, [url, fallbackFilename, onError])
+  }, [url, fallbackFilename, notFoundMessage, onError])
 
   const icon = done ? (
     <CheckLargeIcon width="12" height="12" className="text-success" />

@@ -2,13 +2,17 @@
 //
 // Functions: readLogTail
 
+import { existsSync } from "node:fs"
 import { open, stat } from "node:fs/promises"
-import { DEFAULT_LOG_FILE } from "@/lib/constants"
+import { dirname } from "node:path"
+import { DEFAULT_LOG_FILE, DEV_LOG_FILE } from "@/lib/constants"
 
 export async function readLogTail(
   maxBytes: number
 ): Promise<{ content: string; sizeBytes: number }> {
-  const logFile = process.env.LOG_FILE || DEFAULT_LOG_FILE
+  const logFile =
+    process.env.LOG_FILE ??
+    (existsSync(dirname(DEFAULT_LOG_FILE)) ? DEFAULT_LOG_FILE : DEV_LOG_FILE)
 
   const info = await stat(logFile)
   const readSize = Math.min(maxBytes, info.size)

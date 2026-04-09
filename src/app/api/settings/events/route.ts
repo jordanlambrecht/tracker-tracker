@@ -11,6 +11,7 @@ import {
   backupToEvent,
   EVENT_CATEGORIES,
   type EventCategory,
+  groupPollBatches,
   mergeAndSort,
   parseLogLine,
   type SystemEvent,
@@ -127,8 +128,8 @@ export async function GET(request: Request): Promise<NextResponse> {
         : dbEvents.reduce((count, e) => (e.category === category ? count + 1 : count), 0) +
           logEvents.reduce((count, e) => (e.category === category ? count + 1 : count), 0)
 
-    // Sort and paginate
-    const events = mergeAndSort(dbEvents, logEvents, category, limit, offset)
+    // Sort, paginate, then collapse same-timestamp polls into batches
+    const events = groupPollBatches(mergeAndSort(dbEvents, logEvents, category, limit, offset))
 
     return NextResponse.json({
       events,
