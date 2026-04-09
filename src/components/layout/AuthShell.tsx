@@ -6,6 +6,7 @@ import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { Sidebar } from "@/components/layout/Sidebar"
+import { WhatsNew } from "@/components/layout/WhatsNew"
 import { BackToTop } from "@/components/ui/BackToTop"
 import { HamburgerIcon } from "@/components/ui/Icons"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
@@ -99,6 +100,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
         </div>
         <BackToTop scrollRef={mainRef} />
       </main>
+      <WhatsNew />
     </div>
   )
 }

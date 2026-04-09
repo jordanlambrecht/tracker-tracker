@@ -28,6 +28,7 @@ export type { FilterPillInactive, FilterPillProps, FilterPillSize } from "./Filt
 export { FilterPill } from "./FilterPill"
 export {
   ActivityIcon,
+  BookIcon,
   BoxIcon,
   BugIcon,
   CheckIcon,

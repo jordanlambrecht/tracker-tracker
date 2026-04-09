@@ -8,6 +8,7 @@ const pillTagVariants = cva("nm-inset-sm bg-control-bg rounded-nm-pill font-mono
   variants: {
     color: {
       accent: "text-accent",
+      warn: "text-warn",
       danger: "text-danger",
       secondary: "text-secondary",
       tertiary: "text-tertiary",

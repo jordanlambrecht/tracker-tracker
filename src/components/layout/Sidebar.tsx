@@ -4,23 +4,20 @@
 
 import { closestCenter, DndContext } from "@dnd-kit/core"
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
-import { EyeIcon, EyeOffIcon, GitHubIcon } from "@icons"
-import { H2 } from "@typography"
+import { BookIcon, EyeIcon, EyeOffIcon, GitHubIcon } from "@icons"
 import clsx from "clsx"
-import dynamic from "next/dynamic"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
-import { useMemo, useRef, useState } from "react"
+import { useMemo, useState } from "react"
 import { AddTrackerDialog } from "@/components/AddTrackerDialog"
+import { ChangelogDialog } from "@/components/layout/ChangelogDialog"
 import { DownloadClientStatusWidget } from "@/components/layout/DownloadClientStatusWidget"
 import { SortableTrackerItem } from "@/components/layout/SortableTrackerItem"
-import { Button, ChevronToggle, Select, Shimmer, Tooltip } from "@/components/ui"
+import { Button, ChevronToggle, PillTag, Select, Shimmer, Tooltip } from "@/components/ui"
 import { useSidebarPreferences } from "@/hooks/useSidebarPreferences"
 import { useTrackerList } from "@/hooks/useTrackerList"
 import { useUpdateCheck } from "@/hooks/useUpdateCheck"
 import { DOCS_URL } from "@/lib/constants"
-
-const ChangelogContent = dynamic(() => import("./ChangelogContent"), { ssr: false })
 
 interface SidebarProps {
   collapsed: boolean
@@ -31,8 +28,6 @@ interface SidebarProps {
 function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [changelogOpen, setChangelogOpen] = useState(false)
-  const [changelogContent, setChangelogContent] = useState<string | null>(null)
-  const changelogRef = useRef<HTMLDialogElement>(null)
 
   const pathname = usePathname()
   const router = useRouter()
@@ -57,18 +52,8 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
 
   const existingBaseUrls = useMemo(() => trackers.map((t) => t.baseUrl), [trackers])
 
-  async function openChangelog() {
-    if (changelogContent === null) {
-      try {
-        const res = await fetch("/api/changelog")
-        const data = await res.json()
-        setChangelogContent(data.content)
-      } catch {
-        setChangelogContent("Failed to load changelog.")
-      }
-    }
+  function openChangelog() {
     setChangelogOpen(true)
-    requestAnimationFrame(() => changelogRef.current?.showModal())
   }
 
   return (
@@ -301,14 +286,17 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
             </div>
 
             {/* Version + GitHub + Docs */}
-            <div className="flex items-center gap-2 px-1 pt-2">
+            <div className="flex items-center gap-2.5 px-1 pt-4 pb-1">
               <button
                 type="button"
                 onClick={openChangelog}
-                className="timestamp hover:text-secondary transition-colors duration-150 cursor-pointer text-left"
+                className="font-mono text-xs text-tertiary hover:text-secondary transition-colors duration-150 cursor-pointer text-left"
               >
                 v{process.env.NEXT_PUBLIC_APP_VERSION}
               </button>
+              {process.env.NEXT_PUBLIC_RELEASE_CHANNEL === "development" && (
+                <PillTag color="warn" size="sm" label="dev" />
+              )}
               {updateAvailable && latestVersion && (
                 <a
                   href={`https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v${latestVersion}`}
@@ -328,19 +316,19 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
                 href="https://github.com/jordanlambrecht/tracker-tracker"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-muted hover:text-secondary transition-colors duration-150 shrink-0"
+                className="text-tertiary hover:text-secondary transition-colors duration-150 shrink-0"
                 aria-label="GitHub repository"
               >
-                <GitHubIcon width="12" height="12" />
+                <GitHubIcon width="15" height="15" />
               </a>
               <a
                 href={DOCS_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="torrent-cell hover:text-secondary transition-colors duration-150 shrink-0"
+                className="text-tertiary hover:text-secondary transition-colors duration-150 shrink-0"
                 aria-label="Documentation"
               >
-                ?
+                <BookIcon width="15" height="15" />
               </a>
             </div>
           </div>
@@ -358,59 +346,7 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
         existingBaseUrls={existingBaseUrls}
       />
 
-      {/* Changelog modal */}
-      {changelogOpen && (
-        <dialog
-          ref={changelogRef}
-          onClick={(e) => {
-            if (e.target === changelogRef.current) {
-              changelogRef.current?.close()
-              setChangelogOpen(false)
-            }
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") {
-              changelogRef.current?.close()
-              setChangelogOpen(false)
-            }
-          }}
-          onClose={() => setChangelogOpen(false)}
-          className="fixed inset-0 m-auto w-full max-w-2xl max-h-[80vh] bg-elevated p-0 overflow-hidden backdrop:bg-black/60 open:flex open:flex-col nm-raised-lg rounded-nm-xl border-0"
-        >
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-            <H2 className="text-base font-semibold text-primary">
-              Changelog — v{process.env.NEXT_PUBLIC_APP_VERSION}
-            </H2>
-            <Button
-              variant="minimal"
-              size="icon"
-              className="-m-1 hover:text-primary"
-              aria-label="Close changelog"
-              onClick={() => {
-                changelogRef.current?.close()
-                setChangelogOpen(false)
-              }}
-              text="✕"
-            />
-          </div>
-          <div className="overflow-y-auto px-6 py-5 styled-scrollbar prose prose-invert prose-sm max-w-none prose-headings:font-mono prose-headings:text-primary prose-h1:text-lg prose-h2:text-base prose-h2:text-white prose-h2:border-b prose-h2:border-border prose-h2:pb-2 prose-h3:text-sm prose-li:text-secondary prose-p:text-secondary prose-strong:text-primary prose-a:text-accent">
-            {changelogContent ? (
-              <ChangelogContent content={changelogContent} />
-            ) : (
-              <div className="flex flex-col gap-3">
-                <Shimmer size="heading" className="w-48" />
-                <Shimmer size="bar" className="w-full" />
-                <Shimmer size="bar" className="w-5/6" />
-                <Shimmer size="bar" className="w-full" />
-                <Shimmer size="bar" className="w-3/4" />
-                <Shimmer size="heading" className="w-40 mt-2" />
-                <Shimmer size="bar" className="w-full" />
-                <Shimmer size="bar" className="w-4/5" />
-              </div>
-            )}
-          </div>
-        </dialog>
-      )}
+      <ChangelogDialog open={changelogOpen} onClose={() => setChangelogOpen(false)} />
     </>
   )
 }

@@ -5,8 +5,8 @@
 //            CheckIcon, CheckLargeIcon, CopyIcon, GitHubIcon, UploadArrowIcon, DownloadArrowIcon,
 //            UserIcon, PlusIcon, ActivityIcon, ShareScoreIcon, ShieldIcon, StarIcon,
 //            LeechingIcon, SeedingIcon, TriangleWarningIcon, RatioIcon, GridIcon,
-//            ClockIcon, BoxIcon, ServerIcon, TagIcon, BugIcon, XIcon, TransitPapersIcon,
-//            SpinnerIcon, InfoIcon, QuestionIcon
+//            ClockIcon, BoxIcon, ServerIcon, TagIcon, BookIcon, BugIcon, XIcon,
+//            TransitPapersIcon, SpinnerIcon, InfoIcon, QuestionIcon
 
 import type { SVGProps } from "react"
 
@@ -747,6 +747,25 @@ function GitHubIcon(props: IconProps) {
   )
 }
 
+// Open book — documentation links
+function BookIcon(props: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    </svg>
+  )
+}
+
 // Question circle — used in InfoTip question variant
 function QuestionIcon(props: IconProps) {
   return (
@@ -789,6 +808,7 @@ function InfoIcon(props: IconProps) {
 
 export {
   ActivityIcon,
+  BookIcon,
   BoxIcon,
   BugIcon,
   CheckIcon,
