@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.8.9](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.8.8...v2.8.9) (2026-04-10)
+
+
+### Bug Fixes
+
+-  timeout for fetch requests
+- ensure version tag points to the correct commit during release
+
 ## [2.8.8](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.8.7...v2.8.8) (2026-04-10)
 
 
