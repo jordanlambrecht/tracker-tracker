@@ -439,7 +439,7 @@ export async function pollTracker(
         source: isManual ? "manual" : "scheduled",
         previousFailures: tracker?.consecutiveFailures ?? "unknown",
       },
-      `Poll failed for tracker ${trackerId}: ${raw}`
+      `Poll failed for tracker ${trackerId}: ${message}`
     )
 
     try {

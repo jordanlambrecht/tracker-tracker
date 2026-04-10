@@ -127,7 +127,10 @@ async function heartbeatClient(
     recordHeartbeat(client.id, false)
     const raw = error instanceof Error ? error.message : "Unknown error"
     const message = sanitizeNetworkError(raw)
-    log.error(`Heartbeat failed for client ${client.id}: ${raw}`)
+    log.error(
+      { clientId: client.id, clientName: client.name },
+      `Heartbeat failed for client ${client.id} (${client.name}): ${message}`
+    )
     try {
       await db
         .update(downloadClients)
@@ -300,7 +303,10 @@ export async function deepPollClient(
   } catch (error) {
     const raw = error instanceof Error ? error.message : "Unknown error"
     const message = sanitizeNetworkError(raw)
-    log.error(`Deep poll failed for client ${clientId}: ${raw}`)
+    log.error(
+      { clientId, clientName: client?.name },
+      `Deep poll failed for client ${clientId} (${client?.name ?? "unknown"}): ${message}`
+    )
     try {
       await db
         .update(downloadClients)

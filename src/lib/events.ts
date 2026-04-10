@@ -8,7 +8,7 @@ import { bytesToGiB, formatBytesNum, formatRatioDisplay } from "@/lib/formatters
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export const EVENT_CATEGORIES = ["polls", "auth", "settings", "backups", "errors"] as const
+export const EVENT_CATEGORIES = ["polls", "clients", "auth", "settings", "backups"] as const
 export type EventCategory = (typeof EVENT_CATEGORIES)[number]
 export const EVENT_LEVELS = ["debug", "info", "warn", "error"] as const
 export type EventLevel = (typeof EVENT_LEVELS)[number]
@@ -28,11 +28,9 @@ export interface SystemEvent {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const REDACT_IPV4_REGEX = /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g
-const REDACT_IPV6_REGEX = /(?:[0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}/g
-
+/** No-op: single-user self-hosted app, events tab is auth-gated. */
 function redactIps(s: string): string {
-  return s.replace(REDACT_IPV4_REGEX, "[redacted]").replace(REDACT_IPV6_REGEX, "[redacted]")
+  return s
 }
 
 /** Pino numeric levels → our severity */
@@ -84,6 +82,8 @@ interface PinoLine {
   route?: string
   trackerId?: number
   trackerName?: string
+  clientId?: number
+  clientName?: string
   ip?: string
   action?: string
   [key: string]: unknown
@@ -96,16 +96,18 @@ function classifyLogEvent(line: PinoLine): EventCategory {
   // Backup events
   if (line.event && BACKUP_EVENTS.has(line.event)) return "backups"
 
-  // Errors (level >= 50)
-  if (line.level >= 50) return "errors"
-
   // Settings/CRUD routes
   if (line.route && SETTINGS_ROUTES.some((r) => line.route?.startsWith(r))) return "settings"
 
-  // Poll-related (has trackerId or mentions poll)
+  // Download client events (heartbeat, deep-poll, client connection)
+  if (line.clientId || (line.msg && /heartbeat|deep.poll|client.scheduler/i.test(line.msg))) {
+    return "clients"
+  }
+
+  // Tracker poll events
   if (line.trackerId || (line.msg && /poll/i.test(line.msg))) return "polls"
 
-  // Default: settings (system startup, config, etc.)
+  // Default: settings (system startup, config, uncategorized errors)
   return "settings"
 }
 
@@ -113,6 +115,12 @@ function classifyLogEvent(line: PinoLine): EventCategory {
 
 function sanitizeLogDetail(line: PinoLine): string | null {
   const parts: string[] = []
+
+  // Include tracker/client name so errors are identifiable
+  const entityName = line.trackerName ?? line.clientName
+  if (entityName && typeof entityName === "string") {
+    parts.push(entityName)
+  }
 
   // Include action if present (e.g., "paused", "resumed")
   if (line.action) parts.push(String(line.action))

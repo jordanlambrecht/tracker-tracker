@@ -40,7 +40,7 @@ function CopyButton({ value, label, className }: CopyButtonProps) {
   return (
     <Button
       variant="secondary"
-      size="sm"
+      size={text ? "sm" : "icon"}
       onClick={handleCopy}
       aria-label="Copy to clipboard"
       leftIcon={icon}
@@ -101,7 +101,7 @@ function DownloadButton({
   return (
     <Button
       variant="secondary"
-      size="sm"
+      size={text ? "sm" : "icon"}
       onClick={handleDownload}
       disabled={loading}
       aria-label="Download file"

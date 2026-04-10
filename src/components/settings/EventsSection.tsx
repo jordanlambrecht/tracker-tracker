@@ -8,6 +8,7 @@ import clsx from "clsx"
 import { useCallback, useMemo, useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
 import { CopyButton, DownloadButton } from "@/components/ui/ActionButtons"
+import { Button } from "@/components/ui/Button"
 import { ConfirmAction } from "@/components/ui/ConfirmAction"
 import { FilterPill } from "@/components/ui/FilterPill"
 import { RefreshIcon, TrashIcon } from "@/components/ui/Icons"
@@ -24,10 +25,10 @@ import type { EventsPageResponse } from "@/types/api"
 const CATEGORY_STYLES: Record<EventCategory, { border: string; icon: string; iconColor: string }> =
   {
     polls: { border: "border-l-accent", icon: "✓", iconColor: "text-success" },
+    clients: { border: "border-l-sky-400", icon: "↕", iconColor: "text-sky-400" },
     auth: { border: "border-l-violet-400", icon: "◆", iconColor: "text-violet-400" },
     settings: { border: "border-l-warn", icon: "●", iconColor: "text-warn" },
     backups: { border: "border-l-success", icon: "■", iconColor: "text-success" },
-    errors: { border: "border-l-danger", icon: "✕", iconColor: "text-danger" },
   }
 
 const LEVEL_TEXT_COLORS: Record<EventLevel, string> = {
@@ -36,9 +37,6 @@ const LEVEL_TEXT_COLORS: Record<EventLevel, string> = {
   warn: "text-warn",
   error: "text-danger",
 }
-
-const ICON_BUTTON_CLASS =
-  "flex items-center gap-2 px-2.5 py-1.5 text-xs font-sans font-medium text-tertiary hover:text-primary bg-elevated nm-raised-sm rounded-nm-sm transition-colors duration-150 cursor-pointer"
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], {
@@ -163,9 +161,7 @@ export function EventsSection() {
     })
   }, [])
 
-  // "errors" category is always active (filtered by level instead), so exclude from pills
-  const displayCategories = EVENT_CATEGORIES.filter((c) => c !== "errors")
-  const allDisplayActive = displayCategories.every((c) => categories.has(c))
+  const allCategoriesActive = categories.size === EVENT_CATEGORIES.length
 
   // Track date separators across the render
   let lastDateKey = ""
@@ -189,24 +185,22 @@ export function EventsSection() {
           notFoundMessage="Log file not available (file logging is only active in Docker)"
           onError={setDownloadError}
         />
-        <button
-          type="button"
+        <Button
+          variant="secondary"
+          size="icon"
           onClick={() => queryClient.invalidateQueries({ queryKey: ["events"] })}
           aria-label="Refresh events"
-          className={ICON_BUTTON_CLASS}
-        >
-          <RefreshIcon width="12" height="12" />
-        </button>
-        <button
-          type="button"
+          leftIcon={<RefreshIcon width="12" height="12" />}
+        />
+        <Button
+          variant={clearConfirm ? "danger" : "secondary"}
+          size="icon"
           onClick={() => setClearConfirm((v) => !v)}
           aria-label={
             logSizeBytes > 0 ? `Clear logs (${formatBytesNum(logSizeBytes)})` : "Clear logs"
           }
-          className={clsx(ICON_BUTTON_CLASS, clearConfirm && "text-danger!")}
-        >
-          <TrashIcon width="12" height="12" />
-        </button>
+          leftIcon={<TrashIcon width="12" height="12" />}
+        />
       </div>
 
       <div className="border-t border-border my-3" />
@@ -215,16 +209,14 @@ export function EventsSection() {
       <div className="flex flex-wrap items-center gap-2">
         <FilterPill
           size="sm"
-          active={allDisplayActive}
+          active={allCategoriesActive}
           onClick={() =>
-            allDisplayActive
-              ? categories.reset(["errors"])
-              : categories.reset(EVENT_CATEGORIES)
+            allCategoriesActive ? categories.reset([]) : categories.reset(EVENT_CATEGORIES)
           }
-          text={allDisplayActive ? "None" : "All"}
+          text={allCategoriesActive ? "None" : "All"}
         />
 
-        {displayCategories.map((cat) => (
+        {EVENT_CATEGORIES.map((cat) => (
           <FilterPill
             key={cat}
             size="sm"
@@ -275,7 +267,7 @@ export function EventsSection() {
       <Notice message={error ?? downloadError} />
 
       {/* ── Event stream ─────────────────────────────────────────── */}
-      <div className="nm-inset-sm bg-control-bg overflow-x-auto overflow-y-auto max-h-140 styled-scrollbar rounded-nm-md">
+      <div className="nm-inset-sm bg-control-bg overflow-x-hidden overflow-y-auto max-h-140 styled-scrollbar rounded-nm-md">
         {loading && events.length === 0 ? (
           <EventLogSkeleton />
         ) : filteredEvents.length === 0 ? (
@@ -285,16 +277,18 @@ export function EventsSection() {
         ) : (
           filteredEvents.map((event, i) => {
             const baseStyle = CATEGORY_STYLES[event.category]
-            const levelOverride =
-              event.level === "error" || event.level === "warn"
-                ? {
-                    border: event.level === "error" ? "border-l-danger" : "border-l-warn",
-                    icon: event.level === "error" ? "✕" : "⚠",
-                    iconColor:
-                      event.level === "error" ? "text-danger" : "text-warn",
-                  }
-                : null
-            const style = levelOverride ?? baseStyle
+            const LEVEL_STYLES: Partial<
+              Record<EventLevel, { border: string; icon: string; iconColor: string }>
+            > = {
+              error: { border: "border-l-danger", icon: "✕", iconColor: "text-danger" },
+              warn: { border: "border-l-warn", icon: "⚠", iconColor: "text-warn" },
+              debug: {
+                border: "border-l-violet-400/50",
+                icon: "·",
+                iconColor: "text-violet-400/60",
+              },
+            }
+            const style = LEVEL_STYLES[event.level] ?? baseStyle
             const dateKey = getDateKey(event.timestamp)
             const showDateSep = dateKey !== lastDateKey
             lastDateKey = dateKey
@@ -321,7 +315,7 @@ export function EventsSection() {
                   )
                   const inner = (
                     <>
-                      <div className="flex items-baseline gap-2 min-w-fit">
+                      <div className="flex items-baseline gap-2 min-w-0">
                         <span
                           className={clsx("shrink-0 w-3 text-center leading-none", style.iconColor)}
                         >
@@ -332,9 +326,7 @@ export function EventsSection() {
                         </span>
                         <span className="text-secondary shrink-0">{event.title}</span>
                         {hasDetail && !isExpanded && !hasBatch && (
-                          <span className="text-tertiary truncate whitespace-nowrap">
-                            — {event.detail}
-                          </span>
+                          <span className="text-tertiary truncate">— {event.detail}</span>
                         )}
                       </div>
                       {isExpanded && !hasBatch && event.detail && (
@@ -362,7 +354,7 @@ export function EventsSection() {
                       {row}
                       {isExpanded && hasBatch && (
                         <div className="border-l-3 border-l-accent/30">
-                          {event.children!.map((child, ci) => (
+                          {event.children?.map((child, ci) => (
                             <div
                               key={child.id}
                               className={clsx(
@@ -373,9 +365,7 @@ export function EventsSection() {
                               <span className="text-success shrink-0 w-3 text-center text-2xs">
                                 ✓
                               </span>
-                              <span className="text-tertiary truncate">
-                                {child.detail}
-                              </span>
+                              <span className="text-tertiary truncate">{child.detail}</span>
                             </div>
                           ))}
                         </div>

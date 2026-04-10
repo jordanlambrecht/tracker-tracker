@@ -62,14 +62,15 @@ function buildOption(
   const dotSize = adaptiveDotSize(snapshots.length)
   const complementColor = getComplementaryColor(accentColor)
 
-  // Dynamic Y-axis padding — recalculates when series are toggled via legend
-  const dataZoom: EChartsOption["dataZoom"] = showDataZoom
+  // Scrubber is useless (and renders oversized) with ≤ 2 data points
+  const hasEnoughData = showDataZoom && snapshots.length > 2
+  const dataZoom: EChartsOption["dataZoom"] = hasEnoughData
     ? (chartDataZoom(accentColor) as EChartsOption["dataZoom"])
     : []
 
   return {
     backgroundColor: "transparent",
-    grid: chartGrid({ top: 40, right: 16, bottom: showDataZoom ? 80 : 40, left: 64 }),
+    grid: chartGrid({ top: 40, right: 16, bottom: hasEnoughData ? 80 : 40, left: 64 }),
     tooltip: chartTooltip("axis", {
       borderColor: accentColor,
       axisPointer: buildAxisPointer(accentColor, 0.3, 1),
