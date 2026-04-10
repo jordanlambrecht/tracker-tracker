@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.8.8](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.8.7...v2.8.8) (2026-04-10)
+
+
+### Bug Fixes
+
+- **release:** broken auto-release ci
+
 ## [2.8.7](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v2.8.7) (2026-04-10)
 
 ### Features
