@@ -43,13 +43,20 @@ jobs:
             echo "New version ${VERSION} detected — will create release."
           fi
 
-      - name: Ensure version tag exists
+      - name: Ensure version tag points to this commit
         if: steps.tag.outputs.should_release == 'true'
         env:
           TAG_VERSION: ${{ steps.tag.outputs.version }}
         run: |
           TAG="v${TAG_VERSION}"
-          if ! git rev-parse "$TAG" >/dev/null 2>&1; then
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            TAG_SHA="$(git rev-list -n 1 "$TAG")"
+            if [ "$TAG_SHA" != "$GITHUB_SHA" ]; then
+              echo "Tag $TAG points to $TAG_SHA, retagging to $GITHUB_SHA (main merge commit)."
+              git tag -f "$TAG" "$GITHUB_SHA"
+              git push origin "$TAG" --force
+            fi
+          else
             git tag "$TAG"
             git push origin "$TAG"
           fi
