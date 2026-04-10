@@ -1,40 +1,35 @@
 # Changelog
 
-## [2.8.7](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.8.6...v2.8.7) (2026-04-10)
-
-
-### Features
-
-- **trackers:** detects truncated cookies
-
-
-### Bug Fixes
-
-- **events:** update event categories and improve error logging
-- **trackers:** missing profile parsing items for AnimeZ
-
-## [2.8.6](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.8.5...v2.8.6) (2026-04-09)
-
-
-### Bug Fixes
-
-- **trackers:** profile parsing
-
-## [2.8.5](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.8.4...v2.8.5) (2026-04-09)
-
-
-### Bug Fixes
-
-- changelog now shows all missed releases not just latest
-- **trackers:** add batch tolerance for overdue checks to prevent drift
-
-## [2.8.4](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.8.3...v2.8.4) (2026-04-09)
-
+## [2.8.7](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v2.8.7) (2026-04-10)
 
 ### Features
 
-- new "What's New" dialog
-- **settings:** log files now batch in the events tab
+* **trackers:** detects truncated cookies
+
+### Bug Fixes
+
+* **events:** update event categories and improve error logging
+* **trackers:** missing profile parsing items for AnimeZ
+
+## [2.8.6](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v2.8.6) (2026-04-09)
+
+### Bug Fixes
+
+* **trackers:** profile parsing
+
+## [2.8.5](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v2.8.5) (2026-04-09)
+
+### Bug Fixes
+
+* changelog now shows all missed releases not just latest
+* **trackers:** add batch tolerance for overdue checks to prevent drift
+
+## [2.8.4](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v2.8.4) (2026-04-09)
+
+### Features
+
+* new "What's New" dialog
+* **settings:** log files now batch in the events tab
 
 ## [2.8.3](https://github.com/jordanlambrecht/tracker-tracker/releases/tag/v2.8.3) (2026-04-09)
 
