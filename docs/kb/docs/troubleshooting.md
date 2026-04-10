@@ -351,6 +351,26 @@ These appear on individual client cards in **Settings → Download Clients**.
 
 ---
 
+### `Tracker test failed` (AvistaZ / cookie-based trackers)
+
+**Cause:** Cookie string contains a non-ASCII character (usually `…` from browser truncation).
+
+Firefox and some Chromium browsers truncate long header values in their DevTools display, replacing the end with a `…` (ellipsis) character. If you select and copy the displayed text instead of using "Copy Value", the truncated string gets pasted into the dialog. HTTP headers can't contain non-ASCII characters, so the connection fails.
+
+!!! success "Solution"
+
+    1. Open DevTools → **Network** tab → click any request.
+    2. Find the **Cookie** header in Request Headers.
+    3. **Right-click** the Cookie header → **Copy Value** (do not select the text manually).
+    4. Paste the full value into the Add Tracker dialog.
+
+    ![Right-click Copy Value in Firefox DevTools](assets/images/avistaz-cookie-copy-value.png)
+
+!!! tip "How to tell if your cookies are truncated"
+    The Add Tracker dialog shows a yellow warning if it detects a `…` character in the cookie string. If you see this warning, re-copy using right-click → Copy Value.
+
+---
+
 ### `baseUrl must use https:// or http://`
 
 **Cause:** URL uses unsupported scheme (e.g. `ftp://`) or missing scheme.

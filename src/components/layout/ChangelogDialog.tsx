@@ -27,9 +27,7 @@ export function ChangelogDialog({ open, onClose }: ChangelogDialogProps) {
 
   const header = (
     <div className="flex items-center gap-3">
-      <span className="font-mono text-sm text-primary">
-        v{process.env.NEXT_PUBLIC_APP_VERSION}
-      </span>
+      <span className="font-mono text-sm text-primary">v{process.env.NEXT_PUBLIC_APP_VERSION}</span>
       <a
         href="https://github.com/jordanlambrecht/tracker-tracker/releases"
         target="_blank"

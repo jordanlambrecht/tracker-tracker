@@ -139,7 +139,10 @@ export async function POST(request: Request) {
       .returning()
 
     // SECURITY: Only return safe fields
-    log.info({ route: "POST /api/trackers", trackerId: tracker.id }, "tracker created")
+    log.info(
+      { route: "POST /api/trackers", trackerId: tracker.id, trackerName: tracker.name },
+      `tracker created: ${tracker.name}`
+    )
     return NextResponse.json({ id: tracker.id, name: tracker.name }, { status: 201 })
   } catch (err) {
     log.error({ route: "POST /api/trackers", error: errMsg(err) }, "Failed to create tracker")

@@ -462,8 +462,28 @@ describe("groupPollBatches", () => {
   it("does not group non-poll events even with matching timestamps", () => {
     const ts = "2026-04-09T12:00:00.000Z"
     const events: SystemEvent[] = [
-      { id: "b-1", timestamp: ts, category: "backups", level: "info", title: "Backup completed", detail: null, trackerId: null, trackerName: null, source: "db" },
-      { id: "b-2", timestamp: ts, category: "backups", level: "info", title: "Backup completed", detail: null, trackerId: null, trackerName: null, source: "db" },
+      {
+        id: "b-1",
+        timestamp: ts,
+        category: "backups",
+        level: "info",
+        title: "Backup completed",
+        detail: null,
+        trackerId: null,
+        trackerName: null,
+        source: "db",
+      },
+      {
+        id: "b-2",
+        timestamp: ts,
+        category: "backups",
+        level: "info",
+        title: "Backup completed",
+        detail: null,
+        trackerId: null,
+        trackerName: null,
+        source: "db",
+      },
     ]
     const grouped = groupPollBatches(events)
     expect(grouped).toHaveLength(2)
@@ -474,7 +494,17 @@ describe("groupPollBatches", () => {
     const events: SystemEvent[] = [
       makePollEvent("s-1", ts, "RED"),
       makePollEvent("s-2", ts, "OPS"),
-      { id: "auth-1", timestamp: ts, category: "auth", level: "info", title: "Login", detail: null, trackerId: null, trackerName: null, source: "log" },
+      {
+        id: "auth-1",
+        timestamp: ts,
+        category: "auth",
+        level: "info",
+        title: "Login",
+        detail: null,
+        trackerId: null,
+        trackerName: null,
+        source: "log",
+      },
       makePollEvent("s-3", ts, "Aither"),
     ]
     const grouped = groupPollBatches(events)

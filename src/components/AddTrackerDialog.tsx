@@ -6,6 +6,7 @@ import clsx from "clsx"
 import Image from "next/image"
 import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { CHART_THEME } from "@/components/charts/lib/theme"
+import { AreaInput } from "@/components/ui/AreaInput"
 import { Button } from "@/components/ui/Button"
 import { ColorPicker } from "@/components/ui/ColorPicker"
 import { Dialog } from "@/components/ui/Dialog"
@@ -293,17 +294,8 @@ function AddTrackerDialog({
   function validate(): Record<string, string> {
     const next: Record<string, string> = {}
 
-    if (!selectedPreset && !baseUrl.trim()) {
-      next.preset = "Select a tracker or enter a Base URL"
-    }
-    if (!baseUrl.trim()) {
-      next.baseUrl = "Base URL is required"
-    } else {
-      try {
-        new URL(baseUrl)
-      } catch {
-        next.baseUrl = "Invalid URL format"
-      }
+    if (!selectedPreset) {
+      next.preset = "Select a tracker"
     }
 
     if (selectedEntry?.platform === "avistaz") {
@@ -493,17 +485,6 @@ function AddTrackerDialog({
           placeholder={selectedEntry?.name ?? "Custom name for this tracker"}
         />
 
-        <Input
-          label="Base URL"
-          name="tracker-url"
-          autoComplete="off"
-          data-1p-ignore
-          value={baseUrl}
-          onChange={(e) => setBaseUrl(e.target.value)}
-          placeholder="https://aither.cc"
-          error={errors.baseUrl}
-        />
-
         {selectedEntry?.platform === "avistaz" ? (
           <div className="flex flex-col gap-3">
             <Input
@@ -516,23 +497,36 @@ function AddTrackerDialog({
               placeholder="Your username on this tracker"
             />
             <div className="flex flex-col gap-1">
-              <label
-                htmlFor="tracker-avistaz-cookies"
-                className="text-xs uppercase tracking-wider text-secondary font-mono"
-              >
-                Browser Cookies
-              </label>
-              <textarea
+              <div className="flex items-center gap-1">
+                <label
+                  htmlFor="tracker-avistaz-cookies"
+                  className="text-xs uppercase tracking-wider text-secondary font-sans font-medium"
+                >
+                  Browser Cookies
+                </label>
+                <InfoTip
+                  content="Open DevTools (F12) → Network tab → click any request → find the Cookie header → right-click it → Copy Value. Do not select the text directly, as Firefox truncates long values in the display."
+                  size="sm"
+                  docs={DOCS.ADDING_A_TRACKER}
+                />
+              </div>
+              <AreaInput
                 id="tracker-avistaz-cookies"
                 name="tracker-avistaz-cookies"
                 autoComplete="off"
                 data-1p-ignore
                 value={avistazCookies}
                 onChange={(e) => setAvistazCookies(e.target.value)}
-                placeholder="Paste Cookie header from browser DevTools (F12 → Network → any request → Cookie)"
+                placeholder="F12 → Network → any request → Cookie header → right-click → Copy Value"
                 rows={3}
-                className="w-full rounded-nm-sm bg-control-bg px-3 py-2 text-sm text-primary border border-transparent focus:border-accent focus:outline-none font-mono resize-y"
               />
+              {avistazCookies.includes("\u2026") && (
+                <Notice variant="warn">
+                  Cookie string appears truncated (contains &quot;&hellip;&quot;). Firefox truncates
+                  long values in the display. Right-click the Cookie header and select{" "}
+                  <strong>Copy Value</strong> instead.
+                </Notice>
+              )}
               <Notice message={errors.apiToken} />
             </div>
             {testResult && (
@@ -557,7 +551,7 @@ function AddTrackerDialog({
                 docs={DOCS.ADDING_A_TRACKER}
               />
             </div>
-            <textarea
+            <AreaInput
               id="tracker-dc-cookies"
               name="tracker-dc-cookies"
               autoComplete="off"
@@ -566,7 +560,6 @@ function AddTrackerDialog({
               onChange={(e) => setDcCookies(e.target.value)}
               placeholder="uid=56954; pass=abc123def456..."
               rows={2}
-              className="w-full font-mono text-sm text-primary bg-control-bg rounded-nm-md px-4 py-3 placeholder:text-muted nm-inset focus:outline-none focus:nm-inset border-0 resize-y"
             />
             <Notice message={errors.apiToken} />
             {testResult && (
@@ -645,21 +638,20 @@ function AddTrackerDialog({
 
         <ColorPicker label="Color" value={color} onChange={setColor} />
 
-        {!(
-          selectedEntry?.gazelleEnrich ||
-          selectedEntry?.platform === "ggn" ||
-          selectedEntry?.platform === "avistaz" ||
-          selectedEntry?.platform === "digitalcore"
-        ) && (
-          <Input
-            label="Join Date (optional)"
-            type="date"
-            value={joinedAt}
-            max={localDateStr()}
-            onChange={(e) => setJoinedAt(e.target.value)}
-            placeholder="YYYY-MM-DD"
-          />
-        )}
+        {selectedEntry &&
+          !selectedEntry.gazelleEnrich &&
+          selectedEntry.platform !== "ggn" &&
+          selectedEntry.platform !== "avistaz" &&
+          selectedEntry.platform !== "digitalcore" && (
+            <Input
+              label="Join Date (optional)"
+              type="date"
+              value={joinedAt}
+              max={localDateStr()}
+              onChange={(e) => setJoinedAt(e.target.value)}
+              placeholder="YYYY-MM-DD"
+            />
+          )}
 
         <Notice message={errors.form} />
       </div>

@@ -127,11 +127,19 @@ Location varies by platform:
     3. Go to the **Network** tab
     4. Refresh the page
     5. Click any request to the tracker's domain
-    6. Find the `Cookie` header in **Request Headers** and copy its full value
+    6. Find the `Cookie` header in **Request Headers**
+    7. **Right-click** the Cookie header and select **Copy Value**
+
+    ![Right-click Copy Value in Firefox DevTools](../assets/images/avistaz-cookie-copy-value.png)
 
     You'll also need your **username** on that tracker.
 
     Paste both into the Add Tracker dialog. The User-Agent gets captured automatically.
+
+    !!! danger "Do not select and copy the Cookie value directly"
+        Firefox (and some Chromium browsers) truncate long header values in the display, replacing the end with `…`. If you select the text and copy it, you'll get the truncated version with the ellipsis character embedded. This causes a "Tracker test failed" error.
+
+        Always use **right-click → Copy Value** to get the full, untruncated cookie string.
 
     !!! warning "Cookie expiration"
         The Cloudflare `cf_clearance` cookie expires periodically. When polling fails, refresh it by repeating the steps above.

@@ -295,7 +295,7 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
                 v{process.env.NEXT_PUBLIC_APP_VERSION}
               </button>
               {process.env.NEXT_PUBLIC_RELEASE_CHANNEL === "development" && (
-                <PillTag color="warn" size="sm" label="dev" />
+                <PillTag color="warn" size="md" label="dev" />
               )}
               {updateAvailable && latestVersion && (
                 <a

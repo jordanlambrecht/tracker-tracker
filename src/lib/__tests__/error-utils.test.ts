@@ -238,7 +238,9 @@ describe("classifyFetchError", () => {
   it("unwraps string cause from TypeError", () => {
     const err = new TypeError("fetch failed", { cause: "connect ECONNREFUSED 10.0.0.1:443" })
     const result = classifyFetchError(err, host)
-    expect(result.message).toBe("Failed to connect to avistaz.to: connect ECONNREFUSED 10.0.0.1:443")
+    expect(result.message).toBe(
+      "Failed to connect to avistaz.to: connect ECONNREFUSED 10.0.0.1:443"
+    )
   })
 
   it("returns Unknown for non-Error values", () => {

@@ -54,8 +54,8 @@ export function parseAvistazCredentials(apiToken: string): AvistazCredentials {
   if (!userAgent.trim()) throw new Error("AvistaZ credentials: userAgent cannot be empty")
   if (!username.trim()) throw new Error("AvistaZ credentials: username cannot be empty")
 
-  // Detect common copy-paste mistakes (like a user copied the cookie name instead of the value)
-  const trimmedCookies = cookies.trim()
+  // Strip "Cookie: " prefix if user copied from raw headers view
+  const trimmedCookies = cookies.trim().replace(/^Cookie:\s*/i, "")
   const cookieNameOnly = /^(cf_clearance|[a-z]+x_session|remember_web_\w+|XSRF-TOKEN|love)$/i
   if (cookieNameOnly.test(trimmedCookies)) {
     throw new Error(
@@ -67,6 +67,20 @@ export function parseAvistazCredentials(apiToken: string): AvistazCredentials {
   if (!trimmedCookies.includes("=")) {
     throw new Error(
       "Cookie string doesn't look right — it should contain key=value pairs (i.e. cf_clearance=abc123; session=xyz)"
+    )
+  }
+
+  // HTTP headers only allow byte-safe characters (0-255). Non-ASCII chars like
+  // ellipsis (U+2026) appear when DevTools truncates long values during copy.
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: intentional byte-range check
+  const nonAscii = trimmedCookies.match(/[^\x00-\xFF]/)
+  if (nonAscii) {
+    const char = nonAscii[0]
+    const code = char.codePointAt(0)
+    const idx = nonAscii.index
+    throw new Error(
+      `Cookie string contains a non-ASCII character ("${char}", U+${code?.toString(16).toUpperCase().padStart(4, "0")}) at position ${idx}. ` +
+        "This usually means the browser truncated a long value when copying. Re-copy the full cookie string from DevTools."
     )
   }
 
@@ -159,7 +173,7 @@ export function parseAvistazProfile(html: string, username: string): TrackerStat
     const isTooltip =
       li.getAttribute("data-toggle") === "tooltip" ||
       li.getAttribute("data-bs-toggle") === "tooltip"
-    const title = isTooltip ? li.getAttribute("title")?.trim() ?? null : null
+    const title = isTooltip ? (li.getAttribute("title")?.trim() ?? null) : null
     // Strip everything except digits, decimal point, and unit letters/spaces
     const text = li.textContent?.replace(/[^\d.a-zA-Z\s]/g, "").trim() ?? ""
 

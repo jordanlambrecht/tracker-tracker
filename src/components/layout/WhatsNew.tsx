@@ -30,7 +30,7 @@ export function WhatsNew() {
         setChanges(parseMissedReleases(data.content, lastSeen))
       })
       .catch(() => setChanges([]))
-  }, [open])
+  }, [open, lastSeen])
 
   function dismiss() {
     localStorage.setItem(STORAGE_KEY, APP_VERSION)
@@ -38,7 +38,14 @@ export function WhatsNew() {
   }
 
   return (
-    <Dialog open={open} onClose={dismiss} title="What's New" size="sm" maxWidth="max-w-sm" maxHeight="70vh">
+    <Dialog
+      open={open}
+      onClose={dismiss}
+      title="What's New"
+      size="sm"
+      maxWidth="max-w-sm"
+      maxHeight="70vh"
+    >
       <div className="text-center mb-3">
         <div className="text-2xl mb-2" aria-hidden="true">
           &#127881;

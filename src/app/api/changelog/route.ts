@@ -13,10 +13,7 @@ export async function GET() {
   try {
     let content = await readFile(join(process.cwd(), "CHANGELOG.md"), "utf-8")
     // Strip version header links for dialog display, keep plain text
-    content = content.replace(
-      /## \[([^\]]+)\]\([^)]+\)/g,
-      "## $1"
-    )
+    content = content.replace(/## \[([^\]]+)\]\([^)]+\)/g, "## $1")
     return NextResponse.json({ content })
   } catch (err) {
     log.warn({ err: errMsg(err) }, "[changelog] Failed to read CHANGELOG.md")
