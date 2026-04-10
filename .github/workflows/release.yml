@@ -26,25 +26,40 @@ jobs:
 
       - name: Check for unreleased version
         id: tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
           TAG="v${VERSION}"
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists — nothing to release."
+          # Check if a GitHub Release (not just a tag) exists for this version.
+          # Tags are now created on the development branch before merging to main,
+          # so we check for the Release object instead.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "GitHub Release $TAG already exists — nothing to release."
             echo "should_release=false" >> "$GITHUB_OUTPUT"
           else
             echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
             echo "should_release=true" >> "$GITHUB_OUTPUT"
-            echo "New version ${VERSION} detected — will create tag and release."
+            echo "New version ${VERSION} detected — will create release."
           fi
 
-      - name: Create version tag
+      - name: Ensure version tag points to this commit
         if: steps.tag.outputs.should_release == 'true'
         env:
           TAG_VERSION: ${{ steps.tag.outputs.version }}
         run: |
-          git tag "v${TAG_VERSION}"
-          git push origin "v${TAG_VERSION}"
+          TAG="v${TAG_VERSION}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            TAG_SHA="$(git rev-list -n 1 "$TAG")"
+            if [ "$TAG_SHA" != "$GITHUB_SHA" ]; then
+              echo "Tag $TAG points to $TAG_SHA, retagging to $GITHUB_SHA (main merge commit)."
+              git tag -f "$TAG" "$GITHUB_SHA"
+              git push origin "$TAG" --force
+            fi
+          else
+            git tag "$TAG"
+            git push origin "$TAG"
+          fi
 
       - name: Log in to GHCR
         if: steps.tag.outputs.should_release == 'true'
