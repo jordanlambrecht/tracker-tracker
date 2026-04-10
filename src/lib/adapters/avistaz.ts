@@ -113,6 +113,18 @@ function textAfterLabel(rows: ParsedElement[], label: string): string {
   return ""
 }
 
+// BS5 (AnimeZ) uses datagrid divs instead of tables
+function textFromDatagrid(doc: ParsedElement, label: string): string {
+  const items = doc.querySelectorAll(".datagrid-item")
+  for (const item of items) {
+    const title = item.querySelector(".datagrid-title")?.textContent?.trim()
+    if (title === label) {
+      return item.querySelector(".datagrid-content")?.textContent?.trim() ?? ""
+    }
+  }
+  return ""
+}
+
 /**
  * Extracts the numeric value after a labeled entry in ratio bar items.
  * Uses regex-only matching to handle whitespace variations in the DOM
@@ -156,16 +168,28 @@ export function parseAvistazProfile(html: string, username: string): TrackerStat
 
   const items = Array.from(ratioBar.querySelectorAll("ul.list-inline > li"))
 
-  // Username from first badge-user span; group from second
+  // Username: BS3 uses span.badge-user in the ratio bar, BS5 omits it.
+  // Fall back to the username passed from credentials.
   const parsedUsername = ratioBar.querySelector("span.badge-user")?.textContent?.trim() ?? username
-  const groupSpans = ratioBar.querySelectorAll("span.badge-user")
-  const group =
-    groupSpans.length >= 2 ? (groupSpans[1].textContent?.trim() ?? "Unknown") : "Unknown"
 
-  // Upload / download / ratio from tooltip-titled items
+  // Group: BS3 has two badge-user spans (username, group) in the ratio bar.
+  // BS5 puts the group in a separate badge element elsewhere on the page.
+  const groupSpans = ratioBar.querySelectorAll("span.badge-user")
+  let group = "Unknown"
+  if (groupSpans.length >= 2) {
+    group = groupSpans[1].textContent?.trim() ?? "Unknown"
+  } else {
+    const badgeEl = doc.querySelector(".badge.bg-secondary-lt, .badge-extra.badge-sm")
+    if (badgeEl) group = badgeEl.textContent?.trim() ?? "Unknown"
+  }
+
+  // Upload / download / ratio / seeding / leeching / bonus from tooltip-titled items
   let uploadedBytes = 0n
   let downloadedBytes = 0n
   let ratio = 0
+  let seedingCount = 0
+  let leechingCount = 0
+  let seedbonus = 0
 
   for (const li of items) {
     // AvistaZ (BS3): data-toggle="tooltip" title="Upload"
@@ -184,6 +208,13 @@ export function parseAvistazProfile(html: string, username: string): TrackerStat
     } else if (title === "Ratio") {
       const ratioMatch = text.match(/([\d.]+)/)
       ratio = ratioMatch ? parseFloat(ratioMatch[1]) : 0
+    } else if (title === "Active Seeds") {
+      seedingCount = parseInt(text.replace(/,/g, ""), 10) || 0
+    } else if (title === "Active Leeches") {
+      leechingCount = parseInt(text.replace(/,/g, ""), 10) || 0
+    } else if (title === "Bonus Points") {
+      const numMatch = text.match(/([\d,.]+)/)
+      seedbonus = numMatch ? parseFloat(numMatch[1].replace(/,/g, "")) : 0
     }
   }
 
@@ -193,9 +224,13 @@ export function parseAvistazProfile(html: string, username: string): TrackerStat
     )
   }
 
-  const seedingCount = parseInt(extractRatioBarValue(items, /Seeding:\s*([\d,]+)/), 10) || 0
-  const leechingCount = parseInt(extractRatioBarValue(items, /Leeching:\s*([\d,]+)/), 10) || 0
-  const seedbonus = parseFloat(extractRatioBarValue(items, /Bonus:\s*([\d,.]+)/)) || 0
+  // BS3 (AvistaZ) uses text labels like "Seeding: 2". BS5 (AnimeZ) uses tooltip
+  // titles handled above. Fall back to text-based extraction for BS3.
+  if (!seedingCount)
+    seedingCount = parseInt(extractRatioBarValue(items, /Seeding:\s*([\d,]+)/), 10) || 0
+  if (!leechingCount)
+    leechingCount = parseInt(extractRatioBarValue(items, /Leeching:\s*([\d,]+)/), 10) || 0
+  if (!seedbonus) seedbonus = parseFloat(extractRatioBarValue(items, /Bonus:\s*([\d,.]+)/)) || 0
   const hitAndRuns = parseInt(extractRatioBarValue(items, /Hit\s*&\s*Run:\s*([\d,]+)/), 10) || 0
   const reseedRequests = parseInt(extractRatioBarValue(items, /Reseed:\s*([\d,]+)/), 10) || 0
 
@@ -204,27 +239,38 @@ export function parseAvistazProfile(html: string, username: string): TrackerStat
     doc.querySelectorAll("table.table-striped tr, table.table-bordered tr")
   )
 
-  const userIdText = textAfterLabel(allRows, "User ID")
+  // BS3 uses table rows, BS5 uses datagrid divs. Try both, preferring table.
+  const field = (label: string, ...altLabels: string[]) => {
+    const fromTable = textAfterLabel(allRows, label)
+    if (fromTable) return fromTable
+    for (const alt of altLabels) {
+      const fromGrid = textFromDatagrid(doc, alt)
+      if (fromGrid) return fromGrid
+    }
+    return textFromDatagrid(doc, label)
+  }
+
+  const userIdText = field("User ID")
   const userIdMatch = userIdText.match(/(\d+)/)
   const remoteUserId = userIdMatch ? parseInt(userIdMatch[1], 10) : undefined
 
-  const joinedRaw = textAfterLabel(allRows, "Joined")
+  const joinedRaw = field("Joined", "Member Since")
     .replace(/\s*\(.*\)/, "")
     .trim()
   const joinedDate = joinedRaw ? localDateStr(new Date(joinedRaw)) : undefined
 
-  const lastAccessRaw = textAfterLabel(allRows, "Last Access")
+  const lastAccessRaw = field("Last Access", "Last Seen")
     .replace(/\s*\(.*\)/, "")
     .trim()
   const lastAccessDate = lastAccessRaw ? localDateStr(new Date(lastAccessRaw)) : undefined
 
   // ── Private account-detail rows ────────────────────────────────────────────
-  const donorText = textAfterLabel(allRows, "Donor")
-  const vipExpiryText = textAfterLabel(allRows, "VIP Expiry")
-  const invitesText = textAfterLabel(allRows, "Invites")
-  const canDownloadText = textAfterLabel(allRows, "Can Download")
-  const canUploadText = textAfterLabel(allRows, "Can Upload")
-  const twoFaText = textAfterLabel(allRows, "2FA")
+  const donorText = field("Donor")
+  const vipExpiryText = field("VIP Expiry")
+  const invitesText = field("Invites")
+  const canDownloadText = field("Can Download")
+  const canUploadText = field("Can Upload")
+  const twoFaText = field("2FA")
 
   // ── Avatar ─────────────────────────────────────────────────────────────────
   // On your own profile, the avatar <img> is JS-rendered by the Fine Uploader

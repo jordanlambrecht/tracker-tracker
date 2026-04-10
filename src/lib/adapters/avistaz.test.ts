@@ -201,6 +201,55 @@ describe("parseAvistazProfile", () => {
     expect(stats.downloadedBytes).toBe(6440000000n)
     expect(stats.ratio).toBeCloseTo(4.2)
   })
+
+  it("extracts all fields from AnimeZ BS5 structure (datagrid + tooltip stats)", () => {
+    const animezPage = `<!doctype html><html><head></head><body>
+      <span class="badge bg-secondary-lt text-secondary badge-sm">Member</span>
+      <div class="ratio-bar"><div class="container"><ul class="list-inline">
+        <li class="list-inline-item" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Uploaded">
+          <i class="fa fa-arrow-up"></i> 10.00 GB</li>
+        <li class="list-inline-item" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Downloaded">
+          <i class="fa fa-arrow-down"></i> 5.00 GB</li>
+        <li class="list-inline-item" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Ratio">
+          <i class="fa fa-exchange"></i> 2.00</li>
+        <li class="list-inline-item" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Active Seeds">
+          <i class="fa fa-arrow-up"></i> 7</li>
+        <li class="list-inline-item" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Active Leeches">
+          <i class="fa fa-arrow-down"></i> 1</li>
+        <li class="list-inline-item" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Bonus Points">
+          <i class="fa fa-star"></i> BP: 344</li>
+      </ul></div></div>
+      <div class="datagrid">
+        <div class="datagrid-item">
+          <div class="datagrid-title">Member Since</div>
+          <div class="datagrid-content ">February 27, 2026</div>
+        </div>
+        <div class="datagrid-item">
+          <div class="datagrid-title">Last Seen</div>
+          <div class="datagrid-content ">11 seconds ago</div>
+        </div>
+        <div class="datagrid-item">
+          <div class="datagrid-title">Invites</div>
+          <div class="datagrid-content ">0</div>
+        </div>
+        <div class="datagrid-item">
+          <div class="datagrid-title">2FA</div>
+          <div class="datagrid-content ">Enabled</div>
+        </div>
+      </div>
+    </body></html>`
+    const stats = parseAvistazProfile(animezPage, "animezuser")
+    expect(stats.username).toBe("animezuser")
+    expect(stats.group).toBe("Member")
+    expect(stats.uploadedBytes).toBe(10000000000n)
+    expect(stats.downloadedBytes).toBe(5000000000n)
+    expect(stats.ratio).toBeCloseTo(2.0)
+    expect(stats.seedingCount).toBe(7)
+    expect(stats.leechingCount).toBe(1)
+    expect(stats.seedbonus).toBe(344)
+    expect(stats.joinedDate).toBe("2026-02-27")
+    expect((stats.platformMeta as { twoFactorEnabled?: boolean })?.twoFactorEnabled).toBe(true)
+  })
 })
 
 describe("parseAvistazCredentials", () => {
