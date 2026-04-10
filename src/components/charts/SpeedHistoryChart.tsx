@@ -1,12 +1,12 @@
 // src/components/charts/SpeedHistoryChart.tsx
-//
-// Functions: parseSpeedBytes, buildOption, SpeedHistoryChart
 
 "use client"
 
 import type { EChartsOption } from "echarts"
+import { useMemo } from "react"
+import { hexToRgba } from "@/lib/color-utils"
 import type { FleetSnapshot } from "@/lib/fleet"
-import { formatBytesNum, hexToRgba } from "@/lib/formatters"
+import { formatSpeed } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { buildAxisPointer, buildTimeXAxis } from "./lib/chart-helpers"
@@ -27,8 +27,8 @@ interface SpeedHistoryChartProps {
   height?: number
 }
 
-const CYAN = CHART_THEME.accent
-const AMBER = CHART_THEME.warn
+const CYAN = CHART_THEME.upload
+const AMBER = CHART_THEME.download
 
 function parseSpeedBytes(val: string | null): number {
   if (!val) return 0
@@ -74,7 +74,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
         const rows = items
           .map((item) => {
             const dot = chartDot(item.color)
-            const speedLabel = `${formatBytesNum(item.value[1])}/s`
+            const speedLabel = formatSpeed(item.value[1])
             return `${dot}<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> <span style="color:${CHART_THEME.textPrimary};font-weight:600;">${speedLabel}</span>`
           })
           .join("<br/>")
@@ -94,13 +94,13 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
         nameTextStyle: {
           color: CYAN,
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 10,
+          fontSize: CHART_THEME.fontSizeCompact,
         },
         axisLine: { show: false },
         axisTick: { show: false },
         axisLabel: chartAxisLabel({
           color: CYAN,
-          formatter: (val: number) => `${formatBytesNum(val)}/s`,
+          formatter: (val: number) => formatSpeed(val),
         }),
         splitLine: {
           lineStyle: { color: CHART_THEME.gridLine, width: 1 },
@@ -112,14 +112,14 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
         nameTextStyle: {
           color: AMBER,
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 10,
+          fontSize: CHART_THEME.fontSizeCompact,
         },
         position: "right",
         axisLine: { show: false },
         axisTick: { show: false },
         axisLabel: chartAxisLabel({
           color: AMBER,
-          formatter: (val: number) => `${formatBytesNum(val)}/s`,
+          formatter: (val: number) => formatSpeed(val),
         }),
         splitLine: { show: false },
       },
@@ -132,6 +132,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
         data: uploadData,
         smooth: true,
         symbol: "none",
+        sampling: "lttb",
         itemStyle: { color: CYAN },
         lineStyle: { color: CYAN, width: 2, shadowColor: CYAN, shadowBlur: 8 },
         emphasis: {
@@ -159,6 +160,7 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
         data: downloadData,
         smooth: true,
         symbol: "none",
+        sampling: "lttb",
         itemStyle: { color: AMBER },
         lineStyle: { color: AMBER, width: 2, shadowColor: AMBER, shadowBlur: 8 },
         emphasis: {
@@ -184,6 +186,8 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
 }
 
 function SpeedHistoryChart({ snapshots, height = 360 }: SpeedHistoryChartProps) {
+  const option = useMemo(() => buildOption(snapshots), [snapshots])
+
   const hasSpeedData = snapshots.some(
     (s) => s.uploadSpeedBytes !== null || s.downloadSpeedBytes !== null
   )
@@ -192,7 +196,7 @@ function SpeedHistoryChart({ snapshots, height = 360 }: SpeedHistoryChartProps) 
     return <ChartEmptyState height={height} message="No speed history data available yet." />
   }
 
-  return <ChartECharts option={buildOption(snapshots)} style={{ height, width: "100%" }} />
+  return <ChartECharts option={option} style={{ height, width: "100%" }} />
 }
 
 export type { SpeedHistoryChartProps }

@@ -1,7 +1,6 @@
 // src/lib/adapters/mam.ts
-//
-// Functions: MamAdapter, MamAdapter.fetchStats, MamAdapter.fetchRaw
 
+import { computeBufferBytes, floatBytesToBigInt } from "@/lib/data-transforms"
 import { adapterFetch } from "./adapter-fetch"
 import type {
   DebugApiCall,
@@ -40,7 +39,6 @@ interface MamJsonLoadResponse {
   partial?: boolean
   recently_deleted?: number
 
-  // snatch_summary categories (present when ?snatch_summary is set)
   leeching?: MamSnatchCategory
   sSat?: MamSnatchCategory
   seedHnr?: MamSnatchCategory
@@ -55,7 +53,6 @@ interface MamJsonLoadResponse {
   reseed?: { name: string; count: number; inactive: number; red: boolean }
   ite?: { name: string; count: number; latest: number }
 
-  // notif (present when ?notif is set)
   notifs?: {
     pms: number
     aboutToDropClient: number
@@ -65,8 +62,29 @@ interface MamJsonLoadResponse {
     topics: number
   }
 
-  // clientStats (present when ?clientStats is set)
   clientStats?: unknown[]
+}
+
+// Validate mam_id before interpolation into Cookie header to prevent injection.
+// Strips "mam_id=" prefix if someone pasted the full cookie name+value.
+function validateMamId(token: string): string {
+  let trimmed = token.trim()
+  if (!trimmed) throw new Error("MAM session cookie (mam_id) cannot be empty")
+
+  // Common copy-paste mistake: user pastes "mam_id=abc123" instead of just "abc123"
+  if (trimmed.toLowerCase().startsWith("mam_id=")) {
+    trimmed = trimmed.slice(7).trim()
+    if (!trimmed)
+      throw new Error("MAM session cookie value is empty after stripping mam_id= prefix")
+  }
+
+  // Block header injection characters
+  if (/[;\r\n]/.test(trimmed)) {
+    throw new Error(
+      "MAM session cookie (mam_id) contains invalid characters (semicolons or newlines)"
+    )
+  }
+  return trimmed
 }
 
 export class MamAdapter implements TrackerAdapter {
@@ -76,21 +94,22 @@ export class MamAdapter implements TrackerAdapter {
     apiPath: string,
     options?: FetchOptions
   ): Promise<TrackerStats> {
+    const mamId = validateMamId(apiToken)
     const hostname = new URL(baseUrl).hostname
     const url = new URL(apiPath, baseUrl)
     url.searchParams.set("snatch_summary", "")
     url.searchParams.set("notif", "")
 
     const data = await adapterFetch<MamJsonLoadResponse>(url.toString(), hostname, options, {
-      Cookie: `mam_id=${apiToken}`,
+      Cookie: `mam_id=${mamId}`,
     })
 
     if (!data.username) {
       throw new Error(`Unexpected response from ${hostname}: missing username`)
     }
 
-    const uploaded = BigInt(Math.floor(data.uploaded_bytes ?? 0))
-    const downloaded = BigInt(Math.floor(data.downloaded_bytes ?? 0))
+    const uploaded = floatBytesToBigInt(data.uploaded_bytes)
+    const downloaded = floatBytesToBigInt(data.downloaded_bytes)
 
     const seedingCount =
       (data.sSat?.count ?? 0) +
@@ -121,7 +140,7 @@ export class MamAdapter implements TrackerAdapter {
       uploadedBytes: uploaded,
       downloadedBytes: downloaded,
       ratio: typeof data.ratio === "number" ? data.ratio : parseFloat(String(data.ratio)) || 0,
-      bufferBytes: uploaded > downloaded ? uploaded - downloaded : BigInt(0),
+      bufferBytes: computeBufferBytes(uploaded, downloaded),
       seedingCount,
       leechingCount: data.leeching?.count ?? 0,
       seedbonus: data.seedbonus ?? null,
@@ -139,6 +158,7 @@ export class MamAdapter implements TrackerAdapter {
     apiPath: string,
     options?: FetchOptions
   ): Promise<DebugApiCall[]> {
+    const mamId = validateMamId(apiToken)
     const hostname = new URL(baseUrl).hostname
     const calls: DebugApiCall[] = []
 
@@ -149,7 +169,7 @@ export class MamAdapter implements TrackerAdapter {
 
     try {
       const data = await adapterFetch<Record<string, unknown>>(url.toString(), hostname, options, {
-        Cookie: `mam_id=${apiToken}`,
+        Cookie: `mam_id=${mamId}`,
       })
       calls.push({ label: "User Stats", endpoint, data, error: null })
     } catch (err) {

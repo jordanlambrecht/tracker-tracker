@@ -2,15 +2,20 @@
 
 import { NextResponse } from "next/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { NON_DISMISSIBLE_ALERT_TYPES } from "@/lib/alert-pruning"
+// biome-ignore lint/correctness/noUnusedImports: used in vi.mock factory below
+import { NON_DISMISSIBLE_ALERT_TYPES, pruneDismissedAlerts } from "@/lib/alert-pruning"
 import { authenticate, parseJsonBody } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { DELETE, GET, POST } from "./route"
 
-vi.mock("@/lib/api-helpers", () => ({
-  authenticate: vi.fn(),
-  parseJsonBody: vi.fn(),
-}))
+vi.mock("@/lib/api-helpers", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/api-helpers")>()
+  return {
+    ...actual,
+    authenticate: vi.fn(),
+    parseJsonBody: vi.fn(),
+  }
+})
 
 vi.mock("@/lib/db", () => ({
   db: {
@@ -30,6 +35,7 @@ vi.mock("@/lib/alert-pruning", async (importOriginal) => {
     EXPIRING_ALERT_TYPES: actual.EXPIRING_ALERT_TYPES,
     NON_DISMISSIBLE_ALERT_TYPES: actual.NON_DISMISSIBLE_ALERT_TYPES,
     ALERT_EXPIRY_MS: actual.ALERT_EXPIRY_MS,
+    pruneDismissedAlerts: vi.fn().mockResolvedValue(undefined),
   }
 })
 
@@ -61,49 +67,30 @@ describe("GET /api/alerts/dismissed", () => {
     expect(res.status).toBe(401)
   })
 
-  it("returns dismissed alert keys after pruning expired rows", async () => {
-    const mockDeleteWhere = vi.fn().mockResolvedValue(undefined)
-    ;(db.delete as ReturnType<typeof vi.fn>).mockReturnValue({ where: mockDeleteWhere })
-
-    // First select: find expired rows (returns some expired keys)
-    const mockSelectWhere1 = vi.fn().mockResolvedValue([{ alertKey: "expired-1" }])
-    const mockSelectFrom1 = vi.fn().mockReturnValue({ where: mockSelectWhere1 })
-
-    // Second select: get remaining rows
-    const mockSelectFrom2 = vi
+  it("prunes expired rows and returns remaining keys", async () => {
+    const mockSelectFrom = vi
       .fn()
       .mockResolvedValue([{ alertKey: "active-1" }, { alertKey: "active-2" }])
-
-    ;(db.select as ReturnType<typeof vi.fn>)
-      .mockReturnValueOnce({ from: mockSelectFrom1 })
-      .mockReturnValueOnce({ from: mockSelectFrom2 })
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue({ from: mockSelectFrom })
 
     const res = await GET()
     const data = await res.json()
 
     expect(res.status).toBe(200)
     expect(data.keys).toEqual(["active-1", "active-2"])
-    expect(db.delete).toHaveBeenCalledTimes(1)
+    expect(pruneDismissedAlerts).toHaveBeenCalledOnce()
   })
 
-  it("skips pruning when no expired rows exist", async () => {
-    // First select: no expired rows
-    const mockSelectWhere1 = vi.fn().mockResolvedValue([])
-    const mockSelectFrom1 = vi.fn().mockReturnValue({ where: mockSelectWhere1 })
-
-    // Second select: remaining rows
-    const mockSelectFrom2 = vi.fn().mockResolvedValue([{ alertKey: "key-1" }])
-
-    ;(db.select as ReturnType<typeof vi.fn>)
-      .mockReturnValueOnce({ from: mockSelectFrom1 })
-      .mockReturnValueOnce({ from: mockSelectFrom2 })
+  it("returns empty keys array when none exist", async () => {
+    const mockSelectFrom = vi.fn().mockResolvedValue([])
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue({ from: mockSelectFrom })
 
     const res = await GET()
     const data = await res.json()
 
     expect(res.status).toBe(200)
-    expect(data.keys).toEqual(["key-1"])
-    expect(db.delete).not.toHaveBeenCalled()
+    expect(data.keys).toEqual([])
+    expect(pruneDismissedAlerts).toHaveBeenCalledOnce()
   })
 })
 
@@ -266,14 +253,6 @@ describe("POST /api/alerts/dismissed — non-dismissible rejection", () => {
     expect(data.error).toBe("This alert type cannot be dismissed")
   })
 
-  it("confirms client-error is in the NON_DISMISSIBLE set", () => {
-    expect(NON_DISMISSIBLE_ALERT_TYPES.has("client-error")).toBe(true)
-  })
-
-  it("confirms poll-paused is in the NON_DISMISSIBLE set", () => {
-    expect(NON_DISMISSIBLE_ALERT_TYPES.has("poll-paused")).toBe(true)
-  })
-
   it("rejects dismissing a poll-paused alert type", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
       key: "poll-paused-1",
@@ -321,20 +300,18 @@ describe("POST /api/alerts/dismissed — non-dismissible rejection", () => {
     expect(res.status).toBe(200)
   })
 
-  it("allows dismissing an arbitrary non-blocked type", async () => {
+  it("rejects unknown alert types with 400", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
       key: "some-key",
       type: "custom-type",
     })
 
-    const mockOnConflictDoNothing = vi.fn().mockResolvedValue(undefined)
-    const mockValues = vi.fn().mockReturnValue({ onConflictDoNothing: mockOnConflictDoNothing })
-    ;(db.insert as ReturnType<typeof vi.fn>).mockReturnValue({ values: mockValues })
-
     const req = makeRequest("http://localhost/api/alerts/dismissed", undefined, "POST")
     const res = await POST(req)
 
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(400)
+    const data = await res.json()
+    expect(data.error).toBe("Unknown alert type")
   })
 })
 

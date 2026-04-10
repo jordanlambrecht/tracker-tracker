@@ -1,12 +1,11 @@
 // src/components/charts/TagCountTrends.tsx
-//
-// Functions: buildSeriesData, buildOption, TagCountTrends
-
 "use client"
 
 import type { EChartsOption } from "echarts"
+import { useMemo } from "react"
 import type { FleetSnapshot } from "@/lib/fleet"
 import { extractTagsFromSnapshots } from "@/lib/fleet"
+import { formatCount } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { buildAxisPointer, buildTimeXAxis } from "./lib/chart-helpers"
@@ -83,6 +82,7 @@ function buildOption(snapshots: FleetSnapshot[], mode: TagCountMode): EChartsOpt
       type: "line",
       data: seriesMap.get(tag) ?? [],
       smooth: true,
+      sampling: "lttb",
       lineStyle: { width: isSeeding ? 2 : 1.5, color },
       itemStyle: { color },
       ...(isSeeding
@@ -111,9 +111,7 @@ function buildOption(snapshots: FleetSnapshot[], mode: TagCountMode): EChartsOpt
         const rows = items
           .filter((item) => item.value[1] > 0)
           .sort((a, b) => b.value[1] - a.value[1])
-          .map((item) =>
-            chartTooltipRow(item.color, item.seriesName, item.value[1].toLocaleString())
-          )
+          .map((item) => chartTooltipRow(item.color, item.seriesName, formatCount(item.value[1])))
           .join("<br/>")
 
         return `${chartTooltipHeader(dateLabel)}${rows}`
@@ -130,12 +128,12 @@ function buildOption(snapshots: FleetSnapshot[], mode: TagCountMode): EChartsOpt
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: chartAxisLabel({
-        formatter: (val: number) => val.toLocaleString(),
+        formatter: (val: number) => formatCount(Math.round(val)),
       }),
       splitLine: {
         lineStyle: { color: CHART_THEME.gridLine, width: 1 },
@@ -146,6 +144,8 @@ function buildOption(snapshots: FleetSnapshot[], mode: TagCountMode): EChartsOpt
 }
 
 function TagCountTrends({ snapshots, mode, height = 360 }: TagCountTrendsProps) {
+  const option = useMemo(() => buildOption(snapshots, mode), [snapshots, mode])
+
   const hasTagStats = snapshots.some((s) => s.tagStats && s.tagStats.length > 0)
 
   if (!hasTagStats) {
@@ -161,7 +161,7 @@ function TagCountTrends({ snapshots, mode, height = 360 }: TagCountTrendsProps) 
     )
   }
 
-  return <ChartECharts option={buildOption(snapshots, mode)} style={{ height, width: "100%" }} />
+  return <ChartECharts option={option} style={{ height, width: "100%" }} />
 }
 
 export type { TagCountTrendsProps }

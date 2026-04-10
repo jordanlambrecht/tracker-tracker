@@ -1,12 +1,11 @@
 // src/components/dashboard/FleetDashboard.tsx
-//
-// Functions: FleetDashboard
-
 "use client"
 
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { H2 } from "@typography"
-import { useEffect, useRef, useState } from "react"
+import { useCallback } from "react"
 import { CrossSeedNetwork } from "@/components/charts/CrossSeedNetwork"
+import { FleetAgeBandHeatmap } from "@/components/charts/FleetAgeBandHeatmap"
 import { FleetAgeTimeline } from "@/components/charts/FleetAgeTimeline"
 import { FleetCategoryBreakdown } from "@/components/charts/FleetCategoryBreakdown"
 import { FleetCategoryTimeline } from "@/components/charts/FleetCategoryTimeline"
@@ -14,7 +13,6 @@ import { FleetCrossSeedDonut } from "@/components/charts/FleetCrossSeedDonut"
 import { FleetSizeJitter } from "@/components/charts/FleetSizeJitter"
 import { FleetSpeedSparklines } from "@/components/charts/FleetSpeedSparklines"
 import { FleetStorageTreemap } from "@/components/charts/FleetStorageTreemap"
-import { CHART_THEME } from "@/components/charts/lib/theme"
 import { SpeedHistoryChart } from "@/components/charts/SpeedHistoryChart"
 import { SpeedThemeRiver } from "@/components/charts/SpeedThemeRiver"
 import { TagCountTrends } from "@/components/charts/TagCountTrends"
@@ -27,157 +25,93 @@ import {
   FLEET_CHARTS,
   useFleetChartPreferences,
 } from "@/components/dashboard/useFleetChartPreferences"
+import { Button } from "@/components/ui"
 import {
   BoxIcon,
   ChevronUpIcon,
   DownloadArrowIcon,
   LeechingIcon,
+  RefreshIcon,
   SeedingIcon,
   TagIcon,
   UploadArrowIcon,
 } from "@/components/ui/Icons"
 import { StatCard } from "@/components/ui/StatCard"
-import type { FleetSnapshot, TorrentRaw, TrackerTag } from "@/lib/fleet"
-import { computeFleetStats } from "@/lib/fleet"
-import { formatBytesNum } from "@/lib/formatters"
-import type { TorrentInfo } from "@/lib/torrent-utils"
-import { mapTorrent } from "@/lib/torrent-utils"
-import type { TrackerSummary } from "@/types/api"
-
-function splitBytes(bytes: number, suffix = ""): { value: string; unit: string } {
-  const formatted = formatBytesNum(bytes)
-  const idx = formatted.lastIndexOf(" ")
-  return { value: formatted.slice(0, idx), unit: `${formatted.slice(idx + 1)}${suffix}` }
-}
-
-function splitSpeed(bytes: number): { value: string; unit: string } {
-  return splitBytes(bytes, "/s")
-}
-
-interface FleetTorrentsResponse {
-  torrents: TorrentRaw[]
-  crossSeedTags: string[]
-  clientErrors: string[]
-  clientCount: number
-  cachedAt?: string | null
-}
+import { ChartGridSkeleton } from "@/components/ui/skeletons"
+import { usePollingIntervals } from "@/hooks/usePollingIntervals"
+import type { FleetSnapshot } from "@/lib/fleet"
+import type { FleetAggregation } from "@/lib/fleet-aggregation"
+import {
+  formatBytesNum,
+  formatCount,
+  formatPercent,
+  formatSpeed,
+  splitValueUnit,
+} from "@/lib/formatters"
+import { clientQueryOptions } from "@/lib/query-options"
 
 interface FleetDashboardProps {
   dayRange: number
-  trackers?: TrackerSummary[]
+  isActive?: boolean
 }
 
 const allChartIds = FLEET_CHARTS.map((c) => c.id)
 
-export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashboardProps) {
-  const [torrents, setTorrents] = useState<TorrentInfo[]>([])
-  const [crossSeedTags, setCrossSeedTags] = useState<string[]>([])
-  const [snapshots, setSnapshots] = useState<FleetSnapshot[]>([])
-  const [trackerTags, setTrackerTags] = useState<TrackerTag[]>([])
-  const [clientList, setClientList] = useState<{ id: number; name: string }[]>([])
-  const [loading, setLoading] = useState(true)
+// Stable select: narrows ["clients"] cache to {id, name} so lastPolledAt
+// changes from the sidebar's 10s poll don't trigger re-renders here.
+export const selectClientIdName = (data: { id: number; name: string }[]) =>
+  data.map(({ id, name }) => ({ id, name }))
 
+export function FleetDashboard({ dayRange, isActive = true }: FleetDashboardProps) {
   const chartPrefs = useFleetChartPreferences()
   const { hydrated: chartPrefsHydrated } = chartPrefs
+  const intervals = usePollingIntervals()
 
-  const prevDayRange = useRef<number | null>(null)
-  const initialLoaded = useRef(false)
+  const effectiveDays = dayRange === 0 ? 30 : dayRange
 
-  useEffect(() => {
-    const controller = new AbortController()
-    const { signal } = controller
-    const isFirstRun = !initialLoaded.current
+  const { data: snapshots = [] } = useQuery({
+    queryKey: ["download-client-snapshots", effectiveDays],
+    queryFn: async ({ signal }) => {
+      const res = await fetch(`/api/fleet/snapshots?days=${effectiveDays}`, { signal })
+      if (!res.ok) throw new Error(`Fleet snapshots failed: ${res.status}`)
+      return res.json() as Promise<FleetSnapshot[]>
+    },
+    enabled: isActive,
+  })
 
-    async function loadSnapshots() {
-      const res = await fetch(`/api/fleet/snapshots?days=${dayRange === 0 ? 30 : dayRange}`, {
-        signal,
-      })
-      if (res.ok) setSnapshots(await res.json())
-    }
+  // Fast: DB-cached torrent aggregation
+  const { data: aggregation, isFetching: fleetFetching } = useQuery({
+    queryKey: ["fleet-torrents-cached"],
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/fleet/torrents/cached", { signal })
+      if (!res.ok) throw new Error(`Fleet data failed: ${res.status}`)
+      return res.json() as Promise<FleetAggregation>
+    },
+    staleTime: intervals.clientRefetchMs,
+    enabled: isActive,
+  })
 
-    async function loadInitial() {
-      const [cachedRes, clientsRes, trackersRes] = await Promise.all([
-        fetch("/api/fleet/torrents/cached", { signal }),
-        fetch("/api/clients", { signal }),
-        trackersProp ? Promise.resolve(null) : fetch("/api/trackers", { signal }),
-      ])
+  const queryClient = useQueryClient()
 
-      if (cachedRes.ok) {
-        const data: FleetTorrentsResponse = await cachedRes.json()
-        if (data.torrents.length > 0) {
-          setTorrents(data.torrents.map(mapTorrent))
-          setCrossSeedTags(data.crossSeedTags)
-        }
-      }
+  const handleRefreshFleet = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["fleet-torrents-cached"] })
+  }, [queryClient])
 
-      if (clientsRes.ok) {
-        const data: { id: number; name: string }[] = await clientsRes.json()
-        setClientList(data)
-      }
+  // Sidebar's 10s poll keeps this cache fresh. select narrows to {id, name}
+  // so lastPolledAt/updatedAt changes don't trigger re-renders.
+  const { data: clientList = [] } = useQuery({
+    ...clientQueryOptions,
+    staleTime: intervals.clientRefetchMs,
+    select: selectClientIdName,
+  })
 
-      if (trackersProp) {
-        setTrackerTags(
-          trackersProp
-            .filter((t): t is typeof t & { qbtTag: string } => !!t.qbtTag?.trim())
-            .map((t) => ({
-              tag: t.qbtTag.trim(),
-              name: t.name,
-              color: t.color ?? CHART_THEME.accent,
-            }))
-        )
-      } else if (trackersRes?.ok) {
-        const data: { id: number; name: string; color: string; qbtTag: string | null }[] =
-          await trackersRes.json()
-        setTrackerTags(
-          data
-            .filter((t): t is typeof t & { qbtTag: string } => !!t.qbtTag?.trim())
-            .map((t) => ({
-              tag: t.qbtTag.trim(),
-              name: t.name,
-              color: t.color ?? CHART_THEME.accent,
-            }))
-        )
-      }
-
-      // Background: refresh torrents live (slow — hits qBT clients)
-      try {
-        const liveRes = await fetch("/api/fleet/torrents", { signal })
-        if (liveRes.ok) {
-          const data: FleetTorrentsResponse = await liveRes.json()
-          setTorrents(data.torrents.map(mapTorrent))
-          setCrossSeedTags(data.crossSeedTags)
-        }
-      } catch {
-        // Live fetch failed — cached data stays visible
-      }
-    }
-
-    const tasks = isFirstRun ? [loadInitial(), loadSnapshots()] : [loadSnapshots()]
-
-    Promise.all(tasks)
-      .catch(() => {})
-      .finally(() => {
-        if (isFirstRun) {
-          initialLoaded.current = true
-          setLoading(false)
-        }
-      })
-
-    prevDayRange.current = dayRange
-    return () => controller.abort()
-  }, [dayRange, trackersProp])
+  const loading = !aggregation && !snapshots.length
 
   if (loading) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <p className="text-secondary text-sm font-mono animate-loading-breathe">
-          Loading fleet data...
-        </p>
-      </div>
-    )
+    return <ChartGridSkeleton count={4} columns={1} chartHeight="h-[360px]" />
   }
 
-  if (torrents.length === 0 && snapshots.length === 0) {
+  if (aggregation && aggregation.stats.torrentCount === 0 && snapshots.length === 0) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center flex-col gap-2">
         <p className="text-secondary text-sm font-mono">No torrent data available.</p>
@@ -188,14 +122,27 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
     )
   }
 
-  const stats = computeFleetStats(torrents, crossSeedTags)
+  // aggregation may still be null here if only snapshots are available.
+  // Stat cards and aggregation-based charts guard on aggregation below
+  const uploadSpeedParts = aggregation
+    ? splitValueUnit(formatSpeed(aggregation.stats.fleetUploadSpeed))
+    : null
+  const downloadSpeedParts = aggregation
+    ? splitValueUnit(formatSpeed(aggregation.stats.fleetDownloadSpeed))
+    : null
+  const librarySizeParts = aggregation
+    ? splitValueUnit(formatBytesNum(aggregation.stats.totalLibrarySize))
+    : null
+
   const hiddenCount =
     FLEET_CHARTS.length - FLEET_CHARTS.filter((c) => !chartPrefs.isHidden(c.id)).length
 
   function renderChart(id: string) {
     switch (id) {
       case "fleet-speed-sparklines":
-        return clientList.length > 0 ? <FleetSpeedSparklines clients={clientList} /> : null
+        return clientList.length > 0 ? (
+          <FleetSpeedSparklines clients={clientList} isActive={isActive} />
+        ) : null
       case "speed-theme-river":
         return <SpeedThemeRiver snapshots={snapshots} />
       case "seeding-count-trends":
@@ -205,36 +152,47 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
       case "speed-history":
         return <SpeedHistoryChart snapshots={snapshots} />
       case "fleet-ratio-distribution":
-        return <TorrentRatioDistribution torrents={torrents} />
+        return aggregation ? (
+          <TorrentRatioDistribution buckets={aggregation.ratioDistribution} />
+        ) : null
       case "fleet-cross-seed-donut":
-        return <FleetCrossSeedDonut torrents={torrents} crossSeedTags={crossSeedTags} />
-      case "cross-seed-network":
-        return (
-          <CrossSeedNetwork
-            torrents={torrents}
-            trackerTags={trackerTags}
-            crossSeedTags={crossSeedTags}
-            height={400}
+        return aggregation ? (
+          <FleetCrossSeedDonut
+            crossSeeded={aggregation.crossSeed.crossSeeded}
+            unique={aggregation.crossSeed.unique}
+            total={aggregation.crossSeed.total}
           />
-        )
+        ) : null
+      case "cross-seed-network":
+        return aggregation ? (
+          <CrossSeedNetwork network={aggregation.crossSeedNetwork} height={400} />
+        ) : null
       case "tracker-health-radar":
-        return <TrackerHealthRadar torrents={torrents} trackerTags={trackerTags} />
+        return aggregation ? <TrackerHealthRadar metrics={aggregation.trackerHealth} /> : null
       case "fleet-activity-heatmap":
-        return <TorrentActivityHeatmap torrents={torrents} />
+        return aggregation ? <TorrentActivityHeatmap grid={aggregation.activityGrid} /> : null
       case "fleet-storage-treemap":
-        return (
-          <FleetStorageTreemap torrents={torrents} trackerTags={trackerTags.map((t) => t.tag)} />
-        )
+        return aggregation ? (
+          <FleetStorageTreemap data={aggregation.storageByTrackerCategory} />
+        ) : null
       case "fleet-seed-time-distribution":
-        return <TorrentSeedTimeDistribution torrents={torrents} />
+        return aggregation ? (
+          <TorrentSeedTimeDistribution buckets={aggregation.seedTimeDistribution} />
+        ) : null
+      case "fleet-age-bands":
+        return aggregation ? <FleetAgeBandHeatmap data={aggregation.ageBands} /> : null
       case "fleet-age-timeline":
-        return <FleetAgeTimeline torrents={torrents} trackerTags={trackerTags} />
+        return aggregation ? <FleetAgeTimeline data={aggregation.ageTimeline} /> : null
       case "fleet-category-timeline":
-        return <FleetCategoryTimeline torrents={torrents} />
+        return aggregation ? <FleetCategoryTimeline data={aggregation.categoryTimeline} /> : null
       case "fleet-size-jitter":
-        return <FleetSizeJitter torrents={torrents} trackerTags={trackerTags} height={360} />
+        return aggregation ? (
+          <FleetSizeJitter data={aggregation.sizesByTracker} height={360} />
+        ) : null
       case "fleet-category-breakdown":
-        return <FleetCategoryBreakdown torrents={torrents} trackerTags={trackerTags} height={360} />
+        return aggregation ? (
+          <FleetCategoryBreakdown data={aggregation.categoryBreakdown} height={360} />
+        ) : null
       default:
         return null
     }
@@ -243,38 +201,41 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
   return (
     <div className="flex flex-col gap-6">
       {/* Fleet Stat Cards */}
-      {!chartPrefs.isHidden("fleet-stat-cards") && (
+      {!chartPrefs.isHidden("fleet-stat-cards") && aggregation && (
         <div className="flex flex-col gap-4">
           <H2>Fleet Overview</H2>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
             <StatCard
               label="Seeding"
-              value={stats.totalSeeding.toLocaleString()}
+              value={formatCount(aggregation.stats.totalSeeding)}
               icon={<SeedingIcon width="16" height="16" />}
             />
             <StatCard
               label="Leeching"
-              value={stats.totalLeeching.toLocaleString()}
+              value={formatCount(aggregation.stats.totalLeeching)}
               icon={<LeechingIcon width="16" height="16" />}
             />
             <StatCard
               label="Upload"
-              {...splitSpeed(stats.fleetUploadSpeed)}
+              value={uploadSpeedParts?.num ?? "—"}
+              unit={uploadSpeedParts?.unit}
               icon={<UploadArrowIcon width="16" height="16" />}
             />
             <StatCard
               label="Download"
-              {...splitSpeed(stats.fleetDownloadSpeed)}
+              value={downloadSpeedParts?.num ?? "—"}
+              unit={downloadSpeedParts?.unit}
               icon={<DownloadArrowIcon width="16" height="16" />}
             />
             <StatCard
               label="Library"
-              {...splitBytes(stats.totalLibrarySize)}
+              value={librarySizeParts?.num ?? "—"}
+              unit={librarySizeParts?.unit}
               icon={<BoxIcon width="16" height="16" />}
             />
             <StatCard
               label="Cross-Seed"
-              value={`${stats.crossSeedPercent.toFixed(1)}%`}
+              value={formatPercent(aggregation.stats.crossSeedPercent)}
               icon={<TagIcon width="16" height="16" />}
             />
           </div>
@@ -286,27 +247,41 @@ export function FleetDashboard({ dayRange, trackers: trackersProp }: FleetDashbo
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <H2>Fleet Analytics</H2>
-            {hiddenCount > 0 && (
-              <span className="text-[10px] font-mono text-muted">{hiddenCount} hidden</span>
-            )}
+            {hiddenCount > 0 && <span className="timestamp">{hiddenCount} hidden</span>}
           </div>
-          <button
-            type="button"
-            onClick={() => chartPrefs.collapseAll(allChartIds)}
-            className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono text-muted hover:text-secondary hover:bg-overlay transition-colors cursor-pointer rounded-nm-sm"
-          >
-            <ChevronUpIcon
-              width="12"
-              height="12"
-              className="transition-transform duration-200"
-              style={{
-                transform: chartPrefs.allVisibleCollapsed(allChartIds)
-                  ? "rotate(180deg)"
-                  : "rotate(0deg)",
-              }}
-            />
-            {chartPrefs.allVisibleCollapsed(allChartIds) ? "Expand All" : "Collapse All"}
-          </button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleRefreshFleet}
+              disabled={fleetFetching}
+              aria-label="Refresh fleet data"
+            >
+              <RefreshIcon
+                width="14"
+                height="14"
+                className={fleetFetching ? "animate-spin" : undefined}
+              />
+              {fleetFetching ? "Refreshing…" : "Refresh"}
+            </Button>
+            <button
+              type="button"
+              onClick={() => chartPrefs.collapseAll(allChartIds)}
+              className="timestamp flex items-center gap-2 px-2.5 py-1 hover:text-secondary nm-interactive-inset cursor-pointer rounded-nm-sm"
+            >
+              <ChevronUpIcon
+                width="12"
+                height="12"
+                className="transition-transform duration-200"
+                style={{
+                  transform: chartPrefs.allVisibleCollapsed(allChartIds)
+                    ? "rotate(180deg)"
+                    : "rotate(0deg)",
+                }}
+              />
+              {chartPrefs.allVisibleCollapsed(allChartIds) ? "Expand All" : "Collapse All"}
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-col gap-6">

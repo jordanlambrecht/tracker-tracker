@@ -163,6 +163,28 @@ describe("auth JWE real crypto", () => {
     expect(result).toBeNull()
   })
 
+  it("should reject a pending token as a session (getSession ignores purpose tokens)", async () => {
+    const { createPendingToken, getSession } = await loadAuth()
+
+    const pendingToken = await createPendingToken(SAMPLE_KEY)
+
+    // Simulate an attacker manually setting the pending token as the session cookie
+    cookieState.set("tt_session", { value: pendingToken })
+
+    const session = await getSession()
+    expect(session).toBeNull()
+  })
+
+  it("should reject a setup token as a session (getSession ignores purpose tokens)", async () => {
+    const { createSetupToken, getSession } = await loadAuth()
+
+    const setupToken = await createSetupToken("JBSWY3DPEHPK3PXP", "[]")
+    cookieState.set("tt_session", { value: setupToken })
+
+    const session = await getSession()
+    expect(session).toBeNull()
+  })
+
   // ---- 5. Setup token round-trip -----------------------------------------
 
   it("should round-trip a setup token preserving totpSecret and backupCodesJson", async () => {
@@ -225,5 +247,40 @@ describe("auth JWE real crypto", () => {
     const token2 = await createSession(SAMPLE_KEY, 10)
 
     expect(token1).not.toBe(token2)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// getSessionKey config error propagation
+// ---------------------------------------------------------------------------
+
+describe("getSession config error propagation", () => {
+  it("should throw (not return null) when SESSION_SECRET is unset", async () => {
+    // Create a valid token with a good secret first
+    vi.stubEnv("SESSION_SECRET", TEST_SECRET_A)
+    const { createSession: createWithGoodKey } = await loadAuth()
+    const token = await createWithGoodKey(SAMPLE_KEY, 10)
+
+    // Now unset the secret and try to read the session
+    vi.stubEnv("SESSION_SECRET", "")
+    cookieState.set("tt_session", { value: token })
+    const { getSession } = await loadAuth()
+
+    // getSession must throw (config error), not return null (expired/invalid token)
+    await expect(getSession()).rejects.toThrow("SESSION_SECRET")
+  })
+
+  it("should throw (not return null) when SESSION_SECRET is too short", async () => {
+    // Create a valid token with a good secret
+    vi.stubEnv("SESSION_SECRET", TEST_SECRET_A)
+    const { createSession } = await loadAuth()
+    const token = await createSession(SAMPLE_KEY, 10)
+
+    // Now set a short secret
+    vi.stubEnv("SESSION_SECRET", "tooshort")
+    cookieState.set("tt_session", { value: token })
+    const { getSession } = await loadAuth()
+
+    await expect(getSession()).rejects.toThrow("at least 32 characters")
   })
 })

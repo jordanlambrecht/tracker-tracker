@@ -1,14 +1,11 @@
 // src/components/settings/DataSection.tsx
-//
-// Functions: DataSection
-
 "use client"
 
 import { H3, Paragraph } from "@typography"
 import { useState } from "react"
+import { DatabaseSizeChart } from "@/components/settings/DatabaseSizeChart"
 import { SettingsSection } from "@/components/settings/SettingsSection"
-import { Button } from "@/components/ui/Button"
-import { Select } from "@/components/ui/Select"
+import { Divider, SaveDiscardBar, Select } from "@/components/ui"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 
 export interface DataSectionProps {
@@ -29,9 +26,9 @@ export function DataSection({ initialPollInterval }: DataSectionProps) {
 
   async function handleSavePollInterval() {
     const result = await patch({ trackerPollIntervalMinutes: pollInterval })
-    if (result !== null) {
+    if (result.ok) {
       setSavedPollInterval(
-        (result as { trackerPollIntervalMinutes: number }).trackerPollIntervalMinutes
+        (result.data as { trackerPollIntervalMinutes: number }).trackerPollIntervalMinutes
       )
     }
   }
@@ -65,21 +62,26 @@ export function DataSection({ initialPollInterval }: DataSectionProps) {
             { value: "1440", label: "24 hours" },
           ]}
         />
-        {pollIntervalError && (
-          <p className="text-xs font-sans text-danger" role="alert">
-            {pollIntervalError}
-          </p>
-        )}
-        {pollIntervalSuccess && (
-          <p className="text-xs font-sans text-success">Poll interval saved.</p>
-        )}
-        {pollInterval !== savedPollInterval && (
-          <div className="flex justify-end">
-            <Button size="sm" disabled={savingPollInterval} onClick={handleSavePollInterval}>
-              {savingPollInterval ? "Saving…" : "Save Interval"}
-            </Button>
-          </div>
-        )}
+        <SaveDiscardBar
+          dirty={pollInterval !== savedPollInterval}
+          saving={savingPollInterval}
+          onSave={handleSavePollInterval}
+          error={pollIntervalError}
+          success={pollIntervalSuccess ? "Poll interval saved." : null}
+          saveLabel="Save Interval"
+          justify="end"
+          showDivider={false}
+        />
+      </div>
+
+      {/* Database Size */}
+      <Divider compact />
+      <div className="flex flex-col gap-3">
+        <H3>Storage</H3>
+        <Paragraph>
+          Database size over time. Dashed line shows projected growth at current rate.
+        </Paragraph>
+        <DatabaseSizeChart />
       </div>
     </SettingsSection>
   )

@@ -1,7 +1,4 @@
 // src/lib/scheduler-key-store.ts
-//
-// Functions: persistSchedulerKey, loadSchedulerKey, clearSchedulerKey
-
 import "server-only"
 
 import { eq } from "drizzle-orm"
@@ -66,6 +63,9 @@ export async function clearSchedulerKey(settingsId: number): Promise<void> {
       .set({ encryptedSchedulerKey: null })
       .where(eq(appSettings.id, settingsId))
   } catch (err) {
-    log.warn({ err }, "Failed to clear scheduler key from DB")
+    log.error(
+      { err, settingsId },
+      "SECURITY: Failed to clear scheduler key from DB. Old key may persist."
+    )
   }
 }

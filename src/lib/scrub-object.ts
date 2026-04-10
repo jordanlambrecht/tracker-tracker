@@ -7,7 +7,9 @@ export const SCRUB_KEYS = new Set(["authkey", "passkey", "ip", "api_token", "key
 
 export function scrubObject(obj: unknown, depth = 0): unknown {
   if (depth > 10) return obj
-  if (obj === null || typeof obj !== "object") return obj
+  if (obj === null || typeof obj !== "object") {
+    return typeof obj === "bigint" ? obj.toString() : obj
+  }
   if (Array.isArray(obj)) {
     return obj.map((item) => scrubObject(item, depth + 1))
   }

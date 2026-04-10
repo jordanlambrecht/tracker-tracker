@@ -11,13 +11,13 @@
 
 ## Notes
 
-Standard UNIT3D configuration. No tracker-specific quirks.
+Standard UNIT3D. Nothing special here.
 
 ## Slots
 
 **Profile Card:** username · group (no avatar or join date — UNIT3D platform)
 
-**Badges:** `warned` (conditional — only resolves when `warned === true` in snapshot)
+**Badges:** `warned` (shows up only if `warned === true` in the API response)
 
 **Stat Cards:** `seedbonus`, `login-deadline` (loginIntervalDays: 150)
 

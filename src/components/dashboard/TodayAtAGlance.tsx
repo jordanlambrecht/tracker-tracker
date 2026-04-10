@@ -2,12 +2,13 @@
 
 "use client"
 
+import { H2 } from "@typography"
 import { FleetActivity } from "@/components/dashboard/FleetActivity"
 import { FleetHeadline } from "@/components/dashboard/FleetHeadline"
 import { MoversAndShakers } from "@/components/dashboard/MoversAndShakers"
 import { TrackerBreakdownBars } from "@/components/dashboard/TrackerBreakdownBars"
 import { TrackerBreakdownTicker } from "@/components/dashboard/TrackerBreakdownTicker"
-import { Card } from "@/components/ui/Card"
+import { Card, Divider } from "@/components/ui"
 import { formatTimeAgo } from "@/lib/formatters"
 import type { TodayAtAGlance as TodayAtAGlanceData } from "@/types/api"
 
@@ -20,7 +21,7 @@ function UpdatedAt({ iso }: { iso: string | null }) {
   if (!iso) return null
   const ago = formatTimeAgo(new Date(iso))
   return (
-    <span className="text-[10px] font-mono text-muted" title={iso}>
+    <span className="timestamp" title={iso}>
       Updated {ago}
     </span>
   )
@@ -38,20 +39,16 @@ export function TodayAtAGlance({ data, variant = "bars" }: TodayAtAGlanceProps) 
       <div className="flex flex-col gap-5">
         <FleetHeadline fleet={data.fleet} />
 
-        <div className="border-t border-border" />
+        <Divider compact />
 
         {/* Tracker breakdowns — upload and download side by side on lg, stacked on mobile */}
         <div className="flex items-center justify-between">
-          <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
-            By Tracker
-          </span>
+          <H2 className="uppercase tracking-wider">By Tracker</H2>
           <UpdatedAt iso={data.trackerLastUpdated} />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="nm-inset-sm rounded-nm-md p-4 flex flex-col gap-3">
-            <p className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
-              Upload
-            </p>
+            <H2 className="uppercase tracking-wider">Upload</H2>
             {variant === "bars" ? (
               <TrackerBreakdownBars trackers={data.trackers} metric="upload" />
             ) : (
@@ -60,9 +57,7 @@ export function TodayAtAGlance({ data, variant = "bars" }: TodayAtAGlanceProps) 
           </div>
 
           <div className="nm-inset-sm rounded-nm-md p-4 flex flex-col gap-3">
-            <p className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
-              Download
-            </p>
+            <H2 className="uppercase tracking-wider">Download</H2>
             {variant === "bars" ? (
               <TrackerBreakdownBars trackers={data.trackers} metric="download" />
             ) : (
@@ -73,7 +68,7 @@ export function TodayAtAGlance({ data, variant = "bars" }: TodayAtAGlanceProps) 
 
         {hasActivity && (
           <>
-            <div className="border-t border-border" />
+            <Divider compact />
             <div className="flex items-center justify-between">
               <FleetActivity activity={data.activity} />
               <UpdatedAt iso={data.clientLastUpdated} />

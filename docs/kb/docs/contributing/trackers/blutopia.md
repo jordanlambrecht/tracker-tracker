@@ -11,7 +11,7 @@
 
 ## Notes
 
-Standard UNIT3D configuration. No tracker-specific quirks.
+This is a standard UNIT3D setup. Nothing unusual here.
 
 ## Slots
 

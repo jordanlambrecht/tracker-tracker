@@ -1,12 +1,19 @@
 // src/app/api/trackers/[id]/roles/route.ts
 import { desc, eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, parseJsonBody, parseTrackerId } from "@/lib/api-helpers"
+import {
+  authenticate,
+  parseJsonBody,
+  parseTrackerId,
+  type RouteContext,
+  validateMaxLength,
+} from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { trackerRoles } from "@/lib/db/schema"
+import { TRACKER_NOTES_MAX, TRACKER_ROLE_NAME_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 
-export async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
+export async function GET(_request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -19,10 +26,15 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
     .where(eq(trackerRoles.trackerId, trackerId))
     .orderBy(desc(trackerRoles.achievedAt))
 
-  return NextResponse.json(roles)
+  return NextResponse.json(
+    roles.map((role) => ({
+      ...role,
+      achievedAt: role.achievedAt?.toISOString() ?? null,
+    }))
+  )
 }
 
-export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -42,12 +54,8 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     return NextResponse.json({ error: "roleName is required" }, { status: 400 })
   }
 
-  if (roleName.length > 255) {
-    return NextResponse.json(
-      { error: "Role name must be 255 characters or fewer" },
-      { status: 400 }
-    )
-  }
+  const roleNameErr = validateMaxLength(roleName, TRACKER_ROLE_NAME_MAX, "Role name")
+  if (roleNameErr) return roleNameErr
 
   if (achievedAt !== undefined) {
     if (typeof achievedAt !== "string" || Number.isNaN(new Date(achievedAt).getTime())) {
@@ -55,8 +63,9 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     }
   }
 
-  if (typeof notes === "string" && notes.length > 2000) {
-    return NextResponse.json({ error: "Notes must be 2000 characters or fewer" }, { status: 400 })
+  if (typeof notes === "string") {
+    const notesErr = validateMaxLength(notes, TRACKER_NOTES_MAX, "Notes")
+    if (notesErr) return notesErr
   }
 
   const [role] = await db
@@ -70,5 +79,8 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     .returning()
 
   log.info({ route: "POST /api/trackers/[id]/roles", trackerId }, "role created")
-  return NextResponse.json(role, { status: 201 })
+  return NextResponse.json(
+    { ...role, achievedAt: role.achievedAt?.toISOString() ?? null },
+    { status: 201 }
+  )
 }

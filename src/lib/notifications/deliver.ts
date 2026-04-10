@@ -1,21 +1,22 @@
 // src/lib/notifications/deliver.ts
-//
-// Functions: getCircuits, getCircuitState, resetCircuitBreaker, isCircuitOpen, recordFailure, recordSuccess, deliverDiscordWebhook
 
 import { sanitizeNetworkError } from "@/lib/error-utils"
+import { NOTIFICATION_COOLDOWN_MAX_MS } from "@/lib/limits"
 import { log } from "@/lib/logger"
+import type { DiscordEmbed } from "./payload"
 
-interface CircuitState {
+export interface CircuitState {
   failures: number
   openUntil: Date | null
 }
 
 // HMR-safe circuit breaker state — one per notification target
-const CIRCUIT_KEY = "__notificationCircuitBreakers"
+const g = globalThis as typeof globalThis & {
+  __notificationCircuits?: Map<number, CircuitState>
+}
 function getCircuits(): Map<number, CircuitState> {
-  const g = globalThis as Record<string, unknown>
-  if (!g[CIRCUIT_KEY]) g[CIRCUIT_KEY] = new Map<number, CircuitState>()
-  return g[CIRCUIT_KEY] as Map<number, CircuitState>
+  if (!g.__notificationCircuits) g.__notificationCircuits = new Map<number, CircuitState>()
+  return g.__notificationCircuits
 }
 
 const MAX_FAILURES = 3
@@ -64,7 +65,7 @@ export interface DeliveryResult {
 export async function deliverDiscordWebhook(
   targetId: number,
   webhookUrl: string,
-  embeds: Record<string, unknown>[]
+  embeds: DiscordEmbed[]
 ): Promise<DeliveryResult> {
   if (isCircuitOpen(targetId)) {
     return { success: false, status: "failed", error: "Circuit breaker open — skipping delivery" }
@@ -88,7 +89,7 @@ export async function deliverDiscordWebhook(
       const rawRetryAfter = Number(res.headers.get("Retry-After") ?? "60")
       const retryAfter = Math.min(
         Number.isFinite(rawRetryAfter) ? rawRetryAfter * 1000 : 60_000,
-        300_000
+        NOTIFICATION_COOLDOWN_MAX_MS
       ) // cap at 5 min
       recordFailure(targetId, retryAfter)
       log.warn(`Discord rate limit for target ${targetId} — retry after ${retryAfter}ms`)

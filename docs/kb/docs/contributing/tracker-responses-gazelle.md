@@ -2,21 +2,21 @@
 
 ## Endpoint (action=index)
 
-```
+```bash
 GET {baseUrl}/ajax.php?action=index
 ```
 
-The path `ajax.php` comes from the tracker's `apiPath` field. This is standard across all Gazelle forks.
+All Gazelle forks use `ajax.php` by default, but you can override it per tracker via `apiPath`.
 
 ## Authentication
 
-API token passed as an HTTP header:
+Most forks expect the token as a header:
 
-```
+```bash
 Authorization: token TOKEN
 ```
 
-Some forks (configured with `authStyle: "raw"`) use the token value directly without the `token ` prefix. The adapter checks `options.authStyle` to handle this.
+Some sites (`authStyle: "raw"`) omit the `token` prefix. The adapter checks `options.authStyle` to handle both.
 
 ## Example Response
 
@@ -50,7 +50,7 @@ Some forks (configured with `authStyle: "raw"`) use the token value directly wit
 }
 ```
 
-Byte values are **raw integers** (bytes), not formatted strings. The `id` field in the top-level response is the user's remote ID — the adapter caches this as `remoteUserId` for use in the enrichment call.
+Byte values are raw integers (bytes), not formatted strings. The `id` field is the remote user ID — cached as `remoteUserId` for the optional enrichment call.
 
 ## Field Mapping (action=index)
 
@@ -75,13 +75,11 @@ Byte values are **raw integers** (bytes), not formatted strings. The `id` field 
 
 ## Enrichment Response (action=user)
 
-Trackers configured with `enrich: true` make a second call after the index request:
+If the tracker has `gazelleEnrich: true`, a second call fetches the full profile (warned status, join date, reliable seeding/leeching counts, ranks, avatar):
 
-```
+```bash
 GET {baseUrl}/ajax.php?action=user&id={USER_ID}
 ```
-
-This call fetches the full user profile including warned status, join date, seeding/leeching counts from the community object, ranks, and avatar.
 
 ### Example Response
 
@@ -144,32 +142,32 @@ This call fetches the full user profile including warned status, join date, seed
 
 ### What the enrichment step overrides
 
-| TrackerStats field | Source in action=user response   | Notes                                    |
-| ------------------ | -------------------------------- | ---------------------------------------- |
-| `warned`           | `personal.warned`                | Overrides the `false` default from index |
-| `joinedDate`       | `stats.joinedDate`               | Not available from index                 |
-| `lastAccessDate`   | `stats.lastAccess`               | Not available from index                 |
-| `bufferBytes`      | `stats.buffer`                   | Richer than the calculated value         |
-| `seedingCount`     | `community.seeding`              | More reliable than index for many forks  |
-| `leechingCount`    | `community.leeching`             | More reliable than index for many forks  |
-| `avatarUrl`        | `avatar`                         | Not available from index                 |
-| `platformMeta`     | `personal`, `ranks`, `community` | Full `GazellePlatformMeta` object        |
+| Field | Source | Notes |
+| --- | --- | --- |
+| `warned` | `personal.warned` | Overrides `false` default |
+| `joinedDate` | `stats.joinedDate` | Index has none |
+| `lastAccessDate` | `stats.lastAccess` | Index has none |
+| `bufferBytes` | `stats.buffer` | Better than calculated value |
+| `seedingCount` | `community.seeding` | More reliable than index |
+| `leechingCount` | `community.leeching` | More reliable than index |
+| `avatarUrl` | `avatar` | Index has none |
+| `platformMeta` | `personal`, `ranks`, `community` | Full object |
 
-If the enrichment call fails for any reason, the adapter continues with core stats from the index response — the failure is non-fatal.
+If enrichment fails, we keep the index stats. No problem.
 
 ---
 
 ## Gazelle Fork Variations
 
-| Site                 | bonusPoints field | freeleechTokens | seedingcount in index |
-| -------------------- | ----------------- | --------------- | --------------------- |
-| Redacted (RED)       | `bonusPoints`     | Sometimes       | No                    |
-| Orpheus (OPS)        | `bonusPoints`     | Sometimes       | No                    |
-| BroadcasTheNet (BTN) | Varies            | No              | No                    |
-| PassThePopcorn (PTP) | Varies            | No              | No                    |
-| AnimeBytes (AB)      | Varies            | Varies          | No                    |
+| Site | bonusPoints field | freeleechTokens | seedingcount in index |
+| --- | --- | --- | --- |
+| Redacted (RED) | `bonusPoints` | Sometimes | No |
+| Orpheus (OPS) | `bonusPoints` | Sometimes | No |
+| BroadcasTheNet (BTN) | Varies | No | No |
+| PassThePopcorn (PTP) | Varies | No | No |
+| AnimeBytes (AB) | Varies | Varies | No |
 
-GazelleGames (GGn) is handled by its own separate adapter — see the [GGn page](tracker-responses-ggn.md).
+GGn uses a separate adapter — see the [GGn page](tracker-responses-ggn.md).
 
 ## Supported Trackers
 

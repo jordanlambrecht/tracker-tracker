@@ -1,31 +1,10 @@
 // src/lib/image-hosting/imgbb.ts
 
+import { IMAGE_EXPIRATION_MAX, IMAGE_EXPIRATION_MIN } from "@/lib/limits"
+import { safeImageUrl, validateImageUrl } from "@/lib/validators"
 import type { ImageHostAdapter, UploadOptions, UploadResult } from "./types"
 
 const UPLOAD_URL = "https://api.imgbb.com/1/upload"
-
-function validateImageUrl(url: string): string {
-  try {
-    const parsed = new URL(url)
-    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-      throw new Error("Invalid URL protocol")
-    }
-    return url
-  } catch {
-    throw new Error("Invalid URL in image host response")
-  }
-}
-
-function safeImageUrl(url: string | undefined): string | undefined {
-  if (!url) return undefined
-  try {
-    return validateImageUrl(url)
-  } catch {
-    return undefined
-  }
-}
-const MIN_EXPIRATION = 60
-const MAX_EXPIRATION = 15_552_000
 
 interface ImgBBResponse {
   success: boolean
@@ -57,7 +36,10 @@ export const imgbbAdapter: ImageHostAdapter = {
     form.set("image", new Blob([new Uint8Array(fileBuffer)]), fileName)
 
     if (options?.expirationSeconds && options.expirationSeconds > 0) {
-      const clamped = Math.max(MIN_EXPIRATION, Math.min(MAX_EXPIRATION, options.expirationSeconds))
+      const clamped = Math.max(
+        IMAGE_EXPIRATION_MIN,
+        Math.min(IMAGE_EXPIRATION_MAX, options.expirationSeconds)
+      )
       form.set("expiration", String(clamped))
     }
 

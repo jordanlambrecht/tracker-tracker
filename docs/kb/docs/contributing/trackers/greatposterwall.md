@@ -1,5 +1,8 @@
 # Great Poster Wall (GPW)
 
+!!! Warning
+    This tracker is marked **Unvalidated** and has not been tested it against a real account yet.
+
 | Field        | Value                                     |
 | ------------ | ----------------------------------------- |
 | Platform     | Gazelle                                   |
@@ -11,13 +14,13 @@
 
 ## Notes
 
-Standard Gazelle configuration. This tracker is marked **Unvalidated** — the API integration has not been confirmed against a live account. The site is primarily Chinese-language.
+- Standard Gazelle config.
 
 ## Slots
 
 **Profile Card:** username · group (no avatar or join date — no enrichment)
 
-**Badges:** `warned` (conditional — always `false` without enrichment)
+**Badges:** `warned` (conditional — always `false` since there's no enrichment)
 
 **Stat Cards:** `seedbonus`, `login-deadline` (loginIntervalDays: 90)
 

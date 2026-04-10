@@ -1,22 +1,19 @@
 // src/components/charts/CrossSeedNetwork.tsx
-//
-// Functions: buildNetworkData, buildCrossSeedNetworkOption, CrossSeedNetwork
 
 "use client"
 
 import type { EChartsOption } from "echarts"
-import type { TrackerTag } from "@/lib/fleet"
-import { hexToRgba } from "@/lib/formatters"
-import type { TorrentInfo } from "@/lib/torrent-utils"
+import { useMemo } from "react"
+import { hexToRgba } from "@/lib/color-utils"
+import type { CrossSeedEdge, CrossSeedNode } from "@/lib/fleet-aggregation"
+import { formatCount } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { fmtNum } from "./lib/chart-helpers"
 import { CHART_THEME, chartTooltip, escHtml } from "./lib/theme"
 
 interface CrossSeedNetworkProps {
-  torrents: TorrentInfo[]
-  trackerTags: TrackerTag[]
-  crossSeedTags: string[]
+  network: { nodes: CrossSeedNode[]; edges: CrossSeedEdge[] }
   height?: number
 }
 
@@ -37,92 +34,44 @@ interface NetworkEdge {
   lineStyle: { width: number; color: string; curveness: number; opacity: number }
 }
 
-function buildNetworkData(
-  torrents: TorrentInfo[],
-  trackerTags: TrackerTag[],
-  crossSeedTags: string[]
-): { nodes: NetworkNode[]; edges: NetworkEdge[] } {
-  const crossSeedSet = new Set(crossSeedTags.map((t) => t.toLowerCase()))
-  const trackerTagMap = new Map<string, TrackerTag>()
-  for (const tt of trackerTags) trackerTagMap.set(tt.tag.toLowerCase(), tt)
-
-  const nameToTrackers = new Map<string, Set<string>>()
-  const trackerTorrentCount = new Map<string, number>()
-
-  for (const torrent of torrents) {
-    const tags = torrent.tags
-      .split(",")
-      .map((t) => t.trim().toLowerCase())
-      .filter((t) => t && !crossSeedSet.has(t))
-    const matched = tags.filter((t) => trackerTagMap.has(t))
-    if (matched.length === 0) continue
-    for (const tag of matched) trackerTorrentCount.set(tag, (trackerTorrentCount.get(tag) ?? 0) + 1)
-    const existing = nameToTrackers.get(torrent.name) ?? new Set()
-    for (const tag of matched) existing.add(tag)
-    nameToTrackers.set(torrent.name, existing)
-  }
-
-  const crossSeededPerTracker = new Map<string, number>()
-  const pairCounts = new Map<string, number>()
-
-  for (const [, trackerSet] of nameToTrackers) {
-    if (trackerSet.size < 2) continue
-    const arr = Array.from(trackerSet).sort()
-    for (const t of arr) crossSeededPerTracker.set(t, (crossSeededPerTracker.get(t) ?? 0) + 1)
-    for (let i = 0; i < arr.length; i++) {
-      for (let j = i + 1; j < arr.length; j++) {
-        const key = `${arr[i]}|${arr[j]}`
-        pairCounts.set(key, (pairCounts.get(key) ?? 0) + 1)
-      }
-    }
-  }
-
-  const maxCount = Math.max(...Array.from(trackerTorrentCount.values()), 1)
-  const nodes: NetworkNode[] = []
-
-  for (const [tagKey, tt] of trackerTagMap) {
-    const count = trackerTorrentCount.get(tagKey) ?? 0
-    if (count === 0) continue
-    const crossCount = crossSeededPerTracker.get(tagKey) ?? 0
-    const sizeFactor = Math.sqrt(count / maxCount)
+function buildStyledNodes(aggregatedNodes: CrossSeedNode[]): NetworkNode[] {
+  const maxCount = Math.max(...aggregatedNodes.map((n) => n.torrentCount), 1)
+  return aggregatedNodes.map((n) => {
+    const sizeFactor = Math.sqrt(n.torrentCount / maxCount)
     const nodeSize = Math.max(20, sizeFactor * 60)
-
-    nodes.push({
-      id: tagKey,
-      name: tt.name,
+    return {
+      id: n.id,
+      name: n.name,
       symbolSize: nodeSize,
-      torrentCount: count,
-      crossSeeded: crossCount,
-      itemStyle: { color: tt.color, shadowBlur: 20, shadowColor: hexToRgba(tt.color, 0.5) },
+      torrentCount: n.torrentCount,
+      crossSeeded: n.crossSeeded,
+      itemStyle: { color: n.color, shadowBlur: 20, shadowColor: hexToRgba(n.color, 0.5) },
       label: {
         show: true,
         color: CHART_THEME.textSecondary,
-        fontSize: 11,
+        fontSize: CHART_THEME.fontSizeDense,
         fontFamily: CHART_THEME.fontMono,
       },
-    })
-  }
+    }
+  })
+}
 
-  const maxShared = Math.max(...Array.from(pairCounts.values()), 1)
-  const edges: NetworkEdge[] = []
-
-  for (const [key, count] of pairCounts) {
-    const [source, target] = key.split("|")
-    const widthFactor = Math.sqrt(count / maxShared)
-    edges.push({
-      source,
-      target,
-      sharedCount: count,
+function buildStyledEdges(aggregatedEdges: CrossSeedEdge[]): NetworkEdge[] {
+  const maxShared = Math.max(...aggregatedEdges.map((e) => e.weight), 1)
+  return aggregatedEdges.map((e) => {
+    const widthFactor = Math.sqrt(e.weight / maxShared)
+    return {
+      source: e.source,
+      target: e.target,
+      sharedCount: e.weight,
       lineStyle: {
         width: Math.max(1, widthFactor * 8),
         color: CHART_THEME.textTertiary,
         curveness: 0.2,
         opacity: 0.3 + widthFactor * 0.5,
       },
-    })
-  }
-
-  return { nodes, edges }
+    }
+  })
 }
 
 function buildCrossSeedNetworkOption(nodes: NetworkNode[], edges: NetworkEdge[]): EChartsOption {
@@ -142,7 +91,7 @@ function buildCrossSeedNetworkOption(nodes: NetworkNode[], edges: NetworkEdge[])
           const tgtName = nodes.find((n) => n.id === edge.target)?.name ?? edge.target
           return (
             `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(srcName)} ↔ ${escHtml(tgtName)}</span><br/>` +
-            `<span style="color:${CHART_THEME.accent};">${edge.sharedCount.toLocaleString()} shared torrent${edge.sharedCount !== 1 ? "s" : ""}</span>`
+            `<span style="color:${CHART_THEME.accent};">${formatCount(edge.sharedCount)} shared torrent${edge.sharedCount !== 1 ? "s" : ""}</span>`
           )
         }
 
@@ -151,8 +100,8 @@ function buildCrossSeedNetworkOption(nodes: NetworkNode[], edges: NetworkEdge[])
           node.torrentCount > 0 ? fmtNum((node.crossSeeded / node.torrentCount) * 100, 1) : "0.0"
         return (
           `<span style="color:${node.itemStyle.color};font-weight:600;">${escHtml(node.name)}</span><br/>` +
-          `<span style="color:${CHART_THEME.textSecondary};">${node.torrentCount.toLocaleString()} torrents</span><br/>` +
-          `<span style="color:${CHART_THEME.accent};">${node.crossSeeded.toLocaleString()} cross-seeded</span>` +
+          `<span style="color:${CHART_THEME.textSecondary};">${formatCount(node.torrentCount)} torrents</span><br/>` +
+          `<span style="color:${CHART_THEME.accent};">${formatCount(node.crossSeeded)} cross-seeded</span>` +
           `<span style="color:${CHART_THEME.textTertiary};"> · ${pct}%</span>`
         )
       },
@@ -192,28 +141,21 @@ function buildCrossSeedNetworkOption(nodes: NetworkNode[], edges: NetworkEdge[])
   }
 }
 
-function CrossSeedNetwork({
-  torrents,
-  trackerTags,
-  crossSeedTags,
-  height = 450,
-}: CrossSeedNetworkProps) {
-  if (trackerTags.length === 0)
-    return <ChartEmptyState height={height} message="No tracker tags configured" />
+function CrossSeedNetwork({ network, height = 450 }: CrossSeedNetworkProps) {
+  const { nodes: aggregatedNodes, edges: aggregatedEdges } = network
 
-  const { nodes, edges } = buildNetworkData(torrents, trackerTags, crossSeedTags)
+  const option = useMemo(() => {
+    const nodes = buildStyledNodes(aggregatedNodes)
+    const edges = buildStyledEdges(aggregatedEdges)
+    return buildCrossSeedNetworkOption(nodes, edges)
+  }, [aggregatedNodes, aggregatedEdges])
 
-  if (nodes.length === 0)
+  if (aggregatedNodes.length === 0)
     return <ChartEmptyState height={height} message="No torrent data available" />
-  if (edges.length === 0)
+  if (aggregatedEdges.length === 0)
     return <ChartEmptyState height={height} message="No cross-seeded content detected" />
 
-  return (
-    <ChartECharts
-      option={buildCrossSeedNetworkOption(nodes, edges)}
-      style={{ height, width: "100%" }}
-    />
-  )
+  return <ChartECharts option={option} style={{ height, width: "100%" }} />
 }
 
 export type { CrossSeedNetworkProps }

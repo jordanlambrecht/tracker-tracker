@@ -26,6 +26,7 @@ function makeSnap(polledAt: string, ratio: number | null = 1.5): Snapshot {
     username: null,
     group: null,
     shareScore: null,
+    isManual: false,
   }
 }
 

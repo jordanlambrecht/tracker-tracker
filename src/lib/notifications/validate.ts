@@ -6,7 +6,7 @@ import { isUnsafeNetworkHost } from "@/lib/network"
 import {
   DISCORD_WEBHOOK_RE,
   type NotificationTargetType,
-  VALID_NOTIFICATION_TYPES,
+  SUPPORTED_NOTIFICATION_TYPES,
 } from "@/lib/notifications/types"
 
 /**
@@ -17,8 +17,8 @@ export function validateNotificationConfig(
   type: NotificationTargetType,
   config: Record<string, unknown>
 ): string | null {
-  if (!VALID_NOTIFICATION_TYPES.includes(type)) {
-    return `Unsupported notification type: ${type}`
+  if (!(SUPPORTED_NOTIFICATION_TYPES as readonly string[]).includes(type)) {
+    return `${type} notifications are not yet supported`
   }
 
   switch (type) {
@@ -28,7 +28,7 @@ export function validateNotificationConfig(
         return "Discord config requires a webhookUrl string"
       }
       if (!DISCORD_WEBHOOK_RE.test(url.trim())) {
-        return "Invalid Discord webhook URL — must match https://discord.com/api/webhooks/{id}/{token}"
+        return "Invalid Discord webhook URL - must match https://discord.com/api/webhooks/{id}/{token}"
       }
       // Defense-in-depth SSRF check
       try {
@@ -40,11 +40,6 @@ export function validateNotificationConfig(
       }
       return null
     }
-    case "gotify":
-    case "telegram":
-    case "slack":
-    case "email":
-      return `${type} notifications are not yet supported`
     default:
       return `Unsupported notification type: ${type}`
   }

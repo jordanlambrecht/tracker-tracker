@@ -1,5 +1,4 @@
 // src/components/dashboard/torrents/TorrentStatCards.tsx
-
 "use client"
 
 import { CHART_THEME } from "@/components/charts/lib/theme"
@@ -11,8 +10,8 @@ import {
   TriangleWarningIcon,
 } from "@/components/ui/Icons"
 import { StatCard } from "@/components/ui/StatCard"
-import { formatBytesNum, formatDuration, splitValueUnit } from "@/lib/formatters"
-import type { TorrentInfo } from "@/lib/torrent-utils"
+import type { TorrentRaw } from "@/lib/fleet"
+import { formatBytesNum, formatCount, formatDuration, splitValueUnit } from "@/lib/formatters"
 
 const ICONS = {
   seeding: <SeedingIcon width={16} height={16} />,
@@ -23,8 +22,8 @@ const ICONS = {
 }
 
 interface TorrentStatCardsProps {
-  torrents: TorrentInfo[]
-  seedingTorrents: TorrentInfo[]
+  torrents: TorrentRaw[]
+  seedingTorrents: TorrentRaw[]
   totalSize: number
   crossSeededCount: number
   deadCount: number | null
@@ -76,7 +75,7 @@ export function TorrentStatCards({
           accentColor={accentColor}
           sumIsHero
           className="row-span-2"
-          total={{ label: "Total", value: seedingTorrents.length.toLocaleString() }}
+          total={{ label: "Total", value: formatCount(seedingTorrents.length) }}
           rows={(() => {
             const byClient = new Map<string, number>()
             for (const t of seedingTorrents) {
@@ -87,14 +86,14 @@ export function TorrentStatCards({
             }
             return [...byClient.entries()].map(([label, count]) => ({
               label,
-              value: count.toLocaleString(),
+              value: formatCount(count),
             }))
           })()}
         />
       ) : (
         <StatCard
           label="Seeding"
-          value={seedingTorrents.length.toLocaleString()}
+          value={formatCount(seedingTorrents.length)}
           accentColor={accentColor}
           icon={ICONS.seeding}
         />
@@ -133,18 +132,18 @@ export function TorrentStatCards({
       )}
       <StatCard
         label="Cross-Seeded"
-        value={crossSeededCount.toLocaleString()}
-        unit={`/ ${torrents.length.toLocaleString()}`}
+        value={formatCount(crossSeededCount)}
+        unit={`/ ${formatCount(torrents.length)}`}
         accentColor={accentColor}
         icon={ICONS.crossSeed}
       />
       {deadCount !== null && (
         <StatCard
           label="Dead"
-          value={deadCount.toLocaleString()}
+          value={formatCount(deadCount)}
           accentColor={deadCount > 0 ? CHART_THEME.warn : accentColor}
           icon={ICONS.warning}
-          tooltip={`Client has ${seedingTorrents.length} seeding torrents, tracker reports ${trackerSeedingCount?.toLocaleString() ?? "?"}. Difference may include torrents removed from the tracker but still in your client. This is an estimate and may not be accurate if the tracker's seeding count is affected by paranoia settings or API delays.`}
+          tooltip={`Client has ${seedingTorrents.length} seeding torrents, tracker reports ${trackerSeedingCount != null ? formatCount(trackerSeedingCount) : "?"}. Difference may include torrents removed from the tracker but still in your client. This is an estimate and may not be accurate if the tracker's seeding count is affected by paranoia settings or API delays.`}
         />
       )}
       <StatCard
@@ -170,7 +169,7 @@ export function TorrentStatCards({
       {hnrRiskCount !== null && (
         <StatCard
           label="H&R Risk"
-          value={hnrRiskCount.toLocaleString()}
+          value={formatCount(hnrRiskCount)}
           accentColor={hnrRiskCount > 0 ? CHART_THEME.danger : accentColor}
           icon={ICONS.warning}
           tooltip={

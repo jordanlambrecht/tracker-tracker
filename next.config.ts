@@ -29,6 +29,7 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version ?? "0.0.0",
   },
+  allowedDevOrigins: ["*.local", "*.lan", "192.168.*.*", "10.*.*.*"],
   devIndicators: {
     position: "bottom-right",
   },

@@ -11,15 +11,17 @@ import {
   backupToEvent,
   EVENT_CATEGORIES,
   type EventCategory,
+  groupPollBatches,
   mergeAndSort,
   parseLogLine,
   type SystemEvent,
   snapshotToEvent,
 } from "@/lib/events"
+import { EVENTS_LIMIT_CAP, EVENTS_LIMIT_DEFAULT } from "@/lib/limits"
 import { readLogTail } from "@/lib/log-reader"
 import { log } from "@/lib/logger"
 
-const MAX_LOG_BYTES = 256 * 1024 // 256 KB tail read
+const MAX_LOG_BYTES = 256 * 1024 // 256 KB
 
 export async function GET(request: Request): Promise<NextResponse> {
   const auth = await authenticate()
@@ -29,7 +31,9 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   // Parse and validate limit
   const rawLimit = parseInt(searchParams.get("limit") ?? "", 10)
-  const limit = Number.isNaN(rawLimit) ? 50 : Math.min(Math.max(rawLimit, 1), 200)
+  const limit = Number.isNaN(rawLimit)
+    ? EVENTS_LIMIT_DEFAULT
+    : Math.min(Math.max(rawLimit, 1), EVENTS_LIMIT_CAP)
 
   // Parse and validate offset
   const rawOffset = parseInt(searchParams.get("offset") ?? "", 10)
@@ -73,7 +77,7 @@ export async function GET(request: Request): Promise<NextResponse> {
         .limit(100),
     ])
 
-    // Convert DB rows to SystemEvent — dates → ISO strings, bigints → strings
+    // Convert DB rows to SystemEvent (dates to ISO strings, bigints to strings)
     const dbEvents = [
       ...snapshotRows.map((row) =>
         snapshotToEvent({
@@ -98,7 +102,7 @@ export async function GET(request: Request): Promise<NextResponse> {
       ),
     ]
 
-    // Positional tail-read of log file — never loads the full file
+    // tail-read of log file
     let logEvents: SystemEvent[] = []
     let logSizeBytes = 0
 
@@ -115,13 +119,17 @@ export async function GET(request: Request): Promise<NextResponse> {
       ) {
         log.error({ route: "GET /api/settings/events" }, "failed to read log file for events")
       }
-      // ENOENT is non-fatal — proceed with DB events only
     }
 
-    // Single pass — sort+filter once, then slice for pagination
-    const allMerged = mergeAndSort(dbEvents, logEvents, category, Number.MAX_SAFE_INTEGER, 0)
-    const total = allMerged.length
-    const events = allMerged.slice(offset, offset + limit)
+    // Count total
+    const total =
+      category === "all"
+        ? dbEvents.length + logEvents.length
+        : dbEvents.reduce((count, e) => (e.category === category ? count + 1 : count), 0) +
+          logEvents.reduce((count, e) => (e.category === category ? count + 1 : count), 0)
+
+    // Sort, paginate, then collapse same-timestamp polls into batches
+    const events = groupPollBatches(mergeAndSort(dbEvents, logEvents, category, limit, offset))
 
     return NextResponse.json({
       events,

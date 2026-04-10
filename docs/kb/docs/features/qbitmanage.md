@@ -5,19 +5,17 @@ description: Automatically categorize and visualize torrents using qbitmanage st
 
 # qbitmanage Integration
 
-[qbitmanage](https://github.com/StuffAnThings/qbit_manage) is a tool that automatically manages your qBittorrent torrents — tagging, categorizing, cleaning up orphaned data, enforcing share limits, and more. If you already run it, Tracker Tracker can read its tags and turn them into useful charts.
+[qbitmanage](https://github.com/StuffAnThings/qbit_manage) automatically manages qBittorrent torrents — tags, categories, cleanup, share limits, and more. If you're already running it, Tracker Tracker can read those tags and build charts from them.
 
-This page covers how the two tools work together. For general tag group setup, see [Tag Groups](tag-groups.md).
+For general tag group setup, see [Tag Groups](tag-groups.md).
 
 ## How It Works
 
-qbitmanage writes tags to your torrents in qBittorrent. Tracker Tracker reads those tags during its deep poll cycle. You set up tag groups that match qbitmanage's tag names, and the charts appear automatically on each tracker's Torrents tab.
-
-Nothing is pushed between the two — they both talk to qBittorrent independently.
+qbitmanage writes tags to qBittorrent. Tracker Tracker reads them during its deep poll cycle. Create tag groups matching qbitmanage's tag names and charts appear automatically on each tracker's Torrents tab. Both tools talk to qBittorrent independently.
 
 ## Built-In Status Tag Tracking
 
-Tracker Tracker has built-in support for qbitmanage's status tags. Enable it in **Settings → Download Clients → qbitmanage Tag Tracking**.
+Tracker Tracker has built-in support for qbitmanage's status tags. Turn it on in **Settings → Download Clients → qbitmanage Tag Tracking**.
 
 ![qbitmanage tag tracking settings](../assets/images/qbitmanage-settings.png)
 
@@ -32,14 +30,14 @@ Map each status to the tag name from your qbitmanage config. Here are qbitmanage
 | Last Active Limit Not Reached | `LastActiveLimitNotReached` | `share_limits_last_active_tag`      | Hasn't been inactive long enough for removal                  |
 | Last Active Not Reached       | `LastActiveNotReached`      | `share_limits_last_active_tag`      | Last activity hasn't crossed the threshold                    |
 
-Many people customize these with emoji prefixes (e.g., `⚠️ Issue` instead of `issue`). If you've changed them in your qbitmanage `config.yml`, enter **your** tag names — not the defaults above.
+Many people customize them with emoji (i.e., `⚠️ Issue`). If you've changed them in your qbitmanage `config.yml`, use your actual tag names here.
 
 Here's what the qbitmanage status breakdown looks like on a tracker's Torrents tab:
 
 ![qbitmanage status bar chart showing No Hardlinks, Min Seeds Not Met, Last Active Limit, and Last Active Not Reached](../assets/images/tracker-page-qbitmanage.png)
 
 !!! tip "Match your config exactly"
-  Tag names must match character-for-character, including any emoji or special characters. Copy them directly from your qbitmanage `config.yml`.
+    Tag names must match character-for-character, including emoji and special characters. Copy them straight from your qbitmanage `config.yml`.
 
 ## Tag Group Examples
 
@@ -137,10 +135,10 @@ Create a tag group with just the `⛓️‍💥 noHL` tag and enable **Count unm
 
 ## Tips
 
-- **qbitmanage runs on its own schedule.** Tags may take a few minutes to appear in qBittorrent after a new torrent is added. Tracker Tracker polls qBittorrent every 5 minutes by default, so there's a lag between qbitmanage tagging a torrent and the chart updating.
-- **Emoji in tags are fine.** qbitmanage commonly uses emoji prefixes for visual organization. Tracker Tracker handles them without issues — just make sure the exact emoji sequence matches.
-- **Priority tags come from the `tracker:` section,** not from share limits. Share limits _use_ the priority tags for filtering, but the tags themselves are assigned by the tracker keyword matching.
-- **You don't need qbitmanage to use tag groups.** Any tags in qBittorrent work — qbitmanage just happens to be the most popular way to automate tagging in the homelab community.
+- **qbitmanage runs independently.** Tags take a few minutes to appear, and Tracker Tracker polls every 5 minutes by default, so there's some lag.
+- **Emoji in tags work fine** — just match the exact sequence.
+- **Priority tags come from the `tracker:` section**, not share limits. Share limits use them for filtering, but the tags come from tracker keyword matching.
+- **You don't need qbitmanage for tag groups.** Any qBittorrent tags work — qbitmanage is just popular in the homelab community.
 
 ## Resources
 

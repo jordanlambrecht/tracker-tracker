@@ -3,10 +3,17 @@
 // Functions: POST
 
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseJsonBody, validatePort } from "@/lib/api-helpers"
+import {
+  authenticate,
+  decodeKey,
+  parseJsonBody,
+  validateMaxLength,
+  validatePort,
+} from "@/lib/api-helpers"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { CREDENTIAL_MAX, HOST_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import {
   createProxyAgent,
@@ -14,7 +21,7 @@ import {
   type ProxyType,
   proxyFetch,
   VALID_PROXY_TYPES,
-} from "@/lib/proxy"
+} from "@/lib/tunnel"
 
 const TEST_URL = "https://httpbin.org/ip"
 // Loose IP pattern — IPv4, IPv6, or comma-separated (httpbin returns this)
@@ -41,12 +48,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "proxyHost is required" }, { status: 400 })
   }
 
-  if (proxyHost.length > 255) {
-    return NextResponse.json(
-      { error: "Proxy host must be 255 characters or fewer" },
-      { status: 400 }
-    )
-  }
+  const proxyHostErr = validateMaxLength(proxyHost, HOST_MAX, "Proxy host")
+  if (proxyHostErr) return proxyHostErr
 
   if (!PROXY_HOST_PATTERN.test(proxyHost)) {
     return NextResponse.json({ error: "Invalid proxy host format" }, { status: 400 })
@@ -57,6 +60,15 @@ export async function POST(request: Request) {
       { error: `proxyType must be one of: ${[...VALID_PROXY_TYPES].join(", ")}` },
       { status: 400 }
     )
+  }
+
+  if (typeof proxyUsername === "string") {
+    const proxyUsernameErr = validateMaxLength(proxyUsername, CREDENTIAL_MAX, "Proxy username")
+    if (proxyUsernameErr) return proxyUsernameErr
+  }
+  if (typeof proxyPassword === "string") {
+    const proxyPasswordErr = validateMaxLength(proxyPassword, CREDENTIAL_MAX, "Proxy password")
+    if (proxyPasswordErr) return proxyPasswordErr
   }
 
   const port = typeof proxyPort === "number" ? proxyPort : 1080

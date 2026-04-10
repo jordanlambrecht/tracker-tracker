@@ -1,9 +1,14 @@
 // src/components/charts/lib/chart-helpers.ts
 //
-// Functions: fmtNum, yAxisPad, formatDateLabel, yAxisAutoRange, autoByteScale, DAY_LABELS, HOUR_LABELS, buildBucketedBarOption, buildGlowAreaStyle, buildAxisPointer, buildThemeRiverSingleAxis, adaptiveDotSize, buildTimeXAxis, insideZoom, buildDonutShell, buildStackedAreaOption
+// Functions: fmtNum, formatGiB, yAxisPad, formatDateLabel, yAxisAutoRange,
+// autoByteScale, DAY_LABELS, HOUR_LABELS, buildBucketedBarOption, buildGlowAreaStyle,
+// buildAxisPointer, buildThemeRiverSingleAxis, floorTimestamp, adaptiveDotSize,
+// buildTimeXAxis, insideZoom, buildDonutShell, buildStackedAreaOption
 
 import type { EChartsOption } from "echarts"
-import { hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
+import { formatCount } from "@/lib/formatters"
+import type { StackedAreaSeries } from "@/types/charts"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -22,6 +27,11 @@ export function fmtNum(v: number, decimals = 2): string {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   })
+}
+
+/** Formats a GiB value with automatic TiB scaling for display in chart tooltips. */
+export function formatGiB(gib: number): string {
+  return gib >= 1024 ? `${fmtNum(gib / 1024)} TiB` : `${fmtNum(gib)} GiB`
 }
 
 /** Format ISO date string to short locale label (i.e "Mar 15") */
@@ -134,7 +144,7 @@ export function buildBucketedBarOption<TBucket, TTorrent>(
         formatter: markLine.label,
         position: "end",
         color: markLine.color,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
     }
   }
@@ -151,7 +161,7 @@ export function buildBucketedBarOption<TBucket, TTorrent>(
         return (
           chartDot(p.color) +
           `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${labelPrefix} ${getLabel(entry.bucket)}</span><br/>` +
-          `<span style="color:${CHART_THEME.textSecondary};">${entry.count.toLocaleString()} torrents</span>` +
+          `<span style="color:${CHART_THEME.textSecondary};">${formatCount(entry.count)} torrents</span>` +
           `<span style="color:${CHART_THEME.textTertiary};"> · ${pct}%${pctSuffix}</span>`
         )
       },
@@ -232,7 +242,30 @@ export function buildThemeRiverSingleAxis(overrides?: {
     axisLabel: chartAxisLabel(),
     axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
     axisTick: { show: false },
+    splitLine: { lineStyle: { color: CHART_THEME.gridLine, width: 1 } },
   }
+}
+
+type TimeBucket = "minute" | "5min" | "15min" | "hour" | "day"
+
+const BUCKET_MS: Record<TimeBucket, number> = {
+  minute: 60_000,
+  "5min": 300_000,
+  "15min": 900_000,
+  hour: 3_600_000,
+  day: 86_400_000,
+}
+
+/**
+ * Floor a millisecond timestamp to the nearest bucket boundary.
+ * Use to bucket time-series data before charting — eliminates sub-bucket
+ * precision that wastes render cycles with no visual benefit.
+ * @param ms - Unix timestamp in milliseconds
+ * @param granularity - Bucket size (default: "hour")
+ */
+export function floorTimestamp(ms: number, granularity: TimeBucket = "hour"): number {
+  const interval = BUCKET_MS[granularity]
+  return ms - (ms % interval)
 }
 
 /**
@@ -255,7 +288,7 @@ export function adaptiveDotSize(count: number, thresholds: [number, number] = [1
 export function buildTimeXAxis(overrides?: Record<string, unknown>): Record<string, unknown> {
   return {
     type: "time",
-    boundaryGap: false,
+    boundaryGap: ["0%", "0%"],
     axisLine: { lineStyle: { color: CHART_THEME.gridLine } },
     axisTick: { show: false },
     axisLabel: chartAxisLabel({
@@ -327,7 +360,7 @@ export function buildDonutShell(overrides?: {
  */
 export function buildStackedAreaOption(
   sortedMonths: string[],
-  series: { name: string; color: string; monthMap: Map<string, number> }[],
+  series: StackedAreaSeries[],
   stackId = "default"
 ): EChartsOption {
   const eChartsSeries: NonNullable<EChartsOption["series"]> = series.map((s) => {
@@ -368,22 +401,20 @@ export function buildStackedAreaOption(
         const rows = items
           .filter((item) => item.value[1] > 0)
           .sort((a, b) => b.value[1] - a.value[1])
-          .map((item) =>
-            chartTooltipRow(item.color, item.seriesName, item.value[1].toLocaleString())
-          )
+          .map((item) => chartTooltipRow(item.color, item.seriesName, formatCount(item.value[1])))
           .join("<br/>")
         return `${chartTooltipHeader(dateLabel)}${rows}`
       },
     }),
     legend: chartLegend(),
-    xAxis: buildTimeXAxis({ boundaryGap: false }),
+    xAxis: buildTimeXAxis(),
     yAxis: {
       type: "value",
       name: "Torrents",
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },

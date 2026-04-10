@@ -10,7 +10,7 @@
 
 "use client"
 
-import type { ResolvedSlot } from "@/lib/slot-types"
+import type { ResolvedSlot } from "@/types/slots"
 import { renderSlotElement } from "./slot-registry"
 
 interface SlotRendererProps {

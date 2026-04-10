@@ -12,18 +12,20 @@ import { QueryProvider } from "./QueryProvider"
 export const dynamic = "force-dynamic"
 
 export default async function AuthLayout({ children }: { children: ReactNode }) {
-  const [settings] = await db.select({ id: appSettings.id }).from(appSettings).limit(1)
-  if (!settings) {
-    redirect("/setup")
-  }
+  const [[settings], session] = await Promise.all([
+    db.select({ id: appSettings.id }).from(appSettings).limit(1),
+    getSession(),
+  ])
 
-  const session = await getSession()
-  if (!session) {
-    redirect("/login")
-  }
+  if (!settings) redirect("/setup")
+  if (!session) redirect("/login")
 
-  // Auto-restart scheduler if it died (i.e, server restart).
-  ensureSchedulerRunning(session.encryptionKey)
+  // Auto-restart scheduler if it died (i.e. server restart).
+  try {
+    ensureSchedulerRunning(session.encryptionKey)
+  } catch (err) {
+    console.error("[auth-layout] Scheduler startup failed:", err)
+  }
 
   return (
     <QueryProvider>

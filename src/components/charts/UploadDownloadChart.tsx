@@ -1,11 +1,9 @@
 // src/components/charts/UploadDownloadChart.tsx
-//
-// Functions: buildOption, UploadDownloadChart
-
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { bytesToGiB, getComplementaryColor } from "@/lib/formatters"
+import { getComplementaryColor } from "@/lib/color-utils"
+import { bytesToGiB } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
@@ -64,14 +62,15 @@ function buildOption(
   const dotSize = adaptiveDotSize(snapshots.length)
   const complementColor = getComplementaryColor(accentColor)
 
-  // Dynamic Y-axis padding — recalculates when series are toggled via legend
-  const dataZoom: EChartsOption["dataZoom"] = showDataZoom
+  // Scrubber is useless (and renders oversized) with ≤ 2 data points
+  const hasEnoughData = showDataZoom && snapshots.length > 2
+  const dataZoom: EChartsOption["dataZoom"] = hasEnoughData
     ? (chartDataZoom(accentColor) as EChartsOption["dataZoom"])
     : []
 
   return {
     backgroundColor: "transparent",
-    grid: chartGrid({ top: 40, right: 16, bottom: showDataZoom ? 80 : 40, left: 64 }),
+    grid: chartGrid({ top: 40, right: 16, bottom: hasEnoughData ? 80 : 40, left: 64 }),
     tooltip: chartTooltip("axis", {
       borderColor: accentColor,
       axisPointer: buildAxisPointer(accentColor, 0.3, 1),
@@ -94,7 +93,7 @@ function buildOption(
               chartDot(item.color) +
               `<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> ` +
               `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${primary}</span>` +
-              `<span style="color:${CHART_THEME.textTertiary};font-size:10px;"> (${alt})</span>`
+              `<span style="color:${CHART_THEME.textTertiary};font-size:${CHART_THEME.fontSizeCompact}px;"> (${alt})</span>`
             )
           })
           .join("<br/>")
@@ -111,7 +110,7 @@ function buildOption(
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },
@@ -130,6 +129,7 @@ function buildOption(
       {
         name: "Uploaded",
         type: "line",
+        sampling: "lttb",
         data: uploadData,
         smooth: true,
         symbol: "circle",
@@ -152,6 +152,7 @@ function buildOption(
       {
         name: "Downloaded",
         type: "line",
+        sampling: "lttb",
         data: downloadData,
         smooth: true,
         symbol: "circle",

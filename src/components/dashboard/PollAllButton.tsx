@@ -113,7 +113,7 @@ export function PollAllButton({ onPollComplete }: PollAllButtonProps) {
   }, [polling, status, onPollComplete])
 
   return (
-    <Button variant="secondary" size="sm" onClick={handleClick} className="min-w-[136px]">
+    <Button variant="secondary" size="sm" onClick={handleClick} className="min-w-34">
       <span className="grid [&>*]:col-start-1 [&>*]:row-start-1 [&>*]:flex [&>*]:items-center [&>*]:justify-center [&>*]:transition-opacity [&>*]:duration-200">
         <span className={polling || status !== "idle" ? "opacity-0" : "opacity-100"}>
           Poll All Now

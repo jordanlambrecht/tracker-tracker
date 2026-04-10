@@ -3,7 +3,7 @@
 // Tables: appSettings, trackers, trackerSnapshots, trackerRoles, downloadClients,
 // tagGroups, tagGroupMembers, clientSnapshots, backupHistory, dismissedAlerts,
 // draftQuicklinks (column on appSettings), notificationTargets, notificationDeliveryState,
-// trackerDailyCheckpoints, torrentDailyCheckpoints
+// trackerDailyCheckpoints, torrentDailyCheckpoints, dbSizeHistory
 
 import {
   bigint,
@@ -73,6 +73,7 @@ export const trackers = pgTable("trackers", {
   isActive: boolean("is_active").default(true).notNull(),
   lastPolledAt: timestamp("last_polled_at"),
   lastError: text("last_error"),
+  lastErrorAt: timestamp("last_error_at"),
   consecutiveFailures: integer("consecutive_failures").default(0).notNull(),
   pausedAt: timestamp("paused_at"),
   userPausedAt: timestamp("user_paused_at"),
@@ -82,6 +83,7 @@ export const trackers = pgTable("trackers", {
   platformMeta: text("platform_meta"),
   mouseholeUrl: text("mousehole_url"),
   avatarData: text("avatar_data"),
+  avatarMimeType: varchar("avatar_mime_type", { length: 50 }),
   avatarCachedAt: timestamp("avatar_cached_at"),
   avatarRemoteUrl: text("avatar_remote_url"),
   useProxy: boolean("use_proxy").default(false).notNull(),
@@ -118,6 +120,7 @@ export const trackerSnapshots = pgTable(
     shareScore: real("share_score"),
     username: varchar("username", { length: 255 }),
     group: varchar("group_name", { length: 255 }),
+    isManual: boolean("is_manual").default(false).notNull(),
   },
   (table) => [
     index("idx_snapshots_tracker_polled").on(table.trackerId, table.polledAt),
@@ -215,7 +218,10 @@ export const clientSnapshots = pgTable(
     downloadSpeedBytes: bigint("download_speed_bytes", { mode: "bigint" }),
     tagStats: text("tag_stats"),
   },
-  (table) => [index("idx_client_snapshots_client_polled").on(table.clientId, table.polledAt)]
+  (table) => [
+    index("idx_client_snapshots_client_polled").on(table.clientId, table.polledAt),
+    index("idx_client_snapshots_polled_brin").using("brin", table.polledAt),
+  ]
 )
 
 export const backupHistory = pgTable("backup_history", {
@@ -288,6 +294,7 @@ export const notificationTargets = pgTable("notification_targets", {
   notifyVipExpiring: boolean("notify_vip_expiring").default(false).notNull(),
   notifyUnsatisfiedLimit: boolean("notify_unsatisfied_limit").default(false).notNull(),
   notifyActiveHnrs: boolean("notify_active_hnrs").default(false).notNull(),
+  notifyDownloadDisabled: boolean("notify_download_disabled").default(false).notNull(),
 
   // Event thresholds — nullable JSONB; null means use application defaults.
   // Shape: { ratioDropDelta?: number, bufferMilestoneBytes?: number }
@@ -427,3 +434,31 @@ export const torrentDailyCheckpoints = pgTable(
     index("idx_torrent_checkpoint_date").on(table.checkpointDate),
   ]
 )
+
+export const dbSizeHistory = pgTable(
+  "db_size_history",
+  {
+    id: serial("id").primaryKey(),
+    recordedAt: date("recorded_at").notNull(),
+    totalBytes: bigint("total_bytes", { mode: "bigint" }).notNull(),
+  },
+  (table) => [uniqueIndex("uq_db_size_recorded_at").on(table.recordedAt)]
+)
+
+// ── Named type exports ──────────────────────────────────────────────
+export type AppSettingsRow = typeof appSettings.$inferSelect
+export type TrackerRow = typeof trackers.$inferSelect
+export type TrackerSnapshotRow = typeof trackerSnapshots.$inferSelect
+export type TrackerRoleRow = typeof trackerRoles.$inferSelect
+export type DownloadClientRow = typeof downloadClients.$inferSelect
+export type ClientUptimeBucketRow = typeof clientUptimeBuckets.$inferSelect
+export type TagGroupRow = typeof tagGroups.$inferSelect
+export type TagGroupMemberRow = typeof tagGroupMembers.$inferSelect
+export type ClientSnapshotRow = typeof clientSnapshots.$inferSelect
+export type BackupHistoryRow = typeof backupHistory.$inferSelect
+export type DismissedAlertRow = typeof dismissedAlerts.$inferSelect
+export type NotificationTargetRow = typeof notificationTargets.$inferSelect
+export type NotificationDeliveryStateRow = typeof notificationDeliveryState.$inferSelect
+export type TrackerDailyCheckpointRow = typeof trackerDailyCheckpoints.$inferSelect
+export type TorrentDailyCheckpointRow = typeof torrentDailyCheckpoints.$inferSelect
+export type DbSizeHistoryRow = typeof dbSizeHistory.$inferSelect

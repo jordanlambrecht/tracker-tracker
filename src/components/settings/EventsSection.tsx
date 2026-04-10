@@ -1,34 +1,34 @@
 // src/components/settings/EventsSection.tsx
 //
 // Functions: formatTime, getDateKey, formatDateLabel, EventsSection
-
 "use client"
 
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import clsx from "clsx"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
+import { CopyButton, DownloadButton } from "@/components/ui/ActionButtons"
 import { Button } from "@/components/ui/Button"
-import { CopyButton } from "@/components/ui/CopyButton"
-import { DownloadButton } from "@/components/ui/DownloadButton"
+import { ConfirmAction } from "@/components/ui/ConfirmAction"
+import { FilterPill } from "@/components/ui/FilterPill"
 import { RefreshIcon, TrashIcon } from "@/components/ui/Icons"
 import { Input } from "@/components/ui/Input"
-import { extractApiError } from "@/lib/client-helpers"
-import {
-  EVENT_CATEGORIES,
-  EVENT_LEVELS,
-  type EventCategory,
-  type EventLevel,
-  type SystemEvent,
-} from "@/lib/events"
-import { formatBytesNum } from "@/lib/formatters"
+import { Notice } from "@/components/ui/Notice"
+import { EventLogSkeleton } from "@/components/ui/skeletons"
+import { useSetToggle } from "@/hooks/useSetToggle"
+import { EVENT_CATEGORIES, EVENT_LEVELS, type EventCategory, type EventLevel } from "@/lib/events"
+import { extractApiError } from "@/lib/extract-api-error"
+import { formatBytesNum, localDateStr } from "@/lib/formatters"
+import { EVENTS_LIMIT_CAP } from "@/lib/limits"
+import type { EventsPageResponse } from "@/types/api"
 
 const CATEGORY_STYLES: Record<EventCategory, { border: string; icon: string; iconColor: string }> =
   {
     polls: { border: "border-l-accent", icon: "✓", iconColor: "text-success" },
+    clients: { border: "border-l-sky-400", icon: "↕", iconColor: "text-sky-400" },
     auth: { border: "border-l-violet-400", icon: "◆", iconColor: "text-violet-400" },
     settings: { border: "border-l-warn", icon: "●", iconColor: "text-warn" },
     backups: { border: "border-l-success", icon: "■", iconColor: "text-success" },
-    errors: { border: "border-l-danger", icon: "✕", iconColor: "text-danger" },
   }
 
 const LEVEL_TEXT_COLORS: Record<EventLevel, string> = {
@@ -37,9 +37,6 @@ const LEVEL_TEXT_COLORS: Record<EventLevel, string> = {
   warn: "text-warn",
   error: "text-danger",
 }
-
-const ICON_BUTTON_CLASS =
-  "flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-sans font-medium text-tertiary hover:text-primary bg-elevated nm-raised-sm rounded-nm-sm transition-colors duration-150 cursor-pointer"
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], {
@@ -65,57 +62,51 @@ function formatDateLabel(iso: string): string {
 }
 
 export function EventsSection() {
-  const [events, setEvents] = useState<SystemEvent[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [activeCategories, setActiveCategories] = useState<Set<EventCategory>>(
-    () => new Set(EVENT_CATEGORIES)
-  )
-  const [activeLevels, setActiveLevels] = useState<Set<EventLevel>>(
-    () => new Set<EventLevel>(["info", "warn", "error"])
-  )
+  const queryClient = useQueryClient()
+  const categories = useSetToggle<EventCategory>(EVENT_CATEGORIES)
+  const levels = useSetToggle<EventLevel>(["info", "warn", "error"])
   const [searchQuery, setSearchQuery] = useState("")
-  const [logSizeBytes, setLogSizeBytes] = useState(0)
 
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set())
 
+  const [downloadError, setDownloadError] = useState<string | null>(null)
   const [clearConfirm, setClearConfirm] = useState(false)
   const [clearLoading, setClearLoading] = useState(false)
   const [clearError, setClearError] = useState<string | null>(null)
 
-  const fetchEvents = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const params = new URLSearchParams({ category: "all", limit: "1000", offset: "0" })
-      const res = await fetch(`/api/settings/events?${params}`)
+  const {
+    data: eventsData,
+    isLoading: loading,
+    error: queryError,
+  } = useQuery({
+    queryKey: ["events"],
+    queryFn: async ({ signal }) => {
+      const params = new URLSearchParams({
+        category: "all",
+        limit: String(EVENTS_LIMIT_CAP),
+        offset: "0",
+      })
+      const res = await fetch(`/api/settings/events?${params}`, { signal })
       if (!res.ok) throw new Error(await extractApiError(res, "Failed to load events"))
-      const data = (await res.json()) as {
-        events: SystemEvent[]
-        total: number
-        hasMore: boolean
-        logSizeBytes?: number
-      }
-      setEvents(data.events)
-      if (typeof data.logSizeBytes === "number") setLogSizeBytes(data.logSizeBytes)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load events")
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+      return res.json() as Promise<EventsPageResponse>
+    },
+  })
 
-  useEffect(() => {
-    fetchEvents()
-  }, [fetchEvents])
+  const events = eventsData?.events ?? []
+  const logSizeBytes = eventsData?.logSizeBytes ?? 0
+  const error = queryError
+    ? queryError instanceof Error
+      ? queryError.message
+      : "Failed to load events"
+    : null
 
   const filteredEvents = useMemo(() => {
     let result = events
-    if (activeCategories.size < EVENT_CATEGORIES.length) {
-      result = result.filter((e) => activeCategories.has(e.category))
+    if (categories.size < EVENT_CATEGORIES.length) {
+      result = result.filter((e) => categories.has(e.category))
     }
-    if (activeLevels.size < EVENT_LEVELS.length) {
-      result = result.filter((e) => activeLevels.has(e.level))
+    if (levels.size < EVENT_LEVELS.length) {
+      result = result.filter((e) => levels.has(e.level))
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
@@ -127,25 +118,7 @@ export function EventsSection() {
       )
     }
     return result
-  }, [events, activeCategories, activeLevels, searchQuery])
-
-  function toggleCategory(cat: EventCategory) {
-    setActiveCategories((prev) => {
-      const next = new Set(prev)
-      if (next.has(cat)) next.delete(cat)
-      else next.add(cat)
-      return next
-    })
-  }
-
-  function toggleLevel(level: EventLevel) {
-    setActiveLevels((prev) => {
-      const next = new Set(prev)
-      if (next.has(level)) next.delete(level)
-      else next.add(level)
-      return next
-    })
-  }
+  }, [events, categories, levels, searchQuery])
 
   const copyValue = useMemo(() => {
     return filteredEvents
@@ -171,8 +144,7 @@ export function EventsSection() {
         return
       }
       setClearConfirm(false)
-      setLogSizeBytes(0)
-      fetchEvents()
+      queryClient.invalidateQueries({ queryKey: ["events"] })
     } catch {
       setClearError("Failed to clear log file")
     } finally {
@@ -189,7 +161,7 @@ export function EventsSection() {
     })
   }, [])
 
-  const allCategoriesActive = activeCategories.size === EVENT_CATEGORIES.length
+  const allCategoriesActive = categories.size === EVENT_CATEGORIES.length
 
   // Track date separators across the render
   let lastDateKey = ""
@@ -203,68 +175,56 @@ export function EventsSection() {
           placeholder="Search…"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="flex-1 min-w-[120px] max-w-[320px] text-xs"
+          className="flex-1 min-w-30 max-w-80 text-xs"
         />
         <span className="flex-1" />
         <CopyButton value={copyValue} />
         <DownloadButton
           url="/api/settings/logs/download"
-          fallbackFilename={`tracker-tracker-${new Date().toISOString().split("T")[0]}.log`}
-          onError={setError}
+          fallbackFilename={`tracker-tracker-${localDateStr()}.log`}
+          notFoundMessage="Log file not available (file logging is only active in Docker)"
+          onError={setDownloadError}
         />
-        <button
-          type="button"
-          onClick={() => fetchEvents()}
+        <Button
+          variant="secondary"
+          size="icon"
+          onClick={() => queryClient.invalidateQueries({ queryKey: ["events"] })}
           aria-label="Refresh events"
-          className={ICON_BUTTON_CLASS}
-        >
-          <RefreshIcon width="12" height="12" />
-        </button>
-        <button
-          type="button"
+          leftIcon={<RefreshIcon width="12" height="12" />}
+        />
+        <Button
+          variant={clearConfirm ? "danger" : "secondary"}
+          size="icon"
           onClick={() => setClearConfirm((v) => !v)}
           aria-label={
             logSizeBytes > 0 ? `Clear logs (${formatBytesNum(logSizeBytes)})` : "Clear logs"
           }
-          className={clsx(ICON_BUTTON_CLASS, clearConfirm && "!text-danger")}
-        >
-          <TrashIcon width="12" height="12" />
-        </button>
+          leftIcon={<TrashIcon width="12" height="12" />}
+        />
       </div>
 
       <div className="border-t border-border my-3" />
 
       {/* ── Filters (categories + levels) ─────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        <button
-          type="button"
-          onClick={() => setActiveCategories(new Set(EVENT_CATEGORIES))}
-          aria-pressed={allCategoriesActive}
-          className={clsx(
-            "px-2 py-0.5 text-[11px] font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
-            allCategoriesActive
-              ? "nm-raised-sm text-primary font-semibold"
-              : "bg-transparent text-muted hover:text-secondary"
-          )}
-        >
-          All
-        </button>
+      <div className="flex flex-wrap items-center gap-2">
+        <FilterPill
+          size="sm"
+          active={allCategoriesActive}
+          onClick={() =>
+            allCategoriesActive ? categories.reset([]) : categories.reset(EVENT_CATEGORIES)
+          }
+          text={allCategoriesActive ? "None" : "All"}
+        />
 
         {EVENT_CATEGORIES.map((cat) => (
-          <button
+          <FilterPill
             key={cat}
-            type="button"
-            onClick={() => toggleCategory(cat)}
-            aria-pressed={activeCategories.has(cat)}
-            className={clsx(
-              "px-2 py-0.5 text-[11px] font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
-              activeCategories.has(cat)
-                ? "nm-raised-sm text-primary font-semibold"
-                : "bg-transparent text-muted hover:text-secondary line-through opacity-50"
-            )}
-          >
-            {cat.charAt(0).toUpperCase() + cat.slice(1)}
-          </button>
+            size="sm"
+            active={categories.has(cat)}
+            onClick={() => categories.toggle(cat)}
+            inactive="strikethrough"
+            text={cat.charAt(0).toUpperCase() + cat.slice(1)}
+          />
         ))}
 
         <span className="flex-1" />
@@ -272,20 +232,15 @@ export function EventsSection() {
         <span className="w-px h-4 bg-border shrink-0 mx-0.5" />
 
         {EVENT_LEVELS.map((level) => (
-          <button
+          <FilterPill
             key={level}
-            type="button"
-            onClick={() => toggleLevel(level)}
-            aria-pressed={activeLevels.has(level)}
-            className={clsx(
-              "px-2 py-0.5 text-[11px] font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
-              activeLevels.has(level)
-                ? clsx("nm-raised-sm font-semibold", LEVEL_TEXT_COLORS[level])
-                : "bg-transparent text-muted hover:text-secondary line-through opacity-50"
-            )}
-          >
-            {level.charAt(0).toUpperCase() + level.slice(1)}
-          </button>
+            size="sm"
+            active={levels.has(level)}
+            onClick={() => levels.toggle(level)}
+            activeColor={LEVEL_TEXT_COLORS[level]}
+            inactive="strikethrough"
+            text={level.charAt(0).toUpperCase() + level.slice(1)}
+          />
         ))}
       </div>
 
@@ -293,89 +248,96 @@ export function EventsSection() {
 
       {/* ── Clear confirmation ───────────────────────────────────── */}
       {clearConfirm && (
-        <div className="nm-inset-sm p-3 rounded-nm-md bg-danger-dim flex items-center gap-3">
-          <p className="text-xs font-mono text-danger flex-1">
-            Truncate log file? DB events are not affected.
-          </p>
-          <Button size="sm" variant="danger" onClick={handleClear} disabled={clearLoading}>
-            {clearLoading ? "Clearing…" : "Confirm"}
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              setClearConfirm(false)
-              setClearError(null)
-            }}
-          >
-            Cancel
-          </Button>
-          {clearError && <span className="text-xs text-danger font-mono">{clearError}</span>}
-        </div>
+        <ConfirmAction
+          message="Truncate log file? DB events are not affected."
+          confirmLabel="Confirm"
+          confirmingLabel="Clearing…"
+          confirming={clearLoading}
+          onConfirm={handleClear}
+          onCancel={() => {
+            setClearConfirm(false)
+            setClearError(null)
+          }}
+        >
+          <Notice message={clearError} />
+        </ConfirmAction>
       )}
 
       {/* ── Error ────────────────────────────────────────────────── */}
-      {error && <span className="text-xs text-danger font-mono">{error}</span>}
+      <Notice message={error ?? downloadError} />
 
       {/* ── Event stream ─────────────────────────────────────────── */}
-      <div className="nm-inset-sm bg-control-bg overflow-x-auto overflow-y-auto max-h-[560px] styled-scrollbar rounded-nm-md">
+      <div className="nm-inset-sm bg-control-bg overflow-x-hidden overflow-y-auto max-h-140 styled-scrollbar rounded-nm-md">
         {loading && events.length === 0 ? (
-          <p className="px-3 py-8 text-xs font-mono text-muted text-center">Loading events…</p>
+          <EventLogSkeleton />
         ) : filteredEvents.length === 0 ? (
           <p className="px-3 py-8 text-xs font-mono text-muted text-center">
             {events.length === 0 ? "No events yet." : "No events match the current filters."}
           </p>
         ) : (
           filteredEvents.map((event, i) => {
-            const style = CATEGORY_STYLES[event.category]
+            const baseStyle = CATEGORY_STYLES[event.category]
+            const LEVEL_STYLES: Partial<
+              Record<EventLevel, { border: string; icon: string; iconColor: string }>
+            > = {
+              error: { border: "border-l-danger", icon: "✕", iconColor: "text-danger" },
+              warn: { border: "border-l-warn", icon: "⚠", iconColor: "text-warn" },
+              debug: {
+                border: "border-l-violet-400/50",
+                icon: "·",
+                iconColor: "text-violet-400/60",
+              },
+            }
+            const style = LEVEL_STYLES[event.level] ?? baseStyle
             const dateKey = getDateKey(event.timestamp)
             const showDateSep = dateKey !== lastDateKey
             lastDateKey = dateKey
 
             const isExpanded = expandedIds.has(event.id)
-            const hasDetail = Boolean(event.detail)
+            const hasBatch = Boolean(event.children?.length)
+            const hasDetail = Boolean(event.detail) || hasBatch
+            const isExpandable = hasDetail
 
             return (
               <div key={event.id}>
                 {showDateSep && (
-                  <div className="sticky top-0 z-10 px-3 py-1 text-[10px] font-mono text-tertiary bg-overlay/90 backdrop-blur-sm border-b border-border">
+                  <div className="sticky top-0 z-10 px-3 py-1 text-3xs font-mono text-tertiary bg-overlay/90 backdrop-blur-sm border-b border-border">
                     {formatDateLabel(event.timestamp)}
                   </div>
                 )}
                 {(() => {
                   const rowClass = clsx(
-                    "flex flex-col gap-0 px-3 py-1.5 text-xs font-mono border-l-[3px] w-full text-left",
+                    "flex flex-col gap-0 px-3 py-1.5 text-xs font-mono border-l-3 w-full text-left",
                     style.border,
                     i % 2 === 0 ? "bg-control-bg" : "bg-elevated/50",
-                    hasDetail &&
+                    isExpandable &&
                       "cursor-pointer hover:bg-elevated/80 transition-colors duration-100"
                   )
                   const inner = (
                     <>
-                      <div className="flex items-baseline gap-2 min-w-fit">
+                      <div className="flex items-baseline gap-2 min-w-0">
                         <span
                           className={clsx("shrink-0 w-3 text-center leading-none", style.iconColor)}
                         >
-                          {style.icon}
+                          {hasBatch ? (isExpanded ? "▾" : "▸") : style.icon}
                         </span>
-                        <span className="text-tertiary shrink-0 tabular-nums w-[62px]">
+                        <span className="text-tertiary shrink-0 tabular-nums w-15.5">
                           {formatTime(event.timestamp)}
                         </span>
                         <span className="text-secondary shrink-0">{event.title}</span>
-                        {hasDetail && !isExpanded && (
-                          <span className="text-tertiary truncate whitespace-nowrap">
-                            — {event.detail}
-                          </span>
+                        {hasDetail && !isExpanded && !hasBatch && (
+                          <span className="text-tertiary truncate">— {event.detail}</span>
                         )}
                       </div>
-                      {isExpanded && event.detail && (
-                        <pre className="text-tertiary text-[11px] leading-relaxed whitespace-pre-wrap break-all pl-[calc(0.75rem+62px+0.5rem)] pt-1 pb-0.5 select-text">
+                      {isExpanded && !hasBatch && event.detail && (
+                        <pre className="text-tertiary text-2xs leading-relaxed whitespace-pre-wrap break-all pl-[calc(0.75rem+62px+0.5rem)] pt-1 pb-0.5 select-text">
                           {event.detail}
                         </pre>
                       )}
                     </>
                   )
-                  return hasDetail ? (
+
+                  const row = isExpandable ? (
                     <button
                       type="button"
                       onClick={() => handleToggleExpand(event.id)}
@@ -386,6 +348,30 @@ export function EventsSection() {
                   ) : (
                     <div className={rowClass}>{inner}</div>
                   )
+
+                  return (
+                    <>
+                      {row}
+                      {isExpanded && hasBatch && (
+                        <div className="border-l-3 border-l-accent/30">
+                          {event.children?.map((child, ci) => (
+                            <div
+                              key={child.id}
+                              className={clsx(
+                                "flex items-baseline gap-2 px-3 py-1 text-xs font-mono pl-8",
+                                ci % 2 === 0 ? "bg-control-bg/60" : "bg-elevated/30"
+                              )}
+                            >
+                              <span className="text-success shrink-0 w-3 text-center text-2xs">
+                                ✓
+                              </span>
+                              <span className="text-tertiary truncate">{child.detail}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )
                 })()}
               </div>
             )
@@ -395,9 +381,8 @@ export function EventsSection() {
 
       {/* ── Footer ───────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
-        <p className="text-[10px] text-muted font-mono">IPs redacted</p>
         {filteredEvents.length > 0 && (
-          <span className="text-[10px] font-mono text-muted">
+          <span className="timestamp">
             {filteredEvents.length === events.length
               ? `${events.length} events`
               : `${filteredEvents.length} of ${events.length}`}

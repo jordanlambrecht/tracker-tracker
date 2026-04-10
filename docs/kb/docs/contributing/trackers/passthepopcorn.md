@@ -1,5 +1,8 @@
 # PassThePopcorn (PTP)
 
+!!! Warning
+    This tracker is marked **Unvalidated** and has not been tested it against a real account yet. The `bonusPoints` field might be named differently than we expect.
+
 | Field        | Value                                     |
 | ------------ | ----------------------------------------- |
 | Platform     | Gazelle                                   |
@@ -11,7 +14,7 @@
 
 ## Notes
 
-Standard Gazelle configuration. This tracker is marked **Unvalidated** — the API integration has not been confirmed against a live account. The `bonusPoints` field naming may vary from standard.
+Standard Gazelle setup.
 
 ## Slots
 

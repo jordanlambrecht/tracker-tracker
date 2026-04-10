@@ -11,7 +11,9 @@ import { authenticate, parseJsonBody } from "@/lib/api-helpers"
 import { clearSession, verifyPassword } from "@/lib/auth"
 import { generateSalt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { appSettings, trackers } from "@/lib/db/schema"
+import { appSettings, downloadClients, trackers } from "@/lib/db/schema"
+import { errMsg } from "@/lib/error-utils"
+import { PASSWORD_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { stopScheduler } from "@/lib/scheduler"
 import { clearSchedulerKey } from "@/lib/scheduler-key-store"
@@ -24,7 +26,7 @@ export async function POST(request: Request) {
   if (body instanceof NextResponse) return body
 
   const { password } = body as { password?: string }
-  if (!password || typeof password !== "string" || password.length > 128) {
+  if (!password || typeof password !== "string" || password.length > PASSWORD_MAX) {
     return NextResponse.json({ error: "Master password is required" }, { status: 400 })
   }
 
@@ -44,29 +46,54 @@ export async function POST(request: Request) {
   stopScheduler()
   await clearSchedulerKey(settings.id)
 
-  // 2. Nullify all tracker API tokens — they're now useless
-  await db.update(trackers).set({
-    encryptedApiToken: "LOCKDOWN_REVOKED",
-    isActive: false,
-    lastError: "Emergency lockdown — API token revoked",
-    updatedAt: new Date(),
-  })
-
-  // 3. Rotate encryption salt — orphans any remaining ciphertext
   const newSalt = generateSalt()
+  const now = new Date()
 
-  // 4. Wipe all encrypted fields (encrypted with old key, now unrecoverable anyway)
-  await db
-    .update(appSettings)
-    .set({
-      encryptionSalt: newSalt,
-      totpSecret: null,
-      totpBackupCodes: null,
-      encryptedProxyPassword: null,
-      encryptedBackupPassword: null,
-      username: null,
+  try {
+    await db.transaction(async (tx) => {
+      // 2. Revoke all tracker API tokens
+      await tx.update(trackers).set({
+        encryptedApiToken: "LOCKDOWN_REVOKED",
+        isActive: false,
+        lastError: "Emergency lockdown: API token revoked",
+        updatedAt: now,
+      })
+
+      // 3. Revoke all download client credentials
+      await tx.update(downloadClients).set({
+        encryptedUsername: "",
+        encryptedPassword: "",
+        enabled: false,
+        lastError: "Emergency lockdown: credentials revoked",
+        updatedAt: now,
+      })
+
+      // 4. Rotate salt + wipe all encrypted settings fields
+      await tx
+        .update(appSettings)
+        .set({
+          encryptionSalt: newSalt,
+          totpSecret: null,
+          totpBackupCodes: null,
+          encryptedProxyPassword: null,
+          encryptedBackupPassword: null,
+          encryptedPtpimgApiKey: null,
+          encryptedOeimgApiKey: null,
+          encryptedImgbbApiKey: null,
+          username: null,
+        })
+        .where(eq(appSettings.id, settings.id))
     })
-    .where(eq(appSettings.id, settings.id))
+  } catch (err) {
+    log.error(
+      { route: "POST /api/settings/lockdown", error: errMsg(err) },
+      "Lockdown DB operations failed"
+    )
+    return NextResponse.json(
+      { error: "Emergency lockdown failed. Retry immediately or shut down the server." },
+      { status: 500 }
+    )
+  }
 
   // 5. Kill the session
   await clearSession()

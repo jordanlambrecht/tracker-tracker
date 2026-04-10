@@ -1,10 +1,14 @@
 // src/app/api/trackers/[id]/snapshots/route.ts
 
 import { NextResponse } from "next/server"
-import { authenticate, parseTrackerId } from "@/lib/api-helpers"
+import { authenticate, parseTrackerId, type RouteContext } from "@/lib/api-helpers"
+import { errMsg } from "@/lib/error-utils"
+import { SNAPSHOT_QUERY_MAX } from "@/lib/limits"
+import { log } from "@/lib/logger"
 import { getSnapshotsForTracker } from "@/lib/server-data"
+import { parseIntClamped } from "@/lib/validators"
 
-export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
@@ -12,10 +16,16 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
   if (trackerId instanceof NextResponse) return trackerId
 
   const url = new URL(request.url)
-  const daysParam = url.searchParams.get("days")
-  const daysRaw = parseInt(daysParam ?? "30", 10)
-  const days = Number.isNaN(daysRaw) ? 30 : daysRaw
+  const days = parseIntClamped(url.searchParams.get("days"), 0, SNAPSHOT_QUERY_MAX, 30)
 
-  const snapshots = await getSnapshotsForTracker(trackerId, days)
-  return NextResponse.json(snapshots)
+  try {
+    const snapshots = await getSnapshotsForTracker(trackerId, days)
+    return NextResponse.json(snapshots)
+  } catch (err) {
+    log.error(
+      { route: "GET /api/trackers/[id]/snapshots", trackerId, error: errMsg(err) },
+      "Failed to fetch snapshots"
+    )
+    return NextResponse.json({ error: "Failed to load snapshots" }, { status: 500 })
+  }
 }

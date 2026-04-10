@@ -5,8 +5,8 @@
 // Functions covered:
 //   pollTracker           — success resets state; failures increment atomically via SQL expression; threshold triggers pause
 //   pollAllTrackers       — skips trackers with pausedAt set; polls overdue non-paused trackers
-//   POST /api/trackers/[id]/resume — clears pausedAt; preserves consecutiveFailures; 400 when not paused; 404 when not found
-//   re-pause after resume — single failure immediately re-pauses when consecutiveFailures >= threshold
+//   POST /api/trackers/[id]/resume — clears pausedAt + lastError + lastErrorAt; resets consecutiveFailures to 0; idempotent 200 when not paused; 404 when not found
+//   post-resume behavior — clean slate after resume; full threshold required to re-pause
 
 import { SQL } from "drizzle-orm"
 import { NextResponse } from "next/server"
@@ -40,7 +40,7 @@ vi.mock("@/lib/privacy", () => ({
   maskUsername: vi.fn((v: string) => `▓${v.length}`),
 }))
 
-vi.mock("@/lib/proxy", () => ({
+vi.mock("@/lib/tunnel", () => ({
   buildProxyAgentFromSettings: vi.fn().mockReturnValue(undefined),
   VALID_PROXY_TYPES: new Set(["socks5", "http", "https"]),
 }))
@@ -67,7 +67,7 @@ vi.mock("@/lib/backup-scheduler", () => ({
   stopBackupScheduler: vi.fn(),
 }))
 
-vi.mock("@/lib/client-scheduler", () => ({
+vi.mock("@/lib/download-client-scheduler", () => ({
   startClientScheduler: vi.fn(),
   stopClientScheduler: vi.fn(),
   ensureClientSchedulerRunning: vi.fn(),
@@ -105,7 +105,7 @@ import { getAdapter } from "@/lib/adapters"
 import { authenticate, parseTrackerId } from "@/lib/api-helpers"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { POLL_FAILURE_THRESHOLD, pollAllTrackers, pollTracker } from "@/lib/scheduler"
+import { POLL_FAILURE_THRESHOLD, pollAllTrackers, pollTracker } from "@/lib/tracker-scheduler"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -161,6 +161,7 @@ function makeTrackerRow(overrides: Record<string, unknown> = {}) {
     isActive: true,
     lastPolledAt: null,
     lastError: null,
+    lastErrorAt: null,
     consecutiveFailures: 0,
     pausedAt: null,
     useProxy: false,
@@ -237,13 +238,14 @@ describe("pollTracker: success path", () => {
 
     await pollTracker(1, MOCK_KEY, false)
 
-    // The final update must set consecutiveFailures: 0 and pausedAt: null
+    // The final update must set consecutiveFailures: 0, pausedAt: null, lastErrorAt: null
     const setCalls = updateChain.set.mock.calls
     const successReset = setCalls.find(
       (call: unknown[]) =>
         (call[0] as Record<string, unknown>).consecutiveFailures === 0 &&
         (call[0] as Record<string, unknown>).pausedAt === null &&
-        (call[0] as Record<string, unknown>).lastError === null
+        (call[0] as Record<string, unknown>).lastError === null &&
+        (call[0] as Record<string, unknown>).lastErrorAt === null
     )
     expect(successReset).toBeDefined()
   })
@@ -263,6 +265,48 @@ describe("pollTracker: success path", () => {
         ratio: 2.0,
       })
     )
+  })
+
+  it("passes isManual: false to the snapshot insert when called without the isManual arg", async () => {
+    // First select: tracker row. Second select: previous snapshot for notifications.
+    let selectCallCount = 0
+    ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      selectCallCount++
+      if (selectCallCount === 1) {
+        return mockSelectOnce([makeTrackerRow()])
+      }
+      return mockSelectOnce([])
+    })
+
+    mockSuccessAdapter()
+    mockUpdateChain()
+    const insertChain = mockInsertChain()
+
+    // Call without the 7th arg — isManual must default to false
+    await pollTracker(1, MOCK_KEY, false)
+
+    // The first insert call is for trackerSnapshots; check its values argument
+    expect(insertChain.values).toHaveBeenCalledWith(expect.objectContaining({ isManual: false }))
+  })
+
+  it("passes isManual: true to the snapshot insert when called with isManual = true", async () => {
+    let selectCallCount = 0
+    ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      selectCallCount++
+      if (selectCallCount === 1) {
+        return mockSelectOnce([makeTrackerRow()])
+      }
+      return mockSelectOnce([])
+    })
+
+    mockSuccessAdapter()
+    mockUpdateChain()
+    const insertChain = mockInsertChain()
+
+    // 7th arg: isManual = true
+    await pollTracker(1, MOCK_KEY, false, undefined, undefined, undefined, true)
+
+    expect(insertChain.values).toHaveBeenCalledWith(expect.objectContaining({ isManual: true }))
   })
 
   it("does nothing when tracker is inactive", async () => {
@@ -337,7 +381,10 @@ describe("pollTracker: failure path — consecutiveFailures increment", () => {
 
     // log.warn must NOT fire because returning.pausedAt is null
     const { log } = await import("@/lib/logger")
-    expect(log.warn).not.toHaveBeenCalled()
+    expect(log.warn).not.toHaveBeenCalledWith(
+      expect.objectContaining({}),
+      expect.stringContaining("auto-paused")
+    )
   })
 
   it("sets pausedAt when consecutiveFailures reaches POLL_FAILURE_THRESHOLD", async () => {
@@ -357,7 +404,10 @@ describe("pollTracker: failure path — consecutiveFailures increment", () => {
 
     // log.warn must fire because returning.pausedAt is truthy
     const { log } = await import("@/lib/logger")
-    expect(log.warn).toHaveBeenCalledWith(expect.stringContaining("auto-paused"))
+    expect(log.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ trackerId: 1, consecutiveFailures: POLL_FAILURE_THRESHOLD }),
+      expect.stringContaining("auto-paused")
+    )
   })
 
   it("records lastError message when poll fails", async () => {
@@ -371,6 +421,32 @@ describe("pollTracker: failure path — consecutiveFailures increment", () => {
 
     const setArg = updateChain.set.mock.calls[0]?.[0] as Record<string, unknown>
     expect(setArg.lastError).toBe("Bad API key")
+  })
+
+  it("sets lastErrorAt to a Date instance (not null, not a SQL expression) on failure", async () => {
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue(mockSelectOnce([makeTrackerRow()]))
+    mockFailureAdapter("Timeout")
+
+    const updateChain = mockUpdateChain([{ consecutiveFailures: 1, pausedAt: null }])
+
+    const before = new Date()
+    await pollTracker(1, MOCK_KEY, false)
+    const after = new Date()
+
+    // Find the set call that carries lastError (the failure update)
+    const failureSetCall = updateChain.set.mock.calls.find((call: unknown[]) => {
+      const arg = call[0] as Record<string, unknown>
+      return arg.lastError !== undefined
+    })
+    expect(failureSetCall).toBeDefined()
+
+    const setArg = (failureSetCall as unknown[])[0] as Record<string, unknown>
+    // lastErrorAt must be a plain Date, not null and not a Drizzle SQL object
+    expect(setArg.lastErrorAt).toBeInstanceOf(Date)
+    // Sanity-check the timestamp is within the window of the test execution
+    const recorded = setArg.lastErrorAt as Date
+    expect(recorded.getTime()).toBeGreaterThanOrEqual(before.getTime())
+    expect(recorded.getTime()).toBeLessThanOrEqual(after.getTime())
   })
 })
 
@@ -508,11 +584,17 @@ describe("POST /api/trackers/[id]/resume", () => {
   })
 
   it("returns 200 and clears pausedAt when tracker is paused", async () => {
-    // Select returns a paused tracker
+    // Select returns a paused tracker with full circuit breaker state
     const selectChain = {
       from: vi.fn().mockReturnValue({
         where: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue([{ pausedAt: new Date("2026-03-15") }]),
+          limit: vi.fn().mockResolvedValue([
+            {
+              pausedAt: new Date("2026-03-15"),
+              consecutiveFailures: 4,
+              lastError: "API returned 429",
+            },
+          ]),
         }),
       }),
     }
@@ -534,11 +616,17 @@ describe("POST /api/trackers/[id]/resume", () => {
     expect(data.success).toBe(true)
   })
 
-  it("sets pausedAt: null and lastError: null but NOT consecutiveFailures in the update", async () => {
+  it("resets pausedAt, lastError, lastErrorAt, AND consecutiveFailures in the update", async () => {
     const selectChain = {
       from: vi.fn().mockReturnValue({
         where: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue([{ pausedAt: new Date("2026-03-15") }]),
+          limit: vi.fn().mockResolvedValue([
+            {
+              pausedAt: new Date("2026-03-15"),
+              consecutiveFailures: 4,
+              lastError: "API returned 429",
+            },
+          ]),
         }),
       }),
     }
@@ -554,19 +642,20 @@ describe("POST /api/trackers/[id]/resume", () => {
 
     const setArg = mockSet.mock.calls[0]?.[0] as Record<string, unknown>
     expect(setArg).toBeDefined()
-    // pausedAt must be cleared
     expect(setArg.pausedAt).toBeNull()
-    // lastError must also be cleared on resume
     expect(setArg.lastError).toBeNull()
-    // consecutiveFailures must NOT be touched — circuit breaker state is preserved
-    expect(setArg).not.toHaveProperty("consecutiveFailures")
+    expect(setArg.lastErrorAt).toBeNull()
+    // consecutiveFailures must be reset to 0 so the next failure does not immediately re-pause
+    expect(setArg.consecutiveFailures).toBe(0)
   })
 
-  it("returns 400 when tracker is not paused", async () => {
+  it("returns 200 idempotently when tracker is already unpaused", async () => {
     const selectChain = {
       from: vi.fn().mockReturnValue({
         where: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue([{ pausedAt: null }]),
+          limit: vi
+            .fn()
+            .mockResolvedValue([{ pausedAt: null, consecutiveFailures: 0, lastError: null }]),
         }),
       }),
     }
@@ -577,8 +666,11 @@ describe("POST /api/trackers/[id]/resume", () => {
     const response = await ResumePost(request, { params })
     const data = await response.json()
 
-    expect(response.status).toBe(400)
-    expect(data.error).toMatch(/not paused/i)
+    expect(response.status).toBe(200)
+    expect(data.success).toBe(true)
+    expect(data.alreadyResumed).toBe(true)
+    // No update should have been issued
+    expect(db.update).not.toHaveBeenCalled()
   })
 
   it("returns 404 when tracker does not exist", async () => {
@@ -628,7 +720,13 @@ describe("POST /api/trackers/[id]/resume", () => {
     const selectChain = {
       from: vi.fn().mockReturnValue({
         where: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue([{ pausedAt: new Date("2026-03-15") }]),
+          limit: vi.fn().mockResolvedValue([
+            {
+              pausedAt: new Date("2026-03-15"),
+              consecutiveFailures: 4,
+              lastError: "API returned 429",
+            },
+          ]),
         }),
       }),
     }
@@ -648,52 +746,52 @@ describe("POST /api/trackers/[id]/resume", () => {
 })
 
 // ---------------------------------------------------------------------------
-// Re-pause after resume: single failure immediately re-pauses
+// Post-resume behavior: resume resets consecutiveFailures to 0
 //
-// This is the critical edge case: resume clears pausedAt but does NOT reset
-// consecutiveFailures. If consecutiveFailures is still >= threshold, the very
-// next poll failure immediately re-pauses the tracker.
+// After resume, the tracker gets a clean slate. It takes a full
+// POLL_FAILURE_THRESHOLD consecutive failures to re-pause.
 // ---------------------------------------------------------------------------
 
-describe("re-pause after resume: immediate re-pause when failures remain at threshold", () => {
+describe("post-resume behavior: clean slate after resume", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     ;(decrypt as ReturnType<typeof vi.fn>).mockReturnValue("plain-token")
   })
 
-  it("re-pauses immediately on first failure after resume when consecutiveFailures equals threshold", async () => {
-    // After resume: pausedAt=null, consecutiveFailures=4 (still at threshold)
+  it("does NOT re-pause on first failure after resume (consecutiveFailures starts at 0)", async () => {
+    // After resume: pausedAt=null, consecutiveFailures=0 (reset by resume)
     ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue(
       mockSelectOnce([
         makeTrackerRow({
-          consecutiveFailures: POLL_FAILURE_THRESHOLD,
-          pausedAt: null, // cleared by resume
+          consecutiveFailures: 0,
+          pausedAt: null,
         }),
       ])
     )
 
     mockFailureAdapter("Still broken")
 
-    // Single atomic update: count becomes 5 (>= threshold), CASE sets pausedAt
-    const autoPassedAt = new Date()
-    mockUpdateChain([{ consecutiveFailures: POLL_FAILURE_THRESHOLD + 1, pausedAt: autoPassedAt }])
+    // Failure increments 0+1=1, which is below threshold, so pausedAt stays null
+    mockUpdateChain([{ consecutiveFailures: 1, pausedAt: null }])
 
     await pollTracker(1, MOCK_KEY, false)
 
-    // Only ONE db.update call — the CASE expression handles re-pause atomically
     expect(db.update).toHaveBeenCalledTimes(1)
 
-    // log.warn must fire because returning.pausedAt is truthy
+    // log.warn should NOT fire (no auto-pause, just a failure increment)
     const { log } = await import("@/lib/logger")
-    expect(log.warn).toHaveBeenCalledWith(expect.stringContaining("auto-paused"))
+    expect(log.warn).not.toHaveBeenCalledWith(
+      expect.objectContaining({}),
+      expect.stringContaining("auto-paused")
+    )
   })
 
   it("does NOT re-pause after resume if the next poll succeeds", async () => {
-    // After resume: pausedAt=null, consecutiveFailures=4 still set
+    // After resume: pausedAt=null, consecutiveFailures=0
     ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue(
       mockSelectOnce([
         makeTrackerRow({
-          consecutiveFailures: POLL_FAILURE_THRESHOLD,
+          consecutiveFailures: 0,
           pausedAt: null,
         }),
       ])
@@ -701,7 +799,6 @@ describe("re-pause after resume: immediate re-pause when failures remain at thre
 
     mockSuccessAdapter()
 
-    // On success, the update must reset both consecutiveFailures: 0 and pausedAt: null
     const updateChain = mockUpdateChain()
     mockInsertChain()
 
@@ -727,7 +824,7 @@ describe("pruneOldSnapshots: excludes snapshots for user-paused trackers", () =>
   })
 
   it("passes an AND clause that excludes user-paused tracker IDs from deletion", async () => {
-    const { pruneOldSnapshots } = await import("@/lib/scheduler")
+    const { pruneOldSnapshots } = await import("@/lib/tracker-scheduler")
 
     // db.select() subquery chain (used inside notInArray)
     const subqueryWhere = vi.fn().mockReturnValue([])
@@ -760,7 +857,7 @@ describe("pruneOldSnapshots: excludes snapshots for user-paused trackers", () =>
   })
 
   it("returns count of deleted snapshots", async () => {
-    const { pruneOldSnapshots } = await import("@/lib/scheduler")
+    const { pruneOldSnapshots } = await import("@/lib/tracker-scheduler")
 
     const mockReturning = vi.fn().mockResolvedValue([{ id: 1 }, { id: 2 }, { id: 3 }])
     const mockWhere = vi.fn().mockReturnValue({ returning: mockReturning })
@@ -775,7 +872,7 @@ describe("pruneOldSnapshots: excludes snapshots for user-paused trackers", () =>
   })
 
   it("returns 0 when no snapshots fall outside retention window", async () => {
-    const { pruneOldSnapshots } = await import("@/lib/scheduler")
+    const { pruneOldSnapshots } = await import("@/lib/tracker-scheduler")
 
     const mockReturning = vi.fn().mockResolvedValue([])
     const mockWhere = vi.fn().mockReturnValue({ returning: mockReturning })

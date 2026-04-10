@@ -5,6 +5,7 @@
 import "server-only"
 
 import { eq, gte, inArray, sql } from "drizzle-orm"
+import { compareBigIntDesc, isUnixTimestampOnDate } from "@/lib/data-transforms"
 import { db } from "@/lib/db"
 import {
   downloadClients,
@@ -13,10 +14,10 @@ import {
   trackerSnapshots,
   trackers,
 } from "@/lib/db/schema"
+import { parseCachedTorrents } from "@/lib/download-clients"
 import { parseTorrentTags } from "@/lib/fleet"
-import { compareBigIntDesc, isUnixTimestampOnDate, localDateStr } from "@/lib/formatters"
+import { localDateStr } from "@/lib/formatters"
 import { log } from "@/lib/logger"
-import { parseCachedTorrents } from "@/lib/qbt/client"
 import type { TodayAtAGlance } from "@/types/api"
 
 interface TrackerDelta {
@@ -263,11 +264,11 @@ export async function computeTodayAtAGlance(): Promise<TodayAtAGlance> {
     const torrents = parseCachedTorrents(client.cachedTorrents)
 
     for (const torrent of torrents) {
-      // Activity counts. added_on and completion_on are unix timestamps (seconds)
-      if (isUnixTimestampOnDate(torrent.added_on, todayStr)) {
+      // Activity counts. addedAt and completedAt are unix timestamps (seconds)
+      if (isUnixTimestampOnDate(torrent.addedAt, todayStr)) {
         addedToday++
       }
-      if (torrent.completion_on !== -1 && isUnixTimestampOnDate(torrent.completion_on, todayStr)) {
+      if (torrent.completedAt !== -1 && isUnixTimestampOnDate(torrent.completedAt, todayStr)) {
         completedToday++
       }
 

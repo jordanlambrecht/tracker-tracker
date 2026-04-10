@@ -3,7 +3,7 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import type { TorrentInfo } from "@/lib/torrent-utils"
+import type { TorrentRaw } from "@/lib/fleet"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { buildGlowAreaStyle, buildTimeXAxis } from "./lib/chart-helpers"
@@ -14,7 +14,7 @@ import { CHART_THEME, chartGrid, chartTooltip, chartTooltipRow } from "./lib/the
 // ---------------------------------------------------------------------------
 
 interface TorrentAgeTimelineProps {
-  torrents: TorrentInfo[]
+  torrents: TorrentRaw[]
   accentColor: string
 }
 
@@ -23,7 +23,7 @@ interface TorrentAgeTimelineProps {
 // ---------------------------------------------------------------------------
 
 function TorrentAgeTimeline({ torrents, accentColor }: TorrentAgeTimelineProps) {
-  const withDates = torrents.filter((t) => t.addedOn > 0).sort((a, b) => a.addedOn - b.addedOn)
+  const withDates = torrents.filter((t) => t.addedAt > 0).sort((a, b) => a.addedAt - b.addedAt)
   if (withDates.length < 2) {
     return <ChartEmptyState height={220} message="Need 2+ torrents with dates" />
   }
@@ -32,7 +32,7 @@ function TorrentAgeTimeline({ torrents, accentColor }: TorrentAgeTimelineProps) 
   const monthMap = new Map<string, number>()
   let cumulative = 0
   for (const t of withDates) {
-    const d = new Date(t.addedOn * 1000)
+    const d = new Date(t.addedAt * 1000)
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
     cumulative++
     monthMap.set(key, cumulative)
@@ -55,7 +55,7 @@ function TorrentAgeTimeline({ torrents, accentColor }: TorrentAgeTimelineProps) 
           year: "numeric",
         })
         return (
-          `<div style="margin-bottom:4px;color:${CHART_THEME.textTertiary};font-size:11px;">${label}</div>` +
+          `<div style="margin-bottom:4px;color:${CHART_THEME.textTertiary};font-size:${CHART_THEME.fontSizeDense}px;">${label}</div>` +
           chartTooltipRow(accentColor, "Torrents", String(p.value[1]))
         )
       },
@@ -68,12 +68,13 @@ function TorrentAgeTimeline({ torrents, accentColor }: TorrentAgeTimelineProps) 
       axisLabel: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
     },
     series: [
       {
         type: "line",
+        sampling: "lttb",
         data: seriesData,
         smooth: true,
         symbol: "none",

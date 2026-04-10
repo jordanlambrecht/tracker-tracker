@@ -1,42 +1,34 @@
 # MAM (MyAnonaMouse) API Response
 
-MAM uses a custom JSON API with cookie-based authentication. A single endpoint returns all user stats including a detailed snatch summary breakdown.
+MAM uses a custom JSON API with cookie auth. One endpoint returns stats plus a detailed snatch breakdown.
 
 ## Endpoint
 
-One request per poll:
-
-```
+```bash
 GET {baseUrl}/jsonLoad.php?snatch_summary&notif
 ```
 
-The `snatch_summary` query parameter enables the detailed torrent category breakdown. The `notif` parameter includes notification counts (PMs, tickets, requests). Without these, only basic stats (username, ratio, uploaded, downloaded) are returned.
+Add `snatch_summary` for torrent breakdown by category, and `notif` for notification counts (PMs, tickets, requests). Without them, you get only basic stats.
 
 Optional parameters (not used by the adapter):
 
-- `clientStats` — includes per-client connectivity info from MAM's perspective (30min cache). Returns empty array without `?id=`, full breakdown with `?id={uid}`.
-- `pretty` — pretty-prints the JSON output
-- `id={userid}` — load a specific user's data. When set to your own UID, `clientStats` returns the full per-IP/port breakdown. When set to another user's UID, returns limited public data.
+- `clientStats` — per-client connectivity info (30-min cache)
+- `pretty` — pretty-prints JSON
+- `id={userid}` — load specific user data (limited public data for others)
 
-**Note:** The `?id=` parameter does NOT return additional profile fields (like join date). The response shape is identical to the self-lookup — `created` and `update` fields are cache timestamps that change between requests, not account dates.
+**Note:** The `?id=` parameter doesn't add fields like join date. The `created` and `update` fields are cache timestamps, not account dates (see Quirks).
 
 ## Authentication
 
-MAM uses a `mam_id` session cookie instead of an API key or authorization header:
+Use a session cookie (`mam_id`) instead of an API key:
 
-```
+```bash
 Cookie: mam_id={SESSION_COOKIE}
 ```
 
-The session cookie is obtained from MAM's Security Settings page (User Preferences → Security). Users should create an IP-locked or ASN-locked session for API use. **Session cookies rotate monthly** — users must update the stored token periodically.
+Get it from User Preferences → Security. Create an IP-locked or ASN-locked session for API use. MAM rotates these monthly, so refresh periodically.
 
-Auth failures return an HTML error string, not JSON:
-
-```
-Error, you are not signed in <br />Other error
-```
-
-The adapter detects this by checking for the absence of `username` in the response.
+Auth fails silently — you get HTML instead of JSON. We detect it by checking if `username` is missing.
 
 ## Example Response
 
@@ -116,48 +108,46 @@ The adapter detects this by checking for the absence of `username` in the respon
 
 ## Snatch Summary Categories
 
-MAM's snatch summary groups all torrents into categories based on seeding status and satisfaction:
-
-| Category | Field | Meaning | Red flag? |
+| Category | Field | Meaning | Alert? |
 | --- | --- | --- | --- |
-| Seeding - Satisfied | `sSat` | Fully seeded past 72hrs, still active | No |
-| Seeding - H&R - Not Yet Satisfied | `seedHnr` | Active HnR being resolved by seeding | Yes |
-| Seeding - pre-H&R - Not Yet Satisfied | `seedUnsat` | Not yet HnR, still seeding toward 72hrs | No |
-| Seeding - Uploads | `upAct` | User's own uploads, still seeding | No |
-| Not Seeding - H&R - Not Yet Satisfied | `inactHnr` | **Danger:** inactive HnR, needs immediate attention | Yes |
-| Not Seeding - pre-H&R - Not Yet Satisfied | `inactUnsat` | Ticking clock toward HnR status | Yes |
-| Not Seeding - Satisfied | `inactSat` | Completed, no longer seeding | No |
-| Not Seeding - Uploads | `upInact` | User's uploads, not currently seeding | No |
-| Leeching | `leeching` | Currently downloading | No |
-| Unsatisfied | `unsat` | Total unsatisfied (includes `limit` field) | No (has limit) |
+| Seeding - Satisfied | `sSat` | Past 72h, active | No |
+| Seeding - H&R - Not Yet Satisfied | `seedHnr` | Active HnR being resolved | Yes |
+| Seeding - pre-H&R - Not Yet Satisfied | `seedUnsat` | Seeding toward 72h | No |
+| Seeding - Uploads | `upAct` | Own uploads, seeding | No |
+| Not Seeding - H&R - Not Yet Satisfied | `inactHnr` | Inactive HnR — urgent | Yes |
+| Not Seeding - pre-H&R - Not Yet Satisfied | `inactUnsat` | Ticking clock to HnR | Yes |
+| Not Seeding - Satisfied | `inactSat` | Completed | No |
+| Not Seeding - Uploads | `upInact` | Own uploads, inactive | No |
+| Leeching | `leeching` | Downloading | No |
+| Unsatisfied | `unsat` | Total unsatisfied | No |
 
-Each category object has: `name` (human-readable), `count` (number), `red` (boolean — MAM flags it as concerning), `size` (bytes or null).
+Each object: `name`, `count`, `red` (boolean alert flag), `size` (bytes or null).
 
 ## Quirks
 
-**Dual byte representation.** MAM returns both formatted strings (`uploaded`: `"5.125 TiB"`) and raw integers (`uploaded_bytes`: `5635036489461`). The adapter uses the raw integers directly via `BigInt()`, avoiding the `parseBytes()` parsing that UNIT3D requires.
+**Dual byte representation.** Both formatted strings (`"5.125 TiB"`) and raw bytes. We use raw bytes with `BigInt()` — no parsing needed.
 
-**Bonus points cap at 99,999.** MAM has a hard cap on seedbonus. Points earned above this are lost. The notification system should alert when the cap is reached.
+**Bonus points cap at 99,999.** Hard ceiling. Anything above is lost.
 
-**FL Wedges are not bonus points.** Wedges (`wedges`) are a separate currency from seedbonus. They are earned from the Millionaire's Vault and can be exchanged for Personal or Staff Freeleech on individual torrents.
+**FL Wedges are separate currency.** Earned from Millionaire's Vault, traded for personal or staff freeleech.
 
-**Cookie auth, not API key.** MAM is the only platform using cookie-based auth. The `mam_id` session cookie must be set up in MAM's Security Settings as an IP-locked or ASN-locked session. Regular browser session cookies also work but are less stable. Cookies rotate monthly.
+**Cookie auth only.** Set `mam_id` as IP-locked or ASN-locked in Security Settings. Monthly rotations are normal.
 
-**`created` and `update` are cache timestamps, NOT account dates.** Verified: these values change between consecutive API calls (observed `1774552832` → `1774553470` seconds apart). They reflect when MAM's internal cache was last refreshed. **MAM does not expose account join date via any API endpoint** — users must enter it manually.
+**`created` and `update` are cache timestamps.** They change on each API call — they're not account dates. MAM doesn't expose join date via API.
 
-**`unsat.limit` is class-dependent.** The unsatisfied torrent limit varies by user class: User=50, Power User=100, VIP=150, above VIP=200. The API returns the current limit for the authenticated user.
+**`unsat.limit` is class-dependent.** User=50, Power User=100, VIP=150, above VIP=200.
 
-**72-hour seed requirement.** MAM requires 72 hours of seeding within 30 days per torrent. Failure to meet this results in a Hit & Run. The `inactHnr` count represents torrents that have passed the deadline without sufficient seeding.
+**72-hour seed requirement.** 72h seeding per torrent within 30 days, or it's an H&R. `inactHnr` = torrents past deadline that you stopped seeding.
 
 ## Other MAM Endpoints (Not Used by Adapter)
 
-The following endpoints exist in the MAM API but are not used by the Tracker Tracker adapter. They are documented here for reference and potential future use.
+Alternative endpoints for reference and future use.
 
 ### `/jsonLoad.php?clientStats`
 
-Returns torrent client connectivity information from MAM's perspective (30-minute cache). Not used by the adapter because Tracker Tracker has its own qBittorrent integration. However, the data is useful for diagnosing connectivity issues since it shows what MAM sees.
+Torrent client connectivity info from MAM's perspective (30-min cache). Not used because Tracker Tracker has its own qBT integration, but useful for diagnosing MAM-side connectivity.
 
-When called without `?id=`, `clientStats` is an empty array. When called with `?id={uid}` (your own user ID), it returns the full client breakdown:
+Without `?id=`: empty array. With `?id={uid}` (your ID): full breakdown:
 
 ```json
 {
@@ -221,7 +211,7 @@ Note: A single user can have multiple client entries across different IPs/ports 
 
 ### `/jsonLoad.php?notif`
 
-Returns notification counts (PMs, tickets, requests). The adapter includes `?notif` in every poll alongside `?snatch_summary`. The counts are stored in `MamPlatformMeta` (`unreadPMs`, `openTickets`, `pendingRequests`, `unreadTopics`) and surfaced as an unread badge on the tracker detail page.
+Notification counts (PMs, tickets, requests). Included in every poll alongside `?snatch_summary`. Stored in `MamPlatformMeta` and surfaced as an unread badge on the tracker detail page.
 
 The `notifs` object appears when `?notif` is included:
 
@@ -242,18 +232,18 @@ These fields are merged into the standard `/jsonLoad.php` response alongside the
 
 ### `/json/userBonusHistory.php`
 
-Shows a history of bonus points and wedge transactions. Requires `mam_id` cookie auth on `www.myanonamouse.net`.
+Bonus points and wedge transaction history. Requires `mam_id` cookie auth on `www.myanonamouse.net`.
 
 **Parameters:**
 
 | Parameter | Type | Description |
 | --- | --- | --- |
-| `other_userid` | int | Filter to transactions with a specific user |
-| `type[]` | list | Which transaction types to show: `giftPoints`, `giftWedge`, `wedgePF`, `wedgeGFL`, `torrentThanks`, `millionaires` |
+| `other_userid` | int | Filter by user |
+| `type[]` | list | Transaction types: `giftPoints`, `giftWedge`, `wedgePF`, `wedgeGFL`, `torrentThanks`, `millionaires` |
 
-**Example request:**
+**Example:**
 
-```
+```bash
 GET /json/userBonusHistory.php?type[]=giftWedge&type[]=wedgePF&type[]=wedgeGFL
 ```
 
@@ -304,11 +294,11 @@ GET /json/userBonusHistory.php?type[]=giftWedge&type[]=wedgePF&type[]=wedgeGFL
 
 ### `/json/dynamicSeedbox.php`
 
-Sets the dynamic seedbox IP. Operational tool for VPN/seedbox users — not relevant to stats tracking. Requires a specially configured API session (ASN-locked + Dynamic Seedbox permission) on `t.myanonamouse.net`.
+Sets the dynamic seedbox IP. For VPN/seedbox users, not relevant to stats tracking. Requires specially configured API session (ASN-locked + Dynamic Seedbox permission) on `t.myanonamouse.net`.
 
-**Rate limit:** Once per hour (rolling window).
+**Rate limit:** Once per hour.
 
-**Example response (success):**
+**Success:**
 
 ```json
 {
@@ -320,7 +310,7 @@ Sets the dynamic seedbox IP. Operational tool for VPN/seedbox users — not rele
 }
 ```
 
-**Example response (rate limited):**
+**Rate limited:**
 
 ```json
 {
@@ -346,7 +336,7 @@ Sets the dynamic seedbox IP. Operational tool for VPN/seedbox users — not rele
 
 ### `/json/jsonIp.php`
 
-Returns the caller's current IP, ASN, and AS organization name. Available on both `www.myanonamouse.net` and `t.myanonamouse.net`. No authentication required.
+Current IP, ASN, and organization name. Available on both `www` and `t` subdomains. No auth required.
 
 ```json
 {

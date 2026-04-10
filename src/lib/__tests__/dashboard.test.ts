@@ -19,7 +19,6 @@ import {
   fetchDismissedKeys,
   postDismissAlert,
 } from "@/lib/dashboard"
-import { checkAnniversaryMilestone } from "@/lib/tracker-events"
 import { getTrackerHealth } from "@/lib/tracker-status"
 
 const mockFindRegistryEntry = vi.mocked(findRegistryEntry)
@@ -37,6 +36,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     isActive: true,
     lastPolledAt: new Date().toISOString(),
     lastError: null,
+    lastErrorAt: null,
     consecutiveFailures: 0,
     pausedAt: null,
     userPausedAt: null,
@@ -110,6 +110,7 @@ const makeSnapshot = (overrides: Partial<Snapshot> = {}): Snapshot => ({
   shareScore: null,
   username: "testuser",
   group: "User",
+  isManual: false,
   ...overrides,
 })
 
@@ -424,6 +425,17 @@ describe("computeAlerts", () => {
     const alerts = computeAlerts([tracker])
     const errorAlert = alerts.find((a) => a.type === "error")
     expect(errorAlert?.key).toContain("Timeout")
+
+    // Behavior assertion: two different error messages on the same tracker must
+    // produce different keys so a dismissed alert re-appears when the error changes.
+    const trackerWithDifferentError = makeTracker({
+      id: 1,
+      name: "Aither",
+      lastError: "Connection refused",
+    })
+    const alerts2 = computeAlerts([trackerWithDifferentError])
+    const errorAlert2 = alerts2.find((a) => a.type === "error")
+    expect(errorAlert2?.key).not.toBe(errorAlert?.key)
   })
 
   it("generates a ratio-danger alert when ratio is below minimumRatio", () => {
@@ -809,9 +821,9 @@ describe("fetchDismissedKeys / postDismissAlert / deleteAllDismissed", () => {
     )
   })
 
-  it("postDismissAlert silently swallows fetch errors (best-effort)", async () => {
+  it("postDismissAlert returns false on fetch error (best-effort)", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network error")))
-    await expect(postDismissAlert("some-key", "error")).resolves.toBeUndefined()
+    await expect(postDismissAlert("some-key", "error")).resolves.toBe(false)
   })
 
   it("deleteAllDismissed sends DELETE request", async () => {
@@ -824,9 +836,9 @@ describe("fetchDismissedKeys / postDismissAlert / deleteAllDismissed", () => {
     )
   })
 
-  it("deleteAllDismissed silently swallows fetch errors (best-effort)", async () => {
+  it("deleteAllDismissed returns false on fetch error (best-effort)", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network error")))
-    await expect(deleteAllDismissed()).resolves.toBeUndefined()
+    await expect(deleteAllDismissed()).resolves.toBe(false)
   })
 })
 
@@ -840,6 +852,7 @@ describe("computeSystemAlerts", () => {
       currentVersion: "1.0.0",
       failedBackups: [],
       clients: [],
+      snapshotRetentionDays: 365,
     })
     expect(result).toHaveLength(0)
   })
@@ -850,6 +863,7 @@ describe("computeSystemAlerts", () => {
       currentVersion: "1.0.0",
       failedBackups: [],
       clients: [],
+      snapshotRetentionDays: 365,
     })
     expect(result).toHaveLength(1)
     expect(result[0].type).toBe("update-available")
@@ -867,6 +881,7 @@ describe("computeSystemAlerts", () => {
       currentVersion: "1.0.0",
       failedBackups: [],
       clients: [],
+      snapshotRetentionDays: 365,
     })
     expect(result.find((a) => a.type === "update-available")).toBeUndefined()
   })
@@ -876,6 +891,7 @@ describe("computeSystemAlerts", () => {
       currentVersion: "1.0.0",
       failedBackups: [],
       clients: [],
+      snapshotRetentionDays: 365,
     })
     expect(result.find((a) => a.type === "update-available")).toBeUndefined()
   })
@@ -886,6 +902,7 @@ describe("computeSystemAlerts", () => {
       currentVersion: "1.0.0",
       failedBackups: [{ createdAt }, { createdAt: "2026-01-14T03:00:00.000Z" }],
       clients: [],
+      snapshotRetentionDays: 365,
     })
     const backupAlert = result.find((a) => a.type === "backup-failed")
     expect(backupAlert).toBeDefined()
@@ -905,6 +922,7 @@ describe("computeSystemAlerts", () => {
         { id: 2, name: "Deluge", enabled: false, lastError: "Timed out" },
         { id: 3, name: "Transmission", enabled: true, lastError: null },
       ],
+      snapshotRetentionDays: 365,
     })
     expect(result).toHaveLength(1)
     const clientAlert = result[0]
@@ -916,25 +934,48 @@ describe("computeSystemAlerts", () => {
     expect(clientAlert.dismissible).toBe(false)
   })
 
-  it("client-error alerts are non-dismissible", () => {
+  it("generates retention-unconfigured alert when snapshotRetentionDays is null", () => {
     const result = computeSystemAlerts({
       currentVersion: "1.0.0",
       failedBackups: [],
-      clients: [{ id: 5, name: "Client", enabled: true, lastError: "Unreachable" }],
+      clients: [],
+      snapshotRetentionDays: null,
     })
-    expect(result[0].dismissible).toBe(false)
+    const retentionAlert = result.find((a) => a.type === "retention-unconfigured")
+    expect(retentionAlert).toBeDefined()
+    expect(retentionAlert?.key).toBe("retention-unconfigured")
+    expect(retentionAlert?.trackerName).toBe("System")
+    expect(retentionAlert?.message).toContain("retention")
+    expect(retentionAlert?.message).toContain("Settings")
+    expect(retentionAlert?.dismissible).toBe(true)
   })
 
-  it("generates all three alert types together", () => {
+  it("does not generate retention alert when snapshotRetentionDays is configured", () => {
+    const result = computeSystemAlerts({
+      currentVersion: "1.0.0",
+      failedBackups: [],
+      clients: [],
+      snapshotRetentionDays: 730,
+    })
+    expect(result.find((a) => a.type === "retention-unconfigured")).toBeUndefined()
+  })
+
+  it("generates all alert types together", () => {
     const result = computeSystemAlerts({
       latestVersion: "2.0.0",
       currentVersion: "1.0.0",
       failedBackups: [{ createdAt: "2026-01-15T03:00:00.000Z" }],
       clients: [{ id: 1, name: "qBt", enabled: true, lastError: "Unreachable" }],
+      snapshotRetentionDays: null,
     })
-    expect(result).toHaveLength(3)
+    expect(result).toHaveLength(4)
     expect(result.map((a) => a.type)).toEqual(
-      expect.arrayContaining(["update-available", "backup-failed", "client-error"])
+      expect.arrayContaining([
+        "update-available",
+        "backup-failed",
+        "client-error",
+        "retention-unconfigured",
+      ])
     )
   })
 })
@@ -1009,63 +1050,13 @@ describe("checkAnniversaryMilestone", () => {
     vi.useRealTimers()
   })
 
-  it("returns 1 month anniversary on exact date", () => {
-    vi.setSystemTime(new Date("2026-04-15"))
-    expect(checkAnniversaryMilestone("2026-03-15")).toEqual({ label: "1 month anniversary" })
-  })
-
-  it("returns 6 month anniversary on exact date", () => {
-    vi.setSystemTime(new Date("2026-09-15"))
-    expect(checkAnniversaryMilestone("2026-03-15")).toEqual({ label: "6 month anniversary" })
-  })
-
-  it("returns 1 year anniversary on exact date", () => {
-    vi.setSystemTime(new Date("2027-03-15"))
-    expect(checkAnniversaryMilestone("2026-03-15")).toEqual({ label: "1 year anniversary" })
-  })
-
-  it("returns multi-year anniversary", () => {
-    vi.setSystemTime(new Date("2031-03-15"))
-    expect(checkAnniversaryMilestone("2026-03-15")).toEqual({ label: "5 year anniversary" })
-  })
-
-  it("matches within the ±3 day window", () => {
-    vi.setSystemTime(new Date("2027-03-13")) // 2 days before 1yr anniversary
-    expect(checkAnniversaryMilestone("2026-03-15")).toEqual({ label: "1 year anniversary" })
-  })
-
-  it("does not match outside the ±3 day window", () => {
-    vi.setSystemTime(new Date("2027-03-10")) // 5 days before 1yr anniversary
-    expect(checkAnniversaryMilestone("2026-03-15")).toBeNull()
-  })
-
-  it("returns null for dates not near any milestone", () => {
-    vi.setSystemTime(new Date("2026-08-01")) // ~4.5 months in, no milestone nearby
-    expect(checkAnniversaryMilestone("2026-03-15")).toBeNull()
-  })
-
-  it("returns null for invalid date string", () => {
-    expect(checkAnniversaryMilestone("not-a-date")).toBeNull()
-  })
-
-  it("returns null when joinedAt is null", () => {
-    expect(checkAnniversaryMilestone(null)).toBeNull()
-  })
-
-  it("prefers 1 month over 1 year when both could match", () => {
-    // Edge case: 1 month anniversary checked before annual milestones
-    vi.setSystemTime(new Date("2026-04-15"))
-    const result = checkAnniversaryMilestone("2026-03-15")
-    expect(result?.label).toBe("1 month anniversary")
-  })
-
   it("generates anniversary alert in computeAlerts", () => {
     vi.setSystemTime(new Date("2027-06-10"))
     const tracker = makeTracker({ joinedAt: "2026-06-10" })
     const alerts = computeAlerts([tracker])
     const anniversary = alerts.find((a) => a.type === "anniversary")
     expect(anniversary).toBeDefined()
-    expect(anniversary?.message).toBe("1 year anniversary")
+    expect(anniversary?.message).toBe("1-year anniversary")
   })
 
   it("does not generate anniversary alert without joinedAt", () => {

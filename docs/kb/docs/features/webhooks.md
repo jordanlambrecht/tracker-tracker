@@ -5,7 +5,7 @@ description: Get alerts in Discord when your ratio drops, a tracker goes down, o
 
 # Webhooks
 
-Tracker Tracker can send you alerts when things happen on your trackers — ratio drops, hit-and-runs, outages, rank changes, and more.
+Tracker Tracker sends you alerts when things change on your trackers — ratio drops, hit-and-runs, outages, rank changes, and more.
 
 ## Supported Platforms
 
@@ -21,10 +21,10 @@ Tracker Tracker can send you alerts when things happen on your trackers — rati
 
 ### In Discord
 
-1. Open the channel where you want alerts.
-2. **Edit Channel → Integrations → Webhooks → New Webhook.**
-3. Name it whatever you want (e.g., "Tracker Alerts").
-4. Copy the webhook URL.
+1. Open the channel where you want alerts
+2. **Edit Channel → Integrations → Webhooks → New Webhook**
+3. Name it (i.e., "Tracker Alerts")
+4. Copy the webhook URL
 
 Keep this URL private — anyone with it can post to your channel.
 
@@ -32,11 +32,11 @@ Keep this URL private — anyone with it can post to your channel.
 
 ### In Tracker Tracker
 
-1. Go to **Settings → Notifications**.
-2. Click **Add Notification Target**.
-3. Select **Discord**, paste the URL, and give the target a name.
-4. Choose which events you want.
-5. Save, then click **Test Webhook** to confirm it works.
+1. Go to **Settings → Notifications**
+2. Click **Add Notification Target**
+3. Select **Discord**, paste the URL, and name the target
+4. Choose which events to send
+5. Save and click **Test Webhook** to confirm
 
 ![Test notification in Discord](../assets/images/webhooks-discord-test-notif.png)
 
@@ -56,10 +56,10 @@ Each target subscribes to any combination of these events:
 | Rank change      | Your user class changes                          | 7 days   |
 | Anniversary      | Membership hits 1 month, 6 months, then yearly   | 7 days   |
 
-Cooldowns prevent spam — if a condition persists across multiple polls, you get one alert per cooldown period, not one per poll.
+Cooldowns prevent spam. If a problem persists across multiple polls, you get one alert per cooldown period, not one for every single poll.
 
 !!! info "First-poll behavior"
-    Events that compare snapshots (ratio drop, hit-and-run) need at least two polls and won't fire on the first one. Events like "account warned" fire immediately if the condition is already true.
+    Comparison events (ratio drop, hit-and-run) need two polls before firing. State events like "account warned" fire immediately if true on the first poll.
 
 ## Thresholds
 
@@ -72,25 +72,23 @@ Two thresholds can be adjusted per target:
 
 ## Scoping to Specific Trackers
 
-By default, a target gets events from all your trackers. You can restrict it to specific ones — events from other trackers are ignored.
-
-Useful for separate channels per tracker, or if you only care about alerts for certain sites.
+By default, a target receives events from all trackers. You can limit it to specific trackers instead — events from others are ignored. Great for one Discord channel per tracker, or if you only want alerts for certain sites.
 
 ## Multiple Targets
 
-You can set up more than one target. Some ideas:
+Set up as many targets as you need:
 
-- **One channel per tracker** — scope each target to a single tracker.
-- **Urgent vs. routine** — ratio danger and tracker down in one channel, rank changes and anniversaries in another.
-- **Private vs. shared** — turn off "Include tracker name" on targets that post to channels other people can see.
+- **One channel per tracker** — scope each target to a single tracker
+- **Urgent vs. routine** — ratio danger and outages in one channel, rank changes and anniversaries in another
+- **Private vs. shared** — disable "Include tracker name" on public channels
 
 ## Privacy
 
-The **Include tracker name** toggle controls whether the tracker's name appears in messages. Turn it off if you share the channel.
+Use the **Include tracker name** toggle to hide the tracker name in messages if you share the Discord channel.
 
-If **Store usernames** is disabled in app settings, usernames are masked in notifications too.
+If you disable **Store usernames** in app settings, usernames are masked in alerts too.
 
-Webhook URLs are encrypted in the database and never appear in API responses or logs.
+Webhook URLs stay encrypted in the database — they never show up in API responses or logs.
 
 ## What the Messages Look Like
 
@@ -105,7 +103,7 @@ Notifications arrive as Discord embeds with a colored sidebar:
 
 ### Webhook shows "Failed"
 
-Open the target card — the error under the status badge describes the problem. Common causes:
+Open the target card to see the error under the status badge. Common causes:
 
 - **Webhook deleted in Discord.** Re-create it and update the URL in Tracker Tracker.
 - **Channel deleted.** Discord removes all webhooks when a channel is deleted.
@@ -113,7 +111,7 @@ Open the target card — the error under the status badge describes the problem.
 
 ### Notifications stopped arriving
 
-After 3 consecutive failures, delivery pauses briefly and resumes automatically. If Discord was temporarily unreachable, notifications catch up on the next poll.
+After 3 failures, delivery pauses and then resumes on its own. If Discord was just temporarily down, you'll catch up on the next poll.
 
 ### Getting rate-limited
 
@@ -125,8 +123,8 @@ Discord allows roughly 30 webhook messages per minute per channel. To reduce vol
 
 ### Test works but real notifications don't
 
-The test button sends a sample message. Real notifications need:
+Real alerts require:
 
-1. An event to actually occur (your ratio has to drop, not just be low).
-2. The cooldown window to have elapsed since the last alert of that type.
-3. At least two polls for comparison-based events (ratio drop, hit-and-run).
+1. An actual event (ratio must drop, not just be low)
+2. The cooldown to have passed since the last alert
+3. Two polls for comparison events (ratio drop, hit-and-run)

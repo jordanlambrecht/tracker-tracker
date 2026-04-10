@@ -1,23 +1,23 @@
 // src/components/dashboard/TrackerOverviewGrid.tsx
-//
-// Functions: TrackerOverviewGrid
-
 "use client"
 
 import { useAutoAnimate } from "@formkit/auto-animate/react"
+import { ExternalLinkIcon, PlusIcon } from "@icons"
 import clsx from "clsx"
 import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Checkbox } from "@/components/ui/Checkbox"
-import { ChevronToggle } from "@/components/ui/ChevronToggle"
-import { ExternalLinkIcon, PlusIcon } from "@/components/ui/Icons"
-import { PulseDot } from "@/components/ui/PulseDot"
-import { RedactedText } from "@/components/ui/RedactedText"
+import {
+  Checkbox,
+  ChevronToggle,
+  FilterPill,
+  Notice,
+  PulseDot,
+  RedactedText,
+} from "@/components/ui"
 import { findRegistryEntry, type TrackerRegistryEntry } from "@/data/tracker-registry"
 import { ALL_TRACKERS } from "@/data/trackers"
 import { useClickOutside } from "@/hooks/useClickOutside"
-import { formatAccountAge, formatJoinedDate, formatRatio } from "@/lib/formatters"
-import { STORAGE_KEYS } from "@/lib/storage-keys"
+import { formatAccountAge, formatJoinedDate, formatRatioDisplay } from "@/lib/formatters"
 import { getHealthPulseDot, getTrackerHealth } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
 
@@ -37,10 +37,9 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
   const [favoritesOnly, setFavoritesOnly] = useState(false)
 
-  // Close picker on outside click
   useClickOutside(pickerRef, () => setPickerOpen(false), pickerOpen)
 
-  // Load draft quicklinks from DB on mount; migrate legacy localStorage data if needed
+  // Load draft quicklinks from DB on mount
   useEffect(() => {
     async function loadQuicklinks() {
       try {
@@ -48,32 +47,9 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
         if (!res.ok) return
         const data = (await res.json()) as { slugs: string[] }
         const dbSlugs = Array.isArray(data.slugs) ? data.slugs : []
-
-        if (dbSlugs.length === 0 && typeof window !== "undefined") {
-          const raw = localStorage.getItem(STORAGE_KEYS.DRAFT_QUICKLINKS)
-          if (raw) {
-            try {
-              const legacy = JSON.parse(raw) as unknown
-              if (Array.isArray(legacy) && legacy.every((s) => typeof s === "string")) {
-                const migrated = legacy as string[]
-                await fetch("/api/settings/quicklinks", {
-                  method: "PUT",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ slugs: migrated }),
-                })
-                localStorage.removeItem(STORAGE_KEYS.DRAFT_QUICKLINKS)
-                setSelectedDrafts(migrated)
-                return
-              }
-            } catch {
-              // Ignore malformed legacy data
-            }
-          }
-        }
-
         setSelectedDrafts(dbSlugs)
       } catch {
-        // Silently ignore fetch failures — drafts are non-critical
+        // Silently ignore fetch failures
       }
     }
 
@@ -149,7 +125,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
     <div className="flex flex-col gap-3">
       {/* Filters — only when > 6 trackers */}
       {showFilters && (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           {/* Mobile toggle */}
           <button
             type="button"
@@ -160,7 +136,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
             <ChevronToggle expanded={filtersOpen} />
             Filters
             {activeFilterCount > 0 && (
-              <span className="inline-flex items-center justify-center w-4 h-4 text-[10px] font-semibold text-accent nm-raised-sm rounded-nm-pill">
+              <span className="inline-flex items-center justify-center w-4 h-4 text-3xs font-semibold text-accent nm-raised-sm rounded-nm-pill">
                 {activeFilterCount}
               </span>
             )}
@@ -169,25 +145,19 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
           {/* Filter pills — always visible on md+, collapsible on mobile */}
           <div
             className={clsx(
-              "flex-wrap items-center gap-1.5",
+              "flex-wrap items-center gap-2",
               filtersOpen ? "flex" : "hidden md:flex"
             )}
           >
             {/* Favorites toggle */}
             {hasFavorites && (
-              <button
-                type="button"
+              <FilterPill
+                active={favoritesOnly}
                 onClick={() => setFavoritesOnly((v) => !v)}
-                className={clsx(
-                  "px-2.5 py-1 text-xs font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
-                  favoritesOnly
-                    ? "nm-raised-sm text-accent font-semibold"
-                    : "bg-transparent text-muted hover:text-secondary"
-                )}
-                aria-pressed={favoritesOnly}
+                activeColor="text-accent"
               >
                 {favoritesOnly ? "★" : "☆"} Favorites
-              </button>
+              </FilterPill>
             )}
 
             {hasFavorites && allCategories.length > 0 && (
@@ -197,32 +167,18 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
             {/* Category pills */}
             {allCategories.length > 0 && (
               <>
-                <button
-                  type="button"
+                <FilterPill
+                  active={categoryFilter === null}
                   onClick={() => setCategoryFilter(null)}
-                  className={clsx(
-                    "px-2.5 py-1 text-xs font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
-                    categoryFilter === null
-                      ? "nm-raised-sm text-primary font-semibold"
-                      : "bg-transparent text-muted hover:text-secondary"
-                  )}
-                >
-                  All
-                </button>
+                  text="All"
+                />
                 {allCategories.map((cat) => (
-                  <button
+                  <FilterPill
                     key={cat}
-                    type="button"
+                    active={categoryFilter === cat}
                     onClick={() => setCategoryFilter(categoryFilter === cat ? null : cat)}
-                    className={clsx(
-                      "px-2.5 py-1 text-xs font-mono transition-all duration-150 cursor-pointer border-none rounded-nm-sm",
-                      categoryFilter === cat
-                        ? "nm-raised-sm text-primary font-semibold"
-                        : "bg-transparent text-muted hover:text-secondary"
-                    )}
-                  >
-                    {cat}
-                  </button>
+                    text={cat}
+                  />
                 ))}
               </>
             )}
@@ -242,7 +198,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
               key={t.id}
               type="button"
               onClick={() => router.push(`/trackers/${t.id}`)}
-              className="flex flex-col gap-1.5 px-4 py-3 nm-interactive-sm cursor-pointer text-left h-full rounded-nm-md"
+              className="flex flex-col gap-2 px-4 py-3 nm-interactive-sm cursor-pointer text-left h-full rounded-nm-md"
               style={{ borderLeft: `3px solid ${t.color}` }}
             >
               {/* Row 1: Status + name + ratio + external link */}
@@ -258,13 +214,13 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                   {t.name}
                 </span>
                 <span className="font-mono text-xs text-tertiary tabular-nums shrink-0">
-                  {t.latestStats?.ratio != null ? `${formatRatio(t.latestStats.ratio)}×` : "—"}
+                  {formatRatioDisplay(t.latestStats?.ratio)}
                 </span>
                 <a
                   href={t.baseUrl.startsWith("http") ? t.baseUrl : `https://${t.baseUrl}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="nm-inset-sm bg-control-bg w-7 h-7 flex items-center justify-center text-muted hover:text-accent transition-all duration-150 shrink-0 rounded-nm-sm"
+                  className="nm-inset-sm bg-control-bg w-7 h-7 flex items-center justify-center text-muted hover:text-accent transition-colors duration-150 shrink-0 rounded-nm-sm"
                   onClick={(e) => e.stopPropagation()}
                   aria-label={`Open ${t.name}`}
                 >
@@ -276,7 +232,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
               {health === "paused" || health === "paused-user" ? (
                 <span
                   className={clsx(
-                    "font-mono text-[10px] uppercase tracking-wider ml-4.5",
+                    "font-mono text-3xs uppercase tracking-wider ml-4.5",
                     health === "paused-user" ? "text-warn" : "text-danger"
                   )}
                 >
@@ -327,9 +283,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                 strokeWidth={2}
               />
             </div>
-            <span className="font-mono text-[10px] text-muted ml-4.5">
-              Stats tracking not yet supported
-            </span>
+            <span className="timestamp ml-4.5">Stats tracking not yet supported</span>
           </a>
         ))}
 
@@ -347,10 +301,14 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
 
             {/* Draft tracker picker popover */}
             {pickerOpen && (
-              <div className="absolute top-full left-0 mt-2 z-50 w-80 max-h-72 overflow-y-auto nm-raised bg-elevated p-3 flex flex-col gap-1 styled-scrollbar rounded-nm-md">
-                <p className="text-[10px] font-mono text-warn px-2 py-1.5 nm-inset-sm bg-control-bg mb-2 rounded-nm-sm">
-                  These trackers don't have adapter support yet — links only, no stats tracking.
-                </p>
+              <div className="absolute top-full left-0 mt-2 z-40 w-80 max-h-72 overflow-y-auto nm-raised bg-elevated p-3 flex flex-col gap-1 styled-scrollbar rounded-nm-md">
+                <Notice
+                  variant="default"
+                  box
+                  message="These trackers don't have adapter support yet — links only, no stats tracking."
+                  showIcon={false}
+                  className="mb-2"
+                />
                 {draftTrackers.map((dt: TrackerRegistryEntry) => (
                   <div key={dt.slug} className="flex items-center gap-2 px-1">
                     <Checkbox
@@ -358,10 +316,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                       onChange={() => toggleDraft(dt.slug)}
                     >
                       <span className="flex items-center gap-2">
-                        <span
-                          className="w-2 h-2 rounded-full shrink-0"
-                          style={{ backgroundColor: dt.color }}
-                        />
+                        <span className="color-dot" style={{ backgroundColor: dt.color }} />
                         <span className="text-sm text-secondary">{dt.name}</span>
                       </span>
                     </Checkbox>

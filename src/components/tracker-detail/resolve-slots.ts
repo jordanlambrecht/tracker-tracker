@@ -2,7 +2,7 @@
 //
 // Functions: resolveSlots
 
-import type { ResolvedSlot, SlotCategory, SlotContext } from "@/lib/slot-types"
+import type { ResolvedSlot, SlotCategory, SlotContext } from "@/types/slots"
 import { SLOT_DEFINITIONS } from "./slot-registry"
 
 export function resolveSlots(ctx: SlotContext): Map<SlotCategory, ResolvedSlot[]> {

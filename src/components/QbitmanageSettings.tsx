@@ -1,18 +1,15 @@
 // src/components/QbitmanageSettings.tsx
-//
-// Functions: QbitmanageSettings
-
 "use client"
 
 import { Subtext } from "@typography"
 import { useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
-import { Button } from "@/components/ui/Button"
 import { Checkbox } from "@/components/ui/Checkbox"
 import { Input } from "@/components/ui/Input"
+import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
 import { Toggle } from "@/components/ui/Toggle"
 import { DOCS } from "@/lib/constants"
-import { QBITMANAGE_TAG_DEFAULTS } from "@/lib/qbitmanage-defaults"
+import { QBITMANAGE_TAG_DEFAULTS } from "@/lib/download-clients/qbt/qbitmanage-defaults"
 import type { QbitmanageTagConfig } from "@/types/api"
 
 const QBITMANAGE_STATUSES = [
@@ -138,15 +135,14 @@ function QbitmanageSettings({ initialEnabled, initialTags }: QbitmanageSettingsP
             </div>
           ))}
 
-          <div className="flex flex-col gap-1.5 pt-2">
-            <div className="flex items-center gap-3">
-              <Button size="sm" onClick={handleSave} disabled={saving || !dirty}>
-                {saving ? "Saving..." : "Save"}
-              </Button>
-              {saved && <span className="text-xs font-mono text-success">Saved</span>}
-            </div>
-            {saveError && <span className="text-xs font-mono text-danger">{saveError}</span>}
-          </div>
+          <SaveDiscardBar
+            dirty={dirty}
+            saving={saving}
+            onSave={handleSave}
+            error={saveError}
+            success={saved ? "Saved" : null}
+            showDivider={false}
+          />
         </>
       )}
     </SettingsSection>

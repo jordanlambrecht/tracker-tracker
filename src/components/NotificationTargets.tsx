@@ -1,55 +1,33 @@
 // src/components/NotificationTargets.tsx
 //
 // Functions: NotificationTargets, NotificationCard, AddNotificationForm
-
 "use client"
 
-import { H2, H3, Paragraph, Subtext } from "@typography"
-import { useCallback, useEffect, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { H2, H3, Paragraph } from "@typography"
+import { useCallback, useState } from "react"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { CollapsibleCard } from "@/components/ui/CollapsibleCard"
+import { ConfirmRemove } from "@/components/ui/ConfirmRemove"
+import { InfoTip } from "@/components/ui/InfoTip"
 import { Input } from "@/components/ui/Input"
 import { MaskedSecret } from "@/components/ui/MaskedSecret"
+import { Notice } from "@/components/ui/Notice"
 import { NumberInput } from "@/components/ui/NumberInput"
+import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
 import { Select } from "@/components/ui/Select"
+import { CardListSkeleton } from "@/components/ui/skeletons"
 import { Toggle } from "@/components/ui/Toggle"
-import { Tooltip } from "@/components/ui/Tooltip"
+import { useActionStatus } from "@/hooks/useActionStatus"
+import { useCrudCard } from "@/hooks/useCrudCard"
 import { DOCS } from "@/lib/constants"
 import { formatTimeAgo } from "@/lib/formatters"
 import type { NotificationTargetType } from "@/lib/notifications/types"
+import type { SafeNotificationTarget } from "@/types/api"
 
-interface NotificationTarget {
-  id: number
-  name: string
-  type: NotificationTargetType
-  enabled: boolean
-  hasConfig: boolean
-  notifyRatioDrop: boolean
-  notifyHitAndRun: boolean
-  notifyTrackerDown: boolean
-  notifyBufferMilestone: boolean
-  notifyWarned: boolean
-  notifyRatioDanger: boolean
-  notifyZeroSeeding: boolean
-  notifyRankChange: boolean
-  notifyAnniversary: boolean
-  notifyBonusCap: boolean
-  notifyVipExpiring: boolean
-  notifyUnsatisfiedLimit: boolean
-  notifyActiveHnrs: boolean
-  thresholds: { ratioDropDelta?: number; bufferMilestoneBytes?: number } | null
-  includeTrackerName: boolean
-  scope: number[] | null
-  lastDeliveryStatus: string | null
-  lastDeliveryAt: string | null
-  lastDeliveryError: string | null
-  createdAt: string
-  updatedAt: string
-}
-
-type WebhookStatus = "idle" | "testing" | "success" | "failed"
+type NotificationTarget = SafeNotificationTarget
 
 const NOTIFICATION_TYPE_OPTIONS: {
   value: NotificationTargetType
@@ -91,85 +69,53 @@ const DRAFT_KEYS: (keyof NotificationTarget)[] = [
   "notifyVipExpiring",
   "notifyUnsatisfiedLimit",
   "notifyActiveHnrs",
+  "notifyDownloadDisabled",
   "thresholds",
   "includeTrackerName",
   "scope",
 ]
 
-function isDirty(draft: NotificationTarget, saved: NotificationTarget): boolean {
+function buildPatch(
+  draft: NotificationTarget,
+  saved: NotificationTarget
+): Record<string, unknown> | null {
+  const patch: Record<string, unknown> = {}
   for (const key of DRAFT_KEYS) {
     const a = draft[key]
     const b = saved[key]
     if (a === null && b === null) continue
     if (typeof a === "object" && typeof b === "object" && a !== null && b !== null) {
-      if (JSON.stringify(a) !== JSON.stringify(b)) return true
-    } else if (a !== b) return true
+      if (JSON.stringify(a) !== JSON.stringify(b)) patch[key] = a
+    } else if (a !== b) patch[key] = a
   }
-  return false
+  return Object.keys(patch).length > 0 ? patch : null
 }
 
 function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) {
-  const [draft, setDraft] = useState<NotificationTarget>(target)
-  const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
-  const [expanded, setExpanded] = useState(false)
-  const [webhookStatus, setWebhookStatus] = useState<WebhookStatus>("idle")
-  const [webhookError, setWebhookError] = useState<string | null>(null)
-  const [confirmRemove, setConfirmRemove] = useState(false)
-
-  const dirty = isDirty(draft, target)
-
-  // Sync draft when parent pushes new server state
-  useEffect(() => {
-    if (!dirty) setDraft(target)
-  }, [target, dirty])
-
-  function updateDraft(patch: Partial<NotificationTarget>) {
-    setDraft((prev) => ({ ...prev, ...patch }))
-  }
+  const {
+    draft,
+    setDraft,
+    updateDraft,
+    dirty,
+    saving,
+    saveError,
+    expanded,
+    toggleExpand,
+    handleSave,
+    handleDiscard,
+  } = useCrudCard({
+    item: target,
+    apiEndpoint: "/api/notifications",
+    buildPatch,
+    onSaved,
+  })
+  const { status: webhookStatus, error: webhookError, execute: executeTest } = useActionStatus()
 
   function updateThreshold(patch: Partial<NonNullable<NotificationTarget["thresholds"]>>) {
     setDraft((prev) => ({
       ...prev,
       thresholds: { ...(prev.thresholds ?? {}), ...patch },
     }))
-  }
-
-  async function handleSave() {
-    setSaving(true)
-    setSaveError(null)
-    const patch: Record<string, unknown> = {}
-    for (const key of DRAFT_KEYS) {
-      const a = draft[key]
-      const b = target[key]
-      if (typeof a === "object" && typeof b === "object") {
-        if (JSON.stringify(a) !== JSON.stringify(b)) patch[key] = a
-      } else if (a !== b) {
-        patch[key] = a
-      }
-    }
-    try {
-      const res = await fetch(`/api/notifications/${target.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        setSaveError(data.error || "Failed to save")
-        return
-      }
-      onSaved(target.id, draft)
-    } catch {
-      setSaveError("Network error")
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  function handleDiscard() {
-    setDraft(target)
-    setSaveError(null)
   }
 
   // Webhook config change state
@@ -199,24 +145,14 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
     }
   }
 
-  const handleTestWebhook = useCallback(async () => {
-    setWebhookStatus("testing")
-    setWebhookError(null)
-    try {
+  const handleTestWebhook = () =>
+    executeTest(async () => {
       const res = await fetch(`/api/notifications/${target.id}/test`, { method: "POST" })
-      if (res.ok) {
-        setWebhookStatus("success")
-        setTimeout(() => setWebhookStatus("idle"), 3000)
-      } else {
+      if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        setWebhookError(data.error || "Test failed")
-        setWebhookStatus("failed")
+        throw new Error(data.error || "Test failed")
       }
-    } catch {
-      setWebhookError("Network error — could not reach server")
-      setWebhookStatus("failed")
-    }
-  }, [target.id])
+    })
 
   const ratioDropDelta = draft.thresholds?.ratioDropDelta ?? 0.1
 
@@ -235,7 +171,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
   return (
     <CollapsibleCard
       expanded={expanded}
-      onToggle={() => setExpanded((e) => !e)}
+      onToggle={toggleExpand}
       header={
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-3">
@@ -243,7 +179,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
             {typeBadge}
             {statusBadge}
           </div>
-          <span className="text-[10px] font-mono text-tertiary">
+          <span className="text-3xs font-mono text-tertiary">
             {target.lastDeliveryAt
               ? `Last sent: ${formatTimeAgo(target.lastDeliveryAt)}`
               : "Last sent: Never"}
@@ -252,7 +188,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
       }
     >
       {/* Row 1: Name + Type + Enabled */}
-      <div className="flex flex-col sm:flex-row gap-4 sm:items-end pt-5">
+      <div className="form-responsive-row pt-5">
         <div className="flex-1">
           <Input
             label="Name"
@@ -284,15 +220,15 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
 
       {/* Webhook URL */}
       <div className="flex flex-col gap-2">
-        <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider flex items-center gap-1.5">
+        <H2 className="uppercase tracking-wider flex items-center gap-2">
           Webhook URL
-          <Tooltip
+          <InfoTip
+            icon="question"
+            size="sm"
             content="Encrypted at rest with AES-256-GCM. Never returned in API responses."
             docs={DOCS.WEBHOOKS}
-          >
-            <span className="text-tertiary cursor-help text-[10px]">?</span>
-          </Tooltip>
-        </span>
+          />
+        </H2>
         {changingConfig ? (
           <div className="flex flex-col gap-3">
             <Input
@@ -310,9 +246,8 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
                 variant="primary"
                 onClick={handleSaveConfig}
                 disabled={!newWebhookUrl.trim()}
-              >
-                Save URL
-              </Button>
+                text="Save URL"
+              />
               {target.hasConfig && (
                 <button
                   type="button"
@@ -321,13 +256,13 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
                     setNewWebhookUrl("")
                     setConfigError(null)
                   }}
-                  className="text-xs font-mono text-tertiary hover:text-secondary transition-colors cursor-pointer"
+                  className="ghost-link"
                 >
                   Cancel
                 </button>
               )}
             </div>
-            {configError && <p className="text-xs font-mono text-danger">{configError}</p>}
+            <Notice message={configError} />
           </div>
         ) : (
           <MaskedSecret onChangeClick={() => setChangingConfig(true)} />
@@ -338,15 +273,15 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
 
       {/* Notify when section */}
       <div className="flex flex-col gap-4">
-        <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider flex items-center gap-1.5">
+        <H2 className="uppercase tracking-wider flex items-center gap-2">
           Notify when
-          <Tooltip
+          <InfoTip
+            icon="question"
+            size="sm"
             content="Each event has a snooze window to prevent repeated alerts."
             docs={DOCS.WEBHOOKS}
-          >
-            <span className="text-tertiary cursor-help text-[10px]">?</span>
-          </Tooltip>
-        </span>
+          />
+        </H2>
 
         <div className="flex flex-col gap-1">
           <Toggle
@@ -355,7 +290,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
             onChange={(v) => updateDraft({ notifyRatioDrop: v })}
           />
           {draft.notifyRatioDrop && (
-            <div className="ml-[3.75rem] flex items-center gap-3">
+            <div className="ml-15 flex items-center gap-3">
               <span className="text-xs font-mono text-tertiary">Threshold (delta)</span>
               <NumberInput
                 value={Math.round(ratioDropDelta * 100)}
@@ -421,14 +356,14 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
           label="Bonus Points Capped"
           checked={draft.notifyBonusCap}
           onChange={(v) => updateDraft({ notifyBonusCap: v })}
-          description="Alert when seedbonus hits the cap (99,999 on MAM)"
+          description="Alert when seedbonus hits the cap (i.e. 99,999 on MAM)"
         />
 
         <Toggle
           label="VIP Expiring Soon"
           checked={draft.notifyVipExpiring}
           onChange={(v) => updateDraft({ notifyVipExpiring: v })}
-          description="Alert when VIP status is about to expire"
+          description="Alert when VIP status is about to expire (MAM, AvistaZ network)"
         />
 
         <Toggle
@@ -444,6 +379,13 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
           onChange={(v) => updateDraft({ notifyActiveHnrs: v })}
           description="Alert when inactive Hit & Runs are detected"
         />
+
+        <Toggle
+          label="Download Privileges Revoked"
+          checked={draft.notifyDownloadDisabled}
+          onChange={(v) => updateDraft({ notifyDownloadDisabled: v })}
+          description="Alert when an AvistaZ network tracker revokes download access"
+        />
       </div>
 
       <div className="border-t border-border" />
@@ -455,26 +397,19 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
           checked={draft.includeTrackerName}
           onChange={(v) => updateDraft({ includeTrackerName: v })}
         />
-        <Subtext>
-          Tracker names reveal which private trackers you use. Disable for maximum privacy.
-        </Subtext>
+        <Notice
+          variant="info"
+          message="Tracker names reveal which private trackers you use. Disable for maximum privacy."
+        />
       </div>
 
-      {/* Save / Discard bar — only visible when draft has changes */}
-      {dirty && (
-        <>
-          <div className="border-t border-border" />
-          <div className="flex items-center gap-3">
-            <Button size="sm" onClick={handleSave} disabled={saving}>
-              {saving ? "Saving..." : "Save Changes"}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={handleDiscard} disabled={saving}>
-              Discard
-            </Button>
-            {saveError && <span className="text-xs font-mono text-danger">{saveError}</span>}
-          </div>
-        </>
-      )}
+      <SaveDiscardBar
+        dirty={dirty}
+        saving={saving}
+        onSave={handleSave}
+        onDiscard={handleDiscard}
+        error={saveError}
+      />
 
       <div className="border-t border-border" />
 
@@ -484,9 +419,9 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
           size="sm"
           variant="secondary"
           onClick={handleTestWebhook}
-          disabled={webhookStatus === "testing" || !target.hasConfig}
+          disabled={webhookStatus === "pending" || !target.hasConfig}
         >
-          {webhookStatus === "testing"
+          {webhookStatus === "pending"
             ? "Sending..."
             : webhookStatus === "success"
               ? "Sent"
@@ -500,24 +435,9 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
 
         <div className="flex-1" />
 
-        {confirmRemove ? (
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="danger" onClick={() => onRemove(target.id)}>
-              Confirm Remove
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setConfirmRemove(false)}>
-              Cancel
-            </Button>
-          </div>
-        ) : (
-          <Button size="sm" variant="danger" onClick={() => setConfirmRemove(true)}>
-            Remove
-          </Button>
-        )}
+        <ConfirmRemove onConfirm={() => onRemove(target.id)} />
       </div>
-      {webhookStatus === "failed" && webhookError && (
-        <p className="text-xs font-mono text-danger">{webhookError}</p>
-      )}
+      {webhookStatus === "failed" && webhookError && <Notice message={webhookError} />}
     </CollapsibleCard>
   )
 }
@@ -569,9 +489,9 @@ function AddNotificationForm({
   }
 
   return (
-    <Card elevation="raised" className="flex flex-col gap-4 !p-5">
+    <Card elevation="raised" className="flex flex-col gap-4">
       <H3>Add Notification Target</H3>
-      <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
+      <div className="form-responsive-row">
         <div className="flex-1">
           <Input
             label="Name"
@@ -600,14 +520,15 @@ function AddNotificationForm({
         autoComplete="off"
         data-1p-ignore
       />
-      {error && <p className="text-sm font-mono text-danger">{error}</p>}
+      <Notice message={error} />
       <div className="flex items-center gap-3">
-        <Button size="sm" onClick={handleSubmit} disabled={!canSubmit || saving}>
-          {saving ? "Creating..." : "Create Target"}
-        </Button>
-        <Button size="sm" variant="ghost" onClick={onCancel}>
-          Cancel
-        </Button>
+        <Button
+          size="sm"
+          onClick={handleSubmit}
+          disabled={!canSubmit || saving}
+          text={saving ? "Creating..." : "Create Target"}
+        />
+        <Button size="sm" variant="ghost" onClick={onCancel} text="Cancel" />
       </div>
     </Card>
   )
@@ -618,52 +539,64 @@ function AddNotificationForm({
 // ---------------------------------------------------------------------------
 
 function NotificationTargets() {
-  const [targets, setTargets] = useState<NotificationTarget[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [showAddForm, setShowAddForm] = useState(false)
 
-  const fetchTargets = useCallback(async () => {
-    try {
-      const res = await fetch("/api/notifications")
-      if (!res.ok) return
-      const data: NotificationTarget[] = await res.json()
-      setTargets(data)
-    } catch {
-      // silently fail
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const {
+    data: targets = [],
+    isLoading: loading,
+    error: loadError,
+  } = useQuery({
+    queryKey: ["notification-targets"],
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/notifications", { signal })
+      if (!res.ok) throw new Error("Failed to load notification targets")
+      return res.json() as Promise<NotificationTarget[]>
+    },
+  })
 
-  useEffect(() => {
-    fetchTargets()
-  }, [fetchTargets])
+  const handleSaved = useCallback(
+    (id: number, updated: NotificationTarget) => {
+      queryClient.setQueryData<NotificationTarget[]>(["notification-targets"], (prev) =>
+        prev?.map((t) => (t.id === id ? updated : t))
+      )
+    },
+    [queryClient]
+  )
 
-  const handleSaved = useCallback((id: number, updated: NotificationTarget) => {
-    setTargets((prev) => prev.map((t) => (t.id === id ? updated : t)))
-  }, [])
-
-  const handleRemove = useCallback(async (id: number) => {
-    try {
+  const handleRemove = useCallback(
+    async (id: number) => {
       const res = await fetch(`/api/notifications/${id}`, { method: "DELETE" })
       if (!res.ok) return
-      setTargets((prev) => prev.filter((t) => t.id !== id))
-    } catch {
-      // Network error — leave state unchanged
-    }
-  }, [])
+      queryClient.setQueryData<NotificationTarget[]>(["notification-targets"], (prev) =>
+        prev?.filter((t) => t.id !== id)
+      )
+    },
+    [queryClient]
+  )
 
   if (loading) {
-    return <p className="text-sm font-mono text-tertiary">Loading notification targets...</p>
+    return <CardListSkeleton count={2} />
+  }
+
+  if (loadError) {
+    return (
+      <Notice
+        message={
+          loadError instanceof Error ? loadError.message : "Failed to load notification targets"
+        }
+      />
+    )
   }
 
   return (
     <div className="flex flex-col gap-6">
       <H2 className="flex items-center gap-2">
         Webhooks
-        <Tooltip content="Get alerts when something happens on your trackers." docs={DOCS.WEBHOOKS}>
-          <span className="text-muted hover:text-secondary cursor-help text-sm">&#9432;</span>
-        </Tooltip>
+        <InfoTip
+          content="Get alerts when something happens on your trackers."
+          docs={DOCS.WEBHOOKS}
+        />
       </H2>
       {targets.length === 0 && !showAddForm ? (
         <Card elevation="raised" className="flex flex-col items-center gap-4 py-10">
@@ -676,9 +609,7 @@ function NotificationTargets() {
               Add a notification target to receive alerts when your tracker stats change.
             </Paragraph>
           </div>
-          <Button size="sm" onClick={() => setShowAddForm(true)}>
-            Add Notification Target
-          </Button>
+          <Button size="sm" onClick={() => setShowAddForm(true)} text="Add Notification Target" />
         </Card>
       ) : (
         <>
@@ -694,7 +625,7 @@ function NotificationTargets() {
             <AddNotificationForm
               onCreated={() => {
                 setShowAddForm(false)
-                fetchTargets()
+                queryClient.invalidateQueries({ queryKey: ["notification-targets"] })
               }}
               onCancel={() => setShowAddForm(false)}
             />
@@ -704,9 +635,8 @@ function NotificationTargets() {
               variant="secondary"
               className="self-start"
               onClick={() => setShowAddForm(true)}
-            >
-              + Add Notification Target
-            </Button>
+              text="+ Add Notification Target"
+            />
           )}
         </>
       )}

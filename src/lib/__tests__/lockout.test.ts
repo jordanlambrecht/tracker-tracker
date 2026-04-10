@@ -62,6 +62,12 @@ describe("recordFailedAttempt", () => {
     expect(mockUpdate).toHaveBeenCalled()
     expect(chain.set).toHaveBeenCalled()
     expect(chain.returning).toHaveBeenCalled()
+    // The argument to .set() must contain a failedLoginAttempts key built from a
+    // drizzle sql`` expression — i.e. not a plain numeric literal — so that the
+    // increment is atomic at the database level and avoids read-modify-write races.
+    const setArg = chain.set.mock.calls[0][0] as Record<string, unknown>
+    expect(setArg).toHaveProperty("failedLoginAttempts")
+    expect(typeof setArg.failedLoginAttempts).not.toBe("number")
   })
 
   it("does not set lockout below threshold", async () => {

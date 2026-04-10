@@ -9,9 +9,9 @@ import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
 import type { ImageHostId } from "@/lib/image-hosting"
 import { getImageHostAdapter } from "@/lib/image-hosting"
+import { IMAGE_EXPIRATION_MAX, UPLOAD_IMAGE_MAX_BYTES } from "@/lib/limits"
 import { log } from "@/lib/logger"
 
-const MAX_FILE_SIZE = 32 * 1024 * 1024 // 32 MB (ImgBB limit, lowest common denominator)
 const VALID_HOSTS = new Set<ImageHostId>(["ptpimg", "onlyimage", "imgbb"])
 const VALID_MIME_TYPES = [
   "image/jpeg",
@@ -70,9 +70,9 @@ export async function POST(request: Request) {
   if (file.size === 0) {
     return NextResponse.json({ error: "image file is empty" }, { status: 400 })
   }
-  if (file.size > MAX_FILE_SIZE) {
+  if (file.size > UPLOAD_IMAGE_MAX_BYTES) {
     return NextResponse.json(
-      { error: `File too large (max ${MAX_FILE_SIZE / 1024 / 1024} MB)` },
+      { error: `File too large (max ${UPLOAD_IMAGE_MAX_BYTES / 1024 / 1024} MB)` },
       { status: 400 }
     )
   }
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
   const expirationRaw = formData.get("expiration")
   if (expirationRaw) {
     const parsed = Number(expirationRaw)
-    if (!Number.isFinite(parsed) || parsed < 0 || parsed > 31_536_000) {
+    if (!Number.isFinite(parsed) || parsed < 0 || parsed > IMAGE_EXPIRATION_MAX) {
       return NextResponse.json(
         { error: "expiration must be a positive number of seconds (max 31536000)" },
         { status: 400 }

@@ -1,8 +1,8 @@
 // src/lib/adapters/adapter-fetch.ts
-//
-// Functions: adapterFetch
 
-import { proxyFetch } from "@/lib/proxy"
+import { classifyFetchError } from "@/lib/error-utils"
+import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
+import { proxyFetch } from "@/lib/tunnel"
 import type { FetchOptions } from "./types"
 
 async function adapterFetch<T>(
@@ -36,20 +36,10 @@ async function adapterFetch<T>(
   try {
     response = await fetch(url, {
       headers: mergedHeaders,
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
     })
   } catch (err) {
-    const name =
-      err !== null && typeof err === "object" && "name" in (err as object)
-        ? String((err as { name: unknown }).name)
-        : ""
-    if (name === "TimeoutError" || name === "AbortError") {
-      throw new Error(`Request to ${hostname} timed out`)
-    }
-    const code =
-      err instanceof Error && "code" in err ? (err as NodeJS.ErrnoException).code : undefined
-    const detail = code ?? (name || "Unknown")
-    throw new Error(`Failed to connect to ${hostname}: ${detail}`)
+    throw classifyFetchError(err, hostname)
   }
 
   if (!response.ok) {

@@ -7,8 +7,11 @@ import { authenticate, parseJsonBody } from "@/lib/api-helpers"
 import { clearSession, verifyPassword } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { errMsg } from "@/lib/error-utils"
+import { PASSWORD_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { scrubAndDeleteAll } from "@/lib/nuke"
+import { ensureSchedulerRunning } from "@/lib/scheduler"
 
 export async function POST(request: Request) {
   const auth = await authenticate()
@@ -18,7 +21,7 @@ export async function POST(request: Request) {
   if (body instanceof NextResponse) return body
 
   const { password } = body as { password?: string }
-  if (!password || typeof password !== "string" || password.length > 128) {
+  if (!password || typeof password !== "string" || password.length > PASSWORD_MAX) {
     return NextResponse.json({ error: "Master password is required" }, { status: 400 })
   }
 
@@ -34,8 +37,18 @@ export async function POST(request: Request) {
   }
 
   log.info({ route: "POST /api/settings/nuke" }, "data scrub initiated")
-  await scrubAndDeleteAll()
-  await clearSession()
 
+  try {
+    await scrubAndDeleteAll()
+  } catch (err) {
+    log.error({ route: "POST /api/settings/nuke", error: errMsg(err) }, "Data scrub failed")
+    ensureSchedulerRunning(auth.encryptionKey)
+    return NextResponse.json(
+      { error: "Data scrub failed. Your data is unchanged." },
+      { status: 500 }
+    )
+  }
+
+  await clearSession()
   return NextResponse.json({ success: true })
 }

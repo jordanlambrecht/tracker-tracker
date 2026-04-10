@@ -1,80 +1,65 @@
 // src/components/charts/FleetSizeJitter.tsx
-//
-// Functions: buildFleetSizeJitterOption, FleetSizeJitter
-
 "use client"
 
 import type { EChartsOption } from "echarts"
 import { useMemo } from "react"
-import type { TrackerTag } from "@/lib/fleet"
-import { parseTorrentTags } from "@/lib/fleet"
-import type { TorrentInfo } from "@/lib/torrent-utils"
+import type { TrackerSizes } from "@/lib/fleet-aggregation"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { autoByteScale, fmtNum } from "./lib/chart-helpers"
 import { CHART_THEME, chartAxisLabel, chartDataZoom, chartTooltip, escHtml } from "./lib/theme"
 
 interface FleetSizeJitterProps {
-  torrents: TorrentInfo[]
-  trackerTags: TrackerTag[]
+  data: TrackerSizes[]
   height?: number
 }
 
-function buildFleetSizeJitterOption(
-  trackerTags: TrackerTag[],
-  trackerData: Map<string, { sizes: number[]; color: string }>
-): EChartsOption {
-  const trackerNames = trackerTags
-    .filter((t) => trackerData.has(t.tag.toLowerCase()))
-    .map((t) => t.name)
+function buildFleetSizeJitterOption(data: TrackerSizes[]): EChartsOption {
+  const trackerNames = data.map((d) => d.name)
 
   // Find max size for scaling
   let maxBytes = 0
-  for (const [, data] of trackerData) {
-    for (const s of data.sizes) {
+  for (const entry of data) {
+    for (const s of entry.sizes) {
       if (s > maxBytes) maxBytes = s
     }
   }
   const { divisor, unit } = autoByteScale(maxBytes / 1024 ** 3)
   const scaleDivisor = 1024 ** 3 * divisor
 
-  // Build series — one scatter series per tracker for coloring
-  const series: NonNullable<EChartsOption["series"]> = trackerTags
-    .filter((t) => trackerData.has(t.tag.toLowerCase()))
-    .map((tt, trackerIndex) => {
-      const data = trackerData.get(tt.tag.toLowerCase())
-      if (!data) return null
-
-      // Gaussian jitter for beeswarm cloud — wide spread, clamped to avoid overlap with neighbors
-      const points = data.sizes.map((sizeBytes) => {
-        const u1 = Math.random()
-        const u2 = Math.random()
-        const gaussian = Math.sqrt(-2 * Math.log(u1 || 0.001)) * Math.cos(2 * Math.PI * u2)
-        const jitter = Math.max(-0.42, Math.min(0.42, gaussian * 0.25))
-        return [trackerIndex + jitter, sizeBytes / scaleDivisor]
-      })
-
-      return {
-        type: "scatter" as const,
-        name: tt.name,
-        data: points,
-        symbolSize: 4,
-        itemStyle: {
-          color: tt.color,
-          opacity: 0.45,
-        },
-        emphasis: {
-          itemStyle: {
-            opacity: 1,
-            shadowBlur: 8,
-            shadowColor: tt.color,
-          },
-        },
-      }
+  // Build one scatter series per tracker for coloring
+  const series: NonNullable<EChartsOption["series"]> = data.map((entry, trackerIndex) => {
+    // Gaussian jitter for beeswarm cloud that's wide spread, clamped to avoid overlap with neighbors
+    const points = entry.sizes.map((sizeBytes) => {
+      const u1 = Math.random()
+      const u2 = Math.random()
+      const gaussian = Math.sqrt(-2 * Math.log(u1 || 0.001)) * Math.cos(2 * Math.PI * u2)
+      const jitter = Math.max(-0.42, Math.min(0.42, gaussian * 0.25))
+      return [trackerIndex + jitter, sizeBytes / scaleDivisor]
     })
-    .filter((s): s is NonNullable<typeof s> => s !== null)
+
+    return {
+      type: "scatter" as const,
+      name: entry.name,
+      data: points,
+      large: true,
+      symbolSize: 4,
+      itemStyle: {
+        color: entry.color,
+        opacity: 0.45,
+      },
+      emphasis: {
+        itemStyle: {
+          opacity: 1,
+          shadowBlur: 8,
+          shadowColor: entry.color,
+        },
+      },
+    }
+  })
 
   return {
+    animation: false,
     backgroundColor: "transparent",
     tooltip: chartTooltip("item", {
       formatter: (params: unknown) => {
@@ -108,7 +93,7 @@ function buildFleetSizeJitterOption(
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },
@@ -127,7 +112,7 @@ function buildFleetSizeJitterOption(
     dataZoom:
       trackerNames.length > 10
         ? [
-            ...chartDataZoom(CHART_THEME.accent).map((z) => ({ ...z, startValue: 0, endValue: 9 })),
+            ...chartDataZoom(CHART_THEME.accent).map((z) => ({ ...z, start: 0, end: 100 })),
             { type: "inside", xAxisIndex: 0 },
           ]
         : undefined,
@@ -135,38 +120,13 @@ function buildFleetSizeJitterOption(
   }
 }
 
-function FleetSizeJitter({ torrents, trackerTags, height = 360 }: FleetSizeJitterProps) {
-  // Build trackerData map; memoized so Math.random() jitter only runs when data changes
-  const trackerData = useMemo(() => {
-    const map = new Map<string, { sizes: number[]; color: string }>()
-    for (const tt of trackerTags) {
-      map.set(tt.tag.toLowerCase(), { sizes: [], color: tt.color })
-    }
-    for (const torrent of torrents) {
-      const tags = parseTorrentTags(torrent.tags)
-      for (const tag of tags) {
-        const entry = map.get(tag)
-        if (entry) entry.sizes.push(torrent.size)
-      }
-    }
-    for (const [key, data] of map) {
-      if (data.sizes.length === 0) map.delete(key)
-    }
-    return map
-  }, [torrents, trackerTags])
+function FleetSizeJitter({ data, height = 360 }: FleetSizeJitterProps) {
+  // Memoize the full option so the jitter scatter points are stable across unrelated re-renders.
+  // Hook must be unconditional, so it runs before any early return.
+  const option = useMemo(() => buildFleetSizeJitterOption(data), [data])
 
-  // Memoize the full option so the jitter scatter points are stable across unrelated re-renders
-  const option = useMemo(
-    () => buildFleetSizeJitterOption(trackerTags, trackerData),
-    [trackerData, trackerTags]
-  )
-
-  if (torrents.length === 0 || trackerTags.length === 0) {
+  if (data.length === 0) {
     return <ChartEmptyState height={height} message="No torrent data available" />
-  }
-
-  if (trackerData.size === 0) {
-    return <ChartEmptyState height={height} message="No tagged torrents found" />
   }
 
   return <ChartECharts option={option} style={{ height, width: "100%" }} />

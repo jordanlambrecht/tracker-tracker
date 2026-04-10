@@ -3,6 +3,8 @@
 import { describe, expect, it } from "vitest"
 import {
   backupToEvent,
+  EVENT_CATEGORIES,
+  groupPollBatches,
   mergeAndSort,
   parseLogLine,
   type SystemEvent,
@@ -69,7 +71,7 @@ describe("parseLogLine", () => {
     expect(event?.category).toBe("auth")
   })
 
-  it("classifies poll failures as errors category", () => {
+  it("classifies poll failures as polls category (level handles severity)", () => {
     const line = JSON.stringify({
       level: 50,
       time: 1711100000000,
@@ -77,7 +79,7 @@ describe("parseLogLine", () => {
       trackerId: 7,
     })
     const event = parseLogLine(line)
-    expect(event?.category).toBe("errors")
+    expect(event?.category).toBe("polls")
     expect(event?.level).toBe("error")
   })
 })
@@ -224,8 +226,8 @@ describe("mergeAndSort", () => {
   })
 })
 
-describe("redactIps — IPv6", () => {
-  it("redacts a full IPv6 address from the log title", () => {
+describe("IPs in log events — single-user, no redaction", () => {
+  it("preserves IPv6 addresses in log titles (auth-gated, single-user)", () => {
     const line = JSON.stringify({
       level: 30,
       time: 1711100000000,
@@ -233,18 +235,17 @@ describe("redactIps — IPv6", () => {
     })
     const event = parseLogLine(line)
     expect(event).not.toBeNull()
-    expect(event?.title).not.toContain("2001:db8::1")
-    expect(event?.title).toContain("[redacted]")
+    expect(event?.title).toContain("2001:db8::1")
   })
 
-  it("redacts IPv6 loopback (::1) from the log title", () => {
+  it("preserves IPv6 loopback in log titles", () => {
     const line = JSON.stringify({
       level: 30,
       time: 1711100000000,
       msg: "request from ::1",
     })
     const event = parseLogLine(line)
-    expect(event?.title).not.toContain("::1")
+    expect(event?.title).toContain("::1")
   })
 
   it("redacts IPv6 in the ip field via detail", () => {
@@ -285,14 +286,14 @@ describe("parseLogLine — warn/error title sanitization", () => {
     expect(event?.title).toBe("Request timed out")
   })
 
-  it("does NOT sanitize info-level titles beyond IP redaction", () => {
+  it("does NOT sanitize info-level titles (IPs preserved, single-user)", () => {
     const line = JSON.stringify({
       level: 30,
       time: 1711100000000,
       msg: "polling toggled for tracker at 10.0.0.1",
     })
     const event = parseLogLine(line)
-    expect(event?.title).toContain("polling toggled for tracker at [redacted]")
+    expect(event?.title).toContain("polling toggled for tracker at 10.0.0.1")
     expect(event?.title).not.toBe("Connection refused")
   })
 })
@@ -312,7 +313,7 @@ describe("snapshotToEvent — invalid byte strings", () => {
     expect(event.category).toBe("polls")
   })
 
-  it("defaults both to 0.0 GiB when byte fields are empty strings", () => {
+  it("defaults to 0.0 GiB for both when byte fields are empty strings", () => {
     const event = snapshotToEvent({
       id: 100,
       polledAt: "2026-03-22T14:00:00.000Z",
@@ -401,5 +402,296 @@ describe("classifyLogEvent — priority ordering", () => {
     })
     const event = parseLogLine(line)
     expect(event?.category).toBe("backups")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// classifyLogEvent — clients category
+// ---------------------------------------------------------------------------
+
+describe("classifyLogEvent — clients category", () => {
+  it("classifies as clients when clientId is present", () => {
+    const line = JSON.stringify({
+      level: 30,
+      time: 1711100000000,
+      msg: "torrent added",
+      clientId: 3,
+    })
+    const event = parseLogLine(line)
+    expect(event?.category).toBe("clients")
+  })
+
+  it("classifies as clients when msg contains 'heartbeat'", () => {
+    const line = JSON.stringify({
+      level: 30,
+      time: 1711100000000,
+      msg: "heartbeat check passed",
+    })
+    const event = parseLogLine(line)
+    expect(event?.category).toBe("clients")
+  })
+
+  it("classifies as clients when msg contains 'deep poll'", () => {
+    const line = JSON.stringify({
+      level: 30,
+      time: 1711100000000,
+      msg: "deep poll completed for qBittorrent",
+    })
+    const event = parseLogLine(line)
+    expect(event?.category).toBe("clients")
+  })
+
+  it("classifies as clients when msg contains 'deep.poll' (dot separator)", () => {
+    const line = JSON.stringify({
+      level: 30,
+      time: 1711100000000,
+      msg: "download-client-scheduler: deep.poll cycle finished",
+    })
+    const event = parseLogLine(line)
+    expect(event?.category).toBe("clients")
+  })
+
+  it("classifies as clients when msg contains 'client.scheduler'", () => {
+    const line = JSON.stringify({
+      level: 30,
+      time: 1711100000000,
+      msg: "client.scheduler started",
+    })
+    const event = parseLogLine(line)
+    expect(event?.category).toBe("clients")
+  })
+
+  it("classifies error-level event with clientId as clients (not settings)", () => {
+    const line = JSON.stringify({
+      level: 50,
+      time: 1711100000000,
+      msg: "failed to connect to download client",
+      clientId: 1,
+    })
+    const event = parseLogLine(line)
+    expect(event?.category).toBe("clients")
+    expect(event?.level).toBe("error")
+  })
+
+  it("classifies as polls (not clients) when trackerId is present but no clientId", () => {
+    const line = JSON.stringify({
+      level: 30,
+      time: 1711100000000,
+      msg: "poll succeeded",
+      trackerId: 5,
+    })
+    const event = parseLogLine(line)
+    expect(event?.category).toBe("polls")
+  })
+
+  it("auth events take priority over clientId (event field checked first)", () => {
+    const line = JSON.stringify({
+      level: 30,
+      time: 1711100000000,
+      msg: "login successful",
+      event: "login_success",
+      clientId: 2,
+    })
+    const event = parseLogLine(line)
+    expect(event?.category).toBe("auth")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// sanitizeLogDetail — clientName in detail string
+// ---------------------------------------------------------------------------
+
+describe("sanitizeLogDetail — clientName", () => {
+  it("includes clientName in the detail string when present", () => {
+    const line = JSON.stringify({
+      level: 30,
+      time: 1711100000000,
+      msg: "torrent sync complete",
+      clientId: 2,
+      clientName: "qBittorrent",
+    })
+    const event = parseLogLine(line)
+    expect(event?.detail).toContain("qBittorrent")
+  })
+
+  it("prefers trackerName over clientName when both are present", () => {
+    const line = JSON.stringify({
+      level: 30,
+      time: 1711100000000,
+      msg: "crossover event",
+      trackerName: "RED",
+      clientName: "qBittorrent",
+    })
+    const event = parseLogLine(line)
+    // trackerName ?? clientName picks trackerName first
+    expect(event?.detail).toContain("RED")
+  })
+
+  it("uses clientName alone when trackerName is absent", () => {
+    const line = JSON.stringify({
+      level: 30,
+      time: 1711100000000,
+      msg: "client connected",
+      clientName: "Deluge",
+    })
+    const event = parseLogLine(line)
+    expect(event?.detail).toContain("Deluge")
+  })
+
+  it("detail is null when no name, action, route, ip, or warn+ message", () => {
+    const line = JSON.stringify({
+      level: 30,
+      time: 1711100000000,
+      msg: "generic startup message",
+    })
+    const event = parseLogLine(line)
+    expect(event?.detail).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// classifyLogEvent — uncategorized errors fall to settings (no errors category)
+// ---------------------------------------------------------------------------
+
+describe("classifyLogEvent — no errors category: uncategorized errors fall to settings", () => {
+  it("classifies error-level event with no trackerId/clientId/event as settings", () => {
+    const line = JSON.stringify({
+      level: 50,
+      time: 1711100000000,
+      msg: "unexpected internal error",
+    })
+    const event = parseLogLine(line)
+    expect(event?.category).toBe("settings")
+    expect(event?.level).toBe("error")
+  })
+
+  it("classifies warn-level event with no identifying fields as settings", () => {
+    const line = JSON.stringify({
+      level: 40,
+      time: 1711100000000,
+      msg: "config reload warning",
+    })
+    const event = parseLogLine(line)
+    expect(event?.category).toBe("settings")
+    expect(event?.level).toBe("warn")
+  })
+
+  it("clients category exists in EVENT_CATEGORIES", () => {
+    expect(EVENT_CATEGORIES).toContain("clients")
+  })
+
+  it("errors category does NOT exist in EVENT_CATEGORIES", () => {
+    expect(EVENT_CATEGORIES).not.toContain("errors")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// groupPollBatches
+// ---------------------------------------------------------------------------
+
+function makePollEvent(id: string, timestamp: string, trackerName: string): SystemEvent {
+  return {
+    id,
+    timestamp,
+    category: "polls",
+    level: "info",
+    title: "Poll succeeded",
+    detail: `${trackerName} — ↑ 1.0 GiB — ↓ 0.5 GiB — 2.00x`,
+    trackerId: 1,
+    trackerName,
+    source: "db",
+  }
+}
+
+describe("groupPollBatches", () => {
+  it("collapses same-timestamp polls into a single batch with children", () => {
+    const ts = "2026-04-09T12:00:00.000Z"
+    const events = [
+      makePollEvent("s-1", ts, "RED"),
+      makePollEvent("s-2", ts, "OPS"),
+      makePollEvent("s-3", ts, "Aither"),
+    ]
+    const grouped = groupPollBatches(events)
+    expect(grouped).toHaveLength(1)
+    expect(grouped[0].title).toBe("Poll succeeded for 3 trackers")
+    expect(grouped[0].children).toHaveLength(3)
+    expect(grouped[0].detail).toContain("RED")
+    expect(grouped[0].detail).toContain("OPS")
+    expect(grouped[0].detail).toContain("Aither")
+  })
+
+  it("leaves a single poll event ungrouped", () => {
+    const events = [makePollEvent("s-1", "2026-04-09T12:00:00.000Z", "RED")]
+    const grouped = groupPollBatches(events)
+    expect(grouped).toHaveLength(1)
+    expect(grouped[0].children).toBeUndefined()
+    expect(grouped[0].title).toBe("Poll succeeded")
+  })
+
+  it("does not group polls with different timestamps", () => {
+    const events = [
+      makePollEvent("s-1", "2026-04-09T12:00:00.000Z", "RED"),
+      makePollEvent("s-2", "2026-04-09T12:05:00.000Z", "OPS"),
+    ]
+    const grouped = groupPollBatches(events)
+    expect(grouped).toHaveLength(2)
+    expect(grouped[0].children).toBeUndefined()
+    expect(grouped[1].children).toBeUndefined()
+  })
+
+  it("does not group non-poll events even with matching timestamps", () => {
+    const ts = "2026-04-09T12:00:00.000Z"
+    const events: SystemEvent[] = [
+      {
+        id: "b-1",
+        timestamp: ts,
+        category: "backups",
+        level: "info",
+        title: "Backup completed",
+        detail: null,
+        trackerId: null,
+        trackerName: null,
+        source: "db",
+      },
+      {
+        id: "b-2",
+        timestamp: ts,
+        category: "backups",
+        level: "info",
+        title: "Backup completed",
+        detail: null,
+        trackerId: null,
+        trackerName: null,
+        source: "db",
+      },
+    ]
+    const grouped = groupPollBatches(events)
+    expect(grouped).toHaveLength(2)
+  })
+
+  it("preserves interleaved non-poll events between batches", () => {
+    const ts = "2026-04-09T12:00:00.000Z"
+    const events: SystemEvent[] = [
+      makePollEvent("s-1", ts, "RED"),
+      makePollEvent("s-2", ts, "OPS"),
+      {
+        id: "auth-1",
+        timestamp: ts,
+        category: "auth",
+        level: "info",
+        title: "Login",
+        detail: null,
+        trackerId: null,
+        trackerName: null,
+        source: "log",
+      },
+      makePollEvent("s-3", ts, "Aither"),
+    ]
+    const grouped = groupPollBatches(events)
+    // First two polls grouped, auth passes through, last poll is standalone
+    expect(grouped).toHaveLength(3)
+    expect(grouped[0].title).toBe("Poll succeeded for 2 trackers")
+    expect(grouped[1].title).toBe("Login")
+    expect(grouped[2].title).toBe("Poll succeeded")
   })
 })

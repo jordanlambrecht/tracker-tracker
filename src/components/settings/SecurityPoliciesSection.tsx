@@ -1,16 +1,19 @@
 // src/components/settings/SecurityPoliciesSection.tsx
-//
-// Functions: SecurityPoliciesSection
-
 "use client"
 
 import { Paragraph } from "@typography"
 import { useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
-import { Button } from "@/components/ui/Button"
-import { Checkbox } from "@/components/ui/Checkbox"
-import { NumberInput } from "@/components/ui/NumberInput"
+import { Checkbox, Notice, NumberInput, SaveDiscardBar } from "@/components/ui"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
+import {
+  LOCKOUT_DURATION_MAX,
+  LOCKOUT_DURATION_MIN,
+  LOCKOUT_THRESHOLD_MAX,
+  LOCKOUT_THRESHOLD_MIN,
+  SNAPSHOT_RETENTION_MAX,
+  SNAPSHOT_RETENTION_MIN,
+} from "@/lib/limits"
 
 interface LockoutConfig {
   enabled: boolean
@@ -113,8 +116,8 @@ export function SecurityPoliciesSection({
       lockoutThreshold,
       lockoutDurationMinutes: lockoutDuration,
     })
-    if (result !== null) {
-      const r = result as {
+    if (result.ok) {
+      const r = result.data as {
         lockoutEnabled: boolean
         lockoutThreshold: number
         lockoutDurationMinutes: number
@@ -130,9 +133,9 @@ export function SecurityPoliciesSection({
   async function handleSaveRetention() {
     const value = retentionEnabled ? retentionDays : null
     const result = await patchRetention({ snapshotRetentionDays: value })
-    if (result !== null) {
+    if (result.ok) {
       const saved =
-        (result as { snapshotRetentionDays?: number | null }).snapshotRetentionDays ?? null
+        (result.data as { snapshotRetentionDays?: number | null }).snapshotRetentionDays ?? null
       setSavedRetention({
         enabled: saved !== null && saved > 0,
         days: saved ?? 90,
@@ -146,9 +149,9 @@ export function SecurityPoliciesSection({
       : 0
     const currentValue = currentTotal > 0 ? currentTotal : null
     const result = await patchTimeout({ sessionTimeoutMinutes: currentValue })
-    if (result !== null) {
+    if (result.ok) {
       const saved =
-        (result as { sessionTimeoutMinutes?: number | null }).sessionTimeoutMinutes ?? null
+        (result.data as { sessionTimeoutMinutes?: number | null }).sessionTimeoutMinutes ?? null
       setSavedTimeoutMinutes(saved)
     }
   }
@@ -191,8 +194,8 @@ export function SecurityPoliciesSection({
               setLockoutThreshold(v)
               clearLockoutSuccess()
             }}
-            min={1}
-            max={99}
+            min={LOCKOUT_THRESHOLD_MIN}
+            max={LOCKOUT_THRESHOLD_MAX}
             disabled={!lockoutEnabled}
             className="mx-1 inline-flex align-middle"
           />{" "}
@@ -203,8 +206,8 @@ export function SecurityPoliciesSection({
               setLockoutDuration(v)
               clearLockoutSuccess()
             }}
-            min={1}
-            max={1440}
+            min={LOCKOUT_DURATION_MIN}
+            max={LOCKOUT_DURATION_MAX}
             disabled={!lockoutEnabled}
             className="mx-1 inline-flex align-middle"
           />{" "}
@@ -214,21 +217,17 @@ export function SecurityPoliciesSection({
           Temporarily locks the login page after consecutive failed attempts. Protects against
           brute-force attacks. The lockout resets on successful login.
         </Paragraph>
-        {lockoutError && (
-          <p className="text-xs font-sans text-danger ml-8" role="alert">
-            {lockoutError}
-          </p>
-        )}
-        {lockoutSuccess && (
-          <p className="text-xs font-sans text-success ml-8">Lockout setting saved.</p>
-        )}
-        {lockoutDirty && (
-          <div className="flex justify-end">
-            <Button size="sm" disabled={savingLockout} onClick={handleSaveLockout}>
-              {savingLockout ? "Saving…" : "Save Lockout"}
-            </Button>
-          </div>
-        )}
+        <SaveDiscardBar
+          dirty={lockoutDirty}
+          saving={savingLockout}
+          onSave={handleSaveLockout}
+          error={lockoutError}
+          success={lockoutSuccess ? "Lockout setting saved." : null}
+          saveLabel="Save Lockout"
+          justify="end"
+          showDivider={false}
+          className="ml-8"
+        />
       </div>
 
       <div className="border-t border-border" />
@@ -249,8 +248,8 @@ export function SecurityPoliciesSection({
               setRetentionDays(v)
               clearRetentionSuccess()
             }}
-            min={7}
-            max={3650}
+            min={SNAPSHOT_RETENTION_MIN}
+            max={SNAPSHOT_RETENTION_MAX}
             disabled={!retentionEnabled}
             className="mx-1 inline-flex align-middle"
           />{" "}
@@ -265,21 +264,17 @@ export function SecurityPoliciesSection({
             Current database size: {databaseSize}
           </p>
         )}
-        {retentionError && (
-          <p className="text-xs font-sans text-danger ml-8" role="alert">
-            {retentionError}
-          </p>
-        )}
-        {retentionSuccess && (
-          <p className="text-xs font-sans text-success ml-8">Retention setting saved.</p>
-        )}
-        {retentionDirty && (
-          <div className="flex justify-end">
-            <Button size="sm" disabled={savingRetention} onClick={handleSaveRetention}>
-              {savingRetention ? "Saving…" : "Save Retention"}
-            </Button>
-          </div>
-        )}
+        <SaveDiscardBar
+          dirty={retentionDirty}
+          saving={savingRetention}
+          onSave={handleSaveRetention}
+          error={retentionError}
+          success={retentionSuccess ? "Retention setting saved." : null}
+          saveLabel="Save Retention"
+          justify="end"
+          showDivider={false}
+          className="ml-8"
+        />
       </div>
 
       <div className="border-t border-border" />
@@ -338,31 +333,24 @@ export function SecurityPoliciesSection({
           autoLogoutDays === 0 &&
           autoLogoutHours === 0 &&
           autoLogoutMinutes === 0 && (
-            <p className="text-xs font-sans leading-relaxed ml-8 text-warn">
-              All values are zero — auto-logout is effectively disabled.
-            </p>
+            <Notice
+              variant="warn"
+              message="All values are zero — auto-logout is effectively disabled."
+              className="ml-8"
+            />
           )}
-        {timeoutError && (
-          <p className="text-xs font-sans text-danger ml-8" role="alert">
-            {timeoutError}
-          </p>
-        )}
-        {timeoutSuccess && (
-          <p className="text-xs font-sans text-success ml-8">
-            Session timeout saved. Takes effect on next page load.
-          </p>
-        )}
-        {timeoutDirty && (
-          <div className="flex justify-end">
-            <Button
-              size="sm"
-              disabled={savingTimeout || (autoLogoutEnabled && currentTimeoutTotal === 0)}
-              onClick={handleSaveTimeout}
-            >
-              {savingTimeout ? "Saving…" : "Save Timeout"}
-            </Button>
-          </div>
-        )}
+        <SaveDiscardBar
+          dirty={timeoutDirty}
+          saving={savingTimeout}
+          onSave={handleSaveTimeout}
+          saveDisabled={autoLogoutEnabled && currentTimeoutTotal === 0}
+          error={timeoutError}
+          success={timeoutSuccess ? "Session timeout saved. Takes effect on next page load." : null}
+          saveLabel="Save Timeout"
+          justify="end"
+          showDivider={false}
+          className="ml-8"
+        />
       </div>
     </SettingsSection>
   )

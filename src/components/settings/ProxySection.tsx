@@ -1,21 +1,15 @@
 // src/components/settings/ProxySection.tsx
-//
-// Functions: ProxySection
-
 "use client"
 
 import { H3, Paragraph, Subtext } from "@typography"
 import { useState } from "react"
 import { SettingsSection } from "@/components/settings/SettingsSection"
-import { Badge } from "@/components/ui/Badge"
-import { Button } from "@/components/ui/Button"
-import { Input } from "@/components/ui/Input"
-import { NumberInput } from "@/components/ui/NumberInput"
-import { Select } from "@/components/ui/Select"
-import { Toggle } from "@/components/ui/Toggle"
+import { Badge, Button, Input, NumberInput, SaveDiscardBar, Select, Toggle } from "@/components/ui"
+import { useActionStatus } from "@/hooks/useActionStatus"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
-import { extractApiError } from "@/lib/client-helpers"
 import { DOCS } from "@/lib/constants"
+import { extractApiError } from "@/lib/extract-api-error"
+import { PORT_MAX, PORT_MIN } from "@/lib/limits"
 
 export interface ProxySectionProps {
   initialProxy: {
@@ -40,11 +34,12 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
   const [proxyUsername, setProxyUsername] = useState(initialProxy.username)
   const [proxyPassword, setProxyPassword] = useState("")
   const [proxyPasswordPlaceholder, setProxyPasswordPlaceholder] = useState(initialProxy.hasPassword)
-  const [proxyTestStatus, setProxyTestStatus] = useState<"idle" | "testing" | "success" | "failed">(
-    "idle"
-  )
+  const {
+    status: proxyTestStatus,
+    error: proxyTestError,
+    execute: executeProxyTest,
+  } = useActionStatus({ autoResetMs: false })
   const [proxyTestIp, setProxyTestIp] = useState<string | null>(null)
-  const [proxyTestError, setProxyTestError] = useState<string | null>(null)
   const [savedProxy, setSavedProxy] = useState({
     enabled: initialProxy.enabled,
     type: initialProxy.type || "socks5",
@@ -87,9 +82,9 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
     }
 
     const result = await patch(payload)
-    if (!result) return
+    if (!result.ok) return
 
-    const typed = result as {
+    const typed = result.data as {
       proxyEnabled: boolean
       proxyType: string
       proxyHost: string | null
@@ -109,11 +104,9 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
     setProxyPassword("")
   }
 
-  async function handleTestProxy() {
-    setProxyTestStatus("testing")
+  function handleTestProxy() {
     setProxyTestIp(null)
-    setProxyTestError(null)
-    try {
+    executeProxyTest(async () => {
       const res = await fetch("/api/settings/proxy-test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -127,23 +120,14 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
         }),
       })
       if (!res.ok) {
-        const errMsg = await extractApiError(res, "Connection failed")
-        setProxyTestStatus("failed")
-        setProxyTestError(errMsg)
-        return
+        throw new Error(await extractApiError(res, "Connection failed"))
       }
       const data = (await res.json()) as { success: boolean; proxyIp?: string; error?: string }
-      if (data.success) {
-        setProxyTestStatus("success")
-        setProxyTestIp(data.proxyIp ?? null)
-      } else {
-        setProxyTestStatus("failed")
-        setProxyTestError(data.error ?? "Connection failed")
+      if (!data.success) {
+        throw new Error(data.error ?? "Connection failed")
       }
-    } catch {
-      setProxyTestStatus("failed")
-      setProxyTestError("Network error")
-    }
+      setProxyTestIp(data.proxyIp ?? null)
+    })
   }
 
   return (
@@ -206,8 +190,8 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
               label="Port"
               value={proxyPort}
               onChange={setProxyPort}
-              min={1}
-              max={65535}
+              min={PORT_MIN}
+              max={PORT_MAX}
             />
           </div>
 
@@ -245,24 +229,17 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
 
           <div className="border-t border-border" />
 
-          {/* Save proxy */}
-          {proxyError && (
-            <p className="text-xs font-sans text-danger" role="alert">
-              {proxyError}
-            </p>
-          )}
-          {proxySuccess && <p className="text-xs font-sans text-success">Proxy settings saved.</p>}
-          {proxyHasChanges && (
-            <div className="flex justify-end">
-              <Button
-                size="sm"
-                disabled={savingProxy || !proxyHost.trim()}
-                onClick={handleSaveProxy}
-              >
-                {savingProxy ? "Saving…" : "Save Proxy"}
-              </Button>
-            </div>
-          )}
+          <SaveDiscardBar
+            dirty={proxyHasChanges}
+            saving={savingProxy}
+            onSave={handleSaveProxy}
+            saveDisabled={!proxyHost.trim()}
+            error={proxyError}
+            success={proxySuccess ? "Proxy settings saved." : null}
+            saveLabel="Save Proxy"
+            justify="end"
+            showDivider={false}
+          />
 
           <div className="border-t border-border" />
 
@@ -270,10 +247,10 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
             <Button
               size="sm"
               variant="secondary"
-              disabled={!proxyHost.trim() || proxyTestStatus === "testing"}
+              disabled={!proxyHost.trim() || proxyTestStatus === "pending"}
               onClick={handleTestProxy}
             >
-              {proxyTestStatus === "testing"
+              {proxyTestStatus === "pending"
                 ? "Testing..."
                 : proxyTestStatus === "success"
                   ? "Connected"

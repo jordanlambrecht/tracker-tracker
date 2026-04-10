@@ -1,15 +1,14 @@
 // src/app/(auth)/settings/page.tsx
-//
-// Functions: SettingsPage
 
+import { Notice } from "@/components/ui/Notice"
 import { getDatabaseSize, getProxyTrackers, getSettingsForClient } from "@/lib/server-data"
 import { SettingsClient } from "./SettingsClient"
 
 export default async function SettingsPage() {
   const [settings, proxyTrackers, databaseSize] = await Promise.all([
     getSettingsForClient(),
-    getProxyTrackers(),
-    getDatabaseSize(),
+    getProxyTrackers().catch(() => []),
+    getDatabaseSize().catch(() => "Unknown"),
   ])
 
   // If settings don't exist, this page shouldn't be reachable
@@ -17,7 +16,7 @@ export default async function SettingsPage() {
   if (!settings) {
     return (
       <div className="max-w-2xl mx-auto">
-        <p className="text-sm font-mono text-danger">Settings not configured</p>
+        <Notice message="Settings not configured" />
       </div>
     )
   }

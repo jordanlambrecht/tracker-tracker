@@ -1,30 +1,30 @@
 // src/types/api.ts
 
-import type {
-  GazellePlatformMeta,
-  GGnPlatformMeta,
-  MamPlatformMeta,
-  NebulancePlatformMeta,
-} from "@/lib/adapters/types"
-
 export type {
+  AvistazPlatformMeta,
+  DigitalCorePlatformMeta,
   GazellePlatformMeta,
   GazelleRanks,
   GGnPlatformMeta,
   MamPlatformMeta,
   NebulancePlatformMeta,
+  PlatformMeta,
 } from "@/lib/adapters/types"
 
-export interface TrackerLatestStats {
+import type { PlatformType } from "@/lib/adapters/constants"
+import type { PlatformMeta } from "@/lib/adapters/types"
+import type { DownloadClientRow, NotificationTargetRow } from "@/lib/db/schema"
+import type { SystemEvent } from "@/lib/events"
+import type { NotificationThresholds } from "@/lib/notifications/types"
+
+/** Fields shared between TrackerLatestStats and Snapshot */
+interface TrackerStatFields {
   ratio: number | null
-  uploadedBytes: string | null
-  downloadedBytes: string | null
   seedingCount: number | null
   leechingCount: number | null
   requiredRatio: number | null
   warned: boolean | null
   freeleechTokens: number | null
-  bufferBytes: string | null
   hitAndRuns: number | null
   seedbonus: number | null
   shareScore: number | null
@@ -32,14 +32,21 @@ export interface TrackerLatestStats {
   group: string | null
 }
 
+export interface TrackerLatestStats extends TrackerStatFields {
+  uploadedBytes: string | null
+  downloadedBytes: string | null
+  bufferBytes: string | null
+}
+
 export interface TrackerSummary {
   id: number
   name: string
   baseUrl: string
-  platformType: string
+  platformType: PlatformType
   isActive: boolean
   lastPolledAt: string | null
   lastError: string | null
+  lastErrorAt: string | null
   consecutiveFailures: number
   pausedAt: string | null
   userPausedAt: string | null
@@ -54,32 +61,17 @@ export interface TrackerSummary {
   joinedAt: string | null
   lastAccessAt: string | null
   remoteUserId: number | null
-  platformMeta:
-    | GGnPlatformMeta
-    | GazellePlatformMeta
-    | NebulancePlatformMeta
-    | MamPlatformMeta
-    | null
+  platformMeta: PlatformMeta | null
   createdAt: string
   latestStats: TrackerLatestStats | null
 }
 
-export interface Snapshot {
+export interface Snapshot extends TrackerStatFields {
   polledAt: string
   uploadedBytes: string
   downloadedBytes: string
-  ratio: number | null
   bufferBytes: string
-  seedbonus: number | null
-  seedingCount: number | null
-  leechingCount: number | null
-  hitAndRuns: number | null
-  requiredRatio: number | null
-  warned: boolean | null
-  freeleechTokens: number | null
-  shareScore: number | null
-  username: string | null
-  group: string | null
+  isManual: boolean
 }
 
 export interface TagGroupMember {
@@ -171,8 +163,54 @@ export interface TodayAtAGlance {
   clientLastUpdated: string | null
 }
 
+/** Response from GET /api/auth/status */
+/** Response from GET /api/settings/events */
+export interface EventsPageResponse {
+  events: SystemEvent[]
+  total: number
+  hasMore: boolean
+  logSizeBytes?: number
+}
+
+/** Upload/download delta pair returned by computeDelta() */
+export type DeltaDisplay = { uploaded: string; downloaded: string } | null
+
+/** Time range selection for snapshot queries */
+export type DayRange = 0 | 1 | 7 | 30 | 90 | 365
+
 export const DASHBOARD_SETTINGS_DEFAULTS: DashboardSettings = {
   showHealthIndicators: true,
   showLoginTimers: true,
   showTodayAtAGlance: true,
+}
+
+/** API response shape for download clients (credentials stripped, dates serialized) */
+export type SafeDownloadClient = Omit<
+  DownloadClientRow,
+  | "encryptedUsername"
+  | "encryptedPassword"
+  | "cachedTorrents"
+  | "cachedTorrentsAt"
+  | "lastPolledAt"
+  | "errorSince"
+  | "createdAt"
+  | "updatedAt"
+> & {
+  hasCredentials: boolean
+  lastPolledAt: string | null
+  errorSince: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** API response shape for notification targets (encrypted config stripped, dates serialized) */
+export type SafeNotificationTarget = Omit<
+  NotificationTargetRow,
+  "encryptedConfig" | "lastDeliveryAt" | "createdAt" | "updatedAt" | "thresholds"
+> & {
+  hasConfig: boolean
+  thresholds: NotificationThresholds | null
+  lastDeliveryAt: string | null
+  createdAt: string
+  updatedAt: string
 }

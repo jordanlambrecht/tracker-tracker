@@ -1,6 +1,6 @@
 # Tracker API Responses
 
-This section documents the raw JSON responses from each tracker platform's API and how the adapter maps those fields to the shared `TrackerStats` interface. Use it when adding support for a new tracker or debugging why a field is coming back wrong.
+This section shows the raw JSON responses from each tracker platform's API and how the adapter maps those fields to the shared `TrackerStats` interface. Use it when adding a new tracker or debugging why a field isn't mapping correctly.
 
 Source of truth: `src/lib/adapters/`
 
@@ -8,7 +8,7 @@ Source of truth: `src/lib/adapters/`
 
 ## TrackerStats Interface
 
-All adapters return a `TrackerStats` object defined in `src/lib/adapters/types.ts`.
+All adapters return `TrackerStats` defined in `src/lib/adapters/types.ts`.
 
 ```typescript
 interface TrackerStats {
@@ -25,8 +25,6 @@ interface TrackerStats {
   requiredRatio: number | null
   warned: boolean | null
   freeleechTokens: number | null
-
-  // Optional — populated when available
   remoteUserId?: number
   joinedDate?: string
   lastAccessDate?: string
@@ -36,7 +34,7 @@ interface TrackerStats {
 }
 ```
 
-Fields marked `null` in the platform pages mean the platform does not expose that data — the adapter explicitly returns `null`, not `undefined` or `0`.
+Fields marked `null` indicate the tracker doesn't expose that data. We return `null` explicitly, not `undefined` or `0`.
 
 ## Platform Reference
 
@@ -49,14 +47,14 @@ Fields marked `null` in the platform pages mean the platform does not expose tha
 
 ## Adding a New Tracker Platform
 
-If you are adding support for an entirely new platform type (not a new tracker on an existing platform):
+For a brand new platform (not just a new tracker on an existing one):
 
 1. Create `src/lib/adapters/{platform}.ts` implementing `TrackerAdapter`
-2. Add the response interface(s) to the top of the file
-3. Add the new platform type to `src/lib/adapters/types.ts` if it needs new `platformMeta` fields
-4. Register the adapter in `src/lib/adapters/index.ts` (`getAdapter()` factory)
-5. Add the platform to the `platform` enum in `src/lib/db/schema.ts`
-6. Add tracker registry entries in `src/data/trackers/` using the new platform type
-7. Document the raw response shape in this section
+2. Add response interface(s) at the top
+3. Update `src/lib/adapters/types.ts` with new `platformMeta` fields if needed
+4. Register in `src/lib/adapters/index.ts` (`getAdapter()` factory)
+5. Add platform to the `platform` enum in `src/lib/db/schema.ts`
+6. Add tracker entries in `src/data/trackers/`
+7. Document the raw response shape here
 
-For a new tracker on an existing platform (e.g. a new UNIT3D site), you only need to add an entry in `src/data/trackers/` — no adapter code required.
+For a new tracker on an existing platform (i.e., a new UNIT3D site), just add an entry in `src/data/trackers/`.

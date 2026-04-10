@@ -11,8 +11,9 @@ import { verifySetupToken } from "@/lib/auth"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { TOTP_TOKEN_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
-import { verifyTotpCode } from "@/lib/totp"
+import { TOTP_CODE_RE, verifyTotpCode } from "@/lib/totp"
 
 export async function POST(request: Request) {
   const auth = await authenticate()
@@ -27,10 +28,10 @@ export async function POST(request: Request) {
     enableBackupCodes?: boolean
   }
 
-  if (!setupToken || typeof setupToken !== "string" || setupToken.length > 2048) {
+  if (!setupToken || typeof setupToken !== "string" || setupToken.length > TOTP_TOKEN_MAX) {
     return NextResponse.json({ error: "Missing setup token" }, { status: 400 })
   }
-  if (!code || typeof code !== "string" || code.length !== 6 || !/^\d{6}$/.test(code)) {
+  if (!code || typeof code !== "string" || !TOTP_CODE_RE.test(code)) {
     return NextResponse.json({ error: "Invalid TOTP code — must be 6 digits" }, { status: 400 })
   }
 

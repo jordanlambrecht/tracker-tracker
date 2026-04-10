@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from "vitest"
 import { carryForwardValues, computeDailyDeltas } from "@/components/charts/lib/chart-transforms"
+import { localDateStr } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 
 // ---------------------------------------------------------------------------
@@ -25,6 +26,7 @@ function makeSnap(polledAt: string, overrides?: Partial<Snapshot>): Snapshot {
     username: null,
     shareScore: null,
     group: null,
+    isManual: false,
     ...overrides,
   }
 }
@@ -57,7 +59,7 @@ describe("computeDailyDeltas", () => {
     const result = computeDailyDeltas(snaps)
 
     expect(result).toHaveLength(1)
-    expect(result[0].label).toBe("2024-01-01")
+    expect(result[0].label).toBe(localDateStr(new Date("2024-01-01T12:00:00.000Z")))
     expect(result[0].uploadDelta).toBeCloseTo(2, 6)
     expect(result[0].downloadDelta).toBeCloseTo(1, 6)
   })
@@ -82,7 +84,7 @@ describe("computeDailyDeltas", () => {
     const result = computeDailyDeltas(snaps)
 
     expect(result).toHaveLength(1)
-    expect(result[0].label).toBe("2024-02-05")
+    expect(result[0].label).toBe(localDateStr(new Date("2024-02-05T06:00:00.000Z")))
     // Upload: (1 GiB - 0) + (3 GiB - 1 GiB) = 3 GiB total
     expect(result[0].uploadDelta).toBeCloseTo(3, 6)
     // Download: (0 - 0) + (1 GiB - 0) = 1 GiB total
@@ -110,10 +112,12 @@ describe("computeDailyDeltas", () => {
     expect(result).toHaveLength(2)
     const byLabel = Object.fromEntries(result.map((b) => [b.label, b]))
 
-    expect(byLabel["2024-03-02"].uploadDelta).toBeCloseTo(1, 6)
-    expect(byLabel["2024-03-02"].downloadDelta).toBeCloseTo(0, 6)
-    expect(byLabel["2024-03-03"].uploadDelta).toBeCloseTo(3, 6)
-    expect(byLabel["2024-03-03"].downloadDelta).toBeCloseTo(2, 6)
+    const day2 = localDateStr(new Date("2024-03-02T00:00:00.000Z"))
+    const day3 = localDateStr(new Date("2024-03-03T00:00:00.000Z"))
+    expect(byLabel[day2].uploadDelta).toBeCloseTo(1, 6)
+    expect(byLabel[day2].downloadDelta).toBeCloseTo(0, 6)
+    expect(byLabel[day3].uploadDelta).toBeCloseTo(3, 6)
+    expect(byLabel[day3].downloadDelta).toBeCloseTo(2, 6)
   })
 
   it("handles negative deltas when bytes decrease between snapshots", () => {
@@ -134,6 +138,28 @@ describe("computeDailyDeltas", () => {
     expect(result).toHaveLength(1)
     expect(result[0].uploadDelta).toBeCloseTo(-1, 6)
     expect(result[0].downloadDelta).toBeCloseTo(-1, 6)
+  })
+
+  it("handles large byte values correctly via BigInt arithmetic", () => {
+    // Values that would overflow a 32-bit integer (~4 GiB boundary)
+    const fourGiB = BigInt(4) * BigInt(GiB)
+    const eightGiB = BigInt(8) * BigInt(GiB)
+
+    const snaps = [
+      makeSnap("2024-05-01T00:00:00.000Z", {
+        uploadedBytes: fourGiB.toString(),
+        downloadedBytes: "0",
+      }),
+      makeSnap("2024-05-02T00:00:00.000Z", {
+        uploadedBytes: eightGiB.toString(),
+        downloadedBytes: "0",
+      }),
+    ]
+
+    const result = computeDailyDeltas(snaps)
+
+    expect(result).toHaveLength(1)
+    expect(result[0].uploadDelta).toBeCloseTo(4, 5)
   })
 })
 

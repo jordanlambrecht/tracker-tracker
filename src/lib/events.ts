@@ -1,13 +1,14 @@
 // src/lib/events.ts
 //
-// Functions: parseLogLine, sanitizeLogDetail, classifyLogEvent,
-//            pinoLevelToSeverity, snapshotToEvent, backupToEvent, mergeAndSort
+// Functions: parseLogLine, sanitizeLogDetail, classifyLogEvent, pinoLevelToSeverity,
+//            snapshotToEvent, backupToEvent, mergeAndSort, groupPollBatches
 
 import { sanitizeNetworkError } from "@/lib/error-utils"
+import { bytesToGiB, formatBytesNum, formatRatioDisplay } from "@/lib/formatters"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export const EVENT_CATEGORIES = ["polls", "auth", "settings", "backups", "errors"] as const
+export const EVENT_CATEGORIES = ["polls", "clients", "auth", "settings", "backups"] as const
 export type EventCategory = (typeof EVENT_CATEGORIES)[number]
 export const EVENT_LEVELS = ["debug", "info", "warn", "error"] as const
 export type EventLevel = (typeof EVENT_LEVELS)[number]
@@ -22,15 +23,14 @@ export interface SystemEvent {
   trackerId: number | null
   trackerName: string | null
   source: "log" | "db"
+  children?: SystemEvent[]
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const REDACT_IPV4_REGEX = /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g
-const REDACT_IPV6_REGEX = /(?:[0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}/g
-
+/** No-op: single-user self-hosted app, events tab is auth-gated. */
 function redactIps(s: string): string {
-  return s.replace(REDACT_IPV4_REGEX, "[redacted]").replace(REDACT_IPV6_REGEX, "[redacted]")
+  return s
 }
 
 /** Pino numeric levels → our severity */
@@ -82,6 +82,8 @@ interface PinoLine {
   route?: string
   trackerId?: number
   trackerName?: string
+  clientId?: number
+  clientName?: string
   ip?: string
   action?: string
   [key: string]: unknown
@@ -94,16 +96,18 @@ function classifyLogEvent(line: PinoLine): EventCategory {
   // Backup events
   if (line.event && BACKUP_EVENTS.has(line.event)) return "backups"
 
-  // Errors (level >= 50)
-  if (line.level >= 50) return "errors"
-
   // Settings/CRUD routes
   if (line.route && SETTINGS_ROUTES.some((r) => line.route?.startsWith(r))) return "settings"
 
-  // Poll-related (has trackerId or mentions poll)
+  // Download client events (heartbeat, deep-poll, client connection)
+  if (line.clientId || (line.msg && /heartbeat|deep.poll|client.scheduler/i.test(line.msg))) {
+    return "clients"
+  }
+
+  // Tracker poll events
   if (line.trackerId || (line.msg && /poll/i.test(line.msg))) return "polls"
 
-  // Default: settings (system startup, config, etc.)
+  // Default: settings (system startup, config, uncategorized errors)
   return "settings"
 }
 
@@ -111,6 +115,12 @@ function classifyLogEvent(line: PinoLine): EventCategory {
 
 function sanitizeLogDetail(line: PinoLine): string | null {
   const parts: string[] = []
+
+  // Include tracker/client name so errors are identifiable
+  const entityName = line.trackerName ?? line.clientName
+  if (entityName && typeof entityName === "string") {
+    parts.push(entityName)
+  }
 
   // Include action if present (e.g., "paused", "resumed")
   if (line.action) parts.push(String(line.action))
@@ -187,12 +197,12 @@ export function snapshotToEvent(row: SnapshotRow): SystemEvent {
   let upGib = "0.0"
   let downGib = "0.0"
   try {
-    upGib = (Number(BigInt(row.uploadedBytes)) / 1024 ** 3).toFixed(1)
-    downGib = (Number(BigInt(row.downloadedBytes)) / 1024 ** 3).toFixed(1)
+    upGib = bytesToGiB(row.uploadedBytes).toFixed(1)
+    downGib = bytesToGiB(row.downloadedBytes).toFixed(1)
   } catch {
     // Non-numeric byte strings default to 0
   }
-  const ratioStr = row.ratio !== null ? `${row.ratio.toFixed(2)}×` : ""
+  const ratioStr = row.ratio !== null ? formatRatioDisplay(row.ratio) : ""
 
   return {
     id: `snap-${row.id}`,
@@ -219,7 +229,6 @@ interface BackupRow {
 }
 
 export function backupToEvent(row: BackupRow): SystemEvent {
-  const sizeKb = Math.round(row.sizeBytes / 1024)
   const isError = row.status === "failed"
 
   return {
@@ -228,7 +237,7 @@ export function backupToEvent(row: BackupRow): SystemEvent {
     category: "backups",
     level: isError ? "error" : "info",
     title: `Backup ${row.status}`,
-    detail: [row.frequency, row.encrypted ? "encrypted" : null, `${sizeKb} KB`]
+    detail: [row.frequency, row.encrypted ? "encrypted" : null, formatBytesNum(row.sizeBytes)]
       .filter(Boolean)
       .join(" — "),
     trackerId: null,
@@ -258,4 +267,61 @@ export function mergeAndSort(
 
   // Paginate
   return combined.slice(offset, offset + limit)
+}
+
+// ── Batch Grouping ──────────────────────────────────────────────────────────
+
+/**
+ * Collapses consecutive "Poll succeeded" events that share the same timestamp
+ * (from a single scheduler batch) into a single parent event with children.
+ * Non-poll events and lone polls pass through unchanged.
+ */
+export function groupPollBatches(events: SystemEvent[]): SystemEvent[] {
+  const result: SystemEvent[] = []
+
+  let i = 0
+  while (i < events.length) {
+    const event = events[i]
+
+    if (event.category !== "polls" || event.title !== "Poll succeeded") {
+      result.push(event)
+      i++
+      continue
+    }
+
+    // Collect consecutive poll-succeeded events with the same timestamp
+    const batch: SystemEvent[] = [event]
+    let j = i + 1
+    while (
+      j < events.length &&
+      events[j].category === "polls" &&
+      events[j].title === "Poll succeeded" &&
+      events[j].timestamp === event.timestamp
+    ) {
+      batch.push(events[j])
+      j++
+    }
+
+    if (batch.length === 1) {
+      result.push(event)
+    } else {
+      const names = batch.map((e) => e.trackerName ?? "Unknown").join(", ")
+      result.push({
+        id: `batch-${event.timestamp}`,
+        timestamp: event.timestamp,
+        category: "polls",
+        level: "info",
+        title: `Poll succeeded for ${batch.length} trackers`,
+        detail: names,
+        trackerId: null,
+        trackerName: null,
+        source: "db",
+        children: batch,
+      })
+    }
+
+    i = j
+  }
+
+  return result
 }

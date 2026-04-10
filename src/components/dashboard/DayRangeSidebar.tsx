@@ -1,14 +1,11 @@
 // src/components/dashboard/DayRangeSidebar.tsx
-//
-// Functions: DayRangeSidebar
 
 "use client"
 
 import clsx from "clsx"
 import { CHART_THEME } from "@/components/charts/lib/theme"
-import { hexToRgba } from "@/lib/formatters"
-
-type DayRange = 0 | 1 | 7 | 30 | 90 | 365
+import { hexToRgba } from "@/lib/color-utils"
+import type { DayRange } from "@/types/api"
 
 const DAY_RANGES: { value: DayRange; label: string }[] = [
   { value: 1, label: "24h" },
@@ -27,8 +24,8 @@ interface DayRangeSidebarProps {
 
 function DayRangeSidebar({ days, onChange, accentColor }: DayRangeSidebarProps) {
   return (
-    <div className="order-first md:order-none md:sticky md:top-6 flex flex-row flex-wrap md:flex-col gap-1 p-3 nm-raised-sm bg-elevated md:self-start md:ml-6 rounded-nm-lg">
-      <span className="w-full text-[9px] font-sans font-medium text-muted uppercase tracking-wider px-2 pb-1 md:pb-1">
+    <div className="order-first md:order-0 md:sticky md:top-6 flex flex-row flex-wrap md:flex-col gap-1 p-3 nm-raised-sm bg-elevated md:self-start md:ml-6 rounded-nm-lg">
+      <span className="w-full text-4xs font-sans font-medium text-muted uppercase tracking-wider px-2 pb-1 md:pb-1">
         Range
       </span>
       {DAY_RANGES.map((d) => {
@@ -39,8 +36,10 @@ function DayRangeSidebar({ days, onChange, accentColor }: DayRangeSidebarProps) 
             type="button"
             onClick={() => onChange(d.value)}
             className={clsx(
-              "px-3 py-1.5 text-xs font-mono transition-all duration-150 cursor-pointer text-center rounded-nm-sm",
-              isActive ? "nm-inset-sm" : "hover:nm-raised-sm active:nm-inset-sm active:scale-[0.96]"
+              "px-3 py-1.5 text-xs font-mono cursor-pointer text-center rounded-nm-sm",
+              isActive
+                ? "nm-inset-sm"
+                : "transition-all duration-150 hover:nm-raised-sm active:nm-inset-sm active:scale-[0.96]"
             )}
             style={
               isActive

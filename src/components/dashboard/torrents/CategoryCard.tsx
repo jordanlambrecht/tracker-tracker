@@ -2,7 +2,6 @@
 
 "use client"
 
-import { H2 } from "@typography"
 import { useState } from "react"
 import { TorrentCategoryDonut } from "@/components/charts/TorrentCategoryDonut"
 import { TorrentCategoryRadar } from "@/components/charts/TorrentCategoryRadar"
@@ -21,10 +20,7 @@ export function CategoryCard({ categories, accentColor }: CategoryCardProps) {
   const [view, setView] = useState<CategoryView>("donut")
 
   return (
-    <Card trackerColor={accentColor} className="flex flex-col gap-4">
-      <H2 className="text-sm font-sans font-semibold text-primary uppercase tracking-wider">
-        Categories
-      </H2>
+    <Card trackerColor={accentColor} title="Categories" className="flex flex-col gap-4">
       <TabBar
         tabs={[
           { key: "donut" as CategoryView, label: "Distribution" },

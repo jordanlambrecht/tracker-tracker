@@ -11,13 +11,13 @@
 
 ## Notes
 
-Nebulance is a Gazelle-derived fork that uses `api.php` as the endpoint path (not `ajax.php`) and authenticates via query parameter rather than HTTP header. Sister site of Anthelion (ANT).
+Nebulance is a Gazelle fork that uses `api.php` instead of `ajax.php` and authenticates via query parameter rather than HTTP header. Sister site to Anthelion (ANT).
 
 ## Slots
 
-**Profile Card:** username · group · join date (Nebulance provides joinedDate for NBL)
+**Profile Card:** username · group · join date (Nebulance gives us joinedDate)
 
-**Badges:** `warned` (conditional — always `false`, no enrichment on Nebulance platform)
+**Badges:** `warned` (always `false` — Nebulance doesn't provide enrichment)
 
 **Stat Cards:** `snatched-nebulance`, `login-deadline` (loginIntervalDays: 90)
 

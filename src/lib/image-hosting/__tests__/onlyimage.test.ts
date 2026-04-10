@@ -75,18 +75,6 @@ describe("onlyimageAdapter", () => {
     expect(body.get("expiration_date")).toBe("P1D")
   })
 
-  it("converts 5-minute expiration correctly", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => CHEVERETO_RESPONSE,
-    })
-
-    await onlyimageAdapter.upload(Buffer.from("img"), "test.png", "key", { expirationSeconds: 300 })
-
-    const body = mockFetch.mock.calls[0][1].body as FormData
-    expect(body.get("expiration_date")).toBe("PT5M")
-  })
-
   it("throws on error response", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,

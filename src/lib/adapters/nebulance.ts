@@ -5,10 +5,11 @@
 //   - SubClass field: Nebulance "SubClass" (singular), Anthelion "SubClasses" (plural)
 //   - HnR field: present on Nebulance, absent on Anthelion
 //   - Response may be wrapped {"status":"success","response":{...}} or flat
-//
-// Functions: NebulanceAdapter, NebulanceAdapter.fetchStats, NebulanceAdapter.fetchRaw
 
-import { proxyFetch } from "@/lib/proxy"
+import { computeBufferBytes, floatBytesToBigInt } from "@/lib/data-transforms"
+import { classifyFetchError } from "@/lib/error-utils"
+import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
+import { proxyFetch } from "@/lib/tunnel"
 import type {
   DebugApiCall,
   FetchOptions,
@@ -89,22 +90,14 @@ export class NebulanceAdapter implements TrackerAdapter {
       } else {
         const response = await fetch(url.toString(), {
           headers,
-          signal: AbortSignal.timeout(15000),
+          signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
         })
         ok = response.ok
         status = response.status
         data = (await response.json()) as NebulanceResponse
       }
     } catch (err) {
-      if (
-        err instanceof DOMException &&
-        (err.name === "TimeoutError" || err.name === "AbortError")
-      ) {
-        throw new Error(`Request to ${hostname} timed out`)
-      }
-      throw new Error(
-        `Failed to connect to ${hostname}: ${err instanceof Error ? err.message : "Unknown"}`
-      )
+      throw classifyFetchError(err, hostname)
     }
 
     if (!ok || "error" in data) {
@@ -128,8 +121,8 @@ export class NebulanceAdapter implements TrackerAdapter {
       throw new Error(`Unexpected response from ${hostname}: missing user data`)
     }
 
-    const uploaded = BigInt(Math.floor(resp.Uploaded ?? 0))
-    const downloaded = BigInt(Math.floor(resp.Downloaded ?? 0))
+    const uploaded = floatBytesToBigInt(resp.Uploaded)
+    const downloaded = floatBytesToBigInt(resp.Downloaded)
 
     let ratio: number
     if (downloaded === 0n) {
@@ -155,7 +148,7 @@ export class NebulanceAdapter implements TrackerAdapter {
       uploadedBytes: uploaded,
       downloadedBytes: downloaded,
       ratio,
-      bufferBytes: uploaded > downloaded ? uploaded - downloaded : 0n,
+      bufferBytes: computeBufferBytes(uploaded, downloaded),
       seedingCount: resp.SeedCount ?? 0,
       leechingCount: 0, // Not available from Nebulance API
       seedbonus: null, // Not available from Nebulance API
@@ -200,7 +193,7 @@ export class NebulanceAdapter implements TrackerAdapter {
       } else {
         const response = await fetch(url.toString(), {
           headers,
-          signal: AbortSignal.timeout(15000),
+          signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
         })
         data = await response.json()
       }

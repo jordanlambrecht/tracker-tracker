@@ -13,7 +13,7 @@ Self-hosted dashboard for monitoring private tracker stats over time. Track uplo
 ## Features
 
 - Per-tracker and fleet-wide stats with 30+ charts
-- UNIT3D, Gazelle, GGn, and Nebulance support out of the box
+- UNIT3D, Gazelle, GGn, Nebulance, MAM, and AvistaZ network support out of the box
 - qBittorrent integration - cross-seed tracking, activity heatmaps, speed history, etc
 - Everything stays on your machine. No telemetry, no phoning home.
 
@@ -60,21 +60,25 @@ You can check out a few other, longer, screenshots in the docs folder.
 | PassThePopcorn (PTP)  | Gazelle   | 🟡 Unverified          |                                                   |
 | 720pier               | Custom    | 📋 Needs adapter       |                                                   |
 | ABTorrents            | Custom    | 📋 Needs adapter       |                                                   |
-| AvistaZ               | Custom    | 📋 Needs adapter       |                                                   |
+| AvistaZ               | AvistaZ   | ✅ Verified            | Cookie auth + HTML scraping                       |
+| AnimeZ                | AvistaZ   | 🟡 Unverified          | Same adapter as AvistaZ                           |
+| CinemaZ               | AvistaZ   | ✅ Verified            | Same adapter as AvistaZ                           |
+| ExoticaZ              | AvistaZ   | 🟡 Unverified          | Same adapter as AvistaZ                           |
+| PrivateHD             | AvistaZ   | 🟡 Unverified          | Same adapter as AvistaZ                           |
+| MyAnonamouse (MAM)    | MAM       | ✅ Verified            | Cookie auth via mam_id                            |
+| DarkPeers             | UNIT3D    | ✅ Verified            |                                                   |
+| Luminarr              | UNIT3D    | 🟡 Unverified          |                                                   |
 | CathodeRayTube (CRT)  | UNIT3D    | 📋 Draft               |                                                   |
-| CinemaZ               | Custom    | 📋 Needs adapter       |                                                   |
+| DigitalCore           | Custom    | 📋 Needs adapter       |                                                   |
 | HDBits                | Custom    | 📋 Needs adapter       |                                                   |
-| MyAnonamouse (MAM)    | Custom    | 📋 Needs adapter       |                                                   |
 | SecretCinema          | Custom    | 📋 Needs adapter       |                                                   |
 | SportsCult            | Custom    | 📋 Needs adapter       |                                                   |
 | TorrentLeech          | Custom    | 📋 Needs adapter       |                                                   |
 | BeyondHD              | Custom    | ⛔ Stuck               |                                                   |
 | Cinemageddon          | Custom    | ⛔ Stuck               |                                                   |
-| ExotikaZ              | Custom    | ⛔ Stuck               |                                                   |
 | FileList              | Custom    | ⛔ Stuck               |                                                   |
 | HD-Torrents           | Custom    | ⛔ Stuck               |                                                   |
 | IPTorrents            | Custom    | ⛔ Stuck               |                                                   |
-| PrivateHD             | Custom    | ⛔ Stuck               |                                                   |
 | TVVault               | Custom    | ⛔ Stuck               |                                                   |
 | HawkeUno              | UNIT3D    | ❌ Broken              | API does not permit /user requests                |
 
@@ -187,7 +191,7 @@ All other settings — polling interval, privacy mode, proxy, backups — are co
 
 Full documentation is available at **[jordanlambrecht.github.io/tracker-tracker](https://jordanlambrecht.github.io/tracker-tracker/)**.
 
-Covers installation, tracker setup (UNIT3D, Gazelle, GGn), features (proxies, TOTP, backups, download clients, notifications), and troubleshooting.
+Covers installation, tracker setup (UNIT3D, Gazelle, GGn, MAM, AvistaZ), features (proxies, TOTP, backups, download clients, notifications), and troubleshooting.
 
 ## Contributing
 
@@ -199,7 +203,7 @@ PRs welcome. Areas where help matters most:
 - **Security auditing** — Check out SECURITY.md for threat surfice info.
 - **Responsiveness** - I only have my 16" MBP to work off of, so feedback of different screen experiences is much appreciated
 - **Data Visualization** - I ain't no math wizard, so any contributions for data viz, charts/graphs, etc.
-- **Custom platform adapters** — trackers marked "Custom" need bespoke adapters since they don't run UNIT3D or Gazelle.
+- **Custom platform adapters** — trackers marked "Custom" need bespoke adapters since they don't run a supported platform.
 - **HawkeUno lobbying** — convince the Hawke mods to add a `/users` endpoint so the adapter can work
 
 ## Architecture

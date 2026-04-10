@@ -1,5 +1,8 @@
 # BroadcasTheNet (BTN)
 
+!!! Warning
+    This tracker is marked **Unvalidated** and has not been tested it against a real account yet.
+
 | Field        | Value                                     |
 | ------------ | ----------------------------------------- |
 | Platform     | Gazelle                                   |
@@ -11,7 +14,7 @@
 
 ## Notes
 
-Standard Gazelle configuration. This tracker is marked **Unvalidated** — the API integration has not been confirmed against a live account. The `bonusPoints` field naming may vary from standard.
+This is a standard Gazelle setup. It's marked **Unvalidated** because no one's tested it against a real account yet. Fair warning: the `bonusPoints` field might not match the standard Gazelle naming.
 
 ## Slots
 

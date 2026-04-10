@@ -5,8 +5,12 @@
 import { mkdir, writeFile } from "node:fs/promises"
 import path from "node:path"
 import cron, { type ScheduledTask } from "node-cron"
-import { encryptBackupPayload, generateBackupPayload, pruneOldBackups } from "@/lib/backup"
-import { decrypt } from "@/lib/crypto"
+import {
+  encryptBackupPayload,
+  generateBackupPayload,
+  pruneOldBackups,
+  resolveBackupPassword,
+} from "@/lib/backup"
 import { db } from "@/lib/db"
 import { appSettings, backupHistory } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
@@ -34,12 +38,15 @@ function setBackupKey(key: Buffer | null) {
 // Cron expressions for backup frequencies (run at 03:00)
 function getCronExpression(frequency: string): string {
   switch (frequency) {
+    case "daily":
+      return "0 3 * * *" // 03:00 every day
     case "weekly":
       return "0 3 * * 0" // 03:00 every Sunday
     case "monthly":
       return "0 3 1 * *" // 03:00 first of month
     default:
-      return "0 3 * * *" // 03:00 every day (covers "daily" and any unknown value)
+      log.warn(`Unknown backup frequency "${frequency}", defaulting to daily`)
+      return "0 3 * * *"
   }
 }
 
@@ -60,15 +67,29 @@ export async function runScheduledBackup(encryptionKey: Buffer): Promise<void> {
 
     if (settings.backupEncryptionEnabled && settings.encryptedBackupPassword) {
       try {
-        const backupPassword = decrypt(settings.encryptedBackupPassword, encryptionKey)
+        const backupPassword = resolveBackupPassword(
+          true,
+          settings.encryptedBackupPassword,
+          encryptionKey
+        )
+        if (!backupPassword) throw new Error("resolveBackupPassword returned null unexpectedly")
         const envelope = await encryptBackupPayload(payload, backupPassword)
         serialized = JSON.stringify(envelope)
         ext = "ttbak"
         encrypted = true
       } catch {
-        log.error("Failed to decrypt stored backup password — falling back to plain JSON backup")
-        serialized = JSON.stringify(payload)
-        ext = "json"
+        log.error(
+          "Scheduled backup aborted: cannot decrypt stored backup password. " +
+            "Re-enter backup password in settings to resume encrypted backups."
+        )
+        await db.insert(backupHistory).values({
+          sizeBytes: 0,
+          encrypted: false,
+          frequency: settings.backupScheduleFrequency,
+          status: "failed",
+          storagePath: null,
+        })
+        return
       }
     } else {
       serialized = JSON.stringify(payload)

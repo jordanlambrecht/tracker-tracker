@@ -7,8 +7,9 @@
 import type { EChartsOption } from "echarts"
 import { useState } from "react"
 import { TabBar } from "@/components/ui/TabBar"
+import { localDateStr } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
-import type { TrackerSnapshotSeries } from "@/types/charts"
+import type { FleetChartProps } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import {
@@ -38,10 +39,7 @@ import { useLogScale } from "./lib/useLogScale"
 
 type MAWindow = "1" | "3" | "7"
 
-interface BufferVelocityChartProps {
-  trackerData: TrackerSnapshotSeries[]
-  height?: number
-}
+interface BufferVelocityChartProps extends FleetChartProps {}
 
 interface TrackerVelocityData {
   name: string
@@ -82,7 +80,7 @@ function computeBufferVelocity(snapshots: Snapshot[]): {
   // Group by calendar day, keep last snapshot per day
   const dayMap = new Map<string, Snapshot>()
   for (const snap of sorted) {
-    const day = new Date(snap.polledAt).toISOString().slice(0, 10)
+    const day = localDateStr(new Date(snap.polledAt))
     dayMap.set(day, snap) // last one wins
   }
 
@@ -95,7 +93,7 @@ function computeBufferVelocity(snapshots: Snapshot[]): {
     const curr = dayMap.get(days[i])
     // Both entries are guaranteed to exist since days comes from dayMap.keys()
     if (!prev || !curr) continue
-    // Allow negative values — this is the whole point
+    // Allow negative values
     const velocityGiB = Number(BigInt(curr.bufferBytes) - BigInt(prev.bufferBytes)) / 1024 ** 3
 
     resultDays.push(days[i])
@@ -139,11 +137,11 @@ function buildBufferVelocityOption(
   const unit = `${baseUnit}/day`
 
   // Detect whether the last day in the unified axis is today (partial day)
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localDateStr()
   const lastDayIsToday = sortedDays[sortedDays.length - 1] === today
 
   // Build per-tracker series mapped to the unified day axis.
-  // Delta charts skip nulls — no carry-forward.
+  // Delta charts skip nulls with no carry-forward.
   const series: NonNullable<EChartsOption["series"]> = computed.map((tracker, idx) => {
     const dayVelocityMap = new Map<string, number | null>()
     for (let i = 0; i < tracker.days.length; i++) {
@@ -182,6 +180,7 @@ function buildBufferVelocityOption(
     return {
       name: tracker.name,
       type: "line",
+      sampling: "lttb",
       data,
       smooth: false,
       symbol: "circle",
@@ -215,7 +214,7 @@ function buildBufferVelocityOption(
                     position: "insideEndTop",
                     color: CHART_THEME.warn,
                     fontFamily: CHART_THEME.fontMono,
-                    fontSize: 10,
+                    fontSize: CHART_THEME.fontSizeCompact,
                   },
                   lineStyle: {
                     color: CHART_THEME.warn,
@@ -272,7 +271,7 @@ function buildBufferVelocityOption(
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },

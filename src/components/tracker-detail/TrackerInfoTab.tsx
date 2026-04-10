@@ -1,19 +1,31 @@
 // src/components/tracker-detail/TrackerInfoTab.tsx
-//
-// Functions: TrackerInfoTab
-
 "use client"
 
 import { H2 } from "@typography"
 import clsx from "clsx"
+import dynamic from "next/dynamic"
 import { useState } from "react"
-import Markdown from "react-markdown"
-import remarkGfm from "remark-gfm"
-import { ChevronToggle } from "@/components/ui/ChevronToggle"
+import { InfoTip } from "@/components/ui/InfoTip"
+import { PillTag } from "@/components/ui/PillTag"
+import { SectionToggle } from "@/components/ui/SectionToggle"
 import { Tooltip } from "@/components/ui/Tooltip"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
-import { hexToRgba } from "@/lib/formatters"
+import { hexToRgba } from "@/lib/color-utils"
+import { formatCount, formatRatio } from "@/lib/formatters"
 import type { TrackerLatestStats } from "@/types/api"
+
+const Markdown = dynamic(
+  () =>
+    Promise.all([import("react-markdown"), import("remark-gfm")]).then(
+      ([{ default: ReactMarkdown }, { default: remarkGfm }]) => {
+        function GfmMarkdown(props: { children: string; className?: string }) {
+          return <ReactMarkdown remarkPlugins={[remarkGfm]} {...props} />
+        }
+        return GfmMarkdown
+      }
+    ),
+  { ssr: false }
+)
 
 interface TrackerInfoTabProps {
   registryEntry: TrackerRegistryEntry | undefined
@@ -51,7 +63,7 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
                 label: "Minimum Ratio",
                 value:
                   registryEntry.rules.minimumRatio > 0
-                    ? registryEntry.rules.minimumRatio.toString()
+                    ? formatRatio(registryEntry.rules.minimumRatio)
                     : "None",
                 tip: "Your upload/download ratio must stay above this threshold to avoid demotion or account restrictions.",
               },
@@ -98,13 +110,9 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
                     i > 0 ? "border-t border-border" : ""
                   )}
                 >
-                  <span className="text-sm font-sans text-tertiary flex items-center gap-1.5">
+                  <span className="text-sm font-sans text-tertiary flex items-center gap-2">
                     {rule.label}
-                    <Tooltip content={rule.tip}>
-                      <span className="cursor-help text-[9px] font-bold opacity-50 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-current hover:opacity-80 transition-opacity">
-                        ?
-                      </span>
-                    </Tooltip>
+                    <InfoTip icon="question" size="sm" content={rule.tip} />
                   </span>
                   <span className="text-base font-mono font-semibold text-primary">
                     {rule.value}
@@ -121,12 +129,9 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
           <H2>Content</H2>
           <div className="flex flex-wrap items-center gap-2">
             {registryEntry.contentCategories.map((cat) => (
-              <span
-                key={cat}
-                className="inline-flex items-center px-3 py-1 font-mono text-xs text-tertiary nm-inset-sm bg-control-bg rounded-nm-pill"
-              >
+              <PillTag key={cat} className="inline-flex items-center">
                 {cat}
-              </span>
+              </PillTag>
             ))}
           </div>
         </div>
@@ -138,21 +143,19 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
           <div className="flex flex-col gap-3">
             <H2>Site Stats</H2>
             {registryEntry.stats.statsUpdatedAt && (
-              <span className="text-[10px] font-mono text-muted">
-                Updated {registryEntry.stats.statsUpdatedAt}
-              </span>
+              <span className="timestamp">Updated {registryEntry.stats.statsUpdatedAt}</span>
             )}
             <div className="flex flex-wrap gap-6">
               {registryEntry.stats.userCount != null && (
                 <div className="flex flex-col gap-1">
                   <span className="text-2xl font-mono font-semibold text-primary">
-                    {registryEntry.stats.userCount.toLocaleString()}
+                    {formatCount(registryEntry.stats.userCount)}
                   </span>
                   <span className="text-xs font-sans text-tertiary">
                     Users
                     {registryEntry.stats.activeUsers != null && (
                       <span className="text-muted ml-1">
-                        ({registryEntry.stats.activeUsers.toLocaleString()} active)
+                        ({formatCount(registryEntry.stats.activeUsers)} active)
                       </span>
                     )}
                   </span>
@@ -161,7 +164,7 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
               {registryEntry.stats.torrentCount != null && (
                 <div className="flex flex-col gap-1">
                   <span className="text-2xl font-mono font-semibold text-primary">
-                    {registryEntry.stats.torrentCount.toLocaleString()}
+                    {formatCount(registryEntry.stats.torrentCount)}
                   </span>
                   <span className="text-xs font-sans text-tertiary">Torrents</span>
                 </div>
@@ -197,7 +200,7 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
                   <div className="flex items-center gap-3 pt-0.5">
                     <span
                       className={clsx(
-                        "text-sm font-mono min-w-[140px]",
+                        "text-sm font-mono min-w-35",
                         isCurrent ? "font-semibold" : "text-secondary"
                       )}
                       style={isCurrent ? { color: tc } : undefined}
@@ -205,7 +208,7 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
                       {uc.name}
                     </span>
                     {isCurrent && (
-                      <span className="text-[10px] font-mono" style={{ color: tc }}>
+                      <span className="text-3xs font-mono" style={{ color: tc }}>
                         ← you
                       </span>
                     )}
@@ -220,12 +223,9 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
                       {uc.perks && uc.perks.length > 0 && (
                         <div className="flex flex-wrap justify-end gap-1 mt-1">
                           {uc.perks.map((perk) => (
-                            <span
-                              key={`${perk.type}-${perk.label}`}
-                              className="text-[10px] font-mono text-muted nm-inset-sm bg-control-bg px-1.5 py-0.5 rounded-nm-pill"
-                            >
+                            <PillTag key={`${perk.type}-${perk.label}`} size="sm" color="muted">
                               {perk.label}
-                            </span>
+                            </PillTag>
                           ))}
                         </div>
                       )}
@@ -247,12 +247,9 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
               const name = typeof g === "string" ? g : g.name
               const desc = typeof g === "string" ? undefined : g.description
               const badge = (
-                <span
-                  key={name}
-                  className="nm-inset-sm bg-control-bg rounded-nm-pill px-3 py-1 text-xs font-mono text-accent"
-                >
+                <PillTag key={name} color="accent">
                   {name}
-                </span>
+                </PillTag>
               )
               return desc ? (
                 <Tooltip key={name} content={desc}>
@@ -272,40 +269,35 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
           <H2>Notable Members</H2>
           <div className="flex flex-wrap gap-2">
             {registryEntry.notableMembers.map((m) => (
-              <span
-                key={m}
-                className="nm-inset-sm bg-control-bg rounded-nm-pill px-3 py-1 text-xs font-mono text-secondary"
-              >
+              <PillTag key={m} color="secondary">
                 {m}
-              </span>
+              </PillTag>
             ))}
           </div>
         </div>
       )}
 
-      {/* Banned Groups (accordion) */}
+      {/* Banned Groups */}
       {registryEntry?.bannedGroups && registryEntry.bannedGroups.length > 0 && (
         <div className="flex flex-col gap-2">
-          <button
-            type="button"
-            className="flex items-center gap-2 text-xs font-sans font-medium text-tertiary uppercase tracking-wider cursor-pointer hover:text-secondary transition-colors"
-            onClick={() => setBannedOpen((o) => !o)}
-          >
-            <ChevronToggle expanded={bannedOpen} />
-            Banned Groups
-            <span className="text-muted font-mono normal-case">
-              ({registryEntry.bannedGroups.length})
-            </span>
-          </button>
+          <SectionToggle
+            expanded={bannedOpen}
+            onToggle={() => setBannedOpen((o) => !o)}
+            label={
+              <>
+                Banned Groups{" "}
+                <span className="text-muted font-mono normal-case">
+                  ({registryEntry.bannedGroups.length})
+                </span>
+              </>
+            }
+          />
           {bannedOpen && (
             <div className="flex flex-wrap gap-2">
               {registryEntry.bannedGroups.map((g) => (
-                <span
-                  key={g}
-                  className="nm-inset-sm bg-control-bg rounded-nm-pill px-3 py-1 text-xs font-mono text-danger"
-                >
+                <PillTag key={g} color="danger">
                   {g}
-                </span>
+                </PillTag>
               ))}
             </div>
           )}
@@ -317,7 +309,7 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
         <div className="flex flex-col gap-3">
           <H2>Full Rules</H2>
           <div className="nm-inset-sm bg-control-bg px-5 py-4 text-sm font-sans text-secondary leading-relaxed rounded-nm-md prose prose-invert prose-sm max-w-none prose-headings:text-primary prose-headings:font-semibold prose-headings:mt-4 prose-headings:mb-2 prose-table:w-full prose-th:text-left prose-th:py-2 prose-th:px-3 prose-th:text-xs prose-th:font-mono prose-th:uppercase prose-th:tracking-wider prose-th:text-tertiary prose-td:py-2 prose-td:px-3 prose-td:font-mono prose-td:text-sm prose-strong:text-primary prose-li:marker:text-muted">
-            <Markdown remarkPlugins={[remarkGfm]}>
+            <Markdown>
               {registryEntry.rules.fullRulesMarkdown.join("\n").replace(/\*\*(\d+)\.\*\*/g, "$1.")}
             </Markdown>
           </div>

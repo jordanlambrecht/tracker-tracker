@@ -6,7 +6,8 @@ import Image from "next/image"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
-import { Tooltip } from "@/components/ui/Tooltip"
+import { InfoTip } from "@/components/ui/InfoTip"
+import { Notice } from "@/components/ui/Notice"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
 
 interface MouseholeResponse {
@@ -190,7 +191,7 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
         />
         <div className="flex flex-col gap-0.5">
           <span className="text-xs font-sans font-medium text-secondary">Mousehole</span>
-          <span className="text-[10px] font-mono text-danger">{fetchError}</span>
+          <Notice message={fetchError} />
         </div>
       </div>
     )
@@ -266,14 +267,12 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
                 {countdown}
               </span>
             </span>
-            <Tooltip
+            <InfoTip
               content="Mousehole keeps your MAM seedbox IP updated automatically."
+              size="sm"
+              className="ml-1"
               docs={{ href: "https://github.com/t-mart/mousehole", description: "Mousehole docs" }}
-            >
-              <span className="text-muted hover:text-secondary cursor-help text-xs ml-1">
-                &#9432;
-              </span>
-            </Tooltip>
+            />
           </div>
         </div>
 
@@ -281,7 +280,7 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
         <div
           className={clsx(
             "overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out",
-            expanded ? "max-h-[300px] opacity-100" : "max-h-0 opacity-0"
+            expanded ? "max-h-75 opacity-100" : "max-h-0 opacity-0"
           )}
         >
           <div className="flex flex-col gap-2 mt-2.5">
@@ -316,9 +315,13 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
                   {countdown}
                 </span>
               </span>
-              <Button variant="secondary" size="sm" disabled={checking} onClick={handleCheckNow}>
-                {checking ? "Checking..." : "Check Now"}
-              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={checking}
+                onClick={handleCheckNow}
+                text={checking ? "Checking..." : "Check Now"}
+              />
             </div>
           </div>
         </div>

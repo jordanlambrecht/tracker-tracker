@@ -21,10 +21,12 @@ RUN pnpm install --frozen-lockfile
 # Stage 2 — Build the Next.js app
 # ---------------------------------------------------------------------------
 FROM base AS builder
+ARG NEXT_PUBLIC_RELEASE_CHANNEL=stable
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_PUBLIC_RELEASE_CHANNEL=$NEXT_PUBLIC_RELEASE_CHANNEL
 # Dummy DATABASE_URL so Next.js can evaluate route modules during build
 # (In case DB is never actually queried at build time)
 ENV DATABASE_URL=postgresql://build:build@localhost:5432/build

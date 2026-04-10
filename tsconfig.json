@@ -20,7 +20,8 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@typography": ["./src/components/ui/Typography"]
+      "@typography": ["./src/components/ui/Typography"],
+      "@icons": ["./src/components/ui/Icons.tsx"]
     }
   },
   "include": [

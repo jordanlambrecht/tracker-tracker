@@ -1,8 +1,5 @@
 // src/hooks/useUpdateCheck.ts
-//
-// Functions: useUpdateCheck, compareVersions
-
-import { useEffect, useRef, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 
 const GITHUB_REPO = "jordanlambrecht/tracker-tracker"
 
@@ -12,9 +9,7 @@ interface UpdateCheckResult {
   loading: boolean
 }
 
-/**
- * Compares two semver strings. Returns > 0 if latest is newer, 0 if equal, < 0 if current is newer.
- */
+// Compares two semver strings
 export function compareVersions(current: string, latest: string): number {
   // Strip v prefix and pre-release/build metadata (i.e, "1.3.0-beta.1+build" → "1.3.0")
   const clean = (s: string) => s.replace(/^v/, "").split(/[-+]/)[0]
@@ -28,55 +23,46 @@ export function compareVersions(current: string, latest: string): number {
   return 0
 }
 
-/**
- * Checks GitHub for a newer version. Runs once per session (cached via ref).
- * Tries Releases API first, falls back to Tags API.
- */
-export function useUpdateCheck(): UpdateCheckResult {
-  const [latestVersion, setLatestVersion] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const checkedRef = useRef(false)
+async function fetchLatestVersion(): Promise<string | null> {
+  try {
+    // Try GitHub Releases API first
+    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
+      headers: { Accept: "application/vnd.github.v3+json" },
+    })
 
-  useEffect(() => {
-    if (checkedRef.current) return
-    checkedRef.current = true
-
-    async function check() {
-      try {
-        // Try GitHub Releases API first (has explicit "latest" concept)
-        const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
-          headers: { Accept: "application/vnd.github.v3+json" },
-        })
-
-        if (res.ok) {
-          const data = await res.json()
-          const tag = (data.tag_name as string)?.replace(/^v/, "")
-          if (tag) {
-            setLatestVersion(tag)
-            return
-          }
-        }
-
-        // Fall back to Tags API (created by `pnpm version` + `git push --tags`)
-        const tagRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/tags?per_page=1`, {
-          headers: { Accept: "application/vnd.github.v3+json" },
-        })
-
-        if (tagRes.ok) {
-          const tags = (await tagRes.json()) as { name: string }[]
-          if (tags.length > 0) {
-            setLatestVersion(tags[0].name.replace(/^v/, ""))
-          }
-        }
-      } catch {
-        // Network error (offline, blocked, private repo) — silently skip
-      } finally {
-        setLoading(false)
-      }
+    if (res.ok) {
+      const data = await res.json()
+      const tag = (data.tag_name as string)?.replace(/^v/, "")
+      if (tag) return tag
     }
 
-    check()
-  }, [])
+    // Fall back to Tags API
+    const tagRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/tags?per_page=1`, {
+      headers: { Accept: "application/vnd.github.v3+json" },
+    })
+
+    if (tagRes.ok) {
+      const tags = (await tagRes.json()) as { name: string }[]
+      if (tags.length > 0) return tags[0].name.replace(/^v/, "")
+    }
+  } catch {
+    // Network error
+  }
+  return null
+}
+
+/**
+ * Checks GitHub for a newer version. Uses TanStack Query with staleTime: Infinity
+ * so the check runs at most once per session, even when called from multiple components.
+ */
+export function useUpdateCheck(): UpdateCheckResult {
+  const { data: latestVersion = null, isLoading: loading } = useQuery({
+    queryKey: ["update-check"],
+    queryFn: fetchLatestVersion,
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: Number.POSITIVE_INFINITY,
+    retry: false,
+  })
 
   const currentVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0"
   const updateAvailable =

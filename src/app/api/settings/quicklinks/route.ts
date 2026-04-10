@@ -4,9 +4,11 @@
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, parseJsonBody } from "@/lib/api-helpers"
+import { authenticate, parseJsonBody, validateMaxLength } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { QUICKLINK_SLUG_MAX, QUICKLINK_SLUGS_MAX } from "@/lib/limits"
+import { log } from "@/lib/logger"
 
 export async function GET() {
   const auth = await authenticate()
@@ -28,7 +30,8 @@ export async function GET() {
       if (Array.isArray(parsed) && parsed.every((s) => typeof s === "string")) {
         slugs = parsed
       }
-    } catch {
+    } catch (err) {
+      log.warn({ error: String(err) }, "Corrupt draftQuicklinks JSON in DB, returning empty")
       slugs = []
     }
   }
@@ -49,12 +52,13 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "slugs must be an array of strings" }, { status: 400 })
   }
 
-  if (slugs.length > 100) {
+  if (slugs.length > QUICKLINK_SLUGS_MAX) {
     return NextResponse.json({ error: "Too many quicklinks (max 100)" }, { status: 400 })
   }
 
-  if (slugs.some((s) => s.length > 200)) {
-    return NextResponse.json({ error: "Slug too long (max 200 characters)" }, { status: 400 })
+  for (const s of slugs) {
+    const slugErr = validateMaxLength(s, QUICKLINK_SLUG_MAX, "Slug")
+    if (slugErr) return slugErr
   }
 
   const [settings] = await db.select({ id: appSettings.id }).from(appSettings).limit(1)

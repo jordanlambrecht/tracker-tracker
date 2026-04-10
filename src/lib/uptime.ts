@@ -4,8 +4,9 @@
 // Buckets are 5 minutes wide. The accumulator lives on globalThis
 // to survive HMR reloads in development.
 //
-// Functions: floorToFiveMin, recordHeartbeat, flushCompletedBuckets, removeClientFromAccumulator, clearUptimeAccumulator
+// Functions: floorToFiveMin, recordHeartbeat, flushCompletedBuckets, removeDownloadClientFromAccumulator, clearUptimeAccumulator
 
+import { sql } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { clientUptimeBuckets } from "@/lib/db/schema"
 
@@ -87,21 +88,32 @@ export async function flushCompletedBuckets(): Promise<number> {
   const queue = getFlushQueue()
   if (queue.length === 0) return 0
 
-  const entries = queue.splice(0, queue.length)
-
-  const rows = entries.map((entry) => ({
+  const count = queue.length
+  const rows = queue.map((entry) => ({
     clientId: entry.clientId,
     bucketTs: new Date(entry.ts),
     ok: entry.ok,
     fail: entry.fail,
   }))
-  await db.insert(clientUptimeBuckets).values(rows).onConflictDoNothing()
+  await db
+    .insert(clientUptimeBuckets)
+    .values(rows)
+    .onConflictDoUpdate({
+      target: [clientUptimeBuckets.clientId, clientUptimeBuckets.bucketTs],
+      set: {
+        ok: sql`${clientUptimeBuckets.ok} + excluded.ok`,
+        fail: sql`${clientUptimeBuckets.fail} + excluded.fail`,
+      },
+    })
 
-  return entries.length
+  // Only remove from queue after successful write
+  queue.splice(0, count)
+
+  return count
 }
 
-/** Remove a single client from the accumulator and flush queue. Called when a client is deleted. */
-export function removeClientFromAccumulator(clientId: number): void {
+/** Remove a single download client from the accumulator and flush queue. Called when a client is deleted. */
+export function removeDownloadClientFromAccumulator(clientId: number): void {
   getAccumulator().delete(clientId)
   const queue = getFlushQueue()
   const filtered = queue.filter((e) => e.clientId !== clientId)

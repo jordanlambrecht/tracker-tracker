@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { DOCS } from "@/lib/constants"
+import { formatDateTime } from "@/lib/formatters"
 import { getPauseState } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
 
@@ -51,9 +52,7 @@ export function TrackerStatusBanner({
             <p className="text-xs font-sans font-medium text-warn uppercase tracking-wider">
               Polling Paused
             </p>
-            <span className="text-[10px] font-mono text-muted shrink-0">
-              since {pause.since.toLocaleDateString()}
-            </span>
+            <span className="timestamp shrink-0">since {pause.since.toLocaleDateString()}</span>
           </div>
           <p className="text-sm font-mono text-secondary mt-2">
             Automated polling is paused by the user.
@@ -66,9 +65,7 @@ export function TrackerStatusBanner({
             <p className="text-xs font-sans font-medium text-danger uppercase tracking-wider">
               Polling Paused
             </p>
-            <span className="text-[10px] font-mono text-muted shrink-0">
-              {new Date(pause.since).toLocaleString()}
-            </span>
+            <span className="timestamp shrink-0">{formatDateTime(pause.since)}</span>
           </div>
           <p className="text-sm font-mono text-warn mb-2">
             Polling was paused after repeated failures. Verify your API key is correct before
@@ -85,9 +82,7 @@ export function TrackerStatusBanner({
           {tracker.lastError && (
             <p className="text-xs font-mono text-danger/80 mb-3">Last error: {tracker.lastError}</p>
           )}
-          <Button variant="danger" size="sm" onClick={onResume}>
-            Resume Polling
-          </Button>
+          <Button variant="danger" size="sm" onClick={onResume} text="Resume Polling" />
         </Card>
       )}
       {showLastError && (
@@ -97,9 +92,7 @@ export function TrackerStatusBanner({
               Last Error
             </p>
             {tracker.lastPolledAt && (
-              <span className="text-[10px] font-mono text-muted">
-                {new Date(tracker.lastPolledAt).toLocaleString()}
-              </span>
+              <span className="timestamp">{formatDateTime(tracker.lastPolledAt)}</span>
             )}
           </div>
           <p className="text-danger text-sm font-mono">{tracker.lastError}</p>

@@ -1,11 +1,9 @@
 // src/components/charts/SeedbonusRiverChart.tsx
-//
-// Functions: buildRiverData, buildRiverOption, SeedbonusRiverChart
-
 "use client"
 
 import type { EChartsOption } from "echarts"
-import type { TrackerSnapshotSeries } from "@/types/charts"
+import { formatCount } from "@/lib/formatters"
+import type { FleetChartProps, TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { buildAxisPointer, buildThemeRiverSingleAxis } from "./lib/chart-helpers"
@@ -22,10 +20,7 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
-interface SeedbonusRiverChartProps {
-  trackerData: TrackerSnapshotSeries[]
-  height?: number
-}
+interface SeedbonusRiverChartProps extends FleetChartProps {}
 
 // ---------------------------------------------------------------------------
 // Data builder
@@ -97,7 +92,7 @@ function buildRiverOption(
           .map((item) => {
             const trackerName = item.value[2]
             const bon = item.value[1]
-            const display = `${bon.toLocaleString()} BON`
+            const display = `${formatCount(Math.floor(bon))} BON`
             return chartTooltipRow(item.color, trackerName, display)
           })
           .join("<br/>")
@@ -114,7 +109,7 @@ function buildRiverOption(
           show: true,
           color: CHART_THEME.textSecondary,
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 10,
+          fontSize: CHART_THEME.fontSizeCompact,
         },
         emphasis: {
           itemStyle: {

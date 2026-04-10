@@ -1,10 +1,10 @@
 // src/components/tracker-detail/DebugResponseDialog.tsx
-
 "use client"
 
 import { useEffect, useState } from "react"
-import { CopyButton } from "@/components/ui/CopyButton"
+import { CopyButton } from "@/components/ui/ActionButtons"
 import { Dialog } from "@/components/ui/Dialog"
+import { Notice } from "@/components/ui/Notice"
 import { TabBar } from "@/components/ui/TabBar"
 import type { DebugApiCall } from "@/lib/adapters/types"
 
@@ -101,8 +101,7 @@ export function DebugResponseDialog({
       {!loading && error && (
         <div className="flex items-center justify-center">
           <div className="text-center">
-            <p className="text-danger text-sm font-mono mb-2">Debug poll failed</p>
-            <p className="text-secondary text-xs font-mono">{error}</p>
+            <Notice variant="danger" header="Debug poll failed" message={error} />
           </div>
         </div>
       )}
@@ -135,7 +134,7 @@ export function DebugResponseDialog({
               <CopyButton
                 value={content}
                 label="Copy"
-                className="absolute top-2 right-2 flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-sans font-medium text-tertiary hover:text-primary bg-elevated nm-raised-sm rounded-nm-sm transition-colors duration-150 cursor-pointer"
+                className="absolute top-2 right-2 flex items-center gap-2 px-2.5 py-1.5 text-xs font-sans font-medium text-tertiary hover:text-primary bg-elevated nm-raised-sm rounded-nm-sm transition-colors duration-150 cursor-pointer"
               />
             )}
           </div>

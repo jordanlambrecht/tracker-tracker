@@ -7,8 +7,8 @@
 import type { EChartsOption } from "echarts"
 import { useState } from "react"
 import { TabBar } from "@/components/ui/TabBar"
-import { hexToRgba } from "@/lib/formatters"
-import type { TrackerSnapshotSeries } from "@/types/charts"
+import { hexToRgba } from "@/lib/color-utils"
+import type { FleetChartProps, TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import {
@@ -40,10 +40,7 @@ import {
 
 type VolumeMode = "bar" | "river" | "area" | "sums"
 
-interface DailyVolumeChartProps {
-  trackerData: TrackerSnapshotSeries[]
-  height?: number
-}
+interface DailyVolumeChartProps extends FleetChartProps {}
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -176,7 +173,7 @@ function buildDailyVolumeOption(trackerData: TrackerSnapshotSeries[]): EChartsOp
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },
@@ -281,7 +278,7 @@ function buildRiverOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
           show: true,
           color: CHART_THEME.textSecondary,
           fontFamily: CHART_THEME.fontMono,
-          fontSize: 10,
+          fontSize: CHART_THEME.fontSizeCompact,
         },
         emphasis: {
           itemStyle: {
@@ -311,6 +308,7 @@ function buildAreaOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
     return {
       name: tracker.name,
       type: "line",
+      sampling: "lttb",
       stack: "upload",
       areaStyle: { opacity: 0.6 },
       smooth: true,
@@ -361,7 +359,7 @@ function buildAreaOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },
@@ -441,7 +439,7 @@ function buildSumsOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
-        fontSize: 10,
+        fontSize: CHART_THEME.fontSizeCompact,
       },
       axisLine: { show: false },
       axisTick: { show: false },
@@ -457,6 +455,7 @@ function buildSumsOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
       {
         name: "Upload",
         type: "line",
+        sampling: "lttb",
         data: uploadSums,
         smooth: true,
         symbol: "circle",
@@ -486,6 +485,7 @@ function buildSumsOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
       {
         name: "Download",
         type: "line",
+        sampling: "lttb",
         data: downloadSums,
         smooth: true,
         symbol: "circle",

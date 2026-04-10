@@ -21,6 +21,7 @@ vi.mock("@/lib/db", () => ({
     select: vi.fn(),
     delete: vi.fn(),
     update: vi.fn(),
+    transaction: vi.fn(),
   },
 }))
 
@@ -83,18 +84,32 @@ describe("POST /api/settings/reset-stats", () => {
     mockSelectSettings({ id: 1, passwordHash: "hash" })
     ;(verifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue(true)
 
-    const mockWhere = vi.fn().mockResolvedValue(undefined)
-    const mockSet = vi.fn().mockReturnValue({ where: mockWhere })
-    ;(db.delete as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
-    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
+    // Mock the transaction to invoke the callback with a tx mock
+    const txDeleteCalls: unknown[] = []
+    const txSetCalls: unknown[] = []
+    const txMock = {
+      delete: vi.fn().mockImplementation((table) => {
+        txDeleteCalls.push(table)
+        return Promise.resolve(undefined)
+      }),
+      update: vi.fn().mockReturnValue({
+        set: vi.fn().mockImplementation((data) => {
+          txSetCalls.push(data)
+          return Promise.resolve(undefined)
+        }),
+      }),
+    }
+    ;(db.transaction as ReturnType<typeof vi.fn>).mockImplementation(
+      async (fn: (tx: unknown) => Promise<unknown>) => fn(txMock)
+    )
 
     const res = await POST(makeRequest())
     const data = await res.json()
 
     expect(res.status).toBe(200)
     expect(data.success).toBe(true)
-    expect(db.delete).toHaveBeenCalledTimes(2)
-    expect(db.update).toHaveBeenCalledTimes(1)
-    expect(mockSet).toHaveBeenCalledWith({ lastPolledAt: null, lastError: null })
+    expect(txMock.delete).toHaveBeenCalledTimes(2)
+    expect(txMock.update).toHaveBeenCalledTimes(1)
+    expect(txSetCalls[0]).toEqual({ lastPolledAt: null, lastError: null })
   })
 })

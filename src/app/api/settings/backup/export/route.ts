@@ -4,10 +4,10 @@ import { mkdir, writeFile } from "node:fs/promises"
 import nodePath from "node:path"
 import { NextResponse } from "next/server"
 import { authenticate, decodeKey } from "@/lib/api-helpers"
-import { encryptBackupPayload, generateBackupPayload } from "@/lib/backup"
-import { decrypt } from "@/lib/crypto"
+import { encryptBackupPayload, generateBackupPayload, resolveBackupPassword } from "@/lib/backup"
 import { db } from "@/lib/db"
 import { appSettings, backupHistory } from "@/lib/db/schema"
+import { BACKUP_PASSWORD_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 
 export async function POST(request: Request) {
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     // Resolve backup password: explicit form value > stored encrypted password
     let backupPassword: string | null = null
     if (formPassword && typeof formPassword === "string" && formPassword.length > 0) {
-      if (formPassword.length > 128) {
+      if (formPassword.length > BACKUP_PASSWORD_MAX) {
         return NextResponse.json(
           { error: "Backup password must be 128 characters or fewer" },
           { status: 400 }
@@ -35,10 +35,19 @@ export async function POST(request: Request) {
       backupPassword = formPassword
     } else if (settings?.backupEncryptionEnabled && settings.encryptedBackupPassword) {
       try {
-        const key = decodeKey(auth)
-        backupPassword = decrypt(settings.encryptedBackupPassword, key)
+        backupPassword = resolveBackupPassword(
+          true,
+          settings.encryptedBackupPassword,
+          decodeKey(auth)
+        )
       } catch {
         log.error("Failed to decrypt stored backup password for manual export")
+        return NextResponse.json(
+          {
+            error: "Failed to decrypt backup password. Re-enter your backup password in settings.",
+          },
+          { status: 500 }
+        )
       }
     }
 
@@ -79,7 +88,7 @@ export async function POST(request: Request) {
       sizeBytes,
       encrypted,
       frequency: null,
-      status: "completed",
+      status: filePath ? "completed" : "disk_write_failed",
       storagePath: filePath,
     })
 

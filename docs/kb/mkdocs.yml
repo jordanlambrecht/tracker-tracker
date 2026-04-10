@@ -46,22 +46,18 @@ nav:
       - Adding a Tracker: trackers/adding-a-tracker.md
   - Features:
       - Proxy Support: features/proxies.md
-      - Two-Factor Auth (TOTP): features/totp.md
       - Backups & Restore: features/backups.md
       - Download Clients: features/download-clients.md
       - Tag Groups: features/tag-groups.md
       - qbitmanage Integration: features/qbitmanage.md
       - Webhooks: features/webhooks.md
+      - Transit Papers: features/transit-papers.md
   - Reference:
       - Settings Guide: reference/settings.md
       - Stats Explained: reference/stats-explained.md
       - Platform Differences: reference/platform-differences.md
-  - Troubleshooting:
-      - Tracker Shows Offline: troubleshooting/tracker-offline.md
-      - Ratio Not Updating: troubleshooting/ratio-not-updating.md
-      - Common Errors: troubleshooting/common-errors.md
+  - Troubleshooting: troubleshooting.md
   - Contributing:
-      - Overview: contributing/index.md
       - Adding a Tracker: contributing/adding-a-tracker.md
       - Bento Grid Slot System: contributing/slot-system.md
       - Tracker API Responses:

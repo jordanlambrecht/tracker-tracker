@@ -1,6 +1,6 @@
 // src/lib/__tests__/backup.test.ts
 
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
 // ---------------------------------------------------------------------------
 // Mocks — must appear before any real module imports
@@ -24,6 +24,9 @@ vi.mock("@/lib/db/schema", () => ({
   tagGroups: {},
   tagGroupMembers: {},
   clientSnapshots: {},
+  clientUptimeBuckets: {},
+  dismissedAlerts: {},
+  notificationTargets: {},
   backupHistory: {},
 }))
 
@@ -31,8 +34,10 @@ import {
   CURRENT_BACKUP_VERSION,
   decryptBackupPayload,
   encryptBackupPayload,
+  generateBackupPayload,
   validateBackupJson,
 } from "@/lib/backup"
+import { db } from "@/lib/db"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -179,6 +184,30 @@ describe("validateBackupJson", () => {
     expect(() => validateBackupJson(p)).toThrow("trackers[0].baseUrl")
   })
 
+  it("rejects tracker with non-http/https protocol", () => {
+    const p = validPayload()
+    ;(p.trackers[0] as Record<string, unknown>).baseUrl = "ftp://example.com"
+    expect(() => validateBackupJson(p)).toThrow("must use http or https")
+  })
+
+  it("rejects tracker baseUrl targeting localhost", () => {
+    const p = validPayload()
+    ;(p.trackers[0] as Record<string, unknown>).baseUrl = "http://localhost/api"
+    expect(() => validateBackupJson(p)).toThrow("must not target localhost")
+  })
+
+  it("rejects tracker baseUrl targeting private IP", () => {
+    const p = validPayload()
+    ;(p.trackers[0] as Record<string, unknown>).baseUrl = "http://192.168.1.1/api"
+    expect(() => validateBackupJson(p)).toThrow("must not target localhost")
+  })
+
+  it("rejects tracker baseUrl targeting cloud metadata endpoint", () => {
+    const p = validPayload()
+    ;(p.trackers[0] as Record<string, unknown>).baseUrl = "http://169.254.169.254/latest"
+    expect(() => validateBackupJson(p)).toThrow("must not target localhost")
+  })
+
   it("accepts tracker with empty API token (post-restore backups)", () => {
     const p = validPayload()
     ;(p.trackers[0] as Record<string, unknown>).encryptedApiToken = ""
@@ -291,24 +320,6 @@ describe("Backup encryption", () => {
 // ---------------------------------------------------------------------------
 
 describe("Backup security invariants", () => {
-  it("passwordHash must not appear in a valid backup payload", () => {
-    const p = validPayload()
-    expect(p.settings).not.toHaveProperty("passwordHash")
-    expect(p.settings).not.toHaveProperty("password_hash")
-  })
-
-  it("failedLoginAttempts must not appear in a valid backup payload", () => {
-    const p = validPayload()
-    expect(p.settings).not.toHaveProperty("failedLoginAttempts")
-    expect(p.settings).not.toHaveProperty("failed_login_attempts")
-  })
-
-  it("encryptedSchedulerKey must not appear in a valid backup payload", () => {
-    const p = validPayload()
-    expect(p.settings).not.toHaveProperty("encryptedSchedulerKey")
-    expect(p.settings).not.toHaveProperty("encrypted_scheduler_key")
-  })
-
   it("encryptionSalt must be present in settings", () => {
     const p = validPayload()
     expect(p.settings.encryptionSalt).toBeDefined()
@@ -327,5 +338,124 @@ describe("Backup security invariants", () => {
     const tracker = p.trackers[0]
     expect(tracker).not.toHaveProperty("pausedAt")
     expect(tracker).not.toHaveProperty("paused_at")
+  })
+
+  it("lastErrorAt is excluded from tracker backup payload (transient runtime state)", () => {
+    const p = validPayload()
+    const tracker = p.trackers[0]
+    expect(tracker).not.toHaveProperty("lastErrorAt")
+    expect(tracker).not.toHaveProperty("last_error_at")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// generateBackupPayload — sensitive field exclusion
+//
+// These tests call the real generateBackupPayload() with a mocked DB that
+// returns a realistic appSettings row including the three sensitive fields
+// that must NEVER appear in a backup:
+//   - passwordHash     (Argon2 credential, must never leave the server)
+//   - failedLoginAttempts  (transient security state)
+//   - encryptedSchedulerKey  (internal key, not user-restorable)
+//
+// If someone accidentally removes a field from the destructuring exclusion list
+// in backup.ts, these tests will catch the regression.
+// ---------------------------------------------------------------------------
+
+describe("generateBackupPayload sensitive field exclusion", () => {
+  // A realistic appSettings DB row that includes every sensitive field.
+  const sensitiveSettingsRow = {
+    id: 1,
+    passwordHash: "$argon2id$v=19$m=65536,t=3,p=4$SUPERSECRETPASSWORDHASH",
+    encryptionSalt: "a".repeat(64),
+    failedLoginAttempts: 3,
+    encryptedSchedulerKey: "base64-encrypted-scheduler-key-value",
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    // Safe fields that should survive into the backup
+    storeUsernames: true,
+    backupScheduleEnabled: false,
+    backupScheduleFrequency: "daily",
+    backupRetentionCount: 14,
+    backupEncryptionEnabled: false,
+    proxyEnabled: false,
+    proxyType: "socks5",
+    qbitmanageEnabled: false,
+  }
+
+  // Build a chainable mock that returns the sensitive row for the settings query
+  // and empty arrays for all other table queries.
+  function makeSelectMock() {
+    const emptyChain = {
+      from: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue([]),
+      orderBy: vi.fn().mockResolvedValue([]),
+      where: vi.fn().mockReturnThis(),
+    }
+
+    const settingsChain = {
+      from: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue([sensitiveSettingsRow]),
+      orderBy: vi.fn().mockResolvedValue([]),
+      where: vi.fn().mockReturnThis(),
+    }
+
+    // db.select() is called multiple times. The first call is for appSettings
+    // (uses .limit(1)), subsequent calls are for other tables (use .orderBy()).
+    // We track call count to distinguish the settings query from the rest.
+    let callCount = 0
+    return vi.fn().mockImplementation(() => {
+      callCount += 1
+      return callCount === 1 ? settingsChain : emptyChain
+    })
+  }
+
+  beforeEach(() => {
+    vi.mocked(db.select).mockImplementation(makeSelectMock())
+  })
+
+  it("does NOT include passwordHash in backup settings output", async () => {
+    const payload = await generateBackupPayload()
+    expect(payload.settings).not.toHaveProperty("passwordHash")
+    expect(JSON.stringify(payload.settings)).not.toContain("SUPERSECRETPASSWORDHASH")
+  })
+
+  it("does NOT include failedLoginAttempts in backup settings output", async () => {
+    const payload = await generateBackupPayload()
+    expect(payload.settings).not.toHaveProperty("failedLoginAttempts")
+  })
+
+  it("does NOT include encryptedSchedulerKey in backup settings output", async () => {
+    const payload = await generateBackupPayload()
+    expect(payload.settings).not.toHaveProperty("encryptedSchedulerKey")
+    expect(JSON.stringify(payload.settings)).not.toContain("base64-encrypted-scheduler-key-value")
+  })
+
+  it("does NOT include id or createdAt in backup settings output", async () => {
+    const payload = await generateBackupPayload()
+    // id and createdAt are also stripped — verify defensively
+    expect(payload.settings).not.toHaveProperty("id")
+    expect(payload.settings).not.toHaveProperty("createdAt")
+  })
+
+  it("DOES include encryptionSalt in backup settings output (needed for restore)", async () => {
+    const payload = await generateBackupPayload()
+    expect(payload.settings).toHaveProperty("encryptionSalt", "a".repeat(64))
+  })
+
+  it("DOES include safe settings fields in backup output", async () => {
+    const payload = await generateBackupPayload()
+    expect(payload.settings).toHaveProperty("storeUsernames", true)
+    expect(payload.settings).toHaveProperty("backupScheduleEnabled", false)
+    expect(payload.settings).toHaveProperty("proxyEnabled", false)
+    expect(payload.settings).toHaveProperty("qbitmanageEnabled", false)
+  })
+
+  it("backup settings output contains no recognizable sensitive string values", async () => {
+    const payload = await generateBackupPayload()
+    const serialized = JSON.stringify(payload.settings)
+    // Raw password hash must not leak in any form
+    expect(serialized).not.toContain("argon2id")
+    // Scheduler key must not leak in any form
+    expect(serialized).not.toContain("base64-encrypted-scheduler-key-value")
   })
 })

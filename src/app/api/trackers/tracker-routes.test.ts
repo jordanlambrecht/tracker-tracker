@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import { authenticate, parseJsonBody, parseTrackerId } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
-import { pollTracker } from "@/lib/scheduler"
+import { pollTracker } from "@/lib/tracker-scheduler"
 import { POST as PollPOST } from "./[id]/poll/route"
 import { GET as RolesGET, POST as RolesPOST } from "./[id]/roles/route"
 import { DELETE, PATCH } from "./[id]/route"
@@ -37,13 +37,13 @@ vi.mock("@/lib/crypto", () => ({
   decrypt: vi.fn().mockReturnValue("decrypted-value"),
 }))
 
-vi.mock("@/lib/proxy", () => ({
+vi.mock("@/lib/tunnel", () => ({
   createProxyAgent: vi.fn(),
   buildProxyAgentFromSettings: vi.fn().mockReturnValue(undefined),
   VALID_PROXY_TYPES: new Set(["socks5", "http", "https"]),
 }))
 
-vi.mock("@/lib/scheduler", () => ({
+vi.mock("@/lib/tracker-scheduler", () => ({
   pollTracker: vi.fn(),
 }))
 
@@ -58,6 +58,39 @@ vi.mock("@/lib/privacy-db", () => ({
     .mockResolvedValue((v: string | null | undefined) => (v ? `▓${v.length}` : null)),
   createPrivacyMaskSync: vi.fn().mockReturnValue((v: string | null | undefined) => v ?? null),
 }))
+
+vi.mock("@/lib/server-data", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/server-data")>()
+  return {
+    ...actual,
+    getTrackerForClient: vi.fn().mockResolvedValue({
+      id: 1,
+      name: "Test Tracker",
+      baseUrl: "https://example.com",
+      platformType: "unit3d",
+      isActive: true,
+      lastPolledAt: null,
+      lastError: null,
+      consecutiveFailures: 0,
+      pausedAt: null,
+      userPausedAt: null,
+      color: "#00d4ff",
+      qbtTag: null,
+      mouseholeUrl: null,
+      useProxy: false,
+      countCrossSeedUnsatisfied: false,
+      hideUnreadBadges: false,
+      isFavorite: false,
+      sortOrder: null,
+      joinedAt: null,
+      lastAccessAt: null,
+      remoteUserId: null,
+      platformMeta: null,
+      createdAt: "2024-01-01T00:00:00.000Z",
+      latestStats: null,
+    }),
+  }
+})
 
 const VALID_KEY = "abcd1234".repeat(8)
 
@@ -465,7 +498,7 @@ describe("PATCH /api/trackers/[id]", () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.success).toBe(true)
+    expect(data.id).toBe(1)
   })
 
   it("returns 400 when name exceeds 100 characters", async () => {
@@ -555,10 +588,16 @@ describe("PATCH /api/trackers/[id]", () => {
     expect(data.error).toMatch(/color/i)
   })
 
-  it("returns 400 when API token exceeds 500 characters", async () => {
+  it("returns 400 when API token exceeds limit for non-avistaz tracker", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
       apiToken: "t".repeat(501),
     })
+
+    // Mock the platformType lookup: select → from → where → limit
+    const mockLimit = vi.fn().mockResolvedValue([{ platformType: "unit3d" }])
+    const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit })
+    const mockFrom = vi.fn().mockReturnValue({ where: mockWhere })
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValueOnce({ from: mockFrom })
 
     const request = makeRequest(
       "http://localhost/api/trackers/1",
@@ -588,7 +627,7 @@ describe("PATCH /api/trackers/[id]", () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.success).toBe(true)
+    expect(data.id).toBe(1)
   })
 
   it("returns 401 when unauthenticated", async () => {
@@ -734,20 +773,14 @@ describe("POST /api/trackers/[id]/poll", () => {
     })
     ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
 
-    // Poll route makes two db.select() calls:
-    //   1. Cooldown check: select({ lastPolledAt }).from(trackers).where(...).limit(1)
-    //   2. Settings: select({...}).from(appSettings).limit(1)
-    let selectCallCount = 0
+    // Poll route:
+    //   1. db.update(trackers).set(...).where(...).returning(...) — atomic cooldown claim
+    //   2. db.select({...}).from(appSettings).limit(1) — settings query
+    const mockReturning = vi.fn().mockResolvedValue([{ id: 1 }])
+    const mockUpdateWhere = vi.fn().mockReturnValue({ returning: mockReturning })
+    const mockSet = vi.fn().mockReturnValue({ where: mockUpdateWhere })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
     ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(() => {
-      selectCallCount++
-      if (selectCallCount === 1) {
-        // Cooldown check — return lastPolledAt far enough in the past
-        const mockLimit = vi.fn().mockResolvedValue([{ lastPolledAt: new Date(0) }])
-        const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit })
-        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere })
-        return { from: mockFrom }
-      }
-      // Settings query
       const mockLimit = vi.fn().mockResolvedValue([
         {
           storeUsernames: true,
@@ -801,12 +834,11 @@ describe("POST /api/trackers/[id]/poll", () => {
   })
 
   it("returns 429 when tracker was polled within cooldown period", async () => {
-    ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(() => {
-      const mockLimit = vi.fn().mockResolvedValue([{ lastPolledAt: new Date() }])
-      const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit })
-      const mockFrom = vi.fn().mockReturnValue({ where: mockWhere })
-      return { from: mockFrom }
-    })
+    // Atomic claim returns 0 rows = cooldown still active
+    const mockReturning = vi.fn().mockResolvedValue([])
+    const mockUpdateWhere = vi.fn().mockReturnValue({ returning: mockReturning })
+    const mockSet = vi.fn().mockReturnValue({ where: mockUpdateWhere })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
 
     const request = makeRequest("http://localhost/api/trackers/1/poll", undefined, "POST")
     const params = Promise.resolve({ id: "1" })
@@ -850,17 +882,17 @@ describe("GET /api/trackers/[id]/snapshots", () => {
   })
 
   function buildSnapshotDbMock(result: unknown[]) {
-    // Call 1: db.select().from(trackerSnapshots).where(...).orderBy(...)
+    // Call 1: db.selectDistinctOn([bucket], cols).from(...).where(...).orderBy(...)
+    // (getSnapshotsForTracker uses selectDistinctOn for the default 30-day range)
     const mockOrderBy = vi.fn().mockResolvedValue(result)
     const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy })
     const mockFrom = vi.fn().mockReturnValue({ where: mockWhere })
+    ;(db.selectDistinctOn as ReturnType<typeof vi.fn>).mockReturnValueOnce({ from: mockFrom })
+
     // Call 2: db.select({storeUsernames}).from(appSettings).limit(1)
     const mockSettingsLimit = vi.fn().mockResolvedValue([{ storeUsernames: true }])
     const mockSettingsFrom = vi.fn().mockReturnValue({ limit: mockSettingsLimit })
-
-    ;(db.select as ReturnType<typeof vi.fn>)
-      .mockReturnValueOnce({ from: mockFrom })
-      .mockReturnValueOnce({ from: mockSettingsFrom })
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValueOnce({ from: mockSettingsFrom })
   }
 
   it("returns snapshots with default 30 days and serialized bigints", async () => {
@@ -899,30 +931,6 @@ describe("GET /api/trackers/[id]/snapshots", () => {
     buildSnapshotDbMock([])
 
     const request = new Request("http://localhost/api/trackers/1/snapshots?days=7")
-    const params = Promise.resolve({ id: "1" })
-    const response = await SnapshotsGET(request, { params })
-
-    expect(response.status).toBe(200)
-  })
-
-  it("clamps days to minimum 1", async () => {
-    // Smoke test: clamping logic is verified via Math.max(parseInt(...), 1) in source.
-    // The route returns 200 for any non-negative days value including 0.
-    buildSnapshotDbMock([])
-
-    const request = new Request("http://localhost/api/trackers/1/snapshots?days=0")
-    const params = Promise.resolve({ id: "1" })
-    const response = await SnapshotsGET(request, { params })
-
-    expect(response.status).toBe(200)
-  })
-
-  it("clamps days to maximum 3650", async () => {
-    // Smoke test: clamping logic is verified via Math.min(..., 3650) in source.
-    // The route returns 200 for any days value, clamped internally.
-    buildSnapshotDbMock([])
-
-    const request = new Request("http://localhost/api/trackers/1/snapshots?days=9999")
     const params = Promise.resolve({ id: "1" })
     const response = await SnapshotsGET(request, { params })
 
