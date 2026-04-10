@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.8.7](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.8.6...v2.8.7) (2026-04-10)
+
+
+### Features
+
+- **trackers:** detects truncated cookies
+
+
+### Bug Fixes
+
+- **events:** update event categories and improve error logging
+- **trackers:** missing profile parsing items for AnimeZ
+
 ## [2.8.6](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.8.5...v2.8.6) (2026-04-09)
 
 
