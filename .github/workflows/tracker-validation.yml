@@ -62,7 +62,7 @@ jobs:
 
       - name: Comment on PR with tracker validation results
         if: steps.changed-trackers.outputs.has_tracker_changes == 'true'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           VALIDATION_JSON: ${{ steps.changed-trackers.outputs.slugs }}
         with:
