@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v5
+      - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v6
         with:
@@ -62,7 +62,7 @@ jobs:
 
       - name: Comment on PR with tracker validation results
         if: steps.changed-trackers.outputs.has_tracker_changes == 'true'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           VALIDATION_JSON: ${{ steps.changed-trackers.outputs.slugs }}
         with:
