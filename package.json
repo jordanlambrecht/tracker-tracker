@@ -61,7 +61,7 @@
     "emoji-picker-react": "^4.18.0",
     "https-proxy-agent": "^9.0.0",
     "jose": "^6.2.2",
-    "next": "^16.2.3",
+    "next": "^16.2.4",
     "node-cron": "^4.2.1",
     "node-html-parser": "^7.1.0",
     "otpauth": "^9.5.0",
