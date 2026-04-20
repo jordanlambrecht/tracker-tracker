@@ -5,8 +5,8 @@ import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 export const digitalcore: TrackerRegistryEntry = {
   // ── Identity ────────────────────────────────────────────────────────
   slug: "digitalcore",
-  name: "DigitalCore",
-  abbreviation: "DC",
+  name: "DigitalCore.Club",
+  abbreviation: "DCC",
   url: "https://digitalcore.club",
   description:
     "Scene-oriented 0day/general tracker with 1.5M+ torrents. Movies, TV, music, apps, games, ebooks.",
