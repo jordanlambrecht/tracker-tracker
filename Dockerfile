@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------------
 # Base
 # ---------------------------------------------------------------------------
-FROM node:24-alpine AS base
+FROM node:26-alpine AS base
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # ---------------------------------------------------------------------------
@@ -43,7 +43,7 @@ RUN pnpm install --frozen-lockfile
 # ---------------------------------------------------------------------------
 # Stage 4 — Production runner
 # ---------------------------------------------------------------------------
-FROM node:24-alpine AS runner
+FROM node:26-alpine AS runner
 RUN apk add --no-cache libc6-compat bash && apk upgrade --no-cache \
     && rm -rf /usr/lib/node_modules /usr/local/lib/node_modules \
     /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
