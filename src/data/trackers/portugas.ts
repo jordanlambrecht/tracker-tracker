@@ -132,7 +132,7 @@ export const portugas: TrackerRegistryEntry = {
   },
   warning: false,
   warningNote: "",
-  draft: false,
+  draft: true,  // API endpoint unavailable on this custom UNIT3D build
   supportsTransitPapers: true,
   profileUrlPattern: "/users/{username}",
 }
