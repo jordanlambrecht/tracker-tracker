@@ -12,8 +12,8 @@ export const torrentleech: TrackerRegistryEntry = {
     "Large general tracker known for having open signups very often. Broad content library across most categories.",
 
   // ── Platform & API ──────────────────────────────────────────────────
-  platform: "custom",
-  apiPath: "/api/user",
+  platform: "torrentleech",
+  apiPath: "/profile",
 
   // ── Content ─────────────────────────────────────────────────────────
   specialty: "General",
@@ -36,7 +36,7 @@ export const torrentleech: TrackerRegistryEntry = {
 
   // ── Rules ───────────────────────────────────────────────────────────
   rules: {
-    minimumRatio: 0,
+    minimumRatio: 1.0,
     seedTimeHours: 0,
     loginIntervalDays: 0,
   },
@@ -46,7 +46,7 @@ export const torrentleech: TrackerRegistryEntry = {
   warningNote: "",
 
   // ── Flags ───────────────────────────────────────────────────────────
-  draft: true,
+  draft: false,
   supportsTransitPapers: false,
-  profileUrlPattern: "",
+  profileUrlPattern: "/profile/{username}",
 }
