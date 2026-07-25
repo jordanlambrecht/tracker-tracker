@@ -61,6 +61,36 @@ describe("BtnAdapter", () => {
     expect(stats.joinedDate).toContain("2026")
   })
 
+  it("falls back to safe defaults when undocumented fields are missing", async () => {
+    const mockResponse = {
+      id: 1,
+      result: {
+        UserID: "42",
+        Username: "minimal",
+        Upload: "100",
+        Download: "50",
+      },
+    }
+
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => mockResponse,
+    } as Response)
+
+    const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_URL)
+
+    expect(stats.username).toBe("minimal")
+    expect(stats.group).toBe("Unknown")
+    expect(stats.uploadedBytes).toBe(100n)
+    expect(stats.downloadedBytes).toBe(50n)
+    expect(stats.seedbonus).toBe(0)
+    expect(stats.freeleechTokens).toBe(0)
+    expect(stats.hitAndRuns).toBe(0)
+    expect(stats.joinedDate).toBeUndefined()
+    expect(stats.remoteUserId).toBe(42)
+  })
+
   it("handles zero upload/download without producing Infinity", async () => {
     const mockResponse = {
       id: 1,
