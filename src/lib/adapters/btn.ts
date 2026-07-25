@@ -11,11 +11,12 @@ interface BtnUserInfoResult {
   Username: string
   Upload: string
   Download: string
-  Class: string
-  Lumens: string
-  Bonus: string
-  HnR: string
-  JoinDate: string
+  // The following fields are returned by the live API but not documented:
+  Class?: string
+  Lumens?: string
+  Bonus?: string
+  HnR?: string
+  JoinDate?: string
 }
 
 interface BtnJsonRpcResponse {
@@ -25,15 +26,15 @@ interface BtnJsonRpcResponse {
 }
 
 function mapBtnResult(result: BtnUserInfoResult): TrackerStats {
-  const uploadedBytes = BigInt(parseInt(result.Upload, 10) || 0)
-  const downloadedBytes = BigInt(parseInt(result.Download, 10) || 0)
+  const uploadedBytes = BigInt(result.Upload || "0")
+  const downloadedBytes = BigInt(result.Download || "0")
 
   let ratio = 0
   if (downloadedBytes > 0n) {
     ratio = Number(uploadedBytes) / Number(downloadedBytes)
   }
 
-  const joinTimestamp = parseInt(result.JoinDate, 10)
+  const joinTimestamp = result.JoinDate ? parseInt(result.JoinDate, 10) : NaN
   const joinedDate =
     Number.isFinite(joinTimestamp) && joinTimestamp > 0
       ? localDateStr(new Date(joinTimestamp * 1000))
@@ -41,18 +42,18 @@ function mapBtnResult(result: BtnUserInfoResult): TrackerStats {
 
   return {
     username: result.Username,
-    group: result.Class,
+    group: result.Class ?? "Unknown",
     uploadedBytes,
     downloadedBytes,
     ratio,
     bufferBytes: computeBufferBytes(uploadedBytes, downloadedBytes),
     seedingCount: 0,
     leechingCount: 0,
-    seedbonus: parseFloat(result.Lumens) || 0,
-    hitAndRuns: parseInt(result.HnR, 10) || 0,
+    seedbonus: parseFloat(result.Lumens ?? "0") || 0,
+    hitAndRuns: parseInt(result.HnR ?? "0", 10) || 0,
     requiredRatio: 0,
     warned: false,
-    freeleechTokens: parseFloat(result.Bonus) || 0,
+    freeleechTokens: parseFloat(result.Bonus ?? "0") || 0,
     remoteUserId: parseInt(result.UserID, 10) || undefined,
     joinedDate,
   }
