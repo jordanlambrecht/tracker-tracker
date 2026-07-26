@@ -87,4 +87,10 @@ describe("parseBytes - infinity values", () => {
   it("returns 0n for -Inf", () => {
     expect(parseBytes("-Inf")).toBe(0n)
   })
+  it("returns 0n for inf (lowercase)", () => {
+    expect(parseBytes("inf")).toBe(0n)
+  })
+  it("returns 0n for INF (uppercase)", () => {
+    expect(parseBytes("INF")).toBe(0n)
+  })
 })

@@ -55,7 +55,8 @@ export function parseBytes(formatted: string): bigint {
   const trimmed = formatted.trim()
 
   // Handle infinity/unlimited buffer values from some trackers (e.g. Zenith)
-  if (trimmed === "∞" || trimmed === "Inf" || trimmed === "-∞" || trimmed === "-Inf") {
+  const lowerTrimmed = trimmed.toLowerCase()
+  if (trimmed === "∞" || lowerTrimmed === "inf" || trimmed === "-∞" || lowerTrimmed === "-inf") {
     return 0n
   }
 

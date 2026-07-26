@@ -279,10 +279,7 @@ async function fetchHtml(
       throw new Error("Session expired — browser cookies need to be refreshed")
     }
     // Otherwise follow the redirect (bounded to 3 hops max)
-    let currentUrl = location
-    if (currentUrl.startsWith("/")) {
-      currentUrl = new URL(currentUrl, url).href
-    }
+    let currentUrl = new URL(location, url).href
     for (let hop = 0; hop < 3; hop++) {
       try {
         response = await fetch(currentUrl, {
@@ -299,7 +296,7 @@ async function fetchHtml(
           throw new Error("Session expired — browser cookies need to be refreshed")
         }
         if (!nextLocation) break
-        currentUrl = nextLocation.startsWith("/") ? new URL(nextLocation, currentUrl).href : nextLocation
+        currentUrl = new URL(nextLocation, currentUrl).href
       } else {
         break
       }
