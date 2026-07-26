@@ -220,4 +220,38 @@ describe("IptorrentsAdapter - redirect handling", () => {
       "Session expired"
     )
   })
+
+  it('follows path-relative redirects (e.g. location: "t")', async () => {
+    const creds = JSON.stringify({
+      cookies: "uid=123; pass=abc",
+      userAgent: "Mozilla/5.0",
+    })
+    const statsHtml = `<div class="stats"><a class="uname" href="/u/123">testuser</a><span class="tTipWrap"><div class="tTip">Ratio</div>1.50</span><span class="tTipWrap"><div class="tTip">Uploaded</div>10 GB</span><span class="tTipWrap"><div class="tTip">Downloaded</div>5 GB</span><span class="tTipWrap"><div class="tTip">Active Torrents</div>3 1</span><span class="tTipWrap"><div class="tTip">Bonus Points</div>100</span></div>`
+
+    let callCount = 0
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input: RequestInfo | URL) => {
+      callCount++
+      const reqUrl = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
+
+      if (callCount === 1) {
+        expect(reqUrl).toBe("https://iptorrents.com/")
+        return new Response(null, {
+          status: 302,
+          headers: { location: "t" }, // Relative path without leading slash
+        })
+      }
+
+      if (callCount === 2) {
+        expect(reqUrl).toBe("https://iptorrents.com/t")
+        return new Response(statsHtml, { status: 200 })
+      }
+
+      return new Response(null, { status: 404 })
+    })
+
+    const adapter = new IptorrentsAdapter()
+    const stats = await adapter.fetchStats("https://iptorrents.com", creds, "/")
+    expect(stats.username).toBe("testuser")
+    expect(callCount).toBe(2)
+  })
 })
