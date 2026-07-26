@@ -53,6 +53,12 @@ function multiplyDecimalStringByBigInt(valueStr: string, multiplier: bigint): bi
 
 export function parseBytes(formatted: string): bigint {
   const trimmed = formatted.trim()
+
+  // Handle infinity/unlimited buffer values from some trackers (e.g. Zenith)
+  if (trimmed === "∞" || trimmed === "Inf" || trimmed === "-∞" || trimmed === "-Inf") {
+    return 0n
+  }
+
   const match = trimmed.match(/^([\d.]+)\s*([A-Za-z]+)$/)
   if (!match) {
     throw new Error(`Invalid byte format: "${formatted}"`)

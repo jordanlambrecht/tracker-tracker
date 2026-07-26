@@ -271,9 +271,42 @@ async function fetchHtml(
     throw classifyFetchError(err, new URL(url).hostname)
   }
 
-  // 302 redirect usually means the session expired and the server redirected to login
-  if (response.status === 302) {
-    throw new Error("Session expired — browser cookies need to be refreshed")
+  // 302 redirect: could be normal (e.g. / → /t) or session expiry (→ /auth/login)
+  if (response.status === 302 || response.status === 301) {
+    const location = response.headers.get("location") ?? ""
+    // If redirected to a login page, the session has expired
+    if (/\/auth\/login|\/login/i.test(location)) {
+      throw new Error("Session expired — browser cookies need to be refreshed")
+    }
+    // Otherwise follow the redirect (bounded to 3 hops max)
+    let currentUrl = location
+    if (currentUrl.startsWith("/")) {
+      currentUrl = new URL(currentUrl, url).href
+    }
+    for (let hop = 0; hop < 3; hop++) {
+      try {
+        response = await fetch(currentUrl, {
+          headers,
+          signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
+          redirect: "manual",
+        })
+      } catch (err) {
+        throw classifyFetchError(err, new URL(currentUrl).hostname)
+      }
+      if (response.status === 302 || response.status === 301) {
+        const nextLocation = response.headers.get("location") ?? ""
+        if (/\/auth\/login|\/login/i.test(nextLocation)) {
+          throw new Error("Session expired — browser cookies need to be refreshed")
+        }
+        if (!nextLocation) break
+        currentUrl = nextLocation.startsWith("/") ? new URL(nextLocation, currentUrl).href : nextLocation
+      } else {
+        break
+      }
+    }
+    if (response.status === 302 || response.status === 301) {
+      throw new Error("Too many redirects from IPTorrents")
+    }
   }
 
   if (!response.ok) {

@@ -141,11 +141,12 @@ describe("IptorrentsAdapter.fetchStats — network error classification", () => 
     )
   })
 
-  it("propagates session-expired error when server returns a 302 redirect", async () => {
+  it("propagates session-expired error when server returns a 302 redirect to login", async () => {
     vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: false,
       status: 302,
       statusText: "Found",
+      headers: new Headers({ location: "/auth/login" }),
     } as Response)
 
     await expect(adapter.fetchStats("https://iptorrents.com", validToken, "")).rejects.toThrow(
@@ -168,5 +169,55 @@ describe("IptorrentsAdapter.fetchStats — network error classification", () => 
     const headers = init?.headers as Record<string, string>
     expect(headers.Cookie).toBe("uid=123; pass=abc123")
     expect(headers["User-Agent"]).toBe("Mozilla/5.0")
+  })
+})
+
+describe("IptorrentsAdapter - redirect handling", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it("follows 302 to /t instead of throwing session expired", async () => {
+    const creds = JSON.stringify({
+      cookies: "uid=123; pass=abc",
+      userAgent: "Mozilla/5.0",
+    })
+    const statsHtml = `<div class="stats"><a class="uname" href="/u/123">testuser</a><span class="tTipWrap"><div class="tTip">Ratio</div>1.50</span><span class="tTipWrap"><div class="tTip">Uploaded</div>10 GB</span><span class="tTipWrap"><div class="tTip">Downloaded</div>5 GB</span><span class="tTipWrap"><div class="tTip">Active Torrents</div>3 1</span><span class="tTipWrap"><div class="tTip">Bonus Points</div>100</span></div>`
+
+    let callCount = 0
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      callCount++
+      if (callCount === 1) {
+        return new Response(null, {
+          status: 302,
+          headers: { location: "/t" },
+        })
+      }
+      return new Response(statsHtml, { status: 200 })
+    })
+
+    const adapter = new IptorrentsAdapter()
+    const stats = await adapter.fetchStats("https://iptorrents.com", creds, "/")
+    expect(stats.username).toBe("testuser")
+    expect(stats.uploadedBytes).toBe(10_000_000_000n)
+  })
+
+  it("throws session expired when 302 points to /auth/login", async () => {
+    const creds = JSON.stringify({
+      cookies: "uid=123; pass=expired",
+      userAgent: "Mozilla/5.0",
+    })
+
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      return new Response(null, {
+        status: 302,
+        headers: { location: "/auth/login" },
+      })
+    })
+
+    const adapter = new IptorrentsAdapter()
+    await expect(adapter.fetchStats("https://iptorrents.com", creds, "/")).rejects.toThrow(
+      "Session expired"
+    )
   })
 })
