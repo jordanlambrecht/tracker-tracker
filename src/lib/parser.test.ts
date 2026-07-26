@@ -73,3 +73,18 @@ describe("parseBytes - security", () => {
     expect(() => parseBytes("-100 GiB")).toThrow()
   })
 })
+
+describe("parseBytes - infinity values", () => {
+  it("returns 0n for ∞", () => {
+    expect(parseBytes("∞")).toBe(0n)
+  })
+  it("returns 0n for Inf", () => {
+    expect(parseBytes("Inf")).toBe(0n)
+  })
+  it("returns 0n for -∞", () => {
+    expect(parseBytes("-∞")).toBe(0n)
+  })
+  it("returns 0n for -Inf", () => {
+    expect(parseBytes("-Inf")).toBe(0n)
+  })
+})
