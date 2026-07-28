@@ -9,6 +9,9 @@ export const VALID_PLATFORM_TYPES = [
   "avistaz",
   "digitalcore",
   "custom",
+  "btn",
+  "iptorrents",
+  "torrentleech",
 ] as const
 export type PlatformType = (typeof VALID_PLATFORM_TYPES)[number]
 
@@ -22,4 +25,7 @@ export const DEFAULT_API_PATHS: Record<string, string> = {
   mam: "/jsonLoad.php",
   avistaz: "/profile",
   digitalcore: "/api/v1/status",
+  btn: "https://api.broadcasthe.net/",
+  iptorrents: "/profile",
+  torrentleech: "/profile",
 }

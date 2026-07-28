@@ -53,6 +53,7 @@ export * from "./torrentleech"
 export * from "./tvvault"
 export * from "./uhdbits"
 export * from "./uploadcx"
+export * from "./zenith"
 
 import { pier720 } from "./720pier"
 import { abtorrents } from "./abtorrents"
@@ -105,6 +106,7 @@ import { torrentleech } from "./torrentleech"
 import { tvvault } from "./tvvault"
 import { uhdbits } from "./uhdbits"
 import { uploadcx } from "./uploadcx"
+import { zenith } from "./zenith"
 
 export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   pier720,
@@ -158,4 +160,5 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   tvvault,
   uhdbits,
   uploadcx,
+  zenith,
 ]

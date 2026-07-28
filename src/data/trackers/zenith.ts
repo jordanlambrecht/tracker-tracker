@@ -1,32 +1,31 @@
-// src/data/trackers/broadcasthenet.ts
+// src/data/trackers/zenith.ts
 
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 
-export const broadcasthenet: TrackerRegistryEntry = {
+export const zenith: TrackerRegistryEntry = {
   // ── Identity ────────────────────────────────────────────────────────
-  slug: "broadcasthenet",
-  name: "BroadcasTheNet",
-  abbreviation: "BTN",
-  url: "https://broadcasthe.net",
-  description:
-    "The top TV tracker, featuring a huge library, well-known internal releasers, great retention, and no ratio requirements.",
+  slug: "zenith",
+  name: "Zenith",
+  abbreviation: "ZN",
+  url: "https://znth.cx",
+  description: "Private general tracker with a clean UNIT3D interface.",
 
   // ── Platform & API ──────────────────────────────────────────────────
-  platform: "btn",
-  apiPath: "https://api.broadcasthe.net/",
+  platform: "unit3d",
+  apiPath: "/api/user",
 
   // ── Content ─────────────────────────────────────────────────────────
-  specialty: "TV",
-  contentCategories: ["TV"],
+  specialty: "General",
+  contentCategories: ["Movies", "TV", "Music", "Games", "Books", "Audiobooks"],
   language: "English",
 
   // ── Visual ──────────────────────────────────────────────────────────
-  color: "#ff9800",
+  color: "#7c3aed",
   logo: "",
 
   // ── External Links ──────────────────────────────────────────────────
-  trackerHubSlug: "broadcas-the-net",
-  statusPageUrl: "https://btn.trackerstatus.info/",
+  trackerHubSlug: "",
+  statusPageUrl: "",
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [],
@@ -36,9 +35,9 @@ export const broadcasthenet: TrackerRegistryEntry = {
 
   // ── Rules ───────────────────────────────────────────────────────────
   rules: {
-    minimumRatio: 0,
-    seedTimeHours: 24,
-    loginIntervalDays: 60,
+    minimumRatio: 0.4,
+    seedTimeHours: 72,
+    loginIntervalDays: 90,
   },
 
   // ── Status ──────────────────────────────────────────────────────────
@@ -47,6 +46,6 @@ export const broadcasthenet: TrackerRegistryEntry = {
 
   // ── Flags ───────────────────────────────────────────────────────────
   draft: false,
-  supportsTransitPapers: true,
-  profileUrlPattern: "/user.php?id={id}",
+  supportsTransitPapers: false,
+  profileUrlPattern: "/users/{username}",
 }
