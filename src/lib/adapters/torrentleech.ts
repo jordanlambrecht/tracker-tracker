@@ -111,7 +111,19 @@ export function parseTlProfile(html: string, username: string): TrackerStats {
   const doc = parseHtml(html)
 
   const uploadedText = textAfterNode(doc, ".profile-uploaded-details")
-  const downloadedText = textAfterNode(doc, ".profile-downloaded-details")
+  // TL's markup is inconsistent here: the uploaded and ratio spans carry both
+  // `profile-info-details` AND a specific `profile-*-details` class, but the
+  // DOWNLOADED span only ever carries the generic one:
+  //
+  //   <div class="profile-uploaded">   ... <span class="profile-info-details profile-uploaded-details">2.39 TB</span>
+  //   <div class="profile-downloaded"> ... <span class="profile-info-details">244.44 GB</span>
+  //
+  // So `.profile-downloaded-details` matches nothing and downloaded silently
+  // read as 0 — which also corrupted bufferBytes, since that is uploaded minus
+  // downloaded. Fall back to scoping by the wrapper div instead.
+  const downloadedText =
+    textAfterNode(doc, ".profile-downloaded-details") ||
+    textAfterNode(doc, ".profile-downloaded .profile-info-details")
   const ratioText = textAfterNode(doc, ".profile-ratio-details")
 
   if (!uploadedText && !downloadedText) {
@@ -166,10 +178,21 @@ export function parseTlProfile(html: string, username: string): TrackerStats {
   const pointsMatch = bodyText.match(/TL Points:\s*([\d,.]+)/i)
   if (pointsMatch) seedbonus = parseFloat(pointsMatch[1].replace(/,/g, ""))
 
-  // Class badge, if present in a profile field/label pair.
-  let group = "User"
-  const classMatch = bodyText.match(/Class:?\s*\n?\s*([A-Za-z][A-Za-z ]*)/)
-  if (classMatch) group = classMatch[1].trim()
+  // User class. Deliberately NOT a body-text regex: matching /Class:?\s*(...)/
+  // over textContent hits the "Classic TL" entry in the nav menu long before
+  // the real field, capturing "ic TL" as the user's class. Read the labelled
+  // badge, then fall back to the profile table's Class row.
+  let group = textAfterNode(doc, ".label-user-class")
+  if (!group) {
+    for (const row of doc.querySelectorAll("tr")) {
+      const cells = row.querySelectorAll("td")
+      if (cells.length >= 2 && cells[0].textContent?.trim() === "Class") {
+        group = cells[1].textContent?.trim() ?? ""
+        break
+      }
+    }
+  }
+  if (!group) group = "User"
 
   return {
     username,
