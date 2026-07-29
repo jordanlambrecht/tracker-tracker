@@ -2,119 +2,244 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+/*
+ * Runtime theme tokens — the single source of truth for every color,
+ * radius, and shadow used by @theme inline (below) plus the hand-written
+ * utilities further down. @theme inline normally resolves nested var()
+ * chains to a literal value at build time, which would make these
+ * unoverridable at runtime; pointing everything here instead (a plain
+ * :root custom property Tailwind's theme compiler doesn't own) keeps a
+ * real var() in the generated CSS, so any --tt-* var can be reassigned
+ * at runtime (e.g. for a palette swap or a future light theme) with no
+ * rebuild. Structure mirrors the @theme block: Layer 1 raw palette,
+ * Layer 2 semantic aliases, Layer 3 purpose aliases.
+ */
+:root {
+  /* ── Layer 1: Raw color palette ──────────────────────────────────────
+   * Ground-truth OKLCH values. The only place a raw color appears.
+   */
+
+  /* Hues */
+  --tt-cyan: oklch(70% 0.1 245); /* #67a5d9 — muted steel blue (was neon cyan) */
+  --tt-amber: oklch(75% 0.14 75); /* #e1a035 */
+  --tt-red: oklch(64% 0.19 25); /* #e9504d */
+  --tt-green: oklch(70% 0.13 162); /* #3fb785 */
+  --tt-lime: oklch(72% 0.15 150); /* #53be70 */
+  --tt-violet: oklch(65% 0.15 292); /* #927be2 */
+  --tt-sky: oklch(70% 0.1 220); /* #4aadc9 */
+
+  /* Surfaces — flat neutral gray. */
+  --tt-surface-900: oklch(16% 0.004 270); /* #0d0d0f */
+  --tt-surface-800: oklch(20% 0.004 270); /* #151618 */
+  --tt-surface-700: oklch(21% 0.005 270); /* #17181b */
+  --tt-surface-600: oklch(26% 0.006 270); /* #232427 */
+  --tt-surface-500: oklch(29% 0.007 270); /* #2a2b2f */
+  --tt-surface-400: oklch(32% 0.008 270); /* #313337 */
+
+  /* Text grays */
+  --tt-gray-50: oklch(95% 0.004 260); /* #edeef1 */
+  --tt-gray-400: oklch(81% 0.008 260); /* #bec1c6 */
+  --tt-gray-500: oklch(70% 0.01 260); /* #9b9fa5 */
+  --tt-gray-600: oklch(63% 0.012 260); /* #858991 */
+
+  /* ── Layer 2: Semantic aliases ─────────────────────────────────────────
+   * Intent-named tokens. Use text-accent, bg-danger, border-warn, etc.
+   */
+
+  /* Surfaces — literal values (not aliases): page bg sits darker than cards */
+  --tt-color-base: oklch(18.5% 0.004 270); /* #121315 — page background */
+  --tt-color-raised: oklch(23% 0.005 270); /* #1c1d1f — cards */
+  --tt-color-elevated: oklch(26.5% 0.006 270); /* #242528 — modals/popovers */
+  --tt-color-overlay: oklch(29% 0.007 270); /* #2a2b2f */
+  --tt-color-control-bg: oklch(20% 0.004 270); /* #151618 — inputs */
+
+  /* Text hierarchy */
+  --tt-color-primary: var(--tt-gray-50);
+  --tt-color-secondary: var(--tt-gray-400);
+  --tt-color-tertiary: var(--tt-gray-500);
+  --tt-color-muted: var(--tt-gray-600);
+
+  /* Semantic status */
+  --tt-color-accent: var(--tt-cyan);
+  --tt-color-warn: var(--tt-amber);
+  --tt-color-danger: var(--tt-red);
+  --tt-color-success: var(--tt-green);
+
+  /* Dim/glow variants */
+  --tt-accent-dim: oklch(70% 0.1 245 / 0.14);
+  --tt-accent-glow: oklch(70% 0.1 245 / 0.2);
+  --tt-warn-dim: oklch(75% 0.14 75 / 0.15);
+  --tt-danger-dim: oklch(64% 0.19 25 / 0.15);
+  --tt-success-dim: oklch(70% 0.13 162 / 0.15);
+
+  /* Borders — solid colors for crisp hairlines (not alpha-of-gray) */
+  --tt-border: oklch(32% 0.008 265); /* #313337 */
+  --tt-border-soft: oklch(27% 0.006 265); /* #252629 */
+  --tt-border-emphasis: oklch(42% 0.01 265); /* #4a4d53 */
+
+  /* Controls */
+  --tt-control-border: oklch(34% 0.008 265); /* #36383c */
+  --tt-control-focus: oklch(70% 0.1 245 / 0.5);
+
+  /* ── Layer 3: Purpose aliases ──────────────────────────────────────────
+   * Domain-specific meaning for data visualization.
+   * Generates text-upload, bg-download, border-positive, etc.
+   */
+  --tt-color-upload: var(--tt-cyan);
+  --tt-color-download: oklch(72% 0.12 65); /* #d8944d — muted orange, was raw amber */
+  --tt-color-positive: var(--tt-lime);
+  --tt-color-negative: var(--tt-red);
+  --tt-color-neutral: var(--tt-gray-400);
+  --tt-color-tracker-default: var(--tt-cyan);
+
+  /* Ordinal scale — ratio tiers, seed-time tiers */
+  --tt-scale-1: var(--tt-red);
+  --tt-scale-2: var(--tt-amber);
+  --tt-scale-3: var(--tt-green);
+  --tt-scale-4: var(--tt-cyan);
+  --tt-scale-5: var(--tt-violet);
+  --tt-scale-6: var(--tt-sky);
+
+  /* Glow shadows — flat theme, no glows */
+  --tt-shadow-glow: 0 0 #0000;
+  --tt-shadow-glow-sm: 0 0 #0000;
+  --tt-shadow-glow-lg: 0 0 #0000;
+  --tt-shadow-glow-warn: 0 0 #0000;
+  --tt-shadow-glow-danger: 0 0 #0000;
+  --tt-shadow-glow-success: 0 0 #0000;
+
+  /* Border radius — tighter, crisp */
+  --tt-radius-sm: 6px;
+  --tt-radius-md: 8px;
+  --tt-radius-lg: 10px;
+  --tt-radius-xl: 12px;
+  --tt-radius-pill: 9999px;
+
+  /* ── Native dialog backdrop ── */
+  --tt-dialog-backdrop: rgb(0 0 0 / 0.6);
+
+  /* ── Scrollbars ── */
+  --tt-scrollbar-thumb: oklch(32% 0.008 265); /* #313337 */
+  --tt-scrollbar-thumb-hover: oklch(42% 0.01 265); /* #4a4d53 */
+  --tt-scrollbar-track: oklch(20% 0.004 270);
+
+  /* ── react-colorful pointer ── */
+  --tt-colorpicker-pointer-border: oklch(100% 0 0); /* #ffffff */
+  --tt-colorpicker-pointer-shadow: oklch(0% 0 0 / 0.4); /* #000000 40% */
+}
+
 @theme inline {
   /* Fonts */
   --font-sans: var(--font-archivo), system-ui, sans-serif;
   --font-mono: var(--font-mono), monospace;
 
   /* ── Layer 1: Raw color palette ──────────────────────────────────────
-   * Ground-truth OKLCH values. The only place a raw color appears.
+   * Values live in :root as --tt-* runtime vars (see top of file) — this
+   * just wires Tailwind's generated utilities to them.
    * Tailwind v4 generates text-cyan, bg-amber, border-red, etc.
    */
 
   /* Hues */
-  --color-cyan: oklch(80.43% 0.1459 219.52); /* #01d4ff */
-  --color-amber: oklch(76.86% 0.1647 70.08); /* #f59e0b */
-  --color-red: oklch(63.68% 0.2078 25.33); /* #ef4444 */
-  --color-green: oklch(69.59% 0.1491 162.48); /* #10b981 */
-  --color-lime: oklch(72.27% 0.192 149.58); /* #22c55e */
-  --color-violet: oklch(60.56% 0.2189 292.72); /* #8b5cf6 */
-  --color-sky: oklch(71.48% 0.1257 215.22); /* #06b6d4 */
+  --color-cyan: var(--tt-cyan);
+  --color-amber: var(--tt-amber);
+  --color-red: var(--tt-red);
+  --color-green: var(--tt-green);
+  --color-lime: var(--tt-lime);
+  --color-violet: var(--tt-violet);
+  --color-sky: var(--tt-sky);
 
-  /* Surfaces — dark purple-gray. Neumorphism: light/dark pair for depth. */
-  --color-surface-900: oklch(22.9% 0.0155 279.49); /* #1b1c24 */
-  --color-surface-800: oklch(24.55% 0.0174 275.22); /* #1e2029 */
-  --color-surface-700: oklch(28.82% 0.0221 277.51); /* #282a36 */
-  --color-surface-600: oklch(31.52% 0.0323 279.44); /* #2e3042 */
-  --color-surface-500: oklch(33.87% 0.0317 279.61); /* #343648 */
-  --color-surface-400: oklch(34.45% 0.0283 276.51); /* #353848 */
+  /* Surfaces — flat neutral gray. */
+  --color-surface-900: var(--tt-surface-900);
+  --color-surface-800: var(--tt-surface-800);
+  --color-surface-700: var(--tt-surface-700);
+  --color-surface-600: var(--tt-surface-600);
+  --color-surface-500: var(--tt-surface-500);
+  --color-surface-400: var(--tt-surface-400);
 
   /* Text grays */
-  --color-gray-50: oklch(92.88% 0.0126 255.51); /* #e2e8f0 */
-  --color-gray-400: oklch(71.07% 0.0351 256.79); /* #94a3b8 */
-  --color-gray-500: oklch(55.44% 0.0407 257.42); /* #64748b */
-  --color-gray-600: oklch(44.55% 0.0374 257.28); /* #475569 */
+  --color-gray-50: var(--tt-gray-50);
+  --color-gray-400: var(--tt-gray-400);
+  --color-gray-500: var(--tt-gray-500);
+  --color-gray-600: var(--tt-gray-600);
 
   /* ── Layer 2: Semantic aliases ─────────────────────────────────────────
    * Intent-named tokens. Use text-accent, bg-danger, border-warn, etc.
    */
 
   /* Surfaces */
-  --color-base: var(--color-surface-700);
-  --color-raised: var(--color-surface-700);
-  --color-elevated: var(--color-surface-600);
-  --color-overlay: var(--color-surface-500);
-  --color-control-bg: var(--color-surface-800);
+  --color-base: var(--tt-color-base);
+  --color-raised: var(--tt-color-raised);
+  --color-elevated: var(--tt-color-elevated);
+  --color-overlay: var(--tt-color-overlay);
+  --color-control-bg: var(--tt-color-control-bg);
 
   /* Text hierarchy */
-  --color-primary: var(--color-gray-50);
-  --color-secondary: var(--color-gray-400);
-  --color-tertiary: var(--color-gray-500);
-  --color-muted: var(--color-gray-600);
+  --color-primary: var(--tt-color-primary);
+  --color-secondary: var(--tt-color-secondary);
+  --color-tertiary: var(--tt-color-tertiary);
+  --color-muted: var(--tt-color-muted);
 
   /* Semantic status */
-  --color-accent: var(--color-cyan);
-  --color-warn: var(--color-amber);
-  --color-danger: var(--color-red);
-  --color-success: var(--color-green);
+  --color-accent: var(--tt-color-accent);
+  --color-warn: var(--tt-color-warn);
+  --color-danger: var(--tt-color-danger);
+  --color-success: var(--tt-color-success);
 
   /* Dim/glow variants */
-  --color-accent-dim: oklch(80.43% 0.1459 219.52 / 0.15); /* #01d4ff 15% */
-  --color-accent-glow: oklch(80.43% 0.1459 219.52 / 0.3); /* #01d4ff 30% */
-  --color-warn-dim: oklch(76.86% 0.1647 70.08 / 0.15); /* #f59e0b 15% */
-  --color-danger-dim: oklch(63.68% 0.2078 25.33 / 0.15); /* #ef4444 15% */
-  --color-success-dim: oklch(69.59% 0.1491 162.48 / 0.15); /* #10b981 15% */
+  --color-accent-dim: var(--tt-accent-dim);
+  --color-accent-glow: var(--tt-accent-glow);
+  --color-warn-dim: var(--tt-warn-dim);
+  --color-danger-dim: var(--tt-danger-dim);
+  --color-success-dim: var(--tt-success-dim);
 
   /* Borders */
-  --color-border: oklch(71.07% 0.0351 256.79 / 0.08); /* #94a3b8 8% */
-  --color-border-soft: oklch(71.07% 0.0351 256.79 / 0.04); /* #94a3b8 4% */
-  --color-border-emphasis: oklch(71.07% 0.0351 256.79 / 0.15); /* #94a3b8 15% */
+  --color-border: var(--tt-border);
+  --color-border-soft: var(--tt-border-soft);
+  --color-border-emphasis: var(--tt-border-emphasis);
 
   /* Controls */
-  --color-control-border: oklch(71.07% 0.0351 256.79 / 0.08); /* #94a3b8 8% */
-  --color-control-focus: oklch(80.43% 0.1459 219.52 / 0.5); /* #01d4ff 50% */
+  --color-control-border: var(--tt-control-border);
+  --color-control-focus: var(--tt-control-focus);
 
   /* ── Layer 3: Purpose aliases ──────────────────────────────────────────
    * Domain-specific meaning for data visualization.
    * Generates text-upload, bg-download, border-positive, etc.
    */
-  --color-upload: var(--color-cyan);
-  --color-download: var(--color-amber);
-  --color-positive: var(--color-lime);
-  --color-negative: var(--color-red);
-  --color-neutral: var(--color-gray-400);
-  --color-tracker-default: var(--color-cyan);
+  --color-upload: var(--tt-color-upload);
+  --color-download: var(--tt-color-download);
+  --color-positive: var(--tt-color-positive);
+  --color-negative: var(--tt-color-negative);
+  --color-neutral: var(--tt-color-neutral);
+  --color-tracker-default: var(--tt-color-tracker-default);
 
   /* Ordinal scale — ratio tiers, seed-time tiers */
-  --color-scale-1: var(--color-red);
-  --color-scale-2: var(--color-amber);
-  --color-scale-3: var(--color-green);
-  --color-scale-4: var(--color-cyan);
-  --color-scale-5: var(--color-violet);
-  --color-scale-6: var(--color-sky);
+  --color-scale-1: var(--tt-scale-1);
+  --color-scale-2: var(--tt-scale-2);
+  --color-scale-3: var(--tt-scale-3);
+  --color-scale-4: var(--tt-scale-4);
+  --color-scale-5: var(--tt-scale-5);
+  --color-scale-6: var(--tt-scale-6);
 
   /* Glow shadows */
-  --shadow-glow: 0 0 16px var(--color-accent-glow);
-  --shadow-glow-sm: 0 0 8px var(--color-accent-glow);
-  --shadow-glow-lg: 0 0 28px var(--color-accent-glow);
-  --shadow-glow-warn: 0 0 16px var(--color-warn-dim);
-  --shadow-glow-danger: 0 0 16px var(--color-danger-dim);
-  --shadow-glow-success: 0 0 16px var(--color-success-dim);
+  --shadow-glow: var(--tt-shadow-glow);
+  --shadow-glow-sm: var(--tt-shadow-glow-sm);
+  --shadow-glow-lg: var(--tt-shadow-glow-lg);
+  --shadow-glow-warn: var(--tt-shadow-glow-warn);
+  --shadow-glow-danger: var(--tt-shadow-glow-danger);
+  --shadow-glow-success: var(--tt-shadow-glow-success);
 
-  /* Border radius — bubbly */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
-  --radius-xl: 24px;
-  --radius-pill: 9999px;
+  /* Border radius — tighter, crisp */
+  --radius-sm: var(--tt-radius-sm);
+  --radius-md: var(--tt-radius-md);
+  --radius-lg: var(--tt-radius-lg);
+  --radius-xl: var(--tt-radius-xl);
+  --radius-pill: var(--tt-radius-pill);
 
   /* Sub-xs font sizes for dense data UI.
-   * text-3xs and text-2xs are intentionally the same value today (10px).
-   * text-2xs covers former 11px contexts (table cells, pills).
-   * If dense tables feel too tight, bump --text-2xs to 11px — one-line change. */
+   * text-2xs covers former 11px contexts (table cells, pills). */
   --text-4xs: 9px;
   --text-3xs: 10px;
-  --text-2xs: 10px;
+  --text-2xs: 11px;
 }
 
 /* Custom radius utilities matching design system tokens */
@@ -135,56 +260,55 @@
 }
 
 /*
- * Neumorphic shadow utilities — registered as @utility so Tailwind v4
- * generates variant classes (hover:nm-raised, active:nm-pressed, etc.).
- * Base: #282A36. Generated via neumorphism.io.
+ * Flat surface utilities — registered as @utility so Tailwind v4 generates
+ * variant classes (hover:nm-raised, active:nm-pressed, etc.). Names kept
+ * from the neumorphic era for compile compatibility; shadows are now a
+ * hairline border plus a small flat depth shadow, never a light/dark pair.
  *
- * IMPORTANT: overflow-hidden on a parent CLIPS these shadows. If you nest
- * nm-raised elements inside an overflow-hidden container, use the p-N/-m-N
- * trick to push the clip boundary out. Shadow reach per variant:
- *   nm-raised-sm: ~12px  (use p-3 -m-3)
- *   nm-raised:    ~24px  (use p-6 -m-6)
- *   nm-raised-lg: ~36px  (use p-9 -m-9)
+ * Shadows no longer reach outside the element more than ~2px, so
+ * overflow-hidden parents no longer need the p-N/-m-N clip-boundary trick.
  */
 @utility nm-raised {
   box-shadow:
-    -8px -8px 16px oklch(34.45% 0.0283 276.51),
-    /* #353848 */ 8px 8px 16px oklch(22.9% 0.0155 279.49); /* #1b1c24 */
+    inset 0 0 0 1px var(--tt-border-emphasis),
+    0 2px 6px rgb(0 0 0 / 0.4);
 }
 
 @utility nm-raised-sm {
   box-shadow:
-    -4px -4px 8px oklch(33.24% 0.0268 276.01),
-    /* #323544 */ 4px 4px 8px oklch(24.23% 0.0172 280.05); /* #1e1f28 */
+    inset 0 0 0 1px var(--tt-border),
+    0 1px 2px rgb(0 0 0 / 0.35);
 }
 
 @utility nm-raised-lg {
   box-shadow:
-    -12px -12px 24px oklch(36.85% 0.0312 277.36),
-    /* #3b3e50 */ 12px 12px 24px oklch(20.19% 0.0121 277.81); /* #15161c */
+    inset 0 0 0 1px var(--tt-border),
+    0 1px 2px rgb(0 0 0 / 0.35),
+    0 6px 16px -8px rgb(0 0 0 / 0.4);
 }
 
 @utility nm-inset {
-  box-shadow:
-    inset 4px 4px 8px oklch(19.74% 0.0121 277.78),
-    /* #14151b */ inset -4px -4px 8px oklch(37.23% 0.0311 277.38); /* #3c3f51 */
+  box-shadow: inset 0 0 0 1px var(--tt-border);
 }
 
 @utility nm-inset-sm {
+  box-shadow: inset 0 0 0 1px var(--tt-border);
+}
+
+/* Focus ring for inputs — inner hairline plus a soft outer halo. */
+@utility nm-focus {
   box-shadow:
-    inset 2px 2px 5px oklch(24.55% 0.0174 275.22),
-    /* #1e2029 */ inset -2px -2px 5px oklch(32.94% 0.0266 278.88); /* #323443 */
+    inset 0 0 0 1px var(--tt-control-focus),
+    0 0 0 3px oklch(70% 0.1 245 / 0.15);
 }
 
 @utility nm-pressed {
   box-shadow:
-    inset 4px 4px 10px oklch(19.74% 0.0121 277.78),
-    /* #14151b */ inset -2px -2px 5px oklch(32.94% 0.0266 278.88); /* #323443 */
+    inset 0 0 0 1px var(--tt-border),
+    inset 0 1px 3px rgb(0 0 0 / 0.35);
 }
 
-/* Tracker color accent glow — corner-pooling inset glow via pseudo-element
- * so it doesn't conflict with the card's nm-raised box-shadow. Four offset
- * shadows concentrate light in the corners and fade along the edges.
+/* Tracker color accent — subtle inner ring tinted with the tracker color.
  * Color passed as --card-accent via inline style. */
 @utility card-accent {
   position: relative;
@@ -193,11 +317,7 @@
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    box-shadow:
-      inset 5px 5px 14px -5px var(--card-accent, transparent),
-      inset -3px -3px 14px -8px var(--card-accent, transparent),
-      inset 1px 1px 2px 0 rgba(255, 255, 255, 0.05),
-      inset -1px -1px 2px 0 rgba(255, 255, 255, 0.015);
+    box-shadow: inset 0 0 0 1px var(--card-accent, transparent);
     pointer-events: none;
   }
 }
@@ -276,7 +396,7 @@
 /* ─── Native dialog backdrop ─── */
 
 dialog[data-overlay]::backdrop {
-  background: rgb(0 0 0 / 0.6);
+  background: var(--tt-dialog-backdrop);
   opacity: 0;
   transition: opacity 150ms ease-in;
 }
@@ -344,63 +464,49 @@ dialog[data-overlay][data-visible]::backdrop {
 }
 
 /*
- * Neumorphic interactive states — for clickable raised surfaces.
- * Three tiers matching elevation: sm (cards), base (panels), inset (dormant links).
- * Each transitions: rest → hover (raise higher) → active (press inward + scale).
+ * Flat interactive states — for clickable raised surfaces.
+ * Two tiers: sm (cards/panels), inset (dormant links).
+ * Each transitions: rest → hover (emphasized border) → active (pressed).
  * These replace static nm-raised-* classes on interactive elements.
  */
 .nm-interactive-sm {
   box-shadow:
-    -4px -4px 8px oklch(33.24% 0.0268 276.01),
-    /* #323544 */ 4px 4px 8px oklch(24.23% 0.0172 280.05); /* #1e1f28 */
-  transition:
-    box-shadow 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
-    transform 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    inset 0 0 0 1px var(--tt-border),
+    0 1px 2px rgb(0 0 0 / 0.35);
+  transition: box-shadow 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 .nm-interactive-sm:hover {
   box-shadow:
-    -4px -4px 8px oklch(31.67% 0.0271 275.92),
-    /* #2e3140 */ 5px 5px 9px oklch(23.8% 0.0173 280.02); /* #1d1e27 */
-  transform: scale(1.01);
+    inset 0 0 0 1px var(--tt-border-emphasis),
+    0 2px 5px rgb(0 0 0 / 0.35);
 }
 .nm-interactive-sm:active {
   box-shadow:
-    inset 2px 2px 6px oklch(21.5% 0.0119 277.89),
-    /* #18191f */ inset -2px -2px 4px oklch(31.42% 0.0287 279.05); /* #2e3040 */
-  transform: scale(0.99);
+    inset 0 0 0 1px var(--tt-border),
+    inset 0 1px 3px rgb(0 0 0 / 0.35);
 }
 
 .nm-interactive-inset {
-  box-shadow:
-    inset 2px 2px 5px oklch(24.55% 0.0174 275.22),
-    /* #1e2029 */ inset -2px -2px 5px oklch(32.94% 0.0266 278.88); /* #323443 */
-  transition:
-    box-shadow 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
-    transform 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  box-shadow: inset 0 0 0 1px var(--tt-border);
+  transition: box-shadow 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 .nm-interactive-inset:hover {
-  box-shadow:
-    -2px -2px 5px oklch(31.67% 0.0271 275.92),
-    /* #2e3140 */ 3px 3px 6px oklch(25.07% 0.017 280.1); /* #20212a */
-  transform: scale(1.01);
+  box-shadow: inset 0 0 0 1px var(--tt-border-emphasis);
 }
 .nm-interactive-inset:active {
   box-shadow:
-    inset 2px 2px 6px oklch(21.5% 0.0119 277.89),
-    /* #18191f */ inset -2px -2px 4px oklch(31.42% 0.0287 279.05); /* #2e3040 */
-  transform: scale(0.99);
+    inset 0 0 0 1px var(--tt-border),
+    inset 0 1px 3px rgb(0 0 0 / 0.35);
 }
 
-/* Glow animation for pulse dots */
+/* Pulse animation for status dots */
 @keyframes pulse-glow {
   0%,
   100% {
     opacity: 1;
-    filter: drop-shadow(0 0 5px currentColor);
   }
   50% {
-    opacity: 0.7;
-    filter: drop-shadow(0 0 12px currentColor);
+    opacity: 0.65;
   }
 }
 
@@ -502,12 +608,12 @@ input:autofill:hover,
 input:autofill:focus,
 textarea:autofill,
 select:autofill {
-  -webkit-box-shadow: 0 0 0 1000px oklch(24.55% 0.0174 275.22) inset; /* control-bg — Chromium */
-  box-shadow: 0 0 0 1000px oklch(24.55% 0.0174 275.22) inset; /* control-bg — Firefox/standard */
-  -webkit-text-fill-color: oklch(92.88% 0.0126 255.51); /* primary text */
-  color: oklch(92.88% 0.0126 255.51) !important;
-  background-color: oklch(24.55% 0.0174 275.22) !important;
-  caret-color: oklch(92.88% 0.0126 255.51);
+  -webkit-box-shadow: 0 0 0 1000px var(--tt-color-control-bg) inset; /* control-bg — Chromium */
+  box-shadow: 0 0 0 1000px var(--tt-color-control-bg) inset; /* control-bg — Firefox/standard */
+  -webkit-text-fill-color: var(--tt-color-primary); /* primary text */
+  color: var(--tt-color-primary) !important;
+  background-color: var(--tt-color-control-bg) !important;
+  caret-color: var(--tt-color-primary);
   transition: background-color 5000s ease-in-out 0s;
 }
 
@@ -529,8 +635,8 @@ select {
 
 /* Page scrollbar — picks up --scrollbar-color from nearest ancestor (tracker page sets it) */
 .themed-scrollbar {
-  --scrollbar-color: oklch(34.45% 0.0283 276.51); /* #353848 */
-  --scrollbar-hover: oklch(40.24% 0.0439 279.12); /* #434660 */
+  --scrollbar-color: var(--tt-scrollbar-thumb);
+  --scrollbar-hover: var(--tt-scrollbar-thumb-hover);
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-color) transparent;
 }
@@ -552,7 +658,7 @@ select {
 /* Inner horizontal scrollbars on tables/code — always subtle */
 .styled-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: oklch(34.45% 0.0283 276.51) /* #353848 */ transparent;
+  scrollbar-color: var(--tt-scrollbar-thumb) transparent;
 }
 .styled-scrollbar::-webkit-scrollbar {
   width: 6px;
@@ -562,32 +668,31 @@ select {
   background: transparent;
 }
 .styled-scrollbar::-webkit-scrollbar-thumb {
-  background: oklch(34.45% 0.0283 276.51); /* #353848 */
+  background: var(--tt-scrollbar-thumb);
   border-radius: 9999px;
 }
 .styled-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: oklch(40.24% 0.0439 279.12); /* #434660 */
+  background: var(--tt-scrollbar-thumb-hover);
 }
 
 .styled-scrollbar-visible {
   scrollbar-width: thin;
-  scrollbar-color: oklch(34.45% 0.0283 276.51) /* #353848 */ oklch(22.44% 0.0168 277.68)
-    /* #1e2029 */;
+  scrollbar-color: var(--tt-scrollbar-thumb) var(--tt-scrollbar-track);
 }
 .styled-scrollbar-visible::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 .styled-scrollbar-visible::-webkit-scrollbar-track {
-  background: oklch(22.44% 0.0168 277.68); /* #1e2029 control-bg */
+  background: var(--tt-scrollbar-track);
   border-radius: 9999px;
 }
 .styled-scrollbar-visible::-webkit-scrollbar-thumb {
-  background: oklch(34.45% 0.0283 276.51); /* #353848 */
+  background: var(--tt-scrollbar-thumb);
   border-radius: 9999px;
 }
 .styled-scrollbar-visible::-webkit-scrollbar-thumb:hover {
-  background: oklch(40.24% 0.0439 279.12); /* #434660 */
+  background: var(--tt-scrollbar-thumb-hover);
 }
 
 /* react-colorful overrides */
@@ -609,21 +714,21 @@ select {
 .color-picker-wrapper .react-colorful__pointer {
   width: 16px;
   height: 16px;
-  border: 2px solid oklch(100% 0 0); /* #ffffff */
-  box-shadow: 0 0 4px oklch(0% 0 0 / 0.4); /* #000000 40% */
+  border: 2px solid var(--tt-colorpicker-pointer-border);
+  box-shadow: 0 0 4px var(--tt-colorpicker-pointer-shadow);
 }
 
 /* Emoji picker theme overrides */
 .emoji-picker-wrapper .EmojiPickerReact.epr-dark-theme {
-  --epr-bg-color: oklch(31.52% 0.0323 279.44); /* #2e3042 */
-  --epr-category-label-bg-color: oklch(31.52% 0.0323 279.44); /* #2e3042 */
-  --epr-hover-bg-color: oklch(33.87% 0.0317 279.61); /* #343648 */
-  --epr-search-input-bg-color: oklch(24.55% 0.0174 275.22); /* #1e2029 */
-  --epr-text-color: oklch(92.88% 0.0126 255.51); /* #e2e8f0 */
-  --epr-search-input-text-color: oklch(92.88% 0.0126 255.51); /* #e2e8f0 */
-  --epr-search-input-placeholder-color: oklch(55.44% 0.0407 257.42); /* #64748b */
-  --epr-category-icon-active-color: oklch(80.43% 0.1459 219.52); /* #01d4ff */
-  --epr-skin-tone-picker-menu-color: oklch(33.87% 0.0317 279.61); /* #343648 */
+  --epr-bg-color: var(--tt-surface-600);
+  --epr-category-label-bg-color: var(--tt-surface-600);
+  --epr-hover-bg-color: var(--tt-surface-500);
+  --epr-search-input-bg-color: var(--tt-surface-800);
+  --epr-text-color: var(--tt-color-primary);
+  --epr-search-input-text-color: var(--tt-color-primary);
+  --epr-search-input-placeholder-color: var(--tt-color-tertiary);
+  --epr-category-icon-active-color: var(--tt-color-accent);
+  --epr-skin-tone-picker-menu-color: var(--tt-surface-500);
   border-radius: var(--radius-md);
-  border: 1px solid oklch(37.23% 0.0311 277.38); /* #3c3f51 */
+  border: 1px solid var(--tt-border);
 }

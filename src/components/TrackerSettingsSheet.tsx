@@ -376,7 +376,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
                   onChange={(e) => setEditDcCookies(e.target.value)}
                   placeholder="uid=56954; pass=abc123def456..."
                   rows={2}
-                  className="w-full font-mono text-sm text-primary bg-control-bg rounded-nm-md px-4 py-3 placeholder:text-muted nm-inset focus:outline-none focus:nm-inset border-0 resize-y"
+                  className="w-full font-mono text-sm text-primary bg-control-bg rounded-nm-md px-4 py-3 placeholder:text-muted nm-inset focus:outline-none focus:nm-focus border-0 resize-y"
                 />
                 <Notice message={errors.apiToken} />
                 <Button

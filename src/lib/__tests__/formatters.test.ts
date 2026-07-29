@@ -34,15 +34,15 @@ describe("hexToRgba", () => {
   })
 
   it("returns fallback for shorthand hex", () => {
-    expect(hexToRgba("#fff", 0.5)).toBe("rgba(0, 212, 255, 0.5)")
+    expect(hexToRgba("#fff", 0.5)).toBe("rgba(103, 165, 217, 0.5)")
   })
 
   it("returns fallback for empty string", () => {
-    expect(hexToRgba("", 0.5)).toBe("rgba(0, 212, 255, 0.5)")
+    expect(hexToRgba("", 0.5)).toBe("rgba(103, 165, 217, 0.5)")
   })
 
   it("returns fallback for invalid string", () => {
-    expect(hexToRgba("not-a-color", 0.5)).toBe("rgba(0, 212, 255, 0.5)")
+    expect(hexToRgba("not-a-color", 0.5)).toBe("rgba(103, 165, 217, 0.5)")
   })
 })
 

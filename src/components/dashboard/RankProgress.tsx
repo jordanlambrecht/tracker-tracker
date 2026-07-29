@@ -112,7 +112,6 @@ function RankProgressBar({ userClasses, currentRank, accentColor }: RankProgress
                       backgroundColor: hexToRgba(accentColor, 0.15),
                       color: accentColor,
                       fontWeight: 600,
-                      boxShadow: `0 0 12px ${hexToRgba(accentColor, 0.2)}`,
                     }
                   : isPast
                     ? {
@@ -150,7 +149,6 @@ function RankTimeline({ events, accentColor }: RankTimelineProps) {
                 className="w-2.5 h-2.5 rounded-full shrink-0"
                 style={{
                   backgroundColor: accentColor,
-                  boxShadow: `0 0 8px ${hexToRgba(accentColor, 0.4)}`,
                 }}
               />
               <span className="text-3xs font-mono whitespace-nowrap" style={{ color: accentColor }}>

@@ -21,20 +21,20 @@ const button = cva(
   [
     "inline-flex items-center justify-center font-sans font-medium",
     "transition-all duration-150 cursor-pointer select-none",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-control-focus)] focus-visible:ring-offset-1 focus-visible:ring-offset-base",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-control-focus)] focus-visible:ring-offset-1 focus-visible:ring-offset-transparent",
     "disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none disabled:shadow-none",
   ],
   {
     variants: {
       variant: {
         primary:
-          "bg-accent-dim text-accent nm-raised-sm hover:nm-raised active:nm-pressed active:scale-[0.93]",
+          "bg-accent text-surface-900 nm-raised-sm hover:bg-accent/85 active:nm-pressed active:scale-[0.98]",
         secondary:
-          "bg-raised text-primary nm-raised-sm hover:nm-raised active:nm-pressed active:scale-[0.93]",
+          "bg-raised text-primary nm-raised-sm hover:nm-raised active:nm-pressed active:scale-[0.98]",
         ghost:
-          "bg-transparent text-secondary hover:bg-raised hover:text-primary hover:nm-raised-sm active:scale-[0.96]",
+          "bg-transparent text-secondary hover:bg-raised hover:text-primary hover:nm-raised-sm active:scale-[0.98]",
         danger:
-          "bg-danger-dim text-danger nm-raised-sm hover:nm-raised active:nm-pressed active:scale-[0.93]",
+          "bg-danger-dim text-danger nm-raised-sm hover:nm-raised active:nm-pressed active:scale-[0.98]",
         minimal: "bg-transparent text-muted hover:text-secondary",
       },
       size: {

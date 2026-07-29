@@ -32,7 +32,7 @@ export function TrackerStatusBanner({
   return (
     <>
       {showPollError && (
-        <Card glow glowColor="var(--color-danger-dim)" elevation="elevated">
+        <Card elevation="elevated" className="!bg-danger-dim border border-danger/40">
           <div className="flex items-center justify-between gap-3">
             <p className="text-danger text-sm font-mono">Poll error: {pollError}</p>
             <button
@@ -47,7 +47,7 @@ export function TrackerStatusBanner({
         </Card>
       )}
       {showUserPaused && pause.isPaused && pause.reason === "user" && (
-        <Card glow glowColor="var(--color-warn-dim)" elevation="elevated">
+        <Card elevation="elevated" className="!bg-warn-dim border border-warn/40">
           <div className="flex items-start justify-between gap-3">
             <p className="text-xs font-sans font-medium text-warn uppercase tracking-wider">
               Polling Paused
@@ -60,7 +60,7 @@ export function TrackerStatusBanner({
         </Card>
       )}
       {showAutoPaused && pause.isPaused && pause.reason === "failure" && (
-        <Card glow glowColor="var(--color-danger-dim)" elevation="elevated">
+        <Card elevation="elevated" className="!bg-danger-dim border border-danger/40">
           <div className="flex items-start justify-between gap-3 mb-2">
             <p className="text-xs font-sans font-medium text-danger uppercase tracking-wider">
               Polling Paused
@@ -86,7 +86,7 @@ export function TrackerStatusBanner({
         </Card>
       )}
       {showLastError && (
-        <Card glow glowColor="var(--color-danger-dim)" elevation="elevated">
+        <Card elevation="elevated" className="!bg-danger-dim border border-danger/40">
           <div className="flex items-center justify-between mb-1">
             <p className="text-xs font-sans font-medium text-danger uppercase tracking-wider">
               Last Error
