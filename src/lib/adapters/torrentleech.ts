@@ -128,16 +128,36 @@ export function parseTlProfile(html: string, username: string): TrackerStats {
     ratio = parseFloat(ratioText) || 0
   }
 
-  // Active seeding/leeching counts appear as header menu items with tooltip
-  // titles ("Uploaded (Seeding)" / "Downloaded (Leeching)").
+  // Header menu items carry a tooltip title plus a count, in two shapes:
+  //
+  //   <div title="Uploaded (Seeding)">  <i/> <span>2.39 TB</span> (30) </div>
+  //   <div title="Hit and Run">         <i/>  0                        </div>
+  //
+  // Seeding/leeching put the transfer SIZE first and the torrent count in
+  // trailing parens, so reading "the first number in the element" yields 2
+  // (from "2.39 TB") and 244 (from "244.44 GB") rather than 30 and 9. Match
+  // the parenthesised count for those; Hit and Run has no size, so take the
+  // bare number.
+  const parenCount = (el: ParsedElement): number | null => {
+    const m = el.textContent?.match(/\((\d[\d,]*)\)/)
+    return m ? parseInt(m[1].replace(/,/g, ""), 10) : null
+  }
+  const bareCount = (el: ParsedElement): number | null => {
+    const m = el.textContent?.match(/(\d[\d,]*)/)
+    return m ? parseInt(m[1].replace(/,/g, ""), 10) : null
+  }
+
   let seedingCount = 0
   let leechingCount = 0
+  // Stays null when the counter isn't found, deliberately NOT 0: a missing
+  // element must not render as "no hit and runs", which would hide the exact
+  // condition this field exists to surface.
+  let hitAndRuns: number | null = null
   for (const item of doc.querySelectorAll(".div-menu-item")) {
     const title = item.getAttribute("title") ?? ""
-    const numMatch = item.textContent?.match(/[\d,]+/)
-    const count = numMatch ? parseInt(numMatch[0].replace(/,/g, ""), 10) : 0
-    if (/seeding/i.test(title)) seedingCount = count
-    else if (/leeching/i.test(title)) leechingCount = count
+    if (/seeding/i.test(title)) seedingCount = parenCount(item) ?? 0
+    else if (/leeching/i.test(title)) leechingCount = parenCount(item) ?? 0
+    else if (/hit\s*and\s*run/i.test(title)) hitAndRuns = bareCount(item)
   }
 
   // TL Points, often shown near a "TL Points:" label.
@@ -161,7 +181,7 @@ export function parseTlProfile(html: string, username: string): TrackerStats {
     seedingCount,
     leechingCount,
     seedbonus,
-    hitAndRuns: null,
+    hitAndRuns,
     requiredRatio: null,
     warned: null,
     freeleechTokens: null,
