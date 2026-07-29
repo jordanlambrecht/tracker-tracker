@@ -70,6 +70,21 @@ re-apply these if upstream rewrites the release job. Reviewing that diff is wort
 merging upstream runs *their* workflow code with this repo's `contents: write` and `packages: write`
 token.
 
+## Known issue: devDependencies ship in the production image
+
+The `schema-deps` Dockerfile stage runs a full `pnpm install` (devDependencies included) and the
+runner stage copies that `node_modules` in for the drizzle-kit schema push. So vitest's entire
+dependency tree — vite, jsdom, undici — lands in the production image, and Trivy flags it.
+
+Upstream already works around symptoms of this (see the esbuild block in `.trivyignore`). The real
+fix is to install only what schema-sync needs in that stage. **Not attempted yet**: schema-sync runs
+at container startup via `docker-entrypoint.sh`, so getting it wrong breaks deploys, not just builds.
+
+Interim: `undici` is pinned to a patched `^7.28.0` via `pnpm.overrides`. `vite` could not be moved
+the same way — vitest 4.1.4 holds it at 7.3.2 and neither `overrides` nor `--force` re-resolves it —
+so its CVE is documented in `.trivyignore` instead. That one is genuinely inert here: it is a
+dev-server bug on Windows, and this image is Linux running Next.js standalone.
+
 Known non-blocking CI failures on this fork:
 
 - **Scan Dependencies** (`dependency-review-action`) — needs Dependency Graph, which GitHub disables
