@@ -12,8 +12,8 @@ export const iptorrents: TrackerRegistryEntry = {
     "General tracker with a controversial reputation. Extremely large userbase. Content quality can be inconsistent.",
 
   // ── Platform & API ──────────────────────────────────────────────────
-  platform: "custom",
-  apiPath: "/api/user",
+  platform: "iptorrents",
+  apiPath: "/profile",
 
   // ── Content ─────────────────────────────────────────────────────────
   specialty: "General",
@@ -36,8 +36,8 @@ export const iptorrents: TrackerRegistryEntry = {
 
   // ── Rules ───────────────────────────────────────────────────────────
   rules: {
-    minimumRatio: 0,
-    seedTimeHours: 0,
+    minimumRatio: 1.0,
+    seedTimeHours: 336,
     loginIntervalDays: 0,
   },
 
@@ -46,7 +46,7 @@ export const iptorrents: TrackerRegistryEntry = {
   warningNote: "",
 
   // ── Flags ───────────────────────────────────────────────────────────
-  draft: true,
+  draft: false,
   supportsTransitPapers: false,
-  profileUrlPattern: "",
+  profileUrlPattern: "/u/{id}",
 }
