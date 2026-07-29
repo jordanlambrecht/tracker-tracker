@@ -17,7 +17,53 @@ const PROFILE_HTML = `
   <span class="profile-info-details profile-ratio-details">2.000</span>
 </div>`
 
+// Header menu, copied from a real logged-in TL profile page (values altered).
+// Note the shape difference that the count parsing depends on: seeding and
+// leeching lead with a transfer SIZE and carry the torrent count in trailing
+// parens, whereas Hit and Run is a bare number.
+const MENU_HTML = `
+<span class="menu-info">
+  <div title="Uploaded (Seeding)" class="div-menu-item">
+    <i class="fa fa-arrow-circle-o-up"></i> <span class="link">2.39 TB</span> (30)
+  </div>
+  <div title="Downloaded (Leeching)" class="div-menu-item">
+    <i class="fa fa-arrow-circle-o-down"></i> <span class="link">244.44 GB</span> (9)
+  </div>
+  <div title="Buffer" class="div-menu-item"><i class="fa fa-refresh"></i> 2.15 TB</div>
+  <div title="Ratio" class="div-menu-item"><i class="fa fa-percent"></i> 9.995</div>
+  <div title="Hit and Run" class="div-menu-item">
+    <span class="link"><i class="fa fa-ban"></i>  4</span>
+  </div>
+</span>`
+
+// Real TL profile-body markup (values altered). Note the inconsistency this
+// guards: uploaded and ratio carry a specific `profile-*-details` class, but
+// DOWNLOADED only carries the generic `profile-info-details`.
+const PROFILE_BODY_HTML = `
+<div class="profile-info">
+  <div class="profile-uploaded">
+    <i></i> uploaded:<span class="profile-info-details profile-uploaded-details">2.39 TB</span>
+  </div>
+  <div class="profile-downloaded">
+    <i></i> downloaded: <span class="profile-info-details">244.44 GB</span>
+  </div>
+  <div class="profile-ratio">
+    <i></i> ratio:<span class="profile-info-details profile-ratio-details">10.017</span>
+  </div>
+</div>
+<div class="label label-success label-user-class profile-details-item">Super User</div>
+<table><tr><td>Class</td><td>Super User</td></tr></table>`
+
+// The nav menu that broke class detection: "Classic TL" contains "Class".
+const NAV_HTML = `
+<ul class="dropdown-menu text-uppercase">
+  <li><a href="http://classic.torrentleech.org">Classic TL</a></li>
+  <li><a href="http://v4.torrentleech.org">V4 TL</a></li>
+</ul>`
+
 const FULL_PROFILE_PAGE = `<!doctype html><html><head></head><body>${PROFILE_HTML}</body></html>`
+const PAGE_WITH_MENU = `<!doctype html><html><body>${PROFILE_HTML}${MENU_HTML}</body></html>`
+const REAL_PAGE = `<!doctype html><html><body>${NAV_HTML}${MENU_HTML}${PROFILE_BODY_HTML}</body></html>`
 
 function setCookieResponse(cookies: string[], overrides: Partial<Response> = {}): Response {
   return {
@@ -37,6 +83,54 @@ describe("parseTlProfile", () => {
     expect(stats.downloadedBytes).toBe(5_250_000_000n)
     expect(stats.ratio).toBeCloseTo(2.0)
     expect(stats.bufferBytes).toBe(10_500_000_000n - 5_250_000_000n)
+  })
+
+  it("reads downloaded when TL omits the profile-downloaded-details class", () => {
+    const stats = parseTlProfile(REAL_PAGE, "testuser")
+    // Regression guard: `.profile-downloaded-details` does not exist on the
+    // real page, so this silently read 0 — which also broke bufferBytes.
+    expect(stats.downloadedBytes).toBe(244_440_000_000n)
+    expect(stats.uploadedBytes).toBe(2_390_000_000_000n)
+    expect(stats.bufferBytes).toBe(2_390_000_000_000n - 244_440_000_000n)
+  })
+
+  it("does not mistake the 'Classic TL' nav link for the user class", () => {
+    // Regression guard: /Class:?\s*(...)/ over body text captured "ic TL".
+    expect(parseTlProfile(REAL_PAGE, "testuser").group).toBe("Super User")
+  })
+
+  it("falls back to the profile table's Class row when the badge is absent", () => {
+    const noBadge = REAL_PAGE.replace(
+      '<div class="label label-success label-user-class profile-details-item">Super User</div>',
+      ""
+    )
+    expect(parseTlProfile(noBadge, "testuser").group).toBe("Super User")
+  })
+
+  it("reads the parenthesised torrent count, not the transfer size", () => {
+    const stats = parseTlProfile(PAGE_WITH_MENU, "testuser")
+    // Regression guard: taking the first number in the element would give
+    // 2 (from "2.39 TB") and 244 (from "244.44 GB").
+    expect(stats.seedingCount).toBe(30)
+    expect(stats.leechingCount).toBe(9)
+  })
+
+  it("extracts the hit-and-run count from the header menu", () => {
+    expect(parseTlProfile(PAGE_WITH_MENU, "testuser").hitAndRuns).toBe(4)
+  })
+
+  it("reports zero hit and runs as 0, not null", () => {
+    const clean = PAGE_WITH_MENU.replace(
+      '<i class="fa fa-ban"></i>  4',
+      '<i class="fa fa-ban"></i>  0'
+    )
+    expect(parseTlProfile(clean, "testuser").hitAndRuns).toBe(0)
+  })
+
+  it("leaves hitAndRuns null when the counter is absent", () => {
+    // A missing counter must not read as "no hit and runs" — that would hide
+    // the condition the field exists to surface.
+    expect(parseTlProfile(FULL_PROFILE_PAGE, "testuser").hitAndRuns).toBeNull()
   })
 
   it("treats an infinite ratio (∞) as 0", () => {

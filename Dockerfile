@@ -34,11 +34,24 @@ RUN pnpm build
 
 # ---------------------------------------------------------------------------
 # Stage 3 — Minimal deps for drizzle-kit
+#
+# `--prod` is load-bearing for image CVE count, not just size: the runner copies
+# this node_modules in for the startup `drizzle-kit push`, so a full install
+# shipped vitest/vite/jsdom/undici/typescript into production and Trivy flagged
+# every one of them. drizzle-kit, drizzle-orm and postgres all live in
+# `dependencies`, and drizzle-kit vendors its own esbuild/tsx, so the schema push
+# has everything it needs. drizzle.config.ts already guards its `dotenv` require
+# in a try/catch for exactly this case.
+#
+# The `prepare` script is stripped because it runs husky, a devDependency that
+# `--prod` (correctly) does not install. Removing a script does not affect the
+# `--frozen-lockfile` check, which compares dependency specifiers only.
 # ---------------------------------------------------------------------------
 FROM base AS schema-deps
 WORKDIR /schema-sync
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+RUN node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));delete p.scripts.prepare;fs.writeFileSync('package.json',JSON.stringify(p,null,2))" \
+    && pnpm install --frozen-lockfile --prod
 
 # ---------------------------------------------------------------------------
 # Stage 4 — Production runner

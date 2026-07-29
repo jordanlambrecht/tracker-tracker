@@ -111,7 +111,19 @@ export function parseTlProfile(html: string, username: string): TrackerStats {
   const doc = parseHtml(html)
 
   const uploadedText = textAfterNode(doc, ".profile-uploaded-details")
-  const downloadedText = textAfterNode(doc, ".profile-downloaded-details")
+  // TL's markup is inconsistent here: the uploaded and ratio spans carry both
+  // `profile-info-details` AND a specific `profile-*-details` class, but the
+  // DOWNLOADED span only ever carries the generic one:
+  //
+  //   <div class="profile-uploaded">   ... <span class="profile-info-details profile-uploaded-details">2.39 TB</span>
+  //   <div class="profile-downloaded"> ... <span class="profile-info-details">244.44 GB</span>
+  //
+  // So `.profile-downloaded-details` matches nothing and downloaded silently
+  // read as 0 — which also corrupted bufferBytes, since that is uploaded minus
+  // downloaded. Fall back to scoping by the wrapper div instead.
+  const downloadedText =
+    textAfterNode(doc, ".profile-downloaded-details") ||
+    textAfterNode(doc, ".profile-downloaded .profile-info-details")
   const ratioText = textAfterNode(doc, ".profile-ratio-details")
 
   if (!uploadedText && !downloadedText) {
@@ -128,16 +140,36 @@ export function parseTlProfile(html: string, username: string): TrackerStats {
     ratio = parseFloat(ratioText) || 0
   }
 
-  // Active seeding/leeching counts appear as header menu items with tooltip
-  // titles ("Uploaded (Seeding)" / "Downloaded (Leeching)").
+  // Header menu items carry a tooltip title plus a count, in two shapes:
+  //
+  //   <div title="Uploaded (Seeding)">  <i/> <span>2.39 TB</span> (30) </div>
+  //   <div title="Hit and Run">         <i/>  0                        </div>
+  //
+  // Seeding/leeching put the transfer SIZE first and the torrent count in
+  // trailing parens, so reading "the first number in the element" yields 2
+  // (from "2.39 TB") and 244 (from "244.44 GB") rather than 30 and 9. Match
+  // the parenthesised count for those; Hit and Run has no size, so take the
+  // bare number.
+  const parenCount = (el: ParsedElement): number | null => {
+    const m = el.textContent?.match(/\((\d[\d,]*)\)/)
+    return m ? parseInt(m[1].replace(/,/g, ""), 10) : null
+  }
+  const bareCount = (el: ParsedElement): number | null => {
+    const m = el.textContent?.match(/(\d[\d,]*)/)
+    return m ? parseInt(m[1].replace(/,/g, ""), 10) : null
+  }
+
   let seedingCount = 0
   let leechingCount = 0
+  // Stays null when the counter isn't found, deliberately NOT 0: a missing
+  // element must not render as "no hit and runs", which would hide the exact
+  // condition this field exists to surface.
+  let hitAndRuns: number | null = null
   for (const item of doc.querySelectorAll(".div-menu-item")) {
     const title = item.getAttribute("title") ?? ""
-    const numMatch = item.textContent?.match(/[\d,]+/)
-    const count = numMatch ? parseInt(numMatch[0].replace(/,/g, ""), 10) : 0
-    if (/seeding/i.test(title)) seedingCount = count
-    else if (/leeching/i.test(title)) leechingCount = count
+    if (/seeding/i.test(title)) seedingCount = parenCount(item) ?? 0
+    else if (/leeching/i.test(title)) leechingCount = parenCount(item) ?? 0
+    else if (/hit\s*and\s*run/i.test(title)) hitAndRuns = bareCount(item)
   }
 
   // TL Points, often shown near a "TL Points:" label.
@@ -146,10 +178,21 @@ export function parseTlProfile(html: string, username: string): TrackerStats {
   const pointsMatch = bodyText.match(/TL Points:\s*([\d,.]+)/i)
   if (pointsMatch) seedbonus = parseFloat(pointsMatch[1].replace(/,/g, ""))
 
-  // Class badge, if present in a profile field/label pair.
-  let group = "User"
-  const classMatch = bodyText.match(/Class:?\s*\n?\s*([A-Za-z][A-Za-z ]*)/)
-  if (classMatch) group = classMatch[1].trim()
+  // User class. Deliberately NOT a body-text regex: matching /Class:?\s*(...)/
+  // over textContent hits the "Classic TL" entry in the nav menu long before
+  // the real field, capturing "ic TL" as the user's class. Read the labelled
+  // badge, then fall back to the profile table's Class row.
+  let group = textAfterNode(doc, ".label-user-class")
+  if (!group) {
+    for (const row of doc.querySelectorAll("tr")) {
+      const cells = row.querySelectorAll("td")
+      if (cells.length >= 2 && cells[0].textContent?.trim() === "Class") {
+        group = cells[1].textContent?.trim() ?? ""
+        break
+      }
+    }
+  }
+  if (!group) group = "User"
 
   return {
     username,
@@ -161,7 +204,7 @@ export function parseTlProfile(html: string, username: string): TrackerStats {
     seedingCount,
     leechingCount,
     seedbonus,
-    hitAndRuns: null,
+    hitAndRuns,
     requiredRatio: null,
     warned: null,
     freeleechTokens: null,
