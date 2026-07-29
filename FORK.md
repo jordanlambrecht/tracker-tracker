@@ -53,6 +53,31 @@ TL alone would leave this fork carrying divergent copies of those, guaranteeing 
 upstream merges #175. Taken whole, that merge becomes a no-op. The unused adapters never execute
 unless those trackers are configured.
 
+## Workflow edits (the main sync-conflict surface)
+
+`.github/workflows/release.yml` is patched. Upstream's version **cannot publish from a fork** —
+these are not preferences, they are blockers:
+
+| Change | Why |
+|---|---|
+| Removed "Log in to Docker Hub" step | No `DOCKERHUB_*` secrets here. `docker/login-action` fails on empty credentials, aborting the job **before** the build/push step ever ran. |
+| Removed `docker.io/jordyjordy/*` image tags | That is upstream's Docker Hub namespace; this fork has no rights to push there, so `build-push` failed. GHCR only now — `IMAGE_NAME` already resolves to our own repo path. |
+| Removed "Sync README to Docker Hub" step | Same missing secrets, and it targets upstream's Docker Hub repo. |
+| Trivy `exit-code: "0"` + `if: always()` on the SARIF upload | The image is pushed *before* the scan runs, so a hard failure never prevented a vulnerable image shipping — it only skipped the SARIF upload and the GitHub Release, leaving the run permanently red and the findings invisible in the Security tab. Non-blocking puts them where they can be acted on. |
+
+Because this file is modified, **review `git diff upstream/main -- .github/` on every sync** and
+re-apply these if upstream rewrites the release job. Reviewing that diff is worth doing regardless:
+merging upstream runs *their* workflow code with this repo's `contents: write` and `packages: write`
+token.
+
+Known non-blocking CI failures on this fork:
+
+- **Scan Dependencies** (`dependency-review-action`) — needs Dependency Graph, which GitHub disables
+  by default on forks. Enable under Settings → Code security, or ignore.
+- **Trivy CVEs** in `undici` and `vite`, inherited from upstream's lockfile. Not introduced here.
+  Real exposure is low for this deployment (LAN-only, no SOCKS proxy configured, not Windows), but
+  they should clear when upstream bumps deps.
+
 ## One-time setup gotcha
 
 GitHub **disables workflows on forks by default**. `total_count` from
