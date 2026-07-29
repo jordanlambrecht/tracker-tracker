@@ -17,7 +17,27 @@ const PROFILE_HTML = `
   <span class="profile-info-details profile-ratio-details">2.000</span>
 </div>`
 
+// Header menu, copied from a real logged-in TL profile page (values altered).
+// Note the shape difference that the count parsing depends on: seeding and
+// leeching lead with a transfer SIZE and carry the torrent count in trailing
+// parens, whereas Hit and Run is a bare number.
+const MENU_HTML = `
+<span class="menu-info">
+  <div title="Uploaded (Seeding)" class="div-menu-item">
+    <i class="fa fa-arrow-circle-o-up"></i> <span class="link">2.39 TB</span> (30)
+  </div>
+  <div title="Downloaded (Leeching)" class="div-menu-item">
+    <i class="fa fa-arrow-circle-o-down"></i> <span class="link">244.44 GB</span> (9)
+  </div>
+  <div title="Buffer" class="div-menu-item"><i class="fa fa-refresh"></i> 2.15 TB</div>
+  <div title="Ratio" class="div-menu-item"><i class="fa fa-percent"></i> 9.995</div>
+  <div title="Hit and Run" class="div-menu-item">
+    <span class="link"><i class="fa fa-ban"></i>  4</span>
+  </div>
+</span>`
+
 const FULL_PROFILE_PAGE = `<!doctype html><html><head></head><body>${PROFILE_HTML}</body></html>`
+const PAGE_WITH_MENU = `<!doctype html><html><body>${PROFILE_HTML}${MENU_HTML}</body></html>`
 
 function setCookieResponse(cookies: string[], overrides: Partial<Response> = {}): Response {
   return {
@@ -37,6 +57,32 @@ describe("parseTlProfile", () => {
     expect(stats.downloadedBytes).toBe(5_250_000_000n)
     expect(stats.ratio).toBeCloseTo(2.0)
     expect(stats.bufferBytes).toBe(10_500_000_000n - 5_250_000_000n)
+  })
+
+  it("reads the parenthesised torrent count, not the transfer size", () => {
+    const stats = parseTlProfile(PAGE_WITH_MENU, "testuser")
+    // Regression guard: taking the first number in the element would give
+    // 2 (from "2.39 TB") and 244 (from "244.44 GB").
+    expect(stats.seedingCount).toBe(30)
+    expect(stats.leechingCount).toBe(9)
+  })
+
+  it("extracts the hit-and-run count from the header menu", () => {
+    expect(parseTlProfile(PAGE_WITH_MENU, "testuser").hitAndRuns).toBe(4)
+  })
+
+  it("reports zero hit and runs as 0, not null", () => {
+    const clean = PAGE_WITH_MENU.replace(
+      '<i class="fa fa-ban"></i>  4',
+      '<i class="fa fa-ban"></i>  0'
+    )
+    expect(parseTlProfile(clean, "testuser").hitAndRuns).toBe(0)
+  })
+
+  it("leaves hitAndRuns null when the counter is absent", () => {
+    // A missing counter must not read as "no hit and runs" — that would hide
+    // the condition the field exists to surface.
+    expect(parseTlProfile(FULL_PROFILE_PAGE, "testuser").hitAndRuns).toBeNull()
   })
 
   it("treats an infinite ratio (∞) as 0", () => {
