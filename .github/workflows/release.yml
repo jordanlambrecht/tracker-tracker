@@ -73,9 +73,8 @@ jobs:
       # DOCKERHUB_* secrets, and docker/login-action fails on empty credentials,
       # which aborted the whole job BEFORE the build/push step ever ran.
 
-      - name: Set up QEMU (for arm64 cross-compilation)
-        if: steps.tag.outputs.should_release == 'true'
-        uses: docker/setup-qemu-action@v4
+      # FORK: upstream's "Set up QEMU (for arm64 cross-compilation)" step
+      # removed along with the arm64 platform below — nothing left to emulate.
 
       - name: Set up Docker Buildx
         if: steps.tag.outputs.should_release == 'true'
@@ -87,17 +86,26 @@ jobs:
         with:
           context: .
           push: true
-          platforms: linux/amd64,linux/arm64
+          # FORK: amd64 only. The single deploy target (the yams VM) is x86_64,
+          # so arm64 was being emulated under QEMU for an image nothing pulls —
+          # and emulated builds are several times slower than native. Re-add
+          # linux/arm64 (and the QEMU setup step above) if an ARM host ever
+          # needs to run this.
+          platforms: linux/amd64
           # FORK: docker.io/jordyjordy/* tags removed — that is upstream's
           # Docker Hub namespace, which this fork has no rights to push to.
           # GHCR only, which IMAGE_NAME resolves to our own repo path.
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.version }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          cache-from: |
-            type=gha,scope=buildx-amd64
-            type=gha,scope=buildx-arm64
-          cache-to: type=gha,mode=max,scope=buildx-${{ steps.tag.outputs.version }}
+          # FORK / BUG FIX: these scopes did not match. cache-to wrote to
+          # `buildx-<version>` while cache-from read `buildx-amd64` and
+          # `buildx-arm64`, so no release ever read a cache entry another
+          # release had written — every build was cold, and each one left
+          # behind a version-scoped entry nothing would ever read again.
+          # Read and write the same scope so layers actually carry over.
+          cache-from: type=gha,scope=buildx-amd64
+          cache-to: type=gha,mode=max,scope=buildx-amd64
 
       - name: Run Trivy vulnerability scanner
         if: steps.tag.outputs.should_release == 'true'

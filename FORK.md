@@ -64,6 +64,14 @@ these are not preferences, they are blockers:
 | Removed `docker.io/jordyjordy/*` image tags | That is upstream's Docker Hub namespace; this fork has no rights to push there, so `build-push` failed. GHCR only now — `IMAGE_NAME` already resolves to our own repo path. |
 | Removed "Sync README to Docker Hub" step | Same missing secrets, and it targets upstream's Docker Hub repo. |
 | Trivy `exit-code: "0"` + `if: always()` on the SARIF upload | The image is pushed *before* the scan runs, so a hard failure never prevented a vulnerable image shipping — it only skipped the SARIF upload and the GitHub Release, leaving the run permanently red and the findings invisible in the Security tab. Non-blocking puts them where they can be acted on. |
+| `platforms: linux/amd64` only, QEMU setup step removed | The single deploy target (yams) is x86_64. arm64 was emulated under QEMU for an image nothing pulls, and emulation is several times slower than native. Re-add both if an ARM host ever needs this. |
+| **Cache scope fix** — `cache-from`/`cache-to` both `buildx-amd64` | Upstream wrote `cache-to: scope=buildx-<version>` but read `cache-from: scope=buildx-amd64,buildx-arm64`. The scopes never matched, so **no release ever read a cache entry another release wrote** — every build was cold, and each left a version-scoped entry nothing would read again. Worth upstreaming. |
+
+### Release build time
+
+The Docker build step was **989s of an 18m25s run** — every other step totalled ~90s. Both changes
+above target that one step: dropping the emulated arm64 half, and making the layer cache actually
+hit on subsequent builds.
 
 Because this file is modified, **review `git diff upstream/main -- .github/` on every sync** and
 re-apply these if upstream rewrites the release job. Reviewing that diff is worth doing regardless:
