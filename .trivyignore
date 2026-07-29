@@ -11,17 +11,17 @@ CVE-2026-26960
 CVE-2026-29786
 CVE-2026-31802
 
-# vite — dev-only. Reaches the image solely because the schema-deps stage runs a full
-# `pnpm install` (devDependencies included) and the runner copies that node_modules.
-# The CVE is a `server.fs.deny` bypass via Windows alternate paths in vite's DEV SERVER;
-# this image is Linux, serves Next.js standalone, and never starts vite. Exposure is nil.
-# Not fixable by a pnpm override — vitest 4.1.4 holds vite at 7.3.2 (7.3.6 exists, but
-# neither `overrides` nor `--force` re-resolves it). The real fix is to stop shipping
-# devDependencies in the runner stage; see FORK.md.
-CVE-2026-53571
+# vite — REMOVED (was CVE-2026-53571). vite no longer reaches the image at all: the
+# schema-deps stage now installs with `--prod`, so no devDependency tree is copied into
+# the runner. The suppression was deleted rather than kept, so that if vite ever reappears
+# in a production image Trivy fails loudly instead of staying quiet. vite is still pinned at
+# 7.3.2 in the lockfile by vitest's peer range — that surfaces in `pnpm audit`, which is
+# advisory-only, not in the image scan that gates the build.
 
 # esbuild Go stdlib (1.23.x) — build tool binary in schema-sync, not a runtime service. Runs once at startup for drizzle-kit push.
 # Cannot fix until esbuild ships a release built with Go 1.24.13+.
+# NOTE: none of the IDs below appear in a scan of the current image (esbuild is now 0.28.1);
+# they are retained only so a base-image or esbuild regression does not turn CI red overnight.
 CVE-2025-47912
 CVE-2025-58183
 CVE-2025-58185

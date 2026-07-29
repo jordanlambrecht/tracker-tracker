@@ -78,28 +78,43 @@ re-apply these if upstream rewrites the release job. Reviewing that diff is wort
 merging upstream runs *their* workflow code with this repo's `contents: write` and `packages: write`
 token.
 
-## Known issue: devDependencies ship in the production image
+## Fixed: devDependencies no longer ship in the production image
 
-The `schema-deps` Dockerfile stage runs a full `pnpm install` (devDependencies included) and the
-runner stage copies that `node_modules` in for the drizzle-kit schema push. So vitest's entire
-dependency tree — vite, jsdom, undici — lands in the production image, and Trivy flags it.
+**Was:** the `schema-deps` Dockerfile stage ran a full `pnpm install` (devDependencies included) and
+the runner stage copied that `node_modules` in for the drizzle-kit schema push. vitest's entire
+dependency tree — vite, jsdom, undici, typescript — landed in the production image, and Trivy
+flagged all of it.
 
-Upstream already works around symptoms of this (see the esbuild block in `.trivyignore`). The real
-fix is to install only what schema-sync needs in that stage. **Not attempted yet**: schema-sync runs
-at container startup via `docker-entrypoint.sh`, so getting it wrong breaks deploys, not just builds.
+**Now:** that stage installs with `--prod`. `drizzle-kit`, `drizzle-orm` and `postgres` all live in
+`dependencies`, and drizzle-kit vendors its own esbuild/tsx, so the startup schema push still has
+everything it needs. `drizzle.config.ts` already guarded its `dotenv` require in a try/catch for
+exactly this case. The stage also strips the `prepare` script before installing, because `prepare`
+runs husky — a devDependency that `--prod` correctly does not install.
 
-Interim: `undici` is pinned to a patched `^7.28.0` via `pnpm.overrides`. `vite` could not be moved
-the same way — vitest 4.1.4 holds it at 7.3.2 and neither `overrides` nor `--force` re-resolves it —
-so its CVE is documented in `.trivyignore` instead. That one is genuinely inert here: it is a
-dev-server bug on Windows, and this image is Linux running Next.js standalone.
+Verified by building the image and running `docker-entrypoint.sh` against a throwaway Postgres:
+16 tables created, `/api/health` returned `{"status":"ok","db":"connected"}`. Image dropped
+866 MB to 671 MB, and the runner's schema-sync tree went from the full dependency graph to 29
+top-level packages.
+
+Consequence worth remembering: anything that must exist at container startup has to be a real
+`dependency`. A new startup requirement that lives in `devDependencies` will now break deploys, not
+just builds.
 
 Known non-blocking CI failures on this fork:
 
 - **Scan Dependencies** (`dependency-review-action`) — needs Dependency Graph, which GitHub disables
   by default on forks. Enable under Settings → Code security, or ignore.
-- **Trivy CVEs** in `undici` and `vite`, inherited from upstream's lockfile. Not introduced here.
-  Real exposure is low for this deployment (LAN-only, no SOCKS proxy configured, not Windows), but
-  they should clear when upstream bumps deps.
+- **`pnpm audit`** still reports `vite` CVE-2026-53571, because vitest 4.1.4 holds vite at 7.3.2 in
+  the lockfile and neither `overrides` nor `--force` re-resolves it. Advisory-only — the gate that
+  matters is the Trivy image scan, and vite is no longer in the image.
+
+### Known upstream quirk: sharp is not resolvable at runtime
+
+`next build` with `output: "standalone"` traces sharp into `/app/node_modules/.pnpm/`, but never
+creates the top-level `node_modules/sharp` symlink, so `require("sharp")` fails inside the container
+and Next silently falls back to serving `/_next/image` requests unoptimised. Pre-existing and
+version-independent — not caused by the sharp override. Fixing it means copying sharp explicitly in
+the runner stage; nothing depends on it today.
 
 ## One-time setup gotcha
 
