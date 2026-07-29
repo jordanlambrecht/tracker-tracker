@@ -94,4 +94,4 @@ export const DOCS = {
 } as const satisfies Record<string, DocsEntry>
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
-export const DEFAULT_TRACKER_COLOR = "#00d4ff"
+export const DEFAULT_TRACKER_COLOR = "#67a5d9"

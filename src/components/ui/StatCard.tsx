@@ -80,8 +80,8 @@ type StatCardProps = StatCardBasicProps | StatCardStackedProps | StatCardRingPro
 // ---------------------------------------------------------------------------
 
 function Shell({
-  accentColor,
-  accentOverride,
+  accentColor: _accentColor,
+  accentOverride: _accentOverride,
   alert,
   children,
   className,
@@ -96,7 +96,6 @@ function Shell({
 }) {
   const alertColor =
     alert === "danger" ? CHART_THEME.danger : alert === "warn" ? CHART_THEME.warn : null
-  const glowColor = alertColor ?? accentOverride ?? accentColor
   return (
     <div
       className={clsx(
@@ -105,9 +104,6 @@ function Shell({
         className
       )}
       style={{
-        filter: glowColor
-          ? `drop-shadow(0 0 14px ${hexToRgba(glowColor, alertColor ? 0.18 : 0.09)})`
-          : undefined,
         outline: alertColor ? `1px solid ${hexToRgba(alertColor, 0.25)}` : undefined,
         outlineOffset: "-1px",
         ...style,
@@ -372,7 +368,6 @@ function RingContent({
             strokeDashoffset={dashOffset}
             style={{
               transition: "stroke-dashoffset 0.5s ease, stroke 0.3s ease",
-              filter: `drop-shadow(0 0 4px ${hexToRgba(color, 0.5)})`,
             }}
           />
         </svg>

@@ -151,7 +151,7 @@ export async function fetchFleetAggregation(): Promise<FleetAggregationResponse>
   const trackerTagsWithMeta = trackerTagRows.map((r) => ({
     tag: r.qbtTag as string,
     name: r.name,
-    color: r.color ?? "#01d4ff",
+    color: r.color ?? "#67a5d9",
   }))
 
   const crossSeedTags = aggregateCrossSeedTags(

@@ -49,7 +49,7 @@ function Checkbox({
         <span
           className={clsx(
             "absolute inset-0 block rounded-nm-sm transition-all duration-150",
-            "peer-focus-visible:ring-2 peer-focus-visible:ring-(--color-control-focus) peer-focus-visible:ring-offset-1 peer-focus-visible:ring-offset-base",
+            "peer-focus-visible:ring-2 peer-focus-visible:ring-(--color-control-focus) peer-focus-visible:ring-offset-1 peer-focus-visible:ring-offset-transparent",
             checked ? "nm-raised-sm bg-accent-dim" : "nm-inset-sm bg-control-bg"
           )}
         >

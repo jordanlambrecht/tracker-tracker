@@ -1,6 +1,6 @@
 // src/app/layout.tsx
 import type { Metadata } from "next"
-import { Archivo, Space_Mono } from "next/font/google"
+import { Archivo, JetBrains_Mono } from "next/font/google"
 import type { ReactNode } from "react"
 import "./globals.css"
 
@@ -9,7 +9,7 @@ const archivo = Archivo({
   variable: "--font-archivo",
 })
 
-const spaceMono = Space_Mono({
+const jetBrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   weight: ["400", "700"],
   variable: "--font-mono",
@@ -30,7 +30,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className="dark">
       <body
-        className={`${archivo.variable} ${spaceMono.variable} font-sans antialiased bg-base text-primary`}
+        className={`${archivo.variable} ${jetBrainsMono.variable} font-sans antialiased bg-base text-primary`}
       >
         {children}
       </body>

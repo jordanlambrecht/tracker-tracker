@@ -76,10 +76,7 @@ function ClientSlide({
       onPointerDown={(e) => e.stopPropagation()}
       className="flex items-center gap-2 cursor-pointer w-full text-left"
     >
-      <span
-        className={clsx("color-dot", hasError ? "bg-danger" : "bg-success")}
-        style={hasError ? undefined : { boxShadow: "0 0 6px var(--color-success)" }}
-      />
+      <span className={clsx("color-dot", hasError ? "bg-danger" : "bg-success")} />
       <div className="flex flex-col flex-1 min-w-0">
         <MarqueeText className="text-xs font-mono text-secondary">{client.name}</MarqueeText>
         <span className="text-3xs font-mono text-tertiary">{renderSubline()}</span>

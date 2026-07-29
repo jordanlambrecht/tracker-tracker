@@ -31,7 +31,7 @@ function PollRing({ completed, total }: { completed: number; total: number }) {
         cy={size / 2}
         r={r}
         fill="none"
-        stroke="var(--color-accent, #00d4ff)"
+        stroke="var(--color-accent)"
         strokeWidth={stroke}
         strokeDasharray={circumference}
         strokeDashoffset={offset}

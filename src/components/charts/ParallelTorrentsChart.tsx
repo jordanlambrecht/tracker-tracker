@@ -199,8 +199,6 @@ function buildParallelOption(torrents: TorrentRaw[], trackerColor: string): ECha
             color: lineEmphasisColor,
             width: 2,
             opacity: 1,
-            shadowColor: trackerColor,
-            shadowBlur: 8,
           },
         },
         data: rows,

@@ -51,8 +51,6 @@ function buildFleetSizeJitterOption(data: TrackerSizes[]): EChartsOption {
       emphasis: {
         itemStyle: {
           opacity: 1,
-          shadowBlur: 8,
-          shadowColor: entry.color,
         },
       },
     }

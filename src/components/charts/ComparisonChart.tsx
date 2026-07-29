@@ -134,11 +134,9 @@ function buildAverageSeries(
       lineStyle: {
         color,
         width: 3,
-        shadowColor: color,
-        shadowBlur: 12,
       },
       emphasis: {
-        lineStyle: { shadowBlur: 20, shadowColor: color },
+        lineStyle: { width: 4 },
       },
       areaStyle: {
         color: {
@@ -243,11 +241,9 @@ function buildComparisonOption(
         lineStyle: {
           color: totalColor,
           width: 3,
-          shadowColor: totalColor,
-          shadowBlur: 12,
         },
         emphasis: {
-          lineStyle: { shadowBlur: 20, shadowColor: totalColor },
+          lineStyle: { width: 4 },
         },
       },
     ]
@@ -285,11 +281,10 @@ function buildComparisonOption(
         lineStyle: {
           color: tracker.color,
           width: useStacked ? 1 : 2,
-          ...(useStacked ? {} : { shadowColor: tracker.color, shadowBlur: 8 }),
         },
         emphasis: useStacked
           ? { focus: "series" as const }
-          : { focus: "series" as const, lineStyle: { shadowBlur: 16, shadowColor: tracker.color } },
+          : { focus: "series" as const, lineStyle: { width: 3 } },
       }
     })
   }

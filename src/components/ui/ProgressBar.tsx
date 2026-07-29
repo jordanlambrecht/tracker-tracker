@@ -46,7 +46,6 @@ function ProgressBar({
         style={{
           width: `${clamped}%`,
           backgroundColor: resolvedColor,
-          filter: clamped > 0 ? `drop-shadow(0 0 8px ${resolvedColor}60)` : undefined,
         }}
         role="progressbar"
         aria-valuenow={clamped}

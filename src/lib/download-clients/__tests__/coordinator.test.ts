@@ -764,7 +764,7 @@ describe("fetchFleetAggregation", () => {
     )
   })
 
-  it("should use default color #01d4ff when tracker color is null", async () => {
+  it("should use default color #67a5d9 when tracker color is null", async () => {
     vi.mocked(isStoreFresh).mockReturnValue(true)
     vi.mocked(getFilteredTorrents).mockReturnValue([])
 
@@ -777,7 +777,7 @@ describe("fetchFleetAggregation", () => {
 
     expect(computeFleetAggregation).toHaveBeenCalledWith(
       expect.any(Array),
-      [{ tag: "aither", name: "Aither", color: "#01d4ff" }],
+      [{ tag: "aither", name: "Aither", color: "#67a5d9" }],
       expect.any(Array)
     )
   })

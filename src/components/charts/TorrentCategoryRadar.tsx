@@ -55,8 +55,6 @@ function TorrentCategoryRadar({ categories, accentColor }: TorrentCategoryRadarP
     areaStyle: { color: hexToRgba(palette[i % palette.length], 0.15) },
     lineStyle: {
       width: 2,
-      shadowColor: palette[i % palette.length],
-      shadowBlur: 6,
     },
   }))
 

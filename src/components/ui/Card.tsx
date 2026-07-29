@@ -9,8 +9,6 @@ type CardElevation = "raised" | "elevated"
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   elevation?: CardElevation
-  glow?: boolean
-  glowColor?: string
   trackerColor?: string
   title?: string
   subtitle?: string
@@ -31,8 +29,6 @@ const card = cva("p-5", {
 
 function Card({
   elevation = "raised",
-  glow = false,
-  glowColor,
   trackerColor,
   title,
   subtitle,
@@ -44,16 +40,9 @@ function Card({
 }: CardProps) {
   const composedStyle: CSSProperties = {}
 
-  // Outer haze
-  if (trackerColor) {
-    composedStyle.filter = `drop-shadow(0 0 16px ${hexToRgba(trackerColor, 0.11)})`
-  } else if (glow && glowColor) {
-    composedStyle.filter = `drop-shadow(0 0 16px ${glowColor})`
-  }
-
   // Inset accent — pseudo-element for the "face"
   if (trackerColor) {
-    ;(composedStyle as Record<string, string>)["--card-accent"] = hexToRgba(trackerColor, 0.08)
+    ;(composedStyle as Record<string, string>)["--card-accent"] = hexToRgba(trackerColor, 0.45)
   }
 
   return (

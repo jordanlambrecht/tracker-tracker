@@ -4,7 +4,6 @@
 import type { EChartsOption } from "echarts"
 import { useState } from "react"
 import { TabBar } from "@/components/ui/TabBar"
-import { getComplementaryColor } from "@/lib/color-utils"
 import { bytesToGiB, formatCount } from "@/lib/formatters"
 import { isValidHex } from "@/lib/validators"
 import type { Snapshot } from "@/types/api"
@@ -32,6 +31,7 @@ import {
   chartTooltip,
   chartTooltipHeader,
   chartTooltipRow,
+  downloadSeriesColor,
   escHtml,
   formatChartTimestamp,
 } from "./lib/theme"
@@ -197,12 +197,10 @@ function buildLineOption(
         lineStyle: {
           color: safeAccent,
           width: 2,
-          shadowColor: safeAccent,
-          shadowBlur: 8,
         },
         areaStyle: buildGlowAreaStyle(safeAccent),
         emphasis: {
-          lineStyle: { shadowBlur: 16, shadowColor: safeAccent },
+          lineStyle: { width: 3 },
         },
         markLine:
           baselineValue != null && baselineValue > 0
@@ -248,7 +246,9 @@ function buildDailyDeltaOption(
   const finalUpload = uploadData.map((v) => Number((v / divisor).toFixed(3)))
   const finalDownload = downloadData.map((v) => Number((v / divisor).toFixed(3)))
 
-  const complementColor = getComplementaryColor(safeAccent)
+  // Download Δ series uses the semantic download color instead of a
+  // hue-rotated complement of the tracker color (see UploadDownloadChart).
+  const complementColor = downloadSeriesColor(safeAccent)
   const deltaDotSize = adaptiveDotSize(buckets.length, [30, 14])
 
   return {
@@ -309,9 +309,9 @@ function buildDailyDeltaOption(
               symbol: "circle",
               symbolSize: deltaDotSize,
               itemStyle: { color: safeAccent },
-              lineStyle: { color: safeAccent, width: 2, shadowColor: safeAccent, shadowBlur: 8 },
+              lineStyle: { color: safeAccent, width: 2 },
               areaStyle: buildGlowAreaStyle(safeAccent),
-              emphasis: { lineStyle: { shadowBlur: 16, shadowColor: safeAccent } },
+              emphasis: { lineStyle: { width: 3 } },
             },
             {
               name: "Download Δ",
@@ -325,11 +325,9 @@ function buildDailyDeltaOption(
               lineStyle: {
                 color: complementColor,
                 width: 2,
-                shadowColor: complementColor,
-                shadowBlur: 8,
               },
               areaStyle: buildGlowAreaStyle(complementColor, 0.2),
-              emphasis: { lineStyle: { shadowBlur: 16, shadowColor: complementColor } },
+              emphasis: { lineStyle: { width: 3 } },
             },
           ]
         : [
@@ -341,7 +339,9 @@ function buildDailyDeltaOption(
                 color: safeAccent,
                 borderRadius: [3, 3, 0, 0],
               },
-              emphasis: { itemStyle: { shadowBlur: 8, shadowColor: safeAccent } },
+              emphasis: {
+                itemStyle: { borderColor: CHART_THEME.textPrimary, borderWidth: 1.5 },
+              },
             },
             {
               name: "Download Δ",
@@ -351,7 +351,9 @@ function buildDailyDeltaOption(
                 color: complementColor,
                 borderRadius: [3, 3, 0, 0],
               },
-              emphasis: { itemStyle: { shadowBlur: 8, shadowColor: complementColor } },
+              emphasis: {
+                itemStyle: { borderColor: CHART_THEME.textPrimary, borderWidth: 1.5 },
+              },
             },
           ],
   }
