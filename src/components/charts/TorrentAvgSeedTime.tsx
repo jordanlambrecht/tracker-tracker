@@ -85,11 +85,11 @@ function TorrentAvgSeedTime({ torrents, accentColor }: TorrentAvgSeedTimeProps) 
         smooth: true,
         symbol: "circle",
         symbolSize: 4,
-        lineStyle: { color: accentColor, width: 2, shadowColor: accentColor, shadowBlur: 8 },
+        lineStyle: { color: accentColor, width: 2 },
         itemStyle: { color: accentColor },
         areaStyle: buildGlowAreaStyle(accentColor, 0.3, 0.02),
         emphasis: {
-          lineStyle: { shadowBlur: 16, shadowColor: accentColor },
+          lineStyle: { width: 3 },
         },
       },
     ],

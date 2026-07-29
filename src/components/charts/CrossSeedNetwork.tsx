@@ -4,7 +4,6 @@
 
 import type { EChartsOption } from "echarts"
 import { useMemo } from "react"
-import { hexToRgba } from "@/lib/color-utils"
 import type { CrossSeedEdge, CrossSeedNode } from "@/lib/fleet-aggregation"
 import { formatCount } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
@@ -21,7 +20,7 @@ interface NetworkNode {
   id: string
   name: string
   symbolSize: number
-  itemStyle: { color: string; shadowBlur: number; shadowColor: string }
+  itemStyle: { color: string }
   label: { show: boolean; color: string; fontSize: number; fontFamily: string }
   torrentCount: number
   crossSeeded: number
@@ -45,7 +44,7 @@ function buildStyledNodes(aggregatedNodes: CrossSeedNode[]): NetworkNode[] {
       symbolSize: nodeSize,
       torrentCount: n.torrentCount,
       crossSeeded: n.crossSeeded,
-      itemStyle: { color: n.color, shadowBlur: 20, shadowColor: hexToRgba(n.color, 0.5) },
+      itemStyle: { color: n.color },
       label: {
         show: true,
         color: CHART_THEME.textSecondary,
@@ -130,7 +129,6 @@ function buildCrossSeedNetworkOption(nodes: NetworkNode[], edges: NetworkEdge[])
         emphasis: {
           focus: "adjacency",
           lineStyle: { width: 4, opacity: 0.9 },
-          itemStyle: { shadowBlur: 30 },
         },
         blur: {
           itemStyle: { opacity: 0.15 },

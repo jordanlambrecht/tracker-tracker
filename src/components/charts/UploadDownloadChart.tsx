@@ -2,7 +2,6 @@
 "use client"
 
 import type { EChartsOption } from "echarts"
-import { getComplementaryColor } from "@/lib/color-utils"
 import { bytesToGiB } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import { ChartECharts } from "./lib/ChartECharts"
@@ -25,6 +24,7 @@ import {
   chartLegend,
   chartTooltip,
   chartTooltipHeader,
+  downloadSeriesColor,
   escHtml,
   formatChartTimestamp,
 } from "./lib/theme"
@@ -60,7 +60,10 @@ function buildOption(
   }
 
   const dotSize = adaptiveDotSize(snapshots.length)
-  const complementColor = getComplementaryColor(accentColor)
+  // Downloaded series uses the app-wide semantic download color rather than a
+  // hue-rotated complement of the tracker color (complements produced clashing
+  // neon hues, e.g. magenta against a green tracker).
+  const complementColor = downloadSeriesColor(accentColor)
 
   // Scrubber is useless (and renders oversized) with ≤ 2 data points
   const hasEnoughData = showDataZoom && snapshots.length > 2
@@ -138,14 +141,11 @@ function buildOption(
         lineStyle: {
           color: accentColor,
           width: 2,
-          shadowColor: accentColor,
-          shadowBlur: 8,
         },
         areaStyle: buildGlowAreaStyle(accentColor),
         emphasis: {
           lineStyle: {
-            shadowBlur: 16,
-            shadowColor: accentColor,
+            width: 3,
           },
         },
       },
@@ -161,14 +161,11 @@ function buildOption(
         lineStyle: {
           color: complementColor,
           width: 2,
-          shadowColor: complementColor,
-          shadowBlur: 8,
         },
         areaStyle: buildGlowAreaStyle(complementColor, 0.2),
         emphasis: {
           lineStyle: {
-            shadowBlur: 16,
-            shadowColor: complementColor,
+            width: 3,
           },
         },
       },

@@ -1,7 +1,6 @@
 // src/components/charts/TorrentCrossSeedDonut.tsx
 "use client"
 
-import { getComplementaryColor, hexToRgba } from "@/lib/color-utils"
 import { formatCount } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
@@ -21,7 +20,9 @@ function TorrentCrossSeedDonut({ crossSeeded, unique, accentColor }: TorrentCros
     return <ChartEmptyState height={300} message="No cross-seed data available" />
   }
 
-  const secondaryColor = getComplementaryColor(accentColor)
+  // Non-cross-seeded slice: neutral gray reads as "the rest" rather than a
+  // hue-rotated complement of the tracker color.
+  const secondaryColor = CHART_THEME.chartFallback
 
   const crossPct = total > 0 ? ((crossSeeded / total) * 100).toFixed(1) : "0"
 
@@ -68,7 +69,7 @@ function TorrentCrossSeedDonut({ crossSeeded, unique, accentColor }: TorrentCros
         label: { show: false },
         emphasis: {
           label: { show: false },
-          itemStyle: { shadowBlur: 12, shadowColor: hexToRgba(accentColor, 0.5) },
+          scaleSize: 4,
         },
         data: [
           {

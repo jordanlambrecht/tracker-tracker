@@ -6,7 +6,7 @@
 //
 // Functions:
 //   escHtml             - HTML-escape untrusted strings for ECharts tooltips
-//   chartDot            - glowing dot swatch for tooltip rows
+//   chartDot            - dot swatch for tooltip rows
 //   chartTooltipRow     - standard tooltip row: colored dot + label + bold value
 //   chartTooltipHeader  - timestamp header for tooltip content
 //   formatChartTimestamp - locale-formatted date/time for chart tooltips
@@ -17,70 +17,71 @@
 //   chartGrid           - standard grid margins
 //   chartAxisLabel      - standard axis label styling
 //   chartDataZoom       - standard slider dataZoom configuration
+//   downloadSeriesColor - download-series color that avoids clashing with a warm tracker accent
 
-import { hexToRgba } from "@/lib/color-utils"
+import { hexToHsl, hexToRgba } from "@/lib/color-utils"
 
 export const CHART_THEME = {
   // ── Surfaces ──
-  surface: "#282a36", // --color-base
-  elevated: "#2e3042", // --color-elevated
-  surfaceElevated: "#343648", // --color-overlay — raised handle surfaces
-  overlay: "#343648", // --color-overlay
-  controlBg: "#1e2029", // --color-control-bg
-  tooltipBg: "#2e3042", // same as elevated
-  surfaceSemi: hexToRgba("#282a36", 0.6), // semi-transparent base for slider backgrounds
+  surface: "#1c1d1f", // --color-raised — charts sit on cards; used as seam/background inside them
+  elevated: "#242528", // --color-elevated
+  surfaceElevated: "#2a2b2f", // --color-overlay — raised handle surfaces
+  overlay: "#2a2b2f", // --color-overlay
+  controlBg: "#151618", // --color-control-bg
+  tooltipBg: "#242528", // same as elevated
+  surfaceSemi: hexToRgba("#1c1d1f", 0.6), // semi-transparent base for slider backgrounds
 
   // ── Text ──
-  textPrimary: "#e2e8f0", // --color-primary
-  textSecondary: "#94a3b8", // --color-secondary
-  textTertiary: "#64748b", // --color-tertiary
+  textPrimary: "#edeef1", // --color-primary
+  textSecondary: "#bec1c6", // --color-secondary
+  textTertiary: "#9b9fa5", // --color-tertiary
   fontMono: "var(--font-mono), monospace",
 
   // ── Borders ──
-  tooltipBorder: hexToRgba("#94a3b8", 0.2),
-  gridLine: hexToRgba("#94a3b8", 0.08), // --color-border
-  borderEmphasis: hexToRgba("#94a3b8", 0.15), // --color-border-emphasis
-  borderMid: hexToRgba("#94a3b8", 0.3), // axis pointers, label lines
+  tooltipBorder: hexToRgba("#bec1c6", 0.25),
+  gridLine: hexToRgba("#bec1c6", 0.08), // --color-border
+  borderEmphasis: hexToRgba("#bec1c6", 0.15), // --color-border-emphasis
+  borderMid: hexToRgba("#bec1c6", 0.3), // axis pointers, label lines
 
   // ── Layer 1: Raw colors ──
-  cyan: "#00d4ff",
-  amber: "#f59e0b",
-  red: "#ef4444",
-  green: "#10b981",
-  lime: "#22c55e",
-  violet: "#8b5cf6",
-  sky: "#06b6d4",
+  cyan: "#67a5d9",
+  amber: "#e1a035",
+  red: "#e9504d",
+  green: "#3fb785",
+  lime: "#53be70",
+  violet: "#927be2",
+  sky: "#4aadc9",
 
   // ── Layer 2: Semantic ──
-  accent: "#00d4ff",
-  warn: "#f59e0b",
-  danger: "#ef4444",
-  success: "#10b981",
+  accent: "#67a5d9",
+  warn: "#e1a035",
+  danger: "#e9504d",
+  success: "#3fb785",
 
   // ── Layer 3: Purpose ──
-  upload: "#00d4ff",
-  download: "#f59e0b",
-  positive: "#22c55e",
-  negative: "#ef4444",
-  neutral: "#94a3b8",
-  chartFallback: "#6b7280",
+  upload: "#67a5d9",
+  download: "#d8944d",
+  positive: "#53be70",
+  negative: "#e9504d",
+  neutral: "#bec1c6",
+  chartFallback: "#7a7e86",
 
   // Ordinal scale for ratio/seed-time distribution buckets
-  scale: ["#ef4444", "#f59e0b", "#10b981", "#00d4ff", "#8b5cf6", "#06b6d4"] as const,
+  scale: ["#e9504d", "#e1a035", "#3fb785", "#67a5d9", "#927be2", "#4aadc9"] as const,
 
-  // ── Glow variants (for areaStyle fills, shadows) ──
-  accentDim: hexToRgba("#00d4ff", 0.15),
-  accentGlow: hexToRgba("#00d4ff", 0.3),
-  accentGlow40: hexToRgba("#00d4ff", 0.4),
-  accentGlow60: hexToRgba("#00d4ff", 0.6),
-  warnDim: hexToRgba("#f59e0b", 0.15),
-  warnGlow: hexToRgba("#f59e0b", 0.3),
+  // ── Dim/glow variants (for areaStyle fills, tint overlays) ──
+  accentDim: hexToRgba("#67a5d9", 0.15),
+  accentGlow: hexToRgba("#67a5d9", 0.3),
+  accentGlow40: hexToRgba("#67a5d9", 0.4),
+  accentGlow60: hexToRgba("#67a5d9", 0.6),
+  warnDim: hexToRgba("#e1a035", 0.15),
+  warnGlow: hexToRgba("#e1a035", 0.3),
 
   // ── Font sizes (raw numbers — ECharts cannot read CSS vars) ──
   // Keep in sync with @theme inline tokens in globals.css.
   fontSizeMicro: 9, // text-4xs — unit suffixes in chart tooltips
   fontSizeCompact: 10, // text-3xs — axis labels, legend items
-  fontSizeDense: 10, // text-2xs — same as compact today; bump to 11 if needed
+  fontSizeDense: 11, // text-2xs — CSS --text-2xs is now 11px
   fontSizeSmall: 12, // text-xs  — tooltip body, larger labels
 } as const
 
@@ -93,12 +94,12 @@ export function escHtml(s: string): string {
     .replace(/"/g, "&quot;")
 }
 
-/** Glowing dot swatch for tooltip rows */
+/** Dot swatch for tooltip rows */
 export function chartDot(color: string): string {
   const safe = /^(#[0-9a-fA-F]{3,8}|rgba?\(|hsla?\(|[a-z]+$)/.test(color)
     ? color
     : CHART_THEME.neutral
-  return `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${safe};margin-right:6px;box-shadow:0 0 6px ${safe};"></span>`
+  return `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${safe};margin-right:6px;"></span>`
 }
 
 /** Standard tooltip row: colored dot + label + bold value */
@@ -253,7 +254,7 @@ export function chartDataZoom(accentColor: string): Record<string, unknown>[] {
       type: "slider",
       borderColor: CHART_THEME.gridLine,
       borderRadius: 8,
-      backgroundColor: hexToRgba("#1e2029", 0.8), // control-bg, recessed track
+      backgroundColor: hexToRgba(CHART_THEME.controlBg, 0.8), // control-bg, recessed track
       fillerColor: hexToRgba(accentColor, 0.08),
       handleStyle: {
         color: CHART_THEME.surfaceElevated,
@@ -270,8 +271,6 @@ export function chartDataZoom(accentColor: string): Record<string, unknown>[] {
         handleStyle: {
           color: CHART_THEME.surfaceElevated,
           borderColor: accentColor,
-          shadowBlur: 8,
-          shadowColor: hexToRgba(accentColor, 0.3),
         },
         moveHandleStyle: {
           color: hexToRgba(accentColor, 0.5),
@@ -283,7 +282,7 @@ export function chartDataZoom(accentColor: string): Record<string, unknown>[] {
       },
       dataBackground: {
         lineStyle: { color: CHART_THEME.gridLine },
-        areaStyle: { color: hexToRgba("#94a3b8", 0.04) },
+        areaStyle: { color: hexToRgba(CHART_THEME.neutral, 0.04) },
       },
       textStyle: {
         color: CHART_THEME.textTertiary,
@@ -294,4 +293,18 @@ export function chartDataZoom(accentColor: string): Record<string, unknown>[] {
       bottom: 8,
     },
   ]
+}
+
+/**
+ * Color for a "download" series paired with a tracker-accent "upload" series.
+ * Uses the semantic download orange unless the tracker accent is itself a
+ * warm/orange hue (within ~40° of it), in which case fall back to sky so the
+ * two series stay distinguishable.
+ */
+export function downloadSeriesColor(accentHex: string): string {
+  const [accentHue] = hexToHsl(accentHex)
+  const [downloadHue] = hexToHsl(CHART_THEME.download)
+  const diff = Math.abs(accentHue - downloadHue)
+  const hueDistance = Math.min(diff, 360 - diff)
+  return hueDistance < 40 ? CHART_THEME.sky : CHART_THEME.download
 }

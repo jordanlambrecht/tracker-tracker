@@ -305,7 +305,7 @@ function buildParallelOption(
         opacity: 0.7,
       },
       emphasis: {
-        lineStyle: { width: 5, opacity: 1, shadowBlur: 12, shadowColor: t.color },
+        lineStyle: { width: 5, opacity: 1 },
       },
       data: [[t.uploadPct, t.seedingPct]],
     })),

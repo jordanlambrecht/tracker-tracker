@@ -166,7 +166,7 @@ function buildRatioStabilityOption(
       itemStyle: { color: tracker.color },
       emphasis: {
         focus: "series" as const,
-        lineStyle: { shadowBlur: 16, shadowColor: tracker.color },
+        lineStyle: { width: 3 },
       },
     })
   }

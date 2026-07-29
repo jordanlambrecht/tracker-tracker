@@ -81,12 +81,10 @@ function TorrentAgeTimeline({ torrents, accentColor }: TorrentAgeTimelineProps) 
         lineStyle: {
           color: accentColor,
           width: 2,
-          shadowColor: accentColor,
-          shadowBlur: 8,
         },
         areaStyle: buildGlowAreaStyle(accentColor),
         emphasis: {
-          lineStyle: { shadowBlur: 16, shadowColor: accentColor },
+          lineStyle: { width: 3 },
         },
       },
     ],

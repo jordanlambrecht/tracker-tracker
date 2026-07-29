@@ -76,7 +76,7 @@ function TorrentSizeBreakdown({ categories, accentColor }: TorrentSizeBreakdownP
           .map((c, i) => ({
             value: c.totalSize,
             itemStyle: { color: palette[i % palette.length], borderRadius: [0, 4, 4, 0] },
-            emphasis: { itemStyle: { shadowBlur: 8, shadowColor: palette[i % palette.length] } },
+            emphasis: { itemStyle: { opacity: 0.85 } },
           }))
           .reverse(),
         barWidth: "60%",
