@@ -49,7 +49,7 @@ function mapBtnResult(result: BtnUserInfoResult): TrackerStats {
     bufferBytes: computeBufferBytes(uploadedBytes, downloadedBytes),
     seedingCount: 0,
     leechingCount: 0,
-    seedbonus: Math.round(parseFloat(result.Lumens ?? "0") || 0),
+    seedbonus: parseFloat(result.Lumens ?? "0") || 0,
     hitAndRuns: parseInt(result.HnR ?? "0", 10) || 0,
     requiredRatio: 0,
     warned: false,

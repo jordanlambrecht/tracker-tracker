@@ -53,12 +53,38 @@ describe("BtnAdapter", () => {
     expect(stats.seedingCount).toBe(0)
     expect(stats.leechingCount).toBe(0)
     expect(stats.seedbonus).toBe(10)
-    expect(stats.freeleechTokens).toBe(2.5)
+    expect(stats.freeleechTokens).toBe(3)
     expect(stats.hitAndRuns).toBe(3)
     expect(stats.requiredRatio).toBe(0)
     expect(stats.warned).toBe(false)
     expect(stats.remoteUserId).toBe(1531582)
     expect(stats.joinedDate).toContain("2026")
+  })
+
+  it("rounds a high-precision fractional Bonus value to the nearest integer", async () => {
+    const mockResponse = {
+      id: 1,
+      result: {
+        UserID: "1531582",
+        Username: "thing7314",
+        Upload: "5000000000",
+        Download: "1000000000",
+        Lumens: "10",
+        Bonus: "2614.5799827575684",
+        Class: "User",
+        HnR: "3",
+      },
+    }
+
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => mockResponse,
+    } as Response)
+
+    const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_URL)
+
+    expect(stats.freeleechTokens).toBe(2615)
   })
 
   it("falls back to safe defaults when undocumented fields are missing", async () => {
