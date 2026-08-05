@@ -57,20 +57,23 @@ export function buildBaseUrl(host: string, port: number, ssl: boolean): string {
 // SID session cache to avoid re-authenticating on every poll cycle.
 // ---------------------------------------------------------------------------
 
+/** The session cookie qBittorrent assigns at login — name varies by version/port. */
+export type SidCookie = { name: string; value: string }
+
 const gSid = globalThis as typeof globalThis & {
-  __qbtSidCache?: Map<string, string>
+  __qbtSidCache?: Map<string, SidCookie>
 }
 if (!gSid.__qbtSidCache) gSid.__qbtSidCache = new Map()
 const sidCache = gSid.__qbtSidCache
 
-/** Get a cached SID or perform a fresh login. */
+/** Get a cached session cookie or perform a fresh login. */
 export async function getSession(
   host: string,
   port: number,
   ssl: boolean,
   username: string,
   password: string
-): Promise<{ baseUrl: string; sid: string }> {
+): Promise<{ baseUrl: string; sid: SidCookie }> {
   const baseUrl = buildBaseUrl(host, port, ssl)
   const cached = sidCache.get(baseUrl)
   if (cached) return { baseUrl, sid: cached }
@@ -107,7 +110,7 @@ export async function withSessionRetry<T>(
   ssl: boolean,
   username: string,
   password: string,
-  op: (baseUrl: string, sid: string) => Promise<T>
+  op: (baseUrl: string, sid: SidCookie) => Promise<T>
 ): Promise<T> {
   const { baseUrl, sid } = await getSession(host, port, ssl, username, password)
   try {
@@ -128,7 +131,7 @@ export async function login(
   ssl: boolean,
   username: string,
   password: string
-): Promise<string> {
+): Promise<SidCookie> {
   const baseUrl = buildBaseUrl(host, port, ssl)
   const url = `${baseUrl}/api/v2/auth/login`
   const body = new URLSearchParams({ username, password }).toString()
@@ -163,26 +166,29 @@ export async function login(
 
   // qBittorrent 5.2+ names its session cookie `QBT_SID_<port>` (the WebUI's
   // own listen port baked into the name) instead of the legacy plain `SID`,
-  // so match any cookie whose name contains SID as a token.
+  // so match any cookie whose name contains SID as a token, and capture the
+  // actual name — the server rejects the value if sent back under a
+  // different cookie name (confirmed live: sending the correct value under
+  // the wrong name returns 403).
   const setCookie = response.headers.get("set-cookie") ?? ""
-  const match = setCookie.match(/(?:^|,\s*|;\s*)[\w-]*SID[\w-]*=([^;]+)/)
+  const match = setCookie.match(/(?:^|,\s*|;\s*)([\w-]*SID[\w-]*)=([^;]+)/)
   if (!match) {
     throw new Error("Authentication failed — SID cookie not found in response")
   }
 
-  return match[1]
+  return { name: match[1], value: match[2] }
 }
 
 async function qbtFetch(
   url: string,
   host: string,
   baseUrl: string,
-  sid: string
+  sid: SidCookie
 ): Promise<Response> {
   let response: Response
   try {
     response = await fetch(url, {
-      headers: { Cookie: `SID=${sid}` },
+      headers: { Cookie: `${sid.name}=${sid.value}` },
       signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
     })
   } catch (err) {
@@ -241,7 +247,7 @@ export function parseCachedTorrents(raw: unknown): SlimTorrent[] {
 
 export async function getTorrents(
   baseUrl: string,
-  sid: string,
+  sid: SidCookie,
   tag?: string,
   filter?: string
 ): Promise<QbtTorrent[]> {
@@ -255,7 +261,7 @@ export async function getTorrents(
   return response.json() as Promise<QbtTorrent[]>
 }
 
-export async function getTransferInfo(baseUrl: string, sid: string): Promise<QbtTransferInfo> {
+export async function getTransferInfo(baseUrl: string, sid: SidCookie): Promise<QbtTransferInfo> {
   const url = `${baseUrl}/api/v2/transfer/info`
   const host = new URL(baseUrl).hostname
   const response = await qbtFetch(url, host, baseUrl, sid)
@@ -264,7 +270,7 @@ export async function getTransferInfo(baseUrl: string, sid: string): Promise<Qbt
 
 export async function syncMaindata(
   baseUrl: string,
-  sid: string,
+  sid: SidCookie,
   rid: number
 ): Promise<QbtMaindataResponse> {
   const url = `${baseUrl}/api/v2/sync/maindata?rid=${rid}`
