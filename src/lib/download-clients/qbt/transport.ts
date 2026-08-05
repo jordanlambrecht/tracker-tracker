@@ -161,8 +161,11 @@ export async function login(
     throw new Error("Authentication failed — check username and password")
   }
 
+  // qBittorrent 5.2+ names its session cookie `QBT_SID_<port>` (the WebUI's
+  // own listen port baked into the name) instead of the legacy plain `SID`,
+  // so match any cookie whose name contains SID as a token.
   const setCookie = response.headers.get("set-cookie") ?? ""
-  const match = setCookie.match(/SID=([^;]+)/)
+  const match = setCookie.match(/(?:^|,\s*|;\s*)[\w-]*SID[\w-]*=([^;]+)/)
   if (!match) {
     throw new Error("Authentication failed — SID cookie not found in response")
   }
