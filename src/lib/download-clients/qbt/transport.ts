@@ -157,7 +157,7 @@ export async function login(
   }
 
   const text = await response.text()
-  if (text !== "Ok.") {
+  if (text !== "Ok." && response.status !== 204) {
     throw new Error("Authentication failed — check username and password")
   }
 
