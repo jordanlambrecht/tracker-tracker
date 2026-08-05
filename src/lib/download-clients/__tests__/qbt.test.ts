@@ -31,7 +31,20 @@ describe("login", () => {
   it("returns the SID cookie value on successful login", async () => {
     vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: true,
+      status: 200,
       text: async () => "Ok.",
+      headers: new Headers({ "set-cookie": "SID=abc123xyz; Path=/; HttpOnly" }),
+    } as Response)
+
+    const sid = await login("localhost", 8080, false, "admin", "password")
+    expect(sid).toBe("abc123xyz")
+  })
+
+  it("returns the SID cookie value on successful login with 204 No Content (qBittorrent 5.2+)", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 204,
+      text: async () => "",
       headers: new Headers({ "set-cookie": "SID=abc123xyz; Path=/; HttpOnly" }),
     } as Response)
 
@@ -60,6 +73,7 @@ describe("login", () => {
   it("throws Authentication failed when response text is not Ok.", async () => {
     vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: true,
+      status: 200,
       text: async () => "Fails.",
       headers: new Headers({}),
     } as Response)
