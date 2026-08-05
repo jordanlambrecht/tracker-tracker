@@ -166,17 +166,31 @@ export async function login(
 
   // qBittorrent 5.2+ names its session cookie `QBT_SID_<port>` (the WebUI's
   // own listen port baked into the name) instead of the legacy plain `SID`,
-  // so match any cookie whose name contains SID as a token, and capture the
-  // actual name — the server rejects the value if sent back under a
-  // different cookie name (confirmed live: sending the correct value under
-  // the wrong name returns 403).
-  const setCookie = response.headers.get("set-cookie") ?? ""
-  const match = setCookie.match(/(?:^|,\s*|;\s*)([\w-]*SID[\w-]*)=([^;]+)/)
-  if (!match) {
+  // so match that pattern specifically — the server rejects the value if sent
+  // back under a different cookie name (confirmed live: sending the correct
+  // value under the wrong name returns 403). `getSetCookie()` returns each
+  // Set-Cookie response header as its own array element, unlike `.get()`
+  // which comma-joins them into a single string that's unsafe to regex
+  // across (cookie values can legally contain commas).
+  const sid = response.headers
+    .getSetCookie()
+    .map((cookie): SidCookie | null => {
+      const eq = cookie.indexOf("=")
+      if (eq === -1) return null
+      const name = cookie.slice(0, eq).trim()
+      const value = cookie.slice(eq + 1).split(";", 1)[0].trim()
+      return { name, value }
+    })
+    .find((cookie): cookie is SidCookie => {
+      if (!cookie) return false
+      return cookie.name === "SID" || /^QBT_SID_\d+$/.test(cookie.name)
+    })
+
+  if (!sid) {
     throw new Error("Authentication failed — SID cookie not found in response")
   }
 
-  return { name: match[1], value: match[2] }
+  return sid
 }
 
 async function qbtFetch(

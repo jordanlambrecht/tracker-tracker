@@ -67,6 +67,38 @@ describe("login", () => {
     expect(sid).toEqual({ name: "QBT_SID_8080", value: "YYhsGDAcg8mu89vWPnxXgkH1xkjVQK5h" })
   })
 
+  it("picks the real QBT_SID_<port> cookie over a decoy cookie whose name merely contains SID as a substring", async () => {
+    const headers = new Headers()
+    headers.append("set-cookie", "SIDCC=fakevalue123; Path=/")
+    headers.append("set-cookie", "QBT_SID_8080=realvalue456; HttpOnly; Path=/")
+
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 204,
+      text: async () => "",
+      headers,
+    } as Response)
+
+    const sid = await login("localhost", 8080, false, "admin", "password")
+    expect(sid).toEqual({ name: "QBT_SID_8080", value: "realvalue456" })
+  })
+
+  it("does not bleed the SID cookie's value into a second comma-joined Set-Cookie header when the SID cookie has no trailing attributes", async () => {
+    const headers = new Headers()
+    headers.append("set-cookie", "QBT_SID_8080=realvalue456")
+    headers.append("set-cookie", "other=somethingelse; Path=/")
+
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 204,
+      text: async () => "",
+      headers,
+    } as Response)
+
+    const sid = await login("localhost", 8080, false, "admin", "password")
+    expect(sid).toEqual({ name: "QBT_SID_8080", value: "realvalue456" })
+  })
+
   it("sends a POST to the correct URL with form-encoded body", async () => {
     const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: true,
