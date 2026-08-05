@@ -6,7 +6,7 @@ vi.mock("@/lib/download-clients/qbt/transport", () => ({
   buildBaseUrl: vi.fn(
     (host: string, port: number, ssl: boolean) => `${ssl ? "https" : "http"}://${host}:${port}`
   ),
-  login: vi.fn().mockResolvedValue("test-sid"),
+  login: vi.fn().mockResolvedValue({ name: "SID", value: "test-sid" }),
   getTorrents: vi.fn().mockResolvedValue([
     {
       hash: "abc",
@@ -64,8 +64,8 @@ vi.mock("@/lib/download-clients/qbt/transport", () => ({
       _s: boolean,
       _u: string,
       _pw: string,
-      op: (baseUrl: string, sid: string) => unknown
-    ) => op("http://localhost:8080", "test-sid")
+      op: (baseUrl: string, sid: { name: string; value: string }) => unknown
+    ) => op("http://localhost:8080", { name: "SID", value: "test-sid" })
   ),
 }))
 
@@ -140,7 +140,7 @@ describe("QbtClientAdapter", () => {
     await adapter.getTorrents({ tag: "aither", filter: "active" })
     expect(getTorrents).toHaveBeenCalledWith(
       expect.any(String),
-      expect.any(String),
+      { name: "SID", value: "test-sid" },
       "aither",
       "active"
     )
@@ -158,7 +158,7 @@ describe("QbtClientAdapter", () => {
 
   it("returns normalized DeltaSyncResponse from getDeltaSync", async () => {
     const data = await adapter.getDeltaSync?.(0)
-    expect(syncMaindata).toHaveBeenCalledWith(expect.any(String), expect.any(String), 0)
+    expect(syncMaindata).toHaveBeenCalledWith(expect.any(String), { name: "SID", value: "test-sid" }, 0)
 
     // Top-level fields pass through
     expect(data?.rid).toBe(1)
