@@ -52,6 +52,21 @@ describe("login", () => {
     expect(sid).toBe("abc123xyz")
   })
 
+  it("returns the SID value from a QBT_SID_<port> cookie (qBittorrent 5.2+)", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 204,
+      text: async () => "",
+      headers: new Headers({
+        "set-cookie":
+          "QBT_SID_8080=YYhsGDAcg8mu89vWPnxXgkH1xkjVQK5h; HttpOnly; SameSite=Lax; expires=Wed, 05-Aug-2026 01:58:51 GMT; path=/",
+      }),
+    } as Response)
+
+    const sid = await login("localhost", 8080, false, "admin", "password")
+    expect(sid).toBe("YYhsGDAcg8mu89vWPnxXgkH1xkjVQK5h")
+  })
+
   it("sends a POST to the correct URL with form-encoded body", async () => {
     const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: true,
