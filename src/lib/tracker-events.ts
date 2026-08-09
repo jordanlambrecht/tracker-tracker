@@ -81,6 +81,69 @@ export function checkHnrIncrease(previousHnrs: number | null, currentHnrs: numbe
   return currentHnrs > previousHnrs
 }
 
+/**
+ * Default number of consecutive polls an HnR increase must survive before it notifies.
+ *
+ * Sized from measurement, not taste: across 11 days of hourly TorrentLeech polls the counter
+ * blipped to 1 four separate times, for runs of 5, 4, 2 and 4 polls, self-clearing every time.
+ * 6 is the smallest value that suppresses all of them. A genuine hit-and-run is a recorded
+ * penalty that never clears, so the only cost of waiting is a few hours of notice on something
+ * already irreversible.
+ */
+export const HNR_SUSTAINED_POLLS_DEFAULT = 6
+
+/**
+ * Upper bound on the configurable poll run. The scheduler fetches HNR_SUSTAINED_POLLS_MAX + 1
+ * snapshots, so a larger threshold could never be satisfied — checkHnrSustained clamps to this
+ * rather than silently never firing, which is the failure mode that would look like "no HnRs".
+ */
+export const HNR_SUSTAINED_POLLS_MAX = 12
+
+/** How many prior snapshots the scheduler must load to satisfy HNR_SUSTAINED_POLLS_MAX. */
+export const HNR_HISTORY_POLLS = HNR_SUSTAINED_POLLS_MAX + 1
+
+/**
+ * Debounced variant of checkHnrIncrease: fires only once an increase has HELD for
+ * `requiredPolls` consecutive polls.
+ *
+ * Some trackers (confirmed on TorrentLeech) publish a LIVE "not currently satisfying"
+ * counter rather than a permanent strike record. Stale tracker-side leech records age
+ * out through it, so the count blips 0 -> 1 -> 0 over a few hours with nothing actually
+ * wrong. checkHnrIncrease fires on every one of those blips. A real hit-and-run is a
+ * recorded penalty and never clears, so requiring persistence separates the two without
+ * risking a missed strike — it only delays the alert by `requiredPolls` poll intervals.
+ *
+ * `history` is newest-first and INCLUDES the current value: [current, prev, prev-1, ...].
+ *
+ * Fires exactly once per increase, on the poll where the run reaches `requiredPolls`:
+ * the increase must sit at index requiredPolls-1 (against the value immediately before
+ * it), and every newer sample must have held at or above that raised level. A later poll
+ * shifts the increase past that index and stops matching, so an elevated-but-flat counter
+ * does not re-notify.
+ */
+export function checkHnrSustained(
+  history: (number | null)[],
+  requiredPolls: number = HNR_SUSTAINED_POLLS_DEFAULT
+): boolean {
+  const requested = Number.isFinite(requiredPolls)
+    ? Math.floor(requiredPolls)
+    : HNR_SUSTAINED_POLLS_DEFAULT
+  const n = Math.min(HNR_SUSTAINED_POLLS_MAX, Math.max(1, requested))
+
+  // Need the n samples of the run plus the one before it to prove an increase happened.
+  if (history.length < n + 1) return false
+
+  const window = history.slice(0, n + 1)
+  if (window.some((v) => v === null || v === undefined)) return false
+  const values = window as number[]
+
+  const raised = values[n - 1] // oldest sample of the candidate run
+  const baseline = values[n] // the sample immediately before the run
+
+  if (raised <= baseline) return false // no increase at that offset
+  return values.slice(0, n - 1).every((v) => v >= raised) // and it held ever since
+}
+
 export function checkBufferMilestoneCrossed(
   currentBufferBytes: bigint | null,
   previousBufferBytes: bigint | null,

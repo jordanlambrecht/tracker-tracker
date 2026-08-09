@@ -8,6 +8,7 @@ import {
   checkBonusCapReached,
   checkBufferMilestoneCrossed,
   checkHnrIncrease,
+  checkHnrSustained,
   checkRankChange,
   checkRatioBelowMinimum,
   checkRatioBelowMinimumTransition,
@@ -141,6 +142,96 @@ describe("checkHnrIncrease", () => {
   })
   it("returns false when either is null", () => {
     expect(checkHnrIncrease(null, 3)).toBe(false)
+  })
+})
+
+describe("checkHnrSustained", () => {
+  // history is newest-first and includes the current value: [current, prev, prev-1, ...]
+
+  it("fires on the poll where a 3-poll run completes", () => {
+    expect(checkHnrSustained([1, 1, 1, 0], 3)).toBe(true)
+  })
+
+  it("does not fire before the run is long enough", () => {
+    expect(checkHnrSustained([1, 0, 0, 0], 3)).toBe(false)
+    expect(checkHnrSustained([1, 1, 0, 0], 3)).toBe(false)
+  })
+
+  it("suppresses a transient blip that already cleared", () => {
+    // the TorrentLeech pattern: 0 -> 1 -> 0 with nothing actually wrong
+    expect(checkHnrSustained([0, 1, 0, 0], 3)).toBe(false)
+    expect(checkHnrSustained([0, 1, 1, 0], 3)).toBe(false)
+  })
+
+  it("fires only once for a sustained elevation", () => {
+    expect(checkHnrSustained([1, 1, 1, 0], 3)).toBe(true) // run reaches 3 — fire
+    expect(checkHnrSustained([1, 1, 1, 1], 3)).toBe(false) // still elevated — stay quiet
+    expect(checkHnrSustained([1, 1, 1, 1, 0], 3)).toBe(false)
+  })
+
+  it("fires again when the count climbs to a new level and holds", () => {
+    expect(checkHnrSustained([2, 2, 2, 1], 3)).toBe(true)
+  })
+
+  it("does not fire when a further increase has not yet held", () => {
+    expect(checkHnrSustained([2, 1, 1, 1], 3)).toBe(false)
+  })
+
+  it("still fires when the count keeps climbing during the run", () => {
+    expect(checkHnrSustained([3, 2, 1, 0], 3)).toBe(true)
+  })
+
+  it("requires a full window — no firing on short history", () => {
+    expect(checkHnrSustained([1, 1, 1], 3)).toBe(false)
+    expect(checkHnrSustained([], 3)).toBe(false)
+  })
+
+  it("refuses to guess through null samples", () => {
+    expect(checkHnrSustained([1, 1, null, 0], 3)).toBe(false)
+    expect(checkHnrSustained([1, 1, 1, null], 3)).toBe(false)
+  })
+
+  it("defaults to a 6-poll run", () => {
+    expect(checkHnrSustained([1, 1, 1, 1, 1, 1, 0])).toBe(true)
+    expect(checkHnrSustained([1, 1, 1, 1, 1, 0, 0])).toBe(false)
+  })
+
+  it("supports an immediate (1-poll) gate", () => {
+    expect(checkHnrSustained([1, 0], 1)).toBe(true)
+    expect(checkHnrSustained([0, 0], 1)).toBe(false)
+  })
+
+  it("clamps an out-of-range run rather than never firing", () => {
+    const longRun = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0]
+    expect(checkHnrSustained(longRun, 999)).toBe(true) // clamped to MAX (12)
+    expect(checkHnrSustained([1, 0], 0)).toBe(true) // clamped up to 1
+    expect(checkHnrSustained([1, 1, 1, 1, 1, 1, 0], Number.NaN)).toBe(true) // default
+  })
+
+  it("stays silent across every real TorrentLeech flicker", () => {
+    // Verbatim hourly hit_and_runs from tracker_snapshots, 2026-07-29 -> 08-09.
+    // Four separate blips (runs of 5, 4, 2, 4), each self-cleared. None is a real strike.
+    const runs = [5, 4, 2, 4]
+    for (const runLength of runs) {
+      const series = [
+        ...Array(10).fill(0),
+        ...Array(runLength).fill(1),
+        ...Array(10).fill(0),
+      ] as number[]
+      // Walk the series poll by poll, newest-first window at each step.
+      for (let i = 0; i < series.length; i++) {
+        const history = series.slice(0, i + 1).reverse()
+        expect(checkHnrSustained(history)).toBe(false)
+      }
+    }
+  })
+
+  it("still catches a strike that does not clear", () => {
+    const series = [...Array(10).fill(0), ...Array(10).fill(1)] as number[]
+    const fired = series
+      .map((_, i) => checkHnrSustained(series.slice(0, i + 1).reverse()))
+      .filter(Boolean)
+    expect(fired).toHaveLength(1) // exactly one alert, once the run reaches 6
   })
 })
 

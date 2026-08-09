@@ -28,6 +28,7 @@ export interface NotificationThresholds {
   bonusCapLimit?: number // default 99999, used for MAM specifically
   vipExpiringDays?: number // default 7
   unsatisfiedLimitPercent?: number // default 80
+  hnrSustainedPolls?: number // default 3 — consecutive polls an HnR rise must hold before notifying
 }
 
 export interface DiscordConfig {
@@ -68,6 +69,10 @@ export interface SnapshotContext {
   previousRatio: number | null
   currentHnrs: number | null
   previousHnrs: number | null
+  // Newest-first HnR samples INCLUDING the current one: [current, prev, prev-1, ...].
+  // Drives the sustained-increase gate; omitted by callers that have no history to offer
+  // (they fall back to the single-step previousHnrs comparison).
+  recentHnrs?: (number | null)[]
   currentBufferBytes: bigint | null
   previousBufferBytes: bigint | null
   trackerDown: boolean
@@ -109,6 +114,7 @@ export function parseThresholds(raw: unknown): NotificationThresholds {
     ...(typeof r.unsatisfiedLimitPercent === "number"
       ? { unsatisfiedLimitPercent: r.unsatisfiedLimitPercent }
       : {}),
+    ...(typeof r.hnrSustainedPolls === "number" ? { hnrSustainedPolls: r.hnrSustainedPolls } : {}),
   }
 }
 

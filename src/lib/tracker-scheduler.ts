@@ -33,6 +33,7 @@ import { log } from "@/lib/logger"
 import { dispatchNotifications } from "@/lib/notifications/dispatch"
 import { maskUsername } from "@/lib/privacy"
 import { recordDatabaseSize } from "@/lib/server-data"
+import { HNR_HISTORY_POLLS } from "@/lib/tracker-events"
 import { getPauseState } from "@/lib/tracker-status"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 
@@ -237,8 +238,12 @@ export async function pollTracker(
       await db.update(trackers).set(metaUpdates).where(eq(trackers.id, tracker.id))
     }
 
-    // Fetch previous snapshot before inserting the new one (used for change detection in notifications)
-    const [previousSnapshot] = await db
+    // Fetch previous snapshots before inserting the new one (used for change detection in
+    // notifications). More than one row is pulled so the hit-and-run check can require an
+    // increase to persist across several polls instead of firing on a single blip; see
+    // checkHnrSustained. Only hitAndRuns uses the extra rows — every other comparison is
+    // still against previousSnapshot alone.
+    const previousSnapshots = await db
       .select({
         ratio: trackerSnapshots.ratio,
         hitAndRuns: trackerSnapshots.hitAndRuns,
@@ -251,7 +256,9 @@ export async function pollTracker(
       .from(trackerSnapshots)
       .where(eq(trackerSnapshots.trackerId, tracker.id))
       .orderBy(desc(trackerSnapshots.polledAt))
-      .limit(1)
+      .limit(HNR_HISTORY_POLLS)
+
+    const [previousSnapshot] = previousSnapshots
 
     await db.insert(trackerSnapshots).values({
       trackerId: tracker.id,
@@ -330,6 +337,7 @@ export async function pollTracker(
           previousRatio: previousSnapshot?.ratio ?? null,
           currentHnrs: stats.hitAndRuns,
           previousHnrs: previousSnapshot?.hitAndRuns ?? null,
+          recentHnrs: [stats.hitAndRuns, ...previousSnapshots.map((s) => s.hitAndRuns)],
           currentBufferBytes: stats.bufferBytes,
           previousBufferBytes: previousSnapshot?.bufferBytes ?? null,
           trackerDown: false,

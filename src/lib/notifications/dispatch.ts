@@ -30,6 +30,7 @@ import {
   checkBufferMilestoneCrossed,
   checkDownloadDisabled,
   checkHnrIncrease,
+  checkHnrSustained,
   checkRankChange,
   checkRatioBelowMinimumTransition,
   checkRatioDelta,
@@ -232,8 +233,15 @@ export function detectEvents(
     events.push("ratio_drop")
   }
 
-  if (target.notifyHitAndRun && checkHnrIncrease(ctx.previousHnrs, ctx.currentHnrs)) {
-    events.push("hit_and_run")
+  // Prefer the debounced check when the caller supplied poll history — it suppresses the
+  // transient 0->1->0 blips that live "currently unsatisfied" counters emit (see
+  // checkHnrSustained). Callers without history keep the original single-step behaviour.
+  if (target.notifyHitAndRun) {
+    const hnrFired =
+      ctx.recentHnrs && ctx.recentHnrs.length > 0
+        ? checkHnrSustained(ctx.recentHnrs, thresholds.hnrSustainedPolls)
+        : checkHnrIncrease(ctx.previousHnrs, ctx.currentHnrs)
+    if (hnrFired) events.push("hit_and_run")
   }
 
   if (target.notifyTrackerDown && ctx.trackerDown) {
