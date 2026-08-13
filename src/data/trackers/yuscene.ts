@@ -13,7 +13,7 @@ export const yuscene: TrackerRegistryEntry = {
   unit3dAuthStyle: "bearer",
   apiPath: "/api/user",
   specialty: "Movies / TV",
-  contentCategories: ["Movies", "TV", "Games", "Books", "Audio"],
+  contentCategories: ["Movies", "TV", "Games", "Books", "Music"],
   language: "English",
   color: "#00b4d8",
   logo: "",
