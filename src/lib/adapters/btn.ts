@@ -1,9 +1,10 @@
 // src/lib/adapters/btn.ts
+//
+// Functions: parseBtnBytes, mapBtnResult, translateBtnError, callBtnUserInfo, BtnAdapter
 
 import { computeBufferBytes } from "@/lib/data-transforms"
-import { classifyFetchError } from "@/lib/error-utils"
 import { localDateStr } from "@/lib/formatters"
-import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
+import { adapterFetch } from "./adapter-fetch"
 import type { DebugApiCall, FetchOptions, TrackerAdapter, TrackerStats } from "./types"
 
 interface BtnUserInfoResult {
@@ -25,9 +26,20 @@ interface BtnJsonRpcResponse {
   error?: { code: number; message: string }
 }
 
+/** Parse a byte counter from the API, rejecting anything non-numeric. */
+function parseBtnBytes(raw: string | undefined, field: string): bigint {
+  const value = (raw ?? "").trim()
+  if (!value) return 0n
+  try {
+    return BigInt(value)
+  } catch {
+    throw new Error(`BTN returned a non-numeric ${field} value`)
+  }
+}
+
 function mapBtnResult(result: BtnUserInfoResult): TrackerStats {
-  const uploadedBytes = BigInt(result.Upload || "0")
-  const downloadedBytes = BigInt(result.Download || "0")
+  const uploadedBytes = parseBtnBytes(result.Upload, "Upload")
+  const downloadedBytes = parseBtnBytes(result.Download, "Download")
 
   let ratio = 0
   if (downloadedBytes > 0n) {
@@ -47,51 +59,55 @@ function mapBtnResult(result: BtnUserInfoResult): TrackerStats {
     downloadedBytes,
     ratio,
     bufferBytes: computeBufferBytes(uploadedBytes, downloadedBytes),
-    seedingCount: 0,
-    leechingCount: 0,
-    seedbonus: parseFloat(result.Lumens ?? "0") || 0,
+    // BTN's userInfo response carries no seeding/leeching counts, no required
+    // ratio and no warned flag. Report them as unknown rather than as a
+    // confident zero — a hardcoded 0 renders identically to a measured 0.
+    seedingCount: null,
+    leechingCount: null,
+    requiredRatio: null,
+    warned: null,
     hitAndRuns: parseInt(result.HnR ?? "0", 10) || 0,
-    requiredRatio: 0,
-    warned: false,
-    freeleechTokens: Math.round(parseFloat(result.Bonus ?? "0") || 0),
+    // `Lumens` and `Bonus` are undocumented and their meaning is unconfirmed —
+    // `Bonus` arrives fractional, which does not fit a freeleech token count.
+    // Left unmapped until someone with a BTN account can verify which is which.
+    seedbonus: null,
+    freeleechTokens: null,
     remoteUserId: parseInt(result.UserID, 10) || undefined,
     joinedDate,
   }
 }
 
+/** Restore BTN-specific wording for the status codes adapterFetch reports generically. */
+function translateBtnError(err: unknown): Error {
+  const message = err instanceof Error ? err.message : "BTN request failed"
+  if (/\b401\b/.test(message)) return new Error("Invalid BTN API key")
+  if (/\b503\b/.test(message)) return new Error("BTN API rate limited (150 calls/hour)")
+  return err instanceof Error ? err : new Error(message)
+}
+
 async function callBtnUserInfo(
   apiUrl: string,
   apiKey: string,
-  hostname: string
+  hostname: string,
+  options?: FetchOptions
 ): Promise<BtnJsonRpcResponse> {
-  let response: Response
+  let data: BtnJsonRpcResponse
   try {
-    response = await fetch(apiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: 1,
-        method: "userInfo",
-        params: [apiKey],
-      }),
-      signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
-    })
+    // Routed through adapterFetch so BTN honours a configured proxy and the
+    // shared request timeout, like every other JSON adapter.
+    data = await adapterFetch<BtnJsonRpcResponse>(
+      apiUrl,
+      hostname,
+      options,
+      { "Content-Type": "application/json" },
+      {
+        method: "POST",
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "userInfo", params: [apiKey] }),
+      }
+    )
   } catch (err) {
-    throw classifyFetchError(err, hostname)
+    throw translateBtnError(err)
   }
-
-  if (response.status === 401) {
-    throw new Error("Invalid BTN API key")
-  }
-  if (response.status === 503) {
-    throw new Error("BTN API rate limited (150 calls/hour)")
-  }
-  if (!response.ok) {
-    throw new Error(`BTN API error: ${response.status} ${response.statusText}`)
-  }
-
-  const data = (await response.json()) as BtnJsonRpcResponse
 
   if (data.error) {
     throw new Error(data.error.message)
@@ -108,10 +124,10 @@ export class BtnAdapter implements TrackerAdapter {
     _baseUrl: string,
     apiToken: string,
     apiPath: string,
-    _options?: FetchOptions
+    options?: FetchOptions
   ): Promise<TrackerStats> {
     const hostname = new URL(apiPath).hostname
-    const data = await callBtnUserInfo(apiPath, apiToken, hostname)
+    const data = await callBtnUserInfo(apiPath, apiToken, hostname, options)
     // data.result is guaranteed by callBtnUserInfo
     return mapBtnResult(data.result as BtnUserInfoResult)
   }
@@ -120,11 +136,11 @@ export class BtnAdapter implements TrackerAdapter {
     _baseUrl: string,
     apiToken: string,
     apiPath: string,
-    _options?: FetchOptions
+    options?: FetchOptions
   ): Promise<DebugApiCall[]> {
     const hostname = new URL(apiPath).hostname
     try {
-      const data = await callBtnUserInfo(apiPath, apiToken, hostname)
+      const data = await callBtnUserInfo(apiPath, apiToken, hostname, options)
       const stats = mapBtnResult(data.result as BtnUserInfoResult)
       return [{ label: "userInfo", endpoint: apiPath, data: stats, error: null }]
     } catch (err) {

@@ -50,41 +50,38 @@ describe("BtnAdapter", () => {
     expect(stats.downloadedBytes).toBe(1000000000n)
     expect(stats.ratio).toBeCloseTo(5)
     expect(stats.bufferBytes).toBe(4000000000n)
-    expect(stats.seedingCount).toBe(0)
-    expect(stats.leechingCount).toBe(0)
-    expect(stats.seedbonus).toBe(10)
-    expect(stats.freeleechTokens).toBe(3)
+    // BTN does not report these — null means unknown, not zero.
+    expect(stats.seedingCount).toBeNull()
+    expect(stats.leechingCount).toBeNull()
+    expect(stats.seedbonus).toBeNull()
+    expect(stats.freeleechTokens).toBeNull()
     expect(stats.hitAndRuns).toBe(3)
-    expect(stats.requiredRatio).toBe(0)
-    expect(stats.warned).toBe(false)
+    expect(stats.requiredRatio).toBeNull()
+    expect(stats.warned).toBeNull()
     expect(stats.remoteUserId).toBe(9900001)
     expect(stats.joinedDate).toContain("2026")
   })
 
-  it("rounds a high-precision fractional Bonus value to the nearest integer", async () => {
-    const mockResponse = {
-      id: 1,
-      result: {
-        UserID: "9900001",
-        Username: "testuser",
-        Upload: "5000000000",
-        Download: "1000000000",
-        Lumens: "10",
-        Bonus: "2614.5799827575684",
-        Class: "User",
-        HnR: "3",
-      },
-    }
-
+  it("leaves the undocumented Lumens/Bonus fields unmapped until they can be verified", async () => {
     vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => mockResponse,
+      json: async () => ({
+        id: 1,
+        result: {
+          UserID: "9900001",
+          Username: "testuser",
+          Upload: "1000000",
+          Download: "500000",
+          Lumens: "10.5",
+          Bonus: "2614.58",
+        },
+      }),
     } as Response)
 
     const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_URL)
-
-    expect(stats.freeleechTokens).toBe(2615)
+    expect(stats.seedbonus).toBeNull()
+    expect(stats.freeleechTokens).toBeNull()
   })
 
   it("falls back to safe defaults when undocumented fields are missing", async () => {
@@ -110,8 +107,8 @@ describe("BtnAdapter", () => {
     expect(stats.group).toBe("Unknown")
     expect(stats.uploadedBytes).toBe(100n)
     expect(stats.downloadedBytes).toBe(50n)
-    expect(stats.seedbonus).toBe(0)
-    expect(stats.freeleechTokens).toBe(0)
+    expect(stats.seedbonus).toBeNull()
+    expect(stats.freeleechTokens).toBeNull()
     expect(stats.hitAndRuns).toBe(0)
     expect(stats.joinedDate).toBeUndefined()
     expect(stats.remoteUserId).toBe(42)

@@ -61,7 +61,13 @@ export interface ProxyFetchResult {
 export function proxyFetch(
   url: string,
   agent: HttpAgent,
-  options: { timeoutMs?: number; headers?: Record<string, string>; maxBytes?: number } = {}
+  options: {
+    timeoutMs?: number
+    headers?: Record<string, string>
+    maxBytes?: number
+    method?: "GET" | "POST"
+    body?: string
+  } = {}
 ): Promise<ProxyFetchResult> {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url)
@@ -71,16 +77,21 @@ export function proxyFetch(
     }
     const timeoutMs = options.timeoutMs ?? 15000
     const maxBytes = options.maxBytes ?? 0
+    const method = options.method ?? "GET"
+    const body = method === "POST" ? (options.body ?? "") : undefined
 
     const req = https.request(
       {
         hostname: parsed.hostname,
         port: parsed.port || 443,
         path: parsed.pathname + parsed.search,
-        method: "GET",
+        method,
         agent,
         headers: {
           Accept: "application/json",
+          ...(body === undefined
+            ? {}
+            : { "Content-Length": String(Buffer.byteLength(body, "utf8")) }),
           ...options.headers,
         },
         timeout: timeoutMs,
@@ -120,6 +131,7 @@ export function proxyFetch(
       reject(err)
     })
 
+    if (body !== undefined) req.write(body)
     req.end()
   })
 }

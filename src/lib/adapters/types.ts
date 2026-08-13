@@ -9,8 +9,11 @@ export interface TrackerStats {
   downloadedBytes: bigint
   ratio: number
   bufferBytes: bigint
-  seedingCount: number
-  leechingCount: number
+  // Nullable: some platforms (i.e. BTN) don't report these at all. The DB
+  // columns and the charts already treat them as optional — null means
+  // "unknown", which must stay distinguishable from a measured 0.
+  seedingCount: number | null
+  leechingCount: number | null
   seedbonus: number | null
   hitAndRuns: number | null
   requiredRatio: number | null
