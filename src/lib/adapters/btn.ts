@@ -7,12 +7,20 @@ import { localDateStr } from "@/lib/formatters"
 import { adapterFetch } from "./adapter-fetch"
 import type { DebugApiCall, FetchOptions, TrackerAdapter, TrackerStats } from "./types"
 
+/**
+ * BTN's published `userInfo` fields (apidocs.broadcasthe.net) are:
+ * UserID, Username, Email, Upload, Download, Title, Enabled, Paranoia,
+ * Invites, ClassID. Anything below marked "undocumented" was observed on a
+ * live response but is not in the spec — treat it as best-effort.
+ */
 interface BtnUserInfoResult {
   UserID: string
   Username: string
   Upload: string
   Download: string
-  // The following fields are returned by the live API but not documented:
+  /** Documented user class name. */
+  Title?: string
+  // Undocumented — observed live, absent from the published spec:
   Class?: string
   Lumens?: string
   Bonus?: string
@@ -54,7 +62,9 @@ function mapBtnResult(result: BtnUserInfoResult): TrackerStats {
 
   return {
     username: result.Username,
-    group: result.Class ?? "Unknown",
+    // `Title` is the documented class-name field; `Class` is what a live
+    // response was observed to use. Accept either.
+    group: result.Class ?? result.Title ?? "Unknown",
     uploadedBytes,
     downloadedBytes,
     ratio,
@@ -66,7 +76,10 @@ function mapBtnResult(result: BtnUserInfoResult): TrackerStats {
     leechingCount: null,
     requiredRatio: null,
     warned: null,
-    hitAndRuns: parseInt(result.HnR ?? "0", 10) || 0,
+    // `HnR` is undocumented on userInfo — BTN publishes a separate
+    // getUserSnatchlist endpoint for hit-and-runs, so this key may not
+    // exist at all. Report unknown rather than a fabricated 0.
+    hitAndRuns: result.HnR == null ? null : (parseInt(result.HnR, 10) || 0),
     // `Lumens` and `Bonus` are undocumented and their meaning is unconfirmed —
     // `Bonus` arrives fractional, which does not fit a freeleech token count.
     // Left unmapped until someone with a BTN account can verify which is which.

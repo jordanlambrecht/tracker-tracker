@@ -109,7 +109,7 @@ describe("BtnAdapter", () => {
     expect(stats.downloadedBytes).toBe(50n)
     expect(stats.seedbonus).toBeNull()
     expect(stats.freeleechTokens).toBeNull()
-    expect(stats.hitAndRuns).toBe(0)
+    expect(stats.hitAndRuns).toBeNull()
     expect(stats.joinedDate).toBeUndefined()
     expect(stats.remoteUserId).toBe(42)
   })
@@ -287,5 +287,47 @@ describe("BtnAdapter - proxy handling", () => {
     // The whole point: a configured tunnel must not be silently bypassed.
     expect(fetchSpy).not.toHaveBeenCalled()
     vi.doUnmock("@/lib/tunnel")
+  })
+})
+
+describe("BtnAdapter - documented vs observed field names", () => {
+  const adapter = new BtnAdapter()
+
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it("falls back to the documented Title field when Class is absent", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: 1,
+        result: {
+          UserID: "9900001",
+          Username: "testuser",
+          Upload: "1000",
+          Download: "500",
+          Title: "Power User",
+        },
+      }),
+    } as Response)
+
+    const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_URL)
+    expect(stats.group).toBe("Power User")
+  })
+
+  it("reports hitAndRuns as unknown when the undocumented HnR key is absent", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: 1,
+        result: { UserID: "9900001", Username: "testuser", Upload: "1000", Download: "500" },
+      }),
+    } as Response)
+
+    const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_URL)
+    expect(stats.hitAndRuns).toBeNull()
   })
 })
