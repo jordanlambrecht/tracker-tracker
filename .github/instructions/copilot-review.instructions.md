@@ -1,3 +1,7 @@
+---
+applyTo: "**"
+---
+
 # Copilot PR Review Instructions
 
 ## Project
