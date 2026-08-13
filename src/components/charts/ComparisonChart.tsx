@@ -418,7 +418,11 @@ function ComparisonChart({
               compact
               tabs={viewModes.map((m) => ({
                 key: m,
-                label: { lines: "Per-Tracker", stacked: "Stacked", total: "Total" }[m],
+                // "Lines", not "Per-Tracker": the averaging toggle beside this
+                // also reads "Per-Tracker" when it's off, and users aiming for
+                // the view mode were hitting that instead and seeing nothing
+                // happen (issue #156).
+                label: { lines: "Lines", stacked: "Stacked", total: "Total" }[m],
               }))}
               activeTab={viewMode}
               onChange={setViewMode}
