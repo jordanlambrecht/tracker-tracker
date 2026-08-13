@@ -118,10 +118,21 @@ function useTrackerList({
 
       queryClient.setQueryData<TrackerSummary[]>(trackerQueryOptions.queryKey, (prev) => {
         if (!prev) return prev
-        const oldIndex = prev.findIndex((t) => t.id === active.id)
-        const newIndex = prev.findIndex((t) => t.id === over.id)
+        // Order the full set exactly the way the sidebar displays it before
+        // computing the move. The raw query cache comes back ordered by
+        // createdAt, which matches the display only until the sort mode flips
+        // to "custom" at the end of this handler — after that, indices taken
+        // from the cache refer to different trackers than the ones the user
+        // dragged, which is what jumbled every drag after the first (#166).
+        //
+        // The whole set is reordered, not just the visible subset, so that
+        // filtered-out trackers can't keep stale sortOrder values that
+        // collide with the new ones the server assigns.
+        const ordered = sortTrackers(prev, sortMode)
+        const oldIndex = ordered.findIndex((t) => t.id === active.id)
+        const newIndex = ordered.findIndex((t) => t.id === over.id)
         if (oldIndex === -1 || newIndex === -1) return prev
-        return arrayMove(prev, oldIndex, newIndex).map((t, i) => ({
+        return arrayMove(ordered, oldIndex, newIndex).map((t, i) => ({
           ...t,
           sortOrder: i,
         }))
@@ -145,7 +156,7 @@ function useTrackerList({
 
       onSortModeChange("custom")
     },
-    [queryClient, onSortModeChange]
+    [queryClient, onSortModeChange, sortMode]
   )
 
   const refresh = useCallback(() => {

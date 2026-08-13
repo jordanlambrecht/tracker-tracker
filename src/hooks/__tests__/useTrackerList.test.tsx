@@ -364,3 +364,72 @@ describe("sortTrackers", () => {
     expect(trackers).toEqual(original)
   })
 })
+
+// ─── Issue #166: reorder must follow the displayed order ──────────────────
+// "Reordering works, until you move a second tracker, then the order is all
+// jumbled up." The query cache arrives ordered by createdAt while the sidebar
+// displays by sortOrder, so drag indices taken from the cache referred to
+// different trackers than the ones the user dragged.
+describe("useTrackerList drag reorder (issue #166)", () => {
+  // createdAt order (what the API returns) deliberately differs from the
+  // sortOrder order (what the sidebar shows).
+  const alpha = t({ id: 1, name: "Alpha", sortOrder: 2 })
+  const bravo = t({ id: 2, name: "Bravo", sortOrder: 0 })
+  const charlie = t({ id: 3, name: "Charlie", sortOrder: 1 })
+
+  const drag = (activeId: number, overId: number) =>
+    ({ active: { id: activeId }, over: { id: overId } }) as never
+
+  const orderOf = (queryClient: QueryClient) =>
+    [...((queryClient.getQueryData(["trackers"]) as TrackerSummary[]) ?? [])]
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+      .map((x) => x.name)
+
+  it("moves the tracker the user actually dragged", async () => {
+    mockFetchOk([alpha, bravo, charlie])
+    const { queryClient, Wrapper } = createWrapper()
+    const { result } = renderHook(
+      () => useTrackerList({ ...defaultParams, sortMode: "custom", showArchived: true }),
+      { wrapper: Wrapper }
+    )
+    await waitFor(() => expect(result.current.displayedTrackers).toHaveLength(3))
+    expect(result.current.displayedTrackers.map((x) => x.name)).toEqual([
+      "Bravo",
+      "Charlie",
+      "Alpha",
+    ])
+
+    act(() => result.current.handleDragEnd(drag(1, 2)))
+    expect(orderOf(queryClient)).toEqual(["Alpha", "Bravo", "Charlie"])
+  })
+
+  it("stays correct on a second consecutive drag", async () => {
+    mockFetchOk([alpha, bravo, charlie])
+    const { queryClient, Wrapper } = createWrapper()
+    const { result } = renderHook(
+      () => useTrackerList({ ...defaultParams, sortMode: "custom", showArchived: true }),
+      { wrapper: Wrapper }
+    )
+    await waitFor(() => expect(result.current.displayedTrackers).toHaveLength(3))
+
+    act(() => result.current.handleDragEnd(drag(1, 2)))
+    act(() => result.current.handleDragEnd(drag(3, 2)))
+
+    expect(orderOf(queryClient)).toEqual(["Alpha", "Charlie", "Bravo"])
+  })
+
+  it("assigns a contiguous sortOrder covering every tracker", async () => {
+    mockFetchOk([alpha, bravo, charlie])
+    const { queryClient, Wrapper } = createWrapper()
+    const { result } = renderHook(
+      () => useTrackerList({ ...defaultParams, sortMode: "custom", showArchived: true }),
+      { wrapper: Wrapper }
+    )
+    await waitFor(() => expect(result.current.displayedTrackers).toHaveLength(3))
+
+    act(() => result.current.handleDragEnd(drag(1, 2)))
+
+    const all = (queryClient.getQueryData(["trackers"]) as TrackerSummary[]) ?? []
+    expect(all.map((x) => x.sortOrder).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([0, 1, 2])
+  })
+})
