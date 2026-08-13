@@ -5,7 +5,7 @@ import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 export const seedpool: TrackerRegistryEntry = {
   // ── Identity ────────────────────────────────────────────────────────
   slug: "seedpool",
-  name: "Seed Pool",
+  name: "seedpool",
   abbreviation: "SP",
   url: "https://seedpool.org",
   description:
