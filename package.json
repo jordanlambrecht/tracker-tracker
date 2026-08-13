@@ -49,7 +49,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@formkit/auto-animate": "^0.9.0",
     "@tailwindcss/typography": "^0.5.19",
-    "@tanstack/react-query": "^5.99.0",
+    "@tanstack/react-query": "^5.99.2",
     "argon2": "^0.44.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
