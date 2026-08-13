@@ -14,7 +14,7 @@ export const portugas: TrackerRegistryEntry = {
   unit3dAuthStyle: "bearer",
   apiPath: "/api/user",
   specialty: "0DAY / General",
-  contentCategories: ["Movies", "TV", "Audio", "Games", "Books", "XXX"],
+  contentCategories: ["Movies", "TV", "Music", "Games", "Books", "XXX"],
   language: "Portuguese",
   color: "#046A38",
   logo: "",
