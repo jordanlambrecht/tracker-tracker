@@ -251,3 +251,41 @@ describe("BtnAdapter", () => {
     })
   })
 })
+
+describe("BtnAdapter - proxy handling", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    vi.resetModules()
+  })
+
+  it("routes the request through the configured proxy instead of a direct fetch", async () => {
+    const proxyFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      json: async () => ({
+        id: 1,
+        result: { UserID: "9900001", Username: "testuser", Upload: "1000", Download: "500" },
+      }),
+      buffer: async () => Buffer.from(""),
+    })
+    vi.doMock("@/lib/tunnel", () => ({ proxyFetch }))
+    vi.resetModules()
+    const { BtnAdapter: FreshBtnAdapter } = await import("./btn")
+
+    const fetchSpy = vi.spyOn(global, "fetch")
+
+    const stats = await new FreshBtnAdapter().fetchStats(
+      "https://broadcasthe.net",
+      "fake-api-key",
+      "https://api.broadcasthe.net/",
+      { proxyAgent: {} as never }
+    )
+
+    expect(stats.username).toBe("testuser")
+    expect(proxyFetch).toHaveBeenCalledTimes(1)
+    // The whole point: a configured tunnel must not be silently bypassed.
+    expect(fetchSpy).not.toHaveBeenCalled()
+    vi.doUnmock("@/lib/tunnel")
+  })
+})
