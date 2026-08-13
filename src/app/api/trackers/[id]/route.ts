@@ -20,11 +20,10 @@ import { db } from "@/lib/db"
 import { trackers } from "@/lib/db/schema"
 import { errMsg } from "@/lib/error-utils"
 import {
-  AVISTAZ_TOKEN_MAX,
+  maxTokenLengthFor,
   LONG_STRING_MAX,
   TRACKER_NAME_MAX,
   TRACKER_TAG_MAX,
-  TRACKER_TOKEN_MAX,
   TRACKER_URL_MAX,
 } from "@/lib/limits"
 import { log } from "@/lib/logger"
@@ -141,7 +140,7 @@ export async function PATCH(request: Request, props: RouteContext) {
       .where(eq(trackers.id, trackerId))
       .limit(1)
     const maxTokenLength =
-      tracker?.platformType === "avistaz" ? AVISTAZ_TOKEN_MAX : TRACKER_TOKEN_MAX
+      maxTokenLengthFor(tracker?.platformType)
     const tokenErr = validateMaxLength(trimmedToken, maxTokenLength, "API token")
     if (tokenErr) return tokenErr
     const key = decodeKey(auth)

@@ -15,7 +15,24 @@ export const PORT_MAX = 65535
 export const TRACKER_NAME_MAX = 100
 export const TRACKER_URL_MAX = 500
 export const TRACKER_TOKEN_MAX = 500
-export const AVISTAZ_TOKEN_MAX = 5000
+/** Cap for platforms whose "token" is a JSON credential blob (cookies, UA, etc). */
+export const LARGE_TOKEN_MAX = 5000
+
+/**
+ * Platforms that authenticate with a JSON credential blob rather than a plain
+ * API key. These need the larger cap — an IPTorrents cookie header alone can
+ * run past 1 KB. Add new blob-credential platforms here and every route picks
+ * it up.
+ */
+const LARGE_TOKEN_PLATFORMS: ReadonlySet<string> = new Set([
+  "avistaz",
+  "iptorrents",
+  "torrentleech",
+])
+
+export function maxTokenLengthFor(platform: string | null | undefined): number {
+  return platform && LARGE_TOKEN_PLATFORMS.has(platform) ? LARGE_TOKEN_MAX : TRACKER_TOKEN_MAX
+}
 export const TRACKER_TAG_MAX = 100
 export const TRACKER_NOTES_MAX = 2000
 export const TRACKER_ROLE_NAME_MAX = 255

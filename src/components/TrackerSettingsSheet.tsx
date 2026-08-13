@@ -87,6 +87,9 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
   const [editAvistazUsername, setEditAvistazUsername] = useState("")
   const [editAvistazCookies, setEditAvistazCookies] = useState("")
   const [editDcCookies, setEditDcCookies] = useState("")
+  const [editIptCookies, setEditIptCookies] = useState("")
+  const [editTlUsername, setEditTlUsername] = useState("")
+  const [editTlPassword, setEditTlPassword] = useState("")
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
@@ -133,7 +136,22 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
           validationErrors.apiToken = "Cookie string must contain both uid and pass values"
         }
       }
-    } else if (changingKey && tracker.platformType !== "avistaz" && !newApiToken.trim()) {
+    } else if (changingKey && tracker.platformType === "iptorrents") {
+      const trimmed = editIptCookies.trim().replace(/^Cookie:\s*/i, "")
+      if (!trimmed) {
+        validationErrors.apiToken = "Browser cookies are required"
+      } else if (!trimmed.includes("=")) {
+        validationErrors.apiToken = "Cookie string must contain key=value pairs"
+      }
+    } else if (changingKey && tracker.platformType === "torrentleech") {
+      if (!editTlUsername.trim() || !editTlPassword) {
+        validationErrors.apiToken = "Username and password are required"
+      }
+    } else if (
+      changingKey &&
+      tracker.platformType !== "avistaz" &&
+      !newApiToken.trim()
+    ) {
       validationErrors.apiToken = "API token cannot be empty"
     }
 
@@ -157,6 +175,16 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
         cookies: editAvistazCookies.trim(),
         userAgent: navigator.userAgent,
         username: editAvistazUsername.trim(),
+      })
+    } else if (changingKey && tracker.platformType === "iptorrents") {
+      trimmedToken = JSON.stringify({
+        cookies: editIptCookies.trim().replace(/^Cookie:\s*/i, ""),
+        userAgent: navigator.userAgent,
+      })
+    } else if (changingKey && tracker.platformType === "torrentleech") {
+      trimmedToken = JSON.stringify({
+        username: editTlUsername.trim(),
+        password: editTlPassword,
       })
     } else if (changingKey && tracker.platformType === "digitalcore") {
       const trimmed = editDcCookies.trim()
@@ -353,6 +381,78 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
                   }}
                 />
               </div>
+            ) : changingKey && tracker.platformType === "iptorrents" ? (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-1">
+                  <label
+                    htmlFor="edit-ipt-cookies"
+                    className="text-xs uppercase tracking-wider text-secondary font-sans font-medium"
+                  >
+                    Browser Cookies
+                  </label>
+                  <InfoTip
+                    content="Open DevTools (F12) → Network → any request to IPTorrents → copy the full Cookie header value."
+                    size="sm"
+                    docs={DOCS.ADDING_A_TRACKER}
+                  />
+                </div>
+                <textarea
+                  id="edit-ipt-cookies"
+                  name="edit-ipt-cookies"
+                  autoComplete="off"
+                  data-1p-ignore
+                  value={editIptCookies}
+                  onChange={(e) => setEditIptCookies(e.target.value)}
+                  placeholder="cf_clearance=...; uid=123456; pass=abc123..."
+                  rows={3}
+                  className="w-full rounded-md border border-subtle bg-surface px-3 py-2 text-sm font-mono"
+                />
+                <Notice message={errors.apiToken} />
+                <Button
+                  variant="minimal"
+                  size="sm"
+                  text="Cancel"
+                  className="self-start"
+                  onClick={() => {
+                    setChangingKey(false)
+                    setEditIptCookies("")
+                    setErrors({})
+                  }}
+                />
+              </div>
+            ) : changingKey && tracker.platformType === "torrentleech" ? (
+              <div className="flex flex-col gap-2">
+                <Input
+                  label="Username"
+                  name="edit-tl-username"
+                  autoComplete="off"
+                  data-1p-ignore
+                  value={editTlUsername}
+                  onChange={(e) => setEditTlUsername(e.target.value)}
+                />
+                <Input
+                  label="Password"
+                  name="edit-tl-password"
+                  type="password"
+                  autoComplete="off"
+                  data-1p-ignore
+                  value={editTlPassword}
+                  onChange={(e) => setEditTlPassword(e.target.value)}
+                />
+                <Notice message={errors.apiToken} />
+                <Button
+                  variant="minimal"
+                  size="sm"
+                  text="Cancel"
+                  className="self-start"
+                  onClick={() => {
+                    setChangingKey(false)
+                    setEditTlUsername("")
+                    setEditTlPassword("")
+                    setErrors({})
+                  }}
+                />
+              </div>
             ) : changingKey && tracker.platformType === "digitalcore" ? (
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-1">
@@ -456,7 +556,9 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
             registryEntry?.gazelleEnrich ||
             tracker.platformType === "ggn" ||
             tracker.platformType === "avistaz" ||
-            tracker.platformType === "digitalcore"
+            tracker.platformType === "digitalcore" ||
+            tracker.platformType === "iptorrents" ||
+            tracker.platformType === "torrentleech"
           ) && (
             <div>
               <label
