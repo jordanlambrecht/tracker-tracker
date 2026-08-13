@@ -51,9 +51,14 @@ You can check out a few other, longer, screenshots in the docs folder.
 | SkipTheCommercials    | UNIT3D    | ✅ Verified            |                                                   |
 | Seedpool              | UNIT3D    | ✅ Verified            |                                                   |
 | Upload.cx             | UNIT3D    | ✅ Verified            |                                                   |
+| Yu-Scene              | UNIT3D    | ✅ Verified            |                                                   |
+| Zenith                | UNIT3D    | 🟡 Unverified          |                                                   |
+| IPTorrents            | IPTorrents| 🟡 Unverified          | Session-cookie scraper, no public API              |
+| TorrentLeech          | TorrentLeech | 🟡 Unverified       | Username/password login, no public API             |
+| Portugas              | UNIT3D    | 📋 Draft               | API endpoint unavailable on this custom build     |
 | AlphaRatio            | Gazelle   | 🟡 Unverified ⛔ Stuck |                                                   |
 | AnimeBytes            | Gazelle   | 🟡 Unverified ⛔ Stuck |                                                   |
-| BroadcastheNet (BTN)  | Gazelle   | 🟡 Unverified ⛔ Stuck |                                                   |
+| BroadcastheNet (BTN)  | BTN       | 🟡 Unverified          | JSON-RPC adapter; needs an account holder to verify |
 | Empornium             | Gazelle   | 🟡 Unverified ⛔ Stuck | XXX trackers aren't really my jam, so PRs welcome |
 | GreatPosterWall (GPW) | Gazelle   | 🟡 Unverified          |                                                   |
 | MoreThanTV (MTV)      | Gazelle   | 🟡 Unverified          |                                                   |
@@ -73,12 +78,10 @@ You can check out a few other, longer, screenshots in the docs folder.
 | HDBits                | Custom    | 📋 Needs adapter       |                                                   |
 | SecretCinema          | Custom    | 📋 Needs adapter       |                                                   |
 | SportsCult            | Custom    | 📋 Needs adapter       |                                                   |
-| TorrentLeech          | Custom    | 📋 Needs adapter       |                                                   |
 | BeyondHD              | Custom    | ⛔ Stuck               |                                                   |
 | Cinemageddon          | Custom    | ⛔ Stuck               |                                                   |
 | FileList              | Custom    | ⛔ Stuck               |                                                   |
 | HD-Torrents           | Custom    | ⛔ Stuck               |                                                   |
-| IPTorrents            | Custom    | ⛔ Stuck               |                                                   |
 | TVVault               | Custom    | ⛔ Stuck               |                                                   |
 | HawkeUno              | UNIT3D    | ❌ Broken              | API does not permit /user requests                |
 
