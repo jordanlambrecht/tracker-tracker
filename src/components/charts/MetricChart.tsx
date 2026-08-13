@@ -134,6 +134,14 @@ function buildLineOption(
     .filter((d): d is [number, number] => d !== null)
   const dotSize = adaptiveDotSize(snapshots.length)
 
+  // A log axis cannot represent 0 or negative values. ECharts drops those
+  // points and, because yAxisAutoRange is skipped in log mode, the axis is
+  // left unbounded — which is what made the range look broken. Pin the floor
+  // to the smallest value actually plottable on a log scale.
+  const positiveValues = data.map(([, v]) => v).filter((v) => v > 0)
+  const logRange =
+    useLog && positiveValues.length > 0 ? { min: Math.min(...positiveValues) } : {}
+
   const showSlider = snapshots.length >= 30
   const dataZoom: EChartsOption["dataZoom"] = showSlider
     ? (chartDataZoom(safeAccent) as EChartsOption["dataZoom"])
@@ -168,7 +176,7 @@ function buildLineOption(
       type: useLog ? "log" : "value",
       name: useLog ? `${unit} (log)` : unit,
       scale: true,
-      ...(useLog ? {} : yAxisAutoRange({ allowNegative: config.allowNegative, baselineValue })),
+      ...(useLog ? logRange : yAxisAutoRange({ allowNegative: config.allowNegative, baselineValue })),
       nameTextStyle: {
         color: TERTIARY_COLOR,
         fontFamily: CHART_THEME.fontMono,
@@ -374,7 +382,12 @@ function MetricChart({
   const ratioValues = config
     ? snapshots.map((s) => config.getValue(s)).filter((v): v is number => v !== null && v > 0)
     : []
-  const showLogToggle = metric === "ratio" || metric === "buffer" || metric === "seedbonus"
+  // Buffer is deliberately absent: it is a signed quantity (allowNegative) and
+  // a logarithm of a negative number is undefined, so the toggle produced a
+  // broken axis rather than a useful view (issue #36). The allowNegative guard
+  // keeps that true for any metric added later.
+  const showLogToggle =
+    (metric === "ratio" || metric === "seedbonus") && config?.allowNegative !== true
   const logScale = useLogScale(ratioValues, true)
 
   if (snapshots.length === 0) {
