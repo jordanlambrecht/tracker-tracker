@@ -13,7 +13,11 @@ export const redacted: TrackerRegistryEntry = {
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "gazelle",
-  gazelleAuthStyle: "token",
+  // RED expects a bare `Authorization: <key>` with no `token ` prefix.
+  // Upstream Gazelle carries a dedicated code path for this, commented
+  // "this first case is for compatibility with RED" — so the bare form is
+  // RED-specific, not the Gazelle norm. Sending the prefix returns 401.
+  gazelleAuthStyle: "raw",
   gazelleEnrich: true,
   apiPath: "/ajax.php",
 

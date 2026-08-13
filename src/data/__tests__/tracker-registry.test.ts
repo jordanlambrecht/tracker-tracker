@@ -265,6 +265,27 @@ describe("tracker registry", () => {
     expect(TRACKER_REGISTRY.length).toBeGreaterThanOrEqual(2)
   })
 
+  describe("gazelle auth styles", () => {
+    // Regression guard for issue #155. RED returned 401 for every user because
+    // it was configured with the prefixed `token <key>` form. Upstream Gazelle
+    // has a dedicated bare-token branch commented "this first case is for
+    // compatibility with RED", so the bare form is RED-specific.
+    it("uses the raw (unprefixed) Authorization form for Redacted", () => {
+      const red = getTrackerBySlug("redacted")
+      expect(red).toBeDefined()
+      expect(red?.platform).toBe("gazelle")
+      expect(red?.gazelleAuthStyle).toBe("raw")
+    })
+
+    it("only ever uses a valid gazelle auth style, and only on gazelle trackers", () => {
+      for (const tracker of ALL_TRACKERS) {
+        if (tracker.gazelleAuthStyle === undefined) continue
+        expect(tracker.platform).toBe("gazelle")
+        expect(["token", "raw"]).toContain(tracker.gazelleAuthStyle)
+      }
+    })
+  })
+
   describe("getTrackerBySlug", () => {
     it("returns correct tracker", () => {
       const aither = getTrackerBySlug("aither")
