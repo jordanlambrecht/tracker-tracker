@@ -41,6 +41,7 @@ export * from "./onlyencodes"
 export * from "./orpheus"
 export * from "./passthepopcorn"
 export * from "./phoenixproject"
+export * from "./portugas"
 export * from "./privatehd"
 export * from "./racing4everyone"
 export * from "./redacted"
@@ -53,6 +54,7 @@ export * from "./torrentleech"
 export * from "./tvvault"
 export * from "./uhdbits"
 export * from "./uploadcx"
+export * from "./yuscene"
 
 import { pier720 } from "./720pier"
 import { abtorrents } from "./abtorrents"
@@ -93,6 +95,7 @@ import { onlyencodes } from "./onlyencodes"
 import { orpheus } from "./orpheus"
 import { passthepopcorn } from "./passthepopcorn"
 import { phoenixproject } from "./phoenixproject"
+import { portugas } from "./portugas"
 import { privatehd } from "./privatehd"
 import { racing4everyone } from "./racing4everyone"
 import { redacted } from "./redacted"
@@ -105,6 +108,7 @@ import { torrentleech } from "./torrentleech"
 import { tvvault } from "./tvvault"
 import { uhdbits } from "./uhdbits"
 import { uploadcx } from "./uploadcx"
+import { yuscene } from "./yuscene"
 
 export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   pier720,
@@ -146,6 +150,7 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   orpheus,
   passthepopcorn,
   phoenixproject,
+  portugas,
   privatehd,
   racing4everyone,
   redacted,
@@ -158,4 +163,5 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   tvvault,
   uhdbits,
   uploadcx,
+  yuscene
 ]
