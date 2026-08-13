@@ -61,7 +61,7 @@ describe("Unit3dAdapter", () => {
     )
   })
 
-  it("constructs URL correctly with api_token query param", async () => {
+  it("constructs the URL correctly and keeps the token out of the query string", async () => {
     const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -82,7 +82,9 @@ describe("Unit3dAdapter", () => {
 
     const calledUrl = fetchSpy.mock.calls[0][0] as string
     expect(calledUrl).toContain("https://example.com/api/user")
-    expect(calledUrl).toContain("api_token=my-secret-token")
+    // Bearer is now the default, so the token must not appear in the URL —
+    // query strings leak into access logs and Referer headers.
+    expect(calledUrl).not.toContain("api_token")
   })
 })
 
@@ -163,6 +165,55 @@ describe("Unit3dAdapter - security", () => {
       expect(stats.bufferBytes).toBe(stats.uploadedBytes - stats.downloadedBytes)
       expect(stats.bufferBytes).toBeGreaterThan(BigInt(0))
     }
+  })
+
+
+  it("sends a Bearer header by default and no api_token query param", async () => {
+    let capturedUrl: string | undefined
+    let capturedInit: RequestInit | undefined
+    vi.spyOn(global, "fetch").mockImplementationOnce((url, init) => {
+      capturedUrl = String(url)
+      capturedInit = init
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          username: "u", group: "g", uploaded: "1 GiB", downloaded: "1 GiB",
+          ratio: "1", buffer: "0 B", seeding: 0, leeching: 0,
+          seedbonus: "0", hit_and_runs: 0,
+        }),
+      } as Response)
+    })
+
+    await adapter.fetchStats("https://aither.cc", "secret-token", "/api/user")
+
+    expect((capturedInit?.headers as Record<string, string>).Authorization).toBe(
+      "Bearer secret-token"
+    )
+    expect(capturedUrl).not.toContain("api_token")
+  })
+
+  it("falls back to the legacy query param when a tracker opts into query auth", async () => {
+    let capturedUrl: string | undefined
+    let capturedInit: RequestInit | undefined
+    vi.spyOn(global, "fetch").mockImplementationOnce((url, init) => {
+      capturedUrl = String(url)
+      capturedInit = init
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          username: "u", group: "g", uploaded: "1 GiB", downloaded: "1 GiB",
+          ratio: "1", buffer: "0 B", seeding: 0, leeching: 0,
+          seedbonus: "0", hit_and_runs: 0,
+        }),
+      } as Response)
+    })
+
+    await adapter.fetchStats("https://aither.cc", "secret-token", "/api/user", {
+      unit3dAuthStyle: "query",
+    })
+
+    expect(capturedUrl).toContain("api_token=secret-token")
+    expect((capturedInit?.headers as Record<string, string>).Authorization).toBeUndefined()
   })
 
 })

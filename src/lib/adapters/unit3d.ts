@@ -36,10 +36,19 @@ export class Unit3dAdapter implements TrackerAdapter {
     const url = new URL(apiPath, baseUrl)
     const hostname = new URL(baseUrl).hostname
 
-    const headers: Record<string, string> =
-      options?.unit3dAuthStyle === "bearer" ? { Authorization: `Bearer ${apiToken}` } : {}
+    // Bearer is the default. UNIT3D's newer auth guard reads *only*
+    // `Authorization: Bearer` — the `?api_token=` query form stops
+    // authenticating entirely once a tracker upgrades past v9.2.0. Released
+    // versions accept bearer today (Laravel's TokenGuard falls through to
+    // bearerToken()), so this form works on both. Set
+    // `unit3dAuthStyle: "query"` on a tracker to force the legacy form.
+    const useLegacyQueryAuth = options?.unit3dAuthStyle === "query"
 
-    if (options?.unit3dAuthStyle !== "bearer") {
+    const headers: Record<string, string> = useLegacyQueryAuth
+      ? {}
+      : { Authorization: `Bearer ${apiToken}` }
+
+    if (useLegacyQueryAuth) {
       url.searchParams.set("api_token", apiToken)
     }
 
@@ -80,10 +89,19 @@ export class Unit3dAdapter implements TrackerAdapter {
     const url = new URL(apiPath, baseUrl)
     const hostname = new URL(baseUrl).hostname
 
-    const headers: Record<string, string> =
-      options?.unit3dAuthStyle === "bearer" ? { Authorization: `Bearer ${apiToken}` } : {}
+    // Bearer is the default. UNIT3D's newer auth guard reads *only*
+    // `Authorization: Bearer` — the `?api_token=` query form stops
+    // authenticating entirely once a tracker upgrades past v9.2.0. Released
+    // versions accept bearer today (Laravel's TokenGuard falls through to
+    // bearerToken()), so this form works on both. Set
+    // `unit3dAuthStyle: "query"` on a tracker to force the legacy form.
+    const useLegacyQueryAuth = options?.unit3dAuthStyle === "query"
 
-    if (options?.unit3dAuthStyle !== "bearer") {
+    const headers: Record<string, string> = useLegacyQueryAuth
+      ? {}
+      : { Authorization: `Bearer ${apiToken}` }
+
+    if (useLegacyQueryAuth) {
       url.searchParams.set("api_token", apiToken)
     }
 
