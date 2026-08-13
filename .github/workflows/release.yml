@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -103,7 +103,7 @@ jobs:
 
       - name: Run Trivy vulnerability scanner
         if: steps.tag.outputs.should_release == 'true'
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.version }}
           format: sarif
@@ -142,7 +142,7 @@ jobs:
 
       - name: Create GitHub Release
         if: steps.tag.outputs.should_release == 'true'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.tag.outputs.version }}
           name: v${{ steps.tag.outputs.version }}
