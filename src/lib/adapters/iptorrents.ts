@@ -1,6 +1,6 @@
 // src/lib/adapters/iptorrents.ts
 //
-// Functions: parseIptCredentials, parseIptProfile, fetchHtml, IptorrentsAdapter
+// Functions: parseIptCredentials, tryParseBytes, parseIptProfile, fetchHtml, IptorrentsAdapter
 
 import { type HTMLElement as ParsedElement, parse as parseHtml } from "node-html-parser"
 import { computeBufferBytes } from "@/lib/data-transforms"
@@ -77,6 +77,19 @@ export function parseIptCredentials(apiToken: string): IptCredentials {
 // HTML parsing helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * parseBytes for optional/best-effort fields: returns undefined rather than
+ * throwing when a DOM variant yields something unparseable, so a single odd
+ * value can't abort the whole profile parse.
+ */
+function tryParseBytes(value: string): bigint | undefined {
+  try {
+    return parseBytes(value)
+  } catch {
+    return undefined
+  }
+}
+
 /** Extracts the value text of a tTipWrap item once its `.tTip` label text is stripped. */
 function valueAfterLabel(wrap: ParsedElement, label: string): string {
   const fullText = wrap.textContent ?? ""
@@ -103,17 +116,9 @@ function parseUpStatCards(doc: ParsedElement): {
     if (!label || !value) continue
 
     if (/uploaded/i.test(label)) {
-      try {
-        result.uploadedBytes = parseBytes(value)
-      } catch {
-        // ignore unparseable value, primary parse path already failed anyway
-      }
+      result.uploadedBytes = tryParseBytes(value) ?? result.uploadedBytes
     } else if (/downloaded/i.test(label)) {
-      try {
-        result.downloadedBytes = parseBytes(value)
-      } catch {
-        // ignore
-      }
+      result.downloadedBytes = tryParseBytes(value) ?? result.downloadedBytes
     } else if (/ratio/i.test(label)) {
       const match = value.match(/[\d.]+/)
       if (match) result.ratio = parseFloat(match[0])
@@ -170,17 +175,9 @@ export function parseIptProfile(html: string): TrackerStats {
       const match = value.match(/[\d.]+/)
       if (match) ratio = parseFloat(match[0])
     } else if (label === "Uploaded") {
-      try {
-        uploadedBytes = parseBytes(value)
-      } catch {
-        // leave at 0, fallback handled below
-      }
+      uploadedBytes = tryParseBytes(value) ?? uploadedBytes
     } else if (label === "Downloaded") {
-      try {
-        downloadedBytes = parseBytes(value)
-      } catch {
-        // leave at 0, fallback handled below
-      }
+      downloadedBytes = tryParseBytes(value) ?? downloadedBytes
     } else if (label === "Active Torrents") {
       const nums = value.match(/\d+/g)
       if (nums && nums.length >= 2) {

@@ -19,8 +19,8 @@ import { db } from "@/lib/db"
 import { trackers } from "@/lib/db/schema"
 import { errMsg } from "@/lib/error-utils"
 import {
-  maxTokenLengthFor,
   LONG_STRING_MAX,
+  maxTokenLengthFor,
   TRACKER_NAME_MAX,
   TRACKER_TAG_MAX,
   TRACKER_URL_MAX,
