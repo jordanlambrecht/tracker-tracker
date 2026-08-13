@@ -89,16 +89,25 @@ function getTrackerHealth(tracker: TrackerSummary): TrackerHealth {
   if (pause.isPaused) return pause.reason === "failure" ? "paused" : "paused-user"
   if (tracker.lastError) return "error"
   if (!tracker.latestStats) return "offline"
-  const { ratio, seedingCount } = tracker.latestStats
-  if (ratio === null) return "offline"
+  const { ratio, seedingCount, ratioIsInfinite } = tracker.latestStats
+  // An infinite ratio arrives as `ratio: null` because JSON can't carry
+  // Infinity. Only treat null as "no data" when the account isn't in that
+  // state — otherwise a perfectly healthy zero-download tracker reads Offline.
+  if (ratio === null && !ratioIsInfinite) return "offline"
 
   // Warned by tracker is always critical — potential ban risk
   if (tracker.latestStats?.warned === true) return "critical"
 
   let status: TrackerHealth
-  if (ratio >= 2) status = "healthy"
-  else if (ratio >= 1) status = "warning"
-  else status = "critical"
+  if (ratioIsInfinite) {
+    // Uploads with zero downloads is the best possible standing.
+    status = "healthy"
+  } else {
+    const value = ratio ?? 0
+    if (value >= 2) status = "healthy"
+    else if (value >= 1) status = "warning"
+    else status = "critical"
+  }
 
   if (seedingCount === 0 && status === "healthy") status = "warning"
 

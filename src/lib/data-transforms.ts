@@ -76,6 +76,23 @@ export function computeBufferBytes(uploaded: bigint, downloaded: bigint): bigint
   return uploaded > downloaded ? uploaded - downloaded : 0n
 }
 
+/**
+ * Ratio derived from byte totals rather than a tracker's own `ratio` field.
+ *
+ * Sites disagree wildly on how to report an account with no downloads —
+ * UNIT3D sends the string `"∞"`, Gazelle sends `-1`, MAM sends something
+ * undocumented — and every one of those parses to a misleading `0`, which
+ * renders as a critical ratio on a perfectly healthy account. The byte totals
+ * are unambiguous everywhere, so derive from them.
+ *
+ * Returns `Infinity` for uploads with zero downloads. Callers serializing to
+ * JSON must handle that (see `ratioIsInfinite` in the tracker serializer).
+ */
+export function computeRatio(uploaded: bigint, downloaded: bigint): number {
+  if (downloaded === 0n) return uploaded > 0n ? Infinity : 0
+  return Number(uploaded) / Number(downloaded)
+}
+
 export function isUnixTimestampOnDate(unixSeconds: number, dateStr: string): boolean {
   if (unixSeconds <= 0) return false
   return localDateStr(new Date(unixSeconds * 1000)) === dateStr

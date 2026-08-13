@@ -6,6 +6,7 @@ import type { Snapshot, TrackerLatestStats } from "@/types/api"
 
 const baseStats: TrackerLatestStats = {
   ratio: 2.0,
+  ratioIsInfinite: false,
   uploadedBytes: "100000000000",
   downloadedBytes: "50000000000",
   seedingCount: 100,

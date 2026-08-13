@@ -2,7 +2,7 @@
 //
 // Functions: isUnlimitedBuffer, Unit3dAdapter
 
-import { computeBufferBytes } from "@/lib/data-transforms"
+import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
 import { parseBytes } from "@/lib/parser"
 import { adapterFetch } from "./adapter-fetch"
 import type {
@@ -135,7 +135,9 @@ export class Unit3dAdapter implements TrackerAdapter {
       group: data.group,
       uploadedBytes,
       downloadedBytes,
-      ratio: parseFloat(data.ratio) || 0,
+      // Derived from byte totals, not data.ratio — UNIT3D sends "∞" for a
+      // zero-download account and parseFloat turns that into 0.
+      ratio: computeRatio(uploadedBytes, downloadedBytes),
       // Some UNIT3D builds (i.e. Zenith) report an unlimited buffer as "∞",
       // which parseBytes rejects. Derive it from the totals instead — the
       // same fallback avistaz.ts uses. Only the buffer field does this;

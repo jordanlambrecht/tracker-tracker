@@ -36,6 +36,13 @@ export interface TrackerLatestStats extends TrackerStatFields {
   uploadedBytes: string | null
   downloadedBytes: string | null
   bufferBytes: string | null
+  /**
+   * True when the account has uploads but zero downloads, i.e. the ratio is
+   * mathematically infinite. `ratio` is `null` in that case because JSON
+   * cannot represent Infinity — without this flag an infinite ratio is
+   * indistinguishable from "never measured".
+   */
+  ratioIsInfinite: boolean
 }
 
 export interface TrackerSummary {

@@ -1,6 +1,6 @@
 // src/lib/adapters/mam.ts
 
-import { computeBufferBytes, floatBytesToBigInt } from "@/lib/data-transforms"
+import { computeBufferBytes, computeRatio, floatBytesToBigInt } from "@/lib/data-transforms"
 import { adapterFetch } from "./adapter-fetch"
 import type {
   DebugApiCall,
@@ -139,7 +139,9 @@ export class MamAdapter implements TrackerAdapter {
       remoteUserId: data.uid,
       uploadedBytes: uploaded,
       downloadedBytes: downloaded,
-      ratio: typeof data.ratio === "number" ? data.ratio : parseFloat(String(data.ratio)) || 0,
+      // Derived from byte totals — MAM's own ratio field encoding for a
+      // zero-download account is undocumented and parsed to 0.
+      ratio: computeRatio(uploaded, downloaded),
       bufferBytes: computeBufferBytes(uploaded, downloaded),
       seedingCount,
       leechingCount: data.leeching?.count ?? 0,

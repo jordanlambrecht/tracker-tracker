@@ -3,7 +3,7 @@
 // Functions: parseDigitalCoreCredentials, dcClassNameFromId, parseJsonSafe,
 //            fetchDCJson, DigitalCoreAdapter
 
-import { computeBufferBytes } from "@/lib/data-transforms"
+import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
 import { classifyFetchError, sanitizeNetworkError } from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import type {
@@ -284,8 +284,7 @@ export class DigitalCoreAdapter implements TrackerAdapter {
       group: dcClassNameFromId(user.class),
       uploadedBytes: uploaded,
       downloadedBytes: downloaded,
-      ratio:
-        downloaded === 0n ? (uploaded > 0n ? Infinity : 0) : Number(uploaded) / Number(downloaded),
+      ratio: computeRatio(uploaded, downloaded),
       bufferBytes: computeBufferBytes(uploaded, downloaded),
       seedingCount: user.myseedstotal ?? 0,
       leechingCount: 0,

@@ -67,6 +67,7 @@ describe("formatRatio", () => {
 describe("formatStatValue", () => {
   const stats = {
     ratio: 2.79,
+    ratioIsInfinite: false,
     uploadedBytes: "17340000000000",
     downloadedBytes: "6210000000000",
     seedingCount: 1882,

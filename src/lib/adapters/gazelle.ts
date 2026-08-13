@@ -2,7 +2,7 @@
 //
 // Functions: GazelleAdapter, GazelleAdapter.fetchStats, GazelleAdapter.fetchRaw
 
-import { computeBufferBytes, floatBytesToBigInt } from "@/lib/data-transforms"
+import { computeBufferBytes, computeRatio, floatBytesToBigInt } from "@/lib/data-transforms"
 import { adapterFetch } from "./adapter-fetch"
 import type {
   DebugApiCall,
@@ -139,7 +139,8 @@ export class GazelleAdapter implements TrackerAdapter {
       group: userStats.class ?? "Unknown",
       uploadedBytes: uploaded,
       downloadedBytes: downloaded,
-      ratio: typeof userStats.ratio === "number" ? userStats.ratio : 0,
+      // Derived from byte totals — Gazelle reports -1 for an infinite ratio.
+      ratio: computeRatio(uploaded, downloaded),
       bufferBytes: computeBufferBytes(uploaded, downloaded),
       seedingCount: userStats.seedingcount ?? 0,
       leechingCount: userStats.leechingcount ?? 0,

@@ -55,6 +55,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     createdAt: new Date().toISOString(),
     latestStats: {
       ratio: 2.5,
+      ratioIsInfinite: false,
       uploadedBytes: "1073741824", // 1 GiB
       downloadedBytes: "536870912", // 0.5 GiB
       seedingCount: 10,
@@ -135,6 +136,7 @@ describe("computeAggregateStats", () => {
         id: 1,
         latestStats: {
           ratio: 2.0,
+          ratioIsInfinite: false,
           uploadedBytes: "2000000000", // 2 GB
           downloadedBytes: "1000000000", // 1 GB
           seedingCount: 5,
@@ -154,6 +156,7 @@ describe("computeAggregateStats", () => {
         id: 2,
         latestStats: {
           ratio: 1.5,
+          ratioIsInfinite: false,
           uploadedBytes: "3000000000", // 3 GB
           downloadedBytes: "2000000000", // 2 GB
           seedingCount: 10,
@@ -184,6 +187,7 @@ describe("computeAggregateStats", () => {
         id: 1,
         latestStats: {
           ratio: 4.0,
+          ratioIsInfinite: false,
           uploadedBytes: "4000000000",
           downloadedBytes: "1000000000",
           seedingCount: 0,
@@ -203,6 +207,7 @@ describe("computeAggregateStats", () => {
         id: 2,
         latestStats: {
           ratio: 1.0,
+          ratioIsInfinite: false,
           uploadedBytes: "1000000000",
           downloadedBytes: "1000000000",
           seedingCount: 0,
@@ -229,6 +234,7 @@ describe("computeAggregateStats", () => {
       makeTracker({
         latestStats: {
           ratio: null,
+          ratioIsInfinite: false,
           uploadedBytes: "1000000000",
           downloadedBytes: "0",
           seedingCount: 0,
@@ -255,6 +261,7 @@ describe("computeAggregateStats", () => {
         id: 1,
         latestStats: {
           ratio: 2.0,
+          ratioIsInfinite: false,
           uploadedBytes: "1000000000",
           downloadedBytes: "500000000",
           seedingCount: 5,
@@ -287,6 +294,7 @@ describe("computeAggregateStats", () => {
       makeTracker({
         latestStats: {
           ratio: null,
+          ratioIsInfinite: false,
           uploadedBytes: null,
           downloadedBytes: null,
           seedingCount: 3,
@@ -315,6 +323,7 @@ describe("computeAggregateStats", () => {
       makeTracker({
         latestStats: {
           ratio: 1.0,
+          ratioIsInfinite: false,
           uploadedBytes: "500000000",
           downloadedBytes: "500000000",
           seedingCount: null,
@@ -340,6 +349,7 @@ describe("computeAggregateStats", () => {
     const t = makeTracker({
       latestStats: {
         ratio: 0.5,
+        ratioIsInfinite: false,
         uploadedBytes: "500",
         downloadedBytes: "1000",
         seedingCount: 0,
@@ -380,6 +390,7 @@ describe("computeAlerts", () => {
       lastPolledAt: new Date().toISOString(),
       latestStats: {
         ratio: 2.5,
+        ratioIsInfinite: false,
         uploadedBytes: "1000",
         downloadedBytes: "400",
         seedingCount: 5,
@@ -449,6 +460,7 @@ describe("computeAlerts", () => {
       lastPolledAt: new Date().toISOString(),
       latestStats: {
         ratio: 0.3,
+        ratioIsInfinite: false,
         uploadedBytes: "300",
         downloadedBytes: "1000",
         seedingCount: 1,
@@ -483,6 +495,7 @@ describe("computeAlerts", () => {
       lastError: null,
       latestStats: {
         ratio: 0.5,
+        ratioIsInfinite: false,
         uploadedBytes: "500",
         downloadedBytes: "1000",
         seedingCount: 1,
@@ -513,6 +526,7 @@ describe("computeAlerts", () => {
       lastError: null,
       latestStats: {
         ratio: 0.2,
+        ratioIsInfinite: false,
         uploadedBytes: "200",
         downloadedBytes: "1000",
         seedingCount: 1,
@@ -542,6 +556,7 @@ describe("computeAlerts", () => {
       lastError: null,
       latestStats: {
         ratio: 2.0,
+        ratioIsInfinite: false,
         uploadedBytes: "1000",
         downloadedBytes: "500",
         seedingCount: 5,
@@ -596,6 +611,7 @@ describe("computeAlerts", () => {
       isActive: true,
       latestStats: {
         ratio: 5.0,
+        ratioIsInfinite: false,
         uploadedBytes: "5000",
         downloadedBytes: "1000",
         seedingCount: 0,
@@ -626,6 +642,7 @@ describe("computeAlerts", () => {
       isActive: true,
       latestStats: {
         ratio: 2.5,
+        ratioIsInfinite: false,
         uploadedBytes: "1000",
         downloadedBytes: "400",
         seedingCount: 5,
@@ -652,6 +669,7 @@ describe("computeAlerts", () => {
       isActive: true,
       latestStats: {
         ratio: 2.0,
+        ratioIsInfinite: false,
         uploadedBytes: "1000",
         downloadedBytes: "500",
         seedingCount: null,
@@ -678,6 +696,7 @@ describe("computeAlerts", () => {
       isActive: false,
       latestStats: {
         ratio: 2.0,
+        ratioIsInfinite: false,
         uploadedBytes: "1000",
         downloadedBytes: "500",
         seedingCount: 0,
@@ -1090,6 +1109,7 @@ describe("getTrackerHealth", () => {
         pausedAt: "2026-03-17T00:00:00Z",
         latestStats: {
           ratio: 5.0,
+          ratioIsInfinite: false,
           uploadedBytes: "5000",
           downloadedBytes: "1000",
           seedingCount: 10,
@@ -1142,6 +1162,7 @@ describe("getTrackerHealth", () => {
         lastError: null,
         latestStats: {
           ratio: 3.0,
+          ratioIsInfinite: false,
           uploadedBytes: "3000",
           downloadedBytes: "1000",
           seedingCount: 5,
@@ -1168,6 +1189,7 @@ describe("getTrackerHealth", () => {
         lastError: null,
         latestStats: {
           ratio: 0.3,
+          ratioIsInfinite: false,
           uploadedBytes: "300",
           downloadedBytes: "1000",
           seedingCount: 2,
