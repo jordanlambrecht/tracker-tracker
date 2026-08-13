@@ -16,9 +16,9 @@ describe("BtnAdapter", () => {
     const mockResponse = {
       id: 1,
       result: {
-        UserID: "1531582",
-        Username: "thing7314",
-        Email: "seeding@mail.chrisbrunner.com",
+        UserID: "9900001",
+        Username: "testuser",
+        Email: "user@example.test",
         Upload: "5000000000",
         Download: "1000000000",
         Lumens: "10",
@@ -44,7 +44,7 @@ describe("BtnAdapter", () => {
 
     const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_URL)
 
-    expect(stats.username).toBe("thing7314")
+    expect(stats.username).toBe("testuser")
     expect(stats.group).toBe("User")
     expect(stats.uploadedBytes).toBe(5000000000n)
     expect(stats.downloadedBytes).toBe(1000000000n)
@@ -57,7 +57,7 @@ describe("BtnAdapter", () => {
     expect(stats.hitAndRuns).toBe(3)
     expect(stats.requiredRatio).toBe(0)
     expect(stats.warned).toBe(false)
-    expect(stats.remoteUserId).toBe(1531582)
+    expect(stats.remoteUserId).toBe(9900001)
     expect(stats.joinedDate).toContain("2026")
   })
 
@@ -65,8 +65,8 @@ describe("BtnAdapter", () => {
     const mockResponse = {
       id: 1,
       result: {
-        UserID: "1531582",
-        Username: "thing7314",
+        UserID: "9900001",
+        Username: "testuser",
         Upload: "5000000000",
         Download: "1000000000",
         Lumens: "10",
