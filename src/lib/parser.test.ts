@@ -75,22 +75,12 @@ describe("parseBytes - security", () => {
 })
 
 describe("parseBytes - infinity values", () => {
-  it("returns 0n for ∞", () => {
-    expect(parseBytes("∞")).toBe(0n)
-  })
-  it("returns 0n for Inf", () => {
-    expect(parseBytes("Inf")).toBe(0n)
-  })
-  it("returns 0n for -∞", () => {
-    expect(parseBytes("-∞")).toBe(0n)
-  })
-  it("returns 0n for -Inf", () => {
-    expect(parseBytes("-Inf")).toBe(0n)
-  })
-  it("returns 0n for inf (lowercase)", () => {
-    expect(parseBytes("inf")).toBe(0n)
-  })
-  it("returns 0n for INF (uppercase)", () => {
-    expect(parseBytes("INF")).toBe(0n)
+  // parseBytes is a strict byte parser and stays that way: "unlimited" and
+  // "zero bytes" are different facts and must not collapse into one value.
+  // Trackers that report an unbounded buffer (i.e. Zenith's UNIT3D build)
+  // are handled in the adapter that knows what it means — see
+  // isUnlimitedBuffer in src/lib/adapters/unit3d.ts.
+  it.each(["∞", "-∞", "Inf", "-Inf", "inf", "INF"])("rejects %s", (value) => {
+    expect(() => parseBytes(value)).toThrow()
   })
 })

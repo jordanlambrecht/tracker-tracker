@@ -137,4 +137,32 @@ describe("Unit3dAdapter - security", () => {
   })
 
   // AbortSignal timeout coverage is in adapterFetch — tested via timeout-message test above
+
+  it("derives bufferBytes from totals when the build reports an unlimited buffer", async () => {
+    // Zenith's UNIT3D build returns "∞" for buffer; parseBytes rejects that,
+    // so the adapter falls back to uploaded - downloaded rather than
+    // reporting a confident 0 B.
+    for (const infinite of ["∞", "-∞", "Inf", "inf"]) {
+      vi.spyOn(global, "fetch").mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          username: "ZenithUser",
+          group: "User",
+          uploaded: "100 GiB",
+          downloaded: "40 GiB",
+          ratio: "2.5",
+          buffer: infinite,
+          seeding: 10,
+          leeching: 0,
+          seedbonus: "0",
+          hit_and_runs: 0,
+        }),
+      } as Response)
+
+      const stats = await adapter.fetchStats("https://znth.cx", "fake-token", "/api/user")
+      expect(stats.bufferBytes).toBe(stats.uploadedBytes - stats.downloadedBytes)
+      expect(stats.bufferBytes).toBeGreaterThan(BigInt(0))
+    }
+  })
+
 })

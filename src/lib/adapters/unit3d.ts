@@ -1,7 +1,17 @@
 // src/lib/adapters/unit3d.ts
+//
+// Functions: isUnlimitedBuffer, Unit3dAdapter
+
+import { computeBufferBytes } from "@/lib/data-transforms"
 import { parseBytes } from "@/lib/parser"
 import { adapterFetch } from "./adapter-fetch"
 import type { DebugApiCall, FetchOptions, TrackerAdapter, TrackerStats } from "./types"
+
+/** True when a UNIT3D build reports an unbounded buffer rather than a byte value. */
+function isUnlimitedBuffer(raw: string): boolean {
+  const trimmed = raw?.trim().toLowerCase() ?? ""
+  return trimmed === "∞" || trimmed === "-∞" || trimmed === "inf" || trimmed === "-inf"
+}
 
 interface Unit3dApiResponse {
   username: string
@@ -35,13 +45,22 @@ export class Unit3dAdapter implements TrackerAdapter {
 
     const data = await adapterFetch<Unit3dApiResponse>(url.toString(), hostname, options, headers)
 
+    const uploadedBytes = parseBytes(data.uploaded)
+    const downloadedBytes = parseBytes(data.downloaded)
+
     return {
       username: data.username,
       group: data.group,
-      uploadedBytes: parseBytes(data.uploaded),
-      downloadedBytes: parseBytes(data.downloaded),
+      uploadedBytes,
+      downloadedBytes,
       ratio: parseFloat(data.ratio) || 0,
-      bufferBytes: parseBytes(data.buffer),
+      // Some UNIT3D builds (i.e. Zenith) report an unlimited buffer as "∞",
+      // which parseBytes rejects. Derive it from the totals instead — the
+      // same fallback avistaz.ts uses. Only the buffer field does this;
+      // parseBytes stays strict for every other caller.
+      bufferBytes: isUnlimitedBuffer(data.buffer)
+        ? computeBufferBytes(uploadedBytes, downloadedBytes)
+        : parseBytes(data.buffer),
       seedingCount: data.seeding,
       leechingCount: data.leeching,
       seedbonus: parseFloat(data.seedbonus) || 0,
