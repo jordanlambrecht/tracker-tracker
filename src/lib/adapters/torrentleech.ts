@@ -1,6 +1,7 @@
 // src/lib/adapters/torrentleech.ts
 //
-// Functions: parseTlCredentials, login, parseTlProfile, fetchHtml, TorrentleechAdapter
+// Functions: parseTlCredentials, login, getTlSession, invalidateTlSession, parseTlProfile,
+//            fetchHtml, TorrentleechAdapter
 
 import { type HTMLElement as ParsedElement, parse as parseHtml } from "node-html-parser"
 import { computeBufferBytes } from "@/lib/data-transforms"
@@ -53,6 +54,45 @@ export function parseTlCredentials(apiToken: string): TlCredentials {
  * tunnel.ts's proxyFetch is GET-only with no body support, so login always goes
  * through a direct fetch — only the subsequent profile page fetch honors proxyAgent.
  */
+// ---------------------------------------------------------------------------
+// Session cache
+//
+// TorrentLeech has no API, so every poll would otherwise POST the user's
+// password to /user/account/login/. Trackers watch login frequency, so reuse
+// the session cookie across polls and only re-authenticate when it expires —
+// the same approach the qBittorrent transport takes with its SID cache.
+// Stored on globalThis so an HMR reload in dev doesn't orphan the cache.
+// ---------------------------------------------------------------------------
+
+const gTl = globalThis as typeof globalThis & {
+  __tlSessionCache?: Map<string, string>
+}
+if (!gTl.__tlSessionCache) gTl.__tlSessionCache = new Map()
+const tlSessionCache = gTl.__tlSessionCache
+
+/** Cache key is scoped per site+account so multiple logins don't collide. */
+function sessionKey(baseUrl: string, username: string): string {
+  return `${baseUrl}|${username}`
+}
+
+async function getTlSession(
+  baseUrl: string,
+  username: string,
+  password: string
+): Promise<string> {
+  const key = sessionKey(baseUrl, username)
+  const cached = tlSessionCache.get(key)
+  if (cached) return cached
+
+  const cookies = await login(baseUrl, username, password)
+  tlSessionCache.set(key, cookies)
+  return cookies
+}
+
+function invalidateTlSession(baseUrl: string, username: string): void {
+  tlSessionCache.delete(sessionKey(baseUrl, username))
+}
+
 async function login(baseUrl: string, username: string, password: string): Promise<string> {
   const loginUrl = `${baseUrl}/user/account/login/`
   const body = new URLSearchParams({ username, password }).toString()
@@ -236,9 +276,20 @@ export class TorrentleechAdapter implements TrackerAdapter {
     options?: FetchOptions
   ): Promise<TrackerStats> {
     const creds = parseTlCredentials(apiToken)
-    const cookies = await login(baseUrl, creds.username, creds.password)
     const profileUrl = `${baseUrl}/profile/${encodeURIComponent(creds.username)}`
-    const html = await fetchHtml(profileUrl, cookies, options?.proxyAgent)
+
+    let cookies = await getTlSession(baseUrl, creds.username, creds.password)
+    let html: string
+    try {
+      html = await fetchHtml(profileUrl, cookies, options?.proxyAgent)
+    } catch (err) {
+      // A cached session that has expired server-side surfaces as a redirect to
+      // the login page. Drop it and authenticate once more before giving up.
+      if (!(err instanceof Error) || !err.message.startsWith("Session expired")) throw err
+      invalidateTlSession(baseUrl, creds.username)
+      cookies = await getTlSession(baseUrl, creds.username, creds.password)
+      html = await fetchHtml(profileUrl, cookies, options?.proxyAgent)
+    }
     return parseTlProfile(html, creds.username)
   }
 
@@ -253,7 +304,7 @@ export class TorrentleechAdapter implements TrackerAdapter {
     const endpoint = `/profile/${creds.username}`
 
     try {
-      const cookies = await login(baseUrl, creds.username, creds.password)
+      const cookies = await getTlSession(baseUrl, creds.username, creds.password)
       const profileUrl = `${baseUrl}${endpoint}`
       const html = await fetchHtml(profileUrl, cookies, options?.proxyAgent)
       const stats = parseTlProfile(html, creds.username)

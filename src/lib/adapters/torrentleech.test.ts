@@ -94,6 +94,9 @@ describe("TorrentleechAdapter.fetchStats", () => {
 
   beforeEach(() => {
     vi.restoreAllMocks()
+    // The adapter caches login sessions on globalThis so it doesn't
+    // re-authenticate every poll. Clear it so each test starts cold.
+    ;(globalThis as { __tlSessionCache?: Map<string, string> }).__tlSessionCache?.clear()
   })
 
   it("logs in, fetches the profile, and returns parsed stats", async () => {
@@ -155,4 +158,37 @@ describe("TorrentleechAdapter.fetchStats", () => {
       adapter.fetchStats("https://www.torrentleech.org", validToken, "")
     ).rejects.toThrow("Failed to connect to www.torrentleech.org: ECONNREFUSED")
   })
+
+  it("reuses the cached session instead of logging in on every poll", async () => {
+    const loginResponse = {
+      ok: true,
+      status: 200,
+      headers: { getSetCookie: () => ["tluid=123; Path=/", "tlpass=abc; Path=/"] },
+      text: async () => "",
+    } as unknown as Response
+    const profileResponse = {
+      ok: true,
+      status: 200,
+      headers: { getSetCookie: () => [] },
+      text: async () => PROFILE_HTML,
+    } as unknown as Response
+
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce(loginResponse)
+      .mockResolvedValueOnce(profileResponse)
+      .mockResolvedValueOnce(profileResponse)
+
+    const token = JSON.stringify({ username: "tluser", password: "pw" })
+    await adapter.fetchStats("https://www.torrentleech.org", token, "")
+    await adapter.fetchStats("https://www.torrentleech.org", token, "")
+
+    // 3 calls total: one login + two profile fetches — not two logins.
+    expect(fetchSpy).toHaveBeenCalledTimes(3)
+    const loginCalls = fetchSpy.mock.calls.filter(([url]) =>
+      String(url).includes("/user/account/login/")
+    )
+    expect(loginCalls).toHaveLength(1)
+  })
+
 })
