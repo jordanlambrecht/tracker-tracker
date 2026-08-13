@@ -57,20 +57,23 @@ export function buildBaseUrl(host: string, port: number, ssl: boolean): string {
 // SID session cache to avoid re-authenticating on every poll cycle.
 // ---------------------------------------------------------------------------
 
+/** The session cookie qBittorrent assigns at login — name varies by version/port. */
+export type SidCookie = { name: string; value: string }
+
 const gSid = globalThis as typeof globalThis & {
-  __qbtSidCache?: Map<string, string>
+  __qbtSidCache?: Map<string, SidCookie>
 }
 if (!gSid.__qbtSidCache) gSid.__qbtSidCache = new Map()
 const sidCache = gSid.__qbtSidCache
 
-/** Get a cached SID or perform a fresh login. */
+/** Get a cached session cookie or perform a fresh login. */
 export async function getSession(
   host: string,
   port: number,
   ssl: boolean,
   username: string,
   password: string
-): Promise<{ baseUrl: string; sid: string }> {
+): Promise<{ baseUrl: string; sid: SidCookie }> {
   const baseUrl = buildBaseUrl(host, port, ssl)
   const cached = sidCache.get(baseUrl)
   if (cached) return { baseUrl, sid: cached }
@@ -107,7 +110,7 @@ export async function withSessionRetry<T>(
   ssl: boolean,
   username: string,
   password: string,
-  op: (baseUrl: string, sid: string) => Promise<T>
+  op: (baseUrl: string, sid: SidCookie) => Promise<T>
 ): Promise<T> {
   const { baseUrl, sid } = await getSession(host, port, ssl, username, password)
   try {
@@ -128,7 +131,7 @@ export async function login(
   ssl: boolean,
   username: string,
   password: string
-): Promise<string> {
+): Promise<SidCookie> {
   const baseUrl = buildBaseUrl(host, port, ssl)
   const url = `${baseUrl}/api/v2/auth/login`
   const body = new URLSearchParams({ username, password }).toString()
@@ -157,29 +160,49 @@ export async function login(
   }
 
   const text = await response.text()
-  if (text !== "Ok.") {
+  if (text !== "Ok." && response.status !== 204) {
     throw new Error("Authentication failed — check username and password")
   }
 
-  const setCookie = response.headers.get("set-cookie") ?? ""
-  const match = setCookie.match(/SID=([^;]+)/)
-  if (!match) {
+  // qBittorrent 5.2+ names its session cookie `QBT_SID_<port>` (the WebUI's
+  // own listen port baked into the name) instead of the legacy plain `SID`,
+  // so match that pattern specifically — the server rejects the value if sent
+  // back under a different cookie name (confirmed live: sending the correct
+  // value under the wrong name returns 403). `getSetCookie()` returns each
+  // Set-Cookie response header as its own array element, unlike `.get()`
+  // which comma-joins them into a single string that's unsafe to regex
+  // across (cookie values can legally contain commas).
+  const sid = response.headers
+    .getSetCookie()
+    .map((cookie): SidCookie | null => {
+      const eq = cookie.indexOf("=")
+      if (eq === -1) return null
+      const name = cookie.slice(0, eq).trim()
+      const value = cookie.slice(eq + 1).split(";", 1)[0].trim()
+      return { name, value }
+    })
+    .find((cookie): cookie is SidCookie => {
+      if (!cookie) return false
+      return cookie.name === "SID" || /^QBT_SID_\d+$/.test(cookie.name)
+    })
+
+  if (!sid) {
     throw new Error("Authentication failed — SID cookie not found in response")
   }
 
-  return match[1]
+  return sid
 }
 
 async function qbtFetch(
   url: string,
   host: string,
   baseUrl: string,
-  sid: string
+  sid: SidCookie
 ): Promise<Response> {
   let response: Response
   try {
     response = await fetch(url, {
-      headers: { Cookie: `SID=${sid}` },
+      headers: { Cookie: `${sid.name}=${sid.value}` },
       signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
     })
   } catch (err) {
@@ -238,7 +261,7 @@ export function parseCachedTorrents(raw: unknown): SlimTorrent[] {
 
 export async function getTorrents(
   baseUrl: string,
-  sid: string,
+  sid: SidCookie,
   tag?: string,
   filter?: string
 ): Promise<QbtTorrent[]> {
@@ -252,7 +275,7 @@ export async function getTorrents(
   return response.json() as Promise<QbtTorrent[]>
 }
 
-export async function getTransferInfo(baseUrl: string, sid: string): Promise<QbtTransferInfo> {
+export async function getTransferInfo(baseUrl: string, sid: SidCookie): Promise<QbtTransferInfo> {
   const url = `${baseUrl}/api/v2/transfer/info`
   const host = new URL(baseUrl).hostname
   const response = await qbtFetch(url, host, baseUrl, sid)
@@ -261,7 +284,7 @@ export async function getTransferInfo(baseUrl: string, sid: string): Promise<Qbt
 
 export async function syncMaindata(
   baseUrl: string,
-  sid: string,
+  sid: SidCookie,
   rid: number
 ): Promise<QbtMaindataResponse> {
   const url = `${baseUrl}/api/v2/sync/maindata?rid=${rid}`

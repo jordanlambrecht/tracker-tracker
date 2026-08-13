@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { TorrentRecord } from "@/lib/download-clients"
 import { aggregateByTag } from "../aggregator"
-import { buildBaseUrl, getTorrents, getTransferInfo, login } from "../qbt/transport"
+import { buildBaseUrl, getTorrents, getTransferInfo, login, type SidCookie } from "../qbt/transport"
 import type { QbtTorrent } from "../qbt/types"
 
 // ---------------------------------------------------------------------------
@@ -28,15 +28,75 @@ describe("login", () => {
     vi.restoreAllMocks()
   })
 
-  it("returns the SID cookie value on successful login", async () => {
+  it("returns the SID cookie name and value on successful login", async () => {
     vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: true,
+      status: 200,
       text: async () => "Ok.",
       headers: new Headers({ "set-cookie": "SID=abc123xyz; Path=/; HttpOnly" }),
     } as Response)
 
     const sid = await login("localhost", 8080, false, "admin", "password")
-    expect(sid).toBe("abc123xyz")
+    expect(sid).toEqual({ name: "SID", value: "abc123xyz" })
+  })
+
+  it("returns the SID cookie name and value on successful login with 204 No Content (qBittorrent 5.2+)", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 204,
+      text: async () => "",
+      headers: new Headers({ "set-cookie": "SID=abc123xyz; Path=/; HttpOnly" }),
+    } as Response)
+
+    const sid = await login("localhost", 8080, false, "admin", "password")
+    expect(sid).toEqual({ name: "SID", value: "abc123xyz" })
+  })
+
+  it("returns the actual cookie name and value from a QBT_SID_<port> cookie (qBittorrent 5.2+)", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 204,
+      text: async () => "",
+      headers: new Headers({
+        "set-cookie":
+          "QBT_SID_8080=YYhsGDAcg8mu89vWPnxXgkH1xkjVQK5h; HttpOnly; SameSite=Lax; expires=Wed, 05-Aug-2026 01:58:51 GMT; path=/",
+      }),
+    } as Response)
+
+    const sid = await login("localhost", 8080, false, "admin", "password")
+    expect(sid).toEqual({ name: "QBT_SID_8080", value: "YYhsGDAcg8mu89vWPnxXgkH1xkjVQK5h" })
+  })
+
+  it("picks the real QBT_SID_<port> cookie over a decoy cookie whose name merely contains SID as a substring", async () => {
+    const headers = new Headers()
+    headers.append("set-cookie", "SIDCC=fakevalue123; Path=/")
+    headers.append("set-cookie", "QBT_SID_8080=realvalue456; HttpOnly; Path=/")
+
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 204,
+      text: async () => "",
+      headers,
+    } as Response)
+
+    const sid = await login("localhost", 8080, false, "admin", "password")
+    expect(sid).toEqual({ name: "QBT_SID_8080", value: "realvalue456" })
+  })
+
+  it("does not bleed the SID cookie's value into a second comma-joined Set-Cookie header when the SID cookie has no trailing attributes", async () => {
+    const headers = new Headers()
+    headers.append("set-cookie", "QBT_SID_8080=realvalue456")
+    headers.append("set-cookie", "other=somethingelse; Path=/")
+
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 204,
+      text: async () => "",
+      headers,
+    } as Response)
+
+    const sid = await login("localhost", 8080, false, "admin", "password")
+    expect(sid).toEqual({ name: "QBT_SID_8080", value: "realvalue456" })
   })
 
   it("sends a POST to the correct URL with form-encoded body", async () => {
@@ -60,6 +120,7 @@ describe("login", () => {
   it("throws Authentication failed when response text is not Ok.", async () => {
     vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: true,
+      status: 200,
       text: async () => "Fails.",
       headers: new Headers({}),
     } as Response)
@@ -131,6 +192,8 @@ describe("login", () => {
 // ---------------------------------------------------------------------------
 
 describe("getTorrents", () => {
+  const sid: SidCookie = { name: "SID", value: "mysid" }
+
   beforeEach(() => {
     vi.restoreAllMocks()
   })
@@ -174,22 +237,34 @@ describe("getTorrents", () => {
       json: async () => mockTorrents,
     } as Response)
 
-    const result = await getTorrents("http://localhost:8080", "mysid")
+    const result = await getTorrents("http://localhost:8080", sid)
     expect(result).toHaveLength(1)
     expect(result[0].hash).toBe("abc")
     expect(result[0].state).toBe("uploading")
   })
 
-  it("sends SID cookie in request", async () => {
+  it("sends the SID cookie under its own name in request", async () => {
     const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: true,
       json: async () => [],
     } as Response)
 
-    await getTorrents("http://localhost:8080", "testSID99")
+    await getTorrents("http://localhost:8080", { name: "SID", value: "testSID99" })
 
     const init = fetchSpy.mock.calls[0][1] as RequestInit
     expect((init.headers as Record<string, string>).Cookie).toBe("SID=testSID99")
+  })
+
+  it("sends the cookie under a QBT_SID_<port>-style name, not a hardcoded SID", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => [],
+    } as Response)
+
+    await getTorrents("http://localhost:8080", { name: "QBT_SID_8080", value: "testSID99" })
+
+    const init = fetchSpy.mock.calls[0][1] as RequestInit
+    expect((init.headers as Record<string, string>).Cookie).toBe("QBT_SID_8080=testSID99")
   })
 
   it("calls the correct endpoint", async () => {
@@ -198,7 +273,7 @@ describe("getTorrents", () => {
       json: async () => [],
     } as Response)
 
-    await getTorrents("http://localhost:8080", "sid")
+    await getTorrents("http://localhost:8080", sid)
 
     expect(fetchSpy.mock.calls[0][0]).toBe("http://localhost:8080/api/v2/torrents/info")
   })
@@ -209,7 +284,7 @@ describe("getTorrents", () => {
       json: async () => [],
     } as Response)
 
-    await getTorrents("http://localhost:8080", "sid", "aither")
+    await getTorrents("http://localhost:8080", sid, "aither")
 
     expect(fetchSpy.mock.calls[0][0]).toBe("http://localhost:8080/api/v2/torrents/info?tag=aither")
   })
@@ -220,7 +295,7 @@ describe("getTorrents", () => {
       json: async () => [],
     } as Response)
 
-    await getTorrents("http://localhost:8080", "sid", "cross seed")
+    await getTorrents("http://localhost:8080", sid, "cross seed")
 
     expect(fetchSpy.mock.calls[0][0]).toBe(
       "http://localhost:8080/api/v2/torrents/info?tag=cross%20seed"
@@ -234,7 +309,7 @@ describe("getTorrents", () => {
       statusText: "Forbidden",
     } as Response)
 
-    await expect(getTorrents("http://localhost:8080", "sid")).rejects.toThrow("Session expired")
+    await expect(getTorrents("http://localhost:8080", sid)).rejects.toThrow("Session expired")
   })
 
   it("throws on non-ok response", async () => {
@@ -244,7 +319,7 @@ describe("getTorrents", () => {
       statusText: "Internal Server Error",
     } as Response)
 
-    await expect(getTorrents("http://localhost:8080", "sid")).rejects.toThrow(
+    await expect(getTorrents("http://localhost:8080", sid)).rejects.toThrow(
       "qBittorrent API error: 500 Internal Server Error"
     )
   })
@@ -254,7 +329,7 @@ describe("getTorrents", () => {
       new DOMException("signal timed out", "TimeoutError")
     )
 
-    await expect(getTorrents("http://localhost:8080", "sid")).rejects.toThrow(
+    await expect(getTorrents("http://localhost:8080", sid)).rejects.toThrow(
       "Request to localhost timed out after 15s"
     )
   })
@@ -262,7 +337,7 @@ describe("getTorrents", () => {
   it("throws a connection error on network failure", async () => {
     vi.spyOn(global, "fetch").mockRejectedValueOnce(new Error("fetch failed"))
 
-    await expect(getTorrents("http://192.168.1.1:8080", "sid")).rejects.toThrow(
+    await expect(getTorrents("http://192.168.1.1:8080", sid)).rejects.toThrow(
       "Failed to connect to 192.168.1.1"
     )
   })
@@ -273,6 +348,8 @@ describe("getTorrents", () => {
 // ---------------------------------------------------------------------------
 
 describe("getTransferInfo", () => {
+  const sid: SidCookie = { name: "SID", value: "mysid" }
+
   beforeEach(() => {
     vi.restoreAllMocks()
   })
@@ -288,7 +365,7 @@ describe("getTransferInfo", () => {
       }),
     } as Response)
 
-    const info = await getTransferInfo("http://localhost:8080", "mysid")
+    const info = await getTransferInfo("http://localhost:8080", sid)
     expect(info.up_info_speed).toBe(2048)
     expect(info.dl_info_speed).toBe(4096)
   })
@@ -299,21 +376,33 @@ describe("getTransferInfo", () => {
       json: async () => ({ up_info_speed: 0, dl_info_speed: 0, up_info_data: 0, dl_info_data: 0 }),
     } as Response)
 
-    await getTransferInfo("http://localhost:8080", "sid")
+    await getTransferInfo("http://localhost:8080", sid)
 
     expect(fetchSpy.mock.calls[0][0]).toBe("http://localhost:8080/api/v2/transfer/info")
   })
 
-  it("sends SID cookie in request", async () => {
+  it("sends the SID cookie under its own name in request", async () => {
     const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: true,
       json: async () => ({ up_info_speed: 0, dl_info_speed: 0, up_info_data: 0, dl_info_data: 0 }),
     } as Response)
 
-    await getTransferInfo("http://localhost:8080", "mySID")
+    await getTransferInfo("http://localhost:8080", { name: "SID", value: "mySID" })
 
     const init = fetchSpy.mock.calls[0][1] as RequestInit
     expect((init.headers as Record<string, string>).Cookie).toBe("SID=mySID")
+  })
+
+  it("sends the cookie under a QBT_SID_<port>-style name, not a hardcoded SID", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ up_info_speed: 0, dl_info_speed: 0, up_info_data: 0, dl_info_data: 0 }),
+    } as Response)
+
+    await getTransferInfo("http://localhost:8080", { name: "QBT_SID_8091", value: "mySID" })
+
+    const init = fetchSpy.mock.calls[0][1] as RequestInit
+    expect((init.headers as Record<string, string>).Cookie).toBe("QBT_SID_8091=mySID")
   })
 
   it("throws on non-ok response", async () => {
@@ -323,7 +412,7 @@ describe("getTransferInfo", () => {
       statusText: "Unauthorized",
     } as Response)
 
-    await expect(getTransferInfo("http://localhost:8080", "sid")).rejects.toThrow(
+    await expect(getTransferInfo("http://localhost:8080", sid)).rejects.toThrow(
       "qBittorrent API error: 401 Unauthorized"
     )
   })
