@@ -217,3 +217,72 @@ describe("Unit3dAdapter - security", () => {
   })
 
 })
+
+describe("Unit3dAdapter - auth fallback", () => {
+  const adapter = new Unit3dAdapter()
+
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    ;(
+      globalThis as { __unit3dAuthStyleCache?: Map<string, string> }
+    ).__unit3dAuthStyleCache?.clear()
+  })
+
+  const okBody = () => ({ ok: true, json: async () => ({
+          username: "u", group: "g", uploaded: "1 GiB", downloaded: "1 GiB",
+          ratio: "1", buffer: "0 B", seeding: 0, leeching: 0,
+          seedbonus: "0", hit_and_runs: 0,
+        }) }) as Response
+  const unauthorized = () =>
+    ({ ok: false, status: 401, statusText: "Unauthorized" }) as Response
+
+  it("falls back to the api_token query param when bearer is rejected", async () => {
+    const spy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce(unauthorized())
+      .mockResolvedValueOnce(okBody())
+
+    const stats = await adapter.fetchStats("https://old.example", "tok", "/api/user")
+    expect(stats.username).toBe("u")
+    expect(spy).toHaveBeenCalledTimes(2)
+    expect(String(spy.mock.calls[0][0])).not.toContain("api_token")
+    expect(String(spy.mock.calls[1][0])).toContain("api_token=tok")
+  })
+
+  it("remembers the working style so later polls only make one request", async () => {
+    const spy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce(unauthorized())
+      .mockResolvedValueOnce(okBody())
+      .mockResolvedValueOnce(okBody())
+
+    await adapter.fetchStats("https://old.example", "tok", "/api/user")
+    await adapter.fetchStats("https://old.example", "tok", "/api/user")
+
+    // 2 for the first (probe + fallback), 1 for the second — not 4.
+    expect(spy).toHaveBeenCalledTimes(3)
+    expect(String(spy.mock.calls[2][0])).toContain("api_token=tok")
+  })
+
+  it("does NOT fall back on a non-auth failure", async () => {
+    const spy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce({ ok: false, status: 500, statusText: "Server Error" } as Response)
+
+    await expect(
+      adapter.fetchStats("https://broken.example", "tok", "/api/user")
+    ).rejects.toThrow()
+    expect(spy).toHaveBeenCalledTimes(1)
+  })
+
+  it("never probes when a tracker pins its auth style", async () => {
+    const spy = vi.spyOn(global, "fetch").mockResolvedValueOnce(unauthorized())
+
+    await expect(
+      adapter.fetchStats("https://pinned.example", "tok", "/api/user", {
+        unit3dAuthStyle: "bearer",
+      })
+    ).rejects.toThrow()
+    expect(spy).toHaveBeenCalledTimes(1)
+  })
+})
