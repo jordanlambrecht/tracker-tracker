@@ -259,6 +259,10 @@ export async function computeTodayAtAGlance(): Promise<TodayAtAGlance> {
   const movers: TorrentMover[] = []
   let addedToday = 0
   let completedToday = 0
+  // Torrents we saw but couldn't attribute to a tracked tracker. Reported so
+  // the UI can tell "no download client" apart from "client is connected but
+  // nothing is tagged" — those look identical otherwise (issue #157).
+  let untaggedTorrents = 0
 
   for (const client of clients) {
     const torrents = parseCachedTorrents(client.cachedTorrents)
@@ -303,7 +307,10 @@ export async function computeTodayAtAGlance(): Promise<TodayAtAGlance> {
       }
 
       // Only include torrents that match a tracked tracker
-      if (!matchedTag) continue
+      if (!matchedTag) {
+        untaggedTorrents++
+        continue
+      }
 
       movers.push({
         hash: torrent.hash,
@@ -360,6 +367,8 @@ export async function computeTodayAtAGlance(): Promise<TodayAtAGlance> {
       completedToday,
     },
     movers: {
+      clientCount: clients.length,
+      untaggedTorrents,
       topUploaders: topUploaders.map((t) => ({
         hash: t.hash,
         name: t.name,
