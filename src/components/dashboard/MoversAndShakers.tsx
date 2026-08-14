@@ -74,7 +74,7 @@ function TorrentRankList({ label, entries }: { label: string; entries: TorrentRa
 }
 
 export function MoversAndShakers({ movers }: MoversAndShakersProps) {
-  const { topUploaders, topDownloaders, clientCount, untaggedTorrents } = movers
+  const { topUploaders, topDownloaders, clientCount, unmatchedTorrents } = movers
 
   if (topUploaders.length === 0 && topDownloaders.length === 0) {
     // Three genuinely different situations used to share one message, which
@@ -82,10 +82,10 @@ export function MoversAndShakers({ movers }: MoversAndShakersProps) {
     let message: string
     if (clientCount === 0) {
       message = "Connect a download client to see torrent activity"
-    } else if (untaggedTorrents > 0) {
+    } else if (unmatchedTorrents > 0) {
       message =
-        `${untaggedTorrents} torrent${untaggedTorrents === 1 ? "" : "s"} found, but none are ` +
-        "tagged for a tracked tracker. Set a qBittorrent tag on your trackers to see activity here."
+        `${unmatchedTorrents} torrent${unmatchedTorrents === 1 ? "" : "s"} found, but none ` +
+        "belong to a tracked tracker. Check the tracker's URL, or set a qBittorrent tag on it."
     } else {
       message = "No torrent activity today"
     }

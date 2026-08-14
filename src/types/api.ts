@@ -151,8 +151,8 @@ export interface TodayAtAGlance {
   movers: {
     /** Number of configured download clients. */
     clientCount: number
-    /** Torrents seen but not attributable to a tracked tracker via qbt tag. */
-    untaggedTorrents: number
+    /** Torrents seen but not attributable to any tracker by tag or announce URL. */
+    unmatchedTorrents: number
     topUploaders: Array<{
       hash: string
       name: string
