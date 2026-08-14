@@ -192,6 +192,11 @@ url: "https://blutopia.cc"
 
 The adapter appends `apiPath` to this URL to make API requests.
 
+The one exception is a tracker that serves its API from a different host, where
+`apiPath` holds a complete URL instead of a path and the base URL is not used —
+see `broadcasthenet.ts`. Don't reach for that unless the API genuinely lives
+off-domain.
+
 #### `description`
 
 Type: `string`
@@ -212,15 +217,19 @@ Type: `"unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digital
 
 Which adapter handles API requests. This tells the scheduler how to fetch stats. Pick the one that matches the tracker's software.
 
-| Platform      | What it means                                                  |
-| ------------- | -------------------------------------------------------------- |
-| `"unit3d"`    | Runs UNIT3D                                                    |
-| `"gazelle"`   | Runs Gazelle or a fork (Orpheus, Gazelle-Music, etc.)         |
-| `"ggn"`       | GazelleGames only — has its own custom API                    |
-| `"nebulance"` | Uses Nebulance's API                                           |
-| `"mam"`       | MyAnonaMouse — cookie-based auth via `mam_id`                 |
-| `"avistaz"`   | AvistaZ network — cookie auth + profile scraping              |
-| `"custom"`    | Placeholder, not implemented yet                              |
+| Platform         | What it means                                               |
+| ---------------- | ----------------------------------------------------------- |
+| `"unit3d"`       | Runs UNIT3D                                                 |
+| `"gazelle"`      | Runs Gazelle or a fork (Orpheus, Gazelle-Music, etc.)       |
+| `"ggn"`          | GazelleGames only — has its own custom API                  |
+| `"nebulance"`    | Uses Nebulance's API                                        |
+| `"mam"`          | MyAnonaMouse — cookie-based auth via `mam_id`               |
+| `"avistaz"`      | AvistaZ network — cookie auth + profile scraping            |
+| `"digitalcore"`  | DigitalCore — custom JSON API, `uid`/`pass` session cookies |
+| `"btn"`          | BroadcasTheNet — JSON-RPC on a separate API host            |
+| `"iptorrents"`   | IPTorrents — cookie auth + profile scraping                 |
+| `"torrentleech"` | TorrentLeech — username/password login + profile scraping   |
+| `"custom"`       | Placeholder, not implemented yet                            |
 
 #### `gazelleAuthStyle`
 
@@ -711,11 +720,36 @@ rather than calling `fetch` directly. It supplies the shared timeout, honours
 a user's configured proxy, and normalizes errors. It supports `POST` with a
 body, so JSON-RPC style APIs work too.
 
-Only bypass it if you genuinely can't use it — HTML scraping that needs
-manual redirect handling, for example. If you do bypass it, you must still
+`adapterFetch` parses the response as JSON. If your tracker has no API and you
+have to scrape an authenticated page instead, use `fetchTrackerHtml`
+(`src/lib/adapters/html-fetch.ts`) — it returns the raw HTML and handles the
+browser headers, the proxy, the timeout, and sanitized errors. It takes the
+parts that vary per tracker as options:
+
+- `label` — the tracker name used in error messages
+- `sessionExpiredMessage` — thrown when the server bounces you to login
+- `userAgent` — send the user's copied browser UA; omit it if the session came
+  from your own login request rather than a browser
+- `followRedirects` — set it when a redirect can be routine rather than a
+  session expiry, and give it the pattern that identifies the login page
+
+Only write your own fetch if neither helper fits. If you do, you must still
 honour `options.proxyAgent` yourself, or fail loudly when one is set. Silently
 ignoring it sends a user's tracker traffic straight out of their real IP when
 they configured a tunnel to prevent exactly that.
+
+### Parse credential blobs with the shared helpers
+
+Platforms that need more than one secret take a JSON blob in the `apiToken`
+field. Use `parseCredentialJson` (`src/lib/adapters/cookie-credentials.ts`) to
+read it — it validates that every field you name is a present, non-empty string
+and produces the error wording users already see on the other adapters.
+
+If one of those fields is a pasted `Cookie` header, run it through
+`validateCookieHeader` as well. It strips a leading `Cookie:` prefix, and catches the
+two mistakes that actually reach us: pasting a lone cookie *name* instead of the
+header value, and a value the browser truncated mid-copy into a non-ASCII
+ellipsis.
 
 ### Report unknown values as `null`, never `0`
 
