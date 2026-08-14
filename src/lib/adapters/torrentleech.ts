@@ -1,13 +1,15 @@
 // src/lib/adapters/torrentleech.ts
 //
-// Functions: parseTlCredentials, login, getTlSession, invalidateTlSession, parseTlProfile,
-//            fetchHtml, TorrentleechAdapter
+// Functions: parseTlCredentials, sessionKey, getTlSession, invalidateTlSession, login,
+//            textAfterNode, parseTlProfile, fetchHtml, TorrentleechAdapter
 
 import { type HTMLElement as ParsedElement, parse as parseHtml } from "node-html-parser"
 import { computeBufferBytes } from "@/lib/data-transforms"
-import { classifyFetchError, sanitizeNetworkError } from "@/lib/error-utils"
+import { classifyFetchError } from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import { parseBytes } from "@/lib/parser"
+import { parseCredentialJson } from "./cookie-credentials"
+import { fetchTrackerHtml } from "./html-fetch"
 import type { DebugApiCall, FetchOptions, TrackerAdapter, TrackerStats } from "./types"
 
 // ---------------------------------------------------------------------------
@@ -20,27 +22,10 @@ export interface TlCredentials {
 }
 
 export function parseTlCredentials(apiToken: string): TlCredentials {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(apiToken)
-  } catch {
-    throw new Error("TorrentLeech credentials must be a JSON object with username and password")
-  }
-
-  if (
-    typeof parsed !== "object" ||
-    parsed === null ||
-    typeof (parsed as Record<string, unknown>).username !== "string" ||
-    typeof (parsed as Record<string, unknown>).password !== "string"
-  ) {
-    throw new Error(
-      "TorrentLeech credentials must contain username (string) and password (string)"
-    )
-  }
-
-  const { username, password } = parsed as Record<string, string>
-  if (!username.trim()) throw new Error("TorrentLeech credentials: username cannot be empty")
-  if (!password.trim()) throw new Error("TorrentLeech credentials: password cannot be empty")
+  const { username, password } = parseCredentialJson(apiToken, "TorrentLeech", [
+    "username",
+    "password",
+  ] as const)
 
   return { username: username.trim(), password }
 }
@@ -75,11 +60,7 @@ function sessionKey(baseUrl: string, username: string): string {
   return `${baseUrl}|${username}`
 }
 
-async function getTlSession(
-  baseUrl: string,
-  username: string,
-  password: string
-): Promise<string> {
+async function getTlSession(baseUrl: string, username: string, password: string): Promise<string> {
   const key = sessionKey(baseUrl, username)
   const cached = tlSessionCache.get(key)
   if (cached) return cached
@@ -212,56 +193,22 @@ export function parseTlProfile(html: string, username: string): TrackerStats {
 // HTML fetcher — direct fetch or proxy
 // ---------------------------------------------------------------------------
 
-async function fetchHtml(
+/**
+ * No User-Agent is sent: the session cookie comes from our own login POST, not
+ * from a browser, so claiming a browser UA would be inconsistent with it.
+ */
+function fetchHtml(
   url: string,
   cookies: string,
   proxyAgent?: FetchOptions["proxyAgent"]
 ): Promise<string> {
-  const headers: Record<string, string> = {
-    Cookie: cookies,
-    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-  }
-
-  if (proxyAgent) {
-    const { proxyFetch } = await import("@/lib/tunnel")
-    const result = await proxyFetch(url, proxyAgent, { headers })
-    if (!result.ok) {
-      throw new Error(
-        sanitizeNetworkError(
-          `${result.status} ${result.statusText}`,
-          `TorrentLeech page fetch failed: ${result.status}`
-        )
-      )
-    }
-    return (await result.buffer()).toString("utf8")
-  }
-
-  let response: Response
-  try {
-    response = await fetch(url, {
-      headers,
-      signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
-      redirect: "manual",
-    })
-  } catch (err) {
-    throw classifyFetchError(err, new URL(url).hostname)
-  }
-
-  if (response.status === 302) {
-    throw new Error("Session expired — TorrentLeech cookies need to be refreshed")
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      sanitizeNetworkError(
-        `${response.status} ${response.statusText}`,
-        `TorrentLeech page fetch failed: ${response.status}`
-      )
-    )
-  }
-
-  return response.text()
+  return fetchTrackerHtml({
+    url,
+    cookies,
+    proxyAgent,
+    label: "TorrentLeech",
+    sessionExpiredMessage: "Session expired — TorrentLeech cookies need to be refreshed",
+  })
 }
 
 // ---------------------------------------------------------------------------

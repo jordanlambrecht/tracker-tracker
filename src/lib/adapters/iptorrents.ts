@@ -1,12 +1,13 @@
 // src/lib/adapters/iptorrents.ts
 //
-// Functions: parseIptCredentials, tryParseBytes, parseIptProfile, fetchHtml, IptorrentsAdapter
+// Functions: parseIptCredentials, tryParseBytes, valueAfterLabel, parseUpStatCards,
+//            parseIptProfile, fetchHtml, IptorrentsAdapter
 
 import { type HTMLElement as ParsedElement, parse as parseHtml } from "node-html-parser"
 import { computeBufferBytes } from "@/lib/data-transforms"
-import { classifyFetchError, sanitizeNetworkError } from "@/lib/error-utils"
-import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import { parseBytes } from "@/lib/parser"
+import { parseCredentialJson, validateCookieHeader } from "./cookie-credentials"
+import { fetchTrackerHtml } from "./html-fetch"
 import type { DebugApiCall, FetchOptions, TrackerAdapter, TrackerStats } from "./types"
 
 // ---------------------------------------------------------------------------
@@ -19,58 +20,18 @@ export interface IptCredentials {
 }
 
 export function parseIptCredentials(apiToken: string): IptCredentials {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(apiToken)
-  } catch {
-    throw new Error("IPTorrents credentials must be a JSON object with cookies and userAgent")
+  const { cookies, userAgent } = parseCredentialJson(apiToken, "IPTorrents", [
+    "cookies",
+    "userAgent",
+  ] as const)
+
+  return {
+    cookies: validateCookieHeader(cookies, {
+      extraCookieNames: ["uid", "pass"],
+      example: "uid=123; pass=abc123",
+    }),
+    userAgent,
   }
-
-  if (
-    typeof parsed !== "object" ||
-    parsed === null ||
-    typeof (parsed as Record<string, unknown>).cookies !== "string" ||
-    typeof (parsed as Record<string, unknown>).userAgent !== "string"
-  ) {
-    throw new Error(
-      "IPTorrents credentials must contain cookies (string) and userAgent (string)"
-    )
-  }
-
-  const { cookies, userAgent } = parsed as Record<string, string>
-  if (!cookies.trim()) throw new Error("IPTorrents credentials: cookies cannot be empty")
-  if (!userAgent.trim()) throw new Error("IPTorrents credentials: userAgent cannot be empty")
-
-  // Strip "Cookie: " prefix if user copied from raw headers view
-  const trimmedCookies = cookies.trim().replace(/^Cookie:\s*/i, "")
-  const cookieNameOnly = /^(cf_clearance|uid|pass|[a-z]+x_session|remember_web_\w+|XSRF-TOKEN)$/i
-  if (cookieNameOnly.test(trimmedCookies)) {
-    throw new Error(
-      `It looks like you pasted a cookie name ("${trimmedCookies}") instead of the full Cookie header value. Copy the entire value after "Cookie:" in DevTools.`
-    )
-  }
-
-  if (!trimmedCookies.includes("=")) {
-    throw new Error(
-      "Cookie string doesn't look right — it should contain key=value pairs (i.e. uid=123; pass=abc123)"
-    )
-  }
-
-  // HTTP headers only allow byte-safe characters (0-255). Non-ASCII chars like
-  // ellipsis (U+2026) appear when DevTools truncates long values during copy.
-  // biome-ignore lint/suspicious/noControlCharactersInRegex: intentional byte-range check
-  const nonAscii = trimmedCookies.match(/[^\x00-\xFF]/)
-  if (nonAscii) {
-    const char = nonAscii[0]
-    const code = char.codePointAt(0)
-    const idx = nonAscii.index
-    throw new Error(
-      `Cookie string contains a non-ASCII character ("${char}", U+${code?.toString(16).toUpperCase().padStart(4, "0")}) at position ${idx}. ` +
-        "This usually means the browser truncated a long value when copying. Re-copy the full cookie string from DevTools."
-    )
-  }
-
-  return { cookies: trimmedCookies, userAgent }
 }
 
 // ---------------------------------------------------------------------------
@@ -225,94 +186,23 @@ export function parseIptProfile(html: string): TrackerStats {
 // HTML fetcher — direct fetch or proxy
 // ---------------------------------------------------------------------------
 
-async function fetchHtml(
+function fetchHtml(
   url: string,
   cookies: string,
   userAgent: string,
   proxyAgent?: FetchOptions["proxyAgent"]
 ): Promise<string> {
-  const headers: Record<string, string> = {
-    Cookie: cookies,
-    "User-Agent": userAgent,
-    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-    DNT: "1",
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "same-origin",
-    Connection: "keep-alive",
-  }
-
-  if (proxyAgent) {
-    const { proxyFetch } = await import("@/lib/tunnel")
-    const result = await proxyFetch(url, proxyAgent, { headers })
-    if (!result.ok) {
-      throw new Error(
-        sanitizeNetworkError(
-          `${result.status} ${result.statusText}`,
-          `IPTorrents page fetch failed: ${result.status}`
-        )
-      )
-    }
-    return (await result.buffer()).toString("utf8")
-  }
-
-  let response: Response
-  try {
-    response = await fetch(url, {
-      headers,
-      signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
-      redirect: "manual",
-    })
-  } catch (err) {
-    throw classifyFetchError(err, new URL(url).hostname)
-  }
-
-  // 302 redirect: could be normal (e.g. / → /t) or session expiry (→ /auth/login)
-  if (response.status === 302 || response.status === 301) {
-    const location = response.headers.get("location") ?? ""
-    // If redirected to a login page, the session has expired
-    if (/\/auth\/login|\/login/i.test(location)) {
-      throw new Error("Session expired — browser cookies need to be refreshed")
-    }
-    // Otherwise follow the redirect (bounded to 3 hops max)
-    let currentUrl = new URL(location, url).href
-    for (let hop = 0; hop < 3; hop++) {
-      try {
-        response = await fetch(currentUrl, {
-          headers,
-          signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
-          redirect: "manual",
-        })
-      } catch (err) {
-        throw classifyFetchError(err, new URL(currentUrl).hostname)
-      }
-      if (response.status === 302 || response.status === 301) {
-        const nextLocation = response.headers.get("location") ?? ""
-        if (/\/auth\/login|\/login/i.test(nextLocation)) {
-          throw new Error("Session expired — browser cookies need to be refreshed")
-        }
-        if (!nextLocation) break
-        currentUrl = new URL(nextLocation, currentUrl).href
-      } else {
-        break
-      }
-    }
-    if (response.status === 302 || response.status === 301) {
-      throw new Error("Too many redirects from IPTorrents")
-    }
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      sanitizeNetworkError(
-        `${response.status} ${response.statusText}`,
-        `IPTorrents page fetch failed: ${response.status}`
-      )
-    )
-  }
-
-  return response.text()
+  // A redirect here may be routine (/ → /t) or a bounce to login, so the chain
+  // is followed rather than treated as an expired session outright.
+  return fetchTrackerHtml({
+    url,
+    cookies,
+    userAgent,
+    proxyAgent,
+    label: "IPTorrents",
+    sessionExpiredMessage: "Session expired — browser cookies need to be refreshed",
+    followRedirects: { loginPattern: /\/auth\/login|\/login/i },
+  })
 }
 
 // ---------------------------------------------------------------------------

@@ -1,14 +1,14 @@
 // src/lib/adapters/avistaz.ts
 //
-// Functions: parseAvistazCredentials, safeParseBytes, textAfterLabel,
+// Functions: parseAvistazCredentials, strictParseBytes, textAfterLabel, textFromDatagrid,
 //            extractRatioBarValue, parseAvistazProfile, fetchHtml, AvistazAdapter
 
 import { type HTMLElement as ParsedElement, parse as parseHtml } from "node-html-parser"
 import { computeBufferBytes } from "@/lib/data-transforms"
-import { classifyFetchError, sanitizeNetworkError } from "@/lib/error-utils"
 import { localDateStr } from "@/lib/formatters"
-import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import { parseBytes } from "@/lib/parser"
+import { parseCredentialJson, validateCookieHeader } from "./cookie-credentials"
+import { fetchTrackerHtml } from "./html-fetch"
 import type {
   AvistazPlatformMeta,
   DebugApiCall,
@@ -28,63 +28,20 @@ export interface AvistazCredentials {
 }
 
 export function parseAvistazCredentials(apiToken: string): AvistazCredentials {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(apiToken)
-  } catch {
-    throw new Error(
-      "AvistaZ credentials must be a JSON object with cookies, userAgent, and username"
-    )
+  const { cookies, userAgent, username } = parseCredentialJson(apiToken, "AvistaZ", [
+    "cookies",
+    "userAgent",
+    "username",
+  ] as const)
+
+  return {
+    cookies: validateCookieHeader(cookies, {
+      extraCookieNames: ["love"],
+      example: "cf_clearance=abc123; session=xyz",
+    }),
+    userAgent,
+    username,
   }
-
-  if (
-    typeof parsed !== "object" ||
-    parsed === null ||
-    typeof (parsed as Record<string, unknown>).cookies !== "string" ||
-    typeof (parsed as Record<string, unknown>).userAgent !== "string" ||
-    typeof (parsed as Record<string, unknown>).username !== "string"
-  ) {
-    throw new Error(
-      "AvistaZ credentials must contain cookies (string), userAgent (string), and username (string)"
-    )
-  }
-
-  const { cookies, userAgent, username } = parsed as Record<string, string>
-  if (!cookies.trim()) throw new Error("AvistaZ credentials: cookies cannot be empty")
-  if (!userAgent.trim()) throw new Error("AvistaZ credentials: userAgent cannot be empty")
-  if (!username.trim()) throw new Error("AvistaZ credentials: username cannot be empty")
-
-  // Strip "Cookie: " prefix if user copied from raw headers view
-  const trimmedCookies = cookies.trim().replace(/^Cookie:\s*/i, "")
-  const cookieNameOnly = /^(cf_clearance|[a-z]+x_session|remember_web_\w+|XSRF-TOKEN|love)$/i
-  if (cookieNameOnly.test(trimmedCookies)) {
-    throw new Error(
-      `It looks like you pasted a cookie name ("${trimmedCookies}") instead of the full Cookie header value. Copy the entire value after "Cookie:" in DevTools.`
-    )
-  }
-
-  // Should contain at least one key=value pair
-  if (!trimmedCookies.includes("=")) {
-    throw new Error(
-      "Cookie string doesn't look right — it should contain key=value pairs (i.e. cf_clearance=abc123; session=xyz)"
-    )
-  }
-
-  // HTTP headers only allow byte-safe characters (0-255). Non-ASCII chars like
-  // ellipsis (U+2026) appear when DevTools truncates long values during copy.
-  // biome-ignore lint/suspicious/noControlCharactersInRegex: intentional byte-range check
-  const nonAscii = trimmedCookies.match(/[^\x00-\xFF]/)
-  if (nonAscii) {
-    const char = nonAscii[0]
-    const code = char.codePointAt(0)
-    const idx = nonAscii.index
-    throw new Error(
-      `Cookie string contains a non-ASCII character ("${char}", U+${code?.toString(16).toUpperCase().padStart(4, "0")}) at position ${idx}. ` +
-        "This usually means the browser truncated a long value when copying. Re-copy the full cookie string from DevTools."
-    )
-  }
-
-  return { cookies: trimmedCookies, userAgent, username }
 }
 
 // ---------------------------------------------------------------------------
@@ -351,64 +308,21 @@ export function parseAvistazProfile(html: string, username: string): TrackerStat
 // HTML fetcher — direct fetch or proxy
 // ---------------------------------------------------------------------------
 
-async function fetchHtml(
+function fetchHtml(
   url: string,
   cookies: string,
   userAgent: string,
   proxyAgent?: FetchOptions["proxyAgent"]
 ): Promise<string> {
-  const headers: Record<string, string> = {
-    Cookie: cookies,
-    "User-Agent": userAgent,
-    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-    DNT: "1",
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "same-origin",
-    Connection: "keep-alive",
-  }
-
-  if (proxyAgent) {
-    const { proxyFetch } = await import("@/lib/tunnel")
-    const result = await proxyFetch(url, proxyAgent, { headers })
-    if (!result.ok) {
-      throw new Error(
-        sanitizeNetworkError(
-          `${result.status} ${result.statusText}`,
-          `AvistaZ page fetch failed: ${result.status}`
-        )
-      )
-    }
-    return (await result.buffer()).toString("utf8")
-  }
-
-  let response: Response
-  try {
-    response = await fetch(url, {
-      headers,
-      signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
-      redirect: "manual",
-    })
-  } catch (err) {
-    throw classifyFetchError(err, new URL(url).hostname)
-  }
-
-  // 302 redirect usually means the session expired and the server redirected to login
-  if (response.status === 302) {
-    throw new Error("Session expired — browser cookies need to be refreshed")
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      sanitizeNetworkError(
-        `${response.status} ${response.statusText}`,
-        `AvistaZ page fetch failed: ${response.status}`
-      )
-    )
-  }
-
-  return response.text()
+  // A 302 here means the session expired and the server bounced us to login.
+  return fetchTrackerHtml({
+    url,
+    cookies,
+    userAgent,
+    proxyAgent,
+    label: "AvistaZ",
+    sessionExpiredMessage: "Session expired — browser cookies need to be refreshed",
+  })
 }
 
 // ---------------------------------------------------------------------------
