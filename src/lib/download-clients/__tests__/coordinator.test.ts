@@ -349,17 +349,19 @@ function setupDbReturns(returns: unknown[][]) {
     const rows = selectReturns[selectCallIndex] ?? []
     selectCallIndex++
 
+    // Drizzle's builder is awaitable at every stage, so the mock has to be too:
+    // some queries end at .from(), others chain .where() and/or .limit().
+    const makeResult = () =>
+      Object.assign(Promise.resolve(rows), {
+        limit: vi.fn().mockResolvedValue(rows),
+      })
+
     const chain = {
-      from: vi.fn().mockReturnValue({
-        where: vi.fn().mockImplementation(() => {
-          // Return rows directly (for queries without .limit())
-          // AND as an object with .limit() (for queries that chain .limit())
-          const result = Object.assign(Promise.resolve(rows), {
-            limit: vi.fn().mockResolvedValue(rows),
-          })
-          return result
-        }),
-      }),
+      from: vi.fn().mockImplementation(() =>
+        Object.assign(makeResult(), {
+          where: vi.fn().mockImplementation(() => makeResult()),
+        })
+      ),
     }
     return chain
   })

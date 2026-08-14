@@ -45,6 +45,8 @@ function makeTorrent(overrides: Partial<TorrentRaw> & { hash: string }): Torrent
     availability: overrides.availability ?? 1.0,
     progress: overrides.progress ?? 1.0,
     clientName: overrides.clientName ?? "qbt-1",
+    // Optional: only fixtures exercising announce-URL matching set this.
+    tracker: overrides.tracker,
   }
 }
 
@@ -730,5 +732,51 @@ describe("computeFleetAggregation", () => {
         expect(aither?.avgSeedTimeDays).toBeCloseTo(0.5, 5)
       })
     })
+  })
+})
+
+// ─── Issue #152: attribute torrents by announce URL ───────────────────────
+// "I have a cross-seed label but no tracker-specific labels ... would prefer
+// Tracker Tracker to get the tracker from the tracker URL."
+describe("computeFleetAggregation — announce URL matching (issue #152)", () => {
+  const TAGGED_AND_URL: TrackerTag[] = [
+    { tag: "aither", name: "Aither", color: "#01d4ff", baseUrl: "https://aither.cc" },
+    // An untagged tracker is keyed by its announce host instead.
+    { tag: "example.org", name: "Example", color: "#3b82f6", baseUrl: "https://example.org" },
+  ]
+
+  it("attributes a torrent with no tracker tag via its announce URL", () => {
+    const torrent = makeTorrent({
+      hash: "u1",
+      tags: "cross-seed",
+      tracker: "https://tracker.example.org/announce?passkey=secret",
+    })
+
+    const result = computeFleetAggregation([torrent], TAGGED_AND_URL, CROSS_SEED_TAGS)
+    const example = result.trackerHealth.find((t) => t.name === "Example")
+    expect(example?.torrentCount).toBe(1)
+  })
+
+  it("still prefers an explicit tag when one is present", () => {
+    const torrent = makeTorrent({
+      hash: "u2",
+      tags: "aither",
+      tracker: "https://tracker.example.org/announce",
+    })
+
+    const result = computeFleetAggregation([torrent], TAGGED_AND_URL, CROSS_SEED_TAGS)
+    expect(result.trackerHealth.find((t) => t.name === "Aither")?.torrentCount).toBe(1)
+    expect(result.trackerHealth.find((t) => t.name === "Example")?.torrentCount ?? 0).toBe(0)
+  })
+
+  it("leaves torrents from unknown sites unattributed", () => {
+    const torrent = makeTorrent({
+      hash: "u3",
+      tags: "",
+      tracker: "https://tracker.unknown.test/announce",
+    })
+
+    const result = computeFleetAggregation([torrent], TAGGED_AND_URL, CROSS_SEED_TAGS)
+    for (const t of result.trackerHealth) expect(t.torrentCount).toBe(0)
   })
 })

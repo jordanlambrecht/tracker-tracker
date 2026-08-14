@@ -31,13 +31,22 @@ export interface TorrentRaw {
   availability: number
   progress: number
   clientName: string
+  /**
+   * Primary announce URL. Optional because older cached payloads and most
+   * test fixtures predate it; when present it lets a torrent be attributed to
+   * a tracker without a qBittorrent tag (issue #152).
+   */
+  tracker?: string
 }
 
 /** Tracker tag with display metadata */
 export interface TrackerTag {
+  /** Group key: the qBittorrent tag, or the tracker's host key when untagged. */
   tag: string
   name: string
   color: string
+  /** Tracker web URL, used to match torrents by announce host (issue #152). */
+  baseUrl?: string
 }
 
 /** Parse comma-separated qBT tag string into trimmed array */

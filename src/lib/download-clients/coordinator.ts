@@ -9,12 +9,13 @@
 
 import "server-only"
 
-import { eq, isNotNull } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { downloadClients, trackers } from "@/lib/db/schema"
 import { isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
 import { parseTorrentTags } from "@/lib/fleet"
 import { computeFleetAggregation, type FleetAggregation } from "@/lib/fleet-aggregation"
+import { trackerHostKey } from "@/lib/tracker-matching"
 import { CLIENT_CONNECTION_COLUMNS } from "./credentials"
 import { createAdapterForClient } from "./factory"
 import type { MergedResult } from "./fetch"
@@ -144,24 +145,46 @@ export async function fetchFleetAggregation(): Promise<FleetAggregationResponse>
       qbtTag: trackers.qbtTag,
       name: trackers.name,
       color: trackers.color,
+      baseUrl: trackers.baseUrl,
     })
     .from(trackers)
-    .where(isNotNull(trackers.qbtTag))
-  const trackerTagStrings = trackerTagRows.map((r) => r.qbtTag as string)
-  const trackerTagsWithMeta = trackerTagRows.map((r) => ({
-    tag: r.qbtTag as string,
-    name: r.name,
-    color: r.color ?? "#01d4ff",
-  }))
+
+  // Only real tags drive the qBittorrent-side tag filter.
+  const trackerTagStrings = trackerTagRows
+    .map((r) => r.qbtTag)
+    .filter((t): t is string => Boolean(t))
+
+  // Untagged trackers are still included, keyed by their announce host, so
+  // their torrents can be attributed without any tagging setup (issue #152).
+  const trackerTagsWithMeta = trackerTagRows
+    .map((r) => {
+      const key = r.qbtTag ?? trackerHostKey(r.baseUrl)
+      if (!key) return null
+      return {
+        tag: key,
+        name: r.name,
+        color: r.color ?? "#01d4ff",
+        baseUrl: r.baseUrl,
+      }
+    })
+    .filter((t): t is NonNullable<typeof t> => t !== null)
 
   const crossSeedTags = aggregateCrossSeedTags(
     clients.map((c) => ({ crossSeedTags: c.crossSeedTags ?? [] }))
   )
   const allTags = [...new Set([...trackerTagStrings, ...crossSeedTags])]
   const tagSet = new Set(allTags.map((t) => t.toLowerCase()))
+  // Announce hosts of every tracker we know about, so a torrent from a tracked
+  // site is kept even when it carries no recognised tag.
+  const knownAnnounceHosts = new Set(
+    trackerTagRows
+      .map((r) => trackerHostKey(r.baseUrl))
+      .filter((h): h is string => h !== null)
+  )
   const tagPredicate = (t: TorrentRecord) => {
-    if (!t.tags) return false
-    return parseTorrentTags(t.tags).some((tag) => tagSet.has(tag))
+    if (t.tags && parseTorrentTags(t.tags).some((tag) => tagSet.has(tag))) return true
+    const host = trackerHostKey(t.tracker)
+    return host !== null && knownAnnounceHosts.has(host)
   }
 
   const clientTorrents: { clientName: string; torrents: (TorrentRecord | SlimTorrent)[] }[] = []

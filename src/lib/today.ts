@@ -15,7 +15,6 @@ import {
   trackers,
 } from "@/lib/db/schema"
 import { parseCachedTorrents } from "@/lib/download-clients"
-import { parseTorrentTags } from "@/lib/fleet"
 import { localDateStr } from "@/lib/formatters"
 import { log } from "@/lib/logger"
 import { resolveTorrentTracker } from "@/lib/tracker-matching"

@@ -18,6 +18,7 @@ import {
   type TrackerTag,
   toMonthKey,
 } from "@/lib/fleet"
+import { trackerHostKey } from "@/lib/tracker-matching"
 
 // Re-export types used by callers so they don't need to import from fleet.ts
 export type { FleetStats, TorrentRaw, TrackerTag }
@@ -161,6 +162,18 @@ export function computeFleetAggregation(
   const trackerTagMap = new Map<string, TrackerTag>()
   for (const tt of trackerTags) trackerTagMap.set(tt.tag.toLowerCase(), tt)
 
+  // Announce-host -> group key, so torrents from a tracked site are attributed
+  // even when the user tags nothing per-tracker (issue #152).
+  const announceKeyMap = new Map<string, string>()
+  for (const tt of trackerTags) {
+    const host = trackerHostKey(tt.baseUrl)
+    if (host) announceKeyMap.set(host, tt.tag.toLowerCase())
+  }
+  const keyForAnnounce = (announce: string | null | undefined): string | null => {
+    const host = trackerHostKey(announce)
+    return host ? (announceKeyMap.get(host) ?? null) : null
+  }
+
   // Initialize per-tracker accumulators
   const trackerAccMap = new Map<string, TrackerAccumulator>()
   for (const tt of trackerTags) {
@@ -215,9 +228,10 @@ export function computeFleetAggregation(
     const parsedTags = parseTorrentTags(torrent.tags)
     const isCrossSeed = crossSeedSet.size > 0 && parsedTags.some((t) => crossSeedSet.has(t))
 
-    // Find matching tracker tag (first match wins)
+    // Tag wins when present; otherwise attribute by announce URL.
     const matchedTrackerTag =
-      parsedTags.find((t) => !crossSeedSet.has(t) && trackerTagMap.has(t)) ?? null
+      parsedTags.find((t) => !crossSeedSet.has(t) && trackerTagMap.has(t)) ??
+      keyForAnnounce(torrent.tracker)
 
     // -- Stats --
     const isSeeding = SEEDING_STATES.has(torrent.state)
@@ -261,9 +275,15 @@ export function computeFleetAggregation(
     }
 
     // -- Cross-seed network tracker matching (exclude cross-seed tags) --
-    const networkTrackerTags = parsedTags.filter(
+    const taggedNetworkKeys = parsedTags.filter(
       (t) => !crossSeedSet.has(t) && trackerTagMap.has(t)
     )
+    const networkTrackerTags =
+      taggedNetworkKeys.length > 0
+        ? taggedNetworkKeys
+        : matchedTrackerTag !== null
+          ? [matchedTrackerTag]
+          : []
     if (networkTrackerTags.length > 0) {
       const existing = nameToTrackers.get(torrent.name) ?? new Set<string>()
       for (const tag of networkTrackerTags) existing.add(tag)
