@@ -74,7 +74,7 @@
     "react-dom": "19.2.5",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
-    "socks-proxy-agent": "^10.0.0"
+    "socks-proxy-agent": "^10.1.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.12",
