@@ -1,6 +1,7 @@
 // src/lib/adapters/html-fetch.ts
 //
-// Functions: buildHtmlHeaders, fetchViaProxy, followRedirectChain, fetchTrackerHtml
+// Functions: buildHtmlHeaders, fetchFailure, fetchViaProxy, getHtml, isRedirect,
+//            followRedirectChain, fetchTrackerHtml
 
 import { classifyFetchError, sanitizeNetworkError } from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
