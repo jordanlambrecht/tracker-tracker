@@ -979,3 +979,53 @@ describe("DigitalCoreAdapter.fetchRaw", () => {
     )
   })
 })
+
+// ─── Issue #167: connectable must come from the profile endpoint ──────────
+// A live account returned connectable:0 from /api/v1/status while
+// /api/v1/users/:id returned unconnectable:0 — i.e. actually connectable.
+// The profile endpoint wins, exactly as it already does for `warned`.
+describe("DigitalCoreAdapter — connectable (issue #167)", () => {
+  const adapter = new DigitalCoreAdapter()
+  const validToken = JSON.stringify({ uid: "54321", pass: "abc123xyz" })
+
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  const run = async (unconnectable: number | undefined) => {
+    // Status says NOT connectable; the profile endpoint is the tie-breaker.
+    const status = mockStatusResponse({ connectable: 0 })
+    const profile = mockUserProfileResponse() as Record<string, unknown>
+    if (unconnectable === undefined) delete profile.unconnectable
+    else profile.unconnectable = unconnectable
+
+    vi.spyOn(global, "fetch")
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify(status),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify(profile),
+      } as Response)
+
+    return adapter.fetchStats("https://digitalcore.club", validToken, "")
+  }
+
+  it("reports connectable when the profile says unconnectable: 0", async () => {
+    const stats = await run(0)
+    expect((stats.platformMeta as { connectable?: boolean })?.connectable).toBe(true)
+  })
+
+  it("reports not connectable when the profile says unconnectable: 1", async () => {
+    const stats = await run(1)
+    expect((stats.platformMeta as { connectable?: boolean })?.connectable).toBe(false)
+  })
+
+  it("keeps the status value when the profile omits the field", async () => {
+    const stats = await run(undefined)
+    expect((stats.platformMeta as { connectable?: boolean })?.connectable).toBe(false)
+  })
+})

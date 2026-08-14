@@ -281,3 +281,28 @@ describe("scrubObject — depth limit", () => {
     expect(node.passkey).toBe("[redacted]")
   })
 })
+
+describe("scrubObject — tracker secrets seen in real responses", () => {
+  // DigitalCore returns both of these in /api/v1/status and /api/v1/users/:id,
+  // and the debug/raw view renders whatever the adapter fetched.
+  it("redacts irckey, which authenticates the user on the tracker's IRC network", () => {
+    const scrubbed = scrubObject({ irckey: "c31f3c48625f033933dfa976d86e6849" }) as Record<
+      string,
+      unknown
+    >
+    expect(scrubbed.irckey).not.toBe("c31f3c48625f033933dfa976d86e6849")
+  })
+
+  it("redacts email", () => {
+    const scrubbed = scrubObject({ email: "user@example.test" }) as Record<string, unknown>
+    expect(scrubbed.email).not.toBe("user@example.test")
+  })
+
+  it("still redacts passkey", () => {
+    const scrubbed = scrubObject({ passkey: "38cca120bd9fda0955b9e9e4e784fa31" }) as Record<
+      string,
+      unknown
+    >
+    expect(scrubbed.passkey).not.toBe("38cca120bd9fda0955b9e9e4e784fa31")
+  })
+})
