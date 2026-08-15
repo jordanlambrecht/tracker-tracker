@@ -8,6 +8,7 @@
 // target configs) inside a single transaction.
 // Requires an active session and the current password for verification.
 
+import { timingSafeEqual } from "node:crypto"
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { authenticate, decodeKey, parseJsonBody } from "@/lib/api-helpers"
@@ -69,6 +70,30 @@ export async function POST(request: Request) {
   await resetFailedAttempts(settings.id)
 
   const oldKey = decodeKey(auth)
+
+  // The password check above proves the caller knows the current password. It does
+  // not prove the session is carrying the key that actually encrypted the data —
+  // those diverge whenever a session outlives a password change, which is ordinary
+  // with a second signed-in device. Everything below decrypts with this key and
+  // treats a failure as a corrupt row, so a stale key would look like every secret
+  // in the database being corrupt at once, and the rotation would commit that:
+  // seven settings values nulled and every row orphaned under a key nobody holds.
+  //
+  // Deriving from the password the caller just proved they know is the same value
+  // in the healthy case, so a mismatch means the session is stale rather than the
+  // data being bad, and there is nothing safe to do but stop.
+  const keyFromPassword = await deriveKey(currentPassword, settings.encryptionSalt)
+  if (!timingSafeEqual(oldKey, keyFromPassword)) {
+    log.warn(
+      { route: "POST /api/auth/change-password" },
+      "password change aborted — session key does not match the current password"
+    )
+    return NextResponse.json(
+      { error: "Your session is out of date. Sign in again before changing your password." },
+      { status: 409 }
+    )
+  }
+
   const newKey = await deriveKey(newPassword, settings.encryptionSalt)
   const newHash = await hashPassword(newPassword)
 
