@@ -476,11 +476,13 @@ describe("sortTrackers", () => {
       expect(result.map((x) => x.name)).toEqual(["Infinite", "Finite", "Unmeasured"])
     })
 
-    it("keeps two infinite ratios in a stable order instead of comparing NaN", () => {
+    // Finite FIRST so the sort has observable work to do. Listing the infinite rows
+    // first would make the assertion hold even if `stat` sorting were a no-op.
+    it("ranks infinite ratios above a finite one and keeps tied rows in input order", () => {
       const trackers: TrackerSummary[] = [
+        t({ id: 3, name: "Finite", latestStats: stats({ ratio: 5 }) }),
         t({ id: 1, name: "InfA", latestStats: stats({ ratio: null, ratioIsInfinite: true }) }),
         t({ id: 2, name: "InfB", latestStats: stats({ ratio: null, ratioIsInfinite: true }) }),
-        t({ id: 3, name: "Finite", latestStats: stats({ ratio: 5 }) }),
       ]
       const result = sortTrackers(trackers, "stat", "ratio")
       expect(result.map((x) => x.name)).toEqual(["InfA", "InfB", "Finite"])

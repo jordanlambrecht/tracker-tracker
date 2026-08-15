@@ -1,9 +1,17 @@
 // src/components/ui/__tests__/Table.test.tsx
 //
 // Regression coverage: sortValue can legitimately return Infinity (e.g. an
-// infinite ratio — see TrackerLeaderboard). Two equal Infinity values used
-// to subtract to NaN, which is not a valid Array.prototype.sort comparator
-// result and left ordering unspecified.
+// infinite ratio — see TrackerLeaderboard).
+//
+// What this pins is the observable contract: an infinite value sorts ahead of a
+// finite one, and tied infinite rows keep their input order. It deliberately does
+// NOT claim to pin the `aVal === bVal` guard in Table.tsx — no test can. V8 treats
+// a NaN comparator result as 0, so deleting that guard is unobservable; it is
+// defensive documentation, not behaviour.
+//
+// The fixture starts in the WRONG order on purpose. An earlier version listed the
+// rows already sorted, so replacing the whole comparator with `return data` left
+// the test green — it asserted nothing.
 
 import { render, screen, within } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
@@ -22,11 +30,13 @@ const columns: Column<Row>[] = [
 ]
 
 describe("Table sorting with non-finite sortValues", () => {
-  it("keeps two Infinity rows in their original relative order instead of throwing off the sort", () => {
+  it("sorts infinite values ahead of finite ones and keeps tied rows in input order", () => {
+    // Finite row FIRST so a descending sort has to move it to the end. If this
+    // fixture were pre-sorted the assertion below would hold even with no sorting.
     const data: Row[] = [
+      { id: 3, name: "Third", value: 5 },
       { id: 1, name: "First", value: Number.POSITIVE_INFINITY },
       { id: 2, name: "Second", value: Number.POSITIVE_INFINITY },
-      { id: 3, name: "Third", value: 5 },
     ]
 
     render(
