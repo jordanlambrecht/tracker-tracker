@@ -8,6 +8,21 @@ import { adapterFetch } from "./adapter-fetch"
 import type { DebugApiCall, FetchOptions, TrackerAdapter, TrackerStats } from "./types"
 
 /**
+ * BTN serves its API from a different host than its site, and every BTN user
+ * hits the same one — it is a property of the platform, not of a user's row.
+ * So the adapter owns it and deliberately ignores the persisted `apiPath`,
+ * the same way avistaz/digitalcore/iptorrents/torrentleech ignore theirs.
+ *
+ * That ignore is load-bearing: rows created before this change persisted the
+ * absolute URL into `api_path`. Reading it back would be harmless today but
+ * would go stale the moment BTN moves hosts, and `drizzle-kit push` has no
+ * sanctioned way to rewrite existing rows. Ignoring it makes those rows
+ * self-heal.
+ */
+const BTN_API_URL = "https://api.broadcasthe.net/"
+const BTN_API_HOSTNAME = new URL(BTN_API_URL).hostname
+
+/**
  * BTN's published `userInfo` fields (apidocs.broadcasthe.net) are:
  * UserID, Username, Email, Upload, Download, Title, Enabled, Paranoia,
  * Invites, ClassID. Anything below marked "undocumented" was observed on a
@@ -136,11 +151,10 @@ export class BtnAdapter implements TrackerAdapter {
   async fetchStats(
     _baseUrl: string,
     apiToken: string,
-    apiPath: string,
+    _apiPath: string,
     options?: FetchOptions
   ): Promise<TrackerStats> {
-    const hostname = new URL(apiPath).hostname
-    const data = await callBtnUserInfo(apiPath, apiToken, hostname, options)
+    const data = await callBtnUserInfo(BTN_API_URL, apiToken, BTN_API_HOSTNAME, options)
     // data.result is guaranteed by callBtnUserInfo
     return mapBtnResult(data.result as BtnUserInfoResult)
   }
@@ -148,19 +162,18 @@ export class BtnAdapter implements TrackerAdapter {
   async fetchRaw(
     _baseUrl: string,
     apiToken: string,
-    apiPath: string,
+    _apiPath: string,
     options?: FetchOptions
   ): Promise<DebugApiCall[]> {
-    const hostname = new URL(apiPath).hostname
     try {
-      const data = await callBtnUserInfo(apiPath, apiToken, hostname, options)
+      const data = await callBtnUserInfo(BTN_API_URL, apiToken, BTN_API_HOSTNAME, options)
       const stats = mapBtnResult(data.result as BtnUserInfoResult)
-      return [{ label: "userInfo", endpoint: apiPath, data: stats, error: null }]
+      return [{ label: "userInfo", endpoint: BTN_API_URL, data: stats, error: null }]
     } catch (err) {
       return [
         {
           label: "userInfo",
-          endpoint: apiPath,
+          endpoint: BTN_API_URL,
           data: null,
           error: err instanceof Error ? err.message : "Request failed",
         },

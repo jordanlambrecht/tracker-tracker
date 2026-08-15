@@ -192,10 +192,11 @@ url: "https://blutopia.cc"
 
 The adapter appends `apiPath` to this URL to make API requests.
 
-The one exception is a tracker that serves its API from a different host, where
-`apiPath` holds a complete URL instead of a path and the base URL is not used —
-see `broadcasthenet.ts`. Don't reach for that unless the API genuinely lives
-off-domain.
+`apiPath` is always a relative path beginning with `/` — this is enforced by
+both the registry test and `scripts/validate-trackers.ts`. If a tracker serves
+its API from a different host, that host belongs in its adapter as a module
+constant, not in the registry; see `btn.ts`. Putting an absolute URL in
+`apiPath` would persist it into every user's row with no migration path back.
 
 #### `description`
 

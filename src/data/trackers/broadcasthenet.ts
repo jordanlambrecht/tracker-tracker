@@ -13,7 +13,8 @@ export const broadcasthenet: TrackerRegistryEntry = {
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "btn",
-  apiPath: "https://api.broadcasthe.net/",
+  // BTN's API lives off-domain; the btn adapter owns that host. See btn.ts.
+  apiPath: "/",
 
   // ── Content ─────────────────────────────────────────────────────────
   specialty: "TV",

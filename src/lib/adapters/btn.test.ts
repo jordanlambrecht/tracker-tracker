@@ -3,7 +3,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { BtnAdapter } from "./btn"
 
+/** Where BTN's API actually lives — the adapter owns this, callers cannot change it. */
 const API_URL = "https://api.broadcasthe.net/"
+/** What a row created from the registry now carries in `api_path`. */
+const API_PATH = "/"
 
 describe("BtnAdapter", () => {
   const adapter = new BtnAdapter()
@@ -42,7 +45,7 @@ describe("BtnAdapter", () => {
       json: async () => mockResponse,
     } as Response)
 
-    const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_URL)
+    const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_PATH)
 
     expect(stats.username).toBe("testuser")
     expect(stats.group).toBe("User")
@@ -79,7 +82,7 @@ describe("BtnAdapter", () => {
       }),
     } as Response)
 
-    const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_URL)
+    const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_PATH)
     expect(stats.seedbonus).toBeNull()
     expect(stats.freeleechTokens).toBeNull()
   })
@@ -101,7 +104,7 @@ describe("BtnAdapter", () => {
       json: async () => mockResponse,
     } as Response)
 
-    const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_URL)
+    const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_PATH)
 
     expect(stats.username).toBe("minimal")
     expect(stats.group).toBe("Unknown")
@@ -136,7 +139,7 @@ describe("BtnAdapter", () => {
       json: async () => mockResponse,
     } as Response)
 
-    const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_URL)
+    const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_PATH)
     expect(stats.ratio).toBe(0)
   })
 
@@ -162,7 +165,7 @@ describe("BtnAdapter", () => {
       json: async () => mockResponse,
     } as Response)
 
-    const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_URL)
+    const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_PATH)
     expect(stats.ratio).toBe(0)
     expect(Number.isFinite(stats.ratio)).toBe(true)
   })
@@ -175,7 +178,7 @@ describe("BtnAdapter", () => {
     } as Response)
 
     await expect(
-      adapter.fetchStats("https://broadcasthe.net", "bad-key", API_URL)
+      adapter.fetchStats("https://broadcasthe.net", "bad-key", API_PATH)
     ).rejects.toThrow("Invalid BTN API key")
   })
 
@@ -187,7 +190,7 @@ describe("BtnAdapter", () => {
     } as Response)
 
     await expect(
-      adapter.fetchStats("https://broadcasthe.net", "fake-key", API_URL)
+      adapter.fetchStats("https://broadcasthe.net", "fake-key", API_PATH)
     ).rejects.toThrow("rate limited")
   })
 
@@ -203,7 +206,7 @@ describe("BtnAdapter", () => {
     } as Response)
 
     await expect(
-      adapter.fetchStats("https://broadcasthe.net", "fake-key", API_URL)
+      adapter.fetchStats("https://broadcasthe.net", "fake-key", API_PATH)
     ).rejects.toThrow("API key not found")
   })
 
@@ -212,7 +215,7 @@ describe("BtnAdapter", () => {
     vi.spyOn(global, "fetch").mockRejectedValueOnce(new TypeError("fetch failed", { cause }))
 
     await expect(
-      adapter.fetchStats("https://broadcasthe.net", "fake-key", API_URL)
+      adapter.fetchStats("https://broadcasthe.net", "fake-key", API_PATH)
     ).rejects.toThrow("Failed to connect to api.broadcasthe.net")
   })
 
@@ -236,7 +239,7 @@ describe("BtnAdapter", () => {
       }),
     } as Response)
 
-    await adapter.fetchStats("https://broadcasthe.net", "my-secret-api-key", API_URL)
+    await adapter.fetchStats("https://broadcasthe.net", "my-secret-api-key", API_PATH)
 
     expect(fetchSpy).toHaveBeenCalledTimes(1)
     const [calledUrl, init] = fetchSpy.mock.calls[0]
@@ -278,7 +281,7 @@ describe("BtnAdapter - proxy handling", () => {
     const stats = await new FreshBtnAdapter().fetchStats(
       "https://broadcasthe.net",
       "fake-api-key",
-      "https://api.broadcasthe.net/",
+      API_PATH,
       { proxyAgent: {} as never }
     )
 
@@ -313,7 +316,7 @@ describe("BtnAdapter - documented vs observed field names", () => {
       }),
     } as Response)
 
-    const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_URL)
+    const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_PATH)
     expect(stats.group).toBe("Power User")
   })
 
@@ -327,7 +330,49 @@ describe("BtnAdapter - documented vs observed field names", () => {
       }),
     } as Response)
 
-    const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_URL)
+    const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_PATH)
     expect(stats.hitAndRuns).toBeNull()
+  })
+
+  describe("api path is owned by the adapter, not the row", () => {
+    const okResponse = () =>
+      ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: 1,
+          result: { UserID: "42", Username: "testuser", Upload: "1000", Download: "500" },
+        }),
+      }) as Response
+
+    // Rows created before the adapter owned the host persisted the absolute URL
+    // into `api_path`. There is no migration path (drizzle-kit push only), so
+    // the adapter must ignore whatever the row carries and self-heal.
+    it.each([
+      ["a stale absolute URL", "https://api.broadcasthe.net/"],
+      ["a stale URL on a host BTN no longer uses", "https://old-api.broadcasthe.net/rpc"],
+      ["an empty path", ""],
+      ["a nonsense path", "/api/user"],
+    ])("ignores %s and still calls the real API", async (_label, persistedPath) => {
+      const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce(okResponse())
+
+      const stats = await adapter.fetchStats("https://broadcasthe.net", "key", persistedPath)
+
+      expect(stats.username).toBe("testuser")
+      expect(fetchSpy.mock.calls[0][0]).toBe(API_URL)
+    })
+
+    it("reports the real endpoint in debug output, not the persisted path", async () => {
+      vi.spyOn(global, "fetch").mockResolvedValueOnce(okResponse())
+
+      const calls = await adapter.fetchRaw(
+        "https://broadcasthe.net",
+        "key",
+        "https://old-api.broadcasthe.net/rpc"
+      )
+
+      expect(calls[0].endpoint).toBe(API_URL)
+      expect(calls[0].error).toBeNull()
+    })
   })
 })
