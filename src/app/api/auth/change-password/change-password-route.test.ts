@@ -455,19 +455,20 @@ describe("POST /api/auth/change-password — undecryptable fields", () => {
   })
 })
 
-// ─── The empty-string ciphertext gap ──────────────────────────────────────────
+// ─── Blank credentials ────────────────────────────────────────────────────────
 
-describe("POST /api/auth/change-password — empty-string ciphertext", () => {
-  it("encrypt('') produces a blob that decrypt() can never read back", () => {
-    // Root cause, crypto.ts: encrypt("") emits iv(12) + authTag(16) + 0 bytes
-    // of ciphertext = 28 bytes, but decrypt() rejects anything shorter than
-    // IV_LENGTH + AUTH_TAG_LENGTH + 1 = 29 bytes.
+describe("POST /api/auth/change-password — blank credentials", () => {
+  it("encrypt('') round-trips: 28 bytes in, empty string back out", () => {
+    // crypto.ts: encrypt("") emits iv(12) + authTag(16) + 0 bytes of ciphertext.
+    // The length guard admits exactly IV + TAG, so a deliberately blank secret is
+    // a readable payload. Integrity is unaffected — the GCM tag covers a
+    // zero-length ciphertext, which crypto.test.ts pins by tampering at 28 bytes.
     const ciphertext = encrypt("", oldKey)
     expect(Buffer.from(ciphertext, "base64")).toHaveLength(28)
-    expect(() => decrypt(ciphertext, oldKey)).toThrow("Invalid ciphertext: too short")
+    expect(decrypt(ciphertext, oldKey)).toBe("")
   })
 
-  it("PINS: a client with a blank username can never be re-keyed and is orphaned", async () => {
+  it("re-keys a client whose username and password are both blank", async () => {
     // Reachable today: PATCH /api/clients/[id] gates only on
     // `typeof body.username === "string"`, so `{ username: "" }` stores
     // encrypt("") in the NOT NULL column — the qBittorrent auth-bypass setup.
@@ -481,27 +482,30 @@ describe("POST /api/auth/change-password — empty-string ciphertext", () => {
     const response = await post()
 
     expect(response.status).toBe(200)
-    const body = (await response.json()) as { warnings: string[] }
-    expect(body.warnings).toContain(
-      "Could not re-encrypt 1 client credential(s). Re-enter them manually."
-    )
-    // Skipped on THIS rotation and on every future one — the row can never
-    // decrypt, so no password change will ever move it to the current key.
-    expect(writesTo(downloadClients)).toHaveLength(0)
+    const body = (await response.json()) as { warnings?: string[] }
+    expect(body.warnings).toBeUndefined()
+
+    // Moved onto the new key, not skipped and left orphaned under the old one —
+    // decrypting with the independently derived newKey is what proves it.
+    const clientWrites = writesTo(downloadClients)
+    expect(clientWrites).toHaveLength(1)
+    expect(decrypt(clientWrites[0].values.encryptedUsername as string, newKey)).toBe("")
+    expect(decrypt(clientWrites[0].values.encryptedPassword as string, newKey)).toBe("")
     expect(settingsWrite().passwordHash).toBe(NEW_HASH)
   })
 
-  it("PINS: a blank tracker API token is likewise skipped forever", async () => {
+  it("re-keys a tracker whose API token is blank", async () => {
     trackerRows = [{ id: 1, name: "Alpha", encryptedApiToken: encrypt("", oldKey) }]
 
     const response = await post()
 
     expect(response.status).toBe(200)
-    const body = (await response.json()) as { warnings: string[] }
-    expect(body.warnings).toContain(
-      "Could not re-encrypt 1 tracker API key(s). Re-enter them manually."
-    )
-    expect(writesTo(trackers)).toHaveLength(0)
+    const body = (await response.json()) as { warnings?: string[] }
+    expect(body.warnings).toBeUndefined()
+
+    const trackerWrites = writesTo(trackers)
+    expect(trackerWrites).toHaveLength(1)
+    expect(decrypt(trackerWrites[0].values.encryptedApiToken as string, newKey)).toBe("")
   })
 })
 
