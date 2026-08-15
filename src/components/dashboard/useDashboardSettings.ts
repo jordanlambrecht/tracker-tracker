@@ -30,12 +30,25 @@ function useDashboardSettings() {
         const legacy = localStorage.getItem(STORAGE_KEYS.DASHBOARD_SETTINGS)
         if (legacy) {
           try {
-            const parsed = { ...DEFAULTS, ...(JSON.parse(legacy) as Partial<DashboardSettings>) }
-            // Save to DB, then clear localStorage
+            const raw: unknown = JSON.parse(legacy)
+            // JSON.parse("null") succeeds, so a null blob would otherwise reach the
+            // PUT as the literal body `null`; parseJsonBody accepts it and the route
+            // then dereferences it. Throwing lands in the catch below, which is the
+            // established corrupt-blob path (drop it and fall through to the server).
+            if (!raw || typeof raw !== "object") throw new Error("corrupt legacy blob")
+            const legacyValues = raw as Partial<DashboardSettings>
+            // Merge over the server's values, not over DEFAULTS: a key the legacy blob
+            // never had must keep what the server holds. Same reason the non-migration
+            // path below spreads `data`.
+            const parsed = { ...DEFAULTS, ...data, ...legacyValues }
+            // Send ONLY the keys the blob actually carried. PUTting the whole object
+            // writes a default over every key the user never set in localStorage —
+            // the same whole-object-write shape this file's normal save path was
+            // already changed away from. The route ignores unknown/mistyped keys.
             fetch("/api/settings/dashboard", {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(parsed),
+              body: JSON.stringify(legacyValues),
             })
             localStorage.removeItem(STORAGE_KEYS.DASHBOARD_SETTINGS)
             if (!cancelled) {

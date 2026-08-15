@@ -9,6 +9,7 @@
 
 import { act, renderHook, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { STORAGE_KEYS } from "@/lib/storage-keys"
 import { DASHBOARD_SETTINGS_DEFAULTS } from "@/types/api"
 import { useDashboardSettings } from "./useDashboardSettings"
 
@@ -119,6 +120,50 @@ describe("useDashboardSettings", () => {
       const bodies = putBodies(spy)
       expect(bodies).toHaveLength(1)
       expect(Object.keys(bodies[0])).toEqual(["enable3DCharts"])
+    })
+  })
+
+  // The one-time localStorage migration had the same whole-object-write shape the
+  // `update` path above was already fixed for: it spread the legacy blob over
+  // DEFAULTS and PUT the result, so every key the user never set in localStorage
+  // overwrote the server with a default.
+  describe("legacy migration", () => {
+    it("writes only the keys the legacy blob held, keeping the server's value for the rest", async () => {
+      localStorage.setItem(
+        STORAGE_KEYS.DASHBOARD_SETTINGS,
+        JSON.stringify({ showHealthIndicators: false })
+      )
+      const spy = vi
+        .spyOn(global, "fetch")
+        .mockResolvedValue(jsonResponse({ ...DASHBOARD_SETTINGS_DEFAULTS, showLoginTimers: false }))
+
+      const { result } = renderHook(() => useDashboardSettings())
+      await waitFor(() => expect(result.current.loaded).toBe(true))
+
+      // Only the migrated key is sent — showLoginTimers must not ride along as a
+      // default and overwrite the server's stored `false`.
+      expect(putBodies(spy)).toEqual([{ showHealthIndicators: false }])
+
+      // ...and local state reflects the server for keys the blob never had.
+      expect(result.current.settings.showLoginTimers).toBe(false)
+      expect(result.current.settings.showHealthIndicators).toBe(false)
+      expect(localStorage.getItem(STORAGE_KEYS.DASHBOARD_SETTINGS)).toBeNull()
+    })
+
+    it("discards a null legacy blob instead of PUTting it", async () => {
+      // JSON.parse("null") succeeds, so without an explicit guard this reaches the
+      // route as the literal body `null`.
+      localStorage.setItem(STORAGE_KEYS.DASHBOARD_SETTINGS, "null")
+      const spy = vi
+        .spyOn(global, "fetch")
+        .mockResolvedValue(jsonResponse({ ...DASHBOARD_SETTINGS_DEFAULTS, showLoginTimers: false }))
+
+      const { result } = renderHook(() => useDashboardSettings())
+      await waitFor(() => expect(result.current.loaded).toBe(true))
+
+      expect(putBodies(spy)).toEqual([])
+      expect(result.current.settings.showLoginTimers).toBe(false)
+      expect(localStorage.getItem(STORAGE_KEYS.DASHBOARD_SETTINGS)).toBeNull()
     })
   })
 })
