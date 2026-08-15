@@ -37,6 +37,17 @@ export interface BackupRecord {
   notes: string | null
 }
 
+// "2 tracker API tokens and 1 download client credential"
+function describeClearedCredentials(cleared: { tokens: number; clients: number }): string {
+  const { tokens, clients } = cleared
+  const parts: string[] = []
+  if (tokens > 0) parts.push(`${tokens} tracker API ${tokens === 1 ? "token" : "tokens"}`)
+  if (clients > 0) {
+    parts.push(`${clients} download client ${clients === 1 ? "credential" : "credentials"}`)
+  }
+  return parts.join(" and ")
+}
+
 interface BackupsSectionProps {
   initialConfig: {
     encryptBackups: boolean
@@ -79,15 +90,28 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
   const [deletingBackupId, setDeletingBackupId] = useState<number | null>(null)
   const [isDraggingRestore, setIsDraggingRestore] = useState(false)
   const [totpWasDisabled, setTotpWasDisabled] = useState(false)
+  const [clearedOnRestore, setClearedOnRestore] = useState<{
+    tokens: number
+    clients: number
+  } | null>(null)
   const restoreInputRef = useRef<HTMLInputElement>(null)
 
   const { saving: savingBackupConfig, patch: patchSettings } = usePatchSettings()
 
+  // One-shot flags left by handleRestore before it reloaded the page.
   useEffect(() => {
     if (sessionStorage.getItem("totp_disabled_on_restore") === "1") {
       setTotpWasDisabled(true)
       sessionStorage.removeItem("totp_disabled_on_restore")
     }
+
+    const tokens = Number(sessionStorage.getItem("restore_tokens_cleared"))
+    const clients = Number(sessionStorage.getItem("restore_clients_cleared"))
+    if (tokens > 0 || clients > 0) {
+      setClearedOnRestore({ tokens: tokens > 0 ? tokens : 0, clients: clients > 0 ? clients : 0 })
+    }
+    sessionStorage.removeItem("restore_tokens_cleared")
+    sessionStorage.removeItem("restore_clients_cleared")
   }, [])
 
   useEffect(() => {
@@ -209,6 +233,18 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
       }
       if ((data as { totpDisabledOnRestore?: boolean }).totpDisabledOnRestore) {
         sessionStorage.setItem("totp_disabled_on_restore", "1")
+      }
+      // Credentials the restore could not re-encrypt are cleared, not kept. Carry the
+      // counts across the reload below so the loss is visible, not just a server log line.
+      const { tokensCleared = 0, clientCredentialsCleared = 0 } = data as {
+        tokensCleared?: number
+        clientCredentialsCleared?: number
+      }
+      if (tokensCleared > 0) {
+        sessionStorage.setItem("restore_tokens_cleared", String(tokensCleared))
+      }
+      if (clientCredentialsCleared > 0) {
+        sessionStorage.setItem("restore_clients_cleared", String(clientCredentialsCleared))
       }
       setShowRestoreConfirm(false)
       setRestoreFile(null)
@@ -337,6 +373,14 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
         <Notice variant="warn" className="mb-4" header="Two-factor authentication disabled">
           This happened during restore because the backup predated your TOTP setup. Re-enable it in
           the Security tab to restore 2FA protection.
+        </Notice>
+      )}
+
+      {clearedOnRestore && (
+        <Notice variant="warn" className="mb-4" header="Some credentials could not be restored">
+          The restore cleared {describeClearedCredentials(clearedOnRestore)}, usually because the
+          backup predates a master password change. Everything else was restored. Re-enter the
+          affected credentials to resume polling.
         </Notice>
       )}
 

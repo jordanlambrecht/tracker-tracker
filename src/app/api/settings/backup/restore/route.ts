@@ -1,6 +1,6 @@
 // src/app/api/settings/backup/restore/route.ts
 //
-// Functions: batchInsert, POST, hashFileName, reencryptField
+// Functions: batchInsert, POST, firstBackupCiphertext, hashFileName, reencryptField
 
 import { createHash } from "node:crypto"
 import { eq } from "drizzle-orm"
@@ -13,7 +13,7 @@ import {
   type EncryptedBackupEnvelope,
   validateBackupJson,
 } from "@/lib/backup"
-import { deriveKey, reencrypt } from "@/lib/crypto"
+import { decrypt, deriveKey, reencrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import {
   appSettings,
@@ -62,6 +62,33 @@ async function batchInsert<T extends Record<string, unknown>>(
       await tx.insert(table).values(batch)
     }
   }
+}
+
+// Return the first non-empty encrypted value in the backup, or null if it holds none.
+// Used as a probe to prove a key actually opens this backup's ciphertext.
+function firstBackupCiphertext(payload: BackupPayload): string | null {
+  const settings = payload.settings
+  const candidates: unknown[] = [
+    ...payload.trackers.map((t) => (t as Record<string, unknown>).encryptedApiToken),
+    ...payload.downloadClients.flatMap((c) => [
+      (c as Record<string, unknown>).encryptedUsername,
+      (c as Record<string, unknown>).encryptedPassword,
+    ]),
+    ...(Array.isArray(payload.notificationTargets)
+      ? payload.notificationTargets.map((n) => (n as Record<string, unknown>).encryptedConfig)
+      : []),
+    settings.encryptedProxyPassword,
+    settings.encryptedBackupPassword,
+    settings.encryptedPtpimgApiKey,
+    settings.encryptedOeimgApiKey,
+    settings.encryptedImgbbApiKey,
+    settings.totpSecret,
+  ]
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.length > 0) return candidate
+  }
+  return null
 }
 
 // Attempt to decrypt a field with the backup key and re-encrypt with the current key.
@@ -221,8 +248,7 @@ export async function POST(request: Request) {
   // Step 6: Derive encryption keys for token re-encryption.
   // The backup's encryptionSalt may differ from the current instance's salt (e.g. after a
   // nuke + re-setup). We derive the backup key from masterPassword + backupSalt, and the
-  // current key from masterPassword + currentSalt. If the salts match, the keys are identical
-  // and re-encryption is a no-op pass-through.
+  // current key from masterPassword + currentSalt. Matching salts make the two keys identical.
   const backupSalt = payload.settings.encryptionSalt as string
   const currentSalt = currentSettings.encryptionSalt
   const sameSalt = backupSalt === currentSalt
@@ -241,6 +267,32 @@ export async function POST(request: Request) {
   }
 
   const canReencrypt = backupKey.length === 32
+
+  // Matching salts prove the two KEYS are identical. They do not prove that key is the one
+  // this backup's ciphertext was written with: POST /api/auth/change-password re-encrypts
+  // every field under a new key while REUSING the existing encryptionSalt. A backup taken
+  // before such a change therefore carries a matching salt and old-key ciphertext, and
+  // copying it through verbatim would fill the DB with credentials nothing can decrypt.
+  // So probe one field first, and only pass ciphertext through once the key is proven.
+  //
+  // When the probe fails we fall through to reencryptField with backupKey === currentKey,
+  // which re-checks each field individually: anything that still decrypts is preserved, and
+  // only the dead fields are cleared and flagged. Do not "optimise" this probe away.
+  let canPassThrough = sameSalt
+  if (sameSalt) {
+    const probe = firstBackupCiphertext(payload)
+    if (probe !== null) {
+      try {
+        decrypt(probe, backupKey)
+      } catch {
+        canPassThrough = false
+        log.warn(
+          { event: "restore_stale_ciphertext" },
+          "Backup predates a master password change — credentials that cannot be re-encrypted will be cleared"
+        )
+      }
+    }
+  }
 
   // Step 7: Stop schedulers (key is zeroed inside stopScheduler)
   stopScheduler()
@@ -274,7 +326,7 @@ export async function POST(request: Request) {
         const { id: oldId, ...fields } = t as Record<string, unknown> & { id: number }
 
         let apiToken: string
-        if (sameSalt) {
+        if (canPassThrough) {
           // Same instance — keep ciphertext as-is
           apiToken = (fields.encryptedApiToken as string) || ""
         } else if (canReencrypt) {
@@ -328,7 +380,7 @@ export async function POST(request: Request) {
 
         let encUsername: string
         let encPassword: string
-        if (sameSalt) {
+        if (canPassThrough) {
           encUsername = (fields.encryptedUsername as string) || ""
           encPassword = (fields.encryptedPassword as string) || ""
         } else if (canReencrypt) {
@@ -546,7 +598,7 @@ export async function POST(request: Request) {
           const { id: _id, ...fields } = nt as Record<string, unknown> & { id: number }
 
           let encryptedConfig: string
-          if (sameSalt) {
+          if (canPassThrough) {
             encryptedConfig = (fields.encryptedConfig as string) || ""
           } else if (canReencrypt) {
             encryptedConfig = reencryptField(
@@ -589,7 +641,7 @@ export async function POST(request: Request) {
       // Re-encrypt proxy password if possible
       let proxyPassword: string | null = null
       if (payload.settings.encryptedProxyPassword) {
-        if (sameSalt) {
+        if (canPassThrough) {
           proxyPassword = payload.settings.encryptedProxyPassword as string
         } else if (canReencrypt) {
           const result = reencryptField(
@@ -605,7 +657,7 @@ export async function POST(request: Request) {
       // Re-encrypt backup password if possible
       let backupPasswordEncrypted: string | null = null
       if (payload.settings.encryptedBackupPassword) {
-        if (sameSalt) {
+        if (canPassThrough) {
           backupPasswordEncrypted = payload.settings.encryptedBackupPassword as string
         } else if (canReencrypt) {
           const result = reencryptField(
@@ -621,7 +673,7 @@ export async function POST(request: Request) {
       // Re-encrypt image hosting API keys if possible
       let encryptedPtpimgApiKey: string | null = null
       if (payload.settings.encryptedPtpimgApiKey) {
-        if (sameSalt) {
+        if (canPassThrough) {
           encryptedPtpimgApiKey = payload.settings.encryptedPtpimgApiKey as string
         } else if (canReencrypt) {
           encryptedPtpimgApiKey =
@@ -636,7 +688,7 @@ export async function POST(request: Request) {
 
       let encryptedOeimgApiKey: string | null = null
       if (payload.settings.encryptedOeimgApiKey) {
-        if (sameSalt) {
+        if (canPassThrough) {
           encryptedOeimgApiKey = payload.settings.encryptedOeimgApiKey as string
         } else if (canReencrypt) {
           encryptedOeimgApiKey =
@@ -651,7 +703,7 @@ export async function POST(request: Request) {
 
       let encryptedImgbbApiKey: string | null = null
       if (payload.settings.encryptedImgbbApiKey) {
-        if (sameSalt) {
+        if (canPassThrough) {
           encryptedImgbbApiKey = payload.settings.encryptedImgbbApiKey as string
         } else if (canReencrypt) {
           encryptedImgbbApiKey =
@@ -668,7 +720,7 @@ export async function POST(request: Request) {
       let totpSecret: string | null = null
       let totpBackupCodes: string | null = null
       if (payload.settings.totpSecret) {
-        if (sameSalt) {
+        if (canPassThrough) {
           totpSecret = payload.settings.totpSecret as string
           totpBackupCodes = (payload.settings.totpBackupCodes as string | null) ?? null
         } else if (canReencrypt) {
@@ -763,6 +815,14 @@ export async function POST(request: Request) {
     if (backupKey.length > 0) backupKey.fill(0)
     if (currentKey !== backupKey && currentKey.length > 0) currentKey.fill(0)
   }
+
+  // Restart the scheduler we stopped in Step 7, mirroring the failure path above.
+  // The session survives a restore, so (auth)/layout.tsx would also revive polling on the
+  // next authenticated page load — but only if a browser loads one. Restarting here keeps
+  // the route self-contained for direct API callers instead of relying on that.
+  // encryptedSchedulerKey stays null (see scheduler-key-store.ts:54-58): polling runs now,
+  // but will not survive a process restart until the next login re-persists the key.
+  ensureSchedulerRunning(auth.encryptionKey)
 
   if (totpDisabledOnRestore) {
     log.warn(
