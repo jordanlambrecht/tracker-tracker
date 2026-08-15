@@ -104,6 +104,86 @@ describe("fetchTrackerHtml - redirects", () => {
     ).rejects.toThrow("Session expired")
   })
 
+  // The headers carry the user's tracker session cookie, and Location is chosen by
+  // the remote host — so following it off-origin would hand that cookie to whoever
+  // the tracker names. These assert the request is never made, not merely that the
+  // call rejects.
+  it("refuses to follow a redirect to another host, and sends nothing there", async () => {
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce(redirectResponse("https://attacker.example/collect"))
+
+    await expect(
+      fetchTrackerHtml({ ...BASE, followRedirects: { loginPattern: /\/login/i } })
+    ).rejects.toThrow("redirected off-site")
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    expect(String(fetchSpy.mock.calls[0][0])).not.toContain("attacker.example")
+  })
+
+  it("refuses a protocol-relative redirect, which also leaves the origin", async () => {
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce(redirectResponse("//attacker.example/collect"))
+
+    await expect(
+      fetchTrackerHtml({ ...BASE, followRedirects: { loginPattern: /\/login/i } })
+    ).rejects.toThrow("redirected off-site")
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
+  // A status missing from the redirect set is handed back as though it were the
+  // final response, so it never reaches the same-origin check — the guard would
+  // be silently narrower than it looks. 307 and 308 preserve the method and are
+  // ordinary on CDN-fronted hosts.
+  it.each([301, 303, 307, 308])("refuses an off-site redirect sent as %i", async (status) => {
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce(redirectResponse("https://attacker.example/collect", status))
+
+    await expect(
+      fetchTrackerHtml({ ...BASE, followRedirects: { loginPattern: /\/login/i } })
+    ).rejects.toThrow("redirected off-site")
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    expect(String(fetchSpy.mock.calls[0][0])).not.toContain("attacker.example")
+  })
+
+  it.each([301, 303, 307, 308])(
+    "treats a %i as an expired session when redirects are not followed",
+    async (status) => {
+      vi.spyOn(global, "fetch").mockResolvedValueOnce(redirectResponse("/login", status))
+
+      await expect(fetchTrackerHtml(BASE)).rejects.toThrow("Session expired")
+    }
+  )
+
+  it("refuses a redirect to a private address", async () => {
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce(redirectResponse("http://127.0.0.1:8080/"))
+
+    await expect(
+      fetchTrackerHtml({ ...BASE, followRedirects: { loginPattern: /\/login/i } })
+    ).rejects.toThrow("redirected off-site")
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it("still follows a same-origin redirect that changes only the path", async () => {
+    vi.spyOn(global, "fetch")
+      .mockResolvedValueOnce(redirectResponse("https://tracker.example/t?page=2"))
+      .mockResolvedValueOnce(htmlResponse("<html>stats</html>"))
+
+    const html = await fetchTrackerHtml({
+      ...BASE,
+      followRedirects: { loginPattern: /\/login/i },
+    })
+
+    expect(html).toBe("<html>stats</html>")
+  })
+
   it("gives up after the hop limit rather than looping", async () => {
     vi.spyOn(global, "fetch").mockResolvedValue(redirectResponse("/next"))
 

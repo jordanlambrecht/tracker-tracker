@@ -42,8 +42,8 @@ export interface TrackerHtmlRequest {
   userAgent?: string
   proxyAgent?: FetchOptions["proxyAgent"]
   /**
-   * When set, 301/302 responses are followed rather than treated as an expired
-   * session — unless the Location matches loginPattern.
+   * When set, redirects are followed rather than treated as an expired session
+   * — unless the Location matches loginPattern.
    */
   followRedirects?: { loginPattern: RegExp; maxHops?: number }
 }
@@ -85,8 +85,16 @@ function getHtml(url: string, headers: Record<string, string>): Promise<Response
   })
 }
 
+/**
+ * Every status that carries a Location, not just the two most common. A status
+ * missing from this set is returned to the caller as though it were the final
+ * response, which means it never reaches the same-origin check below — so
+ * narrowing this set silently narrows that guard too.
+ */
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308])
+
 function isRedirect(status: number): boolean {
-  return status === 301 || status === 302
+  return REDIRECT_STATUSES.has(status)
 }
 
 /**
@@ -103,6 +111,7 @@ async function followRedirectChain(
 ): Promise<Response> {
   let current = response
   let currentUrl = fromUrl
+  const origin = new URL(fromUrl).origin
 
   for (let hop = 0; hop <= maxHops; hop++) {
     if (!isRedirect(current.status)) return current
@@ -112,7 +121,20 @@ async function followRedirectChain(
     // A redirect with no Location is malformed and cannot be followed.
     if (!location || hop === maxHops) break
 
-    currentUrl = new URL(location, currentUrl).href
+    const nextUrl = new URL(location, currentUrl)
+    // `headers` carries the user's tracker session cookie. Location is chosen by
+    // the remote host, so following it blindly would replay that cookie wherever
+    // the response points — a hostile or compromised tracker could harvest the
+    // session with a single 302. Refuse to leave the origin rather than stripping
+    // credentials and continuing: these adapters read an authenticated page from a
+    // known host, so an off-origin hop is never legitimate, and an anonymous
+    // request would return an unparseable page anyway. This also blocks a redirect
+    // to a private address, which is likewise a different origin.
+    if (nextUrl.origin !== origin) {
+      throw new Error(`${label} redirected off-site; refusing to send credentials`)
+    }
+
+    currentUrl = nextUrl.href
     current = await getHtml(currentUrl, headers)
   }
 
@@ -142,7 +164,7 @@ export async function fetchTrackerHtml(request: TrackerHtmlRequest): Promise<str
       sessionExpiredMessage,
       label
     )
-  } else if (response.status === 302) {
+  } else if (isRedirect(response.status)) {
     throw new Error(sessionExpiredMessage)
   }
 
