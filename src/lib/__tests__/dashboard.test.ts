@@ -100,6 +100,7 @@ const makeSnapshot = (overrides: Partial<Snapshot> = {}): Snapshot => ({
   uploadedBytes: "1000",
   downloadedBytes: "500",
   ratio: 2.0,
+  ratioIsInfinite: false,
   bufferBytes: "500",
   seedbonus: null,
   seedingCount: 10,

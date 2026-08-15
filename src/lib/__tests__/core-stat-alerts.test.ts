@@ -27,6 +27,7 @@ const baseSnapshot: Snapshot = {
   uploadedBytes: "100000000000",
   downloadedBytes: "50000000000",
   ratio: 2.0,
+  ratioIsInfinite: false,
   bufferBytes: "50000000000",
   seedbonus: 500,
   seedingCount: 100,

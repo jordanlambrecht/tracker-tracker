@@ -67,6 +67,7 @@ const mockSnapshot: Snapshot = {
   uploadedBytes: "1000",
   downloadedBytes: "500",
   ratio: 2.0,
+  ratioIsInfinite: false,
   bufferBytes: "500",
   seedingCount: 10,
   leechingCount: 0,

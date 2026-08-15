@@ -436,6 +436,10 @@ function serializeSnapshot(
     uploadedBytes: s.uploadedBytes?.toString() ?? "0",
     downloadedBytes: s.downloadedBytes?.toString() ?? "0",
     ratio: s.ratio,
+    // Same predicate tracker-serializer.ts uses for TrackerLatestStats. `ratio`
+    // is null here because JSON cannot carry Infinity, so without this flag the
+    // consumer cannot tell an infinite ratio from a never-measured one.
+    ratioIsInfinite: s.downloadedBytes === 0n && (s.uploadedBytes ?? 0n) > 0n,
     bufferBytes: s.bufferBytes?.toString() ?? "0",
     seedingCount: s.seedingCount,
     leechingCount: s.leechingCount,

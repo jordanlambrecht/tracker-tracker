@@ -15,6 +15,7 @@ import type { Snapshot } from "@/types/api"
 const baseSnapshot: Snapshot = {
   polledAt: "2026-08-14T12:00:00.000Z",
   ratio: null,
+  ratioIsInfinite: false,
   uploadedBytes: "0",
   downloadedBytes: "0",
   bufferBytes: "0",
@@ -44,6 +45,7 @@ describe("PollLog ratio column (infinite ratio)", () => {
       uploadedBytes: "1000",
       downloadedBytes: "0",
       ratio: null,
+      ratioIsInfinite: false,
     }
 
     render(
@@ -66,6 +68,7 @@ describe("PollLog ratio column (infinite ratio)", () => {
       uploadedBytes: "500",
       downloadedBytes: "500",
       ratio: null,
+      ratioIsInfinite: false,
     }
 
     render(
@@ -89,6 +92,7 @@ describe("PollLog ratio column (infinite ratio)", () => {
       uploadedBytes: "2500",
       downloadedBytes: "1000",
       ratio: 2.5,
+      ratioIsInfinite: false,
     }
 
     render(

@@ -25,6 +25,7 @@ function makeSnap(polledAt: string, overrides?: Partial<Snapshot>): Snapshot {
     uploadedBytes: "0",
     downloadedBytes: "0",
     ratio: null,
+    ratioIsInfinite: false,
     bufferBytes: "0",
     seedbonus: null,
     seedingCount: null,

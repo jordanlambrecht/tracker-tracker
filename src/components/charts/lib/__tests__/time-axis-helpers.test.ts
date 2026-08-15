@@ -15,6 +15,7 @@ function makeSnap(polledAt: string, ratio: number | null = 1.5): Snapshot {
     uploadedBytes: "0",
     downloadedBytes: "0",
     ratio,
+    ratioIsInfinite: false,
     bufferBytes: "0",
     seedbonus: null,
     seedingCount: null,

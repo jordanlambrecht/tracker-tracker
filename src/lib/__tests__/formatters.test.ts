@@ -51,6 +51,7 @@ const makeSnap = (polledAt: string, up: string, down: string): Snapshot => ({
   uploadedBytes: up,
   downloadedBytes: down,
   ratio: null,
+  ratioIsInfinite: false,
   bufferBytes: "0",
   seedbonus: null,
   seedingCount: null,
