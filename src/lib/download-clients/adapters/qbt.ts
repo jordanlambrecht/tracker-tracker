@@ -3,6 +3,7 @@
 import { mapQbtDelta, mapQbtTorrent } from "../field-map"
 import {
   buildBaseUrl,
+  clearAuthBlocks,
   invalidateSession,
   login,
   getTorrents as qbtGetTorrents,
@@ -33,6 +34,10 @@ export class QbtClientAdapter implements ClientAdapter {
 
   async testConnection(): Promise<void> {
     invalidateSession(this.baseUrl)
+    // An explicit user-initiated test must always reach the network: the fix
+    // may have been on the qBittorrent side (enabling localhost bypass, or a
+    // ban expiring), which no amount of credential comparison can detect.
+    clearAuthBlocks(this.baseUrl)
     const sid = await login(this.host, this.port, this.ssl, this.username, this.password)
     await qbtGetTransferInfo(this.baseUrl, sid)
   }

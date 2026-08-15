@@ -121,6 +121,12 @@ export async function fetchTrackerStats(
     const cause = errMsg(err)
     throw new Error(`API key is missing or invalid for tracker "${tracker.name}": ${cause}`)
   }
+  // An empty token decrypts cleanly but can never authenticate. Fail here so
+  // the user sees an actionable local error instead of the tracker's 401 —
+  // and so we don't spend a doomed request every poll cycle discovering it.
+  if (!apiToken) {
+    throw new Error(`API key is missing or invalid for tracker "${tracker.name}": token is empty`)
+  }
 
   const adapter = getAdapter(tracker.platformType)
   if (tracker.useProxy && !proxyAgent) {
@@ -182,6 +188,10 @@ export async function pollTracker(
     } catch (err) {
       const cause = errMsg(err)
       throw new Error(`API key is missing or invalid for tracker "${tracker.name}": ${cause}`)
+    }
+    // See pollTracker: an empty token authenticates against nothing.
+    if (!apiToken) {
+      throw new Error(`API key is missing or invalid for tracker "${tracker.name}": token is empty`)
     }
     const adapter = getAdapter(tracker.platformType)
     if (tracker.useProxy && !proxyAgent) {

@@ -3,9 +3,12 @@
 import { NextResponse } from "next/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { authenticate } from "@/lib/api-helpers"
+import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { createAdapterForClient } from "@/lib/download-clients"
+import { CREDENTIAL_MAX } from "@/lib/limits"
 import { GET } from "./[id]/torrents/route"
+import { POST } from "./route"
 
 // ---------------------------------------------------------------------------
 // Module mocks (boundaries only)
@@ -40,10 +43,16 @@ const mockAdapter = {
 
 vi.mock("@/lib/download-clients", () => ({
   createAdapterForClient: vi.fn(() => mockAdapter),
+  VALID_CLIENT_TYPES: ["qbittorrent", "deluge", "transmission", "rtorrent"],
   stripSensitiveTorrentFields: vi.fn((t: Record<string, unknown>) => {
     const { tracker: _t, content_path: _cp, save_path: _sp, ...rest } = t
     return rest
   }),
+}))
+
+vi.mock("@/lib/server-data", () => ({
+  fetchDownloadClients: vi.fn().mockResolvedValue([]),
+  serializeDownloadClientResponse: vi.fn((c: unknown) => c),
 }))
 
 // ---------------------------------------------------------------------------
@@ -367,5 +376,105 @@ describe("GET /api/clients/[id]/torrents", () => {
 
     expect(mockAdapter.getTorrents).toHaveBeenCalledOnce()
     expect(mockAdapter.getTorrents).toHaveBeenCalledWith({ tag: "aither" })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// POST /api/clients — credentials are optional (issue #150)
+//
+// qBittorrent skips authentication entirely for loopback clients when "Bypass
+// authentication for clients on localhost" is set, so a blank username and
+// password is a valid configuration. PATCH has always accepted "" — these
+// tests pin the matching behaviour on create.
+// ---------------------------------------------------------------------------
+
+describe("POST /api/clients", () => {
+  let inserted: Record<string, unknown> | null = null
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
+      encryptionKey: VALID_KEY,
+    })
+    inserted = null
+    ;(db as unknown as { transaction: ReturnType<typeof vi.fn> }).transaction = vi
+      .fn()
+      .mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) =>
+        cb({
+          update: () => ({ set: async () => undefined }),
+          insert: () => ({
+            values: (v: Record<string, unknown>) => {
+              inserted = v
+              return { returning: async () => [{ id: 7, name: v.name }] }
+            },
+          }),
+        })
+      )
+  })
+
+  function postBody(body: Record<string, unknown>): Request {
+    return new Request("http://localhost/api/clients", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+  }
+
+  it("creates a client when username and password are blank strings", async () => {
+    const res = await POST(postBody({ name: "Local qBT", host: "localhost", username: "", password: "" }))
+
+    expect(res.status).toBe(201)
+    expect(inserted).not.toBeNull()
+    // Stored as real ciphertext, not NULL — the NOT NULL columns are satisfied.
+    expect(typeof inserted?.encryptedUsername).toBe("string")
+    expect(inserted?.encryptedUsername).not.toBe("")
+  })
+
+  it("creates a client when username and password are omitted entirely", async () => {
+    const res = await POST(postBody({ name: "Local qBT", host: "localhost" }))
+
+    expect(res.status).toBe(201)
+    expect(typeof inserted?.encryptedPassword).toBe("string")
+  })
+
+  it("round-trips blank credentials back to empty strings", async () => {
+    await POST(postBody({ name: "Local qBT", host: "localhost", username: "", password: "" }))
+
+    const key = Buffer.from(VALID_KEY, "hex")
+    expect(decrypt(inserted?.encryptedUsername as string, key)).toBe("")
+    expect(decrypt(inserted?.encryptedPassword as string, key)).toBe("")
+  })
+
+  it("still rejects a missing name", async () => {
+    const res = await POST(postBody({ host: "localhost", username: "admin", password: "pw" }))
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toBe("name and host are required")
+  })
+
+  it("still rejects a missing host", async () => {
+    const res = await POST(postBody({ name: "Local qBT", username: "admin", password: "pw" }))
+
+    expect(res.status).toBe(400)
+  })
+
+  it("still rejects a non-string username", async () => {
+    const res = await POST(postBody({ name: "Local qBT", host: "localhost", username: 42 }))
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toBe("Invalid field types")
+  })
+
+  it("still enforces the length limit when credentials are supplied", async () => {
+    const res = await POST(
+      postBody({
+        name: "Local qBT",
+        host: "localhost",
+        username: "a".repeat(CREDENTIAL_MAX + 1),
+        password: "pw",
+      })
+    )
+
+    expect(res.status).toBe(400)
   })
 })

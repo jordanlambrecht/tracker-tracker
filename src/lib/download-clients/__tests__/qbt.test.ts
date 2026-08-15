@@ -2,7 +2,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { TorrentRecord } from "@/lib/download-clients"
 import { aggregateByTag } from "../aggregator"
-import { buildBaseUrl, getTorrents, getTransferInfo, login, type SidCookie } from "../qbt/transport"
+import {
+  buildBaseUrl,
+  clearAllSessions,
+  clearAuthBlocks,
+  getSession,
+  getTorrents,
+  getTransferInfo,
+  login,
+  type SidCookie,
+} from "../qbt/transport"
 import type { QbtTorrent } from "../qbt/types"
 
 // ---------------------------------------------------------------------------
@@ -26,6 +35,9 @@ describe("buildBaseUrl", () => {
 describe("login", () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    // Session cache and auth blocks live on globalThis — reset so state cannot
+    // leak between tests.
+    clearAllSessions()
   })
 
   it("returns the SID cookie name and value on successful login", async () => {
@@ -184,6 +196,193 @@ describe("login", () => {
 
     const init = fetchSpy.mock.calls[0][1] as RequestInit
     expect(init.signal).toBeDefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Auth-failure circuit breaker
+//
+// The heartbeat polls every 5s and qBittorrent bans the caller after 5 failed
+// logins, so a rejected credential pair must be attempted exactly once — while
+// a transient fault must keep retrying, since a rebooting client should
+// recover without the user touching anything.
+// ---------------------------------------------------------------------------
+
+describe("login auth-failure circuit breaker", () => {
+  const unauthorized = () =>
+    ({
+      ok: false,
+      status: 401,
+      statusText: "Unauthorized",
+      text: async () => "",
+      headers: new Headers({}),
+    }) as Response
+
+  const loggedIn = () =>
+    ({
+      ok: true,
+      status: 200,
+      text: async () => "Ok.",
+      headers: new Headers({ "set-cookie": "SID=abc123xyz; Path=/; HttpOnly" }),
+    }) as Response
+
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    clearAllSessions()
+  })
+
+  it("attempts login only once across repeated auth failures", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(unauthorized())
+
+    // Ten heartbeat cycles against a client saved with a bad password.
+    for (let i = 0; i < 10; i++) {
+      await expect(getSession("localhost", 8080, false, "admin", "wrong")).rejects.toThrow(
+        "Authentication failed"
+      )
+    }
+
+    // Without the breaker this would be 10 — two above qBittorrent's default
+    // ban threshold of 5.
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it("keeps retrying after a transient network error", async () => {
+    const refused = Object.assign(new TypeError("fetch failed"), {
+      cause: Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" }),
+    })
+    const fetchSpy = vi.spyOn(global, "fetch").mockRejectedValue(refused)
+
+    for (let i = 0; i < 3; i++) {
+      await expect(getSession("localhost", 8080, false, "admin", "password")).rejects.toThrow(
+        "ECONNREFUSED"
+      )
+    }
+
+    // A client that is merely rebooting must recover on its own.
+    expect(fetchSpy).toHaveBeenCalledTimes(3)
+  })
+
+  it("retries once the password is edited, so a user who fixes it is not stuck", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce(unauthorized())
+
+    await expect(getSession("localhost", 8080, false, "admin", "wrong")).rejects.toThrow(
+      "Authentication failed"
+    )
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+
+    // Same host, corrected password — a different key, so not blocked.
+    fetchSpy.mockResolvedValueOnce(loggedIn())
+    const { sid } = await getSession("localhost", 8080, false, "admin", "correct")
+
+    expect(sid).toEqual({ name: "SID", value: "abc123xyz" })
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  // The exact sequence this feature invites: a user is rejected with wrong
+  // credentials, reads the helper text, blanks both fields because their
+  // qBittorrent has localhost auth bypass on — and must not stay stuck. Distinct
+  // from the test above: that one is non-blank -> non-blank, whereas blank
+  // credentials take the separate BLANK_CREDENTIALS_REJECTED message path.
+  it("retries when the user replaces bad credentials with blank ones", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce(unauthorized())
+
+    await expect(getSession("localhost", 8080, false, "admin", "wrongpass")).rejects.toThrow(
+      "Authentication failed"
+    )
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+
+    // Still blocked while that pair is unchanged.
+    await expect(getSession("localhost", 8080, false, "admin", "wrongpass")).rejects.toThrow(
+      "Authentication failed"
+    )
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+
+    // Both fields blanked — qBittorrent bypasses auth and answers 204 + cookie.
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      status: 204,
+      text: async () => "",
+      headers: new Headers({ "set-cookie": "SID=bypass-sid; Path=/; HttpOnly" }),
+    } as Response)
+
+    const { sid } = await getSession("localhost", 8080, false, "", "")
+
+    expect(sid).toEqual({ name: "SID", value: "bypass-sid" })
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it("does not block a second client sharing the host with different credentials", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(unauthorized())
+
+    await expect(login("localhost", 8080, false, "alice", "a-pass")).rejects.toThrow(
+      "Authentication failed"
+    )
+    await expect(login("localhost", 8080, false, "bob", "b-pass")).rejects.toThrow(
+      "Authentication failed"
+    )
+
+    // One attempt each — blocks are per credential pair, not per host.
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it("clearAuthBlocks lets an explicit retry reach the network again", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(unauthorized())
+
+    await expect(login("localhost", 8080, false, "admin", "wrong")).rejects.toThrow(
+      "Authentication failed"
+    )
+    await expect(login("localhost", 8080, false, "admin", "wrong")).rejects.toThrow(
+      "Authentication failed"
+    )
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+
+    clearAuthBlocks("http://localhost:8080")
+
+    await expect(login("localhost", 8080, false, "admin", "wrong")).rejects.toThrow(
+      "Authentication failed"
+    )
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it("does not block on an IP ban, so access returns when the ban expires", async () => {
+    const banned = () =>
+      ({
+        ok: false,
+        status: 403,
+        statusText: "Forbidden",
+        text: async () =>
+          "Your IP address has been banned after too many failed authentication attempts.",
+        headers: new Headers({}),
+      }) as Response
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(banned())
+
+    for (let i = 0; i < 3; i++) {
+      await expect(login("localhost", 8080, false, "admin", "password")).rejects.toThrow(
+        "qBittorrent has temporarily banned this IP"
+      )
+    }
+
+    expect(fetchSpy).toHaveBeenCalledTimes(3)
+  })
+
+  it("tells a blank-credential user that bypass is required", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue(unauthorized())
+
+    await expect(login("localhost", 8080, false, "", "")).rejects.toThrow(
+      /Bypass authentication for clients on localhost/
+    )
+  })
+
+  it("logs a blank-credential client in when qBittorrent bypasses auth (204)", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 204,
+      text: async () => "",
+      headers: new Headers({ "set-cookie": "SID=bypass-sid; Path=/; HttpOnly" }),
+    } as Response)
+
+    const sid = await login("localhost", 8080, false, "", "")
+    expect(sid).toEqual({ name: "SID", value: "bypass-sid" })
   })
 })
 

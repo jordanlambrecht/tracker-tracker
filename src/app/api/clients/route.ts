@@ -69,21 +69,25 @@ export async function POST(request: Request) {
     crossSeedTags?: string[]
   }
 
-  if (!name || !host || !username || !password) {
-    return NextResponse.json(
-      { error: "name, host, username, and password are required" },
-      { status: 400 }
-    )
+  // Credentials are optional: qBittorrent skips authentication entirely for
+  // loopback clients when "Bypass authentication for clients on localhost" is
+  // set, so a blank username/password is a valid configuration. This matches
+  // PATCH /api/clients/[id], which has always accepted "".
+  if (!name || !host) {
+    return NextResponse.json({ error: "name and host are required" }, { status: 400 })
   }
 
   if (
     typeof name !== "string" ||
     typeof host !== "string" ||
-    typeof username !== "string" ||
-    typeof password !== "string"
+    (typeof username !== "undefined" && typeof username !== "string") ||
+    (typeof password !== "undefined" && typeof password !== "string")
   ) {
     return NextResponse.json({ error: "Invalid field types" }, { status: 400 })
   }
+
+  const resolvedUsername = username ?? ""
+  const resolvedPassword = password ?? ""
 
   const nameErr = validateMaxLength(name, CREDENTIAL_MAX, "Name")
   if (nameErr) return nameErr
@@ -91,10 +95,10 @@ export async function POST(request: Request) {
   const hostErr = validateMaxLength(host, HOST_MAX, "Host")
   if (hostErr) return hostErr
 
-  const usernameErr = validateMaxLength(username, CREDENTIAL_MAX, "Username")
+  const usernameErr = validateMaxLength(resolvedUsername, CREDENTIAL_MAX, "Username")
   if (usernameErr) return usernameErr
 
-  const passwordErr = validateMaxLength(password, CREDENTIAL_MAX, "Password")
+  const passwordErr = validateMaxLength(resolvedPassword, CREDENTIAL_MAX, "Password")
   if (passwordErr) return passwordErr
 
   const sanitizedHost = sanitizeHost(host)
@@ -123,8 +127,8 @@ export async function POST(request: Request) {
   }
 
   const key = decodeKey(auth)
-  const encryptedUsername = encrypt(username, key)
-  const encryptedPassword = encrypt(password, key)
+  const encryptedUsername = encrypt(resolvedUsername, key)
+  const encryptedPassword = encrypt(resolvedPassword, key)
 
   const resolvedIsDefault = typeof isDefault === "boolean" ? isDefault : false
   const resolvedTags = Array.isArray(crossSeedTags) ? crossSeedTags : []

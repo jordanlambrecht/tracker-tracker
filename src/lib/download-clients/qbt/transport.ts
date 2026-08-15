@@ -2,10 +2,13 @@
 //
 // Available functions:
 //   buildBaseUrl          - Construct base URL from host/port/ssl
+//   credentialFingerprint - Non-reversible hash identifying a username/password pair
+//   blockKeyFor           - Compose the auth-block map key from baseUrl + fingerprint
+//   clearAuthBlocks       - Drop auth blocks for one baseUrl (explicit user retry)
 //   login                 - Authenticate with qBittorrent Web API, returns SID cookie
 //   getSession            - Return cached SID or perform a fresh login
 //   invalidateSession     - Remove a cached SID (i.e after 403)
-//   clearAllSessions      - Remove all cached SIDs (called on logout)
+//   clearAllSessions      - Remove all cached SIDs and auth blocks (called on logout)
 //   withSessionRetry      - Run an operation with automatic session retry on expiry
 //   qbtFetch              - Shared fetch + error handler for authenticated qBT requests
 //   parseCachedTorrents   - Parse cachedTorrents column (string or object)
@@ -13,6 +16,7 @@
 //   getTransferInfo       - Fetch global transfer stats from qBittorrent
 //   syncMaindata          - Fetch delta sync data from qBittorrent (maindata endpoint)
 
+import { createHash } from "node:crypto"
 import { sanitizeHost } from "@/lib/data-transforms"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import { log } from "@/lib/logger"
@@ -89,10 +93,67 @@ export function invalidateSession(baseUrl: string): void {
   resetStore(baseUrl)
 }
 
-/** Clear all cached SIDs and torrent stores (called on logout/scheduler stop). */
+/** Clear all cached SIDs, auth blocks, and torrent stores (called on logout/scheduler stop). */
 export function clearAllSessions(): void {
   sidCache.clear()
+  authBlocks.clear()
   clearAllStores()
+}
+
+// ---------------------------------------------------------------------------
+// Auth-failure circuit breaker.
+//
+// qBittorrent bans the calling IP for MaxAuthenticationFailCount (default 5)
+// failed logins and keeps rejecting for BanDuration (default 3600s) even once
+// the correct password is supplied. The heartbeat runs every 5 seconds, so a
+// client saved with bad credentials would be banned within ~25 seconds and the
+// user locked out for an hour after fixing it. Once a login is rejected we
+// therefore stop attempting it — no timer, no backoff, just "don't ask again".
+//
+// The block is keyed by baseUrl AND a fingerprint of the credentials, so a
+// user who edits the username or password is never stuck: different
+// credentials hash to a different key and simply are not blocked. It also
+// clears on process restart and on an explicit Test Connection.
+//
+// Deliberately NOT applied to the 403 ban response. A ban is only ever
+// observed after this app has already stopped trying, so re-attempting cannot
+// prolong it — and requests made during a ban are rejected before credentials
+// are validated, so they cannot trip the counter again. Leaving the ban
+// unblocked is what lets a user who fixes their password mid-ban recover
+// automatically the moment the ban expires.
+// ---------------------------------------------------------------------------
+
+const gBlocks = globalThis as typeof globalThis & {
+  __qbtAuthBlocks?: Map<string, string>
+}
+if (!gBlocks.__qbtAuthBlocks) gBlocks.__qbtAuthBlocks = new Map()
+/** Maps `${baseUrl}\0${credentialFingerprint}` to the error message to replay. */
+const authBlocks = gBlocks.__qbtAuthBlocks
+
+/**
+ * Non-reversible identifier for a credential pair. Only ever compared, never
+ * logged or persisted — it exists so a credential edit is detectable without
+ * holding the plaintext.
+ */
+function credentialFingerprint(username: string, password: string): string {
+  return createHash("sha256").update(`${username}\u0000${password}`).digest("hex")
+}
+
+function blockKeyFor(baseUrl: string, username: string, password: string): string {
+  return `${baseUrl}\u0000${credentialFingerprint(username, password)}`
+}
+
+/**
+ * Drop every auth block recorded for a baseUrl regardless of credentials.
+ * Called when the user explicitly asks to test the connection — an explicit
+ * retry should always reach the network, since the fix may have been on the
+ * qBittorrent side (enabling localhost bypass, or waiting out a ban).
+ */
+export function clearAuthBlocks(baseUrl: string): void {
+  const prefix = `${baseUrl}\u0000`
+  for (const key of authBlocks.keys()) {
+    if (key.startsWith(prefix)) authBlocks.delete(key)
+  }
 }
 
 /**
@@ -125,6 +186,19 @@ export async function withSessionRetry<T>(
   }
 }
 
+/**
+ * Credentials qBittorrent rejected. Both strings start with "Authentication
+ * failed" so callers matching on that keep working, and both carry wording
+ * distinctive enough for sanitizeNetworkError to tell them apart from a
+ * transient network fault.
+ */
+const BLANK_CREDENTIALS_REJECTED =
+  "Authentication failed — qBittorrent rejected the blank credentials. Blank credentials only " +
+  'work when "Bypass authentication for clients on localhost" is enabled in qBittorrent'
+const CREDENTIALS_REJECTED = "Authentication failed — qBittorrent rejected the username and password"
+const IP_BANNED =
+  "qBittorrent has temporarily banned this IP after too many failed login attempts"
+
 export async function login(
   host: string,
   port: number,
@@ -135,6 +209,17 @@ export async function login(
   const baseUrl = buildBaseUrl(host, port, ssl)
   const url = `${baseUrl}/api/v2/auth/login`
   const body = new URLSearchParams({ username, password }).toString()
+
+  // Replay a previous rejection instead of asking again — see the auth-failure
+  // circuit breaker above. Editing either credential changes the key, so a user
+  // who fixes their password is never held here.
+  const blockKey = blockKeyFor(baseUrl, username, password)
+  const blocked = authBlocks.get(blockKey)
+  if (blocked) throw new Error(blocked)
+
+  const rejection = username === "" && password === ""
+    ? BLANK_CREDENTIALS_REJECTED
+    : CREDENTIALS_REJECTED
 
   let response: Response
   try {
@@ -156,12 +241,27 @@ export async function login(
   }
 
   if (!response.ok) {
+    // 401 is a definitive credential rejection: stop attempting this pair.
+    if (response.status === 401) {
+      authBlocks.set(blockKey, rejection)
+      throw new Error(rejection)
+    }
+    // qBittorrent answers 403 with a plain-text ban notice once the IP has
+    // tripped MaxAuthenticationFailCount. Not blocked deliberately — the ban
+    // expires on its own and re-attempting cannot extend it.
+    if (response.status === 403) {
+      const banBody = await response.text().catch(() => "")
+      if (/banned/i.test(banBody)) throw new Error(IP_BANNED)
+      throw new Error(`qBittorrent API error: ${response.status} ${response.statusText}`)
+    }
     throw new Error(`qBittorrent API error: ${response.status} ${response.statusText}`)
   }
 
   const text = await response.text()
   if (text !== "Ok." && response.status !== 204) {
-    throw new Error("Authentication failed — check username and password")
+    // Older qBittorrent answers a bad login with 200 + "Fails." rather than 401.
+    authBlocks.set(blockKey, rejection)
+    throw new Error(rejection)
   }
 
   // qBittorrent 5.2+ names its session cookie `QBT_SID_<port>` (the WebUI's

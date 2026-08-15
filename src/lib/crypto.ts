@@ -46,7 +46,24 @@ export function encrypt(plaintext: string, key: Buffer): string {
 export function decrypt(encryptedBase64: string, key: Buffer): string {
   const combined = Buffer.from(encryptedBase64, "base64")
 
-  if (combined.length < IV_LENGTH + AUTH_TAG_LENGTH + 1) {
+  // The bound is iv + authTag with NO trailing byte, because an empty plaintext
+  // encrypts to exactly that and nothing more. Requiring one ciphertext byte
+  // made decrypt() reject encrypt()'s own output for any empty input.
+  //
+  // Do NOT tighten this back. Two things break, silently:
+  //   - Blank download-client credentials (qBittorrent with "Bypass
+  //     authentication for clients on localhost" enabled) fail every poll.
+  //   - Master-password rotation orphans those rows. change-password decrypts
+  //     each credential with the old key to re-key it; a throw here does not
+  //     abort the rotation, it drops the row into failedClients, leaves it
+  //     encrypted under the OLD key — permanently unreadable — and tells the
+  //     user to re-enter credentials they deliberately left blank.
+  //
+  // Integrity is unaffected: the GCM auth tag covers a zero-length ciphertext,
+  // so tampered input fails tag verification below, not this length check.
+  // crypto.test.ts proves that by flipping an IV byte and a tag byte at exactly
+  // 28 bytes and asserting neither is rejected as "too short".
+  if (combined.length < IV_LENGTH + AUTH_TAG_LENGTH) {
     throw new Error("Invalid ciphertext: too short")
   }
 

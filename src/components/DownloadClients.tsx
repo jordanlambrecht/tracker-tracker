@@ -37,6 +37,11 @@ type DownloadClient = SafeDownloadClient
 
 const EMPTY_TRACKERS: string[] = []
 
+const BLANK_CREDENTIALS_HINT =
+  'Leave both blank if qBittorrent has "Bypass authentication for clients on localhost" enabled. ' +
+  "qBittorrent must see the connection as coming from loopback, so this does not apply through a " +
+  "container, port forward, or reverse proxy."
+
 const CLIENT_TYPE_OPTIONS: { value: ClientType; label: string; disabled?: boolean }[] = [
   { value: "qbittorrent", label: "qBittorrent" },
   { value: "deluge", label: "Deluge (coming soon)", disabled: true },
@@ -133,7 +138,6 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
     })
 
   async function handleSaveCredentials() {
-    if (!newUsername.trim() || !newPassword.trim()) return
     setCredError(null)
     try {
       const res = await fetch(`/api/clients/${client.id}`, {
@@ -300,12 +304,12 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
                 />
               </div>
             </div>
+            <Subtext>{BLANK_CREDENTIALS_HINT}</Subtext>
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
                 variant="primary"
                 onClick={handleSaveCredentials}
-                disabled={!newUsername.trim() || !newPassword.trim()}
                 text="Save Credentials"
               />
               {client.hasCredentials && (
@@ -508,7 +512,9 @@ function AddClientForm({
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  const canSubmit = name.trim() && host.trim() && username.trim() && password.trim()
+  // Credentials are intentionally not required — qBittorrent accepts blank
+  // ones when localhost auth bypass is on. Mirrors POST /api/clients.
+  const canSubmit = name.trim() && host.trim()
 
   async function handleSubmit() {
     if (!canSubmit) return
@@ -589,6 +595,7 @@ function AddClientForm({
           />
         </div>
       </div>
+      <Subtext>{BLANK_CREDENTIALS_HINT}</Subtext>
       <Notice message={error} />
       <div className="flex items-center gap-3">
         <Button
