@@ -42,6 +42,13 @@ export function buildCoreStatDescriptors(
   const [dlVal, dlUnit] = formatBytesFromString(stats?.downloadedBytes ?? null).split(" ")
   const [bufVal, bufUnit] = formatBytesFromString(latestSnapshot?.bufferBytes ?? null).split(" ")
 
+  // An infinite ratio (uploaded > 0, downloaded === 0 — the best possible
+  // standing) crosses the wire as `ratio: null` plus this flag, since JSON
+  // can't carry Infinity. Only the descriptor below needs the resolved
+  // value; `ratioBelowRequired` is left reading `stats?.ratio` directly
+  // since Infinity can never be below a required ratio either way.
+  const ratio = stats?.ratioIsInfinite ? Number.POSITIVE_INFINITY : stats?.ratio
+
   const rawRequiredRatio = latestSnapshot?.requiredRatio ?? minimumRatio ?? null
   const effectiveRequiredRatio =
     rawRequiredRatio != null && rawRequiredRatio > 0 ? rawRequiredRatio : null
@@ -72,14 +79,14 @@ export function buildCoreStatDescriptors(
       key: "ratio",
       label: "Ratio",
       icon: <RatioIcon width="16" height="16" />,
-      value: formatRatio(stats?.ratio),
-      unit: stats?.ratio != null ? "x" : undefined,
+      value: formatRatio(ratio),
+      unit: ratio != null ? "x" : undefined,
       trend:
-        stats?.ratio == null
+        ratio == null
           ? undefined
-          : stats.ratio >= 2
+          : ratio >= 2
             ? "up"
-            : stats.ratio >= 1
+            : ratio >= 1
               ? "flat"
               : "down",
       alert: ratioBelowRequired ? "danger" : undefined,
