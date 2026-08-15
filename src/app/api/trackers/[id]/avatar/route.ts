@@ -17,6 +17,7 @@ import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
 import { AVATAR_FETCH_MAX_BYTES } from "@/lib/limits"
 import { log } from "@/lib/logger"
+import { fetchFollowingSafeRedirects } from "@/lib/network"
 import { buildProxyAgentFromSettings, proxyFetch } from "@/lib/tunnel"
 
 const STALE_MS = 7 * 24 * 60 * 60 * 1000
@@ -150,7 +151,11 @@ export async function GET(_request: Request, props: RouteContext) {
       // proxyFetch doesn't expose content-type; sniff from magic bytes
       mimeType = sniffImageMime(imageBuffer)
     } else {
-      const response = await fetch(url, { signal: AbortSignal.timeout(10000) })
+      // The URL comes from the tracker's own API response, so a redirect is
+      // attacker-chosen: follow the chain by hand and re-check every hop
+      // against the same guard applied to `url` above. One shared signal keeps
+      // the 10s a budget for the whole chain.
+      const response = await fetchFollowingSafeRedirects(url, AbortSignal.timeout(10000))
       if (!response.ok) {
         return NextResponse.json({ error: "Avatar not found" }, { status: 404 })
       }
