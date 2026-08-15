@@ -16,7 +16,7 @@ import { encrypt } from "@/lib/crypto"
 import { sanitizeHost } from "@/lib/data-transforms"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
-import { VALID_CLIENT_TYPES } from "@/lib/download-clients"
+import { VALID_AUTH_METHODS, VALID_CLIENT_TYPES } from "@/lib/download-clients"
 import { errMsg } from "@/lib/error-utils"
 import {
   CLIENT_POLL_INTERVAL_MAX,
@@ -126,16 +126,45 @@ export async function PATCH(request: Request, props: RouteContext) {
     updates.crossSeedTags = body.crossSeedTags
   }
 
-  if (typeof body.username === "string") {
-    const usernameErr = validateMaxLength(body.username, CREDENTIAL_MAX, "Username")
-    if (usernameErr) return usernameErr
-    updates.encryptedUsername = encrypt(body.username, getKey())
+  let resolvedAuthMethod: string | undefined
+  if (typeof body.authMethod === "string") {
+    if (!(VALID_AUTH_METHODS as readonly string[]).includes(body.authMethod)) {
+      return NextResponse.json(
+        { error: `authMethod must be one of: ${VALID_AUTH_METHODS.join(", ")}` },
+        { status: 400 }
+      )
+    }
+    resolvedAuthMethod = body.authMethod
+    updates.authMethod = body.authMethod
   }
 
-  if (typeof body.password === "string") {
-    const passwordErr = validateMaxLength(body.password, CREDENTIAL_MAX, "Password")
-    if (passwordErr) return passwordErr
-    updates.encryptedPassword = encrypt(body.password, getKey())
+  // apikey mode reuses encryptedUsername/encryptedPassword: the key goes in
+  // encryptedPassword and encryptedUsername is cleared — see schema.ts.
+  if (typeof body.apiKey === "string") {
+    const apiKeyErr = validateMaxLength(body.apiKey, CREDENTIAL_MAX, "API key")
+    if (apiKeyErr) return apiKeyErr
+    updates.encryptedPassword = encrypt(body.apiKey, getKey())
+    updates.encryptedUsername = encrypt("", getKey())
+    if (resolvedAuthMethod === undefined) updates.authMethod = "apikey"
+  } else {
+    if (typeof body.username === "string") {
+      const usernameErr = validateMaxLength(body.username, CREDENTIAL_MAX, "Username")
+      if (usernameErr) return usernameErr
+      updates.encryptedUsername = encrypt(body.username, getKey())
+    }
+
+    if (typeof body.password === "string") {
+      const passwordErr = validateMaxLength(body.password, CREDENTIAL_MAX, "Password")
+      if (passwordErr) return passwordErr
+      updates.encryptedPassword = encrypt(body.password, getKey())
+    }
+
+    if (
+      resolvedAuthMethod === undefined &&
+      (typeof body.username === "string" || typeof body.password === "string")
+    ) {
+      updates.authMethod = "password"
+    }
   }
 
   if (body.isDefault === true) {

@@ -36,10 +36,12 @@ export {
 export type { SlimTorrent } from "./transforms"
 export { slimTorrentForCache } from "./transforms"
 export type {
+  AuthMethod,
   ClientAdapter,
+  ClientCredentials,
   ClientType,
   DeltaSyncResponse,
   TorrentRecord,
   TransferStats,
 } from "./types"
-export { assertClientType, VALID_CLIENT_TYPES } from "./types"
+export { assertAuthMethod, assertClientType, VALID_AUTH_METHODS, VALID_CLIENT_TYPES } from "./types"

@@ -4,6 +4,7 @@ import "server-only"
 import { decrypt } from "@/lib/crypto"
 import { downloadClients } from "@/lib/db/schema"
 import { isDecryptionError } from "@/lib/error-utils"
+import { assertAuthMethod, type ClientCredentials } from "./types"
 
 /** Columns needed for client connection + credential decryption. */
 export const CLIENT_CONNECTION_COLUMNS = {
@@ -11,16 +12,24 @@ export const CLIENT_CONNECTION_COLUMNS = {
   host: downloadClients.host,
   port: downloadClients.port,
   useSsl: downloadClients.useSsl,
+  authMethod: downloadClients.authMethod,
   encryptedUsername: downloadClients.encryptedUsername,
   encryptedPassword: downloadClients.encryptedPassword,
 } as const
 
 export function decryptClientCredentials(
-  client: { name: string; encryptedUsername: string; encryptedPassword: string },
+  client: { name: string; authMethod: string; encryptedUsername: string; encryptedPassword: string },
   key: Buffer
-): { username: string; password: string } {
+): ClientCredentials {
   try {
+    const authMethod = assertAuthMethod(client.authMethod)
+    // apikey mode stores the key encrypted in encryptedPassword and leaves
+    // encryptedUsername as an encrypted empty string (unused) — see schema.ts.
+    if (authMethod === "apikey") {
+      return { authMethod, apiKey: decrypt(client.encryptedPassword, key) }
+    }
     return {
+      authMethod,
       username: decrypt(client.encryptedUsername, key),
       password: decrypt(client.encryptedPassword, key),
     }

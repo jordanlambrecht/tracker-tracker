@@ -54,6 +54,7 @@ export const HEARTBEAT_COLUMNS = {
   host: downloadClients.host,
   port: downloadClients.port,
   useSsl: downloadClients.useSsl,
+  authMethod: downloadClients.authMethod,
   encryptedUsername: downloadClients.encryptedUsername,
   encryptedPassword: downloadClients.encryptedPassword,
   crossSeedTags: downloadClients.crossSeedTags,
@@ -103,6 +104,7 @@ async function heartbeatClient(
     host: string
     port: number
     useSsl: boolean
+    authMethod: string
     encryptedUsername: string
     encryptedPassword: string
     crossSeedTags: string[] | null

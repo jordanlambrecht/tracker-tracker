@@ -153,6 +153,7 @@ export const clientColumns = {
   host: downloadClients.host,
   port: downloadClients.port,
   useSsl: downloadClients.useSsl,
+  authMethod: downloadClients.authMethod,
   hasCredentials:
     sql<boolean>`(${downloadClients.encryptedUsername} IS NOT NULL AND ${downloadClients.encryptedPassword} IS NOT NULL)`.as(
       "has_credentials"

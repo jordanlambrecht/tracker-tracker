@@ -150,6 +150,10 @@ export const downloadClients = pgTable("download_clients", {
   host: varchar("host", { length: 255 }).notNull(),
   port: integer("port").default(8080).notNull(),
   useSsl: boolean("use_ssl").default(false).notNull(),
+  // "password" (username+password, default) or "apikey". For "apikey",
+  // the key is stored encrypted in encryptedPassword and encryptedUsername
+  // holds an encrypted empty string (unused) — see download-clients/credentials.ts.
+  authMethod: varchar("auth_method", { length: 20 }).default("password").notNull(),
   encryptedUsername: text("encrypted_username").notNull(),
   encryptedPassword: text("encrypted_password").notNull(),
   pollIntervalSeconds: integer("poll_interval_seconds").default(300).notNull(),

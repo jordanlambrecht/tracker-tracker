@@ -61,6 +61,7 @@ function makeClient(overrides: Partial<DownloadClientRow> = {}): DownloadClientR
     host: "localhost",
     port: 8080,
     useSsl: false,
+    authMethod: "password",
     encryptedUsername: "enc-admin",
     encryptedPassword: "enc-pass",
     crossSeedTags: null,

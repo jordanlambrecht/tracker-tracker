@@ -13,7 +13,11 @@ vi.mock("@/lib/download-clients/qbt/transport", () => ({
 }))
 
 vi.mock("@/lib/download-clients/credentials", () => ({
-  decryptClientCredentials: vi.fn(() => ({ username: "admin", password: "pass" })),
+  decryptClientCredentials: vi.fn(() => ({
+    authMethod: "password",
+    username: "admin",
+    password: "pass",
+  })),
 }))
 
 import { createAdapterForClient } from "../factory"
@@ -25,6 +29,7 @@ describe("createAdapterForClient", () => {
       host: "localhost",
       port: 8080,
       useSsl: false,
+      authMethod: "password",
       encryptedUsername: "enc-user",
       encryptedPassword: "enc-pass",
       crossSeedTags: null,
@@ -43,6 +48,7 @@ describe("createAdapterForClient", () => {
       host: "localhost",
       port: 8080,
       useSsl: false,
+      authMethod: "password",
       encryptedUsername: "enc-user",
       encryptedPassword: "enc-pass",
       crossSeedTags: null,

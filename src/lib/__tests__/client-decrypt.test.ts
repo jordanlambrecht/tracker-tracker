@@ -12,11 +12,32 @@ import { isDecryptionError } from "@/lib/error-utils"
 const { decryptClientCredentials } = await import("@/lib/download-clients/credentials")
 
 describe("decryptClientCredentials", () => {
-  it("returns decrypted username and password", () => {
-    const client = { name: "Test", encryptedUsername: "enc-user", encryptedPassword: "enc-pass" }
+  it("returns decrypted username and password for password auth method", () => {
+    const client = {
+      name: "Test",
+      authMethod: "password",
+      encryptedUsername: "enc-user",
+      encryptedPassword: "enc-pass",
+    }
     const key = Buffer.from("a".repeat(64), "hex")
     const result = decryptClientCredentials(client, key)
-    expect(result).toEqual({ username: "decrypted:enc-user", password: "decrypted:enc-pass" })
+    expect(result).toEqual({
+      authMethod: "password",
+      username: "decrypted:enc-user",
+      password: "decrypted:enc-pass",
+    })
+  })
+
+  it("returns decrypted API key for apikey auth method, ignoring encryptedUsername", () => {
+    const client = {
+      name: "Test",
+      authMethod: "apikey",
+      encryptedUsername: "enc-unused",
+      encryptedPassword: "enc-apikey",
+    }
+    const key = Buffer.from("a".repeat(64), "hex")
+    const result = decryptClientCredentials(client, key)
+    expect(result).toEqual({ authMethod: "apikey", apiKey: "decrypted:enc-apikey" })
   })
 
   it("throws an error that isDecryptionError() recognises when decrypt throws a crypto error", () => {
@@ -24,7 +45,12 @@ describe("decryptClientCredentials", () => {
     ;(decrypt as ReturnType<typeof vi.fn>).mockImplementation(() => {
       throw new Error("bad decrypt")
     })
-    const client = { name: "MyClient", encryptedUsername: "x", encryptedPassword: "y" }
+    const client = {
+      name: "MyClient",
+      authMethod: "password",
+      encryptedUsername: "x",
+      encryptedPassword: "y",
+    }
     let thrown: unknown
     expect(() => {
       try {
@@ -42,7 +68,12 @@ describe("decryptClientCredentials", () => {
     ;(decrypt as ReturnType<typeof vi.fn>).mockImplementation(() => {
       throw new Error("bad key")
     })
-    const client = { name: "MyClient", encryptedUsername: "x", encryptedPassword: "y" }
+    const client = {
+      name: "MyClient",
+      authMethod: "password",
+      encryptedUsername: "x",
+      encryptedPassword: "y",
+    }
     let thrown: unknown
     expect(() => {
       try {

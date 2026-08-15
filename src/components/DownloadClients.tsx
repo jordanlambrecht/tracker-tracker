@@ -33,6 +33,7 @@ import type { SafeDownloadClient } from "@/types/api"
 // ---------------------------------------------------------------------------
 
 type ClientType = "qbittorrent" | "deluge" | "transmission" | "rtorrent"
+type AuthMethod = "password" | "apikey"
 type DownloadClient = SafeDownloadClient
 
 const EMPTY_TRACKERS: string[] = []
@@ -42,6 +43,11 @@ const CLIENT_TYPE_OPTIONS: { value: ClientType; label: string; disabled?: boolea
   { value: "deluge", label: "Deluge (coming soon)", disabled: true },
   { value: "transmission", label: "Transmission (coming soon)", disabled: true },
   { value: "rtorrent", label: "rTorrent (coming soon)", disabled: true },
+]
+
+const AUTH_METHOD_OPTIONS: { value: AuthMethod; label: string }[] = [
+  { value: "password", label: "Username & Password" },
+  { value: "apikey", label: "API Key" },
 ]
 
 // ---------------------------------------------------------------------------
@@ -106,8 +112,12 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
 
   // Credential change state — show inputs for new clients (no creds yet) or after "Change"
   const [changingCredentials, setChangingCredentials] = useState(!client.hasCredentials)
+  const [authMethod, setAuthMethod] = useState<AuthMethod>(
+    (client.authMethod as AuthMethod) || "password"
+  )
   const [newUsername, setNewUsername] = useState("")
   const [newPassword, setNewPassword] = useState("")
+  const [newApiKey, setNewApiKey] = useState("")
   const [credError, setCredError] = useState<string | null>(null)
 
   const { data: uptimeData = null } = useQuery({
@@ -132,24 +142,34 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
       }
     })
 
+  const canSaveCredentials =
+    authMethod === "password"
+      ? Boolean(newUsername.trim() && newPassword.trim())
+      : Boolean(newApiKey.trim())
+
   async function handleSaveCredentials() {
-    if (!newUsername.trim() || !newPassword.trim()) return
+    if (!canSaveCredentials) return
     setCredError(null)
     try {
+      const body =
+        authMethod === "password"
+          ? { authMethod, username: newUsername, password: newPassword }
+          : { authMethod, apiKey: newApiKey }
       const res = await fetch(`/api/clients/${client.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: newUsername, password: newPassword }),
+        body: JSON.stringify(body),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         setCredError(data.error || "Failed to save credentials")
         return
       }
-      onSaved(client.id, { ...client, hasCredentials: true })
+      onSaved(client.id, { ...client, authMethod, hasCredentials: true })
       setChangingCredentials(false)
       setNewUsername("")
       setNewPassword("")
+      setNewApiKey("")
     } catch {
       setCredError("Network error — could not save credentials")
     }
@@ -275,37 +295,66 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
         <H2 className="uppercase tracking-wider">Credentials</H2>
         {changingCredentials ? (
           <div className="flex flex-col gap-3">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <Input
-                  label="Username"
-                  value={newUsername}
-                  onChange={(e) => setNewUsername(e.target.value)}
-                  placeholder="admin"
-                  name="client-username"
-                  autoComplete="off"
-                  data-1p-ignore
-                />
+            <div className="w-full sm:w-56">
+              <Select
+                label="Auth Method"
+                value={authMethod}
+                onChange={(v) => setAuthMethod(v as AuthMethod)}
+                ariaLabel="Authentication method"
+                size="md"
+                options={AUTH_METHOD_OPTIONS}
+              />
+            </div>
+            {authMethod === "password" ? (
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                  <Input
+                    label="Username"
+                    value={newUsername}
+                    onChange={(e) => setNewUsername(e.target.value)}
+                    placeholder="admin"
+                    name="client-username"
+                    autoComplete="off"
+                    data-1p-ignore
+                  />
+                </div>
+                <div className="flex-1">
+                  <Input
+                    type="password"
+                    label="Password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="••••••••"
+                    name="client-password"
+                    autoComplete="off"
+                    data-1p-ignore
+                  />
+                </div>
               </div>
-              <div className="flex-1">
+            ) : (
+              <div className="flex flex-col gap-1">
                 <Input
                   type="password"
-                  label="Password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="••••••••"
-                  name="client-password"
+                  label="API Key"
+                  value={newApiKey}
+                  onChange={(e) => setNewApiKey(e.target.value)}
+                  placeholder="qbt_..."
+                  name="client-api-key"
                   autoComplete="off"
                   data-1p-ignore
                 />
+                <Subtext>
+                  Generate in qBittorrent's WebUI under Preferences → WebUI → API Key (qBittorrent
+                  5.2+ only).
+                </Subtext>
               </div>
-            </div>
+            )}
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
                 variant="primary"
                 onClick={handleSaveCredentials}
-                disabled={!newUsername.trim() || !newPassword.trim()}
+                disabled={!canSaveCredentials}
                 text="Save Credentials"
               />
               {client.hasCredentials && (
@@ -313,8 +362,10 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
                   type="button"
                   onClick={() => {
                     setChangingCredentials(false)
+                    setAuthMethod((client.authMethod as AuthMethod) || "password")
                     setNewUsername("")
                     setNewPassword("")
+                    setNewApiKey("")
                     setCredError(null)
                   }}
                   className="ghost-link"
@@ -503,12 +554,17 @@ function AddClientForm({
   const [name, setName] = useState("New Client")
   const [host, setHost] = useState("localhost")
   const [port, setPort] = useState(8080)
+  const [authMethod, setAuthMethod] = useState<AuthMethod>("password")
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
+  const [apiKey, setApiKey] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  const canSubmit = name.trim() && host.trim() && username.trim() && password.trim()
+  const canSubmit =
+    name.trim() &&
+    host.trim() &&
+    (authMethod === "password" ? username.trim() && password.trim() : apiKey.trim())
 
   async function handleSubmit() {
     if (!canSubmit) return
@@ -522,8 +578,10 @@ function AddClientForm({
           name: name.trim(),
           host: host.trim(),
           port,
-          username: username.trim(),
-          password,
+          authMethod,
+          ...(authMethod === "password"
+            ? { username: username.trim(), password }
+            : { apiKey: apiKey.trim() }),
           isDefault: isFirst,
         }),
       })
@@ -564,31 +622,60 @@ function AddClientForm({
           <NumberInput label="Port" value={port} onChange={setPort} min={PORT_MIN} max={PORT_MAX} />
         </div>
       </div>
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <Input
-            label="Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="admin"
-            name="client-username"
-            autoComplete="off"
-            data-1p-ignore
-          />
+      <div className="w-full sm:w-56">
+        <Select
+          label="Auth Method"
+          value={authMethod}
+          onChange={(v) => setAuthMethod(v as AuthMethod)}
+          ariaLabel="Authentication method"
+          size="md"
+          options={AUTH_METHOD_OPTIONS}
+        />
+      </div>
+      {authMethod === "password" ? (
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-1">
+            <Input
+              label="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="admin"
+              name="client-username"
+              autoComplete="off"
+              data-1p-ignore
+            />
+          </div>
+          <div className="flex-1">
+            <Input
+              type="password"
+              label="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              name="client-password"
+              autoComplete="off"
+              data-1p-ignore
+            />
+          </div>
         </div>
-        <div className="flex-1">
+      ) : (
+        <div className="flex flex-col gap-1">
           <Input
             type="password"
-            label="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            name="client-password"
+            label="API Key"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder="qbt_..."
+            name="client-api-key"
             autoComplete="off"
             data-1p-ignore
           />
+          <Subtext>
+            Generate in qBittorrent's WebUI under Preferences → WebUI → API Key (qBittorrent 5.2+
+            only).
+          </Subtext>
         </div>
-      </div>
+      )}
       <Notice message={error} />
       <div className="flex items-center gap-3">
         <Button

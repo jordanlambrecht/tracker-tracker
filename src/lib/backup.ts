@@ -111,6 +111,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
         host: downloadClients.host,
         port: downloadClients.port,
         useSsl: downloadClients.useSsl,
+        authMethod: downloadClients.authMethod,
         encryptedUsername: downloadClients.encryptedUsername,
         encryptedPassword: downloadClients.encryptedPassword,
         pollIntervalSeconds: downloadClients.pollIntervalSeconds,

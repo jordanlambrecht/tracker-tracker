@@ -1,0 +1,34 @@
+services:
+  qbittorrent-legacy:
+    image: lscr.io/linuxserver/qbittorrent:5.1.2
+    container_name: tracker-tracker-qbt-legacy
+    restart: unless-stopped
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: ${TZ:-Etc/UTC}
+      WEBUI_PORT: 8081
+    ports:
+      - "8081:8081"
+    volumes:
+      - qbt-legacy-config:/config
+    stop_grace_period: 10s
+
+  qbittorrent-latest:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: tracker-tracker-qbt-latest
+    restart: unless-stopped
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: ${TZ:-Etc/UTC}
+      WEBUI_PORT: 8080
+    ports:
+      - "8080:8080"
+    volumes:
+      - qbt-latest-config:/config
+    stop_grace_period: 10s
+
+volumes:
+  qbt-legacy-config:
+  qbt-latest-config:

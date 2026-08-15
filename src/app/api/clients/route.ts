@@ -15,7 +15,7 @@ import { encrypt } from "@/lib/crypto"
 import { sanitizeHost } from "@/lib/data-transforms"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
-import { VALID_CLIENT_TYPES } from "@/lib/download-clients"
+import { VALID_AUTH_METHODS, VALID_CLIENT_TYPES } from "@/lib/download-clients"
 import { errMsg } from "@/lib/error-utils"
 import {
   CLIENT_POLL_INTERVAL_DEFAULT,
@@ -50,6 +50,8 @@ export async function POST(request: Request) {
     host,
     username,
     password,
+    apiKey,
+    authMethod,
     type,
     port,
     useSsl,
@@ -61,6 +63,8 @@ export async function POST(request: Request) {
     host?: string
     username?: string
     password?: string
+    apiKey?: string
+    authMethod?: string
     type?: string
     port?: number
     useSsl?: boolean
@@ -69,20 +73,40 @@ export async function POST(request: Request) {
     crossSeedTags?: string[]
   }
 
-  if (!name || !host || !username || !password) {
+  if (!name || !host) {
+    return NextResponse.json({ error: "name and host are required" }, { status: 400 })
+  }
+
+  if (typeof name !== "string" || typeof host !== "string") {
+    return NextResponse.json({ error: "Invalid field types" }, { status: 400 })
+  }
+
+  const resolvedAuthMethod = typeof authMethod === "string" ? authMethod : "password"
+  if (!(VALID_AUTH_METHODS as readonly string[]).includes(resolvedAuthMethod)) {
     return NextResponse.json(
-      { error: "name, host, username, and password are required" },
+      { error: `authMethod must be one of: ${VALID_AUTH_METHODS.join(", ")}` },
       { status: 400 }
     )
   }
 
-  if (
-    typeof name !== "string" ||
-    typeof host !== "string" ||
-    typeof username !== "string" ||
-    typeof password !== "string"
-  ) {
-    return NextResponse.json({ error: "Invalid field types" }, { status: 400 })
+  if (resolvedAuthMethod === "apikey") {
+    if (!apiKey || typeof apiKey !== "string") {
+      return NextResponse.json({ error: "apiKey is required for apikey auth" }, { status: 400 })
+    }
+    const apiKeyErr = validateMaxLength(apiKey, CREDENTIAL_MAX, "API key")
+    if (apiKeyErr) return apiKeyErr
+  } else {
+    if (!username || !password || typeof username !== "string" || typeof password !== "string") {
+      return NextResponse.json(
+        { error: "username and password are required for password auth" },
+        { status: 400 }
+      )
+    }
+    const usernameErr = validateMaxLength(username, CREDENTIAL_MAX, "Username")
+    if (usernameErr) return usernameErr
+
+    const passwordErr = validateMaxLength(password, CREDENTIAL_MAX, "Password")
+    if (passwordErr) return passwordErr
   }
 
   const nameErr = validateMaxLength(name, CREDENTIAL_MAX, "Name")
@@ -90,12 +114,6 @@ export async function POST(request: Request) {
 
   const hostErr = validateMaxLength(host, HOST_MAX, "Host")
   if (hostErr) return hostErr
-
-  const usernameErr = validateMaxLength(username, CREDENTIAL_MAX, "Username")
-  if (usernameErr) return usernameErr
-
-  const passwordErr = validateMaxLength(password, CREDENTIAL_MAX, "Password")
-  if (passwordErr) return passwordErr
 
   const sanitizedHost = sanitizeHost(host)
   if (!PROXY_HOST_PATTERN.test(sanitizedHost)) {
@@ -122,9 +140,15 @@ export async function POST(request: Request) {
     if (pollErr) return pollErr
   }
 
+  // apikey mode reuses encryptedUsername/encryptedPassword: the key goes in
+  // encryptedPassword and encryptedUsername holds an encrypted empty string
+  // (unused) — see schema.ts and download-clients/credentials.ts.
   const key = decodeKey(auth)
-  const encryptedUsername = encrypt(username, key)
-  const encryptedPassword = encrypt(password, key)
+  const encryptedUsername = encrypt(resolvedAuthMethod === "apikey" ? "" : (username as string), key)
+  const encryptedPassword = encrypt(
+    resolvedAuthMethod === "apikey" ? (apiKey as string) : (password as string),
+    key
+  )
 
   const resolvedIsDefault = typeof isDefault === "boolean" ? isDefault : false
   const resolvedTags = Array.isArray(crossSeedTags) ? crossSeedTags : []
@@ -161,6 +185,7 @@ export async function POST(request: Request) {
           type: resolvedType,
           port: resolvedPort,
           useSsl: typeof useSsl === "boolean" ? useSsl : false,
+          authMethod: resolvedAuthMethod,
           encryptedUsername,
           encryptedPassword,
           pollIntervalSeconds:

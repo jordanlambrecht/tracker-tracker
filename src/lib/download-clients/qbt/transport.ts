@@ -2,7 +2,7 @@
 //
 // Available functions:
 //   buildBaseUrl          - Construct base URL from host/port/ssl
-//   login                 - Authenticate with qBittorrent Web API, returns SID cookie
+//   login                 - Authenticate with qBittorrent Web API, returns session cookie pair
 //   getSession            - Return cached SID or perform a fresh login
 //   invalidateSession     - Remove a cached SID (i.e after 403)
 //   clearAllSessions      - Remove all cached SIDs (called on logout)
@@ -156,30 +156,37 @@ export async function login(
     throw new Error(`qBittorrent API error: ${response.status} ${response.statusText}`)
   }
 
-  const text = await response.text()
-  if (text !== "Ok.") {
+  // qBittorrent < 5.2.0 returns 200 with body "Ok."; 5.2.0+ returns 204 with
+  // an empty body. Anything else (including the legacy 200/"Fails." wrong
+  // credentials case) is an auth failure.
+  const text = response.status === 204 ? "" : await response.text()
+  if (response.status !== 204 && text !== "Ok.") {
     throw new Error("Authentication failed — check username and password")
   }
 
+  // The session cookie's name changed in qBittorrent 5.2.0, from a fixed
+  // "SID" to a port-suffixed "QBT_SID_<port>" — and the exact name matters,
+  // sending the wrong one is rejected with 403 even with a valid value. So
+  // capture the whole "name=value" pair rather than assuming the name.
   const setCookie = response.headers.get("set-cookie") ?? ""
-  const match = setCookie.match(/SID=([^;]+)/)
+  const match = setCookie.match(/(\w*SID\w*=[^;]+)/)
   if (!match) {
-    throw new Error("Authentication failed — SID cookie not found in response")
+    throw new Error("Authentication failed — session cookie not found in response")
   }
 
   return match[1]
 }
 
-async function qbtFetch(
-  url: string,
-  host: string,
-  baseUrl: string,
-  sid: string
-): Promise<Response> {
+/** Session-cookie or API-key auth, passed to qbtFetch and the endpoint helpers below. */
+export type QbtAuth = { mode: "session"; sid: string } | { mode: "apikey"; key: string }
+
+async function qbtFetch(url: string, host: string, baseUrl: string, auth: QbtAuth): Promise<Response> {
   let response: Response
   try {
+    const headers: Record<string, string> =
+      auth.mode === "session" ? { Cookie: auth.sid } : { Authorization: `Bearer ${auth.key}` }
     response = await fetch(url, {
-      headers: { Cookie: `SID=${sid}` },
+      headers,
       signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
     })
   } catch (err) {
@@ -194,8 +201,11 @@ async function qbtFetch(
   }
 
   if (response.status === 403) {
-    invalidateSession(baseUrl)
-    throw new Error("Session expired")
+    if (auth.mode === "session") {
+      invalidateSession(baseUrl)
+      throw new Error("Session expired")
+    }
+    throw new Error("Invalid API key")
   }
 
   if (!response.ok) {
@@ -238,7 +248,7 @@ export function parseCachedTorrents(raw: unknown): SlimTorrent[] {
 
 export async function getTorrents(
   baseUrl: string,
-  sid: string,
+  auth: QbtAuth,
   tag?: string,
   filter?: string
 ): Promise<QbtTorrent[]> {
@@ -248,25 +258,25 @@ export async function getTorrents(
   const qs = parts.join("&")
   const url = `${baseUrl}/api/v2/torrents/info${qs ? `?${qs}` : ""}`
   const host = new URL(baseUrl).hostname
-  const response = await qbtFetch(url, host, baseUrl, sid)
+  const response = await qbtFetch(url, host, baseUrl, auth)
   return response.json() as Promise<QbtTorrent[]>
 }
 
-export async function getTransferInfo(baseUrl: string, sid: string): Promise<QbtTransferInfo> {
+export async function getTransferInfo(baseUrl: string, auth: QbtAuth): Promise<QbtTransferInfo> {
   const url = `${baseUrl}/api/v2/transfer/info`
   const host = new URL(baseUrl).hostname
-  const response = await qbtFetch(url, host, baseUrl, sid)
+  const response = await qbtFetch(url, host, baseUrl, auth)
   return response.json() as Promise<QbtTransferInfo>
 }
 
 export async function syncMaindata(
   baseUrl: string,
-  sid: string,
+  auth: QbtAuth,
   rid: number
 ): Promise<QbtMaindataResponse> {
   const url = `${baseUrl}/api/v2/sync/maindata?rid=${rid}`
   const host = new URL(baseUrl).hostname
-  const response = await qbtFetch(url, host, baseUrl, sid)
+  const response = await qbtFetch(url, host, baseUrl, auth)
   const data: unknown = await response.json()
   if (!isQbtMaindataResponse(data)) {
     throw new Error("Invalid maindata response from qBittorrent")

@@ -359,6 +359,9 @@ export async function POST(request: Request) {
             host: fields.host as string,
             port: fields.port as number,
             useSsl: fields.useSsl as boolean,
+            // Older backups predate authMethod — default to "password" (they
+            // only ever stored username+password credentials anyway).
+            authMethod: (fields.authMethod as string | undefined) ?? "password",
             encryptedUsername: encUsername,
             encryptedPassword: encPassword,
             pollIntervalSeconds: fields.pollIntervalSeconds as number,

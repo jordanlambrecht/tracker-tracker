@@ -10,7 +10,13 @@ import {
   syncMaindata,
   withSessionRetry,
 } from "../qbt/transport"
-import type { ClientAdapter, DeltaSyncResponse, TorrentRecord, TransferStats } from "../types"
+import type {
+  ClientAdapter,
+  ClientCredentials,
+  DeltaSyncResponse,
+  TorrentRecord,
+  TransferStats,
+} from "../types"
 
 /**
  * qBittorrent adapter. Wraps the existing transport layer, managing SID
@@ -25,51 +31,69 @@ export class QbtClientAdapter implements ClientAdapter {
     private readonly host: string,
     private readonly port: number,
     private readonly ssl: boolean,
-    private readonly username: string,
-    private readonly password: string
+    private readonly creds: ClientCredentials
   ) {
     this.baseUrl = buildBaseUrl(host, port, ssl)
   }
 
   async testConnection(): Promise<void> {
+    if (this.creds.authMethod === "apikey") {
+      await qbtGetTransferInfo(this.baseUrl, { mode: "apikey", key: this.creds.apiKey })
+      return
+    }
     invalidateSession(this.baseUrl)
-    const sid = await login(this.host, this.port, this.ssl, this.username, this.password)
-    await qbtGetTransferInfo(this.baseUrl, sid)
+    const sid = await login(this.host, this.port, this.ssl, this.creds.username, this.creds.password)
+    await qbtGetTransferInfo(this.baseUrl, { mode: "session", sid })
   }
 
   async getTorrents(options?: { tag?: string; filter?: string }): Promise<TorrentRecord[]> {
-    const raw = await withSessionRetry(
-      this.host,
-      this.port,
-      this.ssl,
-      this.username,
-      this.password,
-      (baseUrl, sid) => qbtGetTorrents(baseUrl, sid, options?.tag, options?.filter)
-    )
+    const raw =
+      this.creds.authMethod === "apikey"
+        ? await qbtGetTorrents(
+            this.baseUrl,
+            { mode: "apikey", key: this.creds.apiKey },
+            options?.tag,
+            options?.filter
+          )
+        : await withSessionRetry(
+            this.host,
+            this.port,
+            this.ssl,
+            this.creds.username,
+            this.creds.password,
+            (baseUrl, sid) =>
+              qbtGetTorrents(baseUrl, { mode: "session", sid }, options?.tag, options?.filter)
+          )
     return raw.map((t) => mapQbtTorrent(t as unknown as Record<string, unknown>))
   }
 
   async getTransferInfo(): Promise<TransferStats> {
-    const info = await withSessionRetry(
-      this.host,
-      this.port,
-      this.ssl,
-      this.username,
-      this.password,
-      (baseUrl, sid) => qbtGetTransferInfo(baseUrl, sid)
-    )
+    const info =
+      this.creds.authMethod === "apikey"
+        ? await qbtGetTransferInfo(this.baseUrl, { mode: "apikey", key: this.creds.apiKey })
+        : await withSessionRetry(
+            this.host,
+            this.port,
+            this.ssl,
+            this.creds.username,
+            this.creds.password,
+            (baseUrl, sid) => qbtGetTransferInfo(baseUrl, { mode: "session", sid })
+          )
     return { uploadSpeed: info.up_info_speed, downloadSpeed: info.dl_info_speed }
   }
 
   async getDeltaSync(rid: number): Promise<DeltaSyncResponse> {
-    const raw = await withSessionRetry(
-      this.host,
-      this.port,
-      this.ssl,
-      this.username,
-      this.password,
-      (baseUrl, sid) => syncMaindata(baseUrl, sid, rid)
-    )
+    const raw =
+      this.creds.authMethod === "apikey"
+        ? await syncMaindata(this.baseUrl, { mode: "apikey", key: this.creds.apiKey }, rid)
+        : await withSessionRetry(
+            this.host,
+            this.port,
+            this.ssl,
+            this.creds.username,
+            this.creds.password,
+            (baseUrl, sid) => syncMaindata(baseUrl, { mode: "session", sid }, rid)
+          )
     return {
       rid: raw.rid,
       fullUpdate: raw.full_update,
@@ -96,6 +120,6 @@ export class QbtClientAdapter implements ClientAdapter {
   }
 
   dispose(): void {
-    invalidateSession(this.baseUrl)
+    if (this.creds.authMethod === "password") invalidateSession(this.baseUrl)
   }
 }

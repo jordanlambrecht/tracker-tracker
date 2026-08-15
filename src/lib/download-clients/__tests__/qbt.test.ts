@@ -28,15 +28,29 @@ describe("login", () => {
     vi.restoreAllMocks()
   })
 
-  it("returns the SID cookie value on successful login", async () => {
+  it("returns the SID cookie pair on legacy 200/Ok. success", async () => {
     vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: true,
+      status: 200,
       text: async () => "Ok.",
       headers: new Headers({ "set-cookie": "SID=abc123xyz; Path=/; HttpOnly" }),
     } as Response)
 
     const sid = await login("localhost", 8080, false, "admin", "password")
-    expect(sid).toBe("abc123xyz")
+    expect(sid).toBe("SID=abc123xyz")
+  })
+
+  it("returns the QBT_SID_<port> cookie pair on modern 204 success", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 204,
+      headers: new Headers({
+        "set-cookie": "QBT_SID_8080=xyz789; HttpOnly; SameSite=Lax; Path=/",
+      }),
+    } as Response)
+
+    const sid = await login("localhost", 8080, false, "admin", "password")
+    expect(sid).toBe("QBT_SID_8080=xyz789")
   })
 
   it("sends a POST to the correct URL with form-encoded body", async () => {
@@ -174,22 +188,22 @@ describe("getTorrents", () => {
       json: async () => mockTorrents,
     } as Response)
 
-    const result = await getTorrents("http://localhost:8080", "mysid")
+    const result = await getTorrents("http://localhost:8080", { mode: "session", sid: "mysid" })
     expect(result).toHaveLength(1)
     expect(result[0].hash).toBe("abc")
     expect(result[0].state).toBe("uploading")
   })
 
-  it("sends SID cookie in request", async () => {
+  it("sends the session cookie pair verbatim in request", async () => {
     const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: true,
       json: async () => [],
     } as Response)
 
-    await getTorrents("http://localhost:8080", "testSID99")
+    await getTorrents("http://localhost:8080", { mode: "session", sid: "QBT_SID_8080=testSID99" })
 
     const init = fetchSpy.mock.calls[0][1] as RequestInit
-    expect((init.headers as Record<string, string>).Cookie).toBe("SID=testSID99")
+    expect((init.headers as Record<string, string>).Cookie).toBe("QBT_SID_8080=testSID99")
   })
 
   it("calls the correct endpoint", async () => {
@@ -198,7 +212,7 @@ describe("getTorrents", () => {
       json: async () => [],
     } as Response)
 
-    await getTorrents("http://localhost:8080", "sid")
+    await getTorrents("http://localhost:8080", { mode: "session", sid: "sid" })
 
     expect(fetchSpy.mock.calls[0][0]).toBe("http://localhost:8080/api/v2/torrents/info")
   })
@@ -209,7 +223,7 @@ describe("getTorrents", () => {
       json: async () => [],
     } as Response)
 
-    await getTorrents("http://localhost:8080", "sid", "aither")
+    await getTorrents("http://localhost:8080", { mode: "session", sid: "sid" }, "aither")
 
     expect(fetchSpy.mock.calls[0][0]).toBe("http://localhost:8080/api/v2/torrents/info?tag=aither")
   })
@@ -220,7 +234,7 @@ describe("getTorrents", () => {
       json: async () => [],
     } as Response)
 
-    await getTorrents("http://localhost:8080", "sid", "cross seed")
+    await getTorrents("http://localhost:8080", { mode: "session", sid: "sid" }, "cross seed")
 
     expect(fetchSpy.mock.calls[0][0]).toBe(
       "http://localhost:8080/api/v2/torrents/info?tag=cross%20seed"
@@ -234,7 +248,9 @@ describe("getTorrents", () => {
       statusText: "Forbidden",
     } as Response)
 
-    await expect(getTorrents("http://localhost:8080", "sid")).rejects.toThrow("Session expired")
+    await expect(
+      getTorrents("http://localhost:8080", { mode: "session", sid: "sid" })
+    ).rejects.toThrow("Session expired")
   })
 
   it("throws on non-ok response", async () => {
@@ -244,9 +260,9 @@ describe("getTorrents", () => {
       statusText: "Internal Server Error",
     } as Response)
 
-    await expect(getTorrents("http://localhost:8080", "sid")).rejects.toThrow(
-      "qBittorrent API error: 500 Internal Server Error"
-    )
+    await expect(
+      getTorrents("http://localhost:8080", { mode: "session", sid: "sid" })
+    ).rejects.toThrow("qBittorrent API error: 500 Internal Server Error")
   })
 
   it("throws a timeout message when AbortSignal fires", async () => {
@@ -254,17 +270,17 @@ describe("getTorrents", () => {
       new DOMException("signal timed out", "TimeoutError")
     )
 
-    await expect(getTorrents("http://localhost:8080", "sid")).rejects.toThrow(
-      "Request to localhost timed out after 15s"
-    )
+    await expect(
+      getTorrents("http://localhost:8080", { mode: "session", sid: "sid" })
+    ).rejects.toThrow("Request to localhost timed out after 15s")
   })
 
   it("throws a connection error on network failure", async () => {
     vi.spyOn(global, "fetch").mockRejectedValueOnce(new Error("fetch failed"))
 
-    await expect(getTorrents("http://192.168.1.1:8080", "sid")).rejects.toThrow(
-      "Failed to connect to 192.168.1.1"
-    )
+    await expect(
+      getTorrents("http://192.168.1.1:8080", { mode: "session", sid: "sid" })
+    ).rejects.toThrow("Failed to connect to 192.168.1.1")
   })
 })
 
@@ -288,7 +304,7 @@ describe("getTransferInfo", () => {
       }),
     } as Response)
 
-    const info = await getTransferInfo("http://localhost:8080", "mysid")
+    const info = await getTransferInfo("http://localhost:8080", { mode: "session", sid: "mysid" })
     expect(info.up_info_speed).toBe(2048)
     expect(info.dl_info_speed).toBe(4096)
   })
@@ -299,18 +315,18 @@ describe("getTransferInfo", () => {
       json: async () => ({ up_info_speed: 0, dl_info_speed: 0, up_info_data: 0, dl_info_data: 0 }),
     } as Response)
 
-    await getTransferInfo("http://localhost:8080", "sid")
+    await getTransferInfo("http://localhost:8080", { mode: "session", sid: "sid" })
 
     expect(fetchSpy.mock.calls[0][0]).toBe("http://localhost:8080/api/v2/transfer/info")
   })
 
-  it("sends SID cookie in request", async () => {
+  it("sends the session cookie pair verbatim in request", async () => {
     const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: true,
       json: async () => ({ up_info_speed: 0, dl_info_speed: 0, up_info_data: 0, dl_info_data: 0 }),
     } as Response)
 
-    await getTransferInfo("http://localhost:8080", "mySID")
+    await getTransferInfo("http://localhost:8080", { mode: "session", sid: "SID=mySID" })
 
     const init = fetchSpy.mock.calls[0][1] as RequestInit
     expect((init.headers as Record<string, string>).Cookie).toBe("SID=mySID")
@@ -323,9 +339,9 @@ describe("getTransferInfo", () => {
       statusText: "Unauthorized",
     } as Response)
 
-    await expect(getTransferInfo("http://localhost:8080", "sid")).rejects.toThrow(
-      "qBittorrent API error: 401 Unauthorized"
-    )
+    await expect(
+      getTransferInfo("http://localhost:8080", { mode: "session", sid: "sid" })
+    ).rejects.toThrow("qBittorrent API error: 401 Unauthorized")
   })
 })
 
