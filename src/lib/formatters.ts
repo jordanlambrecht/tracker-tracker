@@ -115,7 +115,11 @@ export function formatStatValue(stats: TrackerLatestStats | null, mode: StatMode
 
   switch (mode) {
     case "ratio":
-      return formatRatioDisplay(stats.ratio)
+      // `ratio` is null both when unmeasured and when the account has an
+      // infinite ratio; only the flag distinguishes them. formatRatio already
+      // renders a non-finite value as "∞", so hand it Infinity rather than
+      // showing the same "—" an account with no data gets.
+      return formatRatioDisplay(stats.ratioIsInfinite ? Number.POSITIVE_INFINITY : stats.ratio)
     case "seeding":
       return stats.seedingCount !== null && stats.seedingCount !== undefined
         ? `${formatCount(stats.seedingCount)} seeding`

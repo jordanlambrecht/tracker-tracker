@@ -111,6 +111,13 @@ describe("formatStatValue", () => {
     expect(formatStatValue({ ...stats, ratio: null }, "ratio")).toBe("—")
   })
 
+  // An infinite ratio and an unmeasured one both arrive as `ratio: null`; only
+  // the flag separates them. Showing "—" for the infinite case made a
+  // zero-download account look like it had no data at all.
+  it("renders an infinite ratio as ∞ rather than a dash", () => {
+    expect(formatStatValue({ ...stats, ratio: null, ratioIsInfinite: true }, "ratio")).toBe("∞x")
+  })
+
   it("returns dash for null seedingCount", () => {
     expect(formatStatValue({ ...stats, seedingCount: null }, "seeding")).toBe("—")
   })

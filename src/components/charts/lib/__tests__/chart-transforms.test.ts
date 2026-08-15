@@ -1,9 +1,19 @@
 // src/components/charts/lib/__tests__/chart-transforms.test.ts
+//
+// Functions: makeSnap, localDay, localIso, series, makeDaily
 
 import { describe, expect, it } from "vitest"
-import { carryForwardValues, computeDailyDeltas } from "@/components/charts/lib/chart-transforms"
+import {
+  bucketGrid,
+  carryForwardValues,
+  computeDailyDeltas,
+  computeDailyGrid,
+  formatBucketLabel,
+  getBucketKey,
+} from "@/components/charts/lib/chart-transforms"
 import { localDateStr } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
+import type { TrackerSnapshotSeries } from "@/types/charts"
 
 // ---------------------------------------------------------------------------
 // Shared helper
@@ -233,5 +243,253 @@ describe("carryForwardValues", () => {
   it("returns empty array when timestamps array is empty", () => {
     const result = carryForwardValues([], new Map([["2024-01-01T00:00:00.000Z", 42]]))
     expect(result).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// computeDailyGrid
+// ---------------------------------------------------------------------------
+
+// Local-time day builder: keeps expectations timezone-independent.
+function localDay(year: number, month1: number, day: number): string {
+  return localDateStr(new Date(year, month1 - 1, day, 12, 0, 0))
+}
+
+function localIso(year: number, month1: number, day: number, hour = 12): string {
+  return new Date(year, month1 - 1, day, hour, 0, 0).toISOString()
+}
+
+function series(name: string, color: string, snapshots: Snapshot[]): TrackerSnapshotSeries {
+  return { name, color, snapshots }
+}
+
+describe("computeDailyGrid", () => {
+  it("leaves the first day at zero because there is no previous day to diff against", () => {
+    const data = [
+      series("Alpha", "#f00", [
+        makeSnap(localIso(2024, 1, 1), { uploadedBytes: String(GiB) }),
+        makeSnap(localIso(2024, 1, 2), { uploadedBytes: String(3 * GiB) }),
+      ]),
+    ]
+
+    const grid = computeDailyGrid(data)
+
+    expect(grid.days).toEqual([localDay(2024, 1, 1), localDay(2024, 1, 2)])
+    expect(grid.trackerNames).toEqual(["Alpha"])
+    expect(grid.trackerColors).toEqual(["#f00"])
+    expect(grid.uploadGrid[0][0]).toBe(0)
+    expect(grid.uploadGrid[0][1]).toBeCloseTo(2, 6)
+  })
+
+  it("clamps negative deltas to zero when a tracker resets its stats", () => {
+    // Unlike computeDailyDeltas, this transform floors at zero — a reset must
+    // not paint a negative cell on the chart.
+    const data = [
+      series("Alpha", "#f00", [
+        makeSnap(localIso(2024, 2, 1), {
+          uploadedBytes: String(5 * GiB),
+          downloadedBytes: String(5 * GiB),
+        }),
+        makeSnap(localIso(2024, 2, 2), {
+          uploadedBytes: String(GiB),
+          downloadedBytes: String(GiB),
+        }),
+      ]),
+    ]
+
+    const grid = computeDailyGrid(data)
+
+    expect(grid.uploadGrid[0][1]).toBe(0)
+    expect(grid.downloadGrid[0][1]).toBe(0)
+  })
+
+  it("uses the last snapshot of each day when a day has several", () => {
+    const data = [
+      series("Alpha", "#f00", [
+        makeSnap(localIso(2024, 3, 1, 9), { uploadedBytes: "0" }),
+        makeSnap(localIso(2024, 3, 2, 9), { uploadedBytes: String(GiB) }),
+        makeSnap(localIso(2024, 3, 2, 21), { uploadedBytes: String(4 * GiB) }),
+      ]),
+    ]
+
+    const grid = computeDailyGrid(data)
+
+    expect(grid.days).toHaveLength(2)
+    // 4 GiB (last of day 2) minus 0 (day 1), not 1 GiB.
+    expect(grid.uploadGrid[0][1]).toBeCloseTo(4, 6)
+  })
+
+  it("diffs against the nearest earlier day a tracker actually reported", () => {
+    // The unified day axis carries day 2 because Beta reported then; Alpha has
+    // no day-2 snapshot, so its day-3 delta reaches back to day 1.
+    const data = [
+      series("Alpha", "#f00", [
+        makeSnap(localIso(2024, 4, 1), { uploadedBytes: "0" }),
+        makeSnap(localIso(2024, 4, 3), { uploadedBytes: String(6 * GiB) }),
+      ]),
+      series("Beta", "#0f0", [makeSnap(localIso(2024, 4, 2), { uploadedBytes: String(GiB) })]),
+    ]
+
+    const grid = computeDailyGrid(data)
+
+    expect(grid.days).toEqual([localDay(2024, 4, 1), localDay(2024, 4, 2), localDay(2024, 4, 3)])
+    // Alpha: no day-2 reading, so day 2 is zero and day 3 diffs against day 1.
+    expect(grid.uploadGrid[0]).toHaveLength(3)
+    expect(grid.uploadGrid[0][1]).toBe(0)
+    expect(grid.uploadGrid[0][2]).toBeCloseTo(6, 6)
+    // Beta only ever reported once — no previous day, so nothing anywhere.
+    expect(grid.uploadGrid[1]).toEqual([0, 0, 0])
+  })
+
+  it("keeps precision on byte counts past the 32-bit boundary", () => {
+    const data = [
+      series("Alpha", "#f00", [
+        makeSnap(localIso(2024, 5, 1), { uploadedBytes: (BigInt(4) * BigInt(GiB)).toString() }),
+        makeSnap(localIso(2024, 5, 2), { uploadedBytes: (BigInt(12) * BigInt(GiB)).toString() }),
+      ]),
+    ]
+
+    const grid = computeDailyGrid(data)
+
+    expect(grid.uploadGrid[0][1]).toBeCloseTo(8, 5)
+  })
+
+  it("returns empty grids for no trackers", () => {
+    const grid = computeDailyGrid([])
+    expect(grid.days).toEqual([])
+    expect(grid.uploadGrid).toEqual([])
+    expect(grid.downloadGrid).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// getBucketKey
+// ---------------------------------------------------------------------------
+
+describe("getBucketKey", () => {
+  it("returns the day itself at day granularity", () => {
+    expect(getBucketKey("2024-03-14", "day")).toBe("2024-03-14")
+  })
+
+  it("truncates to YYYY-MM at month granularity", () => {
+    expect(getBucketKey("2024-03-14", "month")).toBe("2024-03")
+  })
+
+  it("snaps to the Monday of the week at week granularity", () => {
+    // 2024-01-01 is a Monday; the whole week collapses onto it.
+    expect(getBucketKey("2024-01-01", "week")).toBe("2024-01-01")
+    expect(getBucketKey("2024-01-03", "week")).toBe("2024-01-01")
+    // Sunday belongs to the week that started the previous Monday.
+    expect(getBucketKey("2024-01-07", "week")).toBe("2024-01-01")
+    expect(getBucketKey("2024-01-08", "week")).toBe("2024-01-08")
+  })
+
+  it("walks back across a month boundary to find Monday", () => {
+    // 2024-03-01 is a Friday → Monday 2024-02-26.
+    expect(getBucketKey("2024-03-01", "week")).toBe("2024-02-26")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// formatBucketLabel
+// ---------------------------------------------------------------------------
+
+describe("formatBucketLabel", () => {
+  it("formats a month key as short month and 2-digit year", () => {
+    expect(formatBucketLabel("2024-03", "month")).toBe("Mar 24")
+  })
+
+  it("prefixes week labels with Wk", () => {
+    expect(formatBucketLabel("2024-03-04", "week")).toBe("Wk Mar 4")
+  })
+
+  it("formats a day key as short month and day", () => {
+    expect(formatBucketLabel("2024-03-04", "day")).toBe("Mar 4")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// bucketGrid
+// ---------------------------------------------------------------------------
+
+/** Build the daily-grid shape bucketGrid consumes, without going through snapshots. */
+function makeDaily(dayCount: number, uploadPerDay = 1, startDay = new Date(2024, 0, 1)) {
+  const days: string[] = []
+  for (let i = 0; i < dayCount; i++) {
+    const d = new Date(startDay)
+    d.setDate(startDay.getDate() + i)
+    days.push(localDateStr(d))
+  }
+  return {
+    days,
+    trackerNames: ["Alpha"],
+    trackerColors: ["#f00"],
+    uploadGrid: [days.map(() => uploadPerDay)],
+    downloadGrid: [days.map(() => uploadPerDay * 2)],
+  }
+}
+
+describe("bucketGrid", () => {
+  it("keeps day granularity at the 45-day threshold and passes the grids through", () => {
+    const daily = makeDaily(45)
+    const result = bucketGrid(daily)
+
+    expect(result.granularity).toBe("day")
+    expect(result.bucketLabels).toEqual(daily.days)
+    expect(result.uploadGrid).toEqual(daily.uploadGrid)
+    expect(result.downloadGrid).toEqual(daily.downloadGrid)
+    expect(result.trackerNames).toEqual(["Alpha"])
+    expect(result.trackerColors).toEqual(["#f00"])
+  })
+
+  it("switches to week granularity one day past the threshold", () => {
+    expect(bucketGrid(makeDaily(46)).granularity).toBe("week")
+  })
+
+  it("keeps week granularity at the 180-day threshold and switches to month past it", () => {
+    expect(bucketGrid(makeDaily(180)).granularity).toBe("week")
+    expect(bucketGrid(makeDaily(181)).granularity).toBe("month")
+  })
+
+  it("sums daily values into weekly buckets without losing volume", () => {
+    // 46 days from Monday 2024-01-01 → 6 full weeks plus a 4-day tail.
+    const daily = makeDaily(46, 1, new Date(2024, 0, 1))
+    const result = bucketGrid(daily)
+
+    expect(result.bucketLabels).toHaveLength(7)
+    expect(result.bucketLabels[0]).toBe("2024-01-01")
+    expect(result.uploadGrid[0].slice(0, 6)).toEqual([7, 7, 7, 7, 7, 7])
+    expect(result.uploadGrid[0][6]).toBe(4)
+    // Nothing is dropped on the way into buckets.
+    const total = result.uploadGrid[0].reduce((a, b) => a + b, 0)
+    expect(total).toBe(46)
+    expect(result.downloadGrid[0].reduce((a, b) => a + b, 0)).toBe(92)
+  })
+
+  it("sums daily values into monthly buckets", () => {
+    // 181 days from 2024-01-01 crosses into July.
+    const daily = makeDaily(181, 1, new Date(2024, 0, 1))
+    const result = bucketGrid(daily)
+
+    expect(result.granularity).toBe("month")
+    expect(result.bucketLabels[0]).toBe("2024-01")
+    // Jan has 31 days, and 2024 is a leap year so Feb has 29.
+    expect(result.uploadGrid[0][0]).toBe(31)
+    expect(result.uploadGrid[0][1]).toBe(29)
+    expect(result.uploadGrid[0].reduce((a, b) => a + b, 0)).toBe(181)
+  })
+
+  it("returns an empty day-granularity result for an empty grid", () => {
+    const result = bucketGrid({
+      days: [],
+      trackerNames: [],
+      trackerColors: [],
+      uploadGrid: [],
+      downloadGrid: [],
+    })
+
+    expect(result.granularity).toBe("day")
+    expect(result.bucketLabels).toEqual([])
+    expect(result.uploadGrid).toEqual([])
   })
 })

@@ -123,6 +123,8 @@ export interface DashboardSettings {
   showHealthIndicators: boolean
   showLoginTimers: boolean
   showTodayAtAGlance: boolean
+  /** When false, WebGL charts are swapped for 2D substitutes. Defaults to true. */
+  enable3DCharts: boolean
 }
 
 export interface TodayAtAGlance {
@@ -193,6 +195,7 @@ export const DASHBOARD_SETTINGS_DEFAULTS: DashboardSettings = {
   showHealthIndicators: true,
   showLoginTimers: true,
   showTodayAtAGlance: true,
+  enable3DCharts: true,
 }
 
 /** API response shape for download clients (credentials stripped, dates serialized) */

@@ -34,7 +34,7 @@ const DASHBOARD_CHARTS: ChartDef[] = [
   {
     id: "upload-landscape",
     label: "Upload Landscape",
-    description: "Daily upload volume per tracker — drag to rotate, scroll to zoom",
+    description: "Daily upload volume per tracker",
     category: "analytics",
   },
   { id: "distribution", label: "Distribution", category: "analytics" },

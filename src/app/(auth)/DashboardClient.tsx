@@ -1,26 +1,36 @@
 // src/app/(auth)/DashboardClient.tsx
 "use client"
 
-import { H1, H2 } from "@typography"
+import { useQuery } from "@tanstack/react-query"
+import { H1 } from "@typography"
 import dynamic from "next/dynamic"
 import { useMemo, useState, useTransition } from "react"
 import { DashboardSkeleton } from "@/app/(auth)/DashboardSkeleton"
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import { AlertsBanner } from "@/components/dashboard/AlertsBanner"
 import { AnalyticsSection } from "@/components/dashboard/AnalyticsSection"
+import { DashboardEmptyState } from "@/components/dashboard/DashboardEmptyState"
 import { DayRangeSidebar } from "@/components/dashboard/DayRangeSidebar"
 import { EcosystemStatsSection } from "@/components/dashboard/EcosystemStatsSection"
 import { FleetDashboard } from "@/components/dashboard/FleetDashboard"
 import { LoginTimers } from "@/components/dashboard/LoginTimers"
 import { PollAllButton } from "@/components/dashboard/PollAllButton"
+import { TagGroupsSection } from "@/components/dashboard/TagGroupsSection"
 import { TodayAtAGlance } from "@/components/dashboard/TodayAtAGlance"
 import { TodayAtAGlanceSkeleton } from "@/components/dashboard/TodayAtAGlanceSkeleton"
 import { TrackerLeaderboard } from "@/components/dashboard/TrackerLeaderboard"
 import { TrackerOverviewGrid } from "@/components/dashboard/TrackerOverviewGrid"
+import { useChartPreferences } from "@/components/dashboard/useChartPreferences"
 import { useDashboardSettings } from "@/components/dashboard/useDashboardSettings"
 import { Button, Divider, GearIcon, TabBar } from "@/components/ui"
+import { SectionToggle } from "@/components/ui/SectionToggle"
+import { ChartGridSkeleton } from "@/components/ui/skeletons"
 import { useDashboardData } from "@/hooks/useDashboardData"
+import { usePollingIntervals } from "@/hooks/usePollingIntervals"
+import { useSectionCollapse } from "@/hooks/useSectionCollapse"
 import { computeAggregateStats } from "@/lib/dashboard"
+import type { FleetAggregation } from "@/lib/fleet-aggregation"
+import { fleetCachedQueryOptions } from "@/lib/query-options"
 import type { Snapshot, TrackerSummary } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 
@@ -46,14 +56,29 @@ function buildTrackerSeries(
   }))
 }
 
+// Stable select: the dashboard only needs the tag group counts, so the fleet tab's own
+// refetches of this cache do not re-render the rest of the page.
+const selectTagGroupBreakdowns = (data: FleetAggregation) => data.tagGroupBreakdowns
+
 interface DashboardClientProps {
   initialTrackers: TrackerSummary[]
   snapshotRetentionDays: number | null
+  /** Read server-side from two small queries. False skips the Tag Groups fetch entirely. */
+  hasTagGroups: boolean
 }
 
-export function DashboardClient({ initialTrackers, snapshotRetentionDays }: DashboardClientProps) {
+export function DashboardClient({
+  initialTrackers,
+  snapshotRetentionDays,
+  hasTagGroups,
+}: DashboardClientProps) {
   const data = useDashboardData({ initialTrackers, snapshotRetentionDays })
   const dashSettings = useDashboardSettings()
+  const sectionCollapse = useSectionCollapse()
+  // One instance for the whole page, like sectionCollapse above. The analytics grid and the
+  // settings sheet are mounted together and each write stores the whole preferences object,
+  // so a second instance would revert the other surface's last change.
+  const chartPrefs = useChartPreferences()
   const [settingsOpen, setSettingsOpen] = useState(false)
   // Two-state tab pattern: dashboardTab updates immediately (drives TabBar pill animation),
   // deferredTab updates via startTransition (drives content switch + query gating).
@@ -63,6 +88,18 @@ export function DashboardClient({ initialTrackers, snapshotRetentionDays }: Dash
   )
   const [deferredTab, setDeferredTab] = useState<"tracker-stats" | "torrent-fleet">("tracker-stats")
   const [, startTransition] = useTransition()
+  const intervals = usePollingIntervals()
+
+  // Tag group counts share the Torrent Fleet tab's cached aggregation rather than being
+  // computed during SSR, so they cost this page nothing before first paint. Sharing the cache
+  // also means they go stale and refresh on the fleet's own schedule — including the fleet
+  // tab's refresh button — instead of being frozen until a full page reload.
+  const { data: tagGroupBreakdowns = [], isPending: tagGroupsPending } = useQuery({
+    ...fleetCachedQueryOptions,
+    staleTime: intervals.clientRefetchMs,
+    enabled: hasTagGroups,
+    select: selectTagGroupBreakdowns,
+  })
 
   const aggregateStats = useMemo(() => computeAggregateStats(data.trackers), [data.trackers])
   const trackerSeries = useMemo(
@@ -70,16 +107,25 @@ export function DashboardClient({ initialTrackers, snapshotRetentionDays }: Dash
     [data.trackers, data.snapshotMap]
   )
 
+  // Sections render expanded until localStorage has been read. Charts gate the other way
+  // (collapsed until hydrated) because mounting echarts is expensive; section content is
+  // already in the server-rendered HTML, so hiding it until hydration would blank the page
+  // and pop it back open for the common case of nothing being collapsed at all.
+  const isExpanded = (id: string) => !sectionCollapse.hydrated || !sectionCollapse.isCollapsed(id)
+
+  const todayAtAGlanceExpanded = isExpanded("today-at-a-glance")
+  const trackersExpanded = isExpanded("trackers")
+  const leaderboardExpanded = isExpanded("leaderboard")
+  const ecosystemStatsExpanded = isExpanded("ecosystem-stats")
+  const loginTimersExpanded = isExpanded("login-timers")
+  const tagGroupsExpanded = isExpanded("tag-groups")
+
   if (data.loading) {
     return <DashboardSkeleton />
   }
 
   if (data.trackers.length === 0) {
-    return (
-      <div className="full-page-loader">
-        <p className="text-secondary text-sm font-mono">No trackers added yet</p>
-      </div>
-    )
+    return <DashboardEmptyState onAdded={data.refresh} />
   }
 
   return (
@@ -108,22 +154,33 @@ export function DashboardClient({ initialTrackers, snapshotRetentionDays }: Dash
       {/* Today At A Glance */}
       {dashSettings.settings.showTodayAtAGlance && (
         <div className="flex flex-col gap-4">
-          <H2>Today At A Glance</H2>
-          {data.todayData ? (
-            <TodayAtAGlance data={data.todayData} />
-          ) : data.todayLoading ? (
-            <TodayAtAGlanceSkeleton />
-          ) : null}
+          <SectionToggle
+            label="Today At A Glance"
+            expanded={todayAtAGlanceExpanded}
+            onToggle={() => sectionCollapse.toggle("today-at-a-glance")}
+          />
+          {todayAtAGlanceExpanded &&
+            (data.todayData ? (
+              <TodayAtAGlance data={data.todayData} />
+            ) : data.todayLoading ? (
+              <TodayAtAGlanceSkeleton />
+            ) : null)}
         </div>
       )}
 
       {/* Tracker Overview */}
       <div className="flex flex-col gap-4">
-        <H2>Trackers</H2>
-        <TrackerOverviewGrid
-          trackers={data.trackers}
-          showHealthIndicators={dashSettings.settings.showHealthIndicators}
+        <SectionToggle
+          label="Trackers"
+          expanded={trackersExpanded}
+          onToggle={() => sectionCollapse.toggle("trackers")}
         />
+        {trackersExpanded && (
+          <TrackerOverviewGrid
+            trackers={data.trackers}
+            showHealthIndicators={dashSettings.settings.showHealthIndicators}
+          />
+        )}
       </div>
 
       {/* Alerts */}
@@ -136,19 +193,55 @@ export function DashboardClient({ initialTrackers, snapshotRetentionDays }: Dash
       )}
 
       {/* Login Timers */}
-      {dashSettings.settings.showLoginTimers && <LoginTimers trackers={data.trackers} />}
+      {dashSettings.settings.showLoginTimers && (
+        <LoginTimers
+          trackers={data.trackers}
+          expanded={loginTimersExpanded}
+          onToggleExpanded={() => sectionCollapse.toggle("login-timers")}
+        />
+      )}
 
       {/* Leaderboard */}
       <div className="flex flex-col gap-4">
-        <H2>Leaderboard</H2>
-        <TrackerLeaderboard trackers={data.trackers} />
+        <SectionToggle
+          label="Leaderboard"
+          expanded={leaderboardExpanded}
+          onToggle={() => sectionCollapse.toggle("leaderboard")}
+        />
+        {leaderboardExpanded && <TrackerLeaderboard trackers={data.trackers} />}
       </div>
 
       {/* Divider */}
       <Divider />
 
       {/* Aggregate Stats */}
-      <EcosystemStatsSection trackers={data.trackers} aggregateStats={aggregateStats} />
+      <div className="flex flex-col gap-4">
+        <SectionToggle
+          label="Ecosystem"
+          expanded={ecosystemStatsExpanded}
+          onToggle={() => sectionCollapse.toggle("ecosystem-stats")}
+        />
+        {ecosystemStatsExpanded && (
+          <EcosystemStatsSection trackers={data.trackers} aggregateStats={aggregateStats} />
+        )}
+      </div>
+
+      {/* Tag Groups — omitted entirely when none are configured or none of them match */}
+      {hasTagGroups && (tagGroupsPending || tagGroupBreakdowns.length > 0) && (
+        <div className="flex flex-col gap-4">
+          <SectionToggle
+            label="Tag Groups"
+            expanded={tagGroupsExpanded}
+            onToggle={() => sectionCollapse.toggle("tag-groups")}
+          />
+          {tagGroupsExpanded &&
+            (tagGroupBreakdowns.length > 0 ? (
+              <TagGroupsSection breakdowns={tagGroupBreakdowns} accentColor={CHART_THEME.accent} />
+            ) : (
+              <ChartGridSkeleton count={2} />
+            ))}
+        </div>
+      )}
 
       {/* Divider */}
       <Divider />
@@ -170,7 +263,12 @@ export function DashboardClient({ initialTrackers, snapshotRetentionDays }: Dash
             <FleetDashboard dayRange={data.dayRange} isActive={deferredTab === "torrent-fleet"} />
           </div>
           <div className={deferredTab !== "tracker-stats" ? "hidden" : undefined}>
-            <AnalyticsSection trackerSeries={trackerSeries} trackers={data.trackers} />
+            <AnalyticsSection
+              trackerSeries={trackerSeries}
+              trackers={data.trackers}
+              chartPrefs={chartPrefs}
+              dashSettings={dashSettings}
+            />
           </div>
         </div>
 
@@ -186,6 +284,7 @@ export function DashboardClient({ initialTrackers, snapshotRetentionDays }: Dash
       <DashboardSettingsSheet
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+        chartPrefs={chartPrefs}
         dashSettings={dashSettings}
       />
     </div>

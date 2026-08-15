@@ -652,6 +652,104 @@ describe("PATCH /api/trackers/[id]", () => {
     expect(response.status).toBe(400)
   })
 
+  it("accepts a valid lastAccessAt date", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      lastAccessAt: "2026-01-15",
+    })
+
+    const mockWhere = vi.fn().mockResolvedValue([])
+    const mockSet = vi.fn().mockReturnValue({ where: mockWhere })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
+
+    const request = makeRequest(
+      "http://localhost/api/trackers/1",
+      { lastAccessAt: "2026-01-15" },
+      "PATCH"
+    )
+    const params = Promise.resolve({ id: "1" })
+    const response = await PATCH(request, { params })
+
+    expect(response.status).toBe(200)
+    const updates = mockSet.mock.calls[0]?.[0]
+    expect(updates.lastAccessAt).toBe("2026-01-15")
+  })
+
+  it("clears lastAccessAt when set to null", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      lastAccessAt: null,
+    })
+
+    const mockWhere = vi.fn().mockResolvedValue([])
+    const mockSet = vi.fn().mockReturnValue({ where: mockWhere })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
+
+    const request = makeRequest(
+      "http://localhost/api/trackers/1",
+      { lastAccessAt: null },
+      "PATCH"
+    )
+    const params = Promise.resolve({ id: "1" })
+    const response = await PATCH(request, { params })
+
+    expect(response.status).toBe(200)
+    const updates = mockSet.mock.calls[0]?.[0]
+    expect(updates.lastAccessAt).toBeNull()
+  })
+
+  it("returns 400 for malformed lastAccessAt", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      lastAccessAt: "not-a-date",
+    })
+
+    const request = makeRequest(
+      "http://localhost/api/trackers/1",
+      { lastAccessAt: "not-a-date" },
+      "PATCH"
+    )
+    const params = Promise.resolve({ id: "1" })
+    const response = await PATCH(request, { params })
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe("lastAccessAt must be YYYY-MM-DD")
+  })
+
+  it("returns 400 for a future lastAccessAt date", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      lastAccessAt: "2099-01-01",
+    })
+
+    const request = makeRequest(
+      "http://localhost/api/trackers/1",
+      { lastAccessAt: "2099-01-01" },
+      "PATCH"
+    )
+    const params = Promise.resolve({ id: "1" })
+    const response = await PATCH(request, { params })
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe("Last login date cannot be in the future")
+  })
+
+  it("returns 400 when lastAccessAt is neither a string nor null", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      lastAccessAt: 12345,
+    })
+
+    const request = makeRequest(
+      "http://localhost/api/trackers/1",
+      { lastAccessAt: 12345 },
+      "PATCH"
+    )
+    const params = Promise.resolve({ id: "1" })
+    const response = await PATCH(request, { params })
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe("lastAccessAt must be YYYY-MM-DD or null")
+  })
+
   it("sets userPausedAt when pollingPaused is true", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
       pollingPaused: true,

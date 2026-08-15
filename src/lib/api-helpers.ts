@@ -1,8 +1,9 @@
 // src/lib/api-helpers.ts
 //
 // Functions: authenticate, parseRouteId, parseTrackerId, parseJsonBody,
-//            validateHttpUrl, validateHexColor, validatePort, validateJoinedAt,
-//            validateIntRange, validateMaxLength, decodeKey
+//            validateHttpUrl, validateHexColor, validatePort, validatePastDate,
+//            validateJoinedAt, validateLastAccessAt, validateIntRange,
+//            validateMaxLength, decodeKey
 
 import { NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
@@ -84,14 +85,28 @@ export function validatePort(port: number): NextResponse | null {
   return null
 }
 
-export function validateJoinedAt(value: string): NextResponse | null {
+/**
+ * A calendar date that cannot be in the future. `field` names the request key so
+ * the format error is actionable; `label` reads as a noun phrase in the second.
+ * Dates are compared as strings against localDateStr(), so "today" follows the
+ * configured TZ rather than the server's UTC clock.
+ */
+function validatePastDate(value: string, field: string, label: string): NextResponse | null {
   if (!DATE_RE.test(value)) {
-    return NextResponse.json({ error: "joinedAt must be YYYY-MM-DD" }, { status: 400 })
+    return NextResponse.json({ error: `${field} must be YYYY-MM-DD` }, { status: 400 })
   }
   if (value > localDateStr()) {
-    return NextResponse.json({ error: "Join date cannot be in the future" }, { status: 400 })
+    return NextResponse.json({ error: `${label} cannot be in the future` }, { status: 400 })
   }
   return null
+}
+
+export function validateJoinedAt(value: string): NextResponse | null {
+  return validatePastDate(value, "joinedAt", "Join date")
+}
+
+export function validateLastAccessAt(value: string): NextResponse | null {
+  return validatePastDate(value, "lastAccessAt", "Last login date")
 }
 
 export function validateIntRange(

@@ -1,7 +1,6 @@
 // src/components/dashboard/EcosystemStatsSection.tsx
 "use client"
 
-import { H2 } from "@typography"
 import type { ReactNode } from "react"
 import {
   DownloadArrowIcon,
@@ -38,9 +37,7 @@ function EcosystemStatsSection({ trackers, aggregateStats }: EcosystemStatsSecti
   const bufferParts = splitValueUnit(formatBytesFromString(aggregateStats.totalBuffer))
 
   return (
-    <div className="flex flex-col gap-4">
-      <H2>Ecosystem</H2>
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
         <StatCard
           label="Trackers"
           value={trackers.length.toString()}
@@ -88,7 +85,6 @@ function EcosystemStatsSection({ trackers, aggregateStats }: EcosystemStatsSecti
           value={formatCount(aggregateStats.totalLeeching)}
           icon={AGGREGATE_ICONS.leeching}
         />
-      </div>
     </div>
   )
 }

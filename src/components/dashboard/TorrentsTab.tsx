@@ -2,16 +2,13 @@
 "use client"
 
 import { H2 } from "@typography"
-import clsx from "clsx"
 import dynamic from "next/dynamic"
 import { useState } from "react"
 import { ParallelTorrentsChart } from "@/components/charts/ParallelTorrentsChart"
 import { StorageSunburst } from "@/components/charts/StorageSunburst"
-import {
-  numbersNeedsWideCard,
-  TagGroupBreakdownChart,
-} from "@/components/charts/TagGroupBreakdownChart"
+import { TagGroupBreakdownChart } from "@/components/charts/TagGroupBreakdownChart"
 import { TorrentActivityHeatmap } from "@/components/charts/TorrentActivityHeatmap"
+import { TorrentAgeScatter2D } from "@/components/charts/TorrentAgeScatter2D"
 import { TorrentAgeTimeline } from "@/components/charts/TorrentAgeTimeline"
 import { TorrentAvgSeedTime } from "@/components/charts/TorrentAvgSeedTime"
 import { TorrentCategoryAcquisition } from "@/components/charts/TorrentCategoryAcquisition"
@@ -19,6 +16,7 @@ import { TorrentCrossSeedDonut } from "@/components/charts/TorrentCrossSeedDonut
 import { TorrentRatioDistribution } from "@/components/charts/TorrentRatioDistribution"
 import { TorrentSeedTimeDistribution } from "@/components/charts/TorrentSeedTimeDistribution"
 import { TorrentSizeBreakdown } from "@/components/charts/TorrentSizeBreakdown"
+import { TagGroupsSection } from "@/components/dashboard/TagGroupsSection"
 import {
   ActiveTransfersTable,
   CategoryCard,
@@ -28,6 +26,7 @@ import {
   TorrentStatCards,
   UnsatisfiedTorrentsTable,
 } from "@/components/dashboard/torrents"
+import { useDashboardSettings } from "@/components/dashboard/useDashboardSettings"
 import { Card, LazySection, Notice, TorrentTabSkeleton } from "@/components/ui"
 import type { TrackerTorrentsData } from "@/hooks/useTrackerTorrents"
 import { formatSpeed, formatTimeAgo } from "@/lib/formatters"
@@ -61,6 +60,10 @@ function TorrentsTab({
   trackerSeedingCount,
 }: TorrentsTabProps) {
   const [staleDismissed, setStaleDismissed] = useState(false)
+  const dashSettings = useDashboardSettings()
+  // Gate on `loaded` so echarts-gl is never mounted on the strength of the default for a
+  // user who has WebGL charts switched off. See AnalyticsSection for the same reasoning.
+  const use3DScatter = dashSettings.loaded && dashSettings.settings.enable3DCharts
 
   if (data.loading) {
     return <TorrentTabSkeleton />
@@ -180,40 +183,7 @@ function TorrentsTab({
 
       {/* Tag Group Breakdowns */}
       {data.tagGroupBreakdowns.length > 0 && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {data.tagGroupBreakdowns.map(({ group, memberCounts, unmatchedCount }) => {
-            const effectiveCount =
-              memberCounts.length + (group.countUnmatched && unmatchedCount != null ? 1 : 0)
-            const isSingleNumber = group.chartType === "numbers" && effectiveCount === 1
-            const wideCard =
-              group.chartType === "numbers" &&
-              numbersNeedsWideCard(memberCounts.length, group.countUnmatched, unmatchedCount)
-            return (
-              <Card
-                key={group.id}
-                trackerColor={accentColor}
-                className={clsx(
-                  "flex flex-col gap-4",
-                  wideCard && "lg:col-span-2",
-                  isSingleNumber && "min-h-48"
-                )}
-              >
-                <H2 className="card-heading">
-                  {group.emoji ? `${group.emoji} ` : ""}
-                  {group.name}
-                </H2>
-                <TagGroupBreakdownChart
-                  groupName={group.name}
-                  members={memberCounts}
-                  accentColor={accentColor}
-                  chartType={group.chartType}
-                  countUnmatched={group.countUnmatched}
-                  unmatchedCount={unmatchedCount}
-                />
-              </Card>
-            )
-          })}
-        </div>
+        <TagGroupsSection breakdowns={data.tagGroupBreakdowns} accentColor={accentColor} />
       )}
 
       {/* qbitmanage Breakdown */}
@@ -300,14 +270,18 @@ function TorrentsTab({
         <TorrentAvgSeedTime torrents={data.torrents} accentColor={accentColor} />
       </Card>
 
-      {/* 3D Scatter */}
+      {/* Torrent library scatter — 3D when WebGL charts are enabled, 2D otherwise */}
       <LazySection minHeight={400}>
         <Card
-          title="Torrent Library — 3D Scatter"
+          title={use3DScatter ? "Torrent Library — 3D Scatter" : "Torrent Library — Scatter"}
           trackerColor={accentColor}
           className="flex flex-col gap-4"
         >
-          <TorrentAgeScatter3D torrents={data.torrents} accentColor={accentColor} />
+          {use3DScatter ? (
+            <TorrentAgeScatter3D torrents={data.torrents} accentColor={accentColor} />
+          ) : (
+            <TorrentAgeScatter2D torrents={data.torrents} accentColor={accentColor} />
+          )}
         </Card>
       </LazySection>
 

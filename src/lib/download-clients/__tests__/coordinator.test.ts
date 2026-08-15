@@ -318,6 +318,7 @@ function makeEmptyAggregation() {
     ageTimeline: [],
     categoryTimeline: [],
     ageBands: [],
+    tagGroupBreakdowns: [],
   }
 }
 
@@ -672,7 +673,7 @@ describe("fetchFleetAggregation", () => {
 
     const result = await fetchFleetAggregation()
 
-    expect(computeFleetAggregation).toHaveBeenCalledWith([], [], [])
+    expect(computeFleetAggregation).toHaveBeenCalledWith([], [], [], [])
     expect(result.clientCount).toBe(0)
     expect(result.clientErrors).toEqual([])
     expect(result.cachedAt).toBeNull()
@@ -762,7 +763,26 @@ describe("fetchFleetAggregation", () => {
     expect(computeFleetAggregation).toHaveBeenCalledWith(
       expect.any(Array), // stamped torrents
       [{ tag: "aither", name: "Aither", color: "#ff0000" }],
-      expect.any(Array) // crossSeedTags
+      expect.any(Array), // crossSeedTags
+      [] // tagGroups — omitted by callers that don't want the breakdown
+    )
+  })
+
+  it("should forward tag groups to computeFleetAggregation when the caller passes them", async () => {
+    vi.mocked(isStoreFresh).mockReturnValue(true)
+    vi.mocked(getFilteredTorrents).mockReturnValue([])
+
+    setupDbReturns([[makeCachedClient()], [makeTracker()]])
+
+    const tagGroups = [{ id: 1, name: "Resolution", members: [] }] as never
+
+    await fetchFleetAggregation({ tagGroups })
+
+    expect(computeFleetAggregation).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.any(Array),
+      expect.any(Array),
+      tagGroups
     )
   })
 
@@ -780,7 +800,8 @@ describe("fetchFleetAggregation", () => {
     expect(computeFleetAggregation).toHaveBeenCalledWith(
       expect.any(Array),
       [{ tag: "aither", name: "Aither", color: "#01d4ff" }],
-      expect.any(Array)
+      expect.any(Array),
+      []
     )
   })
 

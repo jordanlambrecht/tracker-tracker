@@ -2,7 +2,6 @@
 
 "use client"
 
-import { useState } from "react"
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import { ExternalLinkIcon } from "@/components/ui/Icons"
 import { SectionToggle } from "@/components/ui/SectionToggle"
@@ -16,9 +15,17 @@ interface TimerEntry {
   lastAccessAt: string
 }
 
-export function LoginTimers({ trackers }: { trackers: TrackerSummary[] }) {
-  const [expanded, setExpanded] = useState(true)
+interface LoginTimersProps {
+  trackers: TrackerSummary[]
+  // Collapse state is owned by the parent (a single shared useSectionCollapse
+  // instance) rather than called again here — a second hook instance would
+  // hydrate its own in-memory copy and could clobber sibling sections'
+  // persisted collapse state when both toggle around the same time.
+  expanded: boolean
+  onToggleExpanded: () => void
+}
 
+export function LoginTimers({ trackers, expanded, onToggleExpanded }: LoginTimersProps) {
   const entries: TimerEntry[] = trackers
     .map((tracker) => {
       if (!tracker.lastAccessAt || !tracker.isActive) return null
@@ -46,11 +53,7 @@ export function LoginTimers({ trackers }: { trackers: TrackerSummary[] }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <SectionToggle
-        label="Login Timers"
-        expanded={expanded}
-        onToggle={() => setExpanded((e) => !e)}
-      />
+      <SectionToggle label="Login Timers" expanded={expanded} onToggle={onToggleExpanded} />
 
       {expanded && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
