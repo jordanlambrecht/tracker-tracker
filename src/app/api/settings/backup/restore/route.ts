@@ -806,6 +806,13 @@ export async function POST(request: Request) {
           failedLoginAttempts: 0,
           lockedUntil: null,
           snapshotRetentionDays: (payload.settings.snapshotRetentionDays as number | null) ?? null,
+          // Carried over so a restore does not re-ask a question the backup already
+          // answers. Without it, restoring onto a fresh install prompts again and the
+          // answer overwrites the retention policy that was just restored. Backups
+          // predating this column restore as null, which correctly means "ask".
+          retentionPromptedAt: payload.settings.retentionPromptedAt
+            ? new Date(payload.settings.retentionPromptedAt as string)
+            : null,
           trackerPollIntervalMinutes:
             (payload.settings.trackerPollIntervalMinutes as number) ?? POLL_INTERVAL_DEFAULT,
           proxyEnabled: payload.settings.proxyEnabled as boolean,

@@ -913,3 +913,51 @@ describe("POST /api/settings/backup/restore — dry run", () => {
     expect(recorder.inserts.length).toBeGreaterThan(0)
   })
 })
+
+// ─── Retention prompt state ───────────────────────────────────────────────────
+
+describe("POST /api/settings/backup/restore — retention prompt state", () => {
+  let recorder: TxRecorder
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
+      encryptionKey: "ab".repeat(32),
+    })
+    ;(verifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue(true)
+    ;(checkLockout as ReturnType<typeof vi.fn>).mockReturnValue(null)
+
+    const created = createTx()
+    recorder = created.recorder
+    ;(db.transaction as ReturnType<typeof vi.fn>).mockImplementation(
+      async (fn: (tx: unknown) => Promise<unknown>) => fn(created.tx)
+    )
+  })
+
+  it("carries the answered-at stamp over, so a restore does not re-ask", async () => {
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    ;(payload.settings as Record<string, unknown>).retentionPromptedAt = ISO
+    mockCurrentSettings({ encryptionSalt: SALT_B })
+
+    const res = await POST(makeRequest(payload, PASSWORD))
+    expect(res.status).toBe(200)
+
+    // Restored alongside the policy it belongs to — otherwise the prompt fires again
+    // and the user's answer overwrites the retention value just restored.
+    expect(recorder.settingsUpdate?.retentionPromptedAt).toEqual(new Date(ISO))
+  })
+
+  it("leaves it null for a backup taken before the column existed", async () => {
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    // No retentionPromptedAt at all — an older backup.
+    mockCurrentSettings({ encryptionSalt: SALT_B })
+
+    const res = await POST(makeRequest(payload, PASSWORD))
+    expect(res.status).toBe(200)
+
+    // null correctly means "ask", which is right for a backup that never answered.
+    expect(recorder.settingsUpdate?.retentionPromptedAt).toBeNull()
+  })
+})
