@@ -48,6 +48,15 @@ function describeClearedCredentials(cleared: { tokens: number; clients: number }
   return parts.join(" and ")
 }
 
+/** What a restore WOULD do, from the restore endpoint's dryRun mode. */
+interface PreflightResult {
+  sameSalt: boolean
+  canPassThrough: boolean
+  credentialsTotal: number
+  credentialsRecoverable: number
+  credentialsAtRisk: number
+}
+
 interface BackupsSectionProps {
   initialConfig: {
     encryptBackups: boolean
@@ -86,6 +95,8 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
   const [restoreConfirmPhrase, setRestoreConfirmPhrase] = useState("")
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false)
   const [restoreFile, setRestoreFile] = useState<File | null>(null)
+  const [preflight, setPreflight] = useState<PreflightResult | null>(null)
+  const [preflightLoading, setPreflightLoading] = useState(false)
   const [isEncryptedBackup, setIsEncryptedBackup] = useState(false)
   const [deletingBackupId, setDeletingBackupId] = useState<number | null>(null)
   const [isDraggingRestore, setIsDraggingRestore] = useState(false)
@@ -207,6 +218,42 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
       setRestorePassword("")
       setBackupPassword("")
       setBackupError(null)
+    }
+  }
+
+  /**
+   * Ask the server what a restore WOULD do, without doing it.
+   *
+   * Credentials the restore cannot decrypt are cleared, and until now the user only
+   * learned that afterwards. The same endpoint answers with `dryRun`, so the warning
+   * is computed by the code that will actually run rather than by a second
+   * implementation that could disagree with it.
+   */
+  async function runPreflight() {
+    if (!restoreFile || !restorePassword) return
+    if (isEncryptedBackup && !backupPassword) return
+    setPreflight(null)
+    setPreflightLoading(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", restoreFile)
+      formData.append("masterPassword", restorePassword)
+      formData.append("dryRun", "true")
+      if (isEncryptedBackup && backupPassword) {
+        formData.append("backupPassword", backupPassword)
+      }
+      const res = await fetch("/api/settings/backup/restore", {
+        method: "POST",
+        body: formData,
+        signal: AbortSignal.timeout(30_000),
+      })
+      if (!res.ok) return
+      setPreflight((await res.json()) as PreflightResult)
+    } catch {
+      // Silent: this is advisory. A failed check must not block a restore that the
+      // user may be running precisely because things are broken.
+    } finally {
+      setPreflightLoading(false)
     }
   }
 
@@ -498,6 +545,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
               type="password"
               value={restorePassword}
               onChange={(e) => setRestorePassword(e.target.value)}
+              onBlur={runPreflight}
               data-1p-ignore
               autoComplete="off"
               placeholder="Required to authorize restore"
@@ -508,10 +556,26 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
                 type="password"
                 value={backupPassword}
                 onChange={(e) => setBackupPassword(e.target.value)}
+                onBlur={runPreflight}
                 data-1p-ignore
                 autoComplete="off"
                 placeholder="Enter backup password"
               />
+            )}
+            {preflightLoading && (
+              <p className="text-sm text-tertiary font-mono">Checking this backup…</p>
+            )}
+            {preflight && preflight.credentialsAtRisk > 0 && (
+              <Notice variant="warn" box>
+                {preflight.credentialsRecoverable === 0
+                  ? `None of the ${preflight.credentialsTotal} stored credentials in this backup can be decrypted with that master password — most likely it was taken before a password change. They will be cleared and you will need to re-enter them.`
+                  : `${preflight.credentialsAtRisk} of ${preflight.credentialsTotal} stored credentials in this backup cannot be decrypted with that master password. Those will be cleared and need re-entering; the other ${preflight.credentialsRecoverable} will carry over.`}
+              </Notice>
+            )}
+            {preflight && preflight.credentialsAtRisk === 0 && preflight.credentialsTotal > 0 && (
+              <Notice variant="success" box>
+                All {preflight.credentialsTotal} stored credentials in this backup can be restored.
+              </Notice>
             )}
             <Notice variant="danger" box showIcon={false}>
               <Input

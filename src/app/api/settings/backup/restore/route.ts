@@ -1,6 +1,7 @@
 // src/app/api/settings/backup/restore/route.ts
 //
-// Functions: batchInsert, POST, firstBackupCiphertext, hashFileName, reencryptField
+// Functions: backupCiphertexts, batchInsert, POST, firstBackupCiphertext, hashFileName,
+// reencryptField
 
 import { createHash } from "node:crypto"
 import { eq } from "drizzle-orm"
@@ -64,9 +65,10 @@ async function batchInsert<T extends Record<string, unknown>>(
   }
 }
 
-// Return the first non-empty encrypted value in the backup, or null if it holds none.
-// Used as a probe to prove a key actually opens this backup's ciphertext.
-function firstBackupCiphertext(payload: BackupPayload): string | null {
+// Every non-empty encrypted value in the backup, in a stable order.
+// One list serves two callers: the probe below takes the first, and the dry run
+// counts how many of them the derived key can actually open.
+function backupCiphertexts(payload: BackupPayload): string[] {
   const settings = payload.settings
   const candidates: unknown[] = [
     ...payload.trackers.map((t) => (t as Record<string, unknown>).encryptedApiToken),
@@ -85,10 +87,13 @@ function firstBackupCiphertext(payload: BackupPayload): string | null {
     settings.totpSecret,
   ]
 
-  for (const candidate of candidates) {
-    if (typeof candidate === "string" && candidate.length > 0) return candidate
-  }
-  return null
+  return candidates.filter((c): c is string => typeof c === "string" && c.length > 0)
+}
+
+// The first non-empty encrypted value, or null if the backup holds none.
+// Used as a probe to prove a key actually opens this backup's ciphertext.
+function firstBackupCiphertext(payload: BackupPayload): string | null {
+  return backupCiphertexts(payload)[0] ?? null
 }
 
 // Attempt to decrypt a field with the backup key and re-encrypt with the current key.
@@ -127,6 +132,9 @@ export async function POST(request: Request) {
   const file = formData.get("file")
   const masterPassword = formData.get("masterPassword")
   const backupPassword = formData.get("backupPassword")
+  // Opt-in only: anything other than the exact string "true" performs a real restore,
+  // so a malformed value can never silently turn a restore into a no-op.
+  const dryRun = formData.get("dryRun") === "true"
 
   if (!(file instanceof Blob)) {
     return NextResponse.json({ error: "Backup file is required" }, { status: 400 })
@@ -292,6 +300,34 @@ export async function POST(request: Request) {
         )
       }
     }
+  }
+
+  // Step 6b: Dry run — report what a real restore would preserve, and stop.
+  //
+  // This MUST stay above stopScheduler(), which is the first side effect in the
+  // handler. Everything above it is parsing, authorisation and key derivation; a
+  // dry run therefore touches nothing. It shares this code path deliberately: a
+  // separate preflight endpoint would re-implement the parsing and drift from the
+  // restore it claims to predict, so the two would eventually disagree.
+  if (dryRun) {
+    const ciphertexts = backupCiphertexts(payload)
+    let recoverable = 0
+    for (const ciphertext of ciphertexts) {
+      try {
+        decrypt(ciphertext, backupKey)
+        recoverable++
+      } catch {
+        // Counted as at-risk below; a failure here is the answer, not an error.
+      }
+    }
+    return NextResponse.json({
+      dryRun: true,
+      sameSalt,
+      canPassThrough,
+      credentialsTotal: ciphertexts.length,
+      credentialsRecoverable: recoverable,
+      credentialsAtRisk: ciphertexts.length - recoverable,
+    })
   }
 
   // Step 7: Stop schedulers (key is zeroed inside stopScheduler)

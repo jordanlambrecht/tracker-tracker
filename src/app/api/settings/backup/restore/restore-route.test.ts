@@ -352,7 +352,12 @@ function mockCurrentSettings(overrides: Record<string, unknown> = {}) {
   })
 }
 
-function makeRequest(payload: unknown, masterPassword: string, backupPassword?: string): Request {
+function makeRequest(
+  payload: unknown,
+  masterPassword: string,
+  backupPassword?: string,
+  dryRun?: boolean
+): Request {
   const formData = new FormData()
   formData.append(
     "file",
@@ -361,6 +366,7 @@ function makeRequest(payload: unknown, masterPassword: string, backupPassword?: 
   )
   formData.append("masterPassword", masterPassword)
   if (backupPassword !== undefined) formData.append("backupPassword", backupPassword)
+  if (dryRun !== undefined) formData.append("dryRun", String(dryRun))
 
   const req = new Request("http://localhost/api/settings/backup/restore", { method: "POST" })
   // Node's Request has no working formData() here, same trick as security.test.ts.
@@ -807,5 +813,103 @@ describe("POST /api/settings/backup/restore — auth gate", () => {
     expect(res.status).toBe(401)
     expect(db.select).not.toHaveBeenCalled()
     expect(db.transaction).not.toHaveBeenCalled()
+  })
+})
+
+// ─── Dry run ──────────────────────────────────────────────────────────────────
+//
+// Credentials a restore cannot decrypt are cleared, and the user used to learn
+// that only afterwards. The dry run answers the same question in advance, using
+// the same code path so the prediction cannot drift from the restore itself.
+//
+// The load-bearing property is that it writes NOTHING: it returns above
+// stopScheduler(), which is the handler's first side effect.
+
+describe("POST /api/settings/backup/restore — dry run", () => {
+  let recorder: TxRecorder
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
+      encryptionKey: "ab".repeat(32),
+    })
+    ;(verifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue(true)
+    ;(checkLockout as ReturnType<typeof vi.fn>).mockReturnValue(null)
+
+    const created = createTx()
+    recorder = created.recorder
+    ;(db.transaction as ReturnType<typeof vi.fn>).mockImplementation(
+      async (fn: (tx: unknown) => Promise<unknown>) => fn(created.tx)
+    )
+  })
+
+  it("touches nothing — no writes, no scheduler stop", async () => {
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    mockCurrentSettings({ encryptionSalt: SALT_B })
+
+    const res = await POST(makeRequest(payload, PASSWORD, undefined, true))
+    expect(res.status).toBe(200)
+
+    // The whole point: a preview must not be destructive.
+    expect(stopScheduler).not.toHaveBeenCalled()
+    expect(recorder.deletes).toHaveLength(0)
+    expect(recorder.inserts).toHaveLength(0)
+    expect(recorder.settingsUpdate).toBeNull()
+  })
+
+  it("reports every credential as recoverable when the password opens the backup", async () => {
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    mockCurrentSettings({ encryptionSalt: SALT_B })
+
+    const res = await POST(makeRequest(payload, PASSWORD, undefined, true))
+    const body = (await res.json()) as {
+      dryRun: boolean
+      credentialsTotal: number
+      credentialsRecoverable: number
+      credentialsAtRisk: number
+    }
+
+    expect(body.dryRun).toBe(true)
+    expect(body.credentialsTotal).toBeGreaterThan(0)
+    expect(body.credentialsAtRisk).toBe(0)
+    expect(body.credentialsRecoverable).toBe(body.credentialsTotal)
+  })
+
+  it("counts credentials written under a different key as at risk", async () => {
+    // A backup taken BEFORE a master-password change: same salt, stale ciphertext.
+    // This is the case the user most needs warning about, because matching salts
+    // make it look safe right up until the credentials are cleared.
+    const staleKey = await deriveKey("a-completely-different-password", SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(staleKey))
+    mockCurrentSettings({ encryptionSalt: SALT_A })
+
+    const res = await POST(makeRequest(payload, PASSWORD, undefined, true))
+    const body = (await res.json()) as {
+      credentialsTotal: number
+      credentialsRecoverable: number
+      credentialsAtRisk: number
+      canPassThrough: boolean
+    }
+
+    expect(body.credentialsTotal).toBeGreaterThan(0)
+    expect(body.credentialsRecoverable).toBe(0)
+    expect(body.credentialsAtRisk).toBe(body.credentialsTotal)
+    // Matching salts, but the probe proves the key is wrong.
+    expect(body.canPassThrough).toBe(false)
+  })
+
+  it("performs a real restore when dryRun is absent", async () => {
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    mockCurrentSettings({ encryptionSalt: SALT_B })
+
+    const res = await POST(makeRequest(payload, PASSWORD))
+    expect(res.status).toBe(200)
+
+    // Proves the dry-run branch is opt-in and cannot swallow a real restore.
+    expect(stopScheduler).toHaveBeenCalledTimes(1)
+    expect(recorder.inserts.length).toBeGreaterThan(0)
   })
 })
