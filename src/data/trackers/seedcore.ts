@@ -20,7 +20,7 @@ export const seedcore: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#1fa2ff",
-  logo: "/tracker-logs/seedcore_logo.png", // add this
+  logo: "/tracker-logos/seedcore_logo.png", // add this
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",
@@ -95,7 +95,7 @@ export const seedcore: TrackerRegistryEntry = {
   warningNote: "",
 
   // ── Flags ───────────────────────────────────────────────────────────
-  draft: true,
+  draft: false,
   supportsTransitPapers: false,
   profileUrlPattern: "",
 }
