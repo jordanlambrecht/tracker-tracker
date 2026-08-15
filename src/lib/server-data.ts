@@ -507,8 +507,31 @@ export async function getFleetSnapshots(days: number): Promise<FleetSnapshotMap>
  */
 export async function getTagGroupsWithMembers(): Promise<TagGroup[]> {
   const [groups, allMembers] = await Promise.all([
-    db.select().from(tagGroupsTable).orderBy(asc(tagGroupsTable.sortOrder), asc(tagGroupsTable.id)),
-    db.select().from(tagGroupMembers).orderBy(asc(tagGroupMembers.sortOrder)),
+    db
+      .select({
+        id: tagGroupsTable.id,
+        name: tagGroupsTable.name,
+        emoji: tagGroupsTable.emoji,
+        chartType: tagGroupsTable.chartType,
+        description: tagGroupsTable.description,
+        sortOrder: tagGroupsTable.sortOrder,
+        countUnmatched: tagGroupsTable.countUnmatched,
+      })
+      .from(tagGroupsTable)
+      .orderBy(asc(tagGroupsTable.sortOrder), asc(tagGroupsTable.id)),
+    // Projected to exactly TagGroupMember — these rows are returned to the client
+    // verbatim below, so a bare select() would leak any column added later.
+    db
+      .select({
+        id: tagGroupMembers.id,
+        groupId: tagGroupMembers.groupId,
+        tag: tagGroupMembers.tag,
+        label: tagGroupMembers.label,
+        color: tagGroupMembers.color,
+        sortOrder: tagGroupMembers.sortOrder,
+      })
+      .from(tagGroupMembers)
+      .orderBy(asc(tagGroupMembers.sortOrder)),
   ])
 
   const membersByGroup = new Map<number, typeof allMembers>()

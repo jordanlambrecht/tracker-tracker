@@ -24,9 +24,34 @@
       },
       "complexity": {
         "noImportantStyles": "off"
+      },
+      "style": {
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "paths": {
+              "echarts-gl": "echarts-gl registers WebGL renderers at module scope. Only VolumeSurface3D/TorrentAgeScatter3D may import it, and both are reached exclusively through dynamic(..., { ssr: false }). Importing it anywhere else pulls WebGL into that bundle — including the server render path. To reuse a 3D chart's helpers, move the shared code into chart-transforms.ts instead, which imports only formatters and types."
+            }
+          }
+        }
       }
     }
   },
+  "overrides": [
+    {
+      "includes": [
+        "src/components/charts/VolumeSurface3D.tsx",
+        "src/components/charts/TorrentAgeScatter3D.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": "off"
+          }
+        }
+      }
+    }
+  ],
   "formatter": {
     "enabled": false
   },
