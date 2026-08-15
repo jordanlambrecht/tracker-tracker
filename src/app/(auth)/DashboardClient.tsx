@@ -15,6 +15,7 @@ import { EcosystemStatsSection } from "@/components/dashboard/EcosystemStatsSect
 import { FleetDashboard } from "@/components/dashboard/FleetDashboard"
 import { LoginTimers } from "@/components/dashboard/LoginTimers"
 import { PollAllButton } from "@/components/dashboard/PollAllButton"
+import { RetentionPrompt } from "@/components/dashboard/RetentionPromptDialog"
 import { TagGroupsSection } from "@/components/dashboard/TagGroupsSection"
 import { TodayAtAGlance } from "@/components/dashboard/TodayAtAGlance"
 import { TodayAtAGlanceSkeleton } from "@/components/dashboard/TodayAtAGlanceSkeleton"
@@ -130,6 +131,10 @@ export function DashboardClient({
 
   return (
     <div className="flex flex-col gap-10 max-w-6xl mx-auto pb-12">
+      {/* Asks once, on first login, how long to keep snapshot history. Renders
+          nothing after it has been answered. */}
+      <RetentionPrompt />
+
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <H1>Dashboard</H1>

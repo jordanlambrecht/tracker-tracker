@@ -37,6 +37,15 @@ export const appSettings = pgTable("app_settings", {
   failedLoginAttempts: integer("failed_login_attempts").default(0).notNull(),
   lockedUntil: timestamp("locked_until"),
   snapshotRetentionDays: integer("snapshot_retention_days"),
+  /**
+   * When the user was asked to choose a retention policy. NULL means never asked.
+   *
+   * A separate column is required because `snapshotRetentionDays` cannot carry
+   * this: NULL there means "keep forever", which is a legitimate CHOICE as well
+   * as the never-configured default. Without this marker the two are
+   * indistinguishable and the prompt would either never fire or fire forever.
+   */
+  retentionPromptedAt: timestamp("retention_prompted_at"),
   trackerPollIntervalMinutes: integer("tracker_poll_interval_minutes").default(60).notNull(),
   proxyEnabled: boolean("proxy_enabled").default(false).notNull(),
   proxyType: varchar("proxy_type", { length: 10 }).default("socks5").notNull(),
