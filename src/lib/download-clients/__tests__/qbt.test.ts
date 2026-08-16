@@ -736,6 +736,29 @@ describe("API-key auth", () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1)
   })
 
+  it("does not latch when the 403 body cannot be read", async () => {
+    // Without the body there is no way to tell a ban from a rejected key.
+    // Guessing "rejected" would disable a valid key until the user intervenes;
+    // guessing "ban" costs one more request. So neither — try again.
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      statusText: "Forbidden",
+      text: async () => {
+        throw new Error("body stream already read")
+      },
+    } as unknown as Response)
+
+    await expect(getTorrents("http://localhost:8080", auth)).rejects.toThrow(
+      "qBittorrent API error: 403 Forbidden"
+    )
+
+    fetchSpy.mockClear()
+    fetchSpy.mockResolvedValueOnce({ ok: true, json: async () => [] } as Response)
+    await expect(getTorrents("http://localhost:8080", auth)).resolves.toEqual([])
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
   it("leaves a session-mode 403 as a recoverable session expiry", async () => {
     vi.spyOn(global, "fetch").mockResolvedValueOnce(rejected(403))
 

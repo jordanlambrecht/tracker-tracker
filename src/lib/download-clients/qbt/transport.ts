@@ -372,7 +372,15 @@ async function qbtFetch(
   // self-healing condition into a permanent one.
   if (blockKey && (response.status === 401 || response.status === 403)) {
     if (response.status === 403) {
-      const banBody = await response.text().catch(() => "")
+      const banBody = await response.text().catch(() => null)
+      if (banBody === null) {
+        // The body is what tells a ban apart from a rejected key, so without
+        // it there is nothing to decide on. Latching the wrong way disables a
+        // valid key until the user intervenes, while not latching costs one
+        // more request — so defer to the next attempt, which will normally
+        // have a readable body and will latch then.
+        throw new Error(`qBittorrent API error: ${response.status} ${response.statusText}`)
+      }
       if (/banned/i.test(banBody)) throw new Error(IP_BANNED)
     }
     authBlocks.set(blockKey, API_KEY_REJECTED)
