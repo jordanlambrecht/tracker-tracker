@@ -31,6 +31,7 @@ vi.mock("@/lib/db/schema", () => ({
 }))
 
 import {
+  BACKUP_CLIENT_COLUMNS,
   CURRENT_BACKUP_VERSION,
   decryptBackupPayload,
   encryptBackupPayload,
@@ -457,5 +458,30 @@ describe("generateBackupPayload sensitive field exclusion", () => {
     expect(serialized).not.toContain("argon2id")
     // Scheduler key must not leak in any form
     expect(serialized).not.toContain("base64-encrypted-scheduler-key-value")
+  })
+})
+
+describe("BACKUP_CLIENT_COLUMNS", () => {
+  // A credential column missing from the backup projection is not a type
+  // error — the payload type is inferred from whatever the projection happens
+  // to contain. It surfaces much later, as a restore that quietly comes back
+  // without that credential. So assert the columns by name.
+  it("carries every credential column a client can authenticate with", () => {
+    const keys = Object.keys(BACKUP_CLIENT_COLUMNS)
+    for (const key of [
+      "authMethod",
+      "encryptedUsername",
+      "encryptedPassword",
+      "encryptedApiKey",
+    ]) {
+      expect(keys).toContain(key)
+    }
+  })
+
+  it("excludes the cached-torrent blobs and transient scheduler state", () => {
+    const keys = Object.keys(BACKUP_CLIENT_COLUMNS)
+    for (const key of ["cachedTorrents", "cachedTorrentsAt", "lastPolledAt", "lastError"]) {
+      expect(keys).not.toContain(key)
+    }
   })
 })

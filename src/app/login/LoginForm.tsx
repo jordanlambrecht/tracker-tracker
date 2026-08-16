@@ -137,7 +137,7 @@ export function LoginForm({ hasUsername }: { hasUsername: boolean }) {
               )}
 
               <Input
-                label="Master Password"
+                label="Password"
                 type="password"
                 autoComplete="current-password"
                 placeholder="Enter your password"

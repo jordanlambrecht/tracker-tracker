@@ -10,7 +10,7 @@ import {
   getTorrents,
   getTransferInfo,
   login,
-  type SidCookie,
+  type QbtAuth,
 } from "../qbt/transport"
 import type { QbtTorrent } from "../qbt/types"
 
@@ -391,7 +391,7 @@ describe("login auth-failure circuit breaker", () => {
 // ---------------------------------------------------------------------------
 
 describe("getTorrents", () => {
-  const sid: SidCookie = { name: "SID", value: "mysid" }
+  const sid: QbtAuth = { mode: "session", sid: { name: "SID", value: "mysid" } }
 
   beforeEach(() => {
     vi.restoreAllMocks()
@@ -448,7 +448,10 @@ describe("getTorrents", () => {
       json: async () => [],
     } as Response)
 
-    await getTorrents("http://localhost:8080", { name: "SID", value: "testSID99" })
+    await getTorrents("http://localhost:8080", {
+      mode: "session",
+      sid: { name: "SID", value: "testSID99" },
+    })
 
     const init = fetchSpy.mock.calls[0][1] as RequestInit
     expect((init.headers as Record<string, string>).Cookie).toBe("SID=testSID99")
@@ -460,7 +463,10 @@ describe("getTorrents", () => {
       json: async () => [],
     } as Response)
 
-    await getTorrents("http://localhost:8080", { name: "QBT_SID_8080", value: "testSID99" })
+    await getTorrents("http://localhost:8080", {
+      mode: "session",
+      sid: { name: "QBT_SID_8080", value: "testSID99" },
+    })
 
     const init = fetchSpy.mock.calls[0][1] as RequestInit
     expect((init.headers as Record<string, string>).Cookie).toBe("QBT_SID_8080=testSID99")
@@ -547,7 +553,7 @@ describe("getTorrents", () => {
 // ---------------------------------------------------------------------------
 
 describe("getTransferInfo", () => {
-  const sid: SidCookie = { name: "SID", value: "mysid" }
+  const sid: QbtAuth = { mode: "session", sid: { name: "SID", value: "mysid" } }
 
   beforeEach(() => {
     vi.restoreAllMocks()
@@ -586,7 +592,10 @@ describe("getTransferInfo", () => {
       json: async () => ({ up_info_speed: 0, dl_info_speed: 0, up_info_data: 0, dl_info_data: 0 }),
     } as Response)
 
-    await getTransferInfo("http://localhost:8080", { name: "SID", value: "mySID" })
+    await getTransferInfo("http://localhost:8080", {
+      mode: "session",
+      sid: { name: "SID", value: "mySID" },
+    })
 
     const init = fetchSpy.mock.calls[0][1] as RequestInit
     expect((init.headers as Record<string, string>).Cookie).toBe("SID=mySID")
@@ -598,7 +607,10 @@ describe("getTransferInfo", () => {
       json: async () => ({ up_info_speed: 0, dl_info_speed: 0, up_info_data: 0, dl_info_data: 0 }),
     } as Response)
 
-    await getTransferInfo("http://localhost:8080", { name: "QBT_SID_8091", value: "mySID" })
+    await getTransferInfo("http://localhost:8080", {
+      mode: "session",
+      sid: { name: "QBT_SID_8091", value: "mySID" },
+    })
 
     const init = fetchSpy.mock.calls[0][1] as RequestInit
     expect((init.headers as Record<string, string>).Cookie).toBe("QBT_SID_8091=mySID")
@@ -614,6 +626,148 @@ describe("getTransferInfo", () => {
     await expect(getTransferInfo("http://localhost:8080", sid)).rejects.toThrow(
       "qBittorrent API error: 401 Unauthorized"
     )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// API-key auth (qBittorrent >= 5.2.0)
+//
+// A Bearer key never passes through login(), so it gets none of the session
+// machinery — and none of login()'s circuit breaker either, which is why the
+// breaker is duplicated in qbtFetch. These tests pin both halves: the header
+// that goes out, and the fact that a rejected key is asked about exactly once.
+// ---------------------------------------------------------------------------
+
+describe("API-key auth", () => {
+  const auth: QbtAuth = { mode: "apikey", key: "qbt_testkey" }
+
+  // A 403 is inspected for a ban notice before it is treated as a rejected
+  // key, so the fixture has to carry a body like a real Response does.
+  const rejected = (status: number) =>
+    ({
+      ok: false,
+      status,
+      statusText: status === 401 ? "Unauthorized" : "Forbidden",
+      text: async () => "Forbidden",
+    }) as Response
+
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    clearAllSessions()
+  })
+
+  it("sends the key as a Bearer token and no Cookie header", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => [],
+    } as Response)
+
+    await getTorrents("http://localhost:8080", auth)
+
+    const headers = (fetchSpy.mock.calls[0][1] as RequestInit).headers as Record<string, string>
+    expect(headers.Authorization).toBe("Bearer qbt_testkey")
+    expect(headers.Cookie).toBeUndefined()
+  })
+
+  it.each([401, 403])("reports a rejected key on %i rather than a session expiry", async (code) => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(rejected(code))
+
+    await expect(getTorrents("http://localhost:8080", auth)).rejects.toThrow(
+      /rejected the API key/
+    )
+  })
+
+  it("asks about a rejected key exactly once, then replays the rejection", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(rejected(403))
+
+    // Ten heartbeat cycles against a client saved with a stale key.
+    for (let i = 0; i < 10; i++) {
+      await expect(getTorrents("http://localhost:8080", auth)).rejects.toThrow(
+        /rejected the API key/
+      )
+    }
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it("does not block a different key on the same host", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce(rejected(403))
+    await expect(getTorrents("http://localhost:8080", auth)).rejects.toThrow()
+
+    // The user pastes a corrected key — a new fingerprint, so not blocked.
+    fetchSpy.mockClear()
+    fetchSpy.mockResolvedValueOnce({ ok: true, json: async () => [] } as Response)
+
+    await expect(
+      getTorrents("http://localhost:8080", { mode: "apikey", key: "qbt_corrected" })
+    ).resolves.toEqual([])
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it("clearAuthBlocks releases an API-key block so Test Connection reaches the network", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce(rejected(403))
+    await expect(getTorrents("http://localhost:8080", auth)).rejects.toThrow()
+
+    clearAuthBlocks("http://localhost:8080")
+
+    fetchSpy.mockClear()
+    fetchSpy.mockResolvedValueOnce({ ok: true, json: async () => [] } as Response)
+    await expect(getTorrents("http://localhost:8080", auth)).resolves.toEqual([])
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it("does not latch an IP ban, so it clears when the ban expires", async () => {
+    // A ban is reachable without this key being wrong — a sibling
+    // password-mode client on the same host can trip qBittorrent's counter.
+    // Latching would outlive the ban and make a self-healing state permanent.
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      statusText: "Forbidden",
+      text: async () => "Your IP address has been banned after too many failed authentication attempts.",
+    } as Response)
+
+    await expect(getTorrents("http://localhost:8080", auth)).rejects.toThrow(/banned this IP/)
+
+    // The ban lapses; the very next poll must reach the network again.
+    fetchSpy.mockClear()
+    fetchSpy.mockResolvedValueOnce({ ok: true, json: async () => [] } as Response)
+    await expect(getTorrents("http://localhost:8080", auth)).resolves.toEqual([])
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it("does not latch when the 403 body cannot be read", async () => {
+    // Without the body there is no way to tell a ban from a rejected key.
+    // Guessing "rejected" would disable a valid key until the user intervenes;
+    // guessing "ban" costs one more request. So neither — try again.
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      statusText: "Forbidden",
+      text: async () => {
+        throw new Error("body stream already read")
+      },
+    } as unknown as Response)
+
+    await expect(getTorrents("http://localhost:8080", auth)).rejects.toThrow(
+      "qBittorrent API error: 403 Forbidden"
+    )
+
+    fetchSpy.mockClear()
+    fetchSpy.mockResolvedValueOnce({ ok: true, json: async () => [] } as Response)
+    await expect(getTorrents("http://localhost:8080", auth)).resolves.toEqual([])
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it("leaves a session-mode 403 as a recoverable session expiry", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(rejected(403))
+
+    await expect(
+      getTorrents("http://localhost:8080", {
+        mode: "session",
+        sid: { name: "SID", value: "mysid" },
+      })
+    ).rejects.toThrow("Session expired")
   })
 })
 

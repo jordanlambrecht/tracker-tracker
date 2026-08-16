@@ -63,6 +63,10 @@ export async function POST(request: Request) {
       await tx.update(downloadClients).set({
         encryptedUsername: "",
         encryptedPassword: "",
+        encryptedApiKey: "",
+        // Back to the mode whose credentials the UI prompts for after a
+        // lockdown; leaving "apikey" here would describe a key that is gone.
+        authMethod: "password",
         enabled: false,
         lastError: "Emergency lockdown: credentials revoked",
         updatedAt: now,

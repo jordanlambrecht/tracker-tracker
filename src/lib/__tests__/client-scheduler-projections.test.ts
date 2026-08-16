@@ -42,6 +42,7 @@ vi.mock("@/lib/uptime", () => ({
 }))
 
 import { DEEP_POLL_COLUMNS, HEARTBEAT_COLUMNS } from "@/lib/download-client-scheduler"
+import { CLIENT_CONNECTION_COLUMNS } from "@/lib/download-clients/credentials"
 
 type HeartbeatRequiredFields = {
   id: number
@@ -50,8 +51,10 @@ type HeartbeatRequiredFields = {
   host: string
   port: number
   useSsl: boolean
+  authMethod: string
   encryptedUsername: string
   encryptedPassword: string
+  encryptedApiKey: string
 }
 
 type DeepPollRequiredFields = HeartbeatRequiredFields & {
@@ -70,8 +73,10 @@ describe("client-scheduler column projections", () => {
       "host",
       "port",
       "useSsl",
+      "authMethod",
       "encryptedUsername",
       "encryptedPassword",
+      "encryptedApiKey",
     ]
     for (const key of required) {
       expect(keys).toContain(key)
@@ -87,8 +92,10 @@ describe("client-scheduler column projections", () => {
       "host",
       "port",
       "useSsl",
+      "authMethod",
       "encryptedUsername",
       "encryptedPassword",
+      "encryptedApiKey",
       "crossSeedTags",
       "pollIntervalSeconds",
       "lastPolledAt",
@@ -104,5 +111,25 @@ describe("client-scheduler column projections", () => {
 
   it("DEEP_POLL_COLUMNS does NOT include cachedTorrents", () => {
     expect(Object.keys(DEEP_POLL_COLUMNS)).not.toContain("cachedTorrents")
+  })
+
+  // CLIENT_CONNECTION_COLUMNS is what coordinator and fetch spread into their
+  // own selects, so a column missing here reaches createAdapterForClient as
+  // undefined — a runtime failure the type checker cannot see, because the
+  // projection's inferred type is whatever it happens to contain.
+  it("CLIENT_CONNECTION_COLUMNS covers every column decryptClientCredentials reads", () => {
+    const keys = Object.keys(CLIENT_CONNECTION_COLUMNS)
+    for (const key of [
+      "name",
+      "host",
+      "port",
+      "useSsl",
+      "authMethod",
+      "encryptedUsername",
+      "encryptedPassword",
+      "encryptedApiKey",
+    ]) {
+      expect(keys).toContain(key)
+    }
   })
 })

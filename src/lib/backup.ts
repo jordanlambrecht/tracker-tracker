@@ -81,6 +81,31 @@ function serializeRow(row: Record<string, unknown>): Record<string, unknown> {
   return out
 }
 
+/**
+ * Columns a backup carries for each download client. Named rather than inline
+ * so it can be asserted on: a credential column missing here is not a type
+ * error, it is a backup that silently restores without that credential.
+ */
+export const BACKUP_CLIENT_COLUMNS = {
+  id: downloadClients.id,
+  name: downloadClients.name,
+  type: downloadClients.type,
+  enabled: downloadClients.enabled,
+  host: downloadClients.host,
+  port: downloadClients.port,
+  useSsl: downloadClients.useSsl,
+  authMethod: downloadClients.authMethod,
+  encryptedUsername: downloadClients.encryptedUsername,
+  encryptedPassword: downloadClients.encryptedPassword,
+  encryptedApiKey: downloadClients.encryptedApiKey,
+  pollIntervalSeconds: downloadClients.pollIntervalSeconds,
+  isDefault: downloadClients.isDefault,
+  crossSeedTags: downloadClients.crossSeedTags,
+  errorSince: downloadClients.errorSince,
+  createdAt: downloadClients.createdAt,
+  updatedAt: downloadClients.updatedAt,
+} as const
+
 export async function generateBackupPayload(): Promise<BackupPayload> {
   const now = new Date().toISOString()
 
@@ -102,26 +127,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     db.select().from(trackers).orderBy(trackers.id),
     db.select().from(trackerSnapshots).orderBy(trackerSnapshots.id),
     db.select().from(trackerRoles).orderBy(trackerRoles.id),
-    db
-      .select({
-        id: downloadClients.id,
-        name: downloadClients.name,
-        type: downloadClients.type,
-        enabled: downloadClients.enabled,
-        host: downloadClients.host,
-        port: downloadClients.port,
-        useSsl: downloadClients.useSsl,
-        encryptedUsername: downloadClients.encryptedUsername,
-        encryptedPassword: downloadClients.encryptedPassword,
-        pollIntervalSeconds: downloadClients.pollIntervalSeconds,
-        isDefault: downloadClients.isDefault,
-        crossSeedTags: downloadClients.crossSeedTags,
-        errorSince: downloadClients.errorSince,
-        createdAt: downloadClients.createdAt,
-        updatedAt: downloadClients.updatedAt,
-      })
-      .from(downloadClients)
-      .orderBy(downloadClients.id),
+    db.select(BACKUP_CLIENT_COLUMNS).from(downloadClients).orderBy(downloadClients.id),
     db.select().from(tagGroups).orderBy(tagGroups.id),
     db.select().from(tagGroupMembers).orderBy(tagGroupMembers.id),
     db.select().from(clientSnapshots).orderBy(clientSnapshots.id),
@@ -438,6 +444,13 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
     assertString(c.encryptedUsername, `${prefix}.encryptedUsername`)
     // Empty credentials are valid — happens after a restore clears encrypted fields
     assertString(c.encryptedPassword, `${prefix}.encryptedPassword`)
+
+    // Both absent in backups written before API-key auth existed, so these are
+    // presence-guarded — but when present they are read as strings and must be.
+    if (typeof c.authMethod !== "undefined") assertString(c.authMethod, `${prefix}.authMethod`)
+    if (typeof c.encryptedApiKey !== "undefined") {
+      assertString(c.encryptedApiKey, `${prefix}.encryptedApiKey`)
+    }
   }
 
   // tagGroupMember entries

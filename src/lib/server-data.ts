@@ -19,7 +19,7 @@
 //     failedLoginAttempts, lockedUntil, encryptedProxyPassword,
 //     encryptedBackupPassword, encryptedSchedulerKey
 //   trackers: encryptedApiToken
-//   downloadClients: encryptedUsername, encryptedPassword
+//   downloadClients: encryptedUsername, encryptedPassword, encryptedApiKey
 //   notificationTargets: encryptedConfig
 
 import "server-only"
@@ -153,10 +153,15 @@ export const clientColumns = {
   host: downloadClients.host,
   port: downloadClients.port,
   useSsl: downloadClients.useSsl,
+  authMethod: downloadClients.authMethod,
+  // Whether a credential has ever been stored, per auth mode. Deliberately
+  // tests the ciphertext, not the secret: a blank username/password is a valid
+  // qBittorrent localhost-bypass setup and still counts as configured.
   hasCredentials:
-    sql<boolean>`(${downloadClients.encryptedUsername} IS NOT NULL AND ${downloadClients.encryptedPassword} IS NOT NULL)`.as(
-      "has_credentials"
-    ),
+    sql<boolean>`(CASE WHEN ${downloadClients.authMethod} = 'apikey'
+        THEN ${downloadClients.encryptedApiKey} <> ''
+        ELSE ${downloadClients.encryptedUsername} IS NOT NULL AND ${downloadClients.encryptedPassword} IS NOT NULL
+      END)`.as("has_credentials"),
   pollIntervalSeconds: downloadClients.pollIntervalSeconds,
   isDefault: downloadClients.isDefault,
   crossSeedTags: downloadClients.crossSeedTags,

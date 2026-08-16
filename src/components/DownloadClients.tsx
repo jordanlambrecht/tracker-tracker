@@ -23,6 +23,9 @@ import {
 
 import { useActionStatus } from "@/hooks/useActionStatus"
 import { useCrudCard } from "@/hooks/useCrudCard"
+// Imported from the module rather than the barrel: the barrel pulls in
+// credentials.ts, which is "server-only".
+import type { AuthMethod } from "@/lib/download-clients/types"
 import { formatTimeAgo } from "@/lib/formatters"
 import { PORT_MAX, PORT_MIN } from "@/lib/limits"
 import { clientQueryOptions } from "@/lib/query-options"
@@ -41,6 +44,99 @@ const BLANK_CREDENTIALS_HINT =
   'Leave both blank if qBittorrent has "Bypass authentication for clients on localhost" enabled. ' +
   "qBittorrent must see the connection as coming from loopback, so this does not apply through a " +
   "container, port forward, or reverse proxy."
+
+const API_KEY_HINT =
+  "Generate one in qBittorrent under Options → Web UI → API keys. Requires qBittorrent 5.2.0 " +
+  "or newer."
+
+const AUTH_METHOD_OPTIONS: { value: AuthMethod; label: string }[] = [
+  { value: "password", label: "Username & Password" },
+  { value: "apikey", label: "API Key" },
+]
+
+/**
+ * Auth-method picker plus whichever credential fields that method needs.
+ * Shared by the add form and the per-client credential panel so the two cannot
+ * drift — they already disagree on state names, which is enough difference.
+ */
+function CredentialFields({
+  authMethod,
+  onAuthMethodChange,
+  username,
+  onUsernameChange,
+  password,
+  onPasswordChange,
+  apiKey,
+  onApiKeyChange,
+}: {
+  authMethod: AuthMethod
+  onAuthMethodChange: (value: AuthMethod) => void
+  username: string
+  onUsernameChange: (value: string) => void
+  password: string
+  onPasswordChange: (value: string) => void
+  apiKey: string
+  onApiKeyChange: (value: string) => void
+}) {
+  return (
+    <>
+      <div className="w-full sm:w-64">
+        <Select
+          label="Auth Method"
+          value={authMethod}
+          onChange={(v) => onAuthMethodChange(v as AuthMethod)}
+          ariaLabel="Authentication method"
+          size="md"
+          options={AUTH_METHOD_OPTIONS}
+        />
+      </div>
+      {authMethod === "password" ? (
+        <>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <Input
+                label="Username"
+                value={username}
+                onChange={(e) => onUsernameChange(e.target.value)}
+                placeholder="admin"
+                name="client-username"
+                autoComplete="off"
+                data-1p-ignore
+              />
+            </div>
+            <div className="flex-1">
+              <Input
+                type="password"
+                label="Password"
+                value={password}
+                onChange={(e) => onPasswordChange(e.target.value)}
+                placeholder="••••••••"
+                name="client-password"
+                autoComplete="off"
+                data-1p-ignore
+              />
+            </div>
+          </div>
+          <Subtext>{BLANK_CREDENTIALS_HINT}</Subtext>
+        </>
+      ) : (
+        <>
+          <Input
+            type="password"
+            label="API Key"
+            value={apiKey}
+            onChange={(e) => onApiKeyChange(e.target.value)}
+            placeholder="••••••••"
+            name="client-api-key"
+            autoComplete="off"
+            data-1p-ignore
+          />
+          <Subtext>{API_KEY_HINT}</Subtext>
+        </>
+      )}
+    </>
+  )
+}
 
 const CLIENT_TYPE_OPTIONS: { value: ClientType; label: string; disabled?: boolean }[] = [
   { value: "qbittorrent", label: "qBittorrent" },
@@ -111,9 +207,17 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
 
   // Credential change state — show inputs for new clients (no creds yet) or after "Change"
   const [changingCredentials, setChangingCredentials] = useState(!client.hasCredentials)
+  const [authMethod, setAuthMethod] = useState<AuthMethod>(
+    client.authMethod === "apikey" ? "apikey" : "password"
+  )
   const [newUsername, setNewUsername] = useState("")
   const [newPassword, setNewPassword] = useState("")
+  const [newApiKey, setNewApiKey] = useState("")
   const [credError, setCredError] = useState<string | null>(null)
+
+  // A blank username/password is a valid localhost-bypass setup, so only the
+  // API-key mode has anything to require.
+  const canSaveCredentials = authMethod === "password" || newApiKey.trim().length > 0
 
   const { data: uptimeData = null } = useQuery({
     queryKey: ["client-uptime", client.id],
@@ -138,22 +242,30 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
     })
 
   async function handleSaveCredentials() {
+    if (!canSaveCredentials) return
     setCredError(null)
     try {
+      // The mode always travels with its secret — the route rejects one
+      // without the other so a switch can never re-label an old credential.
+      const body =
+        authMethod === "apikey"
+          ? { authMethod, apiKey: newApiKey }
+          : { authMethod, username: newUsername, password: newPassword }
       const res = await fetch(`/api/clients/${client.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: newUsername, password: newPassword }),
+        body: JSON.stringify(body),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         setCredError(data.error || "Failed to save credentials")
         return
       }
-      onSaved(client.id, { ...client, hasCredentials: true })
+      onSaved(client.id, { ...client, authMethod, hasCredentials: true })
       setChangingCredentials(false)
       setNewUsername("")
       setNewPassword("")
+      setNewApiKey("")
     } catch {
       setCredError("Network error — could not save credentials")
     }
@@ -279,37 +391,22 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
         <H2 className="uppercase tracking-wider">Credentials</H2>
         {changingCredentials ? (
           <div className="flex flex-col gap-3">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <Input
-                  label="Username"
-                  value={newUsername}
-                  onChange={(e) => setNewUsername(e.target.value)}
-                  placeholder="admin"
-                  name="client-username"
-                  autoComplete="off"
-                  data-1p-ignore
-                />
-              </div>
-              <div className="flex-1">
-                <Input
-                  type="password"
-                  label="Password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="••••••••"
-                  name="client-password"
-                  autoComplete="off"
-                  data-1p-ignore
-                />
-              </div>
-            </div>
-            <Subtext>{BLANK_CREDENTIALS_HINT}</Subtext>
+            <CredentialFields
+              authMethod={authMethod}
+              onAuthMethodChange={setAuthMethod}
+              username={newUsername}
+              onUsernameChange={setNewUsername}
+              password={newPassword}
+              onPasswordChange={setNewPassword}
+              apiKey={newApiKey}
+              onApiKeyChange={setNewApiKey}
+            />
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
                 variant="primary"
                 onClick={handleSaveCredentials}
+                disabled={!canSaveCredentials}
                 text="Save Credentials"
               />
               {client.hasCredentials && (
@@ -317,8 +414,10 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
                   type="button"
                   onClick={() => {
                     setChangingCredentials(false)
+                    setAuthMethod(client.authMethod === "apikey" ? "apikey" : "password")
                     setNewUsername("")
                     setNewPassword("")
+                    setNewApiKey("")
                     setCredError(null)
                   }}
                   className="ghost-link"
@@ -507,20 +606,29 @@ function AddClientForm({
   const [name, setName] = useState("New Client")
   const [host, setHost] = useState("localhost")
   const [port, setPort] = useState(8080)
+  const [authMethod, setAuthMethod] = useState<AuthMethod>("password")
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
+  const [apiKey, setApiKey] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  // Credentials are intentionally not required — qBittorrent accepts blank
-  // ones when localhost auth bypass is on. Mirrors POST /api/clients.
-  const canSubmit = name.trim() && host.trim()
+  // Username/password are intentionally not required — qBittorrent accepts
+  // blank ones when localhost auth bypass is on. An API key has no such
+  // fallback, so it is the one credential the form insists on. Mirrors
+  // POST /api/clients.
+  const canSubmit =
+    name.trim() && host.trim() && (authMethod === "password" || apiKey.trim().length > 0)
 
   async function handleSubmit() {
     if (!canSubmit) return
     setSaving(true)
     setError(null)
     try {
+      const credentials =
+        authMethod === "apikey"
+          ? { authMethod, apiKey: apiKey.trim() }
+          : { authMethod, username: username.trim(), password }
       const res = await fetch("/api/clients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -528,8 +636,7 @@ function AddClientForm({
           name: name.trim(),
           host: host.trim(),
           port,
-          username: username.trim(),
-          password,
+          ...credentials,
           isDefault: isFirst,
         }),
       })
@@ -570,32 +677,16 @@ function AddClientForm({
           <NumberInput label="Port" value={port} onChange={setPort} min={PORT_MIN} max={PORT_MAX} />
         </div>
       </div>
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <Input
-            label="Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="admin"
-            name="client-username"
-            autoComplete="off"
-            data-1p-ignore
-          />
-        </div>
-        <div className="flex-1">
-          <Input
-            type="password"
-            label="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            name="client-password"
-            autoComplete="off"
-            data-1p-ignore
-          />
-        </div>
-      </div>
-      <Subtext>{BLANK_CREDENTIALS_HINT}</Subtext>
+      <CredentialFields
+        authMethod={authMethod}
+        onAuthMethodChange={setAuthMethod}
+        username={username}
+        onUsernameChange={setUsername}
+        password={password}
+        onPasswordChange={setPassword}
+        apiKey={apiKey}
+        onApiKeyChange={setApiKey}
+      />
       <Notice message={error} />
       <div className="flex items-center gap-3">
         <Button
