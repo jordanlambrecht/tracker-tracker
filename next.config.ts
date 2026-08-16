@@ -26,6 +26,14 @@ if (process.env.BASE_URL) {
 const nextConfig: NextConfig = {
   output: "standalone",
   serverExternalPackages: ["argon2"],
+  // next/dist/server/require-hook.js pulls @swc/helpers/esm/* at runtime, which
+  // static tracing cannot see — so standalone ships only the package's cjs/
+  // directory and the server dies on boot with MODULE_NOT_FOUND. Force the
+  // whole package in. The glob targets pnpm's store layout, where the copy that
+  // matters sits behind a symlink the tracer resolves but does not fully walk.
+  outputFileTracingIncludes: {
+    "/**": ["./node_modules/.pnpm/@swc+helpers@*/node_modules/@swc/helpers/**"],
+  },
   env: {
     NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version ?? "0.0.0",
   },
