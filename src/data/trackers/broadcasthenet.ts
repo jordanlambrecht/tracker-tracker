@@ -22,8 +22,8 @@ export const broadcasthenet: TrackerRegistryEntry = {
   language: "English",
 
   // ── Visual ──────────────────────────────────────────────────────────
-  color: "#ff9800",
-  logo: "",
+  color: "#0a86b5",
+  logo: "/tracker-logos/broadcasthenet_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "broadcas-the-net",
