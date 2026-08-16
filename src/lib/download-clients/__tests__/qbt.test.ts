@@ -11,7 +11,6 @@ import {
   getTransferInfo,
   login,
   type QbtAuth,
-  type SidCookie,
 } from "../qbt/transport"
 import type { QbtTorrent } from "../qbt/types"
 
@@ -642,11 +641,14 @@ describe("getTransferInfo", () => {
 describe("API-key auth", () => {
   const auth: QbtAuth = { mode: "apikey", key: "qbt_testkey" }
 
+  // A 403 is inspected for a ban notice before it is treated as a rejected
+  // key, so the fixture has to carry a body like a real Response does.
   const rejected = (status: number) =>
     ({
       ok: false,
       status,
       statusText: status === 401 ? "Unauthorized" : "Forbidden",
+      text: async () => "Forbidden",
     }) as Response
 
   beforeEach(() => {
@@ -708,6 +710,26 @@ describe("API-key auth", () => {
 
     clearAuthBlocks("http://localhost:8080")
 
+    fetchSpy.mockClear()
+    fetchSpy.mockResolvedValueOnce({ ok: true, json: async () => [] } as Response)
+    await expect(getTorrents("http://localhost:8080", auth)).resolves.toEqual([])
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it("does not latch an IP ban, so it clears when the ban expires", async () => {
+    // A ban is reachable without this key being wrong — a sibling
+    // password-mode client on the same host can trip qBittorrent's counter.
+    // Latching would outlive the ban and make a self-healing state permanent.
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      statusText: "Forbidden",
+      text: async () => "Your IP address has been banned after too many failed authentication attempts.",
+    } as Response)
+
+    await expect(getTorrents("http://localhost:8080", auth)).rejects.toThrow(/banned this IP/)
+
+    // The ban lapses; the very next poll must reach the network again.
     fetchSpy.mockClear()
     fetchSpy.mockResolvedValueOnce({ ok: true, json: async () => [] } as Response)
     await expect(getTorrents("http://localhost:8080", auth)).resolves.toEqual([])

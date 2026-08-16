@@ -34,6 +34,9 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   if (/rejected the username and password/i.test(raw)) {
     return "Credentials rejected by qBittorrent — check the username and password"
   }
+  if (/rejected the API key/i.test(raw)) {
+    return "API key rejected by qBittorrent — check it has not been rotated, and that the server is 5.2.0 or newer"
+  }
   if (/banned this IP/i.test(raw)) {
     return "Banned by qBittorrent after too many failed logins — it will clear on its own"
   }

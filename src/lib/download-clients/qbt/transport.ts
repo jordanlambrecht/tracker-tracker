@@ -156,9 +156,11 @@ function blockKeyFor(baseUrl: string, username: string, password: string): strin
 
 /**
  * Block key for an API key. Built through blockKeyFor so it lands in the same
- * per-baseUrl namespace clearAuthBlocks sweeps; the literal "apikey" in the
- * username slot keeps a password that happens to equal someone's key from
- * sharing a block with it.
+ * per-baseUrl namespace clearAuthBlocks sweeps, with the literal "apikey" in
+ * the username slot keeping keys out of the fingerprint space ordinary
+ * credentials occupy. (A client whose username is exactly "apikey" and whose
+ * password is exactly the key would collide — harmless, since both would then
+ * carry the same block and the same rejection.)
  */
 function apiKeyBlockKeyFor(baseUrl: string, key: string): string {
   return blockKeyFor(baseUrl, "apikey", key)
@@ -359,9 +361,20 @@ async function qbtFetch(
   // A rejected key is definitive — unlike a session cookie there is nothing to
   // refresh, so record it and stop asking. Editing the key changes the block
   // key, and Test Connection clears the whole baseUrl, so the user is never
-  // stuck. 401 and 403 are both treated as a rejection because qBittorrent has
-  // used each for unauthenticated WebAPI requests across 5.x.
+  // stuck. Both 401 and 403 count, because qBittorrent has used each for an
+  // unauthenticated WebAPI request across 5.x.
+  //
+  // An IP ban is the one 403 that must NOT latch, exactly as on the password
+  // path: the ban expires on its own, requests made during it are refused
+  // before the credential is even looked at, and a ban is reachable without
+  // this key being wrong at all — a sibling password client on the same host
+  // can trip the counter. Latching it would outlive the ban and turn a
+  // self-healing condition into a permanent one.
   if (blockKey && (response.status === 401 || response.status === 403)) {
+    if (response.status === 403) {
+      const banBody = await response.text().catch(() => "")
+      if (/banned/i.test(banBody)) throw new Error(IP_BANNED)
+    }
     authBlocks.set(blockKey, API_KEY_REJECTED)
     throw new Error(API_KEY_REJECTED)
   }

@@ -146,9 +146,11 @@ export async function POST(request: Request) {
   }
 
   const key = decodeKey(auth)
-  // The unused mode's columns are written as encrypted empty strings rather
-  // than left blank, so every row is uniformly decryptable and a mode switch
-  // never leaves a real secret behind in the other mode's column.
+  // Two different conventions, because blank means different things:
+  // username/password are always ciphertext, since "" is a legitimate value
+  // there (the localhost bypass). encryptedApiKey uses a bare "" as a
+  // not-configured sentinel — so it must never be handed to decrypt()
+  // unguarded. Either way the unused mode's columns hold no real secret.
   const encryptedUsername = encrypt(resolvedUsername, key)
   const encryptedPassword = encrypt(resolvedPassword, key)
   const encryptedApiKey = resolvedApiKey ? encrypt(resolvedApiKey, key) : ""

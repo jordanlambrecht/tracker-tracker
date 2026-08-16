@@ -50,8 +50,10 @@ type HeartbeatRequiredFields = {
   host: string
   port: number
   useSsl: boolean
+  authMethod: string
   encryptedUsername: string
   encryptedPassword: string
+  encryptedApiKey: string
 }
 
 type DeepPollRequiredFields = HeartbeatRequiredFields & {
@@ -70,8 +72,10 @@ describe("client-scheduler column projections", () => {
       "host",
       "port",
       "useSsl",
+      "authMethod",
       "encryptedUsername",
       "encryptedPassword",
+      "encryptedApiKey",
     ]
     for (const key of required) {
       expect(keys).toContain(key)
@@ -87,8 +91,10 @@ describe("client-scheduler column projections", () => {
       "host",
       "port",
       "useSsl",
+      "authMethod",
       "encryptedUsername",
       "encryptedPassword",
+      "encryptedApiKey",
       "crossSeedTags",
       "pollIntervalSeconds",
       "lastPolledAt",

@@ -641,6 +641,17 @@ describe("PATCH /api/clients/[id] credential handling", () => {
     expect(updates?.authMethod).toBe("password")
   })
 
+  it("refuses to guess when both modes' secrets arrive with no authMethod", async () => {
+    const res = await PATCH(
+      patchBody({ apiKey: "qbt_k", username: "admin", password: "pw" }),
+      routeProps
+    )
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/authMethod is required/)
+    expect(updates).toBeNull()
+  })
+
   it("leaves credentials untouched when the patch is unrelated", async () => {
     const res = await PATCH(patchBody({ name: "Renamed" }), routeProps)
 

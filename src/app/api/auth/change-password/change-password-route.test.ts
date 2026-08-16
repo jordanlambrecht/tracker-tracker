@@ -60,6 +60,7 @@ vi.mock("@/lib/db/schema", () => ({
     name: "downloadClients.name",
     encryptedUsername: "downloadClients.encryptedUsername",
     encryptedPassword: "downloadClients.encryptedPassword",
+    encryptedApiKey: "downloadClients.encryptedApiKey",
   },
   notificationTargets: {
     id: "notificationTargets.id",
@@ -183,6 +184,7 @@ beforeEach(() => {
       name: "qbit",
       encryptedUsername: encrypt("admin", oldKey),
       encryptedPassword: encrypt("hunter2", oldKey),
+      encryptedApiKey: "",
     },
   ]
   notificationRows = [
@@ -360,6 +362,7 @@ describe("POST /api/auth/change-password — undecryptable fields", () => {
       name: "qbit",
       encryptedUsername: encrypt("admin", oldKey),
       encryptedPassword: encrypt("hunter2", strangerKey),
+      encryptedApiKey: "",
     }
 
     const response = await post()
@@ -477,6 +480,7 @@ describe("POST /api/auth/change-password — blank credentials", () => {
       name: "qbit",
       encryptedUsername: encrypt("", oldKey),
       encryptedPassword: encrypt("", oldKey),
+      encryptedApiKey: "",
     }
 
     const response = await post()
@@ -492,6 +496,42 @@ describe("POST /api/auth/change-password — blank credentials", () => {
     expect(decrypt(clientWrites[0].values.encryptedUsername as string, newKey)).toBe("")
     expect(decrypt(clientWrites[0].values.encryptedPassword as string, newKey)).toBe("")
     expect(settingsWrite().passwordHash).toBe(NEW_HASH)
+  })
+
+  it("re-keys a client that authenticates with an API key", async () => {
+    // Every secret has to move onto the new key together. A key left sealed
+    // under the old password fails its GCM auth tag on the next poll, and
+    // re-entering the new password cannot recover it — the plaintext is gone.
+    clientRows[0] = {
+      id: 10,
+      name: "qbit",
+      encryptedUsername: encrypt("", oldKey),
+      encryptedPassword: encrypt("", oldKey),
+      encryptedApiKey: encrypt("qbt_livekey", oldKey),
+    }
+
+    const response = await post()
+
+    expect(response.status).toBe(200)
+    const body = (await response.json()) as { warnings?: string[] }
+    expect(body.warnings).toBeUndefined()
+
+    const clientWrites = writesTo(downloadClients)
+    expect(clientWrites).toHaveLength(1)
+    expect(decrypt(clientWrites[0].values.encryptedApiKey as string, newKey)).toBe("qbt_livekey")
+    // And no longer readable under the retired key.
+    expect(() => decrypt(clientWrites[0].values.encryptedApiKey as string, oldKey)).toThrow()
+  })
+
+  it("leaves a password client's empty API key column empty rather than encrypting it", async () => {
+    // "" in that column means "no key", not "a key that is the empty string".
+    // Encrypting it would make hasCredentials and the scheduler's presence
+    // guard both read a password client as having a key.
+    const response = await post()
+
+    expect(response.status).toBe(200)
+    const clientWrites = writesTo(downloadClients)
+    expect(clientWrites[0].values.encryptedApiKey).toBe("")
   })
 
   it("re-keys a tracker whose API token is blank", async () => {

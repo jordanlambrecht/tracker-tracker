@@ -144,6 +144,13 @@ export async function PATCH(request: Request, props: RouteContext) {
     const authMethodErr = validateAuthMethod(body.authMethod)
     if (authMethodErr) return authMethodErr
     credentialMode = body.authMethod
+  } else if (hasApiKey && (hasUsername || hasPassword)) {
+    // Both modes' secrets with no mode named. Inferring one would silently
+    // discard the other, so make the caller say which they meant.
+    return NextResponse.json(
+      { error: "authMethod is required when sending both apiKey and username/password" },
+      { status: 400 }
+    )
   } else if (hasApiKey) {
     credentialMode = "apikey"
   } else if (hasUsername || hasPassword) {

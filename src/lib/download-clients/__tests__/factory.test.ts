@@ -13,9 +13,19 @@ vi.mock("@/lib/download-clients/qbt/transport", () => ({
 }))
 
 vi.mock("@/lib/download-clients/credentials", () => ({
-  decryptClientCredentials: vi.fn(() => ({ username: "admin", password: "pass" })),
+  decryptClientCredentials: vi.fn(() => ({
+    authMethod: "password",
+    username: "admin",
+    password: "pass",
+  })),
 }))
 
+import {
+  getTransferInfo,
+  login,
+  withSessionRetry,
+} from "@/lib/download-clients/qbt/transport"
+import { decryptClientCredentials } from "../credentials"
 import { createAdapterForClient } from "../factory"
 
 describe("createAdapterForClient", () => {
@@ -55,5 +65,45 @@ describe("createAdapterForClient", () => {
     expect(() => createAdapterForClient(client, Buffer.alloc(32))).toThrow(
       /unsupported client type/i
     )
+  })
+
+  it("carries an apikey row through to an adapter that never opens a session", async () => {
+    // The factory is where the auth mode crosses from the DB row into the
+    // adapter. Pinning it here means a row saved as apikey cannot silently
+    // come back as a password client.
+    vi.mocked(decryptClientCredentials).mockReturnValueOnce({
+      authMethod: "apikey",
+      apiKey: "qbt_x",
+    })
+
+    const adapter = createAdapterForClient(
+      {
+        name: "Test",
+        host: "localhost",
+        port: 8080,
+        useSsl: false,
+        authMethod: "apikey",
+        encryptedUsername: "",
+        encryptedPassword: "",
+        encryptedApiKey: "enc-key",
+        crossSeedTags: null,
+        type: "qbittorrent",
+      },
+      Buffer.alloc(32)
+    )
+
+    vi.mocked(getTransferInfo).mockResolvedValueOnce({
+      up_info_speed: 0,
+      dl_info_speed: 0,
+    } as Awaited<ReturnType<typeof getTransferInfo>>)
+
+    await adapter.getTransferInfo()
+
+    expect(getTransferInfo).toHaveBeenCalledWith("http://localhost:8080", {
+      mode: "apikey",
+      key: "qbt_x",
+    })
+    expect(withSessionRetry).not.toHaveBeenCalled()
+    expect(login).not.toHaveBeenCalled()
   })
 })

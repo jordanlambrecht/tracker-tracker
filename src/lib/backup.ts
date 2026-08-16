@@ -440,6 +440,13 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
     assertString(c.encryptedUsername, `${prefix}.encryptedUsername`)
     // Empty credentials are valid — happens after a restore clears encrypted fields
     assertString(c.encryptedPassword, `${prefix}.encryptedPassword`)
+
+    // Both absent in backups written before API-key auth existed, so these are
+    // presence-guarded — but when present they are read as strings and must be.
+    if (typeof c.authMethod !== "undefined") assertString(c.authMethod, `${prefix}.authMethod`)
+    if (typeof c.encryptedApiKey !== "undefined") {
+      assertString(c.encryptedApiKey, `${prefix}.encryptedApiKey`)
+    }
   }
 
   // tagGroupMember entries

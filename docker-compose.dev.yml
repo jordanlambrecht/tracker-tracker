@@ -42,7 +42,7 @@ services:
       TZ: ${TZ:-Etc/UTC}
       WEBUI_PORT: 8081
     ports:
-      - "8081:8081"
+      - "127.0.0.1:8081:8081"
     volumes:
       - qbt-legacy-config:/config
     stop_grace_period: 10s
@@ -57,7 +57,7 @@ services:
       TZ: ${TZ:-Etc/UTC}
       WEBUI_PORT: 8080
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     volumes:
       - qbt-modern-config:/config
     stop_grace_period: 10s
@@ -72,7 +72,7 @@ services:
       TZ: ${TZ:-Etc/UTC}
       WEBUI_PORT: 9091
     ports:
-      - "9091:9091"
+      - "127.0.0.1:9091:9091"
     volumes:
       - qbt-altport-config:/config
     stop_grace_period: 10s

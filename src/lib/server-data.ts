@@ -19,7 +19,7 @@
 //     failedLoginAttempts, lockedUntil, encryptedProxyPassword,
 //     encryptedBackupPassword, encryptedSchedulerKey
 //   trackers: encryptedApiToken
-//   downloadClients: encryptedUsername, encryptedPassword
+//   downloadClients: encryptedUsername, encryptedPassword, encryptedApiKey
 //   notificationTargets: encryptedConfig
 
 import "server-only"
