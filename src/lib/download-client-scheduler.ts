@@ -133,8 +133,14 @@ async function heartbeatClient(
     const message = sanitizeNetworkError(raw)
     const isRepeat = client.lastError !== null
     const logFn = isRepeat ? log.debug.bind(log) : log.error.bind(log)
+    // `message` is deliberately lossy — it is what reaches the UI. Keep the
+    // unsanitised cause in the server log too, or a missing DB column, a DNS
+    // failure and a refused connection are all indistinguishable from the
+    // "Connection failed" fallback. Safe to log: the host pattern forbids "@",
+    // so a baseUrl can never carry credentials, and qBittorrent secrets travel
+    // in headers and bodies rather than URLs.
     logFn(
-      { clientId: client.id, clientName: client.name },
+      { clientId: client.id, clientName: client.name, cause: raw },
       `Heartbeat failed for client ${client.id} (${client.name}): ${message}`
     )
     try {
@@ -317,8 +323,10 @@ export async function deepPollClient(
     const message = sanitizeNetworkError(raw)
     const isRepeat = client?.lastError !== null
     const logFn = isRepeat ? log.debug.bind(log) : log.error.bind(log)
+    // See heartbeatClient: the sanitised message is for the UI, the raw cause
+    // is what makes the failure diagnosable from the logs.
     logFn(
-      { clientId, clientName: client?.name },
+      { clientId, clientName: client?.name, cause: raw },
       `Deep poll failed for client ${clientId} (${client?.name ?? "unknown"}): ${message}`
     )
     try {
