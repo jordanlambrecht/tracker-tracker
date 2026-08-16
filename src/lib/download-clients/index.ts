@@ -17,6 +17,7 @@ export { fetchAndMergeTorrents, stripSensitiveTorrentFields } from "./fetch"
 export { mapQbtDelta, mapQbtTorrent } from "./field-map"
 export type { RawTorrent } from "./merge"
 export { aggregateCrossSeedTags, mergeTorrentLists, stampClientNames } from "./merge"
+export type { QbtAuth, SidCookie } from "./qbt/transport"
 export { clearAllSessions, parseCachedTorrents } from "./qbt/transport"
 export type { ClientStats, TagStats } from "./qbt/types"
 export type { SpeedSnapshot } from "./speed-cache"
@@ -36,10 +37,12 @@ export {
 export type { SlimTorrent } from "./transforms"
 export { slimTorrentForCache } from "./transforms"
 export type {
+  AuthMethod,
   ClientAdapter,
+  ClientCredentials,
   ClientType,
   DeltaSyncResponse,
   TorrentRecord,
   TransferStats,
 } from "./types"
-export { assertClientType, VALID_CLIENT_TYPES } from "./types"
+export { assertAuthMethod, assertClientType, VALID_AUTH_METHODS, VALID_CLIENT_TYPES } from "./types"

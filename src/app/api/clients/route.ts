@@ -7,6 +7,7 @@ import {
   authenticate,
   decodeKey,
   parseJsonBody,
+  validateAuthMethod,
   validateIntRange,
   validateMaxLength,
   validatePort,
@@ -50,6 +51,8 @@ export async function POST(request: Request) {
     host,
     username,
     password,
+    apiKey,
+    authMethod,
     type,
     port,
     useSsl,
@@ -61,6 +64,8 @@ export async function POST(request: Request) {
     host?: string
     username?: string
     password?: string
+    apiKey?: string
+    authMethod?: string
     type?: string
     port?: number
     useSsl?: boolean
@@ -69,10 +74,6 @@ export async function POST(request: Request) {
     crossSeedTags?: string[]
   }
 
-  // Credentials are optional: qBittorrent skips authentication entirely for
-  // loopback clients when "Bypass authentication for clients on localhost" is
-  // set, so a blank username/password is a valid configuration. This matches
-  // PATCH /api/clients/[id], which has always accepted "".
   if (!name || !host) {
     return NextResponse.json({ error: "name and host are required" }, { status: 400 })
   }
@@ -81,13 +82,28 @@ export async function POST(request: Request) {
     typeof name !== "string" ||
     typeof host !== "string" ||
     (typeof username !== "undefined" && typeof username !== "string") ||
-    (typeof password !== "undefined" && typeof password !== "string")
+    (typeof password !== "undefined" && typeof password !== "string") ||
+    (typeof apiKey !== "undefined" && typeof apiKey !== "string")
   ) {
     return NextResponse.json({ error: "Invalid field types" }, { status: 400 })
   }
 
-  const resolvedUsername = username ?? ""
-  const resolvedPassword = password ?? ""
+  const resolvedAuthMethod = typeof authMethod === "string" ? authMethod : "password"
+  const authMethodErr = validateAuthMethod(resolvedAuthMethod)
+  if (authMethodErr) return authMethodErr
+
+  // An API key is the whole credential, so it is required. Username/password
+  // are not: qBittorrent skips authentication entirely for loopback clients
+  // when "Bypass authentication for clients on localhost" is set, so a blank
+  // pair is a valid configuration. This matches PATCH /api/clients/[id],
+  // which has always accepted "".
+  if (resolvedAuthMethod === "apikey" && !apiKey) {
+    return NextResponse.json({ error: "apiKey is required for apikey auth" }, { status: 400 })
+  }
+
+  const resolvedUsername = resolvedAuthMethod === "apikey" ? "" : (username ?? "")
+  const resolvedPassword = resolvedAuthMethod === "apikey" ? "" : (password ?? "")
+  const resolvedApiKey = resolvedAuthMethod === "apikey" ? (apiKey ?? "") : ""
 
   const nameErr = validateMaxLength(name, CREDENTIAL_MAX, "Name")
   if (nameErr) return nameErr
@@ -100,6 +116,9 @@ export async function POST(request: Request) {
 
   const passwordErr = validateMaxLength(resolvedPassword, CREDENTIAL_MAX, "Password")
   if (passwordErr) return passwordErr
+
+  const apiKeyErr = validateMaxLength(resolvedApiKey, CREDENTIAL_MAX, "API key")
+  if (apiKeyErr) return apiKeyErr
 
   const sanitizedHost = sanitizeHost(host)
   if (!PROXY_HOST_PATTERN.test(sanitizedHost)) {
@@ -127,8 +146,12 @@ export async function POST(request: Request) {
   }
 
   const key = decodeKey(auth)
+  // The unused mode's columns are written as encrypted empty strings rather
+  // than left blank, so every row is uniformly decryptable and a mode switch
+  // never leaves a real secret behind in the other mode's column.
   const encryptedUsername = encrypt(resolvedUsername, key)
   const encryptedPassword = encrypt(resolvedPassword, key)
+  const encryptedApiKey = resolvedApiKey ? encrypt(resolvedApiKey, key) : ""
 
   const resolvedIsDefault = typeof isDefault === "boolean" ? isDefault : false
   const resolvedTags = Array.isArray(crossSeedTags) ? crossSeedTags : []
@@ -165,8 +188,10 @@ export async function POST(request: Request) {
           type: resolvedType,
           port: resolvedPort,
           useSsl: typeof useSsl === "boolean" ? useSsl : false,
+          authMethod: resolvedAuthMethod,
           encryptedUsername,
           encryptedPassword,
+          encryptedApiKey,
           pollIntervalSeconds:
             typeof pollIntervalSeconds === "number"
               ? pollIntervalSeconds

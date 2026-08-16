@@ -1,0 +1,83 @@
+# docker-compose.dev.yml
+#
+# Local qBittorrent servers for exercising the download-client auth paths by
+# hand. Not used by CI or by `docker-compose.yml` — start it explicitly:
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#
+# The WebUI password is printed to the container log on first start:
+#
+#   docker logs tracker-tracker-qbt-legacy 2>&1 | grep -i "temporary password"
+#
+# Three servers because the auth surface has three distinct shapes and none of
+# them can be faithfully mocked:
+#
+#   :8081  5.1.2   — legacy: login returns 200 "Ok." and a cookie named SID
+#   :8080  5.2.x   — modern: login returns 204 and a cookie named QBT_SID_8080,
+#                    and Preferences → Web UI → API keys can issue a Bearer key
+#   :9091  5.2.x   — same as above on a non-default port, so the cookie is
+#                    named QBT_SID_9091. Proves the client reads the name off
+#                    the response instead of deriving it from configuration —
+#                    a mistake no fixture on the default port can catch.
+#
+# Both images are pinned. A floating :latest tag would silently move off the
+# generation this file exists to reproduce.
+#
+# Manual test matrix:
+#   1. legacy    + username/password
+#   2. modern    + username/password
+#   3. modern    + API key
+#   4. non-default port + username/password  (cookie name)
+#   5. any       + blank credentials, with "Bypass authentication for clients
+#                  on localhost" enabled
+
+services:
+  qbittorrent-legacy:
+    image: lscr.io/linuxserver/qbittorrent:5.1.2
+    container_name: tracker-tracker-qbt-legacy
+    restart: unless-stopped
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: ${TZ:-Etc/UTC}
+      WEBUI_PORT: 8081
+    ports:
+      - "8081:8081"
+    volumes:
+      - qbt-legacy-config:/config
+    stop_grace_period: 10s
+
+  qbittorrent-modern:
+    image: lscr.io/linuxserver/qbittorrent:5.2.0
+    container_name: tracker-tracker-qbt-modern
+    restart: unless-stopped
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: ${TZ:-Etc/UTC}
+      WEBUI_PORT: 8080
+    ports:
+      - "8080:8080"
+    volumes:
+      - qbt-modern-config:/config
+    stop_grace_period: 10s
+
+  qbittorrent-altport:
+    image: lscr.io/linuxserver/qbittorrent:5.2.0
+    container_name: tracker-tracker-qbt-altport
+    restart: unless-stopped
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: ${TZ:-Etc/UTC}
+      WEBUI_PORT: 9091
+    ports:
+      - "9091:9091"
+    volumes:
+      - qbt-altport-config:/config
+    stop_grace_period: 10s
+
+volumes:
+  qbt-legacy-config:
+  qbt-modern-config:
+  qbt-altport-config:

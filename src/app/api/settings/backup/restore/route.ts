@@ -75,6 +75,7 @@ function backupCiphertexts(payload: BackupPayload): string[] {
     ...payload.downloadClients.flatMap((c) => [
       (c as Record<string, unknown>).encryptedUsername,
       (c as Record<string, unknown>).encryptedPassword,
+      (c as Record<string, unknown>).encryptedApiKey,
     ]),
     ...(Array.isArray(payload.notificationTargets)
       ? payload.notificationTargets.map((n) => (n as Record<string, unknown>).encryptedConfig)
@@ -414,11 +415,18 @@ export async function POST(request: Request) {
       for (const c of payload.downloadClients) {
         const { id: oldId, ...fields } = c as Record<string, unknown> & { id: number }
 
+        // Backups written before API-key auth existed have no authMethod and
+        // could only ever have held a username/password pair.
+        const clientAuthMethod =
+          (fields.authMethod as string | undefined) === "apikey" ? "apikey" : "password"
+
         let encUsername: string
         let encPassword: string
+        let encApiKey: string
         if (canPassThrough) {
           encUsername = (fields.encryptedUsername as string) || ""
           encPassword = (fields.encryptedPassword as string) || ""
+          encApiKey = (fields.encryptedApiKey as string) || ""
         } else if (canReencrypt) {
           encUsername = reencryptField(
             fields.encryptedUsername as string,
@@ -432,12 +440,24 @@ export async function POST(request: Request) {
             currentKey,
             `downloadClient '${fields.name}' password`
           )
+          encApiKey = fields.encryptedApiKey
+            ? reencryptField(
+                fields.encryptedApiKey as string,
+                backupKey,
+                currentKey,
+                `downloadClient '${fields.name}' apiKey`
+              )
+            : ""
         } else {
           encUsername = ""
           encPassword = ""
+          encApiKey = ""
         }
 
-        const credentialsCleared = !encUsername || !encPassword
+        // Only the columns the client's own mode reads decide whether it came
+        // back usable — a password client legitimately has no API key.
+        const credentialsCleared =
+          clientAuthMethod === "apikey" ? !encApiKey : !encUsername || !encPassword
         const [inserted] = await tx
           .insert(downloadClients)
           .values({
@@ -447,8 +467,13 @@ export async function POST(request: Request) {
             host: fields.host as string,
             port: fields.port as number,
             useSsl: fields.useSsl as boolean,
+            // A cleared key would otherwise leave the client sending an empty
+            // Bearer header forever, so fall back to the mode the "re-enter
+            // and re-enable" message below actually tells the user to fix.
+            authMethod: credentialsCleared ? "password" : clientAuthMethod,
             encryptedUsername: encUsername,
             encryptedPassword: encPassword,
+            encryptedApiKey: encApiKey,
             pollIntervalSeconds: fields.pollIntervalSeconds as number,
             isDefault: fields.isDefault as boolean,
             crossSeedTags: Array.isArray(fields.crossSeedTags)

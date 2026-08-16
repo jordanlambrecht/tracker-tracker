@@ -209,6 +209,7 @@ export type SafeDownloadClient = Omit<
   DownloadClientRow,
   | "encryptedUsername"
   | "encryptedPassword"
+  | "encryptedApiKey"
   | "cachedTorrents"
   | "cachedTorrentsAt"
   | "lastPolledAt"

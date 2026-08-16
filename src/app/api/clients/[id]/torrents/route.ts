@@ -30,8 +30,10 @@ export async function GET(request: Request, props: RouteContext) {
       host: downloadClients.host,
       port: downloadClients.port,
       useSsl: downloadClients.useSsl,
+      authMethod: downloadClients.authMethod,
       encryptedUsername: downloadClients.encryptedUsername,
       encryptedPassword: downloadClients.encryptedPassword,
+      encryptedApiKey: downloadClients.encryptedApiKey,
       crossSeedTags: downloadClients.crossSeedTags,
       type: downloadClients.type,
     })

@@ -54,8 +54,10 @@ export const HEARTBEAT_COLUMNS = {
   host: downloadClients.host,
   port: downloadClients.port,
   useSsl: downloadClients.useSsl,
+  authMethod: downloadClients.authMethod,
   encryptedUsername: downloadClients.encryptedUsername,
   encryptedPassword: downloadClients.encryptedPassword,
+  encryptedApiKey: downloadClients.encryptedApiKey,
   crossSeedTags: downloadClients.crossSeedTags,
   lastError: downloadClients.lastError,
 } as const
@@ -103,8 +105,10 @@ async function heartbeatClient(
     host: string
     port: number
     useSsl: boolean
+    authMethod: string
     encryptedUsername: string
     encryptedPassword: string
+    encryptedApiKey: string
     crossSeedTags: string[] | null
     lastError: string | null
   },
@@ -177,7 +181,13 @@ export async function deepPollClient(
     .limit(1)
 
   if (!client?.enabled) return
-  if (!client.encryptedUsername || !client.encryptedPassword) return
+  // Skip clients whose credential columns were never written (i.e. cleared by
+  // a restore). Blank username/password is a valid configuration — qBittorrent
+  // bypasses auth for localhost — so this checks for a missing *ciphertext*,
+  // not a missing secret, and reads whichever column the auth mode uses.
+  if (client.authMethod === "apikey") {
+    if (!client.encryptedApiKey) return
+  } else if (!client.encryptedUsername || !client.encryptedPassword) return
 
   try {
     const adapter = createAdapterForClient(client, encryptionKey)

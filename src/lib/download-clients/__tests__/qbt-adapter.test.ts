@@ -82,7 +82,11 @@ import {
 import { QbtClientAdapter } from "../adapters/qbt"
 
 describe("QbtClientAdapter", () => {
-  const adapter = new QbtClientAdapter("localhost", 8080, false, "admin", "pass")
+  const adapter = new QbtClientAdapter("localhost", 8080, false, {
+    authMethod: "password",
+    username: "admin",
+    password: "pass",
+  })
 
   it("has type 'qbittorrent'", () => {
     expect(adapter.type).toBe("qbittorrent")
@@ -142,7 +146,7 @@ describe("QbtClientAdapter", () => {
     await adapter.getTorrents({ tag: "aither", filter: "active" })
     expect(getTorrents).toHaveBeenCalledWith(
       expect.any(String),
-      { name: "SID", value: "test-sid" },
+      { mode: "session", sid: { name: "SID", value: "test-sid" } },
       "aither",
       "active"
     )
@@ -160,7 +164,11 @@ describe("QbtClientAdapter", () => {
 
   it("returns normalized DeltaSyncResponse from getDeltaSync", async () => {
     const data = await adapter.getDeltaSync?.(0)
-    expect(syncMaindata).toHaveBeenCalledWith(expect.any(String), { name: "SID", value: "test-sid" }, 0)
+    expect(syncMaindata).toHaveBeenCalledWith(
+      expect.any(String),
+      { mode: "session", sid: { name: "SID", value: "test-sid" } },
+      0
+    )
 
     // Top-level fields pass through
     expect(data?.rid).toBe(1)
@@ -210,13 +218,11 @@ describe("QbtClientAdapter", () => {
   })
 
   it("does not leak plaintext credentials in error messages from getTorrents", async () => {
-    const sensitiveAdapter = new QbtClientAdapter(
-      "localhost",
-      8080,
-      false,
-      "secret-user",
-      "secret-pass"
-    )
+    const sensitiveAdapter = new QbtClientAdapter("localhost", 8080, false, {
+      authMethod: "password",
+      username: "secret-user",
+      password: "secret-pass",
+    })
     vi.mocked(withSessionRetry).mockRejectedValueOnce(new Error("Auth failed"))
 
     try {
@@ -229,13 +235,11 @@ describe("QbtClientAdapter", () => {
   })
 
   it("does not leak plaintext credentials in error messages from testConnection", async () => {
-    const sensitiveAdapter = new QbtClientAdapter(
-      "localhost",
-      8080,
-      false,
-      "secret-user",
-      "secret-pass"
-    )
+    const sensitiveAdapter = new QbtClientAdapter("localhost", 8080, false, {
+      authMethod: "password",
+      username: "secret-user",
+      password: "secret-pass",
+    })
     vi.mocked(login).mockRejectedValueOnce(new Error("HTTP 403 Forbidden"))
 
     try {

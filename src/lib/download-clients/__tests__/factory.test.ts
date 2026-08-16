@@ -25,8 +25,10 @@ describe("createAdapterForClient", () => {
       host: "localhost",
       port: 8080,
       useSsl: false,
+      authMethod: "password",
       encryptedUsername: "enc-user",
       encryptedPassword: "enc-pass",
+      encryptedApiKey: "",
       crossSeedTags: null,
       type: "qbittorrent",
     }
@@ -43,8 +45,10 @@ describe("createAdapterForClient", () => {
       host: "localhost",
       port: 8080,
       useSsl: false,
+      authMethod: "password",
       encryptedUsername: "enc-user",
       encryptedPassword: "enc-pass",
+      encryptedApiKey: "",
       crossSeedTags: null,
       type: "deluge",
     }

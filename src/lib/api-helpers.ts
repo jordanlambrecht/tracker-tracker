@@ -3,10 +3,13 @@
 // Functions: authenticate, parseRouteId, parseTrackerId, parseJsonBody,
 //            validateHttpUrl, validateHexColor, validatePort, validatePastDate,
 //            validateJoinedAt, validateLastAccessAt, validateIntRange,
-//            validateMaxLength, decodeKey
+//            validateMaxLength, validateAuthMethod, decodeKey
 
 import { NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
+// Imported from the module rather than the barrel: the barrel pulls in
+// credentials.ts, which is "server-only".
+import { VALID_AUTH_METHODS } from "@/lib/download-clients/types"
 import { localDateStr } from "@/lib/formatters"
 import { isUnsafeNetworkHost } from "@/lib/network"
 import { DATE_RE, isValidHex, isValidPort } from "@/lib/validators"
@@ -129,6 +132,17 @@ export function validateMaxLength(value: string, max: number, label: string): Ne
   if (value.length > max) {
     return NextResponse.json(
       { error: `${label} must be ${max} characters or fewer` },
+      { status: 400 }
+    )
+  }
+  return null
+}
+
+/** Reject a download-client auth method that is not one we implement. */
+export function validateAuthMethod(value: string): NextResponse | null {
+  if (!(VALID_AUTH_METHODS as readonly string[]).includes(value)) {
+    return NextResponse.json(
+      { error: `authMethod must be one of: ${VALID_AUTH_METHODS.join(", ")}` },
       { status: 400 }
     )
   }

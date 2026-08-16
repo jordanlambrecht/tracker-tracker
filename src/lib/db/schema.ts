@@ -159,8 +159,15 @@ export const downloadClients = pgTable("download_clients", {
   host: varchar("host", { length: 255 }).notNull(),
   port: integer("port").default(8080).notNull(),
   useSsl: boolean("use_ssl").default(false).notNull(),
+  // Which credential the client authenticates with: "password" (username +
+  // password, the default and the only option before qBittorrent 5.2.0) or
+  // "apikey". Each mode reads its own column and the other is blanked on a
+  // mode switch, so a stored password can never be replayed as a Bearer token.
+  authMethod: varchar("auth_method", { length: 20 }).default("password").notNull(),
   encryptedUsername: text("encrypted_username").notNull(),
   encryptedPassword: text("encrypted_password").notNull(),
+  // Encrypted qBittorrent WebUI API key — "" when authMethod is "password".
+  encryptedApiKey: text("encrypted_api_key").default("").notNull(),
   pollIntervalSeconds: integer("poll_interval_seconds").default(300).notNull(),
   isDefault: boolean("is_default").default(false).notNull(),
   crossSeedTags: text("cross_seed_tags").array().default([]).notNull(),

@@ -10,6 +10,7 @@ import {
   getTorrents,
   getTransferInfo,
   login,
+  type QbtAuth,
   type SidCookie,
 } from "../qbt/transport"
 import type { QbtTorrent } from "../qbt/types"
@@ -391,7 +392,7 @@ describe("login auth-failure circuit breaker", () => {
 // ---------------------------------------------------------------------------
 
 describe("getTorrents", () => {
-  const sid: SidCookie = { name: "SID", value: "mysid" }
+  const sid: QbtAuth = { mode: "session", sid: { name: "SID", value: "mysid" } }
 
   beforeEach(() => {
     vi.restoreAllMocks()
@@ -448,7 +449,10 @@ describe("getTorrents", () => {
       json: async () => [],
     } as Response)
 
-    await getTorrents("http://localhost:8080", { name: "SID", value: "testSID99" })
+    await getTorrents("http://localhost:8080", {
+      mode: "session",
+      sid: { name: "SID", value: "testSID99" },
+    })
 
     const init = fetchSpy.mock.calls[0][1] as RequestInit
     expect((init.headers as Record<string, string>).Cookie).toBe("SID=testSID99")
@@ -460,7 +464,10 @@ describe("getTorrents", () => {
       json: async () => [],
     } as Response)
 
-    await getTorrents("http://localhost:8080", { name: "QBT_SID_8080", value: "testSID99" })
+    await getTorrents("http://localhost:8080", {
+      mode: "session",
+      sid: { name: "QBT_SID_8080", value: "testSID99" },
+    })
 
     const init = fetchSpy.mock.calls[0][1] as RequestInit
     expect((init.headers as Record<string, string>).Cookie).toBe("QBT_SID_8080=testSID99")
@@ -547,7 +554,7 @@ describe("getTorrents", () => {
 // ---------------------------------------------------------------------------
 
 describe("getTransferInfo", () => {
-  const sid: SidCookie = { name: "SID", value: "mysid" }
+  const sid: QbtAuth = { mode: "session", sid: { name: "SID", value: "mysid" } }
 
   beforeEach(() => {
     vi.restoreAllMocks()
@@ -586,7 +593,10 @@ describe("getTransferInfo", () => {
       json: async () => ({ up_info_speed: 0, dl_info_speed: 0, up_info_data: 0, dl_info_data: 0 }),
     } as Response)
 
-    await getTransferInfo("http://localhost:8080", { name: "SID", value: "mySID" })
+    await getTransferInfo("http://localhost:8080", {
+      mode: "session",
+      sid: { name: "SID", value: "mySID" },
+    })
 
     const init = fetchSpy.mock.calls[0][1] as RequestInit
     expect((init.headers as Record<string, string>).Cookie).toBe("SID=mySID")
@@ -598,7 +608,10 @@ describe("getTransferInfo", () => {
       json: async () => ({ up_info_speed: 0, dl_info_speed: 0, up_info_data: 0, dl_info_data: 0 }),
     } as Response)
 
-    await getTransferInfo("http://localhost:8080", { name: "QBT_SID_8091", value: "mySID" })
+    await getTransferInfo("http://localhost:8080", {
+      mode: "session",
+      sid: { name: "QBT_SID_8091", value: "mySID" },
+    })
 
     const init = fetchSpy.mock.calls[0][1] as RequestInit
     expect((init.headers as Record<string, string>).Cookie).toBe("QBT_SID_8091=mySID")

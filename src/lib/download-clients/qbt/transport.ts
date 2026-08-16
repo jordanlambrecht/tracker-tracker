@@ -2,14 +2,16 @@
 //
 // Available functions:
 //   buildBaseUrl          - Construct base URL from host/port/ssl
-//   credentialFingerprint - Non-reversible hash identifying a username/password pair
+//   credentialFingerprint - Non-reversible hash identifying some secret material
 //   blockKeyFor           - Compose the auth-block map key from baseUrl + fingerprint
+//   apiKeyBlockKeyFor     - Auth-block map key for an API key on a baseUrl
 //   clearAuthBlocks       - Drop auth blocks for one baseUrl (explicit user retry)
 //   login                 - Authenticate with qBittorrent Web API, returns SID cookie
 //   getSession            - Return cached SID or perform a fresh login
 //   invalidateSession     - Remove a cached SID (i.e after 403)
 //   clearAllSessions      - Remove all cached SIDs and auth blocks (called on logout)
 //   withSessionRetry      - Run an operation with automatic session retry on expiry
+//   authHeaders           - Build the request headers for a QbtAuth value
 //   qbtFetch              - Shared fetch + error handler for authenticated qBT requests
 //   parseCachedTorrents   - Parse cachedTorrents column (string or object)
 //   getTorrents           - Fetch torrent info from qBittorrent (optionally filtered by tag)
@@ -63,6 +65,15 @@ export function buildBaseUrl(host: string, port: number, ssl: boolean): string {
 
 /** The session cookie qBittorrent assigns at login — name varies by version/port. */
 export type SidCookie = { name: string; value: string }
+
+/**
+ * How a request authenticates. qBittorrent 5.2.0 (WebAPI 2.14.1) added
+ * stateless API-key auth alongside the cookie session, so every endpoint
+ * helper takes one of these instead of a bare cookie. Keeping it a union means
+ * the endpoints never branch on a mode, and session-only operations such as
+ * invalidateSession are unreachable from the key path by construction.
+ */
+export type QbtAuth = { mode: "session"; sid: SidCookie } | { mode: "apikey"; key: string }
 
 const gSid = globalThis as typeof globalThis & {
   __qbtSidCache?: Map<string, SidCookie>
@@ -144,6 +155,16 @@ function blockKeyFor(baseUrl: string, username: string, password: string): strin
 }
 
 /**
+ * Block key for an API key. Built through blockKeyFor so it lands in the same
+ * per-baseUrl namespace clearAuthBlocks sweeps; the literal "apikey" in the
+ * username slot keeps a password that happens to equal someone's key from
+ * sharing a block with it.
+ */
+function apiKeyBlockKeyFor(baseUrl: string, key: string): string {
+  return blockKeyFor(baseUrl, "apikey", key)
+}
+
+/**
  * Drop every auth block recorded for a baseUrl regardless of credentials.
  * Called when the user explicitly asks to test the connection — an explicit
  * retry should always reach the network, since the fix may have been on the
@@ -198,6 +219,9 @@ const BLANK_CREDENTIALS_REJECTED =
 const CREDENTIALS_REJECTED = "Authentication failed — qBittorrent rejected the username and password"
 const IP_BANNED =
   "qBittorrent has temporarily banned this IP after too many failed login attempts"
+const API_KEY_REJECTED =
+  "Authentication failed — qBittorrent rejected the API key. Check that it has not been " +
+  "rotated, and that the server is running qBittorrent 5.2.0 or newer"
 
 export async function login(
   host: string,
@@ -293,16 +317,32 @@ export async function login(
   return sid
 }
 
+function authHeaders(auth: QbtAuth): Record<string, string> {
+  return auth.mode === "session"
+    ? { Cookie: `${auth.sid.name}=${auth.sid.value}` }
+    : { Authorization: `Bearer ${auth.key}` }
+}
+
 async function qbtFetch(
   url: string,
   host: string,
   baseUrl: string,
-  sid: SidCookie
+  auth: QbtAuth
 ): Promise<Response> {
+  // API keys never pass through login(), so the circuit breaker that guards
+  // password auth has to be applied here instead. Without it a rotated key
+  // would be retried by every heartbeat forever — the same runaway the
+  // password breaker exists to stop.
+  const blockKey = auth.mode === "apikey" ? apiKeyBlockKeyFor(baseUrl, auth.key) : null
+  if (blockKey) {
+    const blocked = authBlocks.get(blockKey)
+    if (blocked) throw new Error(blocked)
+  }
+
   let response: Response
   try {
     response = await fetch(url, {
-      headers: { Cookie: `${sid.name}=${sid.value}` },
+      headers: authHeaders(auth),
       signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
     })
   } catch (err) {
@@ -314,6 +354,16 @@ async function qbtFetch(
       throw new Error(`Request to ${host} timed out after ${ADAPTER_FETCH_TIMEOUT_MS / 1000}s`)
     }
     throw new Error(`Failed to connect to ${host}: ${describeFetchError(err)}`)
+  }
+
+  // A rejected key is definitive — unlike a session cookie there is nothing to
+  // refresh, so record it and stop asking. Editing the key changes the block
+  // key, and Test Connection clears the whole baseUrl, so the user is never
+  // stuck. 401 and 403 are both treated as a rejection because qBittorrent has
+  // used each for unauthenticated WebAPI requests across 5.x.
+  if (blockKey && (response.status === 401 || response.status === 403)) {
+    authBlocks.set(blockKey, API_KEY_REJECTED)
+    throw new Error(API_KEY_REJECTED)
   }
 
   if (response.status === 403) {
@@ -361,7 +411,7 @@ export function parseCachedTorrents(raw: unknown): SlimTorrent[] {
 
 export async function getTorrents(
   baseUrl: string,
-  sid: SidCookie,
+  auth: QbtAuth,
   tag?: string,
   filter?: string
 ): Promise<QbtTorrent[]> {
@@ -371,25 +421,25 @@ export async function getTorrents(
   const qs = parts.join("&")
   const url = `${baseUrl}/api/v2/torrents/info${qs ? `?${qs}` : ""}`
   const host = new URL(baseUrl).hostname
-  const response = await qbtFetch(url, host, baseUrl, sid)
+  const response = await qbtFetch(url, host, baseUrl, auth)
   return response.json() as Promise<QbtTorrent[]>
 }
 
-export async function getTransferInfo(baseUrl: string, sid: SidCookie): Promise<QbtTransferInfo> {
+export async function getTransferInfo(baseUrl: string, auth: QbtAuth): Promise<QbtTransferInfo> {
   const url = `${baseUrl}/api/v2/transfer/info`
   const host = new URL(baseUrl).hostname
-  const response = await qbtFetch(url, host, baseUrl, sid)
+  const response = await qbtFetch(url, host, baseUrl, auth)
   return response.json() as Promise<QbtTransferInfo>
 }
 
 export async function syncMaindata(
   baseUrl: string,
-  sid: SidCookie,
+  auth: QbtAuth,
   rid: number
 ): Promise<QbtMaindataResponse> {
   const url = `${baseUrl}/api/v2/sync/maindata?rid=${rid}`
   const host = new URL(baseUrl).hostname
-  const response = await qbtFetch(url, host, baseUrl, sid)
+  const response = await qbtFetch(url, host, baseUrl, auth)
   const data: unknown = await response.json()
   if (!isQbtMaindataResponse(data)) {
     throw new Error("Invalid maindata response from qBittorrent")
