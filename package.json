@@ -74,7 +74,7 @@
     "react-dom": "19.2.5",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
-    "socks-proxy-agent": "^10.0.0"
+    "socks-proxy-agent": "^10.1.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.12",
@@ -95,7 +95,7 @@
     "husky": "^9.1.7",
     "jsdom": "^29.0.2",
     "knip": "^6.4.1",
-    "postcss": "^8.5.10",
+    "postcss": "^8.5.26",
     "prettier": "^3.8.3",
     "tailwindcss": "^4.2.4",
     "tsx": "^4.21.0",
