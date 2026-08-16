@@ -265,7 +265,7 @@ describe("QbtClientAdapter", () => {
 describe("QbtClientAdapter with API-key auth", () => {
   const adapter = new QbtClientAdapter("localhost", 8080, false, {
     authMethod: "apikey",
-    apiKey: "qbt_secretkey",
+    apiKey: "qbt_examplekey",
   })
 
   it("passes the key to the transport without logging in or retrying a session", async () => {
@@ -279,7 +279,7 @@ describe("QbtClientAdapter with API-key auth", () => {
     expect(login).not.toHaveBeenCalled()
     expect(getTorrents).toHaveBeenCalledWith(
       "http://localhost:8080",
-      { mode: "apikey", key: "qbt_secretkey" },
+      { mode: "apikey", key: "qbt_examplekey" },
       "aither",
       undefined
     )
@@ -296,11 +296,11 @@ describe("QbtClientAdapter with API-key auth", () => {
     expect(withSessionRetry).not.toHaveBeenCalled()
     expect(getTransferInfo).toHaveBeenCalledWith("http://localhost:8080", {
       mode: "apikey",
-      key: "qbt_secretkey",
+      key: "qbt_examplekey",
     })
     expect(syncMaindata).toHaveBeenCalledWith(
       "http://localhost:8080",
-      { mode: "apikey", key: "qbt_secretkey" },
+      { mode: "apikey", key: "qbt_examplekey" },
       7
     )
   })
@@ -318,7 +318,7 @@ describe("QbtClientAdapter with API-key auth", () => {
     expect(clearAuthBlocks).toHaveBeenCalledWith("http://localhost:8080")
     expect(getTransferInfo).toHaveBeenCalledWith("http://localhost:8080", {
       mode: "apikey",
-      key: "qbt_secretkey",
+      key: "qbt_examplekey",
     })
   })
 
@@ -337,7 +337,7 @@ describe("QbtClientAdapter with API-key auth", () => {
       await adapter.getTorrents()
       expect.unreachable("should have thrown")
     } catch (err) {
-      expect((err as Error).message).not.toContain("qbt_secretkey")
+      expect((err as Error).message).not.toContain("qbt_examplekey")
     }
   })
 })

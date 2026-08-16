@@ -498,7 +498,7 @@ describe("POST /api/clients", () => {
         name: "Local qBT",
         host: "localhost",
         authMethod: "apikey",
-        apiKey: "qbt_realsecretkey",
+        apiKey: "qbt_examplekey",
       })
     )
 
@@ -506,9 +506,9 @@ describe("POST /api/clients", () => {
     expect(inserted?.authMethod).toBe("apikey")
     // Real encrypt() runs here — the plaintext must not survive into the row.
     expect(inserted?.encryptedApiKey).not.toBe("")
-    expect(JSON.stringify(inserted)).not.toContain("qbt_realsecretkey")
+    expect(JSON.stringify(inserted)).not.toContain("qbt_examplekey")
     expect(decrypt(inserted?.encryptedApiKey as string, Buffer.from(VALID_KEY, "hex"))).toBe(
-      "qbt_realsecretkey"
+      "qbt_examplekey"
     )
     expect(decrypt(inserted?.encryptedUsername as string, Buffer.from(VALID_KEY, "hex"))).toBe("")
   })

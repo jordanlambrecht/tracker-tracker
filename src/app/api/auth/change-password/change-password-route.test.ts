@@ -507,7 +507,7 @@ describe("POST /api/auth/change-password — blank credentials", () => {
       name: "qbit",
       encryptedUsername: encrypt("", oldKey),
       encryptedPassword: encrypt("", oldKey),
-      encryptedApiKey: encrypt("qbt_livekey", oldKey),
+      encryptedApiKey: encrypt("qbt_examplekey", oldKey),
     }
 
     const response = await post()
@@ -518,7 +518,7 @@ describe("POST /api/auth/change-password — blank credentials", () => {
 
     const clientWrites = writesTo(downloadClients)
     expect(clientWrites).toHaveLength(1)
-    expect(decrypt(clientWrites[0].values.encryptedApiKey as string, newKey)).toBe("qbt_livekey")
+    expect(decrypt(clientWrites[0].values.encryptedApiKey as string, newKey)).toBe("qbt_examplekey")
     // And no longer readable under the retired key.
     expect(() => decrypt(clientWrites[0].values.encryptedApiKey as string, oldKey)).toThrow()
   })
