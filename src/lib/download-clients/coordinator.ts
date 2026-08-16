@@ -16,6 +16,7 @@ import { isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
 import { parseTorrentTags } from "@/lib/fleet"
 import { computeFleetAggregation, type FleetAggregation } from "@/lib/fleet-aggregation"
 import { trackerHostKey } from "@/lib/tracker-matching"
+import type { TagGroup } from "@/types/api"
 import { CLIENT_CONNECTION_COLUMNS } from "./credentials"
 import { createAdapterForClient } from "./factory"
 import type { MergedResult } from "./fetch"
@@ -124,8 +125,16 @@ export interface FleetAggregationResponse extends FleetAggregation {
  * Read cached torrent data across all clients, merge, and compute fleet aggregation.
  * Fast path: in-memory sync store. Fallback: Postgres JSONB (cold start only).
  * No live qBT HTTP requests.
+ *
+ * `tagGroups` is optional: pass it to have the aggregation also count tag-group
+ * membership across the fleet (the dashboard's Tag Groups section). Callers that omit
+ * it get `tagGroupBreakdowns: []` and the aggregation skips the work entirely.
  */
-export async function fetchFleetAggregation(): Promise<FleetAggregationResponse> {
+export async function fetchFleetAggregation(
+  options?: { tagGroups?: TagGroup[] }
+): Promise<FleetAggregationResponse> {
+  const tagGroups = options?.tagGroups ?? []
+
   const clients = await db
     .select(CACHED_CLIENT_COLUMNS)
     .from(downloadClients)
@@ -133,7 +142,7 @@ export async function fetchFleetAggregation(): Promise<FleetAggregationResponse>
 
   if (clients.length === 0) {
     return {
-      ...computeFleetAggregation([], [], []),
+      ...computeFleetAggregation([], [], [], tagGroups),
       clientErrors: [],
       clientCount: 0,
       cachedAt: null,
@@ -224,7 +233,12 @@ export async function fetchFleetAggregation(): Promise<FleetAggregationResponse>
   const merged = mergeTorrentLists(clientTorrents.map((c) => c.torrents))
   const stamped = stampClientNames(clientTorrents, merged)
 
-  const aggregation = computeFleetAggregation(stamped, trackerTagsWithMeta, crossSeedTags)
+  const aggregation = computeFleetAggregation(
+    stamped,
+    trackerTagsWithMeta,
+    crossSeedTags,
+    tagGroups
+  )
 
   return {
     ...aggregation,

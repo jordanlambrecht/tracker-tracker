@@ -40,7 +40,6 @@ import { StatCard } from "@/components/ui/StatCard"
 import { ChartGridSkeleton } from "@/components/ui/skeletons"
 import { usePollingIntervals } from "@/hooks/usePollingIntervals"
 import type { FleetSnapshot } from "@/lib/fleet"
-import type { FleetAggregation } from "@/lib/fleet-aggregation"
 import {
   formatBytesNum,
   formatCount,
@@ -48,7 +47,7 @@ import {
   formatSpeed,
   splitValueUnit,
 } from "@/lib/formatters"
-import { clientQueryOptions } from "@/lib/query-options"
+import { clientQueryOptions, fleetCachedQueryOptions } from "@/lib/query-options"
 
 interface FleetDashboardProps {
   dayRange: number
@@ -81,12 +80,7 @@ export function FleetDashboard({ dayRange, isActive = true }: FleetDashboardProp
 
   // Fast: DB-cached torrent aggregation
   const { data: aggregation, isFetching: fleetFetching } = useQuery({
-    queryKey: ["fleet-torrents-cached"],
-    queryFn: async ({ signal }) => {
-      const res = await fetch("/api/fleet/torrents/cached", { signal })
-      if (!res.ok) throw new Error(`Fleet data failed: ${res.status}`)
-      return res.json() as Promise<FleetAggregation>
-    },
+    ...fleetCachedQueryOptions,
     staleTime: intervals.clientRefetchMs,
     enabled: isActive,
   })

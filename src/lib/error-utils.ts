@@ -24,6 +24,19 @@ export function isDecryptionError(error: unknown): boolean {
  * and potentially shown in the UI.
  */
 export function sanitizeNetworkError(raw: string, fallback = "Connection failed"): string {
+  // qBittorrent auth outcomes first — these need different user action from
+  // each other and from a plain connection fault, so they must not fall
+  // through to the generic ban/401 rules below (which would flatten them to
+  // "IP temporarily banned by tracker" and "Authentication failed").
+  if (/rejected the blank credentials/i.test(raw)) {
+    return 'Blank credentials rejected — enable "Bypass authentication for clients on localhost" in qBittorrent'
+  }
+  if (/rejected the username and password/i.test(raw)) {
+    return "Credentials rejected by qBittorrent — check the username and password"
+  }
+  if (/banned this IP/i.test(raw)) {
+    return "Banned by qBittorrent after too many failed logins — it will clear on its own"
+  }
   if (/timed?\s*out/i.test(raw)) return "Request timed out"
   if (/ECONNREFUSED/i.test(raw)) return "Connection refused"
   if (/ENOTFOUND/i.test(raw)) return "Host not found"

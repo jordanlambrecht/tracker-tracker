@@ -27,15 +27,23 @@ The key travels in the params array, not in a header or query string.
 
 ### The API lives on a different host
 
-`apiPath` is an absolute URL (`https://api.broadcasthe.net/`) rather than a path
-appended to the tracker URL, which is what every other registry entry uses. BTN
-genuinely serves its API off-domain, so the adapter reads `apiPath` as a
-complete URL and never resolves it against the base URL.
+BTN serves its API from `api.broadcasthe.net`, not from `broadcasthe.net`. Every
+BTN user hits that same host, so it is a property of the platform rather than of
+any one user's tracker row. `btn.ts` owns it as the module constant
+`BTN_API_URL` and ignores the `apiPath` argument entirely — the same thing
+`avistaz.ts`, `digitalcore.ts`, `iptorrents.ts` and `torrentleech.ts` do with
+their own paths.
 
-This overloads one field with two meanings. A separate `apiBaseUrl` field would
-be more honest, but the value is persisted per row at creation, so splitting it
-is a schema change rather than a rename — worth doing before more off-domain
-trackers arrive, not urgent while BTN is the only one.
+The registry entry therefore carries an ordinary relative `apiPath` (`/`), and
+nothing absolute is ever written to the database.
+
+That ignore is load-bearing, not incidental. Rows created before this change
+persisted `https://api.broadcasthe.net/` into `api_path`, and the project uses
+`drizzle-kit push` only — raw SQL migrations are a CI-blocking security-audit
+failure, so there is no sanctioned way to rewrite existing rows. Because the
+adapter never reads the column, those rows self-heal on deploy and would keep
+working even if BTN moved hosts. `btn.test.ts` pins this with cases that feed
+the adapter a stale, empty, and outright wrong path.
 
 ### Migrating a BTN tracker added before this change
 

@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest"
 import type { TorrentRaw, TrackerTag } from "@/lib/fleet"
 import { computeFleetAggregation } from "@/lib/fleet-aggregation"
+import type { TagGroup, TagGroupMember } from "@/types/api"
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -778,5 +779,129 @@ describe("computeFleetAggregation — announce URL matching (issue #152)", () =>
 
     const result = computeFleetAggregation([torrent], TAGGED_AND_URL, CROSS_SEED_TAGS)
     for (const t of result.trackerHealth) expect(t.torrentCount).toBe(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Tag group breakdowns (issue #47)
+// ---------------------------------------------------------------------------
+//
+// The dashboard shows these across the whole fleet; a tracker's detail page shows the
+// same groups over just that tracker's torrents, computed separately in
+// useTrackerTorrents. The two have to agree on what a count means, so the invariants
+// worth pinning are the ones that would let them drift:
+//   1. Fleet counts sum across trackers. If this ever scoped itself to one tracker the
+//      numbers would quietly shrink.
+//   2. Member tags match case-sensitively, the way the detail page matches them.
+
+function tagMember(tag: string, label = tag, color: string | null = null): TagGroupMember {
+  return { id: 1, groupId: 1, tag, label, color, sortOrder: 0 }
+}
+
+function makeTagGroup(members: TagGroupMember[], countUnmatched = false): TagGroup {
+  return {
+    id: 1,
+    name: "Resolution",
+    emoji: "📺",
+    chartType: "bar",
+    description: null,
+    sortOrder: 0,
+    countUnmatched,
+    members,
+  }
+}
+
+const RESOLUTION = makeTagGroup([tagMember("4k", "UHD"), tagMember("1080p", "FHD")])
+
+describe("computeFleetAggregation — tag groups", () => {
+  it("sums member tags across every tracker in the fleet", () => {
+    const torrents = [
+      makeTorrent({ hash: "a1", tags: "aither,4k" }),
+      makeTorrent({ hash: "a2", tags: "aither,4k" }),
+      makeTorrent({ hash: "b1", tags: "blutopia,4k" }),
+      makeTorrent({ hash: "b2", tags: "blutopia,1080p" }),
+    ]
+
+    const result = computeFleetAggregation(torrents, TRACKER_TAGS, CROSS_SEED_TAGS, [RESOLUTION])
+
+    // Guard the fixture: these torrents really do span two trackers, so a breakdown that
+    // collapsed to a single tracker could not produce a UHD count of 3.
+    expect(result.trackerHealth.find((t) => t.name === "Aither")?.torrentCount).toBe(2)
+    expect(result.trackerHealth.find((t) => t.name === "Blutopia")?.torrentCount).toBe(2)
+
+    expect(result.tagGroupBreakdowns).toHaveLength(1)
+    expect(result.tagGroupBreakdowns[0].memberCounts).toEqual([
+      { label: "UHD", count: 3, color: null },
+      { label: "FHD", count: 1, color: null },
+    ])
+    expect(result.tagGroupBreakdowns[0].unmatchedCount).toBe(0)
+  })
+
+  it("matches member tags case-sensitively", () => {
+    const torrents = [
+      makeTorrent({ hash: "c1", tags: "aither,4K" }),
+      makeTorrent({ hash: "c2", tags: "aither,4k" }),
+    ]
+
+    const result = computeFleetAggregation(torrents, TRACKER_TAGS, CROSS_SEED_TAGS, [RESOLUTION])
+
+    expect(result.tagGroupBreakdowns[0].memberCounts).toEqual([
+      { label: "UHD", count: 1, color: null },
+    ])
+  })
+
+  it("counts a torrent once even when it repeats a member tag", () => {
+    const torrents = [makeTorrent({ hash: "d1", tags: "aither,4k,4k" })]
+
+    const result = computeFleetAggregation(torrents, TRACKER_TAGS, CROSS_SEED_TAGS, [RESOLUTION])
+
+    expect(result.tagGroupBreakdowns[0].memberCounts).toEqual([
+      { label: "UHD", count: 1, color: null },
+    ])
+  })
+
+  it("drops members nothing is tagged with", () => {
+    const torrents = [makeTorrent({ hash: "e1", tags: "aither,4k" })]
+
+    const result = computeFleetAggregation(torrents, TRACKER_TAGS, CROSS_SEED_TAGS, [RESOLUTION])
+
+    expect(result.tagGroupBreakdowns[0].memberCounts.map((m) => m.label)).toEqual(["UHD"])
+  })
+
+  it("counts torrents carrying none of the group's tags as unmatched", () => {
+    const torrents = [
+      makeTorrent({ hash: "f1", tags: "aither,4k" }),
+      makeTorrent({ hash: "f2", tags: "aither" }),
+      makeTorrent({ hash: "f3", tags: "blutopia" }),
+    ]
+
+    const result = computeFleetAggregation(torrents, TRACKER_TAGS, CROSS_SEED_TAGS, [RESOLUTION])
+
+    expect(result.tagGroupBreakdowns[0].unmatchedCount).toBe(2)
+  })
+
+  it("omits a group with no matches when it does not count unmatched", () => {
+    const torrents = [makeTorrent({ hash: "g1", tags: "aither" })]
+
+    const result = computeFleetAggregation(torrents, TRACKER_TAGS, CROSS_SEED_TAGS, [RESOLUTION])
+
+    expect(result.tagGroupBreakdowns).toEqual([])
+  })
+
+  it("keeps a group with no matches when it counts unmatched torrents", () => {
+    const group = makeTagGroup([tagMember("4k", "UHD")], true)
+    const torrents = [makeTorrent({ hash: "h1", tags: "aither" })]
+
+    const result = computeFleetAggregation(torrents, TRACKER_TAGS, CROSS_SEED_TAGS, [group])
+
+    expect(result.tagGroupBreakdowns).toHaveLength(1)
+    expect(result.tagGroupBreakdowns[0].memberCounts).toEqual([])
+    expect(result.tagGroupBreakdowns[0].unmatchedCount).toBe(1)
+  })
+
+  it("returns an empty breakdown when the caller passes no tag groups", () => {
+    const result = computeFleetAggregation(ALL_TORRENTS, TRACKER_TAGS, CROSS_SEED_TAGS)
+
+    expect(result.tagGroupBreakdowns).toEqual([])
   })
 })

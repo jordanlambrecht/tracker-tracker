@@ -143,6 +143,17 @@ describe("tracker registry", () => {
           ).toBe(expected)
         })
 
+        it("has a relative apiPath", () => {
+          if (tracker.platform === "custom") return
+          // An absolute apiPath would be persisted per row and silently ignore
+          // baseUrl at every `new URL(apiPath, baseUrl)` call site. A tracker
+          // whose API lives off-domain belongs in its adapter — see btn.ts.
+          expect(
+            tracker.apiPath.startsWith("/"),
+            `${tracker.name} has apiPath "${tracker.apiPath}" — must be relative and start with "/". An off-domain API host belongs in the adapter, not the registry.`
+          ).toBe(true)
+        })
+
         it("has a valid https URL", () => {
           expect(tracker.url).toMatch(/^https:\/\//)
           expect(() => new URL(tracker.url)).not.toThrow()

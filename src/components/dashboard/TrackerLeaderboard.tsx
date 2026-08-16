@@ -53,8 +53,20 @@ const columns: Column<TrackerSummary>[] = [
     header: "Ratio",
     align: "right",
     sortable: true,
-    sortValue: (t) => t.latestStats?.ratio ?? -1,
-    render: (t) => <DataCell>{formatRatioDisplay(t.latestStats?.ratio)}</DataCell>,
+    // An infinite ratio (uploaded > 0, downloaded === 0 — the best possible
+    // standing) crosses the wire as `ratio: null` plus this flag, since JSON
+    // can't carry Infinity. Reading `ratio` alone would sort it dead last,
+    // tied with trackers that have no data at all — matches the eaaa483
+    // sidebar fix and tracker-status, which already treats this as healthiest.
+    sortValue: (t) =>
+      t.latestStats?.ratioIsInfinite ? Number.POSITIVE_INFINITY : (t.latestStats?.ratio ?? -1),
+    render: (t) => (
+      <DataCell>
+        {formatRatioDisplay(
+          t.latestStats?.ratioIsInfinite ? Number.POSITIVE_INFINITY : t.latestStats?.ratio
+        )}
+      </DataCell>
+    ),
   },
   {
     key: "uploaded",

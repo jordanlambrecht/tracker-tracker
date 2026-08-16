@@ -214,7 +214,11 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                   {t.name}
                 </span>
                 <span className="font-mono text-xs text-tertiary tabular-nums shrink-0">
-                  {formatRatioDisplay(t.latestStats?.ratio)}
+                  {formatRatioDisplay(
+                    t.latestStats?.ratioIsInfinite
+                      ? Number.POSITIVE_INFINITY
+                      : t.latestStats?.ratio
+                  )}
                 </span>
                 <a
                   href={t.baseUrl.startsWith("http") ? t.baseUrl : `https://${t.baseUrl}`}

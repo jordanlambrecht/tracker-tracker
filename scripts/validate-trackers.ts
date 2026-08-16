@@ -68,6 +68,11 @@ function validate(slugFilter?: string[]): TrackerResult[] {
           `apiPath "${tracker.apiPath}" does not match platform "${tracker.platform}" (expected "${expected}")`
         )
       }
+      if (!tracker.apiPath.startsWith("/")) {
+        errors.push(
+          `apiPath "${tracker.apiPath}" must be relative and start with "/" — an off-domain API host belongs in the adapter, not the registry`
+        )
+      }
     }
     if (!/^https:\/\//.test(tracker.url)) {
       errors.push("URL must use https://")

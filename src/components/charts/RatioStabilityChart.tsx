@@ -273,7 +273,27 @@ function RatioStabilityChart({
   const logScale = useLogScale(allRatioValues)
 
   if (!hasEnoughData) {
-    return <ChartEmptyState height={height} message="Not enough data for stability analysis" />
+    // Distinguish "infinite ratio" from "no data": an EMA over Infinity is
+    // meaningless, so these points are legitimately excluded — but saying
+    // "not enough data" about a fully-populated account is wrong.
+    const allInfinite =
+      trackerData.length > 0 &&
+      trackerData.every(
+        (t) =>
+          t.snapshots.length > 0 &&
+          t.snapshots.every((s) => s.ratio === null) &&
+          t.snapshots.some((s) => s.ratioIsInfinite)
+      )
+    return (
+      <ChartEmptyState
+        height={height}
+        message={
+          allInfinite
+            ? "Ratio is infinite — nothing downloaded, so there is no finite value to chart."
+            : "Not enough data for stability analysis"
+        }
+      />
+    )
   }
 
   return (

@@ -15,4 +15,5 @@ export const STORAGE_KEYS = {
   DASHBOARD_SETTINGS: "tracker-tracker:dashboard-settings",
   CLIENT_WIDGET_EXPANDED: "tracker-tracker:client-widget-expanded",
   DRAFT_QUICKLINKS: "tracker-tracker:draft-quicklinks",
+  SECTION_COLLAPSE: "tracker-tracker:section-collapse",
 } as const

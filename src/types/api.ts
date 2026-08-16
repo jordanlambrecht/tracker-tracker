@@ -20,6 +20,19 @@ import type { NotificationThresholds } from "@/lib/notifications/types"
 /** Fields shared between TrackerLatestStats and Snapshot */
 interface TrackerStatFields {
   ratio: number | null
+  /**
+   * True when the account has uploads but zero downloads, i.e. the ratio is
+   * mathematically infinite. `ratio` is `null` in that case because JSON
+   * cannot represent Infinity — without this flag an infinite ratio is
+   * indistinguishable from "never measured".
+   *
+   * Lives on the shared base rather than on TrackerLatestStats alone: when only
+   * the latter carried it, every Snapshot consumer had to re-derive the state
+   * from byte totals or, more often, silently drop the point. RatioStabilityChart
+   * filtered `ratio !== null` and so rendered an empty chart for exactly the
+   * accounts issues #154 and #172 were filed about.
+   */
+  ratioIsInfinite: boolean
   seedingCount: number | null
   leechingCount: number | null
   requiredRatio: number | null
@@ -36,13 +49,6 @@ export interface TrackerLatestStats extends TrackerStatFields {
   uploadedBytes: string | null
   downloadedBytes: string | null
   bufferBytes: string | null
-  /**
-   * True when the account has uploads but zero downloads, i.e. the ratio is
-   * mathematically infinite. `ratio` is `null` in that case because JSON
-   * cannot represent Infinity — without this flag an infinite ratio is
-   * indistinguishable from "never measured".
-   */
-  ratioIsInfinite: boolean
 }
 
 export interface TrackerSummary {
@@ -123,6 +129,8 @@ export interface DashboardSettings {
   showHealthIndicators: boolean
   showLoginTimers: boolean
   showTodayAtAGlance: boolean
+  /** When false, WebGL charts are swapped for 2D substitutes. Defaults to true. */
+  enable3DCharts: boolean
 }
 
 export interface TodayAtAGlance {
@@ -193,6 +201,7 @@ export const DASHBOARD_SETTINGS_DEFAULTS: DashboardSettings = {
   showHealthIndicators: true,
   showLoginTimers: true,
   showTodayAtAGlance: true,
+  enable3DCharts: true,
 }
 
 /** API response shape for download clients (credentials stripped, dates serialized) */

@@ -13,6 +13,7 @@ import {
   validateHexColor,
   validateHttpUrl,
   validateJoinedAt,
+  validateLastAccessAt,
   validateMaxLength,
 } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
@@ -129,6 +130,21 @@ export async function PATCH(request: Request, props: RouteContext) {
       updates.joinedAt = body.joinedAt
     } else {
       return NextResponse.json({ error: "joinedAt must be YYYY-MM-DD or null" }, { status: 400 })
+    }
+  }
+
+  if (body.lastAccessAt !== undefined) {
+    if (body.lastAccessAt === null) {
+      updates.lastAccessAt = null
+    } else if (typeof body.lastAccessAt === "string") {
+      const lastAccessAtErr = validateLastAccessAt(body.lastAccessAt)
+      if (lastAccessAtErr) return lastAccessAtErr
+      updates.lastAccessAt = body.lastAccessAt
+    } else {
+      return NextResponse.json(
+        { error: "lastAccessAt must be YYYY-MM-DD or null" },
+        { status: 400 }
+      )
     }
   }
 

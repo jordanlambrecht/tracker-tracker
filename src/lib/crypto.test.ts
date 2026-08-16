@@ -56,6 +56,49 @@ describe("encrypt + decrypt", () => {
     expect(decrypted).toBe(plaintext)
   })
 
+  it("round-trips an empty plaintext (blank qBittorrent credentials)", async () => {
+    const key = await deriveKey("test-password", "test-salt")
+    const encrypted = encrypt("", key)
+    // iv + authTag and no ciphertext bytes — the shortest legitimate payload.
+    expect(Buffer.from(encrypted, "base64")).toHaveLength(28)
+    expect(decrypt(encrypted, key)).toBe("")
+  })
+
+  it("still rejects a payload shorter than iv + authTag", async () => {
+    const key = await deriveKey("test-password", "test-salt")
+    const tooShort = Buffer.alloc(27).toString("base64")
+    expect(() => decrypt(tooShort, key)).toThrow("Invalid ciphertext: too short")
+  })
+
+  // These two prove the relaxed length bound did not weaken authentication.
+  //
+  // The `not.toThrow(/too short/i)` assertion is load-bearing — do NOT simplify
+  // these to a bare `.toThrow()`. Under the old bound of 29, a 28-byte payload
+  // was rejected by the LENGTH CHECK, so a bare `.toThrow()` passes whether or
+  // not GCM authentication runs at all, and proves nothing. Asserting the error
+  // is *not* the length error is what shows the payload cleared the guard and
+  // was rejected by tag verification. The exact OpenSSL message is deliberately
+  // not pinned; it varies by Node version.
+  it("rejects a tampered IV at exactly 28 bytes via tag verification", async () => {
+    const key = await deriveKey("test-password", "test-salt")
+    const buf = Buffer.from(encrypt("", key), "base64")
+    buf[0] ^= 0xff // first IV byte
+    const tampered = buf.toString("base64")
+
+    expect(() => decrypt(tampered, key)).toThrow()
+    expect(() => decrypt(tampered, key)).not.toThrow(/too short/i)
+  })
+
+  it("rejects a tampered auth tag at exactly 28 bytes via tag verification", async () => {
+    const key = await deriveKey("test-password", "test-salt")
+    const buf = Buffer.from(encrypt("", key), "base64")
+    buf[12] ^= 0xff // first auth-tag byte — the tag follows the 12-byte IV
+    const tampered = buf.toString("base64")
+
+    expect(() => decrypt(tampered, key)).toThrow()
+    expect(() => decrypt(tampered, key)).not.toThrow(/too short/i)
+  })
+
   it("produces different ciphertexts for same input (random IV)", async () => {
     const key = await deriveKey("test-password", "test-salt")
     const plaintext = "same-token"

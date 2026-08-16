@@ -394,6 +394,24 @@ function MetricChart({
     return <ChartEmptyState height={height} message="No snapshot data yet." />
   }
 
+  // An infinite ratio (uploads, zero downloads) crosses the wire as `ratio: null`
+  // because JSON cannot carry Infinity — and Infinity cannot be plotted on a
+  // linear or log axis either. Every point was therefore dropped and the chart
+  // rendered a bare grid, indistinguishable from having no data at all. That is
+  // what issues #154 and #172 report, on the account state that triggers it.
+  if (
+    metric === "ratio" &&
+    snapshots.every((s) => s.ratio === null) &&
+    snapshots.some((s) => s.ratioIsInfinite)
+  ) {
+    return (
+      <ChartEmptyState
+        height={height}
+        message="Ratio is infinite — nothing was downloaded in this range, so there is no finite value to plot."
+      />
+    )
+  }
+
   const option =
     metric === "dailyDelta"
       ? buildDailyDeltaOption(snapshots, safeAccent, deltaMode)

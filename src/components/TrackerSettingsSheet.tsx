@@ -35,6 +35,7 @@ interface FormState {
   color: string
   qbtTag: string
   joinedAt: string
+  lastAccessAt: string
   baseUrl: string
   useProxy: boolean
   countCrossSeedUnsatisfied: boolean
@@ -48,6 +49,7 @@ function formStateFromTracker(t: TrackerSummary): FormState {
     color: t.color,
     qbtTag: t.qbtTag ?? "",
     joinedAt: t.joinedAt ?? "",
+    lastAccessAt: t.lastAccessAt ?? "",
     baseUrl: t.baseUrl,
     useProxy: t.useProxy ?? false,
     countCrossSeedUnsatisfied: t.countCrossSeedUnsatisfied ?? false,
@@ -69,6 +71,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
   }, [tracker])
 
   const registryEntry = findRegistryEntry(tracker.baseUrl)
+  const hasLoginPolicy = !!registryEntry?.rules?.loginIntervalDays
 
   const [proxyAvailable, setProxyAvailable] = useState<boolean | null>(null)
 
@@ -242,6 +245,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
       baseUrl: form.baseUrl.trim(),
       qbtTag: form.qbtTag.trim(),
       joinedAt: form.joinedAt || null,
+      lastAccessAt: form.lastAccessAt || null,
       useProxy: form.useProxy,
       countCrossSeedUnsatisfied: form.countCrossSeedUnsatisfied,
       hideUnreadBadges: form.hideUnreadBadges,
@@ -582,6 +586,43 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
               />
             </div>
           )}
+
+          <div>
+            <div className="flex items-center justify-between mb-1 gap-2">
+              <label
+                htmlFor="settings-last-access-at"
+                className="text-xs font-sans font-medium text-secondary uppercase tracking-wider"
+              >
+                Last Login
+              </label>
+              {/* Fills the date field only — Save still writes it, so unsaved edits survive. */}
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => updateField("lastAccessAt", localDateStr())}
+                disabled={saving || deleting}
+                text="Today"
+              />
+            </div>
+            <input
+              id="settings-last-access-at"
+              type="date"
+              value={form.lastAccessAt}
+              max={localDateStr()}
+              onChange={(e) => updateField("lastAccessAt", e.target.value)}
+              className={clsx(
+                "w-full font-mono text-sm text-primary cursor-pointer border-0",
+                "bg-control-bg px-4 py-3 nm-inset focus:outline-none rounded-nm-md",
+                !form.lastAccessAt && "text-muted"
+              )}
+              style={{ colorScheme: "dark" }}
+            />
+            <p className="text-xs font-sans text-muted mt-1">
+              {tracker.lastAccessAt ? `Currently recorded: ${tracker.lastAccessAt}` : "Not recorded yet."}
+              {!hasLoginPolicy &&
+                " This tracker has no login-interval policy, so no dashboard timer will appear — this is for your own records."}
+            </p>
+          </div>
 
           <Toggle
             label="Use proxy"

@@ -57,6 +57,7 @@ vi.mock("@/lib/download-clients/qbt/transport", () => ({
     },
   }),
   invalidateSession: vi.fn(),
+  clearAuthBlocks: vi.fn(),
   withSessionRetry: vi.fn(
     async (
       _h: string,
@@ -70,6 +71,7 @@ vi.mock("@/lib/download-clients/qbt/transport", () => ({
 }))
 
 import {
+  clearAuthBlocks,
   getTorrents,
   getTransferInfo,
   invalidateSession,
@@ -191,6 +193,14 @@ describe("QbtClientAdapter", () => {
     expect(invalidateSession).toHaveBeenCalledWith("http://localhost:8080")
     expect(login).toHaveBeenCalledWith("localhost", 8080, false, "admin", "pass")
     expect(getTransferInfo).toHaveBeenCalled()
+  })
+
+  it("testConnection clears the auth block so an explicit retry reaches the network", async () => {
+    vi.mocked(clearAuthBlocks).mockClear()
+
+    await adapter.testConnection()
+
+    expect(clearAuthBlocks).toHaveBeenCalledWith("http://localhost:8080")
   })
 
   it("dispose invalidates the session", () => {

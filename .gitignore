@@ -46,6 +46,9 @@ docs/superpowers/specs/
 .claude/
 .omc/
 CLAUDE.md
+# Rewritten by `next dev` on every boot, so it otherwise reappears as an
+# untracked change forever. See node_modules/next/dist/server/lib/generate-agent-files.js
+AGENTS.md
 .history/
 .vscode/
 .serena/

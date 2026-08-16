@@ -52,6 +52,7 @@ function makeSnapshot(overrides: Partial<Snapshot> = {}): Snapshot {
     uploadedBytes: "10737418240",
     downloadedBytes: "5368709120",
     ratio: 2.0,
+    ratioIsInfinite: false,
     bufferBytes: "0",
     seedbonus: null,
     seedingCount: 5,

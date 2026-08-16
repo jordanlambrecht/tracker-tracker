@@ -1,5 +1,70 @@
 # Changelog
 
+## [2.9.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.8.9...v2.9.0) (2026-08-15)
+
+
+### Features
+
+- add Zenith, fix BTN, add IPTorrents & TorrentLeech adapters
+- **api:** allow blank qBittorrent credentials, add auth circuit breaker
+- **backups:** warn before a restore which credentials cannot be recovered
+- **dashboard:** issues [#37](https://github.com/jordanlambrecht/tracker-tracker/issues/37) [#38](https://github.com/jordanlambrecht/tracker-tracker/issues/38) [#47](https://github.com/jordanlambrecht/tracker-tracker/issues/47) [#48](https://github.com/jordanlambrecht/tracker-tracker/issues/48) [#103](https://github.com/jordanlambrecht/tracker-tracker/issues/103) and shared chart preferences
+- **fleet:** attribute torrents to trackers by announce URL, not tags alone
+- **settings:** ask about snapshot retention on first login, not at signup
+- **trackers:** add IPTorrents and TorrentLeech credential UI and raise their token cap
+- **trackers:** match torrents by announce URL when no qBittorrent tag applies
+
+
+### Bug Fixes
+
+- **api:** compose the caller signal with the shared query timeout
+- **auth:** accept 204 No Content as successful qBittorrent login (5.2+)
+- **auth:** match QBT_SID_<port> cookie name for qBittorrent 5.2+
+- **auth:** parse Set-Cookie entries individually via getSetCookie()
+- **auth:** refuse a password change when the session key is stale
+- **auth:** use the server-assigned session cookie NAME, not hardcoded SID
+- **backups:** carry the retention prompt state through a restore
+- **backups:** stop a matching salt from being trusted as a valid key
+- **charts:** carry ratioIsInfinite on Snapshot so charts stop dropping the points
+- **charts:** rename the lines view-mode tab so it stops colliding with the averaging toggle
+- **charts:** stop offering a log axis for the signed buffer metric
+- **dashboard:** stop telling users with a connected client to connect one
+- **dashboard:** stop the legacy migration writing defaults over the server
+- **deps:** bump echarts to 6.1.0 and echarts-gl to 2.1.0
+- **security:** bump next to 16.3.0 to resolve CVE-2026-44573
+- **security:** re-check every redirect hop when fetching avatars
+- **security:** refuse cross-origin redirects in html-fetch
+- **sidebar:** compute drag reorder against displayed order, not the raw cache
+- **tracker-adapters:** accept BTN's documented Title field and stop fabricating hitAndRuns
+- **tracker-adapters:** btn defensive optional fields + bigint precision
+- **tracker-adapters:** cache TorrentLeech sessions instead of logging in every poll
+- **tracker-adapters:** case-insensitive infinity and relative redirects
+- **tracker-adapters:** default UNIT3D auth to bearer instead of the api_token query param
+- **tracker-adapters:** fall back to api_token auth when UNIT3D rejects bearer
+- **tracker-adapters:** handle unlimited UNIT3D buffer in the adapter, not parseBytes
+- **tracker-adapters:** handle zenith ∞ buffer + ipt 302 redirect
+- **tracker-adapters:** replace real account data in BTN test fixture with placeholders
+- **tracker-adapters:** round BTN freeleechTokens/seedbonus to int
+- **tracker-adapters:** route BTN through adapterFetch and stop reporting unverified fields
+- **tracker-adapters:** scope BTN rounding to freeleechTokens only, fix stale test
+- **trackers:** add up to date information on ReelFliX
+- **trackers:** correct seedpool capitalization
+- **trackers:** represent an infinite ratio as infinite instead of 0 or offline
+- **trackers:** restore seedpool lowercase display name
+- **trackers:** show an infinite ratio as infinite on every surface
+- **trackers:** take DigitalCore connectable from the profile endpoint
+- **trackers:** update DCC to correct abbreviation and name
+- **trackers:** use raw Authorization form for Redacted
+- **ui:** give collapsible section headers a heading and aria-expanded
+
+
+### Refactoring
+
+- **db:** project tag-group columns and guard echarts-gl imports
+- **tracker-adapters:** extract the shared HTML fetch and cookie parsing
+- **tracker-adapters:** keep the BTN API host in the adapter
+- **tracker-adapters:** replace duplicated IPTorrents parse guards with a helper
+
 ## [2.8.9](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.8.8...v2.8.9) (2026-04-10)
 
 

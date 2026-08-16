@@ -6,6 +6,7 @@ import { useMemo } from "react"
 import type { TrackerRules } from "@/data/tracker-registry"
 import { usePollingIntervals } from "@/hooks/usePollingIntervals"
 import type { TorrentRaw } from "@/lib/fleet"
+import type { TagGroupBreakdown } from "@/lib/fleet-aggregation"
 import {
   type AggregatedTorrentsResponse,
   type CategoryStats,
@@ -31,12 +32,6 @@ interface UseTrackerTorrentsParams {
   } | null
   /** When false, disables the 5s active torrent poll (i.e. tab not visible). */
   isActive?: boolean
-}
-
-interface TagGroupBreakdown {
-  group: TagGroup
-  memberCounts: { label: string; count: number; color: string | null }[]
-  unmatchedCount: number
 }
 
 interface QbitmanageBreakdownItem {
@@ -354,10 +349,5 @@ function useTrackerTorrents({
   }
 }
 
-export type {
-  QbitmanageBreakdownItem,
-  TagGroupBreakdown,
-  TrackerTorrentsData,
-  UseTrackerTorrentsParams,
-}
+export type { QbitmanageBreakdownItem, TrackerTorrentsData, UseTrackerTorrentsParams }
 export { useTrackerTorrents }

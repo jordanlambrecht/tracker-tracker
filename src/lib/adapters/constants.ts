@@ -25,7 +25,7 @@ export const DEFAULT_API_PATHS: Record<string, string> = {
   mam: "/jsonLoad.php",
   avistaz: "/profile",
   digitalcore: "/api/v1/status",
-  btn: "https://api.broadcasthe.net/",
+  btn: "/",
   iptorrents: "/profile",
   torrentleech: "/profile",
 }

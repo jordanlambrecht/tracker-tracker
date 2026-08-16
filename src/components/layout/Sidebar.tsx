@@ -18,12 +18,21 @@ import { useSidebarPreferences } from "@/hooks/useSidebarPreferences"
 import { useTrackerList } from "@/hooks/useTrackerList"
 import { useUpdateCheck } from "@/hooks/useUpdateCheck"
 import { DOCS_URL } from "@/lib/constants"
+import type { StatMode } from "@/lib/formatters"
 
 interface SidebarProps {
   collapsed: boolean
   onToggle: () => void
   isMobile?: boolean
 }
+
+const STAT_MODE_OPTIONS: { value: StatMode; label: string }[] = [
+  { value: "ratio", label: "Ratio" },
+  { value: "seeding", label: "Seeding" },
+  { value: "uploaded", label: "Uploaded" },
+  { value: "downloaded", label: "Downloaded" },
+  { value: "buffer", label: "Buffer" },
+]
 
 function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
   const [showAddDialog, setShowAddDialog] = useState(false)
@@ -45,12 +54,25 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
     refresh,
   } = useTrackerList({
     sortMode: prefs.sortMode,
+    statMode: prefs.statMode,
     showFavoritesOnly: prefs.showFavoritesOnly,
     showArchived: prefs.showArchived,
     onSortModeChange: prefs.setSortMode,
   })
 
   const existingBaseUrls = useMemo(() => trackers.map((t) => t.baseUrl), [trackers])
+
+  // Reordering a stat-sorted list is meaningless (the next render just
+  // re-sorts it by value), so drag is suppressed the same way `unlocked:
+  // false` suppresses it — no drag handle, no grab cursor — regardless of
+  // the lock toggle's own state.
+  const dragUnlocked = prefs.unlocked && prefs.sortMode !== "stat"
+  const lockDisabled = prefs.sortMode === "stat"
+  const lockLabel = lockDisabled
+    ? "Reordering is disabled while sorted by datapoint"
+    : dragUnlocked
+      ? "Lock order"
+      : "Unlock to reorder"
 
   function openChangelog() {
     setChangelogOpen(true)
@@ -135,13 +157,7 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
                     value={prefs.statMode}
                     onChange={prefs.setStatMode}
                     ariaLabel="Stat display mode"
-                    options={[
-                      { value: "ratio", label: "Ratio" },
-                      { value: "seeding", label: "Seeding" },
-                      { value: "uploaded", label: "Uploaded" },
-                      { value: "downloaded", label: "Downloaded" },
-                      { value: "buffer", label: "Buffer" },
-                    ]}
+                    options={STAT_MODE_OPTIONS}
                   />
 
                   <Select
@@ -152,6 +168,10 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
                       { value: "index", label: "Index" },
                       { value: "alpha", label: "A-Z" },
                       { value: "custom", label: "Custom" },
+                      {
+                        value: "stat",
+                        label: `By ${STAT_MODE_OPTIONS.find((o) => o.value === prefs.statMode)?.label ?? "Datapoint"}`,
+                      },
                     ]}
                   />
 
@@ -180,11 +200,12 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
                   <button
                     type="button"
                     onClick={() => prefs.setUnlocked((u) => !u)}
-                    className="text-tertiary hover:text-secondary transition-colors duration-150 cursor-pointer px-2 py-1.5 shrink-0 rounded-nm-sm"
-                    aria-label={prefs.unlocked ? "Lock order" : "Unlock to reorder"}
+                    disabled={lockDisabled}
+                    className="text-tertiary hover:text-secondary transition-colors duration-150 cursor-pointer px-2 py-1.5 shrink-0 rounded-nm-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                    aria-label={lockLabel}
                   >
-                    <Tooltip content={prefs.unlocked ? "Lock order" : "Unlock to reorder"}>
-                      <span>{prefs.unlocked ? "🔓" : "🔒"}</span>
+                    <Tooltip content={lockLabel}>
+                      <span>{dragUnlocked ? "🔓" : "🔒"}</span>
                     </Tooltip>
                   </button>
                 </div>
@@ -217,7 +238,7 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
                           key={tracker.id}
                           tracker={tracker}
                           isActive={isActive}
-                          unlocked={prefs.unlocked}
+                          unlocked={dragUnlocked}
                           statMode={prefs.statMode}
                           onToggleFavorite={toggleFavorite}
                         />
