@@ -4,7 +4,6 @@
 //   buildBaseUrl          - Construct base URL from host/port/ssl
 //   credentialFingerprint - Non-reversible hash identifying some secret material
 //   blockKeyFor           - Compose the auth-block map key from baseUrl + fingerprint
-//   apiKeyBlockKeyFor     - Auth-block map key for an API key on a baseUrl
 //   clearAuthBlocks       - Drop auth blocks for one baseUrl (explicit user retry)
 //   login                 - Authenticate with qBittorrent Web API, returns SID cookie
 //   getSession            - Return cached SID or perform a fresh login
@@ -152,18 +151,6 @@ function credentialFingerprint(username: string, password: string): string {
 
 function blockKeyFor(baseUrl: string, username: string, password: string): string {
   return `${baseUrl}\u0000${credentialFingerprint(username, password)}`
-}
-
-/**
- * Block key for an API key. Built through blockKeyFor so it lands in the same
- * per-baseUrl namespace clearAuthBlocks sweeps, with the literal "apikey" in
- * the username slot keeping keys out of the fingerprint space ordinary
- * credentials occupy. (A client whose username is exactly "apikey" and whose
- * password is exactly the key would collide — harmless, since both would then
- * carry the same block and the same rejection.)
- */
-function apiKeyBlockKeyFor(baseUrl: string, key: string): string {
-  return blockKeyFor(baseUrl, "apikey", key)
 }
 
 /**
@@ -334,8 +321,11 @@ async function qbtFetch(
   // API keys never pass through login(), so the circuit breaker that guards
   // password auth has to be applied here instead. Without it a rotated key
   // would be retried by every heartbeat forever — the same runaway the
-  // password breaker exists to stop.
-  const blockKey = auth.mode === "apikey" ? apiKeyBlockKeyFor(baseUrl, auth.key) : null
+  // password breaker exists to stop. Keyed through blockKeyFor so it shares
+  // the per-baseUrl namespace clearAuthBlocks sweeps, with "apikey" in the
+  // username slot keeping keys out of the fingerprint space ordinary
+  // credentials occupy.
+  const blockKey = auth.mode === "apikey" ? blockKeyFor(baseUrl, "apikey", auth.key) : null
   if (blockKey) {
     const blocked = authBlocks.get(blockKey)
     if (blocked) throw new Error(blocked)

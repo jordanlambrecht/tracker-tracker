@@ -54,6 +54,90 @@ const AUTH_METHOD_OPTIONS: { value: AuthMethod; label: string }[] = [
   { value: "apikey", label: "API Key" },
 ]
 
+/**
+ * Auth-method picker plus whichever credential fields that method needs.
+ * Shared by the add form and the per-client credential panel so the two cannot
+ * drift — they already disagree on state names, which is enough difference.
+ */
+function CredentialFields({
+  authMethod,
+  onAuthMethodChange,
+  username,
+  onUsernameChange,
+  password,
+  onPasswordChange,
+  apiKey,
+  onApiKeyChange,
+}: {
+  authMethod: AuthMethod
+  onAuthMethodChange: (value: AuthMethod) => void
+  username: string
+  onUsernameChange: (value: string) => void
+  password: string
+  onPasswordChange: (value: string) => void
+  apiKey: string
+  onApiKeyChange: (value: string) => void
+}) {
+  return (
+    <>
+      <div className="w-full sm:w-64">
+        <Select
+          label="Auth Method"
+          value={authMethod}
+          onChange={(v) => onAuthMethodChange(v as AuthMethod)}
+          ariaLabel="Authentication method"
+          size="md"
+          options={AUTH_METHOD_OPTIONS}
+        />
+      </div>
+      {authMethod === "password" ? (
+        <>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <Input
+                label="Username"
+                value={username}
+                onChange={(e) => onUsernameChange(e.target.value)}
+                placeholder="admin"
+                name="client-username"
+                autoComplete="off"
+                data-1p-ignore
+              />
+            </div>
+            <div className="flex-1">
+              <Input
+                type="password"
+                label="Password"
+                value={password}
+                onChange={(e) => onPasswordChange(e.target.value)}
+                placeholder="••••••••"
+                name="client-password"
+                autoComplete="off"
+                data-1p-ignore
+              />
+            </div>
+          </div>
+          <Subtext>{BLANK_CREDENTIALS_HINT}</Subtext>
+        </>
+      ) : (
+        <>
+          <Input
+            type="password"
+            label="API Key"
+            value={apiKey}
+            onChange={(e) => onApiKeyChange(e.target.value)}
+            placeholder="••••••••"
+            name="client-api-key"
+            autoComplete="off"
+            data-1p-ignore
+          />
+          <Subtext>{API_KEY_HINT}</Subtext>
+        </>
+      )}
+    </>
+  )
+}
+
 const CLIENT_TYPE_OPTIONS: { value: ClientType; label: string; disabled?: boolean }[] = [
   { value: "qbittorrent", label: "qBittorrent" },
   { value: "deluge", label: "Deluge (coming soon)", disabled: true },
@@ -307,60 +391,16 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
         <H2 className="uppercase tracking-wider">Credentials</H2>
         {changingCredentials ? (
           <div className="flex flex-col gap-3">
-            <div className="w-full sm:w-64">
-              <Select
-                label="Auth Method"
-                value={authMethod}
-                onChange={(v) => setAuthMethod(v as AuthMethod)}
-                ariaLabel="Authentication method"
-                size="md"
-                options={AUTH_METHOD_OPTIONS}
-              />
-            </div>
-            {authMethod === "password" ? (
-              <>
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex-1">
-                    <Input
-                      label="Username"
-                      value={newUsername}
-                      onChange={(e) => setNewUsername(e.target.value)}
-                      placeholder="admin"
-                      name="client-username"
-                      autoComplete="off"
-                      data-1p-ignore
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <Input
-                      type="password"
-                      label="Password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="••••••••"
-                      name="client-password"
-                      autoComplete="off"
-                      data-1p-ignore
-                    />
-                  </div>
-                </div>
-                <Subtext>{BLANK_CREDENTIALS_HINT}</Subtext>
-              </>
-            ) : (
-              <>
-                <Input
-                  type="password"
-                  label="API Key"
-                  value={newApiKey}
-                  onChange={(e) => setNewApiKey(e.target.value)}
-                  placeholder="••••••••"
-                  name="client-api-key"
-                  autoComplete="off"
-                  data-1p-ignore
-                />
-                <Subtext>{API_KEY_HINT}</Subtext>
-              </>
-            )}
+            <CredentialFields
+              authMethod={authMethod}
+              onAuthMethodChange={setAuthMethod}
+              username={newUsername}
+              onUsernameChange={setNewUsername}
+              password={newPassword}
+              onPasswordChange={setNewPassword}
+              apiKey={newApiKey}
+              onApiKeyChange={setNewApiKey}
+            />
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
@@ -637,60 +677,16 @@ function AddClientForm({
           <NumberInput label="Port" value={port} onChange={setPort} min={PORT_MIN} max={PORT_MAX} />
         </div>
       </div>
-      <div className="w-full sm:w-64">
-        <Select
-          label="Auth Method"
-          value={authMethod}
-          onChange={(v) => setAuthMethod(v as AuthMethod)}
-          ariaLabel="Authentication method"
-          size="md"
-          options={AUTH_METHOD_OPTIONS}
-        />
-      </div>
-      {authMethod === "password" ? (
-        <>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <Input
-                label="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="admin"
-                name="client-username"
-                autoComplete="off"
-                data-1p-ignore
-              />
-            </div>
-            <div className="flex-1">
-              <Input
-                type="password"
-                label="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                name="client-password"
-                autoComplete="off"
-                data-1p-ignore
-              />
-            </div>
-          </div>
-          <Subtext>{BLANK_CREDENTIALS_HINT}</Subtext>
-        </>
-      ) : (
-        <>
-          <Input
-            type="password"
-            label="API Key"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            placeholder="••••••••"
-            name="client-api-key"
-            autoComplete="off"
-            data-1p-ignore
-          />
-          <Subtext>{API_KEY_HINT}</Subtext>
-        </>
-      )}
+      <CredentialFields
+        authMethod={authMethod}
+        onAuthMethodChange={setAuthMethod}
+        username={username}
+        onUsernameChange={setUsername}
+        password={password}
+        onPasswordChange={setPassword}
+        apiKey={apiKey}
+        onApiKeyChange={setApiKey}
+      />
       <Notice message={error} />
       <div className="flex items-center gap-3">
         <Button
