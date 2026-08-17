@@ -569,8 +569,11 @@ export function startClientScheduler(encryptionKey: Buffer): void {
   // heartbeat kept the UI green while snapshots stopped entirely.
   if (isClientSchedulerRunning()) return
   // Half-started: tear the surviving half down so the restart below is clean
-  // rather than orphaning a second heartbeat task.
-  if (getHeartbeatTask() || getDeepPollTask()) stopClientScheduler()
+  // rather than orphaning a second heartbeat task. The returned promise is
+  // deliberately dropped: this is a restart, not a shutdown, so the only thing
+  // waiting would buy is a later start, and every teardown side effect has
+  // already happened synchronously by the time the call returns.
+  if (getHeartbeatTask() || getDeepPollTask()) void stopClientScheduler()
 
   // Run both immediately on start
   heartbeatAllClients(encryptionKey).catch((error) => {
@@ -637,7 +640,34 @@ export function startClientScheduler(encryptionKey: Buffer): void {
   log.info("Client scheduler started (heartbeat: 5s, deep poll: 30s tick)")
 }
 
-export function stopClientScheduler(): void {
+/**
+ * Tears the scheduler down and resolves once the final uptime flush has landed.
+ *
+ * Returns a promise so a shutdown path can wait for the write. Every side
+ * effect still happens synchronously, in the order it always did, before the
+ * single trailing await — so the callers that ignore the promise (see below)
+ * behave exactly as they did when this returned void. Nothing is deferred into
+ * the promise except the wait itself.
+ *
+ * The promise NEVER rejects. Six call sites drop it on the floor, and an
+ * unhandled rejection takes the process down in modern Node; the flush failure
+ * is logged and swallowed here instead.
+ *
+ * Awaiting this is what actually saves the buckets, and today NO caller does:
+ * scheduler.ts's `stopScheduler()` returns void and its SIGTERM handler calls
+ * `process.exit(0)` on the next line, so on `docker stop` the flush is still
+ * cut off mid-write. Making that path await is a two-line change in
+ * scheduler.ts (forward the promise from stopScheduler, make the handler
+ * `async` and await it before exiting) — until it lands, this signature is the
+ * half of the fix that lives in this file.
+ *
+ * Note also what this does NOT recover: flushCompletedBuckets only drains
+ * buckets strictly older than the current 5-minute window, so the in-progress
+ * bucket is not written by the flush and is then dropped by
+ * clearUptimeAccumulator. Saving it needs a flush-everything export from
+ * uptime.ts; awaiting alone cannot do it.
+ */
+export function stopClientScheduler(): Promise<void> {
   const hb = getHeartbeatTask()
   if (hb) {
     hb.stop()
@@ -651,11 +681,19 @@ export function stopClientScheduler(): void {
   clearAllSessions()
   clearSpeedCache()
 
-  flushCompletedBuckets().catch((err) => {
+  // Started before the clear on purpose: flushCompletedBuckets drains the
+  // accumulator into its row array synchronously and only then awaits the
+  // insert, so wiping the globals below cannot steal rows already in flight —
+  // and it leaves an empty queue behind, so a second stop cannot re-insert them.
+  const flushed = flushCompletedBuckets().catch((err) => {
     log.warn(err, "Failed to flush uptime buckets during scheduler stop")
   })
   clearUptimeAccumulator()
   clearFailureLogGate()
+
+  // Must stay last. Anything placed after this await becomes a side effect the
+  // fire-and-forget callers would silently lose.
+  return flushed.then(() => undefined)
 }
 
 /**

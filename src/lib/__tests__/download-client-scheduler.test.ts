@@ -19,6 +19,8 @@ import {
 import {
   aggregateByTag,
   applyMaindataUpdate,
+  clearAllSessions,
+  clearSpeedCache,
   createAdapterForClient,
   getFilteredTorrents,
   getStoreRevision,
@@ -26,7 +28,7 @@ import {
 } from "@/lib/download-clients"
 import { clearFailureLogGate } from "@/lib/failure-log-gate"
 import { log } from "@/lib/logger"
-import { flushCompletedBuckets, recordHeartbeat } from "@/lib/uptime"
+import { clearUptimeAccumulator, flushCompletedBuckets, recordHeartbeat } from "@/lib/uptime"
 
 // ---------------------------------------------------------------------------
 // Module mocks (boundaries only)
@@ -1212,5 +1214,113 @@ describe("client scheduler self-healing", () => {
     await vi.advanceTimersByTimeAsync(0)
 
     expect(registered).toContain("*/30 * * * * *")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Regression: the final uptime flush was fire-and-forget, so a clean stop tore
+// the process down mid-write and dropped a 5-minute uptime bucket every time.
+// The outage bands drawn from those buckets treat each hole as missing
+// evidence, so every restart quietly thinned the record they rely on.
+//
+// stopClientScheduler now returns a promise that resolves only after the flush
+// has landed. These tests pin the two halves of that contract: it really waits,
+// and waiting costs the fire-and-forget callers nothing — every teardown side
+// effect still happens synchronously and the promise never rejects.
+// ---------------------------------------------------------------------------
+
+describe("stopClientScheduler waits for the final uptime flush", () => {
+  /** The cron-task handles the scheduler stores on globalThis. */
+  const gt = globalThis as Record<string, unknown>
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.useFakeTimers()
+    // resetAllMocks strips the factory implementation, so the default has to be
+    // re-armed or the flush would resolve to undefined instead of a count.
+    vi.mocked(flushCompletedBuckets).mockResolvedValue(0)
+    gt.__clientHeartbeatTask = null
+    gt.__clientDeepPollTask = null
+  })
+
+  afterEach(() => {
+    gt.__clientHeartbeatTask = null
+    gt.__clientDeepPollTask = null
+    vi.useRealTimers()
+    clearFailureLogGate()
+  })
+
+  it("stays pending until the flush write completes", async () => {
+    // Stands in for the INSERT that a `docker stop` used to cut off. Driven by
+    // a fake timer rather than a real sleep, so the test is deterministic.
+    const WRITE_MS = 1000
+    vi.mocked(flushCompletedBuckets).mockImplementation(
+      () =>
+        new Promise<number>((resolve) => {
+          setTimeout(() => resolve(3), WRITE_MS)
+        })
+    )
+
+    let settled = false
+    const stopped = stopClientScheduler().then(() => {
+      settled = true
+    })
+
+    // Drain every microtask. Only the pending write stands between the call and
+    // resolution now, so an un-awaited flush would already read as settled.
+    await vi.advanceTimersByTimeAsync(0)
+    expect(settled).toBe(false)
+
+    await vi.advanceTimersByTimeAsync(WRITE_MS)
+    await stopped
+
+    expect(settled).toBe(true)
+    expect(vi.mocked(flushCompletedBuckets)).toHaveBeenCalledTimes(1)
+  })
+
+  it("starts the flush before wiping the accumulator", () => {
+    // flushCompletedBuckets copies the queue into its row array synchronously
+    // and only then awaits the insert. Calling it first is therefore what keeps
+    // clearUptimeAccumulator from stealing rows that are already in flight —
+    // reverse the two and the last buckets are dropped even with the await.
+    void stopClientScheduler()
+
+    const flushOrder = vi.mocked(flushCompletedBuckets).mock.invocationCallOrder[0]
+    const clearOrder = vi.mocked(clearUptimeAccumulator).mock.invocationCallOrder[0]
+    expect(flushOrder).toBeDefined()
+    expect(clearOrder).toBeDefined()
+    expect(flushOrder).toBeLessThan(clearOrder)
+  })
+
+  it("finishes every teardown side effect synchronously, before the await", () => {
+    const hbStop = vi.fn()
+    const dpStop = vi.fn()
+    gt.__clientHeartbeatTask = { stop: hbStop }
+    gt.__clientDeepPollTask = { stop: dpStop }
+    // A write that never lands: nothing below may depend on the flush settling,
+    // or the six callers that drop the promise would silently lose it.
+    vi.mocked(flushCompletedBuckets).mockReturnValue(new Promise<number>(() => {}))
+
+    void stopClientScheduler()
+
+    expect(hbStop).toHaveBeenCalledTimes(1)
+    expect(dpStop).toHaveBeenCalledTimes(1)
+    expect(gt.__clientHeartbeatTask).toBeNull()
+    expect(gt.__clientDeepPollTask).toBeNull()
+    expect(vi.mocked(clearAllSessions)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(clearSpeedCache)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(clearUptimeAccumulator)).toHaveBeenCalledTimes(1)
+  })
+
+  it("resolves instead of rejecting when the flush write fails", async () => {
+    // Six call sites drop this promise. An unhandled rejection out of any of
+    // them would take the process down on the way out.
+    vi.mocked(flushCompletedBuckets).mockRejectedValue(new Error("connection terminated"))
+
+    await expect(stopClientScheduler()).resolves.toBeUndefined()
+    expect(vi.mocked(log.warn)).toHaveBeenCalledWith(
+      expect.any(Error),
+      "Failed to flush uptime buckets during scheduler stop"
+    )
   })
 })
