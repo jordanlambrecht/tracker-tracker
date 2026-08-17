@@ -16,6 +16,8 @@ vi.mock("@/lib/db", () => ({
 }))
 
 vi.mock("@/lib/db/schema", () => ({
+  appCoverageGaps: {},
+  // appLiveness is absent on purpose — see the exclusion test below.
   appSettings: {},
   trackers: {},
   trackerSnapshots: {},
@@ -458,6 +460,85 @@ describe("generateBackupPayload sensitive field exclusion", () => {
     expect(serialized).not.toContain("argon2id")
     // Scheduler key must not leak in any form
     expect(serialized).not.toContain("base64-encrypted-scheduler-key-value")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// app_liveness must never ride along in a backup
+//
+// It is one mutable row meaning "the live process was here at this instant".
+// Restoring a months-old lastSeenAt would make the next touchAppLiveness()
+// measure the distance to now and write a single enormous fabricated outage
+// across every chart — an explanation for downtime that never happened.
+//
+// The guarantee is structural (generateBackupPayload enumerates its tables by
+// hand), but "structural" is exactly what a future contributor changes while
+// tidying up, so it is pinned here too.
+// ---------------------------------------------------------------------------
+
+describe("app liveness ledger exclusion", () => {
+  function emptySelectMock() {
+    const chain = {
+      from: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue([]),
+      orderBy: vi.fn().mockResolvedValue([]),
+      where: vi.fn().mockReturnThis(),
+    }
+    return vi.fn().mockImplementation(() => chain)
+  }
+
+  beforeEach(() => {
+    vi.mocked(db.select).mockImplementation(emptySelectMock())
+  })
+
+  it("does NOT carry app_liveness", async () => {
+    const payload = await generateBackupPayload()
+    expect(payload).not.toHaveProperty("appLiveness")
+    expect(JSON.stringify(payload)).not.toContain("lastSeenAt")
+    expect(payload.manifest.counts).not.toHaveProperty("appLiveness")
+  })
+
+  it("DOES carry app_coverage_gaps — the snapshots it explains are restored too", async () => {
+    const payload = await generateBackupPayload()
+    expect(payload).toHaveProperty("appCoverageGaps")
+    expect(payload.manifest.counts).toHaveProperty("appCoverageGaps")
+  })
+})
+
+describe("appCoverageGaps validation", () => {
+  it("accepts a payload without the field (older backups)", () => {
+    const payload = validPayload()
+    expect(() => validateBackupJson(payload)).not.toThrow()
+  })
+
+  it("rejects a gap whose end precedes its start", () => {
+    const payload = validPayload() as Record<string, unknown>
+    payload.appCoverageGaps = [
+      {
+        startedAt: "2026-08-01T12:00:00.000Z",
+        endedAt: "2026-08-01T11:00:00.000Z",
+        reason: "unclean",
+      },
+    ]
+    expect(() => validateBackupJson(payload)).toThrow(/endedAt must not precede startedAt/)
+  })
+
+  it("rejects a gap with a non-ISO timestamp", () => {
+    const payload = validPayload() as Record<string, unknown>
+    payload.appCoverageGaps = [{ startedAt: "yesterday", endedAt: "today", reason: "unclean" }]
+    expect(() => validateBackupJson(payload)).toThrow(/ISO 8601/)
+  })
+
+  it("accepts a well-formed gap", () => {
+    const payload = validPayload() as Record<string, unknown>
+    payload.appCoverageGaps = [
+      {
+        startedAt: "2026-08-01T11:00:00.000Z",
+        endedAt: "2026-08-01T12:00:00.000Z",
+        reason: "shutdown",
+      },
+    ]
+    expect(() => validateBackupJson(payload)).not.toThrow()
   })
 })
 

@@ -22,6 +22,14 @@ import {
 } from "./lib/chart-helpers"
 import { computeDailyDeltas } from "./lib/chart-transforms"
 import { LogScaleToggle } from "./lib/LogScaleToggle"
+import { OutageBandLegend } from "./lib/OutageBandLegend"
+import { useOutageBands } from "./lib/OutageBandsProvider"
+import {
+  appendOutageBandSeries,
+  type ChartOutageBands,
+  NO_OUTAGE_BANDS,
+  timeRangeOf,
+} from "./lib/outage-bands"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -375,6 +383,9 @@ function MetricChart({
   baselineValue,
 }: MetricChartProps) {
   const [deltaMode, setDeltaMode] = useState<DeltaMode>("bar")
+  // Tracker snapshots: app bands only. A download-client outage cannot flatten
+  // a tracker poll, so a qBT band here would blame the wrong system.
+  const outages = useOutageBands("tracker")
 
   const safeAccent = isValidHex(accentColor) ? accentColor : CHART_THEME.accent
 
@@ -412,7 +423,7 @@ function MetricChart({
     )
   }
 
-  const option =
+  const baseOption =
     metric === "dailyDelta"
       ? buildDailyDeltaOption(snapshots, safeAccent, deltaMode)
       : buildLineOption(
@@ -423,9 +434,22 @@ function MetricChart({
           showLogToggle ? logScale.effectiveLog : undefined
         )
 
-  if (option === null) {
+  if (baseOption === null) {
     return <ChartEmptyState height={height} message="Not enough data for daily deltas." />
   }
+
+  // The daily-delta view buckets by calendar day onto a CATEGORY axis, where a
+  // band's epoch-millisecond bounds have no meaning and a sub-day outage cannot
+  // be honestly positioned inside a day-wide bar. It gets the band series with
+  // nothing in it rather than no band series at all: ChartECharts renders in
+  // merge mode, so switching metrics on a mounted chart would otherwise leave
+  // the previous view's bands painted over this one.
+  const bands: ChartOutageBands = metric === "dailyDelta" ? NO_OUTAGE_BANDS : outages
+  const option = appendOutageBandSeries(
+    baseOption,
+    bands,
+    timeRangeOf(snapshots.map((s) => new Date(s.polledAt).getTime()))
+  )
 
   if (metric === "dailyDelta") {
     return (
@@ -456,6 +480,7 @@ function MetricChart({
         </div>
       )}
       <ChartECharts option={option} style={{ height, width: "100%" }} />
+      <OutageBandLegend bands={bands} />
     </div>
   )
 }

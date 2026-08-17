@@ -166,4 +166,63 @@ describe("useDashboardSettings", () => {
       expect(localStorage.getItem(STORAGE_KEYS.DASHBOARD_SETTINGS)).toBeNull()
     })
   })
+
+  describe("cross-instance sync", () => {
+    // Several instances of this hook are mounted at once — the settings sheet,
+    // the dashboard, the outage-band provider. Before the broadcast existed, a
+    // toggle flipped in the sheet updated only the sheet's copy, so the user
+    // could switch something off and watch it stay on everywhere else. This is
+    // the seam the "toggle hides the outage bands" behaviour actually rides
+    // through in the app, so it is pinned directly.
+    it("applies one instance's write to every other instance", async () => {
+      vi.spyOn(global, "fetch").mockResolvedValue(jsonResponse(DASHBOARD_SETTINGS_DEFAULTS))
+
+      const writer = renderHook(() => useDashboardSettings())
+      const listener = renderHook(() => useDashboardSettings())
+      await waitFor(() => expect(listener.result.current.loaded).toBe(true))
+      expect(listener.result.current.settings.showOutageBands).toBe(true)
+
+      act(() => {
+        writer.result.current.update("showOutageBands", false)
+      })
+
+      expect(writer.result.current.settings.showOutageBands).toBe(false)
+      expect(listener.result.current.settings.showOutageBands).toBe(false)
+    })
+
+    it("carries only the changed key, leaving the listener's other settings alone", async () => {
+      vi.spyOn(global, "fetch").mockResolvedValue(
+        jsonResponse({ ...DASHBOARD_SETTINGS_DEFAULTS, showLoginTimers: false })
+      )
+
+      const writer = renderHook(() => useDashboardSettings())
+      const listener = renderHook(() => useDashboardSettings())
+      await waitFor(() => expect(listener.result.current.loaded).toBe(true))
+
+      act(() => {
+        writer.result.current.update("showOutageBands", false)
+      })
+
+      expect(listener.result.current.settings.showOutageBands).toBe(false)
+      // Not clobbered back to its default by the broadcast.
+      expect(listener.result.current.settings.showLoginTimers).toBe(false)
+    })
+
+    it("stops listening once unmounted", async () => {
+      vi.spyOn(global, "fetch").mockResolvedValue(jsonResponse(DASHBOARD_SETTINGS_DEFAULTS))
+
+      const writer = renderHook(() => useDashboardSettings())
+      const listener = renderHook(() => useDashboardSettings())
+      await waitFor(() => expect(listener.result.current.loaded).toBe(true))
+      listener.unmount()
+
+      // A setState on an unmounted hook would warn rather than throw, so assert
+      // the writer still works and nothing blew up on the way through.
+      act(() => {
+        writer.result.current.update("showOutageBands", false)
+      })
+
+      expect(writer.result.current.settings.showOutageBands).toBe(false)
+    })
+  })
 })

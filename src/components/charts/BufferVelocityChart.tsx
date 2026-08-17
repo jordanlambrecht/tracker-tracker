@@ -20,6 +20,9 @@ import {
   insideZoom,
 } from "./lib/chart-helpers"
 import { LogScaleToggle } from "./lib/LogScaleToggle"
+import { OutageBandLegend } from "./lib/OutageBandLegend"
+import { useOutageBands } from "./lib/OutageBandsProvider"
+import { appendOutageBandSeries, polledAtRange } from "./lib/outage-bands"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -302,6 +305,8 @@ const MA_TABS: { key: MAWindow; label: string }[] = [
 
 function BufferVelocityChart({ trackerData, height = 320 }: BufferVelocityChartProps) {
   const [maWindow, setMaWindow] = useState<MAWindow>("1")
+  // Tracker snapshots — app bands only.
+  const outages = useOutageBands("tracker")
 
   const computed: TrackerVelocityData[] = trackerData.map((t) => {
     const { days, velocities } = computeBufferVelocity(t.snapshots)
@@ -342,9 +347,14 @@ function BufferVelocityChart({ trackerData, height = 320 }: BufferVelocityChartP
         <LogScaleToggle effectiveLog={effectiveLog} isAuto={isAuto} onToggle={onToggle} />
       </div>
       <ChartECharts
-        option={buildBufferVelocityOption(smoothed, effectiveLog)}
+        option={appendOutageBandSeries(
+          buildBufferVelocityOption(smoothed, effectiveLog),
+          outages,
+          polledAtRange(trackerData.flatMap((t) => t.snapshots))
+        )}
         style={{ height, width: "100%" }}
       />
+      <OutageBandLegend bands={outages} />
     </div>
   )
 }

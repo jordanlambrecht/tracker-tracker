@@ -15,6 +15,7 @@ import type {
   MamPlatformMeta,
 } from "@/lib/adapters/types"
 import { pruneDismissedAlerts } from "@/lib/alert-pruning"
+import { pruneCoverageGaps } from "@/lib/app-liveness"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import type { NotificationTargetRow, TrackerRow } from "@/lib/db/schema"
@@ -672,6 +673,25 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
       }
     } catch (error) {
       log.error(error, "Checkpoint pruning failed")
+    }
+
+    // Coverage gaps expire on the SAME schedule and the SAME horizon as the
+    // snapshots they explain. This coupling is deliberate and load-bearing: if
+    // gaps were pruned on a different horizon, charts would outlive their own
+    // explanations and a region with no gap record would be indistinguishable
+    // from a healthy one — the same retention asymmetry that makes inferring
+    // downtime from missing rows a lie. Keep this call inside this guard,
+    // sharing this retention value. NEVER prune gaps more aggressively than
+    // snapshots (pruneCoverageGaps keys on endedAt for exactly that reason).
+    try {
+      const prunedGaps = await pruneCoverageGaps(settings.snapshotRetentionDays)
+      if (prunedGaps > 0) {
+        log.info(
+          `Pruned ${prunedGaps} app coverage gaps older than ${settings.snapshotRetentionDays} days`
+        )
+      }
+    } catch (error) {
+      log.error(error, "Coverage gap pruning failed")
     }
   }
 

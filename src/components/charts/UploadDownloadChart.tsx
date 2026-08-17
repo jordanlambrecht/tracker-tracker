@@ -16,6 +16,9 @@ import {
   fmtNum,
   yAxisAutoRange,
 } from "./lib/chart-helpers"
+import { OutageBandLegend } from "./lib/OutageBandLegend"
+import { useOutageBands } from "./lib/OutageBandsProvider"
+import { appendOutageBandSeries, polledAtRange } from "./lib/outage-bands"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -182,6 +185,9 @@ function UploadDownloadChart({
   height = 400,
   showDataZoom = false,
 }: UploadDownloadChartProps) {
+  // Tracker snapshots — app bands only.
+  const outages = useOutageBands("tracker")
+
   if (snapshots.length === 0) {
     return (
       <ChartEmptyState height={height} message="No snapshot data yet. Waiting for first poll..." />
@@ -189,10 +195,17 @@ function UploadDownloadChart({
   }
 
   return (
-    <ChartECharts
-      option={buildOption(snapshots, accentColor, showDataZoom)}
-      style={{ height, width: "100%" }}
-    />
+    <div className="flex flex-col gap-1">
+      <ChartECharts
+        option={appendOutageBandSeries(
+          buildOption(snapshots, accentColor, showDataZoom),
+          outages,
+          polledAtRange(snapshots)
+        )}
+        style={{ height, width: "100%" }}
+      />
+      <OutageBandLegend bands={outages} />
+    </div>
   )
 }
 

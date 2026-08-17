@@ -21,6 +21,9 @@ import {
   insideZoom,
 } from "./lib/chart-helpers"
 import { computeDailyDeltas } from "./lib/chart-transforms"
+import { OutageBandLegend } from "./lib/OutageBandLegend"
+import { useOutageBands } from "./lib/OutageBandsProvider"
+import { appendOutageBandSeries, polledAtRange } from "./lib/outage-bands"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -522,6 +525,8 @@ function buildSumsOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
 
 function DailyVolumeChart({ trackerData, height = 360 }: DailyVolumeChartProps) {
   const [mode, setMode] = useState<VolumeMode>("bar")
+  // Tracker snapshots — app bands only.
+  const outages = useOutageBands("tracker")
   const hasData = trackerData.some((t) => t.snapshots.length > 1)
 
   if (!hasData) {
@@ -533,7 +538,7 @@ function DailyVolumeChart({ trackerData, height = 360 }: DailyVolumeChartProps) 
     )
   }
 
-  const option =
+  const baseOption =
     mode === "river"
       ? buildRiverOption(trackerData)
       : mode === "area"
@@ -541,6 +546,20 @@ function DailyVolumeChart({ trackerData, height = 360 }: DailyVolumeChartProps) 
         : mode === "sums"
           ? buildSumsOption(trackerData)
           : buildDailyVolumeOption(trackerData)
+
+  // The river view is a themeRiver on a singleAxis — there is no cartesian
+  // x-axis for a markArea to sit on, so it gets no band series at all rather
+  // than an empty one. Safe to omit entirely here (and only here) because the
+  // `key={mode}` below remounts the chart on every mode change, so there is no
+  // merge-mode leftover to clear.
+  const bandable = mode !== "river"
+  const option = bandable
+    ? appendOutageBandSeries(
+        baseOption,
+        outages,
+        polledAtRange(trackerData.flatMap((t) => t.snapshots))
+      )
+    : baseOption
 
   return (
     <div className="flex flex-col gap-3">
@@ -558,6 +577,7 @@ function DailyVolumeChart({ trackerData, height = 360 }: DailyVolumeChartProps) 
         />
       </div>
       <ChartECharts key={mode} option={option} style={{ height, width: "100%" }} />
+      {bandable && <OutageBandLegend bands={outages} />}
     </div>
   )
 }

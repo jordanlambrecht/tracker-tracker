@@ -131,6 +131,12 @@ export interface DashboardSettings {
   showTodayAtAGlance: boolean
   /** When false, WebGL charts are swapped for 2D substitutes. Defaults to true. */
   enable3DCharts: boolean
+  /**
+   * Hatched background bands marking ranges where nothing was being collected.
+   * On by default: a flat region with no explanation is the failure this
+   * feature exists to prevent, so the explanation has to be opt-OUT.
+   */
+  showOutageBands: boolean
 }
 
 export interface TodayAtAGlance {
@@ -202,6 +208,7 @@ export const DASHBOARD_SETTINGS_DEFAULTS: DashboardSettings = {
   showLoginTimers: true,
   showTodayAtAGlance: true,
   enable3DCharts: true,
+  showOutageBands: true,
 }
 
 /** API response shape for download clients (credentials stripped, dates serialized) */

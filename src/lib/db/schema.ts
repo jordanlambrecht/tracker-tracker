@@ -3,7 +3,8 @@
 // Tables: appSettings, trackers, trackerSnapshots, trackerRoles, downloadClients,
 // tagGroups, tagGroupMembers, clientSnapshots, backupHistory, dismissedAlerts,
 // draftQuicklinks (column on appSettings), notificationTargets, notificationDeliveryState,
-// trackerDailyCheckpoints, torrentDailyCheckpoints, dbSizeHistory
+// trackerDailyCheckpoints, torrentDailyCheckpoints, dbSizeHistory, appLiveness,
+// appCoverageGaps
 
 import {
   bigint,
@@ -69,6 +70,21 @@ export const appSettings = pgTable("app_settings", {
   encryptedOeimgApiKey: text("encrypted_oeimg_api_key"),
   encryptedImgbbApiKey: text("encrypted_imgbb_api_key"),
   encryptedSchedulerKey: text("encrypted_scheduler_key"),
+  /**
+   * Opt-in gate for the per-tracker credential vault (`trackers.encrypted_credentials`).
+   *
+   * DEFAULT FALSE, deliberately. The vault stores passkeys and NickServ passwords,
+   * so it is a feature the user turns ON knowingly rather than one that quietly
+   * exists on every install.
+   *
+   * This flag gates the ROUTES, not the data. Turning it off makes
+   * GET/PUT/reveal under /api/trackers/[id]/credentials return 403; it does NOT
+   * delete, clear or orphan an existing vault. The column keeps being re-keyed by
+   * change-password, keeps riding along in backups, and becomes readable again
+   * the moment the toggle goes back on. A gate that destroyed data on toggle-off
+   * would make an accidental click unrecoverable.
+   */
+  credentialVaultEnabled: boolean("credential_vault_enabled").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 
@@ -79,6 +95,33 @@ export const trackers = pgTable("trackers", {
   apiPath: varchar("api_path", { length: 255 }).default("/api/user").notNull(),
   platformType: varchar("platform_type", { length: 50 }).default("unit3d").notNull(),
   encryptedApiToken: text("encrypted_api_token").notNull(),
+  /**
+   * The tracker credential vault: base64(iv[12] + authTag[16] + AES-256-GCM(json))
+   * of a TrackerCredentialVault, sealed under the MASTER KEY.
+   *
+   * ── INVARIANT: NULL OR CIPHERTEXT. NOTHING ELSE. ─────────────────────────────
+   * NULL means "no vault" and is the ONLY empty state. Never write "", never
+   * write a marker string like "LOCKDOWN_REVOKED". A truthy non-ciphertext value
+   * sails past `if (row.encryptedCredentials)` and is handed to decrypt(), which
+   * is precisely the trap that produced the LOCKDOWN_REVOKED incident. TEXT and
+   * not jsonb because the value is an opaque blob with nothing queryable in it.
+   * recover.cjs's isPlaintextSentinel() already treats null as "leave alone".
+   *
+   * ── EVERY LIFECYCLE SITE THAT MUST HANDLE THIS COLUMN ────────────────────────
+   * An encrypted column that is not registered in all five is silently orphaned
+   * by the next password change. If you add a column here, add it in all of them.
+   *   1. src/app/api/auth/change-password/route.ts — decrypt with the old key and
+   *      re-encrypt with the new one inside the existing transaction.
+   *   2. scripts/recover.cjs — listed in MASTER_KEY_TABLES under `trackers`.
+   *   3. src/app/api/settings/backup/restore/route.ts — the backupCiphertexts()
+   *      probe and the tracker insert (`reencryptField(...) || null`, because
+   *      that helper returns "" on failure and "" would break the invariant).
+   *   4. src/lib/nuke.ts — scrubbed to NULL.
+   *   5. src/app/api/settings/lockdown/route.ts — revoked to NULL, not a marker.
+   * src/lib/backup.ts needs NO change: its tracker export is a bare
+   * `db.select().from(trackers)`, so the column rides along automatically.
+   */
+  encryptedCredentials: text("encrypted_credentials"),
   isActive: boolean("is_active").default(true).notNull(),
   lastPolledAt: timestamp("last_polled_at"),
   lastError: text("last_error"),
@@ -461,6 +504,64 @@ export const dbSizeHistory = pgTable(
   (table) => [uniqueIndex("uq_db_size_recorded_at").on(table.recordedAt)]
 )
 
+/**
+ * The app's own liveness ledger — exactly ONE row, ever.
+ *
+ * The catch-22 of "the app must be running to log that it is down" is resolved
+ * by never logging downtime directly: the running app continuously stamps
+ * `lastSeenAt`, and the next boot turns the distance between that stamp and now
+ * into a CLOSED gap row. Downtime is measured, never inferred from missing data.
+ *
+ * `firstSeenAt` is the floor. Nothing before it is claimed as an outage — no gap
+ * stretching back to 1970 just because the app was installed yesterday.
+ *
+ * `stoppedAt` is set by markAppStopped() on a clean shutdown. It only sharpens
+ * the gap's start (the throttled `lastSeenAt` can lag by up to 30s) and labels
+ * the reason; reconciliation is fully correct with it left NULL, which is what a
+ * crash, a `docker kill`, or a power loss leaves behind.
+ *
+ * DELIBERATELY EXCLUDED FROM BACKUPS — see the comment in backup.ts. A stale
+ * `lastSeenAt` restored from a months-old backup would fabricate a months-long
+ * outage on the next boot.
+ */
+export const appLiveness = pgTable("app_liveness", {
+  id: serial("id").primaryKey(),
+  firstSeenAt: timestamp("first_seen_at").defaultNow().notNull(),
+  lastSeenAt: timestamp("last_seen_at").defaultNow().notNull(),
+  stoppedAt: timestamp("stopped_at"),
+})
+
+/**
+ * Windows during which the app was NOT collecting data, so a flat or empty
+ * region of a chart has a recorded explanation instead of looking like real
+ * zeroes.
+ *
+ * CLOSED intervals only: an open-ended gap would band the present, and the
+ * present is not an outage, it is simply not over yet.
+ *
+ * `reason` is diagnostic, not a display distinction — every value draws the same
+ * band:
+ *   "shutdown" — markAppStopped() ran; a clean stop
+ *   "unclean"  — the process vanished without marking; crash, kill, power loss
+ *   "stalled"  — the process stayed alive but stopped collecting; lockdown,
+ *                password change, restore, host sleep
+ */
+export const appCoverageGaps = pgTable(
+  "app_coverage_gaps",
+  {
+    id: serial("id").primaryKey(),
+    startedAt: timestamp("started_at").notNull(),
+    endedAt: timestamp("ended_at").notNull(),
+    reason: varchar("reason", { length: 20 }).notNull(),
+  },
+  (table) => [
+    index("idx_app_coverage_gaps_started").on(table.startedAt),
+    // Serves the retention prune, which keys on endedAt so a gap straddling the
+    // cutoff outlives it — see pruneCoverageGaps in app-liveness.ts.
+    index("idx_app_coverage_gaps_ended").on(table.endedAt),
+  ]
+)
+
 // ── Named type exports ──────────────────────────────────────────────
 export type AppSettingsRow = typeof appSettings.$inferSelect
 export type TrackerRow = typeof trackers.$inferSelect
@@ -478,3 +579,5 @@ export type NotificationDeliveryStateRow = typeof notificationDeliveryState.$inf
 export type TrackerDailyCheckpointRow = typeof trackerDailyCheckpoints.$inferSelect
 export type TorrentDailyCheckpointRow = typeof torrentDailyCheckpoints.$inferSelect
 export type DbSizeHistoryRow = typeof dbSizeHistory.$inferSelect
+export type AppLivenessRow = typeof appLiveness.$inferSelect
+export type AppCoverageGapRow = typeof appCoverageGaps.$inferSelect

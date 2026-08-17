@@ -14,6 +14,9 @@ import {
   insideZoom,
 } from "./lib/chart-helpers"
 import { carryForwardTimeSeries, collectUnifiedTimestamps } from "./lib/chart-transforms"
+import { OutageBandLegend } from "./lib/OutageBandLegend"
+import { useOutageBands } from "./lib/OutageBandsProvider"
+import { appendOutageBandSeries, polledAtRange } from "./lib/outage-bands"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -116,13 +119,28 @@ function buildFleetOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
 }
 
 function FleetCompositionChart({ trackerData, height = 360 }: FleetCompositionChartProps) {
+  // Named "Fleet", but the numbers are TRACKER snapshots, not download-client
+  // ones — so this is a tracker-sourced chart and gets app bands only.
+  const outages = useOutageBands("tracker")
   const hasData = trackerData.some((t) => t.snapshots.some((s) => s.seedingCount !== null))
 
   if (!hasData) {
     return <ChartEmptyState height={height} message="No fleet data available" />
   }
 
-  return <ChartECharts option={buildFleetOption(trackerData)} style={{ height, width: "100%" }} />
+  return (
+    <div className="flex flex-col gap-1">
+      <ChartECharts
+        option={appendOutageBandSeries(
+          buildFleetOption(trackerData),
+          outages,
+          polledAtRange(trackerData.flatMap((t) => t.snapshots))
+        )}
+        style={{ height, width: "100%" }}
+      />
+      <OutageBandLegend bands={outages} />
+    </div>
+  )
 }
 
 export type { FleetCompositionChartProps }

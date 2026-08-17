@@ -110,6 +110,8 @@ vi.mock("@/lib/db/schema", () => ({
   notificationTargets: {},
   notificationDeliveryState: {},
   clientUptimeBuckets: {},
+  appCoverageGaps: {},
+  // appLiveness is absent on purpose — restore must never touch it.
 }))
 
 vi.mock("@/lib/backup", () => ({

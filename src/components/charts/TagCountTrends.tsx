@@ -9,6 +9,9 @@ import { formatCount } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { buildAxisPointer, buildTimeXAxis } from "./lib/chart-helpers"
+import { OutageBandLegend } from "./lib/OutageBandLegend"
+import { useOutageBands } from "./lib/OutageBandsProvider"
+import { appendOutageBandSeries, polledAtRange } from "./lib/outage-bands"
 import {
   buildTagColors,
   CHART_THEME,
@@ -144,7 +147,13 @@ function buildOption(snapshots: FleetSnapshot[], mode: TagCountMode): EChartsOpt
 }
 
 function TagCountTrends({ snapshots, mode, height = 360 }: TagCountTrendsProps) {
-  const option = useMemo(() => buildOption(snapshots, mode), [snapshots, mode])
+  const baseOption = useMemo(() => buildOption(snapshots, mode), [snapshots, mode])
+  // Tag counts come from the download clients, so both layers apply.
+  const outages = useOutageBands("qbt")
+  const option = useMemo(
+    () => appendOutageBandSeries(baseOption, outages, polledAtRange(snapshots)),
+    [baseOption, outages, snapshots]
+  )
 
   const hasTagStats = snapshots.some((s) => s.tagStats && s.tagStats.length > 0)
 
@@ -161,7 +170,12 @@ function TagCountTrends({ snapshots, mode, height = 360 }: TagCountTrendsProps) 
     )
   }
 
-  return <ChartECharts option={option} style={{ height, width: "100%" }} />
+  return (
+    <div className="flex flex-col gap-1">
+      <ChartECharts option={option} style={{ height, width: "100%" }} />
+      <OutageBandLegend bands={outages} />
+    </div>
+  )
 }
 
 export type { TagCountTrendsProps }

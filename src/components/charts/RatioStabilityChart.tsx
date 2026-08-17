@@ -19,6 +19,9 @@ import {
   yAxisAutoRange,
 } from "./lib/chart-helpers"
 import { LogScaleToggle } from "./lib/LogScaleToggle"
+import { OutageBandLegend } from "./lib/OutageBandLegend"
+import { useOutageBands } from "./lib/OutageBandsProvider"
+import { appendOutageBandSeries, polledAtRange } from "./lib/outage-bands"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -260,6 +263,9 @@ function RatioStabilityChart({
   emaPeriod = 7,
   bandWindow = 14,
 }: RatioStabilityChartProps) {
+  // Tracker snapshots — app bands only.
+  const outages = useOutageBands("tracker")
+
   const hasEnoughData = trackerData.some(
     (t) => t.snapshots.filter((s) => s.ratio !== null).length >= 3
   )
@@ -306,14 +312,14 @@ function RatioStabilityChart({
         />
       </div>
       <ChartECharts
-        option={buildRatioStabilityOption(
-          trackerData,
-          emaPeriod,
-          bandWindow,
-          logScale.effectiveLog
+        option={appendOutageBandSeries(
+          buildRatioStabilityOption(trackerData, emaPeriod, bandWindow, logScale.effectiveLog),
+          outages,
+          polledAtRange(trackerData.flatMap((t) => t.snapshots))
         )}
         style={{ height, width: "100%" }}
       />
+      <OutageBandLegend bands={outages} />
     </div>
   )
 }

@@ -7,6 +7,17 @@ import { DASHBOARD_SETTINGS_DEFAULTS, type DashboardSettings } from "@/types/api
 
 const DEFAULTS = DASHBOARD_SETTINGS_DEFAULTS
 
+/**
+ * Broadcast when any instance of this hook writes a setting, carrying only the
+ * keys that changed.
+ *
+ * Several independent instances of this hook are mounted at once — the settings
+ * sheet, the dashboard, the outage-band provider. Without this, flipping a
+ * toggle in the sheet updated the sheet's copy and left every other copy stale
+ * until a reload, so a user could turn something off and watch it stay on.
+ */
+export const DASHBOARD_SETTINGS_CHANGED_EVENT = "tracker-tracker:dashboard-settings-changed"
+
 function useDashboardSettings() {
   const [settings, setSettings] = useState<DashboardSettings>(DEFAULTS)
   // Callers that must not act on a default before the real value arrives (e.g. mounting a
@@ -77,6 +88,19 @@ function useDashboardSettings() {
     }
   }, [])
 
+  // Adopt writes made by any other instance of this hook. Merging the partial
+  // detail rather than replacing state keeps a key this instance already knows
+  // but the event did not carry.
+  useEffect(() => {
+    function onChanged(event: Event) {
+      const detail = (event as CustomEvent<Partial<DashboardSettings>>).detail
+      if (!detail || typeof detail !== "object") return
+      setSettings((prev) => ({ ...prev, ...detail }))
+    }
+    window.addEventListener(DASHBOARD_SETTINGS_CHANGED_EVENT, onChanged)
+    return () => window.removeEventListener(DASHBOARD_SETTINGS_CHANGED_EVENT, onChanged)
+  }, [])
+
   const update = useCallback(
     <K extends keyof DashboardSettings>(key: K, value: DashboardSettings[K]) => {
       setSettings((prev) => {
@@ -108,6 +132,16 @@ function useDashboardSettings() {
           })
         return next
       })
+
+      // Dispatched OUTSIDE the state updater on purpose: React may invoke an
+      // updater twice in StrictMode, and a DOM event is a side effect. The
+      // listener above merges, so a duplicate would be harmless anyway — but
+      // the value is already known here without reading `prev`.
+      window.dispatchEvent(
+        new CustomEvent<Partial<DashboardSettings>>(DASHBOARD_SETTINGS_CHANGED_EVENT, {
+          detail: { [key]: value } as Partial<DashboardSettings>,
+        })
+      )
     },
     []
   )

@@ -14,6 +14,9 @@ import { generatePalette } from "@/lib/color-utils"
 import type { FleetChartProps, TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { OutageBandLegend } from "./lib/OutageBandLegend"
+import { useOutageBands } from "./lib/OutageBandsProvider"
+import { appendOutageBandSeries, polledAtRange } from "./lib/outage-bands"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -264,6 +267,8 @@ function buildRankTenureOption(
 // ---------------------------------------------------------------------------
 
 function RankTenureChart({ trackerData, height = 300 }: RankTenureChartProps) {
+  // Tracker snapshots — app bands only.
+  const outages = useOutageBands("tracker")
   const periods = computeRankPeriods(trackerData)
   const hasData = periods.length > 0
 
@@ -272,10 +277,17 @@ function RankTenureChart({ trackerData, height = 300 }: RankTenureChartProps) {
   }
 
   return (
-    <ChartECharts
-      option={buildRankTenureOption(trackerData, periods)}
-      style={{ height, width: "100%" }}
-    />
+    <div className="flex flex-col gap-1">
+      <ChartECharts
+        option={appendOutageBandSeries(
+          buildRankTenureOption(trackerData, periods),
+          outages,
+          polledAtRange(trackerData.flatMap((t) => t.snapshots))
+        )}
+        style={{ height, width: "100%" }}
+      />
+      <OutageBandLegend bands={outages} />
+    </div>
   )
 }
 

@@ -10,6 +10,9 @@ import { formatSpeed } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { buildAxisPointer, buildTimeXAxis } from "./lib/chart-helpers"
+import { OutageBandLegend } from "./lib/OutageBandLegend"
+import { useOutageBands } from "./lib/OutageBandsProvider"
+import { appendOutageBandSeries, timeRangeOf } from "./lib/outage-bands"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -186,7 +189,19 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
 }
 
 function SpeedHistoryChart({ snapshots, height = 360 }: SpeedHistoryChartProps) {
-  const option = useMemo(() => buildOption(snapshots), [snapshots])
+  const baseOption = useMemo(() => buildOption(snapshots), [snapshots])
+  // Speeds are read out of the download clients, so this chart carries both
+  // layers: a dead app explains the hole, and a live app that could not reach
+  // any client explains it too.
+  const bands = useOutageBands("qbt")
+  const range = useMemo(
+    () => timeRangeOf(snapshots.map((s) => new Date(s.polledAt).getTime())),
+    [snapshots]
+  )
+  const option = useMemo(
+    () => appendOutageBandSeries(baseOption, bands, range),
+    [baseOption, bands, range]
+  )
 
   const hasSpeedData = snapshots.some(
     (s) => s.uploadSpeedBytes !== null || s.downloadSpeedBytes !== null
@@ -196,7 +211,12 @@ function SpeedHistoryChart({ snapshots, height = 360 }: SpeedHistoryChartProps) 
     return <ChartEmptyState height={height} message="No speed history data available yet." />
   }
 
-  return <ChartECharts option={option} style={{ height, width: "100%" }} />
+  return (
+    <div className="flex flex-col gap-1">
+      <ChartECharts option={option} style={{ height, width: "100%" }} />
+      <OutageBandLegend bands={bands} />
+    </div>
+  )
 }
 
 export type { SpeedHistoryChartProps }

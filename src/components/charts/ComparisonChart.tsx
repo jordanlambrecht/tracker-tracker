@@ -29,6 +29,9 @@ import {
   collectUnifiedTimestamps,
 } from "./lib/chart-transforms"
 import { LogScaleToggle } from "./lib/LogScaleToggle"
+import { OutageBandLegend } from "./lib/OutageBandLegend"
+import { useOutageBands } from "./lib/OutageBandsProvider"
+import { appendOutageBandSeries, polledAtRange } from "./lib/outage-bands"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -356,6 +359,8 @@ function ComparisonChart({
 }: ComparisonChartProps) {
   const [averageMode, setAverageMode] = useState(false)
   const [viewMode, setViewMode] = useState<"lines" | "stacked" | "total">("lines")
+  // Tracker snapshots — app bands only.
+  const outages = useOutageBands("tracker")
 
   const hasData = trackerData.some((t) => t.snapshots.length > 0)
 
@@ -431,14 +436,19 @@ function ComparisonChart({
         </div>
       )}
       <ChartECharts
-        option={buildComparisonOption(metric, trackerData, {
-          logScale: enableLogScale ? effectiveLog : undefined,
-          averageMode: averageMode && !isNonLineMode,
-          stacked: isStacked,
-          totalOnly: isTotalOnly,
-        })}
+        option={appendOutageBandSeries(
+          buildComparisonOption(metric, trackerData, {
+            logScale: enableLogScale ? effectiveLog : undefined,
+            averageMode: averageMode && !isNonLineMode,
+            stacked: isStacked,
+            totalOnly: isTotalOnly,
+          }),
+          outages,
+          polledAtRange(trackerData.flatMap((t) => t.snapshots))
+        )}
         style={{ height, width: "100%" }}
       />
+      <OutageBandLegend bands={outages} />
     </div>
   )
 }

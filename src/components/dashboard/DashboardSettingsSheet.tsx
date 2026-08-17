@@ -135,6 +135,13 @@ function DashboardSettingsSheet({
             onChange={(checked) => dashSettings.update("enable3DCharts", checked)}
             disabled={!dashSettings.loaded}
           />
+          <Toggle
+            label="Show downtime bands"
+            description="Shade the background of time-series charts over ranges where nothing was being collected, so a flat stretch reads as missing data rather than a real zero. Ranges with no record are left blank."
+            checked={dashSettings.settings.showOutageBands}
+            onChange={(checked) => dashSettings.update("showOutageBands", checked)}
+            disabled={!dashSettings.loaded}
+          />
           <TabBar
             tabs={CHART_SETTINGS_TABS}
             activeTab={chartSettingsTab}

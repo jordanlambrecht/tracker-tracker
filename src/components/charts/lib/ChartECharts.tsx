@@ -12,6 +12,7 @@ import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/Button"
+import { isOutageBandSeries } from "./outage-bands"
 import { CHART_THEME } from "./theme"
 
 interface LegendItem {
@@ -90,7 +91,12 @@ function ChartECharts({
   const legend = option.legend as Record<string, unknown> | undefined
   const hasLegend = legend && legend.show !== false
   const series = option.series as Array<{ name?: string }> | undefined
-  const seriesCount = Array.isArray(series) ? series.length : 0
+  // Outage-band series are excluded from the count. They are background shading,
+  // not data, and letting them count would flip a single-series chart into the
+  // external-legend layout purely because bands were switched on.
+  const seriesCount = Array.isArray(series)
+    ? series.filter((s) => !isOutageBandSeries(s)).length
+    : 0
   const showExternalLegend = hasLegend && seriesCount > 1
 
   // Extract legend items — stabilized by content key to avoid unnecessary re-renders

@@ -8,6 +8,7 @@ import { desc, inArray, isNotNull } from "drizzle-orm"
 import { decrypt, deriveKey, encrypt, generateSalt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import {
+  appCoverageGaps,
   appSettings,
   backupHistory,
   clientSnapshots,
@@ -49,6 +50,7 @@ export interface BackupPayload {
   tagGroupMembers: Record<string, unknown>[]
   clientSnapshots: Record<string, unknown>[]
   clientUptimeBuckets?: Record<string, unknown>[]
+  appCoverageGaps?: Record<string, unknown>[]
   dismissedAlerts?: Record<string, unknown>[]
   notificationTargets?: Record<string, unknown>[]
 }
@@ -120,6 +122,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     rawTagGroupMembers,
     rawClientSnapshots,
     rawUptimeBuckets,
+    rawCoverageGaps,
     rawDismissedAlerts,
     allNotificationTargets,
   ] = await Promise.all([
@@ -132,6 +135,18 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     db.select().from(tagGroupMembers).orderBy(tagGroupMembers.id),
     db.select().from(clientSnapshots).orderBy(clientSnapshots.id),
     db.select().from(clientUptimeBuckets).orderBy(clientUptimeBuckets.id),
+    // app_coverage_gaps travels with the backup: it explains the snapshots
+    // sitting next to it, and a restored history without its explanations reads
+    // as "these zeroes were real".
+    //
+    // app_liveness DELIBERATELY DOES NOT — and this is not an oversight.
+    // It is a single mutable row whose whole meaning is "the live process was
+    // here at this instant". Restoring a months-old lastSeenAt would make the
+    // very next touchAppLiveness() measure the distance to now and write one
+    // enormous fabricated outage across every chart. The ledger must always be
+    // rebuilt by the running process, never carried in from a file. Do not add
+    // it to this list.
+    db.select().from(appCoverageGaps).orderBy(appCoverageGaps.id),
     db.select().from(dismissedAlerts).orderBy(dismissedAlerts.id),
     db.select().from(notificationTargets).orderBy(notificationTargets.id),
   ])
@@ -181,6 +196,9 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
   const uptimeBucketsPayload = rawUptimeBuckets.map((ub) =>
     serializeRow(ub as Record<string, unknown>)
   )
+  const coverageGapsPayload = rawCoverageGaps.map((cg) =>
+    serializeRow(cg as Record<string, unknown>)
+  )
   const dismissedAlertsPayload = rawDismissedAlerts.map((a) =>
     serializeRow(a as Record<string, unknown>)
   )
@@ -198,6 +216,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     tagGroupMembers: tagGroupMembersPayload.length,
     clientSnapshots: clientSnapshotsPayload.length,
     clientUptimeBuckets: uptimeBucketsPayload.length,
+    appCoverageGaps: coverageGapsPayload.length,
     dismissedAlerts: dismissedAlertsPayload.length,
     notificationTargets: backupNotificationTargets.length,
   }
@@ -222,6 +241,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     tagGroupMembers: tagGroupMembersPayload,
     clientSnapshots: clientSnapshotsPayload,
     clientUptimeBuckets: uptimeBucketsPayload,
+    appCoverageGaps: coverageGapsPayload,
     dismissedAlerts: dismissedAlertsPayload,
     notificationTargets: backupNotificationTargets,
   }
@@ -343,6 +363,24 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
       assertValidIso(ub.bucketTs, `${prefix}.bucketTs`)
       assertNumber(ub.ok, `${prefix}.ok`)
       assertNumber(ub.fail, `${prefix}.fail`)
+    }
+  }
+  // appCoverageGaps is optional for backward compatibility with older backups
+  if (p.appCoverageGaps !== undefined) {
+    assertArray(p.appCoverageGaps, "appCoverageGaps")
+    for (let i = 0; i < p.appCoverageGaps.length; i++) {
+      const cg = p.appCoverageGaps[i] as Record<string, unknown>
+      const prefix = `appCoverageGaps[${i}]`
+      assertString(cg.startedAt, `${prefix}.startedAt`)
+      assertString(cg.endedAt, `${prefix}.endedAt`)
+      assertValidIso(cg.startedAt, `${prefix}.startedAt`)
+      assertValidIso(cg.endedAt, `${prefix}.endedAt`)
+      assertString(cg.reason, `${prefix}.reason`)
+      // Closed intervals only — an inverted or open-ended gap would band the
+      // chart backwards or band the present.
+      if (new Date(cg.endedAt).getTime() < new Date(cg.startedAt).getTime()) {
+        throw new Error(`Backup validation: ${prefix}.endedAt must not precede startedAt`)
+      }
     }
   }
   // dismissedAlerts is optional for backward compatibility with older backups

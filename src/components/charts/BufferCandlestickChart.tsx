@@ -16,6 +16,9 @@ import {
   insideZoom,
 } from "./lib/chart-helpers"
 import { LogScaleToggle } from "./lib/LogScaleToggle"
+import { OutageBandLegend } from "./lib/OutageBandLegend"
+import { useOutageBands } from "./lib/OutageBandsProvider"
+import { appendOutageBandSeries, polledAtRange } from "./lib/outage-bands"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -257,6 +260,9 @@ function buildCandlestickOption(
  * Shows empty state if no tracker has at least 2 days of data.
  */
 function BufferCandlestickChart({ trackerData, height = 360 }: BufferCandlestickChartProps) {
+  // Tracker snapshots — app bands only. Aggregated to whole days, so the case
+  // that matters here is a multi-day outage, which erases candles outright.
+  const outages = useOutageBands("tracker")
   const hasEnoughDays = trackerData.some((tracker) => {
     // Must key by the same local day as computeCandlestickData, or a single
     // local day straddling UTC midnight would count as two and let the chart
@@ -298,9 +304,14 @@ function BufferCandlestickChart({ trackerData, height = 360 }: BufferCandlestick
         <LogScaleToggle effectiveLog={effectiveLog} isAuto={isAuto} onToggle={onToggle} />
       </div>
       <ChartECharts
-        option={buildCandlestickOption(trackerData, effectiveLog)}
+        option={appendOutageBandSeries(
+          buildCandlestickOption(trackerData, effectiveLog),
+          outages,
+          polledAtRange(trackerData.flatMap((t) => t.snapshots))
+        )}
         style={{ height, width: "100%" }}
       />
+      <OutageBandLegend bands={outages} />
     </div>
   )
 }
