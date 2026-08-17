@@ -62,7 +62,7 @@
     "https-proxy-agent": "^9.1.0",
     "jose": "^6.2.2",
     "next": "^16.3.1",
-    "node-cron": "^4.2.1",
+    "node-cron": "^4.6.0",
     "node-html-parser": "^7.1.0",
     "otpauth": "^9.5.0",
     "pino": "^10.3.1",
