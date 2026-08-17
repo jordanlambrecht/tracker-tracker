@@ -3,7 +3,7 @@
 
 import type { CandlestickSeriesOption, EChartsOption } from "echarts"
 import { hexToRgba } from "@/lib/color-utils"
-import { bytesToGiB } from "@/lib/formatters"
+import { bytesToGiB, localDateStr } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import type { FleetChartProps, TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
@@ -37,7 +37,7 @@ interface CandlestickResult {
 }
 
 /**
- * Groups snapshots by calendar day (YYYY-MM-DD) and computes
+ * Groups snapshots by local calendar day (YYYY-MM-DD, per TZ) and computes
  * open/high/low/close buffer values in GiB. Returns the day labels
  * and OHLC array in ECharts candlestick format [open, close, low, high].
  */
@@ -48,10 +48,12 @@ function computeCandlestickData(snapshots: Snapshot[], divisor: number): Candles
     (a, b) => new Date(a.polledAt).getTime() - new Date(b.polledAt).getTime()
   )
 
-  // Group by calendar day (YYYY-MM-DD)
+  // Group by LOCAL calendar day (YYYY-MM-DD). Slicing the ISO string would key
+  // by UTC date and put every evening snapshot in a negative-offset zone into
+  // tomorrow's candle, disagreeing with every other chart on this page.
   const byDay = new Map<string, Snapshot[]>()
   for (const snap of sorted) {
-    const day = snap.polledAt.slice(0, 10)
+    const day = localDateStr(new Date(snap.polledAt))
     const existing = byDay.get(day)
     if (existing) {
       existing.push(snap)
@@ -256,7 +258,10 @@ function buildCandlestickOption(
  */
 function BufferCandlestickChart({ trackerData, height = 360 }: BufferCandlestickChartProps) {
   const hasEnoughDays = trackerData.some((tracker) => {
-    const uniqueDays = new Set(tracker.snapshots.map((s) => s.polledAt.slice(0, 10)))
+    // Must key by the same local day as computeCandlestickData, or a single
+    // local day straddling UTC midnight would count as two and let the chart
+    // render a "candlestick" with nothing to compare.
+    const uniqueDays = new Set(tracker.snapshots.map((s) => localDateStr(new Date(s.polledAt))))
     return uniqueDays.size >= 2
   })
 
