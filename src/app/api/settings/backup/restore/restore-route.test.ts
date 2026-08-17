@@ -38,6 +38,9 @@ vi.mock("@/lib/db", () => ({
 
 // Sentinel objects so an insert/delete can be traced back to its table.
 vi.mock("@/lib/db/schema", () => ({
+  appCoverageGaps: { __table: "app_coverage_gaps" },
+  // appLiveness is absent on purpose: restore must never touch it. See the
+  // exclusion comment in backup.ts.
   appSettings: { id: "app_settings.id" },
   backupHistory: { __table: "backup_history" },
   clientSnapshots: { __table: "client_snapshots" },
@@ -733,6 +736,9 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     // is in BackupPayload — so restore destroys them with nothing to restore from.
     expect(recorder.deletes.map((t) => (t as { __table: string }).__table)).toEqual([
       "dismissed_alerts",
+      // app_coverage_gaps is wiped and restored; app_liveness is deliberately
+      // neither, because it describes the running process rather than the data.
+      "app_coverage_gaps",
       "client_uptime_buckets",
       "client_snapshots",
       "tracker_snapshots",

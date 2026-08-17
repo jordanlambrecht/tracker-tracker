@@ -83,6 +83,7 @@ export const settingsColumns = {
   backupEncryptionEnabled: appSettings.backupEncryptionEnabled,
   hasBackupPassword: appSettings.encryptedBackupPassword,
   backupStoragePath: appSettings.backupStoragePath,
+  credentialVaultEnabled: appSettings.credentialVaultEnabled,
 }
 
 export function fetchSettings() {
@@ -122,6 +123,7 @@ export function serializeSettingsResponse(row: SettingsRow) {
     backupEncryptionEnabled: row.backupEncryptionEnabled,
     hasBackupPassword: !!row.hasBackupPassword,
     backupStoragePath: row.backupStoragePath,
+    credentialVaultEnabled: row.credentialVaultEnabled,
   }
 }
 

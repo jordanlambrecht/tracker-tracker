@@ -7,6 +7,7 @@ import { type CSSProperties, useCallback, useEffect, useMemo, useState } from "r
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import { RankProgress } from "@/components/dashboard/RankProgress"
 import { TorrentsTab } from "@/components/dashboard/TorrentsTab"
+import { TrackerCredentialsSheet } from "@/components/TrackerCredentialsSheet"
 import { TrackerDefunctBanner } from "@/components/TrackerDefunctBanner"
 import { TrackerSettingsSheet } from "@/components/TrackerSettingsSheet"
 import { AnalyticsTab } from "@/components/tracker-detail/AnalyticsTab"
@@ -72,6 +73,7 @@ export function TrackerDetailClient({
   const [polling, setPolling] = useState(false)
   const [pollError, setPollError] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [showCredentials, setShowCredentials] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>(initialTab)
   const [showDebugDialog, setShowDebugDialog] = useState(false)
   const [debugData, setDebugData] = useState<DebugData | null>(null)
@@ -259,6 +261,7 @@ export function TrackerDetailClient({
         polling={polling}
         onPollNow={handlePollNow}
         onOpenSettings={() => setShowSettings(true)}
+        onOpenCredentials={() => setShowCredentials(true)}
         onDebugPoll={handleDebugPoll}
         debugLoading={debugLoading}
         badgeSlots={badgeSlots}
@@ -352,6 +355,18 @@ export function TrackerDetailClient({
           trackerSeedingCount={stats?.seedingCount}
         />
       )}
+
+      {/* Keyed on the tracker id for the same reason as the settings sheet:
+          navigating between trackers must not carry one tracker's draft vault
+          into another's sheet. */}
+      <TrackerCredentialsSheet
+        key={`credentials-${tracker.id}`}
+        open={showCredentials}
+        trackerId={tracker.id}
+        trackerName={tracker.name}
+        trackerBaseUrl={tracker.baseUrl}
+        onClose={() => setShowCredentials(false)}
+      />
 
       <TrackerSettingsSheet
         key={tracker.id}

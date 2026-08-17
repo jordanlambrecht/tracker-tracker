@@ -3,6 +3,7 @@
 import type { PlatformType } from "@/lib/adapters/constants"
 import type { GazelleAuthStyle, Unit3dAuthStyle } from "@/lib/adapters/types"
 import { normalizeUrl } from "@/lib/data-transforms"
+import type { TrackerCredentialFieldDefinition } from "@/lib/tracker-credentials/types"
 import { ALL_TRACKERS } from "./trackers"
 
 export interface ReleaseGroup {
@@ -101,6 +102,17 @@ export interface TrackerRegistryEntry {
   gazelleAuthStyle?: GazelleAuthStyle
   gazelleEnrich?: boolean
   unit3dAuthStyle?: Unit3dAuthStyle
+  /**
+   * Which credential fields this tracker issues, overriding the platform defaults
+   * in src/data/tracker-credential-defaults.ts. Resolve via
+   * getDefaultCredentialFields(), never read directly.
+   *
+   * PUBLIC, GIT-COMMITTED DATA: these define which fields EXIST and must NEVER
+   * hold a user's actual VALUES. TrackerCredentialFieldDefinition has no `value`
+   * property precisely so a passkey cannot be pasted in here and leaked into git
+   * history forever. User values live only in `trackers.encrypted_credentials`.
+   */
+  credentialFields?: readonly TrackerCredentialFieldDefinition[]
 }
 
 export const TRACKER_REGISTRY: TrackerRegistryEntry[] = ALL_TRACKERS.filter((t) => !t.draft)

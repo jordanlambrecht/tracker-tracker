@@ -3,7 +3,7 @@
 // Functions: POST
 //
 // Changes the master password and re-encrypts all encrypted fields
-// (tracker API tokens, download client credentials, proxy password,
+// (tracker API tokens, tracker credential vaults, download client credentials, proxy password,
 // backup password, TOTP secrets, image host API keys, notification
 // target configs) inside a single transaction.
 // Requires an active session and the current password for verification.
@@ -99,13 +99,20 @@ export async function POST(request: Request) {
 
   // Pre-flight: decrypt everything outside the transaction to identify
   // already-corrupted items before committing any writes.
-  const trackerPlaintexts = new Map<number, string>()
+  // Per tracker: the API token plaintext (always present) and the credential
+  // vault plaintext (null when the tracker has no vault, which is the norm).
+  // The vault is carried as an OPAQUE STRING — it is decrypted and re-encrypted
+  // without ever being JSON.parsed or shape-guarded, exactly like the
+  // notification configs below. A rotation is not the place to start rejecting
+  // stored shapes: a vault written by a newer build must survive it untouched.
+  const trackerPlaintexts = new Map<number, { token: string; vault: string | null }>()
   const clientPlaintexts = new Map<
     number,
     { username: string; password: string; apiKey: string }
   >()
   const notificationPlaintexts = new Map<number, string>()
   const failedTrackers: string[] = []
+  const failedVaults: string[] = []
   const failedClients: string[] = []
   const failedNotifications: string[] = []
 
@@ -115,6 +122,7 @@ export async function POST(request: Request) {
         id: trackers.id,
         name: trackers.name,
         encryptedApiToken: trackers.encryptedApiToken,
+        encryptedCredentials: trackers.encryptedCredentials,
       })
       .from(trackers),
     db
@@ -136,15 +144,44 @@ export async function POST(request: Request) {
   ])
 
   for (const tracker of allTrackers) {
+    let token: string
     try {
-      trackerPlaintexts.set(tracker.id, decrypt(tracker.encryptedApiToken, oldKey))
+      token = decrypt(tracker.encryptedApiToken, oldKey)
     } catch (err) {
       log.warn(
         { trackerId: tracker.id, error: String(err) },
         "Failed to decrypt tracker API token during password change"
       )
+      // The whole row is skipped, vault included. Re-keying the vault of a row
+      // whose token we are leaving under the old key would split one tracker
+      // across two keys, which is worse than leaving it wholly untouched.
       failedTrackers.push(tracker.name)
+      continue
     }
+
+    // NULL is "no vault" and is NOT an error — it must never reach decrypt().
+    // It stays null all the way through to the UPDATE below.
+    let vault: string | null = null
+    if (tracker.encryptedCredentials) {
+      try {
+        vault = decrypt(tracker.encryptedCredentials, oldKey)
+      } catch (err) {
+        log.warn(
+          { trackerId: tracker.id, error: String(err) },
+          "Failed to decrypt tracker credential vault during password change, clearing it"
+        )
+        // Cleared to NULL rather than left behind. The session-key guard above
+        // already proved oldKey IS the current master key, so a vault that will
+        // not open under it is unreadable by every tool including recover.cjs.
+        // Leaving that ciphertext in place would make every later read of this
+        // tracker throw, with no way to clear it; NULL is a state the user can
+        // recover from by re-entering. Same disposition as the settings columns.
+        vault = null
+        failedVaults.push(tracker.name)
+      }
+    }
+
+    trackerPlaintexts.set(tracker.id, { token, vault })
   }
 
   for (const client of allClients) {
@@ -285,10 +322,17 @@ export async function POST(request: Request) {
   // Only items that successfully decrypted are re-encrypted and committed.
   try {
     await db.transaction(async (tx) => {
-      for (const [id, plainToken] of trackerPlaintexts) {
+      for (const [id, plain] of trackerPlaintexts) {
         await tx
           .update(trackers)
-          .set({ encryptedApiToken: encrypt(plainToken, newKey) })
+          .set({
+            encryptedApiToken: encrypt(plain.token, newKey),
+            // Written UNCONDITIONALLY, including the null case. Omitting the key
+            // for vaultless trackers would leave the column's rotation implicit
+            // and untestable; writing null states outright that NULL survives a
+            // password change as NULL, and never as encrypt("") or "".
+            encryptedCredentials: plain.vault === null ? null : encrypt(plain.vault, newKey),
+          })
           .where(eq(trackers.id, id))
       }
 
@@ -345,6 +389,11 @@ export async function POST(request: Request) {
   if (failedTrackers.length > 0) {
     warnings.push(
       `Could not re-encrypt ${failedTrackers.length} tracker API key(s). Re-enter them manually.`
+    )
+  }
+  if (failedVaults.length > 0) {
+    warnings.push(
+      `${failedVaults.length} tracker credential vault(s) could not be re-encrypted and were cleared: ${failedVaults.join(", ")}. Re-enter those credentials.`
     )
   }
   if (failedClients.length > 0) {

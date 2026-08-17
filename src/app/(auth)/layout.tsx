@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation"
 import type { ReactNode } from "react"
 import { UsernamePrompt } from "@/components/auth/UsernamePromptDialog"
+import { OutageBandsProvider } from "@/components/charts/lib/OutageBandsProvider"
 import { AuthShell } from "@/components/layout/AuthShell"
 import { getSession } from "@/lib/auth"
 import { db } from "@/lib/db"
@@ -39,7 +40,13 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
           this line means a full session — a TOTP leg still pending holds only a
           pending token and was sent to /login. */}
       <UsernamePrompt needed={!settings.username} />
-      <AuthShell>{children}</AuthShell>
+      {/* Mounted at the layout so every page's charts share ONE request for the
+          outage ledger. Charts read it through context and fall back to drawing
+          no bands when it is absent, so nothing here is load-bearing for a
+          chart rendered outside this tree. */}
+      <OutageBandsProvider>
+        <AuthShell>{children}</AuthShell>
+      </OutageBandsProvider>
     </QueryProvider>
   )
 }

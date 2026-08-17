@@ -7,9 +7,19 @@ import { DEFAULT_TRACKER_COLOR } from "@/lib/constants"
 import type { TrackerRow as FullTrackerRow, TrackerSnapshotRow } from "@/lib/db/schema"
 import type { TrackerSummary } from "@/types/api"
 
+// The ciphertext columns are omitted from the INPUT type, not just left out of
+// the output object. Callers physically cannot hand this function a secret, so
+// no future edit here can serialize one by reaching for a property that was
+// never in scope. encryptedCredentials joins encryptedApiToken for that reason:
+// the credential vault leaves the server only via the reveal endpoint.
 type TrackerRow = Omit<
   FullTrackerRow,
-  "encryptedApiToken" | "avatarData" | "avatarMimeType" | "avatarCachedAt" | "avatarRemoteUrl"
+  | "encryptedApiToken"
+  | "encryptedCredentials"
+  | "avatarData"
+  | "avatarMimeType"
+  | "avatarCachedAt"
+  | "avatarRemoteUrl"
 >
 
 export function parsePlatformMeta(raw: string | null): PlatformMeta | null {

@@ -297,6 +297,23 @@ export async function PATCH(request: Request) {
     }
   }
 
+  // --- Credential vault opt-in gate ---
+  //
+  // Toggling this OFF deliberately does NOT touch trackers.encrypted_credentials.
+  // The flag gates the routes; the ciphertext stays put, keeps being re-keyed by
+  // change-password and keeps riding along in backups, so flipping the toggle
+  // back on restores the vaults intact. Disabling a feature must not be a
+  // destructive operation — that is what the Danger Zone is for.
+  if (body.credentialVaultEnabled !== undefined) {
+    if (typeof body.credentialVaultEnabled !== "boolean") {
+      return NextResponse.json(
+        { error: "credentialVaultEnabled must be a boolean" },
+        { status: 400 }
+      )
+    }
+    updates.credentialVaultEnabled = body.credentialVaultEnabled
+  }
+
   // --- qbitmanage config ---
   if (body.qbitmanageEnabled !== undefined) {
     if (typeof body.qbitmanageEnabled !== "boolean") {

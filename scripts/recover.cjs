@@ -254,7 +254,13 @@ function wrapMasterKey(key, wrappingKey) {
  * encryption_salt is reused verbatim and never regenerated.
  */
 const MASTER_KEY_TABLES = [
-  { table: "trackers", label: "name", columns: ["encrypted_api_token"] },
+  {
+    table: "trackers",
+    label: "name",
+    // encrypted_credentials is NULLABLE — a tracker with no vault stores NULL,
+    // which isPlaintextSentinel() already preserves untouched.
+    columns: ["encrypted_api_token", "encrypted_credentials"],
+  },
   {
     table: "download_clients",
     label: "name",

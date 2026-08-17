@@ -17,6 +17,7 @@ import {
 import { decrypt, deriveKey, reencrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import {
+  appCoverageGaps,
   appSettings,
   clientSnapshots,
   clientUptimeBuckets,
@@ -72,6 +73,9 @@ function backupCiphertexts(payload: BackupPayload): string[] {
   const settings = payload.settings
   const candidates: unknown[] = [
     ...payload.trackers.map((t) => (t as Record<string, unknown>).encryptedApiToken),
+    // Nullable, and absent entirely from backups written before the vault
+    // existed. The typeof/length filter at the bottom drops both cases.
+    ...payload.trackers.map((t) => (t as Record<string, unknown>).encryptedCredentials),
     ...payload.downloadClients.flatMap((c) => [
       (c as Record<string, unknown>).encryptedUsername,
       (c as Record<string, unknown>).encryptedPassword,
@@ -346,6 +350,10 @@ export async function POST(request: Request) {
     await db.transaction(async (tx) => {
       // Delete all existing data — FK-safe order (children before parents)
       await tx.delete(dismissedAlerts)
+      // app_liveness is intentionally absent here and from the backup payload:
+      // it belongs to the running process, not to the data being restored. See
+      // the exclusion comment in backup.ts.
+      await tx.delete(appCoverageGaps)
       await tx.delete(clientUptimeBuckets)
       await tx.delete(clientSnapshots)
       await tx.delete(trackerSnapshots)
@@ -380,6 +388,26 @@ export async function POST(request: Request) {
         if (apiToken) tokensPreserved++
         else if (fields.encryptedApiToken) tokensCleared++
 
+        // The credential vault. Every branch ends at a string or NULL and never
+        // at "": reencryptField() returns "" on failure and on empty input, and
+        // storing "" would break this column's NULL-or-ciphertext invariant by
+        // putting a truthy non-ciphertext value where decrypt() can reach it.
+        // Backups predating the vault have no such key at all and land on null.
+        let credentials: string | null
+        if (canPassThrough) {
+          credentials = (fields.encryptedCredentials as string) || null
+        } else if (canReencrypt) {
+          credentials =
+            reencryptField(
+              (fields.encryptedCredentials as string | null | undefined) ?? "",
+              backupKey,
+              currentKey,
+              `tracker '${fields.name}' credentials`
+            ) || null
+        } else {
+          credentials = null
+        }
+
         const [inserted] = await tx
           .insert(trackers)
           .values({
@@ -388,6 +416,7 @@ export async function POST(request: Request) {
             apiPath: fields.apiPath as string,
             platformType: fields.platformType as string,
             encryptedApiToken: apiToken,
+            encryptedCredentials: credentials,
             isActive: fields.isActive as boolean,
             color: (fields.color as string | null) ?? null,
             qbtTag: (fields.qbtTag as string | null) ?? null,
@@ -633,6 +662,22 @@ export async function POST(request: Request) {
         }
       }
 
+      // Batch insert appCoverageGaps (optional — absent in older backups).
+      // No id remap: these are app-global, not keyed to any client or tracker.
+      if (Array.isArray(payload.appCoverageGaps) && payload.appCoverageGaps.length > 0) {
+        const gapRows: { startedAt: Date; endedAt: Date; reason: string }[] = []
+        for (const cg of payload.appCoverageGaps) {
+          const fields = cg as Record<string, unknown>
+          if (typeof fields.startedAt !== "string" || typeof fields.endedAt !== "string") continue
+          gapRows.push({
+            startedAt: new Date(fields.startedAt),
+            endedAt: new Date(fields.endedAt),
+            reason: typeof fields.reason === "string" ? fields.reason : "unclean",
+          })
+        }
+        await batchInsert(tx, appCoverageGaps, gapRows)
+      }
+
       // Insert dismissedAlerts (optional — absent in older backups)
       if (Array.isArray(payload.dismissedAlerts) && payload.dismissedAlerts.length > 0) {
         const alertRows: { alertKey: string; alertType: string; dismissedAt: Date }[] = []
@@ -859,6 +904,16 @@ export async function POST(request: Request) {
           encryptedImgbbApiKey,
           draftQuicklinks: (payload.settings.draftQuicklinks as string | null) ?? null,
           dashboardSettings: (payload.settings.dashboardSettings as string | null) ?? null,
+          // Restored, because this .set() is an ALLOWLIST and an omitted column
+          // is simply left at whatever the restoring install already had. On a
+          // fresh install that means OFF — so a user restoring a backup would
+          // find their credential sheet showing "storage is turned off" and
+          // reasonably conclude the restore had lost their passkeys. It has not:
+          // trackers.encrypted_credentials restores intact either way. This just
+          // stops disaster recovery from looking like data loss.
+          // Backups predating this column have no key and restore as OFF, which
+          // is the correct fail-closed default.
+          credentialVaultEnabled: (payload.settings.credentialVaultEnabled as boolean) ?? false,
           // passwordHash: NEVER updated from backup
           // encryptionSalt: NEVER updated from backup
           encryptedSchedulerKey: null,
@@ -938,6 +993,7 @@ export async function POST(request: Request) {
       clientUptimeBuckets: Array.isArray(payload.clientUptimeBuckets)
         ? payload.clientUptimeBuckets.length
         : 0,
+      appCoverageGaps: Array.isArray(payload.appCoverageGaps) ? payload.appCoverageGaps.length : 0,
       dismissedAlerts: Array.isArray(payload.dismissedAlerts) ? payload.dismissedAlerts.length : 0,
       notificationTargets: Array.isArray(payload.notificationTargets)
         ? payload.notificationTargets.length

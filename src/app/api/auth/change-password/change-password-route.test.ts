@@ -54,6 +54,7 @@ vi.mock("@/lib/db/schema", () => ({
     id: "trackers.id",
     name: "trackers.name",
     encryptedApiToken: "trackers.encryptedApiToken",
+    encryptedCredentials: "trackers.encryptedCredentials",
   },
   downloadClients: {
     id: "downloadClients.id",
@@ -616,5 +617,148 @@ describe("POST /api/auth/change-password — session key mismatch", () => {
     expect(writesTo(downloadClients)).toHaveLength(0)
     expect(writesTo(notificationTargets)).toHaveLength(0)
     expect(clearSession).not.toHaveBeenCalled()
+  })
+})
+
+// ─── Credential vault ─────────────────────────────────────────────────────────
+//
+// trackers.encrypted_credentials is the second master-key column on this table.
+// A column that is not re-keyed here is orphaned by the first password change,
+// which is why these assert the whole disposition matrix: re-keyed, NULL stays
+// NULL, and an unreadable vault is cleared rather than left under a dead key.
+
+describe("POST /api/auth/change-password — tracker credential vault", () => {
+  const VAULT = JSON.stringify({
+    v: 1,
+    sections: [
+      {
+        id: "irc",
+        title: "IRC",
+        fields: [
+          { id: "irc_nick", label: "Nick", value: "jordy", secret: false },
+          { id: "irc_nickserv", label: "NickServ password", value: "hunter2" },
+        ],
+      },
+    ],
+  })
+
+  it("re-keys the vault so the NEW key opens it and the OLD key no longer can", async () => {
+    trackerRows = [
+      {
+        id: 1,
+        name: "Alpha",
+        encryptedApiToken: encrypt("alpha-api-token", oldKey),
+        encryptedCredentials: encrypt(VAULT, oldKey),
+      },
+    ]
+
+    const response = await post()
+    expect(response.status).toBe(200)
+
+    const written = writesTo(trackers)[0].values.encryptedCredentials as string
+    expect(typeof written).toBe("string")
+
+    // newKey came from beforeAll straight out of NEW_PASSWORD + SALT, with no
+    // help from the handler.
+    expect(decrypt(written, newKey)).toBe(VAULT)
+
+    // The other half of "re-keyed", and the half that actually proves rotation
+    // happened: the old key must be dead. Without this, a handler that simply
+    // copied the ciphertext through untouched would pass the assertion above.
+    expect(() => decrypt(written, oldKey)).toThrow()
+
+    // And the ciphertext itself changed — same plaintext, new seal.
+    expect(written).not.toBe(trackerRows[0].encryptedCredentials)
+  })
+
+  it("keeps NULL as NULL — never '' and never an encrypted empty vault", async () => {
+    trackerRows = [
+      { id: 1, name: "Alpha", encryptedApiToken: encrypt("alpha-api-token", oldKey) },
+      {
+        id: 2,
+        name: "Beta",
+        encryptedApiToken: encrypt("beta-api-token", oldKey),
+        encryptedCredentials: null,
+      },
+    ]
+
+    const response = await post()
+    expect(response.status).toBe(200)
+
+    // The key is present and explicitly null in BOTH the absent and the
+    // literal-null case. A truthy non-ciphertext value here is the
+    // LOCKDOWN_REVOKED trap; "" would be just as bad.
+    for (const write of writesTo(trackers)) {
+      expect(write.values).toHaveProperty("encryptedCredentials")
+      expect(write.values.encryptedCredentials).toBeNull()
+    }
+  })
+
+  it("clears a vault that will not decrypt, and warns, without blocking the rotation", async () => {
+    trackerRows = [
+      {
+        id: 1,
+        name: "Alpha",
+        encryptedApiToken: encrypt("alpha-api-token", oldKey),
+        encryptedCredentials: encrypt(VAULT, strangerKey),
+      },
+    ]
+
+    const response = await post()
+    expect(response.status).toBe(200)
+    const body = (await response.json()) as { success: boolean; warnings: string[] }
+    expect(body.success).toBe(true)
+    expect(body.warnings.join(" ")).toContain("credential vault(s) could not be re-encrypted")
+    expect(body.warnings.join(" ")).toContain("Alpha")
+
+    const write = writesTo(trackers)[0].values
+    // The token still rotates — one bad vault must not orphan the whole row.
+    expect(decrypt(write.encryptedApiToken as string, newKey)).toBe("alpha-api-token")
+    // NULL, not the unreadable ciphertext. The session-key guard already proved
+    // oldKey IS the current master key, so that blob is unreadable by every
+    // tool including recover.cjs; leaving it would make every later read throw.
+    expect(write.encryptedCredentials).toBeNull()
+  })
+
+  it("leaves the vault untouched when the row's API token is the thing that fails", async () => {
+    trackerRows = [
+      {
+        id: 1,
+        name: "Alpha",
+        encryptedApiToken: encrypt("alpha-api-token", strangerKey),
+        encryptedCredentials: encrypt(VAULT, oldKey),
+      },
+    ]
+
+    const response = await post()
+    expect(response.status).toBe(200)
+
+    // The whole row is skipped. Re-keying the vault of a row whose token stays
+    // under the old key would split one tracker across two keys — recoverable
+    // as a pair, unrecoverable as a mismatch.
+    expect(writesTo(trackers)).toHaveLength(0)
+  })
+
+  it("round-trips a vault holding an EMPTY value", async () => {
+    // crypto.ts widened its decrypt bound specifically so empty plaintext
+    // survives rotation; a vault whose field is still blank is a normal state.
+    const emptyFieldVault = JSON.stringify({
+      v: 1,
+      sections: [{ id: "api", title: "API", fields: [{ id: "api_key", label: "API key", value: "" }] }],
+    })
+    trackerRows = [
+      {
+        id: 1,
+        name: "Alpha",
+        encryptedApiToken: encrypt("alpha-api-token", oldKey),
+        encryptedCredentials: encrypt(emptyFieldVault, oldKey),
+      },
+    ]
+
+    const response = await post()
+    expect(response.status).toBe(200)
+
+    const written = writesTo(trackers)[0].values.encryptedCredentials as string
+    expect(decrypt(written, newKey)).toBe(emptyFieldVault)
   })
 })
