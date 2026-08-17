@@ -117,7 +117,11 @@ export function buildCoreStatDescriptors(
       key: "hnr",
       label: "Hit & Runs",
       icon: <TriangleWarningIcon width="16" height="16" />,
-      value: formatCount(latestSnapshot?.hitAndRuns),
+      // A count of nothing is zero, not unknown: once a snapshot exists, "no
+      // hit & runs recorded" is the good outcome and must read "0". Only the
+      // absence of any snapshot is genuinely unknown, hence the gate rather
+      // than a bare `?? 0` (which slot-registry.ts uses for the same field).
+      value: latestSnapshot ? formatCount(latestSnapshot.hitAndRuns ?? 0) : "—",
     },
     {
       key: "req-ratio",
