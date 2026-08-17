@@ -221,6 +221,11 @@ export const fearnopeer: TrackerRegistryEntry = {
   // ── Status ──────────────────────────────────────────────────────────
   warning: false,
   warningNote: "",
+  defunct: true,
+  defunctMessage: "FearNoPeer has shut down.",
+  defunctDate: "2026-05-11",
+  defunctLink:
+    "https://www.reddit.com/r/trackers/comments/1tac6ry/fearnopeer_is_shutting_down/",
 
   // ── Flags ───────────────────────────────────────────────────────────
   draft: false,

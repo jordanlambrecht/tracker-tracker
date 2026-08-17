@@ -6,6 +6,7 @@ import { ExternalLinkIcon, PlusIcon } from "@icons"
 import clsx from "clsx"
 import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
+import { TrackerDefunctBanner } from "@/components/TrackerDefunctBanner"
 import {
   Checkbox,
   ChevronToggle,
@@ -73,18 +74,20 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
     selectedDrafts.includes(t.slug)
   )
 
-  // Build category lookup and unique category list from active trackers
-  const { trackerCategories, allCategories } = useMemo(() => {
-    const catMap = new Map<number, string[]>()
+  // Resolve each tracker's registry entry once. The cards need the whole entry
+  // now (defunct status as well as categories), and findRegistryEntry scans the
+  // registry per call — so this stays a single pass rather than one lookup for
+  // filtering and another while rendering.
+  const { trackerEntries, allCategories } = useMemo(() => {
+    const entryMap = new Map<number, TrackerRegistryEntry | undefined>()
     const catSet = new Set<string>()
     for (const t of trackers) {
       const entry = findRegistryEntry(t.baseUrl)
-      const cats = entry?.contentCategories ?? []
-      catMap.set(t.id, cats)
-      for (const c of cats) catSet.add(c)
+      entryMap.set(t.id, entry)
+      for (const c of entry?.contentCategories ?? []) catSet.add(c)
     }
     return {
-      trackerCategories: catMap,
+      trackerEntries: entryMap,
       allCategories: [...catSet].sort(),
     }
   }, [trackers])
@@ -104,12 +107,12 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
     }
     if (showFilters && categoryFilter) {
       result = result.filter((t) => {
-        const cats = trackerCategories.get(t.id) ?? []
+        const cats = trackerEntries.get(t.id)?.contentCategories ?? []
         return cats.includes(categoryFilter)
       })
     }
     return result
-  }, [trackers, showFilters, favoritesOnly, categoryFilter, trackerCategories])
+  }, [trackers, showFilters, favoritesOnly, categoryFilter, trackerEntries])
 
   function toggleDraft(slug: string) {
     const next = selectedDrafts.includes(slug)
@@ -193,72 +196,86 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
         {/* Active tracker cards */}
         {filteredTrackers.map((t) => {
           const health = getTrackerHealth(t)
+          const entry = trackerEntries.get(t.id)
           return (
-            <button
+            // The card's own chrome (border, hover lift, rounding) lives on this
+            // wrapper rather than on the navigation button, so the defunct banner
+            // can sit inside the same cell without nesting a button inside a
+            // button — which is invalid HTML and swallows the inner click.
+            <div
               key={t.id}
-              type="button"
-              onClick={() => router.push(`/trackers/${t.id}`)}
-              className="flex flex-col gap-2 px-4 py-3 nm-interactive-sm cursor-pointer text-left h-full rounded-nm-md"
+              className="flex flex-col nm-interactive-sm h-full rounded-nm-md overflow-hidden"
               style={{ borderLeft: `3px solid ${t.color}` }}
             >
-              {/* Row 1: Status + name + ratio + external link */}
-              <div className="flex items-center gap-2.5 w-full">
-                {showHealthIndicators && (
-                  <PulseDot
-                    status={getHealthPulseDot(health)}
-                    size="sm"
-                    color={health === "healthy" ? t.color : undefined}
+              <button
+                type="button"
+                onClick={() => router.push(`/trackers/${t.id}`)}
+                className="flex flex-col gap-2 px-4 py-3 cursor-pointer text-left flex-1 bg-transparent border-none"
+              >
+                {/* Row 1: Status + name + ratio + external link */}
+                <div className="flex items-center gap-2.5 w-full">
+                  {showHealthIndicators && (
+                    <PulseDot
+                      status={getHealthPulseDot(health)}
+                      size="sm"
+                      color={health === "healthy" ? t.color : undefined}
+                    />
+                  )}
+                  <span className="font-sans text-sm font-semibold text-primary whitespace-nowrap flex-1 truncate">
+                    {t.name}
+                  </span>
+                  <span className="font-mono text-xs text-tertiary tabular-nums shrink-0">
+                    {formatRatioDisplay(
+                      t.latestStats?.ratioIsInfinite
+                        ? Number.POSITIVE_INFINITY
+                        : t.latestStats?.ratio
+                    )}
+                  </span>
+                  <a
+                    href={t.baseUrl.startsWith("http") ? t.baseUrl : `https://${t.baseUrl}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="nm-inset-sm bg-control-bg w-7 h-7 flex items-center justify-center text-muted hover:text-accent transition-colors duration-150 shrink-0 rounded-nm-sm"
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label={`Open ${t.name}`}
+                  >
+                    <ExternalLinkIcon width="12" height="12" />
+                  </a>
+                </div>
+
+                {/* Row 2: Class/rank or paused indicator */}
+                {health === "paused" || health === "paused-user" ? (
+                  <span
+                    className={clsx(
+                      "font-mono text-3xs uppercase tracking-wider ml-4.5",
+                      health === "paused-user" ? "text-warn" : "text-danger"
+                    )}
+                  >
+                    ⏸ Polling paused
+                  </span>
+                ) : (
+                  <RedactedText
+                    value={t.latestStats?.group ?? null}
+                    color={t.color}
+                    className="font-mono text-xs text-accent ml-4.5"
                   />
                 )}
-                <span className="font-sans text-sm font-semibold text-primary whitespace-nowrap flex-1 truncate">
-                  {t.name}
-                </span>
-                <span className="font-mono text-xs text-tertiary tabular-nums shrink-0">
-                  {formatRatioDisplay(
-                    t.latestStats?.ratioIsInfinite
-                      ? Number.POSITIVE_INFINITY
-                      : t.latestStats?.ratio
-                  )}
-                </span>
-                <a
-                  href={t.baseUrl.startsWith("http") ? t.baseUrl : `https://${t.baseUrl}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="nm-inset-sm bg-control-bg w-7 h-7 flex items-center justify-center text-muted hover:text-accent transition-colors duration-150 shrink-0 rounded-nm-sm"
-                  onClick={(e) => e.stopPropagation()}
-                  aria-label={`Open ${t.name}`}
-                >
-                  <ExternalLinkIcon width="12" height="12" />
-                </a>
-              </div>
 
-              {/* Row 2: Class/rank or paused indicator */}
-              {health === "paused" || health === "paused-user" ? (
-                <span
-                  className={clsx(
-                    "font-mono text-3xs uppercase tracking-wider ml-4.5",
-                    health === "paused-user" ? "text-warn" : "text-danger"
-                  )}
-                >
-                  ⏸ Polling paused
-                </span>
-              ) : (
-                <RedactedText
-                  value={t.latestStats?.group ?? null}
-                  color={t.color}
-                  className="font-mono text-xs text-accent ml-4.5"
-                />
-              )}
+                {/* Row 3: Account age + join date */}
+                {t.joinedAt ? (
+                  <span className="font-mono text-xs text-tertiary ml-4.5">
+                    {formatAccountAge(t.joinedAt)} · Joined {formatJoinedDate(t.joinedAt)}
+                  </span>
+                ) : (
+                  <span className="font-mono text-xs text-tertiary ml-4.5">&nbsp;</span>
+                )}
+              </button>
 
-              {/* Row 3: Account age + join date */}
-              {t.joinedAt ? (
-                <span className="font-mono text-xs text-tertiary ml-4.5">
-                  {formatAccountAge(t.joinedAt)} · Joined {formatJoinedDate(t.joinedAt)}
-                </span>
-              ) : (
-                <span className="font-mono text-xs text-tertiary ml-4.5">&nbsp;</span>
-              )}
-            </button>
+              {/* Shutdown notice — renders nothing unless the registry marks this
+                  tracker defunct. Archiving from here removes the card, which is
+                  the point: the grid only lists active trackers. */}
+              <TrackerDefunctBanner registryEntry={entry} tracker={t} variant="compact" />
+            </div>
           )
         })}
 

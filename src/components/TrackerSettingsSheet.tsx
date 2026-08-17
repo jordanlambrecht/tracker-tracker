@@ -1,6 +1,7 @@
 // src/components/TrackerSettingsSheet.tsx
 "use client"
 
+import { useQueryClient } from "@tanstack/react-query"
 import { H2 } from "@typography"
 import clsx from "clsx"
 import { useRouter } from "next/navigation"
@@ -21,13 +22,19 @@ import { ColorPicker } from "@/components/ui/ColorPicker"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { DOCS } from "@/lib/constants"
 import { localDateStr } from "@/lib/formatters"
+import { trackerQueryOptions } from "@/lib/query-options"
 import type { TrackerSummary } from "@/types/api"
 
 interface TrackerSettingsSheetProps {
   open: boolean
   tracker: TrackerSummary
   onClose: () => void
-  onUpdated: () => void
+  /**
+   * Receives the tracker exactly as the PATCH response returned it. The sheet
+   * already holds the authoritative post-write row, so consumers must not
+   * re-GET it — that extra round trip is pure latency on the save/archive path.
+   */
+  onUpdated: (updated: TrackerSummary) => void
 }
 
 interface FormState {
@@ -60,6 +67,31 @@ function formStateFromTracker(t: TrackerSummary): FormState {
 
 function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSettingsSheetProps) {
   const router = useRouter()
+  const queryClient = useQueryClient()
+
+  // Every write in this sheet mutates a row that lives in the shared ["trackers"]
+  // cache, which the sidebar (useTrackerList) and the dashboard (useDashboardData)
+  // both render from. That cache is NOT remounted by `router.push("/")` — the
+  // sidebar sits in the persistent (auth) layout — and its only automatic repair
+  // is `refetchInterval`, derived from trackerPollIntervalMinutes (15 min floor,
+  // 60 min default). Without an explicit write-through + invalidate here, an
+  // archived tracker keeps rendering as active, and the "Show Archived (N)"
+  // counter keeps under-reporting, for up to an hour. This mirrors what
+  // toggleFavorite and handleDragEnd already do in useTrackerList.
+  const syncTrackerCache = useCallback(
+    (next: TrackerSummary | null) => {
+      queryClient.setQueryData<TrackerSummary[]>(trackerQueryOptions.queryKey, (prev) => {
+        if (!prev) return prev
+        if (!next) return prev.filter((t) => t.id !== tracker.id)
+        return prev.map((t) => (t.id === next.id ? next : t))
+      })
+      // Deliberately not awaited: the refetch is a background confirmation of the
+      // row we just wrote through, and awaiting it would put a full round trip in
+      // front of closing the sheet / navigating home.
+      queryClient.invalidateQueries({ queryKey: trackerQueryOptions.queryKey })
+    },
+    [queryClient, tracker.id]
+  )
 
   const [form, setForm] = useState<FormState>(() => formStateFromTracker(tracker))
   const updateField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
@@ -270,8 +302,13 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
         return
       }
 
+      // PATCH /api/trackers/[id] returns the freshly-read row, so this IS the
+      // post-write truth — no follow-up GET needed.
+      const updated = (await res.json()) as TrackerSummary
+      syncTrackerCache(updated)
+
       resetTransientState()
-      onUpdated()
+      onUpdated(updated)
       onClose()
     } catch {
       setErrors({ form: "Network error — please try again" })
@@ -281,6 +318,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
 
   async function handleArchive() {
     setSaving(true)
+    setErrors({})
     try {
       const res = await fetch(`/api/trackers/${tracker.id}`, {
         method: "PATCH",
@@ -288,10 +326,21 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
         body: JSON.stringify({ isActive: !tracker.isActive }),
       })
 
-      if (res.ok) {
-        onUpdated()
-        onClose()
+      // A non-ok response used to fall through silently: no error, no state
+      // change, sheet still open. That reads to the user as "I clicked Archive
+      // and nothing happened", which is indistinguishable from "it's slow".
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setErrors({
+          form: (data as { error?: string }).error ?? "Failed to update archive status",
+        })
+        return
       }
+
+      const updated = (await res.json()) as TrackerSummary
+      syncTrackerCache(updated)
+      onUpdated(updated)
+      onClose()
     } catch {
       setErrors({ form: "Failed to update archive status" })
     } finally {
@@ -307,6 +356,9 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
       })
 
       if (res.ok) {
+        // Same shared cache as archive — without this the deleted row keeps
+        // rendering in the sidebar after router.push("/").
+        syncTrackerCache(null)
         onClose()
         router.push("/")
       } else {

@@ -27,6 +27,9 @@
 //   - contentCategories: values must come from the allowed list above
 //   - language: required
 //   - rules: required (minimumRatio, seedTimeHours, loginIntervalDays as numbers)
+//   - defunct: true requires defunctDate and defunctMessage
+//   - defunctDate: "YYYY-MM-DD" (same shape as a tracker's joinedAt)
+//   - defunctLink: https only, if present
 
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 
@@ -78,6 +81,15 @@ export const mytracker: TrackerRegistryEntry = {
   // ── Status ──────────────────────────────────────────────────────────
   warning: false, // true if the tracker has a known issue or is at risk
   warningNote: "", // short description of the warning — "" if none
+  // Defunct = permanently shut down, not merely offline or unreachable. Setting
+  // this shows a banner prompting the user to archive their tracker. Omit all
+  // four fields for a live tracker; setting defunct: true requires the date and
+  // the message. A defunct tracker's API is gone, so this can only be recorded
+  // by hand here — it can never come from the adapter.
+  // defunct: true,
+  // defunctMessage: "",   // one short factual line, e.g. "Example has shut down."
+  // defunctDate: "",      // "YYYY-MM-DD" — the shutdown date, e.g. "2026-05-11"
+  // defunctLink: "",      // https:// announcement (forum post, reddit thread) — omit if none
 
   // ── Flags ───────────────────────────────────────────────────────────
   draft: true, // remove (or set false) once all required fields are filled in

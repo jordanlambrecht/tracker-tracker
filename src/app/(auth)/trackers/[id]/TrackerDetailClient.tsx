@@ -7,6 +7,7 @@ import { type CSSProperties, useCallback, useEffect, useMemo, useState } from "r
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import { RankProgress } from "@/components/dashboard/RankProgress"
 import { TorrentsTab } from "@/components/dashboard/TorrentsTab"
+import { TrackerDefunctBanner } from "@/components/TrackerDefunctBanner"
 import { TrackerSettingsSheet } from "@/components/TrackerSettingsSheet"
 import { AnalyticsTab } from "@/components/tracker-detail/AnalyticsTab"
 import type { DebugData } from "@/components/tracker-detail/DebugResponseDialog"
@@ -274,6 +275,24 @@ export function TrackerDetailClient({
         joinedAt={tracker.joinedAt}
       />
 
+      {/* Shutdown notice — ranks above the pause/error banners because a defunct
+          tracker's poll failures are a symptom of the shutdown, not a separate
+          problem to troubleshoot. */}
+      <TrackerDefunctBanner
+        registryEntry={registryEntry}
+        tracker={tracker}
+        onArchived={(updated) => {
+          // Same handling as the settings sheet's archive: the row has already
+          // been written through the shared cache, so there is nothing to
+          // re-fetch — an archived tracker just leaves the active dashboard.
+          if (!updated.isActive) {
+            router.push("/")
+            return
+          }
+          setTracker(updated)
+        }}
+      />
+
       {/* Error / pause banners */}
       <TrackerStatusBanner
         tracker={tracker}
@@ -339,10 +358,12 @@ export function TrackerDetailClient({
         open={showSettings}
         tracker={tracker}
         onClose={() => setShowSettings(false)}
-        onUpdated={async () => {
-          const res = await fetch(`/api/trackers/${id}`)
-          if (!res.ok) return
-          const updated = await res.json()
+        onUpdated={(updated) => {
+          // `updated` is the PATCH response itself. This used to re-GET
+          // /api/trackers/{id} first, re-running the exact query the PATCH had
+          // just run and putting a second serial round trip in front of the
+          // redirect. The sheet has also already written this row into the
+          // shared ["trackers"] cache, so the sidebar is correct by now.
           if (!updated.isActive) {
             router.push("/")
             return

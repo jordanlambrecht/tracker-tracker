@@ -23,6 +23,7 @@ import {
   PLACEHOLDER_RE,
   SLUG_RE,
   VALID_CONTENT_CATEGORIES,
+  validateDefunct,
 } from "@/data/tracker-validation-rules"
 import { ALL_TRACKERS } from "@/data/trackers"
 import { DEFAULT_API_PATHS } from "@/lib/adapters"
@@ -239,6 +240,16 @@ describe("tracker registry", () => {
             expect(fs.existsSync(logoFile), `Logo file not found: public${tracker.logo}`).toBe(true)
           })
         }
+
+        // ── Defunct fields (fail) ────────────────────────────────────
+
+        // Same predicate the CI script runs, imported rather than re-stated so
+        // the two cannot disagree about what a valid shutdown record looks like.
+        it("has a coherent defunct record", () => {
+          const { errors, warnings } = validateDefunct(tracker)
+          expect(errors, `${tracker.slug}: ${errors.join("; ")}`).toEqual([])
+          for (const w of warnings) warn(tracker.slug, w)
+        })
 
         // ── Warn-level fields (collected, not asserted) ──────────────
 
