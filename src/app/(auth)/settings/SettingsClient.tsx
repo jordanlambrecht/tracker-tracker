@@ -9,6 +9,7 @@ import { useState } from "react"
 import { DownloadClients } from "@/components/DownloadClients"
 import { NotificationTargets } from "@/components/NotificationTargets"
 import { QbitmanageSettings } from "@/components/QbitmanageSettings"
+import { AboutSection } from "@/components/settings/AboutSection"
 import { AccountSection } from "@/components/settings/AccountSection"
 import { BackupsSection } from "@/components/settings/BackupsSection"
 import { DangerZoneSection } from "@/components/settings/DangerZoneSection"
@@ -23,7 +24,7 @@ import { TagGroups } from "@/components/TagGroups"
 import { TabBar } from "@/components/ui/TabBar"
 import type { QbitmanageTagConfig } from "@/types/api"
 
-type SettingsTab = "general" | "clients" | "notifications" | "backups" | "events"
+type SettingsTab = "general" | "clients" | "notifications" | "backups" | "events" | "about"
 
 const SETTINGS_TABS: { key: SettingsTab; label: string }[] = [
   { key: "general", label: "General" },
@@ -31,6 +32,7 @@ const SETTINGS_TABS: { key: SettingsTab; label: string }[] = [
   { key: "notifications", label: "Notifications" },
   { key: "backups", label: "Backups" },
   { key: "events", label: "Events" },
+  { key: "about", label: "About" },
 ]
 
 export interface SettingsData {
@@ -153,6 +155,8 @@ export function SettingsClient({
       )}
 
       {activeTab === "events" && <EventsSection />}
+
+      {activeTab === "about" && <AboutSection />}
     </div>
   )
 }

@@ -239,6 +239,8 @@ PRs welcome. Areas where help matters most:
 - **Custom platform adapters** — trackers marked "Custom" need bespoke adapters since they don't run a supported platform.
 - **HawkeUno lobbying** — convince the Hawke mods to add a `/users` endpoint so the adapter can work
 
+Tracker Tracker is free and independently maintained. [GitHub Sponsors](https://github.com/sponsors/jordanlambrecht) for recurring support, [Buy Me a Coffee](https://buymeacoffee.com/jordyjordy) for a one-off.
+
 ## Architecture
 
 - **Next.js 16** (App Router)
