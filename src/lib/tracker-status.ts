@@ -49,7 +49,12 @@ const HEALTH_META: Record<TrackerHealth, HealthMeta> = {
   "no-seeds": {
     label: "No Seeds",
     description: "Zero active seeds \u2014 nothing is uploading",
-    pulseDot: "critical",
+    // Its own dot status, not "critical". The two look identical on purpose \u2014
+    // they share the danger palette the way paused and critical already do \u2014
+    // but the dot-only surfaces (sidebar list, overview grid) expose the status
+    // name to screen readers, and announcing "Critical" for a tracker that is
+    // simply seeding nothing describes the wrong problem.
+    pulseDot: "no-seeds",
     badge: "danger",
   },
   critical: {

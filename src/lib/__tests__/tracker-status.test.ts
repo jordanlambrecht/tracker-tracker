@@ -147,7 +147,7 @@ describe("health metadata", () => {
 
   it("renders 'no-seeds' more severely than 'warning'", () => {
     expect(getHealthBadgeVariant("no-seeds")).toBe("danger")
-    expect(getHealthPulseDot("no-seeds")).toBe("critical")
+    expect(getHealthPulseDot("no-seeds")).toBe("no-seeds")
     expect(getHealthBadgeVariant("warning")).toBe("warn")
     expect(getHealthPulseDot("warning")).toBe("warning")
   })
