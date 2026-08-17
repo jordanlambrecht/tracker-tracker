@@ -4,6 +4,7 @@
 import { H3, Paragraph } from "@typography"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import { USERNAME_PROMPT_SKIP_KEY } from "@/components/auth/UsernamePromptDialog"
 import { SettingsSection } from "@/components/settings/SettingsSection"
 import { Button, Input } from "@/components/ui"
 import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
@@ -43,6 +44,18 @@ export function AccountSection({ initialUsername }: AccountSectionProps) {
       const result: { username: string | null } = await res.json()
       setUsername(result.username ?? "")
       setSavedUsername(result.username ?? "")
+      if (result.username === null) {
+        // Clearing the username is a deliberate choice of password-only login,
+        // not an oversight. Without this, the first-login prompt — which fires on
+        // `username IS NULL` and re-evaluates on every navigation, since the
+        // (auth) layout is force-dynamic — would appear the moment the user
+        // leaves this page, asking them to undo what they just did.
+        try {
+          sessionStorage.setItem(USERNAME_PROMPT_SKIP_KEY, "1")
+        } catch {
+          // Storage unavailable — worst case the prompt asks once more.
+        }
+      }
     } catch (err) {
       setUsernameError(err instanceof Error ? err.message : "Network error")
     } finally {

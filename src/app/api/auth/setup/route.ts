@@ -11,8 +11,7 @@ import {
   PASSWORD_MIN,
   SNAPSHOT_RETENTION_MAX,
   SNAPSHOT_RETENTION_MIN,
-  USERNAME_MAX,
-  USERNAME_MIN,
+  validateUsername,
 } from "@/lib/limits"
 import { log } from "@/lib/logger"
 
@@ -37,24 +36,15 @@ export async function POST(request: Request) {
     )
   }
 
-  if (typeof username !== "string" || !username.trim()) {
-    return NextResponse.json({ error: "Username is required" }, { status: 400 })
+  // Setup is the reference definition of a valid username, so it reads it from
+  // the shared validator rather than owning a private copy — POST
+  // /api/auth/username has to agree with it exactly or an account created here
+  // could not be renamed there, and vice versa.
+  const usernameCheck = validateUsername(username)
+  if (!usernameCheck.ok) {
+    return NextResponse.json({ error: usernameCheck.error }, { status: 400 })
   }
-  const validatedUsername = username.trim()
-  if (validatedUsername.length < USERNAME_MIN || validatedUsername.length > USERNAME_MAX) {
-    return NextResponse.json(
-      { error: `Username must be between ${USERNAME_MIN} and ${USERNAME_MAX} characters` },
-      { status: 400 }
-    )
-  }
-  if (!/^[\w\-. ]+$/.test(validatedUsername)) {
-    return NextResponse.json(
-      {
-        error: "Username may only contain letters, numbers, underscores, hyphens, dots, and spaces",
-      },
-      { status: 400 }
-    )
-  }
+  const validatedUsername = usernameCheck.username
 
   // Validate optional retention setting
   let validatedRetention: number | undefined

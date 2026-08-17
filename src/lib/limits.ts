@@ -7,6 +7,48 @@ export const USERNAME_MIN = 3
 export const USERNAME_MAX = 100
 export const TOTP_TOKEN_MAX = 2048
 
+/** Letters, digits, underscore, hyphen, dot, space. */
+const USERNAME_PATTERN = /^[\w\-. ]+$/
+
+// Not exported: callers narrow on `.ok` off the return value, and an exported
+// type nobody imports is exactly what knip flags.
+type UsernameValidation = { ok: true; username: string } | { ok: false; error: string }
+
+/**
+ * The one definition of a valid login username, in the order initial setup has
+ * always applied it: trim FIRST, then bound the length, then the character class.
+ *
+ * Order matters. Checking the length of the raw string lets `" a "` through a
+ * `>= 3` test and then stores the trimmed `"a"` — a username setup itself would
+ * have rejected. Every surface that accepts a username has to agree with setup,
+ * or the login form ends up demanding a value that could never have been typed
+ * into the form that created the account.
+ *
+ * Deliberately pure, and deliberately free of `next/server`: this module is
+ * imported by client components (i.e. the settings Account form), so anything
+ * server-only in here would be dragged into the browser bundle. Route handlers
+ * wrap the returned `error` in their own NextResponse.
+ */
+export function validateUsername(raw: unknown): UsernameValidation {
+  if (typeof raw !== "string" || !raw.trim()) {
+    return { ok: false, error: "Username is required" }
+  }
+  const username = raw.trim()
+  if (username.length < USERNAME_MIN || username.length > USERNAME_MAX) {
+    return {
+      ok: false,
+      error: `Username must be between ${USERNAME_MIN} and ${USERNAME_MAX} characters`,
+    }
+  }
+  if (!USERNAME_PATTERN.test(username)) {
+    return {
+      ok: false,
+      error: "Username may only contain letters, numbers, underscores, hyphens, dots, and spaces",
+    }
+  }
+  return { ok: true, username }
+}
+
 // ─── Network ──────────────────────────────────────────────────────────────────
 export const PORT_MIN = 1
 export const PORT_MAX = 65535
