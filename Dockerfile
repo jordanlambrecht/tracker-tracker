@@ -80,6 +80,35 @@ COPY --from=builder /app/CHANGELOG.md ./
 COPY docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
 
+# --- Emergency master-password recovery ---
+#
+# The script is copied straight into the runner rather than traced into the
+# standalone bundle: .dockerignore excludes scripts/ from the builder's context
+# except for this one file, so outputFileTracingIncludes could never see it.
+#
+# require("argon2") already resolves — argon2 is on Next's builtin
+# server-externals list, so the tracer emits /app/node_modules/argon2 for it.
+#
+# require("postgres") does NOT, and this COPY is why it does. Next bundles
+# postgres.js into the server chunks, so nothing named "postgres" exists under
+# /app/node_modules; that is the "Cannot find module 'postgres'" that broke a
+# real password recovery. Marking it external in next.config.ts does not fix it
+# either — see the comment there. So the CLI gets its own complete copy.
+#
+# COPY dereferences pnpm's symlink into a real directory, and postgres.js has
+# zero runtime dependencies, so this one directory is the whole package
+# including the cjs/ build that require() needs. The app server is untouched: it
+# still uses its bundled copy and never resolves this one.
+COPY --from=deps /app/node_modules/postgres /app/node_modules/postgres
+COPY --chown=nextjs:nodejs scripts/recover.cjs /app/scripts/recover.cjs
+
+# A real command instead of a path to memorise. /usr/local/bin is on PATH, the
+# shim is root-owned 0755 so uid 1001 can execute it, and `docker exec` bypasses
+# the entrypoint — so `docker exec -it tracker-tracker-app tt-recover` runs the
+# CLI directly with no server side effects.
+RUN printf '#!/bin/sh\nexec node /app/scripts/recover.cjs "$@"\n' > /usr/local/bin/tt-recover \
+    && chmod 0755 /usr/local/bin/tt-recover
+
 USER nextjs
 EXPOSE 3000
 

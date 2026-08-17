@@ -54,6 +54,7 @@ nav:
       - Transit Papers: features/transit-papers.md
   - Reference:
       - Settings Guide: reference/settings.md
+      - Lost Master Password: reference/password-recovery.md
       - Stats Explained: reference/stats-explained.md
       - Platform Differences: reference/platform-differences.md
   - Troubleshooting: troubleshooting.md

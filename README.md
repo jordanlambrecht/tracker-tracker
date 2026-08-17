@@ -162,7 +162,7 @@ pnpm dev
 | Variable            | Required | Default           | Description                                         |
 | ------------------- | -------- | ----------------- | --------------------------------------------------- |
 | `POSTGRES_PASSWORD` | Yes\*    | —                 | Database password                                   |
-| `SESSION_SECRET`    | Yes      | —                 | AES-256 key for session cookies (min 32 characters) |
+| `SESSION_SECRET`    | Yes      | —                 | Signs session cookies **and** wraps your encryption key (min 32 characters). Never rotate it after setup — see [Locked Out?](#locked-out-recovering-a-lost-master-password) |
 | `TZ`                | No       | `UTC`             | Timezone for cron schedules and log timestamps      |
 | `PORT`              | No       | `3000`            | Port the app listens on                             |
 | `LOG_LEVEL`         | No       | `info`            | Log verbosity: `error`, `warn`, `info`, `debug`     |
@@ -182,6 +182,35 @@ All other settings — polling interval, privacy mode, proxy, backups — are co
 | `./data/backups` | `/data/backups` | Scheduled backup files                  |
 | `./data/logs`    | `/data/logs`    | Application log files                   |
 | `pgdata` (named) | PG data dir     | PostgreSQL database (managed by Docker) |
+
+## Locked Out? Recovering a Lost Master Password
+
+There is no "forgot password" email — this is a single-user app with no mail server. Instead, the app container ships a recovery command:
+
+```bash
+docker exec -it tracker-tracker-app tt-recover --check    # can I recover? writes nothing
+docker exec -it tracker-tracker-app tt-recover            # dry run, prompts for the new password
+docker exec -it tracker-tracker-app tt-recover --apply    # commit
+```
+
+**Take a database dump first.** It costs seconds and it is the one step you cannot add later:
+
+```bash
+docker exec tracker-tracker-db sh -c \
+  'pg_dump -U "$POSTGRES_USER" tracker_tracker' > tracker-tracker-backup.sql
+```
+
+**Do not edit `password_hash` by hand.** Every secret in the database — tracker API tokens, download client credentials, notification configs, your TOTP secret — is encrypted with a key derived from your master password. `UPDATE app_settings SET password_hash = ...` lets you log in with a key that decrypts nothing, and orphans all of it permanently with no error message. `tt-recover` recovers the real encryption key, re-encrypts every secret under the new password, clears the lockout counter, and rewrites the hash in a single transaction.
+
+Two things it needs, and one thing it refuses:
+
+- `SESSION_SECRET` must be byte-identical to what the instance has been running with. It is the only thing that can unwrap the stored encryption key.
+- `-it` on `docker exec`, so the password can be typed at a hidden prompt instead of landing in your shell history. (`--password '<pw>'` exists for scripting, but it is visible in `ps`.)
+- If `app_settings.encrypted_scheduler_key` is NULL — cleared by an emergency lockdown, a nuke, or a failed restore — recovery is impossible and the tool aborts rather than orphaning your data. Restore a dump from before that point.
+
+Lost your authenticator too? Add `--disable-totp` to clear 2FA in the same transaction.
+
+Full walkthrough, including running against an external database: **[Lost Master Password](https://jordanlambrecht.github.io/tracker-tracker/reference/password-recovery/)**.
 
 ## Adding a Tracker
 

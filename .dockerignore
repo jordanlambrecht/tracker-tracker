@@ -45,8 +45,15 @@ vitest.config.*
 .biomeignore
 biome.json
 
-# Development scripts
-scripts
+# Development scripts.
+#
+# scripts/recover.cjs is the emergency password-recovery CLI and MUST reach the
+# build context — the Dockerfile copies it into the runner. Write this as
+# `scripts/*` + a negation, never as a bare `scripts` + negation: re-including a
+# child of a wholly-excluded directory is not reliable across BuildKit versions,
+# and the failure mode is a COPY error mid-build.
+scripts/*
+!scripts/recover.cjs
 
 # Drizzle generated migrations (schema-push used instead)
 drizzle
