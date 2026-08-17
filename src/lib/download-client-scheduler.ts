@@ -14,6 +14,12 @@
 // Side effects of deepPollClient:
 //   - Writes torrent daily checkpoints (torrentDailyCheckpoints) for "Movers & Shakers".
 //     Uses onConflictDoNothing so the first poll of the day wins; subsequent polls skip.
+//
+// Failure logging for both loops is gated by failure-log-gate.ts: a line is
+// emitted on state changes only — outage onset, a changed cause, a periodic
+// reminder, recovery — so a permanently down client no longer writes a line
+// every 5s. Uptime recording is deliberately outside the gate: every attempt
+// is still made and still recorded, so the 5-minute buckets are unaffected.
 
 import { eq, isNotNull, lt, sql } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
@@ -39,6 +45,12 @@ import {
   slimTorrentForCache,
 } from "@/lib/download-clients"
 import { sanitizeNetworkError } from "@/lib/error-utils"
+import {
+  clearFailureLogGate,
+  noteFailure,
+  noteSuccess,
+  retainFailureLogClients,
+} from "@/lib/failure-log-gate"
 import { parseTorrentTags } from "@/lib/fleet"
 import { localDateStr } from "@/lib/formatters"
 import { SNAPSHOT_RETENTION_DEFAULT } from "@/lib/limits"
@@ -120,6 +132,22 @@ async function heartbeatClient(
     pushSpeedSnapshot(client.id, stats)
     recordHeartbeat(client.id, true)
 
+    // Unconditional, and deliberately outside the DB guard below: the gate is
+    // memory-backed, so it must clear even when lastError already reads null.
+    // For a healthy client this is one Map lookup that returns null.
+    const recovered = noteSuccess(client.id, "heartbeat")
+    if (recovered) {
+      log.info(
+        {
+          clientId: client.id,
+          clientName: client.name,
+          previousFailures: recovered.failures,
+          downForMs: recovered.downForMs,
+        },
+        "client outage cleared by successful heartbeat"
+      )
+    }
+
     // Only write to DB if recovering from error — skip if already healthy
     if (client.lastError !== null) {
       await db
@@ -131,18 +159,48 @@ async function heartbeatClient(
     recordHeartbeat(client.id, false)
     const raw = error instanceof Error ? error.message : "Unknown error"
     const message = sanitizeNetworkError(raw)
-    const isRepeat = client.lastError !== null
-    const logFn = isRepeat ? log.debug.bind(log) : log.error.bind(log)
+    const verdict = noteFailure(client.id, "heartbeat", raw)
     // `message` is deliberately lossy — it is what reaches the UI. Keep the
     // unsanitised cause in the server log too, or a missing DB column, a DNS
     // failure and a refused connection are all indistinguishable from the
     // "Connection failed" fallback. Safe to log: the host pattern forbids "@",
     // so a baseUrl can never carry credentials, and qBittorrent secrets travel
     // in headers and bodies rather than URLs.
-    logFn(
-      { clientId: client.id, clientName: client.name, cause: raw },
-      `Heartbeat failed for client ${client.id} (${client.name}): ${message}`
-    )
+    const base = { clientId: client.id, clientName: client.name, cause: raw }
+    switch (verdict.kind) {
+      case "first":
+        log.error(base, `Heartbeat failed for client ${client.id} (${client.name}): ${message}`)
+        break
+      case "cause-changed":
+        log.error(
+          {
+            ...base,
+            previousCause: verdict.previousCause,
+            outageSince: verdict.since,
+            failures: verdict.failures,
+            suppressed: verdict.suppressed,
+          },
+          `Heartbeat failure changed for client ${client.id} (${client.name}): ${message}`
+        )
+        break
+      case "reminder": {
+        const downForMs = Date.now() - verdict.since
+        log.warn(
+          {
+            ...base,
+            outageSince: verdict.since,
+            failures: verdict.failures,
+            suppressed: verdict.suppressed,
+            distinctCauses: verdict.distinctCauses,
+            downForMs,
+          },
+          `Heartbeat still failing for client ${client.id} (${client.name}) — down ${Math.round(downForMs / 60_000)}m, ${verdict.failures} failed attempts, ${verdict.suppressed} log lines suppressed: ${message}`
+        )
+        break
+      }
+      case "silent":
+        break
+    }
     try {
       await db
         .update(downloadClients)
@@ -165,6 +223,13 @@ async function heartbeatAllClients(encryptionKey: Buffer): Promise<void> {
     .select(HEARTBEAT_COLUMNS)
     .from(downloadClients)
     .where(eq(downloadClients.enabled, true))
+
+  // Sweep before the early return: an empty enabled set must still clear every
+  // entry, or the last client to be disabled strands its state and a later
+  // re-enable is wrongly treated as a repeat instead of a fresh first failure.
+  // This one line covers deletion, disable, and restore-from-backup, and it
+  // sweeps deep-poll keys too — a disabled client should hold neither.
+  retainFailureLogClients(new Set(allClients.map((c) => c.id)))
 
   if (allClients.length === 0) return
 
@@ -315,20 +380,69 @@ export async function deepPollClient(
         tagStats: JSON.stringify(tagStatsResult.tagStats),
       }),
     ])
+
+    const recovered = noteSuccess(clientId, "deep-poll")
+    if (recovered) {
+      log.info(
+        {
+          clientId,
+          clientName: client.name,
+          previousFailures: recovered.failures,
+          downForMs: recovered.downForMs,
+        },
+        "client outage cleared by successful deep poll"
+      )
+    }
+
     if (!hasChanges) {
       log.debug(`[deep-poll] client=${clientId} → no torrent changes, JSONB write skipped`)
     }
   } catch (error) {
     const raw = error instanceof Error ? error.message : "Unknown error"
     const message = sanitizeNetworkError(raw)
-    const isRepeat = client?.lastError !== null
-    const logFn = isRepeat ? log.debug.bind(log) : log.error.bind(log)
+    // Keyed on the clientId parameter, which is always defined — the row lookup
+    // itself may be what failed.
+    const verdict = noteFailure(clientId, "deep-poll", raw)
     // See heartbeatClient: the sanitised message is for the UI, the raw cause
     // is what makes the failure diagnosable from the logs.
-    logFn(
-      { clientId, clientName: client?.name, cause: raw },
-      `Deep poll failed for client ${clientId} (${client?.name ?? "unknown"}): ${message}`
-    )
+    const base = { clientId, clientName: client?.name, cause: raw }
+    switch (verdict.kind) {
+      case "first":
+        log.error(
+          base,
+          `Deep poll failed for client ${clientId} (${client?.name ?? "unknown"}): ${message}`
+        )
+        break
+      case "cause-changed":
+        log.error(
+          {
+            ...base,
+            previousCause: verdict.previousCause,
+            outageSince: verdict.since,
+            failures: verdict.failures,
+            suppressed: verdict.suppressed,
+          },
+          `Deep poll failure changed for client ${clientId} (${client?.name ?? "unknown"}): ${message}`
+        )
+        break
+      case "reminder": {
+        const downForMs = Date.now() - verdict.since
+        log.warn(
+          {
+            ...base,
+            outageSince: verdict.since,
+            failures: verdict.failures,
+            suppressed: verdict.suppressed,
+            distinctCauses: verdict.distinctCauses,
+            downForMs,
+          },
+          `Deep poll still failing for client ${clientId} (${client?.name ?? "unknown"}) — down ${Math.round(downForMs / 60_000)}m, ${verdict.failures} failed attempts, ${verdict.suppressed} log lines suppressed: ${message}`
+        )
+        break
+      }
+      case "silent":
+        break
+    }
     try {
       await db
         .update(downloadClients)
@@ -457,6 +571,7 @@ export function stopClientScheduler(): void {
     log.warn(err, "Failed to flush uptime buckets during scheduler stop")
   })
   clearUptimeAccumulator()
+  clearFailureLogGate()
 }
 
 /**

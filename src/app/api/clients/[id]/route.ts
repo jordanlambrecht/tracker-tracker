@@ -19,6 +19,7 @@ import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
 import { type AuthMethod, VALID_CLIENT_TYPES } from "@/lib/download-clients"
 import { errMsg } from "@/lib/error-utils"
+import { clearFailureLogKeysForClient } from "@/lib/failure-log-gate"
 import {
   CLIENT_POLL_INTERVAL_MAX,
   CLIENT_POLL_INTERVAL_MIN,
@@ -245,6 +246,10 @@ export async function DELETE(_request: Request, props: RouteContext) {
   }
 
   removeDownloadClientFromAccumulator(clientId)
+  // The heartbeat sweep would clear this within 5s, but doing it here closes
+  // the id-reuse window where a recreated client inherits the old one's outage
+  // state and has its genuine first failure suppressed.
+  clearFailureLogKeysForClient(clientId)
 
   await db.transaction(async (tx) => {
     await tx.delete(downloadClients).where(eq(downloadClients.id, clientId))

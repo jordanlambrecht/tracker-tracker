@@ -7,9 +7,14 @@
 //   mockDbInsertSnapshot        - Sets up db.insert chain for clientSnapshots
 //   mockDbUpdateClient          - Sets up db.update chain for downloadClients
 
+import cron from "node-cron"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { db } from "@/lib/db"
-import { deepPollClient } from "@/lib/download-client-scheduler"
+import {
+  deepPollClient,
+  startClientScheduler,
+  stopClientScheduler,
+} from "@/lib/download-client-scheduler"
 import {
   aggregateByTag,
   applyMaindataUpdate,
@@ -17,6 +22,9 @@ import {
   getFilteredTorrents,
   getStoreRevision,
 } from "@/lib/download-clients"
+import { clearFailureLogGate } from "@/lib/failure-log-gate"
+import { log } from "@/lib/logger"
+import { flushCompletedBuckets, recordHeartbeat } from "@/lib/uptime"
 
 // ---------------------------------------------------------------------------
 // Module mocks (boundaries only)
@@ -71,6 +79,25 @@ vi.mock("@/lib/download-clients", () => ({
 vi.mock("node-cron", () => ({
   default: {
     schedule: vi.fn().mockReturnValue({ stop: vi.fn() }),
+  },
+}))
+
+// Mocked so the failure-logging tests can count uptime records and log lines
+// separately — the whole claim of the log gate is that suppressing one leaves
+// the other untouched.
+vi.mock("@/lib/uptime", () => ({
+  recordHeartbeat: vi.fn(),
+  flushCompletedBuckets: vi.fn(async () => 0),
+  clearUptimeAccumulator: vi.fn(),
+  removeDownloadClientFromAccumulator: vi.fn(),
+}))
+
+vi.mock("@/lib/logger", () => ({
+  log: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
   },
 }))
 
@@ -180,6 +207,10 @@ describe("deepPollClient per-tag optimization", () => {
     mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 2048, downloadSpeed: 512 })
     mockAdapter.getTorrents.mockResolvedValue([])
+    // Gate state lives on globalThis, so it outlives resetAllMocks and leaks
+    // between tests: without this, the failure tests below reuse client id 1
+    // and the second one would exercise the cause-changed branch, not first.
+    clearFailureLogGate()
   })
 
   // -------------------------------------------------------------------------
@@ -597,6 +628,7 @@ describe("deepPollClient dedup without isPrivate", () => {
     mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 2048, downloadSpeed: 512 })
     mockAdapter.getTorrents.mockResolvedValue([])
+    clearFailureLogGate()
   })
 
   // Regression: the old per-tag fetch path had a dedup guard `if (!t.isPrivate || seen.has(t.hash)) continue`
@@ -703,6 +735,7 @@ describe("deepPollClient lastPolledAt written; heartbeat update does not include
     mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 2048, downloadSpeed: 512 })
     mockAdapter.getTorrents.mockResolvedValue([])
+    clearFailureLogGate()
   })
 
   // Regression: prevents heartbeat from starving the deep poll scheduler.
@@ -744,5 +777,148 @@ describe("deepPollClient lastPolledAt written; heartbeat update does not include
 
     // 60s ago > 30s interval → overdue
     expect(isOverdue).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Failure-log gating: the log is throttled, the uptime record is not
+// ---------------------------------------------------------------------------
+
+describe("heartbeat failure logging", () => {
+  const HEARTBEAT_CRON = "*/5 * * * * *"
+  const CONNECT_FAILURE = "Failed to connect to 192.168.1.42: UND_ERR_SOCKET"
+
+  const HEARTBEAT_ROW = {
+    id: 1,
+    enabled: true,
+    name: "Qbittorrent - PC",
+    type: "qbittorrent",
+    host: "192.168.1.42",
+    port: 8080,
+    useSsl: false,
+    authMethod: "password",
+    encryptedUsername: "enc-admin",
+    encryptedPassword: "enc-secret",
+    encryptedApiKey: "",
+    crossSeedTags: null,
+    lastError: null,
+  }
+
+  let scheduled: Map<string, () => Promise<void>>
+
+  /** Lets the floating promise started by startClientScheduler settle. */
+  function flushAsync(): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, 0))
+  }
+
+  /**
+   * db.select answers the heartbeat projection with one enabled client and the
+   * deep-poll projection with none, so the deep-poll loop returns at its
+   * overdue check and only heartbeat activity reaches the assertions.
+   */
+  function mockHeartbeatOnlySelect() {
+    ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(
+      (columns: Record<string, unknown>) => {
+        const cols = columns ?? {}
+        const isHeartbeat = "encryptedUsername" in cols && !("pollIntervalSeconds" in cols)
+        const where = vi.fn().mockResolvedValue(isHeartbeat ? [HEARTBEAT_ROW] : [])
+        return { from: vi.fn().mockReturnValue({ where }) }
+      }
+    )
+  }
+
+  /** Runs one heartbeat cron cycle to completion. */
+  async function heartbeatTick(): Promise<void> {
+    const tick = scheduled.get(HEARTBEAT_CRON)
+    expect(tick).toBeDefined()
+    await tick?.()
+  }
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
+    vi.mocked(flushCompletedBuckets).mockResolvedValue(0)
+
+    scheduled = new Map()
+    vi.mocked(cron.schedule).mockImplementation(((
+      expression: string,
+      task: () => Promise<void>
+    ) => {
+      scheduled.set(expression, task)
+      return { stop: vi.fn() }
+    }) as unknown as typeof cron.schedule)
+
+    // Releases the cron-task globals so startClientScheduler runs again, and
+    // clears the gate (both here and via the call inside stopClientScheduler).
+    stopClientScheduler()
+    clearFailureLogGate()
+
+    mockHeartbeatOnlySelect()
+    mockDbUpdateClient()
+  })
+
+  // This is the central claim of the log gate: it wraps the log call only. It
+  // never gates the poll, so no heartbeat is skipped and no 5-minute uptime
+  // bucket develops a hole while a client is down.
+  it("records every failed attempt for uptime while logging the outage once", async () => {
+    const CYCLES = 12
+    mockAdapter.getTransferInfo.mockRejectedValue(new Error(CONNECT_FAILURE))
+
+    startClientScheduler(makeEncryptionKey())
+    await flushAsync()
+    for (let i = 1; i < CYCLES; i++) {
+      await heartbeatTick()
+    }
+
+    // Uptime accounting sees all 12 attempts...
+    expect(vi.mocked(recordHeartbeat)).toHaveBeenCalledTimes(CYCLES)
+    for (const call of vi.mocked(recordHeartbeat).mock.calls) {
+      expect(call).toEqual([1, false])
+    }
+
+    // ...while the log sees the outage exactly once, at error level.
+    expect(vi.mocked(log.error)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(log.error).mock.calls[0][1]).toContain(
+      "Heartbeat failed for client 1 (Qbittorrent - PC)"
+    )
+    // No reminder is due this soon, and repeats are dropped rather than
+    // downgraded — a debug line would still reach the events tab.
+    expect(vi.mocked(log.warn)).not.toHaveBeenCalled()
+    expect(vi.mocked(log.debug)).not.toHaveBeenCalled()
+  })
+
+  it("logs the first failure with the raw cause attached", async () => {
+    mockAdapter.getTransferInfo.mockRejectedValue(new Error(CONNECT_FAILURE))
+
+    startClientScheduler(makeEncryptionKey())
+    await flushAsync()
+
+    expect(vi.mocked(log.error).mock.calls[0][0]).toMatchObject({
+      clientId: 1,
+      clientName: "Qbittorrent - PC",
+      cause: CONNECT_FAILURE,
+    })
+    // The sanitized message is what the UI gets, and it is lossy
+    expect(vi.mocked(log.error).mock.calls[0][1]).toContain("Connection failed")
+  })
+
+  it("logs recovery once and re-arms the gate for the next outage", async () => {
+    mockAdapter.getTransferInfo.mockRejectedValue(new Error(CONNECT_FAILURE))
+
+    startClientScheduler(makeEncryptionKey())
+    await flushAsync()
+    await heartbeatTick()
+    expect(vi.mocked(log.error)).toHaveBeenCalledTimes(1)
+
+    mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 0, downloadSpeed: 0 })
+    await heartbeatTick()
+
+    const infoMessages = vi.mocked(log.info).mock.calls.map((call) => call[1])
+    expect(infoMessages).toContain("client outage cleared by successful heartbeat")
+
+    // Throttle state is gone, so the next outage is a first failure again
+    mockAdapter.getTransferInfo.mockRejectedValue(new Error(CONNECT_FAILURE))
+    await heartbeatTick()
+    expect(vi.mocked(log.error)).toHaveBeenCalledTimes(2)
   })
 })
