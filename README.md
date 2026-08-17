@@ -83,7 +83,7 @@ You can check out a few other, longer, screenshots in the docs folder.
 | FileList              | Custom    | ⛔ Stuck               |                                                   |
 | HD-Torrents           | Custom    | ⛔ Stuck               |                                                   |
 | TVVault               | Custom    | ⛔ Stuck               |                                                   |
-| HawkeUno              | UNIT3D    | ❌ Broken              | API does not permit /user requests                |
+| HawkeUno              | Hawke     | ✅ Verified            |                                                   |
 
 **Legend:**
 
@@ -237,7 +237,6 @@ PRs welcome. Areas where help matters most:
 - **Responsiveness** - I only have my 16" MBP to work off of, so feedback of different screen experiences is much appreciated
 - **Data Visualization** - I ain't no math wizard, so any contributions for data viz, charts/graphs, etc.
 - **Custom platform adapters** — trackers marked "Custom" need bespoke adapters since they don't run a supported platform.
-- **HawkeUno lobbying** — convince the Hawke mods to add a `/users` endpoint so the adapter can work
 
 Tracker Tracker is free and independently maintained. [GitHub Sponsors](https://github.com/sponsors/jordanlambrecht) for recurring support, [Buy Me a Coffee](https://buymeacoffee.com/jordyjordy) for a one-off.
 

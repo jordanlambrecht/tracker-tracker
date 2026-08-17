@@ -31,6 +31,7 @@ export interface TrackerStats {
     | MamPlatformMeta
     | AvistazPlatformMeta
     | DigitalCorePlatformMeta
+    | HawkePlatformMeta
 }
 
 export interface GGnPlatformMeta {
@@ -166,6 +167,31 @@ export interface AvistazPlatformMeta {
   }
 }
 
+/**
+ * Hawke reports a handful of fields no other platform has: a per-division seed
+ * breakdown, a warning count (not a boolean — see below), and four capability
+ * flags the site uses to gate actions.
+ */
+export interface HawkePlatformMeta {
+  /**
+   * Seed counts per Hawke seeding division (vanguard, squire, knight,
+   * champion, legend, guardian). Left open rather than a fixed key set so a
+   * new division added site-side flows through instead of being dropped —
+   * the same reason GGn's `buffs` is a Record.
+   */
+  seedDivisions?: Record<string, number>
+  /**
+   * Count of active warnings, not a boolean. TrackerStats.warned stays null
+   * for Hawke because a count of 0 and "not warnable" aren't distinguishable
+   * from this field alone.
+   */
+  warnings?: number
+  canUpload?: boolean
+  canDownload?: boolean
+  canRequest?: boolean
+  canInvite?: boolean
+}
+
 /** Union of all platform-specific metadata types */
 export type PlatformMeta =
   | GGnPlatformMeta
@@ -174,6 +200,7 @@ export type PlatformMeta =
   | MamPlatformMeta
   | AvistazPlatformMeta
   | DigitalCorePlatformMeta
+  | HawkePlatformMeta
 
 /** Maps platformType string → the corresponding PlatformMeta variant */
 export interface PlatformMetaMap {
@@ -183,6 +210,7 @@ export interface PlatformMetaMap {
   mam: MamPlatformMeta
   avistaz: AvistazPlatformMeta
   digitalcore: DigitalCorePlatformMeta
+  hawke: HawkePlatformMeta
 }
 
 /**

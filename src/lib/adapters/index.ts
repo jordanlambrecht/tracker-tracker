@@ -7,6 +7,7 @@ import { BtnAdapter } from "./btn"
 import { DigitalCoreAdapter } from "./digitalcore"
 import { GazelleAdapter } from "./gazelle"
 import { GGnAdapter } from "./ggn"
+import { HawkeAdapter } from "./hawke"
 import { IptorrentsAdapter } from "./iptorrents"
 import { MamAdapter } from "./mam"
 import { NebulanceAdapter } from "./nebulance"
@@ -23,6 +24,7 @@ const adapters: Record<string, TrackerAdapter> = {
   digitalcore: new DigitalCoreAdapter(),
   gazelle: new GazelleAdapter(),
   ggn: new GGnAdapter(),
+  hawke: new HawkeAdapter(),
   iptorrents: new IptorrentsAdapter(),
   mam: new MamAdapter(),
   nebulance: new NebulanceAdapter(),

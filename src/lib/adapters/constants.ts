@@ -12,6 +12,7 @@ export const VALID_PLATFORM_TYPES = [
   "btn",
   "iptorrents",
   "torrentleech",
+  "hawke",
 ] as const
 export type PlatformType = (typeof VALID_PLATFORM_TYPES)[number]
 
@@ -28,4 +29,5 @@ export const DEFAULT_API_PATHS: Record<string, string> = {
   btn: "/",
   iptorrents: "/profile",
   torrentleech: "/profile",
+  hawke: "/api/profile",
 }
