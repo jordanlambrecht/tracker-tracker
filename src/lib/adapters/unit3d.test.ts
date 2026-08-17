@@ -186,9 +186,8 @@ describe("Unit3dAdapter - security", () => {
 
     await adapter.fetchStats("https://aither.cc", "secret-token", "/api/user")
 
-    expect((capturedInit?.headers as Record<string, string>).Authorization).toBe(
-      "Bearer secret-token"
-    )
+    const headers = capturedInit?.headers as Record<string, string> | undefined
+    expect(headers?.Authorization).toBe("Bearer secret-token")
     expect(capturedUrl).not.toContain("api_token")
   })
 
@@ -213,7 +212,8 @@ describe("Unit3dAdapter - security", () => {
     })
 
     expect(capturedUrl).toContain("api_token=secret-token")
-    expect((capturedInit?.headers as Record<string, string>).Authorization).toBeUndefined()
+    const headers = capturedInit?.headers as Record<string, string> | undefined
+    expect(headers?.Authorization).toBeUndefined()
   })
 
 })
