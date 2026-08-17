@@ -66,12 +66,13 @@ export function FleetDashboard({ dayRange, isActive = true }: FleetDashboardProp
   const { hydrated: chartPrefsHydrated } = chartPrefs
   const intervals = usePollingIntervals()
 
-  const effectiveDays = dayRange === 0 ? 30 : dayRange
-
+  // dayRange 0 is the "All" sentinel and is passed straight through: the route
+  // treats days=0 as "no time filter". Rewriting it to 30 here silently capped
+  // the Torrent Fleet tab at a month of history.
   const { data: snapshots = [] } = useQuery({
-    queryKey: ["download-client-snapshots", effectiveDays],
+    queryKey: ["download-client-snapshots", dayRange],
     queryFn: async ({ signal }) => {
-      const res = await fetch(`/api/fleet/snapshots?days=${effectiveDays}`, { signal })
+      const res = await fetch(`/api/fleet/snapshots?days=${dayRange}`, { signal })
       if (!res.ok) throw new Error(`Fleet snapshots failed: ${res.status}`)
       return res.json() as Promise<FleetSnapshot[]>
     },

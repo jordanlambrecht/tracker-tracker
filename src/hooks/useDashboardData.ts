@@ -77,7 +77,14 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
     refetchInterval: intervals.trackerRefetchMs,
     select: selectActiveTrackers,
     initialData: options?.initialTrackers,
-    initialDataUpdatedAt: options?.initialTrackers ? Date.now() : undefined,
+    // 0, not Date.now(). Today this is inert — the sidebar (useTrackerList) renders
+    // before this hook and creates the ["trackers"] entry first, and QueryCache.build
+    // returns an existing query untouched, so this initialData never enters cache
+    // state. If that render order ever changes, Date.now() would stamp the RSC payload
+    // as fresh-right-now and suppress refetchOnMount for the whole 2-minute staleTime,
+    // re-creating exactly the staleness this file was implicated in. Matches the
+    // deliberate `initialDataUpdatedAt: 0` seeding idiom in useTrackerTorrents.ts.
+    initialDataUpdatedAt: options?.initialTrackers ? 0 : undefined,
   })
 
   const trackers = trackersQuery.data ?? []
@@ -86,10 +93,10 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
   const fleetSnapshotsQuery = useQuery({
     queryKey: ["tracker-snapshots-fleet", dayRange],
     queryFn: async ({ signal }) => {
-      const url =
-        dayRange === 0
-          ? "/api/trackers/snapshots/fleet"
-          : `/api/trackers/snapshots/fleet?days=${dayRange}`
+      // Always send days explicitly, including the "All" sentinel 0. Omitting the
+      // param does NOT mean 0 to the server: parseIntClamped falls back to its
+      // default of 30, so "All" silently requested a 30-day window instead.
+      const url = `/api/trackers/snapshots/fleet?days=${dayRange}`
       const res = await fetch(url, { signal })
       if (!res.ok) throw new Error(`Fleet snapshot fetch failed: ${res.status}`)
       return res.json() as Promise<Record<string, Snapshot[]>>
