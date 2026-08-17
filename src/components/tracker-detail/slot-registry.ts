@@ -30,7 +30,6 @@ import {
 import { PulseDot } from "@/components/ui/PulseDot"
 import type {
   StatCardBasicProps,
-  StatCardRingProps,
   StatCardRow,
   StatCardStackedProps,
 } from "@/components/ui/StatCard"
@@ -46,6 +45,8 @@ import type { GgnShareScoreProgressProps } from "./platform/GgnShareScoreProgres
 import { GgnShareScoreProgress } from "./platform/GgnShareScoreProgress"
 import type { MamHealthOverviewProps } from "./platform/MamHealthOverview"
 import { MamHealthOverview } from "./platform/MamHealthOverview"
+import type { LoginDeadlineCardProps } from "./slots/LoginDeadlineCard"
+import { LoginDeadlineCard } from "./slots/LoginDeadlineCard"
 import type { SlotBadgeProps } from "./slots/SlotBadge"
 import { SlotBadge } from "./slots/SlotBadge"
 
@@ -375,10 +376,10 @@ const gazelleCommentsSlot: SlotDefinition<StatCardStackedProps> = {
   },
 }
 
-const loginDeadlineSlot: SlotDefinition<StatCardRingProps> = {
+const loginDeadlineSlot: SlotDefinition<LoginDeadlineCardProps> = {
   id: "login-deadline",
   category: "stat-card",
-  component: StatCard as ComponentType<StatCardRingProps>,
+  component: LoginDeadlineCard,
   priority: 30,
   span: 2,
   resolve(ctx) {
@@ -390,6 +391,10 @@ const loginDeadlineSlot: SlotDefinition<StatCardRingProps> = {
       lastAccessAt: lastAccess,
       loginIntervalDays: loginDays,
       accentColor: ctx.accentColor,
+      // The user's configured tracker URL — same destination the detail
+      // header and dashboard login timers already link to. Undefined when
+      // unset so the button is omitted instead of pointing nowhere.
+      loginUrl: ctx.tracker.baseUrl || undefined,
     }
   },
 }

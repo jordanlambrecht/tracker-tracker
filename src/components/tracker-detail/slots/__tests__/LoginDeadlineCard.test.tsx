@@ -3,6 +3,7 @@
 import { render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { CHART_THEME } from "@/components/charts/lib/theme"
+import { LoginDeadlineCard } from "@/components/tracker-detail/slots/LoginDeadlineCard"
 import { StatCard } from "@/components/ui/StatCard"
 
 const ACCENT = CHART_THEME.accent
@@ -180,5 +181,76 @@ describe("LoginDeadlineCard", () => {
         />
       )
     }).not.toThrow()
+  })
+})
+
+describe("LoginDeadlineCard — Login Now action", () => {
+  const TRACKER_URL = "https://tracker.example.com"
+
+  // Frozen clock so the "45 days remaining" assertions are exact — on the real
+  // clock the elapsed milliseconds of the test itself floor the count to 44.
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-06-15T00:00:00Z"))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  function renderCard(loginUrl?: string, lastAccessAt?: string) {
+    return render(
+      <LoginDeadlineCard
+        type="ring"
+        lastAccessAt={lastAccessAt ?? new Date(Date.now() - 45 * DAY_MS).toISOString()}
+        loginIntervalDays={90}
+        accentColor={ACCENT}
+        loginUrl={loginUrl}
+      />
+    )
+  }
+
+  it("renders the Login Now button pointing at the tracker URL", () => {
+    renderCard(TRACKER_URL)
+
+    const link = screen.getByRole("link", { name: /login now/i })
+    expect(link).toHaveAttribute("href", TRACKER_URL)
+  })
+
+  it("opens in a new tab with noopener noreferrer", () => {
+    renderCard(TRACKER_URL)
+
+    const link = screen.getByRole("link", { name: /login now/i })
+    expect(link).toHaveAttribute("target", "_blank")
+    // Both tokens are required: noopener severs window.opener, noreferrer
+    // covers browsers that ignore it.
+    expect(link).toHaveAttribute("rel", "noopener noreferrer")
+  })
+
+  it("still renders the countdown ring alongside the button", () => {
+    renderCard(TRACKER_URL)
+
+    expect(screen.getByText("45")).toBeInTheDocument()
+    expect(screen.getByText("days")).toBeInTheDocument()
+  })
+
+  it("omits the button entirely when no URL is available", () => {
+    renderCard(undefined)
+
+    expect(screen.queryByRole("link")).not.toBeInTheDocument()
+    // The deadline card itself must still render.
+    expect(screen.getByText("45")).toBeInTheDocument()
+  })
+
+  it("omits the button when the URL is an empty string", () => {
+    renderCard("")
+
+    expect(screen.queryByRole("link")).not.toBeInTheDocument()
+  })
+
+  it("renders nothing — button included — for an unparseable date", () => {
+    const { container } = renderCard(TRACKER_URL, "not-a-date")
+
+    expect(container.innerHTML).toBe("")
   })
 })
