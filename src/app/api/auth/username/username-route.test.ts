@@ -68,6 +68,18 @@ describe("POST /api/auth/username", () => {
     vi.clearAllMocks()
   })
 
+  // "/api/auth/" is a PUBLIC_PREFIX in src/proxy.ts, so the proxy waves this path
+  // through without looking at a cookie. This 401 is the whole boundary.
+  //
+  // It also covers the TOTP-pending case, and deliberately does not re-test it: a
+  // password-only login that still owes a code holds a pending token, which is
+  // returned in the response body and never written to tt_session, and getSession()
+  // rejects any payload carrying a `purpose` claim (src/lib/auth.ts:82). Both roads
+  // arrive here as "no session". Proving that branch needs a REAL pending token
+  // driven through the real getSession, which is exactly what
+  // src/lib/__tests__/auth-jwe.test.ts:166 does — a duplicate here with getSession
+  // mocked to null would assert nothing and would keep passing if the guard were
+  // deleted.
   it("rejects an unauthenticated caller", async () => {
     ;(getSession as ReturnType<typeof vi.fn>).mockResolvedValue(null)
     mockSettingsRow({ id: 1, username: null })
@@ -79,23 +91,6 @@ describe("POST /api/auth/username", () => {
     expect(response.status).toBe(401)
     await expect(response.json()).resolves.toEqual({ error: "Unauthorized" })
     // The 401 must happen before anything is written, not alongside it.
-    expect(set).not.toHaveBeenCalled()
-  })
-
-  // A password-only login that still owes a TOTP code holds a pending token, and
-  // that token is never written to the tt_session cookie — getSession() also
-  // rejects any payload carrying a `purpose` claim (src/lib/auth.ts). Both roads
-  // arrive here as "no session", so the prompt's endpoint is unreachable until
-  // the second factor has been cleared.
-  it("rejects a caller whose TOTP leg is still pending, so the prompt cannot fire early", async () => {
-    ;(getSession as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-    mockSettingsRow({ id: 1, username: null })
-    const { set } = mockUpdateChain()
-
-    const { POST } = await import("./route")
-    const response = await POST(post({ username: "newname" }))
-
-    expect(response.status).toBe(401)
     expect(set).not.toHaveBeenCalled()
   })
 

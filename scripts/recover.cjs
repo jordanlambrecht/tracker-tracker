@@ -642,6 +642,19 @@ async function main() {
       )
     }
 
+    // A username is a second credential the login form demands, and this tool
+    // does not reset it. Resetting the password while the username is forgotten
+    // leaves the operator locked out just as hard, so say what it is here —
+    // nothing else in the image will tell them.
+    if (settings.username) {
+      out(
+        `\n[!!] This instance also requires a USERNAME to log in: "${settings.username}"\n` +
+          "     The reset does not change it. You will need both.\n"
+      )
+    } else {
+      out("\n[ok] No username is set — log in with the password alone.\n")
+    }
+
     if (args.check) {
       out(
         "\nCHECK ONLY — nothing was read into a password prompt and nothing was written.\n" +
@@ -738,7 +751,21 @@ async function main() {
         "  under it. The lockout counter is cleared, so you can log in immediately.\n" +
         (args.disableTotp ? "  TOTP is disabled — set it up again from Settings.\n" : "") +
         "\n  Restart the app so the scheduler reloads the re-wrapped key:\n" +
-        "    docker compose restart tracker-tracker-app\n\n"
+        "    docker compose restart tracker-tracker-app\n" +
+        // Sessions are stateless JWEs carrying the OLD master key, and they are
+        // sealed with SESSION_SECRET, which this reset deliberately leaves alone.
+        // A restart does not invalidate them and proxy.ts refreshes them on every
+        // request, so an already-signed-in browser keeps decrypting with a key
+        // that no longer exists anywhere. Anything it writes afterwards is
+        // encrypted under that dead key and is unrecoverable — the exact failure
+        // this tool exists to prevent. Nothing can revoke a stateless token from
+        // here, so the warning IS the mitigation.
+        "\n[!!] SIGN OUT EVERYWHERE ELSE BEFORE ENTERING ANY NEW SECRETS.\n" +
+        "     Sessions opened before this reset still carry the OLD key and are\n" +
+        "     not invalidated by the restart. A tracker token or password saved\n" +
+        "     from one of them is encrypted under a key that no longer exists and\n" +
+        "     cannot be recovered. Clear the tt_session cookie on every other\n" +
+        "     device, or just sign out of each one, then log back in.\n\n"
     )
     return EXIT_OK
   } finally {

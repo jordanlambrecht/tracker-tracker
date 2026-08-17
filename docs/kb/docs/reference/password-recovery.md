@@ -112,6 +112,23 @@ Restart the app afterwards so the scheduler picks up the new key:
 docker compose restart tracker-tracker-app
 ```
 
+!!! danger "Sign out everywhere else before entering any new secrets"
+
+    A reset does **not** invalidate sessions that were already open, and the
+    restart does not either. Sessions are self-contained tokens that carry the
+    old master key inside them, sealed with `SESSION_SECRET` — which the reset
+    deliberately leaves alone so that recovery stays possible at all.
+
+    So a browser still signed in from before the reset keeps working, and keeps
+    using the **old** key. Any secret you save from it — a tracker API token, a
+    proxy password — is encrypted under a key that no longer exists anywhere,
+    and nothing can read it back. That is the same permanent loss this tool
+    exists to prevent.
+
+    Clear the `tt_session` cookie on every other device, or simply sign out of
+    each one, then log back in with the new password. The session you create
+    after the reset is fine.
+
 ---
 
 ## Flags
@@ -203,9 +220,12 @@ the CLI rebuilds its connection from the container's environment, preferring
 `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT` and `POSTGRES_DB`.
 
 If the app container will not start at all, you can run the same file from a
-checkout of the repository on any machine that can reach the database:
+checkout of the repository on any machine that can reach the database. Install
+dependencies first — the CLI requires `argon2` and `postgres`, and a bare clone
+has no `node_modules`, so without this step it fails with `Cannot find module`:
 
 ```bash
+pnpm install --prod   # or: npm i argon2 postgres
 SESSION_SECRET='...' DATABASE_URL='postgresql://...' node scripts/recover.cjs --check
 ```
 
