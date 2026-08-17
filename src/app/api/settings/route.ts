@@ -39,8 +39,7 @@ import {
   SHORT_NAME_MAX,
   SNAPSHOT_RETENTION_MAX,
   SNAPSHOT_RETENTION_MIN,
-  USERNAME_MAX,
-  USERNAME_MIN,
+  validateUsername,
 } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { scrubSnapshotUsernames } from "@/lib/privacy-db"
@@ -78,17 +77,20 @@ export async function PATCH(request: Request) {
   // --- Username ---
   if (body.username !== undefined) {
     if (body.username === null || body.username === "") {
+      // Clearing is allowed here and only here; login then stops asking for one.
       updates.username = null
-    } else if (typeof body.username === "string") {
-      if (body.username.length < USERNAME_MIN || body.username.length > USERNAME_MAX) {
-        return NextResponse.json(
-          { error: `Username must be between ${USERNAME_MIN} and ${USERNAME_MAX} characters` },
-          { status: 400 }
-        )
-      }
-      updates.username = body.username.trim()
     } else {
-      return NextResponse.json({ error: "Invalid username" }, { status: 400 })
+      // Shared with setup and the post-login prompt on purpose. This used to
+      // measure length against the UNTRIMMED string and then store the trimmed
+      // one, so "  ab  " satisfied the minimum and stored a 2-character name,
+      // and it applied no character class at all — letting this route write a
+      // username that neither of the other two paths could have produced, into
+      // the field the login form then demands.
+      const check = validateUsername(body.username)
+      if (!check.ok) {
+        return NextResponse.json({ error: check.error }, { status: 400 })
+      }
+      updates.username = check.username
     }
   }
 

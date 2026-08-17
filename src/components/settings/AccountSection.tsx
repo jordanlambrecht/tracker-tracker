@@ -9,7 +9,7 @@ import { SettingsSection } from "@/components/settings/SettingsSection"
 import { Button, Input } from "@/components/ui"
 import { SaveDiscardBar } from "@/components/ui/SaveDiscardBar"
 import { extractApiError } from "@/lib/extract-api-error"
-import { PASSWORD_MIN, USERNAME_MIN } from "@/lib/limits"
+import { PASSWORD_MIN, USERNAME_MIN, validateUsername } from "@/lib/limits"
 
 export interface AccountSectionProps {
   initialUsername: string
@@ -27,9 +27,16 @@ export function AccountSection({ initialUsername }: AccountSectionProps) {
   async function handleSaveUsername() {
     setUsernameError(null)
     const trimmed = username.trim()
-    if (trimmed && trimmed.length < USERNAME_MIN) {
-      setUsernameError(`Username must be at least ${USERNAME_MIN} characters`)
-      return
+    // Same validator the server runs, so the field cannot report success for a
+    // value PATCH /api/settings will reject. The old check was min-length only —
+    // no maximum and no character class — so a too-long or illegal username got
+    // through to a round trip that failed with a less specific message.
+    if (trimmed) {
+      const check = validateUsername(trimmed)
+      if (!check.ok) {
+        setUsernameError(check.error)
+        return
+      }
     }
     setSavingUsername(true)
     try {
