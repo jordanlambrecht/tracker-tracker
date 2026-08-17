@@ -1,6 +1,6 @@
 // src/lib/parser.test.ts
 import { describe, expect, it } from "vitest"
-import { formatBytes, parseBytes } from "./parser"
+import { formatBytes, parseBytes, parseSignedBytes } from "./parser"
 
 describe("parseBytes", () => {
   it("parses GiB values", () => {
@@ -70,6 +70,35 @@ describe("parseBytes - security", () => {
   })
 
   it("rejects negative values", () => {
+    expect(() => parseBytes("-100 GiB")).toThrow()
+  })
+})
+
+describe("parseSignedBytes", () => {
+  // Only the buffer field uses this. parseBytes keeps rejecting negatives for
+  // uploaded/downloaded/sizes, where a minus sign means a malformed response.
+  it("parses a negative byte string", () => {
+    expect(parseSignedBytes("-1.23 TiB")).toBe(-parseBytes("1.23 TiB"))
+    expect(parseSignedBytes("-100 GiB")).toBe(BigInt(-107_374_182_400))
+    expect(parseSignedBytes("-512 KiB")).toBe(BigInt(-524_288))
+  })
+
+  it("agrees with parseBytes on non-negative input", () => {
+    expect(parseSignedBytes("500.25 GiB")).toBe(parseBytes("500.25 GiB"))
+    expect(parseSignedBytes("0 B")).toBe(BigInt(0))
+  })
+
+  it("tolerates whitespace around the sign", () => {
+    expect(parseSignedBytes("  -100 MiB  ")).toBe(BigInt(-104_857_600))
+  })
+
+  it("still rejects genuinely malformed input", () => {
+    expect(() => parseSignedBytes("-")).toThrow()
+    expect(() => parseSignedBytes("-∞")).toThrow()
+    expect(() => parseSignedBytes("-100 ZiB")).toThrow()
+  })
+
+  it("leaves parseBytes strict for every other caller", () => {
     expect(() => parseBytes("-100 GiB")).toThrow()
   })
 })

@@ -80,7 +80,7 @@ Auth fails silently — you get HTML instead of JSON. We detect it by checking i
 | `uploadedBytes` | `uploaded_bytes` | `number` | `BigInt()` — raw bytes, no parsing needed |
 | `downloadedBytes` | `downloaded_bytes` | `number` | `BigInt()` — raw bytes, no parsing needed |
 | `ratio` | `ratio` | `number` | Direct float value |
-| `bufferBytes` | — | — | Calculated: `uploadedBytes - downloadedBytes` (min `0`) |
+| `bufferBytes` | — | — | Calculated: `uploadedBytes - downloadedBytes` — signed, negative on a deficit account |
 | `seedingCount` | `sSat.count + seedHnr.count + seedUnsat.count + upAct.count` | `number` | Sum of all seeding snatch categories |
 | `leechingCount` | `leeching.count` | `number` | Direct |
 | `seedbonus` | `seedbonus` | `number` | Direct; MAM caps at 99,999 |

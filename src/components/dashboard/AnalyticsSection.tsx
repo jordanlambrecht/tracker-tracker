@@ -120,14 +120,12 @@ function AnalyticsSection({
           />
         )
       case "comparison-buffer":
-        return (
-          <ComparisonChart
-            metric="buffer"
-            trackerData={trackerSeries}
-            height={320}
-            enableLogScale
-          />
-        )
+        // No enableLogScale, unlike its neighbours: buffer is signed, a log axis
+        // cannot represent a non-positive value, and the log path drops those
+        // points — so a tracker sliding into deficit silently vanishes from the
+        // comparison instead of being the thing you came to look at. Same call
+        // MetricChart made for issue #36.
+        return <ComparisonChart metric="buffer" trackerData={trackerSeries} height={320} />
       case "comparison-seedbonus":
         return (
           <ComparisonChart

@@ -117,10 +117,22 @@ describe("NebulanceAdapter", () => {
     expect(stats.group).toBe("Member")
   })
 
-  it("calculates zero buffer when downloaded >= uploaded", async () => {
+  // A deficit account must report its actual shortfall, not 0.
+  it("calculates a negative buffer when downloaded exceeds uploaded", async () => {
     vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: true,
       json: async () => mockNebulanceResponse({ Uploaded: 100, Downloaded: 200 }),
+    } as Response)
+
+    const stats = await adapter.fetchStats("https://nebulance.io", "fake-api-key", "/api.php")
+
+    expect(stats.bufferBytes).toBe(-100n)
+  })
+
+  it("calculates a zero buffer only at genuine breakeven", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockNebulanceResponse({ Uploaded: 200, Downloaded: 200 }),
     } as Response)
 
     const stats = await adapter.fetchStats("https://nebulance.io", "fake-api-key", "/api.php")

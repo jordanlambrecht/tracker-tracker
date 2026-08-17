@@ -11,6 +11,7 @@
 // on which side of a DST transition the fixture sits.
 
 import { render, screen } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
 const optionSpy = vi.fn()
@@ -21,7 +22,10 @@ vi.mock("@/components/charts/lib/ChartECharts", () => ({
   },
 }))
 
-import { BufferCandlestickChart } from "@/components/charts/BufferCandlestickChart"
+import {
+  BufferCandlestickChart,
+  computeCandlestickData,
+} from "@/components/charts/BufferCandlestickChart"
 import { localDateStr } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
@@ -122,5 +126,135 @@ describe("BufferCandlestickChart day bucketing (TZ=America/Chicago)", () => {
 
     expect(screen.getByText(/Need at least 2 days of snapshots/)).toBeInTheDocument()
     expect(optionSpy).not.toHaveBeenCalled()
+  })
+})
+
+// Buffer is signed, so a candle can straddle zero — an account that crosses from
+// surplus into deficit within a day is exactly the movement this chart exists to
+// show.
+describe("BufferCandlestickChart with a signed buffer", () => {
+  beforeEach(() => {
+    optionSpy.mockClear()
+  })
+
+  it("orders OHLC correctly over a series that crosses zero", () => {
+    const { ohlc } = computeCandlestickData(
+      [
+        snap("2026-08-01T12:00:00.000Z", 2),
+        snap("2026-08-01T13:00:00.000Z", -3),
+        snap("2026-08-01T14:00:00.000Z", 5),
+        snap("2026-08-01T15:00:00.000Z", -1),
+      ],
+      1
+    )
+
+    // [open, close, low, high] — open/close are first/last chronologically,
+    // low/high are the true extremes across the sign change.
+    expect(ohlc).toHaveLength(1)
+    expect(ohlc[0]).toEqual([2, -1, -3, 5])
+
+    const [open, close, low, high] = ohlc[0]
+    expect(high).toBeGreaterThanOrEqual(low)
+    expect(low).toBeLessThanOrEqual(Math.min(open, close))
+    expect(high).toBeGreaterThanOrEqual(Math.max(open, close))
+  })
+
+  it("keeps an all-negative day's candle below zero and correctly ordered", () => {
+    const { ohlc } = computeCandlestickData(
+      [
+        snap("2026-08-01T12:00:00.000Z", -1),
+        snap("2026-08-01T13:00:00.000Z", -8),
+        snap("2026-08-01T14:00:00.000Z", -4),
+      ],
+      1
+    )
+
+    expect(ohlc[0]).toEqual([-1, -4, -8, -1])
+  })
+
+  it("sorts snapshots before reading open and close", () => {
+    // Out-of-order input must not invert the candle body.
+    const { ohlc } = computeCandlestickData(
+      [
+        snap("2026-08-01T15:00:00.000Z", -1),
+        snap("2026-08-01T12:00:00.000Z", 2),
+        snap("2026-08-01T13:00:00.000Z", -3),
+      ],
+      1
+    )
+
+    expect(ohlc[0]).toEqual([2, -1, -3, 2])
+  })
+
+  it("withholds the log toggle and stays linear when any value is non-positive", () => {
+    // A log axis cannot plot a non-positive value; its min/max here come from
+    // positive values alone, so a deficit candle would be dropped while the
+    // axis quietly rescaled around what was left.
+    render(
+      <BufferCandlestickChart
+        trackerData={series([
+          snap("2026-08-01T12:00:00.000Z", 5),
+          snap("2026-08-02T12:00:00.000Z", -3),
+        ])}
+      />
+    )
+
+    expect(screen.queryByText("Linear")).not.toBeInTheDocument()
+    expect(screen.queryByText("Log")).not.toBeInTheDocument()
+
+    const option = optionSpy.mock.calls.at(-1)?.[0] as { yAxis?: { type?: string } }
+    expect(option.yAxis?.type).toBe("value")
+  })
+
+  it("drops a forced log axis when new data turns negative", async () => {
+    // useLogScale keeps the user's override in state, so forcing log on while
+    // everything was positive would otherwise survive the arrival of a negative
+    // snapshot — dropping the candle that just went into deficit, with the
+    // toggle now unmounted and no way to turn it back off.
+    const user = userEvent.setup()
+    const positives = series([
+      snap("2026-08-01T12:00:00.000Z", 5),
+      snap("2026-08-02T12:00:00.000Z", 9),
+    ])
+
+    const { rerender } = render(<BufferCandlestickChart trackerData={positives} />)
+    await user.click(screen.getByRole("button", { name: /Linear|Log/ }))
+
+    const forced = optionSpy.mock.calls.at(-1)?.[0] as { yAxis?: { type?: string } }
+    expect(forced.yAxis?.type).toBe("log")
+
+    rerender(
+      <BufferCandlestickChart
+        trackerData={series([
+          snap("2026-08-01T12:00:00.000Z", 5),
+          snap("2026-08-02T12:00:00.000Z", -9),
+        ])}
+      />
+    )
+
+    const after = optionSpy.mock.calls.at(-1)?.[0] as { yAxis?: { type?: string } }
+    expect(after.yAxis?.type).toBe("value")
+    expect(screen.queryByRole("button", { name: /Linear|Log/ })).not.toBeInTheDocument()
+  })
+
+  it("scales an all-negative series by magnitude rather than labelling it GiB", () => {
+    // Max is below zero for a deficit account, so a max-based divisor would
+    // render -2.4 TiB as -2446 GiB.
+    render(
+      <BufferCandlestickChart
+        trackerData={series([
+          snap("2026-08-01T12:00:00.000Z", -2048),
+          snap("2026-08-02T12:00:00.000Z", -3072),
+        ])}
+      />
+    )
+
+    const option = optionSpy.mock.calls.at(-1)?.[0] as {
+      yAxis?: { name?: string }
+      series?: Array<{ data?: Candle[] }>
+    }
+    expect(option.yAxis?.name).toBe("TiB")
+    // -2048 GiB is -2 TiB once the divisor is applied.
+    expect(option.series?.[0]?.data?.[0]?.[1]).toBe(-2)
   })
 })

@@ -61,7 +61,7 @@ Byte values are raw integers (bytes), not formatted strings. The `id` field is t
 | `uploadedBytes`    | `response.userstats.uploaded`                                 | `number`  | `BigInt(Math.floor(...))`                                      |
 | `downloadedBytes`  | `response.userstats.downloaded`                               | `number`  | `BigInt(Math.floor(...))`                                      |
 | `ratio`            | `response.userstats.ratio`                                    | `number`  | Defaults to `0` if not a number                                |
-| `bufferBytes`      | —                                                             | —         | Calculated: `uploadedBytes - downloadedBytes` (min `0`)        |
+| `bufferBytes`      | —                                                             | —         | Calculated: `uploadedBytes - downloadedBytes` — signed         |
 | `seedingCount`     | `response.userstats.seedingcount`                             | `number?` | Defaults to `0` — many forks omit this                         |
 | `leechingCount`    | `response.userstats.leechingcount`                            | `number?` | Defaults to `0` — many forks omit this                         |
 | `seedbonus`        | `response.userstats.bonusPoints` or `.bonuspoints`            | `number?` | Checks both casing variants                                    |

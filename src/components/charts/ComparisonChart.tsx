@@ -188,7 +188,9 @@ function buildComparisonOption(
         if (v !== null) allGiB.push(v)
       }
     }
-    const maxGiB = Math.max(...allGiB, 0)
+    // Magnitude, not maximum: buffer is signed, and an all-deficit fleet has a
+    // max of 0, which would label a -2.4 TiB series in GiB.
+    const maxGiB = Math.max(...allGiB.map(Math.abs), 0)
     ;({ divisor, unit } = autoByteScale(maxGiB))
   }
 
@@ -301,7 +303,11 @@ function buildComparisonOption(
   const yAxis: EChartsOption["yAxis"] = {
     type: useLog ? "log" : "value",
     name: unit,
-    ...(useLog ? { logBase: 10 } : { scale: true, ...yAxisAutoRange() }),
+    // Buffer is signed. Without allowNegative the axis floor is pinned to 0 and
+    // every deficit point is clipped out of sight below it.
+    ...(useLog
+      ? { logBase: 10 }
+      : { scale: true, ...yAxisAutoRange({ allowNegative: metric === "buffer" }) }),
     nameTextStyle: {
       color: CHART_THEME.textTertiary,
       fontFamily: CHART_THEME.fontMono,

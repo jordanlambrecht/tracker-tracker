@@ -1,6 +1,6 @@
 // src/lib/parser.ts
 //
-// Functions: parseBytes, formatBytes
+// Functions: parseBytes, parseSignedBytes, formatBytes
 
 const BINARY_UNITS: Record<string, bigint> = {
   B: BigInt(1),
@@ -79,6 +79,28 @@ export function parseBytes(formatted: string): bigint {
   }
 
   throw new Error(`Unknown unit: "${unit}"`)
+}
+
+/**
+ * Parses a formatted byte string that is allowed to carry a leading minus.
+ *
+ * ONLY for buffer. Buffer is signed on a private tracker, and `parseBytes`
+ * throws on a negative by design — which, for a tracker-reported buffer field,
+ * took down the entire poll rather than one value, so a deficit account
+ * recorded no snapshot at all. Every other caller (uploaded, downloaded, sizes)
+ * must keep using `parseBytes`, whose strictness is what catches a malformed
+ * response.
+ *
+ * A tracker that clamps the buffer at its own end (reporting "0 B" for a
+ * deficit) is data we cannot recover here; this only guarantees we do not throw
+ * away a sign the tracker did send.
+ */
+export function parseSignedBytes(formatted: string): bigint {
+  const trimmed = formatted.trim()
+  if (trimmed.startsWith("-")) {
+    return -parseBytes(trimmed.slice(1))
+  }
+  return parseBytes(trimmed)
 }
 
 const FORMAT_THRESHOLDS: Array<{

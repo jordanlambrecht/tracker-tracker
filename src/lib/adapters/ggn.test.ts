@@ -85,7 +85,8 @@ describe("GGnAdapter", () => {
     expect(stats.uploadedBytes).toBe(BigInt(372518353895))
     expect(stats.downloadedBytes).toBe(BigInt(373640248681))
     expect(stats.ratio).toBeCloseTo(0.99699)
-    expect(stats.bufferBytes).toBe(BigInt(0)) // downloaded > uploaded
+    // downloaded > uploaded — a real deficit, reported signed rather than clamped
+    expect(stats.bufferBytes).toBe(BigInt(372518353895) - BigInt(373640248681))
     expect(stats.seedbonus).toBe(39781)
     expect(stats.seedingCount).toBe(0) // null → 0
     expect(stats.leechingCount).toBe(0) // null → 0

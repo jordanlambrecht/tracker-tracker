@@ -136,7 +136,7 @@ Gets your numeric ID. After caching as `remoteUserId`, we skip this and go strai
 | `uploadedBytes`    | `response.stats.uploaded`                                                            | `number`           | `BigInt(Math.floor(...))`                               |
 | `downloadedBytes`  | `response.stats.downloaded`                                                          | `number`           | `BigInt(Math.floor(...))`                               |
 | `ratio`            | `response.stats.ratio`                                                               | `string \| number` | Parsed via `parseFloat()` if string                     |
-| `bufferBytes`      | —                                                                                    | —                  | Calculated: `uploadedBytes - downloadedBytes` (min `0`) |
+| `bufferBytes`      | —                                                                                    | —                  | Calculated: `uploadedBytes - downloadedBytes` — signed  |
 | `seedingCount`     | `response.community.seeding`                                                         | `number \| null`   | Defaults to `0`; null when paranoia hides it            |
 | `leechingCount`    | `response.community.leeching`                                                        | `number \| null`   | Defaults to `0`; null when paranoia hides it            |
 | `seedbonus`        | `response.stats.gold`                                                                | `number`           | GGn uses "gold" as its currency, not "bonus points"     |

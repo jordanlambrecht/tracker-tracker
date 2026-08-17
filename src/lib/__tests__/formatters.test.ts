@@ -2,7 +2,12 @@
 
 import { describe, expect, it } from "vitest"
 import { hexToRgba } from "@/lib/color-utils"
-import { computeBufferBytes, computeDelta, floatBytesToBigInt } from "@/lib/data-transforms"
+import {
+  computeBufferBytes,
+  computeDelta,
+  floatBytesToBigInt,
+  signedFloatBytesToBigInt,
+} from "@/lib/data-transforms"
 import {
   bytesToGiB,
   formatCount,
@@ -238,9 +243,42 @@ describe("floatBytesToBigInt", () => {
     expect(floatBytesToBigInt(0.1)).toBe(0n)
   })
 
+  // This clamp is load-bearing and must NOT be loosened for symmetry with the
+  // signed helper: every caller converts uploaded/downloaded, which are
+  // monotonic counters, so a negative there is a malformed API response and the
+  // clamp is what stops it reaching the snapshots table.
   it("clamps negative values to 0n", () => {
     expect(floatBytesToBigInt(-1)).toBe(0n)
     expect(floatBytesToBigInt(-0.5)).toBe(0n)
+    expect(floatBytesToBigInt(-2627286052460)).toBe(0n)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// signedFloatBytesToBigInt
+// ---------------------------------------------------------------------------
+
+describe("signedFloatBytesToBigInt", () => {
+  it("preserves a negative buffer reported by the tracker", () => {
+    // Hawke's verified deficit response
+    expect(signedFloatBytesToBigInt(-2627286052460)).toBe(-2627286052460n)
+    expect(signedFloatBytesToBigInt(-1)).toBe(-1n)
+  })
+
+  it("behaves like the clamped helper for non-negative input", () => {
+    expect(signedFloatBytesToBigInt(1234.7)).toBe(1234n)
+    expect(signedFloatBytesToBigInt(0)).toBe(0n)
+  })
+
+  it("truncates toward zero rather than flooring", () => {
+    // Math.floor(-0.5) is -1, which would deepen a reported deficit.
+    expect(signedFloatBytesToBigInt(-0.5)).toBe(0n)
+    expect(signedFloatBytesToBigInt(-999.999)).toBe(-999n)
+  })
+
+  it("returns 0n for null and undefined", () => {
+    expect(signedFloatBytesToBigInt(null)).toBe(0n)
+    expect(signedFloatBytesToBigInt(undefined)).toBe(0n)
   })
 })
 
@@ -254,8 +292,15 @@ describe("computeBufferBytes", () => {
     expect(computeBufferBytes(1000n, 0n)).toBe(1000n)
   })
 
-  it("returns 0n when download exceeds or equals upload", () => {
-    expect(computeBufferBytes(100n, 500n)).toBe(0n)
+  // Buffer is signed on a private tracker. Clamping a deficit to 0n drew a flat
+  // line on the buffer chart while the account got worse — indistinguishable
+  // from holding steady at breakeven.
+  it("returns a negative buffer when download exceeds upload", () => {
+    expect(computeBufferBytes(100n, 500n)).toBe(-400n)
+    expect(computeBufferBytes(0n, 2627286052460n)).toBe(-2627286052460n)
+  })
+
+  it("returns 0n only at genuine breakeven", () => {
     expect(computeBufferBytes(500n, 500n)).toBe(0n)
     expect(computeBufferBytes(0n, 0n)).toBe(0n)
   })

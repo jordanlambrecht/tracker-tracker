@@ -29,7 +29,9 @@ describe("parseIptProfile", () => {
 
   it("computes bufferBytes as upload minus download", () => {
     const stats = parseIptProfile(FULL_PAGE)
-    expect(stats.bufferBytes).toBe(0n)
+    // This fixture is a deficit account (14.5 GB up, 19.6 GB down) — the
+    // shortfall is the point of the chart, so it is not clamped to 0n.
+    expect(stats.bufferBytes).toBe(-5_100_000_000n)
   })
 
   it("defaults group to 'User' with no VIP badge", () => {

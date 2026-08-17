@@ -167,6 +167,34 @@ describe("Unit3dAdapter - security", () => {
     }
   })
 
+  // A build that reports a deficit buffer as a negative string used to throw out
+  // of parseBytes and fail the ENTIRE poll — the account recorded no snapshot at
+  // all, losing uploaded, downloaded and ratio along with the buffer.
+  it("records a negative tracker-reported buffer instead of failing the poll", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        username: "DeficitUser",
+        group: "User",
+        uploaded: "10 GiB",
+        downloaded: "1.24 TiB",
+        ratio: "0.01",
+        buffer: "-1.23 TiB",
+        seeding: 5,
+        leeching: 1,
+        seedbonus: "100.00",
+        hit_and_runs: 0,
+      }),
+    } as Response)
+
+    const stats = await adapter.fetchStats("https://aither.cc", "fake-token", "/api/user")
+
+    expect(stats.bufferBytes).toBe(BigInt(-1_352_399_302_164))
+    expect(stats.bufferBytes).toBeLessThan(BigInt(0))
+    // The rest of the poll survives — that was the real cost of the throw.
+    expect(stats.username).toBe("DeficitUser")
+    expect(stats.seedingCount).toBe(5)
+  })
 
   it("sends a Bearer header by default and no api_token query param", async () => {
     let capturedUrl: string | undefined

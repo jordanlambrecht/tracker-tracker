@@ -6,6 +6,7 @@
 // (dead last) and render it identical to a tracker with no stats at all.
 
 import { render, screen, within } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 import type { TrackerLatestStats, TrackerSummary } from "@/types/api"
 
@@ -75,9 +76,14 @@ function rowFor(name: string) {
 // Column order in TrackerLeaderboard's `columns` array: name, ratio, uploaded,
 // downloaded, buffer, seeding, age, status.
 const RATIO_CELL_INDEX = 1
+const BUFFER_CELL_INDEX = 4
 
 function ratioCellFor(name: string) {
   return within(rowFor(name)).getAllByRole("cell")[RATIO_CELL_INDEX]
+}
+
+function bufferCellFor(name: string) {
+  return within(rowFor(name)).getAllByRole("cell")[BUFFER_CELL_INDEX]
 }
 
 describe("TrackerLeaderboard ratio column (infinite ratio)", () => {
@@ -116,5 +122,103 @@ describe("TrackerLeaderboard ratio column (infinite ratio)", () => {
 
     expect(ratioCellFor("ZeroDownload")).toHaveTextContent("∞x")
     expect(ratioCellFor("NoData")).toHaveTextContent("—")
+  })
+})
+
+describe("TrackerLeaderboard buffer column (signed buffer)", () => {
+  it("renders a deficit with its sign and a sane unit", () => {
+    const deficit = tracker({
+      id: 1,
+      name: "Deficit",
+      latestStats: {
+        ...baseStats,
+        uploadedBytes: "10000000000",
+        downloadedBytes: "2637286052460",
+        bufferBytes: "-2627286052460",
+      },
+    })
+
+    render(<TrackerLeaderboard trackers={[deficit]} />)
+
+    expect(bufferCellFor("Deficit")).toHaveTextContent("-2.39 TiB")
+  })
+
+  it("prefers the stored buffer over recomputing it from the totals", () => {
+    // A tracker's own buffer is not always uploaded - downloaded (freeleech,
+    // bonus spending), so recomputing here made the leaderboard disagree with
+    // the detail page for every tracker that reports its own.
+    const reported = tracker({
+      id: 1,
+      name: "Reported",
+      latestStats: {
+        ...baseStats,
+        uploadedBytes: String(BigInt(5) * BigInt(1024 ** 4)),
+        downloadedBytes: String(BigInt(1) * BigInt(1024 ** 4)),
+        // Not 4 TiB: the tracker says otherwise, and the tracker is authoritative.
+        bufferBytes: String(BigInt(-2) * BigInt(1024 ** 4)),
+      },
+    })
+
+    render(<TrackerLeaderboard trackers={[reported]} />)
+
+    expect(bufferCellFor("Reported")).toHaveTextContent("-2.00 TiB")
+  })
+
+  it("falls back to the derived buffer when none is stored", () => {
+    const derived = tracker({
+      id: 1,
+      name: "Derived",
+      latestStats: {
+        ...baseStats,
+        uploadedBytes: String(BigInt(1024 ** 4)),
+        downloadedBytes: String(BigInt(3) * BigInt(1024 ** 4)),
+        bufferBytes: null,
+      },
+    })
+
+    render(<TrackerLeaderboard trackers={[derived]} />)
+
+    expect(bufferCellFor("Derived")).toHaveTextContent("-2.00 TiB")
+  })
+
+  it("sorts an unmeasured tracker below a real deficit", async () => {
+    // With signed buffers a 0 placeholder would rank "no data" as healthier
+    // than an account genuinely down 2 TiB.
+    const deficit = tracker({
+      id: 1,
+      name: "Deficit",
+      latestStats: {
+        ...baseStats,
+        uploadedBytes: "100",
+        downloadedBytes: "500",
+        bufferBytes: String(BigInt(-2) * BigInt(1024 ** 4)),
+      },
+    })
+    const surplus = tracker({
+      id: 2,
+      name: "Surplus",
+      latestStats: {
+        ...baseStats,
+        uploadedBytes: "500",
+        downloadedBytes: "100",
+        bufferBytes: String(BigInt(1024 ** 4)),
+      },
+    })
+    const unmeasured = tracker({ id: 3, name: "NoData", latestStats: null })
+
+    const user = userEvent.setup()
+    render(<TrackerLeaderboard trackers={[deficit, unmeasured, surplus]} />)
+
+    // First click sorts by buffer descending.
+    await user.click(screen.getByRole("columnheader", { name: /Buffer/ }))
+
+    const names = screen
+      .getAllByRole("row")
+      .slice(1)
+      .map((r) => within(r).getByText(/^(Deficit|Surplus|NoData)$/).textContent)
+    expect(names).toEqual(["Surplus", "Deficit", "NoData"])
+
+    expect(bufferCellFor("NoData")).toHaveTextContent("—")
+    expect(bufferCellFor("Deficit")).toHaveTextContent("-2.00 TiB")
   })
 })

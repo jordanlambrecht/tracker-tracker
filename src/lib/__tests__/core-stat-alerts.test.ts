@@ -90,6 +90,16 @@ describe("buildCoreStatDescriptors alerts", () => {
     expect(buffer?.alertReason).toBe("Negative buffer")
   })
 
+  // The card splits the formatted string on its space, so the formatter has to
+  // scale a negative properly or the card shows "-14841" over "MiB".
+  it("renders a negative buffer with its sign and the right unit", () => {
+    const snap = { ...baseSnapshot, bufferBytes: "-2627286052460" }
+    const cards = buildCoreStatDescriptors(baseStats, snap)
+    const buffer = cards.find((c) => c.key === "buffer")
+    expect(buffer?.value).toBe("-2.39")
+    expect(buffer?.unit).toBe("TiB")
+  })
+
   it("no buffer alert when snapshot is null", () => {
     const cards = buildCoreStatDescriptors(baseStats, null)
     const buffer = cards.find((c) => c.key === "buffer")

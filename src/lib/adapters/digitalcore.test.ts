@@ -258,7 +258,7 @@ describe("DigitalCoreAdapter.fetchStats — core stats", () => {
     expect(stats.ratio).toBe(0)
   })
 
-  it("computes bufferBytes as max(uploaded - downloaded, 0)", async () => {
+  it("computes bufferBytes as uploaded - downloaded", async () => {
     vi.spyOn(global, "fetch")
       .mockResolvedValueOnce(mockResponse(mockStatusResponse()))
       .mockResolvedValueOnce(mockResponse(mockUserProfileResponse()))
@@ -268,7 +268,9 @@ describe("DigitalCoreAdapter.fetchStats — core stats", () => {
     expect(stats.bufferBytes).toBe(BigInt(536870912000) - BigInt(134217728000))
   })
 
-  it("clamps bufferBytes to zero when downloaded exceeds uploaded", async () => {
+  // A deficit account must report its actual shortfall, not 0. Clamping drew a
+  // flat line on the buffer chart while the account deteriorated.
+  it("reports a negative bufferBytes when downloaded exceeds uploaded", async () => {
     vi.spyOn(global, "fetch")
       .mockResolvedValueOnce(mockResponse(mockStatusResponse({ uploaded: 100, downloaded: 500 })))
       .mockResolvedValueOnce(
@@ -277,7 +279,7 @@ describe("DigitalCoreAdapter.fetchStats — core stats", () => {
 
     const stats = await adapter.fetchStats("https://digitalcore.club", validToken, "")
 
-    expect(stats.bufferBytes).toBe(BigInt(0))
+    expect(stats.bufferBytes).toBe(BigInt(-400))
   })
 
   it("maps seedingCount from myseedstotal", async () => {

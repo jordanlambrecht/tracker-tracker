@@ -3,7 +3,7 @@
 // Functions: isUnlimitedBuffer, Unit3dAdapter
 
 import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
-import { parseBytes } from "@/lib/parser"
+import { parseBytes, parseSignedBytes } from "@/lib/parser"
 import { adapterFetch } from "./adapter-fetch"
 import type {
   DebugApiCall,
@@ -140,11 +140,16 @@ export class Unit3dAdapter implements TrackerAdapter {
       ratio: computeRatio(uploadedBytes, downloadedBytes),
       // Some UNIT3D builds (i.e. Zenith) report an unlimited buffer as "∞",
       // which parseBytes rejects. Derive it from the totals instead — the
-      // same fallback avistaz.ts uses. Only the buffer field does this;
+      // same fallback avistaz.ts uses.
+      //
+      // Otherwise parse it SIGNED: buffer is the one field here that can
+      // legitimately arrive negative ("-1.23 TiB"), and plain parseBytes throws
+      // on a leading minus, which failed the whole poll — uploaded, downloaded
+      // and every other stat with it — instead of recording one negative value.
       // parseBytes stays strict for every other caller.
       bufferBytes: isUnlimitedBuffer(data.buffer)
         ? computeBufferBytes(uploadedBytes, downloadedBytes)
-        : parseBytes(data.buffer),
+        : parseSignedBytes(data.buffer),
       seedingCount: data.seeding,
       leechingCount: data.leeching,
       seedbonus: parseFloat(data.seedbonus) || 0,

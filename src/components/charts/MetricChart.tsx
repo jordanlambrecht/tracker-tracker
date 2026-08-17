@@ -129,7 +129,9 @@ function buildLineOption(
   let { unit } = config
   let divisor = 1
   if (unit === "GiB") {
-    const maxGiB = Math.max(...rawData.filter((v): v is number => v !== null), 0)
+    // Magnitude: buffer is signed, and an all-deficit series has a max of 0,
+    // which would label a -2.4 TiB buffer in GiB.
+    const maxGiB = Math.max(...rawData.filter((v): v is number => v !== null).map(Math.abs), 0)
     ;({ divisor, unit } = autoByteScale(maxGiB))
   }
 

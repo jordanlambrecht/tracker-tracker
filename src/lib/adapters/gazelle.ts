@@ -2,7 +2,12 @@
 //
 // Functions: GazelleAdapter, GazelleAdapter.fetchStats, GazelleAdapter.fetchRaw
 
-import { computeBufferBytes, computeRatio, floatBytesToBigInt } from "@/lib/data-transforms"
+import {
+  computeBufferBytes,
+  computeRatio,
+  floatBytesToBigInt,
+  signedFloatBytesToBigInt,
+} from "@/lib/data-transforms"
 import { adapterFetch } from "./adapter-fetch"
 import type {
   DebugApiCall,
@@ -351,7 +356,11 @@ export class GazelleAdapter implements TrackerAdapter {
       warned: resp.personal?.warned ?? false,
       joinedDate: resp.stats?.joinedDate ?? undefined,
       lastAccessDate: resp.stats?.lastAccess ?? undefined,
-      bufferBytes: resp.stats?.buffer != null ? floatBytesToBigInt(resp.stats.buffer) : undefined,
+      // Gazelle's OWN buffer, which it reports signed — and this value overwrites
+      // the derived one in fetchStats, so clamping it here would keep enriched
+      // Gazelle sites reporting 0 for a deficit no matter what the helpers do.
+      bufferBytes:
+        resp.stats?.buffer != null ? signedFloatBytesToBigInt(resp.stats.buffer) : undefined,
       seedingCount: resp.community?.seeding,
       leechingCount: resp.community?.leeching,
       avatarUrl: resp.avatar || undefined,

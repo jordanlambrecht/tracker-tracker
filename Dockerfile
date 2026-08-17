@@ -109,6 +109,20 @@ COPY --chown=nextjs:nodejs scripts/recover.cjs /app/scripts/recover.cjs
 RUN printf '#!/bin/sh\nexec node /app/scripts/recover.cjs "$@"\n' > /usr/local/bin/tt-recover \
     && chmod 0755 /usr/local/bin/tt-recover
 
+# --- Signed-buffer history repair ---
+#
+# Rewrites the historical buffer_bytes rows that the old negative-buffer clamp
+# flattened to zero. It rides on the postgres COPY above and needs nothing else:
+# buffer_bytes is not encrypted, so unlike tt-recover this tool loads no argon2,
+# no crypto and no SESSION_SECRET.
+#
+# It ships in the same image as the signed-buffer fix on purpose — backfilling
+# against the old code would repair history and then let the next poll write a
+# fresh clamped zero over it. Dry run by default; --apply commits.
+COPY --chown=nextjs:nodejs scripts/backfill-buffer.cjs /app/scripts/backfill-buffer.cjs
+RUN printf '#!/bin/sh\nexec node /app/scripts/backfill-buffer.cjs "$@"\n' > /usr/local/bin/tt-backfill-buffer \
+    && chmod 0755 /usr/local/bin/tt-backfill-buffer
+
 USER nextjs
 EXPOSE 3000
 

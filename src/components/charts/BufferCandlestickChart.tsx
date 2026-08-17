@@ -88,11 +88,13 @@ function buildCandlestickOption(
   trackerData: TrackerSnapshotSeries[],
   useLog: boolean
 ): EChartsOption {
-  // Collect all GiB values across all trackers to decide GiB vs TiB
+  // Collect all GiB magnitudes across all trackers to decide GiB vs TiB.
+  // Magnitude, not maximum: buffer is signed, and an all-deficit fleet peaks
+  // below zero, which would render a -2.4 TiB candle labelled in GiB.
   let maxGiB = 0
   for (const tracker of trackerData) {
     for (const snap of tracker.snapshots) {
-      const gib = bytesToGiB(snap.bufferBytes)
+      const gib = Math.abs(bytesToGiB(snap.bufferBytes))
       if (gib > maxGiB) maxGiB = gib
     }
   }
@@ -271,10 +273,11 @@ function BufferCandlestickChart({ trackerData, height = 360 }: BufferCandlestick
     return uniqueDays.size >= 2
   })
 
+  // Magnitude, matching buildCandlestickOption — see the note there.
   let globalMaxGiB = 0
   for (const tracker of trackerData) {
     for (const snap of tracker.snapshots) {
-      const gib = bytesToGiB(snap.bufferBytes)
+      const gib = Math.abs(bytesToGiB(snap.bufferBytes))
       if (gib > globalMaxGiB) globalMaxGiB = gib
     }
   }
@@ -287,7 +290,20 @@ function BufferCandlestickChart({ trackerData, height = 360 }: BufferCandlestick
     }
   }
 
-  const { effectiveLog, isAuto, onToggle } = useLogScale(allValues)
+  // A log axis cannot represent a non-positive value, and this chart's log
+  // branch takes its min/max from positive values alone — so a deficit candle
+  // is dropped while the axis quietly rescales around what's left. Once any
+  // value is <= 0 the toggle is withheld and auto-detection is starved of
+  // input, pinning the chart to the linear axis that can actually draw it.
+  // Same call MetricChart made for issue #36.
+  const canUseLog = allValues.length > 0 && allValues.every((v) => v > 0)
+  const { effectiveLog, isAuto, onToggle } = useLogScale(canUseLog ? allValues : [])
+  // `canUseLog &&`, not `effectiveLog` alone: useLogScale keeps the user's
+  // override in state, so a viewer who forced log on while every value was
+  // positive would still be on a log axis after a new snapshot turns negative —
+  // dropping the very candle that just went into deficit, with the toggle now
+  // unmounted and no way to turn it off.
+  const useLog = canUseLog && effectiveLog
 
   if (!hasEnoughDays) {
     return (
@@ -300,12 +316,14 @@ function BufferCandlestickChart({ trackerData, height = 360 }: BufferCandlestick
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex justify-end">
-        <LogScaleToggle effectiveLog={effectiveLog} isAuto={isAuto} onToggle={onToggle} />
-      </div>
+      {canUseLog && (
+        <div className="flex justify-end">
+          <LogScaleToggle effectiveLog={effectiveLog} isAuto={isAuto} onToggle={onToggle} />
+        </div>
+      )}
       <ChartECharts
         option={appendOutageBandSeries(
-          buildCandlestickOption(trackerData, effectiveLog),
+          buildCandlestickOption(trackerData, useLog),
           outages,
           polledAtRange(trackerData.flatMap((t) => t.snapshots))
         )}
@@ -317,4 +335,4 @@ function BufferCandlestickChart({ trackerData, height = 360 }: BufferCandlestick
 }
 
 export type { BufferCandlestickChartProps }
-export { BufferCandlestickChart }
+export { BufferCandlestickChart, computeCandlestickData }

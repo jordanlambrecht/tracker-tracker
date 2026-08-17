@@ -2,7 +2,12 @@
 //
 // Functions: unwrapEnvelope, HawkeAdapter
 
-import { computeRatio, floatBytesToBigInt } from "@/lib/data-transforms"
+import {
+  computeBufferBytes,
+  computeRatio,
+  floatBytesToBigInt,
+  signedFloatBytesToBigInt,
+} from "@/lib/data-transforms"
 import { adapterFetch } from "./adapter-fetch"
 import type {
   DebugApiCall,
@@ -114,13 +119,14 @@ export class HawkeAdapter implements TrackerAdapter {
       // Hawke reports a real numeric ratio (no "∞" sentinel), so trust it and
       // only derive when the field is absent or non-finite.
       ratio: Number.isFinite(data.ratio) ? data.ratio : computeRatio(uploadedBytes, downloadedBytes),
-      // NOT computeBufferBytes / floatBytesToBigInt — both clamp negatives to
-      // zero, and Hawke's buffer is signed. A deficit account (the verified
-      // response is -2.6 TB) would otherwise report a confident 0 B buffer.
+      // Hawke reports its own buffer and it is signed — the verified deficit
+      // response is -2.6 TB. The `isFinite` guard stays at the call site because
+      // BigInt(Math.trunc(NaN)) throws; a non-finite payload falls back to the
+      // derived buffer, which is signed too.
       bufferBytes:
         typeof data.buffer === "number" && Number.isFinite(data.buffer)
-          ? BigInt(Math.trunc(data.buffer))
-          : uploadedBytes - downloadedBytes,
+          ? signedFloatBytesToBigInt(data.buffer)
+          : computeBufferBytes(uploadedBytes, downloadedBytes),
       seedingCount: data.active_seeds ?? 0,
       leechingCount: data.active_leeches ?? 0,
       seedbonus: data.hunos ?? 0,

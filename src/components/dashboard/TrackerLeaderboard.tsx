@@ -22,9 +22,18 @@ import {
 } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
 
-function getBufferBytes(t: TrackerSummary): bigint {
+/**
+ * Prefer the stored buffer over recomputing it. A tracker's own buffer is not
+ * always `uploaded - downloaded` — freeleech, bonus spending and per-site
+ * accounting all break that identity — so deriving it here made the leaderboard
+ * disagree with the detail page for every tracker that reports its own (Hawke,
+ * enriched Gazelle). Falls back to the derived value only when nothing is
+ * stored, which is what the adapters compute anyway.
+ */
+function getBufferBytes(t: TrackerSummary): bigint | null {
   const s = t.latestStats
-  if (!s?.uploadedBytes || !s?.downloadedBytes) return 0n
+  if (s?.bufferBytes) return BigInt(s.bufferBytes)
+  if (!s?.uploadedBytes || !s?.downloadedBytes) return null
   return computeBufferBytes(BigInt(s.uploadedBytes), BigInt(s.downloadedBytes))
 }
 
@@ -91,14 +100,17 @@ const columns: Column<TrackerSummary>[] = [
     header: "Buffer",
     align: "right",
     sortable: true,
-    sortValue: (t) => Number(getBufferBytes(t)),
-    render: (t) => (
-      <DataCell>
-        {t.latestStats?.uploadedBytes && t.latestStats?.downloadedBytes
-          ? formatBytesFromString(getBufferBytes(t).toString())
-          : "—"}
-      </DataCell>
-    ),
+    // Unmeasured sorts last rather than as 0: with signed buffers a 0 would sit
+    // above every account in deficit, ranking "no data" as healthier than a
+    // real -1 TiB.
+    sortValue: (t) => {
+      const buffer = getBufferBytes(t)
+      return buffer === null ? Number.NEGATIVE_INFINITY : Number(buffer)
+    },
+    render: (t) => {
+      const buffer = getBufferBytes(t)
+      return <DataCell>{buffer === null ? "—" : formatBytesFromString(buffer.toString())}</DataCell>
+    },
   },
   {
     key: "seeding",

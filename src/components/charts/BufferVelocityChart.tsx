@@ -315,14 +315,28 @@ function BufferVelocityChart({ trackerData, height = 320 }: BufferVelocityChartP
 
   const hasEnoughData = computed.some((t) => t.days.length >= 1)
 
+  // Velocity is signed by nature — a shrinking buffer is the whole point of
+  // this chart — and a log axis cannot represent a non-positive value, so once
+  // any velocity is <= 0 the toggle is withheld rather than letting the user
+  // force an axis that silently erases the losing days. Same guard the buffer
+  // candlestick and MetricChart (issue #36) use.
   const allVelocities: number[] = []
+  let hasNonPositiveVelocity = false
   for (const t of computed) {
     for (const v of t.velocities) {
-      if (v !== null && v > 0) allVelocities.push(v)
+      if (v === null) continue
+      if (v > 0) allVelocities.push(v)
+      else hasNonPositiveVelocity = true
     }
   }
 
-  const { effectiveLog, isAuto, onToggle } = useLogScale(allVelocities)
+  const canUseLog = !hasNonPositiveVelocity && allVelocities.length > 0
+  const { effectiveLog, isAuto, onToggle } = useLogScale(canUseLog ? allVelocities : [])
+  // `canUseLog &&`, not `effectiveLog` alone: the override lives in hook state,
+  // so a viewer who forced log on during an all-gaining stretch would still be
+  // on a log axis once a losing day arrives — erasing exactly that day, with the
+  // toggle unmounted and no way back.
+  const useLog = canUseLog && effectiveLog
 
   if (!hasEnoughData) {
     return (
@@ -344,11 +358,13 @@ function BufferVelocityChart({ trackerData, height = 320 }: BufferVelocityChartP
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <TabBar compact tabs={MA_TABS} activeTab={maWindow} onChange={setMaWindow} />
-        <LogScaleToggle effectiveLog={effectiveLog} isAuto={isAuto} onToggle={onToggle} />
+        {canUseLog && (
+          <LogScaleToggle effectiveLog={effectiveLog} isAuto={isAuto} onToggle={onToggle} />
+        )}
       </div>
       <ChartECharts
         option={appendOutageBandSeries(
-          buildBufferVelocityOption(smoothed, effectiveLog),
+          buildBufferVelocityOption(smoothed, useLog),
           outages,
           polledAtRange(trackerData.flatMap((t) => t.snapshots))
         )}
