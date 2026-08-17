@@ -375,6 +375,31 @@ export function getSnapshotBucket(days: number): "hour" | "day" | null {
 }
 
 /**
+ * How many days of snapshots actually exist, for sizing the "All" bucket.
+ *
+ * getSnapshotBucket is deliberately pure and answers for a REQUESTED range, so
+ * it maps 0 to "day" — the only sensible answer without knowing what is stored.
+ * Passing 0 to it therefore made All coarser than any bounded range: an install
+ * holding a few hours of snapshots collapsed to one point per tracker, which is
+ * what fires every "need at least 2 days of data" empty state. Measuring the
+ * real span first and asking for THAT range keeps the function pure and gives a
+ * young install raw points and a mature one day buckets.
+ *
+ * Returns 1 when nothing is stored, so callers still get a valid bucket.
+ */
+async function storedSpanDays(trackerId?: number): Promise<number> {
+  const [oldest] = await db
+    .select({ polledAt: trackerSnapshots.polledAt })
+    .from(trackerSnapshots)
+    .where(trackerId === undefined ? undefined : eq(trackerSnapshots.trackerId, trackerId))
+    .orderBy(asc(trackerSnapshots.polledAt))
+    .limit(1)
+
+  if (!oldest) return 1
+  return Math.max(1, Math.ceil((Date.now() - oldest.polledAt.getTime()) / (24 * 60 * 60 * 1000)))
+}
+
+/**
  * Fetches snapshots for a tracker, filtered by day range.
  * Pass days=0 for all snapshots. Applies adaptive time-bucketing for
  * longer ranges (hourly for 3-90d, daily for >90d) to bound response size.
@@ -389,7 +414,7 @@ export async function getSnapshotsForTracker(trackerId: number, days: number): P
     conditions.push(gte(trackerSnapshots.polledAt, since))
   }
 
-  const bucket = getSnapshotBucket(safeDays)
+  const bucket = getSnapshotBucket(safeDays === 0 ? await storedSpanDays(trackerId) : safeDays)
   const whereClause = and(...conditions)
 
   const [snapshots, [privacySettings]] = await Promise.all([
@@ -469,7 +494,7 @@ export type FleetSnapshotMap = Record<string, Snapshot[]>
 
 export async function getFleetSnapshots(days: number): Promise<FleetSnapshotMap> {
   const safeDays = days === 0 ? 0 : Math.min(Math.max(days, 1), SNAPSHOT_QUERY_MAX)
-  const bucket = getSnapshotBucket(safeDays)
+  const bucket = getSnapshotBucket(safeDays === 0 ? await storedSpanDays() : safeDays)
 
   const sinceCondition =
     safeDays > 0
