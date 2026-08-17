@@ -6,7 +6,12 @@ import { parseTorrentTags } from "@/lib/fleet"
 import { createAdapterForClient } from "./factory"
 import { aggregateCrossSeedTags, mergeTorrentLists, stampClientNames } from "./merge"
 import { buildBaseUrl } from "./qbt/transport"
-import { getFilteredTorrents, isStoreFresh, STORE_MAX_AGE_MS } from "./sync-store"
+import {
+  getFilteredTorrents,
+  getStoredTorrents,
+  isStoreFresh,
+  STORE_MAX_AGE_MS,
+} from "./sync-store"
 import type { DownloadClientRow, TorrentRecord } from "./types"
 
 // ---------------------------------------------------------------------------
@@ -41,7 +46,7 @@ export interface MergedResult {
 
 async function fetchClientTorrents(
   client: DownloadClientRow,
-  tags: string[],
+  tags: string[] | null,
   key: Buffer,
   filter?: string
 ): Promise<TorrentRecord[]> {
@@ -51,6 +56,12 @@ async function fetchClientTorrents(
   // Falls back to live fetch if store is stale (i.e. scheduler missed 2+ cycles).
   // Skip when filter is requested. Active speeds need live qBT data.
   if (!filter && isStoreFresh(baseUrl, STORE_MAX_AGE_MS)) {
+    if (tags === null) return getStoredTorrents(baseUrl)
+    // NOTE: this warm-path tag comparison is case-insensitive on both sides while
+    // the cold path below hands the tag to qBT verbatim. Callers that pass
+    // `tags: null` sidestep the divergence entirely by matching in application
+    // code instead (see fetchAndMergeTorrents' `select`); the multi-tag fleet
+    // path still has it.
     const tagSet = new Set(tags.map((t) => t.toLowerCase()))
     return getFilteredTorrents(baseUrl, (t) => {
       if (!t.tags) return false
@@ -61,6 +72,13 @@ async function fetchClientTorrents(
   // Cold path: store not yet populated, stale, or filter requested (i.e. active).
   // Fall back to live per-tag fetch.
   const adapter = createAdapterForClient(client, key)
+
+  // No qBT-side tag filter: the caller narrows the list itself with `select`.
+  // `filter` still goes through, so the 5s active poll stays cheap instead of
+  // dragging the whole torrent list across on every tick.
+  if (tags === null) {
+    return adapter.getTorrents({ filter: filter as "active" | undefined })
+  }
 
   if (tags.length === 1) {
     return adapter.getTorrents({ tag: tags[0], filter: filter as "active" | undefined })
@@ -80,10 +98,17 @@ async function fetchClientTorrents(
  * and stamp each merged torrent with the originating client name(s).
  *
  * @param clients  Enabled download client rows (credentials encrypted).
- * @param tags     qBT tag(s) to fetch. Single-tag callers may also pass filter.
+ * @param tags     qBT tag(s) to fetch, or null for no tag filter at all — the
+ *                 caller then decides membership itself via `select`, which is
+ *                 what the per-tracker route needs since a tracker may have no
+ *                 tag, or a tag no torrent carries (issue #152).
  * @param key      AES-256-GCM decryption key derived from the master password.
- * @param filter   Optional qBT filter string (i.e. "active"). Only applied when
- *                 tags has exactly one entry.
+ * @param filter   Optional qBT filter string (i.e. "active"). Not applied when
+ *                 tags has more than one entry.
+ * @param select   Optional membership test, applied per client on the raw
+ *                 TorrentRecord — before merge, so client stamping stays
+ *                 accurate, and before stripping, so it can still read the
+ *                 announce URL.
  */
 /** Per-client deadline for live fetches (seconds). Keeps the UI responsive
  *  when one client is offline — the online client's data arrives immediately
@@ -93,9 +118,10 @@ const CLIENT_DEADLINE_MS = 5_000
 
 export async function fetchAndMergeTorrents(
   clients: DownloadClientRow[],
-  tags: string[],
+  tags: string[] | null,
   key: Buffer,
-  filter?: string
+  filter?: string,
+  select?: (torrent: TorrentRecord) => boolean
 ): Promise<MergedResult> {
   const empty: MergedResult = {
     torrents: [],
@@ -105,7 +131,9 @@ export async function fetchAndMergeTorrents(
     sessionExpired: false,
   }
 
-  if (clients.length === 0 || tags.length === 0) {
+  // An empty tag array still means "nothing to ask for" — only an explicit null
+  // means "everything, narrowed by select".
+  if (clients.length === 0 || (tags !== null && tags.length === 0)) {
     return empty
   }
 
@@ -114,11 +142,14 @@ export async function fetchAndMergeTorrents(
       const deadline = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("Client deadline exceeded")), CLIENT_DEADLINE_MS)
       )
-      const work = (async () => ({
-        clientName: client.name,
-        crossSeedTags: client.crossSeedTags ?? [],
-        torrents: await fetchClientTorrents(client, tags, key, filter),
-      }))()
+      const work = (async () => {
+        const fetched = await fetchClientTorrents(client, tags, key, filter)
+        return {
+          clientName: client.name,
+          crossSeedTags: client.crossSeedTags ?? [],
+          torrents: select ? fetched.filter(select) : fetched,
+        }
+      })()
       return Promise.race([work, deadline])
     })
   )

@@ -41,6 +41,7 @@ vi.mock("../sync-store", () => ({
   STORE_MAX_AGE_MS: 10 * 60 * 1000,
   isStoreFresh: vi.fn(() => false),
   getFilteredTorrents: vi.fn(() => []),
+  getStoredTorrents: vi.fn(() => []),
 }))
 
 // ---------------------------------------------------------------------------
@@ -49,7 +50,7 @@ vi.mock("../sync-store", () => ({
 
 import { createAdapterForClient } from "@/lib/download-clients/factory"
 import { buildBaseUrl } from "../qbt/transport"
-import { getFilteredTorrents, isStoreFresh } from "../sync-store"
+import { getFilteredTorrents, getStoredTorrents, isStoreFresh } from "../sync-store"
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -514,5 +515,108 @@ describe("fetchAndMergeTorrents — sensitive field stripping", () => {
     expect(result.torrents[0]).not.toHaveProperty("contentPath")
     expect(result.torrents[0]).not.toHaveProperty("savePath")
     expect(result.torrents[0]).toHaveProperty("hash", "h1")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// tags = null: no qBT-side tag filter, membership decided by `select`
+// ---------------------------------------------------------------------------
+
+describe("fetchAndMergeTorrents — null tags with a select predicate", () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.mocked(buildBaseUrl).mockReturnValue("http://localhost:8080")
+    vi.mocked(isStoreFresh).mockReturnValue(false)
+    vi.mocked(getFilteredTorrents).mockReturnValue([])
+    vi.mocked(getStoredTorrents).mockReturnValue([])
+
+    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
+    mockAdapter.getTorrents.mockResolvedValue([])
+  })
+
+  it("does not early-exit on null tags the way an empty tag array does", async () => {
+    mockAdapter.getTorrents.mockResolvedValue([makeTorrent("h1")])
+
+    const result = await fetchAndMergeTorrents([makeClient()], null, makeKey(), undefined, () => true)
+
+    expect(createAdapterForClient).toHaveBeenCalled()
+    expect(result.torrents).toHaveLength(1)
+  })
+
+  it("asks qBT for every torrent — no tag parameter", async () => {
+    await fetchAndMergeTorrents([makeClient()], null, makeKey(), undefined, () => true)
+
+    expect(mockAdapter.getTorrents).toHaveBeenCalledWith({ filter: undefined })
+    expect(mockAdapter.getTorrents).not.toHaveBeenCalledWith(
+      expect.objectContaining({ tag: expect.anything() })
+    )
+  })
+
+  it("still forwards the filter, so the active poll does not drag the whole list across", async () => {
+    await fetchAndMergeTorrents([makeClient()], null, makeKey(), "active", () => true)
+
+    expect(mockAdapter.getTorrents).toHaveBeenCalledWith({ filter: "active" })
+  })
+
+  it("reads the whole warm store rather than filtering it by tag", async () => {
+    vi.mocked(isStoreFresh).mockReturnValue(true)
+    vi.mocked(getStoredTorrents).mockReturnValue([
+      makeTorrent("tagged", { tags: "aither" }),
+      makeTorrent("untagged", { tags: "" }),
+    ])
+
+    const result = await fetchAndMergeTorrents([makeClient()], null, makeKey(), undefined, () => true)
+
+    expect(getStoredTorrents).toHaveBeenCalledWith("http://localhost:8080")
+    expect(getFilteredTorrents).not.toHaveBeenCalled()
+    expect(createAdapterForClient).not.toHaveBeenCalled()
+    expect(result.torrents.map((t) => t.hash).sort()).toEqual(["tagged", "untagged"])
+  })
+
+  it("narrows the fetched list with the select predicate", async () => {
+    mockAdapter.getTorrents.mockResolvedValue([
+      makeTorrent("keep", { tracker: "https://lst.gg/announce/passkey" }),
+      makeTorrent("drop", { tracker: "https://elsewhere.example/announce" }),
+    ])
+
+    const result = await fetchAndMergeTorrents([makeClient()], null, makeKey(), undefined, (t) =>
+      t.tracker.includes("lst.gg")
+    )
+
+    expect(result.torrents.map((t) => t.hash)).toEqual(["keep"])
+  })
+
+  it("applies select per client so clientName stamping reflects who actually had the torrent", async () => {
+    mockAdapter.getTorrents
+      .mockResolvedValueOnce([makeTorrent("shared"), makeTorrent("only-a", { tags: "drop-me" })])
+      .mockResolvedValueOnce([makeTorrent("shared")])
+
+    const result = await fetchAndMergeTorrents(
+      [makeClient({ name: "A" }), makeClient({ name: "B" })],
+      null,
+      makeKey(),
+      undefined,
+      (t) => t.tags !== "drop-me"
+    )
+
+    const shared = result.torrents.find((t) => t.hash === "shared")
+    expect(shared?.clientName).toBe("A, B")
+    expect(result.torrents.map((t) => t.hash)).not.toContain("only-a")
+  })
+
+  it("select sees the announce URL — it runs before sensitive fields are stripped", async () => {
+    mockAdapter.getTorrents.mockResolvedValue([
+      makeTorrent("h1", { tracker: "https://lst.gg/announce/SECRET" }),
+    ])
+    const seen: (string | undefined)[] = []
+
+    const result = await fetchAndMergeTorrents([makeClient()], null, makeKey(), undefined, (t) => {
+      seen.push(t.tracker)
+      return true
+    })
+
+    expect(seen).toEqual(["https://lst.gg/announce/SECRET"])
+    // ...and is still stripped out of the response.
+    expect(result.torrents[0]).not.toHaveProperty("tracker")
   })
 })

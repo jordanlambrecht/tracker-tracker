@@ -96,16 +96,18 @@ function saveSessionCache(trackerId: number, data: AggregatedTorrentsResponse) {
 // Hook
 // ---------------------------------------------------------------------------
 
+// `qbtTag` is intentionally not destructured: it used to gate every query, but a
+// tracker without a tag now resolves its torrents by announce URL server-side
+// (issue #152), so the hook has no use for it. It stays on the params type
+// because callers pass it and the tab still uses it to word its empty state.
 function useTrackerTorrents({
   trackerId,
-  qbtTag,
   rules,
   tagGroups,
   trackerSeedingCount,
   qbitmanageConfig,
   isActive = true,
 }: UseTrackerTorrentsParams): TrackerTorrentsData {
-  const enabled = !!qbtTag
   const intervals = usePollingIntervals()
 
   // forces an immediate background refetch from the DB cache endpoint
@@ -121,7 +123,6 @@ function useTrackerTorrents({
       }
       return null
     },
-    enabled,
     staleTime: intervals.trackerRefetchMs,
     initialData: loadSessionCache(trackerId) ?? undefined,
     initialDataUpdatedAt: 0,
@@ -134,10 +135,14 @@ function useTrackerTorrents({
       const res = await fetch(`/api/trackers/${trackerId}/torrents`, { signal })
       if (!res.ok) throw new Error(`Torrent fetch failed: ${res.status}`)
       const data = (await res.json()) as AggregatedTorrentsResponse
-      saveSessionCache(trackerId, data)
+      // Same trust rule the resolution block below applies to what is displayed:
+      // an empty response from an incomplete fetch is a symptom, so don't let it
+      // overwrite the instant-restore snapshot the next page load starts from.
+      if (data.torrents.length > 0 || data.clientErrors.length === 0) {
+        saveSessionCache(trackerId, data)
+      }
       return data
     },
-    enabled,
     staleTime: intervals.trackerRefetchMs,
   })
 
@@ -149,15 +154,35 @@ function useTrackerTorrents({
       if (!res.ok) return null
       return res.json() as Promise<AggregatedTorrentsResponse>
     },
-    enabled: enabled && liveQuery.isSuccess,
+    enabled: liveQuery.isSuccess,
     refetchInterval: isActive ? 5_000 : false,
   })
 
-  // Resolve the best available data source: live > cached > sessionStorage placeholder
-  const baseData = liveQuery.data ?? cachedQuery.data ?? null
-  const stale = !liveQuery.data && !!cachedQuery.data
-  const cachedAt = stale ? (cachedQuery.data?.cachedAt ?? null) : null
-  const loading = enabled && !baseData && (cachedQuery.isLoading || liveQuery.isLoading)
+  // Resolve the best available data source.
+  //
+  // Live wins whenever it is trustworthy, and it is untrustworthy in exactly one
+  // shape: empty *and* incomplete. fetchAndMergeTorrents races each client
+  // against a 5s deadline and reports the losers in `clientErrors`, so one slow
+  // or offline client produces a perfectly successful response carrying zero
+  // torrents. Taking that literally is what blanked a populated cache on a
+  // hiccup — the tab went empty instead of falling back.
+  //
+  // An empty live result with no client errors is the opposite: every client
+  // answered, and none of them holds a torrent for this tracker. That is an
+  // answer, not a symptom, so it wins and the cache is discarded. Without that
+  // half of the rule, a tracker that genuinely has no torrents left would show
+  // stale cached ones forever — and a tag/announce mismatch would be hidden
+  // rather than surfaced.
+  const live = liveQuery.data ?? null
+  const cached = cachedQuery.data ?? null
+  const liveTrustworthy =
+    live !== null && (live.torrents.length > 0 || live.clientErrors.length === 0)
+  const usingCache = !liveTrustworthy && cached !== null && cached.torrents.length > 0
+
+  const baseData = usingCache ? cached : (live ?? cached)
+  const stale = usingCache
+  const cachedAt = usingCache ? (cached.cachedAt ?? null) : null
+  const loading = !baseData && (cachedQuery.isLoading || liveQuery.isLoading)
 
   // Merge active speeds into the base torrent list
   const torrents = useMemo(() => {

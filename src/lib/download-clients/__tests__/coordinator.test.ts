@@ -36,6 +36,7 @@ vi.mock("@/lib/db/schema", () => ({
     name: "trackers.name",
     qbtTag: "trackers.qbtTag",
     color: "trackers.color",
+    baseUrl: "trackers.baseUrl",
     isActive: "trackers.isActive",
   },
   downloadClients: {
@@ -157,11 +158,21 @@ import { slimTorrentForCache } from "../transforms"
 // Fixtures
 // ---------------------------------------------------------------------------
 
-function makeTracker(overrides: { qbtTag?: string | null; name?: string; color?: string } = {}) {
+function makeTracker(
+  overrides: {
+    id?: number
+    qbtTag?: string | null
+    name?: string
+    color?: string
+    baseUrl?: string
+  } = {}
+) {
   return {
+    id: 1,
     qbtTag: "aither",
     name: "Aither",
     color: "#00d4ff",
+    baseUrl: "https://aither.cc",
     ...overrides,
   }
 }
@@ -538,100 +549,200 @@ describe("fetchFleetTorrents", () => {
 // ---------------------------------------------------------------------------
 
 describe("fetchTrackerTorrents", () => {
+  const emptyMerged = {
+    torrents: [],
+    crossSeedTags: [],
+    clientErrors: [],
+    clientCount: 1,
+    sessionExpired: false,
+  }
+
+  /** The `select` predicate the coordinator hands to fetchAndMergeTorrents. */
+  function capturedMatcher() {
+    const call = vi.mocked(fetchAndMergeTorrents).mock.calls[0]
+    const select = call[4]
+    if (!select) throw new Error("fetchAndMergeTorrents was called without a select predicate")
+    return select
+  }
+
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(fetchAndMergeTorrents).mockResolvedValue(emptyMerged)
   })
 
   it("should return 404 when tracker is not found", async () => {
     setupDbReturns([
-      [], // tracker lookup returns nothing
+      [makeTracker({ id: 1 })], // tracker list has no id 999
+      [makeFetchClient()],
     ])
 
     const result = await fetchTrackerTorrents(999, makeKey())
 
     expect(result).toEqual({ error: "Tracker not found", status: 404 })
+    expect(fetchAndMergeTorrents).not.toHaveBeenCalled()
   })
 
-  it("should return 400 when tracker has no qbtTag", async () => {
-    setupDbReturns([[{ qbtTag: null }]])
+  it("should accept a tracker with no qbtTag instead of rejecting it", async () => {
+    setupDbReturns([[makeTracker({ id: 1, qbtTag: null })], [makeFetchClient()]])
 
     const result = await fetchTrackerTorrents(1, makeKey())
 
-    expect(result).toEqual({
-      error: "No qBittorrent tag configured for this tracker",
-      status: 400,
-    })
+    expect(result).toEqual({ result: emptyMerged })
+    expect(result).not.toHaveProperty("error")
   })
 
-  it("should query enabled clients and call fetchAndMergeTorrents with the single tag", async () => {
-    const mergedResult = {
-      torrents: [],
-      crossSeedTags: [],
-      clientErrors: [],
-      clientCount: 1,
-      sessionExpired: false,
-    }
-    vi.mocked(fetchAndMergeTorrents).mockResolvedValue(mergedResult)
-
+  it("should ask for every torrent and narrow with a select predicate, not a qBT tag filter", async () => {
     const client = makeFetchClient()
-    setupDbReturns([
-      [{ qbtTag: "aither" }], // tracker lookup
-      [client], // clients query
-    ])
-
-    const result = await fetchTrackerTorrents(1, makeKey())
-
-    expect(fetchAndMergeTorrents).toHaveBeenCalledWith(
-      [client],
-      ["aither"],
-      expect.any(Buffer),
-      undefined
-    )
-    expect(result).toEqual({ result: mergedResult })
-  })
-
-  it("should trim the qbtTag before passing to fetchAndMergeTorrents", async () => {
-    const mergedResult = {
-      torrents: [],
-      crossSeedTags: [],
-      clientErrors: [],
-      clientCount: 0,
-      sessionExpired: false,
-    }
-    vi.mocked(fetchAndMergeTorrents).mockResolvedValue(mergedResult)
-
-    setupDbReturns([[{ qbtTag: "  aither  " }], []])
+    setupDbReturns([[makeTracker({ id: 1, qbtTag: "aither" })], [client]])
 
     await fetchTrackerTorrents(1, makeKey())
 
     expect(fetchAndMergeTorrents).toHaveBeenCalledWith(
-      expect.any(Array),
-      ["aither"],
+      [client],
+      null, // no qBT-side tag filter — the tag may be absent or simply wrong
       expect.any(Buffer),
-      undefined
+      undefined,
+      expect.any(Function)
     )
   })
 
   it("should pass the filter parameter through", async () => {
-    const mergedResult = {
-      torrents: [],
-      crossSeedTags: [],
-      clientErrors: [],
-      clientCount: 0,
-      sessionExpired: false,
-    }
-    vi.mocked(fetchAndMergeTorrents).mockResolvedValue(mergedResult)
-
-    setupDbReturns([[{ qbtTag: "aither" }], [makeFetchClient()]])
+    setupDbReturns([[makeTracker({ id: 1 })], [makeFetchClient()]])
 
     await fetchTrackerTorrents(1, makeKey(), "active")
 
     expect(fetchAndMergeTorrents).toHaveBeenCalledWith(
       expect.any(Array),
-      ["aither"],
+      null,
       expect.any(Buffer),
-      "active"
+      "active",
+      expect.any(Function)
     )
+  })
+
+  it("should match an untagged tracker's torrents by announce host", async () => {
+    setupDbReturns([
+      [makeTracker({ id: 7, qbtTag: null, baseUrl: "https://lst.gg" })],
+      [makeFetchClient()],
+    ])
+
+    await fetchTrackerTorrents(7, makeKey())
+    const matches = capturedMatcher()
+
+    expect(
+      matches(makeTorrent("h1", { tags: "", tracker: "https://tracker.lst.gg/announce/secret" }))
+    ).toBe(true)
+    expect(matches(makeTorrent("h2", { tags: "", tracker: "https://aither.cc/announce" }))).toBe(
+      false
+    )
+  })
+
+  it("should still match by tag when the tracker has one", async () => {
+    setupDbReturns([
+      [makeTracker({ id: 1, qbtTag: "Aither", baseUrl: "https://aither.cc" })],
+      [makeFetchClient()],
+    ])
+
+    await fetchTrackerTorrents(1, makeKey())
+    const matches = capturedMatcher()
+
+    // Tag matches case-insensitively even though the announce host does not.
+    expect(
+      matches(makeTorrent("h1", { tags: "aither", tracker: "https://elsewhere.example/announce" }))
+    ).toBe(true)
+  })
+
+  it("should match by announce host when the configured tag matches nothing", async () => {
+    setupDbReturns([
+      // The reported LST case: a tag IS set, it is simply not the tag qBT carries.
+      [makeTracker({ id: 4, qbtTag: "lst-typo", baseUrl: "https://lst.gg" })],
+      [makeFetchClient()],
+    ])
+
+    await fetchTrackerTorrents(4, makeKey())
+    const matches = capturedMatcher()
+
+    expect(
+      matches(makeTorrent("h1", { tags: "movies,4k", tracker: "https://tracker.lst.gg/announce" }))
+    ).toBe(true)
+  })
+
+  it("should let another tracker's explicit tag win over this tracker's announce host", async () => {
+    const rows = [
+      makeTracker({ id: 1, qbtTag: "aither", baseUrl: "https://shared-host.example" }),
+      makeTracker({ id: 2, qbtTag: "blutopia", baseUrl: "https://shared-host.example" }),
+    ]
+    const taggedForOther = makeTorrent("h1", {
+      tags: "aither",
+      tracker: "https://shared-host.example/announce",
+    })
+    // Untagged and ambiguous: both trackers announce to the same host.
+    const untagged = makeTorrent("h2", {
+      tags: "",
+      tracker: "https://shared-host.example/announce",
+    })
+
+    setupDbReturns([rows, [makeFetchClient()]])
+    await fetchTrackerTorrents(2, makeKey())
+    const matchesTwo = capturedMatcher()
+
+    // Tracker 1's tag claims it, so tracker 2 does not get it off the shared host.
+    expect(matchesTwo(taggedForOther)).toBe(false)
+    // And an ambiguous untagged torrent goes to exactly one tracker rather than
+    // both — the same single-winner rule fleet attribution uses to avoid
+    // double-counting. Ties break on tracker order, which is why tracker 2 loses.
+    expect(matchesTwo(untagged)).toBe(false)
+
+    vi.clearAllMocks()
+    vi.mocked(fetchAndMergeTorrents).mockResolvedValue(emptyMerged)
+    setupDbReturns([rows, [makeFetchClient()]])
+    await fetchTrackerTorrents(1, makeKey())
+    const matchesOne = capturedMatcher()
+
+    expect(matchesOne(taggedForOther)).toBe(true)
+    expect(matchesOne(untagged)).toBe(true)
+  })
+
+  it("should keep a torrent tagged for two trackers in both", async () => {
+    const rows = [
+      makeTracker({ id: 1, qbtTag: "aither", baseUrl: "https://aither.cc" }),
+      makeTracker({ id: 2, qbtTag: "blutopia", baseUrl: "https://blutopia.cc" }),
+    ]
+    const dualTagged = makeTorrent("h1", {
+      tags: "aither,blutopia",
+      tracker: "https://aither.cc/announce",
+    })
+
+    setupDbReturns([rows, [makeFetchClient()]])
+    await fetchTrackerTorrents(1, makeKey())
+    expect(capturedMatcher()(dualTagged)).toBe(true)
+
+    vi.clearAllMocks()
+    vi.mocked(fetchAndMergeTorrents).mockResolvedValue(emptyMerged)
+    setupDbReturns([rows, [makeFetchClient()]])
+    await fetchTrackerTorrents(2, makeKey())
+    expect(capturedMatcher()(dualTagged)).toBe(true)
+  })
+
+  it("should not match a torrent with neither a matching tag nor a known announce host", async () => {
+    setupDbReturns([[makeTracker({ id: 1 })], [makeFetchClient()]])
+
+    await fetchTrackerTorrents(1, makeKey())
+
+    expect(
+      capturedMatcher()(
+        makeTorrent("h1", { tags: "some-other-site", tracker: "https://unknown.example/announce" })
+      )
+    ).toBe(false)
+  })
+
+  it("should not match on announce when qBT reports no working tracker", async () => {
+    setupDbReturns([[makeTracker({ id: 1, qbtTag: null })], [makeFetchClient()]])
+
+    await fetchTrackerTorrents(1, makeKey())
+
+    // qBT leaves `tracker` empty while no announce is working (paused, errored).
+    expect(capturedMatcher()(makeTorrent("h1", { tags: "", tracker: "" }))).toBe(false)
   })
 
   it("should wrap successful result in { result: ... }", async () => {
@@ -644,7 +755,7 @@ describe("fetchTrackerTorrents", () => {
     }
     vi.mocked(fetchAndMergeTorrents).mockResolvedValue(mergedResult as never)
 
-    setupDbReturns([[{ qbtTag: "aither" }], [makeFetchClient()]])
+    setupDbReturns([[makeTracker({ id: 1 })], [makeFetchClient()]])
 
     const result = await fetchTrackerTorrents(1, makeKey())
 
@@ -762,7 +873,7 @@ describe("fetchFleetAggregation", () => {
 
     expect(computeFleetAggregation).toHaveBeenCalledWith(
       expect.any(Array), // stamped torrents
-      [{ tag: "aither", name: "Aither", color: "#ff0000" }],
+      [{ tag: "aither", name: "Aither", color: "#ff0000", baseUrl: "https://aither.cc" }],
       expect.any(Array), // crossSeedTags
       [] // tagGroups — omitted by callers that don't want the breakdown
     )
@@ -799,7 +910,7 @@ describe("fetchFleetAggregation", () => {
 
     expect(computeFleetAggregation).toHaveBeenCalledWith(
       expect.any(Array),
-      [{ tag: "aither", name: "Aither", color: "#01d4ff" }],
+      [{ tag: "aither", name: "Aither", color: "#01d4ff", baseUrl: "https://aither.cc" }],
       expect.any(Array),
       []
     )
@@ -924,7 +1035,7 @@ describe("fetchTrackerTorrentsCached", () => {
 
   it("should return 404 when tracker is not found", async () => {
     setupDbReturns([
-      [], // tracker lookup returns nothing
+      [], // tracker list is empty
     ])
 
     const result = await fetchTrackerTorrentsCached(999)
@@ -932,17 +1043,66 @@ describe("fetchTrackerTorrentsCached", () => {
     expect(result).toEqual({ error: "Tracker not found", status: 404 })
   })
 
-  it("should return 400 when tracker has no qbtTag", async () => {
-    setupDbReturns([[{ qbtTag: null }]])
+  it("should accept a tracker with no qbtTag instead of rejecting it", async () => {
+    const torrent = makeTorrent("h1", { tags: "", tracker: "lst.gg" })
+    vi.mocked(parseCachedTorrents).mockReturnValue([torrent] as never)
+
+    setupDbReturns([
+      [makeTracker({ id: 1, qbtTag: null, baseUrl: "https://lst.gg" })],
+      [makeCachedClientFull()],
+    ])
 
     const result = await fetchTrackerTorrentsCached(1)
 
-    expect(result).toEqual({ error: "No qBittorrent tag configured", status: 400 })
+    expect(result).not.toHaveProperty("error")
+    if ("result" in result) {
+      expect(result.result.torrents.map((t) => t.hash)).toEqual(["h1"])
+    }
+  })
+
+  it("should match cached torrents by their stored announce host", async () => {
+    // What the JSONB column actually holds post-slimTorrentForCache: the derived
+    // host, not the raw announce URL.
+    const match = makeTorrent("match", { tags: "movies", tracker: "lst.gg" })
+    const other = makeTorrent("nomatch", { tags: "movies", tracker: "aither.cc" })
+    vi.mocked(parseCachedTorrents).mockReturnValue([match, other] as never)
+
+    setupDbReturns([
+      [
+        makeTracker({ id: 1, qbtTag: "lst-typo", baseUrl: "https://lst.gg" }),
+        makeTracker({ id: 2, qbtTag: "aither", baseUrl: "https://aither.cc" }),
+      ],
+      [makeCachedClientFull()],
+    ])
+
+    const result = await fetchTrackerTorrentsCached(1)
+
+    if ("result" in result) {
+      expect(result.result.torrents.map((t) => t.hash)).toEqual(["match"])
+    }
+  })
+
+  it("should ignore cached rows written before the announce host was stored", async () => {
+    // Old rows have no `tracker` key at all; attribution degrades to tag-only.
+    const legacy = { ...makeTorrent("legacy", { tags: "aither" }), tracker: undefined }
+    vi.mocked(parseCachedTorrents).mockReturnValue([legacy] as never)
+
+    setupDbReturns([
+      [makeTracker({ id: 1, qbtTag: null, baseUrl: "https://aither.cc" })],
+      [makeCachedClientFull()],
+    ])
+
+    const result = await fetchTrackerTorrentsCached(1)
+
+    expect(result).not.toHaveProperty("error")
+    if ("result" in result) {
+      expect(result.result.torrents).toHaveLength(0)
+    }
   })
 
   it("should return empty result when no enabled clients exist", async () => {
     setupDbReturns([
-      [{ qbtTag: "aither" }], // tracker found
+      [makeTracker({ id: 1 })], // tracker found
       [], // no clients
     ])
 
@@ -965,7 +1125,7 @@ describe("fetchTrackerTorrentsCached", () => {
     vi.mocked(parseCachedTorrents).mockReturnValue([matchTorrent, noMatchTorrent])
 
     setupDbReturns([
-      [{ qbtTag: "aither" }],
+      [makeTracker({ id: 1 })],
       [makeCachedClientFull({ cachedTorrents: "cached-json" })],
     ])
 
@@ -992,7 +1152,7 @@ describe("fetchTrackerTorrentsCached", () => {
 
     // parseTorrentTags returns lowercase tags (as the mock does)
     // The coordinator trims and lowercases the tag before comparing
-    setupDbReturns([[{ qbtTag: "  Aither  " }], [makeCachedClientFull()]])
+    setupDbReturns([[makeTracker({ id: 1, qbtTag: "  Aither  " })], [makeCachedClientFull()]])
 
     const result = await fetchTrackerTorrentsCached(1)
 
@@ -1005,7 +1165,7 @@ describe("fetchTrackerTorrentsCached", () => {
   it("should skip clients whose cached torrents are all empty after parse", async () => {
     vi.mocked(parseCachedTorrents).mockReturnValue([])
 
-    setupDbReturns([[{ qbtTag: "aither" }], [makeCachedClientFull()]])
+    setupDbReturns([[makeTracker({ id: 1 })], [makeCachedClientFull()]])
 
     const result = await fetchTrackerTorrentsCached(1)
 
@@ -1021,7 +1181,7 @@ describe("fetchTrackerTorrentsCached", () => {
     vi.mocked(parseCachedTorrents).mockReturnValue([torrent])
 
     setupDbReturns([
-      [{ qbtTag: "aither" }],
+      [makeTracker({ id: 1 })],
       [
         makeCachedClientFull({ id: 1, crossSeedTags: ["cross-seed-a"] }),
         makeCachedClientFull({ id: 2, crossSeedTags: ["cross-seed-b"] }),
@@ -1069,7 +1229,7 @@ describe("fetchTrackerTorrentsCached", () => {
     }
     vi.mocked(parseCachedTorrents).mockReturnValue([slimTorrent] as never)
 
-    setupDbReturns([[{ qbtTag: "aither" }], [makeCachedClientFull({ name: "Client A" })]])
+    setupDbReturns([[makeTracker({ id: 1 })], [makeCachedClientFull({ name: "Client A" })]])
 
     const result = await fetchTrackerTorrentsCached(1)
 
@@ -1092,7 +1252,7 @@ describe("fetchTrackerTorrentsCached", () => {
     vi.mocked(parseCachedTorrents).mockReturnValue([torrent])
 
     setupDbReturns([
-      [{ qbtTag: "aither" }],
+      [makeTracker({ id: 1 })],
       [
         makeCachedClientFull({ id: 1, name: "Old", cachedTorrentsAt: olderDate }),
         makeCachedClientFull({ id: 2, name: "New", cachedTorrentsAt: newerDate }),
@@ -1110,7 +1270,7 @@ describe("fetchTrackerTorrentsCached", () => {
     const torrent = makeTorrent("h1", { tags: "aither" })
     vi.mocked(parseCachedTorrents).mockReturnValue([torrent])
 
-    setupDbReturns([[{ qbtTag: "aither" }], [makeCachedClientFull({ cachedTorrentsAt: null })]])
+    setupDbReturns([[makeTracker({ id: 1 })], [makeCachedClientFull({ cachedTorrentsAt: null })]])
 
     const result = await fetchTrackerTorrentsCached(1)
 
@@ -1123,7 +1283,7 @@ describe("fetchTrackerTorrentsCached", () => {
     vi.mocked(parseCachedTorrents).mockReturnValue([]) // no data from any client
 
     setupDbReturns([
-      [{ qbtTag: "aither" }],
+      [makeTracker({ id: 1 })],
       [
         makeCachedClientFull({ id: 1 }),
         makeCachedClientFull({ id: 2 }),
@@ -1141,7 +1301,7 @@ describe("fetchTrackerTorrentsCached", () => {
   it("should always return empty clientErrors array", async () => {
     vi.mocked(parseCachedTorrents).mockReturnValue([])
 
-    setupDbReturns([[{ qbtTag: "aither" }], [makeCachedClientFull()]])
+    setupDbReturns([[makeTracker({ id: 1 })], [makeCachedClientFull()]])
 
     const result = await fetchTrackerTorrentsCached(1)
 
@@ -1154,7 +1314,7 @@ describe("fetchTrackerTorrentsCached", () => {
     const torrent = makeTorrent("h1", { tags: "aither" })
     vi.mocked(parseCachedTorrents).mockReturnValue([torrent])
 
-    setupDbReturns([[{ qbtTag: "aither" }], [makeCachedClientFull({ name: "My qBT" })]])
+    setupDbReturns([[makeTracker({ id: 1 })], [makeCachedClientFull({ name: "My qBT" })]])
 
     const result = await fetchTrackerTorrentsCached(1)
 

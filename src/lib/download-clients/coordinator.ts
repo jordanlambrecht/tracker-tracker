@@ -15,7 +15,7 @@ import { downloadClients, trackers } from "@/lib/db/schema"
 import { isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
 import { parseTorrentTags } from "@/lib/fleet"
 import { computeFleetAggregation, type FleetAggregation } from "@/lib/fleet-aggregation"
-import { trackerHostKey } from "@/lib/tracker-matching"
+import { resolveTorrentTracker, trackerHostKey } from "@/lib/tracker-matching"
 import type { TagGroup } from "@/types/api"
 import { CLIENT_CONNECTION_COLUMNS } from "./credentials"
 import { createAdapterForClient } from "./factory"
@@ -60,6 +60,71 @@ function collectTags(rows: { qbtTag: string | null }[]): string[] {
   ]
 }
 
+/** Everything the per-tracker matcher needs from a tracker row. */
+const TRACKER_MATCH_COLUMNS = {
+  id: trackers.id,
+  qbtTag: trackers.qbtTag,
+  baseUrl: trackers.baseUrl,
+} as const
+
+type TrackerMatchRow = { id: number; qbtTag: string | null; baseUrl: string }
+
+/** The two fields matching reads off a torrent, on both the live and cached shapes. */
+interface MatchableTorrent {
+  tags?: string | null
+  tracker?: string | null
+}
+
+/**
+ * Build the membership test for a single tracker: does this torrent belong to it?
+ *
+ * Deliberately two steps rather than a bare `resolveTorrentTracker` call:
+ *
+ *  1. The target's own tag admits the torrent outright. resolveTorrentTracker
+ *     returns one winner, so a torrent manually carrying two trackers' tags would
+ *     be credited to whichever tag comes first in its tag string and vanish from
+ *     the other tracker's tab. Checking the target's tag first keeps such a
+ *     torrent in both, exactly as the tag-only filter this replaces did.
+ *
+ *  2. Otherwise defer to resolveTorrentTracker across *all* trackers, which is
+ *     where the precedence lives: another tracker's explicit tag beats this
+ *     tracker's announce host. Without the full list, two trackers sharing an
+ *     announce host would both claim a torrent that one of them has tagged.
+ *
+ * Both steps compare case-insensitively (parseTorrentTags lowercases, and
+ * resolveTorrentTracker lowercases each side before comparing), so the warm
+ * store, the live fetch and the JSONB cache all agree on what matches.
+ */
+function trackerTorrentMatcher(
+  target: TrackerMatchRow,
+  allTrackers: TrackerMatchRow[]
+): (torrent: MatchableTorrent) => boolean {
+  const ownTag = target.qbtTag?.trim().toLowerCase() || null
+  const targetHost = trackerHostKey(target.baseUrl)
+
+  return (torrent) => {
+    if (ownTag && parseTorrentTags(torrent.tags ?? "").includes(ownTag)) return true
+
+    // Fast reject before the full resolve, and equivalent to it rather than an
+    // approximation of it. Once step 1 has failed, resolveTorrentTracker cannot
+    // return `target` from its tag branch — that branch fires only when a torrent
+    // tag equals target.qbtTag, which step 1 already tested (and tested more
+    // permissively, since it trims the configured tag first). So the only way
+    // target can still win is the announce branch, which requires exactly this
+    // host equality.
+    //
+    // Worth doing: resolveTorrentTracker re-parses every tracker's baseUrl for
+    // every torrent, which measured 267ms per 10k torrents against 25 trackers.
+    // Hoisting the target's host out of the loop and rejecting on it first cuts
+    // that to 31ms, and the expensive path then runs only for the handful of
+    // torrents that really do announce to this tracker.
+    const host = trackerHostKey(torrent.tracker)
+    if (host === null || host !== targetHost) return false
+
+    return resolveTorrentTracker(torrent, allTrackers)?.tracker.id === target.id
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Live fetch (requires encryption key)
 // ---------------------------------------------------------------------------
@@ -79,35 +144,37 @@ export async function fetchFleetTorrents(key: Buffer, filter?: string): Promise<
 }
 
 /**
- * Fetch and merge torrents across all enabled clients for a single tracker's tag.
+ * Fetch and merge torrents belonging to a single tracker across all enabled clients.
  * Used by the per-tracker torrent page.
+ *
+ * A missing qbtTag is no longer an error. Membership is decided here rather than
+ * by a qBT-side tag filter, so a tracker with no tag — or with a tag no torrent
+ * actually carries — still resolves its torrents by announce URL (issue #152).
  */
 export async function fetchTrackerTorrents(
   trackerId: number,
   key: Buffer,
   filter?: string
 ): Promise<{ result: MergedResult } | { error: string; status: number }> {
-  const [tracker] = await db
-    .select({ qbtTag: trackers.qbtTag })
-    .from(trackers)
-    .where(eq(trackers.id, trackerId))
-    .limit(1)
+  // Every tracker, not just the requested one: matching needs the full list to
+  // know when another tracker's tag has already claimed a torrent.
+  const [allTrackers, clients] = await Promise.all([
+    db.select(TRACKER_MATCH_COLUMNS).from(trackers),
+    db.select(FETCH_CLIENT_COLUMNS).from(downloadClients).where(eq(downloadClients.enabled, true)),
+  ])
 
-  if (!tracker) {
+  const target = allTrackers.find((t) => t.id === trackerId)
+  if (!target) {
     return { error: "Tracker not found", status: 404 }
   }
 
-  if (!tracker.qbtTag) {
-    return { error: "No qBittorrent tag configured for this tracker", status: 400 }
-  }
-
-  const clients = await db
-    .select(FETCH_CLIENT_COLUMNS)
-    .from(downloadClients)
-    .where(eq(downloadClients.enabled, true))
-
-  const tag = tracker.qbtTag.trim()
-  const result = await fetchAndMergeTorrents(clients, [tag], key, filter)
+  const result = await fetchAndMergeTorrents(
+    clients,
+    null,
+    key,
+    filter,
+    trackerTorrentMatcher(target, allTrackers)
+  )
   return { result }
 }
 
@@ -259,22 +326,18 @@ interface CachedTorrentResult {
 /**
  * Read cached torrent data for a single tracker from Postgres JSONB.
  * Used as fallback when live qBT connection fails.
+ *
+ * Like the live path, an untagged tracker is a valid request — membership falls
+ * through to announce matching.
  */
 export async function fetchTrackerTorrentsCached(
   trackerId: number
 ): Promise<{ result: CachedTorrentResult } | { error: string; status: number }> {
-  const [tracker] = await db
-    .select({ qbtTag: trackers.qbtTag })
-    .from(trackers)
-    .where(eq(trackers.id, trackerId))
-    .limit(1)
+  const allTrackers = await db.select(TRACKER_MATCH_COLUMNS).from(trackers)
 
-  if (!tracker) {
+  const target = allTrackers.find((t) => t.id === trackerId)
+  if (!target) {
     return { error: "Tracker not found", status: 404 }
-  }
-
-  if (!tracker.qbtTag) {
-    return { error: "No qBittorrent tag configured", status: 400 }
   }
 
   const clients = await db
@@ -294,7 +357,10 @@ export async function fetchTrackerTorrentsCached(
     }
   }
 
-  const tag = tracker.qbtTag.trim().toLowerCase()
+  // Same matcher the live path uses, so the two can't drift apart again.
+  // Cached rows carry the derived announce host rather than the raw URL, which
+  // trackerHostKey treats identically (it is idempotent).
+  const matchesTracker = trackerTorrentMatcher(target, allTrackers)
   const clientTorrents: { clientName: string; torrents: SlimTorrent[] }[] = []
   const crossSeedClients: { crossSeedTags: string[] }[] = []
   let oldestCacheAt: Date | null = null
@@ -303,7 +369,7 @@ export async function fetchTrackerTorrentsCached(
     const all = parseCachedTorrents(client.cachedTorrents)
     if (all.length === 0) continue
 
-    const filtered = all.filter((t) => parseTorrentTags(t.tags).includes(tag))
+    const filtered = all.filter(matchesTracker)
     if (filtered.length > 0) {
       clientTorrents.push({ clientName: client.name, torrents: filtered })
     }

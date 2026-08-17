@@ -22,6 +22,7 @@ import {
   CategoryCard,
   NoDownloadClientState,
   NoTagState,
+  NoTorrentsState,
   TorrentRankingTable,
   TorrentStatCards,
   UnsatisfiedTorrentsTable,
@@ -69,8 +70,28 @@ function TorrentsTab({
     return <TorrentTabSkeleton />
   }
 
-  if (!qbtTag) return <NoTagState trackerName={trackerName ?? "this tracker"} />
-  if (data.noClients) return <NoDownloadClientState />
+  const name = trackerName ?? "this tracker"
+
+  // `noClients` is derived from the resolved payload, so it also reads true when
+  // no payload resolved at all. Gate on the absence of an error so an offline
+  // client with no cache reports being offline instead of claiming none is set up.
+  if (data.noClients && !data.torrentError) return <NoDownloadClientState />
+
+  // A missing tag is no longer a dead end — torrents resolve by announce URL —
+  // so the empty states hang off "nothing matched", and which one shows depends
+  // on whether a tag was in play at all.
+  if (data.torrents.length === 0) {
+    return (
+      <div className="flex flex-col gap-6">
+        {data.torrentError && <Notice variant="warn" box message={data.torrentError} />}
+        {qbtTag ? (
+          <NoTorrentsState trackerName={name} qbtTag={qbtTag} />
+        ) : (
+          <NoTagState trackerName={name} />
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-8">
