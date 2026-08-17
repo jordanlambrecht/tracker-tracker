@@ -103,6 +103,39 @@ describe("parseCachedTorrents", () => {
     })
   })
 
+  // slimTorrentForCache now stores a derived announce host as `tracker` (issue #152).
+  // Rows written before that change have no such key, and they stay in the jsonb
+  // column until the scheduler's next successful deep poll rewrites them. They must
+  // keep parsing — isQbtTorrent spot-checks hash/name/state/size/ratio only, so the
+  // new field is not part of the validated shape in either direction.
+  describe("cached rows predating the stored announce host", () => {
+    it("parses an old row that has no tracker key at all", () => {
+      const { tracker: _omitted, ...oldRow } = VALID_TORRENT
+      expect(oldRow).not.toHaveProperty("tracker")
+
+      const result = parseCachedTorrents([oldRow])
+      expect(result).toHaveLength(1)
+      expect(result[0].hash).toBe("abc123def456")
+      // Attribution degrades to tag-only for this row rather than failing.
+      expect(result[0].tracker).toBeUndefined()
+    })
+
+    it("parses a mixed array of old and new rows", () => {
+      const { tracker: _omitted, ...oldRow } = VALID_TORRENT
+      const newRow = { ...VALID_TORRENT_2, tracker: "example.com" }
+
+      const result = parseCachedTorrents([oldRow, newRow])
+      expect(result).toHaveLength(2)
+    })
+
+    it("accepts a row carrying the derived host as its first element", () => {
+      const newRow = { ...VALID_TORRENT, tracker: "lst.gg" }
+      const result = parseCachedTorrents([newRow])
+      expect(result).toHaveLength(1)
+      expect(result[0].tracker).toBe("lst.gg")
+    })
+  })
+
   describe("valid JSON string", () => {
     it("parses a JSON string containing a valid torrent array", () => {
       const json = JSON.stringify([VALID_TORRENT])
