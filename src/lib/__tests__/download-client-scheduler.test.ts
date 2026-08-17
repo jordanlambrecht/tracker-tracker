@@ -8,10 +8,11 @@
 //   mockDbUpdateClient          - Sets up db.update chain for downloadClients
 
 import cron from "node-cron"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { db } from "@/lib/db"
 import {
   deepPollClient,
+  ensureClientSchedulerRunning,
   startClientScheduler,
   stopClientScheduler,
 } from "@/lib/download-client-scheduler"
@@ -21,6 +22,7 @@ import {
   createAdapterForClient,
   getFilteredTorrents,
   getStoreRevision,
+  isStoreInitialized,
 } from "@/lib/download-clients"
 import { clearFailureLogGate } from "@/lib/failure-log-gate"
 import { log } from "@/lib/logger"
@@ -207,6 +209,10 @@ describe("deepPollClient per-tag optimization", () => {
     mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 2048, downloadSpeed: 512 })
     mockAdapter.getTorrents.mockResolvedValue([])
+    // Default: the sync store came back initialised. resetAllMocks would
+    // otherwise leave this returning undefined, i.e. permanently "reset",
+    // which is the failure the mid-poll-reset tests below exercise on purpose.
+    vi.mocked(isStoreInitialized).mockReturnValue(true)
     // Gate state lives on globalThis, so it outlives resetAllMocks and leaks
     // between tests: without this, the failure tests below reuse client id 1
     // and the second one would exercise the cause-changed branch, not first.
@@ -628,6 +634,10 @@ describe("deepPollClient dedup without isPrivate", () => {
     mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 2048, downloadSpeed: 512 })
     mockAdapter.getTorrents.mockResolvedValue([])
+    // Default: the sync store came back initialised. resetAllMocks would
+    // otherwise leave this returning undefined, i.e. permanently "reset",
+    // which is the failure the mid-poll-reset tests below exercise on purpose.
+    vi.mocked(isStoreInitialized).mockReturnValue(true)
     clearFailureLogGate()
   })
 
@@ -735,6 +745,10 @@ describe("deepPollClient lastPolledAt written; heartbeat update does not include
     mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 2048, downloadSpeed: 512 })
     mockAdapter.getTorrents.mockResolvedValue([])
+    // Default: the sync store came back initialised. resetAllMocks would
+    // otherwise leave this returning undefined, i.e. permanently "reset",
+    // which is the failure the mid-poll-reset tests below exercise on purpose.
+    vi.mocked(isStoreInitialized).mockReturnValue(true)
     clearFailureLogGate()
   })
 
@@ -920,5 +934,283 @@ describe("heartbeat failure logging", () => {
     mockAdapter.getTransferInfo.mockRejectedValue(new Error(CONNECT_FAILURE))
     await heartbeatTick()
     expect(vi.mocked(log.error)).toHaveBeenCalledTimes(2)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Regression: snapshot retention. NULL means "keep forever".
+//
+// The client prune coerced a NULL snapshot_retention_days to the 90-day
+// default and ran an hourly rolling DELETE the user never configured, while
+// tracker-scheduler.ts gated the identical delete on a truthy value and so
+// kept everything. That one difference is why client_snapshots held nine
+// client-days while tracker_snapshots held 87 days over the same window.
+// ---------------------------------------------------------------------------
+
+describe("client snapshot pruning honours a NULL retention", () => {
+  const DEEP_POLL_CRON = "*/30 * * * * *"
+
+  let scheduled: Map<string, () => Promise<void>>
+  let deleteWhere: ReturnType<typeof vi.fn>
+
+  /** db.select answers the settings lookup; every other projection is empty. */
+  function mockSelectWithRetention(retention: number | null) {
+    ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(
+      (columns: Record<string, unknown>) => {
+        const cols = columns ?? {}
+        // The settings read is .from().limit() with no .where(), so it needs a
+        // different chain shape from the where-terminated loop queries.
+        if ("retention" in cols) {
+          return {
+            from: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([{ retention }]),
+            }),
+          }
+        }
+        return { from: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([]) }) }
+      }
+    )
+  }
+
+  /** Runs one deep-poll cron cycle, which is the only path that prunes. */
+  async function deepPollTick(): Promise<void> {
+    const tick = scheduled.get(DEEP_POLL_CRON)
+    expect(tick).toBeDefined()
+    await tick?.()
+  }
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-08-17T12:00:00Z"))
+    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
+    vi.mocked(flushCompletedBuckets).mockResolvedValue(0)
+
+    scheduled = new Map()
+    vi.mocked(cron.schedule).mockImplementation(((
+      expression: string,
+      task: () => Promise<void>
+    ) => {
+      scheduled.set(expression, task)
+      return { stop: vi.fn() }
+    }) as unknown as typeof cron.schedule)
+
+    stopClientScheduler()
+    clearFailureLogGate()
+
+    // The prune throttle and the in-flight latches live on globalThis, so they
+    // survive resetAllMocks and would otherwise skip the prune on later tests.
+    const gt = globalThis as Record<string, unknown>
+    gt.__lastPruneAt = undefined
+    gt.__deepPollInFlight = undefined
+    gt.__heartbeatInFlight = undefined
+
+    deleteWhere = vi.fn().mockResolvedValue(undefined)
+    ;(db.delete as ReturnType<typeof vi.fn>).mockReturnValue({ where: deleteWhere })
+    mockDbUpdateClient()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("issues no DELETE when snapshot retention is NULL", async () => {
+    mockSelectWithRetention(null)
+
+    startClientScheduler(makeEncryptionKey())
+    await vi.advanceTimersByTimeAsync(0)
+    await deepPollTick()
+
+    // NULL is "keep forever" — the value tracker-scheduler.ts treats as a
+    // no-op. Any delete here destroys history the user chose to retain.
+    expect(db.delete as ReturnType<typeof vi.fn>).not.toHaveBeenCalled()
+    expect(deleteWhere).not.toHaveBeenCalled()
+  })
+
+  it("still prunes when a retention window is configured", async () => {
+    mockSelectWithRetention(30)
+
+    startClientScheduler(makeEncryptionKey())
+    await vi.advanceTimersByTimeAsync(0)
+    await deepPollTick()
+
+    // Two deletes: clientSnapshots and clientUptimeBuckets.
+    expect(db.delete as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(2)
+    expect(deleteWhere).toHaveBeenCalledTimes(2)
+  })
+
+  it("advances the hourly prune throttle even when nothing is pruned", async () => {
+    mockSelectWithRetention(null)
+
+    startClientScheduler(makeEncryptionKey())
+    await vi.advanceTimersByTimeAsync(0)
+    await deepPollTick()
+    await deepPollTick()
+
+    // The settings row is read once per hour, not once per 30s tick, whether
+    // or not the gate below it fires.
+    const settingsReads = (db.select as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (call: unknown[]) => "retention" in ((call[0] ?? {}) as Record<string, unknown>)
+    )
+    expect(settingsReads).toHaveLength(1)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Regression: a poll that did not fully succeed must leave no trace of success
+// ---------------------------------------------------------------------------
+
+describe("deepPollClient durability", () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-08-17T12:00:00Z"))
+    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
+    mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
+    mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 2048, downloadSpeed: 512 })
+    mockAdapter.getTorrents.mockResolvedValue([])
+    vi.mocked(isStoreInitialized).mockReturnValue(true)
+    clearFailureLogGate()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  // The update and the insert used to race inside one Promise.all. When the
+  // insert lost, the update still committed, so lastPolledAt advanced and
+  // lastError cleared with no snapshot behind them: the client read as
+  // "just polled, healthy" and was not overdue again for a full interval.
+  it("does not advance lastPolledAt when the snapshot insert fails", async () => {
+    setupFullHappyPathMocks()
+    ;(db.insert as ReturnType<typeof vi.fn>).mockReturnValue({
+      values: vi.fn().mockRejectedValue(new Error("insert exploded")),
+    })
+    const { mockSet } = mockDbUpdateClient()
+
+    await expect(deepPollClient(1, makeEncryptionKey(), ["aither"])).resolves.toBeUndefined()
+
+    const setCalls = mockSet.mock.calls.map((c: unknown[]) => c[0] as Record<string, unknown>)
+    expect(setCalls.some((s) => "lastPolledAt" in s)).toBe(false)
+    expect(setCalls.some((s) => typeof s.lastError === "string")).toBe(true)
+  })
+
+  // A concurrent heartbeat that hits a 403 calls invalidateSession, which also
+  // calls resetStore. Landing between getStoreRevision and applyMaindataUpdate,
+  // it merges the delta into a cleared, uninitialised store — every read then
+  // returns [] and the poll "succeeds" while recording zero seeding torrents.
+  it("re-syncs from rid 0 when a delta lands on a store that was reset mid-poll", async () => {
+    mockDbSelectSequence(MOCK_CLIENT)
+    ;(getStoreRevision as ReturnType<typeof vi.fn>).mockReturnValue(5)
+    mockAdapter.getDeltaSync
+      .mockResolvedValueOnce({ rid: 6, fullUpdate: false, torrents: {}, torrentsRemoved: [] })
+      .mockResolvedValueOnce({ rid: 7, fullUpdate: true, torrents: {}, torrentsRemoved: [] })
+    vi.mocked(isStoreInitialized).mockReturnValueOnce(false).mockReturnValue(true)
+    ;(getFilteredTorrents as ReturnType<typeof vi.fn>).mockReturnValue([])
+    ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
+    const mockValues = mockDbInsertSnapshot()
+    mockDbUpdateClient()
+
+    await deepPollClient(1, makeEncryptionKey(), ["aither"])
+
+    expect(mockAdapter.getDeltaSync).toHaveBeenCalledTimes(2)
+    expect(mockAdapter.getDeltaSync).toHaveBeenNthCalledWith(2, 0)
+    // The snapshot is written from the re-synced store, not the empty one.
+    expect(mockValues).toHaveBeenCalledOnce()
+  })
+
+  it("writes no snapshot when the store cannot be re-initialised", async () => {
+    mockDbSelectSequence(MOCK_CLIENT)
+    ;(getStoreRevision as ReturnType<typeof vi.fn>).mockReturnValue(5)
+    mockAdapter.getDeltaSync.mockResolvedValue({
+      rid: 6,
+      fullUpdate: false,
+      torrents: {},
+      torrentsRemoved: [],
+    })
+    vi.mocked(isStoreInitialized).mockReturnValue(false)
+    ;(getFilteredTorrents as ReturnType<typeof vi.fn>).mockReturnValue([])
+    ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
+    const mockValues = mockDbInsertSnapshot()
+    const { mockSet } = mockDbUpdateClient()
+
+    await expect(deepPollClient(1, makeEncryptionKey(), ["aither"])).resolves.toBeUndefined()
+
+    // A row of zeros is worse than no row: it is a false observation the
+    // charts cannot distinguish from a genuinely idle client.
+    expect(mockValues).not.toHaveBeenCalled()
+    const setCalls = mockSet.mock.calls.map((c: unknown[]) => c[0] as Record<string, unknown>)
+    expect(setCalls.some((s) => typeof s.lastError === "string")).toBe(true)
+    expect(setCalls.some((s) => "lastPolledAt" in s)).toBe(false)
+  })
+
+  it("logs a gated warning instead of skipping silently when credentials are missing", async () => {
+    mockDbSelectSequence({
+      ...MOCK_CLIENT,
+      encryptedUsername: "",
+      encryptedPassword: "",
+    })
+
+    await deepPollClient(1, makeEncryptionKey(), ["aither"])
+
+    expect(createAdapterForClient).not.toHaveBeenCalled()
+    expect(vi.mocked(log.warn)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(log.warn).mock.calls[0][1]).toContain("credential")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Regression: the scheduler must recover from a half-started state
+// ---------------------------------------------------------------------------
+
+describe("client scheduler self-healing", () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.useFakeTimers()
+    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
+    vi.mocked(flushCompletedBuckets).mockResolvedValue(0)
+    stopClientScheduler()
+    clearFailureLogGate()
+    const gt = globalThis as Record<string, unknown>
+    gt.__lastPruneAt = undefined
+    gt.__deepPollInFlight = undefined
+    gt.__heartbeatInFlight = undefined
+    ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue([]),
+        limit: vi.fn().mockResolvedValue([]),
+      }),
+    }))
+    mockDbUpdateClient()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  // startClientScheduler registers the heartbeat task before the deep-poll
+  // task. A throw in between leaves the heartbeat alive and the deep poll
+  // dead, and both idempotency guards only looked at the heartbeat task — so
+  // every later ensure call returned early and the deep poll never came back.
+  it("restarts the deep poll when only the heartbeat task survived", async () => {
+    const registered: string[] = []
+    let recovered = false
+    vi.mocked(cron.schedule).mockImplementation(((expression: string) => {
+      if (expression === "*/30 * * * * *" && !recovered) {
+        throw new Error("cron registration failed")
+      }
+      registered.push(expression)
+      return { stop: vi.fn() }
+    }) as unknown as typeof cron.schedule)
+
+    expect(() => startClientScheduler(makeEncryptionKey())).toThrow("cron registration failed")
+    await vi.advanceTimersByTimeAsync(0)
+    expect(registered).toEqual(["*/5 * * * * *"])
+
+    recovered = true
+    ensureClientSchedulerRunning("ab".repeat(32))
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(registered).toContain("*/30 * * * * *")
   })
 })
