@@ -110,6 +110,12 @@ describe("ComparisonChart view mode against a real ECharts instance (issue #156)
         const lineStyle = s.lineStyle as { shadowColor?: unknown; shadowBlur?: unknown }
         expect(lineStyle.shadowColor).toBeFalsy()
         expect(lineStyle.shadowBlur).toBeFalsy()
+
+        // Nested one level down: emphasis merges as well, so an emphasis that
+        // omits lineStyle leaves the hover glow painted on the stacked view.
+        const emphasis = s.emphasis as { lineStyle?: { shadowColor?: unknown; shadowBlur?: unknown } }
+        expect(emphasis.lineStyle?.shadowColor).toBeFalsy()
+        expect(emphasis.lineStyle?.shadowBlur).toBeFalsy()
       }
     })
   })

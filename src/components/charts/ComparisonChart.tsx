@@ -302,9 +302,16 @@ function buildComparisonOption(
           shadowColor: useStacked ? undefined : tracker.color,
           shadowBlur: useStacked ? undefined : 8,
         },
-        emphasis: useStacked
-          ? { focus: "series" as const }
-          : { focus: "series" as const, lineStyle: { shadowBlur: 16, shadowColor: tracker.color } },
+        // Nested objects merge too, so the same rule applies one level down:
+        // an emphasis that omits lineStyle leaves the previous hover glow on
+        // the series rather than clearing it.
+        emphasis: {
+          focus: "series" as const,
+          lineStyle: {
+            shadowBlur: useStacked ? undefined : 16,
+            shadowColor: useStacked ? undefined : tracker.color,
+          },
+        },
       }
     })
   }
