@@ -144,6 +144,35 @@ const authBlocks = gBlocks.__qbtAuthBlocks
  * Non-reversible identifier for a credential pair. Only ever compared, never
  * logged or persisted — it exists so a credential edit is detectable without
  * holding the plaintext.
+ *
+ * ── SHA-256 IS CORRECT HERE. Do not "upgrade" this to a slow KDF. ──────────
+ * CodeQL flags this as "use of password hash with insufficient computational
+ * effort" and suggests PBKDF2. That alert has been reviewed and dismissed as a
+ * false positive; the rule is aimed at a threat model this code does not have.
+ *
+ * That rule protects CREDENTIAL STORAGE: you persist hash(password), an
+ * attacker steals the store, and brute-forces it offline. A slow KDF makes that
+ * expensive. None of that shape applies:
+ *
+ *   - The digest is a key in an in-memory Map (`authBlocks`) whose values are
+ *     error strings to replay. It is never persisted, never logged, never sent.
+ *   - It authenticates nobody. It answers one question — "are these the same
+ *     credentials that were just rejected?" — so a user who fixes a password is
+ *     not held by the circuit breaker.
+ *   - Anyone able to read that Map has this process's memory, where the
+ *     plaintext password already lives (login() builds it into a URLSearchParams
+ *     body a few lines below). The digest discloses nothing new.
+ *
+ * And the suggested fix has a real cost. blockKeyFor() runs inside qbtFetch(),
+ * which every qBittorrent API call passes through. Measured: SHA-256 is
+ * ~0.0026 ms/call, PBKDF2 at 210k iterations is ~31.8 ms — about 12,000x
+ * slower. That is ~32 ms of CPU added to every poll, permanently, to defend
+ * against an attacker who by construction already holds the plaintext.
+ *
+ * If this ever needs to satisfy the scanner, the right move is HMAC-SHA256 under
+ * a random per-process key (fast, and unbruteforceable even in principle — the
+ * Map does not outlive the process, so a per-process key loses nothing). NOT a
+ * slow KDF on a per-request path.
  */
 function credentialFingerprint(username: string, password: string): string {
   return createHash("sha256").update(`${username}\u0000${password}`).digest("hex")
