@@ -1,6 +1,7 @@
 // src/lib/tracker-matching.ts
 //
-// Functions: trackerHostKey, announceMatchesTracker, resolveTorrentTracker
+// Functions: trackerHostKey, announceMatchesTracker, createTrackedTorrentPredicate,
+//            resolveTorrentTracker
 //
 // Resolves a torrent to one of the user's trackers. Matching used to rely
 // solely on a qBittorrent tag, which silently dropped every torrent for users
@@ -90,6 +91,30 @@ interface MatchableTracker {
 interface MatchableTorrent {
   tags?: string | null
   tracker?: string | null
+}
+
+/**
+ * Build the "this torrent belongs to one of the user's trackers" filter, shared
+ * by the warm read in download-clients/coordinator.ts and the cache write in
+ * download-client-scheduler.ts. The two used to build it separately and drifted
+ * apart when announce-URL attribution landed: the scheduler still matched on
+ * tags alone, so an untagged torrent from a tracked site was in a warm result
+ * and missing from the cached one, and a cold start under-reported the fleet.
+ *
+ * `announceHostKeys` holds trackerHostKey() output, NOT raw base URLs — a full
+ * URL can never equal a reduced host key, so passing one degrades the predicate
+ * to tag-only matching without failing. An empty set is exactly the tag-only
+ * filter, which is what makes it safe to omit.
+ */
+export function createTrackedTorrentPredicate(
+  tagSet: ReadonlySet<string>,
+  announceHostKeys: ReadonlySet<string>
+): (torrent: MatchableTorrent) => boolean {
+  return (torrent) => {
+    if (torrent.tags && parseTorrentTags(torrent.tags).some((tag) => tagSet.has(tag))) return true
+    const host = trackerHostKey(torrent.tracker)
+    return host !== null && announceHostKeys.has(host)
+  }
 }
 
 /**

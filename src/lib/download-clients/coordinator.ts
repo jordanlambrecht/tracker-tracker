@@ -15,7 +15,11 @@ import { downloadClients, trackers } from "@/lib/db/schema"
 import { isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
 import { parseTorrentTags } from "@/lib/fleet"
 import { computeFleetAggregation, type FleetAggregation } from "@/lib/fleet-aggregation"
-import { resolveTorrentTracker, trackerHostKey } from "@/lib/tracker-matching"
+import {
+  createTrackedTorrentPredicate,
+  resolveTorrentTracker,
+  trackerHostKey,
+} from "@/lib/tracker-matching"
 import type { TagGroup } from "@/types/api"
 import { CLIENT_CONNECTION_COLUMNS } from "./credentials"
 import { createAdapterForClient } from "./factory"
@@ -257,11 +261,7 @@ export async function fetchFleetAggregation(
       .map((r) => trackerHostKey(r.baseUrl))
       .filter((h): h is string => h !== null)
   )
-  const tagPredicate = (t: TorrentRecord) => {
-    if (t.tags && parseTorrentTags(t.tags).some((tag) => tagSet.has(tag))) return true
-    const host = trackerHostKey(t.tracker)
-    return host !== null && knownAnnounceHosts.has(host)
-  }
+  const tagPredicate = createTrackedTorrentPredicate(tagSet, knownAnnounceHosts)
 
   const clientTorrents: { clientName: string; torrents: (TorrentRecord | SlimTorrent)[] }[] = []
   const clientErrors: string[] = []

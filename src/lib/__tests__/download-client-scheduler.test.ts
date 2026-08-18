@@ -6,6 +6,7 @@
 //   mockDbSelectSequence        - Chains db.select returns for client + tracker-tags lookups
 //   mockDbInsertSnapshot        - Sets up db.insert chain for clientSnapshots
 //   mockDbUpdateClient          - Sets up db.update chain for downloadClients
+//   setupCacheParityMocks       - Happy-path mocks that also capture insert and update payloads
 
 import cron from "node-cron"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -28,6 +29,7 @@ import {
 } from "@/lib/download-clients"
 import { clearFailureLogGate } from "@/lib/failure-log-gate"
 import { log } from "@/lib/logger"
+import { createTrackedTorrentPredicate } from "@/lib/tracker-matching"
 import { clearUptimeAccumulator, flushCompletedBuckets, recordHeartbeat } from "@/lib/uptime"
 
 // ---------------------------------------------------------------------------
@@ -733,6 +735,204 @@ describe("deepPollClient dedup without isPrivate", () => {
     expect(hashes).toContain("shared")
     expect(hashes).toContain("aither-only")
     expect(hashes).toContain("cross-only")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// The predicate both the cache write and the warm read now share
+// ---------------------------------------------------------------------------
+
+describe("createTrackedTorrentPredicate", () => {
+  const TAGS = new Set(["aither"])
+  const HOSTS = new Set(["example.org"])
+
+  it("keeps a torrent carrying a tracked tag regardless of its announce host", () => {
+    const isTracked = createTrackedTorrentPredicate(TAGS, HOSTS)
+
+    // Tag comparison is case-insensitive: parseTorrentTags lowercases, and the
+    // caller lowercases the set.
+    expect(isTracked({ tags: "Aither, cross-seed", tracker: "https://unknown.test/announce" })).toBe(
+      true
+    )
+  })
+
+  it("keeps an untagged torrent whose announce host belongs to a known tracker", () => {
+    const isTracked = createTrackedTorrentPredicate(TAGS, HOSTS)
+
+    // Announce hosts routinely carry a subdomain and a port the tracker's web
+    // URL does not — both sides reduce to example.org before comparison.
+    expect(isTracked({ tags: "", tracker: "https://tracker.example.org:2710/announce" })).toBe(true)
+  })
+
+  it("drops a torrent that matches neither a tag nor a known announce host", () => {
+    const isTracked = createTrackedTorrentPredicate(TAGS, HOSTS)
+
+    expect(isTracked({ tags: "untracked-tag", tracker: "https://elsewhere.test/announce" })).toBe(
+      false
+    )
+  })
+
+  it("degenerates to the tag-only filter when no announce hosts are known", () => {
+    const isTracked = createTrackedTorrentPredicate(TAGS, new Set())
+
+    // This is what makes deepPollClient's default-empty parameter safe.
+    expect(isTracked({ tags: "aither", tracker: "https://tracker.example.org/announce" })).toBe(true)
+    expect(isTracked({ tags: "", tracker: "https://tracker.example.org/announce" })).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Regression: the cached list must select the same torrents as the warm read,
+// while the stats list must not.
+//
+// coordinator.ts keeps a torrent that carries a tracked tag OR announces to a
+// known tracker host; the scheduler kept only the tagged ones and wrote that
+// narrower list to cachedTorrents, so a cold start under-reported the fleet.
+//
+// The stats list deliberately stays tag-only. aggregator.ts derives
+// totalSeedingCount and totalLeechingCount from every torrent it is handed, so
+// widening it would step both counts up on the first poll after upgrade and
+// leave a permanent break in the historical chart series.
+// ---------------------------------------------------------------------------
+
+describe("deepPollClient cold-start cache parity", () => {
+  const TAGGED_TORRENT = {
+    hash: "tagged",
+    name: "Tagged.mkv",
+    state: "uploading",
+    tags: "aither",
+    uploaded: 100,
+    downloaded: 50,
+    uploadSpeed: 100,
+    downloadSpeed: 0,
+    tracker: "https://aither.cc/announce",
+  }
+
+  // No recognised tag, but its announce host reduces to a tracker we know.
+  // uploaded/downloaded/name are populated on purpose: without them the torrent
+  // could never be checkpointed anyway and the checkpoint assertion below would
+  // pass whether or not the tag-only list stayed narrow.
+  const HOST_MATCHED_TORRENT = {
+    hash: "host-matched",
+    name: "Untagged.mkv",
+    state: "uploading",
+    tags: "",
+    uploaded: 200,
+    downloaded: 75,
+    uploadSpeed: 50,
+    downloadSpeed: 0,
+    tracker: "https://tracker.example.org:2710/announce",
+  }
+
+  const KNOWN_HOSTS = new Set(["example.org"])
+
+  /**
+   * Happy-path wiring that records what reached the DB. aggregateByTag stands
+   * in for the real aggregator by deriving its totals from the list it is given
+   * — a fixed return value would make the snapshot assertions vacuous.
+   * Both the snapshot and the checkpoint write go through the same db.insert
+   * mock, so they are told apart by payload shape: checkpoints are arrays.
+   */
+  function setupCacheParityMocks() {
+    mockDbSelectSequence(MOCK_CLIENT)
+    ;(getStoreRevision as ReturnType<typeof vi.fn>).mockReturnValue(0)
+    mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
+    ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
+    ;(getFilteredTorrents as ReturnType<typeof vi.fn>).mockImplementation(
+      (_url: string, pred: (t: unknown) => boolean) =>
+        [TAGGED_TORRENT, HOST_MATCHED_TORRENT].filter(pred)
+    )
+    ;(aggregateByTag as ReturnType<typeof vi.fn>).mockImplementation(
+      (torrents: { hash: string; uploadSpeed: number }[]) => ({
+        totalSeedingCount: torrents.length,
+        totalLeechingCount: 0,
+        uploadSpeedBytes: 0,
+        downloadSpeedBytes: 0,
+        tagStats: torrents.map((t) => ({
+          tag: t.hash,
+          seedingCount: 1,
+          leechingCount: 0,
+          uploadSpeed: t.uploadSpeed,
+          downloadSpeed: 0,
+        })),
+      })
+    )
+
+    const insertPayloads: unknown[] = []
+    ;(db.insert as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      values: vi.fn((payload: unknown) => {
+        insertPayloads.push(payload)
+        // The checkpoint write chains .onConflictDoNothing(); the snapshot
+        // write awaits the result of .values() directly.
+        return Object.assign(Promise.resolve(undefined), {
+          onConflictDoNothing: vi.fn().mockResolvedValue(undefined),
+        })
+      }),
+    }))
+
+    const updatePayloads: Record<string, unknown>[] = []
+    const mockWhere = vi.fn().mockResolvedValue(undefined)
+    const mockSet = vi.fn().mockImplementation((values: Record<string, unknown>) => {
+      updatePayloads.push(values)
+      return { where: mockWhere }
+    })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
+
+    return { insertPayloads, updatePayloads }
+  }
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
+    mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
+    mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 2048, downloadSpeed: 512 })
+    mockAdapter.getTorrents.mockResolvedValue([])
+    vi.mocked(isStoreInitialized).mockReturnValue(true)
+    clearFailureLogGate()
+  })
+
+  it("caches an announce-matched torrent that carries no tracked tag", async () => {
+    const { updatePayloads } = setupCacheParityMocks()
+
+    await deepPollClient(1, makeEncryptionKey(), ["aither"], KNOWN_HOSTS)
+
+    const cacheUpdate = updatePayloads.find((c) => "cachedTorrents" in c)
+    expect(cacheUpdate).toBeDefined()
+    // Matched by hash: slimTorrentForCache strips the announce URL before the
+    // list is written, so the field that earned it a place is gone by then.
+    const cached = cacheUpdate?.cachedTorrents as { hash: string }[]
+    expect(cached.map((t) => t.hash)).toEqual(["tagged", "host-matched"])
+  })
+
+  it("keeps the announce-matched torrent out of tag stats, fleet totals, and checkpoints", async () => {
+    const { insertPayloads } = setupCacheParityMocks()
+
+    await deepPollClient(1, makeEncryptionKey(), ["aither"], KNOWN_HOSTS)
+
+    const aggregated = vi.mocked(aggregateByTag).mock.calls[0][0] as { hash: string }[]
+    expect(aggregated.map((t) => t.hash)).toEqual(["tagged"])
+
+    const snapshot = insertPayloads.find((p) => !Array.isArray(p)) as Record<string, unknown>
+    expect(snapshot.totalSeedingCount).toBe(1)
+    expect(snapshot.totalLeechingCount).toBe(0)
+    expect(JSON.parse(snapshot.tagStats as string).map((s: { tag: string }) => s.tag)).toEqual([
+      "tagged",
+    ])
+
+    const checkpoints = insertPayloads.filter(Array.isArray).flat() as { hash: string }[]
+    expect(checkpoints.map((c) => c.hash)).toEqual(["tagged"])
+  })
+
+  it("caches only the tagged torrent when no announce hosts are supplied", async () => {
+    const { updatePayloads } = setupCacheParityMocks()
+
+    // Every other caller in this file omits the argument; that path must keep
+    // behaving exactly as it did before the predicate was shared.
+    await deepPollClient(1, makeEncryptionKey(), ["aither"])
+
+    const cacheUpdate = updatePayloads.find((c) => "cachedTorrents" in c)
+    const cached = cacheUpdate?.cachedTorrents as { hash: string }[]
+    expect(cached.map((t) => t.hash)).toEqual(["tagged"])
   })
 })
 

@@ -34,7 +34,7 @@
 // every 5s. Uptime recording is deliberately outside the gate: every attempt
 // is still made and still recorded, so the 5-minute buckets are unaffected.
 
-import { eq, isNotNull, lt, sql } from "drizzle-orm"
+import { eq, lt, sql } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
 import { db } from "@/lib/db"
 import {
@@ -68,6 +68,7 @@ import {
 import { parseTorrentTags } from "@/lib/fleet"
 import { localDateStr } from "@/lib/formatters"
 import { log } from "@/lib/logger"
+import { createTrackedTorrentPredicate, trackerHostKey } from "@/lib/tracker-matching"
 import { clearUptimeAccumulator, flushCompletedBuckets, recordHeartbeat } from "@/lib/uptime"
 
 /** Needed by heartbeatClient. Excludes large blobs like cachedTorrents */
@@ -256,7 +257,8 @@ async function heartbeatAllClients(encryptionKey: Buffer): Promise<void> {
 export async function deepPollClient(
   clientId: number,
   encryptionKey: Buffer,
-  trackerTags: string[]
+  trackerTags: string[],
+  announceHostKeys: ReadonlySet<string> = new Set()
 ): Promise<void> {
   const [client] = await db
     .select(DEEP_POLL_COLUMNS)
@@ -355,12 +357,28 @@ export async function deepPollClient(
 
     const stats = await adapter.getTransferInfo()
 
-    // Post-filter to only torrents carrying at least one app-tracked tag
+    // Two post-filters, deliberately, and they must stay two.
+    //
+    // `torrents` is tag-only and feeds aggregateByTag and the daily
+    // checkpoints. aggregator.ts derives totalSeedingCount and
+    // totalLeechingCount from every torrent handed to it, so widening this list
+    // would step both counts up on the first poll after an upgrade and put a
+    // permanent discontinuity in a historical chart series nobody can repair.
+    //
+    // `cacheable` also keeps torrents matched by announce host, because that is
+    // what the warm read in download-clients/coordinator.ts returns. While the
+    // scheduler filtered on tags alone, an untagged torrent from a tracked site
+    // was in a warm result and absent from the cached one, so a cold start
+    // under-reported the fleet.
     const tagSet = new Set(allTags.map((t) => t.toLowerCase()))
     const torrents = getFilteredTorrents(adapter.baseUrl, (t) => {
       if (!t.tags) return false
       return parseTorrentTags(t.tags).some((tag) => tagSet.has(tag))
     })
+    const cacheable = getFilteredTorrents(
+      adapter.baseUrl,
+      createTrackedTorrentPredicate(tagSet, announceHostKeys)
+    )
 
     const syncMsg = `[deep-poll] client=${clientId} → ${syncSummary}, ${torrents.length} relevant (${allTags.length} tags)`
     if (isFullSync) log.info(syncMsg)
@@ -398,8 +416,9 @@ export async function deepPollClient(
 
     const tagStatsResult = aggregateByTag(torrents, trackerTags, crossSeedTags)
 
-    // Cache the filtered torrent list for fallback when client is offline.
-    const sanitizedTorrents = torrents.map(slimTorrentForCache)
+    // Cache the wider list for fallback when the client is offline — see the
+    // two-list note above.
+    const sanitizedTorrents = cacheable.map(slimTorrentForCache)
     const now = new Date()
 
     // Sequenced, not raced. The snapshot row IS the observation; the
@@ -542,14 +561,20 @@ async function deepPollAllClients(encryptionKey: Buffer): Promise<void> {
 
   if (overdue.length === 0) return
 
-  // Fetch tracker tags once for the entire cycle (same for all clients)
-  const trackerTagRows = await db
-    .select({ qbtTag: trackers.qbtTag })
+  // Fetch trackers once for the entire cycle (same for all clients). Untagged
+  // trackers are read too: they contribute no tag, but their announce host is
+  // what lets the cached list match the warm read.
+  const trackerRows = await db
+    .select({ qbtTag: trackers.qbtTag, baseUrl: trackers.baseUrl })
     .from(trackers)
-    .where(isNotNull(trackers.qbtTag))
-  const trackerTags = trackerTagRows.map((r) => r.qbtTag as string)
+  const trackerTags = trackerRows.map((r) => r.qbtTag).filter((t): t is string => Boolean(t))
+  const announceHostKeys = new Set(
+    trackerRows.map((r) => trackerHostKey(r.baseUrl)).filter((h): h is string => h !== null)
+  )
 
-  await Promise.allSettled(overdue.map((c) => deepPollClient(c.id, encryptionKey, trackerTags)))
+  await Promise.allSettled(
+    overdue.map((c) => deepPollClient(c.id, encryptionKey, trackerTags, announceHostKeys))
+  )
 }
 
 // ---------------------------------------------------------------------------
