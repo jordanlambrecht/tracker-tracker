@@ -46,7 +46,7 @@ export const hawkeuno: TrackerRegistryEntry = {
   warningNote: "",
 
   // ── Flags ───────────────────────────────────────────────────────────
-  draft: true,
+  draft: false,
   supportsTransitPapers: false,
   profileUrlPattern: "",
 }
