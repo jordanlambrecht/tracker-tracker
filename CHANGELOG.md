@@ -1,5 +1,116 @@
 # Changelog
 
+## [2.10.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.8.9...v2.10.0) (2026-08-18)
+
+
+### Features
+
+- add Zenith, fix BTN, add IPTorrents & TorrentLeech adapters
+- **api:** allow blank qBittorrent credentials, add auth circuit breaker
+- **auth:** add a recovery CLI for a forgotten master password
+- **auth:** allow disabling the login lockout with an env var
+- **auth:** ask for a username after login when none is set
+- **auth:** can now auth into QBT via API key (thanks [@thund3rcracker](https://github.com/thund3rcracker))
+- **backups:** warn before a restore which credentials cannot be recovered
+- **charts:** show outage bands behind time-series charts
+- **dashboard:** issues [#37](https://github.com/jordanlambrecht/tracker-tracker/issues/37) [#38](https://github.com/jordanlambrecht/tracker-tracker/issues/38) [#47](https://github.com/jordanlambrecht/tracker-tracker/issues/47) [#48](https://github.com/jordanlambrecht/tracker-tracker/issues/48) [#103](https://github.com/jordanlambrecht/tracker-tracker/issues/103) and shared chart preferences
+- **fleet:** attribute torrents to trackers by announce URL, not tags alone
+- **settings:** add an About tab with project info and sponsor links
+- **settings:** ask about snapshot retention on first login, not at signup
+- **tracker-adapters:** support Hawke on its own API
+- **trackers:** add a Login Now button to the login deadline card
+- **trackers:** add a per-tracker credential vault
+- **trackers:** add IPTorrents and TorrentLeech credential UI and raise their token cap
+- **trackers:** add the BroadcasTheNet logo from their favicon and match its accent color
+- **trackers:** added outage bands
+- **trackers:** mark defunct trackers and refresh the list on archive
+- **trackers:** match torrents by announce URL when no qBittorrent tag applies
+- **trackers:** publish HawkeUno
+- **trackers:** separate zero active seeds from a thin ratio
+
+
+### Bug Fixes
+
+- **api:** compose the caller signal with the shared query timeout
+- **auth:** accept 204 No Content as successful qBittorrent login (5.2+)
+- **auth:** carry the API key through every credential lifecycle path
+- **auth:** don't latch a key when the 403 body is unreadable
+- **auth:** match QBT_SID_<port> cookie name for qBittorrent 5.2+
+- **auth:** parse Set-Cookie entries individually via getSetCookie()
+- **auth:** refuse a password change when the session key is stale
+- **auth:** use the server-assigned session cookie NAME, not hardcoded SID
+- **auth:** warn that a reset leaves other sessions holding the old key
+- **backups:** carry the retention prompt state through a restore
+- **backups:** stop a matching salt from being trusted as a valid key
+- **charts:** bucket candlestick days by local date, not UTC
+- **charts:** carry ratioIsInfinite on Snapshot so charts stop dropping the points
+- **charts:** clear stale log bounds when a log axis loses its data
+- **charts:** clear the stacked hover glow
+- **charts:** clear the stacked series keys when returning to lines
+- **charts:** group digits in tag group chart values
+- **charts:** rename the lines view-mode tab so it stops colliding with the averaging toggle
+- **charts:** stop offering a log axis for the signed buffer metric
+- **ci:** force @swc/helpers into the standalone bundle so the server can boot
+- **ci:** frozen lockfile bug
+- **ci:** get biome back to a clean exit
+- **dashboard:** make the All day range actually mean all history
+- **dashboard:** size the All bucket to the history that exists
+- **dashboard:** stop telling users with a connected client to connect one
+- **dashboard:** stop the legacy migration writing defaults over the server
+- **db-fleet:** attribute torrents by announce URL, as intended
+- **db-fleet:** cache the torrents the warm read returns
+- **db:** build the connection lazily so imports never throw
+- **deps:** bump echarts to 6.1.0 and echarts-gl to 2.1.0
+- **scheduler:** client history no longer randomly vanishes
+- **scheduler:** flush the uptime bucket before the scheduler stops
+- **scheduler:** log the raw failure cause so a client error is diagnosable from the logs
+- **scheduler:** stop a failing download client from flooding the logs
+- **security:** bump next to 16.3.0 to resolve CVE-2026-44573
+- **security:** raise postcss and socks-proxy-agent past their advisories
+- **security:** re-check every redirect hop when fetching avatars
+- **security:** refuse cross-origin redirects in html-fetch
+- **security:** restore esbuild pin under pnpm 11
+- **settings:** apply the shared username rules to PATCH /api/settings
+- **sidebar:** compute drag reorder against displayed order, not the raw cache
+- **tracker-adapters:** accept BTN's documented Title field and stop fabricating hitAndRuns
+- **tracker-adapters:** btn defensive optional fields + bigint precision
+- **tracker-adapters:** cache TorrentLeech sessions instead of logging in every poll
+- **tracker-adapters:** case-insensitive infinity and relative redirects
+- **tracker-adapters:** default UNIT3D auth to bearer instead of the api_token query param
+- **tracker-adapters:** derive ratio from byte totals
+- **tracker-adapters:** fall back to api_token auth when UNIT3D rejects bearer
+- **tracker-adapters:** handle unlimited UNIT3D buffer in the adapter, not parseBytes
+- **tracker-adapters:** handle zenith ∞ buffer + ipt 302 redirect
+- **tracker-adapters:** replace real account data in BTN test fixture with placeholders
+- **tracker-adapters:** round BTN freeleechTokens/seedbonus to int
+- **tracker-adapters:** route BTN through adapterFetch and stop reporting unverified fields
+- **tracker-adapters:** scope BTN rounding to freeleechTokens only, fix stale test
+- **trackers:** add up to date information on ReelFliX
+- **trackers:** correct seedpool capitalization
+- **trackers:** find a tracker's torrents without a qBittorrent tag
+- **trackers:** record a negative buffer instead of clamping it to zero
+- **trackers:** represent an infinite ratio as infinite instead of 0 or offline
+- **trackers:** restore seedpool lowercase display name
+- **trackers:** show a zero hit-and-run count instead of an em dash
+- **trackers:** show an infinite ratio as infinite on every surface
+- **trackers:** stop offering to resume polling on an archived tracker
+- **trackers:** take DigitalCore connectable from the profile endpoint
+- **trackers:** update DCC to correct abbreviation and name
+- **trackers:** use raw Authorization form for Redacted
+- **ui:** give collapsible section headers a heading and aria-expanded
+- **ui:** stop announcing a seedless tracker as critical
+
+
+### Refactoring
+
+- **api:** switch on the PATCH credential mode to clear a security-audit false positive
+- **auth:** share the credential fields and drop unused auth indirection
+- **backups:** name the download-client projection so it can be guarded
+- **db:** project tag-group columns and guard echarts-gl imports
+- **tracker-adapters:** extract the shared HTML fetch and cookie parsing
+- **tracker-adapters:** keep the BTN API host in the adapter
+- **tracker-adapters:** replace duplicated IPTorrents parse guards with a helper
+
 ## [2.9.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.8.9...v2.9.0) (2026-08-15)
 
 
