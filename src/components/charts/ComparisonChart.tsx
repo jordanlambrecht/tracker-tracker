@@ -285,12 +285,22 @@ function buildComparisonOption(
         smooth: true,
         symbol: useStacked ? "none" : "circle",
         symbolSize: dotSize,
-        ...(useStacked ? { stack: "total", areaStyle: { opacity: 0.7 }, step: false } : {}),
+        // Always emitted, never spread in conditionally: ChartECharts renders
+        // with notMerge false, and an ABSENT key does not clear a previously
+        // merged one — it leaves the old value painted. Spreading these in only
+        // while stacked is what left the chart stacked after switching back to
+        // lines (issue #156). `undefined` is the value that clears them.
+        stack: useStacked ? "total" : undefined,
+        areaStyle: useStacked ? { opacity: 0.7 } : undefined,
+        step: useStacked ? false : undefined,
         itemStyle: { color: tracker.color },
         lineStyle: {
           color: tracker.color,
           width: useStacked ? 1 : 2,
-          ...(useStacked ? {} : { shadowColor: tracker.color, shadowBlur: 8 }),
+          // Same merge rule in the other direction: omitting the glow while
+          // stacked would carry the line view's glow into the stacked view.
+          shadowColor: useStacked ? undefined : tracker.color,
+          shadowBlur: useStacked ? undefined : 8,
         },
         emphasis: useStacked
           ? { focus: "series" as const }

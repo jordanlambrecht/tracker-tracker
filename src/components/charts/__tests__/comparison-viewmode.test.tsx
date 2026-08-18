@@ -5,6 +5,7 @@
 
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import * as echarts from "echarts"
 import { describe, expect, it, vi } from "vitest"
 
 const optionSpy = vi.fn()
@@ -15,7 +16,7 @@ vi.mock("@/components/charts/lib/ChartECharts", () => ({
   },
 }))
 
-import { ComparisonChart } from "@/components/charts/ComparisonChart"
+import { buildComparisonOption, ComparisonChart } from "@/components/charts/ComparisonChart"
 
 const trackerData = [
   {
@@ -59,5 +60,65 @@ describe("ComparisonChart view mode (issue #156)", () => {
     const perTracker = screen.queryAllByText("Per-Tracker")
     expect(perTracker.length).toBeLessThanOrEqual(1)
   })
+})
 
+// The option-level assertion above passes even when the chart on screen is
+// still stacked: ECharts merges, so what matters is not what the new option
+// says but what survives the merge. These drive a real instance and read the
+// answer back off it. jsdom has no 2D canvas context, so the SVG renderer and
+// an explicit size are both required for init to produce a usable chart.
+describe("ComparisonChart view mode against a real ECharts instance (issue #156)", () => {
+  function optionFor(stacked: boolean) {
+    // biome-ignore lint/suspicious/noExplicitAny: fixture trimmed to what the chart reads
+    return buildComparisonOption("uploaded", trackerData as any, { stacked })
+  }
+
+  function withChart(run: (chart: echarts.ECharts) => void) {
+    const el = document.createElement("div")
+    document.body.appendChild(el)
+    const chart = echarts.init(el, null, { renderer: "svg", width: 400, height: 300 })
+    try {
+      run(chart)
+    } finally {
+      chart.dispose()
+      el.remove()
+    }
+  }
+
+  function mergedSeries(chart: echarts.ECharts) {
+    return (chart.getOption() as { series: Array<Record<string, unknown>> }).series
+  }
+
+  it("drops the stack and the filled area when switching stacked -> lines", () => {
+    withChart((chart) => {
+      chart.setOption(optionFor(true))
+      chart.setOption(optionFor(false), { notMerge: false })
+
+      for (const s of mergedSeries(chart)) {
+        expect(s.stack).toBeFalsy()
+        expect(s.areaStyle).toBeFalsy()
+      }
+    })
+  })
+
+  it("drops the line glow when switching lines -> stacked", () => {
+    withChart((chart) => {
+      chart.setOption(optionFor(false))
+      chart.setOption(optionFor(true), { notMerge: false })
+
+      for (const s of mergedSeries(chart)) {
+        const lineStyle = s.lineStyle as { shadowColor?: unknown; shadowBlur?: unknown }
+        expect(lineStyle.shadowColor).toBeFalsy()
+        expect(lineStyle.shadowBlur).toBeFalsy()
+      }
+    })
+  })
+
+  it("still reads as a changed option to ChartECharts' JSON.stringify guard", () => {
+    // defaultShouldSetOption skips setOption when the serialised options match,
+    // and JSON.stringify drops undefined-valued keys — so the clearing values
+    // alone are invisible to it. The toggle must differ elsewhere too or the
+    // fix above would never be applied.
+    expect(JSON.stringify(optionFor(true))).not.toBe(JSON.stringify(optionFor(false)))
+  })
 })
