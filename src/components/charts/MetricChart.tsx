@@ -146,11 +146,10 @@ function buildLineOption(
 
   // A log axis cannot represent 0 or negative values. ECharts drops those
   // points and, because yAxisAutoRange is skipped in log mode, the axis is
-  // left unbounded. This breaks the range. Pin the floor to the smallest value
+  // left unbounded. Pin the floor to the smallest value
   // actually plottable on a log scale.
   const positiveValues = data.map(([, v]) => v).filter((v) => v > 0)
-  const logRange =
-    useLog && positiveValues.length > 0 ? { min: Math.min(...positiveValues) } : {}
+  const logRange = useLog && positiveValues.length > 0 ? { min: Math.min(...positiveValues) } : {}
 
   const showSlider = snapshots.length >= 30
   const dataZoom: EChartsOption["dataZoom"] = showSlider
@@ -186,7 +185,9 @@ function buildLineOption(
       type: useLog ? "log" : "value",
       name: useLog ? `${unit} (log)` : unit,
       scale: true,
-      ...(useLog ? logRange : yAxisAutoRange({ allowNegative: config.allowNegative, baselineValue })),
+      ...(useLog
+        ? logRange
+        : yAxisAutoRange({ allowNegative: config.allowNegative, baselineValue })),
       nameTextStyle: {
         color: TERTIARY_COLOR,
         fontFamily: CHART_THEME.fontMono,
@@ -395,10 +396,7 @@ function MetricChart({
   const ratioValues = config
     ? snapshots.map((s) => config.getValue(s)).filter((v): v is number => v !== null && v > 0)
     : []
-  // Buffer is deliberately absent: it is a signed quantity (allowNegative) and
-  // a logarithm of a negative number is undefined, so the toggle produced a
-  // broken axis rather than a useful view (issue #36). The allowNegative guard
-  // keeps that true for any metric added later.
+
   const showLogToggle =
     (metric === "ratio" || metric === "seedbonus") && config?.allowNegative !== true
   const logScale = useLogScale(ratioValues, true)
@@ -410,7 +408,7 @@ function MetricChart({
   // An infinite ratio (uploads, zero downloads) crosses the wire as `ratio: null`
   // because JSON cannot carry Infinity. Infinity cannot be plotted on a linear
   // or log axis either. Every point was dropped and the chart rendered a bare
-  // grid indistinguishable from no data (issues #154, #172).
+  // grid indistinguishable from no data
   if (
     metric === "ratio" &&
     snapshots.every((s) => s.ratio === null) &&
@@ -440,7 +438,7 @@ function MetricChart({
   }
 
   // The daily-delta view buckets by calendar day onto a CATEGORY axis, where a
-  // band's epoch-millisecond bounds have no meaning and a sub-day outage cannot
+  // band's millisecond bounds have no meaning and a sub-day outage cannot
   // be honestly positioned inside a day-wide bar. It gets the band series with
   // nothing in it rather than no band series at all: ChartECharts renders in
   // merge mode, so switching metrics on a mounted chart would otherwise leave
@@ -481,7 +479,10 @@ function MetricChart({
         </div>
       )}
       <ChartECharts option={option} style={{ height, width: "100%" }} />
-      <OutageBandLegend bands={bands} />
+      <OutageBandLegend
+        bands={bands}
+        range={timeRangeOf(snapshots.map((s) => new Date(s.polledAt).getTime()))}
+      />
     </div>
   )
 }

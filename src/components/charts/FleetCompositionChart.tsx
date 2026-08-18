@@ -138,7 +138,7 @@ function FleetCompositionChart({ trackerData, height = 360 }: FleetCompositionCh
         )}
         style={{ height, width: "100%" }}
       />
-      <OutageBandLegend bands={outages} />
+      <OutageBandLegend bands={outages} range={polledAtRange(trackerData.flatMap((t) => t.snapshots))} />
     </div>
   )
 }

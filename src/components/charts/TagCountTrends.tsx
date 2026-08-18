@@ -173,7 +173,7 @@ function TagCountTrends({ snapshots, mode, height = 360 }: TagCountTrendsProps) 
   return (
     <div className="flex flex-col gap-1">
       <ChartECharts option={option} style={{ height, width: "100%" }} />
-      <OutageBandLegend bands={outages} />
+      <OutageBandLegend bands={outages} range={polledAtRange(snapshots)} />
     </div>
   )
 }

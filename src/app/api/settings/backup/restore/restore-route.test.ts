@@ -39,6 +39,7 @@ vi.mock("@/lib/db", () => ({
 // Sentinel objects so an insert/delete can be traced back to its table.
 vi.mock("@/lib/db/schema", () => ({
   appCoverageGaps: { __table: "app_coverage_gaps" },
+  trackerOutages: { __table: "tracker_outages" },
   // appLiveness is absent on purpose: restore must never touch it. See the
   // exclusion comment in backup.ts.
   appSettings: { id: "app_settings.id" },

@@ -279,9 +279,7 @@ function RatioStabilityChart({
   const logScale = useLogScale(allRatioValues)
 
   if (!hasEnoughData) {
-    // Distinguish "infinite ratio" from "no data". An EMA over Infinity is
-    // meaningless, so Infinity points are excluded. Saying "not enough data"
-    // about a fully-populated account with all-infinite ratios is wrong.
+    // Distinguish "infinite ratio" from "no data"
     const allInfinite =
       trackerData.length > 0 &&
       trackerData.every(
@@ -319,7 +317,10 @@ function RatioStabilityChart({
         )}
         style={{ height, width: "100%" }}
       />
-      <OutageBandLegend bands={outages} />
+      <OutageBandLegend
+        bands={outages}
+        range={polledAtRange(trackerData.flatMap((t) => t.snapshots))}
+      />
     </div>
   )
 }

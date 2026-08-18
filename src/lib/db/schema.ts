@@ -504,26 +504,6 @@ export const dbSizeHistory = pgTable(
   (table) => [uniqueIndex("uq_db_size_recorded_at").on(table.recordedAt)]
 )
 
-/**
- * The app's own liveness ledger. Exactly ONE row, ever.
- *
- * The catch-22 of "the app must be running to log that it is down" is resolved
- * by never logging downtime directly: the running app continuously stamps
- * `lastSeenAt`, and the next boot turns the distance between that stamp and now
- * into a CLOSED gap row. Downtime is measured, never inferred from missing data.
- *
- * `firstSeenAt` is the floor. Nothing before it is claimed as an outage. No gap
- * stretches back to 1970 just because the app was installed yesterday.
- *
- * `stoppedAt` is set by markAppStopped() on a clean shutdown. It only sharpens
- * the gap's start (the throttled `lastSeenAt` can lag by up to 30s) and labels
- * the reason. Reconciliation is fully correct with it left NULL, which is what a
- * crash, a `docker kill`, or a power loss leaves behind.
- *
- * DELIBERATELY EXCLUDED FROM BACKUPS. See the comment in backup.ts. A stale
- * `lastSeenAt` restored from a months-old backup would fabricate a months-long
- * outage on the next boot.
- */
 export const appLiveness = pgTable("app_liveness", {
   id: serial("id").primaryKey(),
   firstSeenAt: timestamp("first_seen_at").defaultNow().notNull(),
@@ -532,19 +512,9 @@ export const appLiveness = pgTable("app_liveness", {
 })
 
 /**
- * Windows during which the app was NOT collecting data, so a flat or empty
- * region of a chart has a recorded explanation instead of looking like real
- * zeroes.
+ * Windows during which the app was not collecting data
  *
- * CLOSED intervals only: an open-ended gap would band the present, and the
- * present is not an outage, it is simply not over yet.
- *
- * `reason` is diagnostic, not a display distinction. Every value draws the same
- * band:
- *   "shutdown" — markAppStopped() ran; a clean stop
- *   "unclean"  — the process vanished without marking; crash, kill, power loss
- *   "stalled"  — the process stayed alive but stopped collecting; lockdown,
- *                password change, restore, host sleep
+ * Only works on fully closed intervals.
  */
 export const appCoverageGaps = pgTable(
   "app_coverage_gaps",
@@ -562,7 +532,33 @@ export const appCoverageGaps = pgTable(
   ]
 )
 
-// ── Named type exports ──────────────────────────────────────────────
+/**
+ * trackerOutages
+ *
+ * Windows during which a specific tracker could not be polled, so a flat or
+ * empty stretch of that tracker's chart has a recorded explanation instead of
+ * reading as real zeroes.
+ */
+export const trackerOutages = pgTable(
+  "tracker_outages",
+  {
+    id: serial("id").primaryKey(),
+    trackerId: integer("tracker_id")
+      .references(() => trackers.id, { onDelete: "cascade" })
+      .notNull(),
+    startedAt: timestamp("started_at").notNull(),
+    endedAt: timestamp("ended_at").notNull(),
+    reason: varchar("reason", { length: 20 }).notNull(),
+  },
+  (table) => [
+    index("idx_tracker_outages_tracker_started").on(table.trackerId, table.startedAt),
+    // Serves the retention prune, which keys on endedAt so an outage straddling
+    // the cutoff outlives it. See pruneTrackerOutages in tracker-outages.ts.
+    index("idx_tracker_outages_ended").on(table.endedAt),
+  ]
+)
+
+// ── type exports ──────────────────────────────────────────────
 export type AppSettingsRow = typeof appSettings.$inferSelect
 export type TrackerRow = typeof trackers.$inferSelect
 export type TrackerSnapshotRow = typeof trackerSnapshots.$inferSelect
@@ -581,3 +577,4 @@ export type TorrentDailyCheckpointRow = typeof torrentDailyCheckpoints.$inferSel
 export type DbSizeHistoryRow = typeof dbSizeHistory.$inferSelect
 export type AppLivenessRow = typeof appLiveness.$inferSelect
 export type AppCoverageGapRow = typeof appCoverageGaps.$inferSelect
+export type TrackerOutageRow = typeof trackerOutages.$inferSelect

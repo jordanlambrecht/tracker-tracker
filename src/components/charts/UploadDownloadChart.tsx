@@ -204,7 +204,7 @@ function UploadDownloadChart({
         )}
         style={{ height, width: "100%" }}
       />
-      <OutageBandLegend bands={outages} />
+      <OutageBandLegend bands={outages} range={polledAtRange(snapshots)} />
     </div>
   )
 }

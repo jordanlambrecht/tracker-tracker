@@ -213,7 +213,7 @@ function SpeedHistoryChart({ snapshots, height = 360 }: SpeedHistoryChartProps) 
   return (
     <div className="flex flex-col gap-1">
       <ChartECharts option={option} style={{ height, width: "100%" }} />
-      <OutageBandLegend bands={bands} />
+      <OutageBandLegend bands={bands} range={range} />
     </div>
   )
 }

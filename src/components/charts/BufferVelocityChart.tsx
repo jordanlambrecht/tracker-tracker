@@ -123,13 +123,13 @@ function buildBufferVelocityOption(
 
   if (sortedDays.length === 0) return {}
 
-  // Convert ISO day strings to noon timestamps to avoid timezone boundary issues
+  // Convert ISO to noon timestamps to avoid timezone boundary issues
   const dayTimestamps = new Map<string, number>()
   for (const day of sortedDays) {
     dayTimestamps.set(day, new Date(`${day}T12:00:00`).getTime())
   }
 
-  // Determine unit (GiB vs TiB) based on max absolute velocity
+  // Determine unit (GB vs TB) based on max absolute velocity
   let maxAbsVal = 0
   for (const t of computed) {
     for (const v of t.velocities) {
@@ -152,8 +152,7 @@ function buildBufferVelocityOption(
     }
 
     const data: (
-      | [number, number]
-      | { value: [number, number]; itemStyle: object; symbolSize: number }
+      [number, number] | { value: [number, number]; itemStyle: object; symbolSize: number }
     )[] = []
     for (const day of sortedDays) {
       const v = dayVelocityMap.get(day)
@@ -315,8 +314,7 @@ function BufferVelocityChart({ trackerData, height = 320 }: BufferVelocityChartP
 
   const hasEnoughData = computed.some((t) => t.days.length >= 1)
 
-  // Velocity is signed by nature. A shrinking buffer is the whole point of this
-  // chart. A log axis cannot represent a non-positive value, so once any velocity
+  // A log axis cannot represent a non-positive value, so once any velocity
   // is <= 0 the toggle is withheld rather than letting the user force an axis that
   // silently erases losing days. The buffer candlestick and MetricChart (issue #36)
   // use the same guard.
@@ -370,7 +368,10 @@ function BufferVelocityChart({ trackerData, height = 320 }: BufferVelocityChartP
         )}
         style={{ height, width: "100%" }}
       />
-      <OutageBandLegend bands={outages} />
+      <OutageBandLegend
+        bands={outages}
+        range={polledAtRange(trackerData.flatMap((t) => t.snapshots))}
+      />
     </div>
   )
 }

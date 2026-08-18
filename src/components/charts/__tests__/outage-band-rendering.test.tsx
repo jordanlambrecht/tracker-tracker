@@ -1,11 +1,4 @@
 // src/components/charts/__tests__/outage-band-rendering.test.tsx
-//
-// End-to-end for the render path: a recorded gap reaches the ECharts option as
-// a markArea, an UNKNOWN window reaches it as nothing, the toggle empties it,
-// and a tracker-sourced chart never receives a download-client band.
-//
-// These drive the REAL context rather than a mocked hook, so the scoping rule
-// is exercised through the same code the app runs.
 
 import { render, screen } from "@testing-library/react"
 import type { ReactNode } from "react"
@@ -32,9 +25,10 @@ const DAY1 = "2026-08-01T00:00:00.000Z"
 const DAY2 = "2026-08-02T00:00:00.000Z"
 const DAY3 = "2026-08-03T00:00:00.000Z"
 
-// A gap wholly inside the plotted range, so cropping can never be what removes it.
+// A gap fully inside the plotted range
 const APP_GAP = { start: Date.parse(DAY1) + 3_600_000, end: Date.parse(DAY1) + 7_200_000 }
 const QBT_GAP = { start: Date.parse(DAY2) + 3_600_000, end: Date.parse(DAY2) + 7_200_000 }
+const TRACKER_GAP = { start: Date.parse(DAY3) - 7_200_000, end: Date.parse(DAY3) - 3_600_000 }
 
 function snap(polledAt: string): Snapshot {
   return {
@@ -78,6 +72,7 @@ const BOTH_RECORDED: OutageBandsValue = {
   enabled: true,
   app: [APP_GAP],
   allDown: [QBT_GAP],
+  tracker: [TRACKER_GAP],
 }
 
 function withBands(value: OutageBandsValue, children: ReactNode) {
@@ -92,8 +87,8 @@ interface BandSeries {
   markArea?: { data?: Array<[MarkAreaPoint, MarkAreaPoint]> }
 }
 
-/** markArea spans on the last rendered option, for one band kind. */
-function drawn(kind: "app" | "qbt"): Array<[MarkAreaPoint, MarkAreaPoint]> {
+/** markArea spans on the last rendered option*/
+function drawn(kind: "app" | "qbt" | "tracker"): Array<[MarkAreaPoint, MarkAreaPoint]> {
   const option = optionSpy.mock.calls.at(-1)?.[0] as { series?: BandSeries[] }
   const series = option?.series?.find((s) => s.id === `tt-outage-band-${kind}`)
   if (!series) throw new Error(`no ${kind} band series in the rendered option`)
@@ -117,26 +112,54 @@ describe("outage bands on a tracker-sourced chart (MetricChart)", () => {
     expect(drawn("qbt")).toEqual([])
   })
 
+  it("draws a band for a recorded tracker outage", () => {
+    optionSpy.mockClear()
+    render(withBands(BOTH_RECORDED, <MetricChart metric="ratio" snapshots={SNAPSHOTS} />))
+
+    expect(drawn("tracker")).toEqual([[{ xAxis: TRACKER_GAP.start }, { xAxis: TRACKER_GAP.end }]])
+  })
+
+  it("emits the tracker band series even with nothing to draw", () => {
+    // ChartECharts renders in merge mode, where a series omitted from the next
+    // option stays painted from the previous one. Navigating from a tracker
+    // page to the dashboard must empty this series, never drop it.
+    optionSpy.mockClear()
+    render(
+      withBands(
+        { enabled: true, app: [], allDown: [], tracker: [] },
+        <MetricChart metric="ratio" snapshots={SNAPSHOTS} />
+      )
+    )
+
+    expect(drawn("tracker")).toEqual([])
+  })
+
   it("draws nothing for an UNKNOWN window", () => {
     // Nothing recorded means nothing observed. That is not "healthy", and it
     // gets no band and no legend note.
     optionSpy.mockClear()
     render(
       withBands(
-        { enabled: true, app: [], allDown: [] },
+        { enabled: true, app: [], allDown: [], tracker: [] },
         <MetricChart metric="ratio" snapshots={SNAPSHOTS} />
       )
     )
 
     expect(drawn("app")).toEqual([])
     expect(drawn("qbt")).toEqual([])
+    expect(drawn("tracker")).toEqual([])
   })
 
   it("hides the bands when the toggle is off, without removing the series", () => {
-    // Removing the series would not remove the bands: ChartECharts renders in
+    // Removing the series would not remove the bands. ChartECharts renders in
     // merge mode, where an omitted series stays painted.
     optionSpy.mockClear()
-    render(withBands({ ...BOTH_RECORDED, enabled: false }, <MetricChart metric="ratio" snapshots={SNAPSHOTS} />))
+    render(
+      withBands(
+        { ...BOTH_RECORDED, enabled: false },
+        <MetricChart metric="ratio" snapshots={SNAPSHOTS} />
+      )
+    )
 
     expect(drawn("app")).toEqual([])
     expect(drawn("qbt")).toEqual([])
@@ -154,7 +177,7 @@ describe("outage bands on a tracker-sourced chart (MetricChart)", () => {
   })
 
   it("draws nothing on the day-bucketed delta view, whose x axis is categorical", () => {
-    // A sub-day outage cannot be honestly positioned inside a day-wide bar.
+    // A sub-day outage cannot be honestly positioned inside a day-wide bar
     optionSpy.mockClear()
     render(withBands(BOTH_RECORDED, <MetricChart metric="dailyDelta" snapshots={SNAPSHOTS} />))
 
@@ -172,14 +195,29 @@ describe("outage bands on a qBT-sourced chart (SpeedHistoryChart)", () => {
     expect(drawn("qbt")).toEqual([[{ xAxis: QBT_GAP.start }, { xAxis: QBT_GAP.end }]])
   })
 
+  it("never draws a tracker band, even when one is recorded", () => {
+    // The mirror of the rule on the tracker chart. A tracker being unreachable
+    // says nothing about the torrents sitting in a download client. This is also
+    // why tracker and qBT bands can never co-render, which is what lets them
+    // share a hatch angle without becoming indistinguishable.
+    optionSpy.mockClear()
+    render(withBands(BOTH_RECORDED, <SpeedHistoryChart snapshots={FLEET} />))
+
+    expect(drawn("tracker")).toEqual([])
+  })
+
   it("draws nothing for an UNKNOWN window", () => {
     optionSpy.mockClear()
     render(
-      withBands({ enabled: true, app: [], allDown: [] }, <SpeedHistoryChart snapshots={FLEET} />)
+      withBands(
+        { enabled: true, app: [], allDown: [], tracker: [] },
+        <SpeedHistoryChart snapshots={FLEET} />
+      )
     )
 
     expect(drawn("app")).toEqual([])
     expect(drawn("qbt")).toEqual([])
+    expect(drawn("tracker")).toEqual([])
   })
 })
 
@@ -188,6 +226,7 @@ describe("the legend", () => {
     render(withBands(BOTH_RECORDED, <MetricChart metric="ratio" snapshots={SNAPSHOTS} />))
 
     expect(screen.getByText("App not running")).toBeInTheDocument()
+    expect(screen.getByText("Tracker unreachable")).toBeInTheDocument()
     // The tracker chart never draws a qBT band, so it must never explain one.
     expect(screen.queryByText("Download client unreachable")).not.toBeInTheDocument()
   })
@@ -197,12 +236,45 @@ describe("the legend", () => {
 
     expect(screen.getByText("App not running")).toBeInTheDocument()
     expect(screen.getByText("Download client unreachable")).toBeInTheDocument()
+    // ...and never names a band it did not draw.
+    expect(screen.queryByText("Tracker unreachable")).not.toBeInTheDocument()
+  })
+
+  it("does NOT name a kind whose band was cropped out of the visible range", () => {
+    const ancient = {
+      start: Date.parse(DAY1) - 90 * 86_400_000,
+      end: Date.parse(DAY1) - 89 * 86_400_000,
+    }
+    render(
+      withBands(
+        { enabled: true, app: [ancient], allDown: [], tracker: [ancient] },
+        <MetricChart metric="ratio" snapshots={SNAPSHOTS} />
+      )
+    )
+
+    expect(screen.queryByText("App not running")).not.toBeInTheDocument()
+    expect(screen.queryByText("Tracker unreachable")).not.toBeInTheDocument()
+    expect(screen.queryByTestId("outage-band-legend")).not.toBeInTheDocument()
+  })
+
+  it("still names a kind that is only PARTLY in range", () => {
+    // Cropping must not become over-eager: a band straddling the left edge is
+    // drawn, so it must also be explained.
+    const straddling = { start: Date.parse(DAY1) - 86_400_000, end: Date.parse(DAY1) + 3_600_000 }
+    render(
+      withBands(
+        { enabled: true, app: [straddling], allDown: [], tracker: [] },
+        <MetricChart metric="ratio" snapshots={SNAPSHOTS} />
+      )
+    )
+
+    expect(screen.getByText("App not running")).toBeInTheDocument()
   })
 
   it("says nothing at all for an UNKNOWN window", () => {
     render(
       withBands(
-        { enabled: true, app: [], allDown: [] },
+        { enabled: true, app: [], allDown: [], tracker: [] },
         <MetricChart metric="ratio" snapshots={SNAPSHOTS} />
       )
     )
@@ -211,17 +283,13 @@ describe("the legend", () => {
   })
 
   it("disappears with the bands when the toggle is off", () => {
-    render(
-      withBands({ ...BOTH_RECORDED, enabled: false }, <SpeedHistoryChart snapshots={FLEET} />)
-    )
+    render(withBands({ ...BOTH_RECORDED, enabled: false }, <SpeedHistoryChart snapshots={FLEET} />))
 
     expect(screen.queryByTestId("outage-band-legend")).not.toBeInTheDocument()
   })
 
   it("adds no focusable element — the bands are decoration, not a control", () => {
-    const { container } = render(
-      withBands(BOTH_RECORDED, <SpeedHistoryChart snapshots={FLEET} />)
-    )
+    const { container } = render(withBands(BOTH_RECORDED, <SpeedHistoryChart snapshots={FLEET} />))
     const legend = screen.getByTestId("outage-band-legend")
 
     expect(legend.querySelectorAll("button, a, input, [tabindex]")).toHaveLength(0)

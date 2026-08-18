@@ -17,6 +17,7 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/db/schema", () => ({
   appCoverageGaps: {},
+  trackerOutages: {},
   // appLiveness is absent on purpose — see the exclusion test below.
   appSettings: {},
   trackers: {},
@@ -502,6 +503,16 @@ describe("app liveness ledger exclusion", () => {
     const payload = await generateBackupPayload()
     expect(payload).toHaveProperty("appCoverageGaps")
     expect(payload.manifest.counts).toHaveProperty("appCoverageGaps")
+  })
+
+  it("DOES carry tracker_outages, for exactly the same reason", async () => {
+    // tracker_outages FKs to trackers with ON DELETE CASCADE, so a restore wipes
+    // it and re-inserts the snapshots it explained. Omitting it from the backup
+    // hands back the flat stretches with every explanation gone — permanently,
+    // because the rows are not recoverable from anywhere else.
+    const payload = await generateBackupPayload()
+    expect(payload).toHaveProperty("trackerOutages")
+    expect(payload.manifest.counts).toHaveProperty("trackerOutages")
   })
 })
 

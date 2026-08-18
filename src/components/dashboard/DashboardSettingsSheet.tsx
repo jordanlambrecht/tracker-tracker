@@ -59,8 +59,6 @@ interface DashboardSettingsSheetProps {
   onClose: () => void
   /**
    * The dashboard's single useChartPreferences instance, shared with the analytics grid.
-   * Required rather than optional: every write serialises the whole preferences object, so
-   * a second instance here would revert whatever the grid had just stored.
    */
   chartPrefs: ReturnType<typeof useChartPreferences>
   dashSettings?: ReturnType<typeof useDashboardSettings>

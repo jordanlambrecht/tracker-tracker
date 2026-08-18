@@ -9,6 +9,8 @@
 //   - absence of evidence draws nothing at all
 //   - bands are clamped to what could be observed, and never to the open present
 //   - anything under 5 minutes is dropped
+//   - tracker-down is positive evidence too, and yields to a recorded app gap by
+//     the same subtraction qBT does
 
 import { describe, expect, it } from "vitest"
 import {
@@ -196,11 +198,113 @@ function bands(
     window: WIDE,
     appGaps: [],
     clients: [],
+    trackerOutages: [],
     appCoverage: WIDE,
     qbtCoverage: WIDE,
     ...overrides,
   })
 }
+
+describe("computeOutageBands — tracker bands", () => {
+  it("draws a recorded tracker outage", () => {
+    expect(fmt(bands({ trackerOutages: [span(0, 30)] }).tracker)).toBe("0-30")
+  })
+
+  it("draws nothing when none was recorded — UNKNOWN, not healthy", () => {
+    // The circuit breaker stops polling after four failures, so the pause that
+    // follows arrives here as an absence. It must stay blank rather than
+    // inheriting a band nobody observed.
+    expect(bands().tracker).toEqual([])
+  })
+
+  it("leaves a chart with no trackerId scope completely unbanded", () => {
+    // The dashboard never sends a trackerId, so this arm is always [] there.
+    expect(bands({ appGaps: [span(0, 30)] }).tracker).toEqual([])
+  })
+
+  it("drops a zero-length row, which is what a lone failure records", () => {
+    expect(bands({ trackerOutages: [{ start: m(0), end: m(0) }] }).tracker).toEqual([])
+  })
+
+  it("drops an outage under five minutes", () => {
+    expect(bands({ trackerOutages: [{ start: m(0), end: m(5) - 1 }] }).tracker).toEqual([])
+  })
+
+  it("keeps an outage of exactly five minutes", () => {
+    expect(fmt(bands({ trackerOutages: [span(0, 5)] }).tracker)).toBe("0-5")
+  })
+
+  it("YIELDS ENTIRELY to an app gap that swallows it — app outage always wins", () => {
+    // Nothing was polling, so the tracker's reachability was not observed. The
+    // narrower claim is REMOVED, not painted under.
+    const result = bands({ appGaps: [span(0, 60)], trackerOutages: [span(10, 40)] })
+    expect(result.tracker).toEqual([])
+    expect(fmt(result.app)).toBe("0-60")
+  })
+
+  it("keeps the part of an outage that lies outside the app gap", () => {
+    const result = bands({ appGaps: [span(0, 30)], trackerOutages: [span(10, 90)] })
+    expect(fmt(result.tracker)).toBe("30-90")
+  })
+
+  it("subtracts BEFORE the minimum-duration filter, so a sliver does not survive", () => {
+    // 0-34 minus 0-30 leaves four minutes. Filtering first would have kept the
+    // whole 34-minute span and then drawn a four-minute remnant.
+    const result = bands({ appGaps: [span(0, 30)], trackerOutages: [span(0, 34)] })
+    expect(result.tracker).toEqual([])
+  })
+
+  it("draws nothing at all when the app ledger has never been written", () => {
+    // The app's poller is the only thing that ever observed this tracker, so
+    // outside what that ledger can speak for there is no claim to make.
+    expect(bands({ trackerOutages: [span(0, 30)], appCoverage: null }).tracker).toEqual([])
+  })
+
+  it("clamps to firstSeenAt — history before instrumentation is never banded", () => {
+    const result = bands({ trackerOutages: [span(-100, 30)], appCoverage: span(0, 600) })
+    expect(fmt(result.tracker)).toBe("0-30")
+  })
+
+  it("merges two adjacent rows into one band", () => {
+    // Consecutive failures can land in separate rows across a restart. They are
+    // one outage, not two.
+    const result = bands({ trackerOutages: [span(0, 15), span(15, 30)] })
+    expect(fmt(result.tracker)).toBe("0-30")
+  })
+
+  it("crops to the visible window LAST, so a long outage still shows its edge", () => {
+    const result = bands({
+      window: span(0, 120),
+      trackerOutages: [span(-600, 2)],
+      appCoverage: span(-1000, 600),
+    })
+    expect(fmt(result.tracker)).toBe("0-2")
+  })
+
+  it("is independent of qBT evidence in both directions", () => {
+    // A tracker outage must not imply a client one, nor be implied by it.
+    const clientDown = bands({
+      clients: [{ clientId: 1, buckets: buckets(0, [[0, 3], [0, 3]]) }],
+    })
+    expect(clientDown.tracker).toEqual([])
+    expect(fmt(clientDown.allDown)).toBe("0-10")
+
+    const trackerDown = bands({ trackerOutages: [span(0, 30)] })
+    expect(trackerDown.allDown).toEqual([])
+    expect(fmt(trackerDown.tracker)).toBe("0-30")
+  })
+
+  it("returns an empty tracker arm for an unusable window", () => {
+    expect(computeOutageBands({
+      window: { start: m(10), end: m(10) },
+      appGaps: [],
+      clients: [],
+      trackerOutages: [span(0, 30)],
+      appCoverage: WIDE,
+      qbtCoverage: WIDE,
+    }).tracker).toEqual([])
+  })
+})
 
 describe("computeOutageBands — app bands", () => {
   it("draws a recorded gap", () => {
@@ -360,6 +464,7 @@ describe("computeOutageBands — clamping and the window", () => {
       window: span(0, 120),
       appGaps: [span(-600, 2)],
       clients: [],
+      trackerOutages: [],
       appCoverage: span(-1000, 600),
       qbtCoverage: null,
     })
@@ -371,6 +476,7 @@ describe("computeOutageBands — clamping and the window", () => {
       window: span(0, 120),
       appGaps: [{ start: m(-4), end: m(-4) + MIN_BAND_MS - 1 }],
       clients: [],
+      trackerOutages: [],
       appCoverage: span(-1000, 600),
       qbtCoverage: null,
     })
@@ -382,6 +488,7 @@ describe("computeOutageBands — clamping and the window", () => {
       window: span(0, 120),
       appGaps: [],
       clients: [],
+      trackerOutages: [],
       appCoverage: span(-600, 60),
       qbtCoverage: null,
     })
@@ -393,6 +500,7 @@ describe("computeOutageBands — clamping and the window", () => {
       window: span(200, 300),
       appGaps: [],
       clients: [],
+      trackerOutages: [],
       appCoverage: span(-600, 60),
       qbtCoverage: null,
     })
@@ -404,6 +512,7 @@ describe("computeOutageBands — clamping and the window", () => {
       window: span(100, 0),
       appGaps: [span(0, 60)],
       clients: [],
+      trackerOutages: [],
       appCoverage: WIDE,
       qbtCoverage: WIDE,
     })

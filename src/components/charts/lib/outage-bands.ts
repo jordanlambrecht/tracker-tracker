@@ -1,45 +1,6 @@
 // src/components/charts/lib/outage-bands.ts
 //
 // Turns recorded outage intervals into the hatched background bands drawn
-// behind a time-series chart, so a flat or empty stretch has a visible reason
-// instead of reading as real zeroes.
-//
-// The interval MATH lives in @/lib/outages and the coverage POLICY lives in
-// /api/uptime/outages. This module is presentation only: it never decides
-// whether an outage happened, only how an already-decided one is painted.
-//
-// ── Why a separate, nameless series ─────────────────────────────────────────
-// The bands ride on their own series rather than on `markArea` of a data
-// series, because a markArea attached to a real series disappears the moment
-// that series is toggled off in the legend. On a multi-tracker chart, hiding
-// one tracker would delete the explanation for all of them.
-//
-// The series is deliberately nameless. ECharts' legend only lists series whose
-// name was explicitly specified (`isNameSpecified`, util/model.js), so an
-// unnamed series cannot produce a stray legend entry. It carries a stable `id`
-// so ECharts matches it across setOption calls by id rather than by index,
-// which keeps it correct on charts whose real series count varies.
-//
-// ── Why the series is ALWAYS appended, even with nothing to draw ────────────
-// ChartECharts renders with `notMerge: false`. In merge mode, dropping a
-// series from the next option does NOT remove it from the chart. The old one
-// stays painted. Turning the bands off therefore has to mean "same series,
-// empty markArea data", never "no series". Every path through this module
-// returns both series; only their `data` varies.
-//
-// ── Why nothing here can disturb the chart ─────────────────────────────────
-//   * markArea data is x-only, so the y-axis never sees it.
-//   * markArea never contributes to axis extent (MarkAreaView clips against
-//     the axis instead — see coord/axisHelper.js, which knows nothing about
-//     markers), so bands cannot rescale either axis.
-//   * The series holds no data points, so an axis-trigger tooltip has nothing
-//     to report and the bands can never appear as a tooltip row.
-//   * `silent: true` on both the series and the markArea removes all hit
-//     testing, so the bands add no hover or focus targets.
-//   * markArea defaults to z = 1 while line/bar series default to z = 2, so
-//     the bands paint UNDER the data without any reordering. Set explicitly
-//     here so a future ECharts default change cannot silently cover the data.
-//
 // Functions: outageBandFill, timeRangeOf, polledAtRange, clampBandsToRange,
 //            isOutageBandSeries, appendOutageBandSeries, hasVisibleBands
 
@@ -48,16 +9,16 @@ import { hexToRgba } from "@/lib/color-utils"
 import type { Interval } from "@/lib/outages"
 import { CHART_THEME } from "./theme"
 
-/** Which system an outage band blames. */
-export type OutageBandKind = "app" | "qbt"
+/**
+ * Which system an outage band blames.
+ *
+ * NOT the same axis as ChartDataSource below, which happens to share the word
+ * "tracker". This says WHAT WENT DOWN; that says WHERE THE NUMBERS CAME FROM.
+ */
+export type OutageBandKind = "app" | "qbt" | "tracker"
 
 /**
  * Where a chart's numbers come from, which decides which bands it may show.
- *
- * Owner's decision: app bands everywhere, qBT bands only on qBT-sourced
- * charts. A qBittorrent outage cannot flatten a tracker snapshot (the tracker
- * poller does not go through qBittorrent), so a qBT band on a tracker chart
- * would blame the wrong system for a dip it did not cause.
  */
 export type ChartDataSource = "tracker" | "qbt"
 
@@ -92,28 +53,35 @@ export const OUTAGE_BAND_STYLES: Record<OutageBandKind, OutageBandStyle> = {
     color: CHART_THEME.violet,
     angle: "back",
   },
+  tracker: {
+    kind: "tracker",
+    label: "Tracker unreachable",
+    description:
+      "The app was running but this tracker failed to answer, so no stats were collected for it during this range. The band covers only the failures that were actually observed, so the real outage may extend up to one poll interval further at each end.",
+    color: CHART_THEME.amber,
+    angle: "back",
+  },
 }
 
 /** Bands as one chart needs them: already scoped to what that chart may show. */
 export interface ChartOutageBands {
   app: Interval[]
   qbt: Interval[]
+  tracker: Interval[]
 }
 
-export const NO_OUTAGE_BANDS: ChartOutageBands = { app: [], qbt: [] }
+export const NO_OUTAGE_BANDS: ChartOutageBands = { app: [], qbt: [], tracker: [] }
 
-// ── Hatch pattern ───────────────────────────────────────────────────────────
-
-/** Edge of the repeating tile, in CSS pixels. */
+/** Edge of the repeating tile in pixels. */
 const TILE = 8
 const STRIPE_WIDTH = 1.5
-/** Flat wash under the stripes. Low enough that gridlines still read through. */
+/** Flat wash under the stripes */
 const WASH_ALPHA = 0.07
 const STRIPE_ALPHA = 0.3
-/** Flat fill used where no canvas exists (server render, jsdom). */
+/** Flat fill used where no canvas exists */
 const FALLBACK_ALPHA = 0.13
 
-/** zrender's pattern-fill shape. Accepted anywhere a colour string is. */
+/** zrender's pattern-fill*/
 interface EChartsPattern {
   image: HTMLCanvasElement
   repeat: "repeat"
@@ -122,14 +90,7 @@ interface EChartsPattern {
 const patternCache = new Map<OutageBandKind, EChartsPattern | string>()
 
 /**
- * Fill for a band: a repeating diagonal hatch on the client, a flat translucent
- * wash anywhere a 2D canvas context is unavailable.
- *
- * The fallback matters in two real places. Client components still render once
- * on the server for the initial HTML, where `document` does not exist; and
- * jsdom returns a canvas whose `getContext("2d")` is null. Neither may throw,
- * and neither is a visual problem: ECharts only paints in the browser, so the
- * server's option object is discarded before anything is drawn.
+ * Fill for a band
  */
 export function outageBandFill(kind: OutageBandKind): EChartsPattern | string {
   const cached = patternCache.get(kind)
@@ -138,10 +99,7 @@ export function outageBandFill(kind: OutageBandKind): EChartsPattern | string {
   const style = OUTAGE_BAND_STYLES[kind]
   const flat = hexToRgba(style.color, FALLBACK_ALPHA)
 
-  // The fallback is cached too. Whether a 2D context exists is a property of
-  // the environment, not of the call, so retrying per band series only repeats
-  // a known answer — and under jsdom each retry emits a "not implemented"
-  // warning that would bury real test output.
+  // Cache the fallback
   if (typeof document === "undefined") {
     patternCache.set(kind, flat)
     return flat
@@ -162,8 +120,7 @@ export function outageBandFill(kind: OutageBandKind): EChartsPattern | string {
   ctx.strokeStyle = hexToRgba(style.color, STRIPE_ALPHA)
   ctx.lineWidth = STRIPE_WIDTH
   ctx.beginPath()
-  // Three stripes per tile rather than one: the outer two are the corner
-  // fragments that make the tile seamless when repeated.
+  // Three stripes per tile
   for (const step of [-1, 0, 1]) {
     const c = step * TILE
     if (style.angle === "forward") {
@@ -182,12 +139,8 @@ export function outageBandFill(kind: OutageBandKind): EChartsPattern | string {
   patternCache.set(kind, pattern)
   return pattern
 }
-
-// ── Series construction ─────────────────────────────────────────────────────
-
 export const OUTAGE_BAND_SERIES_ID_PREFIX = "tt-outage-band-"
 
-/** True for the band series this module appends — never for a data series. */
 export function isOutageBandSeries(series: unknown): boolean {
   if (typeof series !== "object" || series === null) return false
   const id = (series as { id?: unknown }).id
@@ -196,14 +149,6 @@ export function isOutageBandSeries(series: unknown): boolean {
 
 /**
  * Crop bands to the chart's own data range.
- *
- * Display only. The API has already decided which outages are worth drawing,
- * measuring each against its TRUE length before any cropping — so a ten-hour
- * outage whose visible sliver is two minutes wide still draws those two
- * minutes here, and a genuinely four-minute one was dropped upstream and can
- * never be resurrected by this function.
- *
- * A null range means "do not crop" and lets ECharts clip against the axis.
  */
 export function clampBandsToRange(bands: Interval[], range: Interval | null): Interval[] {
   if (!range) return bands.filter((b) => b.end > b.start)
@@ -218,10 +163,6 @@ export function clampBandsToRange(bands: Interval[], range: Interval | null): In
 
 /**
  * Span covered by a chart's own x values, or null when it plots nothing.
- *
- * Used as the crop bound so a band never advertises a range the chart has no
- * axis for — an outage that ended before the first plotted point would
- * otherwise paint a band with no data anywhere near it.
  */
 export function timeRangeOf(timestamps: number[]): Interval | null {
   let start = Number.POSITIVE_INFINITY
@@ -274,17 +215,21 @@ function buildBandSeries(kind: OutageBandKind, intervals: Interval[]): Record<st
 
 /** True when anything would actually be painted — drives the legend. */
 export function hasVisibleBands(bands: ChartOutageBands): boolean {
-  return bands.app.length > 0 || bands.qbt.length > 0
+  return bands.app.length > 0 || bands.qbt.length > 0 || bands.tracker.length > 0
 }
 
 /**
- * Return `option` with the two band series appended.
+ * Return `option` with the three band series appended.
  *
- * Both series are always present, so toggling the feature off empties their
- * data rather than removing them — see the merge-mode note at the top of this
- * file. Appending (rather than prepending) keeps every real series at its
- * original index, which matters for charts that colour their series from the
- * global `option.color` palette by position.
+ * ALL THREE are always present, including on charts that can never show one of
+ * them — see the merge-mode note at the top of this file. A chart that emitted
+ * two series and later three is fine (merge adds), but one that emitted three
+ * and later two would leave the third painted forever. "Always all three, some
+ * with empty data" is the only shape that cannot break that way.
+ *
+ * Appending (rather than prepending) keeps every real series at its original
+ * index, which matters for charts that colour their series from the global
+ * `option.color` palette by position.
  */
 export function appendOutageBandSeries(
   option: EChartsOption,
@@ -302,6 +247,7 @@ export function appendOutageBandSeries(
       ...dataSeries,
       buildBandSeries("app", clampBandsToRange(bands.app, range)),
       buildBandSeries("qbt", clampBandsToRange(bands.qbt, range)),
+      buildBandSeries("tracker", clampBandsToRange(bands.tracker, range)),
     ],
   } as EChartsOption
 }

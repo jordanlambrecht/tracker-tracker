@@ -34,6 +34,7 @@ import { log } from "@/lib/logger"
 import { dispatchNotifications } from "@/lib/notifications/dispatch"
 import { maskUsername } from "@/lib/privacy"
 import { recordDatabaseSize } from "@/lib/server-data"
+import { pruneTrackerOutages, recordTrackerPollFailure } from "@/lib/tracker-outages"
 import { getPauseState } from "@/lib/tracker-status"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 
@@ -495,6 +496,14 @@ export async function pollTracker(
       log.error(dbError, `Failed to record poll failure for tracker ${trackerId}`)
     }
 
+    // Write the failure into the connectability ledger that backs this tracker's
+    // outage bands. Separate from the columns updated above, which are current
+    // state and are wiped by the next success — see the header of
+    // tracker-outages.ts. Recording is failure-only and every row is written
+    // closed, so there is deliberately no matching call on the success path.
+    // recordTrackerPollFailure never throws, so this needs no guard of its own.
+    await recordTrackerPollFailure(trackerId, isManual ? "manual" : "poll")
+
     try {
       await dispatchNotifications(
         {
@@ -692,6 +701,21 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
       }
     } catch (error) {
       log.error(error, "Coverage gap pruning failed")
+    }
+
+    // Tracker outages expire on the SAME horizon, for the same reason and inside
+    // the same guard. A tracker chart that outlives its own outage records would
+    // show an unexplained flat stretch, which is the exact failure this ledger
+    // exists to prevent.
+    try {
+      const prunedOutages = await pruneTrackerOutages(settings.snapshotRetentionDays)
+      if (prunedOutages > 0) {
+        log.info(
+          `Pruned ${prunedOutages} tracker outages older than ${settings.snapshotRetentionDays} days`
+        )
+      }
+    } catch (error) {
+      log.error(error, "Tracker outage pruning failed")
     }
   }
 

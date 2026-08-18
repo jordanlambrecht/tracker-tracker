@@ -1,6 +1,7 @@
 // src/app/(auth)/trackers/[id]/page.tsx
 
 import { notFound } from "next/navigation"
+import { OutageBandsProvider } from "@/components/charts/lib/OutageBandsProvider"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
 import { parseQbitmanageTags } from "@/lib/download-clients/qbt/qbitmanage-defaults"
@@ -48,14 +49,17 @@ export default async function TrackerDetailPage(props: {
         }
       : null
 
+  // Second outage provider inside the unscoped one the authenticated layout mounts.
   return (
-    <TrackerDetailClient
-      trackerId={trackerId}
-      initialTracker={tracker}
-      initialAllTimeSnapshots={allTimeSnapshots}
-      initialTagGroups={tagGroupsData}
-      initialQbitmanageConfig={qbitmanageConfig}
-      initialTab={initialTab}
-    />
+    <OutageBandsProvider trackerId={trackerId}>
+      <TrackerDetailClient
+        trackerId={trackerId}
+        initialTracker={tracker}
+        initialAllTimeSnapshots={allTimeSnapshots}
+        initialTagGroups={tagGroupsData}
+        initialQbitmanageConfig={qbitmanageConfig}
+        initialTab={initialTab}
+      />
+    </OutageBandsProvider>
   )
 }

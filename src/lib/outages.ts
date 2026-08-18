@@ -1,48 +1,42 @@
 // src/lib/outages.ts
 //
-// Pure interval math for outage bands. The shaded regions drawn behind
-// time-series charts explain a flat or empty stretch.
+// Math for outage bands
 //
-// This module has NO imports. Not the DB, not the logger, not uptime.ts (which
-// pulls in the DB). Everything is epoch milliseconds, so no date-string handling
-// and no timezone questions arise. That is what makes it exhaustively testable.
-//
-// The three-state rule
-// A region of the chart is in exactly one of three states, and only two of them
+// A region of the chart is in one of three states, and only two of them
 // draw anything:
 //
 //   APP DOWN: a RECORDED coverage gap (app_coverage_gaps). Positive evidence.
 //   QBT DOWN: a bucket with ok === 0 && fail > 0. Positive evidence, and
 //             self-certifying (the app had to be alive to observe the failure).
-//   UNKNOWN: everything else. NO band. Ever.
+//   TRACKER DOWN: a RECORDED tracker_outages row for the tracker this chart is
+//             about. Positive evidence, and self-certifying for the same reason
+//             — the poller had to run to observe the failure. Requested only by
+//             a single-tracker page, because a full-height band on a chart of
+//             many trackers would claim all of them were down.
+//   UNKNOWN: everything else (no band)
 //
 // Absence of evidence is UNKNOWN, never "healthy" and never "down". A missing
-// uptime bucket does not mean qBittorrent was down. It means nothing observed
-// it. Downtime is measured and written down; it is never reconstructed from
-// missing rows. Gap-inference was evaluated and rejected: buckets cascade-delete
-// with their client, do not exist before the uptime feature was instrumented, are
-// absent entirely when no client is configured, and are lost on every clean stop
-// by the un-awaited flush in stopClientScheduler. Every one of those would hatch
-// a fake outage.
+// uptime bucket does not mean qBittorrent was down Downtime is measured and written down; it is never reconstructed from missing rows.
 //
 // Inside an app gap, qBittorrent's state is UNKNOWN. Not up, not down, because
 // nothing was running that could look. qBT bands are therefore interval-SUBTRACTED
 // against app gaps: where both would apply, only the app band survives. It
 // means "no data was collected here", which is the honest single claim.
 //
+// A tracker's state inside an app gap is UNKNOWN for exactly the same reason, so
+// tracker bands are subtracted against app gaps by the same operation. This is
+// what "app outage always wins" means mechanically: not a z-order or a colour
+// precedence, but the narrower claim being removed from the range where nothing
+// could observe it.
+//
 // Functions: computeOutageBands, bucketsToDownIntervals, mergeIntervals,
 //            intersectIntervals, intersectAll, subtractIntervals, clampIntervals,
 //            filterMinDuration, floorToBucketMs
 
-/** Width of one client_uptime_buckets row. Mirrors BUCKET_MS in uptime.ts. */
 export const BUCKET_MS = 5 * 60 * 1000
 
-/**
- * Shortest outage worth drawing. Deliberately the same number as the shortest
- * gap worth recording (app-liveness.ts imports this as its record floor).
- * Owner's decision: "hide under ~5 minutes". A single fully-failed bucket is
- * exactly 5 minutes and therefore does draw.
- */
+// Shortest outage worth drawing
+
 export const MIN_BAND_MS = 5 * 60 * 1000
 
 /** A half-open [start, end) span in epoch milliseconds. */
@@ -75,9 +69,16 @@ export interface BandInput {
    */
   clients: ClientBuckets[]
   /**
+   * Recorded outages for the ONE tracker this chart is about, or [] on any chart
+   * that is not scoped to a single tracker. Already-ended, positive evidence
+   * only — see the header of tracker-outages.ts for why these are never widened
+   * toward the surrounding successful polls.
+   */
+  trackerOutages: Interval[]
+  /**
    * [firstSeenAt, lastSeenAt] from app_liveness. The span over which the app
    * ledger can speak at all. null when the ledger has never been written, in
-   * which case the whole range is UNKNOWN for app bands.
+   * which case the whole range is unknwown for app bands.
    */
   appCoverage: Interval | null
   /**
@@ -98,6 +99,8 @@ export interface OutageBands {
   app: Interval[]
   /** Fleet-wide qBT-down bands: every enabled client down at once. */
   allDown: Interval[]
+  /** Bands for the single tracker the request was scoped to. Empty otherwise. */
+  tracker: Interval[]
   /** Per-client qBT-down bands, same pipeline applied individually. */
   perClient: ClientOutage[]
   /** What each layer could observe. Outside it, the chart must render nothing. */
@@ -107,21 +110,18 @@ export interface OutageBands {
   }
 }
 
-/** Floor an epoch-ms instant to its 5-minute bucket boundary. */
+/** Floor an epoch-ms instant to 5-minutes */
 export function floorToBucketMs(ms: number): number {
-  return ms - ((ms % BUCKET_MS) + BUCKET_MS) % BUCKET_MS
+  return ms - (((ms % BUCKET_MS) + BUCKET_MS) % BUCKET_MS)
 }
 
 function isUsable(i: Interval): boolean {
-  return (
-    Number.isFinite(i.start) && Number.isFinite(i.end) && i.end > i.start
-  )
+  return Number.isFinite(i.start) && Number.isFinite(i.end) && i.end > i.start
 }
 
 /**
- * Sort, drop empty/invalid spans, and coalesce anything that overlaps or merely
- * touches. Adjacency counts as overlap: two consecutive 5-minute down buckets
- * are one 10-minute outage, not two.
+ * Sort, drop empty/invalid spans, and coalesce anything that overlaps
+ * touches
  */
 export function mergeIntervals(list: Interval[]): Interval[] {
   const usable = list.filter(isUsable).sort((a, b) => a.start - b.start)
@@ -155,8 +155,8 @@ export function intersectIntervals(a: Interval[], b: Interval[]): Interval[] {
 }
 
 /**
- * Intersection across every list. An EMPTY outer list yields nothing rather than
- * everything: with zero enabled clients nothing was collecting, so nothing is
+ * Intersection across every list. An empty outer list yields nothing rather than
+ * everything, so with zero enabled clients nothing was collecting, so nothing is
  * known, so nothing is drawn.
  */
 export function intersectAll(lists: Interval[][]): Interval[] {
@@ -169,7 +169,7 @@ export function intersectAll(lists: Interval[][]): Interval[] {
   return acc
 }
 
-/** base minus cut. Used to remove app gaps from qBT evidence. */
+/** Used to remove app gaps from qBT evidence. */
 export function subtractIntervals(base: Interval[], cut: Interval[]): Interval[] {
   const holes = mergeIntervals(cut)
   const out: Interval[] = []
@@ -187,7 +187,7 @@ export function subtractIntervals(base: Interval[], cut: Interval[]): Interval[]
   return out
 }
 
-/** Crop every interval to `bound`, dropping anything wholly outside it. */
+/** Crop every interval to `bound`, dropping anything outside it. */
 export function clampIntervals(list: Interval[], bound: Interval): Interval[] {
   const out: Interval[] = []
   for (const i of mergeIntervals(list)) {
@@ -204,12 +204,7 @@ export function filterMinDuration(list: Interval[], minMs: number): Interval[] {
 }
 
 /**
- * Down spans implied by a client's buckets. POSITIVE EVIDENCE ONLY.
- *
- *   ok === 0 && fail > 0: down for that whole bucket
- *   ok > 0 && fail > 0: degraded, NOT down. No band.
- *   ok > 0 && fail === 0: up
- *   no bucket at all: UNKNOWN. No band, ever.
+ * Down spans implied by a client's buckets
  */
 export function bucketsToDownIntervals(buckets: UptimeBucket[]): Interval[] {
   const down: Interval[] = []
@@ -222,22 +217,17 @@ export function bucketsToDownIntervals(buckets: UptimeBucket[]): Interval[] {
 }
 
 /**
- * Shared tail of every band pipeline. The ORDER is load-bearing:
+ * Shared tail of every band pipeline
  *
- *   1. clamp to coverage. Beyond what we could observe, we say nothing.
- *   2. filter by minimum duration. "Is this outage worth drawing?" is decided
- *      on the outage's TRUE length, before the window crops it.
- *   3. crop to the visible window. Visibility only.
+ *   1. clamp to coverage to what is observable
+ *   2. Decide if it's worth it to record it
+ *   3. crop to the visible window
  *
  * Filtering after the window crop would silently swallow a multi-hour outage
  * whose visible sliver happens to be four minutes wide, which is precisely the
  * region a user scrolls to when asking "why is this flat?".
  */
-function finishBands(
-  raw: Interval[],
-  coverage: Interval | null,
-  window: Interval
-): Interval[] {
+function finishBands(raw: Interval[], coverage: Interval | null, window: Interval): Interval[] {
   if (!coverage || !isUsable(coverage)) return []
   const covered = clampIntervals(raw, coverage)
   const worthDrawing = filterMinDuration(covered, MIN_BAND_MS)
@@ -246,25 +236,37 @@ function finishBands(
 
 /**
  * Turn recorded evidence into the bands a chart should draw.
- *
- * Deterministic and side-effect free: every clamp bound is an input, so the
- * retention/coverage POLICY lives in the caller and only the MATH lives here.
+
  */
 export function computeOutageBands(input: BandInput): OutageBands {
-  const { window, appGaps, clients, appCoverage, qbtCoverage } = input
+  const { window, appGaps, clients, trackerOutages, appCoverage, qbtCoverage } = input
 
   if (!isUsable(window)) {
-    return { app: [], allDown: [], perClient: [], coverage: { app: null, qbt: null } }
+    return {
+      app: [],
+      allDown: [],
+      tracker: [],
+      perClient: [],
+      coverage: { app: null, qbt: null },
+    }
   }
 
-  // App gaps are already positive evidence; merge and clamp to what the ledger
-  // can speak for. Note they are NOT gated on bucket existence. An install with
-  // no download client still has tracker charts, and they still deserve bands.
+  // An install with no download client still has tracker charts, and they still deserve bands
   const appMerged = mergeIntervals(appGaps)
   const app = finishBands(appMerged, appCoverage, window)
 
-  // The three-state rule. Subtract BEFORE clamping/filtering so an app gap that
-  // swallows a qBT outage removes it entirely rather than leaving a sliver.
+  // Tracker bands run the SAME pipeline as qBT bands and for the same reason:
+  // inside an app gap nothing was polling, so the tracker's reachability was not
+  // observed and the narrower claim must give way. Subtracting before the clamp
+  // and the minimum-duration filter means an app gap that swallows a tracker
+  // outage removes it entirely instead of leaving an unexplained sliver.
+  //
+  // Clamped to appCoverage, not to a coverage span of its own: the app's poller
+  // is the only thing that ever observed this tracker, so what the app ledger can
+  // speak for is exactly what these rows can speak for.
+  const tracker = finishBands(subtractIntervals(trackerOutages, appMerged), appCoverage, window)
+
+  // Subtract before clamping/filtering
   const perClientRaw = clients.map((c) => ({
     clientId: c.clientId,
     down: subtractIntervals(bucketsToDownIntervals(c.buckets), appMerged),
@@ -275,18 +277,14 @@ export function computeOutageBands(input: BandInput): OutageBands {
     intervals: finishBands(c.down, qbtCoverage, window),
   }))
 
-  // Fleet-wide bands mean "nothing was collecting", so this is the INTERSECTION
-  // across enabled clients, never the union. One of two clients being down still
-  // collected half the data; banding that would hatch data that does exist.
-  const allDown = finishBands(
-    intersectAll(perClientRaw.map((c) => c.down)),
-    qbtCoverage,
-    window
-  )
+  // Fleet-wide bands mean "nothing was collecting", so this is the intersection
+  // across enabled clients.
+  const allDown = finishBands(intersectAll(perClientRaw.map((c) => c.down)), qbtCoverage, window)
 
   return {
     app,
     allDown,
+    tracker,
     perClient,
     coverage: {
       app: appCoverage && isUsable(appCoverage) ? clipCoverage(appCoverage, window) : null,
@@ -296,9 +294,7 @@ export function computeOutageBands(input: BandInput): OutageBands {
 }
 
 /**
- * The observed span as it applies to this window. null when the window lies
- * entirely outside it. The chart then renders that whole range as UNKNOWN
- * (blank) rather than assuming health.
+ * The observed span as it applies to this window
  */
 function clipCoverage(coverage: Interval, window: Interval): Interval | null {
   const start = Math.max(coverage.start, window.start)

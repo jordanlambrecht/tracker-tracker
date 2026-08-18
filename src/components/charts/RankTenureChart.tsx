@@ -286,7 +286,7 @@ function RankTenureChart({ trackerData, height = 300 }: RankTenureChartProps) {
         )}
         style={{ height, width: "100%" }}
       />
-      <OutageBandLegend bands={outages} />
+      <OutageBandLegend bands={outages} range={polledAtRange(trackerData.flatMap((t) => t.snapshots))} />
     </div>
   )
 }

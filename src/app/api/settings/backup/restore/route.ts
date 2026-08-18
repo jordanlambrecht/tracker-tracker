@@ -27,6 +27,7 @@ import {
   notificationTargets,
   tagGroupMembers,
   tagGroups,
+  trackerOutages,
   trackerRoles,
   trackerSnapshots,
   trackers,
@@ -67,7 +68,7 @@ async function batchInsert<T extends Record<string, unknown>>(
 }
 
 // Every non-empty encrypted value in the backup, in a stable order.
-// One list serves two callers: the probe below takes the first, and the dry run
+// The probe below takes the first, and the dry run
 // counts how many of them the derived key can actually open.
 function backupCiphertexts(payload: BackupPayload): string[] {
   const settings = payload.settings
@@ -579,6 +580,31 @@ export async function POST(request: Request) {
       }
       await batchInsert(tx, trackerSnapshots, snapshotRows)
 
+      // Batch insert trackerOutages (remap trackerId). Must follow the tracker
+      // insert above so the FK resolves; rows whose tracker did not survive the
+      // restore are dropped as orphans, exactly like snapshots. These explain
+      // the snapshots just written — dropping them would restore the flat
+      // stretches with no reason attached.
+      if (Array.isArray(payload.trackerOutages) && payload.trackerOutages.length > 0) {
+        const outageRows: Record<string, unknown>[] = []
+        for (const o of payload.trackerOutages) {
+          const fields = o as Record<string, unknown>
+          const newTrackerId = trackerIdMap.get(fields.trackerId as number)
+          if (!newTrackerId) {
+            orphanedRecordsSkipped++
+            continue
+          }
+          if (typeof fields.startedAt !== "string" || typeof fields.endedAt !== "string") continue
+          outageRows.push({
+            trackerId: newTrackerId,
+            startedAt: new Date(fields.startedAt),
+            endedAt: new Date(fields.endedAt),
+            reason: typeof fields.reason === "string" ? fields.reason : "poll",
+          })
+        }
+        await batchInsert(tx, trackerOutages, outageRows)
+      }
+
       // Insert trackerRoles (remap trackerId)
       for (const r of payload.trackerRoles) {
         const fields = r as Record<string, unknown>
@@ -994,6 +1020,7 @@ export async function POST(request: Request) {
         ? payload.clientUptimeBuckets.length
         : 0,
       appCoverageGaps: Array.isArray(payload.appCoverageGaps) ? payload.appCoverageGaps.length : 0,
+      trackerOutages: Array.isArray(payload.trackerOutages) ? payload.trackerOutages.length : 0,
       dismissedAlerts: Array.isArray(payload.dismissedAlerts) ? payload.dismissedAlerts.length : 0,
       notificationTargets: Array.isArray(payload.notificationTargets)
         ? payload.notificationTargets.length

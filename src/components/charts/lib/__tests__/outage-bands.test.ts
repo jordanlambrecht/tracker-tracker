@@ -17,6 +17,7 @@ import {
   isOutageBandSeries,
   NO_OUTAGE_BANDS,
   OUTAGE_BAND_STYLES,
+  type OutageBandKind,
   outageBandFill,
   timeRangeOf,
 } from "../outage-bands"
@@ -44,7 +45,7 @@ function seriesOf(option: EChartsOption): BandSeries[] {
   return option.series as unknown as BandSeries[]
 }
 
-function bandSeries(option: EChartsOption, kind: "app" | "qbt"): BandSeries {
+function bandSeries(option: EChartsOption, kind: OutageBandKind): BandSeries {
   const found = seriesOf(option).find((s) => s.id === `tt-outage-band-${kind}`)
   if (!found) throw new Error(`no ${kind} band series`)
   return found
@@ -56,7 +57,7 @@ const baseOption: EChartsOption = {
 
 describe("appendOutageBandSeries", () => {
   it("draws a band for a recorded gap", () => {
-    const bands: ChartOutageBands = { app: [{ start: T0, end: T0 + 30 * MIN }], qbt: [] }
+    const bands: ChartOutageBands = { app: [{ start: T0, end: T0 + 30 * MIN }], qbt: [], tracker: [] }
     const option = appendOutageBandSeries(baseOption, bands)
 
     expect(bandSeries(option, "app").markArea?.data).toEqual([
@@ -90,17 +91,21 @@ describe("appendOutageBandSeries", () => {
     const option = appendOutageBandSeries(baseOption, NO_OUTAGE_BANDS)
 
     expect(seriesOf(option)[0]).toEqual({ name: "Ratio", type: "line", data: [[T0, 1]] })
-    expect(seriesOf(option)).toHaveLength(3)
+    // One data series plus all three band series. All three are always emitted,
+    // even the ones this chart can never show — merge mode cannot remove a
+    // series that later goes missing.
+    expect(seriesOf(option)).toHaveLength(4)
   })
 
   it("is idempotent — re-applying replaces the bands instead of stacking them", () => {
     const once = appendOutageBandSeries(baseOption, {
       app: [{ start: T0, end: T0 + 10 * MIN }],
       qbt: [],
+      tracker: [],
     })
     const twice = appendOutageBandSeries(once, NO_OUTAGE_BANDS)
 
-    expect(seriesOf(twice)).toHaveLength(3)
+    expect(seriesOf(twice)).toHaveLength(4)
     expect(bandSeries(twice, "app").markArea?.data).toEqual([])
   })
 
@@ -108,6 +113,7 @@ describe("appendOutageBandSeries", () => {
     const option = appendOutageBandSeries(baseOption, {
       app: [{ start: T0, end: T0 + 10 * MIN }],
       qbt: [{ start: T0 + 20 * MIN, end: T0 + 40 * MIN }],
+      tracker: [],
     })
 
     for (const kind of ["app", "qbt"] as const) {
@@ -122,6 +128,7 @@ describe("appendOutageBandSeries", () => {
     const option = appendOutageBandSeries(baseOption, {
       app: [{ start: T0, end: T0 + 10 * MIN }],
       qbt: [],
+      tracker: [],
     })
 
     expect(bandSeries(option, "app").data).toEqual([])
@@ -163,7 +170,7 @@ describe("appendOutageBandSeries", () => {
   it("crops bands to the chart's own plotted range", () => {
     const option = appendOutageBandSeries(
       baseOption,
-      { app: [{ start: T0 - 100 * MIN, end: T0 + 100 * MIN }], qbt: [] },
+      { app: [{ start: T0 - 100 * MIN, end: T0 + 100 * MIN }], qbt: [], tracker: [] },
       { start: T0, end: T0 + 60 * MIN }
     )
 
@@ -175,18 +182,45 @@ describe("appendOutageBandSeries", () => {
   it("drops a band that lies entirely outside the plotted range", () => {
     const option = appendOutageBandSeries(
       baseOption,
-      { app: [{ start: T0 - 200 * MIN, end: T0 - 100 * MIN }], qbt: [] },
+      { app: [{ start: T0 - 200 * MIN, end: T0 - 100 * MIN }], qbt: [], tracker: [] },
       { start: T0, end: T0 + 60 * MIN }
     )
 
     expect(bandSeries(option, "app").markArea?.data).toEqual([])
   })
 
+  it("appends a tracker band series carrying its own data", () => {
+    const option = appendOutageBandSeries(baseOption, {
+      app: [],
+      qbt: [],
+      tracker: [{ start: T0, end: T0 + 10 * MIN }],
+    })
+
+    expect(bandSeries(option, "tracker").markArea?.data).toEqual([
+      [{ xAxis: T0 }, { xAxis: T0 + 10 * MIN }],
+    ])
+    // ...and the other two are still emitted, empty.
+    expect(bandSeries(option, "app").markArea?.data).toEqual([])
+    expect(bandSeries(option, "qbt").markArea?.data).toEqual([])
+  })
+
+  it("crops a tracker band to the chart's own data range", () => {
+    const option = appendOutageBandSeries(
+      baseOption,
+      { app: [], qbt: [], tracker: [{ start: T0 - 100 * MIN, end: T0 + 10 * MIN }] },
+      { start: T0, end: T0 + 5 * MIN }
+    )
+
+    expect(bandSeries(option, "tracker").markArea?.data).toEqual([
+      [{ xAxis: T0 }, { xAxis: T0 + 5 * MIN }],
+    ])
+  })
+
   it("accepts a single-object series as well as an array", () => {
     const single = { series: { name: "One", type: "line", data: [] } } as EChartsOption
     const option = appendOutageBandSeries(single, NO_OUTAGE_BANDS)
 
-    expect(seriesOf(option)).toHaveLength(3)
+    expect(seriesOf(option)).toHaveLength(4)
   })
 })
 
@@ -243,8 +277,9 @@ describe("isOutageBandSeries", () => {
 describe("hasVisibleBands", () => {
   it("is false when nothing is drawn, so the legend stays hidden", () => {
     expect(hasVisibleBands(NO_OUTAGE_BANDS)).toBe(false)
-    expect(hasVisibleBands({ app: [{ start: T0, end: T0 + MIN }], qbt: [] })).toBe(true)
-    expect(hasVisibleBands({ app: [], qbt: [{ start: T0, end: T0 + MIN }] })).toBe(true)
+    expect(hasVisibleBands({ app: [{ start: T0, end: T0 + MIN }], qbt: [], tracker: [] })).toBe(true)
+    expect(hasVisibleBands({ app: [], qbt: [{ start: T0, end: T0 + MIN }], tracker: [] })).toBe(true)
+    expect(hasVisibleBands({ app: [], qbt: [], tracker: [{ start: T0, end: T0 + MIN }] })).toBe(true)
   })
 })
 
@@ -260,5 +295,28 @@ describe("outageBandFill", () => {
     // Angle survives colour blindness; hue alone does not.
     expect(OUTAGE_BAND_STYLES.app.color).not.toBe(OUTAGE_BAND_STYLES.qbt.color)
     expect(OUTAGE_BAND_STYLES.app.angle).not.toBe(OUTAGE_BAND_STYLES.qbt.angle)
+  })
+
+  it("separates the tracker kind from app by BOTH hue and angle", () => {
+    // These two CAN co-render — a tracker page draws app and tracker bands
+    // together — so they must be distinguishable without colour vision.
+    expect(OUTAGE_BAND_STYLES.tracker.color).not.toBe(OUTAGE_BAND_STYLES.app.color)
+    expect(OUTAGE_BAND_STYLES.tracker.angle).not.toBe(OUTAGE_BAND_STYLES.app.angle)
+  })
+
+  it("lets tracker and qbt share an angle, because they can never co-render", () => {
+    // Deliberate, not an oversight: useOutageBands scopes bands by data source,
+    // so a chart shows app+tracker or app+qbt and never tracker+qbt. Hue alone
+    // separating them is therefore never asked to do any work. Pinned so a
+    // future "fix" has to read this reasoning first.
+    expect(OUTAGE_BAND_STYLES.tracker.color).not.toBe(OUTAGE_BAND_STYLES.qbt.color)
+  })
+
+  it("has a style entry for every band kind", () => {
+    // A kind with no entry throws inside outageBandFill on first paint.
+    for (const kind of ["app", "qbt", "tracker"] as const) {
+      expect(OUTAGE_BAND_STYLES[kind]?.kind).toBe(kind)
+      expect(() => outageBandFill(kind)).not.toThrow()
+    }
   })
 })

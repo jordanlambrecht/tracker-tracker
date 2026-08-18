@@ -288,8 +288,7 @@ function buildComparisonOption(
         // Always emitted, never spread conditionally. ChartECharts renders with
         // notMerge false, so an absent key does not clear a previously merged one.
         // It leaves the old value painted. Spreading only while stacked leaves the
-        // chart stacked when switching back to lines (issue #156). Use `undefined`
-        // to clear them.
+        // chart stacked when switching back to lines (issue #156).
         stack: useStacked ? "total" : undefined,
         areaStyle: useStacked ? { opacity: 0.7 } : undefined,
         step: useStacked ? false : undefined,
@@ -297,8 +296,7 @@ function buildComparisonOption(
         lineStyle: {
           color: tracker.color,
           width: useStacked ? 1 : 2,
-          // Same merge rule in the other direction: omitting the glow while
-          // stacked would carry the line view's glow into the stacked view.
+          // Omitting the glow while stacked would carry the line view's glow into the stacked view
           shadowColor: useStacked ? undefined : tracker.color,
           shadowBlur: useStacked ? undefined : 8,
         },
@@ -471,7 +469,10 @@ function ComparisonChart({
         )}
         style={{ height, width: "100%" }}
       />
-      <OutageBandLegend bands={outages} />
+      <OutageBandLegend
+        bands={outages}
+        range={polledAtRange(trackerData.flatMap((t) => t.snapshots))}
+      />
     </div>
   )
 }
