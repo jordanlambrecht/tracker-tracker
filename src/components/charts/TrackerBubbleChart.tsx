@@ -81,14 +81,22 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
   const useLogX = forceLog ?? shouldUseLogScale(xValues)
   const useLogY = forceLog ?? shouldUseLogScale(yValues)
 
-  // Compute explicit min/max for log axes from positive values
-  const logBounds = (values: number[]) => {
+  // Every branch emits BOTH min and max, `undefined` where the axis wants neither.
+  // ChartECharts renders with notMerge false, and a key that is merely ABSENT from
+  // the next option does not clear the previously merged one — the old value stays
+  // applied. Flipping log on and off is safe on its own, because "log" and "value"
+  // are different axis component subtypes and ECharts replaces the axis model rather
+  // than merging it. What leaked was the log -> log render: with log forced on and
+  // no positive values left to bound, this returned {} and the bounds computed from
+  // data that is no longer on screen stayed painted on the axis.
+  const axisBounds = (values: number[], useLog: boolean): { min?: number; max?: number } => {
+    if (!useLog) return { min: 0, max: undefined }
     const pos = values.filter((v) => v > 0)
-    if (pos.length === 0) return {}
+    if (pos.length === 0) return { min: undefined, max: undefined }
     return { min: Math.min(...pos) * 0.5, max: Math.max(...pos) * 2 }
   }
-  const xLogBounds = useLogX ? logBounds(xValues) : {}
-  const yLogBounds = useLogY ? logBounds(yValues) : {}
+  const xBounds = axisBounds(xValues, useLogX)
+  const yBounds = axisBounds(yValues, useLogY)
 
   // Compute max seeding count for bubble size scaling
   const maxSeedingCount = Math.max(...trackers.map((t) => t.seedingCount ?? 0), 0)
@@ -186,7 +194,7 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
       name: useLogX ? `Downloaded (${unit}, log)` : `Downloaded (${unit})`,
       nameLocation: "center",
       nameGap: 32,
-      ...(useLogX ? xLogBounds : { min: 0 }),
+      ...xBounds,
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
@@ -204,7 +212,7 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
     yAxis: {
       type: useLogY ? "log" : "value",
       name: useLogY ? `Uploaded (${unit}, log)` : `Uploaded (${unit})`,
-      ...(useLogY ? yLogBounds : { min: 0 }),
+      ...yBounds,
       nameTextStyle: {
         color: CHART_THEME.textTertiary,
         fontFamily: CHART_THEME.fontMono,
@@ -268,4 +276,4 @@ function TrackerBubbleChart({ trackers, height = 360 }: TrackerBubbleChartProps)
 }
 
 export type { TrackerBubbleChartProps, TrackerBubbleData }
-export { TrackerBubbleChart }
+export { buildBubbleOption, TrackerBubbleChart }
