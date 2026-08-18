@@ -14,7 +14,12 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 FROM base AS deps
 RUN apk add --no-cache python3 make g++ libc6-compat
 WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
+# pnpm-workspace.yaml is REQUIRED here, not optional. Since pnpm 11 it holds
+# settings that package.json no longer carries: `overrides` (the esbuild
+# security pin) and `minimumReleaseAgeExclude` (without which the
+# supply-chain policy rejects recently-published packages the lockfile
+# pins, and `--frozen-lockfile` fails outright).
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 # ---------------------------------------------------------------------------
@@ -37,7 +42,12 @@ RUN pnpm build
 # ---------------------------------------------------------------------------
 FROM base AS schema-deps
 WORKDIR /schema-sync
-COPY package.json pnpm-lock.yaml ./
+# pnpm-workspace.yaml is REQUIRED here, not optional. Since pnpm 11 it holds
+# settings that package.json no longer carries: `overrides` (the esbuild
+# security pin) and `minimumReleaseAgeExclude` (without which the
+# supply-chain policy rejects recently-published packages the lockfile
+# pins, and `--frozen-lockfile` fails outright).
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 # ---------------------------------------------------------------------------
