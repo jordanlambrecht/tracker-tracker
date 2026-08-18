@@ -26,6 +26,5 @@ minimumReleaseAgeExclude:
   - '@vitest/utils@4.1.11'
   - vitest@4.1.11
 
-onlyBuiltDependencies:
-  - argon2
-  - esbuild
+overrides:
+  esbuild: ">=0.25.0"
