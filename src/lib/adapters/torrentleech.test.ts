@@ -39,14 +39,25 @@ describe("parseTlProfile", () => {
     expect(stats.bufferBytes).toBe(10_500_000_000n - 5_250_000_000n)
   })
 
-  it("treats an infinite ratio (∞) as 0", () => {
+  it("reports an infinite ratio (∞) as Infinity", () => {
     const infPage = `<!doctype html><html><body>
-      <div class="profile-uploaded"><span class="profile-info-details profile-uploaded-details">0 B</span></div>
+      <div class="profile-uploaded"><span class="profile-info-details profile-uploaded-details">10.5 GB</span></div>
       <div class="profile-downloaded"><span class="profile-info-details profile-downloaded-details">0 B</span></div>
       <div class="profile-ratio"><span class="profile-info-details profile-ratio-details">&infin;</span></div>
     </body></html>`
     const stats = parseTlProfile(infPage, "testuser")
-    expect(stats.ratio).toBe(0)
+    expect(stats.ratio).toBe(Infinity)
+  })
+
+  it("derives Infinity for a zero-download account even with no ratio cell", () => {
+    const noRatioCell = `<!doctype html><html><body>
+      <div class="profile-uploaded"><span class="profile-info-details profile-uploaded-details">250 GB</span></div>
+      <div class="profile-downloaded"><span class="profile-info-details profile-downloaded-details">0 B</span></div>
+    </body></html>`
+    const stats = parseTlProfile(noRatioCell, "testuser")
+    expect(stats.uploadedBytes).toBe(250_000_000_000n)
+    expect(stats.downloadedBytes).toBe(0n)
+    expect(stats.ratio).toBe(Infinity)
   })
 
   it("detects session expiry from a login page redirect", () => {

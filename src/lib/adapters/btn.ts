@@ -2,7 +2,7 @@
 //
 // Functions: parseBtnBytes, mapBtnResult, translateBtnError, callBtnUserInfo, BtnAdapter
 
-import { computeBufferBytes } from "@/lib/data-transforms"
+import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
 import { localDateStr } from "@/lib/formatters"
 import { adapterFetch } from "./adapter-fetch"
 import type { DebugApiCall, FetchOptions, TrackerAdapter, TrackerStats } from "./types"
@@ -64,11 +64,6 @@ function mapBtnResult(result: BtnUserInfoResult): TrackerStats {
   const uploadedBytes = parseBtnBytes(result.Upload, "Upload")
   const downloadedBytes = parseBtnBytes(result.Download, "Download")
 
-  let ratio = 0
-  if (downloadedBytes > 0n) {
-    ratio = Number(uploadedBytes) / Number(downloadedBytes)
-  }
-
   const joinTimestamp = result.JoinDate ? parseInt(result.JoinDate, 10) : NaN
   const joinedDate =
     Number.isFinite(joinTimestamp) && joinTimestamp > 0
@@ -82,7 +77,10 @@ function mapBtnResult(result: BtnUserInfoResult): TrackerStats {
     group: result.Class ?? result.Title ?? "Unknown",
     uploadedBytes,
     downloadedBytes,
-    ratio,
+    // Derived from byte totals — BTN's userInfo carries no ratio field of its
+    // own, and defaulting a zero-download account to 0 reported a healthy
+    // account as critically below its minimum ratio.
+    ratio: computeRatio(uploadedBytes, downloadedBytes),
     bufferBytes: computeBufferBytes(uploadedBytes, downloadedBytes),
     // BTN's userInfo response carries no seeding/leeching counts, no required
     // ratio and no warned flag. Report them as unknown rather than as a

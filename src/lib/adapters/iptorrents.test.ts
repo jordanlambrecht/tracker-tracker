@@ -59,15 +59,32 @@ describe("parseIptProfile", () => {
         <a class="uname" href="/u/1">carduser</a>
         <div class="up-stat"><div class="up-stat-label">Uploaded</div><div class="up-stat-value">2.0 GB</div></div>
         <div class="up-stat"><div class="up-stat-label">Downloaded</div><div class="up-stat-value">1.0 GB</div></div>
-        <div class="up-stat"><div class="up-stat-label">Ratio</div><div class="up-stat-value">2.000</div></div>
+        <div class="up-stat"><div class="up-stat-label">Ratio</div><div class="up-stat-value">0.500</div></div>
         <div class="up-stat"><div class="up-stat-label">Balance</div><div class="up-stat-value">10.5</div></div>
       </div>
     </body></html>`
     const stats = parseIptProfile(upStatPage)
     expect(stats.uploadedBytes).toBe(2_000_000_000n)
     expect(stats.downloadedBytes).toBe(1_000_000_000n)
+    // The Ratio card deliberately contradicts the byte totals: 2 GB over 1 GB
+    // is 2, so reading 0.5 here would mean the site's own field won.
     expect(stats.ratio).toBe(2)
     expect(stats.seedbonus).toBe(10.5)
+  })
+
+  it("returns Infinity for ratio when downloaded is zero and uploaded is positive", () => {
+    const noDownloadsPage = `<!doctype html><html><head></head><body>
+      <div class="stats">
+        <a class="uname" href="/u/1">seeder</a>
+        <span class="tTipWrap"><div class="tTip">Ratio</div>0.000</span>
+        <span class="tTipWrap"><div class="tTip">Uploaded</div>5.0 GB</span>
+        <span class="tTipWrap"><div class="tTip">Downloaded</div>0.0 GB</span>
+      </div>
+    </body></html>`
+    const stats = parseIptProfile(noDownloadsPage)
+    expect(stats.uploadedBytes).toBe(5_000_000_000n)
+    expect(stats.downloadedBytes).toBe(0n)
+    expect(stats.ratio).toBe(Infinity)
   })
 
   it("throws when the stats bar is missing (unauthenticated page)", () => {

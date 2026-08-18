@@ -4,7 +4,7 @@
 //            extractRatioBarValue, parseAvistazProfile, fetchHtml, AvistazAdapter
 
 import { type HTMLElement as ParsedElement, parse as parseHtml } from "node-html-parser"
-import { computeBufferBytes } from "@/lib/data-transforms"
+import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
 import { localDateStr } from "@/lib/formatters"
 import { parseBytes } from "@/lib/parser"
 import { parseCredentialJson, validateCookieHeader } from "./cookie-credentials"
@@ -140,10 +140,9 @@ export function parseAvistazProfile(html: string, username: string): TrackerStat
     if (badgeEl) group = badgeEl.textContent?.trim() ?? "Unknown"
   }
 
-  // Upload / download / ratio / seeding / leeching / bonus from tooltip-titled items
+  // Upload / download / seeding / leeching / bonus from tooltip-titled items
   let uploadedBytes = 0n
   let downloadedBytes = 0n
-  let ratio = 0
   let seedingCount = 0
   let leechingCount = 0
   let seedbonus = 0
@@ -162,9 +161,6 @@ export function parseAvistazProfile(html: string, username: string): TrackerStat
       uploadedBytes = strictParseBytes(text, "upload")
     } else if (title === "Download" || title === "Downloaded") {
       downloadedBytes = strictParseBytes(text, "download")
-    } else if (title === "Ratio") {
-      const ratioMatch = text.match(/([\d.]+)/)
-      ratio = ratioMatch ? parseFloat(ratioMatch[1]) : 0
     } else if (title === "Active Seeds") {
       seedingCount = parseInt(text.replace(/,/g, ""), 10) || 0
     } else if (title === "Active Leeches") {
@@ -287,7 +283,10 @@ export function parseAvistazProfile(html: string, username: string): TrackerStat
     group,
     uploadedBytes,
     downloadedBytes,
-    ratio,
+    // Derived from byte totals, not the ratio bar's own figure — AvistaZ caps
+    // that display at 999999.99 for a near-zero-download account, so parsing it
+    // reports a made-up number instead of the infinity it stands for.
+    ratio: computeRatio(uploadedBytes, downloadedBytes),
     bufferBytes: computeBufferBytes(uploadedBytes, downloadedBytes),
     seedingCount,
     leechingCount,

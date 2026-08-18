@@ -4,7 +4,7 @@
 //            parseIptProfile, fetchHtml, IptorrentsAdapter
 
 import { type HTMLElement as ParsedElement, parse as parseHtml } from "node-html-parser"
-import { computeBufferBytes } from "@/lib/data-transforms"
+import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
 import { parseBytes } from "@/lib/parser"
 import { parseCredentialJson, validateCookieHeader } from "./cookie-credentials"
 import { fetchTrackerHtml } from "./html-fetch"
@@ -57,17 +57,19 @@ function valueAfterLabel(wrap: ParsedElement, label: string): string {
   return fullText.replace(label, "").replace(/\s+/g, " ").trim()
 }
 
-/** Fallback for the newer `.up-stat` card UI (value in `.up-stat-value`, label in `.up-stat-label`). */
+/**
+ * Fallback for the newer `.up-stat` card UI (value in `.up-stat-value`, label
+ * in `.up-stat-label`). The Ratio card is deliberately ignored — ratio is
+ * derived from the byte totals below.
+ */
 function parseUpStatCards(doc: ParsedElement): {
   uploadedBytes?: bigint
   downloadedBytes?: bigint
-  ratio?: number
   seedbonus?: number
 } {
   const result: {
     uploadedBytes?: bigint
     downloadedBytes?: bigint
-    ratio?: number
     seedbonus?: number
   } = {}
 
@@ -80,9 +82,6 @@ function parseUpStatCards(doc: ParsedElement): {
       result.uploadedBytes = tryParseBytes(value) ?? result.uploadedBytes
     } else if (/downloaded/i.test(label)) {
       result.downloadedBytes = tryParseBytes(value) ?? result.downloadedBytes
-    } else if (/ratio/i.test(label)) {
-      const match = value.match(/[\d.]+/)
-      if (match) result.ratio = parseFloat(match[0])
     } else if (/balance/i.test(label)) {
       const match = value.match(/[\d,.]+/)
       if (match) result.seedbonus = parseFloat(match[0].replace(/,/g, ""))
@@ -120,7 +119,6 @@ export function parseIptProfile(html: string): TrackerStats {
 
   const username = doc.querySelector(".uname")?.textContent?.trim() ?? ""
 
-  let ratio = 0
   let uploadedBytes = 0n
   let downloadedBytes = 0n
   let seedingCount = 0
@@ -132,10 +130,7 @@ export function parseIptProfile(html: string): TrackerStats {
     if (!label) continue
     const value = valueAfterLabel(wrap, label)
 
-    if (label === "Ratio") {
-      const match = value.match(/[\d.]+/)
-      if (match) ratio = parseFloat(match[0])
-    } else if (label === "Uploaded") {
+    if (label === "Uploaded") {
       uploadedBytes = tryParseBytes(value) ?? uploadedBytes
     } else if (label === "Downloaded") {
       downloadedBytes = tryParseBytes(value) ?? downloadedBytes
@@ -155,7 +150,6 @@ export function parseIptProfile(html: string): TrackerStats {
     const fallback = parseUpStatCards(doc)
     if (fallback.uploadedBytes !== undefined) uploadedBytes = fallback.uploadedBytes
     if (fallback.downloadedBytes !== undefined) downloadedBytes = fallback.downloadedBytes
-    if (fallback.ratio !== undefined) ratio = fallback.ratio
     if (fallback.seedbonus !== undefined) seedbonus = fallback.seedbonus
   }
 
@@ -170,7 +164,10 @@ export function parseIptProfile(html: string): TrackerStats {
     group,
     uploadedBytes,
     downloadedBytes,
-    ratio,
+    // Derived from byte totals, not the stats bar's own Ratio text — whatever
+    // that field holds for a zero-download account, the old parse left it at 0
+    // either way, so a healthy account read as a critical ratio.
+    ratio: computeRatio(uploadedBytes, downloadedBytes),
     bufferBytes: computeBufferBytes(uploadedBytes, downloadedBytes),
     seedingCount,
     leechingCount,

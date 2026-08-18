@@ -4,7 +4,7 @@
 //            textAfterNode, parseTlProfile, fetchHtml, TorrentleechAdapter
 
 import { type HTMLElement as ParsedElement, parse as parseHtml } from "node-html-parser"
-import { computeBufferBytes } from "@/lib/data-transforms"
+import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
 import { classifyFetchError } from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import { parseBytes } from "@/lib/parser"
@@ -133,7 +133,6 @@ export function parseTlProfile(html: string, username: string): TrackerStats {
 
   const uploadedText = textAfterNode(doc, ".profile-uploaded-details")
   const downloadedText = textAfterNode(doc, ".profile-downloaded-details")
-  const ratioText = textAfterNode(doc, ".profile-ratio-details")
 
   if (!uploadedText && !downloadedText) {
     throw new Error(
@@ -143,11 +142,6 @@ export function parseTlProfile(html: string, username: string): TrackerStats {
 
   const uploadedBytes = uploadedText ? parseBytes(uploadedText) : 0n
   const downloadedBytes = downloadedText ? parseBytes(downloadedText) : 0n
-
-  let ratio = 0
-  if (ratioText && !ratioText.includes("∞") && !/infin/i.test(ratioText)) {
-    ratio = parseFloat(ratioText) || 0
-  }
 
   // Active seeding/leeching counts appear as header menu items with tooltip
   // titles ("Uploaded (Seeding)" / "Downloaded (Leeching)").
@@ -177,7 +171,10 @@ export function parseTlProfile(html: string, username: string): TrackerStats {
     group,
     uploadedBytes,
     downloadedBytes,
-    ratio,
+    // Derived from byte totals, not the page's ratio cell — TorrentLeech
+    // renders "∞" there for a zero-download account and parseFloat turns that
+    // into 0.
+    ratio: computeRatio(uploadedBytes, downloadedBytes),
     bufferBytes: computeBufferBytes(uploadedBytes, downloadedBytes),
     seedingCount,
     leechingCount,

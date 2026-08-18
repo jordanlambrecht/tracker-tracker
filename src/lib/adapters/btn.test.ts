@@ -117,7 +117,7 @@ describe("BtnAdapter", () => {
     expect(stats.remoteUserId).toBe(42)
   })
 
-  it("handles zero upload/download without producing Infinity", async () => {
+  it("reports ratio 0 when both upload and download are zero", async () => {
     const mockResponse = {
       id: 1,
       result: {
@@ -140,10 +140,11 @@ describe("BtnAdapter", () => {
     } as Response)
 
     const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_PATH)
+    // A brand-new account has nothing to be infinite about — 0/0 is 0, not Infinity.
     expect(stats.ratio).toBe(0)
   })
 
-  it("stores ratio as 0 when upload > 0 but download = 0 (avoids Infinity)", async () => {
+  it("returns Infinity for ratio when downloaded is zero and uploaded is positive", async () => {
     const mockResponse = {
       id: 1,
       result: {
@@ -166,8 +167,27 @@ describe("BtnAdapter", () => {
     } as Response)
 
     const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_PATH)
-    expect(stats.ratio).toBe(0)
-    expect(Number.isFinite(stats.ratio)).toBe(true)
+    // Reporting 0 here made a seed-only account look critically below its
+    // minimum ratio; the byte totals say it has downloaded nothing at all.
+    expect(stats.ratio).toBe(Infinity)
+    expect(stats.uploadedBytes).toBe(1000n)
+    expect(stats.downloadedBytes).toBe(0n)
+  })
+
+  it("carries the same Infinity ratio into the debug payload", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: 1,
+        result: { UserID: "1", Username: "seeder", Upload: "1000", Download: "0" },
+      }),
+    } as Response)
+
+    const calls = await adapter.fetchRaw("https://broadcasthe.net", "fake-api-key", API_PATH)
+
+    expect(calls[0].error).toBeNull()
+    expect(calls[0].data).toMatchObject({ ratio: Infinity })
   })
 
   it("throws 'Invalid BTN API key' on 401", async () => {
