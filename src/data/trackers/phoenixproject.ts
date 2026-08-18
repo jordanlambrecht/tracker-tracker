@@ -84,7 +84,7 @@ export const phoenixproject: TrackerRegistryEntry = {
         "Uploader: 25 TiB up, 1.05 ratio, 14 weeks, 1000 uploads — OR Seeder: 250 TiB up, 1.05 ratio, 20 weeks",
       perks: [{ type: "custom", label: "Search past page 20" }],
     },
-    // Special classes — staff-assigned
+    // Special classes. staff-assigned
     {
       name: "Interviewer",
       requirements: "Staff — selected to conduct interviews and invite new members",

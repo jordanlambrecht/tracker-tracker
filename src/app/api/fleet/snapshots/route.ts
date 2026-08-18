@@ -3,8 +3,8 @@
 // Functions: GET
 //
 // Returns historical client snapshots with parsed tagStats for all clients.
-// Query param: ?days=N (default 7, max 365). ?days=0 means ALL history — no time
-// filter at all — matching the "All" option in the dashboard day-range sidebar.
+// Query param: ?days=N (default 7, max 365). ?days=0 means ALL history (no time
+// filter). Matches the "All" option in the dashboard day-range sidebar.
 
 import { asc, desc, gte, type SQL, sql } from "drizzle-orm"
 import { NextResponse } from "next/server"
@@ -33,8 +33,8 @@ interface QueryPlan {
  * days === 0 "All": no time filter, and the bucket is sized to the ACTUAL span of
  *            stored snapshots. getSnapshotBucket(0) hardcodes "day", which would
  *            collapse a database holding only a few hours of history into a single
- *            point per client — making "All" coarser than any bounded range and
- *            firing every "need at least 2 days of data" empty state.
+ *            point per client. This makes "All" coarser than any bounded range and
+ *            fires every "need at least 2 days of data" empty state.
  *
  * Returns null when no snapshots exist at all.
  */

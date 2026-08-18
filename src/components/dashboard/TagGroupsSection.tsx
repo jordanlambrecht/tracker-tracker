@@ -11,14 +11,14 @@ import { Card } from "@/components/ui"
 import type { TagGroupBreakdown } from "@/lib/fleet-aggregation"
 
 interface TagGroupsSectionProps {
-  /** Already filtered by the aggregation — callers skip rendering this on an empty array. */
+  /** Already filtered by the aggregation. Callers skip rendering this on an empty array. */
   breakdowns: TagGroupBreakdown[]
   accentColor: string
 }
 
 /**
  * Tag group breakdown cards. Shared by the dashboard (fleet-wide counts) and a tracker's
- * Torrents tab (that tracker's counts) — the two differ only in which breakdowns they pass.
+ * Torrents tab (that tracker's counts). The two differ only in which breakdowns they pass.
  */
 function TagGroupsSection({ breakdowns, accentColor }: TagGroupsSectionProps) {
   return (

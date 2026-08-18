@@ -305,7 +305,7 @@ const MA_TABS: { key: MAWindow; label: string }[] = [
 
 function BufferVelocityChart({ trackerData, height = 320 }: BufferVelocityChartProps) {
   const [maWindow, setMaWindow] = useState<MAWindow>("1")
-  // Tracker snapshots — app bands only.
+  // Tracker snapshots. App bands only.
   const outages = useOutageBands("tracker")
 
   const computed: TrackerVelocityData[] = trackerData.map((t) => {
@@ -315,11 +315,11 @@ function BufferVelocityChart({ trackerData, height = 320 }: BufferVelocityChartP
 
   const hasEnoughData = computed.some((t) => t.days.length >= 1)
 
-  // Velocity is signed by nature — a shrinking buffer is the whole point of
-  // this chart — and a log axis cannot represent a non-positive value, so once
-  // any velocity is <= 0 the toggle is withheld rather than letting the user
-  // force an axis that silently erases the losing days. Same guard the buffer
-  // candlestick and MetricChart (issue #36) use.
+  // Velocity is signed by nature. A shrinking buffer is the whole point of this
+  // chart. A log axis cannot represent a non-positive value, so once any velocity
+  // is <= 0 the toggle is withheld rather than letting the user force an axis that
+  // silently erases losing days. The buffer candlestick and MetricChart (issue #36)
+  // use the same guard.
   const allVelocities: number[] = []
   let hasNonPositiveVelocity = false
   for (const t of computed) {
@@ -332,10 +332,10 @@ function BufferVelocityChart({ trackerData, height = 320 }: BufferVelocityChartP
 
   const canUseLog = !hasNonPositiveVelocity && allVelocities.length > 0
   const { effectiveLog, isAuto, onToggle } = useLogScale(canUseLog ? allVelocities : [])
-  // `canUseLog &&`, not `effectiveLog` alone: the override lives in hook state,
-  // so a viewer who forced log on during an all-gaining stretch would still be
-  // on a log axis once a losing day arrives — erasing exactly that day, with the
-  // toggle unmounted and no way back.
+  // `canUseLog &&`, not `effectiveLog` alone. The override lives in hook state, so
+  // a viewer who forced log on during an all-gaining stretch remains on the log axis
+  // when a losing day arrives and erases that day, leaving the toggle unmounted with
+  // no way back.
   const useLog = canUseLog && effectiveLog
 
   if (!hasEnoughData) {

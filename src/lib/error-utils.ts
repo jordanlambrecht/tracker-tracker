@@ -9,7 +9,7 @@ export function errMsg(err: unknown): string {
 
 /**
  * Returns true when an error originates from AES-256-GCM authentication failure
- * or key/ciphertext mismatch — i.e. the session encryption key is stale.
+ * or key/ciphertext mismatch. That is, the session encryption key is stale.
  * Used by route handlers to distinguish key-mismatch (→ 401) from genuinely
  * missing or corrupt stored credentials (→ 422).
  */

@@ -30,7 +30,7 @@ function useSectionCollapse(): SectionCollapseState {
         }
       }
     } catch {
-      // SSR or corrupt storage — keep empty defaults
+      // SSR or corrupt storage. Keep empty defaults.
     }
     setHydrated(true)
   }, [])

@@ -47,7 +47,7 @@ export function defaultShouldSetOption(
   return JSON.stringify(prev.option) !== JSON.stringify(next.option)
 }
 
-/** Extract legend items from ECharts option — series names + colors */
+/** Extract legend items from ECharts option. Series names and colors. */
 function extractLegendItems(option: EChartsOption): LegendItem[] {
   const series = option.series as
     | Array<{ name?: string; itemStyle?: { color?: string } }>
@@ -105,7 +105,7 @@ function ChartECharts({
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally keyed on legendKey string, not legendItemsRaw reference — stabilizes the array across renders when content hasn't changed
   const legendItems = useMemo(() => legendItemsRaw, [legendKey])
 
-  // Track which series are selected — keyed by series name
+  // Track which series are selected. Keyed by series name.
   const [selected, setSelected] = useState<Record<string, boolean>>({})
 
   // Sync selection state when legend items actually change (not on every render)
@@ -148,7 +148,7 @@ function ChartECharts({
     instance.dispatchAction({ type: "legendToggleSelect", name })
   }, [])
 
-  // Hide internal legend when rendering externally — immutable shallow copy
+  // Hide internal legend when rendering externally. Immutable shallow copy
   // instead of mutating the parent's option object during render.
   const effectiveOption = useMemo(() => {
     if (!showExternalLegend || !option.legend) return option

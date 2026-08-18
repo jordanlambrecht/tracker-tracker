@@ -92,7 +92,7 @@ const DASHBOARD_CHARTS: ChartDef[] = [
     description: "Seedbonus accumulation streams per tracker over time",
     category: "analytics",
   },
-  // Torrents category — placeholder entries (no render cases yet)
+  // Torrents category: placeholder entries (no render cases yet)
   { id: "torrent-overview", label: "Torrent Overview", category: "torrents" },
   { id: "torrent-categories", label: "Category Breakdown", category: "torrents" },
   { id: "torrent-activity", label: "Activity Heatmap", category: "torrents" },

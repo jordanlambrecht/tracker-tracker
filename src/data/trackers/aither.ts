@@ -30,7 +30,7 @@ export const aither: TrackerRegistryEntry = {
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [
-    // Dynamic — upload/seed-based
+    // Dynamic. upload/seed-based
     { name: "Leech", requirements: "Ratio below 0.4 — download privileges revoked" },
     { name: "Phobos", requirements: "Ratio ≥ 0.4. 4 download slots" },
     {

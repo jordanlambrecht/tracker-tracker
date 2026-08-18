@@ -31,8 +31,8 @@ interface TrackerSettingsSheetProps {
   onClose: () => void
   /**
    * Receives the tracker exactly as the PATCH response returned it. The sheet
-   * already holds the authoritative post-write row, so consumers must not
-   * re-GET it — that extra round trip is pure latency on the save/archive path.
+   * already holds the post-write row. Consumers must not re-GET it. That extra
+   * round trip adds latency to save/archive.
    */
   onUpdated: (updated: TrackerSummary) => void
 }
@@ -69,15 +69,14 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
   const router = useRouter()
   const queryClient = useQueryClient()
 
-  // Every write in this sheet mutates a row that lives in the shared ["trackers"]
-  // cache, which the sidebar (useTrackerList) and the dashboard (useDashboardData)
-  // both render from. That cache is NOT remounted by `router.push("/")` — the
-  // sidebar sits in the persistent (auth) layout — and its only automatic repair
-  // is `refetchInterval`, derived from trackerPollIntervalMinutes (15 min floor,
-  // 60 min default). Without an explicit write-through + invalidate here, an
-  // archived tracker keeps rendering as active, and the "Show Archived (N)"
-  // counter keeps under-reporting, for up to an hour. This mirrors what
-  // toggleFavorite and handleDragEnd already do in useTrackerList.
+  // Every write mutates a row in the shared ["trackers"] cache, which
+  // useTrackerList and useDashboardData render from. That cache is NOT
+  // remounted by `router.push("/")`. The sidebar sits in the persistent auth
+  // layout. Its only automatic repair is `refetchInterval`, derived from
+  // trackerPollIntervalMinutes (15 min floor, 60 min default). Without explicit
+  // write-through + invalidate, an archived tracker renders as active and the
+  // "Show Archived (N)" counter under-reports for up to an hour. This mirrors
+  // toggleFavorite and handleDragEnd in useTrackerList.
   const syncTrackerCache = useCallback(
     (next: TrackerSummary | null) => {
       queryClient.setQueryData<TrackerSummary[]>(trackerQueryOptions.queryKey, (prev) => {
@@ -85,9 +84,9 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
         if (!next) return prev.filter((t) => t.id !== tracker.id)
         return prev.map((t) => (t.id === next.id ? next : t))
       })
-      // Deliberately not awaited: the refetch is a background confirmation of the
-      // row we just wrote through, and awaiting it would put a full round trip in
-      // front of closing the sheet / navigating home.
+      // Not awaited: the refetch is a background confirmation of the row just
+      // written. Awaiting adds a round trip before closing the sheet or
+      // navigating.
       queryClient.invalidateQueries({ queryKey: trackerQueryOptions.queryKey })
     },
     [queryClient, tracker.id]
@@ -302,8 +301,8 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
         return
       }
 
-      // PATCH /api/trackers/[id] returns the freshly-read row, so this IS the
-      // post-write truth — no follow-up GET needed.
+      // PATCH /api/trackers/[id] returns the freshly-read row. This is the
+      // post-write truth. No follow-up GET needed.
       const updated = (await res.json()) as TrackerSummary
       syncTrackerCache(updated)
 
@@ -326,9 +325,9 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
         body: JSON.stringify({ isActive: !tracker.isActive }),
       })
 
-      // A non-ok response used to fall through silently: no error, no state
-      // change, sheet still open. That reads to the user as "I clicked Archive
-      // and nothing happened", which is indistinguishable from "it's slow".
+      // A non-ok response used to fall through silently. No error, no state
+      // change, sheet stays open. The user sees "I clicked Archive and nothing
+      // happened", indistinguishable from "it's slow".
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         setErrors({
@@ -356,8 +355,8 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
       })
 
       if (res.ok) {
-        // Same shared cache as archive — without this the deleted row keeps
-        // rendering in the sidebar after router.push("/").
+        // Same shared cache as archive. Without this, the deleted row renders
+        // in the sidebar after router.push("/").
         syncTrackerCache(null)
         onClose()
         router.push("/")
@@ -392,7 +391,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
             error={errors.baseUrl}
           />
 
-          {/* API Key — show status or change input */}
+          {/* API Key. Show status or change input. */}
           <div className="flex flex-col gap-1">
             <H2 className="uppercase tracking-wider">API Key</H2>
             {changingKey && tracker.platformType === "avistaz" ? (
@@ -647,7 +646,8 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
               >
                 Last Login
               </label>
-              {/* Fills the date field only — Save still writes it, so unsaved edits survive. */}
+              {/* Fills the date field only. Save still writes it. Unsaved edits
+                  survive. */}
               <Button
                 variant="secondary"
                 size="sm"

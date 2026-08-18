@@ -77,9 +77,9 @@ function TorrentsTab({
   // client with no cache reports being offline instead of claiming none is set up.
   if (data.noClients && !data.torrentError) return <NoDownloadClientState />
 
-  // A missing tag is no longer a dead end — torrents resolve by announce URL —
-  // so the empty states hang off "nothing matched", and which one shows depends
-  // on whether a tag was in play at all.
+  // Torrents resolve by announce URL, not just tags. The empty states hang off
+  // "nothing matched", and which one shows depends on whether a tag was in play
+  // at all.
   if (data.torrents.length === 0) {
     return (
       <div className="flex flex-col gap-6">
@@ -291,7 +291,7 @@ function TorrentsTab({
         <TorrentAvgSeedTime torrents={data.torrents} accentColor={accentColor} />
       </Card>
 
-      {/* Torrent library scatter — 3D when WebGL charts are enabled, 2D otherwise */}
+      {/* Torrent library scatter. 3D when WebGL charts are enabled, 2D otherwise */}
       <LazySection minHeight={400}>
         <Card
           title={use3DScatter ? "Torrent Library — 3D Scatter" : "Torrent Library — Scatter"}

@@ -12,17 +12,17 @@
 //    vault behind a successful-looking save.
 //
 // 2. IT OPENS EVEN WHEN THE FEATURE IS OFF. A 403 from the API is not an error
-//    state here, it is the opt-in gate — the sheet explains the feature and
-//    links straight at the Settings toggle that turns it on. Hiding the feature
-//    with no route to enabling it is the failure mode this avoids.
+//    state. It is the opt-in gate. The sheet explains the feature and links
+//    straight to the Settings toggle that turns it on. Hiding the feature with
+//    no route to enabling it is the failure mode.
 //
 // 3. COPY DOES NOT REVEAL. See CredentialFieldRow.
 //
 // ── REGISTRY DEFAULTS ────────────────────────────────────────────────────────
 // They seed a NEW vault and nothing else. Once a vault exists, the user's
-// sections and fields are the entire truth and the registry is never consulted
-// again — see the long note on draftFromView() for why re-merging later would
-// mean the app arguing with the user about their own data.
+// sections and fields are the entire truth. The registry is never consulted
+// again. See draftFromView() for why re-merging later means the app argues
+// with the user about their own data.
 
 "use client"
 
@@ -155,13 +155,12 @@ export function TrackerCredentialsSheet({
   }, [open])
 
   useEffect(() => {
-    // Focus once the body actually has content — focusing the container while it
-    // still says "Loading" moves the user somewhere that is about to be replaced.
+    // Focus once the body has content. Focusing while it says "Loading" moves
+    // the user somewhere about to be replaced.
     //
-    // ONCE PER OPEN, and the latch is what makes that true. Saving re-runs load(),
-    // which cycles status ready → loading → ready; without the latch, every save
-    // would yank focus out of whatever input the user was in and drop it on the
-    // container.
+    // ONCE PER OPEN, and the latch enforces this. Saving re-runs load(), which
+    // cycles status ready → loading → ready. Without the latch, every save
+    // yanks focus out of the input and drops it on the container.
     if (open && status !== "loading" && !hasFocusedRef.current) {
       hasFocusedRef.current = true
       bodyRef.current?.focus()
@@ -197,8 +196,8 @@ export function TrackerCredentialsSheet({
       })
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string }
-        // Surfaces the 429 from the reveal limiter verbatim — "Too many reveals"
-        // is actionable, "something went wrong" is not.
+        // Surfaces the 429 from the reveal limiter verbatim. "Too many reveals"
+        // is actionable; "something went wrong" is not.
         throw new Error(body.error ?? "Could not read that credential")
       }
       const body = (await res.json()) as { value: string }
@@ -277,10 +276,9 @@ export function TrackerCredentialsSheet({
 
   async function handleSave() {
     // Inline validation first, using the same pure validator the route runs.
-    // Values the client does not hold stand in as "", so the size limits are an
-    // under-estimate here and the server's check on the MERGED vault stays
-    // authoritative — but a blank label or a duplicate id is caught with no
-    // round trip.
+    // Values the client does not hold stand in as "", so size limits are an
+    // under-estimate. The server's check on the merged vault is authoritative.
+    // But blank labels and duplicate ids are caught locally.
     const invalid = validateTrackerCredentialVault(draftToValidationVault(draft))
     if (invalid) {
       setSaveError(invalid)
@@ -351,10 +349,10 @@ export function TrackerCredentialsSheet({
           top of the document. -1 keeps it out of the tab ORDER while still being
           programmatically focusable. */}
       <div ref={bodyRef} tabIndex={-1} className="flex flex-col gap-5 p-6 pb-8 focus:outline-none">
-        {/* Live region, mounted EMPTY so a later update is actually announced —
-            a region that appears already containing its text is often missed.
-            Carries a testid because Notice also renders role="status" for its
-            warn variant, so the role alone is not a unique handle. */}
+        {/* Live region, mounted empty so a later update is announced. A region
+            appearing with its text is often missed. Carries testid because
+            Notice renders role="status" for warn variant. Role alone is not
+            unique. */}
         <p
           data-testid="credential-announcer"
           role="status"
@@ -375,9 +373,8 @@ export function TrackerCredentialsSheet({
           </div>
         )}
 
-        {/* The opt-in gate. The sheet still OPENS and still explains itself — the
-            owner's requirement is a route to enabling the feature, not a hidden
-            feature. */}
+        {/* The opt-in gate. The sheet opens and explains itself. The owner's
+            requirement is a route to enabling the feature, not hiding it. */}
         {status === "gated" && (
           <div className="flex flex-col gap-4">
             <h3 id={headingId} className="text-sm font-sans font-semibold text-primary">

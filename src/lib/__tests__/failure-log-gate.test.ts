@@ -14,12 +14,12 @@ import {
 } from "@/lib/failure-log-gate"
 
 // Two raw causes that sanitizeNetworkError would flatten to the same
-// "Connection failed" string — the gate keys on the raw text precisely so it
+// "Connection failed" string. The gate keys on the raw text precisely so it
 // can still tell them apart.
 const CAUSE_A = "Failed to connect to 192.168.1.42: UND_ERR_SOCKET"
 const CAUSE_B = "Failed to connect to 192.168.1.42: UND_ERR_HEADERS_TIMEOUT"
 
-/** The heartbeat cron cadence — how often a down client produces a failure. */
+/** The heartbeat cron cadence: how often a down client produces a failure. */
 const HEARTBEAT_INTERVAL_MS = 5_000
 /** Attempts a down client makes inside one reminder interval: 180. */
 const ATTEMPTS_PER_REMINDER = OUTAGE_REMINDER_INTERVAL_MS / HEARTBEAT_INTERVAL_MS
@@ -138,7 +138,7 @@ describe("failure-log-gate", () => {
     const verdict = noteFailure(1, "heartbeat", CAUSE_B)
 
     expect(verdict).toMatchObject({ kind: "cause-changed", previousCause: CAUSE_A })
-    // Nowhere near the 15-minute reminder — this is the point of comparing
+    // Nowhere near the 15-minute reminder. This is the point of comparing
     // against the last *emitted* cause rather than the last one observed.
     expect(Date.now() - outageStart).toBeLessThan(OUTAGE_REMINDER_INTERVAL_MS)
   })
@@ -177,7 +177,7 @@ describe("failure-log-gate", () => {
     advance(30_000)
 
     expect(noteSuccess(2, "deep-poll")).toEqual({ downForMs: 60_000, failures: 2 })
-    // State is deleted on recovery — a healthy client holds nothing
+    // State is deleted on recovery. A healthy client holds nothing
     expect(noteSuccess(2, "deep-poll")).toBeNull()
   })
 

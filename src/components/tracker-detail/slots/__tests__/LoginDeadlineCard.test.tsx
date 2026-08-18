@@ -187,7 +187,7 @@ describe("LoginDeadlineCard", () => {
 describe("LoginDeadlineCard — Login Now action", () => {
   const TRACKER_URL = "https://tracker.example.com"
 
-  // Frozen clock so the "45 days remaining" assertions are exact — on the real
+  // Frozen clock so the "45 days remaining" assertions are exact. On the real
   // clock the elapsed milliseconds of the test itself floor the count to 44.
   beforeEach(() => {
     vi.useFakeTimers()

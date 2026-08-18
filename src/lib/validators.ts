@@ -1,7 +1,7 @@
 // src/lib/validators.ts
 //
 // Pure validation predicates and regex constants.
-// No framework dependencies — usable anywhere.
+// No framework dependencies. Usable anywhere.
 //
 // Functions: isValidHex, isValidPort, isIntegerInRange, parseIntClamped, validateImageUrl, safeImageUrl
 // Constants: ISO_8601_RE, HEX_64_RE, DATE_RE

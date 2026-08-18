@@ -83,7 +83,7 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
 
   // Every branch emits BOTH min and max, `undefined` where the axis wants neither.
   // ChartECharts renders with notMerge false, and a key that is merely ABSENT from
-  // the next option does not clear the previously merged one — the old value stays
+  // the next option does not clear the previously merged one. The old value stays
   // applied. Flipping log on and off is safe on its own, because "log" and "value"
   // are different axis component subtypes and ECharts replaces the axis model rather
   // than merging it. What leaked was the log -> log render: with log forced on and
@@ -101,10 +101,10 @@ function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | nul
   // Compute max seeding count for bubble size scaling
   const maxSeedingCount = Math.max(...trackers.map((t) => t.seedingCount ?? 0), 0)
 
-  // Diagonal reference line endpoint — max of all axis values
+  // Diagonal reference line endpoint. Max of all axis values.
   const maxAxisVal = Math.max(...scaled.map((d) => Math.max(d.x, d.y)), 1)
 
-  // One series per tracker — required for legend + per-tracker color control
+  // One series per tracker. Required for legend and per-tracker color control.
   const series: EChartsOption["series"] = scaled.map((d, i) => {
     const seedingCount = d.tracker.seedingCount ?? 0
     const bubbleSize = computeBubbleSize(seedingCount, maxSeedingCount)

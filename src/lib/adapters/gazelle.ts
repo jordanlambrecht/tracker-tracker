@@ -144,7 +144,7 @@ export class GazelleAdapter implements TrackerAdapter {
       group: userStats.class ?? "Unknown",
       uploadedBytes: uploaded,
       downloadedBytes: downloaded,
-      // Derived from byte totals — Gazelle reports -1 for an infinite ratio.
+      // Derived from byte totals. Gazelle reports -1 for infinite ratio.
       ratio: computeRatio(uploaded, downloaded),
       bufferBytes: computeBufferBytes(uploaded, downloaded),
       seedingCount: userStats.seedingcount ?? 0,
@@ -356,9 +356,9 @@ export class GazelleAdapter implements TrackerAdapter {
       warned: resp.personal?.warned ?? false,
       joinedDate: resp.stats?.joinedDate ?? undefined,
       lastAccessDate: resp.stats?.lastAccess ?? undefined,
-      // Gazelle's OWN buffer, which it reports signed — and this value overwrites
-      // the derived one in fetchStats, so clamping it here would keep enriched
-      // Gazelle sites reporting 0 for a deficit no matter what the helpers do.
+      // Gazelle's buffer value is signed. It overwrites the derived value in
+      // fetchStats. If clamped here, enriched Gazelle sites would report 0 for
+      // a deficit despite what the helpers compute.
       bufferBytes:
         resp.stats?.buffer != null ? signedFloatBytesToBigInt(resp.stats.buffer) : undefined,
       seedingCount: resp.community?.seeding,

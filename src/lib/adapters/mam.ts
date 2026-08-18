@@ -139,7 +139,7 @@ export class MamAdapter implements TrackerAdapter {
       remoteUserId: data.uid,
       uploadedBytes: uploaded,
       downloadedBytes: downloaded,
-      // Derived from byte totals — MAM's own ratio field encoding for a
+      // Derived from byte totals. MAM's own ratio field encoding for a
       // zero-download account is undocumented and parsed to 0.
       ratio: computeRatio(uploaded, downloaded),
       bufferBytes: computeBufferBytes(uploaded, downloaded),

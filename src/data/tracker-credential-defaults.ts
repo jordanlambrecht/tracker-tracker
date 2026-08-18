@@ -4,14 +4,14 @@
 // pre-populated instead of blank.
 //
 // ─────────────────────────────────────────────────────────────────────────────
-// CRITICAL BOUNDARY — READ BEFORE EDITING
+// CRITICAL BOUNDARY. READ BEFORE EDITING
 //
 // Everything in this file, and every `credentialFields` entry in src/data/trackers/**,
 // is PUBLIC, git-committed data. It defines which fields EXIST. It must NEVER
 // hold a user's actual VALUES.
 //
 // A contributor pasting their own API key or passkey into one of these entries
-// would leak it into git history FOREVER — rewriting history does not recall the
+// would leak it into git history FOREVER. Rewriting history does not recall the
 // clones, the forks, or the mirrors, and a private-tracker passkey is an account
 // ban waiting to happen. The type system enforces this structurally:
 // TrackerCredentialFieldDefinition has NO `value` property, so there is nowhere
@@ -44,8 +44,8 @@ const PASSKEY_FIELD: TrackerCredentialFieldDefinition = {
 }
 
 /**
- * IRC identity. The nick is NOT a secret — it is visible to every other user in
- * the channel — so it opts out explicitly. The NickServ password omits `secret`
+ * IRC identity. The nick is NOT a secret. It is visible to every other user in
+ * the channel, so it opts out explicitly. The NickServ password omits `secret`
  * and therefore defaults to secret, which is the fail-closed direction.
  */
 const IRC_FIELDS: readonly TrackerCredentialFieldDefinition[] = [
@@ -77,7 +77,7 @@ export const PLATFORM_CREDENTIAL_FIELDS: Partial<
     { id: "rss_feed_url", label: "RSS feed URL", secret: false },
   ],
   torrentleech: [{ id: "session_cookie", label: "Session cookie" }, PASSKEY_FIELD],
-  // `custom` is deliberately absent — it falls through to the universal fallback,
+  // `custom` is deliberately absent. It falls through to the universal fallback,
   // which is the only honest default for a tracker we know nothing about.
 }
 

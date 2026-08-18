@@ -11,7 +11,7 @@
 // ── Why a separate, nameless series ─────────────────────────────────────────
 // The bands ride on their own series rather than on `markArea` of a data
 // series, because a markArea attached to a real series disappears the moment
-// that series is toggled off in the legend — on a multi-tracker chart, hiding
+// that series is toggled off in the legend. On a multi-tracker chart, hiding
 // one tracker would delete the explanation for all of them.
 //
 // The series is deliberately nameless. ECharts' legend only lists series whose
@@ -22,7 +22,7 @@
 //
 // ── Why the series is ALWAYS appended, even with nothing to draw ────────────
 // ChartECharts renders with `notMerge: false`. In merge mode, dropping a
-// series from the next option does NOT remove it from the chart — the old one
+// series from the next option does NOT remove it from the chart. The old one
 // stays painted. Turning the bands off therefore has to mean "same series,
 // empty markArea data", never "no series". Every path through this module
 // returns both series; only their `data` varies.
@@ -55,8 +55,8 @@ export type OutageBandKind = "app" | "qbt"
  * Where a chart's numbers come from, which decides which bands it may show.
  *
  * Owner's decision: app bands everywhere, qBT bands only on qBT-sourced
- * charts. A qBittorrent outage cannot flatten a tracker snapshot — the tracker
- * poller does not go through qBittorrent — so a qBT band on a tracker chart
+ * charts. A qBittorrent outage cannot flatten a tracker snapshot (the tracker
+ * poller does not go through qBittorrent), so a qBT band on a tracker chart
  * would blame the wrong system for a dip it did not cause.
  */
 export type ChartDataSource = "tracker" | "qbt"
@@ -68,8 +68,8 @@ export interface OutageBandStyle {
   /** Long form, used as the legend's title attribute. */
   description: string
   color: string
-  /** "/" or "\" — the two kinds differ by ANGLE as well as hue, so they stay
-   *  distinguishable without colour vision. */
+  /** "/" or "\" (differ by angle and hue, so they stay distinguishable
+   *  without color vision). */
   angle: "forward" | "back"
 }
 
@@ -256,8 +256,8 @@ function buildBandSeries(kind: OutageBandKind, intervals: Interval[]): Record<st
       silent: true,
       animation: false,
       z: 1,
-      // markArea labels default to SHOWN — left on, every band would stamp its
-      // own name across the plot.
+      // markArea labels default to SHOWN. If left on, every band would stamp
+      // its own name across the plot.
       label: { show: false },
       emphasis: { disabled: true },
       itemStyle: {

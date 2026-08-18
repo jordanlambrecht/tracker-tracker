@@ -123,8 +123,8 @@ export async function fetchTrackerStats(
     throw new Error(`API key is missing or invalid for tracker "${tracker.name}": ${cause}`)
   }
   // An empty token decrypts cleanly but can never authenticate. Fail here so
-  // the user sees an actionable local error instead of the tracker's 401 —
-  // and so we don't spend a doomed request every poll cycle discovering it.
+  // the user sees an actionable local error instead of the tracker's 401. This
+  // prevents a doomed request every poll cycle discovering it.
   if (!apiToken) {
     throw new Error(`API key is missing or invalid for tracker "${tracker.name}": token is empty`)
   }
@@ -678,11 +678,11 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
     // Coverage gaps expire on the SAME schedule and the SAME horizon as the
     // snapshots they explain. This coupling is deliberate and load-bearing: if
     // gaps were pruned on a different horizon, charts would outlive their own
-    // explanations and a region with no gap record would be indistinguishable
-    // from a healthy one — the same retention asymmetry that makes inferring
-    // downtime from missing rows a lie. Keep this call inside this guard,
-    // sharing this retention value. NEVER prune gaps more aggressively than
-    // snapshots (pruneCoverageGaps keys on endedAt for exactly that reason).
+    // explanations and a region with no gap record would be indistinguishable from
+    // a healthy one. This same retention asymmetry makes inferring downtime from
+    // missing rows a lie. Keep this call inside this guard, sharing this retention
+    // value. NEVER prune gaps more aggressively than snapshots (pruneCoverageGaps
+    // keys on endedAt for exactly that reason).
     try {
       const prunedGaps = await pruneCoverageGaps(settings.snapshotRetentionDays)
       if (prunedGaps > 0) {

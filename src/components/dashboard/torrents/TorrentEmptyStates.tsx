@@ -22,11 +22,11 @@ export function NoDownloadClientState() {
 }
 
 /**
- * Shown when a tracker has no qBittorrent tag *and* nothing matched by announce URL.
+ * Shown when a tracker has no qBittorrent tag and nothing matched by announce URL.
  *
- * The tag is no longer a prerequisite — torrents are attributed by announce host
- * when untagged (issue #152) — so this state means "nothing found", not "not set
- * up". Tagging is offered as the remaining lever, not as a requirement.
+ * Tags are no longer a prerequisite. Torrents are attributed by announce host
+ * when untagged (issue #152). This state means "nothing found", not "not set up".
+ * Tagging is offered as an optional lever, not a requirement.
  */
 export function NoTagState({ trackerName }: { trackerName: string }) {
   return (
@@ -45,9 +45,9 @@ export function NoTagState({ trackerName }: { trackerName: string }) {
 }
 
 /**
- * Shown when a tracker *does* have a qBittorrent tag and still resolved nothing —
- * neither by that tag nor by announce URL. Distinct from NoTagState so a wrong
- * tag reads as a wrong tag rather than as an empty tracker.
+ * Shown when a tracker has a qBittorrent tag but still resolved nothing by that
+ * tag or announce URL. Distinct from NoTagState so a wrong tag reads as a wrong
+ * tag rather than as an empty tracker.
  */
 export function NoTorrentsState({
   trackerName,

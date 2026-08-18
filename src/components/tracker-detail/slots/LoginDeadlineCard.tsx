@@ -19,7 +19,7 @@ import { StatCard } from "@/components/ui/StatCard"
 
 export interface LoginDeadlineCardProps extends StatCardRingProps {
   /**
-   * Destination for the "Login Now" button — the tracker's configured base
+   * Destination for the "Login Now" button. The tracker's configured base
    * URL. Omitted rather than rendered dead when the tracker has no URL.
    */
   loginUrl?: string

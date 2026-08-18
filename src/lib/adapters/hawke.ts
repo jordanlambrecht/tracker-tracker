@@ -116,13 +116,11 @@ export class HawkeAdapter implements TrackerAdapter {
       group: data.group,
       uploadedBytes,
       downloadedBytes,
-      // Hawke reports a real numeric ratio (no "∞" sentinel), so trust it and
-      // only derive when the field is absent or non-finite.
+      // Hawke reports a numeric ratio without infinity. Use it, otherwise derive.
       ratio: Number.isFinite(data.ratio) ? data.ratio : computeRatio(uploadedBytes, downloadedBytes),
-      // Hawke reports its own buffer and it is signed — the verified deficit
-      // response is -2.6 TB. The `isFinite` guard stays at the call site because
-      // BigInt(Math.trunc(NaN)) throws; a non-finite payload falls back to the
-      // derived buffer, which is signed too.
+      // Hawke reports a signed buffer. Verified to go negative (-2.6 TB). The
+      // isFinite guard is needed because BigInt(Math.trunc(NaN)) throws. Falls
+      // back to derived buffer if non-finite.
       bufferBytes:
         typeof data.buffer === "number" && Number.isFinite(data.buffer)
           ? signedFloatBytesToBigInt(data.buffer)
@@ -132,9 +130,8 @@ export class HawkeAdapter implements TrackerAdapter {
       seedbonus: data.hunos ?? 0,
       hitAndRuns: data.hit_and_runs ?? 0,
       requiredRatio: null,
-      // `warnings` is a count, not a boolean — 0 warnings and "warnings not
-      // tracked" aren't separable from it, so the boolean stays unknown and
-      // the raw count goes to platformMeta.
+      // `warnings` is a count, not a boolean. Can't distinguish 0 warnings from
+      // untracked. Keep the boolean unknown and report count in platformMeta.
       warned: null,
       freeleechTokens: null,
       joinedDate: data.member_since || undefined,

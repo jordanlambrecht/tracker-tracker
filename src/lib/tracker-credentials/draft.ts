@@ -8,7 +8,7 @@
 //
 // The model exists because the sheet edits something it cannot see. A stored
 // secret is never sent to the browser, so a draft field has to be able to say "I
-// do not hold this value" as distinct from "I hold an empty value" — that is
+// do not hold this value" as distinct from "I hold an empty value". That is
 // `value: null` vs `value: ""`, and it maps straight onto the omitted-vs-present
 // `value` that merge.ts keys on. Collapse those two and you either wipe secrets
 // on every edit or make the Clear button do nothing.
@@ -116,22 +116,20 @@ export function newDraftSection(title = "New section"): DraftSection {
 /**
  * Build the editable draft for a sheet that has just opened.
  *
- * `view` null means the tracker has NO vault, and only then are the registry
- * defaults consulted — they SEED, they never merge.
+ * `view` null means the tracker has NO vault; defaults are consulted only then.
+ * They SEED, they never merge.
  *
- * ── WHAT HAPPENS WHEN REGISTRY DEFAULTS CHANGE LATER ─────────────────────────
- * Nothing. Once a vault is saved, `view` is non-null forever and this function
- * never looks at `defaults` again, so the user's sections and fields are the
- * whole truth.
+ * WHAT HAPPENS WHEN REGISTRY DEFAULTS CHANGE LATER: Nothing. Once a vault is
+ * saved, `view` is non-null forever and this function never looks at `defaults`
+ * again. The user's sections and fields are the whole truth.
  *
- * That is a deliberate choice over merging new defaults in on open. A merge
- * would resurrect every field the user had deliberately deleted, on every open,
- * with no way to say no — and because a default's `label` would have to win to
- * be worth anything, it would also stomp labels the user had renamed. The
- * failure mode of not merging is a user who does not see a newly-known field
- * until they add it themselves; the failure mode of merging is the app arguing
- * with the user about their own data. The first is a missing convenience, the
- * second is a bug report.
+ * Deliberately chosen over merging new defaults in on open. A merge would
+ * resurrect every field the user had deliberately deleted, on every open, with
+ * no way to say no. Because a default's `label` would have to win to be worth
+ * anything, it would also stomp labels the user had renamed. Not merging means a
+ * user doesn't see newly-known fields until they add them. Merging means the app
+ * argues with the user about their own data. The first is missing convenience.
+ * The second is a bug report.
  */
 export function draftFromView(
   view: TrackerCredentialVaultView | null,
@@ -151,7 +149,7 @@ export function draftFromView(
             // ends up stored and revealed against.
             id: definition.id,
             label: definition.label,
-            // ABSENT MEANS SECRET — the same fail-closed rule as everywhere else.
+            // ABSENT MEANS SECRET. Same fail-closed rule as everywhere else.
             secret: definition.secret !== false,
             hasStoredValue: false,
             value: "",

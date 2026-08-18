@@ -137,7 +137,7 @@ function buildCandlestickOption(
 
   // Build one candlestick series per tracker, mapped to the unified day axis.
   // Time-axis candlestick format: [timestamp, open, close, low, high].
-  // Days with no data for a tracker are skipped — time axis handles sparse data natively.
+  // Days with no data are skipped. Time axis handles sparse data natively.
   const series: CandlestickSeriesOption[] = trackerData.map((tracker, idx) => {
     const result = trackerResults[idx]
     const dayToOhlc = new Map<string, [number, number, number, number]>()
@@ -145,7 +145,7 @@ function buildCandlestickOption(
       dayToOhlc.set(result.days[i], result.ohlc[i])
     }
 
-    // [timestamp, open, close, low, high] tuples — gaps handled by time axis
+    // [timestamp, open, close, low, high] tuples. Gaps handled by time axis.
     const data: [number, number, number, number, number][] = []
     for (const day of allDays) {
       const entry = dayToOhlc.get(day)
@@ -262,8 +262,8 @@ function buildCandlestickOption(
  * Shows empty state if no tracker has at least 2 days of data.
  */
 function BufferCandlestickChart({ trackerData, height = 360 }: BufferCandlestickChartProps) {
-  // Tracker snapshots — app bands only. Aggregated to whole days, so the case
-  // that matters here is a multi-day outage, which erases candles outright.
+  // Tracker snapshots, app bands only. Aggregated to whole days. A multi-day
+  // outage erases candles outright.
   const outages = useOutageBands("tracker")
   const hasEnoughDays = trackerData.some((tracker) => {
     // Must key by the same local day as computeCandlestickData, or a single
@@ -273,7 +273,7 @@ function BufferCandlestickChart({ trackerData, height = 360 }: BufferCandlestick
     return uniqueDays.size >= 2
   })
 
-  // Magnitude, matching buildCandlestickOption — see the note there.
+  // Magnitude, matching buildCandlestickOption. See the note there.
   let globalMaxGiB = 0
   for (const tracker of trackerData) {
     for (const snap of tracker.snapshots) {
@@ -290,19 +290,18 @@ function BufferCandlestickChart({ trackerData, height = 360 }: BufferCandlestick
     }
   }
 
-  // A log axis cannot represent a non-positive value, and this chart's log
-  // branch takes its min/max from positive values alone — so a deficit candle
-  // is dropped while the axis quietly rescales around what's left. Once any
-  // value is <= 0 the toggle is withheld and auto-detection is starved of
-  // input, pinning the chart to the linear axis that can actually draw it.
-  // Same call MetricChart made for issue #36.
+  // A log axis cannot represent a non-positive value. This chart's log branch
+  // takes min/max from positive values alone. A deficit candle is dropped while
+  // the axis rescales around what's left. Once any value is <= 0, the toggle
+  // is withheld. Auto-detection is starved of input, pinning to the linear
+  // axis that can draw it. Same as MetricChart for issue #36.
   const canUseLog = allValues.length > 0 && allValues.every((v) => v > 0)
   const { effectiveLog, isAuto, onToggle } = useLogScale(canUseLog ? allValues : [])
-  // `canUseLog &&`, not `effectiveLog` alone: useLogScale keeps the user's
-  // override in state, so a viewer who forced log on while every value was
-  // positive would still be on a log axis after a new snapshot turns negative —
-  // dropping the very candle that just went into deficit, with the toggle now
-  // unmounted and no way to turn it off.
+  // `canUseLog &&`, not `effectiveLog` alone. useLogScale keeps the user's
+  // override in state. A viewer who forced log on while values were positive
+  // stays on log axis after a new snapshot turns negative. The candle that
+  // just went into deficit is dropped. The toggle unmounts with no way to turn
+  // it off.
   const useLog = canUseLog && effectiveLog
 
   if (!hasEnoughDays) {

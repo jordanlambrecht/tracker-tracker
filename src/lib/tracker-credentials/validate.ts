@@ -5,8 +5,8 @@
 // Deliberately PURE and deliberately free of `next/server`: the credentials sheet
 // imports this for inline validation, so anything server-only in here would be
 // dragged into the browser bundle. Route handlers wrap the returned message in
-// their own NextResponse. Same contract as validateNotificationConfig — returns
-// null when valid, an error string when not.
+// their own NextResponse. Like validateNotificationConfig: returns null when valid,
+// an error string when not.
 
 import {
   isTrackerCredentialVault,
@@ -20,11 +20,11 @@ import {
 // EVERY edit decrypts the whole thing, mutates it, and re-encrypts the whole
 // thing. Cost is O(total vault size) per keystroke-ish save, not O(changed
 // field). Unbounded input is therefore a denial-of-service vector against the
-// single-user server: one 50 MB "field" makes every future read of that tracker
-// — including the password-change re-key loop, which touches every row inside
-// ONE transaction — allocate and AES that blob again. The re-key path is the
-// dangerous one: it is the difference between a rotation that finishes and a
-// rotation that times out mid-transaction.
+// single-user server: one 50 MB "field" makes every future read of that tracker,
+// including the password-change re-key loop, which touches every row inside one
+// transaction. The whole blob must be allocated and AES'd again. The re-key path
+// is the dangerous one: it is the difference between a rotation that finishes and
+// a rotation that times out mid-transaction.
 
 /**
  * Max sections per vault. Sections are user-invented groupings ("IRC", "RSS",
@@ -34,7 +34,7 @@ import {
 export const MAX_SECTIONS = 20
 
 /**
- * Max fields across the WHOLE vault, not per section — the reveal endpoint looks
+ * Max fields across the WHOLE vault, not per section. The reveal endpoint looks
  * fields up by id alone, so the vault-wide count is what bounds that lookup and
  * what bounds the number of reveal round-trips a single sheet can trigger.
  */
@@ -65,8 +65,8 @@ export const MAX_ID_LENGTH = 64
  * Total serialized (UTF-8) size cap for the plaintext JSON, checked LAST as the
  * backstop. The per-item limits above multiply out to well over this, so this is
  * the number that actually decides how much work one decrypt/re-encrypt cycle
- * can ever be — including the change-password loop over every tracker row.
- * 64 KiB of plaintext is roughly 88 KB of base64 ciphertext per tracker.
+ * takes. This includes the change-password loop over every tracker row. 64 KiB of
+ * plaintext is roughly 88 KB of base64 ciphertext per tracker.
  */
 export const MAX_SERIALIZED_BYTES = 64 * 1024
 
@@ -87,7 +87,7 @@ export function isCredentialSlug(value: string): boolean {
  * Truncate a rejected id before quoting it back in an error message.
  *
  * An id is echoed by the "must be a slug" and "duplicate" messages, and those
- * messages fire BEFORE any length check has passed — that is the whole point of
+ * messages fire BEFORE any length check has passed. That's the whole point of
  * the slug check. Interpolating the raw value would let a 5 MB id become a 5 MB
  * error string sent back to the caller, which is the same denial-of-service the
  * limits above exist to prevent, just routed through the error path.
@@ -105,9 +105,9 @@ export function serializedVaultBytes(vault: TrackerCredentialVault): number {
  * Validate a vault about to be encrypted and stored.
  *
  * Returns null when valid, or a single human-readable error message. Checks run
- * cheapest-first — shape, then counts, then per-item lengths, then the total
- * serialized size — so a hostile payload is rejected before the expensive
- * whole-vault stringify.
+ * cheapest-first: shape, then counts, then per-item lengths, then the total
+ * serialized size. A hostile payload is rejected before the expensive whole-vault
+ * stringify.
  */
 export function validateTrackerCredentialVault(value: unknown): string | null {
   if (!isTrackerCredentialVault(value)) {

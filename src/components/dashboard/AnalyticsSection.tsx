@@ -67,12 +67,12 @@ function AnalyticsSection({
     switch (id) {
       case "daily-volume":
         return <DailyVolumeChart trackerData={trackerSeries} height={360} />
-      // Same chart id, card, and preference slot either way — only the
+      // Same chart id, card, and preference slot either way. Only the
       // renderer changes, so toggling never disturbs the user's layout.
       case "upload-landscape":
         // Render the 2D chart until the setting is known. Defaulting to 3D would load
-        // echarts-gl for the very users who turned WebGL off, which is the point of the
-        // setting — a brief 2D render for everyone else is the cheaper mistake.
+        // echarts-gl for users who turned WebGL off, which defeats the purpose. A brief
+        // 2D render for everyone else is the cheaper mistake.
         return dashSettings.loaded && dashSettings.settings.enable3DCharts ? (
           <VolumeSurface3D trackerData={trackerSeries} height={420} />
         ) : (
@@ -122,7 +122,7 @@ function AnalyticsSection({
       case "comparison-buffer":
         // No enableLogScale, unlike its neighbours: buffer is signed, a log axis
         // cannot represent a non-positive value, and the log path drops those
-        // points — so a tracker sliding into deficit silently vanishes from the
+        // points. A tracker sliding into deficit silently vanishes from the
         // comparison instead of being the thing you came to look at. Same call
         // MetricChart made for issue #36.
         return <ComparisonChart metric="buffer" trackerData={trackerSeries} height={320} />

@@ -4,7 +4,7 @@
 // through context.
 //
 // Mounted once in the authenticated layout. Charts read it with
-// `useOutageBands(source)`, which is a plain `useContext` — so a chart rendered
+// `useOutageBands(source)`, which is a plain `useContext`. So a chart rendered
 // with no provider above it (unit tests, isolated stories) gets the empty value
 // and simply draws no bands, rather than throwing or firing its own request.
 //
@@ -16,7 +16,7 @@
 //
 // ── UNKNOWN draws nothing ──────────────────────────────────────────────────
 // The API returns only positively recorded outages. A range with no record is
-// UNKNOWN — nothing observed it — and gets no band and no legend note, per the
+// UNKNOWN (nothing observed it) and gets no band and no legend note per the
 // owner's decision. This component adds no "everything was fine" affordance,
 // because that claim is exactly the one the data cannot support.
 
@@ -30,7 +30,7 @@ import { type ChartDataSource, type ChartOutageBands, NO_OUTAGE_BANDS } from "./
 /**
  * How far back a single request asks for. The route rejects windows wider than
  * five years, so this sits just inside that. Gaps are rare rows, so one wide
- * request is cheaper than re-fetching whenever a chart's zoom changes — and it
+ * request is cheaper than re-fetching whenever a chart's zoom changes, and it
  * means panning a chart never reveals an unexplained hole.
  */
 const LOOKBACK_MS = 5 * 365 * 24 * 60 * 60 * 1000 - 24 * 60 * 60 * 1000
@@ -58,7 +58,7 @@ interface OutagesResponse {
   allDown?: Interval[]
 }
 
-/** Keep only well-formed, non-empty intervals — the wire is not trusted. */
+/** Keep only well-formed, non-empty intervals. The wire is not trusted. */
 function sanitize(list: unknown): Interval[] {
   if (!Array.isArray(list)) return []
   const out: Interval[] = []
@@ -137,7 +137,7 @@ function OutageBandsProvider({ children }: { children: ReactNode }) {
  * Bands this chart is allowed to draw.
  *
  * `"tracker"` gets app bands only. A download-client outage cannot flatten a
- * tracker snapshot — the tracker poller never goes through the client — so a
+ * tracker snapshot (the tracker poller never goes through the client), so a
  * qBT band on a tracker chart would blame the wrong system for the dip.
  *
  * `"qbt"` gets both. Its qBT layer is the fleet-wide intersection: every

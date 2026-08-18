@@ -71,7 +71,7 @@ interface TrackerTorrentsData {
 }
 
 // ---------------------------------------------------------------------------
-// SessionStorage cache (Phase 0 — instant restore on page refresh)
+// SessionStorage cache (Phase 0: instant restore on page refresh)
 // ---------------------------------------------------------------------------
 
 function loadSessionCache(trackerId: number): AggregatedTorrentsResponse | undefined {
@@ -96,10 +96,9 @@ function saveSessionCache(trackerId: number, data: AggregatedTorrentsResponse) {
 // Hook
 // ---------------------------------------------------------------------------
 
-// `qbtTag` is intentionally not destructured: it used to gate every query, but a
-// tracker without a tag now resolves its torrents by announce URL server-side
-// (issue #152), so the hook has no use for it. It stays on the params type
-// because callers pass it and the tab still uses it to word its empty state.
+// `qbtTag` is not destructured: trackers now resolve by announce URL server-side,
+// so the hook doesn't need it. It stays on params because callers pass it and
+// the tab uses it for empty-state copy.
 function useTrackerTorrents({
   trackerId,
   rules,
@@ -110,7 +109,7 @@ function useTrackerTorrents({
 }: UseTrackerTorrentsParams): TrackerTorrentsData {
   const intervals = usePollingIntervals()
 
-  // forces an immediate background refetch from the DB cache endpoint
+  // Fetch from the DB cache endpoint with instant restore from sessionStorage
   const cachedQuery = useQuery({
     queryKey: ["tracker-torrents-cached", trackerId] as const,
     queryFn: async ({ signal }) => {
@@ -128,16 +127,15 @@ function useTrackerTorrents({
     initialDataUpdatedAt: 0,
   })
 
-  // Phase 2: Live qBT torrent data (slow — overrides cached when ready)
+  // Phase 2: Live qBT torrent data (slow, overrides cached when ready)
   const liveQuery = useQuery({
     queryKey: ["tracker-torrents", trackerId] as const,
     queryFn: async ({ signal }) => {
       const res = await fetch(`/api/trackers/${trackerId}/torrents`, { signal })
       if (!res.ok) throw new Error(`Torrent fetch failed: ${res.status}`)
       const data = (await res.json()) as AggregatedTorrentsResponse
-      // Same trust rule the resolution block below applies to what is displayed:
-      // an empty response from an incomplete fetch is a symptom, so don't let it
-      // overwrite the instant-restore snapshot the next page load starts from.
+      // Apply the same trust rule: only cache if complete (no client errors)
+      // or non-empty. An empty response with errors is incomplete, not a real answer.
       if (data.torrents.length > 0 || data.clientErrors.length === 0) {
         saveSessionCache(trackerId, data)
       }
@@ -160,19 +158,14 @@ function useTrackerTorrents({
 
   // Resolve the best available data source.
   //
-  // Live wins whenever it is trustworthy, and it is untrustworthy in exactly one
-  // shape: empty *and* incomplete. fetchAndMergeTorrents races each client
-  // against a 5s deadline and reports the losers in `clientErrors`, so one slow
-  // or offline client produces a perfectly successful response carrying zero
-  // torrents. Taking that literally is what blanked a populated cache on a
-  // hiccup — the tab went empty instead of falling back.
+  // Live wins when trustworthy. It's untrustworthy when empty and incomplete.
+  // fetchAndMergeTorrents races each client for 5s. One slow or offline client
+  // produces zero torrents. Taking that literally blanked cache on a hiccup.
   //
-  // An empty live result with no client errors is the opposite: every client
-  // answered, and none of them holds a torrent for this tracker. That is an
-  // answer, not a symptom, so it wins and the cache is discarded. Without that
-  // half of the rule, a tracker that genuinely has no torrents left would show
-  // stale cached ones forever — and a tag/announce mismatch would be hidden
-  // rather than surfaced.
+  // An empty result with no client errors is the opposite: all answered, none
+  // holds this tracker's torrents. That is an answer, not a symptom. Without
+  // this rule, a tracker with no torrents would show stale cache forever. Also,
+  // a tag or announce mismatch would stay hidden.
   const live = liveQuery.data ?? null
   const cached = cachedQuery.data ?? null
   const liveTrustworthy =

@@ -41,7 +41,7 @@ export function TodayAtAGlance({ data, variant = "bars" }: TodayAtAGlanceProps) 
 
         <Divider compact />
 
-        {/* Tracker breakdowns — upload and download side by side on lg, stacked on mobile */}
+        {/* Tracker breakdowns: upload and download side by side on lg, stacked on mobile */}
         <div className="flex items-center justify-between">
           <H2 className="uppercase tracking-wider">By Tracker</H2>
           <UpdatedAt iso={data.trackerLastUpdated} />

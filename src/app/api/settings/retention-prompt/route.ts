@@ -43,7 +43,7 @@ export async function POST(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  // null (or 0, matching PUT /api/settings) means "keep snapshots forever" — a real
+  // null (or 0, matching PUT /api/settings) means "keep snapshots forever". A real
   // choice here, not an absence of one. That is exactly why it needs its own marker.
   const raw = body.snapshotRetentionDays
   let days: number | null

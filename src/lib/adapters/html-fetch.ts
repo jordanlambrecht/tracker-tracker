@@ -42,8 +42,8 @@ export interface TrackerHtmlRequest {
   userAgent?: string
   proxyAgent?: FetchOptions["proxyAgent"]
   /**
-   * When set, redirects are followed rather than treated as an expired session
-   * — unless the Location matches loginPattern.
+   * When set, redirects are followed rather than treated as an expired session.
+   * Does not follow if the Location matches loginPattern.
    */
   followRedirects?: { loginPattern: RegExp; maxHops?: number }
 }
@@ -124,7 +124,7 @@ async function followRedirectChain(
     const nextUrl = new URL(location, currentUrl)
     // `headers` carries the user's tracker session cookie. Location is chosen by
     // the remote host, so following it blindly would replay that cookie wherever
-    // the response points — a hostile or compromised tracker could harvest the
+    // the response points. A hostile or compromised tracker could harvest the
     // session with a single 302. Refuse to leave the origin rather than stripping
     // credentials and continuing: these adapters read an authenticated page from a
     // known host, so an off-origin hop is never legitimate, and an anonymous

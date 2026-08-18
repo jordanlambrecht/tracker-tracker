@@ -23,7 +23,7 @@ export interface ProxyConfig {
 
 export const VALID_PROXY_TYPES = new Set<string>(["socks5", "http", "https"])
 
-// Shared hostname validation — alphanumeric, dots, hyphens, colons/brackets (IPv6)
+// Shared hostname validation: alphanumeric, dots, hyphens, colons/brackets (IPv6)
 export const PROXY_HOST_PATTERN = /^[\w.\-:[\]]+$/
 
 export function buildProxyUrl(config: ProxyConfig): string {
@@ -114,7 +114,7 @@ export function proxyFetch(
             ok: (res.statusCode ?? 0) >= 200 && (res.statusCode ?? 0) < 300,
             status: res.statusCode ?? 0,
             statusText: res.statusMessage ?? "",
-            // security-audit-ignore: async wrapper converts JSON.parse throw to rejected promise — caller handles via await/catch
+            // security-audit-ignore: async wrapper converts JSON.parse throw to rejected promise. Caller handles via await/catch
             json: async () => JSON.parse(raw.toString("utf8")),
             buffer: () => Promise.resolve(raw),
           })

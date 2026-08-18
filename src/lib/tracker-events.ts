@@ -211,10 +211,10 @@ export const EVENT_SNOOZE_MS: Record<NotificationEventType, number> = {
   tracker_down: 6 * 60 * 60 * 1000, // 6 hours
   buffer_milestone: 6 * 60 * 60 * 1000, // 6 hours
   warned: 6 * 60 * 60 * 1000, // 6 hours
-  ratio_danger: 24 * 60 * 60 * 1000, // 24 hours — state-based, fires while below minimum
-  zero_seeding: 24 * 60 * 60 * 1000, // 24 hours — state-based, fires while at 0 seeds
-  rank_change: 7 * 24 * 60 * 60 * 1000, // 7 days — rare event, one notification per change
-  anniversary: 7 * 24 * 60 * 60 * 1000, // 7 days — longer than the ±3-day detection window
+  ratio_danger: 24 * 60 * 60 * 1000, // 24 hours. State-based, fires while below minimum
+  zero_seeding: 24 * 60 * 60 * 1000, // 24 hours. State-based, fires while at 0 seeds
+  rank_change: 7 * 24 * 60 * 60 * 1000, // 7 days. Rare event, one notification per change
+  anniversary: 7 * 24 * 60 * 60 * 1000, // 7 days. Longer than the ±3-day detection window
   bonus_cap: 24 * 60 * 60 * 1000, // 24 hours
   vip_expiring: 24 * 60 * 60 * 1000, // 24 hours
   unsatisfied_limit: 6 * 60 * 60 * 1000, // 6 hours

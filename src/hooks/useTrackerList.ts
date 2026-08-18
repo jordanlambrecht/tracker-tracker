@@ -43,7 +43,7 @@ function getStatNumericValue(stats: TrackerLatestStats | null, mode: StatMode): 
         return Number(BigInt(stats.uploadedBytes) - BigInt(stats.downloadedBytes))
     }
   } catch {
-    // Malformed byte string — treat as missing, same as formatBytesFromString
+    // Malformed byte string. Treat as missing, same as formatBytesFromString
     // does for display, rather than letting BigInt() throw inside a sort.
     return null
   }
@@ -70,7 +70,7 @@ function sortTrackers(
         // Two infinite ratios would make the subtraction NaN, which is not a
         // valid comparator result. Equal values keep their relative order.
         if (av === bv) return 0
-        return bv - av // descending — highest value first
+        return bv - av // descending. Highest value first.
       })
     }
     default:
@@ -168,7 +168,7 @@ function useTrackerList({
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
-      // Reordering a stat-sorted list is meaningless — the next render just
+      // Reordering a stat-sorted list is meaningless. The next render just
       // re-sorts it by value. Drag listeners are already suppressed in this
       // mode (see Sidebar's `unlocked` prop), but guard here too so a
       // programmatic drag-end can't sneak a "custom" mode switch through.
@@ -184,7 +184,7 @@ function useTrackerList({
         // Order the full set exactly the way the sidebar displays it before
         // computing the move. The raw query cache comes back ordered by
         // createdAt, which matches the display only until the sort mode flips
-        // to "custom" at the end of this handler — after that, indices taken
+        // to "custom" at the end of this handler. After that, indices taken
         // from the cache refer to different trackers than the ones the user
         // dragged, which is what jumbled every drag after the first (#166).
         //

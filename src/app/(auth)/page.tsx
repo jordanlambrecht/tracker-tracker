@@ -10,7 +10,7 @@ import { DashboardClient } from "./DashboardClient"
 export default async function DashboardPage() {
   // Tag groups are opt-in via Settings and reading them is two small queries, so the server
   // can cheaply tell the client whether the Tag Groups section applies at all. The counts
-  // themselves come from the cached fleet aggregation, fetched on the client — computing
+  // themselves come from the cached fleet aggregation, fetched on the client. Computing
   // them here would put the whole fleet pass in front of this page's TTFB, and would freeze
   // the counts until a full reload.
   const [trackers, settingsResult, tagGroups] = await Promise.all([

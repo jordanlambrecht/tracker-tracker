@@ -272,7 +272,7 @@ export async function markAppStopped(nowMs: number = Date.now()): Promise<void> 
 }
 
 /**
- * [firstSeenAt, lastSeenAt] — the span the ledger can speak for at all. null
+ * [firstSeenAt, lastSeenAt]: the span the ledger can speak for at all. null
  * when it has never been written, in which case the caller must treat the entire
  * range as UNKNOWN and draw nothing.
  */

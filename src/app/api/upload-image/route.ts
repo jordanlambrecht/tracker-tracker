@@ -24,7 +24,7 @@ const VALID_MIME_TYPES = [
 
 /**
  * Magic-byte signatures for MIME types we can validate by file header.
- * Types without a fixed header (gif, bmp, avif) are omitted — they pass through
+ * Types without a fixed header (gif, bmp, avif) are omitted. They pass through
  * without magic-byte verification rather than being wrongly rejected.
  */
 const MAGIC_BYTES: Record<string, number[]> = {
@@ -35,7 +35,7 @@ const MAGIC_BYTES: Record<string, number[]> = {
 
 function matchesMagicBytes(buf: Buffer, mimeType: string): boolean {
   const magic = MAGIC_BYTES[mimeType]
-  if (!magic) return true // No signature defined — allow through
+  if (!magic) return true // No signature defined. Allow through
   if (buf.length < magic.length) return false
   return magic.every((byte, i) => buf[i] === byte)
 }
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
     expirationSeconds = parsed > 0 ? Math.round(parsed) : null
   }
 
-  // Look up encrypted API key from DB — column-projected select to avoid
+  // Look up encrypted API key from DB. Column-projected select to avoid
   // pulling sensitive fields (passwordHash, totpSecret, etc.) into memory.
   const [settings] = await db
     .select({
@@ -111,7 +111,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "App not configured" }, { status: 400 })
   }
 
-  // Type-safe column lookup — compiler catches renamed columns
+  // Type-safe column lookup: compiler catches renamed columns
   const encryptedKey =
     hostId === "ptpimg"
       ? settings.encryptedPtpimgApiKey
@@ -138,7 +138,7 @@ export async function POST(request: Request) {
   const rawName = file instanceof File ? file.name : "image.png"
   const fileName = rawName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 100)
 
-  // Magic-byte validation — verify actual file content matches declared MIME type.
+  // Magic-byte validation. Verify actual file content matches declared MIME type.
   // Catches renamed/mistyped files that bypass the client-supplied type check above.
   if (!matchesMagicBytes(fileBuffer, file.type)) {
     return NextResponse.json(

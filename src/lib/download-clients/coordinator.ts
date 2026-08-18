@@ -111,7 +111,7 @@ function trackerTorrentMatcher(
 
     // Fast reject before the full resolve, and equivalent to it rather than an
     // approximation of it. Once step 1 has failed, resolveTorrentTracker cannot
-    // return `target` from its tag branch — that branch fires only when a torrent
+    // return `target` from its tag branch. That branch fires only when a torrent
     // tag equals target.qbtTag, which step 1 already tested (and tested more
     // permissively, since it trims the configured tag first). So the only way
     // target can still win is the announce branch, which requires exactly this
@@ -152,8 +152,8 @@ export async function fetchFleetTorrents(key: Buffer, filter?: string): Promise<
  * Used by the per-tracker torrent page.
  *
  * A missing qbtTag is no longer an error. Membership is decided here rather than
- * by a qBT-side tag filter, so a tracker with no tag — or with a tag no torrent
- * actually carries — still resolves its torrents by announce URL (issue #152).
+ * by a qBT-side tag filter, so a tracker with no tag (or with a tag no torrent
+ * actually carries) still resolves its torrents by announce URL (issue #152).
  */
 export async function fetchTrackerTorrents(
   trackerId: number,
@@ -327,7 +327,7 @@ interface CachedTorrentResult {
  * Read cached torrent data for a single tracker from Postgres JSONB.
  * Used as fallback when live qBT connection fails.
  *
- * Like the live path, an untagged tracker is a valid request — membership falls
+ * Like the live path, an untagged tracker is a valid request. Membership falls
  * through to announce matching.
  */
 export async function fetchTrackerTorrentsCached(

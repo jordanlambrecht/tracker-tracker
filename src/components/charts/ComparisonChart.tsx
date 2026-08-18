@@ -285,11 +285,11 @@ function buildComparisonOption(
         smooth: true,
         symbol: useStacked ? "none" : "circle",
         symbolSize: dotSize,
-        // Always emitted, never spread in conditionally: ChartECharts renders
-        // with notMerge false, and an ABSENT key does not clear a previously
-        // merged one — it leaves the old value painted. Spreading these in only
-        // while stacked is what left the chart stacked after switching back to
-        // lines (issue #156). `undefined` is the value that clears them.
+        // Always emitted, never spread conditionally. ChartECharts renders with
+        // notMerge false, so an absent key does not clear a previously merged one.
+        // It leaves the old value painted. Spreading only while stacked leaves the
+        // chart stacked when switching back to lines (issue #156). Use `undefined`
+        // to clear them.
         stack: useStacked ? "total" : undefined,
         areaStyle: useStacked ? { opacity: 0.7 } : undefined,
         step: useStacked ? false : undefined,
@@ -316,7 +316,7 @@ function buildComparisonOption(
     })
   }
 
-  // yAxis config — shared base with log/linear specifics
+  // yAxis config: shared base with log/linear specifics
   const yAxis: EChartsOption["yAxis"] = {
     type: useLog ? "log" : "value",
     name: unit,
@@ -382,7 +382,7 @@ function ComparisonChart({
 }: ComparisonChartProps) {
   const [averageMode, setAverageMode] = useState(false)
   const [viewMode, setViewMode] = useState<"lines" | "stacked" | "total">("lines")
-  // Tracker snapshots — app bands only.
+  // Tracker snapshots. App bands only.
   const outages = useOutageBands("tracker")
 
   const hasData = trackerData.some((t) => t.snapshots.length > 0)

@@ -75,9 +75,9 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
   )
 
   // Resolve each tracker's registry entry once. The cards need the whole entry
-  // now (defunct status as well as categories), and findRegistryEntry scans the
-  // registry per call — so this stays a single pass rather than one lookup for
-  // filtering and another while rendering.
+  // now (defunct status and categories). Since findRegistryEntry scans per call,
+  // doing it here is a single pass instead of once for filtering and once for
+  // rendering.
   const { trackerEntries, allCategories } = useMemo(() => {
     const entryMap = new Map<number, TrackerRegistryEntry | undefined>()
     const catSet = new Set<string>()
@@ -126,7 +126,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Filters — only when > 6 trackers */}
+      {/* Filters: only when > 6 trackers */}
       {showFilters && (
         <div className="flex flex-col gap-2">
           {/* Mobile toggle */}
@@ -145,7 +145,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
             )}
           </button>
 
-          {/* Filter pills — always visible on md+, collapsible on mobile */}
+          {/* Filter pills: always visible on md+, collapsible on mobile */}
           <div
             className={clsx(
               "flex-wrap items-center gap-2",
@@ -201,7 +201,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
             // The card's own chrome (border, hover lift, rounding) lives on this
             // wrapper rather than on the navigation button, so the defunct banner
             // can sit inside the same cell without nesting a button inside a
-            // button — which is invalid HTML and swallows the inner click.
+            // button. Nested buttons are invalid HTML and swallow the inner click.
             <div
               key={t.id}
               className="flex flex-col nm-interactive-sm h-full rounded-nm-md overflow-hidden"
@@ -271,7 +271,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                 )}
               </button>
 
-              {/* Shutdown notice — renders nothing unless the registry marks this
+              {/* Shutdown notice. Renders nothing unless the registry marks this
                   tracker defunct. Archiving from here removes the card, which is
                   the point: the grid only lists active trackers. */}
               <TrackerDefunctBanner registryEntry={entry} tracker={t} variant="compact" />

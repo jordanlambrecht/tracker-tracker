@@ -5,7 +5,7 @@
 //
 // On the timeouts below: TanStack ALWAYS passes a `signal` into queryFn, so the
 // former `signal ?? AbortSignal.timeout(15_000)` could never reach its right-hand
-// side — the ceiling was dead code that still satisfied the security audit's
+// side. The ceiling was dead code that still satisfied the security audit's
 // "every fetch has a timeout" check. AbortSignal.any composes the two instead of
 // choosing between them, so caller-driven cancellation (unmount, refetch
 // supersession) still works AND the 15s ceiling can actually fire.

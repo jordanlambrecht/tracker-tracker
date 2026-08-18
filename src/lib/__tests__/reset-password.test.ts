@@ -5,7 +5,7 @@
 // It loads the SHIPPED ARTIFACT rather than a TypeScript copy of it. There used
 // to be three overlapping implementations of this operation and the one that had
 // tests was not the one that could run in the production image. Testing the .cjs
-// directly is what keeps those from diverging again — including the parity block
+// directly is what keeps those from diverging again, including the parity block
 // below, which executes the CLI's crypto against src/lib/crypto.ts in both
 // directions. That cross-check was done by hand during a real lockout; here it
 // runs on every commit.
@@ -42,7 +42,7 @@ const keyA = randomBytes(32)
 const keyB = randomBytes(32)
 
 describe("parity with src/lib/crypto.ts", () => {
-  // The CLI cannot import src/lib/crypto.ts — the production image has no tsx and
+  // The CLI cannot import src/lib/crypto.ts. The production image has no tsx and
   // cannot resolve "@/" — so the primitives are duplicated there. These four
   // assertions are the only thing standing between that duplication and a reset
   // that produces ciphertext the running app cannot open.

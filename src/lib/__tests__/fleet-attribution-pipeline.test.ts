@@ -4,14 +4,14 @@
 //
 // WHY THIS FILE EXISTS, AND WHY IT MUST NOT BE "SIMPLIFIED":
 // fleet-aggregation.test.ts builds TorrentRaw object literals by hand with `tracker`
-// already set. That shape is one the real pipeline never produced — slimTorrentForCache
+// already set. That shape is one the real pipeline never produced. slimTorrentForCache
 // omitted `tracker` entirely, so every torrent arriving at computeFleetAggregation had
 // tracker === undefined and the announce fallback was dead code in production while the
 // unit tests passed. The bug shipped twice (eb4f0ac, 0c4f694) behind a green suite.
 //
-// So these tests run a real TorrentRecord through the ACTUAL cache pipeline —
-// slimTorrentForCache -> mergeTorrentLists -> stampClientNames -> computeFleetAggregation —
-// the same sequence coordinator.ts:203-241 performs. If anyone drops the field from
+// So these tests run a real TorrentRecord through the ACTUAL cache pipeline:
+// slimTorrentForCache -> mergeTorrentLists -> stampClientNames -> computeFleetAggregation.
+// This is the same sequence coordinator.ts:203-241 performs. If anyone drops the field from
 // slimTorrentForCache again, these fail. Do not replace the pipeline calls with a literal.
 
 import { describe, expect, it } from "vitest"

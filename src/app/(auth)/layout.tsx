@@ -37,7 +37,7 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
           for an empty state when no trackers exist, which is exactly the
           fresh-install first login this prompt is for. Renders nothing once a
           username is set. Both redirects above have already run, so reaching
-          this line means a full session — a TOTP leg still pending holds only a
+          this line means a full session. A TOTP leg still pending holds only a
           pending token and was sent to /login. */}
       <UsernamePrompt needed={!settings.username} />
       {/* Mounted at the layout so every page's charts share ONE request for the

@@ -63,7 +63,7 @@ interface SlotDefinition<P = Record<string, unknown>> {
   span?: 1 | 2
 }
 
-// Erased type used for the exported heterogeneous array — component and
+// Erased type used for the exported heterogeneous array: component and
 // resolve are widened so that typed SlotDefinition<T> values can be placed
 // in a single array without unsafe double-casts.
 export interface AnySlotDefinition {
@@ -78,7 +78,7 @@ export interface AnySlotDefinition {
 }
 
 // ---------------------------------------------------------------------------
-// Helper — creates a 16x16 icon element
+// Helper. Creates a 16x16 icon element
 // ---------------------------------------------------------------------------
 
 function icon16(
@@ -391,7 +391,7 @@ const loginDeadlineSlot: SlotDefinition<LoginDeadlineCardProps> = {
       lastAccessAt: lastAccess,
       loginIntervalDays: loginDays,
       accentColor: ctx.accentColor,
-      // The user's configured tracker URL — same destination the detail
+      // The user's configured tracker URL. Same destination the detail
       // header and dashboard login timers already link to. Undefined when
       // unset so the button is omitted instead of pointing nowhere.
       loginUrl: ctx.tracker.baseUrl || undefined,
@@ -1025,7 +1025,7 @@ export const SLOT_DEFINITIONS: AnySlotDefinition[] = [
   dcHeartsBadgeSlot,
 ]
 
-// Shared component lookup — single source for rendering resolved slots
+// Shared component lookup: single source for rendering resolved slots
 const SLOT_COMPONENT_MAP = new Map(SLOT_DEFINITIONS.map((def) => [def.id, def.component]))
 
 export function renderSlotElement(slot: { id: string; props: Record<string, unknown> }): ReactNode {

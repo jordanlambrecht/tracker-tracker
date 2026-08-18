@@ -32,12 +32,12 @@ export interface TorrentRecord {
   swarmSeeders: number // total seeders in swarm
   swarmLeechers: number // total leechers in swarm
   tracker: string // primary tracker URL
-  addedAt: number // unix timestamp — when torrent was added
-  completedAt: number // unix timestamp — when download completed (-1 if incomplete)
-  lastActivityAt: number // unix timestamp — last transfer activity
+  addedAt: number // unix timestamp. When torrent was added
+  completedAt: number // unix timestamp. When download completed (-1 if incomplete)
+  lastActivityAt: number // unix timestamp. Last transfer activity
   seedingTime: number // seconds spent seeding
   activeTime: number // seconds total active time
-  lastSeenComplete: number // unix timestamp — last time a complete copy was seen in swarm
+  lastSeenComplete: number // unix timestamp. Last time a complete copy was seen in swarm
   availability: number // float 0-1, piece availability
   remaining: number // bytes remaining to download
   progress: number // float 0-1, download progress

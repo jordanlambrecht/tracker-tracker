@@ -11,9 +11,9 @@
 import { parseTorrentTags } from "@/lib/fleet"
 
 /**
- * Public suffixes with two labels. Without these, `example.co.uk` would
- * reduce to `co.uk` and match every other UK site. Not exhaustive — it only
- * needs to cover suffixes a private tracker plausibly uses.
+ * Public suffixes with two labels. Without these, `example.co.uk` would reduce
+ * to `co.uk` and match every other UK site. Not exhaustive. It only needs to
+ * cover suffixes a private tracker plausibly uses.
  */
 const TWO_LABEL_SUFFIXES: ReadonlySet<string> = new Set([
   "co.uk",
@@ -40,9 +40,9 @@ const IPV4_RE = /^\d{1,3}(\.\d{1,3}){3}$/
 /**
  * Reduce a hostname (or full URL) to the part that identifies the site.
  *
- * Announce URLs and web URLs for the same tracker routinely differ by
- * subdomain — `tracker.example.org/announce` vs `https://www.example.org` —
- * so both sides are reduced to `example.org` before comparison.
+ * Announce URLs and web URLs for the same tracker routinely differ by subdomain:
+ * `tracker.example.org/announce` vs `https://www.example.org`. Both sides are
+ * reduced to `example.org` before comparison.
  *
  * Returns null when the input isn't parseable as a host.
  */
@@ -98,10 +98,10 @@ interface MatchableTorrent {
  * by the warm read in download-clients/coordinator.ts and the cache write in
  * download-client-scheduler.ts. The two used to build it separately and drifted
  * apart when announce-URL attribution landed: the scheduler still matched on
- * tags alone, so an untagged torrent from a tracked site was in a warm result
- * and missing from the cached one, and a cold start under-reported the fleet.
+ * tags alone. An untagged torrent from a tracked site was in a warm result but
+ * missing from the cached one, under-reporting the fleet on cold start.
  *
- * `announceHostKeys` holds trackerHostKey() output, NOT raw base URLs — a full
+ * `announceHostKeys` holds trackerHostKey() output, not raw base URLs. A full
  * URL can never equal a reduced host key, so passing one degrades the predicate
  * to tag-only matching without failing. An empty set is exactly the tag-only
  * filter, which is what makes it safe to omit.
@@ -120,9 +120,9 @@ export function createTrackedTorrentPredicate(
 /**
  * Resolve a torrent to one of the user's trackers.
  *
- * A qBittorrent tag wins when present — it is an explicit user decision and
- * stays correct for trackers sharing an announce host. Otherwise fall back to
- * the announce URL, which requires no setup at all.
+ * A qBittorrent tag wins when present. It's an explicit user decision and stays
+ * correct for trackers sharing an announce host. Otherwise fall back to the
+ * announce URL, which requires no setup.
  */
 export function resolveTorrentTracker<T extends MatchableTracker>(
   torrent: MatchableTorrent,

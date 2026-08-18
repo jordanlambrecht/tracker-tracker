@@ -82,18 +82,13 @@ export function parseBytes(formatted: string): bigint {
 }
 
 /**
- * Parses a formatted byte string that is allowed to carry a leading minus.
+ * Parses a formatted byte string with leading minus allowed.
  *
- * ONLY for buffer. Buffer is signed on a private tracker, and `parseBytes`
- * throws on a negative by design — which, for a tracker-reported buffer field,
- * took down the entire poll rather than one value, so a deficit account
- * recorded no snapshot at all. Every other caller (uploaded, downloaded, sizes)
- * must keep using `parseBytes`, whose strictness is what catches a malformed
- * response.
- *
- * A tracker that clamps the buffer at its own end (reporting "0 B" for a
- * deficit) is data we cannot recover here; this only guarantees we do not throw
- * away a sign the tracker did send.
+ * For buffer only. Buffer is signed on a private tracker; parseBytes throws on
+ * negatives by design to preserve data integrity. This ensures a deficit account
+ * records a snapshot. Other callers must use parseBytes for its strictness. When
+ * a tracker clamps the buffer display (reporting "0 B" for a deficit), we
+ * cannot recover that data. This function preserves the sign if sent.
  */
 export function parseSignedBytes(formatted: string): bigint {
   const trimmed = formatted.trim()

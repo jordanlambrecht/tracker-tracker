@@ -72,8 +72,8 @@ export async function POST(request: Request) {
   const oldKey = decodeKey(auth)
 
   // The password check above proves the caller knows the current password. It does
-  // not prove the session is carrying the key that actually encrypted the data —
-  // those diverge whenever a session outlives a password change, which is ordinary
+  // not prove the session is carrying the key that actually encrypted the data.
+  // Those diverge whenever a session outlives a password change, which is ordinary
   // with a second signed-in device. Everything below decrypts with this key and
   // treats a failure as a corrupt row, so a stale key would look like every secret
   // in the database being corrupt at once, and the rotation would commit that:
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
   // already-corrupted items before committing any writes.
   // Per tracker: the API token plaintext (always present) and the credential
   // vault plaintext (null when the tracker has no vault, which is the norm).
-  // The vault is carried as an OPAQUE STRING — it is decrypted and re-encrypted
+  // The vault is carried as an OPAQUE STRING. It is decrypted and re-encrypted
   // without ever being JSON.parsed or shape-guarded, exactly like the
   // notification configs below. A rotation is not the place to start rejecting
   // stored shapes: a vault written by a newer build must survive it untouched.
@@ -159,7 +159,7 @@ export async function POST(request: Request) {
       continue
     }
 
-    // NULL is "no vault" and is NOT an error — it must never reach decrypt().
+    // NULL is "no vault" and is NOT an error. It must never reach decrypt().
     // It stays null all the way through to the UPDATE below.
     let vault: string | null = null
     if (tracker.encryptedCredentials) {
@@ -190,7 +190,7 @@ export async function POST(request: Request) {
         username: decrypt(client.encryptedUsername, oldKey),
         password: decrypt(client.encryptedPassword, oldKey),
         // Password-auth clients store "" here, which is not ciphertext and
-        // must not be handed to decrypt — it round-trips as "" below.
+        // must not be handed to decrypt. It round-trips as "" below.
         apiKey: client.encryptedApiKey ? decrypt(client.encryptedApiKey, oldKey) : "",
       })
     } catch (err) {
@@ -345,7 +345,7 @@ export async function POST(request: Request) {
             // Re-encrypted with the rest of the row, not left behind: a key
             // still sealed under the old password would fail its auth tag on
             // every poll, and no amount of re-entering the new password would
-            // recover it. "" stays "" — see the decrypt guard above.
+            // recover it. "" stays "" (see the decrypt guard above).
             encryptedApiKey: creds.apiKey ? encrypt(creds.apiKey, newKey) : "",
           })
           .where(eq(downloadClients.id, id))
@@ -380,7 +380,7 @@ export async function POST(request: Request) {
     newKey.fill(0)
   }
 
-  // Transaction committed — safe to end session
+  // Transaction committed. Safe to end session.
   log.info({ route: "POST /api/auth/change-password" }, "password changed successfully")
   await clearSchedulerKey(settings.id)
   stopScheduler()

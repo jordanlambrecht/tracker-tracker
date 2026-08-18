@@ -60,7 +60,7 @@ describe("useDashboardSettings", () => {
       })
 
       expect(result.current.loaded).toBe(false)
-      // Still defaults — which is exactly why acting on them would be wrong.
+      // Still defaults. This is exactly why acting on them would be wrong.
       expect(result.current.settings).toEqual(DASHBOARD_SETTINGS_DEFAULTS)
     })
 

@@ -8,8 +8,8 @@
 //
 // 1. The pause banners still appear for an ACTIVE tracker, paused either way. The fix is a
 //    suppression, and a suppression that over-reaches silently removes a working affordance.
-// 2. Neither pause banner appears once the tracker is archived, and nothing replaces them —
-//    the detail header's "Archived" badge and the defunct banner above already say it.
+// 2. Neither pause banner appears once the tracker is archived, and nothing replaces them.
+//    The detail header's "Archived" badge and the defunct banner above already say it.
 // 3. An archived tracker's lastError survives the suppression. Before this change the
 //    last-error card was gated on `!pause.isPaused`, so dropping the pause banner from an
 //    archived + auto-paused + lastError tracker would have left the page with no copy of the

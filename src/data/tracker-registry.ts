@@ -75,7 +75,7 @@ export interface TrackerRegistryEntry {
   /**
    * The tracker has permanently shut down. This is registry data, not adapter
    * data: a defunct tracker's API is gone, so nothing about it can be learned at
-   * runtime — it has to be recorded here by hand alongside `warning`.
+   * runtime. It has to be recorded here by hand alongside `warning`.
    */
   defunct?: boolean
   /** Short factual line about the shutdown, shown in the defunct banner. */
@@ -87,7 +87,7 @@ export interface TrackerRegistryEntry {
    *
    * Deliberately the same shape as a tracker row's `joinedAt`, so it renders
    * through `formatJoinedDate()` ("2026-05-11" → "May 11, 2026") with no new
-   * formatting code and no timezone drift — that helper parses at local
+   * formatting code and no timezone drift. That helper parses at local
    * midnight. The free-form `stats.statsUpdatedAt` ("March 2026") is the other
    * precedent in this type, but it is an unparseable display string, and this
    * field has to be shown in a readable form, sorted on, and validated.

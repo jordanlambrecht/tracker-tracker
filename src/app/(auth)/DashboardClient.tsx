@@ -93,8 +93,8 @@ export function DashboardClient({
 
   // Tag group counts share the Torrent Fleet tab's cached aggregation rather than being
   // computed during SSR, so they cost this page nothing before first paint. Sharing the cache
-  // also means they go stale and refresh on the fleet's own schedule — including the fleet
-  // tab's refresh button — instead of being frozen until a full page reload.
+  // also means they go stale and refresh on the fleet's own schedule. Including the fleet
+  // tab's refresh button instead of being frozen until a full page reload.
   const { data: tagGroupBreakdowns = [], isPending: tagGroupsPending } = useQuery({
     ...fleetCachedQueryOptions,
     staleTime: intervals.clientRefetchMs,
@@ -231,7 +231,7 @@ export function DashboardClient({
         )}
       </div>
 
-      {/* Tag Groups — omitted entirely when none are configured or none of them match */}
+      {/* Tag Groups. Omitted entirely when none are configured or none of them match */}
       {hasTagGroups && (tagGroupsPending || tagGroupBreakdowns.length > 0) && (
         <div className="flex flex-col gap-4">
           <SectionToggle

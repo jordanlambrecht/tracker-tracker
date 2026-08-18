@@ -59,7 +59,7 @@ export class NebulanceAdapter implements TrackerAdapter {
 
     // These APIs return the key owner's data regardless of the user queried, but
     // the lookup target must be a valid user. On first poll (no cached remoteUserId),
-    // use user ID 1 (system/admin account — always exists on Gazelle-derived sites).
+    // use user ID 1 (system/admin account: always exists on Gazelle-derived sites).
     const userId = options?.remoteUserId ?? 1
 
     // Anthelion uses "apikey" (no underscore), Nebulance uses "api_key"

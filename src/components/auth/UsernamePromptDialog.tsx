@@ -6,7 +6,7 @@
 // Why here and not on the login form: a username set before authentication is a
 // username an anonymous caller can set. The layout that mounts this component
 // has already redirected anyone without a session, and getSession() rejects any
-// token carrying a `purpose` claim — so a login that is still waiting on its
+// token carrying a `purpose` claim. So a login that is still waiting on its
 // TOTP code holds a pending token, has no session, and never reaches this
 // prompt. The password leg alone cannot summon it.
 //
@@ -34,7 +34,7 @@ import { USERNAME_MAX, USERNAME_MIN, validateUsername } from "@/lib/limits"
  * next page load. A bare `username IS NULL` check would re-nag on every
  * navigation, because the (auth) layout is force-dynamic and re-evaluates each
  * time. sessionStorage is the smallest thing that expires on exactly the right
- * boundary — it dies with the browser session, and LoginForm clears it on every
+ * boundary. It dies with the browser session, and LoginForm clears it on every
  * sign-in attempt so a fresh login re-arms the prompt.
  *
  * It carries no security weight whatsoever. It suppresses a nag; the write is
@@ -48,7 +48,7 @@ function suppressPrompt(): void {
   try {
     sessionStorage.setItem(USERNAME_PROMPT_SKIP_KEY, "1")
   } catch {
-    // Storage unavailable — the prompt simply reappears on the next navigation.
+    // Storage unavailable. The prompt simply reappears on the next navigation.
   }
 }
 
@@ -63,7 +63,7 @@ function isSuppressed(): boolean {
 interface UsernamePromptDialogProps {
   /** Called once the username has been persisted. */
   onSaved: () => void
-  /** Called when the user defers — suppression is the caller's job. */
+  /** Called when the user defers. Suppression is the caller's job. */
   onSkipped: () => void
 }
 
@@ -74,7 +74,7 @@ function UsernamePromptDialog({ onSaved, onSkipped }: UsernamePromptDialogProps)
 
   async function save() {
     // The same validator the server runs, so the common mistakes are named
-    // before a round-trip. The server still re-validates — this is convenience,
+    // before a round-trip. The server still re-validates. This is convenience,
     // not enforcement.
     const check = validateUsername(username)
     if (!check.ok) {
@@ -170,7 +170,7 @@ function UsernamePromptDialog({ onSaved, onSkipped }: UsernamePromptDialogProps)
  * fail open.
  *
  * The open state is decided in an effect rather than during render because it
- * depends on sessionStorage, which does not exist during SSR — deciding it
+ * depends on sessionStorage, which does not exist during SSR. Deciding it
  * inline would hydrate a mismatch.
  */
 function UsernamePrompt({ needed }: { needed: boolean }) {
@@ -200,7 +200,7 @@ function UsernamePrompt({ needed }: { needed: boolean }) {
   )
 }
 
-// UsernamePromptDialog stays private — UsernamePrompt is its only consumer, and
+// UsernamePromptDialog stays private. UsernamePrompt is its only consumer, and
 // knip cannot flag an export used solely inside its own file (knip.json sets
 // ignoreExportsUsedInFile), so a public one would never be caught.
 export { UsernamePrompt }

@@ -5,7 +5,7 @@
 // clock-jump clamp, the throttle, and the stall detection that catches an outage
 // inside a process that never actually died.
 //
-// Fake timers throughout — no real sleeps.
+// Fake timers throughout. No real sleeps.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -383,7 +383,7 @@ describe("pruneCoverageGaps", () => {
   it("keys the delete on endedAt, NOT startedAt", async () => {
     // A gap that began before the horizon but ended inside it still explains
     // surviving chart data. Pruning on startedAt would delete the explanation
-    // while the snapshots it explains remain — the exact drift the retention
+    // while the snapshots it explains remain. The exact drift the retention
     // coupling exists to prevent.
     seed({ deleted: [{ id: 1 }, { id: 2 }] })
 

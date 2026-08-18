@@ -46,7 +46,7 @@ function ChartCard({
   }, [visible])
 
   // Mount once visible, stay mounted. The collapse animation uses CSS
-  // (grid-rows-[0fr] + opacity-0) to hide content — no need to destroy
+  // (grid-rows-[0fr] + opacity-0) to hide content. No need to destroy
   // and recreate ECharts instances on every expand/collapse cycle.
   useEffect(() => {
     if (visible && !collapsed && !mounted) {
@@ -61,7 +61,7 @@ function ChartCard({
         title={title}
         subtitle={description && !collapsed ? description : undefined}
       >
-        {/* Collapse / Hide controls — absolute top-right over Card header */}
+        {/* Collapse / Hide controls: absolute top-right over Card header */}
         <div className="absolute top-4 right-4 flex items-center gap-1 z-10">
           <Tooltip content={collapsed ? "Expand" : "Collapse"}>
             <button

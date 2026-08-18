@@ -18,12 +18,12 @@ interface PollLogProps {
 
 /**
  * The `Snapshot` wire type has no `ratioIsInfinite` flag (unlike
- * `TrackerLatestStats` — see tracker-serializer.ts), so an infinite ratio
+ * `TrackerLatestStats`. See tracker-serializer.ts). An infinite ratio
  * (uploaded > 0, downloaded === 0) arrives here as a bare `ratio: null`,
  * indistinguishable from a genuinely unmeasured poll. Re-derive it from the
  * byte totals using the serializer's own predicate (tracker-serializer.ts:60)
  * rather than reinventing one; falls through to the stored value otherwise,
- * so a real "unmeasured" snapshot still shows "—".
+ * so a real "unmeasured" snapshot still shows as unmeasured.
  */
 function snapshotRatio(snap: Snapshot): number | null {
   return BigInt(snap.downloadedBytes) === 0n && BigInt(snap.uploadedBytes) > 0n

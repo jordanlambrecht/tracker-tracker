@@ -34,7 +34,7 @@ export function slimTorrentForCache(t: TorrentRecord) {
     downloadSpeed: t.downloadSpeed,
     availability: t.availability,
     progress: t.progress,
-    // The derived announce HOST, not the raw `tracker` announce URL — deliberately,
+    // The derived announce HOST, not the raw `tracker` announce URL. Deliberately,
     // do not "simplify" this back to `t.tracker`.
     //
     // Attribution only ever needs the host: announceMatchesTracker reduces both the
@@ -46,10 +46,10 @@ export function slimTorrentForCache(t: TorrentRecord) {
     // jsonb column (and lands verbatim in unencrypted backup exports), and announce
     // URLs carry per-user passkeys. trackerHostKey parses via `new URL(...).hostname`,
     // which drops path, query string and userinfo, then reduces to the registrable
-    // domain — so a passkey in any of those positions, or as a subdomain, is gone.
+    // domain. So a passkey in any of those positions, or as a subdomain, is gone.
     //
     // trackerHostKey is idempotent (trackerHostKey("lst.gg") === "lst.gg"), so the
-    // consumer side — fleet-aggregation's keyForAnnounce — works on this stored host
+    // consumer side (fleet-aggregation's keyForAnnounce) works on this stored host
     // exactly as it would on a raw URL, with no branch for which one it received.
     tracker: trackerHostKey(t.tracker) ?? undefined,
   }

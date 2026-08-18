@@ -23,9 +23,9 @@ import {
 import type { TrackerSummary } from "@/types/api"
 
 /**
- * Prefer the stored buffer over recomputing it. A tracker's own buffer is not
- * always `uploaded - downloaded` — freeleech, bonus spending and per-site
- * accounting all break that identity — so deriving it here made the leaderboard
+ * Prefer the stored buffer over recomputing it. Trackers' own buffers are not
+ * always `uploaded - downloaded` (freeleech, bonus spending, and per-site
+ * accounting all break that identity). Deriving it here made the leaderboard
  * disagree with the detail page for every tracker that reports its own (Hawke,
  * enriched Gazelle). Falls back to the derived value only when nothing is
  * stored, which is what the adapters compute anyway.
@@ -62,11 +62,11 @@ const columns: Column<TrackerSummary>[] = [
     header: "Ratio",
     align: "right",
     sortable: true,
-    // An infinite ratio (uploaded > 0, downloaded === 0 — the best possible
+    // An infinite ratio (uploaded > 0, downloaded === 0: the best possible
     // standing) crosses the wire as `ratio: null` plus this flag, since JSON
     // can't carry Infinity. Reading `ratio` alone would sort it dead last,
-    // tied with trackers that have no data at all — matches the eaaa483
-    // sidebar fix and tracker-status, which already treats this as healthiest.
+    // tied with trackers that have no data at all. This matches the eaaa483
+    // sidebar fix and tracker-status, which already treat this as healthiest.
     sortValue: (t) =>
       t.latestStats?.ratioIsInfinite ? Number.POSITIVE_INFINITY : (t.latestStats?.ratio ?? -1),
     render: (t) => (

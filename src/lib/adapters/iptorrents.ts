@@ -164,7 +164,7 @@ export function parseIptProfile(html: string): TrackerStats {
     group,
     uploadedBytes,
     downloadedBytes,
-    // Derived from byte totals, not the stats bar's own Ratio text — whatever
+    // Derived from byte totals, not the stats bar's own Ratio text. Whatever
     // that field holds for a zero-download account, the old parse left it at 0
     // either way, so a healthy account read as a critical ratio.
     ratio: computeRatio(uploadedBytes, downloadedBytes),

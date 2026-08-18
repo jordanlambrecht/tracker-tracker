@@ -3,9 +3,9 @@
 // GET /api/uptime/outages?from=<epoch ms>&to=<epoch ms>
 //
 // Returns the outage bands to shade behind a time-series chart for that window.
-// All of the interval MATH lives in @/lib/outages (pure, no DB); this route only
-// gathers evidence and decides the coverage POLICY — how far back and forward the
-// records are allowed to speak.
+// All interval math lives in @/lib/outages (pure, no DB). This route gathers
+// evidence and decides the coverage policy: how far back and forward records are
+// allowed to speak.
 
 import { and, asc, eq, gte, inArray, lte } from "drizzle-orm"
 import { NextResponse } from "next/server"

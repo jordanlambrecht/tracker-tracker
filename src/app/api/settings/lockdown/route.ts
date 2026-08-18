@@ -54,8 +54,8 @@ export async function POST(request: Request) {
       // 2. Revoke all tracker API tokens
       await tx.update(trackers).set({
         encryptedApiToken: "LOCKDOWN_REVOKED",
-        // NULL — deliberately NOT a "LOCKDOWN_REVOKED" marker. The marker above
-        // exists only because encrypted_api_token is NOT NULL and needs some
+        // NULL. This is deliberately NOT a "LOCKDOWN_REVOKED" marker. The marker
+        // above exists only because encrypted_api_token is NOT NULL and needs some
         // string; it is also the exact value that once sailed past a truthiness
         // guard into decrypt(). This column is nullable precisely so the revoked
         // state needs no sentinel, and recover.cjs already reads NULL as

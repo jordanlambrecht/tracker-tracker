@@ -17,19 +17,19 @@ export interface LockoutSettings {
  * Escape hatch for the one person the lockout can strand.
  *
  * The in-app lockout toggle lives behind authenticate(), so it is unreachable by
- * exactly the user it has locked out — the only ways back in are waiting, or
+ * exactly the user it has locked out. The only ways back in are waiting, or
  * hand-editing the database. Setting DISABLE_LOGIN_LOCKOUT=true in the container
  * environment and restarting stops the 429 from being served, which is something
  * the operator of a self-hosted box can always do.
  *
  * It suppresses ENFORCEMENT only. recordFailedAttempt() keeps counting and still
  * stamps locked_until, so removing the variable restores the real state rather
- * than a blank one — and a successful sign-in calls resetFailedAttempts(), which
+ * than a blank one. A successful sign-in calls resetFailedAttempts(), which
  * clears both, so getting back in cleans up after itself.
  */
 const DISABLE_LOCKOUT_ENV = "DISABLE_LOGIN_LOCKOUT"
 
-/** Warn once per process, not once per request — this must be noisy, not spam. */
+/** Warn once per process, not once per request. This must be noisy, not spam. */
 let disabledWarningLogged = false
 
 function lockoutDisabledByEnv(): boolean {
@@ -39,7 +39,7 @@ function lockoutDisabledByEnv(): boolean {
   if (process.env[DISABLE_LOCKOUT_ENV] !== "true") return false
 
   // Warned whenever the variable is armed, not only when it actually swallows a
-  // lockout — a temporary rescue switch left set forever would otherwise be
+  // lockout. A temporary rescue switch left set forever would otherwise be
   // completely silent on a healthy instance, which is the failure this guards.
   if (!disabledWarningLogged) {
     disabledWarningLogged = true

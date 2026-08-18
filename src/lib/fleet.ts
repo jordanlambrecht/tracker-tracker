@@ -96,7 +96,7 @@ export interface Bucket {
   color: string
 }
 
-/** Ratio bucket definitions — shared with TorrentsTab */
+/** Ratio bucket definitions. Shared with TorrentsTab */
 export const RATIO_BUCKETS: Bucket[] = [
   { label: "<0.5", max: 0.5, color: CHART_THEME.scale[0] },
   { label: "0.5-1", max: 1, color: CHART_THEME.scale[1] },
@@ -106,7 +106,7 @@ export const RATIO_BUCKETS: Bucket[] = [
   { label: "10+", max: Infinity, color: CHART_THEME.scale[5] },
 ]
 
-/** Seed time bucket definitions — shared with TorrentsTab */
+/** Seed time bucket definitions. Shared with TorrentsTab */
 export const SEED_TIME_BUCKETS: Bucket[] = [
   { label: "<1d", max: 86_400, color: CHART_THEME.scale[0] },
   { label: "1-7d", max: 604_800, color: CHART_THEME.scale[1] },

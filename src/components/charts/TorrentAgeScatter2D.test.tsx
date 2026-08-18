@@ -1,9 +1,9 @@
 // src/components/charts/TorrentAgeScatter2D.test.tsx
 //
 // Issue #38: the 2D substitute rendered when "Enable 3D charts" is off.
-// It has to keep both view presets and all four dimensions of the 3D chart —
-// the depth axis becomes symbol size and the fourth dimension keeps its
-// visualMap colour scale — without ever asking for a WebGL context.
+// It has to keep both view presets and all four dimensions of the 3D chart.
+// The depth axis becomes symbol size and the fourth dimension keeps its
+// visualMap colour scale without ever asking for a WebGL context.
 
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
@@ -101,7 +101,7 @@ describe("TorrentAgeScatter2D", () => {
     expect(seedRatio.series?.[0]?.encode).toEqual({ x: 1, y: 3 })
     expect(seedRatio.visualMap?.dimension).toBe(0)
 
-    // Switching presets re-encodes the same rows — no data is discarded.
+    // Switching presets re-encodes the same rows. No data is discarded.
     expect(seedRatio.dataset?.source).toHaveLength(3)
   })
 

@@ -35,7 +35,7 @@ interface BtnUserInfoResult {
   Download: string
   /** Documented user class name. */
   Title?: string
-  // Undocumented — observed live, absent from the published spec:
+  // Undocumented, observed live but absent from published spec:
   Class?: string
   Lumens?: string
   Bonus?: string
@@ -72,30 +72,27 @@ function mapBtnResult(result: BtnUserInfoResult): TrackerStats {
 
   return {
     username: result.Username,
-    // `Title` is the documented class-name field; `Class` is what a live
-    // response was observed to use. Accept either.
+    // `Title` is documented; `Class` appears in live responses. Accept either.
     group: result.Class ?? result.Title ?? "Unknown",
     uploadedBytes,
     downloadedBytes,
-    // Derived from byte totals — BTN's userInfo carries no ratio field of its
-    // own, and defaulting a zero-download account to 0 reported a healthy
-    // account as critically below its minimum ratio.
+    // Derived from byte totals. BTN's userInfo has no ratio field, and
+    // defaulting zero-download to 0 would show healthy accounts as critical.
     ratio: computeRatio(uploadedBytes, downloadedBytes),
     bufferBytes: computeBufferBytes(uploadedBytes, downloadedBytes),
-    // BTN's userInfo response carries no seeding/leeching counts, no required
-    // ratio and no warned flag. Report them as unknown rather than as a
-    // confident zero — a hardcoded 0 renders identically to a measured 0.
+    // BTN's userInfo has no seeding/leeching counts, required ratio, or warned
+    // flag. Report as unknown rather than zero. A hardcoded 0 renders as a
+    // measured 0.
     seedingCount: null,
     leechingCount: null,
     requiredRatio: null,
     warned: null,
-    // `HnR` is undocumented on userInfo — BTN publishes a separate
-    // getUserSnatchlist endpoint for hit-and-runs, so this key may not
-    // exist at all. Report unknown rather than a fabricated 0.
+    // `HnR` is undocumented. BTN has a separate getUserSnatchlist endpoint for
+    // hit-and-runs, so this key may not exist. Report unknown rather than a
+    // fabricated 0.
     hitAndRuns: result.HnR == null ? null : (parseInt(result.HnR, 10) || 0),
-    // `Lumens` and `Bonus` are undocumented and their meaning is unconfirmed —
-    // `Bonus` arrives fractional, which does not fit a freeleech token count.
-    // Left unmapped until someone with a BTN account can verify which is which.
+    // `Lumens` and `Bonus` are undocumented, meanings unconfirmed. `Bonus` is
+    // fractional, which doesn't fit a token count. Unmapped pending verification.
     seedbonus: null,
     freeleechTokens: null,
     remoteUserId: parseInt(result.UserID, 10) || undefined,

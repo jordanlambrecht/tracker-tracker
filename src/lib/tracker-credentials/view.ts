@@ -19,11 +19,11 @@ import { isFieldSecret } from "@/lib/tracker-credentials/types"
  * ─────────────────────────────────────────────────────────────────────────────
  * THERE IS NO `value` PROPERTY HERE, AND THAT IS THE POINT.
  * Secrets are excluded STRUCTURALLY, not filtered out at the end. A masking
- * approach — copy the field, then blank or delete `value` — is one forgotten
- * branch away from leaking, and TypeScript cannot tell you when that happens
- * because the type still has the property. Here the compiler rejects any
- * attempt to put plaintext on a secret field, so the reveal endpoint is the
- * ONLY route a secret value can travel by.
+ * approach (copy the field, then blank or delete `value`) is one forgotten branch
+ * away from leaking. TypeScript cannot tell you when that happens because the type
+ * still has the property. Here the compiler rejects any attempt to put plaintext
+ * on a secret field, so the reveal endpoint is the ONLY route a secret value can
+ * travel by.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 export interface TrackerCredentialSecretFieldView {
@@ -39,11 +39,11 @@ export interface TrackerCredentialSecretFieldView {
 }
 
 /**
- * A field the vault's owner explicitly marked `secret: false` — an IRC nick, an
- * announce URL. These carry their value, because that is the entire meaning of
- * the flag: no reveal round-trip and no masking for data that is not a secret.
- * Note the fail-closed default: a field with `secret` ABSENT is secret and ends
- * up in the branch above, never here.
+ * A field the vault's owner explicitly marked `secret: false`. Examples are IRC
+ * nicks and announce URLs. These carry their value because that's the entire
+ * meaning of the flag: no reveal round-trip and no masking for data that isn't
+ * secret. Note the fail-closed default: a field with `secret` ABSENT is secret
+ * and ends up in the branch above, never here.
  */
 export interface TrackerCredentialPublicFieldView {
   id: string
@@ -71,10 +71,11 @@ export interface TrackerCredentialVaultView {
 function toFieldView(field: TrackerCredentialField): TrackerCredentialFieldView {
   // Built from named properties, never by spreading `field` and deleting keys.
   // A spread would carry `value` in by default and make the secret path depend
-  // on a later delete — the fail-open shape this module exists to make
-  // impossible. It also drops any unknown extra keys a newer build may have
-  // written, which is the correct direction: unknown keys round-trip through
-  // STORAGE untouched, but they have no business being echoed to the client.
+  // on a later delete. The fail-open shape this module exists to make impossible
+  // uses explicit property listing. It also drops any unknown extra keys a newer
+  // build may have written, which is the correct direction: unknown keys
+  // round-trip through STORAGE untouched, but they have no business being echoed
+  // to the client.
   if (isFieldSecret(field)) {
     return {
       id: field.id,

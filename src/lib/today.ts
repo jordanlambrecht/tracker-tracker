@@ -255,7 +255,7 @@ export async function computeTodayAtAGlance(): Promise<TodayAtAGlance> {
   let completedToday = 0
   // Torrents we saw but couldn't attribute to any tracker by tag or announce
   // URL. Reported so the UI can tell "no download client" apart from "client
-  // connected but nothing matched" — identical otherwise (issue #157).
+  // connected but nothing matched". Identical otherwise (issue #157).
   let unmatchedTorrents = 0
 
   for (const client of clients) {
@@ -434,7 +434,7 @@ export async function backfillTrackerCheckpoints(): Promise<number> {
           ratioEnd: row.ratioEnd != null ? Number(row.ratioEnd) : null,
           seedbonusEnd: row.seedbonusEnd != null ? Number(row.seedbonusEnd) : null,
           // snapshotCount is hard-coded to 1 because backfill selects only the
-          // last snapshot per day — the actual count is not available without a
+          // last snapshot per day. The actual count is not available without a
           // separate COUNT query per (trackerId, date) pair. Acceptable for backfill.
           snapshotCount: 1,
         }))

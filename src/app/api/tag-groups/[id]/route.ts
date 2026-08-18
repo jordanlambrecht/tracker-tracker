@@ -239,12 +239,12 @@ export async function PATCH(request: Request, props: RouteContext) {
       if (sortErr) return NextResponse.json({ error: sortErr }, { status: 400 })
     }
 
-    // All valid — execute atomically
+    // All valid. Execute atomically
     await db.transaction(async (tx) => {
       // 1. Update group metadata
       await tx.update(tagGroups).set(updates).where(eq(tagGroups.id, groupId))
 
-      // 2. Deletes first (must precede creates — tag duplicate check depends on this)
+      // 2. Deletes first (must precede creates: tag duplicate check depends on this)
       for (const memberId of removes) {
         await tx
           .delete(tagGroupMembers)

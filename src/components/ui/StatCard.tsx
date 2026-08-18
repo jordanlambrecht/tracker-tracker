@@ -1,9 +1,9 @@
 // src/components/ui/StatCard.tsx
 
 //  three variants:
-//   "basic"   — single hero value (default)
-//   "stacked" — multiple label/value rows with optional total
-//   "ring"    — countdown ring (login deadline)
+//   "basic"   . single hero value (default)
+//   "stacked" . multiple label/value rows with optional total
+//   "ring"    . countdown ring (login deadline)
 
 import clsx from "clsx"
 import type { HTMLAttributes, ReactNode } from "react"
@@ -76,7 +76,7 @@ interface StatCardRingProps extends StatCardBase {
 type StatCardProps = StatCardBasicProps | StatCardStackedProps | StatCardRingProps
 
 // ---------------------------------------------------------------------------
-// Shell — shared card wrapper
+// Shell. Shared card wrapper
 // ---------------------------------------------------------------------------
 
 function Shell({
@@ -120,7 +120,7 @@ function Shell({
 }
 
 // ---------------------------------------------------------------------------
-// Header — title + optional icon + optional tooltip
+// Header. Title + optional icon + optional tooltip
 // ---------------------------------------------------------------------------
 
 function Header({
@@ -175,7 +175,7 @@ function Header({
 }
 
 // ---------------------------------------------------------------------------
-// Basic variant — single hero value
+// Basic variant. Single hero value
 // ---------------------------------------------------------------------------
 
 const trendConfig: Record<TrendDirection, { symbol: string; colorClass: string; label: string }> = {

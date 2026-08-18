@@ -13,7 +13,7 @@ import crypto from "node:crypto"
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest"
 
 // ---------------------------------------------------------------------------
-// Cookie store — shared across all calls within a single test
+// Cookie store: shared across all calls within a single test
 // ---------------------------------------------------------------------------
 
 type CookieEntry = { value: string; options?: Record<string, unknown> }
@@ -40,7 +40,7 @@ vi.mock("next/headers", () => ({
 }))
 
 // ---------------------------------------------------------------------------
-// Fresh module import per test — avoids stale env cache in getSessionKey()
+// Fresh module import per test: avoids stale env cache in getSessionKey()
 // ---------------------------------------------------------------------------
 
 async function loadAuth() {
@@ -106,7 +106,7 @@ describe("auth JWE real crypto", () => {
     // Starts with a base64url-encoded protected header
     expect(token).toMatch(/^eyJ/)
 
-    // Must NOT be parseable as JSON — the encryption key must not be visible
+    // Must NOT be parseable as JSON. The encryption key must not be visible
     expect(() => JSON.parse(token)).toThrow()
 
     // The raw encryption key must not appear anywhere in the token string
@@ -158,7 +158,7 @@ describe("auth JWE real crypto", () => {
 
     const sessionToken = await createSession(SAMPLE_KEY, 10)
 
-    // Session tokens have no purpose field — verifyPendingToken should reject
+    // Session tokens have no purpose field. verifyPendingToken should reject
     const result = await verifyPendingToken(sessionToken)
     expect(result).toBeNull()
   })

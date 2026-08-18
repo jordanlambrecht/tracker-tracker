@@ -77,13 +77,10 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
     refetchInterval: intervals.trackerRefetchMs,
     select: selectActiveTrackers,
     initialData: options?.initialTrackers,
-    // 0, not Date.now(). Today this is inert — the sidebar (useTrackerList) renders
-    // before this hook and creates the ["trackers"] entry first, and QueryCache.build
-    // returns an existing query untouched, so this initialData never enters cache
-    // state. If that render order ever changes, Date.now() would stamp the RSC payload
-    // as fresh-right-now and suppress refetchOnMount for the whole 2-minute staleTime,
-    // re-creating exactly the staleness this file was implicated in. Matches the
-    // deliberate `initialDataUpdatedAt: 0` seeding idiom in useTrackerTorrents.ts.
+    // Use 0, not Date.now(). The sidebar renders first and creates ["trackers"], so
+    // QueryCache.build returns it untouched and initialData never enters cache state.
+    // If render order changes, Date.now() would suppress refetchOnMount for 2 minutes.
+    // See initialDataUpdatedAt: 0 in useTrackerTorrents.ts.
     initialDataUpdatedAt: options?.initialTrackers ? 0 : undefined,
   })
 
@@ -93,9 +90,8 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
   const fleetSnapshotsQuery = useQuery({
     queryKey: ["tracker-snapshots-fleet", dayRange],
     queryFn: async ({ signal }) => {
-      // Always send days explicitly, including the "All" sentinel 0. Omitting the
-      // param does NOT mean 0 to the server: parseIntClamped falls back to its
-      // default of 30, so "All" silently requested a 30-day window instead.
+      // Send days explicitly. The server's parseIntClamped defaults to 30, so
+      // omitting it would get 30 instead of the "All" sentinel 0.
       const url = `/api/trackers/snapshots/fleet?days=${dayRange}`
       const res = await fetch(url, { signal })
       if (!res.ok) throw new Error(`Fleet snapshot fetch failed: ${res.status}`)

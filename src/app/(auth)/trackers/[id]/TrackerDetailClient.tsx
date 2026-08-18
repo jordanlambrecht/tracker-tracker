@@ -278,7 +278,7 @@ export function TrackerDetailClient({
         joinedAt={tracker.joinedAt}
       />
 
-      {/* Shutdown notice — ranks above the pause/error banners because a defunct
+      {/* Shutdown notice. Ranks above the pause/error banners because a defunct
           tracker's poll failures are a symptom of the shutdown, not a separate
           problem to troubleshoot. */}
       <TrackerDefunctBanner
@@ -287,7 +287,7 @@ export function TrackerDetailClient({
         onArchived={(updated) => {
           // Same handling as the settings sheet's archive: the row has already
           // been written through the shared cache, so there is nothing to
-          // re-fetch — an archived tracker just leaves the active dashboard.
+          // re-fetch. An archived tracker just leaves the active dashboard.
           if (!updated.isActive) {
             router.push("/")
             return

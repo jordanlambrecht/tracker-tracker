@@ -64,7 +64,7 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
 
   // Reordering a stat-sorted list is meaningless (the next render just
   // re-sorts it by value), so drag is suppressed the same way `unlocked:
-  // false` suppresses it — no drag handle, no grab cursor — regardless of
+  // false` suppresses it. No drag handle, no grab cursor, regardless of
   // the lock toggle's own state.
   const dragUnlocked = prefs.unlocked && prefs.sortMode !== "stat"
   const lockDisabled = prefs.sortMode === "stat"
@@ -278,7 +278,7 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
           {/* Client status widget */}
           <DownloadClientStatusWidget />
 
-          {/* Bottom controls — pinned */}
+          {/* Bottom controls (pinned) */}
           <div className="px-3 py-4 border-t border-border shrink-0 flex flex-col gap-1">
             <div className="flex items-center gap-1">
               <button

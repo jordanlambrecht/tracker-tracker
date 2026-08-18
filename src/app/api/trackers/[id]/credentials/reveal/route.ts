@@ -47,9 +47,9 @@ export async function POST(request: Request, props: RouteContext) {
   if (body instanceof NextResponse) return body
 
   const fieldId = body.fieldId
-  // Checked against the slug rule BEFORE any length check and before the id is
-  // ever echoed or logged — the rule already bounds length to 64, so a hostile
-  // multi-megabyte id is rejected here rather than being interpolated anywhere.
+  // Checked against the slug rule before any length check and before the id is
+  // logged. The rule bounds length to 64, so a hostile multi-megabyte id is
+  // rejected here rather than being interpolated anywhere.
   if (typeof fieldId !== "string" || !isCredentialSlug(fieldId)) {
     return NextResponse.json({ error: "Invalid field id" }, { status: 400 })
   }
@@ -111,8 +111,8 @@ export async function POST(request: Request, props: RouteContext) {
       "revealed tracker credential field"
     )
 
-    // Deliberately NOT cached anywhere — no ETag, no revalidate. Next does not
-    // cache route handler POSTs, and this must stay a POST for that reason too.
+    // Deliberately not cached. No ETag, no revalidate. Next does not cache
+    // route handler POSTs. This must stay a POST for that reason.
     return NextResponse.json({ value: match.value })
   } catch (err) {
     log.error(

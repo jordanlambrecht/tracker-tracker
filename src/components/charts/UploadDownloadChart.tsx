@@ -185,7 +185,7 @@ function UploadDownloadChart({
   height = 400,
   showDataZoom = false,
 }: UploadDownloadChartProps) {
-  // Tracker snapshots — app bands only.
+  // Tracker snapshots. App bands only.
   const outages = useOutageBands("tracker")
 
   if (snapshots.length === 0) {

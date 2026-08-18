@@ -24,7 +24,7 @@ import {
 } from "@/lib/tunnel"
 
 const TEST_URL = "https://httpbin.org/ip"
-// Loose IP pattern — IPv4, IPv6, or comma-separated (httpbin returns this)
+// Loose IP pattern: IPv4, IPv6, or comma-separated (httpbin returns this)
 const IP_PATTERN = /^[\d.,: a-fA-F]+$/
 
 export async function POST(request: Request) {
@@ -120,7 +120,7 @@ export async function POST(request: Request) {
 
     const data = (await response.json()) as { origin?: string }
 
-    // Sanitize origin — only return if it matches an IP-like pattern
+    // Sanitize origin. Only return if it matches an IP-like pattern
     const origin =
       typeof data.origin === "string" && IP_PATTERN.test(data.origin) ? data.origin : null
 

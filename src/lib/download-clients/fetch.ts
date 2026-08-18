@@ -98,7 +98,7 @@ async function fetchClientTorrents(
  * and stamp each merged torrent with the originating client name(s).
  *
  * @param clients  Enabled download client rows (credentials encrypted).
- * @param tags     qBT tag(s) to fetch, or null for no tag filter at all — the
+ * @param tags     qBT tag(s) to fetch, or null for no tag filter at all. The
  *                 caller then decides membership itself via `select`, which is
  *                 what the per-tracker route needs since a tracker may have no
  *                 tag, or a tag no torrent carries (issue #152).
@@ -106,12 +106,12 @@ async function fetchClientTorrents(
  * @param filter   Optional qBT filter string (i.e. "active"). Not applied when
  *                 tags has more than one entry.
  * @param select   Optional membership test, applied per client on the raw
- *                 TorrentRecord — before merge, so client stamping stays
+ *                 TorrentRecord. Before merge, so client stamping stays
  *                 accurate, and before stripping, so it can still read the
  *                 announce URL.
  */
 /** Per-client deadline for live fetches (seconds). Keeps the UI responsive
- *  when one client is offline — the online client's data arrives immediately
+ *  when one client is offline. The online client's data arrives immediately
  *  while the offline one is cut short after this deadline instead of waiting
  *  for the full 30s retry cycle (15s timeout x 2 attempts). */
 const CLIENT_DEADLINE_MS = 5_000
@@ -131,7 +131,7 @@ export async function fetchAndMergeTorrents(
     sessionExpired: false,
   }
 
-  // An empty tag array still means "nothing to ask for" — only an explicit null
+  // An empty tag array still means "nothing to ask for". Only an explicit null
   // means "everything, narrowed by select".
   if (clients.length === 0 || (tags !== null && tags.length === 0)) {
     return empty

@@ -64,7 +64,7 @@ function computeRankPeriods(trackerData: TrackerSnapshotSeries[]): RankPeriod[] 
       const snapRank = snap.group as string
 
       if (snapRank !== currentRank) {
-        // Rank changed — close the current period at the previous snapshot's time
+        // Rank changed. Close the current period at the previous snapshot's time.
         const prevSnap = withGroup[i - 1]
         periods.push({
           tracker: tracker.name,
@@ -131,7 +131,7 @@ function buildRankTenureOption(
     p.tracker,
   ])
 
-  // Bar height from category axis — use api.size in renderItem
+  // Bar height from category axis. Use api.size in renderItem
   const BAR_HEIGHT_RATIO = 0.6 // fraction of category slot height
 
   return {
@@ -191,7 +191,7 @@ function buildRankTenureOption(
           params: CustomSeriesRenderItemParams,
           api: CustomSeriesRenderItemAPI
         ): CustomSeriesRenderItemReturn => {
-          // suppress unused-param lint — params is required by ECharts signature
+          // suppress unused-param lint. params is required by ECharts signature
           void params
 
           const categoryIndex = Number(api.value(0))
@@ -267,7 +267,7 @@ function buildRankTenureOption(
 // ---------------------------------------------------------------------------
 
 function RankTenureChart({ trackerData, height = 300 }: RankTenureChartProps) {
-  // Tracker snapshots — app bands only.
+  // Tracker snapshots. App bands only.
   const outages = useOutageBands("tracker")
   const periods = computeRankPeriods(trackerData)
   const hasData = periods.length > 0

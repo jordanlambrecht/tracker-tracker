@@ -45,9 +45,8 @@ export function parseAvistazCredentials(apiToken: string): AvistazCredentials {
 }
 
 // ---------------------------------------------------------------------------
-// Byte parsing — reuses existing parseBytes from @/lib/parser which handles
-// both binary (GiB) and decimal (GB) units with exact bigint arithmetic.
-// AvistaZ uses decimal units (GB, KB).
+// Byte parsing: parseBytes handles both binary (GiB) and decimal (GB) units
+// with exact bigint arithmetic. AvistaZ uses decimal units (GB, KB).
 // ---------------------------------------------------------------------------
 
 function strictParseBytes(text: string, field: string): bigint {
@@ -283,9 +282,8 @@ export function parseAvistazProfile(html: string, username: string): TrackerStat
     group,
     uploadedBytes,
     downloadedBytes,
-    // Derived from byte totals, not the ratio bar's own figure — AvistaZ caps
-    // that display at 999999.99 for a near-zero-download account, so parsing it
-    // reports a made-up number instead of the infinity it stands for.
+    // Compute from byte totals, not the ratio bar. AvistaZ caps its display at
+    // 999999.99, so a near-zero account parses to a fake number not infinity.
     ratio: computeRatio(uploadedBytes, downloadedBytes),
     bufferBytes: computeBufferBytes(uploadedBytes, downloadedBytes),
     seedingCount,

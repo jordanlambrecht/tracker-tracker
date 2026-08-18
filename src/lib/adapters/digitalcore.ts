@@ -127,7 +127,7 @@ interface DCUserResponse {
   username: string
   /**
    * Inverted connectability, as a number (0 = connectable, 1 = not).
-   * Verified against a live response. This is the authoritative source —
+   * Verified against a live response. This is the authoritative source.
    * `connectable` on /api/v1/status can disagree with it (issue #167).
    */
   unconnectable?: number
@@ -320,7 +320,7 @@ export class DigitalCoreAdapter implements TrackerAdapter {
       stats.platformMeta = {
         ...baseMeta,
         // /api/v1/status reports `connectable`, /api/v1/users/:id reports the
-        // inverse `unconnectable`, and they can disagree — a live account
+        // inverse `unconnectable`, and they can disagree. A live account
         // returned connectable:0 alongside unconnectable:0. The profile
         // endpoint is the authoritative one, same as for `warned` above.
         ...(profile.unconnectable !== undefined

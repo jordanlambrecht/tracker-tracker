@@ -43,7 +43,7 @@ export async function scrubAndDeleteAll(): Promise<void> {
       // `if (row.encryptedCredentials)` guards and reach decrypt(). The token
       // column above is NOT NULL and so has no such option; this one does, and
       // NULL is already its designed "no vault" state. Overwriting buys nothing
-      // anyway — the rows are deleted at the bottom of this same transaction.
+      // anyway. The rows are deleted at the bottom of this same transaction.
       encryptedCredentials: null,
       name: randomHex(8),
       baseUrl: randomHex(16),

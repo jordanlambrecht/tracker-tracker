@@ -30,7 +30,7 @@ export const onlyencodes: TrackerRegistryEntry = {
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [
-    // Dynamic — upload-based
+    // Dynamic. upload-based
     { name: "Leech", requirements: "Ratio below 0.4" },
     { name: "User", requirements: "Ratio ≥ 0.4" },
     { name: "Explorer", requirements: "Upload ≥ 1 TiB, ratio ≥ 0.4, age ≥ 1 month" },
@@ -54,7 +54,7 @@ export const onlyencodes: TrackerRegistryEntry = {
       requirements:
         "Upload ≥ 100 TiB, ratio ≥ 0.4, age ≥ 1 year, seed size ≥ 100 GiB. Freeleech, H&R immune",
     },
-    // Dynamic — seed-based
+    // Dynamic. seed-based
     {
       name: "Eternal",
       requirements:
@@ -70,7 +70,7 @@ export const onlyencodes: TrackerRegistryEntry = {
       requirements:
         "Upload ≥ 1 TiB, ratio ≥ 0.4, age ≥ 6 months, avg seedtime ≥ 3 months, seed size ≥ 20 TiB. Freeleech, 2x upload, H&R immune",
     },
-    // Dynamic — hybrid
+    // Dynamic. hybrid
     {
       name: "BeachBum",
       requirements:

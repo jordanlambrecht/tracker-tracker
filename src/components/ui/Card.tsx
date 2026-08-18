@@ -51,7 +51,7 @@ function Card({
     composedStyle.filter = `drop-shadow(0 0 16px ${glowColor})`
   }
 
-  // Inset accent — pseudo-element for the "face"
+  // Inset accent (pseudo-element for the "face")
   if (trackerColor) {
     ;(composedStyle as Record<string, string>)["--card-accent"] = hexToRgba(trackerColor, 0.08)
   }

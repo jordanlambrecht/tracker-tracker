@@ -11,7 +11,7 @@ const DEFAULTS = DASHBOARD_SETTINGS_DEFAULTS
  * Broadcast when any instance of this hook writes a setting, carrying only the
  * keys that changed.
  *
- * Several independent instances of this hook are mounted at once — the settings
+ * Several independent instances of this hook are mounted at once. The settings
  * sheet, the dashboard, the outage-band provider. Without this, flipping a
  * toggle in the sheet updated the sheet's copy and left every other copy stale
  * until a reload, so a user could turn something off and watch it stay on.

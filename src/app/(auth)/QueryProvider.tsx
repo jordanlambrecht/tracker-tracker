@@ -11,7 +11,7 @@ export function QueryProvider({ children }: { children: ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 2 * 60 * 1000, // 2 minutes — skip refetch on focus if data is recent
+            staleTime: 2 * 60 * 1000, // 2 minutes. Skip refetch on focus if data is recent
             refetchOnWindowFocus: true,
             retry: 1,
           },

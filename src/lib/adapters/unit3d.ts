@@ -135,17 +135,17 @@ export class Unit3dAdapter implements TrackerAdapter {
       group: data.group,
       uploadedBytes,
       downloadedBytes,
-      // Derived from byte totals, not data.ratio — UNIT3D sends "∞" for a
+      // Derived from byte totals, not data.ratio. UNIT3D sends "∞" for a
       // zero-download account and parseFloat turns that into 0.
       ratio: computeRatio(uploadedBytes, downloadedBytes),
       // Some UNIT3D builds (i.e. Zenith) report an unlimited buffer as "∞",
-      // which parseBytes rejects. Derive it from the totals instead — the
-      // same fallback avistaz.ts uses.
+      // which parseBytes rejects. Derive it from the totals instead: the same
+      // fallback avistaz.ts uses.
       //
       // Otherwise parse it SIGNED: buffer is the one field here that can
       // legitimately arrive negative ("-1.23 TiB"), and plain parseBytes throws
-      // on a leading minus, which failed the whole poll — uploaded, downloaded
-      // and every other stat with it — instead of recording one negative value.
+      // on a leading minus, which fails the whole poll (uploaded, downloaded
+      // and every other stat with it) instead of recording one negative value.
       // parseBytes stays strict for every other caller.
       bufferBytes: isUnlimitedBuffer(data.buffer)
         ? computeBufferBytes(uploadedBytes, downloadedBytes)

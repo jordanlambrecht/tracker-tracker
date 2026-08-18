@@ -58,7 +58,7 @@ describe("shared query timeouts", () => {
     await run({ signal: caller.signal, queryKey: fleetCachedQueryOptions.queryKey })
 
     expect(seen).toBeDefined()
-    // Not the caller's signal passed straight through — that is what made the
+    // Not the caller's signal passed straight through. That is what made the
     // 15s ceiling unreachable.
     expect(seen).not.toBe(caller.signal)
     // ...and caller-driven cancellation still propagates through the composite.

@@ -17,7 +17,7 @@ export async function POST(_request: Request, props: RouteContext) {
   const trackerId = await parseTrackerId(props.params)
   if (trackerId instanceof NextResponse) return trackerId
 
-  // Atomically claim poll slot — prevents TOCTOU race with multiple tabs
+  // Atomically claim poll slot. Prevents TOCTOU race with multiple tabs
   const threshold = new Date(Date.now() - POLL_MANUAL_COOLDOWN_MS)
   const [claimed] = await db
     .update(trackers)

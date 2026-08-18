@@ -10,7 +10,7 @@ export const LOGO_NAME_RE = /^\/tracker-logos\/[a-z0-9_]+_logo\.(svg|png)$/
 export const PLACEHOLDER_RE = /^TODO$/i
 
 /**
- * `defunctDate` must be a plain "YYYY-MM-DD" calendar date — the same shape as a
+ * `defunctDate` must be a plain "YYYY-MM-DD" calendar date. The same shape as a
  * tracker row's `joinedAt`, so it renders through `formatJoinedDate()`. A free-form
  * display string ("May 2026") would parse to Invalid Date there.
  */
@@ -50,7 +50,7 @@ export function isEmpty(val: unknown): boolean {
  * explanation reads as a bug. `defunct: true` therefore requires both the date
  * and the message, and the date must be a real calendar day because the UI
  * parses it. Details set *without* `defunct: true` are inert rather than
- * broken — most likely a half-finished edit — so those only warn.
+ * broken (most likely a half-finished edit), so those only warn.
  *
  * This lives here, not in the CI script, because the script cannot be imported
  * (it runs `process.exit` / `console.log` on module load) and the registry test

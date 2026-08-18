@@ -119,8 +119,8 @@ function buildFleetOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
 }
 
 function FleetCompositionChart({ trackerData, height = 360 }: FleetCompositionChartProps) {
-  // Named "Fleet", but the numbers are TRACKER snapshots, not download-client
-  // ones — so this is a tracker-sourced chart and gets app bands only.
+  // Named "Fleet", but these are TRACKER snapshots, not download-client ones.
+  // This is a tracker-sourced chart and gets app bands only.
   const outages = useOutageBands("tracker")
   const hasData = trackerData.some((t) => t.snapshots.some((s) => s.seedingCount !== null))
 

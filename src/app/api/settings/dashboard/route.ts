@@ -49,7 +49,7 @@ export async function PUT(request: Request) {
 
   // The allowlist is derived from the defaults rather than written out key by key. A
   // hand-maintained list silently drops any field added to DashboardSettings later, which is
-  // exactly what happened to enable3DCharts — the PUT looked like it worked because the client
+  // exactly what happened to enable3DCharts. The PUT looked like it worked because the client
   // updates optimistically, and the value only vanished on reload. Comparing against the
   // default's type keeps the same validation the explicit branches did.
   const merged: DashboardSettings = parseSettings(row.dashboardSettings)

@@ -19,7 +19,7 @@ type UsernameValidation = { ok: true; username: string } | { ok: false; error: s
  * always applied it: trim FIRST, then bound the length, then the character class.
  *
  * Order matters. Checking the length of the raw string lets `" a "` through a
- * `>= 3` test and then stores the trimmed `"a"` — a username setup itself would
+ * `>= 3` test and then stores the trimmed `"a"`. A username setup itself would
  * have rejected. Every surface that accepts a username has to agree with setup,
  * or the login form ends up demanding a value that could never have been typed
  * into the form that created the account.
@@ -62,7 +62,7 @@ export const LARGE_TOKEN_MAX = 5000
 
 /**
  * Platforms that authenticate with a JSON credential blob rather than a plain
- * API key. These need the larger cap — an IPTorrents cookie header alone can
+ * API key. These need the larger cap. An IPTorrents cookie header alone can
  * run past 1 KB. Add new blob-credential platforms here and every route picks
  * it up.
  */

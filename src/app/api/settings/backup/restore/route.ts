@@ -307,7 +307,7 @@ export async function POST(request: Request) {
     }
   }
 
-  // Step 6b: Dry run — report what a real restore would preserve, and stop.
+  // Step 6b: Dry run. Report what a real restore would preserve, and stop.
   //
   // This MUST stay above stopScheduler(), which is the first side effect in the
   // handler. Everything above it is parsing, authorisation and key derivation; a
@@ -348,7 +348,7 @@ export async function POST(request: Request) {
 
   try {
     await db.transaction(async (tx) => {
-      // Delete all existing data — FK-safe order (children before parents)
+      // Delete all existing data in FK-safe order (children before parents)
       await tx.delete(dismissedAlerts)
       // app_liveness is intentionally absent here and from the backup payload:
       // it belongs to the running process, not to the data being restored. See
@@ -372,7 +372,7 @@ export async function POST(request: Request) {
 
         let apiToken: string
         if (canPassThrough) {
-          // Same instance — keep ciphertext as-is
+          // Same instance. Keep ciphertext as-is.
           apiToken = (fields.encryptedApiToken as string) || ""
         } else if (canReencrypt) {
           apiToken = reencryptField(
@@ -484,7 +484,7 @@ export async function POST(request: Request) {
         }
 
         // Only the columns the client's own mode reads decide whether it came
-        // back usable — a password client legitimately has no API key.
+        // back usable. A password client legitimately has no API key.
         const credentialsCleared =
           clientAuthMethod === "apikey" ? !encApiKey : !encUsername || !encPassword
         const [inserted] = await tx
@@ -662,7 +662,7 @@ export async function POST(request: Request) {
         }
       }
 
-      // Batch insert appCoverageGaps (optional — absent in older backups).
+      // Batch insert appCoverageGaps (optional, absent in older backups).
       // No id remap: these are app-global, not keyed to any client or tracker.
       if (Array.isArray(payload.appCoverageGaps) && payload.appCoverageGaps.length > 0) {
         const gapRows: { startedAt: Date; endedAt: Date; reason: string }[] = []
@@ -678,7 +678,7 @@ export async function POST(request: Request) {
         await batchInsert(tx, appCoverageGaps, gapRows)
       }
 
-      // Insert dismissedAlerts (optional — absent in older backups)
+      // Insert dismissedAlerts (optional, absent in older backups)
       if (Array.isArray(payload.dismissedAlerts) && payload.dismissedAlerts.length > 0) {
         const alertRows: { alertKey: string; alertType: string; dismissedAt: Date }[] = []
         for (const a of payload.dismissedAlerts) {
@@ -698,7 +698,7 @@ export async function POST(request: Request) {
         }
       }
 
-      // Insert notificationTargets with config re-encryption (optional — absent in older backups)
+      // Insert notificationTargets with config re-encryption (optional, absent in older backups)
       if (Array.isArray(payload.notificationTargets) && payload.notificationTargets.length > 0) {
         for (const nt of payload.notificationTargets) {
           const { id: _id, ...fields } = nt as Record<string, unknown> & { id: number }
@@ -859,7 +859,7 @@ export async function POST(request: Request) {
         totpDisabledOnRestore = true
       }
 
-      // Update appSettings in place — NEVER delete + re-insert
+      // Update appSettings in place. NEVER delete + re-insert.
       await tx
         .update(appSettings)
         .set({
@@ -906,7 +906,7 @@ export async function POST(request: Request) {
           dashboardSettings: (payload.settings.dashboardSettings as string | null) ?? null,
           // Restored, because this .set() is an ALLOWLIST and an omitted column
           // is simply left at whatever the restoring install already had. On a
-          // fresh install that means OFF — so a user restoring a backup would
+          // fresh install that defaults to OFF. A user restoring a backup would
           // find their credential sheet showing "storage is turned off" and
           // reasonably conclude the restore had lost their passkeys. It has not:
           // trackers.encrypted_credentials restores intact either way. This just
@@ -941,7 +941,7 @@ export async function POST(request: Request) {
 
   // Restart the scheduler we stopped in Step 7, mirroring the failure path above.
   // The session survives a restore, so (auth)/layout.tsx would also revive polling on the
-  // next authenticated page load — but only if a browser loads one. Restarting here keeps
+  // next authenticated page load (but only if a browser loads one). Restarting here keeps
   // the route self-contained for direct API callers instead of relying on that.
   // encryptedSchedulerKey stays null (see scheduler-key-store.ts:54-58): polling runs now,
   // but will not survive a process restart until the next login re-persists the key.

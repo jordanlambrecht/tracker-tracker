@@ -246,7 +246,7 @@ function TagGroupBreakdownChart({
     const total = items.reduce((sum, m) => sum + m.count, 0)
     const maxCount = Math.max(...items.map((m) => m.count))
 
-    // Single item: hero layout — fill the card, vertically centered
+    // Single item: hero layout. Card fills and is vertically centered.
     if (items.length === 1) {
       const m = items[0]
       const color = memberColor(accentColor, m, 0, 1)

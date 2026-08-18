@@ -63,7 +63,7 @@ const baseTracker: TrackerSummary = {
 
 describe("TrackerOverviewGrid ratio label (infinite ratio)", () => {
   // The ratio label is the only element with this class combination on the
-  // card — group/age also render "—" when unmeasured, so text queries alone
+  // card. Group/age also render "—" when unmeasured, so text queries alone
   // would match more than one node.
   function ratioLabelFor(name: string) {
     const card = screen.getByText(name).closest("button")

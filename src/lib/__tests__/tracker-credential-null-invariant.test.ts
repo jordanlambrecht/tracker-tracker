@@ -7,7 +7,7 @@
 //   - nuke.ts scrubs encrypted_api_token to randomHex(64)
 //   - the lockdown route sets encrypted_api_token to the literal
 //     "LOCKDOWN_REVOKED"
-// Both are forced moves — that column is NOT NULL, so it needs *some* string.
+// Both are forced moves. That column is NOT NULL, so it needs *some* string.
 // encrypted_credentials IS nullable, so copying either idiom would put a TRUTHY
 // NON-CIPHERTEXT value in a column that guards read with
 // `if (row.encryptedCredentials)`. That is exactly how "LOCKDOWN_REVOKED" once
@@ -111,7 +111,7 @@ describe("emergency lockdown — trackers.encryptedCredentials", () => {
 
     const values = trackerVaultWrite()
 
-    // The column is included in the revoke at all — an omitted column would
+    // The column is included in the revoke at all. An omitted column would
     // leave a live, decryptable vault behind after an emergency lockdown.
     expect(values).toHaveProperty("encryptedCredentials")
     expect(values.encryptedCredentials).toBeNull()

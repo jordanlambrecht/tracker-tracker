@@ -40,7 +40,7 @@ export const fearnopeer: TrackerRegistryEntry = {
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [
-    // Dynamic — upload-based
+    // Dynamic. Upload-based
     {
       name: "Leech",
       requirements: "Ratio below 0.8 — download, request, chat, and forum privileges revoked",
@@ -70,7 +70,7 @@ export const fearnopeer: TrackerRegistryEntry = {
       requirements:
         "Upload ≥ 100 TiB, ratio ≥ 0.8, age ≥ 1 year, seed size ≥ 5 TiB, avg seedtime ≥ 30 days. 70 download slots, freeleech, H&R immune",
     },
-    // Dynamic — seed-based
+    // Dynamic. Seed-based
     {
       name: "Seeder",
       requirements:

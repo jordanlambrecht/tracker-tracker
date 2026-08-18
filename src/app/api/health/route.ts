@@ -3,7 +3,7 @@
 // Functions: GET
 //
 // Lightweight health check for Docker HEALTHCHECK and load balancers.
-// No authentication required — returns 200 if the server is up and
+// No authentication required. Returns 200 if the server is up and
 // can reach the database, 503 otherwise.
 
 import { sql } from "drizzle-orm"

@@ -3,7 +3,7 @@ import { cva } from "class-variance-authority"
 import clsx from "clsx"
 
 // Ordered loosely by severity, ascending, to mirror TrackerHealth. "no-seeds"
-// shares the danger palette with "critical" and "paused" — this union
+// shares the danger palette with "critical" and "paused". This union
 // distinguishes states by their accessible label, not by giving every member
 // its own color.
 type PulseDotStatus =

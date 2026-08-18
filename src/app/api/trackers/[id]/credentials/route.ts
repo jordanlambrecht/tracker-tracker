@@ -56,7 +56,7 @@ export async function GET(_request: Request, props: RouteContext) {
 
   if (!tracker) return NextResponse.json({ error: "Tracker not found" }, { status: 404 })
 
-  // NULL is "no vault" — a normal state, not an error, and never handed to
+  // NULL is "no vault". A normal state, not an error, and never handed to
   // decrypt(). The sheet seeds an empty vault from the registry defaults.
   if (!tracker.encryptedCredentials) {
     return NextResponse.json({ vault: null })
@@ -68,7 +68,7 @@ export async function GET(_request: Request, props: RouteContext) {
       { name: tracker.name, encryptedCredentials: tracker.encryptedCredentials },
       key
     )
-    // toVaultView drops every secret value STRUCTURALLY — the view type has no
+    // toVaultView drops every secret value structurally. The view type has no
     // `value` property on a secret field, so this response cannot carry one.
     return NextResponse.json({ vault: toVaultView(vault) })
   } catch (err) {
@@ -111,10 +111,10 @@ export async function PUT(request: Request, props: RouteContext) {
 
   const vault = body.vault
 
-  // An explicit null, or a vault with nothing left in it, clears the column.
-  // Storing encrypt('{"v":1,"sections":[]}') instead would give "no vault" TWO
-  // representations, and every reader would then have to know both. NULL is the
-  // single empty state — see the column's doc comment in schema.ts.
+  // An explicit null or an empty vault clears the column. Storing encrypt() of
+  // an empty structure would create two representations: NULL and an encrypted
+  // empty object. Every reader would have to know both. NULL is the single
+  // empty state. See the column's doc comment in schema.ts.
   const isEmpty =
     vault === null ||
     (typeof vault === "object" &&
@@ -138,12 +138,12 @@ export async function PUT(request: Request, props: RouteContext) {
   try {
     // ── The merge, and why the failure below is a refusal rather than a fallback
     //
-    // The sheet loads MASKED, so it cannot send back secrets it was never shown;
-    // fields arrive with `value` OMITTED to mean "keep what is stored". Filling
-    // those gaps requires reading the current vault. If that read fails, the ONLY
-    // safe move is to abort: treating an unreadable vault as empty would merge
-    // every omitted value to "" and silently destroy every secret in it, and the
-    // user would see a green "Saved".
+    // The sheet loads masked, so it cannot send back secrets it was never shown.
+    // Fields arrive with `value` omitted to mean "keep what is stored". Filling
+    // those gaps requires reading the current vault. If that read fails, abort:
+    // treating an unreadable vault as empty would merge every omitted value to ""
+    // and silently destroy every secret in it, and the user would see a green
+    // "Saved".
     let existing: TrackerCredentialVault | null = null
     if (tracker.encryptedCredentials) {
       try {
@@ -168,9 +168,9 @@ export async function PUT(request: Request, props: RouteContext) {
 
     const merged = mergeVaultInput(vault, existing)
 
-    // Validation runs on the MERGED vault, not the input — the limits have to be
-    // enforced against the bytes that are actually about to be encrypted, and an
-    // input with every value omitted is far smaller than what it merges into.
+    // Validation runs on the merged vault, not the input. Limits must be
+    // enforced against the bytes actually being encrypted. An input with every
+    // value omitted is smaller than what it merges into.
     const invalid = validateTrackerCredentialVault(merged)
     if (invalid) return NextResponse.json({ error: invalid }, { status: 400 })
 

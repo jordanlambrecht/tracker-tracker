@@ -42,8 +42,8 @@ export function buildCoreStatDescriptors(
   const [dlVal, dlUnit] = formatBytesFromString(stats?.downloadedBytes ?? null).split(" ")
   const [bufVal, bufUnit] = formatBytesFromString(latestSnapshot?.bufferBytes ?? null).split(" ")
 
-  // An infinite ratio (uploaded > 0, downloaded === 0 — the best possible
-  // standing) crosses the wire as `ratio: null` plus this flag, since JSON
+  // An infinite ratio (uploaded > 0, downloaded === 0) is the best possible
+  // standing. It crosses the wire as `ratio: null` plus this flag, since JSON
   // can't carry Infinity. Only the descriptor below needs the resolved
   // value; `ratioBelowRequired` is left reading `stats?.ratio` directly
   // since Infinity can never be below a required ratio either way.

@@ -140,8 +140,9 @@ export function isUnsafeNetworkHost(host: string): boolean {
 
 /**
  * True when `url` is an absolute http(s) URL that does not target localhost or
- * a private network address — the same rule `validateHttpUrl()` enforces at the
- * API boundary, without the NextResponse wrapper so it can run per redirect hop.
+ * a private network address. This is the same rule `validateHttpUrl()` enforces
+ * at the API boundary, without the NextResponse wrapper so it can run per
+ * redirect hop.
  */
 function isSafeHttpUrl(url: string): boolean {
   let parsed: URL

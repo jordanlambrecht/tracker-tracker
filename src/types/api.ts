@@ -21,16 +21,16 @@ import type { NotificationThresholds } from "@/lib/notifications/types"
 interface TrackerStatFields {
   ratio: number | null
   /**
-   * True when the account has uploads but zero downloads, i.e. the ratio is
-   * mathematically infinite. `ratio` is `null` in that case because JSON
-   * cannot represent Infinity — without this flag an infinite ratio is
-   * indistinguishable from "never measured".
+   * True when the account has uploads but zero downloads (the ratio is
+   * mathematically infinite). `ratio` is `null` in that case because JSON cannot
+   * represent Infinity. Without this flag, an infinite ratio is indistinguishable
+   * from "never measured".
    *
-   * Lives on the shared base rather than on TrackerLatestStats alone: when only
-   * the latter carried it, every Snapshot consumer had to re-derive the state
+   * Lives on the shared base rather than on TrackerLatestStats alone. When the
+   * latter carried it alone, every Snapshot consumer had to re-derive the state
    * from byte totals or, more often, silently drop the point. RatioStabilityChart
-   * filtered `ratio !== null` and so rendered an empty chart for exactly the
-   * accounts issues #154 and #172 were filed about.
+   * filtered `ratio !== null` and rendered an empty chart for exactly the accounts
+   * issues #154 and #172 were filed about.
    */
   ratioIsInfinite: boolean
   seedingCount: number | null

@@ -2,7 +2,7 @@
 //
 // Regression coverage: unlike `TrackerLatestStats`, the `Snapshot` wire type
 // has no `ratioIsInfinite` flag, so an infinite ratio (uploaded > 0,
-// downloaded === 0) arrives here as a bare `ratio: null` — indistinguishable
+// downloaded === 0) arrives here as a bare `ratio: null`. Indistinguishable
 // from a genuinely unmeasured poll. PollLog re-derives it from the byte
 // totals using the serializer's own predicate (tracker-serializer.ts:60).
 

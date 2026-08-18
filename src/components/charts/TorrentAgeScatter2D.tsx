@@ -8,7 +8,7 @@
 // The presets are duplicated from TorrentAgeScatter3D rather than imported:
 // that module has a top-level `import "echarts-gl"` side effect, and this
 // component is statically imported, so importing from it would pull WebGL
-// into the main bundle — exactly what this chart exists to avoid.
+// into the main bundle. Exactly what this chart exists to avoid.
 //
 // Functions: computeDotSize, buildScatter2DOption, TorrentAgeScatter2D
 
@@ -30,7 +30,7 @@ interface Scatter2DViewConfig {
   description: string
   x: { idx: number; name: string }
   y: { idx: number; name: string }
-  /** Dimension mapped to symbol size — the 3D chart's depth axis. */
+  /** Dimension mapped to symbol size: the 3D chart's depth axis. */
   size: { idx: number; name: string }
   color: { idx: number; name: string; max: number }
 }

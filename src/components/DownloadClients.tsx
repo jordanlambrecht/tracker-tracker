@@ -205,7 +205,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
   } = useActionStatus()
   const [tagInput, setTagInput] = useState("")
 
-  // Credential change state — show inputs for new clients (no creds yet) or after "Change"
+  // Credential change state. Show inputs for new clients (no creds yet) or after "Change"
   const [changingCredentials, setChangingCredentials] = useState(!client.hasCredentials)
   const [authMethod, setAuthMethod] = useState<AuthMethod>(
     client.authMethod === "apikey" ? "apikey" : "password"
@@ -245,7 +245,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
     if (!canSaveCredentials) return
     setCredError(null)
     try {
-      // The mode always travels with its secret — the route rejects one
+      // The mode always travels with its secret. The route rejects one
       // without the other so a switch can never re-label an old credential.
       const body =
         authMethod === "apikey"

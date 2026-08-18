@@ -33,7 +33,7 @@ export async function createPrivacyMask(): Promise<
 }
 
 /**
- * Synchronous variant — accepts a pre-fetched storeUsernames boolean instead of
+ * Synchronous variant. Accepts a pre-fetched storeUsernames boolean instead of
  * querying the DB. Use when the caller already has appSettings in scope so the
  * DB round-trip can be avoided.
  *
@@ -53,7 +53,7 @@ export function createPrivacyMaskSync(
  * Called when privacy mode is toggled on with scrubExisting=true.
  *
  * Uses a single batch UPDATE instead of SELECT + per-row UPDATE to avoid
- * N+1 queries. The redacted format is "▓<originalLength>" — we use
+ * N+1 queries. The redacted format is "▓<originalLength>". We use
  * CONCAT('▓', CHAR_LENGTH(column)) and filter out already-redacted rows.
  *
  * Returns the number of rows scrubbed.

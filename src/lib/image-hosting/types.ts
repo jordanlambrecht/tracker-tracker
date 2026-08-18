@@ -22,7 +22,7 @@ export interface UploadResult {
   host: ImageHostId
 }
 
-// Stateless object adapters — no class needed since there's no per-instance state.
+// Stateless object adapters. No class needed since there's no per-instance state.
 // This differs from tracker adapters (class-based) because image host uploads are
 // simple request/response with no session, polling, or connection state.
 export interface ImageHostAdapter {

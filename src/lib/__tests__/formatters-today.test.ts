@@ -21,7 +21,7 @@ describe("localDateStr", () => {
   })
 
   it("returns the correct date for a unix milliseconds number", () => {
-    // 2024-01-20 at noon UTC — choosing noon avoids UTC±local edge
+    // 2024-01-20 at noon UTC. Choosing noon avoids UTC±local edge
     const ms = new Date("2024-01-20T12:00:00").getTime()
     const result = localDateStr(ms)
     // The year, month, and day must match a local interpretation of that timestamp
@@ -57,7 +57,7 @@ describe("localDateStr", () => {
 })
 
 // ---------------------------------------------------------------------------
-// formatBytesFromString — MiB threshold
+// formatBytesFromString: MiB threshold
 // ---------------------------------------------------------------------------
 
 describe("formatBytesFromString MiB/GiB threshold", () => {

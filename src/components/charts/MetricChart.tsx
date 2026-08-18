@@ -146,8 +146,8 @@ function buildLineOption(
 
   // A log axis cannot represent 0 or negative values. ECharts drops those
   // points and, because yAxisAutoRange is skipped in log mode, the axis is
-  // left unbounded — which is what made the range look broken. Pin the floor
-  // to the smallest value actually plottable on a log scale.
+  // left unbounded. This breaks the range. Pin the floor to the smallest value
+  // actually plottable on a log scale.
   const positiveValues = data.map(([, v]) => v).filter((v) => v > 0)
   const logRange =
     useLog && positiveValues.length > 0 ? { min: Math.min(...positiveValues) } : {}
@@ -408,10 +408,9 @@ function MetricChart({
   }
 
   // An infinite ratio (uploads, zero downloads) crosses the wire as `ratio: null`
-  // because JSON cannot carry Infinity — and Infinity cannot be plotted on a
-  // linear or log axis either. Every point was therefore dropped and the chart
-  // rendered a bare grid, indistinguishable from having no data at all. That is
-  // what issues #154 and #172 report, on the account state that triggers it.
+  // because JSON cannot carry Infinity. Infinity cannot be plotted on a linear
+  // or log axis either. Every point was dropped and the chart rendered a bare
+  // grid indistinguishable from no data (issues #154, #172).
   if (
     metric === "ratio" &&
     snapshots.every((s) => s.ratio === null) &&

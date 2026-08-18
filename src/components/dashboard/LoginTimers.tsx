@@ -18,7 +18,7 @@ interface TimerEntry {
 interface LoginTimersProps {
   trackers: TrackerSummary[]
   // Collapse state is owned by the parent (a single shared useSectionCollapse
-  // instance) rather than called again here — a second hook instance would
+  // instance) rather than called again here. A second hook instance would
   // hydrate its own in-memory copy and could clobber sibling sections'
   // persisted collapse state when both toggle around the same time.
   expanded: boolean

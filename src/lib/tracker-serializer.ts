@@ -63,10 +63,10 @@ export function serializeTrackerResponse(
     createdAt: tracker.createdAt?.toISOString() ?? new Date().toISOString(),
     latestStats: latest
       ? {
-          // Derived from the byte totals rather than the stored `ratio`, which
-          // is the authoritative source and is always present. Adapters emit
-          // JS `Infinity` for a zero-download account, and `JSON.stringify`
-          // turns that into `null` — so the flag is what survives the wire.
+          // Derived from byte totals, not the stored `ratio`. The byte totals are
+          // authoritative and always present. Adapters emit JS `Infinity` for a
+          // zero-download account, and `JSON.stringify` turns that into `null`. The
+          // flag is what survives the wire.
           ratioIsInfinite: latest.downloadedBytes === 0n && latest.uploadedBytes > 0n,
           // Never emit a non-finite number: it serializes to null anyway, and
           // doing it explicitly keeps the contract obvious at the boundary.

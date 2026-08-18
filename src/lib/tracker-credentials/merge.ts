@@ -2,7 +2,6 @@
 //
 // Functions: isTrackerCredentialVaultInput, mergeVaultInput
 //
-// ─────────────────────────────────────────────────────────────────────────────
 // WHY THIS MODULE HAS TO EXIST
 //
 // The reveal model and the storage model pull in opposite directions:
@@ -22,9 +21,8 @@
 //     value absent, nothing stored  →  "" (a field the user added but left blank)
 //
 // The merged result is a complete vault, and only then does validate.ts run on
-// it — so every limit is enforced in exactly one place, against what will
-// actually be encrypted.
-// ─────────────────────────────────────────────────────────────────────────────
+// it. Every limit is enforced in exactly one place, against what will actually
+// be encrypted.
 //
 // Deliberately PURE and free of `next/server` and "server-only": the merge is
 // unit-tested directly and the input types describe the wire shape the sheet
@@ -41,15 +39,15 @@ import {
  * A field as the SHEET sends it.
  *
  * The one and only difference from the stored `TrackerCredentialField` is that
- * `value` is optional — and that optionality is the entire point of the type.
- * An absent `value` is not "empty", it is "I was not shown this secret, keep
+ * `value` is optional. That optionality is the entire point of the type. An
+ * absent `value` is not "empty"; it is "I was not shown this secret, keep
  * whatever you have". The two are distinguished by `undefined` vs `""`, which is
  * why nothing on this path may coerce one into the other.
  */
 export interface TrackerCredentialFieldInput {
   id: string
   label: string
-  /** ABSENT MEANS SECRET — the same fail-closed rule as the stored shape. */
+  /** ABSENT MEANS SECRET. Same fail-closed rule as the stored shape. */
   secret?: boolean
   /** ABSENT MEANS "KEEP THE STORED VALUE". `""` means "make it empty". */
   value?: string
@@ -58,7 +56,7 @@ export interface TrackerCredentialFieldInput {
 export interface TrackerCredentialSectionInput {
   id: string
   title: string
-  /** ARRAY ORDER IS DISPLAY ORDER — the merge preserves it exactly. */
+  /** ARRAY ORDER IS DISPLAY ORDER. The merge preserves it exactly. */
   fields: TrackerCredentialFieldInput[]
 }
 
@@ -75,8 +73,8 @@ function isFieldInput(value: unknown): value is TrackerCredentialFieldInput {
   if (!isPlainObject(value)) return false
   if (typeof value.id !== "string" || value.id.length === 0) return false
   if (typeof value.label !== "string") return false
-  // `undefined` is meaningful here (keep stored), so it is allowed — but a null,
-  // a number or an object is not, and must not be coerced into a string later.
+  // `undefined` is meaningful here (keep stored), so it is allowed. But a null,
+  // a number or an object is not and must not be coerced into a string later.
   if (value.value !== undefined && typeof value.value !== "string") return false
   if (value.secret !== undefined && typeof value.secret !== "boolean") return false
   return true
@@ -109,11 +107,11 @@ export function isTrackerCredentialVaultInput(
 }
 
 // The keys this module knows how to merge. Anything else on a STORED object is
-// an additive optional key written by some other (newer) build, and gets carried
-// across untouched — see the `v` contract in types.ts. The sheet never sends
-// such keys, and the view layer strips them on the way out, so storage is the
-// only place they survive; dropping them here would quietly undo that contract
-// the first time a user edited a label.
+// an additive optional key written by some other (newer) build and gets carried
+// across untouched. See the `v` contract in types.ts. The sheet never sends such
+// keys, and the view layer strips them on the way out, so storage is the only
+// place they survive. Dropping them here would quietly undo that contract the
+// first time a user edited a label.
 const KNOWN_FIELD_KEYS = new Set(["id", "label", "value", "secret"])
 const KNOWN_SECTION_KEYS = new Set(["id", "title", "fields"])
 const KNOWN_VAULT_KEYS = new Set(["v", "sections"])
@@ -129,9 +127,8 @@ function extraKeys(source: object, known: Set<string>): Record<string, unknown> 
 /**
  * Index every stored field by id, ACROSS THE WHOLE VAULT rather than per
  * section. Field ids are unique vault-wide (validate.ts enforces it), so this
- * lookup is unambiguous — and being section-blind is a feature: it means moving
- * a field from one section to another carries its secret with it instead of
- * blanking it.
+ * lookup is unambiguous. Being section-blind is a feature: moving a field from
+ * one section to another carries its secret instead of blanking it.
  */
 function indexStoredFields(vault: TrackerCredentialVault): Map<string, TrackerCredentialField> {
   const byId = new Map<string, TrackerCredentialField>()
@@ -151,15 +148,15 @@ function mergeField(
     ...(stored ? extraKeys(stored, KNOWN_FIELD_KEYS) : {}),
     id: input.id,
     label: input.label,
-    // THE LOAD-BEARING LINE. `!== undefined` and not a truthiness check: `""` is
-    // a real, user-chosen value meaning "blank this out", and `||` would turn
-    // that into "keep the old secret" — a clear that silently does nothing.
+    // THE LOAD-BEARING LINE. `!== undefined`, not a truthiness check. `""` is a
+    // real, user-chosen value meaning "blank this out". `||` would turn that into
+    // "keep the old secret", a clear that silently does nothing.
     value: input.value !== undefined ? input.value : (stored?.value ?? ""),
   }
   // `secret` comes from the INPUT alone, never from the stored field. Carrying a
   // stored `secret: false` forward under an input that omitted the flag would
-  // fail OPEN — the exact direction isFieldSecret() exists to prevent. Omitted
-  // stays omitted, which means secret.
+  // fail OPEN. isFieldSecret() prevents exactly that direction. Omitted stays
+  // omitted, which means secret.
   if (input.secret !== undefined) merged.secret = input.secret
   return merged
 }
@@ -167,10 +164,10 @@ function mergeField(
 /**
  * Complete an incoming vault against what is currently stored.
  *
- * `existing` is null when there is no vault yet (the column is NULL) — every
+ * `existing` is null when there is no vault yet (the column is NULL). Every
  * field then starts from "". The result is a full `TrackerCredentialVault` and
- * still has to pass validateTrackerCredentialVault() before it is encrypted;
- * this function deliberately enforces no limits of its own so there is only one
+ * still has to pass validateTrackerCredentialVault() before it is encrypted.
+ * This function deliberately enforces no limits of its own so there is only one
  * place those live.
  */
 export function mergeVaultInput(

@@ -80,12 +80,10 @@ export async function PATCH(request: Request) {
       // Clearing is allowed here and only here; login then stops asking for one.
       updates.username = null
     } else {
-      // Shared with setup and the post-login prompt on purpose. This used to
-      // measure length against the UNTRIMMED string and then store the trimmed
-      // one, so "  ab  " satisfied the minimum and stored a 2-character name,
-      // and it applied no character class at all — letting this route write a
-      // username that neither of the other two paths could have produced, into
-      // the field the login form then demands.
+      // Shared with setup and the post-login prompt. Used to measure length
+      // against untrimmed input then store trimmed, so "  ab  " satisfied the
+      // minimum and stored a 2-character name with no character class check.
+      // This route writes values the other two paths could not produce.
       const check = validateUsername(body.username)
       if (!check.ok) {
         return NextResponse.json({ error: check.error }, { status: 400 })
@@ -301,9 +299,9 @@ export async function PATCH(request: Request) {
   //
   // Toggling this OFF deliberately does NOT touch trackers.encrypted_credentials.
   // The flag gates the routes; the ciphertext stays put, keeps being re-keyed by
-  // change-password and keeps riding along in backups, so flipping the toggle
-  // back on restores the vaults intact. Disabling a feature must not be a
-  // destructive operation — that is what the Danger Zone is for.
+  // change-password and keeps riding along in backups. Flipping the toggle back
+  // on restores the vaults intact. Disabling a feature must not be destructive.
+  // That is what the Danger Zone is for.
   if (body.credentialVaultEnabled !== undefined) {
     if (typeof body.credentialVaultEnabled !== "boolean") {
       return NextResponse.json(

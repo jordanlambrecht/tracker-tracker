@@ -11,13 +11,13 @@ import { trackerQueryOptions } from "@/lib/query-options"
 import type { TrackerSummary } from "@/types/api"
 
 /**
- * A defunct tracker is one the registry records as permanently shut down — not
- * one that is merely unreachable. That distinction is why `defunct` lives on the
- * registry entry and not in `platformMeta`: adapter metadata is fetched live
- * from the tracker's own API, and a dead tracker has no API left to answer.
+ * A defunct tracker is one the registry records as permanently shut down, not
+ * merely unreachable. That distinction is why `defunct` lives on the registry
+ * entry and not in `platformMeta`. Adapter metadata is fetched live from the
+ * tracker's API, and a dead tracker has no API left to answer.
  *
  * The one component serves both render sites so the archive mutation exists
- * once: `variant="full"` on the tracker detail page (below the header, above the
+ * once: `variant="full"` on the tracker detail page (below the header, above
  * pause/error banners), `variant="compact"` in the dashboard's card grid.
  */
 interface TrackerDefunctBannerProps {
@@ -30,11 +30,11 @@ interface TrackerDefunctBannerProps {
 }
 
 /**
- * Hook-free gate. Every tracker card in the dashboard grid renders one of these
- * and all but the rare defunct one renders nothing — so the state and the
- * QueryClient subscription live in the body below, and a live tracker mounts
- * neither. Doing the check inside the body instead would make a QueryClient a
- * hard requirement for merely displaying the grid.
+ * Hook-free gate. Every tracker card in the dashboard grid renders one of these,
+ * and all but the rare defunct one renders nothing. State and QueryClient
+ * subscription live in the body below. A live tracker mounts neither. Checking
+ * inside the body would make QueryClient a hard requirement for displaying the
+ * grid.
  */
 function TrackerDefunctBanner({ registryEntry, ...rest }: TrackerDefunctBannerProps) {
   if (!registryEntry?.defunct) return null
@@ -55,10 +55,9 @@ function DefunctBannerBody({
    * Deliberately the same contract as TrackerSettingsSheet.handleArchive:
    * PATCH the tracker with an `isActive` boolean, then write the returned row
    * through the shared ["trackers"] cache and invalidate it. That cache backs
-   * the sidebar and the dashboard, neither of which is remounted by navigating,
-   * and its only automatic repair is a poll interval measured in tens of
-   * minutes — so skipping the write-through here would reproduce exactly the
-   * staleness bug the sheet was just fixed for.
+   * the sidebar and the dashboard, neither remounted by navigating. Its only
+   * automatic repair is a poll interval in tens of minutes. Skipping the
+   * write-through reproduces the staleness bug the sheet was just fixed for.
    *
    * Unlike the sheet this sends `isActive: false` rather than a toggle: the
    * button is only offered on a tracker that is still active, so there is no

@@ -171,7 +171,7 @@ export function parseTlProfile(html: string, username: string): TrackerStats {
     group,
     uploadedBytes,
     downloadedBytes,
-    // Derived from byte totals, not the page's ratio cell — TorrentLeech
+    // Derived from byte totals, not the page's ratio cell. TorrentLeech
     // renders "∞" there for a zero-download account and parseFloat turns that
     // into 0.
     ratio: computeRatio(uploadedBytes, downloadedBytes),

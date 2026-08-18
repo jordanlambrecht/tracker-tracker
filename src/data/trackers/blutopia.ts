@@ -31,7 +31,7 @@ export const blutopia: TrackerRegistryEntry = {
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [
-    // Dynamic — activity-based
+    // Dynamic. activity-based
     {
       name: "Leech",
       requirements: "Ratio below 0.4 — download, invite, and request privileges revoked",
@@ -61,7 +61,7 @@ export const blutopia: TrackerRegistryEntry = {
       requirements:
         "Upload ≥ 100 TiB, age ≥ 365 days. H&R immune, global freeleech, 25 download slots",
     },
-    // Dynamic — seeder track
+    // Dynamic. seeder track
     {
       name: "BluSeeder",
       requirements:

@@ -6,7 +6,7 @@
 // user is asked how long to keep snapshots before a single snapshot exists, so
 // they have no basis to answer. Here they have at least seen the dashboard.
 //
-// It is also the natural place to reconcile the retention asymmetry — download
+// It is also the natural place to reconcile the retention asymmetry. Download
 // client uptime data prunes at 90 days regardless of this setting, so a user who
 // picks "keep forever" should not be left believing everything is kept forever.
 

@@ -7,8 +7,8 @@
 // so a hostile tracker chooses it. Validating only the first URL leaves the
 // redirect chain unguarded, which is what these tests pin down.
 //
-// The fetch mock below deliberately emulates undici's redirect semantics —
-// it follows Location itself unless the caller passes redirect: "manual" —
+// The fetch mock below deliberately emulates undici's redirect semantics.
+// It follows Location itself unless the caller passes redirect: "manual".
 // so a test that passes here would also pass against a real fetch. A mock
 // that never followed would make the security assertions vacuous.
 
@@ -41,7 +41,7 @@ vi.mock("@/lib/logger", () => ({
 }))
 
 // ---------------------------------------------------------------------------
-// fetch mock — emulates undici redirect semantics
+// fetch mock: emulates undici redirect semantics
 // ---------------------------------------------------------------------------
 
 interface MockRoute {
@@ -78,7 +78,7 @@ function installFetchMock(): Mock {
       const response = buildResponse(route)
       // With redirect: "manual" the 3xx is handed back untouched. Otherwise
       // undici follows Location transparently and only the final response is
-      // ever visible to the caller — the behaviour that made this a bug.
+      // ever visible to the caller. This is the behaviour that made this a bug.
       if (manual) return response
       if (!REDIRECT_STATUSES.has(route.status) || !route.location) return response
       url = new URL(route.location, url).href

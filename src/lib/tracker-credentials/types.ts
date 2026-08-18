@@ -90,7 +90,7 @@ function isCredentialSection(value: unknown): value is TrackerCredentialSection 
 
 /**
  * Shape guard for a decrypted vault. Returns false on ANY malformed input and
- * never throws — the sheet calls this on user-edited JSON and the reveal path
+ * never throws. The sheet calls this on user-edited JSON and the reveal path
  * calls it on whatever came out of decrypt().
  *
  * Deliberately TOLERANT of unknown extra keys so that additive optional keys
@@ -111,20 +111,18 @@ export function isTrackerCredentialVault(value: unknown): value is TrackerCreden
 /**
  * A definition of which credential fields a tracker HAS.
  *
- * ─────────────────────────────────────────────────────────────────────────────
  * CRITICAL BOUNDARY: this type structurally has NO `value`, and that is the
  * whole point. Definitions live in src/data/**, which is PUBLIC, git-committed
  * data describing which fields EXIST. They must NEVER hold a user's actual
  * VALUES. A contributor pasting their own passkey into a registry file would
  * leak it into git history forever, where it cannot be deleted.
- * ─────────────────────────────────────────────────────────────────────────────
  */
 export interface TrackerCredentialFieldDefinition {
   /** Slug, unique within the definition set, i.e. "api_key". */
   id: string
   /** Human label, i.e. "API key". */
   label: string
-  /** ABSENT MEANS SECRET — same fail-closed rule as TrackerCredentialField. */
+  /** ABSENT MEANS SECRET. Same fail-closed rule as TrackerCredentialField. */
   secret?: boolean
   /** Optional hint rendered under the input, i.e. where to find the value. */
   hint?: string

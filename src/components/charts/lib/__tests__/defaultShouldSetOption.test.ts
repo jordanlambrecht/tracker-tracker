@@ -1,6 +1,6 @@
 // src/components/charts/lib/__tests__/defaultShouldSetOption.test.ts
 //
-// Tests for defaultShouldSetOption — the chart update guard that decides
+// Tests for defaultShouldSetOption. the chart update guard that decides
 // whether echarts-for-react should call setOption on re-render.
 
 import { describe, expect, it } from "vitest"
@@ -111,7 +111,7 @@ describe("defaultShouldSetOption", () => {
         tooltip: { formatter: (p: unknown) => `${p}B` },
       },
     }
-    // Different function references, same data — must NOT trigger setOption.
+    // Different function references, same data. must NOT trigger setOption.
     expect(defaultShouldSetOption(prev, next)).toBe(false)
   })
 

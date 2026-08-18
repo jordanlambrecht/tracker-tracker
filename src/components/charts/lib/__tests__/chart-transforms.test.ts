@@ -46,7 +46,7 @@ function makeSnap(polledAt: string, overrides?: Partial<Snapshot>): Snapshot {
 // computeDailyDeltas
 // ---------------------------------------------------------------------------
 
-// One GiB in bytes — makes byte counts readable in tests.
+// One GiB in bytes. Makes byte counts readable in tests.
 const GiB = 1024 ** 3
 
 describe("computeDailyDeltas", () => {
@@ -197,11 +197,11 @@ describe("carryForwardValues", () => {
     const valueMap = new Map([[t2, 500]])
     const result = carryForwardValues([t1, t2, t3], valueMap, 0)
 
-    // t1 has no entry — initialValue (0) is used.
+    // t1 has no entry. initialValue (0) is used.
     expect(result[0]).toBe(0)
-    // t2 has an entry — updates lastValue.
+    // t2 has an entry. updates lastValue.
     expect(result[1]).toBe(500)
-    // t3 has no entry — carries forward 500.
+    // t3 has no entry. carries forward 500.
     expect(result[2]).toBe(500)
   })
 
@@ -218,11 +218,11 @@ describe("carryForwardValues", () => {
     const result = carryForwardValues([t1, t2, t3, t4], valueMap)
 
     expect(result[0]).toBe(100)
-    // t2 has no entry — 100 carried forward.
+    // t2 has no entry. 100 carried forward.
     expect(result[1]).toBe(100)
     // t3 updates to 200.
     expect(result[2]).toBe(200)
-    // t4 has no entry — 200 carried forward.
+    // t4 has no entry. 200 carried forward.
     expect(result[3]).toBe(200)
   })
 
@@ -283,7 +283,7 @@ describe("computeDailyGrid", () => {
   })
 
   it("clamps negative deltas to zero when a tracker resets its stats", () => {
-    // Unlike computeDailyDeltas, this transform floors at zero — a reset must
+    // Unlike computeDailyDeltas, this transform floors at zero. a reset must
     // not paint a negative cell on the chart.
     const data = [
       series("Alpha", "#f00", [
@@ -338,7 +338,7 @@ describe("computeDailyGrid", () => {
     expect(grid.uploadGrid[0]).toHaveLength(3)
     expect(grid.uploadGrid[0][1]).toBe(0)
     expect(grid.uploadGrid[0][2]).toBeCloseTo(6, 6)
-    // Beta only ever reported once — no previous day, so nothing anywhere.
+    // Beta only ever reported once. no previous day, so nothing anywhere.
     expect(grid.uploadGrid[1]).toEqual([0, 0, 0])
   })
 

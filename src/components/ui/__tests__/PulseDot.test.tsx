@@ -12,7 +12,7 @@ describe("PulseDot accessible label", () => {
   it("labels the 'no-seeds' status 'No seeds', not 'Critical'", () => {
     // On dot-only surfaces (sidebar tracker list, dashboard overview grid) the
     // label is the ONLY thing separating a zero-seed tracker from a critical
-    // one — both share the danger palette by design.
+    // one. Both share the danger palette by design.
     const { getByRole } = render(<PulseDot status="no-seeds" />)
     const dot = getByRole("status")
     expect(dot.getAttribute("aria-label")).toBe("No seeds")

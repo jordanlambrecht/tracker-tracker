@@ -190,9 +190,8 @@ function buildOption(snapshots: FleetSnapshot[]): EChartsOption {
 
 function SpeedHistoryChart({ snapshots, height = 360 }: SpeedHistoryChartProps) {
   const baseOption = useMemo(() => buildOption(snapshots), [snapshots])
-  // Speeds are read out of the download clients, so this chart carries both
-  // layers: a dead app explains the hole, and a live app that could not reach
-  // any client explains it too.
+  // Speed data comes from download clients. Outage bands must account for
+  // app downtime and client connectivity issues.
   const bands = useOutageBands("qbt")
   const range = useMemo(
     () => timeRangeOf(snapshots.map((s) => new Date(s.polledAt).getTime())),

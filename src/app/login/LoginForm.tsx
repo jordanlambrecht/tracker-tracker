@@ -27,13 +27,13 @@ export function LoginForm({ hasUsername }: { hasUsername: boolean }) {
     setIsSubmitting(true)
 
     // A sign-in starts a new session, and "Skip for now" only ever meant "for
-    // this session" — so clear the suppressor here. Cleared on the attempt
+    // this session". So clear the suppressor here. Cleared on the attempt
     // rather than on success: a failed attempt leaves no session, so nothing can
     // read the flag until a later attempt succeeds anyway.
     try {
       sessionStorage.removeItem(USERNAME_PROMPT_SKIP_KEY)
     } catch {
-      // Storage unavailable — the prompt was never suppressed to begin with.
+      // Storage unavailable. The prompt was never suppressed to begin with.
     }
 
     try {

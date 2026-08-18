@@ -1,14 +1,14 @@
 // src/components/charts/VolumeSurface2D.tsx
 //
 // 2D substitute for VolumeSurface3D, rendered when the dashboard's
-// "Enable 3D charts" setting is off. Same props and same data source —
+// "Enable 3D charts" setting is off. Same props and same data source.
 // tracker on the Y axis, date bucket on the X axis, upload volume as
 // color intensity instead of bar height.
 //
 // The bucketing helpers come from ./lib/chart-transforms, not from
 // VolumeSurface3D: that module has a top-level `import "echarts-gl"` side
 // effect, and this component is statically imported, so importing from it
-// would pull WebGL into the main bundle — exactly what this chart exists to
+// would pull WebGL into the main bundle. Exactly what this chart exists to
 // avoid. chart-transforms must stay free of echarts-gl for the same reason.
 
 "use client"
@@ -171,7 +171,7 @@ function VolumeSurface2D({ trackerData, height = 480 }: VolumeSurface2DProps) {
     return <ChartEmptyState height={height} message="No daily volume data to display." />
   }
 
-  // Rows must stay legible as tracker count grows — same sizing rule as
+  // Rows must stay legible as tracker count grows. Same sizing rule as
   // FleetAgeBandHeatmap.
   const dynamicHeight = Math.max(height, 60 + grid.trackerNames.length * 36)
 

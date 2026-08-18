@@ -13,7 +13,7 @@ interface SectionToggleProps {
 
 /**
  * The standard disclosure pattern: the heading carries the document outline, the
- * button carries the control. Collapsing the two — rendering a bare <button> — is
+ * button carries the control. Collapsing the two (rendering a bare <button>) is
  * how the primary dashboard sections lost their H2s, leaving the page with an H1
  * and a set of orphaned subordinate headings under no parent.
  *

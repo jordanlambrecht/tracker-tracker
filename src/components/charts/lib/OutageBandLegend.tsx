@@ -14,7 +14,7 @@
 // The bands themselves are painted into the chart canvas: no DOM, no text, no
 // effect on any screen-reader output. This strip is their only textual form, so
 // it is real text rather than an aria-hidden decoration. It contains no buttons
-// and nothing focusable, so it adds no tab stops — the swatches are pure
+// and nothing focusable, so it adds no tab stops. The swatches are pure
 // decoration and are hidden from assistive tech, leaving the label to speak.
 
 "use client"

@@ -12,7 +12,7 @@ import type { SVGProps } from "react"
 
 type IconProps = SVGProps<SVGSVGElement>
 
-// External link icon — used in TrackerOverviewGrid and tracker detail header
+// External link icon. Used in TrackerOverviewGrid and tracker detail header
 // viewBox 0 0 24 24, box-with-arrow-out variant (active tracker cards)
 function ExternalLinkIcon(props: IconProps) {
   return (
@@ -33,7 +33,7 @@ function ExternalLinkIcon(props: IconProps) {
   )
 }
 
-// External link icon — 16x16 viewBox variant used in tracker detail page header
+// External link icon. 16x16 viewBox variant used in tracker detail page header
 function ExternalLinkSmallIcon(props: IconProps) {
   return (
     <svg
@@ -51,7 +51,7 @@ function ExternalLinkSmallIcon(props: IconProps) {
   )
 }
 
-// Chevron up — used in ChartCard collapse toggle (points up when expanded)
+// Chevron up. Used in ChartCard collapse toggle (points up when expanded)
 function ChevronUpIcon(props: IconProps) {
   return (
     <svg
@@ -69,7 +69,7 @@ function ChevronUpIcon(props: IconProps) {
   )
 }
 
-// Small chevron up — used in NumberInput increase button (10x6 viewBox)
+// Small chevron up. Used in NumberInput increase button (10x6 viewBox)
 function ChevronUpSmallIcon(props: IconProps) {
   return (
     <svg
@@ -87,7 +87,7 @@ function ChevronUpSmallIcon(props: IconProps) {
   )
 }
 
-// Small chevron down — used in NumberInput decrease button (10x6 viewBox)
+// Small chevron down. Used in NumberInput decrease button (10x6 viewBox)
 function ChevronDownSmallIcon(props: IconProps) {
   return (
     <svg
@@ -105,7 +105,7 @@ function ChevronDownSmallIcon(props: IconProps) {
   )
 }
 
-// Eye with slash — used in ChartCard hide button and Sidebar show-archived toggle
+// Eye with slash. Used in ChartCard hide button and Sidebar show-archived toggle
 function EyeOffIcon(props: IconProps) {
   return (
     <svg
@@ -125,7 +125,7 @@ function EyeOffIcon(props: IconProps) {
   )
 }
 
-// Eye — used in Sidebar show-archived toggle (visible state)
+// Eye. Used in Sidebar show-archived toggle (visible state)
 function EyeIcon(props: IconProps) {
   return (
     <svg
@@ -144,7 +144,7 @@ function EyeIcon(props: IconProps) {
   )
 }
 
-// Gear / settings — used in dashboard page header and tracker detail page header
+// Gear / settings. Used in dashboard page header and tracker detail page header
 function GearIcon(props: IconProps) {
   return (
     <svg
@@ -163,7 +163,7 @@ function GearIcon(props: IconProps) {
   )
 }
 
-// Hamburger menu — used in AuthShell mobile sidebar toggle (20x20 viewBox)
+// Hamburger menu. Used in AuthShell mobile sidebar toggle (20x20 viewBox)
 function HamburgerIcon(props: IconProps) {
   return (
     <svg
@@ -179,7 +179,7 @@ function HamburgerIcon(props: IconProps) {
   )
 }
 
-// Check / checkmark — used in Checkbox component and ErrorDisplay copy-success state
+// Check / checkmark. Used in Checkbox component and ErrorDisplay copy-success state
 function CheckIcon(props: IconProps) {
   return (
     <svg
@@ -197,7 +197,7 @@ function CheckIcon(props: IconProps) {
   )
 }
 
-// Large check — used in ErrorDisplay copy-success state (24x24 viewBox)
+// Large check. Used in ErrorDisplay copy-success state (24x24 viewBox)
 function CheckLargeIcon(props: IconProps) {
   return (
     <svg
@@ -215,7 +215,7 @@ function CheckLargeIcon(props: IconProps) {
   )
 }
 
-// Copy / clipboard — used in ErrorDisplay copy button
+// Copy / clipboard. Used in ErrorDisplay copy button
 function CopyIcon(props: IconProps) {
   return (
     <svg
@@ -234,7 +234,7 @@ function CopyIcon(props: IconProps) {
   )
 }
 
-// Upload arrow — used in Sidebar sparkline header and AGGREGATE_ICONS/STAT_ICONS
+// Upload arrow. Used in Sidebar sparkline header and AGGREGATE_ICONS/STAT_ICONS
 function UploadArrowIcon(props: IconProps) {
   return (
     <svg
@@ -253,7 +253,7 @@ function UploadArrowIcon(props: IconProps) {
   )
 }
 
-// Download arrow — used in Sidebar sparkline header and AGGREGATE_ICONS/STAT_ICONS
+// Download arrow. Used in Sidebar sparkline header and AGGREGATE_ICONS/STAT_ICONS
 function DownloadArrowIcon(props: IconProps) {
   return (
     <svg
@@ -272,7 +272,7 @@ function DownloadArrowIcon(props: IconProps) {
   )
 }
 
-// User / person — used as avatar fallback in tracker detail page
+// User / person. Used as avatar fallback in tracker detail page
 function UserIcon(props: IconProps) {
   return (
     <svg
@@ -291,7 +291,7 @@ function UserIcon(props: IconProps) {
   )
 }
 
-// Plus — used in TrackerOverviewGrid add-quicklink button
+// Plus. Used in TrackerOverviewGrid add-quicklink button
 function PlusIcon(props: IconProps) {
   return (
     <svg
@@ -310,7 +310,7 @@ function PlusIcon(props: IconProps) {
   )
 }
 
-// Activity / waveform — used in LogScaleToggle
+// Activity / waveform. Used in LogScaleToggle
 function ActivityIcon(props: IconProps) {
   return (
     <svg
@@ -328,7 +328,7 @@ function ActivityIcon(props: IconProps) {
   )
 }
 
-// Share score / network nodes — used in tracker detail GGn share score stat card
+// Share score / network nodes. Used in tracker detail GGn share score stat card
 function ShareScoreIcon(props: IconProps) {
   return (
     <svg
@@ -350,7 +350,7 @@ function ShareScoreIcon(props: IconProps) {
   )
 }
 
-// Shield — used as buffer icon in AGGREGATE_ICONS/STAT_ICONS
+// Shield. Used as buffer icon in AGGREGATE_ICONS/STAT_ICONS
 function ShieldIcon(props: IconProps) {
   return (
     <svg
@@ -368,7 +368,7 @@ function ShieldIcon(props: IconProps) {
   )
 }
 
-// Gem/diamond — used as seedbonus icon in AGGREGATE_ICONS/STAT_ICONS
+// Gem/diamond. Used as seedbonus icon in AGGREGATE_ICONS/STAT_ICONS
 function StarIcon(props: IconProps) {
   return (
     <svg
@@ -388,7 +388,7 @@ function StarIcon(props: IconProps) {
   )
 }
 
-// Leeching / download to box — used in AGGREGATE_ICONS/STAT_ICONS
+// Leeching / download to box. Used in AGGREGATE_ICONS/STAT_ICONS
 function LeechingIcon(props: IconProps) {
   return (
     <svg
@@ -408,7 +408,7 @@ function LeechingIcon(props: IconProps) {
   )
 }
 
-// Seeding icon (seedling/sprout) — used in AGGREGATE_ICONS/STAT_ICONS
+// Seeding icon (seedling/sprout). Used in AGGREGATE_ICONS/STAT_ICONS
 function SeedingIcon(props: IconProps) {
   return (
     <svg
@@ -429,7 +429,7 @@ function SeedingIcon(props: IconProps) {
   )
 }
 
-// Triangle warning / alert — used in STAT_ICONS hit-and-runs
+// Triangle warning / alert. Used in STAT_ICONS hit-and-runs
 function TriangleWarningIcon(props: IconProps) {
   return (
     <svg
@@ -449,7 +449,7 @@ function TriangleWarningIcon(props: IconProps) {
   )
 }
 
-// Required ratio icon (balance scale) — threshold concept
+// Required ratio icon (balance scale). Threshold concept
 function RequiredRatioIcon(props: IconProps) {
   return (
     <svg
@@ -471,7 +471,7 @@ function RequiredRatioIcon(props: IconProps) {
   )
 }
 
-// Ratio icon (vertical arrows) — used in AGGREGATE_ICONS/STAT_ICONS ratio
+// Ratio icon (vertical arrows). Used in AGGREGATE_ICONS/STAT_ICONS ratio
 function RatioIcon(props: IconProps) {
   return (
     <svg
@@ -491,7 +491,7 @@ function RatioIcon(props: IconProps) {
   )
 }
 
-// Grid / four squares — used in AGGREGATE_ICONS trackers
+// Grid / four squares. Used in AGGREGATE_ICONS trackers
 function GridIcon(props: IconProps) {
   return (
     <svg
@@ -512,7 +512,7 @@ function GridIcon(props: IconProps) {
   )
 }
 
-// Clock — used in TorrentsTab stale-torrent stat
+// Clock. Used in TorrentsTab stale-torrent stat
 function ClockIcon(props: IconProps) {
   return (
     <svg
@@ -531,7 +531,7 @@ function ClockIcon(props: IconProps) {
   )
 }
 
-// Box / cube — used in TorrentsTab size stat
+// Box / cube. Used in TorrentsTab size stat
 function BoxIcon(props: IconProps) {
   return (
     <svg
@@ -549,7 +549,7 @@ function BoxIcon(props: IconProps) {
   )
 }
 
-// Server rack — used in TorrentsTab NoDownloadClientState empty state
+// Server rack. Used in TorrentsTab NoDownloadClientState empty state
 function ServerIcon(props: IconProps) {
   return (
     <svg
@@ -570,7 +570,7 @@ function ServerIcon(props: IconProps) {
   )
 }
 
-// Tag — used in TorrentsTab NoTagState empty state
+// Tag. Used in TorrentsTab NoTagState empty state
 function TagIcon(props: IconProps) {
   return (
     <svg
@@ -589,7 +589,7 @@ function TagIcon(props: IconProps) {
   )
 }
 
-// Bug / debug icon — used in tracker detail debug button
+// Bug / debug icon. Used in tracker detail debug button
 function BugIcon(props: IconProps) {
   return (
     <svg
@@ -617,7 +617,7 @@ function BugIcon(props: IconProps) {
   )
 }
 
-// X / close icon — used in dialogs and dismissible panels
+// X / close icon. Used in dialogs and dismissible panels
 function XIcon(props: IconProps) {
   return (
     <svg
@@ -636,7 +636,7 @@ function XIcon(props: IconProps) {
   )
 }
 
-// Passport/document icon with seal — used for Transit Papers (Proof of Citizenship) reports
+// Passport/document icon with seal. Used for Transit Papers (Proof of Citizenship) reports
 function TransitPapersIcon(props: IconProps) {
   return (
     <svg
@@ -659,7 +659,7 @@ function TransitPapersIcon(props: IconProps) {
   )
 }
 
-// Pause — two vertical bars, used in tracker detail pause polling button
+// Pause. Two vertical bars, used in tracker detail pause polling button
 function PauseIcon(props: IconProps) {
   return (
     <svg
@@ -674,7 +674,7 @@ function PauseIcon(props: IconProps) {
   )
 }
 
-// Play — right-pointing triangle, used in tracker detail resume polling button
+// Play. Right-pointing triangle, used in tracker detail resume polling button
 function PlayIcon(props: IconProps) {
   return (
     <svg
@@ -738,7 +738,7 @@ function SpinnerIcon(props: IconProps) {
   )
 }
 
-// GitHub octocat logo — used in Sidebar footer
+// GitHub octocat logo. Used in Sidebar footer
 function GitHubIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" {...props}>
@@ -747,7 +747,7 @@ function GitHubIcon(props: IconProps) {
   )
 }
 
-// Open book — documentation links
+// Open book. Documentation links
 function BookIcon(props: IconProps) {
   return (
     <svg
@@ -766,7 +766,7 @@ function BookIcon(props: IconProps) {
   )
 }
 
-// Question circle — used in InfoTip question variant
+// Question circle. Used in InfoTip question variant
 function QuestionIcon(props: IconProps) {
   return (
     <svg
@@ -786,7 +786,7 @@ function QuestionIcon(props: IconProps) {
   )
 }
 
-// Info circle — used in InfoTip info variant, Notice component
+// Info circle. Used in InfoTip info variant, Notice component
 function InfoIcon(props: IconProps) {
   return (
     <svg

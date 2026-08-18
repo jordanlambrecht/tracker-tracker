@@ -2,8 +2,9 @@
 //
 // Functions: getPauseState, getTrackerHealth, getHealthBadgeVariant, getHealthLabel, getHealthDescription, getHealthPulseDot
 //
-// Single source of truth for tracker health status — type, derivation logic,
-// and all visual mappings (PulseDot status, Badge variant, labels, descriptions).
+// Single source of truth for tracker health status. Includes type, derivation
+// logic, and all visual mappings (PulseDot status, Badge variant, labels,
+// descriptions).
 
 import type { BadgeVariant } from "@/components/ui/Badge"
 import type { PulseDotStatus } from "@/components/ui/PulseDot"
@@ -110,11 +111,11 @@ function getTrackerHealth(tracker: TrackerSummary): TrackerHealth {
   if (!tracker.latestStats) return "offline"
   const { ratio, seedingCount, ratioIsInfinite } = tracker.latestStats
   // An infinite ratio arrives as `ratio: null` because JSON can't carry
-  // Infinity. Only treat null as "no data" when the account isn't in that
-  // state — otherwise a perfectly healthy zero-download tracker reads Offline.
+  // Infinity. Only treat null as "no data" when the account isn't in that state.
+  // Otherwise a perfectly healthy zero-download tracker reads Offline.
   if (ratio === null && !ratioIsInfinite) return "offline"
 
-  // Warned by tracker is always critical — potential ban risk
+  // Warned by tracker is always critical. Potential ban risk.
   if (tracker.latestStats?.warned === true) return "critical"
 
   let status: TrackerHealth
@@ -128,11 +129,11 @@ function getTrackerHealth(tracker: TrackerSummary): TrackerHealth {
     else status = "critical"
   }
 
-  // Zero active seeds is its own condition, not a ratio band: no ratio value
-  // implies it, and the fix differs (start seeding at all, vs. seed more of
-  // what is already loaded). It outranks both non-critical ratio statuses
-  // because an account uploading nothing cannot improve its ratio — including
-  // "warning", which is the case this split exists to disambiguate.
+  // Zero active seeds is its own condition, not a ratio band. No ratio value
+  // implies it, and the fix differs: start seeding at all vs. seed more of what
+  // is already loaded. It outranks both non-critical ratio statuses because an
+  // account uploading nothing cannot improve its ratio. This includes "warning",
+  // which is the case this split exists to disambiguate.
   //
   // It deliberately does NOT override "critical". Ratio < 1.0 and a tracker
   // warning (returned above) both carry account-action risk that this label

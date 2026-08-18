@@ -1,17 +1,17 @@
 // src/components/ui/__tests__/Table.test.tsx
 //
 // Regression coverage: sortValue can legitimately return Infinity (e.g. an
-// infinite ratio — see TrackerLeaderboard).
+// infinite ratio. See TrackerLeaderboard).
 //
 // What this pins is the observable contract: an infinite value sorts ahead of a
 // finite one, and tied infinite rows keep their input order. It deliberately does
-// NOT claim to pin the `aVal === bVal` guard in Table.tsx — no test can. V8 treats
+// NOT claim to pin the `aVal === bVal` guard in Table.tsx. No test can. V8 treats
 // a NaN comparator result as 0, so deleting that guard is unobservable; it is
 // defensive documentation, not behaviour.
 //
 // The fixture starts in the WRONG order on purpose. An earlier version listed the
 // rows already sorted, so replacing the whole comparator with `return data` left
-// the test green — it asserted nothing.
+// the test green. It asserted nothing.
 
 import { render, screen, within } from "@testing-library/react"
 import { describe, expect, it } from "vitest"

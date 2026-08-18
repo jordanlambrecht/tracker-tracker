@@ -30,7 +30,7 @@ export const uploadcx: TrackerRegistryEntry = {
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [
-    // Dynamic — upload-based
+    // Dynamic. upload-based
     {
       name: "Leech",
       requirements: "Ratio below 0.6 — no download slots",
@@ -97,7 +97,7 @@ export const uploadcx: TrackerRegistryEntry = {
         { type: "hnr-immune", label: "H&R Immune" },
       ],
     },
-    // Dynamic — seed-based
+    // Dynamic. seed-based
     {
       name: "Seeder",
       requirements:

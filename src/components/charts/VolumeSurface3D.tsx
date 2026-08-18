@@ -75,7 +75,7 @@ function buildSurfaceOption(grid: GridResult): Record<string, unknown> {
       },
     }),
     // NOTE: echarts-gl does register type:"time" for xAxis3D (see createAxis3DModel.js),
-    // but it is a degraded stub — it inherits valueAxis numeric behavior and does NOT
+    // but it is a degraded stub: it inherits valueAxis numeric behavior and does NOT
     // support ECharts' cascading date formatter or hideOverlap. More importantly,
     // bar3D data points map dimensions as either 'ordinal' (category) or 'float' (everything
     // else), so a time axis would require every data point to carry a Unix timestamp instead

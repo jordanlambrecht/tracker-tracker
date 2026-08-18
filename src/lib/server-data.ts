@@ -49,8 +49,8 @@ import type { Snapshot, TagGroup, TagGroupChartType, TrackerSummary } from "@/ty
 // ---------------------------------------------------------------------------
 
 /**
- * Explicit column projection for appSettings. Uses allowlisted columns only —
- * encrypted/sensitive fields are structurally excluded at the query level.
+ * Explicit column projection for appSettings. Uses allowlisted columns only.
+ * Encrypted/sensitive fields are structurally excluded at the query level.
  *
  * Note: `hasProxyPassword` and `hasBackupPassword` select the encrypted column
  * references so the serializer can coerce them to booleans. The raw ciphertext
@@ -128,7 +128,7 @@ export function serializeSettingsResponse(row: SettingsRow) {
 }
 
 /**
- * fetches settings and serializes for the client.
+ * Fetches settings and serializes for the client.
  * Returns null if no settings row exists (app not yet configured).
  */
 export async function getSettingsForClient() {
@@ -379,13 +379,13 @@ export function getSnapshotBucket(days: number): "hour" | "day" | null {
 /**
  * How many days of snapshots actually exist, for sizing the "All" bucket.
  *
- * getSnapshotBucket is deliberately pure and answers for a REQUESTED range, so
- * it maps 0 to "day" — the only sensible answer without knowing what is stored.
- * Passing 0 to it therefore made All coarser than any bounded range: an install
- * holding a few hours of snapshots collapsed to one point per tracker, which is
- * what fires every "need at least 2 days of data" empty state. Measuring the
- * real span first and asking for THAT range keeps the function pure and gives a
- * young install raw points and a mature one day buckets.
+ * getSnapshotBucket is deliberately pure and answers for a REQUESTED range. It
+ * maps 0 to "day", the only sensible answer without knowing what is stored.
+ * Passing 0 made All coarser than any bounded range: an install holding a few
+ * hours of snapshots collapsed to one point per tracker, which fires every "need
+ * at least 2 days of data" empty state. Measuring the real span first and asking
+ * for THAT range keeps the function pure and gives a young install raw points
+ * and a mature one day buckets.
  *
  * Returns 1 when nothing is stored, so callers still get a valid bucket.
  */

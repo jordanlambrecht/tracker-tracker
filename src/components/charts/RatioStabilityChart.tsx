@@ -263,7 +263,7 @@ function RatioStabilityChart({
   emaPeriod = 7,
   bandWindow = 14,
 }: RatioStabilityChartProps) {
-  // Tracker snapshots — app bands only.
+  // Tracker snapshots. App bands only.
   const outages = useOutageBands("tracker")
 
   const hasEnoughData = trackerData.some(
@@ -279,9 +279,9 @@ function RatioStabilityChart({
   const logScale = useLogScale(allRatioValues)
 
   if (!hasEnoughData) {
-    // Distinguish "infinite ratio" from "no data": an EMA over Infinity is
-    // meaningless, so these points are legitimately excluded — but saying
-    // "not enough data" about a fully-populated account is wrong.
+    // Distinguish "infinite ratio" from "no data". An EMA over Infinity is
+    // meaningless, so Infinity points are excluded. Saying "not enough data"
+    // about a fully-populated account with all-infinite ratios is wrong.
     const allInfinite =
       trackerData.length > 0 &&
       trackerData.every(

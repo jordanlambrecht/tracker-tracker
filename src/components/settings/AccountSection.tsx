@@ -18,7 +18,7 @@ export interface AccountSectionProps {
 export function AccountSection({ initialUsername }: AccountSectionProps) {
   const router = useRouter()
 
-  // ── Username ─────────────────────────────────────────────────────────
+  // -- Username --------------------------------------------------
   const [username, setUsername] = useState(initialUsername)
   const [savedUsername, setSavedUsername] = useState(initialUsername)
   const [savingUsername, setSavingUsername] = useState(false)
@@ -28,8 +28,8 @@ export function AccountSection({ initialUsername }: AccountSectionProps) {
     setUsernameError(null)
     const trimmed = username.trim()
     // Same validator the server runs, so the field cannot report success for a
-    // value PATCH /api/settings will reject. The old check was min-length only —
-    // no maximum and no character class — so a too-long or illegal username got
+    // value PATCH /api/settings will reject. The old check was min-length only.
+    // No maximum and no character class. So a too-long or illegal username got
     // through to a round trip that failed with a less specific message.
     if (trimmed) {
       const check = validateUsername(trimmed)
@@ -53,14 +53,14 @@ export function AccountSection({ initialUsername }: AccountSectionProps) {
       setSavedUsername(result.username ?? "")
       if (result.username === null) {
         // Clearing the username is a deliberate choice of password-only login,
-        // not an oversight. Without this, the first-login prompt — which fires on
+        // not an oversight. Without this, the first-login prompt (which fires on
         // `username IS NULL` and re-evaluates on every navigation, since the
-        // (auth) layout is force-dynamic — would appear the moment the user
+        // auth layout is force-dynamic) would appear the moment the user
         // leaves this page, asking them to undo what they just did.
         try {
           sessionStorage.setItem(USERNAME_PROMPT_SKIP_KEY, "1")
         } catch {
-          // Storage unavailable — worst case the prompt asks once more.
+          // Storage unavailable. Worst case the prompt asks once more.
         }
       }
     } catch (err) {
@@ -70,7 +70,7 @@ export function AccountSection({ initialUsername }: AccountSectionProps) {
     }
   }
 
-  // ── Password ─────────────────────────────────────────────────────────
+  // -- Password --------------------------------------------------
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
