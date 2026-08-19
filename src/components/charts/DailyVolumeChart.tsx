@@ -21,6 +21,9 @@ import {
   insideZoom,
 } from "./lib/chart-helpers"
 import { computeDailyDeltas } from "./lib/chart-transforms"
+import { OutageBandLegend } from "./lib/OutageBandLegend"
+import { useOutageBands } from "./lib/OutageBandsProvider"
+import { appendOutageBandSeries, polledAtRange } from "./lib/outage-bands"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -95,7 +98,7 @@ function buildDailyVolumeOption(trackerData: TrackerSnapshotSeries[]): EChartsOp
       barWidth: 12,
       data: sortedDays.map((day, i) => {
         const d = deltaMap.get(day)
-        // Clamp for stacked bar display — raw data may have negatives from tracker corrections
+        // Clamp for stacked bar display. Raw data may have negatives from tracker corrections
         const val = d ? Number((Math.max(0, d.uploadDelta) / divisor).toFixed(3)) : 0
         return [dayTimestamps[i], val] as [number, number]
       }),
@@ -110,7 +113,7 @@ function buildDailyVolumeOption(trackerData: TrackerSnapshotSeries[]): EChartsOp
       barWidth: 12,
       data: sortedDays.map((day, i) => {
         const d = deltaMap.get(day)
-        // Clamp for stacked bar display — raw data may have negatives from tracker corrections
+        // Clamp for stacked bar display. Raw data may have negatives from tracker corrections
         const val = d ? -Number((Math.max(0, d.downloadDelta) / divisor).toFixed(3)) : 0
         return [dayTimestamps[i], val] as [number, number]
       }),
@@ -218,7 +221,7 @@ function buildRiverOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
   for (const day of sortedDays) {
     for (let ti = 0; ti < trackerDeltas.length; ti++) {
       const d = trackerDeltaMaps[ti].get(day)
-      // Clamp for stacked bar display — raw data may have negatives from tracker corrections
+      // Clamp for stacked bar display. Raw data may have negatives from tracker corrections
       const val = d ? Number((Math.max(0, d.uploadDelta) / divisor).toFixed(3)) : 0
       riverData.push([day, val, trackerDeltas[ti].name])
     }
@@ -522,6 +525,8 @@ function buildSumsOption(trackerData: TrackerSnapshotSeries[]): EChartsOption {
 
 function DailyVolumeChart({ trackerData, height = 360 }: DailyVolumeChartProps) {
   const [mode, setMode] = useState<VolumeMode>("bar")
+  // Tracker snapshots. App bands only.
+  const outages = useOutageBands("tracker")
   const hasData = trackerData.some((t) => t.snapshots.length > 1)
 
   if (!hasData) {
@@ -533,7 +538,7 @@ function DailyVolumeChart({ trackerData, height = 360 }: DailyVolumeChartProps) 
     )
   }
 
-  const option =
+  const baseOption =
     mode === "river"
       ? buildRiverOption(trackerData)
       : mode === "area"
@@ -541,6 +546,19 @@ function DailyVolumeChart({ trackerData, height = 360 }: DailyVolumeChartProps) 
         : mode === "sums"
           ? buildSumsOption(trackerData)
           : buildDailyVolumeOption(trackerData)
+
+  // River view is a themeRiver on a singleAxis with no cartesian x-axis for
+  // markArea, so it gets no band series (rather than an empty one). Safe to omit
+  // entirely here because `key={mode}` remounts the chart on every mode change,
+  // clearing any merge-mode leftovers.
+  const bandable = mode !== "river"
+  const option = bandable
+    ? appendOutageBandSeries(
+        baseOption,
+        outages,
+        polledAtRange(trackerData.flatMap((t) => t.snapshots))
+      )
+    : baseOption
 
   return (
     <div className="flex flex-col gap-3">
@@ -558,6 +576,7 @@ function DailyVolumeChart({ trackerData, height = 360 }: DailyVolumeChartProps) 
         />
       </div>
       <ChartECharts key={mode} option={option} style={{ height, width: "100%" }} />
+      {bandable && <OutageBandLegend bands={outages} range={polledAtRange(trackerData.flatMap((t) => t.snapshots))} />}
     </div>
   )
 }

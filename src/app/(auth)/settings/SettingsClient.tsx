@@ -9,8 +9,10 @@ import { useState } from "react"
 import { DownloadClients } from "@/components/DownloadClients"
 import { NotificationTargets } from "@/components/NotificationTargets"
 import { QbitmanageSettings } from "@/components/QbitmanageSettings"
+import { AboutSection } from "@/components/settings/AboutSection"
 import { AccountSection } from "@/components/settings/AccountSection"
 import { BackupsSection } from "@/components/settings/BackupsSection"
+import { CredentialVaultSection } from "@/components/settings/CredentialVaultSection"
 import { DangerZoneSection } from "@/components/settings/DangerZoneSection"
 import { DataSection } from "@/components/settings/DataSection"
 import { EventsSection } from "@/components/settings/EventsSection"
@@ -23,7 +25,7 @@ import { TagGroups } from "@/components/TagGroups"
 import { TabBar } from "@/components/ui/TabBar"
 import type { QbitmanageTagConfig } from "@/types/api"
 
-type SettingsTab = "general" | "clients" | "notifications" | "backups" | "events"
+type SettingsTab = "general" | "clients" | "notifications" | "backups" | "events" | "about"
 
 const SETTINGS_TABS: { key: SettingsTab; label: string }[] = [
   { key: "general", label: "General" },
@@ -31,6 +33,7 @@ const SETTINGS_TABS: { key: SettingsTab; label: string }[] = [
   { key: "notifications", label: "Notifications" },
   { key: "backups", label: "Backups" },
   { key: "events", label: "Events" },
+  { key: "about", label: "About" },
 ]
 
 export interface SettingsData {
@@ -59,6 +62,7 @@ export interface SettingsData {
   hasPtpimgKey: boolean
   hasOeimgKey: boolean
   hasImgbbKey: boolean
+  credentialVaultEnabled: boolean
 }
 
 export interface SettingsClientProps {
@@ -88,6 +92,12 @@ export function SettingsClient({
           <TwoFactorSection />
 
           <PrivacySection initialStoreUsernames={initialSettings.storeUsernames} />
+
+          {/* Must stay on this ("general") default tab: the credential sheet's
+              opt-in gate deep-links to #credential-vault-heading, and tab state
+              is plain React state with no URL sync, so an anchor into any other
+              tab would resolve to an unmounted element. */}
+          <CredentialVaultSection initialEnabled={initialSettings.credentialVaultEnabled} />
 
           <DataSection initialPollInterval={initialSettings.trackerPollIntervalMinutes ?? 60} />
 
@@ -153,6 +163,8 @@ export function SettingsClient({
       )}
 
       {activeTab === "events" && <EventsSection />}
+
+      {activeTab === "about" && <AboutSection />}
     </div>
   )
 }

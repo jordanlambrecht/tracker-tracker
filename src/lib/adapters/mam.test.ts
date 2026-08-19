@@ -97,7 +97,9 @@ describe("MamAdapter - parsing", () => {
     expect(stats.seedingCount).toBe(18)
   })
 
-  it("returns zero bufferBytes when downloaded exceeds uploaded", async () => {
+  // A deficit account must report its actual shortfall, not 0. Clamping drew a
+  // flat line on the buffer chart while the account deteriorated.
+  it("returns a negative bufferBytes when downloaded exceeds uploaded", async () => {
     mockFetch({
       uploaded_bytes: 100_000_000,
       downloaded_bytes: 500_000_000,
@@ -109,7 +111,7 @@ describe("MamAdapter - parsing", () => {
       "/jsonLoad.php"
     )
 
-    expect(stats.bufferBytes).toBe(BigInt(0))
+    expect(stats.bufferBytes).toBe(BigInt(-400_000_000))
   })
 
   it("handles missing snatch_summary fields and returns seedingCount of 0", async () => {

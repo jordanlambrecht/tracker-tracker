@@ -17,9 +17,8 @@ import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
 import { sanitizeNetworkError } from "@/lib/error-utils"
 import {
-  AVISTAZ_TOKEN_MAX,
   LONG_STRING_MAX,
-  TRACKER_TOKEN_MAX,
+  maxTokenLengthFor,
   TRACKER_URL_MAX,
 } from "@/lib/limits"
 import { log } from "@/lib/logger"
@@ -47,7 +46,7 @@ export async function POST(request: Request) {
   const trimmedApiToken = apiToken.trim()
   const platform = typeof platformType === "string" ? platformType : "unit3d"
 
-  const maxTokenLength = platform === "avistaz" ? AVISTAZ_TOKEN_MAX : TRACKER_TOKEN_MAX
+  const maxTokenLength = maxTokenLengthFor(platform)
   const tokenErr = validateMaxLength(trimmedApiToken, maxTokenLength, "API token")
   if (tokenErr) return tokenErr
 

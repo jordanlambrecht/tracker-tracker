@@ -16,11 +16,14 @@ The **PulseDot** next to each tracker name indicates polling status:
 | State      | Color | Meaning                                                                            |
 | ---------- | ----- | ---------------------------------------------------------------------------------- |
 | `healthy`  | Cyan  | Ratio ≥ 2.0 — polling normally                                                     |
-| `warning`  | Amber | Ratio between 1.0 and 2.0, or ratio is fine but zero active seeds                  |
+| `warning`  | Amber | Ratio between 1.0 and 2.0 — a thin buffer                                          |
+| `no-seeds` | Red   | Zero active seeds — nothing is uploading, whatever the ratio says                  |
 | `critical` | Red   | Ratio < 1.0, or the tracker has warned your account                                |
 | `error`    | Red   | The last poll failed, but polling has not paused yet                               |
 | `paused`   | Red   | Polling has been automatically suspended after repeated failures                   |
 | `offline`  | Gray  | No snapshot data exists yet (tracker was just added, or all snapshots were pruned) |
+
+When a tracker matches more than one row, the most severe state wins: `critical` outranks `no-seeds`, which outranks `warning`. So a tracker with a 1.4 ratio and nothing seeding shows `no-seeds` — the ratio band alone would not tell you that you need to start seeding.
 
 ---
 

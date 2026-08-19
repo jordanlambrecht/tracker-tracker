@@ -112,7 +112,7 @@ export function parseThresholds(raw: unknown): NotificationThresholds {
   }
 }
 
-// Type guards — validates shape only. Callers must also check target.type
+// Type guards: validates shape only. Callers must also check target.type
 // since DiscordConfig and SlackConfig share the same { webhookUrl } shape.
 export function isDiscordConfig(config: NotificationConfig): config is DiscordConfig {
   return "webhookUrl" in config && typeof config.webhookUrl === "string"

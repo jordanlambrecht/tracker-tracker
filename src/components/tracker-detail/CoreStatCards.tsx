@@ -42,6 +42,13 @@ export function buildCoreStatDescriptors(
   const [dlVal, dlUnit] = formatBytesFromString(stats?.downloadedBytes ?? null).split(" ")
   const [bufVal, bufUnit] = formatBytesFromString(latestSnapshot?.bufferBytes ?? null).split(" ")
 
+  // An infinite ratio (uploaded > 0, downloaded === 0) is the best possible
+  // standing. It crosses the wire as `ratio: null` plus this flag, since JSON
+  // can't carry Infinity. Only the descriptor below needs the resolved
+  // value; `ratioBelowRequired` is left reading `stats?.ratio` directly
+  // since Infinity can never be below a required ratio either way.
+  const ratio = stats?.ratioIsInfinite ? Number.POSITIVE_INFINITY : stats?.ratio
+
   const rawRequiredRatio = latestSnapshot?.requiredRatio ?? minimumRatio ?? null
   const effectiveRequiredRatio =
     rawRequiredRatio != null && rawRequiredRatio > 0 ? rawRequiredRatio : null
@@ -72,14 +79,14 @@ export function buildCoreStatDescriptors(
       key: "ratio",
       label: "Ratio",
       icon: <RatioIcon width="16" height="16" />,
-      value: formatRatio(stats?.ratio),
-      unit: stats?.ratio != null ? "x" : undefined,
+      value: formatRatio(ratio),
+      unit: ratio != null ? "x" : undefined,
       trend:
-        stats?.ratio == null
+        ratio == null
           ? undefined
-          : stats.ratio >= 2
+          : ratio >= 2
             ? "up"
-            : stats.ratio >= 1
+            : ratio >= 1
               ? "flat"
               : "down",
       alert: ratioBelowRequired ? "danger" : undefined,
@@ -110,7 +117,11 @@ export function buildCoreStatDescriptors(
       key: "hnr",
       label: "Hit & Runs",
       icon: <TriangleWarningIcon width="16" height="16" />,
-      value: formatCount(latestSnapshot?.hitAndRuns),
+      // A count of nothing is zero, not unknown: once a snapshot exists, "no
+      // hit & runs recorded" is the good outcome and must read "0". Only the
+      // absence of any snapshot is genuinely unknown, hence the gate rather
+      // than a bare `?? 0` (which slot-registry.ts uses for the same field).
+      value: latestSnapshot ? formatCount(latestSnapshot.hitAndRuns ?? 0) : "—",
     },
     {
       key: "req-ratio",

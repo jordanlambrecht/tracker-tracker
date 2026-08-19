@@ -20,6 +20,9 @@ import {
   insideZoom,
 } from "./lib/chart-helpers"
 import { LogScaleToggle } from "./lib/LogScaleToggle"
+import { OutageBandLegend } from "./lib/OutageBandLegend"
+import { useOutageBands } from "./lib/OutageBandsProvider"
+import { appendOutageBandSeries, polledAtRange } from "./lib/outage-bands"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -120,13 +123,13 @@ function buildBufferVelocityOption(
 
   if (sortedDays.length === 0) return {}
 
-  // Convert ISO day strings to noon timestamps to avoid timezone boundary issues
+  // Convert ISO to noon timestamps to avoid timezone boundary issues
   const dayTimestamps = new Map<string, number>()
   for (const day of sortedDays) {
     dayTimestamps.set(day, new Date(`${day}T12:00:00`).getTime())
   }
 
-  // Determine unit (GiB vs TiB) based on max absolute velocity
+  // Determine unit (GB vs TB) based on max absolute velocity
   let maxAbsVal = 0
   for (const t of computed) {
     for (const v of t.velocities) {
@@ -149,8 +152,7 @@ function buildBufferVelocityOption(
     }
 
     const data: (
-      | [number, number]
-      | { value: [number, number]; itemStyle: object; symbolSize: number }
+      [number, number] | { value: [number, number]; itemStyle: object; symbolSize: number }
     )[] = []
     for (const day of sortedDays) {
       const v = dayVelocityMap.get(day)
@@ -302,6 +304,8 @@ const MA_TABS: { key: MAWindow; label: string }[] = [
 
 function BufferVelocityChart({ trackerData, height = 320 }: BufferVelocityChartProps) {
   const [maWindow, setMaWindow] = useState<MAWindow>("1")
+  // Tracker snapshots. App bands only.
+  const outages = useOutageBands("tracker")
 
   const computed: TrackerVelocityData[] = trackerData.map((t) => {
     const { days, velocities } = computeBufferVelocity(t.snapshots)
@@ -310,14 +314,27 @@ function BufferVelocityChart({ trackerData, height = 320 }: BufferVelocityChartP
 
   const hasEnoughData = computed.some((t) => t.days.length >= 1)
 
+  // A log axis cannot represent a non-positive value, so once any velocity
+  // is <= 0 the toggle is withheld rather than letting the user force an axis that
+  // silently erases losing days. The buffer candlestick and MetricChart (issue #36)
+  // use the same guard.
   const allVelocities: number[] = []
+  let hasNonPositiveVelocity = false
   for (const t of computed) {
     for (const v of t.velocities) {
-      if (v !== null && v > 0) allVelocities.push(v)
+      if (v === null) continue
+      if (v > 0) allVelocities.push(v)
+      else hasNonPositiveVelocity = true
     }
   }
 
-  const { effectiveLog, isAuto, onToggle } = useLogScale(allVelocities)
+  const canUseLog = !hasNonPositiveVelocity && allVelocities.length > 0
+  const { effectiveLog, isAuto, onToggle } = useLogScale(canUseLog ? allVelocities : [])
+  // `canUseLog &&`, not `effectiveLog` alone. The override lives in hook state, so
+  // a viewer who forced log on during an all-gaining stretch remains on the log axis
+  // when a losing day arrives and erases that day, leaving the toggle unmounted with
+  // no way back.
+  const useLog = canUseLog && effectiveLog
 
   if (!hasEnoughData) {
     return (
@@ -339,11 +356,21 @@ function BufferVelocityChart({ trackerData, height = 320 }: BufferVelocityChartP
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <TabBar compact tabs={MA_TABS} activeTab={maWindow} onChange={setMaWindow} />
-        <LogScaleToggle effectiveLog={effectiveLog} isAuto={isAuto} onToggle={onToggle} />
+        {canUseLog && (
+          <LogScaleToggle effectiveLog={effectiveLog} isAuto={isAuto} onToggle={onToggle} />
+        )}
       </div>
       <ChartECharts
-        option={buildBufferVelocityOption(smoothed, effectiveLog)}
+        option={appendOutageBandSeries(
+          buildBufferVelocityOption(smoothed, useLog),
+          outages,
+          polledAtRange(trackerData.flatMap((t) => t.snapshots))
+        )}
         style={{ height, width: "100%" }}
+      />
+      <OutageBandLegend
+        bands={outages}
+        range={polledAtRange(trackerData.flatMap((t) => t.snapshots))}
       />
     </div>
   )

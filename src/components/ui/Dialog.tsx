@@ -81,7 +81,7 @@ function Dialog({
     }
   }, [mounted])
 
-  // Body scroll lock — native dialog does not prevent background scrolling
+  // Body scroll lock: native dialog does not prevent background scrolling
   useEffect(() => {
     if (!mounted) return
     document.body.style.overflow = "hidden"

@@ -19,7 +19,7 @@
 //     failedLoginAttempts, lockedUntil, encryptedProxyPassword,
 //     encryptedBackupPassword, encryptedSchedulerKey
 //   trackers: encryptedApiToken
-//   downloadClients: encryptedUsername, encryptedPassword
+//   downloadClients: encryptedUsername, encryptedPassword, encryptedApiKey
 //   notificationTargets: encryptedConfig
 
 import "server-only"
@@ -49,8 +49,8 @@ import type { Snapshot, TagGroup, TagGroupChartType, TrackerSummary } from "@/ty
 // ---------------------------------------------------------------------------
 
 /**
- * Explicit column projection for appSettings. Uses allowlisted columns only —
- * encrypted/sensitive fields are structurally excluded at the query level.
+ * Explicit column projection for appSettings. Uses allowlisted columns only.
+ * Encrypted/sensitive fields are structurally excluded at the query level.
  *
  * Note: `hasProxyPassword` and `hasBackupPassword` select the encrypted column
  * references so the serializer can coerce them to booleans. The raw ciphertext
@@ -83,6 +83,7 @@ export const settingsColumns = {
   backupEncryptionEnabled: appSettings.backupEncryptionEnabled,
   hasBackupPassword: appSettings.encryptedBackupPassword,
   backupStoragePath: appSettings.backupStoragePath,
+  credentialVaultEnabled: appSettings.credentialVaultEnabled,
 }
 
 export function fetchSettings() {
@@ -122,11 +123,12 @@ export function serializeSettingsResponse(row: SettingsRow) {
     backupEncryptionEnabled: row.backupEncryptionEnabled,
     hasBackupPassword: !!row.hasBackupPassword,
     backupStoragePath: row.backupStoragePath,
+    credentialVaultEnabled: row.credentialVaultEnabled,
   }
 }
 
 /**
- * fetches settings and serializes for the client.
+ * Fetches settings and serializes for the client.
  * Returns null if no settings row exists (app not yet configured).
  */
 export async function getSettingsForClient() {
@@ -153,10 +155,15 @@ export const clientColumns = {
   host: downloadClients.host,
   port: downloadClients.port,
   useSsl: downloadClients.useSsl,
+  authMethod: downloadClients.authMethod,
+  // Whether a credential has ever been stored, per auth mode. Deliberately
+  // tests the ciphertext, not the secret: a blank username/password is a valid
+  // qBittorrent localhost-bypass setup and still counts as configured.
   hasCredentials:
-    sql<boolean>`(${downloadClients.encryptedUsername} IS NOT NULL AND ${downloadClients.encryptedPassword} IS NOT NULL)`.as(
-      "has_credentials"
-    ),
+    sql<boolean>`(CASE WHEN ${downloadClients.authMethod} = 'apikey'
+        THEN ${downloadClients.encryptedApiKey} <> ''
+        ELSE ${downloadClients.encryptedUsername} IS NOT NULL AND ${downloadClients.encryptedPassword} IS NOT NULL
+      END)`.as("has_credentials"),
   pollIntervalSeconds: downloadClients.pollIntervalSeconds,
   isDefault: downloadClients.isDefault,
   crossSeedTags: downloadClients.crossSeedTags,
@@ -370,6 +377,31 @@ export function getSnapshotBucket(days: number): "hour" | "day" | null {
 }
 
 /**
+ * How many days of snapshots actually exist, for sizing the "All" bucket.
+ *
+ * getSnapshotBucket is deliberately pure and answers for a REQUESTED range. It
+ * maps 0 to "day", the only sensible answer without knowing what is stored.
+ * Passing 0 made All coarser than any bounded range: an install holding a few
+ * hours of snapshots collapsed to one point per tracker, which fires every "need
+ * at least 2 days of data" empty state. Measuring the real span first and asking
+ * for THAT range keeps the function pure and gives a young install raw points
+ * and a mature one day buckets.
+ *
+ * Returns 1 when nothing is stored, so callers still get a valid bucket.
+ */
+async function storedSpanDays(trackerId?: number): Promise<number> {
+  const [oldest] = await db
+    .select({ polledAt: trackerSnapshots.polledAt })
+    .from(trackerSnapshots)
+    .where(trackerId === undefined ? undefined : eq(trackerSnapshots.trackerId, trackerId))
+    .orderBy(asc(trackerSnapshots.polledAt))
+    .limit(1)
+
+  if (!oldest) return 1
+  return Math.max(1, Math.ceil((Date.now() - oldest.polledAt.getTime()) / (24 * 60 * 60 * 1000)))
+}
+
+/**
  * Fetches snapshots for a tracker, filtered by day range.
  * Pass days=0 for all snapshots. Applies adaptive time-bucketing for
  * longer ranges (hourly for 3-90d, daily for >90d) to bound response size.
@@ -384,7 +416,7 @@ export async function getSnapshotsForTracker(trackerId: number, days: number): P
     conditions.push(gte(trackerSnapshots.polledAt, since))
   }
 
-  const bucket = getSnapshotBucket(safeDays)
+  const bucket = getSnapshotBucket(safeDays === 0 ? await storedSpanDays(trackerId) : safeDays)
   const whereClause = and(...conditions)
 
   const [snapshots, [privacySettings]] = await Promise.all([
@@ -436,6 +468,10 @@ function serializeSnapshot(
     uploadedBytes: s.uploadedBytes?.toString() ?? "0",
     downloadedBytes: s.downloadedBytes?.toString() ?? "0",
     ratio: s.ratio,
+    // Same predicate tracker-serializer.ts uses for TrackerLatestStats. `ratio`
+    // is null here because JSON cannot carry Infinity, so without this flag the
+    // consumer cannot tell an infinite ratio from a never-measured one.
+    ratioIsInfinite: s.downloadedBytes === 0n && (s.uploadedBytes ?? 0n) > 0n,
     bufferBytes: s.bufferBytes?.toString() ?? "0",
     seedingCount: s.seedingCount,
     leechingCount: s.leechingCount,
@@ -460,7 +496,7 @@ export type FleetSnapshotMap = Record<string, Snapshot[]>
 
 export async function getFleetSnapshots(days: number): Promise<FleetSnapshotMap> {
   const safeDays = days === 0 ? 0 : Math.min(Math.max(days, 1), SNAPSHOT_QUERY_MAX)
-  const bucket = getSnapshotBucket(safeDays)
+  const bucket = getSnapshotBucket(safeDays === 0 ? await storedSpanDays() : safeDays)
 
   const sinceCondition =
     safeDays > 0
@@ -507,8 +543,31 @@ export async function getFleetSnapshots(days: number): Promise<FleetSnapshotMap>
  */
 export async function getTagGroupsWithMembers(): Promise<TagGroup[]> {
   const [groups, allMembers] = await Promise.all([
-    db.select().from(tagGroupsTable).orderBy(asc(tagGroupsTable.sortOrder), asc(tagGroupsTable.id)),
-    db.select().from(tagGroupMembers).orderBy(asc(tagGroupMembers.sortOrder)),
+    db
+      .select({
+        id: tagGroupsTable.id,
+        name: tagGroupsTable.name,
+        emoji: tagGroupsTable.emoji,
+        chartType: tagGroupsTable.chartType,
+        description: tagGroupsTable.description,
+        sortOrder: tagGroupsTable.sortOrder,
+        countUnmatched: tagGroupsTable.countUnmatched,
+      })
+      .from(tagGroupsTable)
+      .orderBy(asc(tagGroupsTable.sortOrder), asc(tagGroupsTable.id)),
+    // Projected to exactly TagGroupMember — these rows are returned to the client
+    // verbatim below, so a bare select() would leak any column added later.
+    db
+      .select({
+        id: tagGroupMembers.id,
+        groupId: tagGroupMembers.groupId,
+        tag: tagGroupMembers.tag,
+        label: tagGroupMembers.label,
+        color: tagGroupMembers.color,
+        sortOrder: tagGroupMembers.sortOrder,
+      })
+      .from(tagGroupMembers)
+      .orderBy(asc(tagGroupMembers.sortOrder)),
   ])
 
   const membersByGroup = new Map<number, typeof allMembers>()

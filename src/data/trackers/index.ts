@@ -55,6 +55,7 @@ export * from "./tvvault"
 export * from "./uhdbits"
 export * from "./uploadcx"
 export * from "./yuscene"
+export * from "./zenith"
 
 import { pier720 } from "./720pier"
 import { abtorrents } from "./abtorrents"
@@ -109,6 +110,7 @@ import { tvvault } from "./tvvault"
 import { uhdbits } from "./uhdbits"
 import { uploadcx } from "./uploadcx"
 import { yuscene } from "./yuscene"
+import { zenith } from "./zenith"
 
 export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   pier720,
@@ -163,5 +165,6 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   tvvault,
   uhdbits,
   uploadcx,
-  yuscene
+  yuscene,
+  zenith,
 ]

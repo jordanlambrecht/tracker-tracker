@@ -3,11 +3,12 @@
 // Functions: POST
 //
 // Changes the master password and re-encrypts all encrypted fields
-// (tracker API tokens, download client credentials, proxy password,
+// (tracker API tokens, tracker credential vaults, download client credentials, proxy password,
 // backup password, TOTP secrets, image host API keys, notification
 // target configs) inside a single transaction.
 // Requires an active session and the current password for verification.
 
+import { timingSafeEqual } from "node:crypto"
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { authenticate, decodeKey, parseJsonBody } from "@/lib/api-helpers"
@@ -69,15 +70,49 @@ export async function POST(request: Request) {
   await resetFailedAttempts(settings.id)
 
   const oldKey = decodeKey(auth)
+
+  // The password check above proves the caller knows the current password. It does
+  // not prove the session is carrying the key that actually encrypted the data.
+  // Those diverge whenever a session outlives a password change, which is ordinary
+  // with a second signed-in device. Everything below decrypts with this key and
+  // treats a failure as a corrupt row, so a stale key would look like every secret
+  // in the database being corrupt at once, and the rotation would commit that:
+  // seven settings values nulled and every row orphaned under a key nobody holds.
+  //
+  // Deriving from the password the caller just proved they know is the same value
+  // in the healthy case, so a mismatch means the session is stale rather than the
+  // data being bad, and there is nothing safe to do but stop.
+  const keyFromPassword = await deriveKey(currentPassword, settings.encryptionSalt)
+  if (!timingSafeEqual(oldKey, keyFromPassword)) {
+    log.warn(
+      { route: "POST /api/auth/change-password" },
+      "password change aborted — session key does not match the current password"
+    )
+    return NextResponse.json(
+      { error: "Your session is out of date. Sign in again before changing your password." },
+      { status: 409 }
+    )
+  }
+
   const newKey = await deriveKey(newPassword, settings.encryptionSalt)
   const newHash = await hashPassword(newPassword)
 
   // Pre-flight: decrypt everything outside the transaction to identify
   // already-corrupted items before committing any writes.
-  const trackerPlaintexts = new Map<number, string>()
-  const clientPlaintexts = new Map<number, { username: string; password: string }>()
+  // Per tracker: the API token plaintext (always present) and the credential
+  // vault plaintext (null when the tracker has no vault, which is the norm).
+  // The vault is carried as an OPAQUE STRING. It is decrypted and re-encrypted
+  // without ever being JSON.parsed or shape-guarded, exactly like the
+  // notification configs below. A rotation is not the place to start rejecting
+  // stored shapes: a vault written by a newer build must survive it untouched.
+  const trackerPlaintexts = new Map<number, { token: string; vault: string | null }>()
+  const clientPlaintexts = new Map<
+    number,
+    { username: string; password: string; apiKey: string }
+  >()
   const notificationPlaintexts = new Map<number, string>()
   const failedTrackers: string[] = []
+  const failedVaults: string[] = []
   const failedClients: string[] = []
   const failedNotifications: string[] = []
 
@@ -87,6 +122,7 @@ export async function POST(request: Request) {
         id: trackers.id,
         name: trackers.name,
         encryptedApiToken: trackers.encryptedApiToken,
+        encryptedCredentials: trackers.encryptedCredentials,
       })
       .from(trackers),
     db
@@ -95,6 +131,7 @@ export async function POST(request: Request) {
         name: downloadClients.name,
         encryptedUsername: downloadClients.encryptedUsername,
         encryptedPassword: downloadClients.encryptedPassword,
+        encryptedApiKey: downloadClients.encryptedApiKey,
       })
       .from(downloadClients),
     db
@@ -107,15 +144,44 @@ export async function POST(request: Request) {
   ])
 
   for (const tracker of allTrackers) {
+    let token: string
     try {
-      trackerPlaintexts.set(tracker.id, decrypt(tracker.encryptedApiToken, oldKey))
+      token = decrypt(tracker.encryptedApiToken, oldKey)
     } catch (err) {
       log.warn(
         { trackerId: tracker.id, error: String(err) },
         "Failed to decrypt tracker API token during password change"
       )
+      // The whole row is skipped, vault included. Re-keying the vault of a row
+      // whose token we are leaving under the old key would split one tracker
+      // across two keys, which is worse than leaving it wholly untouched.
       failedTrackers.push(tracker.name)
+      continue
     }
+
+    // NULL is "no vault" and is NOT an error. It must never reach decrypt().
+    // It stays null all the way through to the UPDATE below.
+    let vault: string | null = null
+    if (tracker.encryptedCredentials) {
+      try {
+        vault = decrypt(tracker.encryptedCredentials, oldKey)
+      } catch (err) {
+        log.warn(
+          { trackerId: tracker.id, error: String(err) },
+          "Failed to decrypt tracker credential vault during password change, clearing it"
+        )
+        // Cleared to NULL rather than left behind. The session-key guard above
+        // already proved oldKey IS the current master key, so a vault that will
+        // not open under it is unreadable by every tool including recover.cjs.
+        // Leaving that ciphertext in place would make every later read of this
+        // tracker throw, with no way to clear it; NULL is a state the user can
+        // recover from by re-entering. Same disposition as the settings columns.
+        vault = null
+        failedVaults.push(tracker.name)
+      }
+    }
+
+    trackerPlaintexts.set(tracker.id, { token, vault })
   }
 
   for (const client of allClients) {
@@ -123,6 +189,9 @@ export async function POST(request: Request) {
       clientPlaintexts.set(client.id, {
         username: decrypt(client.encryptedUsername, oldKey),
         password: decrypt(client.encryptedPassword, oldKey),
+        // Password-auth clients store "" here, which is not ciphertext and
+        // must not be handed to decrypt. It round-trips as "" below.
+        apiKey: client.encryptedApiKey ? decrypt(client.encryptedApiKey, oldKey) : "",
       })
     } catch (err) {
       log.warn(
@@ -253,10 +322,17 @@ export async function POST(request: Request) {
   // Only items that successfully decrypted are re-encrypted and committed.
   try {
     await db.transaction(async (tx) => {
-      for (const [id, plainToken] of trackerPlaintexts) {
+      for (const [id, plain] of trackerPlaintexts) {
         await tx
           .update(trackers)
-          .set({ encryptedApiToken: encrypt(plainToken, newKey) })
+          .set({
+            encryptedApiToken: encrypt(plain.token, newKey),
+            // Written UNCONDITIONALLY, including the null case. Omitting the key
+            // for vaultless trackers would leave the column's rotation implicit
+            // and untestable; writing null states outright that NULL survives a
+            // password change as NULL, and never as encrypt("") or "".
+            encryptedCredentials: plain.vault === null ? null : encrypt(plain.vault, newKey),
+          })
           .where(eq(trackers.id, id))
       }
 
@@ -266,6 +342,11 @@ export async function POST(request: Request) {
           .set({
             encryptedUsername: encrypt(creds.username, newKey),
             encryptedPassword: encrypt(creds.password, newKey),
+            // Re-encrypted with the rest of the row, not left behind: a key
+            // still sealed under the old password would fail its auth tag on
+            // every poll, and no amount of re-entering the new password would
+            // recover it. "" stays "" (see the decrypt guard above).
+            encryptedApiKey: creds.apiKey ? encrypt(creds.apiKey, newKey) : "",
           })
           .where(eq(downloadClients.id, id))
       }
@@ -299,7 +380,7 @@ export async function POST(request: Request) {
     newKey.fill(0)
   }
 
-  // Transaction committed — safe to end session
+  // Transaction committed. Safe to end session.
   log.info({ route: "POST /api/auth/change-password" }, "password changed successfully")
   await clearSchedulerKey(settings.id)
   stopScheduler()
@@ -308,6 +389,11 @@ export async function POST(request: Request) {
   if (failedTrackers.length > 0) {
     warnings.push(
       `Could not re-encrypt ${failedTrackers.length} tracker API key(s). Re-enter them manually.`
+    )
+  }
+  if (failedVaults.length > 0) {
+    warnings.push(
+      `${failedVaults.length} tracker credential vault(s) could not be re-encrypted and were cleared: ${failedVaults.join(", ")}. Re-enter those credentials.`
     )
   }
   if (failedClients.length > 0) {

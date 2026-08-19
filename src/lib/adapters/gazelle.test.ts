@@ -335,7 +335,8 @@ describe("GazelleAdapter", () => {
     expect(stats.warned).toBeNull() // Default when enrichment fails — null means "unknown"
   })
 
-  it("handles zero buffer when downloaded exceeds uploaded", async () => {
+  // A deficit account must report its actual shortfall, not 0.
+  it("handles a negative buffer when downloaded exceeds uploaded", async () => {
     vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: true,
       json: async () => mockGazelleResponse({ uploaded: 100, downloaded: 500 }),
@@ -343,7 +344,44 @@ describe("GazelleAdapter", () => {
 
     const stats = await adapter.fetchStats("https://redacted.sh", "token", "/ajax.php")
 
-    expect(stats.bufferBytes).toBe(BigInt(0))
+    expect(stats.bufferBytes).toBe(BigInt(-400))
+  })
+
+  // Gazelle reports its own buffer, signed, and the enriched value overwrites
+  // the derived one — so clamping it here would keep enriched Gazelle sites
+  // reporting 0 for a deficit no matter what the shared helpers do. It is also
+  // not merely uploaded - downloaded: freeleech and bonus spending break that
+  // identity, which is why the tracker's own number wins.
+  it("keeps the sign on the tracker's own buffer from the enrichment call", async () => {
+    vi.spyOn(global, "fetch")
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockGazelleResponse({ uploaded: 100, downloaded: 500 }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          status: "success",
+          response: {
+            username: "JohnDoe",
+            stats: {
+              joinedDate: "2020-01-15 10:30:00",
+              uploaded: 100,
+              downloaded: 500,
+              buffer: -2627286052460,
+            },
+            personal: { warned: false },
+          },
+        }),
+      } as Response)
+
+    const stats = await adapter.fetchStats("https://redacted.sh", "token", "/ajax.php", {
+      authStyle: "raw",
+      enrich: true,
+    })
+
+    // The tracker's own number, not the -400 the totals would imply.
+    expect(stats.bufferBytes).toBe(BigInt(-2627286052460))
   })
 })
 

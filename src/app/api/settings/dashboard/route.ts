@@ -47,15 +47,17 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Not configured" }, { status: 400 })
   }
 
+  // The allowlist is derived from the defaults rather than written out key by key. A
+  // hand-maintained list silently drops any field added to DashboardSettings later, which is
+  // exactly what happened to enable3DCharts. The PUT looked like it worked because the client
+  // updates optimistically, and the value only vanished on reload. Comparing against the
+  // default's type keeps the same validation the explicit branches did.
   const merged: DashboardSettings = parseSettings(row.dashboardSettings)
-  if (typeof body.showHealthIndicators === "boolean") {
-    merged.showHealthIndicators = body.showHealthIndicators
-  }
-  if (typeof body.showLoginTimers === "boolean") {
-    merged.showLoginTimers = body.showLoginTimers
-  }
-  if (typeof body.showTodayAtAGlance === "boolean") {
-    merged.showTodayAtAGlance = body.showTodayAtAGlance
+  for (const key of Object.keys(DEFAULTS) as (keyof DashboardSettings)[]) {
+    const value = body[key]
+    if (typeof value === typeof DEFAULTS[key]) {
+      merged[key] = value as DashboardSettings[typeof key]
+    }
   }
 
   await db

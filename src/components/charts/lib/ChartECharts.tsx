@@ -12,6 +12,7 @@ import type { EChartsOption } from "echarts"
 import ReactECharts from "echarts-for-react"
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/Button"
+import { isOutageBandSeries } from "./outage-bands"
 import { CHART_THEME } from "./theme"
 
 interface LegendItem {
@@ -46,7 +47,7 @@ export function defaultShouldSetOption(
   return JSON.stringify(prev.option) !== JSON.stringify(next.option)
 }
 
-/** Extract legend items from ECharts option — series names + colors */
+/** Extract legend items from ECharts option. Series names and colors. */
 function extractLegendItems(option: EChartsOption): LegendItem[] {
   const series = option.series as
     | Array<{ name?: string; itemStyle?: { color?: string } }>
@@ -90,7 +91,12 @@ function ChartECharts({
   const legend = option.legend as Record<string, unknown> | undefined
   const hasLegend = legend && legend.show !== false
   const series = option.series as Array<{ name?: string }> | undefined
-  const seriesCount = Array.isArray(series) ? series.length : 0
+  // Outage-band series are excluded from the count. They are background shading,
+  // not data, and letting them count would flip a single-series chart into the
+  // external-legend layout purely because bands were switched on.
+  const seriesCount = Array.isArray(series)
+    ? series.filter((s) => !isOutageBandSeries(s)).length
+    : 0
   const showExternalLegend = hasLegend && seriesCount > 1
 
   // Extract legend items — stabilized by content key to avoid unnecessary re-renders
@@ -99,7 +105,7 @@ function ChartECharts({
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally keyed on legendKey string, not legendItemsRaw reference — stabilizes the array across renders when content hasn't changed
   const legendItems = useMemo(() => legendItemsRaw, [legendKey])
 
-  // Track which series are selected — keyed by series name
+  // Track which series are selected. Keyed by series name.
   const [selected, setSelected] = useState<Record<string, boolean>>({})
 
   // Sync selection state when legend items actually change (not on every render)
@@ -142,7 +148,7 @@ function ChartECharts({
     instance.dispatchAction({ type: "legendToggleSelect", name })
   }, [])
 
-  // Hide internal legend when rendering externally — immutable shallow copy
+  // Hide internal legend when rendering externally. Immutable shallow copy
   // instead of mutating the parent's option object during render.
   const effectiveOption = useMemo(() => {
     if (!showExternalLegend || !option.legend) return option

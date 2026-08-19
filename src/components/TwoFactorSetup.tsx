@@ -67,7 +67,7 @@ function TwoFactorSetup() {
           if (!cancelled) setStep("enabled")
         }
       } catch {
-        // Endpoint may not exist yet — default to idle
+        // Endpoint may not exist yet. Default to idle
       }
     }
     checkStatus()

@@ -45,8 +45,18 @@ vitest.config.*
 .biomeignore
 biome.json
 
-# Development scripts
-scripts
+# Development scripts.
+#
+# scripts/recover.cjs is the emergency password-recovery CLI and
+# scripts/backfill-buffer.cjs is the signed-buffer history repair; both are
+# operator tools that MUST reach the build context — the Dockerfile copies them
+# into the runner. Write this as `scripts/*` + negations, never as a bare
+# `scripts` + negation: re-including a child of a wholly-excluded directory is
+# not reliable across BuildKit versions, and the failure mode is a COPY error
+# mid-build.
+scripts/*
+!scripts/recover.cjs
+!scripts/backfill-buffer.cjs
 
 # Drizzle generated migrations (schema-push used instead)
 drizzle

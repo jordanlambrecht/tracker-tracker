@@ -107,7 +107,7 @@ function DownloadClientStatusWidget() {
     } catch {}
   }, [setExpanded])
 
-  // Fetch enabled clients — refetchInterval: 10_000 drives the cache for all consumers
+  // Fetch enabled clients. refetchInterval: 10_000 drives the cache for all consumers
   const { data: enabledClients = [] } = useQuery({
     ...clientQueryOptions,
     refetchInterval: 10_000,

@@ -3,11 +3,15 @@
 import type { Agent as HttpAgent } from "node:http"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { AvistazAdapter } from "./avistaz"
+import { BtnAdapter } from "./btn"
 import { DigitalCoreAdapter } from "./digitalcore"
 import { GazelleAdapter } from "./gazelle"
 import { GGnAdapter } from "./ggn"
+import { HawkeAdapter } from "./hawke"
+import { IptorrentsAdapter } from "./iptorrents"
 import { MamAdapter } from "./mam"
 import { NebulanceAdapter } from "./nebulance"
+import { TorrentleechAdapter } from "./torrentleech"
 import type { FetchOptions, TrackerAdapter } from "./types"
 import { Unit3dAdapter } from "./unit3d"
 
@@ -16,11 +20,15 @@ export { DEFAULT_API_PATHS, VALID_PLATFORM_TYPES } from "./constants"
 
 const adapters: Record<string, TrackerAdapter> = {
   avistaz: new AvistazAdapter(),
+  btn: new BtnAdapter(),
   digitalcore: new DigitalCoreAdapter(),
   gazelle: new GazelleAdapter(),
   ggn: new GGnAdapter(),
+  hawke: new HawkeAdapter(),
+  iptorrents: new IptorrentsAdapter(),
   mam: new MamAdapter(),
   nebulance: new NebulanceAdapter(),
+  torrentleech: new TorrentleechAdapter(),
   unit3d: new Unit3dAdapter(),
 }
 

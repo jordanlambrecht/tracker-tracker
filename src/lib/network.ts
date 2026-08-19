@@ -1,6 +1,7 @@
 // src/lib/network.ts
 //
-// Functions: toIpv4Integer, isPrivateIpv4Literal, normalizeShorthandIpv4, isUnsafeIpv6Literal, isUnsafeNetworkHost
+// Functions: toIpv4Integer, isPrivateIpv4Literal, normalizeShorthandIpv4, isUnsafeIpv6Literal,
+//            isUnsafeNetworkHost, isSafeHttpUrl, fetchFollowingSafeRedirects
 
 import { isIP } from "node:net"
 
@@ -135,4 +136,80 @@ export function isUnsafeNetworkHost(host: string): boolean {
   if (expanded) return isPrivateIpv4Literal(expanded)
 
   return false
+}
+
+/**
+ * True when `url` is an absolute http(s) URL that does not target localhost or
+ * a private network address. This is the same rule `validateHttpUrl()` enforces
+ * at the API boundary, without the NextResponse wrapper so it can run per
+ * redirect hop.
+ */
+function isSafeHttpUrl(url: string): boolean {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return false
+  }
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return false
+  return !isUnsafeNetworkHost(parsed.hostname)
+}
+
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308])
+
+/**
+ * fetch() that re-applies the private-address guard to every redirect hop.
+ *
+ * fetch() defaults to `redirect: "follow"`, which leaves a caller's SSRF check
+ * covering only the first URL: a hostile origin can answer with a `Location:`
+ * pointing at loopback or a link-local metadata address and the body comes back
+ * to the caller. This walks the chain with `redirect: "manual"` instead and
+ * re-checks each hop, so the guard holds for the whole chain.
+ *
+ * A refused, malformed, or over-limit hop resolves to the 3xx response itself
+ * rather than throwing, so callers see a non-ok response and report their usual
+ * failure without disclosing where the redirect pointed.
+ *
+ * `deadline` is one signal shared by every hop, making the caller's timeout a
+ * budget for the whole chain rather than per request.
+ */
+export async function fetchFollowingSafeRedirects(
+  url: string,
+  deadline: AbortSignal,
+  maxRedirects = 3
+): Promise<Response> {
+  if (!isSafeHttpUrl(url)) throw new Error("Refusing to fetch an unsafe URL")
+
+  let currentUrl = url
+  let response = await fetch(currentUrl, {
+    redirect: "manual",
+    signal: deadline,
+  })
+
+  for (let hop = 0; hop < maxRedirects; hop++) {
+    if (!REDIRECT_STATUSES.has(response.status)) return response
+
+    const location = response.headers.get("location")
+    if (!location) return response
+
+    let next: string
+    try {
+      next = new URL(location, currentUrl).href
+    } catch {
+      return response
+    }
+    if (!isSafeHttpUrl(next)) return response
+
+    // Discard the redirect body so a chain cannot accumulate bytes past a
+    // caller's size cap.
+    await response.body?.cancel()
+
+    currentUrl = next
+    response = await fetch(currentUrl, {
+      redirect: "manual",
+      signal: deadline,
+    })
+  }
+
+  return response
 }

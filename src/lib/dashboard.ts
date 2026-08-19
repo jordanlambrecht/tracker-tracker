@@ -144,7 +144,7 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
       })
     }
 
-    // --- Stale data (skip if paused — staleness is expected) ---
+    // --- Stale data (skip if paused: staleness is expected) ---
     if (!tracker.pausedAt && !tracker.userPausedAt && tracker.lastPolledAt) {
       const lastPolled = new Date(tracker.lastPolledAt)
       const thresholdMs = 2 * 60 * 60 * 1000 // 2 hours

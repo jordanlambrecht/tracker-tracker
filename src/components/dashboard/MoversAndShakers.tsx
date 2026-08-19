@@ -74,14 +74,23 @@ function TorrentRankList({ label, entries }: { label: string; entries: TorrentRa
 }
 
 export function MoversAndShakers({ movers }: MoversAndShakersProps) {
-  const { topUploaders, topDownloaders } = movers
+  const { topUploaders, topDownloaders, clientCount, unmatchedTorrents } = movers
 
   if (topUploaders.length === 0 && topDownloaders.length === 0) {
-    return (
-      <p className="text-xs font-mono text-muted p-4 text-center">
-        Connect a download client to see torrent activity
-      </p>
-    )
+    // Three genuinely different situations used to share one message, which
+    // told users with a working client to go connect one (issue #157).
+    let message: string
+    if (clientCount === 0) {
+      message = "Connect a download client to see torrent activity"
+    } else if (unmatchedTorrents > 0) {
+      message =
+        `${unmatchedTorrents} torrent${unmatchedTorrents === 1 ? "" : "s"} found, but none ` +
+        "belong to a tracked tracker. Check the tracker's URL, or set a qBittorrent tag on it."
+    } else {
+      message = "No torrent activity today"
+    }
+
+    return <p className="text-xs font-mono text-muted p-4 text-center">{message}</p>
   }
 
   return (

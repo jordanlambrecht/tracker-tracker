@@ -67,6 +67,7 @@ const mockSnapshot: Snapshot = {
   uploadedBytes: "1000",
   downloadedBytes: "500",
   ratio: 2.0,
+  ratioIsInfinite: false,
   bufferBytes: "500",
   seedingCount: 10,
   leechingCount: 0,
@@ -222,6 +223,37 @@ describe("useDashboardData", () => {
         expect.any(Object)
       )
     })
+  })
+
+  // Regression: "All" (DayRange 0) used to OMIT the days param entirely. The route
+  // parses it with parseIntClamped(raw, 0, MAX, 30), and a MISSING param takes the
+  // 30 default rather than becoming 0 — so "All" silently requested 30 days.
+  // 0 must be sent explicitly; it is the only value that round-trips unchanged.
+  it("sends days=0 explicitly when dayRange is 0 (All)", async () => {
+    const { result } = renderHook(() => useDashboardData({ initialTrackers: [mockTracker] }), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => {
+      expect(result.current.snapshotMap.size).toBe(1)
+    })
+
+    act(() => {
+      result.current.setDayRange(0)
+    })
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/trackers/snapshots/fleet?days=0",
+        expect.any(Object)
+      )
+    })
+
+    const fleetUrls = (fetchMock.mock.calls as unknown[][])
+      .map((args) => String(args[0]))
+      .filter((u) => u.startsWith("/api/trackers/snapshots/fleet"))
+    // The bare, param-less URL is the bug: it resolves to 30 days server-side.
+    expect(fleetUrls).not.toContain("/api/trackers/snapshots/fleet")
   })
 
   it("exposes refresh function that triggers tracker refetch", async () => {

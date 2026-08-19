@@ -12,9 +12,9 @@ export const broadcasthenet: TrackerRegistryEntry = {
     "The top TV tracker, featuring a huge library, well-known internal releasers, great retention, and no ratio requirements.",
 
   // ── Platform & API ──────────────────────────────────────────────────
-  platform: "gazelle",
-  gazelleEnrich: true,
-  apiPath: "/ajax.php",
+  platform: "btn",
+  // BTN's API lives off-domain; the btn adapter owns that host. See btn.ts.
+  apiPath: "/",
 
   // ── Content ─────────────────────────────────────────────────────────
   specialty: "TV",
@@ -22,8 +22,8 @@ export const broadcasthenet: TrackerRegistryEntry = {
   language: "English",
 
   // ── Visual ──────────────────────────────────────────────────────────
-  color: "#ff9800",
-  logo: "",
+  color: "#0a86b5",
+  logo: "/tracker-logos/broadcasthenet_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "broadcas-the-net",
@@ -43,8 +43,8 @@ export const broadcasthenet: TrackerRegistryEntry = {
   },
 
   // ── Status ──────────────────────────────────────────────────────────
-  warning: true,
-  warningNote: "Unvalidated",
+  warning: false,
+  warningNote: "",
 
   // ── Flags ───────────────────────────────────────────────────────────
   draft: false,

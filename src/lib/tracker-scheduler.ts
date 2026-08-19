@@ -15,6 +15,7 @@ import type {
   MamPlatformMeta,
 } from "@/lib/adapters/types"
 import { pruneDismissedAlerts } from "@/lib/alert-pruning"
+import { pruneCoverageGaps } from "@/lib/app-liveness"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import type { NotificationTargetRow, TrackerRow } from "@/lib/db/schema"
@@ -33,6 +34,7 @@ import { log } from "@/lib/logger"
 import { dispatchNotifications } from "@/lib/notifications/dispatch"
 import { maskUsername } from "@/lib/privacy"
 import { recordDatabaseSize } from "@/lib/server-data"
+import { pruneTrackerOutages, recordTrackerPollFailure } from "@/lib/tracker-outages"
 import { getPauseState } from "@/lib/tracker-status"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 
@@ -121,6 +123,12 @@ export async function fetchTrackerStats(
     const cause = errMsg(err)
     throw new Error(`API key is missing or invalid for tracker "${tracker.name}": ${cause}`)
   }
+  // An empty token decrypts cleanly but can never authenticate. Fail here so
+  // the user sees an actionable local error instead of the tracker's 401. This
+  // prevents a doomed request every poll cycle discovering it.
+  if (!apiToken) {
+    throw new Error(`API key is missing or invalid for tracker "${tracker.name}": token is empty`)
+  }
 
   const adapter = getAdapter(tracker.platformType)
   if (tracker.useProxy && !proxyAgent) {
@@ -182,6 +190,10 @@ export async function pollTracker(
     } catch (err) {
       const cause = errMsg(err)
       throw new Error(`API key is missing or invalid for tracker "${tracker.name}": ${cause}`)
+    }
+    // See pollTracker: an empty token authenticates against nothing.
+    if (!apiToken) {
+      throw new Error(`API key is missing or invalid for tracker "${tracker.name}": token is empty`)
     }
     const adapter = getAdapter(tracker.platformType)
     if (tracker.useProxy && !proxyAgent) {
@@ -484,6 +496,14 @@ export async function pollTracker(
       log.error(dbError, `Failed to record poll failure for tracker ${trackerId}`)
     }
 
+    // Write the failure into the connectability ledger that backs this tracker's
+    // outage bands. Separate from the columns updated above, which are current
+    // state and are wiped by the next success — see the header of
+    // tracker-outages.ts. Recording is failure-only and every row is written
+    // closed, so there is deliberately no matching call on the success path.
+    // recordTrackerPollFailure never throws, so this needs no guard of its own.
+    await recordTrackerPollFailure(trackerId, isManual ? "manual" : "poll")
+
     try {
       await dispatchNotifications(
         {
@@ -662,6 +682,40 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
       }
     } catch (error) {
       log.error(error, "Checkpoint pruning failed")
+    }
+
+    // Coverage gaps expire on the SAME schedule and the SAME horizon as the
+    // snapshots they explain. This coupling is deliberate and load-bearing: if
+    // gaps were pruned on a different horizon, charts would outlive their own
+    // explanations and a region with no gap record would be indistinguishable from
+    // a healthy one. This same retention asymmetry makes inferring downtime from
+    // missing rows a lie. Keep this call inside this guard, sharing this retention
+    // value. NEVER prune gaps more aggressively than snapshots (pruneCoverageGaps
+    // keys on endedAt for exactly that reason).
+    try {
+      const prunedGaps = await pruneCoverageGaps(settings.snapshotRetentionDays)
+      if (prunedGaps > 0) {
+        log.info(
+          `Pruned ${prunedGaps} app coverage gaps older than ${settings.snapshotRetentionDays} days`
+        )
+      }
+    } catch (error) {
+      log.error(error, "Coverage gap pruning failed")
+    }
+
+    // Tracker outages expire on the SAME horizon, for the same reason and inside
+    // the same guard. A tracker chart that outlives its own outage records would
+    // show an unexplained flat stretch, which is the exact failure this ledger
+    // exists to prevent.
+    try {
+      const prunedOutages = await pruneTrackerOutages(settings.snapshotRetentionDays)
+      if (prunedOutages > 0) {
+        log.info(
+          `Pruned ${prunedOutages} tracker outages older than ${settings.snapshotRetentionDays} days`
+        )
+      }
+    } catch (error) {
+      log.error(error, "Tracker outage pruning failed")
     }
   }
 

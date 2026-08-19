@@ -9,7 +9,7 @@ export function errMsg(err: unknown): string {
 
 /**
  * Returns true when an error originates from AES-256-GCM authentication failure
- * or key/ciphertext mismatch — i.e. the session encryption key is stale.
+ * or key/ciphertext mismatch. That is, the session encryption key is stale.
  * Used by route handlers to distinguish key-mismatch (→ 401) from genuinely
  * missing or corrupt stored credentials (→ 422).
  */
@@ -24,6 +24,22 @@ export function isDecryptionError(error: unknown): boolean {
  * and potentially shown in the UI.
  */
 export function sanitizeNetworkError(raw: string, fallback = "Connection failed"): string {
+  // qBittorrent auth outcomes first — these need different user action from
+  // each other and from a plain connection fault, so they must not fall
+  // through to the generic ban/401 rules below (which would flatten them to
+  // "IP temporarily banned by tracker" and "Authentication failed").
+  if (/rejected the blank credentials/i.test(raw)) {
+    return 'Blank credentials rejected — enable "Bypass authentication for clients on localhost" in qBittorrent'
+  }
+  if (/rejected the username and password/i.test(raw)) {
+    return "Credentials rejected by qBittorrent — check the username and password"
+  }
+  if (/rejected the API key/i.test(raw)) {
+    return "API key rejected by qBittorrent — check it has not been rotated, and that the server is 5.2.0 or newer"
+  }
+  if (/banned this IP/i.test(raw)) {
+    return "Banned by qBittorrent after too many failed logins — it will clear on its own"
+  }
   if (/timed?\s*out/i.test(raw)) return "Request timed out"
   if (/ECONNREFUSED/i.test(raw)) return "Connection refused"
   if (/ENOTFOUND/i.test(raw)) return "Host not found"

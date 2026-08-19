@@ -14,6 +14,32 @@ describe("formatBytesFromString", () => {
     const bytes = String(BigInt(2) * BigInt(1024 ** 4))
     expect(formatBytesFromString(bytes)).toBe("2.00 TiB")
   })
+
+  // Buffer is signed, so this has to scale on the magnitude. Comparing the
+  // scaled value against `>= 1` is false for every negative, which used to drop
+  // a -2.39 TiB buffer through to the MiB branch as "-2505575 MiB".
+  it("formats a negative value with a sign and the right unit", () => {
+    // Hawke's verified deficit response
+    expect(formatBytesFromString("-2627286052460")).toBe("-2.39 TiB")
+    expect(formatBytesFromString("-15561971655")).toBe("-14.49 GiB")
+    expect(formatBytesFromString(String(-5 * 1024 ** 2))).toBe("-5 MiB")
+  })
+
+  it("never renders a negative sign on a value that rounds to zero", () => {
+    // -0.5 KiB scales to -0.0 MiB; "-0 MiB" reads as a deficit that isn't there.
+    expect(formatBytesFromString("-512")).toBe("0 MiB")
+    expect(formatBytesFromString("0")).toBe("0 MiB")
+  })
+
+  it("leaves positive output unchanged (uploaded/downloaded share this path)", () => {
+    expect(formatBytesFromString("2627286052460")).toBe("2.39 TiB")
+    expect(formatBytesFromString(String(5 * 1024 ** 2))).toBe("5 MiB")
+  })
+
+  it("returns the em dash for unparseable input", () => {
+    expect(formatBytesFromString("not-a-number")).toBe("—")
+    expect(formatBytesFromString(null)).toBe("—")
+  })
 })
 
 describe("formatBytesNum", () => {
@@ -67,6 +93,7 @@ describe("formatRatio", () => {
 describe("formatStatValue", () => {
   const stats = {
     ratio: 2.79,
+    ratioIsInfinite: false,
     uploadedBytes: "17340000000000",
     downloadedBytes: "6210000000000",
     seedingCount: 1882,
@@ -108,6 +135,13 @@ describe("formatStatValue", () => {
 
   it("returns dash for null ratio", () => {
     expect(formatStatValue({ ...stats, ratio: null }, "ratio")).toBe("—")
+  })
+
+  // An infinite ratio and an unmeasured one both arrive as `ratio: null`; only
+  // the flag separates them. Showing "—" for the infinite case made a
+  // zero-download account look like it had no data at all.
+  it("renders an infinite ratio as ∞ rather than a dash", () => {
+    expect(formatStatValue({ ...stats, ratio: null, ratioIsInfinite: true }, "ratio")).toBe("∞x")
   })
 
   it("returns dash for null seedingCount", () => {

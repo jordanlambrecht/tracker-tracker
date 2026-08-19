@@ -1,6 +1,6 @@
 // src/lib/parser.ts
 //
-// Functions: parseBytes, formatBytes
+// Functions: parseBytes, parseSignedBytes, formatBytes
 
 const BINARY_UNITS: Record<string, bigint> = {
   B: BigInt(1),
@@ -53,6 +53,7 @@ function multiplyDecimalStringByBigInt(valueStr: string, multiplier: bigint): bi
 
 export function parseBytes(formatted: string): bigint {
   const trimmed = formatted.trim()
+
   const match = trimmed.match(/^([\d.]+)\s*([A-Za-z]+)$/)
   if (!match) {
     throw new Error(`Invalid byte format: "${formatted}"`)
@@ -78,6 +79,23 @@ export function parseBytes(formatted: string): bigint {
   }
 
   throw new Error(`Unknown unit: "${unit}"`)
+}
+
+/**
+ * Parses a formatted byte string with leading minus allowed.
+ *
+ * For buffer only. Buffer is signed on a private tracker; parseBytes throws on
+ * negatives by design to preserve data integrity. This ensures a deficit account
+ * records a snapshot. Other callers must use parseBytes for its strictness. When
+ * a tracker clamps the buffer display (reporting "0 B" for a deficit), we
+ * cannot recover that data. This function preserves the sign if sent.
+ */
+export function parseSignedBytes(formatted: string): bigint {
+  const trimmed = formatted.trim()
+  if (trimmed.startsWith("-")) {
+    return -parseBytes(trimmed.slice(1))
+  }
+  return parseBytes(trimmed)
 }
 
 const FORMAT_THRESHOLDS: Array<{

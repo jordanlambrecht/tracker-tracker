@@ -3,7 +3,7 @@
 // Functions: parseDigitalCoreCredentials, dcClassNameFromId, parseJsonSafe,
 //            fetchDCJson, DigitalCoreAdapter
 
-import { computeBufferBytes } from "@/lib/data-transforms"
+import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
 import { classifyFetchError, sanitizeNetworkError } from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import type {
@@ -125,6 +125,12 @@ interface DCStatusResponse {
 interface DCUserResponse {
   id: number
   username: string
+  /**
+   * Inverted connectability, as a number (0 = connectable, 1 = not).
+   * Verified against a live response. This is the authoritative source.
+   * `connectable` on /api/v1/status can disagree with it (issue #167).
+   */
+  unconnectable?: number
   added: string
   last_access: string
   uploaded: number
@@ -284,8 +290,7 @@ export class DigitalCoreAdapter implements TrackerAdapter {
       group: dcClassNameFromId(user.class),
       uploadedBytes: uploaded,
       downloadedBytes: downloaded,
-      ratio:
-        downloaded === 0n ? (uploaded > 0n ? Infinity : 0) : Number(uploaded) / Number(downloaded),
+      ratio: computeRatio(uploaded, downloaded),
       bufferBytes: computeBufferBytes(uploaded, downloaded),
       seedingCount: user.myseedstotal ?? 0,
       leechingCount: 0,
@@ -314,6 +319,13 @@ export class DigitalCoreAdapter implements TrackerAdapter {
 
       stats.platformMeta = {
         ...baseMeta,
+        // /api/v1/status reports `connectable`, /api/v1/users/:id reports the
+        // inverse `unconnectable`, and they can disagree. A live account
+        // returned connectable:0 alongside unconnectable:0. The profile
+        // endpoint is the authoritative one, same as for `warned` above.
+        ...(profile.unconnectable !== undefined
+          ? { connectable: profile.unconnectable === 0 }
+          : {}),
         uploadedReal: profile.uploaded_real,
         downloadedReal: profile.downloaded_real,
         torrents: profile.torrents ?? 0,

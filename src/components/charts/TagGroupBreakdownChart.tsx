@@ -58,14 +58,17 @@ function barOption(
         const p = params as Array<{ name: string; value: number }>
         if (!p.length) return ""
         const item = p[0]
-        return `<span style="font-family:${CHART_THEME.fontMono}">${item.name}: <b>${item.value}</b></span>`
+        return `<span style="font-family:${CHART_THEME.fontMono}">${item.name}: <b>${formatCount(item.value)}</b></span>`
       },
     }),
     grid: { left: 8, right: 48, top: 8, bottom: 8, containLabel: true },
     xAxis: {
       type: "value",
       splitLine: { lineStyle: { color: CHART_THEME.gridLine } },
-      axisLabel: chartAxisLabel(),
+      // Counts are integers, but ECharts can emit fractional ticks on small ranges.
+      axisLabel: chartAxisLabel({
+        formatter: (val: number) => formatCount(Math.round(val)),
+      }),
       axisLine: { show: false },
       axisTick: { show: false },
     },
@@ -97,7 +100,11 @@ function barOption(
         label: {
           show: true,
           position: "right",
-          formatter: "{c}",
+          // Template strings ("{c}") cannot format, so this has to be a callback.
+          formatter: (params: unknown) => {
+            const p = params as { value: number }
+            return formatCount(p.value)
+          },
           fontFamily: CHART_THEME.fontMono,
           fontSize: CHART_THEME.fontSizeCompact,
           color: CHART_THEME.textSecondary,
@@ -121,7 +128,7 @@ function donutOption(
       borderColor: accentColor,
       formatter: (params: unknown) => {
         const p = params as { name: string; value: number; percent: number }
-        return `<span style="font-family:${CHART_THEME.fontMono}">${p.name}: <b>${p.value}</b> (${p.percent}%)</span>`
+        return `<span style="font-family:${CHART_THEME.fontMono}">${p.name}: <b>${formatCount(p.value)}</b> (${p.percent}%)</span>`
       },
     }),
     series: [
@@ -136,7 +143,10 @@ function donutOption(
           color: CHART_THEME.textSecondary,
           fontFamily: CHART_THEME.fontMono,
           fontSize: CHART_THEME.fontSizeCompact,
-          formatter: "{b}: {c}",
+          formatter: (params: unknown) => {
+            const p = params as { name: string; value: number }
+            return `${p.name}: ${formatCount(p.value)}`
+          },
         },
         labelLine: {
           lineStyle: { color: CHART_THEME.textTertiary },
@@ -174,7 +184,7 @@ function treemapOption(
       borderColor: accentColor,
       formatter: (params: unknown) => {
         const p = params as { name: string; value: number }
-        return `<span style="font-family:${CHART_THEME.fontMono}">${p.name}: <b>${p.value}</b></span>`
+        return `<span style="font-family:${CHART_THEME.fontMono}">${p.name}: <b>${formatCount(p.value)}</b></span>`
       },
     }),
     series: [
@@ -188,7 +198,10 @@ function treemapOption(
           fontFamily: CHART_THEME.fontMono,
           fontSize: CHART_THEME.fontSizeDense,
           color: CHART_THEME.textPrimary,
-          formatter: "{b}\n{c}",
+          formatter: (params: unknown) => {
+            const p = params as { name: string; value: number }
+            return `${p.name}\n${formatCount(p.value)}`
+          },
         },
         itemStyle: {
           borderColor: CHART_THEME.surface,
@@ -233,7 +246,7 @@ function TagGroupBreakdownChart({
     const total = items.reduce((sum, m) => sum + m.count, 0)
     const maxCount = Math.max(...items.map((m) => m.count))
 
-    // Single item: hero layout — fill the card, vertically centered
+    // Single item: hero layout. Card fills and is vertically centered.
     if (items.length === 1) {
       const m = items[0]
       const color = memberColor(accentColor, m, 0, 1)

@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       typeof username === "string" && username.toLowerCase() === settings.username.toLowerCase()
   }
 
-  // Run Argon2 + scrypt in parallel — both depend only on password + settings, not each other.
+  // Run Argon2 + scrypt in parallel. Both depend only on password + settings, not each other.
   // Argon2 always runs to normalize timing (prevents username oracle).
   // scrypt runs even on failure — improves timing normalization and is acceptable
   // for a single-user app with rate limiting.

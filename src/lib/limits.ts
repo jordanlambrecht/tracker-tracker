@@ -7,6 +7,48 @@ export const USERNAME_MIN = 3
 export const USERNAME_MAX = 100
 export const TOTP_TOKEN_MAX = 2048
 
+/** Letters, digits, underscore, hyphen, dot, space. */
+const USERNAME_PATTERN = /^[\w\-. ]+$/
+
+// Not exported: callers narrow on `.ok` off the return value, and an exported
+// type nobody imports is exactly what knip flags.
+type UsernameValidation = { ok: true; username: string } | { ok: false; error: string }
+
+/**
+ * The one definition of a valid login username, in the order initial setup has
+ * always applied it: trim FIRST, then bound the length, then the character class.
+ *
+ * Order matters. Checking the length of the raw string lets `" a "` through a
+ * `>= 3` test and then stores the trimmed `"a"`. A username setup itself would
+ * have rejected. Every surface that accepts a username has to agree with setup,
+ * or the login form ends up demanding a value that could never have been typed
+ * into the form that created the account.
+ *
+ * Deliberately pure, and deliberately free of `next/server`: this module is
+ * imported by client components (i.e. the settings Account form), so anything
+ * server-only in here would be dragged into the browser bundle. Route handlers
+ * wrap the returned `error` in their own NextResponse.
+ */
+export function validateUsername(raw: unknown): UsernameValidation {
+  if (typeof raw !== "string" || !raw.trim()) {
+    return { ok: false, error: "Username is required" }
+  }
+  const username = raw.trim()
+  if (username.length < USERNAME_MIN || username.length > USERNAME_MAX) {
+    return {
+      ok: false,
+      error: `Username must be between ${USERNAME_MIN} and ${USERNAME_MAX} characters`,
+    }
+  }
+  if (!USERNAME_PATTERN.test(username)) {
+    return {
+      ok: false,
+      error: "Username may only contain letters, numbers, underscores, hyphens, dots, and spaces",
+    }
+  }
+  return { ok: true, username }
+}
+
 // ─── Network ──────────────────────────────────────────────────────────────────
 export const PORT_MIN = 1
 export const PORT_MAX = 65535
@@ -15,7 +57,24 @@ export const PORT_MAX = 65535
 export const TRACKER_NAME_MAX = 100
 export const TRACKER_URL_MAX = 500
 export const TRACKER_TOKEN_MAX = 500
-export const AVISTAZ_TOKEN_MAX = 5000
+/** Cap for platforms whose "token" is a JSON credential blob (cookies, UA, etc). */
+export const LARGE_TOKEN_MAX = 5000
+
+/**
+ * Platforms that authenticate with a JSON credential blob rather than a plain
+ * API key. These need the larger cap. An IPTorrents cookie header alone can
+ * run past 1 KB. Add new blob-credential platforms here and every route picks
+ * it up.
+ */
+const LARGE_TOKEN_PLATFORMS: ReadonlySet<string> = new Set([
+  "avistaz",
+  "iptorrents",
+  "torrentleech",
+])
+
+export function maxTokenLengthFor(platform: string | null | undefined): number {
+  return platform && LARGE_TOKEN_PLATFORMS.has(platform) ? LARGE_TOKEN_MAX : TRACKER_TOKEN_MAX
+}
 export const TRACKER_TAG_MAX = 100
 export const TRACKER_NOTES_MAX = 2000
 export const TRACKER_ROLE_NAME_MAX = 255

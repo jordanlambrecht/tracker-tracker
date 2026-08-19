@@ -21,12 +21,20 @@ services:
       # POSTGRES_PORT: ${POSTGRES_PORT} uncomment if you change the default port in the db service
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Do NOT rotate this once the app is set up. Besides signing session cookies it
+      # wraps the key that encrypts every tracker token and client credential, and it
+      # is the only thing that can unlock them without your master password. Change it
+      # and `tt-recover` can no longer get you back in after a lockout.
       SESSION_SECRET: ${SESSION_SECRET}
       TZ: ${TZ}
       # LOG_LEVEL: ${LOG_LEVEL} # optional, defaults to 'info'
       # LOG_FILE: /data/logs/tracker-tracker.log # optional
       BASE_URL: ${BASE_URL:-} # optional, i.e https://trackertracker.example.com
       # SECURE_COOKIES: ${SECURE_COOKIES:-} # set to 'true' if serving over HTTPS
+      # DISABLE_LOGIN_LOCKOUT: "true" # recovery switch — stops failed-login lockouts from being
+      #   enforced. The in-app lockout toggle sits behind the login you cannot reach, so this is
+      #   the way back in after locking yourself out. Logs a WARN on first use. Unset and restart
+      #   once you are in; a successful login clears the lockout state on its own.
     volumes:
       - ./data:/data
     depends_on:

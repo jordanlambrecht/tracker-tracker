@@ -1,6 +1,6 @@
 // src/lib/__tests__/lockout.test.ts
 
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("@/lib/db", () => ({
   db: {
@@ -10,6 +10,10 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/db/schema", () => ({
   appSettings: {},
+}))
+
+vi.mock("@/lib/logger", () => ({
+  log: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }))
 
 import { db } from "@/lib/db"
@@ -36,6 +40,80 @@ describe("checkLockout", () => {
   it("returns null when lockout is disabled even if lockedUntil is set", () => {
     const future = new Date(Date.now() + 60_000)
     expect(checkLockout({ ...baseLockout, lockoutEnabled: false, lockedUntil: future })).toBeNull()
+  })
+})
+
+// DISABLE_LOGIN_LOCKOUT exists because the in-app lockout toggle is behind
+// authenticate() — unreachable by the very person it locks out. These cases pin
+// the two controls as independent: the env var overrides enforcement without
+// touching the DB toggle, and the DB toggle keeps working when the env var is
+// absent. Each case re-imports the module so the warn-once flag starts clean.
+describe("checkLockout with DISABLE_LOGIN_LOCKOUT", () => {
+  const locked = {
+    lockoutEnabled: true,
+    lockoutThreshold: 5,
+    lockoutDurationMinutes: 15,
+    lockedUntil: new Date(Date.now() + 60_000),
+  }
+
+  async function freshCheckLockout() {
+    vi.resetModules()
+    const mod = await import("@/lib/lockout")
+    return mod.checkLockout
+  }
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it("lets a locked-out user straight through when the env var is 'true'", async () => {
+    vi.stubEnv("DISABLE_LOGIN_LOCKOUT", "true")
+    const check = await freshCheckLockout()
+    expect(check(locked)).toBeNull()
+  })
+
+  it("still enforces the lockout when the env var is unset", async () => {
+    vi.stubEnv("DISABLE_LOGIN_LOCKOUT", undefined)
+    const check = await freshCheckLockout()
+    expect(check(locked)?.status).toBe(429)
+  })
+
+  // Only the exact string "true" disarms it, so a stray "1"/"yes"/"false" in a
+  // compose file cannot quietly switch the lockout off.
+  it.each(["false", "1", "yes", "TRUE", ""])(
+    "still enforces the lockout when the env var is %o",
+    async (value) => {
+      vi.stubEnv("DISABLE_LOGIN_LOCKOUT", value)
+      const check = await freshCheckLockout()
+      expect(check(locked)?.status).toBe(429)
+    }
+  )
+
+  it("leaves the database toggle working independently when the env var is unset", async () => {
+    vi.stubEnv("DISABLE_LOGIN_LOCKOUT", undefined)
+    const check = await freshCheckLockout()
+    // DB toggle off → no enforcement, from the DB alone.
+    expect(check({ ...locked, lockoutEnabled: false })).toBeNull()
+    // DB toggle on and locked → enforcement, from the DB alone.
+    expect(check(locked)?.status).toBe(429)
+  })
+
+  it("warns once per process so it cannot be silently left enabled", async () => {
+    vi.stubEnv("DISABLE_LOGIN_LOCKOUT", "true")
+    vi.resetModules()
+    const { log } = await import("@/lib/logger")
+    const { checkLockout: check } = await import("@/lib/lockout")
+    const warn = log.warn as unknown as ReturnType<typeof vi.fn>
+    warn.mockClear()
+
+    // Warns even when nothing is actually locked — an armed switch on a healthy
+    // instance is exactly the case that would otherwise stay silent forever.
+    check({ ...locked, lockedUntil: null })
+    check(locked)
+    check(locked)
+
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(JSON.stringify(warn.mock.calls[0])).toContain("DISABLE_LOGIN_LOCKOUT")
   })
 })
 

@@ -20,6 +20,19 @@ import type { NotificationThresholds } from "@/lib/notifications/types"
 /** Fields shared between TrackerLatestStats and Snapshot */
 interface TrackerStatFields {
   ratio: number | null
+  /**
+   * True when the account has uploads but zero downloads (the ratio is
+   * mathematically infinite). `ratio` is `null` in that case because JSON cannot
+   * represent Infinity. Without this flag, an infinite ratio is indistinguishable
+   * from "never measured".
+   *
+   * Lives on the shared base rather than on TrackerLatestStats alone. When the
+   * latter carried it alone, every Snapshot consumer had to re-derive the state
+   * from byte totals or, more often, silently drop the point. RatioStabilityChart
+   * filtered `ratio !== null` and rendered an empty chart for exactly the accounts
+   * issues #154 and #172 were filed about.
+   */
+  ratioIsInfinite: boolean
   seedingCount: number | null
   leechingCount: number | null
   requiredRatio: number | null
@@ -116,6 +129,14 @@ export interface DashboardSettings {
   showHealthIndicators: boolean
   showLoginTimers: boolean
   showTodayAtAGlance: boolean
+  /** When false, WebGL charts are swapped for 2D substitutes. Defaults to true. */
+  enable3DCharts: boolean
+  /**
+   * Hatched background bands marking ranges where nothing was being collected.
+   * On by default: a flat region with no explanation is the failure this
+   * feature exists to prevent, so the explanation has to be opt-OUT.
+   */
+  showOutageBands: boolean
 }
 
 export interface TodayAtAGlance {
@@ -142,6 +163,10 @@ export interface TodayAtAGlance {
     completedToday: number
   }
   movers: {
+    /** Number of configured download clients. */
+    clientCount: number
+    /** Torrents seen but not attributable to any tracker by tag or announce URL. */
+    unmatchedTorrents: number
     topUploaders: Array<{
       hash: string
       name: string
@@ -182,6 +207,8 @@ export const DASHBOARD_SETTINGS_DEFAULTS: DashboardSettings = {
   showHealthIndicators: true,
   showLoginTimers: true,
   showTodayAtAGlance: true,
+  enable3DCharts: true,
+  showOutageBands: true,
 }
 
 /** API response shape for download clients (credentials stripped, dates serialized) */
@@ -189,6 +216,7 @@ export type SafeDownloadClient = Omit<
   DownloadClientRow,
   | "encryptedUsername"
   | "encryptedPassword"
+  | "encryptedApiKey"
   | "cachedTorrents"
   | "cachedTorrentsAt"
   | "lastPolledAt"

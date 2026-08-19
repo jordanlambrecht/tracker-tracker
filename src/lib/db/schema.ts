@@ -3,7 +3,8 @@
 // Tables: appSettings, trackers, trackerSnapshots, trackerRoles, downloadClients,
 // tagGroups, tagGroupMembers, clientSnapshots, backupHistory, dismissedAlerts,
 // draftQuicklinks (column on appSettings), notificationTargets, notificationDeliveryState,
-// trackerDailyCheckpoints, torrentDailyCheckpoints, dbSizeHistory
+// trackerDailyCheckpoints, torrentDailyCheckpoints, dbSizeHistory, appLiveness,
+// appCoverageGaps
 
 import {
   bigint,
@@ -37,6 +38,15 @@ export const appSettings = pgTable("app_settings", {
   failedLoginAttempts: integer("failed_login_attempts").default(0).notNull(),
   lockedUntil: timestamp("locked_until"),
   snapshotRetentionDays: integer("snapshot_retention_days"),
+  /**
+   * When the user was asked to choose a retention policy. NULL means never asked.
+   *
+   * A separate column is required because `snapshotRetentionDays` cannot carry
+   * this: NULL there means "keep forever", which is a legitimate CHOICE as well
+   * as the never-configured default. Without this marker the two are
+   * indistinguishable and the prompt would either never fire or fire forever.
+   */
+  retentionPromptedAt: timestamp("retention_prompted_at"),
   trackerPollIntervalMinutes: integer("tracker_poll_interval_minutes").default(60).notNull(),
   proxyEnabled: boolean("proxy_enabled").default(false).notNull(),
   proxyType: varchar("proxy_type", { length: 10 }).default("socks5").notNull(),
@@ -60,6 +70,21 @@ export const appSettings = pgTable("app_settings", {
   encryptedOeimgApiKey: text("encrypted_oeimg_api_key"),
   encryptedImgbbApiKey: text("encrypted_imgbb_api_key"),
   encryptedSchedulerKey: text("encrypted_scheduler_key"),
+  /**
+   * Opt-in gate for the per-tracker credential vault (`trackers.encrypted_credentials`).
+   *
+   * DEFAULT FALSE, deliberately. The vault stores passkeys and NickServ passwords,
+   * so it is a feature the user turns ON knowingly rather than one that quietly
+   * exists on every install.
+   *
+   * This flag gates the ROUTES, not the data. Turning it off makes
+   * GET/PUT/reveal under /api/trackers/[id]/credentials return 403; it does NOT
+   * delete, clear or orphan an existing vault. The column keeps being re-keyed by
+   * change-password, keeps riding along in backups, and becomes readable again
+   * the moment the toggle goes back on. A gate that destroyed data on toggle-off
+   * would make an accidental click unrecoverable.
+   */
+  credentialVaultEnabled: boolean("credential_vault_enabled").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 
@@ -70,6 +95,33 @@ export const trackers = pgTable("trackers", {
   apiPath: varchar("api_path", { length: 255 }).default("/api/user").notNull(),
   platformType: varchar("platform_type", { length: 50 }).default("unit3d").notNull(),
   encryptedApiToken: text("encrypted_api_token").notNull(),
+  /**
+   * The tracker credential vault: base64(iv[12] + authTag[16] + AES-256-GCM(json))
+   * of a TrackerCredentialVault, sealed under the MASTER KEY.
+   *
+   * INVARIANT: NULL OR CIPHERTEXT. NOTHING ELSE.
+   * NULL means "no vault" and is the ONLY empty state. Never write "", never
+   * write a marker string like "LOCKDOWN_REVOKED". A truthy non-ciphertext value
+   * sails past `if (row.encryptedCredentials)` and is handed to decrypt(), which
+   * is precisely the trap that produced the LOCKDOWN_REVOKED incident. TEXT and
+   * not jsonb because the value is an opaque blob with nothing queryable in it.
+   * recover.cjs's isPlaintextSentinel() already treats null as "leave alone".
+   *
+   * EVERY LIFECYCLE SITE THAT MUST HANDLE THIS COLUMN.
+   * An encrypted column not registered in all five is silently orphaned by the
+   * next password change. If you add a column here, add it in all of them:
+   *   1. src/app/api/auth/change-password/route.ts. Decrypt with the old key and
+   *      re-encrypt with the new one inside the existing transaction.
+   *   2. scripts/recover.cjs. Listed in MASTER_KEY_TABLES under `trackers`.
+   *   3. src/app/api/settings/backup/restore/route.ts. The backupCiphertexts()
+   *      probe and the tracker insert (`reencryptField(...) || null`, because
+   *      that helper returns "" on failure and "" would break the invariant).
+   *   4. src/lib/nuke.ts. Scrubbed to NULL.
+   *   5. src/app/api/settings/lockdown/route.ts. Revoked to NULL, not a marker.
+   * src/lib/backup.ts needs NO change: its tracker export is a bare
+   * `db.select().from(trackers)`, so the column rides along automatically.
+   */
+  encryptedCredentials: text("encrypted_credentials"),
   isActive: boolean("is_active").default(true).notNull(),
   lastPolledAt: timestamp("last_polled_at"),
   lastError: text("last_error"),
@@ -150,8 +202,15 @@ export const downloadClients = pgTable("download_clients", {
   host: varchar("host", { length: 255 }).notNull(),
   port: integer("port").default(8080).notNull(),
   useSsl: boolean("use_ssl").default(false).notNull(),
+  // Which credential the client authenticates with: "password" (username +
+  // password, the default and the only option before qBittorrent 5.2.0) or
+  // "apikey". Each mode reads its own column and the other is blanked on a
+  // mode switch, so a stored password can never be replayed as a Bearer token.
+  authMethod: varchar("auth_method", { length: 20 }).default("password").notNull(),
   encryptedUsername: text("encrypted_username").notNull(),
   encryptedPassword: text("encrypted_password").notNull(),
+  // Encrypted qBittorrent WebUI API key. Empty string when authMethod is "password".
+  encryptedApiKey: text("encrypted_api_key").default("").notNull(),
   pollIntervalSeconds: integer("poll_interval_seconds").default(300).notNull(),
   isDefault: boolean("is_default").default(false).notNull(),
   crossSeedTags: text("cross_seed_tags").array().default([]).notNull(),
@@ -266,7 +325,7 @@ export const dismissedAlerts = pgTable(
 // thresholds stores a typed JSONB object for event-specific numeric limits:
 //   { ratioDropDelta?: number, bufferMilestoneBytes?: number }
 // null means "use application defaults for all thresholds". Adding a new
-// threshold type requires no schema migration — only application code changes.
+// threshold type requires no schema migration, only application code changes.
 
 export const notificationTargets = pgTable("notification_targets", {
   id: serial("id").primaryKey(),
@@ -276,8 +335,8 @@ export const notificationTargets = pgTable("notification_targets", {
   type: varchar("type", { length: 30 }).notNull(), // "discord" | "gotify" | "telegram" | "slack" | "email"
   enabled: boolean("enabled").default(true).notNull(),
 
-  // Credentials — AES-256-GCM, format: base64(iv + authTag + ciphertext)
-  // Shape of the decrypted JSON object is determined by `type` — see comment above.
+  // Credentials. AES-256-GCM, format: base64(iv + authTag + ciphertext)
+  // Shape of the decrypted JSON object is determined by `type`. See comment above.
   encryptedConfig: text("encrypted_config").notNull(),
 
   // Event subscriptions
@@ -296,7 +355,7 @@ export const notificationTargets = pgTable("notification_targets", {
   notifyActiveHnrs: boolean("notify_active_hnrs").default(false).notNull(),
   notifyDownloadDisabled: boolean("notify_download_disabled").default(false).notNull(),
 
-  // Event thresholds — nullable JSONB; null means use application defaults.
+  // Event thresholds. Nullable JSONB; null means use application defaults.
   // Shape: { ratioDropDelta?: number, bufferMilestoneBytes?: number }
   // Extend this object for future threshold types without a schema migration.
   thresholds: jsonb("thresholds"),
@@ -304,12 +363,12 @@ export const notificationTargets = pgTable("notification_targets", {
   // Privacy
   includeTrackerName: boolean("include_tracker_name").default(true).notNull(),
 
-  // Scope — null = all trackers; integer array = specific tracker IDs.
+  // Scope. null = all trackers; integer array = specific tracker IDs.
   // Not a foreign key; referential integrity enforced at application layer.
   // Stale IDs (deleted trackers) are harmlessly ignored at dispatch time.
   scope: integer("scope").array(),
 
-  // Last delivery state — transient runtime data, excluded from backups.
+  // Last delivery state. Transient runtime data, excluded from backups.
   // Intentionally not a delivery log; overwritten on each attempt.
   lastDeliveryStatus: varchar("last_delivery_status", { length: 20 }), // "delivered" | "failed" | "rate_limited"
   lastDeliveryAt: timestamp("last_delivery_at"),
@@ -347,7 +406,7 @@ export const notificationDeliveryState = pgTable(
     // null = global event not tied to a specific tracker (reserved for future use).
     // All currently planned events are per-tracker, so this will almost always
     // be non-null. Stored as integer rather than FK to avoid cascade complexity
-    // when trackers are deleted — stale rows are inert and cheap to prune.
+    // when trackers are deleted. Stale rows are inert and cheap to prune.
     trackerId: integer("tracker_id"),
 
     // Discriminator: "ratio_drop" | "hit_and_run" | "tracker_down" | "buffer_milestone"
@@ -367,22 +426,22 @@ export const notificationDeliveryState = pgTable(
       foreignColumns: [notificationTargets.id],
     }).onDelete("cascade"),
     // Primary lookup key for every cooldown check: "has target T already fired
-    // event E for tracker X recently?" — must be unique to enable upsert.
+    // event E for tracker X recently?" Must be unique to enable upsert.
     uniqueIndex("uq_delivery_state_target_tracker_event").on(
       table.targetId,
       table.trackerId,
       table.eventType
     ),
-    // Batch cooldown fetch: "find all snooze state for tracker X in one query"
-    // — dispatch.ts fetches all rows for a trackerId then checks in-memory via Map.
+    // Batch cooldown fetch: "find all snooze state for tracker X in one query".
+    // dispatch.ts fetches all rows for a trackerId then checks in-memory via Map.
     index("idx_delivery_state_tracker_id").on(table.trackerId),
   ]
 )
 
-// ─── Today At A Glance — daily checkpoint tables ──────────────────────────────
+// Daily checkpoint tables for "Today At A Glance" feature.
 //
-// These tables store end-of-day snapshots used by the "Today At A Glance"
-// feature to compute daily deltas (e.g. how much was uploaded/downloaded today).
+// These tables store end-of-day snapshots to compute daily deltas
+// (e.g. how much was uploaded/downloaded today).
 //
 // trackerDailyCheckpoints: one row per tracker per calendar day, capturing the
 // final metric values recorded that day. snapshotCount reflects how many raw
@@ -445,7 +504,61 @@ export const dbSizeHistory = pgTable(
   (table) => [uniqueIndex("uq_db_size_recorded_at").on(table.recordedAt)]
 )
 
-// ── Named type exports ──────────────────────────────────────────────
+export const appLiveness = pgTable("app_liveness", {
+  id: serial("id").primaryKey(),
+  firstSeenAt: timestamp("first_seen_at").defaultNow().notNull(),
+  lastSeenAt: timestamp("last_seen_at").defaultNow().notNull(),
+  stoppedAt: timestamp("stopped_at"),
+})
+
+/**
+ * Windows during which the app was not collecting data
+ *
+ * Only works on fully closed intervals.
+ */
+export const appCoverageGaps = pgTable(
+  "app_coverage_gaps",
+  {
+    id: serial("id").primaryKey(),
+    startedAt: timestamp("started_at").notNull(),
+    endedAt: timestamp("ended_at").notNull(),
+    reason: varchar("reason", { length: 20 }).notNull(),
+  },
+  (table) => [
+    index("idx_app_coverage_gaps_started").on(table.startedAt),
+    // Serves the retention prune, which keys on endedAt so a gap straddling the
+    // cutoff outlives it. See pruneCoverageGaps in app-liveness.ts.
+    index("idx_app_coverage_gaps_ended").on(table.endedAt),
+  ]
+)
+
+/**
+ * trackerOutages
+ *
+ * Windows during which a specific tracker could not be polled, so a flat or
+ * empty stretch of that tracker's chart has a recorded explanation instead of
+ * reading as real zeroes.
+ */
+export const trackerOutages = pgTable(
+  "tracker_outages",
+  {
+    id: serial("id").primaryKey(),
+    trackerId: integer("tracker_id")
+      .references(() => trackers.id, { onDelete: "cascade" })
+      .notNull(),
+    startedAt: timestamp("started_at").notNull(),
+    endedAt: timestamp("ended_at").notNull(),
+    reason: varchar("reason", { length: 20 }).notNull(),
+  },
+  (table) => [
+    index("idx_tracker_outages_tracker_started").on(table.trackerId, table.startedAt),
+    // Serves the retention prune, which keys on endedAt so an outage straddling
+    // the cutoff outlives it. See pruneTrackerOutages in tracker-outages.ts.
+    index("idx_tracker_outages_ended").on(table.endedAt),
+  ]
+)
+
+// ── type exports ──────────────────────────────────────────────
 export type AppSettingsRow = typeof appSettings.$inferSelect
 export type TrackerRow = typeof trackers.$inferSelect
 export type TrackerSnapshotRow = typeof trackerSnapshots.$inferSelect
@@ -462,3 +575,6 @@ export type NotificationDeliveryStateRow = typeof notificationDeliveryState.$inf
 export type TrackerDailyCheckpointRow = typeof trackerDailyCheckpoints.$inferSelect
 export type TorrentDailyCheckpointRow = typeof torrentDailyCheckpoints.$inferSelect
 export type DbSizeHistoryRow = typeof dbSizeHistory.$inferSelect
+export type AppLivenessRow = typeof appLiveness.$inferSelect
+export type AppCoverageGapRow = typeof appCoverageGaps.$inferSelect
+export type TrackerOutageRow = typeof trackerOutages.$inferSelect

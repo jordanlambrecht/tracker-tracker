@@ -137,7 +137,7 @@ export function DatabaseSizeChart() {
         const res = await fetch("/api/settings/db-size")
         if (res.ok) setData(await res.json())
       } catch {
-        // Silently fail — chart is non-critical
+        // Silently fail. Chart is non-critical.
       } finally {
         setLoading(false)
       }

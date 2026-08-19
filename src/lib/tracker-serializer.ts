@@ -7,9 +7,19 @@ import { DEFAULT_TRACKER_COLOR } from "@/lib/constants"
 import type { TrackerRow as FullTrackerRow, TrackerSnapshotRow } from "@/lib/db/schema"
 import type { TrackerSummary } from "@/types/api"
 
+// The ciphertext columns are omitted from the INPUT type, not just left out of
+// the output object. Callers physically cannot hand this function a secret, so
+// no future edit here can serialize one by reaching for a property that was
+// never in scope. encryptedCredentials joins encryptedApiToken for that reason:
+// the credential vault leaves the server only via the reveal endpoint.
 type TrackerRow = Omit<
   FullTrackerRow,
-  "encryptedApiToken" | "avatarData" | "avatarMimeType" | "avatarCachedAt" | "avatarRemoteUrl"
+  | "encryptedApiToken"
+  | "encryptedCredentials"
+  | "avatarData"
+  | "avatarMimeType"
+  | "avatarCachedAt"
+  | "avatarRemoteUrl"
 >
 
 export function parsePlatformMeta(raw: string | null): PlatformMeta | null {
@@ -53,7 +63,14 @@ export function serializeTrackerResponse(
     createdAt: tracker.createdAt?.toISOString() ?? new Date().toISOString(),
     latestStats: latest
       ? {
-          ratio: latest.ratio,
+          // Derived from byte totals, not the stored `ratio`. The byte totals are
+          // authoritative and always present. Adapters emit JS `Infinity` for a
+          // zero-download account, and `JSON.stringify` turns that into `null`. The
+          // flag is what survives the wire.
+          ratioIsInfinite: latest.downloadedBytes === 0n && latest.uploadedBytes > 0n,
+          // Never emit a non-finite number: it serializes to null anyway, and
+          // doing it explicitly keeps the contract obvious at the boundary.
+          ratio: Number.isFinite(latest.ratio) ? latest.ratio : null,
           uploadedBytes: latest.uploadedBytes.toString(),
           downloadedBytes: latest.downloadedBytes.toString(),
           seedingCount: latest.seedingCount,

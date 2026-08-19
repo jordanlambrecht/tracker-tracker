@@ -77,7 +77,11 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
     refetchInterval: intervals.trackerRefetchMs,
     select: selectActiveTrackers,
     initialData: options?.initialTrackers,
-    initialDataUpdatedAt: options?.initialTrackers ? Date.now() : undefined,
+    // Use 0, not Date.now(). The sidebar renders first and creates ["trackers"], so
+    // QueryCache.build returns it untouched and initialData never enters cache state.
+    // If render order changes, Date.now() would suppress refetchOnMount for 2 minutes.
+    // See initialDataUpdatedAt: 0 in useTrackerTorrents.ts.
+    initialDataUpdatedAt: options?.initialTrackers ? 0 : undefined,
   })
 
   const trackers = trackersQuery.data ?? []
@@ -86,10 +90,9 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
   const fleetSnapshotsQuery = useQuery({
     queryKey: ["tracker-snapshots-fleet", dayRange],
     queryFn: async ({ signal }) => {
-      const url =
-        dayRange === 0
-          ? "/api/trackers/snapshots/fleet"
-          : `/api/trackers/snapshots/fleet?days=${dayRange}`
+      // Send days explicitly. The server's parseIntClamped defaults to 30, so
+      // omitting it would get 30 instead of the "All" sentinel 0.
+      const url = `/api/trackers/snapshots/fleet?days=${dayRange}`
       const res = await fetch(url, { signal })
       if (!res.ok) throw new Error(`Fleet snapshot fetch failed: ${res.status}`)
       return res.json() as Promise<Record<string, Snapshot[]>>

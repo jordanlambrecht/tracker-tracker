@@ -12,8 +12,7 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { H2 } from "@typography"
 import { useCallback, useState } from "react"
-import type { ChartDef } from "@/components/dashboard/useChartPreferences"
-import { useChartPreferences } from "@/components/dashboard/useChartPreferences"
+import type { ChartDef, useChartPreferences } from "@/components/dashboard/useChartPreferences"
 import { useDashboardSettings } from "@/components/dashboard/useDashboardSettings"
 import { Sheet, TabBar, Toggle } from "@/components/ui"
 import { Divider } from "@/components/ui/Divider"
@@ -58,19 +57,23 @@ const CHART_SETTINGS_TABS = [
 interface DashboardSettingsSheetProps {
   open: boolean
   onClose: () => void
+  /**
+   * The dashboard's single useChartPreferences instance, shared with the analytics grid.
+   */
+  chartPrefs: ReturnType<typeof useChartPreferences>
   dashSettings?: ReturnType<typeof useDashboardSettings>
 }
 
 function DashboardSettingsSheet({
   open,
   onClose,
+  chartPrefs,
   dashSettings: externalSettings,
 }: DashboardSettingsSheetProps) {
   const internalSettings = useDashboardSettings()
   const dashSettings = externalSettings ?? internalSettings
   const [chartSettingsTab, setChartSettingsTab] = useState<"analytics" | "torrents">("analytics")
 
-  const chartPrefs = useChartPreferences()
   const { orderedCharts, reorder } = chartPrefs
 
   const handleChartDragEnd = useCallback(
@@ -100,18 +103,21 @@ function DashboardSettingsSheet({
             description="Show daily upload, download, and activity summary at the top of the dashboard"
             checked={dashSettings.settings.showTodayAtAGlance}
             onChange={(checked) => dashSettings.update("showTodayAtAGlance", checked)}
+            disabled={!dashSettings.loaded}
           />
           <Toggle
             label="Show health indicators"
             description="Display the breathing pulse dot on each tracker card showing connection status."
             checked={dashSettings.settings.showHealthIndicators}
             onChange={(checked) => dashSettings.update("showHealthIndicators", checked)}
+            disabled={!dashSettings.loaded}
           />
           <Toggle
             label="Show login timers"
             description="Display countdown rings for trackers with login interval requirements."
             checked={dashSettings.settings.showLoginTimers}
             onChange={(checked) => dashSettings.update("showLoginTimers", checked)}
+            disabled={!dashSettings.loaded}
           />
         </div>
 
@@ -120,6 +126,20 @@ function DashboardSettingsSheet({
         {/* Chart Visibility & Order */}
         <div className="flex flex-col gap-4">
           <H2>Charts</H2>
+          <Toggle
+            label="Enable 3D charts"
+            description="Render the Upload Landscape and Torrent Library charts in 3D, which requires WebGL. Turn off to use flat 2D equivalents instead."
+            checked={dashSettings.settings.enable3DCharts}
+            onChange={(checked) => dashSettings.update("enable3DCharts", checked)}
+            disabled={!dashSettings.loaded}
+          />
+          <Toggle
+            label="Show downtime bands"
+            description="Shade the background of time-series charts over ranges where nothing was being collected, so a flat stretch reads as missing data rather than a real zero. Ranges with no record are left blank."
+            checked={dashSettings.settings.showOutageBands}
+            onChange={(checked) => dashSettings.update("showOutageBands", checked)}
+            disabled={!dashSettings.loaded}
+          />
           <TabBar
             tabs={CHART_SETTINGS_TABS}
             activeTab={chartSettingsTab}

@@ -14,6 +14,9 @@ import { generatePalette } from "@/lib/color-utils"
 import type { FleetChartProps, TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
+import { OutageBandLegend } from "./lib/OutageBandLegend"
+import { useOutageBands } from "./lib/OutageBandsProvider"
+import { appendOutageBandSeries, polledAtRange } from "./lib/outage-bands"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -61,7 +64,7 @@ function computeRankPeriods(trackerData: TrackerSnapshotSeries[]): RankPeriod[] 
       const snapRank = snap.group as string
 
       if (snapRank !== currentRank) {
-        // Rank changed — close the current period at the previous snapshot's time
+        // Rank changed. Close the current period at the previous snapshot's time.
         const prevSnap = withGroup[i - 1]
         periods.push({
           tracker: tracker.name,
@@ -128,7 +131,7 @@ function buildRankTenureOption(
     p.tracker,
   ])
 
-  // Bar height from category axis — use api.size in renderItem
+  // Bar height from category axis. Use api.size in renderItem
   const BAR_HEIGHT_RATIO = 0.6 // fraction of category slot height
 
   return {
@@ -188,7 +191,7 @@ function buildRankTenureOption(
           params: CustomSeriesRenderItemParams,
           api: CustomSeriesRenderItemAPI
         ): CustomSeriesRenderItemReturn => {
-          // suppress unused-param lint — params is required by ECharts signature
+          // suppress unused-param lint. params is required by ECharts signature
           void params
 
           const categoryIndex = Number(api.value(0))
@@ -264,6 +267,8 @@ function buildRankTenureOption(
 // ---------------------------------------------------------------------------
 
 function RankTenureChart({ trackerData, height = 300 }: RankTenureChartProps) {
+  // Tracker snapshots. App bands only.
+  const outages = useOutageBands("tracker")
   const periods = computeRankPeriods(trackerData)
   const hasData = periods.length > 0
 
@@ -272,10 +277,17 @@ function RankTenureChart({ trackerData, height = 300 }: RankTenureChartProps) {
   }
 
   return (
-    <ChartECharts
-      option={buildRankTenureOption(trackerData, periods)}
-      style={{ height, width: "100%" }}
-    />
+    <div className="flex flex-col gap-1">
+      <ChartECharts
+        option={appendOutageBandSeries(
+          buildRankTenureOption(trackerData, periods),
+          outages,
+          polledAtRange(trackerData.flatMap((t) => t.snapshots))
+        )}
+        style={{ height, width: "100%" }}
+      />
+      <OutageBandLegend bands={outages} range={polledAtRange(trackerData.flatMap((t) => t.snapshots))} />
+    </div>
   )
 }
 

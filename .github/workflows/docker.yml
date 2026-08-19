@@ -60,7 +60,35 @@ jobs:
             exit 1
           fi
 
-          echo "Smoke test passed — container is running."
+          # The emergency password-recovery CLI must actually be runnable in the
+          # standalone image. --help exits before touching the environment or the
+          # database, but the file's require("argon2") and require("postgres") run
+          # at module scope, so this asserts all three things that have broken a
+          # real rescue: the shim is on PATH, the script was copied in, and both
+          # native/external modules resolve from /app/node_modules.
+          if ! docker exec smoke tt-recover --help; then
+            echo "::error::tt-recover is not runnable in the production image"
+            docker logs smoke || true
+            docker stop smoke smoke-db >/dev/null 2>&1 || true
+            docker rm smoke smoke-db >/dev/null 2>&1 || true
+            docker network rm smoke-net >/dev/null 2>&1 || true
+            exit 1
+          fi
+
+          # Same assertion for the signed-buffer backfill CLI: its
+          # require("postgres") is at module scope for exactly this reason, and
+          # it is a tool the operator reaches for once, under time pressure,
+          # after already noticing their charts were wrong.
+          if ! docker exec smoke tt-backfill-buffer --help; then
+            echo "::error::tt-backfill-buffer is not runnable in the production image"
+            docker logs smoke || true
+            docker stop smoke smoke-db >/dev/null 2>&1 || true
+            docker rm smoke smoke-db >/dev/null 2>&1 || true
+            docker network rm smoke-net >/dev/null 2>&1 || true
+            exit 1
+          fi
+
+          echo "Smoke test passed — container is running, tt-recover and tt-backfill-buffer resolve."
 
           docker stop smoke smoke-db
           docker rm smoke smoke-db

@@ -2,7 +2,7 @@
 
 import { QbtClientAdapter } from "./adapters/qbt"
 import { decryptClientCredentials } from "./credentials"
-import type { ClientAdapter, ClientType, DownloadClientRow } from "./types"
+import type { ClientAdapter, ClientCredentials, ClientType, DownloadClientRow } from "./types"
 import { assertClientType } from "./types"
 
 /** Internal: create adapter from decrypted credentials + validated type. */
@@ -11,12 +11,11 @@ function createClientAdapter(
   host: string,
   port: number,
   ssl: boolean,
-  username: string,
-  password: string
+  creds: ClientCredentials
 ): ClientAdapter {
   switch (type) {
     case "qbittorrent":
-      return new QbtClientAdapter(host, port, ssl, username, password)
+      return new QbtClientAdapter(host, port, ssl, creds)
     default:
       throw new Error(`Unsupported client type: "${type}"`)
   }
@@ -28,13 +27,12 @@ function createClientAdapter(
  * decrypt-then-create pattern across coordinator, fetch, and scheduler.
  */
 export function createAdapterForClient(client: DownloadClientRow, key: Buffer): ClientAdapter {
-  const { username, password } = decryptClientCredentials(client, key)
+  const creds = decryptClientCredentials(client, key)
   return createClientAdapter(
     assertClientType(client.type),
     client.host,
     client.port,
     client.useSsl,
-    username,
-    password
+    creds
   )
 }

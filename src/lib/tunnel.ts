@@ -23,7 +23,7 @@ export interface ProxyConfig {
 
 export const VALID_PROXY_TYPES = new Set<string>(["socks5", "http", "https"])
 
-// Shared hostname validation — alphanumeric, dots, hyphens, colons/brackets (IPv6)
+// Shared hostname validation: alphanumeric, dots, hyphens, colons/brackets (IPv6)
 export const PROXY_HOST_PATTERN = /^[\w.\-:[\]]+$/
 
 export function buildProxyUrl(config: ProxyConfig): string {
@@ -61,7 +61,13 @@ export interface ProxyFetchResult {
 export function proxyFetch(
   url: string,
   agent: HttpAgent,
-  options: { timeoutMs?: number; headers?: Record<string, string>; maxBytes?: number } = {}
+  options: {
+    timeoutMs?: number
+    headers?: Record<string, string>
+    maxBytes?: number
+    method?: "GET" | "POST"
+    body?: string
+  } = {}
 ): Promise<ProxyFetchResult> {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url)
@@ -71,16 +77,21 @@ export function proxyFetch(
     }
     const timeoutMs = options.timeoutMs ?? 15000
     const maxBytes = options.maxBytes ?? 0
+    const method = options.method ?? "GET"
+    const body = method === "POST" ? (options.body ?? "") : undefined
 
     const req = https.request(
       {
         hostname: parsed.hostname,
         port: parsed.port || 443,
         path: parsed.pathname + parsed.search,
-        method: "GET",
+        method,
         agent,
         headers: {
           Accept: "application/json",
+          ...(body === undefined
+            ? {}
+            : { "Content-Length": String(Buffer.byteLength(body, "utf8")) }),
           ...options.headers,
         },
         timeout: timeoutMs,
@@ -103,7 +114,7 @@ export function proxyFetch(
             ok: (res.statusCode ?? 0) >= 200 && (res.statusCode ?? 0) < 300,
             status: res.statusCode ?? 0,
             statusText: res.statusMessage ?? "",
-            // security-audit-ignore: async wrapper converts JSON.parse throw to rejected promise — caller handles via await/catch
+            // security-audit-ignore: async wrapper converts JSON.parse throw to rejected promise. Caller handles via await/catch
             json: async () => JSON.parse(raw.toString("utf8")),
             buffer: () => Promise.resolve(raw),
           })
@@ -120,6 +131,7 @@ export function proxyFetch(
       reject(err)
     })
 
+    if (body !== undefined) req.write(body)
     req.end()
   })
 }

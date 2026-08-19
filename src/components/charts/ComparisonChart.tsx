@@ -29,6 +29,9 @@ import {
   collectUnifiedTimestamps,
 } from "./lib/chart-transforms"
 import { LogScaleToggle } from "./lib/LogScaleToggle"
+import { OutageBandLegend } from "./lib/OutageBandLegend"
+import { useOutageBands } from "./lib/OutageBandsProvider"
+import { appendOutageBandSeries, polledAtRange } from "./lib/outage-bands"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -185,7 +188,9 @@ function buildComparisonOption(
         if (v !== null) allGiB.push(v)
       }
     }
-    const maxGiB = Math.max(...allGiB, 0)
+    // Magnitude, not maximum: buffer is signed, and an all-deficit fleet has a
+    // max of 0, which would label a -2.4 TiB series in GiB.
+    const maxGiB = Math.max(...allGiB.map(Math.abs), 0)
     ;({ divisor, unit } = autoByteScale(maxGiB))
   }
 
@@ -280,25 +285,44 @@ function buildComparisonOption(
         smooth: true,
         symbol: useStacked ? "none" : "circle",
         symbolSize: dotSize,
-        ...(useStacked ? { stack: "total", areaStyle: { opacity: 0.7 }, step: false } : {}),
+        // Always emitted, never spread conditionally. ChartECharts renders with
+        // notMerge false, so an absent key does not clear a previously merged one.
+        // It leaves the old value painted. Spreading only while stacked leaves the
+        // chart stacked when switching back to lines (issue #156).
+        stack: useStacked ? "total" : undefined,
+        areaStyle: useStacked ? { opacity: 0.7 } : undefined,
+        step: useStacked ? false : undefined,
         itemStyle: { color: tracker.color },
         lineStyle: {
           color: tracker.color,
           width: useStacked ? 1 : 2,
-          ...(useStacked ? {} : { shadowColor: tracker.color, shadowBlur: 8 }),
+          // Omitting the glow while stacked would carry the line view's glow into the stacked view
+          shadowColor: useStacked ? undefined : tracker.color,
+          shadowBlur: useStacked ? undefined : 8,
         },
-        emphasis: useStacked
-          ? { focus: "series" as const }
-          : { focus: "series" as const, lineStyle: { shadowBlur: 16, shadowColor: tracker.color } },
+        // Nested objects merge too, so the same rule applies one level down:
+        // an emphasis that omits lineStyle leaves the previous hover glow on
+        // the series rather than clearing it.
+        emphasis: {
+          focus: "series" as const,
+          lineStyle: {
+            shadowBlur: useStacked ? undefined : 16,
+            shadowColor: useStacked ? undefined : tracker.color,
+          },
+        },
       }
     })
   }
 
-  // yAxis config — shared base with log/linear specifics
+  // yAxis config: shared base with log/linear specifics
   const yAxis: EChartsOption["yAxis"] = {
     type: useLog ? "log" : "value",
     name: unit,
-    ...(useLog ? { logBase: 10 } : { scale: true, ...yAxisAutoRange() }),
+    // Buffer is signed. Without allowNegative the axis floor is pinned to 0 and
+    // every deficit point is clipped out of sight below it.
+    ...(useLog
+      ? { logBase: 10 }
+      : { scale: true, ...yAxisAutoRange({ allowNegative: metric === "buffer" }) }),
     nameTextStyle: {
       color: CHART_THEME.textTertiary,
       fontFamily: CHART_THEME.fontMono,
@@ -356,6 +380,8 @@ function ComparisonChart({
 }: ComparisonChartProps) {
   const [averageMode, setAverageMode] = useState(false)
   const [viewMode, setViewMode] = useState<"lines" | "stacked" | "total">("lines")
+  // Tracker snapshots. App bands only.
+  const outages = useOutageBands("tracker")
 
   const hasData = trackerData.some((t) => t.snapshots.length > 0)
 
@@ -418,7 +444,11 @@ function ComparisonChart({
               compact
               tabs={viewModes.map((m) => ({
                 key: m,
-                label: { lines: "Per-Tracker", stacked: "Stacked", total: "Total" }[m],
+                // "Lines", not "Per-Tracker": the averaging toggle beside this
+                // also reads "Per-Tracker" when it's off, and users aiming for
+                // the view mode were hitting that instead and seeing nothing
+                // happen (issue #156).
+                label: { lines: "Lines", stacked: "Stacked", total: "Total" }[m],
               }))}
               activeTab={viewMode}
               onChange={setViewMode}
@@ -427,13 +457,21 @@ function ComparisonChart({
         </div>
       )}
       <ChartECharts
-        option={buildComparisonOption(metric, trackerData, {
-          logScale: enableLogScale ? effectiveLog : undefined,
-          averageMode: averageMode && !isNonLineMode,
-          stacked: isStacked,
-          totalOnly: isTotalOnly,
-        })}
+        option={appendOutageBandSeries(
+          buildComparisonOption(metric, trackerData, {
+            logScale: enableLogScale ? effectiveLog : undefined,
+            averageMode: averageMode && !isNonLineMode,
+            stacked: isStacked,
+            totalOnly: isTotalOnly,
+          }),
+          outages,
+          polledAtRange(trackerData.flatMap((t) => t.snapshots))
+        )}
         style={{ height, width: "100%" }}
+      />
+      <OutageBandLegend
+        bands={outages}
+        range={polledAtRange(trackerData.flatMap((t) => t.snapshots))}
       />
     </div>
   )

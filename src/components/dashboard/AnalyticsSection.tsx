@@ -15,8 +15,11 @@ import { RankTenureChart } from "@/components/charts/RankTenureChart"
 import { RatioStabilityChart } from "@/components/charts/RatioStabilityChart"
 import { SeedbonusRiverChart } from "@/components/charts/SeedbonusRiverChart"
 import { TrackerBubbleChart } from "@/components/charts/TrackerBubbleChart"
+import { VolumeSurface2D } from "@/components/charts/VolumeSurface2D"
 import { ChartCard } from "@/components/dashboard/ChartCard"
-import { DASHBOARD_CHARTS, useChartPreferences } from "@/components/dashboard/useChartPreferences"
+import type { useChartPreferences } from "@/components/dashboard/useChartPreferences"
+import { DASHBOARD_CHARTS } from "@/components/dashboard/useChartPreferences"
+import { useDashboardSettings } from "@/components/dashboard/useDashboardSettings"
 import { ChevronUpIcon } from "@/components/ui/Icons"
 import type { TrackerSummary } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
@@ -31,10 +34,28 @@ const allChartIds = DASHBOARD_CHARTS.filter((c) => c.category === "analytics").m
 interface AnalyticsSectionProps {
   trackerSeries: TrackerSnapshotSeries[]
   trackers: TrackerSummary[]
+  /**
+   * The dashboard's single useChartPreferences instance, shared with the settings sheet.
+   * Required rather than optional: every write serialises the whole preferences object, so
+   * a second instance here would revert whatever the sheet had just stored.
+   */
+  chartPrefs: ReturnType<typeof useChartPreferences>
+  /**
+   * Pass the dashboard's existing settings instance so toggling "Enable 3D
+   * charts" swaps this section live. Falls back to its own instance, which
+   * only picks up changes on remount.
+   */
+  dashSettings?: ReturnType<typeof useDashboardSettings>
 }
 
-function AnalyticsSection({ trackerSeries, trackers }: AnalyticsSectionProps) {
-  const chartPrefs = useChartPreferences()
+function AnalyticsSection({
+  trackerSeries,
+  trackers,
+  chartPrefs,
+  dashSettings: externalSettings,
+}: AnalyticsSectionProps) {
+  const internalSettings = useDashboardSettings()
+  const dashSettings = externalSettings ?? internalSettings
   const { hydrated: chartPrefsHydrated, orderedCharts } = chartPrefs
 
   const analyticsCharts = orderedCharts("analytics")
@@ -46,8 +67,17 @@ function AnalyticsSection({ trackerSeries, trackers }: AnalyticsSectionProps) {
     switch (id) {
       case "daily-volume":
         return <DailyVolumeChart trackerData={trackerSeries} height={360} />
+      // Same chart id, card, and preference slot either way. Only the
+      // renderer changes, so toggling never disturbs the user's layout.
       case "upload-landscape":
-        return <VolumeSurface3D trackerData={trackerSeries} height={420} />
+        // Render the 2D chart until the setting is known. Defaulting to 3D would load
+        // echarts-gl for users who turned WebGL off, which defeats the purpose. A brief
+        // 2D render for everyone else is the cheaper mistake.
+        return dashSettings.loaded && dashSettings.settings.enable3DCharts ? (
+          <VolumeSurface3D trackerData={trackerSeries} height={420} />
+        ) : (
+          <VolumeSurface2D trackerData={trackerSeries} height={420} />
+        )
       case "distribution":
         return (
           <DistributionChart
@@ -90,14 +120,12 @@ function AnalyticsSection({ trackerSeries, trackers }: AnalyticsSectionProps) {
           />
         )
       case "comparison-buffer":
-        return (
-          <ComparisonChart
-            metric="buffer"
-            trackerData={trackerSeries}
-            height={320}
-            enableLogScale
-          />
-        )
+        // No enableLogScale, unlike its neighbours: buffer is signed, a log axis
+        // cannot represent a non-positive value, and the log path drops those
+        // points. A tracker sliding into deficit silently vanishes from the
+        // comparison instead of being the thing you came to look at. Same call
+        // MetricChart made for issue #36.
+        return <ComparisonChart metric="buffer" trackerData={trackerSeries} height={320} />
       case "comparison-seedbonus":
         return (
           <ComparisonChart

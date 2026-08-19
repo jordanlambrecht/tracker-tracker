@@ -92,7 +92,7 @@ function TrackerHubStatus({
           if (!cancelled) setFetchedAt(new Date())
         }
       } catch {
-        // TrackerHub data is supplementary — fail silently
+        // TrackerHub data is supplementary. Fail silently
       }
     }
 
@@ -110,7 +110,7 @@ function TrackerHubStatus({
 
   return (
     <div className="nm-inset-sm bg-control-bg flex flex-col px-4 py-3.5 min-w-80 max-w-xl rounded-nm-md">
-      {/* Header row — always visible */}
+      {/* Header row. Always visible */}
       <div className="flex items-center justify-between gap-6 w-full">
         <button
           type="button"

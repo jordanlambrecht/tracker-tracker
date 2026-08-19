@@ -3,7 +3,18 @@
 // Functions: scrubObject
 // Redacts sensitive keys from raw API response objects before sending to clients.
 
-export const SCRUB_KEYS = new Set(["authkey", "passkey", "ip", "api_token", "key", "torrent_pass"])
+export const SCRUB_KEYS = new Set([
+  "authkey",
+  "passkey",
+  "ip",
+  "api_token",
+  "key",
+  "torrent_pass",
+  // DigitalCore returns these in both /api/v1/status and /api/v1/users/:id.
+  // `irckey` authenticates the user on the tracker's IRC network.
+  "irckey",
+  "email",
+])
 
 export function scrubObject(obj: unknown, depth = 0): unknown {
   if (depth > 10) return obj

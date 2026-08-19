@@ -266,6 +266,7 @@ describe("serializeSettingsResponse", () => {
     backupEncryptionEnabled: false,
     hasBackupPassword: null,
     backupStoragePath: null,
+    credentialVaultEnabled: false,
   }
 
   it("converts null hasProxyPassword to false", () => {

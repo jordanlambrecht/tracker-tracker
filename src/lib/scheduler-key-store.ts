@@ -53,7 +53,7 @@ export async function loadSchedulerKey(): Promise<Buffer | null> {
 
 /**
  * Clear the stored key from the DB. Called on lockdown, nuke,
- * password change, and restore. NOT called on logout — scheduler
+ * password change, and restore. NOT called on logout. Scheduler
  * persists through logout.
  */
 export async function clearSchedulerKey(settingsId: number): Promise<void> {

@@ -59,7 +59,7 @@ Full template:
 //
 // Validator checks:
 //   - slug: lowercase letters and hyphens only
-//   - platform: "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "custom"
+//   - platform: "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "btn" | "iptorrents" | "torrentleech" | "custom"
 //   - apiPath must match platform default:
 //       unit3d     → "/api/user"
 //       gazelle    → "/ajax.php"
@@ -82,7 +82,7 @@ export const mytracker: TrackerRegistryEntry = {
   description: "TODO", // 1-2 sentence overview
 
   // ── Platform & API ──────────────────────────────────────────────────
-  platform: "unit3d", // "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "custom"
+  platform: "unit3d", // "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "btn" | "iptorrents" | "torrentleech" | "custom"
   // Platform-specific fields (uncomment for your platform):
   //   gazelleAuthStyle: "token",   // gazelle only — "token" | "raw"
   //   gazelleEnrich: true,         // gazelle only — enables enrichment call
@@ -192,6 +192,12 @@ url: "https://blutopia.cc"
 
 The adapter appends `apiPath` to this URL to make API requests.
 
+`apiPath` is always a relative path beginning with `/` — this is enforced by
+both the registry test and `scripts/validate-trackers.ts`. If a tracker serves
+its API from a different host, that host belongs in its adapter as a module
+constant, not in the registry; see `btn.ts`. Putting an absolute URL in
+`apiPath` would persist it into every user's row with no migration path back.
+
 #### `description`
 
 Type: `string`
@@ -208,19 +214,23 @@ description: "The largest general music tracker (also has some software). Has an
 
 #### `platform`
 
-Type: `"unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "custom"`
+Type: `"unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "btn" | "iptorrents" | "torrentleech" | "custom"`
 
 Which adapter handles API requests. This tells the scheduler how to fetch stats. Pick the one that matches the tracker's software.
 
-| Platform      | What it means                                                  |
-| ------------- | -------------------------------------------------------------- |
-| `"unit3d"`    | Runs UNIT3D                                                    |
-| `"gazelle"`   | Runs Gazelle or a fork (Orpheus, Gazelle-Music, etc.)         |
-| `"ggn"`       | GazelleGames only — has its own custom API                    |
-| `"nebulance"` | Uses Nebulance's API                                           |
-| `"mam"`       | MyAnonaMouse — cookie-based auth via `mam_id`                 |
-| `"avistaz"`   | AvistaZ network — cookie auth + profile scraping              |
-| `"custom"`    | Placeholder, not implemented yet                              |
+| Platform         | What it means                                               |
+| ---------------- | ----------------------------------------------------------- |
+| `"unit3d"`       | Runs UNIT3D                                                 |
+| `"gazelle"`      | Runs Gazelle or a fork (Orpheus, Gazelle-Music, etc.)       |
+| `"ggn"`          | GazelleGames only — has its own custom API                  |
+| `"nebulance"`    | Uses Nebulance's API                                        |
+| `"mam"`          | MyAnonaMouse — cookie-based auth via `mam_id`               |
+| `"avistaz"`      | AvistaZ network — cookie auth + profile scraping            |
+| `"digitalcore"`  | DigitalCore — custom JSON API, `uid`/`pass` session cookies |
+| `"btn"`          | BroadcasTheNet — JSON-RPC on a separate API host            |
+| `"iptorrents"`   | IPTorrents — cookie auth + profile scraping                 |
+| `"torrentleech"` | TorrentLeech — username/password login + profile scraping   |
+| `"custom"`       | Placeholder, not implemented yet                            |
 
 #### `gazelleAuthStyle`
 
@@ -679,7 +689,78 @@ If the tracker appears in search results and polls successfully, the registry en
 
 ---
 
-## 8. Common Mistakes
+## 8. Adding a Whole New Platform
+
+Everything above covers adding a tracker to a platform that already has an
+adapter. If the tracker runs software we don't support yet, a registry entry
+alone is not enough — it will show up in the picker and then fail at poll time.
+
+A new platform touches five places. Miss any one and the tracker is either
+invisible or unusable:
+
+| # | What | Where |
+|---|------|-------|
+| 1 | The adapter itself | `src/lib/adapters/<platform>.ts` implementing `TrackerAdapter` |
+| 2 | Register it | `adapters` record in `src/lib/adapters/index.ts` |
+| 3 | Declare the platform | `VALID_PLATFORM_TYPES` and `DEFAULT_API_PATHS` in `src/lib/adapters/constants.ts` |
+| 4 | Credential UI | a branch in `src/components/AddTrackerDialog.tsx` **and** `src/components/TrackerSettingsSheet.tsx` |
+| 5 | Credential size cap | `LARGE_TOKEN_PLATFORMS` in `src/lib/limits.ts`, if credentials are a JSON blob |
+
+Steps 4 and 5 are the ones people miss. If your platform authenticates with
+anything other than a single API key — session cookies, a username/password
+pair, a JSON blob — the "API Token" textbox is the wrong input, and
+`TRACKER_TOKEN_MAX` (500 characters) will reject a real cookie header at the
+API boundary before the adapter ever runs. Add the platform to
+`LARGE_TOKEN_PLATFORMS` and it gets the 5000-character cap in all three
+routes at once.
+
+### Use the shared fetch helper
+
+Route requests through `adapterFetch` (`src/lib/adapters/adapter-fetch.ts`)
+rather than calling `fetch` directly. It supplies the shared timeout, honours
+a user's configured proxy, and normalizes errors. It supports `POST` with a
+body, so JSON-RPC style APIs work too.
+
+`adapterFetch` parses the response as JSON. If your tracker has no API and you
+have to scrape an authenticated page instead, use `fetchTrackerHtml`
+(`src/lib/adapters/html-fetch.ts`) — it returns the raw HTML and handles the
+browser headers, the proxy, the timeout, and sanitized errors. It takes the
+parts that vary per tracker as options:
+
+- `label` — the tracker name used in error messages
+- `sessionExpiredMessage` — thrown when the server bounces you to login
+- `userAgent` — send the user's copied browser UA; omit it if the session came
+  from your own login request rather than a browser
+- `followRedirects` — set it when a redirect can be routine rather than a
+  session expiry, and give it the pattern that identifies the login page
+
+Only write your own fetch if neither helper fits. If you do, you must still
+honour `options.proxyAgent` yourself, or fail loudly when one is set. Silently
+ignoring it sends a user's tracker traffic straight out of their real IP when
+they configured a tunnel to prevent exactly that.
+
+### Parse credential blobs with the shared helpers
+
+Platforms that need more than one secret take a JSON blob in the `apiToken`
+field. Use `parseCredentialJson` (`src/lib/adapters/cookie-credentials.ts`) to
+read it — it validates that every field you name is a present, non-empty string
+and produces the error wording users already see on the other adapters.
+
+If one of those fields is a pasted `Cookie` header, run it through
+`validateCookieHeader` as well. It strips a leading `Cookie:` prefix, and catches the
+two mistakes that actually reach us: pasting a lone cookie *name* instead of the
+header value, and a value the browser truncated mid-copy into a non-ASCII
+ellipsis.
+
+### Report unknown values as `null`, never `0`
+
+If the platform's API doesn't return a field, set it to `null`. A hardcoded
+`0` renders identically to a measured `0`, so the UI shows a confident wrong
+number instead of "unknown". `seedingCount`, `leechingCount`, `seedbonus`,
+`requiredRatio`, `warned`, `hitAndRuns` and `freeleechTokens` are all
+nullable for this reason.
+
+## 9. Common Mistakes
 
 ### Forgetting to add to the barrel file
 

@@ -2,7 +2,12 @@
 //
 // Functions: GazelleAdapter, GazelleAdapter.fetchStats, GazelleAdapter.fetchRaw
 
-import { computeBufferBytes, floatBytesToBigInt } from "@/lib/data-transforms"
+import {
+  computeBufferBytes,
+  computeRatio,
+  floatBytesToBigInt,
+  signedFloatBytesToBigInt,
+} from "@/lib/data-transforms"
 import { adapterFetch } from "./adapter-fetch"
 import type {
   DebugApiCall,
@@ -139,7 +144,8 @@ export class GazelleAdapter implements TrackerAdapter {
       group: userStats.class ?? "Unknown",
       uploadedBytes: uploaded,
       downloadedBytes: downloaded,
-      ratio: typeof userStats.ratio === "number" ? userStats.ratio : 0,
+      // Derived from byte totals. Gazelle reports -1 for infinite ratio.
+      ratio: computeRatio(uploaded, downloaded),
       bufferBytes: computeBufferBytes(uploaded, downloaded),
       seedingCount: userStats.seedingcount ?? 0,
       leechingCount: userStats.leechingcount ?? 0,
@@ -350,7 +356,11 @@ export class GazelleAdapter implements TrackerAdapter {
       warned: resp.personal?.warned ?? false,
       joinedDate: resp.stats?.joinedDate ?? undefined,
       lastAccessDate: resp.stats?.lastAccess ?? undefined,
-      bufferBytes: resp.stats?.buffer != null ? floatBytesToBigInt(resp.stats.buffer) : undefined,
+      // Gazelle's buffer value is signed. It overwrites the derived value in
+      // fetchStats. If clamped here, enriched Gazelle sites would report 0 for
+      // a deficit despite what the helpers compute.
+      bufferBytes:
+        resp.stats?.buffer != null ? signedFloatBytesToBigInt(resp.stats.buffer) : undefined,
       seedingCount: resp.community?.seeding,
       leechingCount: resp.community?.leeching,
       avatarUrl: resp.avatar || undefined,

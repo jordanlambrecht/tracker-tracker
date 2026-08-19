@@ -30,7 +30,6 @@ import {
 import { PulseDot } from "@/components/ui/PulseDot"
 import type {
   StatCardBasicProps,
-  StatCardRingProps,
   StatCardRow,
   StatCardStackedProps,
 } from "@/components/ui/StatCard"
@@ -46,6 +45,8 @@ import type { GgnShareScoreProgressProps } from "./platform/GgnShareScoreProgres
 import { GgnShareScoreProgress } from "./platform/GgnShareScoreProgress"
 import type { MamHealthOverviewProps } from "./platform/MamHealthOverview"
 import { MamHealthOverview } from "./platform/MamHealthOverview"
+import type { LoginDeadlineCardProps } from "./slots/LoginDeadlineCard"
+import { LoginDeadlineCard } from "./slots/LoginDeadlineCard"
 import type { SlotBadgeProps } from "./slots/SlotBadge"
 import { SlotBadge } from "./slots/SlotBadge"
 
@@ -62,7 +63,7 @@ interface SlotDefinition<P = Record<string, unknown>> {
   span?: 1 | 2
 }
 
-// Erased type used for the exported heterogeneous array — component and
+// Erased type used for the exported heterogeneous array: component and
 // resolve are widened so that typed SlotDefinition<T> values can be placed
 // in a single array without unsafe double-casts.
 export interface AnySlotDefinition {
@@ -77,7 +78,7 @@ export interface AnySlotDefinition {
 }
 
 // ---------------------------------------------------------------------------
-// Helper — creates a 16x16 icon element
+// Helper. Creates a 16x16 icon element
 // ---------------------------------------------------------------------------
 
 function icon16(
@@ -375,10 +376,10 @@ const gazelleCommentsSlot: SlotDefinition<StatCardStackedProps> = {
   },
 }
 
-const loginDeadlineSlot: SlotDefinition<StatCardRingProps> = {
+const loginDeadlineSlot: SlotDefinition<LoginDeadlineCardProps> = {
   id: "login-deadline",
   category: "stat-card",
-  component: StatCard as ComponentType<StatCardRingProps>,
+  component: LoginDeadlineCard,
   priority: 30,
   span: 2,
   resolve(ctx) {
@@ -390,6 +391,10 @@ const loginDeadlineSlot: SlotDefinition<StatCardRingProps> = {
       lastAccessAt: lastAccess,
       loginIntervalDays: loginDays,
       accentColor: ctx.accentColor,
+      // The user's configured tracker URL. Same destination the detail
+      // header and dashboard login timers already link to. Undefined when
+      // unset so the button is omitted instead of pointing nowhere.
+      loginUrl: ctx.tracker.baseUrl || undefined,
     }
   },
 }
@@ -1020,7 +1025,7 @@ export const SLOT_DEFINITIONS: AnySlotDefinition[] = [
   dcHeartsBadgeSlot,
 ]
 
-// Shared component lookup — single source for rendering resolved slots
+// Shared component lookup: single source for rendering resolved slots
 const SLOT_COMPONENT_MAP = new Map(SLOT_DEFINITIONS.map((def) => [def.id, def.component]))
 
 export function renderSlotElement(slot: { id: string; props: Record<string, unknown> }): ReactNode {

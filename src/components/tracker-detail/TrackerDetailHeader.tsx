@@ -17,6 +17,7 @@ import {
   GearIcon,
   PauseIcon,
   PlayIcon,
+  ShieldIcon,
 } from "@/components/ui/Icons"
 import { PulseDot } from "@/components/ui/PulseDot"
 import { Tooltip } from "@/components/ui/Tooltip"
@@ -38,6 +39,10 @@ interface TrackerDetailHeaderProps {
   polling: boolean
   onPollNow: () => void
   onOpenSettings: () => void
+  /** Opens the credential vault sheet. Always available — the sheet itself
+   *  renders the opt-in explanation when the feature is disabled, so hiding the
+   *  button would leave a disabled user with no route to turning it on. */
+  onOpenCredentials: () => void
   onDebugPoll: () => void
   debugLoading: boolean
   badgeSlots: ResolvedSlot[]
@@ -53,6 +58,7 @@ export function TrackerDetailHeader({
   polling,
   onPollNow,
   onOpenSettings,
+  onOpenCredentials,
   onDebugPoll,
   debugLoading,
   badgeSlots,
@@ -142,6 +148,14 @@ export function TrackerDetailHeader({
             disabled={polling}
             text={polling ? "Polling..." : "Poll Now"}
           />
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onOpenCredentials}
+            aria-label="Tracker credentials"
+          >
+            <ShieldIcon width="16" height="16" />
+          </Button>
           <Button
             variant="secondary"
             size="sm"

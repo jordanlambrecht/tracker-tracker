@@ -229,6 +229,34 @@ describe("PATCH /api/settings route validation", () => {
     expect(response.status).toBe(200)
   })
 
+  // This route used to measure length against the raw string and store the
+  // trimmed one, so padding smuggled a too-short username past the minimum.
+  it("rejects a username that is only long enough before trimming", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ username: "  ab  " })
+
+    const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({
+      error: "Username must be between 3 and 100 characters",
+    })
+  })
+
+  // No character class was applied here at all, so this route could write a
+  // username that setup and the post-login prompt would both have rejected.
+  it("rejects a username containing illegal characters", async () => {
+    const set = vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([]) })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set })
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      username: "<script>alert(1)</script>",
+    })
+
+    const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
+
+    expect(response.status).toBe(400)
+    expect(set).not.toHaveBeenCalled()
+  })
+
   it("rejects username longer than 100 characters", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
       username: "a".repeat(101),

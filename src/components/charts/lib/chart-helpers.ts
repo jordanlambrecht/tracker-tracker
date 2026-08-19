@@ -258,7 +258,7 @@ const BUCKET_MS: Record<TimeBucket, number> = {
 
 /**
  * Floor a millisecond timestamp to the nearest bucket boundary.
- * Use to bucket time-series data before charting — eliminates sub-bucket
+ * Use to bucket time-series data before charting: eliminates sub-bucket
  * precision that wastes render cycles with no visual benefit.
  * @param ms - Unix timestamp in milliseconds
  * @param granularity - Bucket size (default: "hour")

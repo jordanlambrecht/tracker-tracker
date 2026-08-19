@@ -11,17 +11,26 @@ import type { TrackerLatestStats } from "@/types/api"
 /**
  * Formats a bigint byte string (from API) to human-readable GiB/TiB.
  * Returns "—" for null/undefined/empty values.
+ *
+ * Scales on the magnitude and re-attaches the sign, the way formatBytesNum
+ * does. Buffer is signed, and comparing the scaled value against `>= 1`
+ * directly is false for every negative. So a -2.39 TiB buffer fell through to
+ * the MiB branch and rendered "-2505575 MiB". Positive output is unchanged,
+ * which matters because uploaded/downloaded flow through here too.
  */
 export function formatBytesFromString(bytesStr: string | null | undefined): string {
   if (!bytesStr) return "—"
   try {
     const bytes = Number(BigInt(bytesStr))
-    const tib = bytes / 1024 ** 4
-    if (tib >= 1) return `${tib.toFixed(2)} TiB`
-    const gib = bytes / 1024 ** 3
-    if (gib >= 1) return `${gib.toFixed(2)} GiB`
-    const mib = bytes / 1024 ** 2
-    return `${Math.round(mib)} MiB`
+    const sign = bytes < 0 ? "-" : ""
+    const abs = Math.abs(bytes)
+    const tib = abs / 1024 ** 4
+    if (tib >= 1) return `${sign}${tib.toFixed(2)} TiB`
+    const gib = abs / 1024 ** 3
+    if (gib >= 1) return `${sign}${gib.toFixed(2)} GiB`
+    const mib = Math.round(abs / 1024 ** 2)
+    // A negative under half a MiB rounds to zero; emit "0 MiB", never "-0 MiB".
+    return mib === 0 ? "0 MiB" : `${sign}${mib} MiB`
   } catch {
     return "—"
   }
@@ -115,7 +124,11 @@ export function formatStatValue(stats: TrackerLatestStats | null, mode: StatMode
 
   switch (mode) {
     case "ratio":
-      return formatRatioDisplay(stats.ratio)
+      // `ratio` is null both when unmeasured and when the account has an
+      // infinite ratio; only the flag distinguishes them. formatRatio already
+      // renders a non-finite value as "∞", so hand it Infinity rather than
+      // showing the same "—" an account with no data gets.
+      return formatRatioDisplay(stats.ratioIsInfinite ? Number.POSITIVE_INFINITY : stats.ratio)
     case "seeding":
       return stats.seedingCount !== null && stats.seedingCount !== undefined
         ? `${formatCount(stats.seedingCount)} seeding`

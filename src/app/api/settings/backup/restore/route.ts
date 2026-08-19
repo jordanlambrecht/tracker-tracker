@@ -1,6 +1,7 @@
 // src/app/api/settings/backup/restore/route.ts
 //
-// Functions: batchInsert, POST, hashFileName, reencryptField
+// Functions: backupCiphertexts, batchInsert, POST, firstBackupCiphertext, hashFileName,
+// reencryptField
 
 import { createHash } from "node:crypto"
 import { eq } from "drizzle-orm"
@@ -13,9 +14,10 @@ import {
   type EncryptedBackupEnvelope,
   validateBackupJson,
 } from "@/lib/backup"
-import { deriveKey, reencrypt } from "@/lib/crypto"
+import { decrypt, deriveKey, reencrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import {
+  appCoverageGaps,
   appSettings,
   clientSnapshots,
   clientUptimeBuckets,
@@ -25,6 +27,7 @@ import {
   notificationTargets,
   tagGroupMembers,
   tagGroups,
+  trackerOutages,
   trackerRoles,
   trackerSnapshots,
   trackers,
@@ -64,6 +67,41 @@ async function batchInsert<T extends Record<string, unknown>>(
   }
 }
 
+// Every non-empty encrypted value in the backup, in a stable order.
+// The probe below takes the first, and the dry run
+// counts how many of them the derived key can actually open.
+function backupCiphertexts(payload: BackupPayload): string[] {
+  const settings = payload.settings
+  const candidates: unknown[] = [
+    ...payload.trackers.map((t) => (t as Record<string, unknown>).encryptedApiToken),
+    // Nullable, and absent entirely from backups written before the vault
+    // existed. The typeof/length filter at the bottom drops both cases.
+    ...payload.trackers.map((t) => (t as Record<string, unknown>).encryptedCredentials),
+    ...payload.downloadClients.flatMap((c) => [
+      (c as Record<string, unknown>).encryptedUsername,
+      (c as Record<string, unknown>).encryptedPassword,
+      (c as Record<string, unknown>).encryptedApiKey,
+    ]),
+    ...(Array.isArray(payload.notificationTargets)
+      ? payload.notificationTargets.map((n) => (n as Record<string, unknown>).encryptedConfig)
+      : []),
+    settings.encryptedProxyPassword,
+    settings.encryptedBackupPassword,
+    settings.encryptedPtpimgApiKey,
+    settings.encryptedOeimgApiKey,
+    settings.encryptedImgbbApiKey,
+    settings.totpSecret,
+  ]
+
+  return candidates.filter((c): c is string => typeof c === "string" && c.length > 0)
+}
+
+// The first non-empty encrypted value, or null if the backup holds none.
+// Used as a probe to prove a key actually opens this backup's ciphertext.
+function firstBackupCiphertext(payload: BackupPayload): string | null {
+  return backupCiphertexts(payload)[0] ?? null
+}
+
 // Attempt to decrypt a field with the backup key and re-encrypt with the current key.
 // Returns the re-encrypted ciphertext, or "" if the field is empty or re-encryption fails.
 function reencryptField(
@@ -100,6 +138,9 @@ export async function POST(request: Request) {
   const file = formData.get("file")
   const masterPassword = formData.get("masterPassword")
   const backupPassword = formData.get("backupPassword")
+  // Opt-in only: anything other than the exact string "true" performs a real restore,
+  // so a malformed value can never silently turn a restore into a no-op.
+  const dryRun = formData.get("dryRun") === "true"
 
   if (!(file instanceof Blob)) {
     return NextResponse.json({ error: "Backup file is required" }, { status: 400 })
@@ -221,8 +262,7 @@ export async function POST(request: Request) {
   // Step 6: Derive encryption keys for token re-encryption.
   // The backup's encryptionSalt may differ from the current instance's salt (e.g. after a
   // nuke + re-setup). We derive the backup key from masterPassword + backupSalt, and the
-  // current key from masterPassword + currentSalt. If the salts match, the keys are identical
-  // and re-encryption is a no-op pass-through.
+  // current key from masterPassword + currentSalt. Matching salts make the two keys identical.
   const backupSalt = payload.settings.encryptionSalt as string
   const currentSalt = currentSettings.encryptionSalt
   const sameSalt = backupSalt === currentSalt
@@ -242,6 +282,60 @@ export async function POST(request: Request) {
 
   const canReencrypt = backupKey.length === 32
 
+  // Matching salts prove the two KEYS are identical. They do not prove that key is the one
+  // this backup's ciphertext was written with: POST /api/auth/change-password re-encrypts
+  // every field under a new key while REUSING the existing encryptionSalt. A backup taken
+  // before such a change therefore carries a matching salt and old-key ciphertext, and
+  // copying it through verbatim would fill the DB with credentials nothing can decrypt.
+  // So probe one field first, and only pass ciphertext through once the key is proven.
+  //
+  // When the probe fails we fall through to reencryptField with backupKey === currentKey,
+  // which re-checks each field individually: anything that still decrypts is preserved, and
+  // only the dead fields are cleared and flagged. Do not "optimise" this probe away.
+  let canPassThrough = sameSalt
+  if (sameSalt) {
+    const probe = firstBackupCiphertext(payload)
+    if (probe !== null) {
+      try {
+        decrypt(probe, backupKey)
+      } catch {
+        canPassThrough = false
+        log.warn(
+          { event: "restore_stale_ciphertext" },
+          "Backup predates a master password change — credentials that cannot be re-encrypted will be cleared"
+        )
+      }
+    }
+  }
+
+  // Step 6b: Dry run. Report what a real restore would preserve, and stop.
+  //
+  // This MUST stay above stopScheduler(), which is the first side effect in the
+  // handler. Everything above it is parsing, authorisation and key derivation; a
+  // dry run therefore touches nothing. It shares this code path deliberately: a
+  // separate preflight endpoint would re-implement the parsing and drift from the
+  // restore it claims to predict, so the two would eventually disagree.
+  if (dryRun) {
+    const ciphertexts = backupCiphertexts(payload)
+    let recoverable = 0
+    for (const ciphertext of ciphertexts) {
+      try {
+        decrypt(ciphertext, backupKey)
+        recoverable++
+      } catch {
+        // Counted as at-risk below; a failure here is the answer, not an error.
+      }
+    }
+    return NextResponse.json({
+      dryRun: true,
+      sameSalt,
+      canPassThrough,
+      credentialsTotal: ciphertexts.length,
+      credentialsRecoverable: recoverable,
+      credentialsAtRisk: ciphertexts.length - recoverable,
+    })
+  }
+
   // Step 7: Stop schedulers (key is zeroed inside stopScheduler)
   stopScheduler()
 
@@ -255,8 +349,12 @@ export async function POST(request: Request) {
 
   try {
     await db.transaction(async (tx) => {
-      // Delete all existing data — FK-safe order (children before parents)
+      // Delete all existing data in FK-safe order (children before parents)
       await tx.delete(dismissedAlerts)
+      // app_liveness is intentionally absent here and from the backup payload:
+      // it belongs to the running process, not to the data being restored. See
+      // the exclusion comment in backup.ts.
+      await tx.delete(appCoverageGaps)
       await tx.delete(clientUptimeBuckets)
       await tx.delete(clientSnapshots)
       await tx.delete(trackerSnapshots)
@@ -274,8 +372,8 @@ export async function POST(request: Request) {
         const { id: oldId, ...fields } = t as Record<string, unknown> & { id: number }
 
         let apiToken: string
-        if (sameSalt) {
-          // Same instance — keep ciphertext as-is
+        if (canPassThrough) {
+          // Same instance. Keep ciphertext as-is.
           apiToken = (fields.encryptedApiToken as string) || ""
         } else if (canReencrypt) {
           apiToken = reencryptField(
@@ -291,6 +389,26 @@ export async function POST(request: Request) {
         if (apiToken) tokensPreserved++
         else if (fields.encryptedApiToken) tokensCleared++
 
+        // The credential vault. Every branch ends at a string or NULL and never
+        // at "": reencryptField() returns "" on failure and on empty input, and
+        // storing "" would break this column's NULL-or-ciphertext invariant by
+        // putting a truthy non-ciphertext value where decrypt() can reach it.
+        // Backups predating the vault have no such key at all and land on null.
+        let credentials: string | null
+        if (canPassThrough) {
+          credentials = (fields.encryptedCredentials as string) || null
+        } else if (canReencrypt) {
+          credentials =
+            reencryptField(
+              (fields.encryptedCredentials as string | null | undefined) ?? "",
+              backupKey,
+              currentKey,
+              `tracker '${fields.name}' credentials`
+            ) || null
+        } else {
+          credentials = null
+        }
+
         const [inserted] = await tx
           .insert(trackers)
           .values({
@@ -299,6 +417,7 @@ export async function POST(request: Request) {
             apiPath: fields.apiPath as string,
             platformType: fields.platformType as string,
             encryptedApiToken: apiToken,
+            encryptedCredentials: credentials,
             isActive: fields.isActive as boolean,
             color: (fields.color as string | null) ?? null,
             qbtTag: (fields.qbtTag as string | null) ?? null,
@@ -326,11 +445,18 @@ export async function POST(request: Request) {
       for (const c of payload.downloadClients) {
         const { id: oldId, ...fields } = c as Record<string, unknown> & { id: number }
 
+        // Backups written before API-key auth existed have no authMethod and
+        // could only ever have held a username/password pair.
+        const clientAuthMethod =
+          (fields.authMethod as string | undefined) === "apikey" ? "apikey" : "password"
+
         let encUsername: string
         let encPassword: string
-        if (sameSalt) {
+        let encApiKey: string
+        if (canPassThrough) {
           encUsername = (fields.encryptedUsername as string) || ""
           encPassword = (fields.encryptedPassword as string) || ""
+          encApiKey = (fields.encryptedApiKey as string) || ""
         } else if (canReencrypt) {
           encUsername = reencryptField(
             fields.encryptedUsername as string,
@@ -344,12 +470,24 @@ export async function POST(request: Request) {
             currentKey,
             `downloadClient '${fields.name}' password`
           )
+          encApiKey = fields.encryptedApiKey
+            ? reencryptField(
+                fields.encryptedApiKey as string,
+                backupKey,
+                currentKey,
+                `downloadClient '${fields.name}' apiKey`
+              )
+            : ""
         } else {
           encUsername = ""
           encPassword = ""
+          encApiKey = ""
         }
 
-        const credentialsCleared = !encUsername || !encPassword
+        // Only the columns the client's own mode reads decide whether it came
+        // back usable. A password client legitimately has no API key.
+        const credentialsCleared =
+          clientAuthMethod === "apikey" ? !encApiKey : !encUsername || !encPassword
         const [inserted] = await tx
           .insert(downloadClients)
           .values({
@@ -359,8 +497,13 @@ export async function POST(request: Request) {
             host: fields.host as string,
             port: fields.port as number,
             useSsl: fields.useSsl as boolean,
+            // A cleared key would otherwise leave the client sending an empty
+            // Bearer header forever, so fall back to the mode the "re-enter
+            // and re-enable" message below actually tells the user to fix.
+            authMethod: credentialsCleared ? "password" : clientAuthMethod,
             encryptedUsername: encUsername,
             encryptedPassword: encPassword,
+            encryptedApiKey: encApiKey,
             pollIntervalSeconds: fields.pollIntervalSeconds as number,
             isDefault: fields.isDefault as boolean,
             crossSeedTags: Array.isArray(fields.crossSeedTags)
@@ -436,6 +579,31 @@ export async function POST(request: Request) {
         })
       }
       await batchInsert(tx, trackerSnapshots, snapshotRows)
+
+      // Batch insert trackerOutages (remap trackerId). Must follow the tracker
+      // insert above so the FK resolves; rows whose tracker did not survive the
+      // restore are dropped as orphans, exactly like snapshots. These explain
+      // the snapshots just written — dropping them would restore the flat
+      // stretches with no reason attached.
+      if (Array.isArray(payload.trackerOutages) && payload.trackerOutages.length > 0) {
+        const outageRows: Record<string, unknown>[] = []
+        for (const o of payload.trackerOutages) {
+          const fields = o as Record<string, unknown>
+          const newTrackerId = trackerIdMap.get(fields.trackerId as number)
+          if (!newTrackerId) {
+            orphanedRecordsSkipped++
+            continue
+          }
+          if (typeof fields.startedAt !== "string" || typeof fields.endedAt !== "string") continue
+          outageRows.push({
+            trackerId: newTrackerId,
+            startedAt: new Date(fields.startedAt),
+            endedAt: new Date(fields.endedAt),
+            reason: typeof fields.reason === "string" ? fields.reason : "poll",
+          })
+        }
+        await batchInsert(tx, trackerOutages, outageRows)
+      }
 
       // Insert trackerRoles (remap trackerId)
       for (const r of payload.trackerRoles) {
@@ -520,7 +688,23 @@ export async function POST(request: Request) {
         }
       }
 
-      // Insert dismissedAlerts (optional — absent in older backups)
+      // Batch insert appCoverageGaps (optional, absent in older backups).
+      // No id remap: these are app-global, not keyed to any client or tracker.
+      if (Array.isArray(payload.appCoverageGaps) && payload.appCoverageGaps.length > 0) {
+        const gapRows: { startedAt: Date; endedAt: Date; reason: string }[] = []
+        for (const cg of payload.appCoverageGaps) {
+          const fields = cg as Record<string, unknown>
+          if (typeof fields.startedAt !== "string" || typeof fields.endedAt !== "string") continue
+          gapRows.push({
+            startedAt: new Date(fields.startedAt),
+            endedAt: new Date(fields.endedAt),
+            reason: typeof fields.reason === "string" ? fields.reason : "unclean",
+          })
+        }
+        await batchInsert(tx, appCoverageGaps, gapRows)
+      }
+
+      // Insert dismissedAlerts (optional, absent in older backups)
       if (Array.isArray(payload.dismissedAlerts) && payload.dismissedAlerts.length > 0) {
         const alertRows: { alertKey: string; alertType: string; dismissedAt: Date }[] = []
         for (const a of payload.dismissedAlerts) {
@@ -540,13 +724,13 @@ export async function POST(request: Request) {
         }
       }
 
-      // Insert notificationTargets with config re-encryption (optional — absent in older backups)
+      // Insert notificationTargets with config re-encryption (optional, absent in older backups)
       if (Array.isArray(payload.notificationTargets) && payload.notificationTargets.length > 0) {
         for (const nt of payload.notificationTargets) {
           const { id: _id, ...fields } = nt as Record<string, unknown> & { id: number }
 
           let encryptedConfig: string
-          if (sameSalt) {
+          if (canPassThrough) {
             encryptedConfig = (fields.encryptedConfig as string) || ""
           } else if (canReencrypt) {
             encryptedConfig = reencryptField(
@@ -589,7 +773,7 @@ export async function POST(request: Request) {
       // Re-encrypt proxy password if possible
       let proxyPassword: string | null = null
       if (payload.settings.encryptedProxyPassword) {
-        if (sameSalt) {
+        if (canPassThrough) {
           proxyPassword = payload.settings.encryptedProxyPassword as string
         } else if (canReencrypt) {
           const result = reencryptField(
@@ -605,7 +789,7 @@ export async function POST(request: Request) {
       // Re-encrypt backup password if possible
       let backupPasswordEncrypted: string | null = null
       if (payload.settings.encryptedBackupPassword) {
-        if (sameSalt) {
+        if (canPassThrough) {
           backupPasswordEncrypted = payload.settings.encryptedBackupPassword as string
         } else if (canReencrypt) {
           const result = reencryptField(
@@ -621,7 +805,7 @@ export async function POST(request: Request) {
       // Re-encrypt image hosting API keys if possible
       let encryptedPtpimgApiKey: string | null = null
       if (payload.settings.encryptedPtpimgApiKey) {
-        if (sameSalt) {
+        if (canPassThrough) {
           encryptedPtpimgApiKey = payload.settings.encryptedPtpimgApiKey as string
         } else if (canReencrypt) {
           encryptedPtpimgApiKey =
@@ -636,7 +820,7 @@ export async function POST(request: Request) {
 
       let encryptedOeimgApiKey: string | null = null
       if (payload.settings.encryptedOeimgApiKey) {
-        if (sameSalt) {
+        if (canPassThrough) {
           encryptedOeimgApiKey = payload.settings.encryptedOeimgApiKey as string
         } else if (canReencrypt) {
           encryptedOeimgApiKey =
@@ -651,7 +835,7 @@ export async function POST(request: Request) {
 
       let encryptedImgbbApiKey: string | null = null
       if (payload.settings.encryptedImgbbApiKey) {
-        if (sameSalt) {
+        if (canPassThrough) {
           encryptedImgbbApiKey = payload.settings.encryptedImgbbApiKey as string
         } else if (canReencrypt) {
           encryptedImgbbApiKey =
@@ -668,7 +852,7 @@ export async function POST(request: Request) {
       let totpSecret: string | null = null
       let totpBackupCodes: string | null = null
       if (payload.settings.totpSecret) {
-        if (sameSalt) {
+        if (canPassThrough) {
           totpSecret = payload.settings.totpSecret as string
           totpBackupCodes = (payload.settings.totpBackupCodes as string | null) ?? null
         } else if (canReencrypt) {
@@ -701,7 +885,7 @@ export async function POST(request: Request) {
         totpDisabledOnRestore = true
       }
 
-      // Update appSettings in place — NEVER delete + re-insert
+      // Update appSettings in place. NEVER delete + re-insert.
       await tx
         .update(appSettings)
         .set({
@@ -718,6 +902,13 @@ export async function POST(request: Request) {
           failedLoginAttempts: 0,
           lockedUntil: null,
           snapshotRetentionDays: (payload.settings.snapshotRetentionDays as number | null) ?? null,
+          // Carried over so a restore does not re-ask a question the backup already
+          // answers. Without it, restoring onto a fresh install prompts again and the
+          // answer overwrites the retention policy that was just restored. Backups
+          // predating this column restore as null, which correctly means "ask".
+          retentionPromptedAt: payload.settings.retentionPromptedAt
+            ? new Date(payload.settings.retentionPromptedAt as string)
+            : null,
           trackerPollIntervalMinutes:
             (payload.settings.trackerPollIntervalMinutes as number) ?? POLL_INTERVAL_DEFAULT,
           proxyEnabled: payload.settings.proxyEnabled as boolean,
@@ -739,6 +930,16 @@ export async function POST(request: Request) {
           encryptedImgbbApiKey,
           draftQuicklinks: (payload.settings.draftQuicklinks as string | null) ?? null,
           dashboardSettings: (payload.settings.dashboardSettings as string | null) ?? null,
+          // Restored, because this .set() is an ALLOWLIST and an omitted column
+          // is simply left at whatever the restoring install already had. On a
+          // fresh install that defaults to OFF. A user restoring a backup would
+          // find their credential sheet showing "storage is turned off" and
+          // reasonably conclude the restore had lost their passkeys. It has not:
+          // trackers.encrypted_credentials restores intact either way. This just
+          // stops disaster recovery from looking like data loss.
+          // Backups predating this column have no key and restore as OFF, which
+          // is the correct fail-closed default.
+          credentialVaultEnabled: (payload.settings.credentialVaultEnabled as boolean) ?? false,
           // passwordHash: NEVER updated from backup
           // encryptionSalt: NEVER updated from backup
           encryptedSchedulerKey: null,
@@ -763,6 +964,14 @@ export async function POST(request: Request) {
     if (backupKey.length > 0) backupKey.fill(0)
     if (currentKey !== backupKey && currentKey.length > 0) currentKey.fill(0)
   }
+
+  // Restart the scheduler we stopped in Step 7, mirroring the failure path above.
+  // The session survives a restore, so (auth)/layout.tsx would also revive polling on the
+  // next authenticated page load (but only if a browser loads one). Restarting here keeps
+  // the route self-contained for direct API callers instead of relying on that.
+  // encryptedSchedulerKey stays null (see scheduler-key-store.ts:54-58): polling runs now,
+  // but will not survive a process restart until the next login re-persists the key.
+  ensureSchedulerRunning(auth.encryptionKey)
 
   if (totpDisabledOnRestore) {
     log.warn(
@@ -810,6 +1019,8 @@ export async function POST(request: Request) {
       clientUptimeBuckets: Array.isArray(payload.clientUptimeBuckets)
         ? payload.clientUptimeBuckets.length
         : 0,
+      appCoverageGaps: Array.isArray(payload.appCoverageGaps) ? payload.appCoverageGaps.length : 0,
+      trackerOutages: Array.isArray(payload.trackerOutages) ? payload.trackerOutages.length : 0,
       dismissedAlerts: Array.isArray(payload.dismissedAlerts) ? payload.dismissedAlerts.length : 0,
       notificationTargets: Array.isArray(payload.notificationTargets)
         ? payload.notificationTargets.length

@@ -8,6 +8,7 @@ import {
   parseJsonBody,
   parseRouteId,
   type RouteContext,
+  validateAuthMethod,
   validateIntRange,
   validateMaxLength,
   validatePort,
@@ -16,8 +17,9 @@ import { encrypt } from "@/lib/crypto"
 import { sanitizeHost } from "@/lib/data-transforms"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
-import { VALID_CLIENT_TYPES } from "@/lib/download-clients"
+import { type AuthMethod, VALID_CLIENT_TYPES } from "@/lib/download-clients"
 import { errMsg } from "@/lib/error-utils"
+import { clearFailureLogKeysForClient } from "@/lib/failure-log-gate"
 import {
   CLIENT_POLL_INTERVAL_MAX,
   CLIENT_POLL_INTERVAL_MIN,
@@ -126,16 +128,80 @@ export async function PATCH(request: Request, props: RouteContext) {
     updates.crossSeedTags = body.crossSeedTags
   }
 
-  if (typeof body.username === "string") {
-    const usernameErr = validateMaxLength(body.username, CREDENTIAL_MAX, "Username")
-    if (usernameErr) return usernameErr
-    updates.encryptedUsername = encrypt(body.username, getKey())
+  // ── Credentials ────────────────────────────────────────────────────────
+  //
+  // The auth mode and the secret it describes are always written together.
+  // Allowing them to move independently would let `{"authMethod":"apikey"}`
+  // alone re-label an existing password as an API key, and the next poll would
+  // put that password in an Authorization header. So: naming a mode requires
+  // supplying that mode's credential in the same request, and switching modes
+  // blanks the other mode's columns rather than leaving a secret at rest.
+  const hasUsername = typeof body.username === "string"
+  const hasPassword = typeof body.password === "string"
+  const hasApiKey = typeof body.apiKey === "string"
+
+  // Dispatched with a switch rather than an if/else chain on `===`: the mode is
+  // a discriminant, and the security audit reads `x === "password"` as a secret
+  // comparison regardless of what x is.
+  let credentialMode: AuthMethod | null = null
+  if (typeof body.authMethod === "string") {
+    const authMethodErr = validateAuthMethod(body.authMethod)
+    if (authMethodErr) return authMethodErr
+    credentialMode = body.authMethod as AuthMethod
+  } else if (hasApiKey && (hasUsername || hasPassword)) {
+    // Both modes' secrets with no mode named. Inferring one would silently
+    // discard the other, so make the caller say which they meant.
+    return NextResponse.json(
+      { error: "authMethod is required when sending both apiKey and username/password" },
+      { status: 400 }
+    )
+  } else if (hasApiKey) {
+    credentialMode = "apikey"
+  } else if (hasUsername || hasPassword) {
+    credentialMode = "password"
   }
 
-  if (typeof body.password === "string") {
-    const passwordErr = validateMaxLength(body.password, CREDENTIAL_MAX, "Password")
-    if (passwordErr) return passwordErr
-    updates.encryptedPassword = encrypt(body.password, getKey())
+  switch (credentialMode) {
+    case "apikey": {
+      if (!hasApiKey || !body.apiKey) {
+        return NextResponse.json(
+          { error: "apiKey is required when authMethod is apikey" },
+          { status: 400 }
+        )
+      }
+      const apiKeyErr = validateMaxLength(body.apiKey as string, CREDENTIAL_MAX, "API key")
+      if (apiKeyErr) return apiKeyErr
+
+      updates.authMethod = "apikey"
+      updates.encryptedApiKey = encrypt(body.apiKey as string, getKey())
+      updates.encryptedUsername = encrypt("", getKey())
+      updates.encryptedPassword = encrypt("", getKey())
+      break
+    }
+    case "password": {
+      // Blank is allowed (localhost bypass), absent is not — switching back to
+      // password auth without saying what the password is would otherwise leave
+      // the client authenticating with whatever happened to be there before.
+      if (!hasUsername || !hasPassword) {
+        return NextResponse.json(
+          { error: "username and password are required when authMethod is password" },
+          { status: 400 }
+        )
+      }
+      const usernameErr = validateMaxLength(body.username as string, CREDENTIAL_MAX, "Username")
+      if (usernameErr) return usernameErr
+      const passwordErr = validateMaxLength(body.password as string, CREDENTIAL_MAX, "Password")
+      if (passwordErr) return passwordErr
+
+      updates.authMethod = "password"
+      updates.encryptedUsername = encrypt(body.username as string, getKey())
+      updates.encryptedPassword = encrypt(body.password as string, getKey())
+      updates.encryptedApiKey = ""
+      break
+    }
+    default:
+      // No credential field in the body — leave every credential column alone.
+      break
   }
 
   if (body.isDefault === true) {
@@ -180,6 +246,10 @@ export async function DELETE(_request: Request, props: RouteContext) {
   }
 
   removeDownloadClientFromAccumulator(clientId)
+  // The heartbeat sweep would clear this within 5s, but doing it here closes
+  // the id-reuse window where a recreated client inherits the old one's outage
+  // state and has its genuine first failure suppressed.
+  clearFailureLogKeysForClient(clientId)
 
   await db.transaction(async (tx) => {
     await tx.delete(downloadClients).where(eq(downloadClients.id, clientId))

@@ -134,6 +134,32 @@ describe("sanitizeNetworkError", () => {
     expect(sanitizeNetworkError("ip ban detected")).toBe("IP temporarily banned by tracker")
   })
 
+  // The three qBittorrent auth outcomes below each need different user action,
+  // so they must stay distinct from each other and from the generic rules.
+  it("maps a blank-credential rejection to bypass guidance", () => {
+    expect(
+      sanitizeNetworkError("Authentication failed — qBittorrent rejected the blank credentials")
+    ).toBe(
+      'Blank credentials rejected — enable "Bypass authentication for clients on localhost" in qBittorrent'
+    )
+  })
+
+  it("maps a username/password rejection to a credentials message", () => {
+    expect(
+      sanitizeNetworkError(
+        "Authentication failed — qBittorrent rejected the username and password"
+      )
+    ).toBe("Credentials rejected by qBittorrent — check the username and password")
+  })
+
+  it("maps a qBittorrent IP ban to a self-clearing ban message, not the tracker one", () => {
+    expect(
+      sanitizeNetworkError(
+        "qBittorrent has temporarily banned this IP after too many failed login attempts"
+      )
+    ).toBe("Banned by qBittorrent after too many failed logins — it will clear on its own")
+  })
+
   it("maps 'rate-limit' to IP ban message", () => {
     expect(sanitizeNetworkError("rate-limit exceeded")).toBe("IP temporarily banned by tracker")
   })

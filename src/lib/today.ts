@@ -15,9 +15,9 @@ import {
   trackers,
 } from "@/lib/db/schema"
 import { parseCachedTorrents } from "@/lib/download-clients"
-import { parseTorrentTags } from "@/lib/fleet"
 import { localDateStr } from "@/lib/formatters"
 import { log } from "@/lib/logger"
+import { resolveTorrentTracker } from "@/lib/tracker-matching"
 import type { TodayAtAGlance } from "@/types/api"
 
 interface TrackerDelta {
@@ -76,6 +76,7 @@ export async function computeTodayAtAGlance(): Promise<TodayAtAGlance> {
         name: trackers.name,
         color: trackers.color,
         qbtTag: trackers.qbtTag,
+        baseUrl: trackers.baseUrl,
       })
       .from(trackers)
       .where(eq(trackers.isActive, true)),
@@ -248,17 +249,14 @@ export async function computeTodayAtAGlance(): Promise<TodayAtAGlance> {
   // Build checkpoint lookup
   const cpByKey = new Map(torrentCps.map((cp) => [`${cp.clientId}:${cp.hash}`, cp]))
 
-  // Build tracker tag → color lookup for matching torrent tags
-  const trackerTagToColor = new Map<string, string | null>()
-  for (const tracker of allTrackers) {
-    if (tracker.qbtTag) {
-      trackerTagToColor.set(tracker.qbtTag.toLowerCase(), tracker.color ?? null)
-    }
-  }
 
   const movers: TorrentMover[] = []
   let addedToday = 0
   let completedToday = 0
+  // Torrents we saw but couldn't attribute to any tracker by tag or announce
+  // URL. Reported so the UI can tell "no download client" apart from "client
+  // connected but nothing matched". Identical otherwise (issue #157).
+  let unmatchedTorrents = 0
 
   for (const client of clients) {
     const torrents = parseCachedTorrents(client.cachedTorrents)
@@ -287,23 +285,15 @@ export async function computeTodayAtAGlance(): Promise<TodayAtAGlance> {
         continue
       }
 
-      // Match first qbtTag found in the torrent's comma-separated tags field
-      let matchedTag: string | null = null
-      let matchedColor: string | null = null
-      if (torrent.tags) {
-        const torrentTags = parseTorrentTags(torrent.tags)
-        for (const tag of torrentTags) {
-          const tagLower = tag.toLowerCase()
-          if (trackerTagToColor.has(tagLower)) {
-            matchedTag = tag
-            matchedColor = trackerTagToColor.get(tagLower) ?? null
-            break
-          }
-        }
+      // Resolve by qBittorrent tag, falling back to the announce URL so users
+      // who don't tag per-tracker still see their torrents (issue #152).
+      const match = resolveTorrentTracker(torrent, allTrackers)
+      if (!match) {
+        unmatchedTorrents++
+        continue
       }
-
-      // Only include torrents that match a tracked tracker
-      if (!matchedTag) continue
+      const matchedTag = match.matchedTag
+      const matchedColor = match.tracker.color ?? null
 
       movers.push({
         hash: torrent.hash,
@@ -360,6 +350,8 @@ export async function computeTodayAtAGlance(): Promise<TodayAtAGlance> {
       completedToday,
     },
     movers: {
+      clientCount: clients.length,
+      unmatchedTorrents,
       topUploaders: topUploaders.map((t) => ({
         hash: t.hash,
         name: t.name,
@@ -442,7 +434,7 @@ export async function backfillTrackerCheckpoints(): Promise<number> {
           ratioEnd: row.ratioEnd != null ? Number(row.ratioEnd) : null,
           seedbonusEnd: row.seedbonusEnd != null ? Number(row.seedbonusEnd) : null,
           // snapshotCount is hard-coded to 1 because backfill selects only the
-          // last snapshot per day — the actual count is not available without a
+          // last snapshot per day. The actual count is not available without a
           // separate COUNT query per (trackerId, date) pair. Acceptable for backfill.
           snapshotCount: 1,
         }))

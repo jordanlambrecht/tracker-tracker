@@ -23,6 +23,7 @@ import {
   PLACEHOLDER_RE,
   SLUG_RE,
   VALID_CONTENT_CATEGORIES,
+  validateDefunct,
 } from "@/data/tracker-validation-rules"
 import { ALL_TRACKERS } from "@/data/trackers"
 import { DEFAULT_API_PATHS } from "@/lib/adapters"
@@ -143,6 +144,17 @@ describe("tracker registry", () => {
           ).toBe(expected)
         })
 
+        it("has a relative apiPath", () => {
+          if (tracker.platform === "custom") return
+          // An absolute apiPath would be persisted per row and silently ignore
+          // baseUrl at every `new URL(apiPath, baseUrl)` call site. A tracker
+          // whose API lives off-domain belongs in its adapter — see btn.ts.
+          expect(
+            tracker.apiPath.startsWith("/"),
+            `${tracker.name} has apiPath "${tracker.apiPath}" — must be relative and start with "/". An off-domain API host belongs in the adapter, not the registry.`
+          ).toBe(true)
+        })
+
         it("has a valid https URL", () => {
           expect(tracker.url).toMatch(/^https:\/\//)
           expect(() => new URL(tracker.url)).not.toThrow()
@@ -229,6 +241,16 @@ describe("tracker registry", () => {
           })
         }
 
+        // ── Defunct fields (fail) ────────────────────────────────────
+
+        // Same predicate the CI script runs, imported rather than re-stated so
+        // the two cannot disagree about what a valid shutdown record looks like.
+        it("has a coherent defunct record", () => {
+          const { errors, warnings } = validateDefunct(tracker)
+          expect(errors, `${tracker.slug}: ${errors.join("; ")}`).toEqual([])
+          for (const w of warnings) warn(tracker.slug, w)
+        })
+
         // ── Warn-level fields (collected, not asserted) ──────────────
 
         it("collects warnings for incomplete fields", () => {
@@ -263,6 +285,27 @@ describe("tracker registry", () => {
 
   it("has at least 2 trackers", () => {
     expect(TRACKER_REGISTRY.length).toBeGreaterThanOrEqual(2)
+  })
+
+  describe("gazelle auth styles", () => {
+    // Regression guard for issue #155. RED returned 401 for every user because
+    // it was configured with the prefixed `token <key>` form. Upstream Gazelle
+    // has a dedicated bare-token branch commented "this first case is for
+    // compatibility with RED", so the bare form is RED-specific.
+    it("uses the raw (unprefixed) Authorization form for Redacted", () => {
+      const red = getTrackerBySlug("redacted")
+      expect(red).toBeDefined()
+      expect(red?.platform).toBe("gazelle")
+      expect(red?.gazelleAuthStyle).toBe("raw")
+    })
+
+    it("only ever uses a valid gazelle auth style, and only on gazelle trackers", () => {
+      for (const tracker of ALL_TRACKERS) {
+        if (tracker.gazelleAuthStyle === undefined) continue
+        expect(tracker.platform).toBe("gazelle")
+        expect(["token", "raw"]).toContain(tracker.gazelleAuthStyle)
+      }
+    })
   })
 
   describe("getTrackerBySlug", () => {

@@ -105,7 +105,12 @@ import { getAdapter } from "@/lib/adapters"
 import { authenticate, parseTrackerId } from "@/lib/api-helpers"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { POLL_FAILURE_THRESHOLD, pollAllTrackers, pollTracker } from "@/lib/tracker-scheduler"
+import {
+  fetchTrackerStats,
+  POLL_FAILURE_THRESHOLD,
+  pollAllTrackers,
+  pollTracker,
+} from "@/lib/tracker-scheduler"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -363,6 +368,49 @@ describe("pollTracker: failure path — consecutiveFailures increment", () => {
     expect(arg.consecutiveFailures).toBeInstanceOf(SQL)
     // pausedAt must also be a Drizzle SQL expression (CASE … END), not a raw value
     expect(arg.pausedAt).toBeInstanceOf(SQL)
+  })
+
+  // An empty API token decrypts cleanly (crypto.ts accepts a zero-length
+  // plaintext), so it reaches the poll instead of failing at decrypt. It must
+  // still be reported as a missing key rather than spending a doomed request
+  // and surfacing the tracker's 401 as a generic auth failure.
+  it("fails locally with a missing-key error when the API token decrypts to empty", async () => {
+    ;(decrypt as ReturnType<typeof vi.fn>).mockReturnValue("")
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockSelectOnce([makeTrackerRow({ consecutiveFailures: 0 })])
+    )
+    // A perfectly working adapter is available on purpose: the point is that an
+    // empty token must never reach it, so this must fail without it being used.
+    const adapter = mockSuccessAdapter()
+    const updateChain = mockUpdateChain([{ consecutiveFailures: 1, pausedAt: null }])
+
+    await pollTracker(1, MOCK_KEY, false)
+
+    // Must be a recorded failure — the success path writes lastError: null, so
+    // match on a string specifically rather than merely "defined".
+    const failureSetCall = updateChain.set.mock.calls.find(
+      (call: unknown[]) => typeof (call[0] as Record<string, unknown>).lastError === "string"
+    )
+    expect(failureSetCall).toBeDefined()
+    const arg = (failureSetCall as unknown[])[0] as Record<string, unknown>
+    expect(arg.lastError).toMatch(/API key is missing or invalid/)
+
+    // No adapter was resolved and no request went out, despite one being ready.
+    expect(getAdapter).not.toHaveBeenCalled()
+    expect(adapter.fetchStats).not.toHaveBeenCalled()
+  })
+
+  // fetchTrackerStats carries the same guard as pollTracker but reports by
+  // throwing to its caller rather than recording to the row.
+  it("fetchTrackerStats rejects an empty API token without contacting the tracker", async () => {
+    ;(decrypt as ReturnType<typeof vi.fn>).mockReturnValue("")
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockSelectOnce([makeTrackerRow({ consecutiveFailures: 0 })])
+    )
+    const adapter = mockSuccessAdapter()
+
+    await expect(fetchTrackerStats(1, MOCK_KEY)).rejects.toThrow(/API key is missing or invalid/)
+    expect(adapter.fetchStats).not.toHaveBeenCalled()
   })
 
   it("does NOT set pausedAt when failures are below threshold", async () => {

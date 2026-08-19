@@ -98,6 +98,10 @@ function Table<T>({
     return [...data].sort((a, b) => {
       const aVal = sortFn(a)
       const bVal = sortFn(b)
+      // Equal values (e.g. two Infinity ratios) keep their relative order.
+      // Subtracting them would otherwise produce NaN, which is not a valid
+      // comparator result.
+      if (aVal === bVal) return 0
       const cmp =
         typeof aVal === "string" && typeof bVal === "string"
           ? aVal.localeCompare(bVal)

@@ -124,3 +124,69 @@ describe("adapterFetch - token sanitization", () => {
     })
   })
 })
+
+describe("adapterFetch - POST support", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    vi.resetModules()
+  })
+
+  it("sends method and body on the direct path", async () => {
+    let capturedInit: RequestInit | undefined
+    vi.spyOn(global, "fetch").mockImplementationOnce((_url, init) => {
+      capturedInit = init
+      return Promise.resolve({ ok: true, json: async () => ({ ok: 1 }) } as Response)
+    })
+
+    await adapterFetch("https://api.example.test/rpc", "api.example.test", undefined, undefined, {
+      method: "POST",
+      body: '{"jsonrpc":"2.0"}',
+    })
+
+    expect(capturedInit?.method).toBe("POST")
+    expect(capturedInit?.body).toBe('{"jsonrpc":"2.0"}')
+  })
+
+  it("defaults to GET with no body when no init is given", async () => {
+    let capturedInit: RequestInit | undefined
+    vi.spyOn(global, "fetch").mockImplementationOnce((_url, init) => {
+      capturedInit = init
+      return Promise.resolve({ ok: true, json: async () => ({ ok: 1 }) } as Response)
+    })
+
+    await adapterFetch("https://api.example.test/u", "api.example.test")
+
+    expect(capturedInit?.method).toBe("GET")
+    expect(capturedInit?.body).toBeUndefined()
+  })
+
+  it("forwards method and body through the proxy path", async () => {
+    const proxyFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      json: async () => ({ ok: 1 }),
+      buffer: async () => Buffer.from(""),
+    })
+    vi.doMock("@/lib/tunnel", () => ({ proxyFetch }))
+    vi.resetModules()
+    const { adapterFetch: freshAdapterFetch } = await import("./adapter-fetch")
+
+    const fetchSpy = vi.spyOn(global, "fetch")
+
+    await freshAdapterFetch(
+      "https://api.example.test/rpc",
+      "api.example.test",
+      { proxyAgent: {} as never },
+      undefined,
+      { method: "POST", body: '{"a":1}' }
+    )
+
+    expect(proxyFetch).toHaveBeenCalledTimes(1)
+    expect(proxyFetch.mock.calls[0][2]).toMatchObject({ method: "POST", body: '{"a":1}' })
+    // Crucially: it must NOT fall through to a direct fetch, which would
+    // bypass the user's tunnel.
+    expect(fetchSpy).not.toHaveBeenCalled()
+    vi.doUnmock("@/lib/tunnel")
+  })
+})

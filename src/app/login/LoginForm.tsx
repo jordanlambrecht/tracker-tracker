@@ -4,6 +4,7 @@
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { type SubmitEvent, useState } from "react"
+import { USERNAME_PROMPT_SKIP_KEY } from "@/components/auth/UsernamePromptDialog"
 import { Button, Card, Input } from "@/components/ui"
 
 type LoginStep = "password" | "totp"
@@ -24,6 +25,16 @@ export function LoginForm({ hasUsername }: { hasUsername: boolean }) {
     e.preventDefault()
     setError(null)
     setIsSubmitting(true)
+
+    // A sign-in starts a new session, and "Skip for now" only ever meant "for
+    // this session". So clear the suppressor here. Cleared on the attempt
+    // rather than on success: a failed attempt leaves no session, so nothing can
+    // read the flag until a later attempt succeeds anyway.
+    try {
+      sessionStorage.removeItem(USERNAME_PROMPT_SKIP_KEY)
+    } catch {
+      // Storage unavailable. The prompt was never suppressed to begin with.
+    }
 
     try {
       const payload: Record<string, string> = { password }
@@ -137,7 +148,7 @@ export function LoginForm({ hasUsername }: { hasUsername: boolean }) {
               )}
 
               <Input
-                label="Master Password"
+                label="Password"
                 type="password"
                 autoComplete="current-password"
                 placeholder="Enter your password"

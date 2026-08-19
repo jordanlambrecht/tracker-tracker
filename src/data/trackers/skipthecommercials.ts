@@ -39,7 +39,7 @@ export const skipthecommercials: TrackerRegistryEntry = {
     { name: "Banned", requirements: "System — banned" },
     { name: "Disabled", requirements: "System — disabled" },
     { name: "Validating", requirements: "System — awaiting validation" },
-    // Dynamic — upload-based
+    // Dynamic. upload-based
     { name: "Leech", requirements: "Ratio below 0.4 — download privileges revoked" },
     {
       name: "User",
@@ -63,7 +63,7 @@ export const skipthecommercials: TrackerRegistryEntry = {
       requirements:
         "Upload ≥ 100 TiB, ratio ≥ 0.40, age ≥ 365 days. Freeleech, H&R immune, torrent moderation bypass",
     },
-    // Dynamic — seed-based
+    // Dynamic. seed-based
     {
       name: "Seeder",
       requirements: "Seed size ≥ 5 TiB, age ≥ 30 days, avg seedtime ≥ 30 days. Refundable",

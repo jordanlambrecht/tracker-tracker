@@ -6,17 +6,31 @@
 //   mockDbSelectSequence        - Chains db.select returns for client + tracker-tags lookups
 //   mockDbInsertSnapshot        - Sets up db.insert chain for clientSnapshots
 //   mockDbUpdateClient          - Sets up db.update chain for downloadClients
+//   setupCacheParityMocks       - Happy-path mocks that also capture insert and update payloads
 
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import cron from "node-cron"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { db } from "@/lib/db"
-import { deepPollClient } from "@/lib/download-client-scheduler"
+import {
+  deepPollClient,
+  ensureClientSchedulerRunning,
+  startClientScheduler,
+  stopClientScheduler,
+} from "@/lib/download-client-scheduler"
 import {
   aggregateByTag,
   applyMaindataUpdate,
+  clearAllSessions,
+  clearSpeedCache,
   createAdapterForClient,
   getFilteredTorrents,
   getStoreRevision,
+  isStoreInitialized,
 } from "@/lib/download-clients"
+import { clearFailureLogGate } from "@/lib/failure-log-gate"
+import { log } from "@/lib/logger"
+import { createTrackedTorrentPredicate } from "@/lib/tracker-matching"
+import { clearUptimeAccumulator, flushCompletedBuckets, recordHeartbeat } from "@/lib/uptime"
 
 // ---------------------------------------------------------------------------
 // Module mocks (boundaries only)
@@ -71,6 +85,25 @@ vi.mock("@/lib/download-clients", () => ({
 vi.mock("node-cron", () => ({
   default: {
     schedule: vi.fn().mockReturnValue({ stop: vi.fn() }),
+  },
+}))
+
+// Mocked so the failure-logging tests can count uptime records and log lines
+// separately — the whole claim of the log gate is that suppressing one leaves
+// the other untouched.
+vi.mock("@/lib/uptime", () => ({
+  recordHeartbeat: vi.fn(),
+  flushCompletedBuckets: vi.fn(async () => 0),
+  clearUptimeAccumulator: vi.fn(),
+  removeDownloadClientFromAccumulator: vi.fn(),
+}))
+
+vi.mock("@/lib/logger", () => ({
+  log: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
   },
 }))
 
@@ -180,6 +213,14 @@ describe("deepPollClient per-tag optimization", () => {
     mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 2048, downloadSpeed: 512 })
     mockAdapter.getTorrents.mockResolvedValue([])
+    // Default: the sync store came back initialised. resetAllMocks would
+    // otherwise leave this returning undefined, i.e. permanently "reset",
+    // which is the failure the mid-poll-reset tests below exercise on purpose.
+    vi.mocked(isStoreInitialized).mockReturnValue(true)
+    // Gate state lives on globalThis, so it outlives resetAllMocks and leaks
+    // between tests: without this, the failure tests below reuse client id 1
+    // and the second one would exercise the cause-changed branch, not first.
+    clearFailureLogGate()
   })
 
   // -------------------------------------------------------------------------
@@ -597,6 +638,11 @@ describe("deepPollClient dedup without isPrivate", () => {
     mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 2048, downloadSpeed: 512 })
     mockAdapter.getTorrents.mockResolvedValue([])
+    // Default: the sync store came back initialised. resetAllMocks would
+    // otherwise leave this returning undefined, i.e. permanently "reset",
+    // which is the failure the mid-poll-reset tests below exercise on purpose.
+    vi.mocked(isStoreInitialized).mockReturnValue(true)
+    clearFailureLogGate()
   })
 
   // Regression: the old per-tag fetch path had a dedup guard `if (!t.isPrivate || seen.has(t.hash)) continue`
@@ -693,6 +739,204 @@ describe("deepPollClient dedup without isPrivate", () => {
 })
 
 // ---------------------------------------------------------------------------
+// The predicate both the cache write and the warm read now share
+// ---------------------------------------------------------------------------
+
+describe("createTrackedTorrentPredicate", () => {
+  const TAGS = new Set(["aither"])
+  const HOSTS = new Set(["example.org"])
+
+  it("keeps a torrent carrying a tracked tag regardless of its announce host", () => {
+    const isTracked = createTrackedTorrentPredicate(TAGS, HOSTS)
+
+    // Tag comparison is case-insensitive: parseTorrentTags lowercases, and the
+    // caller lowercases the set.
+    expect(isTracked({ tags: "Aither, cross-seed", tracker: "https://unknown.test/announce" })).toBe(
+      true
+    )
+  })
+
+  it("keeps an untagged torrent whose announce host belongs to a known tracker", () => {
+    const isTracked = createTrackedTorrentPredicate(TAGS, HOSTS)
+
+    // Announce hosts routinely carry a subdomain and a port the tracker's web
+    // URL does not — both sides reduce to example.org before comparison.
+    expect(isTracked({ tags: "", tracker: "https://tracker.example.org:2710/announce" })).toBe(true)
+  })
+
+  it("drops a torrent that matches neither a tag nor a known announce host", () => {
+    const isTracked = createTrackedTorrentPredicate(TAGS, HOSTS)
+
+    expect(isTracked({ tags: "untracked-tag", tracker: "https://elsewhere.test/announce" })).toBe(
+      false
+    )
+  })
+
+  it("degenerates to the tag-only filter when no announce hosts are known", () => {
+    const isTracked = createTrackedTorrentPredicate(TAGS, new Set())
+
+    // This is what makes deepPollClient's default-empty parameter safe.
+    expect(isTracked({ tags: "aither", tracker: "https://tracker.example.org/announce" })).toBe(true)
+    expect(isTracked({ tags: "", tracker: "https://tracker.example.org/announce" })).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Regression: the cached list must select the same torrents as the warm read,
+// while the stats list must not.
+//
+// coordinator.ts keeps a torrent that carries a tracked tag OR announces to a
+// known tracker host; the scheduler kept only the tagged ones and wrote that
+// narrower list to cachedTorrents, so a cold start under-reported the fleet.
+//
+// The stats list deliberately stays tag-only. aggregator.ts derives
+// totalSeedingCount and totalLeechingCount from every torrent it is handed, so
+// widening it would step both counts up on the first poll after upgrade and
+// leave a permanent break in the historical chart series.
+// ---------------------------------------------------------------------------
+
+describe("deepPollClient cold-start cache parity", () => {
+  const TAGGED_TORRENT = {
+    hash: "tagged",
+    name: "Tagged.mkv",
+    state: "uploading",
+    tags: "aither",
+    uploaded: 100,
+    downloaded: 50,
+    uploadSpeed: 100,
+    downloadSpeed: 0,
+    tracker: "https://aither.cc/announce",
+  }
+
+  // No recognised tag, but its announce host reduces to a tracker we know.
+  // uploaded/downloaded/name are populated on purpose: without them the torrent
+  // could never be checkpointed anyway and the checkpoint assertion below would
+  // pass whether or not the tag-only list stayed narrow.
+  const HOST_MATCHED_TORRENT = {
+    hash: "host-matched",
+    name: "Untagged.mkv",
+    state: "uploading",
+    tags: "",
+    uploaded: 200,
+    downloaded: 75,
+    uploadSpeed: 50,
+    downloadSpeed: 0,
+    tracker: "https://tracker.example.org:2710/announce",
+  }
+
+  const KNOWN_HOSTS = new Set(["example.org"])
+
+  /**
+   * Happy-path wiring that records what reached the DB. aggregateByTag stands
+   * in for the real aggregator by deriving its totals from the list it is given
+   * — a fixed return value would make the snapshot assertions vacuous.
+   * Both the snapshot and the checkpoint write go through the same db.insert
+   * mock, so they are told apart by payload shape: checkpoints are arrays.
+   */
+  function setupCacheParityMocks() {
+    mockDbSelectSequence(MOCK_CLIENT)
+    ;(getStoreRevision as ReturnType<typeof vi.fn>).mockReturnValue(0)
+    mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
+    ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
+    ;(getFilteredTorrents as ReturnType<typeof vi.fn>).mockImplementation(
+      (_url: string, pred: (t: unknown) => boolean) =>
+        [TAGGED_TORRENT, HOST_MATCHED_TORRENT].filter(pred)
+    )
+    ;(aggregateByTag as ReturnType<typeof vi.fn>).mockImplementation(
+      (torrents: { hash: string; uploadSpeed: number }[]) => ({
+        totalSeedingCount: torrents.length,
+        totalLeechingCount: 0,
+        uploadSpeedBytes: 0,
+        downloadSpeedBytes: 0,
+        tagStats: torrents.map((t) => ({
+          tag: t.hash,
+          seedingCount: 1,
+          leechingCount: 0,
+          uploadSpeed: t.uploadSpeed,
+          downloadSpeed: 0,
+        })),
+      })
+    )
+
+    const insertPayloads: unknown[] = []
+    ;(db.insert as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      values: vi.fn((payload: unknown) => {
+        insertPayloads.push(payload)
+        // The checkpoint write chains .onConflictDoNothing(); the snapshot
+        // write awaits the result of .values() directly.
+        return Object.assign(Promise.resolve(undefined), {
+          onConflictDoNothing: vi.fn().mockResolvedValue(undefined),
+        })
+      }),
+    }))
+
+    const updatePayloads: Record<string, unknown>[] = []
+    const mockWhere = vi.fn().mockResolvedValue(undefined)
+    const mockSet = vi.fn().mockImplementation((values: Record<string, unknown>) => {
+      updatePayloads.push(values)
+      return { where: mockWhere }
+    })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
+
+    return { insertPayloads, updatePayloads }
+  }
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
+    mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
+    mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 2048, downloadSpeed: 512 })
+    mockAdapter.getTorrents.mockResolvedValue([])
+    vi.mocked(isStoreInitialized).mockReturnValue(true)
+    clearFailureLogGate()
+  })
+
+  it("caches an announce-matched torrent that carries no tracked tag", async () => {
+    const { updatePayloads } = setupCacheParityMocks()
+
+    await deepPollClient(1, makeEncryptionKey(), ["aither"], KNOWN_HOSTS)
+
+    const cacheUpdate = updatePayloads.find((c) => "cachedTorrents" in c)
+    expect(cacheUpdate).toBeDefined()
+    // Matched by hash: slimTorrentForCache strips the announce URL before the
+    // list is written, so the field that earned it a place is gone by then.
+    const cached = cacheUpdate?.cachedTorrents as { hash: string }[]
+    expect(cached.map((t) => t.hash)).toEqual(["tagged", "host-matched"])
+  })
+
+  it("keeps the announce-matched torrent out of tag stats, fleet totals, and checkpoints", async () => {
+    const { insertPayloads } = setupCacheParityMocks()
+
+    await deepPollClient(1, makeEncryptionKey(), ["aither"], KNOWN_HOSTS)
+
+    const aggregated = vi.mocked(aggregateByTag).mock.calls[0][0] as { hash: string }[]
+    expect(aggregated.map((t) => t.hash)).toEqual(["tagged"])
+
+    const snapshot = insertPayloads.find((p) => !Array.isArray(p)) as Record<string, unknown>
+    expect(snapshot.totalSeedingCount).toBe(1)
+    expect(snapshot.totalLeechingCount).toBe(0)
+    expect(JSON.parse(snapshot.tagStats as string).map((s: { tag: string }) => s.tag)).toEqual([
+      "tagged",
+    ])
+
+    const checkpoints = insertPayloads.filter(Array.isArray).flat() as { hash: string }[]
+    expect(checkpoints.map((c) => c.hash)).toEqual(["tagged"])
+  })
+
+  it("caches only the tagged torrent when no announce hosts are supplied", async () => {
+    const { updatePayloads } = setupCacheParityMocks()
+
+    // Every other caller in this file omits the argument; that path must keep
+    // behaving exactly as it did before the predicate was shared.
+    await deepPollClient(1, makeEncryptionKey(), ["aither"])
+
+    const cacheUpdate = updatePayloads.find((c) => "cachedTorrents" in c)
+    const cached = cacheUpdate?.cachedTorrents as { hash: string }[]
+    expect(cached.map((t) => t.hash)).toEqual(["tagged"])
+  })
+})
+
+// ---------------------------------------------------------------------------
 // Regression: heartbeat must not overwrite lastPolledAt
 // ---------------------------------------------------------------------------
 
@@ -703,6 +947,11 @@ describe("deepPollClient lastPolledAt written; heartbeat update does not include
     mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 2048, downloadSpeed: 512 })
     mockAdapter.getTorrents.mockResolvedValue([])
+    // Default: the sync store came back initialised. resetAllMocks would
+    // otherwise leave this returning undefined, i.e. permanently "reset",
+    // which is the failure the mid-poll-reset tests below exercise on purpose.
+    vi.mocked(isStoreInitialized).mockReturnValue(true)
+    clearFailureLogGate()
   })
 
   // Regression: prevents heartbeat from starving the deep poll scheduler.
@@ -744,5 +993,534 @@ describe("deepPollClient lastPolledAt written; heartbeat update does not include
 
     // 60s ago > 30s interval → overdue
     expect(isOverdue).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Failure-log gating: the log is throttled, the uptime record is not
+// ---------------------------------------------------------------------------
+
+describe("heartbeat failure logging", () => {
+  const HEARTBEAT_CRON = "*/5 * * * * *"
+  const CONNECT_FAILURE = "Failed to connect to 192.168.1.42: UND_ERR_SOCKET"
+
+  const HEARTBEAT_ROW = {
+    id: 1,
+    enabled: true,
+    name: "Qbittorrent - PC",
+    type: "qbittorrent",
+    host: "192.168.1.42",
+    port: 8080,
+    useSsl: false,
+    authMethod: "password",
+    encryptedUsername: "enc-admin",
+    encryptedPassword: "enc-secret",
+    encryptedApiKey: "",
+    crossSeedTags: null,
+    lastError: null,
+  }
+
+  let scheduled: Map<string, () => Promise<void>>
+
+  /** Lets the floating promise started by startClientScheduler settle. */
+  function flushAsync(): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, 0))
+  }
+
+  /**
+   * db.select answers the heartbeat projection with one enabled client and the
+   * deep-poll projection with none, so the deep-poll loop returns at its
+   * overdue check and only heartbeat activity reaches the assertions.
+   */
+  function mockHeartbeatOnlySelect() {
+    ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(
+      (columns: Record<string, unknown>) => {
+        const cols = columns ?? {}
+        const isHeartbeat = "encryptedUsername" in cols && !("pollIntervalSeconds" in cols)
+        const where = vi.fn().mockResolvedValue(isHeartbeat ? [HEARTBEAT_ROW] : [])
+        return { from: vi.fn().mockReturnValue({ where }) }
+      }
+    )
+  }
+
+  /** Runs one heartbeat cron cycle to completion. */
+  async function heartbeatTick(): Promise<void> {
+    const tick = scheduled.get(HEARTBEAT_CRON)
+    expect(tick).toBeDefined()
+    await tick?.()
+  }
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
+    vi.mocked(flushCompletedBuckets).mockResolvedValue(0)
+
+    scheduled = new Map()
+    vi.mocked(cron.schedule).mockImplementation(((
+      expression: string,
+      task: () => Promise<void>
+    ) => {
+      scheduled.set(expression, task)
+      return { stop: vi.fn() }
+    }) as unknown as typeof cron.schedule)
+
+    // Releases the cron-task globals so startClientScheduler runs again, and
+    // clears the gate (both here and via the call inside stopClientScheduler).
+    stopClientScheduler()
+    clearFailureLogGate()
+
+    mockHeartbeatOnlySelect()
+    mockDbUpdateClient()
+  })
+
+  // This is the central claim of the log gate: it wraps the log call only. It
+  // never gates the poll, so no heartbeat is skipped and no 5-minute uptime
+  // bucket develops a hole while a client is down.
+  it("records every failed attempt for uptime while logging the outage once", async () => {
+    const CYCLES = 12
+    mockAdapter.getTransferInfo.mockRejectedValue(new Error(CONNECT_FAILURE))
+
+    startClientScheduler(makeEncryptionKey())
+    await flushAsync()
+    for (let i = 1; i < CYCLES; i++) {
+      await heartbeatTick()
+    }
+
+    // Uptime accounting sees all 12 attempts...
+    expect(vi.mocked(recordHeartbeat)).toHaveBeenCalledTimes(CYCLES)
+    for (const call of vi.mocked(recordHeartbeat).mock.calls) {
+      expect(call).toEqual([1, false])
+    }
+
+    // ...while the log sees the outage exactly once, at error level.
+    expect(vi.mocked(log.error)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(log.error).mock.calls[0][1]).toContain(
+      "Heartbeat failed for client 1 (Qbittorrent - PC)"
+    )
+    // No reminder is due this soon, and repeats are dropped rather than
+    // downgraded — a debug line would still reach the events tab.
+    expect(vi.mocked(log.warn)).not.toHaveBeenCalled()
+    expect(vi.mocked(log.debug)).not.toHaveBeenCalled()
+  })
+
+  it("logs the first failure with the raw cause attached", async () => {
+    mockAdapter.getTransferInfo.mockRejectedValue(new Error(CONNECT_FAILURE))
+
+    startClientScheduler(makeEncryptionKey())
+    await flushAsync()
+
+    expect(vi.mocked(log.error).mock.calls[0][0]).toMatchObject({
+      clientId: 1,
+      clientName: "Qbittorrent - PC",
+      cause: CONNECT_FAILURE,
+    })
+    // The sanitized message is what the UI gets, and it is lossy
+    expect(vi.mocked(log.error).mock.calls[0][1]).toContain("Connection failed")
+  })
+
+  it("logs recovery once and re-arms the gate for the next outage", async () => {
+    mockAdapter.getTransferInfo.mockRejectedValue(new Error(CONNECT_FAILURE))
+
+    startClientScheduler(makeEncryptionKey())
+    await flushAsync()
+    await heartbeatTick()
+    expect(vi.mocked(log.error)).toHaveBeenCalledTimes(1)
+
+    mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 0, downloadSpeed: 0 })
+    await heartbeatTick()
+
+    const infoMessages = vi.mocked(log.info).mock.calls.map((call) => call[1])
+    expect(infoMessages).toContain("client outage cleared by successful heartbeat")
+
+    // Throttle state is gone, so the next outage is a first failure again
+    mockAdapter.getTransferInfo.mockRejectedValue(new Error(CONNECT_FAILURE))
+    await heartbeatTick()
+    expect(vi.mocked(log.error)).toHaveBeenCalledTimes(2)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Regression: snapshot retention. NULL means "keep forever".
+//
+// The client prune coerced a NULL snapshot_retention_days to the 90-day
+// default and ran an hourly rolling DELETE the user never configured, while
+// tracker-scheduler.ts gated the identical delete on a truthy value and so
+// kept everything. That one difference is why client_snapshots held nine
+// client-days while tracker_snapshots held 87 days over the same window.
+// ---------------------------------------------------------------------------
+
+describe("client snapshot pruning honours a NULL retention", () => {
+  const DEEP_POLL_CRON = "*/30 * * * * *"
+
+  let scheduled: Map<string, () => Promise<void>>
+  let deleteWhere: ReturnType<typeof vi.fn>
+
+  /** db.select answers the settings lookup; every other projection is empty. */
+  function mockSelectWithRetention(retention: number | null) {
+    ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(
+      (columns: Record<string, unknown>) => {
+        const cols = columns ?? {}
+        // The settings read is .from().limit() with no .where(), so it needs a
+        // different chain shape from the where-terminated loop queries.
+        if ("retention" in cols) {
+          return {
+            from: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([{ retention }]),
+            }),
+          }
+        }
+        return { from: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([]) }) }
+      }
+    )
+  }
+
+  /** Runs one deep-poll cron cycle, which is the only path that prunes. */
+  async function deepPollTick(): Promise<void> {
+    const tick = scheduled.get(DEEP_POLL_CRON)
+    expect(tick).toBeDefined()
+    await tick?.()
+  }
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-08-17T12:00:00Z"))
+    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
+    vi.mocked(flushCompletedBuckets).mockResolvedValue(0)
+
+    scheduled = new Map()
+    vi.mocked(cron.schedule).mockImplementation(((
+      expression: string,
+      task: () => Promise<void>
+    ) => {
+      scheduled.set(expression, task)
+      return { stop: vi.fn() }
+    }) as unknown as typeof cron.schedule)
+
+    stopClientScheduler()
+    clearFailureLogGate()
+
+    // The prune throttle and the in-flight latches live on globalThis, so they
+    // survive resetAllMocks and would otherwise skip the prune on later tests.
+    const gt = globalThis as Record<string, unknown>
+    gt.__lastPruneAt = undefined
+    gt.__deepPollInFlight = undefined
+    gt.__heartbeatInFlight = undefined
+
+    deleteWhere = vi.fn().mockResolvedValue(undefined)
+    ;(db.delete as ReturnType<typeof vi.fn>).mockReturnValue({ where: deleteWhere })
+    mockDbUpdateClient()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("issues no DELETE when snapshot retention is NULL", async () => {
+    mockSelectWithRetention(null)
+
+    startClientScheduler(makeEncryptionKey())
+    await vi.advanceTimersByTimeAsync(0)
+    await deepPollTick()
+
+    // NULL is "keep forever" — the value tracker-scheduler.ts treats as a
+    // no-op. Any delete here destroys history the user chose to retain.
+    expect(db.delete as ReturnType<typeof vi.fn>).not.toHaveBeenCalled()
+    expect(deleteWhere).not.toHaveBeenCalled()
+  })
+
+  it("still prunes when a retention window is configured", async () => {
+    mockSelectWithRetention(30)
+
+    startClientScheduler(makeEncryptionKey())
+    await vi.advanceTimersByTimeAsync(0)
+    await deepPollTick()
+
+    // Two deletes: clientSnapshots and clientUptimeBuckets.
+    expect(db.delete as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(2)
+    expect(deleteWhere).toHaveBeenCalledTimes(2)
+  })
+
+  it("advances the hourly prune throttle even when nothing is pruned", async () => {
+    mockSelectWithRetention(null)
+
+    startClientScheduler(makeEncryptionKey())
+    await vi.advanceTimersByTimeAsync(0)
+    await deepPollTick()
+    await deepPollTick()
+
+    // The settings row is read once per hour, not once per 30s tick, whether
+    // or not the gate below it fires.
+    const settingsReads = (db.select as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (call: unknown[]) => "retention" in ((call[0] ?? {}) as Record<string, unknown>)
+    )
+    expect(settingsReads).toHaveLength(1)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Regression: a poll that did not fully succeed must leave no trace of success
+// ---------------------------------------------------------------------------
+
+describe("deepPollClient durability", () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-08-17T12:00:00Z"))
+    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
+    mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
+    mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 2048, downloadSpeed: 512 })
+    mockAdapter.getTorrents.mockResolvedValue([])
+    vi.mocked(isStoreInitialized).mockReturnValue(true)
+    clearFailureLogGate()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  // The update and the insert used to race inside one Promise.all. When the
+  // insert lost, the update still committed, so lastPolledAt advanced and
+  // lastError cleared with no snapshot behind them: the client read as
+  // "just polled, healthy" and was not overdue again for a full interval.
+  it("does not advance lastPolledAt when the snapshot insert fails", async () => {
+    setupFullHappyPathMocks()
+    ;(db.insert as ReturnType<typeof vi.fn>).mockReturnValue({
+      values: vi.fn().mockRejectedValue(new Error("insert exploded")),
+    })
+    const { mockSet } = mockDbUpdateClient()
+
+    await expect(deepPollClient(1, makeEncryptionKey(), ["aither"])).resolves.toBeUndefined()
+
+    const setCalls = mockSet.mock.calls.map((c: unknown[]) => c[0] as Record<string, unknown>)
+    expect(setCalls.some((s) => "lastPolledAt" in s)).toBe(false)
+    expect(setCalls.some((s) => typeof s.lastError === "string")).toBe(true)
+  })
+
+  // A concurrent heartbeat that hits a 403 calls invalidateSession, which also
+  // calls resetStore. Landing between getStoreRevision and applyMaindataUpdate,
+  // it merges the delta into a cleared, uninitialised store — every read then
+  // returns [] and the poll "succeeds" while recording zero seeding torrents.
+  it("re-syncs from rid 0 when a delta lands on a store that was reset mid-poll", async () => {
+    mockDbSelectSequence(MOCK_CLIENT)
+    ;(getStoreRevision as ReturnType<typeof vi.fn>).mockReturnValue(5)
+    mockAdapter.getDeltaSync
+      .mockResolvedValueOnce({ rid: 6, fullUpdate: false, torrents: {}, torrentsRemoved: [] })
+      .mockResolvedValueOnce({ rid: 7, fullUpdate: true, torrents: {}, torrentsRemoved: [] })
+    vi.mocked(isStoreInitialized).mockReturnValueOnce(false).mockReturnValue(true)
+    ;(getFilteredTorrents as ReturnType<typeof vi.fn>).mockReturnValue([])
+    ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
+    const mockValues = mockDbInsertSnapshot()
+    mockDbUpdateClient()
+
+    await deepPollClient(1, makeEncryptionKey(), ["aither"])
+
+    expect(mockAdapter.getDeltaSync).toHaveBeenCalledTimes(2)
+    expect(mockAdapter.getDeltaSync).toHaveBeenNthCalledWith(2, 0)
+    // The snapshot is written from the re-synced store, not the empty one.
+    expect(mockValues).toHaveBeenCalledOnce()
+  })
+
+  it("writes no snapshot when the store cannot be re-initialised", async () => {
+    mockDbSelectSequence(MOCK_CLIENT)
+    ;(getStoreRevision as ReturnType<typeof vi.fn>).mockReturnValue(5)
+    mockAdapter.getDeltaSync.mockResolvedValue({
+      rid: 6,
+      fullUpdate: false,
+      torrents: {},
+      torrentsRemoved: [],
+    })
+    vi.mocked(isStoreInitialized).mockReturnValue(false)
+    ;(getFilteredTorrents as ReturnType<typeof vi.fn>).mockReturnValue([])
+    ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
+    const mockValues = mockDbInsertSnapshot()
+    const { mockSet } = mockDbUpdateClient()
+
+    await expect(deepPollClient(1, makeEncryptionKey(), ["aither"])).resolves.toBeUndefined()
+
+    // A row of zeros is worse than no row: it is a false observation the
+    // charts cannot distinguish from a genuinely idle client.
+    expect(mockValues).not.toHaveBeenCalled()
+    const setCalls = mockSet.mock.calls.map((c: unknown[]) => c[0] as Record<string, unknown>)
+    expect(setCalls.some((s) => typeof s.lastError === "string")).toBe(true)
+    expect(setCalls.some((s) => "lastPolledAt" in s)).toBe(false)
+  })
+
+  it("logs a gated warning instead of skipping silently when credentials are missing", async () => {
+    mockDbSelectSequence({
+      ...MOCK_CLIENT,
+      encryptedUsername: "",
+      encryptedPassword: "",
+    })
+
+    await deepPollClient(1, makeEncryptionKey(), ["aither"])
+
+    expect(createAdapterForClient).not.toHaveBeenCalled()
+    expect(vi.mocked(log.warn)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(log.warn).mock.calls[0][1]).toContain("credential")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Regression: the scheduler must recover from a half-started state
+// ---------------------------------------------------------------------------
+
+describe("client scheduler self-healing", () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.useFakeTimers()
+    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
+    vi.mocked(flushCompletedBuckets).mockResolvedValue(0)
+    stopClientScheduler()
+    clearFailureLogGate()
+    const gt = globalThis as Record<string, unknown>
+    gt.__lastPruneAt = undefined
+    gt.__deepPollInFlight = undefined
+    gt.__heartbeatInFlight = undefined
+    ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue([]),
+        limit: vi.fn().mockResolvedValue([]),
+      }),
+    }))
+    mockDbUpdateClient()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  // startClientScheduler registers the heartbeat task before the deep-poll
+  // task. A throw in between leaves the heartbeat alive and the deep poll
+  // dead, and both idempotency guards only looked at the heartbeat task — so
+  // every later ensure call returned early and the deep poll never came back.
+  it("restarts the deep poll when only the heartbeat task survived", async () => {
+    const registered: string[] = []
+    let recovered = false
+    vi.mocked(cron.schedule).mockImplementation(((expression: string) => {
+      if (expression === "*/30 * * * * *" && !recovered) {
+        throw new Error("cron registration failed")
+      }
+      registered.push(expression)
+      return { stop: vi.fn() }
+    }) as unknown as typeof cron.schedule)
+
+    expect(() => startClientScheduler(makeEncryptionKey())).toThrow("cron registration failed")
+    await vi.advanceTimersByTimeAsync(0)
+    expect(registered).toEqual(["*/5 * * * * *"])
+
+    recovered = true
+    ensureClientSchedulerRunning("ab".repeat(32))
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(registered).toContain("*/30 * * * * *")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Regression: the final uptime flush was fire-and-forget, so a clean stop tore
+// the process down mid-write and dropped a 5-minute uptime bucket every time.
+// The outage bands drawn from those buckets treat each hole as missing
+// evidence, so every restart quietly thinned the record they rely on.
+//
+// stopClientScheduler now returns a promise that resolves only after the flush
+// has landed. These tests pin the two halves of that contract: it really waits,
+// and waiting costs the fire-and-forget callers nothing — every teardown side
+// effect still happens synchronously and the promise never rejects.
+// ---------------------------------------------------------------------------
+
+describe("stopClientScheduler waits for the final uptime flush", () => {
+  /** The cron-task handles the scheduler stores on globalThis. */
+  const gt = globalThis as Record<string, unknown>
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.useFakeTimers()
+    // resetAllMocks strips the factory implementation, so the default has to be
+    // re-armed or the flush would resolve to undefined instead of a count.
+    vi.mocked(flushCompletedBuckets).mockResolvedValue(0)
+    gt.__clientHeartbeatTask = null
+    gt.__clientDeepPollTask = null
+  })
+
+  afterEach(() => {
+    gt.__clientHeartbeatTask = null
+    gt.__clientDeepPollTask = null
+    vi.useRealTimers()
+    clearFailureLogGate()
+  })
+
+  it("stays pending until the flush write completes", async () => {
+    // Stands in for the INSERT that a `docker stop` used to cut off. Driven by
+    // a fake timer rather than a real sleep, so the test is deterministic.
+    const WRITE_MS = 1000
+    vi.mocked(flushCompletedBuckets).mockImplementation(
+      () =>
+        new Promise<number>((resolve) => {
+          setTimeout(() => resolve(3), WRITE_MS)
+        })
+    )
+
+    let settled = false
+    const stopped = stopClientScheduler().then(() => {
+      settled = true
+    })
+
+    // Drain every microtask. Only the pending write stands between the call and
+    // resolution now, so an un-awaited flush would already read as settled.
+    await vi.advanceTimersByTimeAsync(0)
+    expect(settled).toBe(false)
+
+    await vi.advanceTimersByTimeAsync(WRITE_MS)
+    await stopped
+
+    expect(settled).toBe(true)
+    expect(vi.mocked(flushCompletedBuckets)).toHaveBeenCalledTimes(1)
+  })
+
+  it("starts the flush before wiping the accumulator", () => {
+    // flushCompletedBuckets copies the queue into its row array synchronously
+    // and only then awaits the insert. Calling it first is therefore what keeps
+    // clearUptimeAccumulator from stealing rows that are already in flight —
+    // reverse the two and the last buckets are dropped even with the await.
+    void stopClientScheduler()
+
+    const flushOrder = vi.mocked(flushCompletedBuckets).mock.invocationCallOrder[0]
+    const clearOrder = vi.mocked(clearUptimeAccumulator).mock.invocationCallOrder[0]
+    expect(flushOrder).toBeDefined()
+    expect(clearOrder).toBeDefined()
+    expect(flushOrder).toBeLessThan(clearOrder)
+  })
+
+  it("finishes every teardown side effect synchronously, before the await", () => {
+    const hbStop = vi.fn()
+    const dpStop = vi.fn()
+    gt.__clientHeartbeatTask = { stop: hbStop }
+    gt.__clientDeepPollTask = { stop: dpStop }
+    // A write that never lands: nothing below may depend on the flush settling,
+    // or the six callers that drop the promise would silently lose it.
+    vi.mocked(flushCompletedBuckets).mockReturnValue(new Promise<number>(() => {}))
+
+    void stopClientScheduler()
+
+    expect(hbStop).toHaveBeenCalledTimes(1)
+    expect(dpStop).toHaveBeenCalledTimes(1)
+    expect(gt.__clientHeartbeatTask).toBeNull()
+    expect(gt.__clientDeepPollTask).toBeNull()
+    expect(vi.mocked(clearAllSessions)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(clearSpeedCache)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(clearUptimeAccumulator)).toHaveBeenCalledTimes(1)
+  })
+
+  it("resolves instead of rejecting when the flush write fails", async () => {
+    // Six call sites drop this promise. An unhandled rejection out of any of
+    // them would take the process down on the way out.
+    vi.mocked(flushCompletedBuckets).mockRejectedValue(new Error("connection terminated"))
+
+    await expect(stopClientScheduler()).resolves.toBeUndefined()
+    expect(vi.mocked(log.warn)).toHaveBeenCalledWith(
+      expect.any(Error),
+      "Failed to flush uptime buckets during scheduler stop"
+    )
   })
 })

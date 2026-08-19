@@ -2,16 +2,22 @@
 //
 // Functions: getPauseState, getTrackerHealth, getHealthBadgeVariant, getHealthLabel, getHealthDescription, getHealthPulseDot
 //
-// Single source of truth for tracker health status — type, derivation logic,
-// and all visual mappings (PulseDot status, Badge variant, labels, descriptions).
+// Single source of truth for tracker health status. Includes type, derivation
+// logic, and all visual mappings (PulseDot status, Badge variant, labels,
+// descriptions).
 
 import type { BadgeVariant } from "@/components/ui/Badge"
 import type { PulseDotStatus } from "@/components/ui/PulseDot"
 import type { TrackerSummary } from "@/types/api"
 
+// Ordered loosely by severity, ascending. "warning" and "no-seeds" were a
+// single conflated pill until they were split: a thin ratio and zero active
+// seeds are unrelated conditions calling for different fixes, and neither is
+// implied by the other.
 type TrackerHealth =
   | "healthy"
   | "warning"
+  | "no-seeds"
   | "critical"
   | "error"
   | "paused"
@@ -34,9 +40,23 @@ const HEALTH_META: Record<TrackerHealth, HealthMeta> = {
   },
   warning: {
     label: "Warning",
-    description: "Ratio 1.0\u20132.0 or zero active seeds",
+    description: "Ratio 1.0\u20132.0 \u2014 thin buffer",
     pulseDot: "warning",
     badge: "warn",
+  },
+  // Shares the danger/critical visuals with "critical", the way "paused"
+  // already does: this table distinguishes states by label and description
+  // rather than giving every id its own color.
+  "no-seeds": {
+    label: "No Seeds",
+    description: "Zero active seeds \u2014 nothing is uploading",
+    // Its own dot status, not "critical". The two look identical on purpose \u2014
+    // they share the danger palette the way paused and critical already do \u2014
+    // but the dot-only surfaces (sidebar list, overview grid) expose the status
+    // name to screen readers, and announcing "Critical" for a tracker that is
+    // simply seeding nothing describes the wrong problem.
+    pulseDot: "no-seeds",
+    badge: "danger",
   },
   critical: {
     label: "Critical",
@@ -89,18 +109,40 @@ function getTrackerHealth(tracker: TrackerSummary): TrackerHealth {
   if (pause.isPaused) return pause.reason === "failure" ? "paused" : "paused-user"
   if (tracker.lastError) return "error"
   if (!tracker.latestStats) return "offline"
-  const { ratio, seedingCount } = tracker.latestStats
-  if (ratio === null) return "offline"
+  const { ratio, seedingCount, ratioIsInfinite } = tracker.latestStats
+  // An infinite ratio arrives as `ratio: null` because JSON can't carry
+  // Infinity. Only treat null as "no data" when the account isn't in that state.
+  // Otherwise a perfectly healthy zero-download tracker reads Offline.
+  if (ratio === null && !ratioIsInfinite) return "offline"
 
-  // Warned by tracker is always critical — potential ban risk
+  // Warned by tracker is always critical. Potential ban risk.
   if (tracker.latestStats?.warned === true) return "critical"
 
   let status: TrackerHealth
-  if (ratio >= 2) status = "healthy"
-  else if (ratio >= 1) status = "warning"
-  else status = "critical"
+  if (ratioIsInfinite) {
+    // Uploads with zero downloads is the best possible standing.
+    status = "healthy"
+  } else {
+    const value = ratio ?? 0
+    if (value >= 2) status = "healthy"
+    else if (value >= 1) status = "warning"
+    else status = "critical"
+  }
 
-  if (seedingCount === 0 && status === "healthy") status = "warning"
+  // Zero active seeds is its own condition, not a ratio band. No ratio value
+  // implies it, and the fix differs: start seeding at all vs. seed more of what
+  // is already loaded. It outranks both non-critical ratio statuses because an
+  // account uploading nothing cannot improve its ratio. This includes "warning",
+  // which is the case this split exists to disambiguate.
+  //
+  // It deliberately does NOT override "critical". Ratio < 1.0 and a tracker
+  // warning (returned above) both carry account-action risk that this label
+  // would erase, and the pre-split override never reached them either. Final
+  // severity order: critical > no-seeds > warning > healthy.
+  //
+  // A null seedingCount means the adapter does not report the field (BTN), so
+  // the strict === 0 check leaves those trackers on their ratio status.
+  if (seedingCount === 0 && (status === "healthy" || status === "warning")) status = "no-seeds"
 
   return status
 }

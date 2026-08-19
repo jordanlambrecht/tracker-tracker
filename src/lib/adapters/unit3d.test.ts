@@ -61,7 +61,7 @@ describe("Unit3dAdapter", () => {
     )
   })
 
-  it("constructs URL correctly with api_token query param", async () => {
+  it("constructs the URL correctly and keeps the token out of the query string", async () => {
     const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -82,7 +82,9 @@ describe("Unit3dAdapter", () => {
 
     const calledUrl = fetchSpy.mock.calls[0][0] as string
     expect(calledUrl).toContain("https://example.com/api/user")
-    expect(calledUrl).toContain("api_token=my-secret-token")
+    // Bearer is now the default, so the token must not appear in the URL —
+    // query strings leak into access logs and Referer headers.
+    expect(calledUrl).not.toContain("api_token")
   })
 })
 
@@ -137,4 +139,178 @@ describe("Unit3dAdapter - security", () => {
   })
 
   // AbortSignal timeout coverage is in adapterFetch — tested via timeout-message test above
+
+  it("derives bufferBytes from totals when the build reports an unlimited buffer", async () => {
+    // Zenith's UNIT3D build returns "∞" for buffer; parseBytes rejects that,
+    // so the adapter falls back to uploaded - downloaded rather than
+    // reporting a confident 0 B.
+    for (const infinite of ["∞", "-∞", "Inf", "inf"]) {
+      vi.spyOn(global, "fetch").mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          username: "ZenithUser",
+          group: "User",
+          uploaded: "100 GiB",
+          downloaded: "40 GiB",
+          ratio: "2.5",
+          buffer: infinite,
+          seeding: 10,
+          leeching: 0,
+          seedbonus: "0",
+          hit_and_runs: 0,
+        }),
+      } as Response)
+
+      const stats = await adapter.fetchStats("https://znth.cx", "fake-token", "/api/user")
+      expect(stats.bufferBytes).toBe(stats.uploadedBytes - stats.downloadedBytes)
+      expect(stats.bufferBytes).toBeGreaterThan(BigInt(0))
+    }
+  })
+
+  // A build that reports a deficit buffer as a negative string used to throw out
+  // of parseBytes and fail the ENTIRE poll — the account recorded no snapshot at
+  // all, losing uploaded, downloaded and ratio along with the buffer.
+  it("records a negative tracker-reported buffer instead of failing the poll", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        username: "DeficitUser",
+        group: "User",
+        uploaded: "10 GiB",
+        downloaded: "1.24 TiB",
+        ratio: "0.01",
+        buffer: "-1.23 TiB",
+        seeding: 5,
+        leeching: 1,
+        seedbonus: "100.00",
+        hit_and_runs: 0,
+      }),
+    } as Response)
+
+    const stats = await adapter.fetchStats("https://aither.cc", "fake-token", "/api/user")
+
+    expect(stats.bufferBytes).toBe(BigInt(-1_352_399_302_164))
+    expect(stats.bufferBytes).toBeLessThan(BigInt(0))
+    // The rest of the poll survives — that was the real cost of the throw.
+    expect(stats.username).toBe("DeficitUser")
+    expect(stats.seedingCount).toBe(5)
+  })
+
+  it("sends a Bearer header by default and no api_token query param", async () => {
+    let capturedUrl: string | undefined
+    let capturedInit: RequestInit | undefined
+    vi.spyOn(global, "fetch").mockImplementationOnce((url, init) => {
+      capturedUrl = String(url)
+      capturedInit = init
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          username: "u", group: "g", uploaded: "1 GiB", downloaded: "1 GiB",
+          ratio: "1", buffer: "0 B", seeding: 0, leeching: 0,
+          seedbonus: "0", hit_and_runs: 0,
+        }),
+      } as Response)
+    })
+
+    await adapter.fetchStats("https://aither.cc", "secret-token", "/api/user")
+
+    const headers = capturedInit?.headers as Record<string, string> | undefined
+    expect(headers?.Authorization).toBe("Bearer secret-token")
+    expect(capturedUrl).not.toContain("api_token")
+  })
+
+  it("falls back to the legacy query param when a tracker opts into query auth", async () => {
+    let capturedUrl: string | undefined
+    let capturedInit: RequestInit | undefined
+    vi.spyOn(global, "fetch").mockImplementationOnce((url, init) => {
+      capturedUrl = String(url)
+      capturedInit = init
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          username: "u", group: "g", uploaded: "1 GiB", downloaded: "1 GiB",
+          ratio: "1", buffer: "0 B", seeding: 0, leeching: 0,
+          seedbonus: "0", hit_and_runs: 0,
+        }),
+      } as Response)
+    })
+
+    await adapter.fetchStats("https://aither.cc", "secret-token", "/api/user", {
+      unit3dAuthStyle: "query",
+    })
+
+    expect(capturedUrl).toContain("api_token=secret-token")
+    const headers = capturedInit?.headers as Record<string, string> | undefined
+    expect(headers?.Authorization).toBeUndefined()
+  })
+
+})
+
+describe("Unit3dAdapter - auth fallback", () => {
+  const adapter = new Unit3dAdapter()
+
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    ;(
+      globalThis as { __unit3dAuthStyleCache?: Map<string, string> }
+    ).__unit3dAuthStyleCache?.clear()
+  })
+
+  const okBody = () => ({ ok: true, json: async () => ({
+          username: "u", group: "g", uploaded: "1 GiB", downloaded: "1 GiB",
+          ratio: "1", buffer: "0 B", seeding: 0, leeching: 0,
+          seedbonus: "0", hit_and_runs: 0,
+        }) }) as Response
+  const unauthorized = () =>
+    ({ ok: false, status: 401, statusText: "Unauthorized" }) as Response
+
+  it("falls back to the api_token query param when bearer is rejected", async () => {
+    const spy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce(unauthorized())
+      .mockResolvedValueOnce(okBody())
+
+    const stats = await adapter.fetchStats("https://old.example", "tok", "/api/user")
+    expect(stats.username).toBe("u")
+    expect(spy).toHaveBeenCalledTimes(2)
+    expect(String(spy.mock.calls[0][0])).not.toContain("api_token")
+    expect(String(spy.mock.calls[1][0])).toContain("api_token=tok")
+  })
+
+  it("remembers the working style so later polls only make one request", async () => {
+    const spy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce(unauthorized())
+      .mockResolvedValueOnce(okBody())
+      .mockResolvedValueOnce(okBody())
+
+    await adapter.fetchStats("https://old.example", "tok", "/api/user")
+    await adapter.fetchStats("https://old.example", "tok", "/api/user")
+
+    // 2 for the first (probe + fallback), 1 for the second — not 4.
+    expect(spy).toHaveBeenCalledTimes(3)
+    expect(String(spy.mock.calls[2][0])).toContain("api_token=tok")
+  })
+
+  it("does NOT fall back on a non-auth failure", async () => {
+    const spy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce({ ok: false, status: 500, statusText: "Server Error" } as Response)
+
+    await expect(
+      adapter.fetchStats("https://broken.example", "tok", "/api/user")
+    ).rejects.toThrow()
+    expect(spy).toHaveBeenCalledTimes(1)
+  })
+
+  it("never probes when a tracker pins its auth style", async () => {
+    const spy = vi.spyOn(global, "fetch").mockResolvedValueOnce(unauthorized())
+
+    await expect(
+      adapter.fetchStats("https://pinned.example", "tok", "/api/user", {
+        unit3dAuthStyle: "bearer",
+      })
+    ).rejects.toThrow()
+    expect(spy).toHaveBeenCalledTimes(1)
+  })
 })

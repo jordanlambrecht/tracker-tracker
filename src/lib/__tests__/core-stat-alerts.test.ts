@@ -6,6 +6,7 @@ import type { Snapshot, TrackerLatestStats } from "@/types/api"
 
 const baseStats: TrackerLatestStats = {
   ratio: 2.0,
+  ratioIsInfinite: false,
   uploadedBytes: "100000000000",
   downloadedBytes: "50000000000",
   seedingCount: 100,
@@ -26,6 +27,7 @@ const baseSnapshot: Snapshot = {
   uploadedBytes: "100000000000",
   downloadedBytes: "50000000000",
   ratio: 2.0,
+  ratioIsInfinite: false,
   bufferBytes: "50000000000",
   seedbonus: 500,
   seedingCount: 100,
@@ -86,6 +88,16 @@ describe("buildCoreStatDescriptors alerts", () => {
     const buffer = cards.find((c) => c.key === "buffer")
     expect(buffer?.alert).toBe("danger")
     expect(buffer?.alertReason).toBe("Negative buffer")
+  })
+
+  // The card splits the formatted string on its space, so the formatter has to
+  // scale a negative properly or the card shows "-14841" over "MiB".
+  it("renders a negative buffer with its sign and the right unit", () => {
+    const snap = { ...baseSnapshot, bufferBytes: "-2627286052460" }
+    const cards = buildCoreStatDescriptors(baseStats, snap)
+    const buffer = cards.find((c) => c.key === "buffer")
+    expect(buffer?.value).toBe("-2.39")
+    expect(buffer?.unit).toBe("TiB")
   })
 
   it("no buffer alert when snapshot is null", () => {

@@ -236,6 +236,9 @@ function AddTrackerDialog({
   const [avistazUsername, setAvistazUsername] = useState("")
   const [avistazCookies, setAvistazCookies] = useState("")
   const [dcCookies, setDcCookies] = useState("")
+  const [iptCookies, setIptCookies] = useState("")
+  const [tlUsername, setTlUsername] = useState("")
+  const [tlPassword, setTlPassword] = useState("")
   const [qbtTag, setQbtTag] = useState("")
   const [mouseholeUrl, setMouseholeUrl] = useState("")
   const [color, setColor] = useState<string>(CHART_THEME.accent)
@@ -329,6 +332,23 @@ function AddTrackerDialog({
             "Cookie string is missing pass value. Paste the full Cookie header from DevTools."
         }
       }
+    } else if (selectedEntry?.platform === "iptorrents") {
+      const trimmed = iptCookies.trim().replace(/^Cookie:\s*/i, "")
+      if (!trimmed) {
+        next.apiToken = "Browser cookies are required"
+      } else if (!trimmed.includes("=")) {
+        next.apiToken =
+          "This doesn't look like a cookie string — it should contain key=value pairs (i.e. uid=123; pass=abc123)"
+      } else if (/^(cf_clearance|uid|pass|remember_web_\w+|XSRF-TOKEN)$/i.test(trimmed)) {
+        next.apiToken =
+          'You pasted a cookie name, not the value. Copy the entire string after "Cookie:" in the request headers.'
+      }
+    } else if (selectedEntry?.platform === "torrentleech") {
+      if (!tlUsername.trim()) {
+        next.apiToken = "Username is required"
+      } else if (!tlPassword) {
+        next.apiToken = "Password is required"
+      }
     } else if (!apiToken.trim()) {
       next.apiToken = "API token is required"
     }
@@ -349,6 +369,8 @@ function AddTrackerDialog({
 
     const isAvistaz = selectedEntry?.platform === "avistaz"
     const isDigitalCore = selectedEntry?.platform === "digitalcore"
+    const isIptorrents = selectedEntry?.platform === "iptorrents"
+    const isTorrentleech = selectedEntry?.platform === "torrentleech"
     let effectiveApiToken = apiToken
 
     if (isAvistaz) {
@@ -364,6 +386,18 @@ function AddTrackerDialog({
       effectiveApiToken = JSON.stringify({
         uid: uidMatch?.[1]?.trim() ?? "",
         pass: passMatch?.[1]?.trim() ?? "",
+      })
+    } else if (isIptorrents) {
+      // The adapter matches the User-Agent against the session that minted the
+      // cookies, so send the browser's own UA rather than a server-side default.
+      effectiveApiToken = JSON.stringify({
+        cookies: iptCookies.trim().replace(/^Cookie:\s*/i, ""),
+        userAgent: navigator.userAgent,
+      })
+    } else if (isTorrentleech) {
+      effectiveApiToken = JSON.stringify({
+        username: tlUsername.trim(),
+        password: tlPassword,
       })
     }
 
@@ -562,6 +596,75 @@ function AddTrackerDialog({
               rows={2}
             />
             <Notice message={errors.apiToken} />
+            {testResult && (
+              <Notice variant="success">
+                Connected as <span className="font-semibold">{testResult.username}</span>
+                {testResult.group ? ` (${testResult.group})` : ""}
+              </Notice>
+            )}
+          </div>
+        ) : selectedEntry?.platform === "iptorrents" ? (
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-1">
+              <label
+                htmlFor="tracker-ipt-cookies"
+                className="text-xs uppercase tracking-wider text-secondary font-sans font-medium"
+              >
+                Browser Cookies
+              </label>
+              <InfoTip
+                content="IPTorrents has no API, so stats are read from your logged-in session. Open DevTools (F12) → Network → any request to the site → copy the full Cookie header value."
+                size="sm"
+                docs={DOCS.ADDING_A_TRACKER}
+              />
+            </div>
+            <AreaInput
+              id="tracker-ipt-cookies"
+              name="tracker-ipt-cookies"
+              autoComplete="off"
+              data-1p-ignore
+              value={iptCookies}
+              onChange={(e) => setIptCookies(e.target.value)}
+              placeholder="cf_clearance=...; uid=123456; pass=abc123def456..."
+              rows={3}
+            />
+            <Notice message={errors.apiToken} />
+            {testResult && (
+              <Notice variant="success">
+                Connected as <span className="font-semibold">{testResult.username}</span>
+                {testResult.group ? ` (${testResult.group})` : ""}
+              </Notice>
+            )}
+          </div>
+        ) : selectedEntry?.platform === "torrentleech" ? (
+          <div className="flex flex-col gap-3">
+            <Input
+              label="TorrentLeech Username"
+              name="tracker-tl-username"
+              autoComplete="off"
+              data-1p-ignore
+              value={tlUsername}
+              onChange={(e) => setTlUsername(e.target.value)}
+              placeholder="Your TorrentLeech username"
+            />
+            <div className="flex flex-col gap-1">
+              <Input
+                label="TorrentLeech Password"
+                name="tracker-tl-password"
+                type="password"
+                autoComplete="off"
+                data-1p-ignore
+                value={tlPassword}
+                onChange={(e) => setTlPassword(e.target.value)}
+                placeholder="Your TorrentLeech password"
+                error={errors.apiToken}
+              />
+              <InfoTip
+                content="TorrentLeech has no API, so stats are read by logging in on your behalf. Your password is encrypted at rest with the same key as every other tracker credential."
+                size="sm"
+                docs={DOCS.ADDING_A_TRACKER}
+              />
+            </div>
             {testResult && (
               <Notice variant="success">
                 Connected as <span className="font-semibold">{testResult.username}</span>

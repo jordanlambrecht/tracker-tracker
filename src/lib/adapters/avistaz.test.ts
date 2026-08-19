@@ -104,7 +104,8 @@ describe("parseAvistazProfile", () => {
     expect(stats.group).toBe("Member")
     expect(stats.uploadedBytes).toBe(BigInt(32_640_000_000)) // 32.64 GB decimal
     expect(stats.downloadedBytes).toBe(BigInt(1_000)) // 1.00 KB decimal
-    expect(stats.ratio).toBe(999999.99)
+    // Derived from the byte totals, not the ratio bar's capped "999999.99"
+    expect(stats.ratio).toBe(32_640_000)
     expect(stats.seedingCount).toBe(2)
     expect(stats.leechingCount).toBe(0)
     expect(stats.seedbonus).toBe(285.8)
@@ -179,6 +180,22 @@ describe("parseAvistazProfile", () => {
     </body></html>`
     const stats = parseAvistazProfile(minimalPage, "fallbackuser")
     expect(stats.username).toBe("fallbackuser")
+  })
+
+  it("reports an infinite ratio for a zero-download account", () => {
+    const noDownloadsPage = `<!doctype html><html><head></head><body>
+      <div class="ratio-bar"><div class="container"><ul class="list-inline">
+        <li data-toggle="tooltip" title="Upload"><i></i> 10.00 GB</li>
+        <li data-toggle="tooltip" title="Download"><i></i> 0 B</li>
+        <li data-toggle="tooltip" title="Ratio"><i></i> Inf.</li>
+        <li><a href="#">Seeding:</a> 3</li>
+        <li><a href="#">Leeching:</a> 0</li>
+      </ul></div></div>
+    </body></html>`
+    const stats = parseAvistazProfile(noDownloadsPage, "freshuser")
+    expect(stats.uploadedBytes).toBe(10_000_000_000n)
+    expect(stats.downloadedBytes).toBe(0n)
+    expect(stats.ratio).toBe(Infinity)
   })
 
   it("parses BS5 ratio bar (data-bs-toggle, Uploaded/Downloaded titles)", () => {

@@ -20,7 +20,7 @@ function getSessionKey(): Uint8Array {
   const secret = process.env.SESSION_SECRET
   if (!secret) throw new Error("SESSION_SECRET environment variable is not set")
   if (secret.length < 32) throw new Error("SESSION_SECRET must be at least 32 characters")
-  // HKDF-derived key with domain separation — distinct from scheduler wrapping key
+  // HKDF-derived key with domain separation. Distinct from scheduler wrapping key
   return new Uint8Array(hkdfSync("sha256", secret, "", "tracker-tracker:session-v1", 32))
 }
 
@@ -38,7 +38,7 @@ export async function createSession(
 ): Promise<string> {
   const cookieMaxAge = timeoutMinutes && timeoutMinutes > 0 ? timeoutMinutes * 60 : SESSION_MAX_AGE
 
-  // JWE expiry is a generous safety net — the real timeout is controlled by
+  // JWE expiry is a generous safety net. The real timeout is controlled by
   // cookie maxAge + middleware sliding window refresh.
   const jweMaxAge = Math.max(cookieMaxAge * 2, SESSION_MAX_AGE)
 

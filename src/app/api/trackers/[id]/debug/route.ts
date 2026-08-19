@@ -94,6 +94,15 @@ export async function POST(_request: Request, props: RouteContext) {
       { status: 400 }
     )
   }
+  // An empty token decrypts cleanly but can never authenticate — same outcome
+  // as an undecryptable one, so report it identically rather than round-tripping
+  // to the tracker for a guaranteed 401.
+  if (!apiToken) {
+    return NextResponse.json(
+      { error: `API key is missing or invalid for tracker "${tracker.name}"` },
+      { status: 400 }
+    )
+  }
 
   const proxyAgent = settings ? buildProxyAgentFromSettings(settings, key) : undefined
 

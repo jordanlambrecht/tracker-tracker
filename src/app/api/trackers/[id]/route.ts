@@ -13,6 +13,7 @@ import {
   validateHexColor,
   validateHttpUrl,
   validateJoinedAt,
+  validateLastAccessAt,
   validateMaxLength,
 } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
@@ -20,11 +21,10 @@ import { db } from "@/lib/db"
 import { trackers } from "@/lib/db/schema"
 import { errMsg } from "@/lib/error-utils"
 import {
-  AVISTAZ_TOKEN_MAX,
   LONG_STRING_MAX,
+  maxTokenLengthFor,
   TRACKER_NAME_MAX,
   TRACKER_TAG_MAX,
-  TRACKER_TOKEN_MAX,
   TRACKER_URL_MAX,
 } from "@/lib/limits"
 import { log } from "@/lib/logger"
@@ -133,6 +133,21 @@ export async function PATCH(request: Request, props: RouteContext) {
     }
   }
 
+  if (body.lastAccessAt !== undefined) {
+    if (body.lastAccessAt === null) {
+      updates.lastAccessAt = null
+    } else if (typeof body.lastAccessAt === "string") {
+      const lastAccessAtErr = validateLastAccessAt(body.lastAccessAt)
+      if (lastAccessAtErr) return lastAccessAtErr
+      updates.lastAccessAt = body.lastAccessAt
+    } else {
+      return NextResponse.json(
+        { error: "lastAccessAt must be YYYY-MM-DD or null" },
+        { status: 400 }
+      )
+    }
+  }
+
   if (typeof body.apiToken === "string") {
     const trimmedToken = (body.apiToken as string).trim()
     const [tracker] = await db
@@ -141,7 +156,7 @@ export async function PATCH(request: Request, props: RouteContext) {
       .where(eq(trackers.id, trackerId))
       .limit(1)
     const maxTokenLength =
-      tracker?.platformType === "avistaz" ? AVISTAZ_TOKEN_MAX : TRACKER_TOKEN_MAX
+      maxTokenLengthFor(tracker?.platformType)
     const tokenErr = validateMaxLength(trimmedToken, maxTokenLength, "API token")
     if (tokenErr) return tokenErr
     const key = decodeKey(auth)

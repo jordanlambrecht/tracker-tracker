@@ -53,7 +53,7 @@ export function recordHeartbeat(clientId: number, success: boolean): void {
 
   const existing = acc.get(clientId)
   if (existing && existing.ts === ts) {
-    // Same bucket — increment
+    // Same bucket: increment
     if (success) existing.ok++
     else existing.fail++
   } else {

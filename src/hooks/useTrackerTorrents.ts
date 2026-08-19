@@ -6,6 +6,7 @@ import { useMemo } from "react"
 import type { TrackerRules } from "@/data/tracker-registry"
 import { usePollingIntervals } from "@/hooks/usePollingIntervals"
 import type { TorrentRaw } from "@/lib/fleet"
+import type { TagGroupBreakdown } from "@/lib/fleet-aggregation"
 import {
   type AggregatedTorrentsResponse,
   type CategoryStats,
@@ -31,12 +32,6 @@ interface UseTrackerTorrentsParams {
   } | null
   /** When false, disables the 5s active torrent poll (i.e. tab not visible). */
   isActive?: boolean
-}
-
-interface TagGroupBreakdown {
-  group: TagGroup
-  memberCounts: { label: string; count: number; color: string | null }[]
-  unmatchedCount: number
 }
 
 interface QbitmanageBreakdownItem {
@@ -76,7 +71,7 @@ interface TrackerTorrentsData {
 }
 
 // ---------------------------------------------------------------------------
-// SessionStorage cache (Phase 0 — instant restore on page refresh)
+// SessionStorage cache (Phase 0: instant restore on page refresh)
 // ---------------------------------------------------------------------------
 
 function loadSessionCache(trackerId: number): AggregatedTorrentsResponse | undefined {
@@ -101,19 +96,20 @@ function saveSessionCache(trackerId: number, data: AggregatedTorrentsResponse) {
 // Hook
 // ---------------------------------------------------------------------------
 
+// `qbtTag` is not destructured: trackers now resolve by announce URL server-side,
+// so the hook doesn't need it. It stays on params because callers pass it and
+// the tab uses it for empty-state copy.
 function useTrackerTorrents({
   trackerId,
-  qbtTag,
   rules,
   tagGroups,
   trackerSeedingCount,
   qbitmanageConfig,
   isActive = true,
 }: UseTrackerTorrentsParams): TrackerTorrentsData {
-  const enabled = !!qbtTag
   const intervals = usePollingIntervals()
 
-  // forces an immediate background refetch from the DB cache endpoint
+  // Fetch from the DB cache endpoint with instant restore from sessionStorage
   const cachedQuery = useQuery({
     queryKey: ["tracker-torrents-cached", trackerId] as const,
     queryFn: async ({ signal }) => {
@@ -126,23 +122,25 @@ function useTrackerTorrents({
       }
       return null
     },
-    enabled,
     staleTime: intervals.trackerRefetchMs,
     initialData: loadSessionCache(trackerId) ?? undefined,
     initialDataUpdatedAt: 0,
   })
 
-  // Phase 2: Live qBT torrent data (slow — overrides cached when ready)
+  // Phase 2: Live qBT torrent data (slow, overrides cached when ready)
   const liveQuery = useQuery({
     queryKey: ["tracker-torrents", trackerId] as const,
     queryFn: async ({ signal }) => {
       const res = await fetch(`/api/trackers/${trackerId}/torrents`, { signal })
       if (!res.ok) throw new Error(`Torrent fetch failed: ${res.status}`)
       const data = (await res.json()) as AggregatedTorrentsResponse
-      saveSessionCache(trackerId, data)
+      // Apply the same trust rule: only cache if complete (no client errors)
+      // or non-empty. An empty response with errors is incomplete, not a real answer.
+      if (data.torrents.length > 0 || data.clientErrors.length === 0) {
+        saveSessionCache(trackerId, data)
+      }
       return data
     },
-    enabled,
     staleTime: intervals.trackerRefetchMs,
   })
 
@@ -154,15 +152,30 @@ function useTrackerTorrents({
       if (!res.ok) return null
       return res.json() as Promise<AggregatedTorrentsResponse>
     },
-    enabled: enabled && liveQuery.isSuccess,
+    enabled: liveQuery.isSuccess,
     refetchInterval: isActive ? 5_000 : false,
   })
 
-  // Resolve the best available data source: live > cached > sessionStorage placeholder
-  const baseData = liveQuery.data ?? cachedQuery.data ?? null
-  const stale = !liveQuery.data && !!cachedQuery.data
-  const cachedAt = stale ? (cachedQuery.data?.cachedAt ?? null) : null
-  const loading = enabled && !baseData && (cachedQuery.isLoading || liveQuery.isLoading)
+  // Resolve the best available data source.
+  //
+  // Live wins when trustworthy. It's untrustworthy when empty and incomplete.
+  // fetchAndMergeTorrents races each client for 5s. One slow or offline client
+  // produces zero torrents. Taking that literally blanked cache on a hiccup.
+  //
+  // An empty result with no client errors is the opposite: all answered, none
+  // holds this tracker's torrents. That is an answer, not a symptom. Without
+  // this rule, a tracker with no torrents would show stale cache forever. Also,
+  // a tag or announce mismatch would stay hidden.
+  const live = liveQuery.data ?? null
+  const cached = cachedQuery.data ?? null
+  const liveTrustworthy =
+    live !== null && (live.torrents.length > 0 || live.clientErrors.length === 0)
+  const usingCache = !liveTrustworthy && cached !== null && cached.torrents.length > 0
+
+  const baseData = usingCache ? cached : (live ?? cached)
+  const stale = usingCache
+  const cachedAt = usingCache ? (cached.cachedAt ?? null) : null
+  const loading = !baseData && (cachedQuery.isLoading || liveQuery.isLoading)
 
   // Merge active speeds into the base torrent list
   const torrents = useMemo(() => {
@@ -354,10 +367,5 @@ function useTrackerTorrents({
   }
 }
 
-export type {
-  QbitmanageBreakdownItem,
-  TagGroupBreakdown,
-  TrackerTorrentsData,
-  UseTrackerTorrentsParams,
-}
+export type { QbitmanageBreakdownItem, TrackerTorrentsData, UseTrackerTorrentsParams }
 export { useTrackerTorrents }

@@ -19,6 +19,9 @@ import {
   yAxisAutoRange,
 } from "./lib/chart-helpers"
 import { LogScaleToggle } from "./lib/LogScaleToggle"
+import { OutageBandLegend } from "./lib/OutageBandLegend"
+import { useOutageBands } from "./lib/OutageBandsProvider"
+import { appendOutageBandSeries, polledAtRange } from "./lib/outage-bands"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -260,6 +263,9 @@ function RatioStabilityChart({
   emaPeriod = 7,
   bandWindow = 14,
 }: RatioStabilityChartProps) {
+  // Tracker snapshots. App bands only.
+  const outages = useOutageBands("tracker")
+
   const hasEnoughData = trackerData.some(
     (t) => t.snapshots.filter((s) => s.ratio !== null).length >= 3
   )
@@ -273,7 +279,25 @@ function RatioStabilityChart({
   const logScale = useLogScale(allRatioValues)
 
   if (!hasEnoughData) {
-    return <ChartEmptyState height={height} message="Not enough data for stability analysis" />
+    // Distinguish "infinite ratio" from "no data"
+    const allInfinite =
+      trackerData.length > 0 &&
+      trackerData.every(
+        (t) =>
+          t.snapshots.length > 0 &&
+          t.snapshots.every((s) => s.ratio === null) &&
+          t.snapshots.some((s) => s.ratioIsInfinite)
+      )
+    return (
+      <ChartEmptyState
+        height={height}
+        message={
+          allInfinite
+            ? "Ratio is infinite — nothing downloaded, so there is no finite value to chart."
+            : "Not enough data for stability analysis"
+        }
+      />
+    )
   }
 
   return (
@@ -286,13 +310,16 @@ function RatioStabilityChart({
         />
       </div>
       <ChartECharts
-        option={buildRatioStabilityOption(
-          trackerData,
-          emaPeriod,
-          bandWindow,
-          logScale.effectiveLog
+        option={appendOutageBandSeries(
+          buildRatioStabilityOption(trackerData, emaPeriod, bandWindow, logScale.effectiveLog),
+          outages,
+          polledAtRange(trackerData.flatMap((t) => t.snapshots))
         )}
         style={{ height, width: "100%" }}
+      />
+      <OutageBandLegend
+        bands={outages}
+        range={polledAtRange(trackerData.flatMap((t) => t.snapshots))}
       />
     </div>
   )

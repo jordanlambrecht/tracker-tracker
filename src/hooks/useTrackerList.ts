@@ -6,18 +6,73 @@ import { arrayMove } from "@dnd-kit/sortable"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useCallback, useEffect, useMemo, useRef } from "react"
 import { usePollingIntervals } from "@/hooks/usePollingIntervals"
+import type { StatMode } from "@/lib/formatters"
 import { trackerQueryOptions } from "@/lib/query-options"
-import type { TrackerSummary } from "@/types/api"
+import type { TrackerLatestStats, TrackerSummary } from "@/types/api"
 
-type SortMode = "index" | "alpha" | "custom"
+type SortMode = "index" | "alpha" | "custom" | "stat"
 
-function sortTrackers(trackers: TrackerSummary[], mode: SortMode): TrackerSummary[] {
+// Raw numeric value for a given StatMode, for sorting only (never for
+// display). This mirrors the field mapping inside formatStatValue in
+// src/lib/formatters.ts — keep the two in sync if a StatMode's underlying
+// field ever changes. Consolidating the two is worthwhile and tracked
+// separately; it is a pure refactor, so it does not ride along with a fix.
+//
+// Returns null when the tracker has no value for that stat — callers must
+// treat null as "missing", never coerce it to 0.
+function getStatNumericValue(stats: TrackerLatestStats | null, mode: StatMode): number | null {
+  if (!stats) return null
+  try {
+    switch (mode) {
+      case "ratio":
+        // An infinite ratio arrives as `ratio: null` plus this flag, because
+        // JSON cannot carry Infinity (see tracker-serializer.ts). Without the
+        // flag check it would land in the "missing" bucket and sort LAST —
+        // ranking the best possible account below one at 0.01. tracker-status
+        // already treats this state as the healthiest there is.
+        if (stats.ratioIsInfinite) return Number.POSITIVE_INFINITY
+        return stats.ratio
+      case "seeding":
+        return stats.seedingCount
+      case "uploaded":
+        return stats.uploadedBytes ? Number(BigInt(stats.uploadedBytes)) : null
+      case "downloaded":
+        return stats.downloadedBytes ? Number(BigInt(stats.downloadedBytes)) : null
+      case "buffer":
+        if (!stats.uploadedBytes || !stats.downloadedBytes) return null
+        return Number(BigInt(stats.uploadedBytes) - BigInt(stats.downloadedBytes))
+    }
+  } catch {
+    // Malformed byte string. Treat as missing, same as formatBytesFromString
+    // does for display, rather than letting BigInt() throw inside a sort.
+    return null
+  }
+}
+
+function sortTrackers(
+  trackers: TrackerSummary[],
+  mode: SortMode,
+  statMode?: StatMode
+): TrackerSummary[] {
   const sorted = [...trackers]
   switch (mode) {
     case "alpha":
       return sorted.sort((a, b) => a.name.localeCompare(b.name))
     case "custom":
       return sorted.sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity))
+    case "stat": {
+      if (!statMode) return sorted
+      return sorted.sort((a, b) => {
+        const av = getStatNumericValue(a.latestStats, statMode)
+        const bv = getStatNumericValue(b.latestStats, statMode)
+        if (av === null) return bv === null ? 0 : 1
+        if (bv === null) return -1
+        // Two infinite ratios would make the subtraction NaN, which is not a
+        // valid comparator result. Equal values keep their relative order.
+        if (av === bv) return 0
+        return bv - av // descending. Highest value first.
+      })
+    }
     default:
       return sorted
   }
@@ -25,6 +80,7 @@ function sortTrackers(trackers: TrackerSummary[], mode: SortMode): TrackerSummar
 
 interface UseTrackerListParams {
   sortMode: SortMode
+  statMode: StatMode
   showFavoritesOnly: boolean
   showArchived: boolean
   onSortModeChange: (mode: SortMode) => void
@@ -43,6 +99,7 @@ interface UseTrackerListReturn {
 
 function useTrackerList({
   sortMode,
+  statMode,
   showFavoritesOnly,
   showArchived,
   onSortModeChange,
@@ -77,8 +134,8 @@ function useTrackerList({
   )
 
   const displayedTrackers = useMemo(
-    () => sortTrackers(filteredTrackers, sortMode),
-    [filteredTrackers, sortMode]
+    () => sortTrackers(filteredTrackers, sortMode, statMode),
+    [filteredTrackers, sortMode, statMode]
   )
 
   const trackerIds = useMemo(() => displayedTrackers.map((t) => t.id), [displayedTrackers])
@@ -111,6 +168,12 @@ function useTrackerList({
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
+      // Reordering a stat-sorted list is meaningless. The next render just
+      // re-sorts it by value. Drag listeners are already suppressed in this
+      // mode (see Sidebar's `unlocked` prop), but guard here too so a
+      // programmatic drag-end can't sneak a "custom" mode switch through.
+      if (sortMode === "stat") return
+
       const { active, over } = event
       if (!over || active.id === over.id) return
 
@@ -118,10 +181,21 @@ function useTrackerList({
 
       queryClient.setQueryData<TrackerSummary[]>(trackerQueryOptions.queryKey, (prev) => {
         if (!prev) return prev
-        const oldIndex = prev.findIndex((t) => t.id === active.id)
-        const newIndex = prev.findIndex((t) => t.id === over.id)
+        // Order the full set exactly the way the sidebar displays it before
+        // computing the move. The raw query cache comes back ordered by
+        // createdAt, which matches the display only until the sort mode flips
+        // to "custom" at the end of this handler. After that, indices taken
+        // from the cache refer to different trackers than the ones the user
+        // dragged, which is what jumbled every drag after the first (#166).
+        //
+        // The whole set is reordered, not just the visible subset, so that
+        // filtered-out trackers can't keep stale sortOrder values that
+        // collide with the new ones the server assigns.
+        const ordered = sortTrackers(prev, sortMode, statMode)
+        const oldIndex = ordered.findIndex((t) => t.id === active.id)
+        const newIndex = ordered.findIndex((t) => t.id === over.id)
         if (oldIndex === -1 || newIndex === -1) return prev
-        return arrayMove(prev, oldIndex, newIndex).map((t, i) => ({
+        return arrayMove(ordered, oldIndex, newIndex).map((t, i) => ({
           ...t,
           sortOrder: i,
         }))
@@ -145,7 +219,7 @@ function useTrackerList({
 
       onSortModeChange("custom")
     },
-    [queryClient, onSortModeChange]
+    [queryClient, onSortModeChange, sortMode, statMode]
   )
 
   const refresh = useCallback(() => {

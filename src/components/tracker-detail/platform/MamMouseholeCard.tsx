@@ -205,7 +205,7 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
 
   return (
     <div className="nm-inset-sm bg-control-bg max-w-xl rounded-nm-md flex overflow-hidden">
-      {/* Left: Logo — clickable, links to user's Mousehole instance */}
+      {/* Left: Logo (clickable, links to user's Mousehole instance) */}
       <a
         href={mouseholeUrl}
         target="_blank"
@@ -223,9 +223,9 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
         />
       </a>
 
-      {/* Right: Content — separated from logo by gap, not border */}
+      {/* Right: Content (separated from logo by gap, not border) */}
       <div className="flex flex-col flex-1 min-w-0 py-3 pr-4 pl-1">
-        {/* Header — always visible */}
+        {/* Header (always visible) */}
         <div className="flex items-center justify-between gap-4 w-full">
           <button
             type="button"

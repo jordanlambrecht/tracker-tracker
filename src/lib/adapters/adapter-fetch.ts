@@ -9,13 +9,20 @@ async function adapterFetch<T>(
   url: string,
   hostname: string,
   options?: FetchOptions,
-  headers?: Record<string, string>
+  headers?: Record<string, string>,
+  init?: { method?: "GET" | "POST"; body?: string }
 ): Promise<T> {
   const mergedHeaders = { Accept: "application/json", ...headers }
+  const method = init?.method ?? "GET"
+  const body = method === "POST" ? (init?.body ?? "") : undefined
 
   if (options?.proxyAgent) {
     try {
-      const result = await proxyFetch(url, options.proxyAgent, { headers: mergedHeaders })
+      const result = await proxyFetch(url, options.proxyAgent, {
+        headers: mergedHeaders,
+        method,
+        body,
+      })
       if (!result.ok) {
         throw new Error(`Tracker API error: ${result.status} ${result.statusText}`)
       }
@@ -35,7 +42,9 @@ async function adapterFetch<T>(
   let response: Response
   try {
     response = await fetch(url, {
+      method,
       headers: mergedHeaders,
+      ...(body === undefined ? {} : { body }),
       signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
     })
   } catch (err) {

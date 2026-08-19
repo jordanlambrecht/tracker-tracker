@@ -39,8 +39,7 @@ import {
   SHORT_NAME_MAX,
   SNAPSHOT_RETENTION_MAX,
   SNAPSHOT_RETENTION_MIN,
-  USERNAME_MAX,
-  USERNAME_MIN,
+  validateUsername,
 } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { scrubSnapshotUsernames } from "@/lib/privacy-db"
@@ -78,17 +77,18 @@ export async function PATCH(request: Request) {
   // --- Username ---
   if (body.username !== undefined) {
     if (body.username === null || body.username === "") {
+      // Clearing is allowed here and only here; login then stops asking for one.
       updates.username = null
-    } else if (typeof body.username === "string") {
-      if (body.username.length < USERNAME_MIN || body.username.length > USERNAME_MAX) {
-        return NextResponse.json(
-          { error: `Username must be between ${USERNAME_MIN} and ${USERNAME_MAX} characters` },
-          { status: 400 }
-        )
-      }
-      updates.username = body.username.trim()
     } else {
-      return NextResponse.json({ error: "Invalid username" }, { status: 400 })
+      // Shared with setup and the post-login prompt. Used to measure length
+      // against untrimmed input then store trimmed, so "  ab  " satisfied the
+      // minimum and stored a 2-character name with no character class check.
+      // This route writes values the other two paths could not produce.
+      const check = validateUsername(body.username)
+      if (!check.ok) {
+        return NextResponse.json({ error: check.error }, { status: 400 })
+      }
+      updates.username = check.username
     }
   }
 
@@ -293,6 +293,23 @@ export async function PATCH(request: Request) {
     if (!body.storeUsernames && body.scrubExisting) {
       await scrubSnapshotUsernames()
     }
+  }
+
+  // --- Credential vault opt-in gate ---
+  //
+  // Toggling this OFF deliberately does NOT touch trackers.encrypted_credentials.
+  // The flag gates the routes; the ciphertext stays put, keeps being re-keyed by
+  // change-password and keeps riding along in backups. Flipping the toggle back
+  // on restores the vaults intact. Disabling a feature must not be destructive.
+  // That is what the Danger Zone is for.
+  if (body.credentialVaultEnabled !== undefined) {
+    if (typeof body.credentialVaultEnabled !== "boolean") {
+      return NextResponse.json(
+        { error: "credentialVaultEnabled must be a boolean" },
+        { status: 400 }
+      )
+    }
+    updates.credentialVaultEnabled = body.credentialVaultEnabled
   }
 
   // --- qbitmanage config ---

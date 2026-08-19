@@ -8,6 +8,7 @@ import { desc, inArray, isNotNull } from "drizzle-orm"
 import { decrypt, deriveKey, encrypt, generateSalt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import {
+  appCoverageGaps,
   appSettings,
   backupHistory,
   clientSnapshots,
@@ -17,6 +18,7 @@ import {
   notificationTargets,
   tagGroupMembers,
   tagGroups,
+  trackerOutages,
   trackerRoles,
   trackerSnapshots,
   trackers,
@@ -49,6 +51,8 @@ export interface BackupPayload {
   tagGroupMembers: Record<string, unknown>[]
   clientSnapshots: Record<string, unknown>[]
   clientUptimeBuckets?: Record<string, unknown>[]
+  appCoverageGaps?: Record<string, unknown>[]
+  trackerOutages?: Record<string, unknown>[]
   dismissedAlerts?: Record<string, unknown>[]
   notificationTargets?: Record<string, unknown>[]
 }
@@ -81,6 +85,29 @@ function serializeRow(row: Record<string, unknown>): Record<string, unknown> {
   return out
 }
 
+/**
+ * Columns a backup carries for each download client
+ */
+export const BACKUP_CLIENT_COLUMNS = {
+  id: downloadClients.id,
+  name: downloadClients.name,
+  type: downloadClients.type,
+  enabled: downloadClients.enabled,
+  host: downloadClients.host,
+  port: downloadClients.port,
+  useSsl: downloadClients.useSsl,
+  authMethod: downloadClients.authMethod,
+  encryptedUsername: downloadClients.encryptedUsername,
+  encryptedPassword: downloadClients.encryptedPassword,
+  encryptedApiKey: downloadClients.encryptedApiKey,
+  pollIntervalSeconds: downloadClients.pollIntervalSeconds,
+  isDefault: downloadClients.isDefault,
+  crossSeedTags: downloadClients.crossSeedTags,
+  errorSince: downloadClients.errorSince,
+  createdAt: downloadClients.createdAt,
+  updatedAt: downloadClients.updatedAt,
+} as const
+
 export async function generateBackupPayload(): Promise<BackupPayload> {
   const now = new Date().toISOString()
 
@@ -95,6 +122,8 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     rawTagGroupMembers,
     rawClientSnapshots,
     rawUptimeBuckets,
+    rawCoverageGaps,
+    rawTrackerOutages,
     rawDismissedAlerts,
     allNotificationTargets,
   ] = await Promise.all([
@@ -102,30 +131,30 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     db.select().from(trackers).orderBy(trackers.id),
     db.select().from(trackerSnapshots).orderBy(trackerSnapshots.id),
     db.select().from(trackerRoles).orderBy(trackerRoles.id),
-    db
-      .select({
-        id: downloadClients.id,
-        name: downloadClients.name,
-        type: downloadClients.type,
-        enabled: downloadClients.enabled,
-        host: downloadClients.host,
-        port: downloadClients.port,
-        useSsl: downloadClients.useSsl,
-        encryptedUsername: downloadClients.encryptedUsername,
-        encryptedPassword: downloadClients.encryptedPassword,
-        pollIntervalSeconds: downloadClients.pollIntervalSeconds,
-        isDefault: downloadClients.isDefault,
-        crossSeedTags: downloadClients.crossSeedTags,
-        errorSince: downloadClients.errorSince,
-        createdAt: downloadClients.createdAt,
-        updatedAt: downloadClients.updatedAt,
-      })
-      .from(downloadClients)
-      .orderBy(downloadClients.id),
+    db.select(BACKUP_CLIENT_COLUMNS).from(downloadClients).orderBy(downloadClients.id),
     db.select().from(tagGroups).orderBy(tagGroups.id),
     db.select().from(tagGroupMembers).orderBy(tagGroupMembers.id),
     db.select().from(clientSnapshots).orderBy(clientSnapshots.id),
     db.select().from(clientUptimeBuckets).orderBy(clientUptimeBuckets.id),
+    // app_coverage_gaps travels with the backup: it explains the snapshots
+    // sitting next to it, and a restored history without its explanations reads
+    // as "these zeroes were real".
+    //
+    // app_liveness DELIBERATELY DOES NOT!
+    // It is a single mutable row whose whole meaning is "the live process was
+    // here at this instant". Restoring a months-old lastSeenAt would make the
+    // very next touchAppLiveness() measure the distance to now and write one
+    // enormous fabricated outage across every chart. The ledger must always be
+    // rebuilt by the running process, never carried in from a file. Do not add
+    // it to this list.
+    db.select().from(appCoverageGaps).orderBy(appCoverageGaps.id),
+    // tracker_outages travels for the same reason app_coverage_gaps does: it
+    // explains the tracker snapshots restored beside it. Without it a restore
+    // hands back the flat stretches with every explanation cascade-deleted,
+    // which is exactly the "these zeroes were real" reading this feature exists
+    // to prevent. Unlike app_liveness it is pure closed history, so carrying it
+    // in from a file can never fabricate an outage.
+    db.select().from(trackerOutages).orderBy(trackerOutages.id),
     db.select().from(dismissedAlerts).orderBy(dismissedAlerts.id),
     db.select().from(notificationTargets).orderBy(notificationTargets.id),
   ])
@@ -175,6 +204,12 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
   const uptimeBucketsPayload = rawUptimeBuckets.map((ub) =>
     serializeRow(ub as Record<string, unknown>)
   )
+  const coverageGapsPayload = rawCoverageGaps.map((cg) =>
+    serializeRow(cg as Record<string, unknown>)
+  )
+  const trackerOutagesPayload = rawTrackerOutages.map((o) =>
+    serializeRow(o as Record<string, unknown>)
+  )
   const dismissedAlertsPayload = rawDismissedAlerts.map((a) =>
     serializeRow(a as Record<string, unknown>)
   )
@@ -192,6 +227,8 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     tagGroupMembers: tagGroupMembersPayload.length,
     clientSnapshots: clientSnapshotsPayload.length,
     clientUptimeBuckets: uptimeBucketsPayload.length,
+    appCoverageGaps: coverageGapsPayload.length,
+    trackerOutages: trackerOutagesPayload.length,
     dismissedAlerts: dismissedAlertsPayload.length,
     notificationTargets: backupNotificationTargets.length,
   }
@@ -216,6 +253,8 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     tagGroupMembers: tagGroupMembersPayload,
     clientSnapshots: clientSnapshotsPayload,
     clientUptimeBuckets: uptimeBucketsPayload,
+    appCoverageGaps: coverageGapsPayload,
+    trackerOutages: trackerOutagesPayload,
     dismissedAlerts: dismissedAlertsPayload,
     notificationTargets: backupNotificationTargets,
   }
@@ -339,6 +378,42 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
       assertNumber(ub.fail, `${prefix}.fail`)
     }
   }
+  // trackerOutages is optional for backward compatibility with older backups
+  if (p.trackerOutages !== undefined) {
+    assertArray(p.trackerOutages, "trackerOutages")
+    for (let i = 0; i < p.trackerOutages.length; i++) {
+      const o = p.trackerOutages[i] as Record<string, unknown>
+      const prefix = `trackerOutages[${i}]`
+      assertString(o.startedAt, `${prefix}.startedAt`)
+      assertString(o.endedAt, `${prefix}.endedAt`)
+      assertValidIso(o.startedAt, `${prefix}.startedAt`)
+      assertValidIso(o.endedAt, `${prefix}.endedAt`)
+      assertString(o.reason, `${prefix}.reason`)
+      // Closed intervals only, same as coverage gaps. A zero-length row is
+      // legitimate here (one observed failure) so only INVERSION is rejected.
+      if (new Date(o.endedAt).getTime() < new Date(o.startedAt).getTime()) {
+        throw new Error(`Backup validation: ${prefix}.endedAt must not precede startedAt`)
+      }
+    }
+  }
+  // appCoverageGaps is optional for backward compatibility with older backups
+  if (p.appCoverageGaps !== undefined) {
+    assertArray(p.appCoverageGaps, "appCoverageGaps")
+    for (let i = 0; i < p.appCoverageGaps.length; i++) {
+      const cg = p.appCoverageGaps[i] as Record<string, unknown>
+      const prefix = `appCoverageGaps[${i}]`
+      assertString(cg.startedAt, `${prefix}.startedAt`)
+      assertString(cg.endedAt, `${prefix}.endedAt`)
+      assertValidIso(cg.startedAt, `${prefix}.startedAt`)
+      assertValidIso(cg.endedAt, `${prefix}.endedAt`)
+      assertString(cg.reason, `${prefix}.reason`)
+      // Closed intervals only — an inverted or open-ended gap would band the
+      // chart backwards or band the present.
+      if (new Date(cg.endedAt).getTime() < new Date(cg.startedAt).getTime()) {
+        throw new Error(`Backup validation: ${prefix}.endedAt must not precede startedAt`)
+      }
+    }
+  }
   // dismissedAlerts is optional for backward compatibility with older backups
   if (p.dismissedAlerts !== undefined) {
     assertArray(p.dismissedAlerts, "dismissedAlerts")
@@ -438,6 +513,13 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
     assertString(c.encryptedUsername, `${prefix}.encryptedUsername`)
     // Empty credentials are valid — happens after a restore clears encrypted fields
     assertString(c.encryptedPassword, `${prefix}.encryptedPassword`)
+
+    // Both absent in backups written before API-key auth existed, so these are
+    // presence-guarded — but when present they are read as strings and must be.
+    if (typeof c.authMethod !== "undefined") assertString(c.authMethod, `${prefix}.authMethod`)
+    if (typeof c.encryptedApiKey !== "undefined") {
+      assertString(c.encryptedApiKey, `${prefix}.encryptedApiKey`)
+    }
   }
 
   // tagGroupMember entries

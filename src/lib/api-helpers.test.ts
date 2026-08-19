@@ -1,7 +1,8 @@
 // src/lib/api-helpers.test.ts
 
 import { describe, expect, it } from "vitest"
-import { validateHttpUrl } from "./api-helpers"
+import { localDateStr } from "@/lib/formatters"
+import { validateHttpUrl, validateLastAccessAt } from "./api-helpers"
 
 describe("validateHttpUrl", () => {
   it("accepts a public HTTPS URL", () => {
@@ -123,5 +124,31 @@ describe("validateHttpUrl", () => {
   it("rejects shorthand private range (10.1)", async () => {
     const response = validateHttpUrl("http://10.1/api")
     expect(response?.status).toBe(400)
+  })
+})
+
+describe("validateLastAccessAt", () => {
+  it("accepts a valid past date", () => {
+    expect(validateLastAccessAt("2020-01-01")).toBeNull()
+  })
+
+  it("accepts today's date", () => {
+    expect(validateLastAccessAt(localDateStr())).toBeNull()
+  })
+
+  it("rejects a malformed date", async () => {
+    const response = validateLastAccessAt("not-a-date")
+    expect(response?.status).toBe(400)
+    await expect(response?.json()).resolves.toEqual({
+      error: "lastAccessAt must be YYYY-MM-DD",
+    })
+  })
+
+  it("rejects a future date", async () => {
+    const response = validateLastAccessAt("2099-01-01")
+    expect(response?.status).toBe(400)
+    await expect(response?.json()).resolves.toEqual({
+      error: "Last login date cannot be in the future",
+    })
   })
 })

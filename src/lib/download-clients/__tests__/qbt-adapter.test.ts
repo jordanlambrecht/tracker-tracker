@@ -6,7 +6,7 @@ vi.mock("@/lib/download-clients/qbt/transport", () => ({
   buildBaseUrl: vi.fn(
     (host: string, port: number, ssl: boolean) => `${ssl ? "https" : "http"}://${host}:${port}`
   ),
-  login: vi.fn().mockResolvedValue("test-sid"),
+  login: vi.fn().mockResolvedValue({ name: "SID", value: "test-sid" }),
   getTorrents: vi.fn().mockResolvedValue([
     {
       hash: "abc",
@@ -57,6 +57,7 @@ vi.mock("@/lib/download-clients/qbt/transport", () => ({
     },
   }),
   invalidateSession: vi.fn(),
+  clearAuthBlocks: vi.fn(),
   withSessionRetry: vi.fn(
     async (
       _h: string,
@@ -64,12 +65,13 @@ vi.mock("@/lib/download-clients/qbt/transport", () => ({
       _s: boolean,
       _u: string,
       _pw: string,
-      op: (baseUrl: string, sid: string) => unknown
-    ) => op("http://localhost:8080", "test-sid")
+      op: (baseUrl: string, sid: { name: string; value: string }) => unknown
+    ) => op("http://localhost:8080", { name: "SID", value: "test-sid" })
   ),
 }))
 
 import {
+  clearAuthBlocks,
   getTorrents,
   getTransferInfo,
   invalidateSession,
@@ -80,7 +82,11 @@ import {
 import { QbtClientAdapter } from "../adapters/qbt"
 
 describe("QbtClientAdapter", () => {
-  const adapter = new QbtClientAdapter("localhost", 8080, false, "admin", "pass")
+  const adapter = new QbtClientAdapter("localhost", 8080, false, {
+    authMethod: "password",
+    username: "admin",
+    password: "pass",
+  })
 
   it("has type 'qbittorrent'", () => {
     expect(adapter.type).toBe("qbittorrent")
@@ -140,7 +146,7 @@ describe("QbtClientAdapter", () => {
     await adapter.getTorrents({ tag: "aither", filter: "active" })
     expect(getTorrents).toHaveBeenCalledWith(
       expect.any(String),
-      expect.any(String),
+      { mode: "session", sid: { name: "SID", value: "test-sid" } },
       "aither",
       "active"
     )
@@ -158,7 +164,11 @@ describe("QbtClientAdapter", () => {
 
   it("returns normalized DeltaSyncResponse from getDeltaSync", async () => {
     const data = await adapter.getDeltaSync?.(0)
-    expect(syncMaindata).toHaveBeenCalledWith(expect.any(String), expect.any(String), 0)
+    expect(syncMaindata).toHaveBeenCalledWith(
+      expect.any(String),
+      { mode: "session", sid: { name: "SID", value: "test-sid" } },
+      0
+    )
 
     // Top-level fields pass through
     expect(data?.rid).toBe(1)
@@ -193,6 +203,14 @@ describe("QbtClientAdapter", () => {
     expect(getTransferInfo).toHaveBeenCalled()
   })
 
+  it("testConnection clears the auth block so an explicit retry reaches the network", async () => {
+    vi.mocked(clearAuthBlocks).mockClear()
+
+    await adapter.testConnection()
+
+    expect(clearAuthBlocks).toHaveBeenCalledWith("http://localhost:8080")
+  })
+
   it("dispose invalidates the session", () => {
     vi.mocked(invalidateSession).mockClear()
     adapter.dispose()
@@ -200,13 +218,11 @@ describe("QbtClientAdapter", () => {
   })
 
   it("does not leak plaintext credentials in error messages from getTorrents", async () => {
-    const sensitiveAdapter = new QbtClientAdapter(
-      "localhost",
-      8080,
-      false,
-      "secret-user",
-      "secret-pass"
-    )
+    const sensitiveAdapter = new QbtClientAdapter("localhost", 8080, false, {
+      authMethod: "password",
+      username: "secret-user",
+      password: "secret-pass",
+    })
     vi.mocked(withSessionRetry).mockRejectedValueOnce(new Error("Auth failed"))
 
     try {
@@ -219,13 +235,11 @@ describe("QbtClientAdapter", () => {
   })
 
   it("does not leak plaintext credentials in error messages from testConnection", async () => {
-    const sensitiveAdapter = new QbtClientAdapter(
-      "localhost",
-      8080,
-      false,
-      "secret-user",
-      "secret-pass"
-    )
+    const sensitiveAdapter = new QbtClientAdapter("localhost", 8080, false, {
+      authMethod: "password",
+      username: "secret-user",
+      password: "secret-pass",
+    })
     vi.mocked(login).mockRejectedValueOnce(new Error("HTTP 403 Forbidden"))
 
     try {
@@ -234,6 +248,96 @@ describe("QbtClientAdapter", () => {
     } catch (err) {
       expect((err as Error).message).not.toContain("secret-user")
       expect((err as Error).message).not.toContain("secret-pass")
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// API-key mode
+//
+// A Bearer key is stateless: there is no login to perform, no SID to cache,
+// and nothing to refresh on expiry. The point of these tests is that the
+// session machinery is not merely unused but unreachable — if withSessionRetry
+// or login is ever called for a key client, the adapter is doing work that
+// cannot succeed.
+// ---------------------------------------------------------------------------
+
+describe("QbtClientAdapter with API-key auth", () => {
+  const adapter = new QbtClientAdapter("localhost", 8080, false, {
+    authMethod: "apikey",
+    apiKey: "qbt_examplekey",
+  })
+
+  it("passes the key to the transport without logging in or retrying a session", async () => {
+    vi.mocked(withSessionRetry).mockClear()
+    vi.mocked(login).mockClear()
+    vi.mocked(getTorrents).mockClear()
+
+    await adapter.getTorrents({ tag: "aither" })
+
+    expect(withSessionRetry).not.toHaveBeenCalled()
+    expect(login).not.toHaveBeenCalled()
+    expect(getTorrents).toHaveBeenCalledWith(
+      "http://localhost:8080",
+      { mode: "apikey", key: "qbt_examplekey" },
+      "aither",
+      undefined
+    )
+  })
+
+  it("routes getTransferInfo and getDeltaSync through the key as well", async () => {
+    vi.mocked(withSessionRetry).mockClear()
+    vi.mocked(getTransferInfo).mockClear()
+    vi.mocked(syncMaindata).mockClear()
+
+    await adapter.getTransferInfo()
+    await adapter.getDeltaSync?.(7)
+
+    expect(withSessionRetry).not.toHaveBeenCalled()
+    expect(getTransferInfo).toHaveBeenCalledWith("http://localhost:8080", {
+      mode: "apikey",
+      key: "qbt_examplekey",
+    })
+    expect(syncMaindata).toHaveBeenCalledWith(
+      "http://localhost:8080",
+      { mode: "apikey", key: "qbt_examplekey" },
+      7
+    )
+  })
+
+  it("testConnection probes the API directly instead of logging in", async () => {
+    vi.mocked(login).mockClear()
+    vi.mocked(getTransferInfo).mockClear()
+    vi.mocked(clearAuthBlocks).mockClear()
+
+    await adapter.testConnection()
+
+    expect(login).not.toHaveBeenCalled()
+    // Still clears the block: an explicit retry must reach the network, and a
+    // rejected key is blocked by qbtFetch just like a rejected password.
+    expect(clearAuthBlocks).toHaveBeenCalledWith("http://localhost:8080")
+    expect(getTransferInfo).toHaveBeenCalledWith("http://localhost:8080", {
+      mode: "apikey",
+      key: "qbt_examplekey",
+    })
+  })
+
+  it("dispose still resets the sync store for a key client", () => {
+    vi.mocked(invalidateSession).mockClear()
+    adapter.dispose()
+    // invalidateSession also calls resetStore — guarding it behind "password"
+    // would leave a key client's delta-sync revision stale across a logout.
+    expect(invalidateSession).toHaveBeenCalledWith("http://localhost:8080")
+  })
+
+  it("does not leak the plaintext key in error messages", async () => {
+    vi.mocked(getTorrents).mockRejectedValueOnce(new Error("HTTP 403 Forbidden"))
+
+    try {
+      await adapter.getTorrents()
+      expect.unreachable("should have thrown")
+    } catch (err) {
+      expect((err as Error).message).not.toContain("qbt_examplekey")
     }
   })
 })

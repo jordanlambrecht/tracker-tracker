@@ -3,7 +3,7 @@
 
 import type { CandlestickSeriesOption, EChartsOption } from "echarts"
 import { hexToRgba } from "@/lib/color-utils"
-import { bytesToGiB } from "@/lib/formatters"
+import { bytesToGiB, localDateStr } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import type { FleetChartProps, TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
@@ -16,6 +16,9 @@ import {
   insideZoom,
 } from "./lib/chart-helpers"
 import { LogScaleToggle } from "./lib/LogScaleToggle"
+import { OutageBandLegend } from "./lib/OutageBandLegend"
+import { useOutageBands } from "./lib/OutageBandsProvider"
+import { appendOutageBandSeries, polledAtRange } from "./lib/outage-bands"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -37,7 +40,7 @@ interface CandlestickResult {
 }
 
 /**
- * Groups snapshots by calendar day (YYYY-MM-DD) and computes
+ * Groups snapshots by local calendar day (YYYY-MM-DD, per TZ) and computes
  * open/high/low/close buffer values in GiB. Returns the day labels
  * and OHLC array in ECharts candlestick format [open, close, low, high].
  */
@@ -48,10 +51,12 @@ function computeCandlestickData(snapshots: Snapshot[], divisor: number): Candles
     (a, b) => new Date(a.polledAt).getTime() - new Date(b.polledAt).getTime()
   )
 
-  // Group by calendar day (YYYY-MM-DD)
+  // Group by LOCAL calendar day (YYYY-MM-DD). Slicing the ISO string would key
+  // by UTC date and put every evening snapshot in a negative-offset zone into
+  // tomorrow's candle, disagreeing with every other chart on this page.
   const byDay = new Map<string, Snapshot[]>()
   for (const snap of sorted) {
-    const day = snap.polledAt.slice(0, 10)
+    const day = localDateStr(new Date(snap.polledAt))
     const existing = byDay.get(day)
     if (existing) {
       existing.push(snap)
@@ -83,11 +88,13 @@ function buildCandlestickOption(
   trackerData: TrackerSnapshotSeries[],
   useLog: boolean
 ): EChartsOption {
-  // Collect all GiB values across all trackers to decide GiB vs TiB
+  // Collect all GiB magnitudes across all trackers to decide GiB vs TiB.
+  // Magnitude, not maximum: buffer is signed, and an all-deficit fleet peaks
+  // below zero, which would render a -2.4 TiB candle labelled in GiB.
   let maxGiB = 0
   for (const tracker of trackerData) {
     for (const snap of tracker.snapshots) {
-      const gib = bytesToGiB(snap.bufferBytes)
+      const gib = Math.abs(bytesToGiB(snap.bufferBytes))
       if (gib > maxGiB) maxGiB = gib
     }
   }
@@ -130,7 +137,7 @@ function buildCandlestickOption(
 
   // Build one candlestick series per tracker, mapped to the unified day axis.
   // Time-axis candlestick format: [timestamp, open, close, low, high].
-  // Days with no data for a tracker are skipped — time axis handles sparse data natively.
+  // Days with no data are skipped. Time axis handles sparse data natively.
   const series: CandlestickSeriesOption[] = trackerData.map((tracker, idx) => {
     const result = trackerResults[idx]
     const dayToOhlc = new Map<string, [number, number, number, number]>()
@@ -138,7 +145,7 @@ function buildCandlestickOption(
       dayToOhlc.set(result.days[i], result.ohlc[i])
     }
 
-    // [timestamp, open, close, low, high] tuples — gaps handled by time axis
+    // [timestamp, open, close, low, high] tuples. Gaps handled by time axis.
     const data: [number, number, number, number, number][] = []
     for (const day of allDays) {
       const entry = dayToOhlc.get(day)
@@ -255,15 +262,22 @@ function buildCandlestickOption(
  * Shows empty state if no tracker has at least 2 days of data.
  */
 function BufferCandlestickChart({ trackerData, height = 360 }: BufferCandlestickChartProps) {
+  // Tracker snapshots, app bands only. Aggregated to whole days. A multi-day
+  // outage erases candles outright.
+  const outages = useOutageBands("tracker")
   const hasEnoughDays = trackerData.some((tracker) => {
-    const uniqueDays = new Set(tracker.snapshots.map((s) => s.polledAt.slice(0, 10)))
+    // Must key by the same local day as computeCandlestickData, or a single
+    // local day straddling UTC midnight would count as two and let the chart
+    // render a "candlestick" with nothing to compare.
+    const uniqueDays = new Set(tracker.snapshots.map((s) => localDateStr(new Date(s.polledAt))))
     return uniqueDays.size >= 2
   })
 
+  // Magnitude, matching buildCandlestickOption. See the note there.
   let globalMaxGiB = 0
   for (const tracker of trackerData) {
     for (const snap of tracker.snapshots) {
-      const gib = bytesToGiB(snap.bufferBytes)
+      const gib = Math.abs(bytesToGiB(snap.bufferBytes))
       if (gib > globalMaxGiB) globalMaxGiB = gib
     }
   }
@@ -276,7 +290,19 @@ function BufferCandlestickChart({ trackerData, height = 360 }: BufferCandlestick
     }
   }
 
-  const { effectiveLog, isAuto, onToggle } = useLogScale(allValues)
+  // A log axis cannot represent a non-positive value. This chart's log branch
+  // takes min/max from positive values alone. A deficit candle is dropped while
+  // the axis rescales around what's left. Once any value is <= 0, the toggle
+  // is withheld. Auto-detection is starved of input, pinning to the linear
+  // axis that can draw it. Same as MetricChart for issue #36.
+  const canUseLog = allValues.length > 0 && allValues.every((v) => v > 0)
+  const { effectiveLog, isAuto, onToggle } = useLogScale(canUseLog ? allValues : [])
+  // `canUseLog &&`, not `effectiveLog` alone. useLogScale keeps the user's
+  // override in state. A viewer who forced log on while values were positive
+  // stays on log axis after a new snapshot turns negative. The candle that
+  // just went into deficit is dropped. The toggle unmounts with no way to turn
+  // it off.
+  const useLog = canUseLog && effectiveLog
 
   if (!hasEnoughDays) {
     return (
@@ -289,16 +315,23 @@ function BufferCandlestickChart({ trackerData, height = 360 }: BufferCandlestick
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex justify-end">
-        <LogScaleToggle effectiveLog={effectiveLog} isAuto={isAuto} onToggle={onToggle} />
-      </div>
+      {canUseLog && (
+        <div className="flex justify-end">
+          <LogScaleToggle effectiveLog={effectiveLog} isAuto={isAuto} onToggle={onToggle} />
+        </div>
+      )}
       <ChartECharts
-        option={buildCandlestickOption(trackerData, effectiveLog)}
+        option={appendOutageBandSeries(
+          buildCandlestickOption(trackerData, useLog),
+          outages,
+          polledAtRange(trackerData.flatMap((t) => t.snapshots))
+        )}
         style={{ height, width: "100%" }}
       />
+      <OutageBandLegend bands={outages} range={polledAtRange(trackerData.flatMap((t) => t.snapshots))} />
     </div>
   )
 }
 
 export type { BufferCandlestickChartProps }
-export { BufferCandlestickChart }
+export { BufferCandlestickChart, computeCandlestickData }

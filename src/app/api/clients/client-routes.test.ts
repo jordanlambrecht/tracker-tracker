@@ -3,9 +3,13 @@
 import { NextResponse } from "next/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { authenticate } from "@/lib/api-helpers"
+import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { createAdapterForClient } from "@/lib/download-clients"
+import { CREDENTIAL_MAX } from "@/lib/limits"
+import { PATCH } from "./[id]/route"
 import { GET } from "./[id]/torrents/route"
+import { POST } from "./route"
 
 // ---------------------------------------------------------------------------
 // Module mocks (boundaries only)
@@ -40,10 +44,16 @@ const mockAdapter = {
 
 vi.mock("@/lib/download-clients", () => ({
   createAdapterForClient: vi.fn(() => mockAdapter),
+  VALID_CLIENT_TYPES: ["qbittorrent", "deluge", "transmission", "rtorrent"],
   stripSensitiveTorrentFields: vi.fn((t: Record<string, unknown>) => {
     const { tracker: _t, content_path: _cp, save_path: _sp, ...rest } = t
     return rest
   }),
+}))
+
+vi.mock("@/lib/server-data", () => ({
+  fetchDownloadClients: vi.fn().mockResolvedValue([]),
+  serializeDownloadClientResponse: vi.fn((c: unknown) => c),
 }))
 
 // ---------------------------------------------------------------------------
@@ -367,5 +377,288 @@ describe("GET /api/clients/[id]/torrents", () => {
 
     expect(mockAdapter.getTorrents).toHaveBeenCalledOnce()
     expect(mockAdapter.getTorrents).toHaveBeenCalledWith({ tag: "aither" })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// POST /api/clients — credentials are optional (issue #150)
+//
+// qBittorrent skips authentication entirely for loopback clients when "Bypass
+// authentication for clients on localhost" is set, so a blank username and
+// password is a valid configuration. PATCH has always accepted "" — these
+// tests pin the matching behaviour on create.
+// ---------------------------------------------------------------------------
+
+describe("POST /api/clients", () => {
+  let inserted: Record<string, unknown> | null = null
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
+      encryptionKey: VALID_KEY,
+    })
+    inserted = null
+    ;(db as unknown as { transaction: ReturnType<typeof vi.fn> }).transaction = vi
+      .fn()
+      .mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) =>
+        cb({
+          update: () => ({ set: async () => undefined }),
+          insert: () => ({
+            values: (v: Record<string, unknown>) => {
+              inserted = v
+              return { returning: async () => [{ id: 7, name: v.name }] }
+            },
+          }),
+        })
+      )
+  })
+
+  function postBody(body: Record<string, unknown>): Request {
+    return new Request("http://localhost/api/clients", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+  }
+
+  it("creates a client when username and password are blank strings", async () => {
+    const res = await POST(postBody({ name: "Local qBT", host: "localhost", username: "", password: "" }))
+
+    expect(res.status).toBe(201)
+    expect(inserted).not.toBeNull()
+    // Stored as real ciphertext, not NULL — the NOT NULL columns are satisfied.
+    expect(typeof inserted?.encryptedUsername).toBe("string")
+    expect(inserted?.encryptedUsername).not.toBe("")
+  })
+
+  it("creates a client when username and password are omitted entirely", async () => {
+    const res = await POST(postBody({ name: "Local qBT", host: "localhost" }))
+
+    expect(res.status).toBe(201)
+    expect(typeof inserted?.encryptedPassword).toBe("string")
+  })
+
+  it("round-trips blank credentials back to empty strings", async () => {
+    await POST(postBody({ name: "Local qBT", host: "localhost", username: "", password: "" }))
+
+    const key = Buffer.from(VALID_KEY, "hex")
+    expect(decrypt(inserted?.encryptedUsername as string, key)).toBe("")
+    expect(decrypt(inserted?.encryptedPassword as string, key)).toBe("")
+  })
+
+  it("still rejects a missing name", async () => {
+    const res = await POST(postBody({ host: "localhost", username: "admin", password: "pw" }))
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toBe("name and host are required")
+  })
+
+  it("still rejects a missing host", async () => {
+    const res = await POST(postBody({ name: "Local qBT", username: "admin", password: "pw" }))
+
+    expect(res.status).toBe(400)
+  })
+
+  it("still rejects a non-string username", async () => {
+    const res = await POST(postBody({ name: "Local qBT", host: "localhost", username: 42 }))
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toBe("Invalid field types")
+  })
+
+  it("still enforces the length limit when credentials are supplied", async () => {
+    const res = await POST(
+      postBody({
+        name: "Local qBT",
+        host: "localhost",
+        username: "a".repeat(CREDENTIAL_MAX + 1),
+        password: "pw",
+      })
+    )
+
+    expect(res.status).toBe(400)
+  })
+
+  // ── API-key auth ─────────────────────────────────────────────────────
+  //
+  // Unlike a password, a key has no blank-is-valid case: there is no
+  // localhost bypass for it, so an absent key is always a mistake.
+
+  it("defaults to password auth when authMethod is omitted", async () => {
+    const res = await POST(postBody({ name: "Local qBT", host: "localhost" }))
+
+    expect(res.status).toBe(201)
+    expect(inserted?.authMethod).toBe("password")
+    expect(inserted?.encryptedApiKey).toBe("")
+  })
+
+  it("stores an API key encrypted and leaves the password columns blank", async () => {
+    const res = await POST(
+      postBody({
+        name: "Local qBT",
+        host: "localhost",
+        authMethod: "apikey",
+        apiKey: "qbt_examplekey",
+      })
+    )
+
+    expect(res.status).toBe(201)
+    expect(inserted?.authMethod).toBe("apikey")
+    // Real encrypt() runs here — the plaintext must not survive into the row.
+    expect(inserted?.encryptedApiKey).not.toBe("")
+    expect(JSON.stringify(inserted)).not.toContain("qbt_examplekey")
+    expect(decrypt(inserted?.encryptedApiKey as string, Buffer.from(VALID_KEY, "hex"))).toBe(
+      "qbt_examplekey"
+    )
+    expect(decrypt(inserted?.encryptedUsername as string, Buffer.from(VALID_KEY, "hex"))).toBe("")
+  })
+
+  it("never writes a password into the API key column", async () => {
+    await POST(
+      postBody({ name: "Local qBT", host: "localhost", username: "admin", password: "hunter2" })
+    )
+
+    expect(inserted?.encryptedApiKey).toBe("")
+    expect(JSON.stringify(inserted)).not.toContain("hunter2")
+  })
+
+  it("rejects apikey auth with no key", async () => {
+    const res = await POST(
+      postBody({ name: "Local qBT", host: "localhost", authMethod: "apikey" })
+    )
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/apiKey is required/)
+  })
+
+  it("rejects an unknown authMethod", async () => {
+    const res = await POST(
+      postBody({ name: "Local qBT", host: "localhost", authMethod: "carrier-pigeon" })
+    )
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/authMethod must be one of/)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// PATCH /api/clients/[id] — the mode and its secret move together
+//
+// The invariant these pin: naming an auth method without supplying that
+// method's credential is refused. Without it, PATCH {"authMethod":"apikey"}
+// on a password client would re-label the stored password as a key, and the
+// next poll would send that password in an Authorization header.
+// ---------------------------------------------------------------------------
+
+describe("PATCH /api/clients/[id] credential handling", () => {
+  let updates: Record<string, unknown> | null = null
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: VALID_KEY })
+    updates = null
+    mockDbSelectClient(MOCK_CLIENT)
+    ;(db as unknown as { transaction: ReturnType<typeof vi.fn> }).transaction = vi
+      .fn()
+      .mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) =>
+        cb({
+          update: () => ({
+            set: (v: Record<string, unknown>) => {
+              updates = v
+              return { where: async () => undefined }
+            },
+          }),
+        })
+      )
+  })
+
+  function patchBody(body: Record<string, unknown>): Request {
+    return new Request("http://localhost/api/clients/1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+  }
+
+  const routeProps = { params: Promise.resolve({ id: "1" }) }
+
+  it("refuses to switch to apikey without a key", async () => {
+    const res = await PATCH(patchBody({ authMethod: "apikey" }), routeProps)
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/apiKey is required/)
+    // Nothing was written — the stored password was not re-labelled.
+    expect(updates).toBeNull()
+  })
+
+  it("refuses to switch to password without both fields", async () => {
+    const res = await PATCH(patchBody({ authMethod: "password", username: "admin" }), routeProps)
+
+    expect(res.status).toBe(400)
+    expect(updates).toBeNull()
+  })
+
+  it("blanks the password columns when switching to a key", async () => {
+    const res = await PATCH(
+      patchBody({ authMethod: "apikey", apiKey: "qbt_newkey" }),
+      routeProps
+    )
+
+    expect(res.status).toBe(200)
+    expect(updates?.authMethod).toBe("apikey")
+    const key = Buffer.from(VALID_KEY, "hex")
+    expect(decrypt(updates?.encryptedApiKey as string, key)).toBe("qbt_newkey")
+    expect(decrypt(updates?.encryptedUsername as string, key)).toBe("")
+    expect(decrypt(updates?.encryptedPassword as string, key)).toBe("")
+  })
+
+  it("clears the key when switching back to a password", async () => {
+    const res = await PATCH(
+      patchBody({ authMethod: "password", username: "admin", password: "pw" }),
+      routeProps
+    )
+
+    expect(res.status).toBe(200)
+    expect(updates?.authMethod).toBe("password")
+    expect(updates?.encryptedApiKey).toBe("")
+  })
+
+  it("still accepts blank username and password — localhost bypass", async () => {
+    const res = await PATCH(
+      patchBody({ authMethod: "password", username: "", password: "" }),
+      routeProps
+    )
+
+    expect(res.status).toBe(200)
+    const key = Buffer.from(VALID_KEY, "hex")
+    expect(decrypt(updates?.encryptedPassword as string, key)).toBe("")
+  })
+
+  it("infers password mode from a legacy body with no authMethod", async () => {
+    const res = await PATCH(patchBody({ username: "admin", password: "pw" }), routeProps)
+
+    expect(res.status).toBe(200)
+    expect(updates?.authMethod).toBe("password")
+  })
+
+  it("refuses to guess when both modes' secrets arrive with no authMethod", async () => {
+    const res = await PATCH(
+      patchBody({ apiKey: "qbt_k", username: "admin", password: "pw" }),
+      routeProps
+    )
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/authMethod is required/)
+    expect(updates).toBeNull()
+  })
+
+  it("leaves credentials untouched when the patch is unrelated", async () => {
+    const res = await PATCH(patchBody({ name: "Renamed" }), routeProps)
+
+    expect(res.status).toBe(200)
+    expect(updates?.name).toBe("Renamed")
+    expect(updates).not.toHaveProperty("authMethod")
+    expect(updates).not.toHaveProperty("encryptedPassword")
+    expect(updates).not.toHaveProperty("encryptedApiKey")
   })
 })

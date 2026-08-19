@@ -22,6 +22,14 @@ import {
 } from "./lib/chart-helpers"
 import { computeDailyDeltas } from "./lib/chart-transforms"
 import { LogScaleToggle } from "./lib/LogScaleToggle"
+import { OutageBandLegend } from "./lib/OutageBandLegend"
+import { useOutageBands } from "./lib/OutageBandsProvider"
+import {
+  appendOutageBandSeries,
+  type ChartOutageBands,
+  NO_OUTAGE_BANDS,
+  timeRangeOf,
+} from "./lib/outage-bands"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -121,7 +129,9 @@ function buildLineOption(
   let { unit } = config
   let divisor = 1
   if (unit === "GiB") {
-    const maxGiB = Math.max(...rawData.filter((v): v is number => v !== null), 0)
+    // Magnitude: buffer is signed, and an all-deficit series has a max of 0,
+    // which would label a -2.4 TiB buffer in GiB.
+    const maxGiB = Math.max(...rawData.filter((v): v is number => v !== null).map(Math.abs), 0)
     ;({ divisor, unit } = autoByteScale(maxGiB))
   }
 
@@ -133,6 +143,13 @@ function buildLineOption(
     })
     .filter((d): d is [number, number] => d !== null)
   const dotSize = adaptiveDotSize(snapshots.length)
+
+  // A log axis cannot represent 0 or negative values. ECharts drops those
+  // points and, because yAxisAutoRange is skipped in log mode, the axis is
+  // left unbounded. Pin the floor to the smallest value
+  // actually plottable on a log scale.
+  const positiveValues = data.map(([, v]) => v).filter((v) => v > 0)
+  const logRange = useLog && positiveValues.length > 0 ? { min: Math.min(...positiveValues) } : {}
 
   const showSlider = snapshots.length >= 30
   const dataZoom: EChartsOption["dataZoom"] = showSlider
@@ -168,7 +185,9 @@ function buildLineOption(
       type: useLog ? "log" : "value",
       name: useLog ? `${unit} (log)` : unit,
       scale: true,
-      ...(useLog ? {} : yAxisAutoRange({ allowNegative: config.allowNegative, baselineValue })),
+      ...(useLog
+        ? logRange
+        : yAxisAutoRange({ allowNegative: config.allowNegative, baselineValue })),
       nameTextStyle: {
         color: TERTIARY_COLOR,
         fontFamily: CHART_THEME.fontMono,
@@ -367,6 +386,9 @@ function MetricChart({
   baselineValue,
 }: MetricChartProps) {
   const [deltaMode, setDeltaMode] = useState<DeltaMode>("bar")
+  // Tracker snapshots: app bands only. A download-client outage cannot flatten
+  // a tracker poll, so a qBT band here would blame the wrong system.
+  const outages = useOutageBands("tracker")
 
   const safeAccent = isValidHex(accentColor) ? accentColor : CHART_THEME.accent
 
@@ -374,14 +396,33 @@ function MetricChart({
   const ratioValues = config
     ? snapshots.map((s) => config.getValue(s)).filter((v): v is number => v !== null && v > 0)
     : []
-  const showLogToggle = metric === "ratio" || metric === "buffer" || metric === "seedbonus"
+
+  const showLogToggle =
+    (metric === "ratio" || metric === "seedbonus") && config?.allowNegative !== true
   const logScale = useLogScale(ratioValues, true)
 
   if (snapshots.length === 0) {
     return <ChartEmptyState height={height} message="No snapshot data yet." />
   }
 
-  const option =
+  // An infinite ratio (uploads, zero downloads) crosses the wire as `ratio: null`
+  // because JSON cannot carry Infinity. Infinity cannot be plotted on a linear
+  // or log axis either. Every point was dropped and the chart rendered a bare
+  // grid indistinguishable from no data
+  if (
+    metric === "ratio" &&
+    snapshots.every((s) => s.ratio === null) &&
+    snapshots.some((s) => s.ratioIsInfinite)
+  ) {
+    return (
+      <ChartEmptyState
+        height={height}
+        message="Ratio is infinite — nothing was downloaded in this range, so there is no finite value to plot."
+      />
+    )
+  }
+
+  const baseOption =
     metric === "dailyDelta"
       ? buildDailyDeltaOption(snapshots, safeAccent, deltaMode)
       : buildLineOption(
@@ -392,9 +433,22 @@ function MetricChart({
           showLogToggle ? logScale.effectiveLog : undefined
         )
 
-  if (option === null) {
+  if (baseOption === null) {
     return <ChartEmptyState height={height} message="Not enough data for daily deltas." />
   }
+
+  // The daily-delta view buckets by calendar day onto a CATEGORY axis, where a
+  // band's millisecond bounds have no meaning and a sub-day outage cannot
+  // be honestly positioned inside a day-wide bar. It gets the band series with
+  // nothing in it rather than no band series at all: ChartECharts renders in
+  // merge mode, so switching metrics on a mounted chart would otherwise leave
+  // the previous view's bands painted over this one.
+  const bands: ChartOutageBands = metric === "dailyDelta" ? NO_OUTAGE_BANDS : outages
+  const option = appendOutageBandSeries(
+    baseOption,
+    bands,
+    timeRangeOf(snapshots.map((s) => new Date(s.polledAt).getTime()))
+  )
 
   if (metric === "dailyDelta") {
     return (
@@ -425,6 +479,10 @@ function MetricChart({
         </div>
       )}
       <ChartECharts option={option} style={{ height, width: "100%" }} />
+      <OutageBandLegend
+        bands={bands}
+        range={timeRangeOf(snapshots.map((s) => new Date(s.polledAt).getTime()))}
+      />
     </div>
   )
 }

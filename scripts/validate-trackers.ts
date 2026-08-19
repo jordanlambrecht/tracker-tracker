@@ -18,6 +18,7 @@ import {
   PLACEHOLDER_RE,
   SLUG_RE,
   VALID_CONTENT_CATEGORIES,
+  validateDefunct,
 } from "@/data/tracker-validation-rules"
 import { ALL_TRACKERS } from "@/data/trackers"
 import { DEFAULT_API_PATHS, VALID_PLATFORM_TYPES } from "@/lib/adapters/constants"
@@ -66,6 +67,11 @@ function validate(slugFilter?: string[]): TrackerResult[] {
       if (tracker.apiPath !== expected) {
         errors.push(
           `apiPath "${tracker.apiPath}" does not match platform "${tracker.platform}" (expected "${expected}")`
+        )
+      }
+      if (!tracker.apiPath.startsWith("/")) {
+        errors.push(
+          `apiPath "${tracker.apiPath}" must be relative and start with "/" — an off-domain API host belongs in the adapter, not the registry`
         )
       }
     }
@@ -212,6 +218,11 @@ function validate(slugFilter?: string[]): TrackerResult[] {
     if (tracker.profileUrlPattern && !tracker.supportsTransitPapers) {
       warnings.push("profileUrlPattern defined but supportsTransitPapers is not true")
     }
+
+    // ── Defunct validation ────────────────────────────────────────────
+    const defunct = validateDefunct(tracker)
+    errors.push(...defunct.errors)
+    warnings.push(...defunct.warnings)
 
     // ── Warn-level fields ─────────────────────────────────────────────
     if (isEmpty(tracker.abbreviation)) warnings.push("Missing abbreviation")

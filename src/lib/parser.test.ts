@@ -1,6 +1,6 @@
 // src/lib/parser.test.ts
 import { describe, expect, it } from "vitest"
-import { formatBytes, parseBytes } from "./parser"
+import { formatBytes, parseBytes, parseSignedBytes } from "./parser"
 
 describe("parseBytes", () => {
   it("parses GiB values", () => {
@@ -71,5 +71,45 @@ describe("parseBytes - security", () => {
 
   it("rejects negative values", () => {
     expect(() => parseBytes("-100 GiB")).toThrow()
+  })
+})
+
+describe("parseSignedBytes", () => {
+  // Only the buffer field uses this. parseBytes keeps rejecting negatives for
+  // uploaded/downloaded/sizes, where a minus sign means a malformed response.
+  it("parses a negative byte string", () => {
+    expect(parseSignedBytes("-1.23 TiB")).toBe(-parseBytes("1.23 TiB"))
+    expect(parseSignedBytes("-100 GiB")).toBe(BigInt(-107_374_182_400))
+    expect(parseSignedBytes("-512 KiB")).toBe(BigInt(-524_288))
+  })
+
+  it("agrees with parseBytes on non-negative input", () => {
+    expect(parseSignedBytes("500.25 GiB")).toBe(parseBytes("500.25 GiB"))
+    expect(parseSignedBytes("0 B")).toBe(BigInt(0))
+  })
+
+  it("tolerates whitespace around the sign", () => {
+    expect(parseSignedBytes("  -100 MiB  ")).toBe(BigInt(-104_857_600))
+  })
+
+  it("still rejects genuinely malformed input", () => {
+    expect(() => parseSignedBytes("-")).toThrow()
+    expect(() => parseSignedBytes("-∞")).toThrow()
+    expect(() => parseSignedBytes("-100 ZiB")).toThrow()
+  })
+
+  it("leaves parseBytes strict for every other caller", () => {
+    expect(() => parseBytes("-100 GiB")).toThrow()
+  })
+})
+
+describe("parseBytes - infinity values", () => {
+  // parseBytes is a strict byte parser and stays that way: "unlimited" and
+  // "zero bytes" are different facts and must not collapse into one value.
+  // Trackers that report an unbounded buffer (i.e. Zenith's UNIT3D build)
+  // are handled in the adapter that knows what it means — see
+  // isUnlimitedBuffer in src/lib/adapters/unit3d.ts.
+  it.each(["∞", "-∞", "Inf", "-Inf", "inf", "INF"])("rejects %s", (value) => {
+    expect(() => parseBytes(value)).toThrow()
   })
 })

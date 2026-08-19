@@ -15,7 +15,7 @@ const TEST_SECRET = "test-session-secret-at-least-32ch" // 34 chars
 vi.stubEnv("SESSION_SECRET", TEST_SECRET)
 
 // ---------------------------------------------------------------------------
-// Constants — must match the values in src/lib/auth.ts
+// Constants: must match the values in src/lib/auth.ts
 // ---------------------------------------------------------------------------
 const SESSION_COOKIE = "tt_session"
 
@@ -29,7 +29,7 @@ function deriveKey(secret: string): Uint8Array {
 }
 
 // ---------------------------------------------------------------------------
-// Cookie store mock — the only thing we fake
+// Cookie store mock: the only thing we fake
 // ---------------------------------------------------------------------------
 type CookieEntry = { name: string; value: string }
 let cookieStore: Map<string, CookieEntry>
@@ -53,7 +53,7 @@ vi.mock("next/headers", () => ({
 }))
 
 // ---------------------------------------------------------------------------
-// Module under test — imported AFTER the mock is registered
+// Module under test: imported AFTER the mock is registered
 // ---------------------------------------------------------------------------
 let authenticate: typeof import("@/lib/api-helpers").authenticate
 let getSession: typeof import("@/lib/auth").getSession
@@ -112,7 +112,7 @@ async function readResponse(res: Response): Promise<{ status: number; body: unkn
 
 describe("authenticate() with real JWE crypto", () => {
   it("should return 401 when no session cookie is present", async () => {
-    // Cookie store is empty — no tt_session cookie
+    // Cookie store is empty. No tt_session cookie
     const result = await authenticate()
 
     // authenticate returns either NextResponse (failure) or { encryptionKey }
@@ -152,7 +152,7 @@ describe("authenticate() with real JWE crypto", () => {
 
     const result = await authenticate()
 
-    // On success, authenticate returns { encryptionKey } — not a Response
+    // On success, authenticate returns { encryptionKey }. Not a Response
     expect(result).not.toHaveProperty("status")
     expect(result).toEqual({ encryptionKey })
   })
@@ -180,7 +180,7 @@ describe("authenticate() with real JWE crypto", () => {
       const { status, body } = await readResponse(result as Response)
       expect(status).toBe(401)
 
-      // The body must be exactly { error: "Unauthorized" } — no jose internals
+      // The body must be exactly { error: "Unauthorized" }. No jose internals
       expect(body).toEqual({ error: "Unauthorized" })
 
       // Stringify the entire body and verify it contains nothing jose-specific

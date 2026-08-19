@@ -2,9 +2,14 @@
 import { cva } from "class-variance-authority"
 import clsx from "clsx"
 
+// Ordered loosely by severity, ascending, to mirror TrackerHealth. "no-seeds"
+// shares the danger palette with "critical" and "paused". This union
+// distinguishes states by their accessible label, not by giving every member
+// its own color.
 type PulseDotStatus =
   | "healthy"
   | "warning"
+  | "no-seeds"
   | "critical"
   | "error"
   | "paused"
@@ -23,6 +28,7 @@ interface PulseDotProps {
 const statusLabels: Record<PulseDotStatus, string> = {
   healthy: "Healthy",
   warning: "Warning",
+  "no-seeds": "No seeds",
   critical: "Critical",
   paused: "Paused",
   "paused-user": "Paused by user",
@@ -33,6 +39,7 @@ const statusLabels: Record<PulseDotStatus, string> = {
 const shouldPulse: Record<PulseDotStatus, boolean> = {
   healthy: true,
   warning: true,
+  "no-seeds": true,
   critical: true,
   paused: false,
   "paused-user": false,
@@ -45,6 +52,7 @@ const pulseDot = cva("inline-block rounded-full shrink-0", {
     status: {
       healthy: "text-accent bg-accent",
       warning: "text-warn bg-warn",
+      "no-seeds": "text-danger bg-danger",
       critical: "text-danger bg-danger",
       paused: "text-danger bg-danger",
       "paused-user": "text-warn bg-warn",

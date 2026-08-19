@@ -22,10 +22,32 @@ export function TrackerStatusBanner({
 }: TrackerStatusBannerProps) {
   const pause = getPauseState(tracker)
 
+  // An archived tracker is not polled at all — the poll cycle selects on
+  // `isActive = true` (tracker-scheduler.ts) — so a pause banner announces a
+  // state that does not apply, and "Resume Polling" offers an action that
+  // cannot deliver what it says: the resume route clears pausedAt, lastError
+  // and consecutiveFailures without touching isActive, so the tracker stays
+  // off the rotation and the button reads as broken.
+  //
+  // Nothing is rendered in the pause banner's place. Archiving is the user's
+  // own deliberate choice rather than a fault needing explanation, and it is
+  // already stated twice on this page: the detail header carries an "Archived"
+  // badge, and a defunct tracker's own banner — which sits above this one —
+  // says its history is kept and it is no longer polled. A third notice would
+  // only repeat them.
+  const isArchived = !tracker.isActive
+
   const showPollError = !!pollError
-  const showUserPaused = !pollError && pause.isPaused && pause.reason === "user"
-  const showAutoPaused = !pollError && pause.isPaused && pause.reason === "failure"
-  const showLastError = !pollError && !pause.isPaused && !!tracker.lastError
+  const showUserPaused = !pollError && !isArchived && pause.isPaused && pause.reason === "user"
+  const showAutoPaused = !pollError && !isArchived && pause.isPaused && pause.reason === "failure"
+  // Gated on the pause banners rather than on `pause.isPaused` directly. For an
+  // active tracker the two are identical, but an archived tracker that was
+  // auto-paused before archiving carries both a pausedAt and a lastError, and
+  // suppressing its pause banner must not take the page's only copy of that
+  // error with it. The error is a timestamped record of what the last poll
+  // returned, not a claim about a poll that is still scheduled, so archiving
+  // does not retire it.
+  const showLastError = !pollError && !showUserPaused && !showAutoPaused && !!tracker.lastError
 
   if (!showPollError && !showUserPaused && !showAutoPaused && !showLastError) return null
 

@@ -10,7 +10,7 @@ export interface CircuitState {
   openUntil: Date | null
 }
 
-// HMR-safe circuit breaker state — one per notification target
+// HMR-safe circuit breaker state. One per notification target.
 const g = globalThis as typeof globalThis & {
   __notificationCircuits?: Map<number, CircuitState>
 }

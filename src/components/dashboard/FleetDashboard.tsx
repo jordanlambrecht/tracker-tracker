@@ -40,7 +40,6 @@ import { StatCard } from "@/components/ui/StatCard"
 import { ChartGridSkeleton } from "@/components/ui/skeletons"
 import { usePollingIntervals } from "@/hooks/usePollingIntervals"
 import type { FleetSnapshot } from "@/lib/fleet"
-import type { FleetAggregation } from "@/lib/fleet-aggregation"
 import {
   formatBytesNum,
   formatCount,
@@ -48,7 +47,7 @@ import {
   formatSpeed,
   splitValueUnit,
 } from "@/lib/formatters"
-import { clientQueryOptions } from "@/lib/query-options"
+import { clientQueryOptions, fleetCachedQueryOptions } from "@/lib/query-options"
 
 interface FleetDashboardProps {
   dayRange: number
@@ -67,12 +66,13 @@ export function FleetDashboard({ dayRange, isActive = true }: FleetDashboardProp
   const { hydrated: chartPrefsHydrated } = chartPrefs
   const intervals = usePollingIntervals()
 
-  const effectiveDays = dayRange === 0 ? 30 : dayRange
-
+  // dayRange 0 is the "All" sentinel and is passed straight through: the route
+  // treats days=0 as "no time filter". Rewriting it to 30 here silently capped
+  // the Torrent Fleet tab at a month of history.
   const { data: snapshots = [] } = useQuery({
-    queryKey: ["download-client-snapshots", effectiveDays],
+    queryKey: ["download-client-snapshots", dayRange],
     queryFn: async ({ signal }) => {
-      const res = await fetch(`/api/fleet/snapshots?days=${effectiveDays}`, { signal })
+      const res = await fetch(`/api/fleet/snapshots?days=${dayRange}`, { signal })
       if (!res.ok) throw new Error(`Fleet snapshots failed: ${res.status}`)
       return res.json() as Promise<FleetSnapshot[]>
     },
@@ -81,12 +81,7 @@ export function FleetDashboard({ dayRange, isActive = true }: FleetDashboardProp
 
   // Fast: DB-cached torrent aggregation
   const { data: aggregation, isFetching: fleetFetching } = useQuery({
-    queryKey: ["fleet-torrents-cached"],
-    queryFn: async ({ signal }) => {
-      const res = await fetch("/api/fleet/torrents/cached", { signal })
-      if (!res.ok) throw new Error(`Fleet data failed: ${res.status}`)
-      return res.json() as Promise<FleetAggregation>
-    },
+    ...fleetCachedQueryOptions,
     staleTime: intervals.clientRefetchMs,
     enabled: isActive,
   })

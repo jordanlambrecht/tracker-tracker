@@ -40,7 +40,7 @@ Byte values return as formatted strings (`"500.25 GiB"`), not integers. Same for
 | `uploadedBytes`    | `uploaded`     | `string` | Parsed via `parseBytes()` → `bigint` |
 | `downloadedBytes`  | `downloaded`   | `string` | Parsed via `parseBytes()` → `bigint` |
 | `ratio`            | `ratio`        | `string` | `parseFloat()`, defaults to `0`      |
-| `bufferBytes`      | `buffer`       | `string` | Parsed via `parseBytes()` → `bigint` |
+| `bufferBytes`      | `buffer`       | `string` | Parsed via `parseSignedBytes()` → `bigint`; `"∞"` derives from totals |
 | `seedingCount`     | `seeding`      | `number` | Direct copy                          |
 | `leechingCount`    | `leeching`     | `number` | Direct copy                          |
 | `seedbonus`        | `seedbonus`    | `string` | `parseFloat()`, defaults to `0`      |

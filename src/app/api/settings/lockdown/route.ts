@@ -54,6 +54,13 @@ export async function POST(request: Request) {
       // 2. Revoke all tracker API tokens
       await tx.update(trackers).set({
         encryptedApiToken: "LOCKDOWN_REVOKED",
+        // NULL. This is deliberately NOT a "LOCKDOWN_REVOKED" marker. The marker
+        // above exists only because encrypted_api_token is NOT NULL and needs some
+        // string; it is also the exact value that once sailed past a truthiness
+        // guard into decrypt(). This column is nullable precisely so the revoked
+        // state needs no sentinel, and recover.cjs already reads NULL as
+        // "nothing to re-key" via isPlaintextSentinel().
+        encryptedCredentials: null,
         isActive: false,
         lastError: "Emergency lockdown: API token revoked",
         updatedAt: now,
@@ -63,6 +70,10 @@ export async function POST(request: Request) {
       await tx.update(downloadClients).set({
         encryptedUsername: "",
         encryptedPassword: "",
+        encryptedApiKey: "",
+        // Back to the mode whose credentials the UI prompts for after a
+        // lockdown; leaving "apikey" here would describe a key that is gone.
+        authMethod: "password",
         enabled: false,
         lastError: "Emergency lockdown: credentials revoked",
         updatedAt: now,

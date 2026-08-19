@@ -35,9 +35,9 @@ const FULL_TORRENT = {
 }
 
 describe("slimTorrentForCache", () => {
-  it("retains exactly 23 fields", () => {
+  it("retains exactly 24 fields", () => {
     const slim = slimTorrentForCache(FULL_TORRENT)
-    expect(Object.keys(slim)).toHaveLength(23)
+    expect(Object.keys(slim)).toHaveLength(24)
   })
 
   it("retains only the expected fields in sorted order", () => {
@@ -64,6 +64,7 @@ describe("slimTorrentForCache", () => {
       "swarmLeechers",
       "swarmSeeders",
       "tags",
+      "tracker",
       "uploadSpeed",
       "uploaded",
     ])
@@ -78,11 +79,32 @@ describe("slimTorrentForCache", () => {
     expect(slim.tags).toBe("aither, blutopia")
   })
 
-  it("excludes sensitive fields", () => {
+  it("excludes filesystem path fields", () => {
     const slim = slimTorrentForCache(FULL_TORRENT) as Record<string, unknown>
-    expect(slim.tracker).toBeUndefined()
     expect(slim.contentPath).toBeUndefined()
     expect(slim.savePath).toBeUndefined()
+  })
+
+  // cachedTorrents is a plaintext jsonb column, so the announce URL is reduced to
+  // its registrable host before it is stored. Attribution only needs the host, and
+  // the reduction drops the passkey along with the rest of the URL.
+  it("reduces the announce URL to its registrable host", () => {
+    const slim = slimTorrentForCache(FULL_TORRENT)
+    expect(slim.tracker).toBe("example.com")
+  })
+
+  it("stores nothing resembling the announce passkey", () => {
+    const serialized = JSON.stringify(slimTorrentForCache(FULL_TORRENT))
+    expect(serialized).not.toContain("passkey")
+    expect(serialized).not.toContain("secret")
+    expect(serialized).not.toContain("/announce")
+  })
+
+  it("omits the field entirely when the announce URL is unusable", () => {
+    const slim = slimTorrentForCache({ ...FULL_TORRENT, tracker: "" })
+    expect(slim.tracker).toBeUndefined()
+    // undefined is dropped by JSON.stringify, so nothing is written to the column.
+    expect(JSON.parse(JSON.stringify(slim))).not.toHaveProperty("tracker")
   })
 
   it("excludes unused qBT config fields", () => {

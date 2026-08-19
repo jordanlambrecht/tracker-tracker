@@ -6,7 +6,7 @@
 //   - HnR field: present on Nebulance, absent on Anthelion
 //   - Response may be wrapped {"status":"success","response":{...}} or flat
 
-import { computeBufferBytes, floatBytesToBigInt } from "@/lib/data-transforms"
+import { computeBufferBytes, computeRatio, floatBytesToBigInt } from "@/lib/data-transforms"
 import { classifyFetchError } from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import { proxyFetch } from "@/lib/tunnel"
@@ -59,7 +59,7 @@ export class NebulanceAdapter implements TrackerAdapter {
 
     // These APIs return the key owner's data regardless of the user queried, but
     // the lookup target must be a valid user. On first poll (no cached remoteUserId),
-    // use user ID 1 (system/admin account — always exists on Gazelle-derived sites).
+    // use user ID 1 (system/admin account: always exists on Gazelle-derived sites).
     const userId = options?.remoteUserId ?? 1
 
     // Anthelion uses "apikey" (no underscore), Nebulance uses "api_key"
@@ -124,12 +124,10 @@ export class NebulanceAdapter implements TrackerAdapter {
     const uploaded = floatBytesToBigInt(resp.Uploaded)
     const downloaded = floatBytesToBigInt(resp.Downloaded)
 
-    let ratio: number
-    if (downloaded === 0n) {
-      ratio = uploaded > 0n ? Infinity : 0
-    } else {
-      ratio = Math.round((Number(uploaded) / Number(downloaded)) * 100) / 100
-    }
+    // Shared derivation, but Nebulance keeps its historical 2dp rounding for
+    // finite ratios. Infinity passes through untouched.
+    const rawRatio = computeRatio(uploaded, downloaded)
+    const ratio = Number.isFinite(rawRatio) ? Math.round(rawRatio * 100) / 100 : rawRatio
 
     const platformMeta: NebulancePlatformMeta = {
       snatched: resp.Snatched ?? undefined,

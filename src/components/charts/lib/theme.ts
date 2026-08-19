@@ -1,8 +1,8 @@
 // src/components/charts/lib/theme.ts
 //
 // Single source of truth for all chart color values. Mirrors the 3-layer
-// token system in globals.css. Every chart component imports from here —
-// never hardcode a hex in a chart file.
+// token system in globals.css. Every chart component imports from here.
+// Never hardcode a hex in a chart file.
 //
 // Functions:
 //   escHtml             - HTML-escape untrusted strings for ECharts tooltips

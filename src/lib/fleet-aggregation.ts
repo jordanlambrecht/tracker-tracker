@@ -18,6 +18,8 @@ import {
   type TrackerTag,
   toMonthKey,
 } from "@/lib/fleet"
+import { trackerHostKey } from "@/lib/tracker-matching"
+import type { TagGroup } from "@/types/api"
 
 // Re-export types used by callers so they don't need to import from fleet.ts
 export type { FleetStats, TorrentRaw, TrackerTag }
@@ -88,6 +90,17 @@ export interface AgeBandEntry {
   avgDays: number
 }
 
+/**
+ * How many torrents carry each member tag of a user-configured tag group.
+ * Same shape the per-tracker version in useTrackerTorrents produces, so both the
+ * dashboard and a tracker's detail page can feed TagGroupBreakdownChart.
+ */
+export interface TagGroupBreakdown {
+  group: TagGroup
+  memberCounts: { label: string; count: number; color: string | null }[]
+  unmatchedCount: number
+}
+
 // ---------------------------------------------------------------------------
 // Output shape
 // ---------------------------------------------------------------------------
@@ -118,6 +131,9 @@ export interface FleetAggregation {
   categoryTimeline: CategoryTimelineEntry[]
 
   ageBands: AgeBandEntry[]
+
+  /** Empty unless the caller passed tag groups — they are opt-in and most installs have none. */
+  tagGroupBreakdowns: TagGroupBreakdown[]
 }
 
 // ---------------------------------------------------------------------------
@@ -151,7 +167,8 @@ interface TrackerAccumulator {
 export function computeFleetAggregation(
   torrents: TorrentRaw[],
   trackerTags: TrackerTag[],
-  crossSeedTags: string[]
+  crossSeedTags: string[],
+  tagGroups: TagGroup[] = []
 ): FleetAggregation {
   const now = Date.now()
   const nowSec = now / 1000
@@ -160,6 +177,18 @@ export function computeFleetAggregation(
   const crossSeedSet = new Set(crossSeedTags.map((t) => t.toLowerCase()))
   const trackerTagMap = new Map<string, TrackerTag>()
   for (const tt of trackerTags) trackerTagMap.set(tt.tag.toLowerCase(), tt)
+
+  // Announce-host -> group key, so torrents from a tracked site are attributed
+  // even when the user tags nothing per-tracker (issue #152).
+  const announceKeyMap = new Map<string, string>()
+  for (const tt of trackerTags) {
+    const host = trackerHostKey(tt.baseUrl)
+    if (host) announceKeyMap.set(host, tt.tag.toLowerCase())
+  }
+  const keyForAnnounce = (announce: string | null | undefined): string | null => {
+    const host = trackerHostKey(announce)
+    return host ? (announceKeyMap.get(host) ?? null) : null
+  }
 
   // Initialize per-tracker accumulators
   const trackerAccMap = new Map<string, TrackerAccumulator>()
@@ -206,6 +235,17 @@ export function computeFleetAggregation(
   // Category timeline: category -> monthKey -> count
   const categoryMonthMap = new Map<string, Map<string, number>>()
 
+  // Tag groups: one counter per group, member tag -> torrents carrying it.
+  // Keyed by the member tag exactly as configured — NOT lowercased like `parsedTags`
+  // below — because the per-tracker breakdown matches member tags case-sensitively.
+  // Folding case here would make the same group report different numbers on the
+  // dashboard than on a tracker's detail page.
+  const tagGroupCounters = tagGroups.map((group) => ({
+    group,
+    counts: new Map<string, number>(group.members.map((m) => [m.tag, 0])),
+    unmatchedCount: 0,
+  }))
+
   // ---------------------------------------------------------------------------
   // Single pass
   // ---------------------------------------------------------------------------
@@ -215,9 +255,10 @@ export function computeFleetAggregation(
     const parsedTags = parseTorrentTags(torrent.tags)
     const isCrossSeed = crossSeedSet.size > 0 && parsedTags.some((t) => crossSeedSet.has(t))
 
-    // Find matching tracker tag (first match wins)
+    // Tag wins when present; otherwise attribute by announce URL.
     const matchedTrackerTag =
-      parsedTags.find((t) => !crossSeedSet.has(t) && trackerTagMap.has(t)) ?? null
+      parsedTags.find((t) => !crossSeedSet.has(t) && trackerTagMap.has(t)) ??
+      keyForAnnounce(torrent.tracker)
 
     // -- Stats --
     const isSeeding = SEEDING_STATES.has(torrent.state)
@@ -251,6 +292,24 @@ export function computeFleetAggregation(
       addedOnTimestamps.push(torrent.addedAt)
     }
 
+    // -- Tag groups --
+    // Skipped entirely when no groups are configured, so the common case pays
+    // nothing for the second, case-preserving parse.
+    if (tagGroupCounters.length > 0) {
+      const exactTags = new Set(parseTorrentTags(torrent.tags, false))
+      for (const counter of tagGroupCounters) {
+        let matched = false
+        for (const tag of exactTags) {
+          const current = counter.counts.get(tag)
+          if (current !== undefined) {
+            counter.counts.set(tag, current + 1)
+            matched = true
+          }
+        }
+        if (!matched) counter.unmatchedCount++
+      }
+    }
+
     // -- Category timeline --
     if (torrent.addedAt > 0) {
       const category = normalizeCategory(torrent.category)
@@ -261,9 +320,15 @@ export function computeFleetAggregation(
     }
 
     // -- Cross-seed network tracker matching (exclude cross-seed tags) --
-    const networkTrackerTags = parsedTags.filter(
+    const taggedNetworkKeys = parsedTags.filter(
       (t) => !crossSeedSet.has(t) && trackerTagMap.has(t)
     )
+    const networkTrackerTags =
+      taggedNetworkKeys.length > 0
+        ? taggedNetworkKeys
+        : matchedTrackerTag !== null
+          ? [matchedTrackerTag]
+          : []
     if (networkTrackerTags.length > 0) {
       const existing = nameToTrackers.get(torrent.name) ?? new Set<string>()
       for (const tag of networkTrackerTags) existing.add(tag)
@@ -478,6 +543,23 @@ export function computeFleetAggregation(
     networkEdges.push({ source, target, weight })
   }
 
+  // Tag group breakdowns. Members nothing is tagged with are dropped, and a group is
+  // dropped entirely unless it has a matching member or unmatched torrents it was
+  // configured to count — otherwise the UI would render empty cards.
+  const tagGroupBreakdowns: TagGroupBreakdown[] = tagGroupCounters
+    .map(({ group, counts, unmatchedCount }) => ({
+      group,
+      memberCounts: group.members
+        .map((member) => ({
+          label: member.label,
+          count: counts.get(member.tag) ?? 0,
+          color: member.color,
+        }))
+        .filter((m) => m.count > 0),
+      unmatchedCount,
+    }))
+    .filter((g) => g.memberCounts.length > 0 || (g.group.countUnmatched && g.unmatchedCount > 0))
+
   return {
     stats,
     ratioDistribution,
@@ -492,5 +574,6 @@ export function computeFleetAggregation(
     ageTimeline,
     categoryTimeline,
     ageBands,
+    tagGroupBreakdowns,
   }
 }

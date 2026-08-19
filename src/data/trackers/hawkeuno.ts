@@ -9,11 +9,11 @@ export const hawkeuno: TrackerRegistryEntry = {
   abbreviation: "HU",
   url: "https://hawke.uno",
   description:
-    "General private tracker powered by UNIT3D. Unsupported — no users API endpoint available.",
+    "General private tracker running its own platform (not UNIT3D). Stats come from /api/profile with a Bearer API key.",
 
   // ── Platform & API ──────────────────────────────────────────────────
-  platform: "unit3d",
-  apiPath: "/api/user",
+  platform: "hawke",
+  apiPath: "/api/profile",
 
   // ── Content ─────────────────────────────────────────────────────────
   specialty: "General",
@@ -46,7 +46,7 @@ export const hawkeuno: TrackerRegistryEntry = {
   warningNote: "",
 
   // ── Flags ───────────────────────────────────────────────────────────
-  draft: true,
+  draft: false,
   supportsTransitPapers: false,
   profileUrlPattern: "",
 }

@@ -6,7 +6,7 @@
 
 import { LEECHING_STATES, parseTorrentTags, SEEDING_STATES, type TorrentRaw } from "@/lib/fleet"
 
-// Re-export constants and utilities from fleet.ts — single source of truth
+// Re-export constants and utilities from fleet.ts. Single source of truth.
 export { LEECHING_STATES, parseTorrentTags, SEEDING_STATES }
 
 // ---------------------------------------------------------------------------

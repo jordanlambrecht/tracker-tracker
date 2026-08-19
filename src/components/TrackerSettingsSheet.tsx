@@ -1,6 +1,7 @@
 // src/components/TrackerSettingsSheet.tsx
 "use client"
 
+import { useQueryClient } from "@tanstack/react-query"
 import { H2 } from "@typography"
 import clsx from "clsx"
 import { useRouter } from "next/navigation"
@@ -21,13 +22,19 @@ import { ColorPicker } from "@/components/ui/ColorPicker"
 import { findRegistryEntry } from "@/data/tracker-registry"
 import { DOCS } from "@/lib/constants"
 import { localDateStr } from "@/lib/formatters"
+import { trackerQueryOptions } from "@/lib/query-options"
 import type { TrackerSummary } from "@/types/api"
 
 interface TrackerSettingsSheetProps {
   open: boolean
   tracker: TrackerSummary
   onClose: () => void
-  onUpdated: () => void
+  /**
+   * Receives the tracker exactly as the PATCH response returned it. The sheet
+   * already holds the post-write row. Consumers must not re-GET it. That extra
+   * round trip adds latency to save/archive.
+   */
+  onUpdated: (updated: TrackerSummary) => void
 }
 
 interface FormState {
@@ -35,6 +42,7 @@ interface FormState {
   color: string
   qbtTag: string
   joinedAt: string
+  lastAccessAt: string
   baseUrl: string
   useProxy: boolean
   countCrossSeedUnsatisfied: boolean
@@ -48,6 +56,7 @@ function formStateFromTracker(t: TrackerSummary): FormState {
     color: t.color,
     qbtTag: t.qbtTag ?? "",
     joinedAt: t.joinedAt ?? "",
+    lastAccessAt: t.lastAccessAt ?? "",
     baseUrl: t.baseUrl,
     useProxy: t.useProxy ?? false,
     countCrossSeedUnsatisfied: t.countCrossSeedUnsatisfied ?? false,
@@ -58,6 +67,30 @@ function formStateFromTracker(t: TrackerSummary): FormState {
 
 function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSettingsSheetProps) {
   const router = useRouter()
+  const queryClient = useQueryClient()
+
+  // Every write mutates a row in the shared ["trackers"] cache, which
+  // useTrackerList and useDashboardData render from. That cache is NOT
+  // remounted by `router.push("/")`. The sidebar sits in the persistent auth
+  // layout. Its only automatic repair is `refetchInterval`, derived from
+  // trackerPollIntervalMinutes (15 min floor, 60 min default). Without explicit
+  // write-through + invalidate, an archived tracker renders as active and the
+  // "Show Archived (N)" counter under-reports for up to an hour. This mirrors
+  // toggleFavorite and handleDragEnd in useTrackerList.
+  const syncTrackerCache = useCallback(
+    (next: TrackerSummary | null) => {
+      queryClient.setQueryData<TrackerSummary[]>(trackerQueryOptions.queryKey, (prev) => {
+        if (!prev) return prev
+        if (!next) return prev.filter((t) => t.id !== tracker.id)
+        return prev.map((t) => (t.id === next.id ? next : t))
+      })
+      // Not awaited: the refetch is a background confirmation of the row just
+      // written. Awaiting adds a round trip before closing the sheet or
+      // navigating.
+      queryClient.invalidateQueries({ queryKey: trackerQueryOptions.queryKey })
+    },
+    [queryClient, tracker.id]
+  )
 
   const [form, setForm] = useState<FormState>(() => formStateFromTracker(tracker))
   const updateField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
@@ -69,6 +102,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
   }, [tracker])
 
   const registryEntry = findRegistryEntry(tracker.baseUrl)
+  const hasLoginPolicy = !!registryEntry?.rules?.loginIntervalDays
 
   const [proxyAvailable, setProxyAvailable] = useState<boolean | null>(null)
 
@@ -87,6 +121,9 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
   const [editAvistazUsername, setEditAvistazUsername] = useState("")
   const [editAvistazCookies, setEditAvistazCookies] = useState("")
   const [editDcCookies, setEditDcCookies] = useState("")
+  const [editIptCookies, setEditIptCookies] = useState("")
+  const [editTlUsername, setEditTlUsername] = useState("")
+  const [editTlPassword, setEditTlPassword] = useState("")
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
@@ -133,7 +170,22 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
           validationErrors.apiToken = "Cookie string must contain both uid and pass values"
         }
       }
-    } else if (changingKey && tracker.platformType !== "avistaz" && !newApiToken.trim()) {
+    } else if (changingKey && tracker.platformType === "iptorrents") {
+      const trimmed = editIptCookies.trim().replace(/^Cookie:\s*/i, "")
+      if (!trimmed) {
+        validationErrors.apiToken = "Browser cookies are required"
+      } else if (!trimmed.includes("=")) {
+        validationErrors.apiToken = "Cookie string must contain key=value pairs"
+      }
+    } else if (changingKey && tracker.platformType === "torrentleech") {
+      if (!editTlUsername.trim() || !editTlPassword) {
+        validationErrors.apiToken = "Username and password are required"
+      }
+    } else if (
+      changingKey &&
+      tracker.platformType !== "avistaz" &&
+      !newApiToken.trim()
+    ) {
       validationErrors.apiToken = "API token cannot be empty"
     }
 
@@ -157,6 +209,16 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
         cookies: editAvistazCookies.trim(),
         userAgent: navigator.userAgent,
         username: editAvistazUsername.trim(),
+      })
+    } else if (changingKey && tracker.platformType === "iptorrents") {
+      trimmedToken = JSON.stringify({
+        cookies: editIptCookies.trim().replace(/^Cookie:\s*/i, ""),
+        userAgent: navigator.userAgent,
+      })
+    } else if (changingKey && tracker.platformType === "torrentleech") {
+      trimmedToken = JSON.stringify({
+        username: editTlUsername.trim(),
+        password: editTlPassword,
       })
     } else if (changingKey && tracker.platformType === "digitalcore") {
       const trimmed = editDcCookies.trim()
@@ -214,6 +276,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
       baseUrl: form.baseUrl.trim(),
       qbtTag: form.qbtTag.trim(),
       joinedAt: form.joinedAt || null,
+      lastAccessAt: form.lastAccessAt || null,
       useProxy: form.useProxy,
       countCrossSeedUnsatisfied: form.countCrossSeedUnsatisfied,
       hideUnreadBadges: form.hideUnreadBadges,
@@ -238,8 +301,13 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
         return
       }
 
+      // PATCH /api/trackers/[id] returns the freshly-read row. This is the
+      // post-write truth. No follow-up GET needed.
+      const updated = (await res.json()) as TrackerSummary
+      syncTrackerCache(updated)
+
       resetTransientState()
-      onUpdated()
+      onUpdated(updated)
       onClose()
     } catch {
       setErrors({ form: "Network error — please try again" })
@@ -249,6 +317,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
 
   async function handleArchive() {
     setSaving(true)
+    setErrors({})
     try {
       const res = await fetch(`/api/trackers/${tracker.id}`, {
         method: "PATCH",
@@ -256,10 +325,21 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
         body: JSON.stringify({ isActive: !tracker.isActive }),
       })
 
-      if (res.ok) {
-        onUpdated()
-        onClose()
+      // A non-ok response used to fall through silently. No error, no state
+      // change, sheet stays open. The user sees "I clicked Archive and nothing
+      // happened", indistinguishable from "it's slow".
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setErrors({
+          form: (data as { error?: string }).error ?? "Failed to update archive status",
+        })
+        return
       }
+
+      const updated = (await res.json()) as TrackerSummary
+      syncTrackerCache(updated)
+      onUpdated(updated)
+      onClose()
     } catch {
       setErrors({ form: "Failed to update archive status" })
     } finally {
@@ -275,6 +355,9 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
       })
 
       if (res.ok) {
+        // Same shared cache as archive. Without this, the deleted row renders
+        // in the sidebar after router.push("/").
+        syncTrackerCache(null)
         onClose()
         router.push("/")
       } else {
@@ -308,7 +391,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
             error={errors.baseUrl}
           />
 
-          {/* API Key — show status or change input */}
+          {/* API Key. Show status or change input. */}
           <div className="flex flex-col gap-1">
             <H2 className="uppercase tracking-wider">API Key</H2>
             {changingKey && tracker.platformType === "avistaz" ? (
@@ -349,6 +432,78 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
                     setChangingKey(false)
                     setEditAvistazUsername("")
                     setEditAvistazCookies("")
+                    setErrors({})
+                  }}
+                />
+              </div>
+            ) : changingKey && tracker.platformType === "iptorrents" ? (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-1">
+                  <label
+                    htmlFor="edit-ipt-cookies"
+                    className="text-xs uppercase tracking-wider text-secondary font-sans font-medium"
+                  >
+                    Browser Cookies
+                  </label>
+                  <InfoTip
+                    content="Open DevTools (F12) → Network → any request to IPTorrents → copy the full Cookie header value."
+                    size="sm"
+                    docs={DOCS.ADDING_A_TRACKER}
+                  />
+                </div>
+                <textarea
+                  id="edit-ipt-cookies"
+                  name="edit-ipt-cookies"
+                  autoComplete="off"
+                  data-1p-ignore
+                  value={editIptCookies}
+                  onChange={(e) => setEditIptCookies(e.target.value)}
+                  placeholder="cf_clearance=...; uid=123456; pass=abc123..."
+                  rows={3}
+                  className="w-full rounded-md border border-subtle bg-surface px-3 py-2 text-sm font-mono"
+                />
+                <Notice message={errors.apiToken} />
+                <Button
+                  variant="minimal"
+                  size="sm"
+                  text="Cancel"
+                  className="self-start"
+                  onClick={() => {
+                    setChangingKey(false)
+                    setEditIptCookies("")
+                    setErrors({})
+                  }}
+                />
+              </div>
+            ) : changingKey && tracker.platformType === "torrentleech" ? (
+              <div className="flex flex-col gap-2">
+                <Input
+                  label="Username"
+                  name="edit-tl-username"
+                  autoComplete="off"
+                  data-1p-ignore
+                  value={editTlUsername}
+                  onChange={(e) => setEditTlUsername(e.target.value)}
+                />
+                <Input
+                  label="Password"
+                  name="edit-tl-password"
+                  type="password"
+                  autoComplete="off"
+                  data-1p-ignore
+                  value={editTlPassword}
+                  onChange={(e) => setEditTlPassword(e.target.value)}
+                />
+                <Notice message={errors.apiToken} />
+                <Button
+                  variant="minimal"
+                  size="sm"
+                  text="Cancel"
+                  className="self-start"
+                  onClick={() => {
+                    setChangingKey(false)
+                    setEditTlUsername("")
+                    setEditTlPassword("")
                     setErrors({})
                   }}
                 />
@@ -456,7 +611,9 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
             registryEntry?.gazelleEnrich ||
             tracker.platformType === "ggn" ||
             tracker.platformType === "avistaz" ||
-            tracker.platformType === "digitalcore"
+            tracker.platformType === "digitalcore" ||
+            tracker.platformType === "iptorrents" ||
+            tracker.platformType === "torrentleech"
           ) && (
             <div>
               <label
@@ -480,6 +637,44 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
               />
             </div>
           )}
+
+          <div>
+            <div className="flex items-center justify-between mb-1 gap-2">
+              <label
+                htmlFor="settings-last-access-at"
+                className="text-xs font-sans font-medium text-secondary uppercase tracking-wider"
+              >
+                Last Login
+              </label>
+              {/* Fills the date field only. Save still writes it. Unsaved edits
+                  survive. */}
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => updateField("lastAccessAt", localDateStr())}
+                disabled={saving || deleting}
+                text="Today"
+              />
+            </div>
+            <input
+              id="settings-last-access-at"
+              type="date"
+              value={form.lastAccessAt}
+              max={localDateStr()}
+              onChange={(e) => updateField("lastAccessAt", e.target.value)}
+              className={clsx(
+                "w-full font-mono text-sm text-primary cursor-pointer border-0",
+                "bg-control-bg px-4 py-3 nm-inset focus:outline-none rounded-nm-md",
+                !form.lastAccessAt && "text-muted"
+              )}
+              style={{ colorScheme: "dark" }}
+            />
+            <p className="text-xs font-sans text-muted mt-1">
+              {tracker.lastAccessAt ? `Currently recorded: ${tracker.lastAccessAt}` : "Not recorded yet."}
+              {!hasLoginPolicy &&
+                " This tracker has no login-interval policy, so no dashboard timer will appear — this is for your own records."}
+            </p>
+          </div>
 
           <Toggle
             label="Use proxy"

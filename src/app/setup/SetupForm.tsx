@@ -5,17 +5,14 @@ import { H2 } from "@typography"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { type SubmitEvent, useState } from "react"
-import { Button, Card, Input, Toggle } from "@/components/ui"
+import { Button, Card, Input } from "@/components/ui"
 import { Notice } from "@/components/ui/Notice"
-import { SNAPSHOT_RETENTION_MAX, SNAPSHOT_RETENTION_MIN } from "@/lib/limits"
 
 export function SetupForm() {
   const router = useRouter()
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
-  const [retentionEnabled, setRetentionEnabled] = useState(false)
-  const [retentionDays, setRetentionDays] = useState(365)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -41,10 +38,10 @@ export function SetupForm() {
     setIsSubmitting(true)
 
     try {
+      // Retention is deliberately NOT asked here. Choosing a pruning policy before
+      // a single snapshot exists gives the user nothing to reason about; the
+      // dashboard asks once on first login instead (RetentionPromptDialog).
       const payload: Record<string, unknown> = { password, username: username.trim() }
-      if (retentionEnabled && retentionDays > 0) {
-        payload.snapshotRetentionDays = retentionDays
-      }
 
       const setupRes = await fetch("/api/auth/setup", {
         method: "POST",
@@ -142,38 +139,6 @@ export function SetupForm() {
               required
             />
 
-            <div className="border-t border-border pt-4 mt-1">
-              <Toggle
-                label="Enable snapshot retention"
-                description={
-                  retentionEnabled
-                    ? `Snapshots older than ${retentionDays} days will be pruned automatically.`
-                    : "Disabled — snapshots will be kept indefinitely. You can change this later in Settings."
-                }
-                checked={retentionEnabled}
-                onChange={setRetentionEnabled}
-                disabled={isSubmitting}
-              />
-              {retentionEnabled && (
-                <Input
-                  label="Retention (days)"
-                  type="number"
-                  min={SNAPSHOT_RETENTION_MIN}
-                  max={SNAPSHOT_RETENTION_MAX}
-                  value={String(retentionDays)}
-                  onChange={(e) =>
-                    setRetentionDays(
-                      Math.max(
-                        SNAPSHOT_RETENTION_MIN,
-                        Math.min(SNAPSHOT_RETENTION_MAX, Number(e.target.value) || 365)
-                      )
-                    )
-                  }
-                  disabled={isSubmitting}
-                  className="mt-3"
-                />
-              )}
-            </div>
 
             <Notice message={errors.form} />
 
