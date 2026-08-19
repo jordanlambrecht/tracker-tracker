@@ -314,3 +314,99 @@ describe("Unit3dAdapter - auth fallback", () => {
     expect(spy).toHaveBeenCalledTimes(1)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Newer UNIT3D builds (Blutopia, Upload.cx) return raw byte INTEGERS from
+// /api/user instead of the humanized strings ("500.25 GiB") older builds send.
+// parseBytes calls .trim() on its argument, so a numeric payload used to blow
+// up the whole poll with "formatted.trim is not a function" — the raw debug
+// fetch succeeded while the normalized one never produced a snapshot.
+// ---------------------------------------------------------------------------
+describe("Unit3dAdapter - numeric byte payloads", () => {
+  const adapter = new Unit3dAdapter()
+
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it("parses a build that reports bytes as numbers", async () => {
+    // Verbatim from a live Blutopia /api/user response.
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        username: "thesneakyrobot",
+        group: "BluSeeder",
+        uploaded: 2114704480460,
+        downloaded: 1041023858647,
+        ratio: 2.03,
+        buffer: 4245737342503,
+        seeding: 600,
+        leeching: 0,
+        seedbonus: "964533.23",
+        hit_and_runs: 0,
+      }),
+    } as Response)
+
+    const stats = await adapter.fetchStats("https://blutopia.cc", "fake-token", "/api/user")
+
+    expect(stats.username).toBe("thesneakyrobot")
+    expect(stats.group).toBe("BluSeeder")
+    expect(stats.uploadedBytes).toBe(BigInt(2_114_704_480_460))
+    expect(stats.downloadedBytes).toBe(BigInt(1_041_023_858_647))
+    expect(stats.bufferBytes).toBe(BigInt(4_245_737_342_503))
+    expect(stats.ratio).toBeCloseTo(2.031, 3)
+    expect(stats.seedingCount).toBe(600)
+    expect(stats.leechingCount).toBe(0)
+    expect(stats.seedbonus).toBe(964533.23)
+    expect(stats.hitAndRuns).toBe(0)
+  })
+
+  it("keeps the sign on a numeric deficit buffer", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        username: "DeficitUser",
+        group: "User",
+        uploaded: 10_737_418_240,
+        downloaded: 1_362_999_349_248,
+        ratio: 0.01,
+        buffer: -1_352_399_302_164,
+        seeding: 5,
+        leeching: 1,
+        seedbonus: 100,
+        hit_and_runs: 0,
+      }),
+    } as Response)
+
+    const stats = await adapter.fetchStats("https://blutopia.cc", "fake-token", "/api/user")
+
+    expect(stats.bufferBytes).toBe(BigInt(-1_352_399_302_164))
+    expect(stats.seedbonus).toBe(100)
+    // The rest of the poll survives alongside it.
+    expect(stats.username).toBe("DeficitUser")
+    expect(stats.seedingCount).toBe(5)
+  })
+
+  it("clamps a nonsensical negative uploaded/downloaded rather than failing the poll", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        username: "OddUser",
+        group: "User",
+        uploaded: -1,
+        downloaded: -1,
+        ratio: 0,
+        buffer: 0,
+        seeding: 0,
+        leeching: 0,
+        seedbonus: 0,
+        hit_and_runs: 0,
+      }),
+    } as Response)
+
+    const stats = await adapter.fetchStats("https://blutopia.cc", "fake-token", "/api/user")
+
+    expect(stats.uploadedBytes).toBe(BigInt(0))
+    expect(stats.downloadedBytes).toBe(BigInt(0))
+  })
+})
