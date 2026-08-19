@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.10.1](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.10.0...v2.10.1) (2026-08-19)
+
+### Bug Fixes
+
+* **release:** port changelog template to writer 9 function form
+* **tracker-adapters:** api responses now parsed as either strings or ints
 ## [2.10.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.8.9...v2.10.0) (2026-08-18)
 
 

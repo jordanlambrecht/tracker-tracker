@@ -1,8 +1,13 @@
 // src/lib/adapters/unit3d.ts
 //
-// Functions: isUnlimitedBuffer, Unit3dAdapter
+// Functions: isUnlimitedBuffer, toBytes, toNumber, toSignedBytes, Unit3dAdapter
 
-import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
+import {
+  computeBufferBytes,
+  computeRatio,
+  floatBytesToBigInt,
+  signedFloatBytesToBigInt,
+} from "@/lib/data-transforms"
 import { parseBytes, parseSignedBytes } from "@/lib/parser"
 import { adapterFetch } from "./adapter-fetch"
 import type {
@@ -14,21 +19,44 @@ import type {
 } from "./types"
 
 /** True when a UNIT3D build reports an unbounded buffer rather than a byte value. */
-function isUnlimitedBuffer(raw: string): boolean {
+function isUnlimitedBuffer(raw: string | number): boolean {
+  // Only the humanized string form can say "unbounded" — JSON has no literal
+  // for Infinity, so a numeric buffer is always a real byte count.
+  if (typeof raw !== "string") return false
   const trimmed = raw?.trim().toLowerCase() ?? ""
   return trimmed === "∞" || trimmed === "-∞" || trimmed === "inf" || trimmed === "-inf"
+}
+
+// ---------------------------------------------------------------------------
+// Older UNIT3D builds humanize them ("500.25 GiB"); newer ones (Blutopia,
+// Upload.cx) send raw byte integers.
+// ---------------------------------------------------------------------------
+
+/** Unsigned byte field (uploaded, downloaded) — clamped at zero. */
+function toBytes(value: string | number): bigint {
+  return typeof value === "number" ? floatBytesToBigInt(value) : parseBytes(value)
+}
+
+/** Decimal field (seedbonus) — a bare number on newer builds, "964533.23" on older ones. */
+function toNumber(value: string | number): number {
+  return (typeof value === "number" ? value : parseFloat(value)) || 0
+}
+
+/** Signed byte field (buffer only) — a deficit account must keep its sign. */
+function toSignedBytes(value: string | number): bigint {
+  return typeof value === "number" ? signedFloatBytesToBigInt(value) : parseSignedBytes(value)
 }
 
 interface Unit3dApiResponse {
   username: string
   group: string
-  uploaded: string
-  downloaded: string
-  ratio: string
-  buffer: string
+  uploaded: string | number
+  downloaded: string | number
+  ratio: string | number
+  buffer: string | number
   seeding: number
   leeching: number
-  seedbonus: string
+  seedbonus: string | number
   hit_and_runs: number
 }
 
@@ -127,8 +155,8 @@ export class Unit3dAdapter implements TrackerAdapter {
 
     const data = await unit3dFetch<Unit3dApiResponse>(baseUrl, apiPath, apiToken, hostname, options)
 
-    const uploadedBytes = parseBytes(data.uploaded)
-    const downloadedBytes = parseBytes(data.downloaded)
+    const uploadedBytes = toBytes(data.uploaded)
+    const downloadedBytes = toBytes(data.downloaded)
 
     return {
       username: data.username,
@@ -149,10 +177,10 @@ export class Unit3dAdapter implements TrackerAdapter {
       // parseBytes stays strict for every other caller.
       bufferBytes: isUnlimitedBuffer(data.buffer)
         ? computeBufferBytes(uploadedBytes, downloadedBytes)
-        : parseSignedBytes(data.buffer),
+        : toSignedBytes(data.buffer),
       seedingCount: data.seeding,
       leechingCount: data.leeching,
-      seedbonus: parseFloat(data.seedbonus) || 0,
+      seedbonus: toNumber(data.seedbonus),
       hitAndRuns: data.hit_and_runs,
       requiredRatio: null,
       warned: null,
