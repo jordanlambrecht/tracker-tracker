@@ -1,6 +1,6 @@
 // scripts/regen-changelog.cjs
 // Regenerates CHANGELOG.md using the conventionalcommits preset,
-// then post-processes to match .versionrc.json preferences.
+// then post-processes to match .versionrc.cjs preferences.
 
 const { execFileSync } = require("node:child_process")
 const { readFileSync, writeFileSync } = require("node:fs")
@@ -19,7 +19,7 @@ execFileSync(
   }
 )
 
-// 2. Post-process to match .versionrc.json preferences
+// 2. Post-process to match .versionrc.cjs preferences
 let content = readFileSync(changelog, "utf-8")
 
 // Add header
