@@ -1,159 +1,267 @@
+# .github/workflows/release.yml
+#
+# Multi-arch release build.
+
 name: Release
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
 
 permissions:
-  contents: write
-  packages: write
-  security-events: write
+  contents: read
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  DOCKERHUB_IMAGE: docker.io/jordyjordy/tracker-tracker
 
 jobs:
-  release:
-    name: Build & Release
+  # ---------------------------------------------------------------------------
+  # Decide whether this push is a release, once, for every downstream job.
+  # ---------------------------------------------------------------------------
+  gate:
+    name: Check version
     runs-on: ubuntu-latest
-
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    outputs:
+      should_release: ${{ steps.tag.outputs.should_release }}
+      version: ${{ steps.tag.outputs.version }}
     steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-          fetch-tags: true
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+        fetch-tags: true
 
-      - name: Check for unreleased version
-        id: tag
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          TAG="v${VERSION}"
-          # Check if a GitHub Release (not just a tag) exists for this version.
-          # Tags are now created on the development branch before merging to main,
-          # so we check for the Release object instead.
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "GitHub Release $TAG already exists — nothing to release."
-            echo "should_release=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-            echo "should_release=true" >> "$GITHUB_OUTPUT"
-            echo "New version ${VERSION} detected — will create release."
+    - name: Check for unreleased version
+      id: tag
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        VERSION=$(node -p "require('./package.json').version")
+        TAG="v${VERSION}"
+        # Check if a GitHub Release (not just a tag) exists for this version.
+        # Tags are now created on the development branch before merging to main,
+        # so we check for the Release object instead. This is also what makes a
+        # failed release recoverable: the tag survives, the Release does not, so
+        # the next push to main retries the same version.
+        if gh release view "$TAG" >/dev/null 2>&1; then
+          echo "GitHub Release $TAG already exists — nothing to release."
+          echo "should_release=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "should_release=true" >> "$GITHUB_OUTPUT"
+          echo "New version ${VERSION} detected — will create release."
+        fi
+
+    - name: Ensure version tag points to this commit
+      if: steps.tag.outputs.should_release == 'true'
+      env:
+        TAG_VERSION: ${{ steps.tag.outputs.version }}
+      run: |
+        TAG="v${TAG_VERSION}"
+        if git rev-parse "$TAG" >/dev/null 2>&1; then
+          TAG_SHA="$(git rev-list -n 1 "$TAG")"
+          if [ "$TAG_SHA" != "$GITHUB_SHA" ]; then
+            echo "Tag $TAG points to $TAG_SHA, retagging to $GITHUB_SHA (main merge commit)."
+            git tag -f "$TAG" "$GITHUB_SHA"
+            git push origin "$TAG" --force
           fi
+        else
+          git tag "$TAG"
+          git push origin "$TAG"
+        fi
 
-      - name: Ensure version tag points to this commit
-        if: steps.tag.outputs.should_release == 'true'
-        env:
-          TAG_VERSION: ${{ steps.tag.outputs.version }}
-        run: |
-          TAG="v${TAG_VERSION}"
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            TAG_SHA="$(git rev-list -n 1 "$TAG")"
-            if [ "$TAG_SHA" != "$GITHUB_SHA" ]; then
-              echo "Tag $TAG points to $TAG_SHA, retagging to $GITHUB_SHA (main merge commit)."
-              git tag -f "$TAG" "$GITHUB_SHA"
-              git push origin "$TAG" --force
-            fi
-          else
-            git tag "$TAG"
-            git push origin "$TAG"
-          fi
+  # ---------------------------------------------------------------------------
+  # One job per architecture, each on its own native runner.
+  # ---------------------------------------------------------------------------
+  build:
+    name: Build ${{ matrix.platform }}
+    needs: gate
+    if: needs.gate.outputs.should_release == 'true'
+    runs-on: ${{ matrix.runner }}
+    # A wedged build should cost half an hour, not the six-hour job ceiling.
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - platform: linux/amd64
+          runner: ubuntu-latest
+        - platform: linux/arm64
+          runner: ubuntu-24.04-arm
+    steps:
+    - uses: actions/checkout@v7
 
-      - name: Log in to GHCR
-        if: steps.tag.outputs.should_release == 'true'
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+    # Artifact names and cache scopes cannot contain a slash.
+    - name: Normalise platform name
+      id: plat
+      env:
+        PLATFORM: ${{ matrix.platform }}
+      run: echo "pair=${PLATFORM//\//-}" >> "$GITHUB_OUTPUT"
 
-      - name: Log in to Docker Hub
-        if: steps.tag.outputs.should_release == 'true'
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: Log in to GHCR
+      uses: docker/login-action@v4
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up QEMU (for arm64 cross-compilation)
-        if: steps.tag.outputs.should_release == 'true'
-        uses: docker/setup-qemu-action@v4
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v4
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Set up Docker Buildx
-        if: steps.tag.outputs.should_release == 'true'
-        uses: docker/setup-buildx-action@v4
+    # No setup-qemu-action: each runner builds its own native architecture.
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v4
 
-      - name: Build and push Docker image
-        if: steps.tag.outputs.should_release == 'true'
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          push: true
-          platforms: linux/amd64,linux/arm64
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.version }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            docker.io/jordyjordy/tracker-tracker:${{ steps.tag.outputs.version }}
-            docker.io/jordyjordy/tracker-tracker:latest
-          cache-from: |
-            type=gha,scope=buildx-amd64
-            type=gha,scope=buildx-arm64
-          cache-to: type=gha,mode=max,scope=buildx-${{ steps.tag.outputs.version }}
+    - name: Build and push by digest
+      id: build
+      uses: docker/build-push-action@v7
+      with:
+        context: .
+        platforms: ${{ matrix.platform }}
+        outputs: type=image,"name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},${{ env.DOCKERHUB_IMAGE }}",push-by-digest=true,name-canonical=true,push=true
+        cache-from: type=gha,scope=release-${{ steps.plat.outputs.pair }}
+        cache-to: type=gha,mode=max,scope=release-${{ steps.plat.outputs.pair }}
 
-      - name: Run Trivy vulnerability scanner
-        if: steps.tag.outputs.should_release == 'true'
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.version }}
-          format: sarif
-          output: trivy-results.sarif
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          trivyignores: .trivyignore
+    - name: Export digest
+      env:
+        DIGEST: ${{ steps.build.outputs.digest }}
+      run: |
+        set -euo pipefail
+        mkdir -p /tmp/digests
+        touch "/tmp/digests/${DIGEST#sha256:}"
 
-      - name: Upload Trivy results to GitHub Security
-        if: steps.tag.outputs.should_release == 'true'
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: trivy-results.sarif
+    - name: Upload digest
+      uses: actions/upload-artifact@v7
+      with:
+        name: digests-${{ steps.plat.outputs.pair }}
+        path: /tmp/digests/*
+        if-no-files-found: error
+        retention-days: 1
 
-      - name: Generate SBOM
-        if: steps.tag.outputs.should_release == 'true'
-        uses: anchore/sbom-action@v0.24.0
-        with:
-          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.version }}
-          artifact-name: sbom-tracker-tracker.spdx.json
-          output-file: sbom-tracker-tracker.spdx.json
+  # ---------------------------------------------------------------------------
+  # Assemble the manifest lists, then everything that describes the release.
+  # ---------------------------------------------------------------------------
+  release:
+    name: Merge & Release
+    needs: [ gate, build ]
+    if: needs.gate.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      packages: write
+      security-events: write
+    steps:
+    # CHANGELOG.md and .trivyignore are read from the tree below.
+    - uses: actions/checkout@v7
 
-      - name: Extract changelog for this version
-        if: steps.tag.outputs.should_release == 'true'
-        id: changelog
-        env:
-          RELEASE_VERSION: ${{ steps.tag.outputs.version }}
-        run: |
-          NOTES=$(sed -n "/^## \[${RELEASE_VERSION}\]/,/^## /{/^## \[${RELEASE_VERSION}\]/d;/^## /d;p}" CHANGELOG.md | sed '/^$/N;/^\n$/d')
-          if [ -z "$NOTES" ]; then
-            NOTES="Release v${RELEASE_VERSION}"
-          fi
-          echo "notes<<CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
-          echo "$NOTES" >> "$GITHUB_OUTPUT"
-          echo "CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
+    - name: Download digests
+      uses: actions/download-artifact@v8
+      with:
+        path: /tmp/digests
+        pattern: digests-*
+        merge-multiple: true
 
-      - name: Create GitHub Release
-        if: steps.tag.outputs.should_release == 'true'
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: v${{ steps.tag.outputs.version }}
-          name: v${{ steps.tag.outputs.version }}
-          body: ${{ steps.changelog.outputs.notes }}
-          generate_release_notes: false
-          files: sbom-tracker-tracker.spdx.json
+    - name: Log in to GHCR
+      uses: docker/login-action@v4
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Sync README to Docker Hub
-        if: steps.tag.outputs.should_release == 'true'
-        uses: peter-evans/dockerhub-description@v5
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: jordyjordy/tracker-tracker
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v4
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v4
+
+    - name: Create manifest lists and push
+      working-directory: /tmp/digests
+      env:
+        VERSION: ${{ needs.gate.outputs.version }}
+        GHCR_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        HUB_IMAGE: ${{ env.DOCKERHUB_IMAGE }}
+      run: |
+        set -euo pipefail
+        if [ -z "$(ls -A .)" ]; then
+          echo "::error::No digests were produced by the build jobs."
+          exit 1
+        fi
+        # Each file is named after one platform's image digest. The digests
+        # are identical in both registries because a single push produced them.
+        for image in "$GHCR_IMAGE" "$HUB_IMAGE"; do
+          refs=""
+          for digest in *; do
+            refs="${refs} ${image}@sha256:${digest}"
+          done
+          echo "Creating ${image}:${VERSION} from:${refs}"
+          # shellcheck disable=SC2086
+          docker buildx imagetools create \
+            -t "${image}:${VERSION}" \
+            -t "${image}:latest" \
+            ${refs}
+        done
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@v0.36.0
+      with:
+        image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.gate.outputs.version }}
+        format: sarif
+        output: trivy-results.sarif
+        severity: CRITICAL,HIGH
+        ignore-unfixed: true
+        trivyignores: .trivyignore
+
+    - name: Upload Trivy results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v4
+      with:
+        sarif_file: trivy-results.sarif
+
+    - name: Generate SBOM
+      uses: anchore/sbom-action@v0.24.0
+      with:
+        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.gate.outputs.version }}
+        artifact-name: sbom-tracker-tracker.spdx.json
+        output-file: sbom-tracker-tracker.spdx.json
+
+    - name: Extract changelog for this version
+      id: changelog
+      env:
+        RELEASE_VERSION: ${{ needs.gate.outputs.version }}
+      run: |
+        NOTES=$(sed -n "/^## \[${RELEASE_VERSION}\]/,/^## /{/^## \[${RELEASE_VERSION}\]/d;/^## /d;p}" CHANGELOG.md | sed '/^$/N;/^\n$/d')
+        if [ -z "$NOTES" ]; then
+          NOTES="Release v${RELEASE_VERSION}"
+        fi
+        echo "notes<<CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
+        echo "$NOTES" >> "$GITHUB_OUTPUT"
+        echo "CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v3
+      with:
+        tag_name: v${{ needs.gate.outputs.version }}
+        name: v${{ needs.gate.outputs.version }}
+        body: ${{ steps.changelog.outputs.notes }}
+        generate_release_notes: false
+        files: sbom-tracker-tracker.spdx.json
+
+    - name: Sync README to Docker Hub
+      uses: peter-evans/dockerhub-description@v5
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        repository: jordyjordy/tracker-tracker
