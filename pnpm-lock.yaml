@@ -30,8 +30,8 @@ importers:
         specifier: ^5.101.4
         version: 5.101.4(react@19.2.8)
       argon2:
-        specifier: ^0.44.0
-        version: 0.44.0
+        specifier: ^0.45.1
+        version: 0.45.1
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1784,8 +1784,8 @@ packages:
   anynum@1.0.1:
     resolution: {integrity: sha512-N6//FLET/tXYNM/F6ABca1oH6fWB+KlTt909Le28WMDBk8oaT4vY17DCrwg2MvmuqUKt3Ni4N5dGJ/EoBgcO6A==}
 
-  argon2@0.44.0:
-    resolution: {integrity: sha512-zHPGN3S55sihSQo0dBbK0A5qpi2R31z7HZDZnry3ifOyj8bZZnpZND2gpmhnRGO1V/d555RwBqIK5W4Mrmv3ig==}
+  argon2@0.45.1:
+    resolution: {integrity: sha512-skm+/WCjkGqCQxF7FG1LuZXM5yvbFjgbfiCGsud2oLgaDhh6b6dbH0b1EkghbM+xx4Bj8Ape+KKgixoIlWZicQ==}
     engines: {node: '>=16.17.0'}
 
   argparse@2.0.1:
@@ -4787,7 +4787,7 @@ snapshots:
 
   anynum@1.0.1: {}
 
-  argon2@0.44.0:
+  argon2@0.45.1:
     dependencies:
       '@phc/format': 1.0.0
       cross-env: 10.1.0
