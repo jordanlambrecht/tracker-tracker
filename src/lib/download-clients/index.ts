@@ -1,6 +1,7 @@
 // src/lib/download-clients/index.ts
 
 export { QbtClientAdapter } from "./adapters/qbt"
+export { TransmissionClientAdapter } from "./adapters/transmission"
 export { aggregateByTag } from "./aggregator"
 export type { FleetAggregationResponse } from "./coordinator"
 export {
@@ -14,7 +15,13 @@ export { CLIENT_CONNECTION_COLUMNS, decryptClientCredentials } from "./credentia
 export { createAdapterForClient } from "./factory"
 export type { MergedResult } from "./fetch"
 export { fetchAndMergeTorrents, stripSensitiveTorrentFields } from "./fetch"
-export { mapQbtDelta, mapQbtTorrent } from "./field-map"
+export {
+  canonicalTrackerHost,
+  mapQbtDelta,
+  mapQbtTorrent,
+  mapTransmissionState,
+  mapTransmissionTorrent,
+} from "./field-map"
 export type { RawTorrent } from "./merge"
 export { aggregateCrossSeedTags, mergeTorrentLists, stampClientNames } from "./merge"
 export type { QbtAuth } from "./qbt/transport"
@@ -36,6 +43,11 @@ export {
 } from "./sync-store"
 export type { SlimTorrent } from "./transforms"
 export { slimTorrentForCache } from "./transforms"
+export { clearAllTransmissionSessions } from "./transmission/transport"
+export type {
+  TransmissionTorrent,
+  TransmissionTrackerStat,
+} from "./transmission/types"
 export type {
   AuthMethod,
   ClientAdapter,
