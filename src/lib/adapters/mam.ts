@@ -21,7 +21,9 @@ interface MamJsonLoadResponse {
   username: string
   uid: number
   classname: string
-  ratio: number
+  // A display string, not a number: an account that has downloaded nothing
+  // reports "∞". Deliberately unused — see the ratio note in fetchStats.
+  ratio: string | number
   uploaded: string
   downloaded: string
   uploaded_bytes: number
@@ -139,8 +141,8 @@ export class MamAdapter implements TrackerAdapter {
       remoteUserId: data.uid,
       uploadedBytes: uploaded,
       downloadedBytes: downloaded,
-      // Derived from byte totals. MAM's own ratio field encoding for a
-      // zero-download account is undocumented and parsed to 0.
+      // Derived from byte totals rather than read from data.ratio, which is a
+      // display string ("∞" for an account that has downloaded nothing).
       ratio: computeRatio(uploaded, downloaded),
       bufferBytes: computeBufferBytes(uploaded, downloaded),
       seedingCount,
