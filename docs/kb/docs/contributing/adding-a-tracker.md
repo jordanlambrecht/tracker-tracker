@@ -583,6 +583,7 @@ The `rules` field documents the tracker's seeding and account policies. The type
 interface TrackerRules {
   minimumRatio: number // required, 0 = no minimum
   seedTimeHours: number // required, 0 = no minimum
+  satisfactionMode?: "any" | "all" // how the two above combine; omit unless verified
   loginIntervalDays: number // required, days before account is disabled; 0 = no policy
   fulfillmentPeriodHours?: number // total hours allowed to complete H&R seeding
   hnrBanLimit?: number // number of active H&Rs before downloading is blocked
@@ -610,6 +611,31 @@ rules: {
   fulfillmentPeriodHours: 480,  // 20 days to complete H&R seeding
   hnrBanLimit: 3,               // 3 active H&Rs → downloads blocked
   fullRulesMarkdown: "...",
+}
+```
+
+### satisfactionMode
+
+`satisfactionMode` says how `seedTimeHours` and `minimumRatio` combine when the app decides whether a single torrent is done seeding. It is optional and deliberately opt-in.
+
+- `"any"` means either threshold clears a torrent. TorrentLeech states this outright: seed to 1:1, **or** seed for your user class's minimum time.
+- `"all"` means both must be met.
+- Omitted, the app judges on seed time alone and `minimumRatio` keeps its other job, the account-level figure behind the ratio-danger alert and the analytics baseline.
+
+Set it only from the tracker's own wording, and quote that wording in a comment above the rule. Setting `"any"` where the tracker means "and" marks torrents satisfied that are not, which is how hit and runs are earned. Leaving it off is always safe.
+
+A mode needs a non-zero `seedTimeHours` or `minimumRatio` to act on. The registry test suite rejects one that has neither.
+
+```typescript
+// From torrentleech.ts
+rules: {
+  // wiki.torrentleech.org/doku.php/hnr: "There are two ways for you to give
+  // back to the community" - seed to at least 1:1, OR seed for the minimum
+  // time required for your user class.
+  minimumRatio: 1.0,
+  seedTimeHours: 240,        // 10 days, the longest class requirement
+  satisfactionMode: "any",
+  loginIntervalDays: 0,
 }
 ```
 
