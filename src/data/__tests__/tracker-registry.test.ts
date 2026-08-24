@@ -201,6 +201,23 @@ describe("tracker registry", () => {
           expect(Number.isInteger(r), "rules.loginIntervalDays must be an integer").toBe(true)
         })
 
+        it("has a valid rules.satisfactionMode when it is set", () => {
+          const mode = tracker.rules?.satisfactionMode
+          if (mode === undefined) return
+          expect(
+            ["any", "all"].includes(mode),
+            'rules.satisfactionMode must be "any" or "all"'
+          ).toBe(true)
+          // A mode over no thresholds resolves to no requirement at all, so the
+          // entry would silently keep the empty table it was meant to fix.
+          const hasThreshold =
+            (tracker.rules?.seedTimeHours ?? 0) > 0 || (tracker.rules?.minimumRatio ?? 0) > 0
+          expect(
+            hasThreshold,
+            "rules.satisfactionMode needs a non-zero seedTimeHours or minimumRatio to act on"
+          ).toBe(true)
+        })
+
         it("has a non-placeholder description", () => {
           expect(
             PLACEHOLDER_RE.test(tracker.description.trim()),
