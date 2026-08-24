@@ -11,27 +11,9 @@ CVE-2026-26960
 CVE-2026-29786
 CVE-2026-31802
 
-# esbuild - resolved by a version override, kept as a record.
-#
-# drizzle-kit pins esbuild ^0.25.x, and that is still true at 1.0.0-rc.4. The
-# 0.25.x line was abandoned after 0.25.12 (Nov 2025), a binary built on
-# go1.23.12 carrying 22 findings including one CRITICAL, so waiting for a
-# drizzle release was never going to clear it - drizzle-orm#5481 has been open
-# and unanswered since March 2026.
-#
-# The esbuild override in pnpm-workspace.yaml now forces a single 0.28.2
-# (go1.26.5) across the tree, which is why the ids that used to be listed here
-# are gone rather than suppressed. That override also keeps the abandoned
-# @esbuild-kit/core-utils pin (esbuild ~0.18.20, GHSA-67mh-4wv8-2f99) out of
-# the tree entirely - do not relax it below 0.28.2.
-#
-# Seven Go stdlib CVEs are still genuinely unfixed at go1.26.5 and need
-# go1.26.6 or newer:
-#   CVE-2026-33818  CVE-2026-39821  CVE-2026-56853  CVE-2026-56858
-#   CVE-2026-56859  CVE-2026-56860  CVE-2026-56862
-#
-# They are deliberately NOT ignored below. Trivy cannot read build info out of
-# the 0.28.2 binary, so it reports nothing for them today; and these are stdlib
-# ids that apply to any Go binary, so a blanket ignore would also mask them if
-# they ever showed up somewhere else in the image. They clear on the first
-# esbuild release built with Go 1.27 (released 2026-08-19).
+# esbuild - no entries needed. The override in pnpm-workspace.yaml pins a
+# single esbuild 0.28.2; the vulnerable 0.25.12 (go1.23.12) it replaced is what
+# used to be listed here. Seven Go stdlib CVEs are still unfixed at go1.26.5
+# and clear on the first esbuild built with Go 1.27. They are deliberately not
+# ignored: Trivy cannot read 0.28.2 build info so it reports nothing today, and
+# a blanket ignore of stdlib ids would mask them in any other Go binary.
