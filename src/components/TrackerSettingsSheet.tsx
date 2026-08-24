@@ -256,16 +256,6 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
           setSaving(false)
           return
         }
-        if (tracker.platformType === "avistaz") {
-          const testJson = await testRes.json().catch(() => ({}))
-          if ((testJson as Record<string, unknown>).capturedUserAgent) {
-            trimmedToken = JSON.stringify({
-              cookies: editAvistazCookies.trim(),
-              userAgent: (testJson as Record<string, string>).capturedUserAgent,
-              username: editAvistazUsername.trim(),
-            })
-          }
-        }
       } catch {
         setErrors({ apiToken: "Could not verify API key — check your connection" })
         setSaving(false)

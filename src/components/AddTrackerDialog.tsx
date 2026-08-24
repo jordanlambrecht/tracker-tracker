@@ -426,14 +426,6 @@ function AddTrackerDialog({
 
       setTestResult({ username: testData.username, group: testData.group })
 
-      if (isAvistaz && testData.capturedUserAgent) {
-        effectiveApiToken = JSON.stringify({
-          cookies: avistazCookies.trim(),
-          userAgent: testData.capturedUserAgent,
-          username: avistazUsername.trim(),
-        })
-      }
-
       const saveRes = await fetch("/api/trackers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
