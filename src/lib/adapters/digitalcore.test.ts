@@ -212,14 +212,6 @@ describe("parseDigitalCoreCredentials", () => {
     expect(creds.userAgent).toBeUndefined()
   })
 
-  it("throws when userAgent contains a newline", () => {
-    expect(() =>
-      parseDigitalCoreCredentials(
-        JSON.stringify({ uid: "54321", pass: "abc123xyz", userAgent: "Mozilla/5.0\r\nX-Evil: 1" })
-      )
-    ).toThrow("userAgent contains invalid characters")
-  })
-
   it("throws when userAgent is not a string", () => {
     expect(() =>
       parseDigitalCoreCredentials(

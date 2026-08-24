@@ -67,12 +67,11 @@ export function parseDigitalCoreCredentials(apiToken: string): DigitalCoreCreden
   if (rawUserAgent !== undefined && typeof rawUserAgent !== "string") {
     throw new Error("DigitalCore credentials: userAgent must be a string")
   }
+  // Not run through unsafeChars. That guard rejects semicolons because uid and
+  // pass are interpolated into a Cookie header, and every real browser UA
+  // contains them. CR/LF is left to the request layer, which throws
+  // ERR_INVALID_CHAR, matching how avistaz and iptorrents treat their own UA.
   const trimmedUserAgent = rawUserAgent?.trim() ?? ""
-  // Only CR/LF here. unsafeChars also rejects semicolons, which every real
-  // browser UA contains, so it must not be reused for this field.
-  if (/[\r\n]/.test(trimmedUserAgent)) {
-    throw new Error("DigitalCore credentials: userAgent contains invalid characters (newlines)")
-  }
 
   // Blank counts as absent rather than an error. A re-save that produced an
   // empty string should fall back to the default UA, not stop the tracker.
