@@ -8,6 +8,7 @@ import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
 import { classifyFetchError } from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import { parseBytes } from "@/lib/parser"
+import { proxyFetch } from "@/lib/tunnel"
 import { parseCredentialJson } from "./cookie-credentials"
 import { fetchTrackerHtml } from "./html-fetch"
 import type { DebugApiCall, FetchOptions, TrackerAdapter, TrackerStats } from "./types"
@@ -70,8 +71,11 @@ function isRedirect(status: number): boolean {
 
 /**
  * Logs in and returns the Cookie header string built from Set-Cookie response headers.
- * tunnel.ts's proxyFetch is GET-only with no body support, so login always goes
- * through a direct fetch — only the subsequent profile page fetch honors proxyAgent.
+ *
+ * Honors the configured proxy. It previously did not — the login POST always
+ * went out directly while only the profile GET was proxied, so a user who
+ * configured a proxy still leaked their real address to the tracker on every
+ * re-authentication, which is the one request that carries their password.
  */
 // ---------------------------------------------------------------------------
 // Session cache
@@ -94,12 +98,16 @@ function sessionKey(baseUrl: string, username: string): string {
   return `${baseUrl}|${username}`
 }
 
-async function getTlSession(baseUrl: string, creds: TlCredentials): Promise<string> {
+async function getTlSession(
+  baseUrl: string,
+  creds: TlCredentials,
+  proxyAgent?: FetchOptions["proxyAgent"]
+): Promise<string> {
   const key = sessionKey(baseUrl, creds.username)
   const cached = tlSessionCache.get(key)
   if (cached) return cached
 
-  const cookies = await login(baseUrl, creds)
+  const cookies = await login(baseUrl, creds, proxyAgent)
   tlSessionCache.set(key, cookies)
   return cookies
 }
@@ -108,7 +116,11 @@ function invalidateTlSession(baseUrl: string, username: string): void {
   tlSessionCache.delete(sessionKey(baseUrl, username))
 }
 
-async function login(baseUrl: string, creds: TlCredentials): Promise<string> {
+async function login(
+  baseUrl: string,
+  creds: TlCredentials,
+  proxyAgent?: FetchOptions["proxyAgent"]
+): Promise<string> {
   const loginUrl = `${baseUrl}/user/account/login/`
   const form: Record<string, string> = {
     username: creds.username,
@@ -123,19 +135,39 @@ async function login(baseUrl: string, creds: TlCredentials): Promise<string> {
     Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
   }
 
-  let response: Response
+  let setCookieHeaders: string[]
+  let loginStatus: number
+  let readBody: () => Promise<string>
   try {
-    response = await fetch(loginUrl, {
-      method: "POST",
-      headers,
-      body,
-      redirect: "manual",
-      signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
-    })
+    if (proxyAgent) {
+      // https.request does not follow redirects, which is what `redirect:
+      // "manual"` buys on the direct path — TL answers a good login with a 302
+      // that carries the session cookie.
+      const res = await proxyFetch(loginUrl, proxyAgent, {
+        method: "POST",
+        body,
+        headers,
+        timeoutMs: ADAPTER_FETCH_TIMEOUT_MS,
+      })
+      const raw = res.headers["set-cookie"]
+      setCookieHeaders = Array.isArray(raw) ? raw : raw ? [raw] : []
+      loginStatus = res.status
+      readBody = () => res.text()
+    } else {
+      const response = await fetch(loginUrl, {
+        method: "POST",
+        headers,
+        body,
+        redirect: "manual",
+        signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
+      })
+      setCookieHeaders = response.headers.getSetCookie?.() ?? []
+      loginStatus = response.status
+      readBody = () => response.text()
+    }
   } catch (err) {
     throw classifyFetchError(err, new URL(baseUrl).hostname)
   }
-  const setCookieHeaders = response.headers.getSetCookie?.() ?? []
 
   const cookiePairs = setCookieHeaders
     .map((raw) => raw.split(";")[0]?.trim())
@@ -153,12 +185,12 @@ async function login(baseUrl: string, creds: TlCredentials): Promise<string> {
   // The body is only inspected when the response was not a redirect: a 302
   // carries no body, and a 200 that does NOT look like the login page is still
   // accepted, so a future flow that returns 200 on success would not regress.
-  const authenticated = cookieString.includes("tluid=") && isRedirect(response.status)
+  const authenticated = cookieString.includes("tluid=") && isRedirect(loginStatus)
   if (!authenticated) {
     let html = ""
-    if (!isRedirect(response.status)) {
+    if (!isRedirect(loginStatus)) {
       try {
-        html = await response.text()
+        html = await readBody()
       } catch {
         // Body already consumed or connection dropped — fall through to the
         // generic message rather than masking the login failure with a read error.
@@ -304,7 +336,7 @@ export class TorrentleechAdapter implements TrackerAdapter {
     const creds = parseTlCredentials(apiToken)
     const profileUrl = `${baseUrl}/profile/${encodeURIComponent(creds.username)}`
 
-    let cookies = await getTlSession(baseUrl, creds)
+    let cookies = await getTlSession(baseUrl, creds, options?.proxyAgent)
     let html: string
     try {
       html = await fetchHtml(profileUrl, cookies, options?.proxyAgent)
@@ -313,7 +345,7 @@ export class TorrentleechAdapter implements TrackerAdapter {
       // the login page. Drop it and authenticate once more before giving up.
       if (!(err instanceof Error) || !err.message.startsWith("Session expired")) throw err
       invalidateTlSession(baseUrl, creds.username)
-      cookies = await getTlSession(baseUrl, creds)
+      cookies = await getTlSession(baseUrl, creds, options?.proxyAgent)
       html = await fetchHtml(profileUrl, cookies, options?.proxyAgent)
     }
     return parseTlProfile(html, creds.username)
@@ -330,7 +362,7 @@ export class TorrentleechAdapter implements TrackerAdapter {
     const endpoint = `/profile/${creds.username}`
 
     try {
-      const cookies = await getTlSession(baseUrl, creds)
+      const cookies = await getTlSession(baseUrl, creds, options?.proxyAgent)
       const profileUrl = `${baseUrl}${endpoint}`
       const html = await fetchHtml(profileUrl, cookies, options?.proxyAgent)
       const stats = parseTlProfile(html, creds.username)

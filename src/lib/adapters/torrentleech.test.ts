@@ -3,6 +3,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { parseTlCredentials, parseTlProfile, TorrentleechAdapter } from "./torrentleech"
 
+// The proxy path is what these tests are checking is TAKEN, so proxyFetch is
+// mocked rather than exercised — tunnel.ts has its own coverage.
+vi.mock("@/lib/tunnel", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/tunnel")>()),
+  proxyFetch: vi.fn(),
+}))
+
 const PROFILE_HTML = `
 <div class="profile-uploaded">
   <i class="fa fa-arrow-circle-o-up"></i> uploaded:
@@ -136,8 +143,10 @@ describe("TorrentleechAdapter.fetchStats", () => {
   const adapter = new TorrentleechAdapter()
   const validToken = JSON.stringify({ username: "testuser", password: "hunter2" })
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.restoreAllMocks()
+    const { proxyFetch } = await import("@/lib/tunnel")
+    vi.mocked(proxyFetch).mockReset()
     // The adapter caches login sessions on globalThis so it doesn't
     // re-authenticate every poll. Clear it so each test starts cold.
     ;(globalThis as { __tlSessionCache?: Map<string, string> }).__tlSessionCache?.clear()
@@ -309,6 +318,86 @@ describe("TorrentleechAdapter.fetchStats", () => {
 
     const stats = await adapter.fetchStats("https://www.torrentleech.org", validToken, "")
     expect(stats.username).toBe("testuser")
+  })
+
+  it("sends the login POST through the proxy when one is configured", async () => {
+    const { proxyFetch } = await import("@/lib/tunnel")
+    const proxySpy = vi.mocked(proxyFetch)
+    proxySpy.mockResolvedValueOnce({
+      ok: true,
+      status: 302,
+      statusText: "Found",
+      headers: { "set-cookie": ["tluid=abc123; Path=/"] },
+      json: async () => ({}),
+      text: async () => "",
+      buffer: async () => Buffer.from(""),
+    })
+    // The profile GET was already proxied before this change; the login POST
+    // was the one request that was not.
+    proxySpy.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      headers: {},
+      json: async () => ({}),
+      text: async () => FULL_PROFILE_PAGE,
+      buffer: async () => Buffer.from(FULL_PROFILE_PAGE),
+    })
+    const fetchSpy = vi.spyOn(global, "fetch")
+
+    const agent = {} as never
+    const stats = await adapter.fetchStats("https://www.torrentleech.org", validToken, "", {
+      proxyAgent: agent,
+    })
+
+    expect(stats.username).toBe("testuser")
+    // The whole point: the request carrying the password went through the
+    // proxy, and nothing went out the direct path at all.
+    expect(fetchSpy).not.toHaveBeenCalled()
+    expect(proxySpy).toHaveBeenCalledTimes(2)
+
+    const [url, passedAgent, opts] = proxySpy.mock.calls[0]
+    expect(url).toBe("https://www.torrentleech.org/user/account/login/")
+    expect(passedAgent).toBe(agent)
+    expect(opts?.method).toBe("POST")
+    expect(new URLSearchParams(opts?.body ?? "").get("username")).toBe("testuser")
+    expect(proxySpy.mock.calls[1][0]).toContain("/profile/testuser")
+  })
+
+  it("still uses a direct fetch for the login when no proxy is configured", async () => {
+    const { proxyFetch } = await import("@/lib/tunnel")
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce(setCookieResponse(["tluid=abc123; Path=/"]))
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => FULL_PROFILE_PAGE,
+      } as Response)
+
+    await adapter.fetchStats("https://www.torrentleech.org", validToken, "")
+
+    expect(vi.mocked(proxyFetch)).not.toHaveBeenCalled()
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it("reads the 2FA hint from the proxied response body too", async () => {
+    const { proxyFetch } = await import("@/lib/tunnel")
+    vi.mocked(proxyFetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      headers: {},
+      json: async () => ({}),
+      text: async () => `<div class="login-container"><h2>One Time Password</h2></div>`,
+      buffer: async () => Buffer.from(""),
+    })
+
+    await expect(
+      adapter.fetchStats("https://www.torrentleech.org", validToken, "", {
+        proxyAgent: {} as never,
+      })
+    ).rejects.toThrow("Alt 2FA Token")
   })
 
   it("detects a Cloudflare challenge on the profile page", async () => {
