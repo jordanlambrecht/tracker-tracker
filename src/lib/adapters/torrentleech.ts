@@ -19,6 +19,15 @@ import type { DebugApiCall, FetchOptions, TrackerAdapter, TrackerStats } from ".
 export interface TlCredentials {
   username: string
   password: string
+  /**
+   * TorrentLeech's "Alt 2FA Token" (Site Profile => Alt 2FA Token), required
+   * only when the account has 2FA enabled.
+   *
+   * It is NOT a TOTP secret and nothing here computes a one-time code. The site
+   * issues a static token for exactly this case, and its login form takes it as
+   * a third input alongside username and password.
+   */
+  alt2FAToken?: string
 }
 
 export function parseTlCredentials(apiToken: string): TlCredentials {
@@ -27,7 +36,25 @@ export function parseTlCredentials(apiToken: string): TlCredentials {
     "password",
   ] as const)
 
-  return { username: username.trim(), password }
+  // The optional third field is read separately: parseCredentialJson asserts
+  // every field it is given is present, and this one legitimately is not for
+  // accounts without 2FA. Re-parsing is safe — the call above has already
+  // proven the blob is valid JSON.
+  const raw = JSON.parse(apiToken) as Record<string, unknown>
+  // `alt2FAToken` is the site's own spelling; `alt2fatoken` is accepted too
+  // because that is the key other clients store it under, and being strict
+  // about the capitalisation of a pasted token helps nobody.
+  const token = raw.alt2FAToken ?? raw.alt2fatoken
+  if (token !== undefined && typeof token !== "string") {
+    throw new Error("TorrentLeech credentials: alt2FAToken must be a string")
+  }
+  const alt2FAToken = typeof token === "string" ? token.trim() : ""
+
+  return {
+    username: username.trim(),
+    password,
+    ...(alt2FAToken ? { alt2FAToken } : {}),
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -60,12 +87,12 @@ function sessionKey(baseUrl: string, username: string): string {
   return `${baseUrl}|${username}`
 }
 
-async function getTlSession(baseUrl: string, username: string, password: string): Promise<string> {
-  const key = sessionKey(baseUrl, username)
+async function getTlSession(baseUrl: string, creds: TlCredentials): Promise<string> {
+  const key = sessionKey(baseUrl, creds.username)
   const cached = tlSessionCache.get(key)
   if (cached) return cached
 
-  const cookies = await login(baseUrl, username, password)
+  const cookies = await login(baseUrl, creds)
   tlSessionCache.set(key, cookies)
   return cookies
 }
@@ -74,9 +101,16 @@ function invalidateTlSession(baseUrl: string, username: string): void {
   tlSessionCache.delete(sessionKey(baseUrl, username))
 }
 
-async function login(baseUrl: string, username: string, password: string): Promise<string> {
+async function login(baseUrl: string, creds: TlCredentials): Promise<string> {
   const loginUrl = `${baseUrl}/user/account/login/`
-  const body = new URLSearchParams({ username, password }).toString()
+  const form: Record<string, string> = {
+    username: creds.username,
+    password: creds.password,
+  }
+  // Only sent when the account actually has 2FA. Omitting the field entirely
+  // for everyone else keeps the request byte-identical to what worked before.
+  if (creds.alt2FAToken) form.alt2FAToken = creds.alt2FAToken
+  const body = new URLSearchParams(form).toString()
   const headers: Record<string, string> = {
     "Content-Type": "application/x-www-form-urlencoded",
     Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -102,6 +136,25 @@ async function login(baseUrl: string, username: string, password: string): Promi
 
   const cookieString = cookiePairs.join("; ")
   if (!cookieString.includes("tluid=")) {
+    // No session cookie means the login was refused. Read the body to say WHY:
+    // a 2FA-enabled account with no token gets the same empty-cookie response
+    // as a wrong password, and "Invalid TorrentLeech credentials" sends people
+    // to re-check a password that was never the problem.
+    let html = ""
+    try {
+      html = await response.text()
+    } catch {
+      // Body already consumed or connection dropped — fall through to the
+      // generic message rather than masking the login failure with a read error.
+    }
+    if (/One Time Password/i.test(html)) {
+      throw new Error(
+        "TorrentLeech requires 2FA — add your Alt 2FA Token (Site Profile => Alt 2FA Token) to this tracker's credentials"
+      )
+    }
+    if (creds.alt2FAToken) {
+      throw new Error("Invalid TorrentLeech credentials or Alt 2FA Token")
+    }
     throw new Error("Invalid TorrentLeech credentials")
   }
 
@@ -222,7 +275,7 @@ export class TorrentleechAdapter implements TrackerAdapter {
     const creds = parseTlCredentials(apiToken)
     const profileUrl = `${baseUrl}/profile/${encodeURIComponent(creds.username)}`
 
-    let cookies = await getTlSession(baseUrl, creds.username, creds.password)
+    let cookies = await getTlSession(baseUrl, creds)
     let html: string
     try {
       html = await fetchHtml(profileUrl, cookies, options?.proxyAgent)
@@ -231,7 +284,7 @@ export class TorrentleechAdapter implements TrackerAdapter {
       // the login page. Drop it and authenticate once more before giving up.
       if (!(err instanceof Error) || !err.message.startsWith("Session expired")) throw err
       invalidateTlSession(baseUrl, creds.username)
-      cookies = await getTlSession(baseUrl, creds.username, creds.password)
+      cookies = await getTlSession(baseUrl, creds)
       html = await fetchHtml(profileUrl, cookies, options?.proxyAgent)
     }
     return parseTlProfile(html, creds.username)
@@ -248,7 +301,7 @@ export class TorrentleechAdapter implements TrackerAdapter {
     const endpoint = `/profile/${creds.username}`
 
     try {
-      const cookies = await getTlSession(baseUrl, creds.username, creds.password)
+      const cookies = await getTlSession(baseUrl, creds)
       const profileUrl = `${baseUrl}${endpoint}`
       const html = await fetchHtml(profileUrl, cookies, options?.proxyAgent)
       const stats = parseTlProfile(html, creds.username)

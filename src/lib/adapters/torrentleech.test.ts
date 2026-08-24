@@ -97,6 +97,39 @@ describe("parseTlCredentials", () => {
   it("throws on non-JSON string", () => {
     expect(() => parseTlCredentials("not-json")).toThrow()
   })
+
+  it("omits alt2FAToken entirely when the account has no 2FA", () => {
+    const json = JSON.stringify({ username: "testuser", password: "hunter2" })
+    expect(parseTlCredentials(json)).not.toHaveProperty("alt2FAToken")
+  })
+
+  it("parses the Alt 2FA Token when present", () => {
+    const json = JSON.stringify({
+      username: "testuser",
+      password: "hunter2",
+      alt2FAToken: "  abc123def456  ",
+    })
+    expect(parseTlCredentials(json).alt2FAToken).toBe("abc123def456")
+  })
+
+  it("accepts the all-lowercase alt2fatoken spelling other clients store", () => {
+    const json = JSON.stringify({
+      username: "testuser",
+      password: "hunter2",
+      alt2fatoken: "abc123def456",
+    })
+    expect(parseTlCredentials(json).alt2FAToken).toBe("abc123def456")
+  })
+
+  it("treats a blank Alt 2FA Token as absent rather than sending an empty field", () => {
+    const json = JSON.stringify({ username: "u", password: "p", alt2FAToken: "   " })
+    expect(parseTlCredentials(json)).not.toHaveProperty("alt2FAToken")
+  })
+
+  it("throws when the Alt 2FA Token is not a string", () => {
+    const json = JSON.stringify({ username: "u", password: "p", alt2FAToken: 123456 })
+    expect(() => parseTlCredentials(json)).toThrow("alt2FAToken must be a string")
+  })
 })
 
 describe("TorrentleechAdapter.fetchStats", () => {
@@ -144,6 +177,84 @@ describe("TorrentleechAdapter.fetchStats", () => {
     await expect(
       adapter.fetchStats("https://www.torrentleech.org", validToken, "")
     ).rejects.toThrow("Invalid TorrentLeech credentials")
+  })
+
+  it("posts alt2FAToken as a third login field when the account has 2FA", async () => {
+    const tokenCreds = JSON.stringify({
+      username: "testuser",
+      password: "hunter2",
+      alt2FAToken: "abc123def456",
+    })
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce(setCookieResponse(["tluid=abc123; Path=/"]))
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => FULL_PROFILE_PAGE,
+      } as Response)
+
+    await adapter.fetchStats("https://www.torrentleech.org", tokenCreds, "")
+
+    const body = fetchSpy.mock.calls[0][1]?.body as string
+    const form = new URLSearchParams(body)
+    // The field name is TorrentLeech's own spelling, not ours — the login form
+    // reads `alt2FAToken` and silently ignores anything else.
+    expect(form.get("alt2FAToken")).toBe("abc123def456")
+    expect(form.get("username")).toBe("testuser")
+    expect(form.get("password")).toBe("hunter2")
+  })
+
+  it("does not send an alt2FAToken field at all for accounts without 2FA", async () => {
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce(setCookieResponse(["tluid=abc123; Path=/"]))
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => FULL_PROFILE_PAGE,
+      } as Response)
+
+    await adapter.fetchStats("https://www.torrentleech.org", validToken, "")
+
+    const body = fetchSpy.mock.calls[0][1]?.body as string
+    expect(new URLSearchParams(body).has("alt2FAToken")).toBe(false)
+  })
+
+  it("names 2FA as the cause when the login page asks for a One Time Password", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      setCookieResponse([], {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        text: async () =>
+          `<div class="login-container"><h2>One Time Password</h2></div>`,
+      } as Partial<Response>)
+    )
+
+    await expect(
+      adapter.fetchStats("https://www.torrentleech.org", validToken, "")
+    ).rejects.toThrow("Alt 2FA Token")
+  })
+
+  it("blames the token too when a 2FA login is refused", async () => {
+    const tokenCreds = JSON.stringify({
+      username: "testuser",
+      password: "hunter2",
+      alt2FAToken: "wrong-token",
+    })
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      setCookieResponse([], {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        text: async () => `<p class="text-danger">Invalid login</p>`,
+      } as Partial<Response>)
+    )
+
+    await expect(
+      adapter.fetchStats("https://www.torrentleech.org", tokenCreds, "")
+    ).rejects.toThrow("Invalid TorrentLeech credentials or Alt 2FA Token")
   })
 
   it("detects a Cloudflare challenge on the profile page", async () => {

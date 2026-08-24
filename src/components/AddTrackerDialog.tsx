@@ -239,6 +239,7 @@ function AddTrackerDialog({
   const [iptCookies, setIptCookies] = useState("")
   const [tlUsername, setTlUsername] = useState("")
   const [tlPassword, setTlPassword] = useState("")
+  const [tlAlt2FAToken, setTlAlt2FAToken] = useState("")
   const [qbtTag, setQbtTag] = useState("")
   const [mouseholeUrl, setMouseholeUrl] = useState("")
   const [color, setColor] = useState<string>(CHART_THEME.accent)
@@ -255,6 +256,12 @@ function AddTrackerDialog({
     setAvistazUsername("")
     setAvistazCookies("")
     setDcCookies("")
+    // Drive-by: the TorrentLeech fields were never cleared here, so a closed
+    // dialog kept the password in memory and re-showed it on reopen. Adding a
+    // third secret without fixing that would have made it worse.
+    setTlUsername("")
+    setTlPassword("")
+    setTlAlt2FAToken("")
     setQbtTag("")
     setMouseholeUrl("")
     setColor(CHART_THEME.accent)
@@ -395,9 +402,13 @@ function AddTrackerDialog({
         userAgent: navigator.userAgent,
       })
     } else if (isTorrentleech) {
+      const alt2FAToken = tlAlt2FAToken.trim()
       effectiveApiToken = JSON.stringify({
         username: tlUsername.trim(),
         password: tlPassword,
+        // Omitted entirely for accounts without 2FA, so their stored credential
+        // blob stays exactly the shape it has always been.
+        ...(alt2FAToken ? { alt2FAToken } : {}),
       })
     }
 
@@ -661,6 +672,23 @@ function AddTrackerDialog({
               />
               <InfoTip
                 content="TorrentLeech has no API, so stats are read by logging in on your behalf. Your password is encrypted at rest with the same key as every other tracker credential."
+                size="sm"
+                docs={DOCS.ADDING_A_TRACKER}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Input
+                label="Alt 2FA Token (optional)"
+                name="tracker-tl-alt2fa"
+                type="password"
+                autoComplete="off"
+                data-1p-ignore
+                value={tlAlt2FAToken}
+                onChange={(e) => setTlAlt2FAToken(e.target.value)}
+                placeholder="Only if 2FA is enabled on your account"
+              />
+              <InfoTip
+                content="Required only if your TorrentLeech account has 2FA enabled. Find it at Site Profile => Alt 2FA Token. It is a static token, not a rotating 6-digit code."
                 size="sm"
                 docs={DOCS.ADDING_A_TRACKER}
               />

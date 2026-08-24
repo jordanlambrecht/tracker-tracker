@@ -124,6 +124,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
   const [editIptCookies, setEditIptCookies] = useState("")
   const [editTlUsername, setEditTlUsername] = useState("")
   const [editTlPassword, setEditTlPassword] = useState("")
+  const [editTlAlt2FAToken, setEditTlAlt2FAToken] = useState("")
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
@@ -216,9 +217,11 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
         userAgent: navigator.userAgent,
       })
     } else if (changingKey && tracker.platformType === "torrentleech") {
+      const alt2FAToken = editTlAlt2FAToken.trim()
       trimmedToken = JSON.stringify({
         username: editTlUsername.trim(),
         password: editTlPassword,
+        ...(alt2FAToken ? { alt2FAToken } : {}),
       })
     } else if (changingKey && tracker.platformType === "digitalcore") {
       const trimmed = editDcCookies.trim()
@@ -494,6 +497,16 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
                   value={editTlPassword}
                   onChange={(e) => setEditTlPassword(e.target.value)}
                 />
+                <Input
+                  label="Alt 2FA Token (optional)"
+                  name="edit-tl-alt2fa"
+                  type="password"
+                  autoComplete="off"
+                  data-1p-ignore
+                  value={editTlAlt2FAToken}
+                  onChange={(e) => setEditTlAlt2FAToken(e.target.value)}
+                  placeholder="Only if 2FA is enabled on your account"
+                />
                 <Notice message={errors.apiToken} />
                 <Button
                   variant="minimal"
@@ -502,6 +515,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
                   className="self-start"
                   onClick={() => {
                     setChangingKey(false)
+                    setEditTlAlt2FAToken("")
                     setEditTlUsername("")
                     setEditTlPassword("")
                     setErrors({})
