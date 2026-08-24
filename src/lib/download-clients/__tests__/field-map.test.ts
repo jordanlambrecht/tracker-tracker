@@ -65,6 +65,17 @@ describe("mapQbtTorrent", () => {
     expect(result.size).toBe(1_000_000)
   })
 
+  it("coerces a missing seeding_time to 0", () => {
+    // Left unvalidated, undefined reaches satisfaction.ts and the division
+    // yields NaN, which renders a full progress bar in the Unsatisfied table.
+    const { seeding_time: _omitted, ...withoutSeedTime } = RAW
+    expect(mapQbtTorrent(withoutSeedTime).seedingTime).toBe(0)
+  })
+
+  it("coerces a non-numeric seeding_time to 0", () => {
+    expect(mapQbtTorrent({ ...RAW, seeding_time: "86400" }).seedingTime).toBe(0)
+  })
+
   it("does not include old field names in output", () => {
     const result = mapQbtTorrent(RAW) as unknown as Record<string, unknown>
     expect(result).not.toHaveProperty("upspeed")

@@ -22,7 +22,17 @@ const FIELD_MAP: Record<string, string> = {
   is_private: "isPrivate",
 }
 
-const REQUIRED_NUMERIC = ["uploadSpeed", "downloadSpeed", "size", "ratio", "uploaded", "downloaded"]
+const REQUIRED_NUMERIC = [
+  "uploadSpeed",
+  "downloadSpeed",
+  "size",
+  "ratio",
+  "uploaded",
+  "downloaded",
+  // Satisfaction divides by this. An undefined value yields NaN, which
+  // reads as unsatisfied but renders as a completed progress bar.
+  "seedingTime",
+]
 
 export function mapQbtTorrent(raw: Record<string, unknown>): TorrentRecord {
   const result: Record<string, unknown> = {}
