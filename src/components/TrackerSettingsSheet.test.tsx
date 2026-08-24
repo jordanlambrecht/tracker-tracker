@@ -243,3 +243,38 @@ describe("TrackerSettingsSheet shared tracker cache", () => {
     expect(queryClient.getQueryState(trackerQueryOptions.queryKey)?.isInvalidated).toBe(true)
   })
 })
+
+// ---------------------------------------------------------------------------
+// This sheet rebuilds the DigitalCore blob from scratch, and the stored token
+// never reaches the client, so it cannot preserve a UA it was not given.
+// Dropping the capture silently reverts the tracker to the default UA.
+// ---------------------------------------------------------------------------
+
+describe("TrackerSettingsSheet digitalcore credentials", () => {
+  const DC_TRACKER: TrackerSummary = {
+    ...TRACKER,
+    platformType: "digitalcore",
+    baseUrl: "https://digitalcore.club",
+  }
+
+  it("persists the browser User-Agent when the cookies are changed", async () => {
+    const user = userEvent.setup()
+    patchResult = jsonResponse(DC_TRACKER)
+    renderSheet({ tracker: DC_TRACKER })
+
+    await user.click(screen.getByRole("button", { name: "Change" }))
+    await user.type(
+      screen.getByLabelText(/session cookies/i),
+      "uid=56954; pass=abc123def456"
+    )
+    await user.click(screen.getByRole("button", { name: "Save Changes" }))
+
+    await waitFor(() => expect(trackerRequests().length).toBeGreaterThan(0))
+
+    const body = JSON.parse(String(trackerRequests().at(-1)?.[1]?.body))
+    const blob = JSON.parse(body.apiToken)
+    expect(blob.uid).toBe("56954")
+    expect(blob.pass).toBe("abc123def456")
+    expect(blob.userAgent).toBe(navigator.userAgent)
+  })
+})

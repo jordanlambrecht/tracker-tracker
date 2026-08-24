@@ -17,8 +17,16 @@ DigitalCore uses a custom API. The adapter makes two calls:
 2. `GET /api/v1/users/:id` — enrichment (join date, last access, peer counts, forum activity)
 
 Credentials are the `uid` and `pass` **session cookies**, stored as a JSON blob
-`{"uid": "...", "pass": "..."}`. Users copy them from DevTools → Network → any
-request → the `Cookie` header.
+`{"uid": "...", "pass": "...", "userAgent": "..."}`. Users copy the cookies from
+DevTools → Network → any request → the `Cookie` header; the UI captures
+`userAgent` automatically from the browser doing the pasting, since that is the
+browser the session was issued to.
+
+`userAgent` is **optional**. Blobs saved before it existed contain only `uid` and
+`pass`, still parse, and fall back to the app's default `tracker-tracker/<major>.<minor>`.
+Both writers (`AddTrackerDialog` and `TrackerSettingsSheet`) must capture it: the
+stored blob never reaches the client, so a writer that omits it silently reverts
+the tracker to the default UA on the next credential change.
 
 ### API keys do not work for stats
 

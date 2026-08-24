@@ -383,9 +383,13 @@ function AddTrackerDialog({
       const trimmed = dcCookies.trim()
       const uidMatch = trimmed.match(/(?:^|;\s*)uid=([^;]+)/)
       const passMatch = trimmed.match(/(?:^|;\s*)pass=([^;]+)/)
+      // The cookies were copied out of this browser, so its UA is the one the
+      // session was issued to. TrackerSettingsSheet must capture it too, or a
+      // later cookie change silently drops it.
       effectiveApiToken = JSON.stringify({
         uid: uidMatch?.[1]?.trim() ?? "",
         pass: passMatch?.[1]?.trim() ?? "",
+        userAgent: navigator.userAgent,
       })
     } else if (isIptorrents) {
       // The adapter matches the User-Agent against the session that minted the

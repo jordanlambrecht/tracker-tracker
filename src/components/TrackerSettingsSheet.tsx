@@ -229,9 +229,12 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
         setSaving(false)
         return
       }
+      // The stored blob never reaches the client, so this rebuild cannot
+      // preserve an existing UA. Omitting it reverts the tracker to the default.
       trimmedToken = JSON.stringify({
         uid: uidMatch[1].trim(),
         pass: passMatch[1].trim(),
+        userAgent: navigator.userAgent,
       })
     }
 

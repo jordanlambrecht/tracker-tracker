@@ -21,6 +21,11 @@ import type {
 export interface DigitalCoreCredentials {
   uid: string
   pass: string
+  /**
+   * Browser User-Agent the session cookies were copied from. Optional, since
+   * blobs saved before this field existed have none and must keep polling.
+   */
+  userAgent?: string
 }
 
 export function parseDigitalCoreCredentials(apiToken: string): DigitalCoreCredentials {
@@ -58,7 +63,22 @@ export function parseDigitalCoreCredentials(apiToken: string): DigitalCoreCreden
     )
   }
 
-  return { uid: trimmedUid, pass: trimmedPass }
+  const rawUserAgent = (parsed as Record<string, unknown>).userAgent
+  if (rawUserAgent !== undefined && typeof rawUserAgent !== "string") {
+    throw new Error("DigitalCore credentials: userAgent must be a string")
+  }
+  const trimmedUserAgent = rawUserAgent?.trim() ?? ""
+  // Only CR/LF here. unsafeChars also rejects semicolons, which every real
+  // browser UA contains, so it must not be reused for this field.
+  if (/[\r\n]/.test(trimmedUserAgent)) {
+    throw new Error("DigitalCore credentials: userAgent contains invalid characters (newlines)")
+  }
+
+  // Blank counts as absent rather than an error. A re-save that produced an
+  // empty string should fall back to the default UA, not stop the tracker.
+  return trimmedUserAgent
+    ? { uid: trimmedUid, pass: trimmedPass, userAgent: trimmedUserAgent }
+    : { uid: trimmedUid, pass: trimmedPass }
 }
 
 // ---------------------------------------------------------------------------
@@ -188,6 +208,9 @@ async function fetchDCJson<T>(
   const headers: Record<string, string> = {
     Cookie: `uid=${creds.uid}; pass=${creds.pass}`,
     Accept: "application/json",
+    // Sent only when the credential carries one. adapterRequest applies the
+    // app default otherwise, matching it case-insensitively so this wins.
+    ...(creds.userAgent ? { "User-Agent": creds.userAgent } : {}),
   }
 
   const response = await adapterRequest(url, parsed.hostname, { proxyAgent }, headers)

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import { LARGE_TOKEN_MAX, maxTokenLengthFor, TRACKER_TOKEN_MAX } from "@/lib/limits"
 
 describe("maxTokenLengthFor", () => {
-  it.each(["avistaz", "iptorrents", "torrentleech"])(
+  it.each(["avistaz", "digitalcore", "iptorrents", "torrentleech"])(
     "gives %s the large cap for JSON credential blobs",
     (platform) => {
       expect(maxTokenLengthFor(platform)).toBe(LARGE_TOKEN_MAX)
