@@ -9,8 +9,15 @@ import packageJson from "../../../package.json"
 // ---------------------------------------------------------------------------
 
 describe("DEFAULT_USER_AGENT", () => {
-  it("identifies the app and its version", () => {
-    expect(DEFAULT_USER_AGENT).toBe(`tracker-tracker/${packageJson.version}`)
+  it("identifies the app and its major.minor version", () => {
+    const [major, minor] = packageJson.version.split(".")
+    expect(DEFAULT_USER_AGENT).toBe(`tracker-tracker/${major}.${minor}`)
+  })
+
+  // The patch digit is rare enough to link one user's accounts across
+  // trackers, which defeats routing them all through a single proxy.
+  it("omits the patch version", () => {
+    expect(DEFAULT_USER_AGENT.split("/")[1].split(".")).toHaveLength(2)
   })
 
   it("is a single header-safe token", () => {
