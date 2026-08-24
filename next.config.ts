@@ -3,7 +3,10 @@ import type { NextConfig } from "next"
 
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
-  { key: "X-Frame-Options", value: "DENY" },
+  // X-Frame-Options is deliberately NOT here. next.config headers() is evaluated at
+  // build time and frozen into .next/routes-manifest.json, so a header set here can
+  // never respond to an environment variable in a prebuilt image. The framing headers
+  // are applied at request time in src/proxy.ts instead — see src/lib/frame-security.ts.
   { key: "X-XSS-Protection", value: "0" },
   { key: "X-DNS-Prefetch-Control", value: "off" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

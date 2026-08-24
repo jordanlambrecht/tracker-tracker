@@ -1,7 +1,7 @@
 // src/proxy.test.ts
 
 import { NextRequest } from "next/server"
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { proxy } from "./proxy"
 
 vi.mock("@/lib/cookie-security", () => ({
@@ -81,5 +81,71 @@ describe("auth middleware", () => {
   it("allows health check without authentication", () => {
     const response = proxy(new NextRequest("http://localhost/api/health"))
     expect(response.status).toBe(200)
+  })
+})
+
+describe("framing headers", () => {
+  beforeEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  // Every branch of proxy() must carry the headers. A response leaving through a
+  // path nobody remembered to cover is unprotected, so each is asserted separately
+  // rather than trusting one representative case.
+  const paths: Array<[string, string, string | undefined]> = [
+    ["a public route", "http://localhost/api/auth/status", undefined],
+    ["an unauthenticated API route", "http://localhost/api/trackers", undefined],
+    ["a login redirect", "http://localhost/settings", undefined],
+    [
+      "an authenticated request",
+      "http://localhost/api/trackers",
+      "tt_session=session-token; tt_max_age=1800",
+    ],
+  ]
+
+  const call = (url: string, cookie?: string) =>
+    proxy(new NextRequest(url, cookie ? { headers: { cookie } } : undefined))
+
+  for (const [label, url, cookie] of paths) {
+    it(`denies framing by default on ${label}`, () => {
+      const response = call(url, cookie)
+
+      expect(response.headers.get("X-Frame-Options")).toBe("DENY")
+      expect(response.headers.get("Content-Security-Policy")).toBe("frame-ancestors 'none'")
+    })
+
+    it(`scopes framing to the configured origin on ${label}`, () => {
+      vi.stubEnv("ALLOWED_FRAME_ANCESTORS", "https://dash.example.com")
+      const response = call(url, cookie)
+
+      expect(response.headers.get("Content-Security-Policy")).toBe(
+        "frame-ancestors 'self' https://dash.example.com"
+      )
+      expect(response.headers.get("X-Frame-Options")).toBeNull()
+    })
+  }
+
+  it("still redirects and still returns 401 with an allow-list configured", async () => {
+    vi.stubEnv("ALLOWED_FRAME_ANCESTORS", "https://dash.example.com")
+
+    expect(call("http://localhost/settings").headers.get("location")).toBe(
+      "http://localhost/login"
+    )
+
+    const api = call("http://localhost/api/trackers")
+    expect(api.status).toBe(401)
+    await expect(api.json()).resolves.toEqual({ error: "Unauthorized" })
+  })
+
+  it("falls back to deny when the configured value is junk", () => {
+    vi.stubEnv("ALLOWED_FRAME_ANCESTORS", "*")
+    const response = call("http://localhost/login")
+
+    expect(response.headers.get("X-Frame-Options")).toBe("DENY")
+    expect(response.headers.get("Content-Security-Policy")).toBe("frame-ancestors 'none'")
   })
 })
