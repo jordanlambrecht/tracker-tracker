@@ -10,21 +10,72 @@ vi.mock("@/lib/tunnel", async (importOriginal) => ({
   proxyFetch: vi.fn(),
 }))
 
-const PROFILE_HTML = `
-<div class="profile-uploaded">
-  <i class="fa fa-arrow-circle-o-up"></i> uploaded:
-  <span class="profile-info-details profile-uploaded-details">10.5 GB</span>
-</div>
-<div class="profile-downloaded">
-  <i class="fa fa-arrow-circle-o-down"></i> downloaded:
-  <span class="profile-info-details profile-downloaded-details">5.25 GB</span>
-</div>
-<div class="profile-ratio">
-  <i class="fa fa-percent"></i> ratio:
-  <span class="profile-info-details profile-ratio-details">2.000</span>
-</div>`
+// Markup copied from a live TorrentLeech profile page, with the account's own
+// figures replaced. The structure is verbatim, and it has to be: the previous
+// fixture was written from the same assumption as the parser (a
+// `profile-downloaded-details` class that the site does not emit), so the tests
+// agreed with the bug instead of catching it.
+//
+// The pieces that matter, and why each is here:
+//   - the "Classic TL" nav link, present on every page, which the old class
+//     regex matched before ever reaching the real class
+//   - the top bar, the only source of seeding/leeching counts and hit-and-runs,
+//     where the count follows the size in parentheses
+//   - the asymmetric uploaded/downloaded spans
+const NAV_HTML = `
+<ul class="nav">
+  <li><a href="http://wiki.torrentleech.org">Wiki</a></li>
+  <li><a href="http://classic.torrentleech.org">Classic TL</a></li>
+  <li><a href="http://v4.torrentleech.org">V4 TL</a></li>
+</ul>`
 
-const FULL_PROFILE_PAGE = `<!doctype html><html><head></head><body>${PROFILE_HTML}</body></html>`
+const TOP_BAR_HTML = `
+<span class="menu-info">
+  <div title="Uploaded (Seeding)" class="div-menu-item">
+    <i class="fa fa-arrow-circle-o-up"></i> <span class="link">10.5 GB</span> (12)
+  </div>
+  <div title="Downloaded (Leeching)" class="div-menu-item">
+    <i class="fa fa-arrow-circle-o-down"></i> <span class="link">5.25 GB</span> (3)
+  </div>
+  <div title="Buffer" class="div-menu-item"><i class="fa fa-refresh"></i> 5.25 GB</div>
+  <div title="Ratio" class="div-menu-item"><i class="fa fa-percent"></i> 2.000</div>
+  <div title="Hit and Run" class="div-menu-item">
+    <span class="link"><i class="fa fa-ban"></i>  2</span>
+  </div>
+</span>
+<span class="menu-info">
+  <div class="div-menu-item"><span class="link">TL Points: <span class="total-TL-points">2,750.50</span></span></div>
+  <div class="div-menu-item">Slots: <span>&infin;</span></div>
+</span>`
+
+// Note the asymmetry, which is the site's and not a typo: the uploaded span
+// carries `profile-uploaded-details`, the downloaded span carries no
+// counterpart class.
+const PROFILE_HTML = `
+<div class="profile-details">
+  <div class="profile-username profile-details-item">testuser</div>
+  <div class="label label-success label-user-class profile-details-item">
+    Registered
+  </div>
+</div>
+<div class="profile-info">
+  <div class="profile-uploaded">
+    <i class="fa fa-arrow-circle-o-up"></i> uploaded:<span class="profile-info-details profile-uploaded-details">10.5 GB</span>
+  </div>
+  <div class="profile-downloaded">
+    <i class="fa fa-arrow-circle-o-down"></i> downloaded: <span class="profile-info-details">5.25 GB</span>
+  </div>
+  <div class="profile-ratio">
+    <i class="fa fa-percent"></i> ratio:<span class="profile-info-details profile-ratio-details">2.000</span>
+  </div>
+  <div class="profile-slots"><i class="fa fa-braille"></i> slots:<span class="profile-info-details">&infin;</span></div>
+</div>
+<table>
+  <tr><td>Username</td><td>testuser</td></tr>
+  <tr><td>Class</td><td>Registered</td></tr>
+</table>`
+
+const FULL_PROFILE_PAGE = `<!doctype html><html><head></head><body>${NAV_HTML}${TOP_BAR_HTML}${PROFILE_HTML}</body></html>`
 
 function setCookieResponse(cookies: string[], overrides: Partial<Response> = {}): Response {
   return {
@@ -46,10 +97,82 @@ describe("parseTlProfile", () => {
     expect(stats.bufferBytes).toBe(10_500_000_000n - 5_250_000_000n)
   })
 
+  it("reads downloaded bytes from a span with no profile-downloaded-details class", () => {
+    // The regression guard. If this ever reads 0 again, ratio becomes Infinity
+    // and every torrent on the tracker looks satisfied.
+    const stats = parseTlProfile(FULL_PROFILE_PAGE, "testuser")
+    expect(stats.downloadedBytes).toBeGreaterThan(0n)
+    expect(stats.ratio).not.toBe(Infinity)
+  })
+
+  it("still prefers profile-downloaded-details when the markup is symmetric", () => {
+    const symmetric = FULL_PROFILE_PAGE.replace(
+      '<span class="profile-info-details">5.25 GB</span>',
+      '<span class="profile-info-details profile-downloaded-details">1.25 GB</span>'
+    )
+    expect(parseTlProfile(symmetric, "testuser").downloadedBytes).toBe(1_250_000_000n)
+  })
+
+  it("reads the user class from the badge, not the Classic TL nav link", () => {
+    const stats = parseTlProfile(FULL_PROFILE_PAGE, "testuser")
+    expect(stats.group).toBe("Registered")
+  })
+
+  it("falls back to the Class table row when the badge is absent", () => {
+    const noBadge = FULL_PROFILE_PAGE.replace("label-user-class", "label-something-else")
+    expect(parseTlProfile(noBadge, "testuser").group).toBe("Registered")
+  })
+
+  it("defaults the class to User when the page carries neither", () => {
+    const noClass = `<!doctype html><html><body>${NAV_HTML}${PROFILE_HTML.replace(
+      "label-user-class",
+      "x"
+    ).replace("<td>Class</td>", "<td>Rank</td>")}</body></html>`
+    expect(parseTlProfile(noClass, "testuser").group).toBe("User")
+  })
+
+  it("counts torrents from the parenthesised figure, not the size beside it", () => {
+    // "10.5 GB (12)" — the first number in that cell is 10, which is a byte
+    // total masquerading as a torrent count.
+    const stats = parseTlProfile(FULL_PROFILE_PAGE, "testuser")
+    expect(stats.seedingCount).toBe(12)
+    expect(stats.leechingCount).toBe(3)
+  })
+
+  it("reports hit and runs from the top bar", () => {
+    expect(parseTlProfile(FULL_PROFILE_PAGE, "testuser").hitAndRuns).toBe(2)
+  })
+
+  it("reports zero hit and runs as 0, not null", () => {
+    const clean = FULL_PROFILE_PAGE.replace('<i class="fa fa-ban"></i>  2', '<i class="fa fa-ban"></i>  0')
+    expect(parseTlProfile(clean, "testuser").hitAndRuns).toBe(0)
+  })
+
+  it("reports hit and runs as null when the top bar has no such cell", () => {
+    const noCell = FULL_PROFILE_PAGE.replace('title="Hit and Run"', 'title="Something Else"')
+    expect(parseTlProfile(noCell, "testuser").hitAndRuns).toBeNull()
+  })
+
+  it("reads TL Points from the total-TL-points span", () => {
+    expect(parseTlProfile(FULL_PROFILE_PAGE, "testuser").seedbonus).toBeCloseTo(2750.5)
+  })
+
+  it("falls back to the TL Points label when the span class is absent", () => {
+    const noSpan = FULL_PROFILE_PAGE.replace("total-TL-points", "tl-points-renamed")
+    expect(parseTlProfile(noSpan, "testuser").seedbonus).toBeCloseTo(2750.5)
+  })
+
+  it("reports counts as 0 when the top bar is missing entirely", () => {
+    const noTopBar = `<!doctype html><html><body>${PROFILE_HTML}</body></html>`
+    const stats = parseTlProfile(noTopBar, "testuser")
+    expect(stats.seedingCount).toBe(0)
+    expect(stats.leechingCount).toBe(0)
+  })
+
   it("reports an infinite ratio (∞) as Infinity", () => {
     const infPage = `<!doctype html><html><body>
       <div class="profile-uploaded"><span class="profile-info-details profile-uploaded-details">10.5 GB</span></div>
-      <div class="profile-downloaded"><span class="profile-info-details profile-downloaded-details">0 B</span></div>
+      <div class="profile-downloaded"><span class="profile-info-details">0 B</span></div>
       <div class="profile-ratio"><span class="profile-info-details profile-ratio-details">&infin;</span></div>
     </body></html>`
     const stats = parseTlProfile(infPage, "testuser")
@@ -59,7 +182,7 @@ describe("parseTlProfile", () => {
   it("derives Infinity for a zero-download account even with no ratio cell", () => {
     const noRatioCell = `<!doctype html><html><body>
       <div class="profile-uploaded"><span class="profile-info-details profile-uploaded-details">250 GB</span></div>
-      <div class="profile-downloaded"><span class="profile-info-details profile-downloaded-details">0 B</span></div>
+      <div class="profile-downloaded"><span class="profile-info-details">0 B</span></div>
     </body></html>`
     const stats = parseTlProfile(noRatioCell, "testuser")
     expect(stats.uploadedBytes).toBe(250_000_000_000n)

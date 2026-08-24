@@ -1,7 +1,8 @@
 // src/lib/adapters/torrentleech.ts
 //
 // Functions: parseTlCredentials, sessionKey, getTlSession, invalidateTlSession, login,
-//            textAfterNode, parseTlProfile, fetchHtml, TorrentleechAdapter
+//            textAfterNode, firstText, topBarCell, parenCount, trailingCount,
+//            parseTlProfile, fetchHtml, TorrentleechAdapter
 
 import { type HTMLElement as ParsedElement, parse as parseHtml } from "node-html-parser"
 import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
@@ -230,6 +231,48 @@ function textAfterNode(root: ParsedElement, selector: string): string {
   return root.querySelector(selector)?.textContent?.trim() ?? ""
 }
 
+/** First selector in the list that yields non-empty text. */
+function firstText(root: ParsedElement, selectors: string[]): string {
+  for (const selector of selectors) {
+    const text = textAfterNode(root, selector)
+    if (text) return text
+  }
+  return ""
+}
+
+/**
+ * Reads the top-bar widget TorrentLeech renders on every page. Its cells are
+ * identified only by a `title` attribute ("Uploaded (Seeding)", "Hit and Run"),
+ * which is the sole place some numbers appear at all.
+ */
+function topBarCell(doc: ParsedElement, title: RegExp): string {
+  for (const item of doc.querySelectorAll(".div-menu-item")) {
+    if (title.test(item.getAttribute("title") ?? "")) return item.textContent?.trim() ?? ""
+  }
+  return ""
+}
+
+/**
+ * The active-torrent count in a top-bar cell, which reads "10.5 GB (12)": a
+ * size followed by the count in parentheses.
+ *
+ * Taking the FIRST number instead reads the size's leading digits — "10.5 GB
+ * (12)" yields 10, a plausible-looking torrent count that is really a byte
+ * total. Anchor on the parentheses, and report nothing rather than a guess when
+ * they are absent.
+ */
+function parenCount(text: string): number {
+  const match = text.match(/\((\d[\d,]*)\)/)
+  return match ? parseInt(match[1].replace(/,/g, ""), 10) : 0
+}
+
+/** The last standalone integer in a cell, for cells that carry only a count. */
+function trailingCount(text: string): number | null {
+  const matches = text.match(/\d[\d,]*/g)
+  if (!matches) return null
+  return parseInt(matches[matches.length - 1].replace(/,/g, ""), 10)
+}
+
 export function parseTlProfile(html: string, username: string): TrackerStats {
   if (html.includes("/user/account/login")) {
     throw new Error("Session expired — TorrentLeech cookies need to be refreshed")
@@ -245,8 +288,24 @@ export function parseTlProfile(html: string, username: string): TrackerStats {
 
   const doc = parseHtml(html)
 
-  const uploadedText = textAfterNode(doc, ".profile-uploaded-details")
-  const downloadedText = textAfterNode(doc, ".profile-downloaded-details")
+  // Only the uploaded figure carries a `profile-uploaded-details` class. Its
+  // downloaded counterpart is marked up as a bare `profile-info-details` span
+  // inside `.profile-downloaded` — there is no `profile-downloaded-details`
+  // anywhere on the page, so selecting it matched nothing and every account
+  // parsed as having downloaded zero bytes. That is not a cosmetic miss: it
+  // makes `computeRatio` return Infinity and `computeBufferBytes` return the
+  // full upload total, so an account is reported as unconditionally healthy.
+  //
+  // Both are read through the parent container, with the details class kept
+  // first in case TorrentLeech ever makes the markup symmetric.
+  const uploadedText = firstText(doc, [
+    ".profile-uploaded-details",
+    ".profile-uploaded .profile-info-details",
+  ])
+  const downloadedText = firstText(doc, [
+    ".profile-downloaded-details",
+    ".profile-downloaded .profile-info-details",
+  ])
 
   if (!uploadedText && !downloadedText) {
     throw new Error(
@@ -257,28 +316,44 @@ export function parseTlProfile(html: string, username: string): TrackerStats {
   const uploadedBytes = uploadedText ? parseBytes(uploadedText) : 0n
   const downloadedBytes = downloadedText ? parseBytes(downloadedText) : 0n
 
-  // Active seeding/leeching counts appear as header menu items with tooltip
-  // titles ("Uploaded (Seeding)" / "Downloaded (Leeching)").
-  let seedingCount = 0
-  let leechingCount = 0
-  for (const item of doc.querySelectorAll(".div-menu-item")) {
-    const title = item.getAttribute("title") ?? ""
-    const numMatch = item.textContent?.match(/[\d,]+/)
-    const count = numMatch ? parseInt(numMatch[0].replace(/,/g, ""), 10) : 0
-    if (/seeding/i.test(title)) seedingCount = count
-    else if (/leeching/i.test(title)) leechingCount = count
+  // Active seeding/leeching counts appear only in the top bar, alongside the
+  // size totals they are parenthesised after.
+  const seedingCount = parenCount(topBarCell(doc, /seeding/i))
+  const leechingCount = parenCount(topBarCell(doc, /leeching/i))
+
+  // Hit and runs have their own top-bar cell. It was previously reported as
+  // null — "this tracker does not expose it" — while the page showed it all
+  // along, which is the one number this whole tool exists to surface.
+  const hitAndRuns = trailingCount(topBarCell(doc, /hit and run/i))
+
+  // TL Points. Read from the span that holds the figure; the "TL Points:" label
+  // is a fallback for layouts that do not carry the class.
+  let seedbonus = 0
+  const pointsText = textAfterNode(doc, ".total-TL-points")
+  if (pointsText) {
+    seedbonus = parseFloat(pointsText.replace(/,/g, ""))
+  } else {
+    const pointsMatch = (doc.textContent ?? "").match(/TL Points:\s*([\d,.]+)/i)
+    if (pointsMatch) seedbonus = parseFloat(pointsMatch[1].replace(/,/g, ""))
   }
 
-  // TL Points, often shown near a "TL Points:" label.
-  let seedbonus = 0
-  const bodyText = doc.textContent ?? ""
-  const pointsMatch = bodyText.match(/TL Points:\s*([\d,.]+)/i)
-  if (pointsMatch) seedbonus = parseFloat(pointsMatch[1].replace(/,/g, ""))
-
-  // Class badge, if present in a profile field/label pair.
-  let group = "User"
-  const classMatch = bodyText.match(/Class:?\s*\n?\s*([A-Za-z][A-Za-z ]*)/)
-  if (classMatch) group = classMatch[1].trim()
+  // User class, from the badge beside the avatar, falling back to the "Class"
+  // row of the profile table.
+  //
+  // It used to be matched with /Class:?\s*\n?\s*([A-Za-z][A-Za-z ]*)/ against
+  // the whole document's text. Every TorrentLeech page carries a nav link
+  // reading "Classic TL", and that link comes first, so the pattern captured
+  // "ic TL" for every account on the site.
+  let group = textAfterNode(doc, ".label-user-class")
+  if (!group) {
+    for (const cell of doc.querySelectorAll("td")) {
+      if (cell.textContent?.trim() === "Class") {
+        group = cell.nextElementSibling?.textContent?.trim() ?? ""
+        break
+      }
+    }
+  }
+  if (!group) group = "User"
 
   return {
     username,
@@ -293,7 +368,7 @@ export function parseTlProfile(html: string, username: string): TrackerStats {
     seedingCount,
     leechingCount,
     seedbonus,
-    hitAndRuns: null,
+    hitAndRuns,
     requiredRatio: null,
     warned: null,
     freeleechTokens: null,
