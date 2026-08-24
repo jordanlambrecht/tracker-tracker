@@ -9,6 +9,7 @@ import type { TorrentRaw } from "@/lib/fleet"
 import { formatBytesNum, formatDuration, formatPercent, formatRatio } from "@/lib/formatters"
 import {
   ratioProgress,
+  remainingSeedSeconds,
   type SatisfactionRequirement,
   satisfactionProgress,
   seedTimeProgress,
@@ -119,9 +120,8 @@ export function UnsatisfiedTorrentsTable({
       const ratioPct = ratioProgress(t.ratio, requirement)
       // Ratio is the answer when it is the only route, or the nearer one.
       if (!showSeedTime || (eitherOr && ratioPct > seedPct)) {
-        // Infinity means nothing was downloaded, -1 is Transmission's "not
-        // applicable". Neither counts as progress, so both owe the full amount.
-        const measured = Number.isFinite(t.ratio) && t.ratio > 0 ? t.ratio : 0
+        // A sentinel ratio scores no progress, so it owes the full amount.
+        const measured = ratioPct > 0 ? t.ratio : 0
         const owed = (requirement.requiredRatio ?? 0) - measured
         return (
           <span className="text-xs font-mono text-muted whitespace-nowrap">
@@ -130,10 +130,10 @@ export function UnsatisfiedTorrentsTable({
         )
       }
 
-      const remaining = Math.max((requirement.requiredSeedSeconds ?? 0) - t.seedingTime, 0)
+      const remaining = remainingSeedSeconds(t, requirement)
       return (
         <span className="text-xs font-mono text-muted whitespace-nowrap">
-          {remaining > 0 ? formatDuration(remaining) : "Done"}
+          {remaining ? formatDuration(remaining) : "Done"}
         </span>
       )
     },
