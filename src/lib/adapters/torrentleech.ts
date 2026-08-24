@@ -61,6 +61,13 @@ export function parseTlCredentials(apiToken: string): TlCredentials {
 // Login flow
 // ---------------------------------------------------------------------------
 
+/** Every status that carries a Location, matching html-fetch's own set. */
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308])
+
+function isRedirect(status: number): boolean {
+  return REDIRECT_STATUSES.has(status)
+}
+
 /**
  * Logs in and returns the Cookie header string built from Set-Cookie response headers.
  * tunnel.ts's proxyFetch is GET-only with no body support, so login always goes
@@ -135,18 +142,40 @@ async function login(baseUrl: string, creds: TlCredentials): Promise<string> {
     .filter((pair): pair is string => Boolean(pair))
 
   const cookieString = cookiePairs.join("; ")
-  if (!cookieString.includes("tluid=")) {
-    // No session cookie means the login was refused. Read the body to say WHY:
-    // a 2FA-enabled account with no token gets the same empty-cookie response
-    // as a wrong password, and "Invalid TorrentLeech credentials" sends people
-    // to re-check a password that was never the problem.
+
+  // A tluid cookie is NOT proof of authentication. TorrentLeech answers a
+  // REJECTED login with 200 and the login page, and still sets tluid, tlpass,
+  // member_id, pass_hash and session_id. Trusting the cookie means caching a
+  // session that was never signed in, and every later page fetch then comes
+  // back as the login page — reported as "Session expired", which sends people
+  // off to refresh a session that never existed. A real login answers 302.
+  //
+  // The body is only inspected when the response was not a redirect: a 302
+  // carries no body, and a 200 that does NOT look like the login page is still
+  // accepted, so a future flow that returns 200 on success would not regress.
+  const authenticated = cookieString.includes("tluid=") && isRedirect(response.status)
+  if (!authenticated) {
     let html = ""
-    try {
-      html = await response.text()
-    } catch {
-      // Body already consumed or connection dropped — fall through to the
-      // generic message rather than masking the login failure with a read error.
+    if (!isRedirect(response.status)) {
+      try {
+        html = await response.text()
+      } catch {
+        // Body already consumed or connection dropped — fall through to the
+        // generic message rather than masking the login failure with a read error.
+      }
     }
+
+    const looksLikeLoginPage =
+      /One Time Password/i.test(html) ||
+      /name="login-form"/i.test(html) ||
+      html.includes("/user/account/login")
+
+    // Reject only on POSITIVE evidence of a refusal. A 200 whose body could not
+    // be read, or that does not look like the login page, keeps the old
+    // behaviour of trusting the cookie — this tightens a check that was wrong,
+    // without inventing a new way to fail.
+    if (cookieString.includes("tluid=") && !looksLikeLoginPage) return cookieString
+
     if (/One Time Password/i.test(html)) {
       throw new Error(
         "TorrentLeech requires 2FA — add your Alt 2FA Token (Site Profile => Alt 2FA Token) to this tracker's credentials"

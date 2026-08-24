@@ -257,6 +257,60 @@ describe("TorrentleechAdapter.fetchStats", () => {
     ).rejects.toThrow("Invalid TorrentLeech credentials or Alt 2FA Token")
   })
 
+  it("rejects a 200 login that still set tluid — TL does this on a REFUSED login", async () => {
+    // Measured against the live site: a rejected login answers 200 with the
+    // login page and still sets tluid/tlpass/member_id/pass_hash/session_id.
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      setCookieResponse(["tluid=abc123; Path=/", "tlpass=xyz; Path=/"], {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        text: async () => `<form name="login-form"><a href="/user/account/login">in</a></form>`,
+      } as Partial<Response>)
+    )
+
+    await expect(
+      adapter.fetchStats("https://www.torrentleech.org", validToken, "")
+    ).rejects.toThrow("Invalid TorrentLeech credentials")
+  })
+
+  it("names 2FA when a cookie-bearing 200 login shows the One Time Password page", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      setCookieResponse(["tluid=abc123; Path=/"], {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        text: async () => `<div class="login-container"><h2>One Time Password</h2></div>`,
+      } as Partial<Response>)
+    )
+
+    await expect(
+      adapter.fetchStats("https://www.torrentleech.org", validToken, "")
+    ).rejects.toThrow("Alt 2FA Token")
+  })
+
+  it("still accepts a 200 login that does not look like the login page", async () => {
+    // Guards the fallback: the redirect is the signal today, but a 200 with a
+    // real page and a session cookie must not start failing.
+    vi.spyOn(global, "fetch")
+      .mockResolvedValueOnce(
+        setCookieResponse(["tluid=abc123; Path=/"], {
+          ok: true,
+          status: 200,
+          statusText: "OK",
+          text: async () => `<html><body>Welcome back</body></html>`,
+        } as Partial<Response>)
+      )
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => FULL_PROFILE_PAGE,
+      } as Response)
+
+    const stats = await adapter.fetchStats("https://www.torrentleech.org", validToken, "")
+    expect(stats.username).toBe("testuser")
+  })
+
   it("detects a Cloudflare challenge on the profile page", async () => {
     vi.spyOn(global, "fetch")
       .mockResolvedValueOnce(setCookieResponse(["tluid=abc123; Path=/"]))
