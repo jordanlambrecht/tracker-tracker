@@ -35,11 +35,22 @@ RUN pnpm build
 
 # ---------------------------------------------------------------------------
 # Stage 3 -  Deps for drizzle-kit
+#
+# --prod is a security control, not an optimisation. A full install drags the
+# whole dev toolchain into the image to run one drizzle-kit push, and the
+# TypeScript 7 native compiler it brings is a Go binary that Trivy scans and
+# fails the build on. Nothing here compiles TypeScript - drizzle-kit transpiles
+# the config and schema with its own bundled esbuild - so the devDependencies
+# are dead weight that only adds CVEs.
+#
+# --ignore-scripts is required alongside it: package.json has a "prepare":
+# "husky" script, and husky is a devDependency, so a --prod install without it
+# fails outright. No production dependency here needs an install script.
 # ---------------------------------------------------------------------------
 FROM base AS schema-deps
 WORKDIR /schema-sync
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # ---------------------------------------------------------------------------
 # Stage 4 - Production runner

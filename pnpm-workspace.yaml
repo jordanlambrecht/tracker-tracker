@@ -27,4 +27,4 @@ minimumReleaseAgeExclude:
   - vitest@4.1.11
 
 overrides:
-  esbuild: ">=0.25.0"
+  esbuild: "^0.28.2"
