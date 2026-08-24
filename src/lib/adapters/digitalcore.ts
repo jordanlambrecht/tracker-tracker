@@ -4,8 +4,8 @@
 //            fetchDCJson, DigitalCoreAdapter
 
 import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
-import { classifyFetchError, sanitizeNetworkError } from "@/lib/error-utils"
-import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
+import { sanitizeNetworkError } from "@/lib/error-utils"
+import { adapterRequest } from "./adapter-fetch"
 import type {
   DebugApiCall,
   DigitalCorePlatformMeta,
@@ -185,40 +185,12 @@ async function fetchDCJson<T>(
   proxyAgent?: FetchOptions["proxyAgent"]
 ): Promise<T> {
   const parsed = new URL(url)
-  const hostname = parsed.hostname
   const headers: Record<string, string> = {
     Cookie: `uid=${creds.uid}; pass=${creds.pass}`,
     Accept: "application/json",
   }
 
-  if (proxyAgent) {
-    const { proxyFetch } = await import("@/lib/tunnel")
-    const result = await proxyFetch(url, proxyAgent, { headers })
-
-    if (result.status === 401) {
-      throw new Error("Session expired. Re-copy uid and pass cookies from your browser.")
-    }
-    if (!result.ok) {
-      throw new Error(
-        sanitizeNetworkError(
-          `${result.status} ${result.statusText}`,
-          `DigitalCore API error: ${result.status}`
-        )
-      )
-    }
-    const text = (await result.buffer()).toString("utf8")
-    return parseJsonSafe<T>(text, parsed.pathname)
-  }
-
-  let response: Response
-  try {
-    response = await fetch(url, {
-      headers,
-      signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
-    })
-  } catch (err) {
-    throw classifyFetchError(err, hostname)
-  }
+  const response = await adapterRequest(url, parsed.hostname, { proxyAgent }, headers)
 
   if (response.status === 401) {
     throw new Error("Session expired. Re-copy uid and pass cookies from your browser.")
@@ -233,8 +205,7 @@ async function fetchDCJson<T>(
     )
   }
 
-  const text = await response.text()
-  return parseJsonSafe<T>(text, parsed.pathname)
+  return parseJsonSafe<T>(await response.text(), parsed.pathname)
 }
 
 // ---------------------------------------------------------------------------

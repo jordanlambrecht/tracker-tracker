@@ -1031,3 +1031,75 @@ describe("DigitalCoreAdapter — connectable (issue #167)", () => {
     expect((stats.platformMeta as { connectable?: boolean })?.connectable).toBe(false)
   })
 })
+
+// ---------------------------------------------------------------------------
+// DigitalCore routes through the shared adapterRequest seam. It previously
+// hand-rolled its own proxy branch, which duplicated the 401 and non-ok
+// handling verbatim and sent no User-Agent through the tunnel.
+// ---------------------------------------------------------------------------
+
+describe("DigitalCoreAdapter - proxy routing", () => {
+  const validToken = JSON.stringify({ uid: "54321", pass: "abc123xyz" })
+
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    vi.resetModules()
+  })
+
+  function proxyOk(payload: unknown) {
+    return {
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      json: async () => payload,
+      buffer: async () => Buffer.from(JSON.stringify(payload)),
+    }
+  }
+
+  it("sends the app User-Agent through the proxy and never falls back to a direct fetch", async () => {
+    const proxyFetch = vi
+      .fn()
+      .mockResolvedValueOnce(proxyOk(mockStatusResponse()))
+      .mockResolvedValueOnce(proxyOk(mockUserProfileResponse()))
+    vi.doMock("@/lib/tunnel", () => ({ proxyFetch }))
+
+    const { DigitalCoreAdapter: FreshAdapter } = await import("./digitalcore")
+    const { DEFAULT_USER_AGENT } = await import("@/lib/user-agent")
+    const fetchSpy = vi.spyOn(global, "fetch")
+
+    const stats = await new FreshAdapter().fetchStats(
+      "https://digitalcore.club",
+      validToken,
+      "",
+      { proxyAgent: {} as never }
+    )
+
+    expect(stats.username).toBe("dcuser")
+    expect(proxyFetch.mock.calls[0][2].headers["User-Agent"]).toBe(DEFAULT_USER_AGENT)
+    // The session cookie must still ride along with it.
+    expect(proxyFetch.mock.calls[0][2].headers.Cookie).toContain("uid=54321")
+    // A direct fetch here would leak the user's real IP past their tunnel.
+    expect(fetchSpy).not.toHaveBeenCalled()
+    vi.doUnmock("@/lib/tunnel")
+  })
+
+  it("still reports an expired session through the proxy", async () => {
+    const proxyFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      statusText: "Unauthorized",
+      json: async () => ({}),
+      buffer: async () => Buffer.from("{}"),
+    })
+    vi.doMock("@/lib/tunnel", () => ({ proxyFetch }))
+
+    const { DigitalCoreAdapter: FreshAdapter } = await import("./digitalcore")
+
+    await expect(
+      new FreshAdapter().fetchStats("https://digitalcore.club", validToken, "", {
+        proxyAgent: {} as never,
+      })
+    ).rejects.toThrow("Session expired")
+    vi.doUnmock("@/lib/tunnel")
+  })
+})
