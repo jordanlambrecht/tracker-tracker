@@ -22,12 +22,11 @@ export interface AdapterResponse {
 
 /**
  * The single outbound seam for JSON tracker APIs. Picks the proxied or direct
- * transport, applies the default User-Agent and the shared timeout, and
- * classifies connection failures.
+ * transport, applies the default User-Agent and shared timeout, and classifies
+ * connection failures.
  *
- * A non-2xx status is returned rather than thrown, so an adapter whose API
- * reports errors in the response body can still read it. Adapters that only
- * need the happy path should use adapterFetch instead.
+ * Returns a non-2xx rather than throwing, so an adapter whose API reports
+ * errors in the body can read it. Use adapterFetch for the happy path.
  */
 async function adapterRequest(
   url: string,
@@ -47,6 +46,9 @@ async function adapterRequest(
         headers: mergedHeaders,
         method,
         body,
+        // Explicit so both transports share one constant. proxyFetch defaults
+        // to its own 15s, which only happens to match today.
+        timeoutMs: ADAPTER_FETCH_TIMEOUT_MS,
       })
     } catch (err) {
       if (err instanceof Error && err.message.includes("timed out")) {
