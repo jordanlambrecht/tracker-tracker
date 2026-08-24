@@ -65,15 +65,25 @@ export function resolveSatisfaction(rules?: TrackerRules): SatisfactionRequireme
 /** Fraction of the seed-time requirement met, 0..1. 1 when not required. */
 export function seedTimeProgress(seedingTime: number, req: SatisfactionRequirement): number {
   if (req.requiredSeedSeconds === null) return 1
+  // seeding_time is not in field-map's REQUIRED_NUMERIC, so a client that omits
+  // it leaves undefined here and the division yields NaN. NaN loses every
+  // comparison, so the torrent reads as unsatisfied but renders as a full green
+  // bar: "NaN%" is invalid CSS and gets dropped, and NaN fails both thresholds
+  // in the table's colour ramp. No progress is also the direction that
+  // over-seeds, which is the one to be wrong in.
+  if (!Number.isFinite(seedingTime) || seedingTime < 0) return 0
   return Math.min(seedingTime / req.requiredSeedSeconds, 1)
 }
 
 /** Fraction of the ratio requirement met, 0..1. 1 when not required. */
 export function ratioProgress(ratio: number, req: SatisfactionRequirement): number {
   if (req.requiredRatio === null) return 1
-  // A torrent that has downloaded nothing reports an infinite or negative ratio
-  // depending on the client. Neither is progress toward anything; treat only a
-  // finite, non-negative number as measurable.
+  // qBT reports ratio -1 for a torrent that downloaded nothing, i.e. a pure
+  // cross-seed. See the sentinel note in fleet-aggregation.ts, which excludes
+  // the same value from ratio statistics. Whether that satisfies a 1:1 rule is
+  // a hit-and-run judgement nobody has made, so it counts as no progress and
+  // the torrent clears on seed time instead. Under `any` that is equivalent to
+  // dropping the ratio route, since max(seed, 0) is seed.
   if (!Number.isFinite(ratio) || ratio < 0) return 0
   return Math.min(ratio / req.requiredRatio, 1)
 }

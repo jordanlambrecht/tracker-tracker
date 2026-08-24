@@ -197,6 +197,39 @@ describe("ratioProgress", () => {
   })
 })
 
+describe("seedTimeProgress guards", () => {
+  const req: SatisfactionRequirement = {
+    requiredSeedSeconds: 240 * HOUR,
+    requiredRatio: 1.0,
+    mode: "any",
+  }
+
+  // A client that omits seeding_time leaves it undefined, and the division
+  // yields NaN. NaN loses every comparison, so the torrent reads as unsatisfied
+  // yet renders a full green bar: `NaN%` is invalid CSS and the width is
+  // dropped, and NaN fails both thresholds in the table's colour ramp.
+  it("treats a missing seed time as no progress", () => {
+    expect(seedTimeProgress(undefined as unknown as number, req)).toBe(0)
+  })
+
+  it("treats a non-numeric seed time as no progress", () => {
+    expect(seedTimeProgress(Number.NaN, req)).toBe(0)
+    // Unlike ratio, seed time has no sentinel meaning. A non-finite value is
+    // bad data, and no progress is the direction that over-seeds.
+    expect(seedTimeProgress(Number.POSITIVE_INFINITY, req)).toBe(0)
+  })
+
+  it("treats a negative seed time as no progress", () => {
+    expect(seedTimeProgress(-1, req)).toBe(0)
+  })
+
+  it("keeps the combined progress finite so the sort stays consistent", () => {
+    const p = satisfactionProgress({ seedingTime: Number.NaN, ratio: 0.4 }, req)
+    expect(Number.isFinite(p)).toBe(true)
+    expect(p).toBeCloseTo(0.4)
+  })
+})
+
 describe("seedTimeProgress", () => {
   const req: SatisfactionRequirement = {
     requiredSeedSeconds: 100,
