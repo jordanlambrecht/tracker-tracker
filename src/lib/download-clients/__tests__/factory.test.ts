@@ -49,6 +49,27 @@ describe("createAdapterForClient", () => {
     expect(adapter.getDeltaSync).toBeDefined()
   })
 
+  it("creates a transmission adapter, which has no delta sync", () => {
+    const adapter = createAdapterForClient(
+      {
+        name: "Test",
+        host: "localhost",
+        port: 9091,
+        useSsl: false,
+        authMethod: "password",
+        encryptedUsername: "enc-user",
+        encryptedPassword: "enc-pass",
+        encryptedApiKey: "",
+        crossSeedTags: null,
+        type: "transmission",
+      },
+      Buffer.alloc(32, 0xab)
+    )
+    expect(adapter.type).toBe("transmission")
+    // The scheduler branches on this, so its absence is part of the contract.
+    expect(adapter.getDeltaSync).toBeUndefined()
+  })
+
   it("throws for unsupported client type", () => {
     const client = {
       name: "Bad",

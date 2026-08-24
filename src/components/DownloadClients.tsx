@@ -49,6 +49,10 @@ const API_KEY_HINT =
   "Generate one in qBittorrent under Options → Web UI → API keys. Requires qBittorrent 5.2.0 " +
   "or newer."
 
+const TRANSMISSION_CREDENTIALS_HINT =
+  'Leave both blank if Transmission has "rpc-authentication-required" set to false. Transmission ' +
+  "has no API-key authentication, so username and password is the only method offered here."
+
 const AUTH_METHOD_OPTIONS: { value: AuthMethod; label: string }[] = [
   { value: "password", label: "Username & Password" },
   { value: "apikey", label: "API Key" },
@@ -60,6 +64,7 @@ const AUTH_METHOD_OPTIONS: { value: AuthMethod; label: string }[] = [
  * drift — they already disagree on state names, which is enough difference.
  */
 function CredentialFields({
+  clientType,
   authMethod,
   onAuthMethodChange,
   username,
@@ -69,6 +74,7 @@ function CredentialFields({
   apiKey,
   onApiKeyChange,
 }: {
+  clientType: ClientType
   authMethod: AuthMethod
   onAuthMethodChange: (value: AuthMethod) => void
   username: string
@@ -78,19 +84,28 @@ function CredentialFields({
   apiKey: string
   onApiKeyChange: (value: string) => void
 }) {
+  // Transmission's RPC authenticates with HTTP Basic and nothing else, so the
+  // picker is hidden rather than shown with one option — and `password` is
+  // forced, so a client switched over from qBittorrent while set to `apikey`
+  // cannot be saved in a mode its adapter would reject.
+  const supportsApiKey = clientType === "qbittorrent"
+  const effectiveMethod: AuthMethod = supportsApiKey ? authMethod : "password"
+
   return (
     <>
-      <div className="w-full sm:w-64">
-        <Select
-          label="Auth Method"
-          value={authMethod}
-          onChange={(v) => onAuthMethodChange(v as AuthMethod)}
-          ariaLabel="Authentication method"
-          size="md"
-          options={AUTH_METHOD_OPTIONS}
-        />
-      </div>
-      {authMethod === "password" ? (
+      {supportsApiKey && (
+        <div className="w-full sm:w-64">
+          <Select
+            label="Auth Method"
+            value={authMethod}
+            onChange={(v) => onAuthMethodChange(v as AuthMethod)}
+            ariaLabel="Authentication method"
+            size="md"
+            options={AUTH_METHOD_OPTIONS}
+          />
+        </div>
+      )}
+      {effectiveMethod === "password" ? (
         <>
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
@@ -117,7 +132,9 @@ function CredentialFields({
               />
             </div>
           </div>
-          <Subtext>{BLANK_CREDENTIALS_HINT}</Subtext>
+          <Subtext>
+            {supportsApiKey ? BLANK_CREDENTIALS_HINT : TRANSMISSION_CREDENTIALS_HINT}
+          </Subtext>
         </>
       ) : (
         <>
@@ -141,7 +158,7 @@ function CredentialFields({
 const CLIENT_TYPE_OPTIONS: { value: ClientType; label: string; disabled?: boolean }[] = [
   { value: "qbittorrent", label: "qBittorrent" },
   { value: "deluge", label: "Deluge (coming soon)", disabled: true },
-  { value: "transmission", label: "Transmission (coming soon)", disabled: true },
+  { value: "transmission", label: "Transmission" },
   { value: "rtorrent", label: "rTorrent (coming soon)", disabled: true },
 ]
 
@@ -215,9 +232,15 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
   const [newApiKey, setNewApiKey] = useState("")
   const [credError, setCredError] = useState<string | null>(null)
 
+  // The mode actually saved. A client switched to Transmission keeps whatever
+  // authMethod it was created with in state, and the picker that would let the
+  // user change it is hidden for that type — so pin it here rather than saving
+  // an apikey credential the Transmission adapter would refuse to use.
+  const credentialMethod: AuthMethod = draft.type === "qbittorrent" ? authMethod : "password"
+
   // A blank username/password is a valid localhost-bypass setup, so only the
   // API-key mode has anything to require.
-  const canSaveCredentials = authMethod === "password" || newApiKey.trim().length > 0
+  const canSaveCredentials = credentialMethod === "password" || newApiKey.trim().length > 0
 
   const { data: uptimeData = null } = useQuery({
     queryKey: ["client-uptime", client.id],
@@ -248,9 +271,13 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
       // The mode always travels with its secret. The route rejects one
       // without the other so a switch can never re-label an old credential.
       const body =
-        authMethod === "apikey"
-          ? { authMethod, apiKey: newApiKey }
-          : { authMethod, username: newUsername, password: newPassword }
+        credentialMethod === "apikey"
+          ? { authMethod: credentialMethod, apiKey: newApiKey }
+          : {
+              authMethod: credentialMethod,
+              username: newUsername,
+              password: newPassword,
+            }
       const res = await fetch(`/api/clients/${client.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -261,7 +288,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
         setCredError(data.error || "Failed to save credentials")
         return
       }
-      onSaved(client.id, { ...client, authMethod, hasCredentials: true })
+      onSaved(client.id, { ...client, authMethod: credentialMethod, hasCredentials: true })
       setChangingCredentials(false)
       setNewUsername("")
       setNewPassword("")
@@ -392,7 +419,8 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
         {changingCredentials ? (
           <div className="flex flex-col gap-3">
             <CredentialFields
-              authMethod={authMethod}
+              clientType={draft.type as ClientType}
+              authMethod={credentialMethod}
               onAuthMethodChange={setAuthMethod}
               username={newUsername}
               onUsernameChange={setNewUsername}
@@ -678,6 +706,7 @@ function AddClientForm({
         </div>
       </div>
       <CredentialFields
+        clientType="qbittorrent"
         authMethod={authMethod}
         onAuthMethodChange={setAuthMethod}
         username={username}

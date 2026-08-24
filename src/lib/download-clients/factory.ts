@@ -1,6 +1,7 @@
 // src/lib/download-clients/factory.ts
 
 import { QbtClientAdapter } from "./adapters/qbt"
+import { TransmissionClientAdapter } from "./adapters/transmission"
 import { decryptClientCredentials } from "./credentials"
 import type { ClientAdapter, ClientCredentials, ClientType, DownloadClientRow } from "./types"
 import { assertClientType } from "./types"
@@ -16,6 +17,8 @@ function createClientAdapter(
   switch (type) {
     case "qbittorrent":
       return new QbtClientAdapter(host, port, ssl, creds)
+    case "transmission":
+      return new TransmissionClientAdapter(host, port, ssl, creds)
     default:
       throw new Error(`Unsupported client type: "${type}"`)
   }

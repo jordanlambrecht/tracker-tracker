@@ -1,6 +1,6 @@
 // src/lib/download-clients/types.ts
 
-export const VALID_CLIENT_TYPES = ["qbittorrent"] as const
+export const VALID_CLIENT_TYPES = ["qbittorrent", "transmission"] as const
 
 export type ClientType = (typeof VALID_CLIENT_TYPES)[number]
 
