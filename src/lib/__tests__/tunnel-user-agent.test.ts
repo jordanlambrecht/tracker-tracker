@@ -1,9 +1,9 @@
 // src/lib/__tests__/tunnel-user-agent.test.ts
 //
-// Regression cover for the proxied request path, which used to send no
-// User-Agent at all: node's https.request adds none, unlike fetch(). Trackers
-// that require the header answered 400 whenever the proxy was switched on and
-// worked with it off, which reads as a proxy fault rather than a missing header.
+// proxyFetch is transport and takes no view on the User-Agent. adapterRequest
+// applies the default a layer up, which is what lets the scraping adapters keep
+// the UA their cookie was issued to and TorrentLeech send none. A default here
+// would silently override both.
 
 import type { Agent } from "node:http"
 import { Readable } from "node:stream"
@@ -16,7 +16,6 @@ vi.mock("node:https", () => ({
 }))
 
 import { proxyFetch } from "@/lib/tunnel"
-import { DEFAULT_USER_AGENT } from "@/lib/user-agent"
 
 function captureHeaders(): Record<string, string> {
   return requestMock.mock.calls[0][0].headers
@@ -37,18 +36,22 @@ beforeEach(() => {
 const agent = {} as Agent
 
 describe("proxyFetch User-Agent", () => {
-  it("sends the app's User-Agent when the caller sets none", async () => {
+  it("does not invent a User-Agent when the caller sets none", async () => {
     await proxyFetch("https://example.test/api", agent)
-    expect(captureHeaders()["User-Agent"]).toBe(DEFAULT_USER_AGENT)
+    const keys = Object.keys(captureHeaders()).filter((k) => k.toLowerCase() === "user-agent")
+    expect(keys).toHaveLength(0)
   })
 
-  it("keeps a caller-supplied browser User-Agent", async () => {
+  it("passes a caller-supplied User-Agent through untouched", async () => {
     const browserUa = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
     await proxyFetch("https://example.test/api", agent, {
       headers: { "User-Agent": browserUa },
     })
     const headers = captureHeaders()
     expect(headers["User-Agent"]).toBe(browserUa)
+    // A second header differing only in case would be sent alongside the
+    // first rather than replacing it, which is the mismatch trackers
+    // fingerprint on.
     expect(Object.keys(headers).filter((k) => k.toLowerCase() === "user-agent")).toHaveLength(1)
   })
 
@@ -58,6 +61,6 @@ describe("proxyFetch User-Agent", () => {
     })
     const headers = captureHeaders()
     expect(headers.Cookie).toBe("session=placeholder")
-    expect(headers["User-Agent"]).toBe(DEFAULT_USER_AGENT)
+    expect(headers.Accept).toBe("application/json")
   })
 })
