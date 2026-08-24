@@ -117,18 +117,12 @@ export function UnsatisfiedTorrentsTable({
       // an hour from clearing. Which route is nearer is shown, not just how far.
       const seedPct = seedTimeProgress(t.seedingTime, requirement)
       const ratioPct = ratioProgress(t.ratio, requirement)
-
-      if (eitherOr && ratioPct > seedPct) {
-        const owed = (requirement.requiredRatio ?? 0) - (Number.isFinite(t.ratio) ? t.ratio : 0)
-        return (
-          <span className="text-xs font-mono text-muted whitespace-nowrap">
-            {formatRatio(Math.max(owed, 0))} ratio
-          </span>
-        )
-      }
-
-      if (!showSeedTime) {
-        const owed = (requirement.requiredRatio ?? 0) - (Number.isFinite(t.ratio) ? t.ratio : 0)
+      // Ratio is the answer when it is the only route, or the nearer one.
+      if (!showSeedTime || (eitherOr && ratioPct > seedPct)) {
+        // Infinity means nothing was downloaded, -1 is Transmission's "not
+        // applicable". Neither counts as progress, so both owe the full amount.
+        const measured = Number.isFinite(t.ratio) && t.ratio > 0 ? t.ratio : 0
+        const owed = (requirement.requiredRatio ?? 0) - measured
         return (
           <span className="text-xs font-mono text-muted whitespace-nowrap">
             {formatRatio(Math.max(owed, 0))} ratio
