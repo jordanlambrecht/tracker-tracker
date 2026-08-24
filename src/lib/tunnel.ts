@@ -10,6 +10,7 @@ import { SocksProxyAgent } from "socks-proxy-agent"
 
 import { decrypt } from "@/lib/crypto"
 import { log } from "@/lib/logger"
+import { withDefaultUserAgent } from "@/lib/user-agent"
 
 export type ProxyType = "socks5" | "http" | "https"
 
@@ -87,13 +88,13 @@ export function proxyFetch(
         path: parsed.pathname + parsed.search,
         method,
         agent,
-        headers: {
+        headers: withDefaultUserAgent({
           Accept: "application/json",
           ...(body === undefined
             ? {}
             : { "Content-Length": String(Buffer.byteLength(body, "utf8")) }),
           ...options.headers,
-        },
+        }),
         timeout: timeoutMs,
       },
       (res) => {

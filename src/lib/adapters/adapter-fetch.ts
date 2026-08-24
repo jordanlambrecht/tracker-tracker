@@ -3,6 +3,7 @@
 import { classifyFetchError } from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import { proxyFetch } from "@/lib/tunnel"
+import { withDefaultUserAgent } from "@/lib/user-agent"
 import type { FetchOptions } from "./types"
 
 async function adapterFetch<T>(
@@ -12,7 +13,7 @@ async function adapterFetch<T>(
   headers?: Record<string, string>,
   init?: { method?: "GET" | "POST"; body?: string }
 ): Promise<T> {
-  const mergedHeaders = { Accept: "application/json", ...headers }
+  const mergedHeaders = withDefaultUserAgent({ Accept: "application/json", ...headers })
   const method = init?.method ?? "GET"
   const body = method === "POST" ? (init?.body ?? "") : undefined
 
