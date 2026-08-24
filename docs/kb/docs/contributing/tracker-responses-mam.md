@@ -79,7 +79,7 @@ Auth fails silently — you get HTML instead of JSON. We detect it by checking i
 | `remoteUserId` | `uid` | `number` | Cached for future use |
 | `uploadedBytes` | `uploaded_bytes` | `number` | `BigInt()` — raw bytes, no parsing needed |
 | `downloadedBytes` | `downloaded_bytes` | `number` | `BigInt()` — raw bytes, no parsing needed |
-| `ratio` | `ratio` | `number` | Direct float value |
+| `ratio` | — | — | Calculated: `uploadedBytes / downloadedBytes`. MAM's own `ratio` is a display value, not a number — an account that has downloaded nothing reports `"∞"` — so it is not read |
 | `bufferBytes` | — | — | Calculated: `uploadedBytes - downloadedBytes` — signed, negative on a deficit account |
 | `seedingCount` | `sSat.count + seedHnr.count + seedUnsat.count + upAct.count` | `number` | Sum of all seeding snatch categories |
 | `leechingCount` | `leeching.count` | `number` | Direct |
