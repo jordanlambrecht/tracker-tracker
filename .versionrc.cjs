@@ -2,36 +2,19 @@
 //
 // Config for commit-and-tag-version (`pnpm release:*`).
 //
-// This is .cjs rather than .json because `writerOpts.commitPartial` has to be a
-// FUNCTION. commit-and-tag-version 13 moved to conventional-changelog-writer 9,
-// which dropped Handlebars in favour of plain template functions
-// (@conventional-changelog/template). The old Handlebars string this file used
-// to carry got called as a function and the release died on
-// "commitPartial is not a function" after bumping package.json but before
-// writing anything else.
-//
-// Signature and commit fields come from the conventionalcommits preset:
-// conventional-changelog-conventionalcommits/src/templates.js.
+// Must stay .cjs rather than .json, because writerOpts.commitPartial has to be
+// a function. conventional-changelog-writer 9 dropped Handlebars, so a template
+// string here gets called as a function and the release fails mid-bump.
 
 /**
- * One changelog bullet: `**scope:** subject`, or the bare subject when a commit
- * has no scope.
+ * One changelog bullet: `**scope:** subject`, or the bare subject with no scope.
  *
- * Deliberately narrower than the preset default, which appends a commit-hash
- * link and `, closes #n` / `, references #n` trailers. This changelog is read
- * in-app (see src/app/api/changelog/route.ts) where a wall of hashes is noise,
- * so it renders the human half only. Issue links already inlined in the subject
- * by the writer are left alone.
+ * Narrower than the preset default, which also appends a commit-hash link and
+ * `closes #n` trailers. This changelog renders in-app
+ * (src/app/api/changelog/route.ts), where hashes are noise.
  *
- * The list marker itself is not ours to pick — writer 9 renders every bullet
- * through its own `list()` helper, which hardcodes `*`. Older entries in
- * CHANGELOG.md use `-`; the file has mixed markers either way.
- *
- * Also not ours: writer 9 trims each release section and appends a single
- * newline, so a new section butts straight up against the previous version
- * heading with no blank line between them. Cosmetic only — an ATX heading
- * interrupts a list in CommonMark, so it still renders as a heading. Accepted
- * rather than papered over with a postchangelog hook.
+ * The `*` list marker is writer 9's own, hardcoded in its `list()` helper.
+ * Older CHANGELOG.md entries use `-`, so the file carries both.
  */
 function commitPartial(_context, commit) {
   const { scope, subject, header } = commit
