@@ -124,6 +124,46 @@ describe("seed-time-only satisfaction (the historical behaviour)", () => {
   })
 })
 
+describe("single-route satisfaction", () => {
+  // Only the routes a tracker actually states may count. An absent route scores
+  // 1 so it cannot hold back an "all", but reading that 1 as a met route under
+  // "any" satisfies every torrent on a tracker whose only route is ratio.
+  const ratioOnlyAny: SatisfactionRequirement = {
+    requiredSeedSeconds: null,
+    requiredRatio: 1.0,
+    mode: "any",
+  }
+
+  it("does not satisfy a low-ratio torrent on a ratio-only any tracker", () => {
+    expect(isSatisfied(torrent(0, 0.01), ratioOnlyAny)).toBe(false)
+    expect(satisfactionProgress(torrent(0, 0.01), ratioOnlyAny)).toBeCloseTo(0.01)
+  })
+
+  it("satisfies once the ratio is met on a ratio-only any tracker", () => {
+    expect(isSatisfied(torrent(0, 1.0), ratioOnlyAny)).toBe(true)
+  })
+
+  it("reads the same under any and all when there is one route", () => {
+    const asAll: SatisfactionRequirement = { ...ratioOnlyAny, mode: "all" }
+    for (const ratio of [0, 0.5, 0.99, 1, 3]) {
+      expect(
+        satisfactionProgress(torrent(0, ratio), ratioOnlyAny),
+        `ratio ${ratio}`
+      ).toBe(satisfactionProgress(torrent(0, ratio), asAll))
+    }
+  })
+
+  it("ignores ratio on a seed-time-only any tracker", () => {
+    const seedOnlyAny: SatisfactionRequirement = {
+      requiredSeedSeconds: 72 * HOUR,
+      requiredRatio: null,
+      mode: "any",
+    }
+    expect(isSatisfied(torrent(0, 99), seedOnlyAny)).toBe(false)
+    expect(isSatisfied(torrent(72 * HOUR, 0), seedOnlyAny)).toBe(true)
+  })
+})
+
 describe("ratioProgress", () => {
   const req: SatisfactionRequirement = {
     requiredSeedSeconds: null,

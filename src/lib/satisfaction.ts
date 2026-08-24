@@ -90,9 +90,16 @@ export function satisfactionProgress(
   torrent: { seedingTime: number; ratio: number },
   req: SatisfactionRequirement
 ): number {
-  const seed = seedTimeProgress(torrent.seedingTime, req)
-  const ratio = ratioProgress(torrent.ratio, req)
-  return req.mode === "any" ? Math.max(seed, ratio) : Math.min(seed, ratio)
+  // Only the routes this tracker states may count. The per-route helpers score
+  // an absent route 1, which is right for `all` (it cannot hold the torrent
+  // back) but wrong for `any`, where it would read as a route already met and
+  // satisfy every torrent. `resolveSatisfaction` never returns a requirement
+  // with no routes; a hand-built one is vacuously satisfied, as before.
+  const routes: number[] = []
+  if (req.requiredSeedSeconds !== null) routes.push(seedTimeProgress(torrent.seedingTime, req))
+  if (req.requiredRatio !== null) routes.push(ratioProgress(torrent.ratio, req))
+  if (routes.length === 0) return 1
+  return req.mode === "any" ? Math.max(...routes) : Math.min(...routes)
 }
 
 export function isSatisfied(
