@@ -26,6 +26,11 @@ The proxy type controls how traffic reaches the proxy server. SOCKS5 uses tunnel
 !!! info "DNS resolution"
     HTTP and HTTPS proxies resolve on the proxy side — your DNS provider never sees it. SOCKS5 varies: most resolve remotely, some resolve locally first. If DNS privacy matters, verify your SOCKS5 proxy does remote resolution.
 
+!!! info "What the tracker sees"
+    Requests to a tracker's JSON API identify Tracker Tracker with a `User-Agent` of `tracker-tracker/<major>.<minor>`, such as `tracker-tracker/2.10`. Some trackers reject requests that carry no User-Agent at all, which is why one is always sent. The patch version is left off on purpose, so the string is not distinctive enough to link your accounts across several trackers sharing one proxy exit IP.
+
+    Trackers read with copied browser cookies (AvistaZ, IPTorrents) send that browser's own User-Agent instead, matching the session the cookies belong to.
+
 ## Setup
 
 Proxy settings are in **Settings → General → Proxy**.

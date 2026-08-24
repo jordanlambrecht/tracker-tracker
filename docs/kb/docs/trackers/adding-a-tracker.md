@@ -165,6 +165,9 @@ Location varies by platform:
     !!! tip "Alternative: Application tab method"
         Go to **Application** → **Cookies** → `digitalcore.club` and copy the `uid` and `pass` values. Paste them as `uid=12345; pass=abc123...`.
 
+    !!! tip "Use the same browser for both"
+        Tracker Tracker also records the User-Agent of whichever browser you paste from, so polls match the session your cookies came from. Add or update DigitalCore from the same browser you are logged into DigitalCore in. Pasting from a different browser stores a User-Agent that does not match the cookies.
+
     !!! warning "Cookie expiration"
         Session cookies expire when you log out or after extended inactivity. If polling fails with "Session expired," log back into DigitalCore and re-copy the cookie values.
 

@@ -256,6 +256,10 @@ These vectors are not fully mitigated at the application layer. Apply the recomm
 
 **Countermeasure:** None at the application level. Users should be aware that API tokens may appear in tracker server logs depending on the platform.
 
+**Risk:** Outbound requests to JSON tracker APIs identify the application, sending `User-Agent: tracker-tracker/<major>.<minor>` (for example `tracker-tracker/2.10`). A tracker that prohibits third-party stat tools can find that string in its access logs.
+
+**Countermeasure:** The patch version is deliberately omitted. An exact version is a rare enough string to link one user's accounts across several trackers reached through the same proxy exit IP; major.minor is common enough not to. Adapters that authenticate with a browser-copied session send that browser's own User-Agent instead, so the identifying string never appears alongside a scraped session. Users on trackers that forbid automated access should check the rules before polling.
+
 #### 6. DNS Rebinding
 
 **Risk:** SSRF protection in `src/lib/network.ts` validates hostnames at configuration time, not at request time. An attacker with DNS control could register a domain that resolves to a public IP during validation, then change it to a private IP before the next poll cycle.
