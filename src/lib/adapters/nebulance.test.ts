@@ -435,3 +435,41 @@ describe("NebulanceAdapter - security", () => {
     expect(callOptions.signal).toBeDefined()
   })
 })
+
+// ---------------------------------------------------------------------------
+// Nebulance routes through the shared adapterRequest seam. Before that it
+// hand-rolled its own proxy branch, which sent no User-Agent through the
+// tunnel and would have to be kept in sync by hand.
+// ---------------------------------------------------------------------------
+
+describe("NebulanceAdapter - proxy routing", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    vi.resetModules()
+  })
+
+  it("sends the app User-Agent through the proxy and never falls back to a direct fetch", async () => {
+    const proxyFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      json: async () => mockNebulanceResponse(),
+      buffer: async () => Buffer.from("{}"),
+    })
+    vi.doMock("@/lib/tunnel", () => ({ proxyFetch }))
+
+    const { NebulanceAdapter: FreshAdapter } = await import("./nebulance")
+    const { DEFAULT_USER_AGENT } = await import("@/lib/user-agent")
+    const fetchSpy = vi.spyOn(global, "fetch")
+
+    await new FreshAdapter().fetchStats("https://nebulance.io", "key", "/api.php", {
+      proxyAgent: {} as never,
+    })
+
+    expect(proxyFetch).toHaveBeenCalledTimes(1)
+    expect(proxyFetch.mock.calls[0][2].headers["User-Agent"]).toBe(DEFAULT_USER_AGENT)
+    // A direct fetch here would leak the user's real IP past their tunnel.
+    expect(fetchSpy).not.toHaveBeenCalled()
+    vi.doUnmock("@/lib/tunnel")
+  })
+})

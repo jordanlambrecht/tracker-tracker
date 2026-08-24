@@ -8,8 +8,7 @@
 
 import { computeBufferBytes, computeRatio, floatBytesToBigInt } from "@/lib/data-transforms"
 import { classifyFetchError } from "@/lib/error-utils"
-import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
-import { proxyFetch } from "@/lib/tunnel"
+import { adapterRequest } from "./adapter-fetch"
 import type {
   DebugApiCall,
   FetchOptions,
@@ -75,28 +74,18 @@ export class NebulanceAdapter implements TrackerAdapter {
 
     // Nebulance returns HTTP error codes (400/401/404) with {"error": {"code": N, "message": "..."}}
     // and user data directly on success (no {"status": "success", "response": {...}} wrapper).
-    // We can't use adapterFetch since it throws on non-200 before we parse the error JSON.
-    const headers = { Accept: "application/json" }
-    let ok: boolean
-    let status: number
+    // adapterRequest hands the non-2xx back rather than throwing, so the error
+    // body below is still readable.
+    const result = await adapterRequest(url.toString(), hostname, options)
+    const ok = result.ok
+    const status = result.status
     let data: NebulanceResponse
 
     try {
-      if (options?.proxyAgent) {
-        const result = await proxyFetch(url.toString(), options.proxyAgent, { headers })
-        ok = result.ok
-        status = result.status
-        data = (await result.json()) as NebulanceResponse
-      } else {
-        const response = await fetch(url.toString(), {
-          headers,
-          signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
-        })
-        ok = response.ok
-        status = response.status
-        data = (await response.json()) as NebulanceResponse
-      }
+      data = await result.json<NebulanceResponse>()
     } catch (err) {
+      // Transport failures are already classified by adapterRequest; only a
+      // malformed body reaches here.
       throw classifyFetchError(err, hostname)
     }
 
@@ -182,19 +171,8 @@ export class NebulanceAdapter implements TrackerAdapter {
     const endpoint = `${apiPath}?action=user&method=getuserinfo&user=${userId}`
 
     try {
-      const headers = { Accept: "application/json" }
-      let data: unknown
-
-      if (options?.proxyAgent) {
-        const result = await proxyFetch(url.toString(), options.proxyAgent, { headers })
-        data = await result.json()
-      } else {
-        const response = await fetch(url.toString(), {
-          headers,
-          signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
-        })
-        data = await response.json()
-      }
+      const result = await adapterRequest(url.toString(), hostname, options)
+      const data = await result.json()
 
       return [{ label: "User Info", endpoint, data, error: null }]
     } catch (err) {
