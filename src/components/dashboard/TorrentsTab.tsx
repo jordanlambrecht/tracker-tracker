@@ -307,14 +307,14 @@ function TorrentsTab({
       </LazySection>
 
       {/* Unsatisfied Torrents */}
-      {data.requiredSeedSeconds && (
+      {data.requirement && (
         <div className="flex flex-col gap-3">
           <H2 className="uppercase tracking-wider">
             Unsatisfied Torrents ({data.unsatisfiedSorted.length})
           </H2>
           <UnsatisfiedTorrentsTable
             torrents={data.unsatisfiedSorted}
-            requiredSeconds={data.requiredSeedSeconds}
+            requirement={data.requirement}
             accentColor={accentColor}
           />
         </div>

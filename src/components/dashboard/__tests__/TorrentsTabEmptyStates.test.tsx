@@ -98,6 +98,7 @@ function makeData(overrides: Partial<TrackerTorrentsData> = {}): TrackerTorrents
     totalUpSpeed: 0,
     totalSize: 0,
     crossSeeded: [],
+    requirement: null,
     requiredSeedSeconds: null,
     unsatisfiedTorrents: [],
     unsatisfiedSorted: [],
