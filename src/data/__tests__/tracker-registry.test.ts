@@ -2,7 +2,7 @@
 //
 // Validates all tracker registry entries for consistency.
 // Catches platform/apiPath mismatches, duplicate slugs, invalid fields, etc.
-// Runs in CI — a bad tracker file will fail the PR.
+// Runs in CI, a bad tracker file will fail the PR.
 //
 // Draft trackers (draft: true) are exempt from strict validation.
 // Non-draft trackers must pass all required checks.
@@ -35,13 +35,13 @@ const TRACKER_DIR = path.resolve(__dirname, "../../data/trackers")
 const LOGO_DIR = path.resolve(__dirname, "../../../public/tracker-logos")
 
 // ---------------------------------------------------------------------------
-// Warning collector — printed after all tests, does not fail CI
+// Warning collector, printed after all tests, does not fail CI
 // ---------------------------------------------------------------------------
 
 const warnings: string[] = []
 
 function warn(tracker: string, msg: string) {
-  warnings.push(`WARN: ${tracker} — ${msg}`)
+  warnings.push(`WARN: ${tracker} - ${msg}`)
 }
 
 // ---------------------------------------------------------------------------
@@ -93,7 +93,7 @@ describe("tracker registry", () => {
     ).toEqual([])
   })
 
-  // ── Draft trackers — basic format checks only ─────────────────────────
+  // ── Draft trackers, basic format checks only ─────────────────────────
 
   describe("draft trackers", () => {
     for (const tracker of DRAFT_TRACKERS) {
@@ -113,7 +113,7 @@ describe("tracker registry", () => {
     }
   })
 
-  // ── Non-draft trackers — strict validation ────────────────────────────
+  // ── Non-draft trackers, strict validation ────────────────────────────
 
   describe("production trackers", () => {
     for (const tracker of PRODUCTION_TRACKERS) {
@@ -140,7 +140,7 @@ describe("tracker registry", () => {
           const expected = DEFAULT_API_PATHS[tracker.platform]
           expect(
             tracker.apiPath,
-            `${tracker.name} is platform "${tracker.platform}" but uses apiPath "${tracker.apiPath}" — expected "${expected}"`
+            `${tracker.name} is platform "${tracker.platform}" but uses apiPath "${tracker.apiPath}", expected "${expected}"`
           ).toBe(expected)
         })
 
@@ -148,10 +148,10 @@ describe("tracker registry", () => {
           if (tracker.platform === "custom") return
           // An absolute apiPath would be persisted per row and silently ignore
           // baseUrl at every `new URL(apiPath, baseUrl)` call site. A tracker
-          // whose API lives off-domain belongs in its adapter — see btn.ts.
+          // whose API lives off-domain belongs in its adapter. See btn.ts.
           expect(
             tracker.apiPath.startsWith("/"),
-            `${tracker.name} has apiPath "${tracker.apiPath}" — must be relative and start with "/". An off-domain API host belongs in the adapter, not the registry.`
+            `${tracker.name} has apiPath "${tracker.apiPath}", which must be relative and start with "/". An off-domain API host belongs in the adapter, not the registry.`
           ).toBe(true)
         })
 
@@ -204,7 +204,7 @@ describe("tracker registry", () => {
         it("has a non-placeholder description", () => {
           expect(
             PLACEHOLDER_RE.test(tracker.description.trim()),
-            `description is still "TODO" — fill it in before removing draft`
+            `description is still "TODO". Fill it in before removing draft`
           ).toBe(false)
         })
 
@@ -274,7 +274,7 @@ describe("tracker registry", () => {
             warn(tracker.slug, `missing ${missing.join(", ")}`)
           }
 
-          // Always passes — warnings don't fail the build
+          // Always passes, warnings don't fail the build
           expect(true).toBe(true)
         })
       })

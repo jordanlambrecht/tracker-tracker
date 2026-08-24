@@ -204,11 +204,11 @@ describe("checkAnniversaryMilestone", () => {
   it("returns null when no milestone is near", () => {
     // Use a date that isn't near any milestone
     const farDate = new Date()
-    farDate.setMonth(farDate.getMonth() - 3) // 3 months ago — not near 1mo, 6mo, or 1yr
+    farDate.setMonth(farDate.getMonth() - 3) // 3 months ago, not near 1mo, 6mo, or 1yr
     farDate.setDate(farDate.getDate() + 15) // shift away from window
     expect(checkAnniversaryMilestone(farDate.toISOString().split("T")[0])).toBeNull()
   })
-  // Note: testing exact milestone hits requires date mocking — cover in integration
+  // Note: testing exact milestone hits requires date mocking, cover in integration
 })
 
 // ── Edge cases identified by test architect ──────────────────────────────────

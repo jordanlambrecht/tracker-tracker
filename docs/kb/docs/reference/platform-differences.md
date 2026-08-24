@@ -11,12 +11,12 @@ Tracker Tracker works with **UNIT3D**, **Gazelle**, **GGn**, **Nebulance**, **MA
 
 ## Authentication
 
-Tracker Tracker handles auth behind the scenes — just paste your token when adding a tracker.
+Tracker Tracker handles auth behind the scenes, so just paste your token when adding a tracker.
 
 | Platform    | How the token is sent                                                                                                                                                                                    |
-|-------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **UNIT3D**  | Appended as a query parameter on every request (`?api_token=TOKEN`). HTTPS is required to prevent the token from being exposed in server logs.                                                           |
-| **Gazelle** | Sent as an HTTP `Authorization` header (`Authorization: token TOKEN`). Some Gazelle forks accept the token without the `token` prefix — Tracker Tracker handles both.                                    |
+| **Gazelle** | Sent as an HTTP `Authorization` header (`Authorization: token TOKEN`). Some Gazelle forks accept the token without the `token` prefix, and Tracker Tracker handles both.                                 |
 | **GGn**     | Appended as a query parameter (`?key=TOKEN`), similar to UNIT3D but using a different parameter name.                                                                                                    |
 | **MAM**     | Sent as a `Cookie: mam_id=VALUE` header. Uses a session cookie from MAM's Security Settings page, not a traditional API key. Session cookies rotate monthly.                                             |
 | **AvistaZ** | Browser cookies (`cf_clearance` + session cookies) sent as a `Cookie` header, with the matching `User-Agent`. Uses HTML scraping instead of a JSON API. Cookies expire when Cloudflare clearance lapses. |
@@ -28,7 +28,7 @@ Tracker Tracker handles auth behind the scenes — just paste your token when ad
 Notes in cells mean the stat exists but with limitations.
 
 | Stat                      | UNIT3D                   | Gazelle                          | GGn                              | MAM                                 | AvistaZ                           |
-|---------------------------|--------------------------|----------------------------------|----------------------------------|-------------------------------------|-----------------------------------|
+| ------------------------- | ------------------------ | -------------------------------- | -------------------------------- | ----------------------------------- | --------------------------------- |
 | Upload / Download / Ratio | Yes                      | Yes                              | Yes                              | Yes (raw bytes + formatted strings) | Yes (HTML scraped, decimal units) |
 | Buffer                    | Yes (tracker-calculated) | Approximate (calculated locally) | Approximate (calculated locally) | Approximate (calculated locally)    | Yes (tracker-calculated)          |
 | Seeding count             | Yes                      | Some forks only                  | Paranoia-dependent               | Yes (sum of snatch_summary seeding) | Yes                               |
@@ -73,7 +73,7 @@ We cache your user ID after the first poll, so later polls skip straight to stat
 Field names vary across Gazelle forks. Here's what we track:
 
 | Site                 | Seedbonus field | Freeleech Tokens | Seeding count in basic response |
-|----------------------|-----------------|------------------|---------------------------------|
+| -------------------- | --------------- | ---------------- | ------------------------------- |
 | Redacted (RED)       | `bonusPoints`   | Sometimes        | No                              |
 | Orpheus (OPS)        | `bonusPoints`   | Sometimes        | No                              |
 | BroadcasTheNet (BTN) | Varies          | No               | No                              |
@@ -139,6 +139,6 @@ AvistaZ uses HTML scraping instead of a JSON API. The profile page provides:
 
 **Authentication note:** AvistaZ uses browser cookies, not an API key. Paste your cookies (include Cloudflare `cf_clearance`), and we capture the User-Agent automatically. Refresh when Cloudflare clearance expires.
 
-**Sites in the network:** AvistaZ, AnimeZ, PrivateHD, CinemaZ, ExoticaZ — all share the same platform and HTML structure.
+**Sites in the network:** AvistaZ, AnimeZ, PrivateHD, CinemaZ, and ExoticaZ all share the same platform and HTML structure.
 
 **Minimum rank:** Newbie accounts have restricted profiles. You need **Member** rank or above (5 GB upload, ratio ≥ 1.0, 7+ days old) to use the adapter.

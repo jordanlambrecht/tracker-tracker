@@ -308,7 +308,7 @@ function AddTrackerDialog({
         next.apiToken = "Browser cookies are required"
       } else if (!avistazCookies.includes("=")) {
         next.apiToken =
-          "This doesn't look like a cookie string — it should contain key=value pairs (i.e. cf_clearance=abc123; session=xyz)"
+          "This doesn't look like a cookie string. It should contain key=value pairs (i.e. cf_clearance=abc123; session=xyz)"
       } else if (
         /^(cf_clearance|[a-z]+x_session|remember_web_\w+|XSRF-TOKEN|love)$/i.test(
           avistazCookies.trim()
@@ -338,7 +338,7 @@ function AddTrackerDialog({
         next.apiToken = "Browser cookies are required"
       } else if (!trimmed.includes("=")) {
         next.apiToken =
-          "This doesn't look like a cookie string — it should contain key=value pairs (i.e. uid=123; pass=abc123)"
+          "This doesn't look like a cookie string. It should contain key=value pairs (i.e. uid=123; pass=abc123)"
       } else if (/^(cf_clearance|uid|pass|remember_web_\w+|XSRF-TOKEN)$/i.test(trimmed)) {
         next.apiToken =
           'You pasted a cookie name, not the value. Copy the entire string after "Cookie:" in the request headers.'
@@ -454,7 +454,7 @@ function AddTrackerDialog({
       resetForm()
       onAdded(saveData.id)
     } catch {
-      setErrors({ form: "Network error — please try again" })
+      setErrors({ form: "Network error. Please try again" })
     } finally {
       setLoading(false)
     }

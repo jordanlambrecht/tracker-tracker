@@ -6,7 +6,7 @@
 // WHY THIS IS NOT JUST navigator.clipboard.writeText
 //
 // `navigator.clipboard` is gated on a SECURE CONTEXT. On plain HTTP it is
-// `undefined` on every browser except at localhost — and this app is routinely
+// `undefined` on every browser except at localhost, and this app is routinely
 // self-hosted on a LAN at http://192.168.x.x:3000, which is exactly the case the
 // spec excludes. A copy button wired straight to the Clipboard API therefore
 // does nothing at all for a large share of this project's users, and the old
@@ -15,7 +15,7 @@
 // So: try the modern API, fall back to the legacy `document.execCommand("copy")`
 // (deprecated, but still implemented everywhere and NOT secure-context gated),
 // and if both fail SAY SO rather than pretending. The caller is expected to
-// surface "unavailable" to the user — a button that silently does nothing is
+// surface "unavailable" to the user, a button that silently does nothing is
 // worse than no button, because the user believes they have the secret on their
 // clipboard and pastes whatever was there before.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -28,7 +28,7 @@ export type ClipboardOutcome = "copied" | "unavailable"
  * synchronously within this one call.
  *
  * The plaintext is in the DOM for the duration of that call. That is a real
- * (if brief) exposure and it is unavoidable for this API — it is also why this
+ * (if brief) exposure and it is unavoidable for this API, it is also why this
  * is the FALLBACK and not the primary path.
  */
 function copyViaExecCommand(text: string): boolean {
@@ -68,7 +68,7 @@ function copyViaExecCommand(text: string): boolean {
  * Never throws and never rejects: the outcome is the return value, so a caller
  * cannot accidentally swallow a failure in a `.catch`.
  *
- * Note the Clipboard API can also reject AFTER an await — Safari in particular
+ * Note the Clipboard API can also reject AFTER an await, Safari in particular
  * treats a write that follows a network round trip as outside the user gesture.
  * That rejection lands on the execCommand fallback below rather than on the
  * user, which is the main reason the ladder is ordered this way.

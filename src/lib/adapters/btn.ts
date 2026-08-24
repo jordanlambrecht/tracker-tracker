@@ -9,7 +9,7 @@ import type { DebugApiCall, FetchOptions, TrackerAdapter, TrackerStats } from ".
 
 /**
  * BTN serves its API from a different host than its site, and every BTN user
- * hits the same one — it is a property of the platform, not of a user's row.
+ * hits the same one, it is a property of the platform, not of a user's row.
  * So the adapter owns it and deliberately ignores the persisted `apiPath`,
  * the same way avistaz/digitalcore/iptorrents/torrentleech ignore theirs.
  *
@@ -26,7 +26,7 @@ const BTN_API_HOSTNAME = new URL(BTN_API_URL).hostname
  * BTN's published `userInfo` fields (apidocs.broadcasthe.net) are:
  * UserID, Username, Email, Upload, Download, Title, Enabled, Paranoia,
  * Invites, ClassID. Anything below marked "undocumented" was observed on a
- * live response but is not in the spec — treat it as best-effort.
+ * live response but is not in the spec, treat it as best-effort.
  */
 interface BtnUserInfoResult {
   UserID: string
@@ -90,7 +90,7 @@ function mapBtnResult(result: BtnUserInfoResult): TrackerStats {
     // `HnR` is undocumented. BTN has a separate getUserSnatchlist endpoint for
     // hit-and-runs, so this key may not exist. Report unknown rather than a
     // fabricated 0.
-    hitAndRuns: result.HnR == null ? null : (parseInt(result.HnR, 10) || 0),
+    hitAndRuns: result.HnR == null ? null : parseInt(result.HnR, 10) || 0,
     // `Lumens` and `Bonus` are undocumented, meanings unconfirmed. `Bonus` is
     // fractional, which doesn't fit a token count. Unmapped pending verification.
     seedbonus: null,

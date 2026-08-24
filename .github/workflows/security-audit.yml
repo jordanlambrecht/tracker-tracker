@@ -135,8 +135,8 @@ jobs:
 
             lines.push('---');
             lines.push(`**Summary:** ${summary.passed}/${summary.total} checks passed`);
-            if (summary.critical > 0) lines.push(` — **${summary.critical} critical failure(s)**`);
-            if (summary.warning > 0) lines.push(` — ${summary.warning} warning(s)`);
+            if (summary.critical > 0) lines.push(`, **${summary.critical} critical failure(s)**`);
+            if (summary.warning > 0) lines.push(`, ${summary.warning} warning(s)`);
             lines.push('');
             lines.push('See `scripts/security-audit.ts` for check definitions and `SECURITY.md` for the full security architecture.');
 

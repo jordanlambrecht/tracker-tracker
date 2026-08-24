@@ -83,7 +83,7 @@ describe("recordHeartbeat + flushCompletedBuckets", () => {
     // Advance past the 12:10 boundary
     vi.setSystemTime(new Date("2026-03-14T12:10:01Z"))
 
-    // Record in the new bucket — this triggers the old bucket to enter the flush queue
+    // Record in the new bucket, this triggers the old bucket to enter the flush queue
     recordHeartbeat(1, true)
 
     const flushed = await flushCompletedBuckets()

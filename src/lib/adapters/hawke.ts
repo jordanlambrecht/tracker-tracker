@@ -68,7 +68,7 @@ interface HawkeEnvelope {
  * adapterFetch already throws on any non-2xx, so this only has to handle the
  * 200-with-failure case: Hawke answers an authenticated-but-rejected request
  * with HTTP 200 and `success: false`, where the human-readable reason lives in
- * `message`. Surfacing that message is the whole point — without it the caller
+ * `message`. Surfacing that message is the whole point, without it the caller
  * sees a successful poll carrying zeroed stats.
  */
 function unwrapEnvelope(body: HawkeEnvelope, hostname: string): HawkeProfile {
@@ -117,7 +117,9 @@ export class HawkeAdapter implements TrackerAdapter {
       uploadedBytes,
       downloadedBytes,
       // Hawke reports a numeric ratio without infinity. Use it, otherwise derive.
-      ratio: Number.isFinite(data.ratio) ? data.ratio : computeRatio(uploadedBytes, downloadedBytes),
+      ratio: Number.isFinite(data.ratio)
+        ? data.ratio
+        : computeRatio(uploadedBytes, downloadedBytes),
       // Hawke reports a signed buffer. Verified to go negative (-2.6 TB). The
       // isFinite guard is needed because BigInt(Math.trunc(NaN)) throws. Falls
       // back to derived buffer if non-finite.

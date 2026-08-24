@@ -326,7 +326,7 @@ describe("parseAvistazCredentials", () => {
 })
 
 // ---------------------------------------------------------------------------
-// AvistazAdapter.fetchStats — fetchHtml network error paths
+// AvistazAdapter.fetchStats, fetchHtml network error paths
 // These tests verify that classifyFetchError is correctly wired in fetchHtml,
 // i.e. that TypeError-wrapping from Node.js native fetch is unwrapped into a
 // useful message before propagating up to the caller.

@@ -29,25 +29,25 @@ Pass API token as a query parameter: `?api_token=TOKEN`. No special headers requ
 }
 ```
 
-Byte values return as formatted strings (`"500.25 GiB"`), not integers. Same for `ratio`, `buffer`, and `seedbonus` — all strings. The adapter parses via `parseBytes()` or `parseFloat()`.
+Byte values return as formatted strings (`"500.25 GiB"`), not integers. Same for `ratio`, `buffer`, and `seedbonus`, all strings. The adapter parses via `parseBytes()` or `parseFloat()`.
 
 ## Field Mapping
 
-| TrackerStats field | UNIT3D field   | Type     | Notes                                |
-| ------------------ | -------------- | -------- | ------------------------------------ |
-| `username`         | `username`     | `string` | Direct copy                          |
-| `group`            | `group`        | `string` | User class / rank label              |
-| `uploadedBytes`    | `uploaded`     | `string` | Parsed via `parseBytes()` → `bigint` |
-| `downloadedBytes`  | `downloaded`   | `string` | Parsed via `parseBytes()` → `bigint` |
-| `ratio`            | `ratio`        | `string` | `parseFloat()`, defaults to `0`      |
+| TrackerStats field | UNIT3D field   | Type     | Notes                                                                 |
+| ------------------ | -------------- | -------- | --------------------------------------------------------------------- |
+| `username`         | `username`     | `string` | Direct copy                                                           |
+| `group`            | `group`        | `string` | User class / rank label                                               |
+| `uploadedBytes`    | `uploaded`     | `string` | Parsed via `parseBytes()` → `bigint`                                  |
+| `downloadedBytes`  | `downloaded`   | `string` | Parsed via `parseBytes()` → `bigint`                                  |
+| `ratio`            | `ratio`        | `string` | `parseFloat()`, defaults to `0`                                       |
 | `bufferBytes`      | `buffer`       | `string` | Parsed via `parseSignedBytes()` → `bigint`; `"∞"` derives from totals |
-| `seedingCount`     | `seeding`      | `number` | Direct copy                          |
-| `leechingCount`    | `leeching`     | `number` | Direct copy                          |
-| `seedbonus`        | `seedbonus`    | `string` | `parseFloat()`, defaults to `0`      |
-| `hitAndRuns`       | `hit_and_runs` | `number` | Direct copy                          |
-| `requiredRatio`    | —              | —        | Always `null` — not in UNIT3D API    |
-| `warned`           | —              | —        | Always `null` — not in UNIT3D API    |
-| `freeleechTokens`  | —              | —        | Always `null` — not in UNIT3D API    |
+| `seedingCount`     | `seeding`      | `number` | Direct copy                                                           |
+| `leechingCount`    | `leeching`     | `number` | Direct copy                                                           |
+| `seedbonus`        | `seedbonus`    | `string` | `parseFloat()`, defaults to `0`                                       |
+| `hitAndRuns`       | `hit_and_runs` | `number` | Direct copy                                                           |
+| `requiredRatio`    | —              | —        | Always `null`, not in UNIT3D API                                      |
+| `warned`           | —              | —        | Always `null`, not in UNIT3D API                                      |
+| `freeleechTokens`  | —              | —        | Always `null`, not in UNIT3D API                                      |
 
 One API call per poll, no enrichment step.
 

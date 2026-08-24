@@ -218,10 +218,10 @@ function useTrackerTorrents({
 
   const torrentError = useMemo(() => {
     if (liveQuery.data?.clientErrors?.length) {
-      return `Partial data — some clients failed: ${liveQuery.data.clientErrors.join("; ")}`
+      return `Partial data, some clients failed: ${liveQuery.data.clientErrors.join("; ")}`
     }
     if (liveQuery.error && !cachedQuery.data) {
-      return "Client offline — no cached data available"
+      return "Client offline, no cached data available"
     }
     return null
   }, [liveQuery.data, liveQuery.error, cachedQuery.data])

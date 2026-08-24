@@ -222,7 +222,7 @@ describe("parseDigitalCoreCredentials", () => {
 })
 
 // ---------------------------------------------------------------------------
-// DigitalCoreAdapter.fetchStats — happy path
+// DigitalCoreAdapter.fetchStats, happy path
 // ---------------------------------------------------------------------------
 
 describe("DigitalCoreAdapter.fetchStats — core stats", () => {
@@ -429,7 +429,7 @@ describe("DigitalCoreAdapter.fetchStats — core stats", () => {
 })
 
 // ---------------------------------------------------------------------------
-// DigitalCoreAdapter.fetchStats — "yes"/"no" boolean normalization
+// DigitalCoreAdapter.fetchStats, "yes"/"no" boolean normalization
 // ---------------------------------------------------------------------------
 
 describe("DigitalCoreAdapter.fetchStats — boolean string normalization", () => {
@@ -530,7 +530,7 @@ describe("DigitalCoreAdapter.fetchStats — boolean string normalization", () =>
 })
 
 // ---------------------------------------------------------------------------
-// DigitalCoreAdapter.fetchStats — class ID mapping
+// DigitalCoreAdapter.fetchStats, class ID mapping
 // ---------------------------------------------------------------------------
 
 describe("DigitalCoreAdapter.fetchStats — class ID mapping", () => {
@@ -581,7 +581,7 @@ describe("DigitalCoreAdapter.fetchStats — class ID mapping", () => {
 })
 
 // ---------------------------------------------------------------------------
-// DigitalCoreAdapter.fetchStats — enrichment (second call)
+// DigitalCoreAdapter.fetchStats, enrichment (second call)
 // ---------------------------------------------------------------------------
 
 describe("DigitalCoreAdapter.fetchStats — enrichment", () => {
@@ -614,7 +614,7 @@ describe("DigitalCoreAdapter.fetchStats — enrichment", () => {
   })
 
   it("overrides warned with user profile value (more authoritative)", async () => {
-    // Status says not warned, profile says warned — profile wins
+    // Status says not warned, profile says warned, profile wins
     vi.spyOn(global, "fetch")
       .mockResolvedValueOnce(mockResponse(mockStatusResponse({ warned: "no" })))
       .mockResolvedValueOnce(mockResponse(mockUserProfileResponse({ warned: "yes" })))
@@ -684,7 +684,7 @@ describe("DigitalCoreAdapter.fetchStats — enrichment", () => {
 })
 
 // ---------------------------------------------------------------------------
-// DigitalCoreAdapter.fetchStats — enrichment failure fallback
+// DigitalCoreAdapter.fetchStats, enrichment failure fallback
 // ---------------------------------------------------------------------------
 
 describe("DigitalCoreAdapter.fetchStats — enrichment failure fallback", () => {
@@ -767,7 +767,7 @@ describe("DigitalCoreAdapter.fetchStats — enrichment failure fallback", () => 
 })
 
 // ---------------------------------------------------------------------------
-// DigitalCoreAdapter.fetchStats — 401 / error responses
+// DigitalCoreAdapter.fetchStats, 401 / error responses
 // ---------------------------------------------------------------------------
 
 describe("DigitalCoreAdapter.fetchStats — HTTP error handling", () => {
@@ -846,7 +846,7 @@ describe("DigitalCoreAdapter.fetchStats — HTTP error handling", () => {
 })
 
 // ---------------------------------------------------------------------------
-// parseJsonSafe — HTML/Cloudflare/invalid JSON detection
+// parseJsonSafe, HTML/Cloudflare/invalid JSON detection
 // ---------------------------------------------------------------------------
 
 describe("DigitalCoreAdapter.fetchStats — non-JSON response handling", () => {
@@ -912,7 +912,7 @@ describe("DigitalCoreAdapter.fetchStats — non-JSON response handling", () => {
 })
 
 // ---------------------------------------------------------------------------
-// DigitalCoreAdapter.fetchStats — cookie header construction
+// DigitalCoreAdapter.fetchStats, cookie header construction
 // ---------------------------------------------------------------------------
 
 describe("DigitalCoreAdapter.fetchStats — cookie header", () => {
@@ -1029,7 +1029,7 @@ describe("DigitalCoreAdapter.fetchRaw", () => {
 
 // ─── Issue #167: connectable must come from the profile endpoint ──────────
 // A live account returned connectable:0 from /api/v1/status while
-// /api/v1/users/:id returned unconnectable:0 — i.e. actually connectable.
+// /api/v1/users/:id returned unconnectable:0, i.e. actually connectable.
 // The profile endpoint wins, exactly as it already does for `warned`.
 describe("DigitalCoreAdapter — connectable (issue #167)", () => {
   const adapter = new DigitalCoreAdapter()
@@ -1112,12 +1112,9 @@ describe("DigitalCoreAdapter - proxy routing", () => {
     const { DEFAULT_USER_AGENT } = await import("@/lib/user-agent")
     const fetchSpy = vi.spyOn(global, "fetch")
 
-    const stats = await new FreshAdapter().fetchStats(
-      "https://digitalcore.club",
-      validToken,
-      "",
-      { proxyAgent: {} as never }
-    )
+    const stats = await new FreshAdapter().fetchStats("https://digitalcore.club", validToken, "", {
+      proxyAgent: {} as never,
+    })
 
     expect(stats.username).toBe("dcuser")
     expect(proxyFetch.mock.calls[0][2].headers["User-Agent"]).toBe(DEFAULT_USER_AGENT)

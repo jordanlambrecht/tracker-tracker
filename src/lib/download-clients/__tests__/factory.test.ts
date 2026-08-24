@@ -20,11 +20,7 @@ vi.mock("@/lib/download-clients/credentials", () => ({
   })),
 }))
 
-import {
-  getTransferInfo,
-  login,
-  withSessionRetry,
-} from "@/lib/download-clients/qbt/transport"
+import { getTransferInfo, login, withSessionRetry } from "@/lib/download-clients/qbt/transport"
 import { decryptClientCredentials } from "../credentials"
 import { createAdapterForClient } from "../factory"
 

@@ -332,7 +332,7 @@ describe("GazelleAdapter", () => {
 
     // Should still have core stats
     expect(stats.username).toBe("JohnDoe")
-    expect(stats.warned).toBeNull() // Default when enrichment fails — null means "unknown"
+    expect(stats.warned).toBeNull() // Default when enrichment fails; null means "unknown"
   })
 
   // A deficit account must report its actual shortfall, not 0.
@@ -348,7 +348,7 @@ describe("GazelleAdapter", () => {
   })
 
   // Gazelle reports its own buffer, signed, and the enriched value overwrites
-  // the derived one — so clamping it here would keep enriched Gazelle sites
+  // the derived one, so clamping it here would keep enriched Gazelle sites
   // reporting 0 for a deficit no matter what the shared helpers do. It is also
   // not merely uploaded - downloaded: freeleech and bonus spending break that
   // identity, which is why the tracker's own number wins.

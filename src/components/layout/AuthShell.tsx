@@ -43,7 +43,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
 
   // Scroll main content to top on route change (main is the scroll container, not window)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the trigger — we intentionally re-run on route change
+  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the trigger, so we intentionally re-run on route change
   useEffect(() => {
     mainRef.current?.scrollTo(0, 0)
   }, [pathname])

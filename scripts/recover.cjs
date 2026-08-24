@@ -4,8 +4,8 @@
 //
 // ─── WHY THIS EXISTS ────────────────────────────────────────────────────────
 //
-// Every secret in this database — tracker API tokens, download-client
-// credentials, notification configs, the TOTP secret — is encrypted with
+// Every secret in this database (tracker API tokens, download-client
+// credentials, notification configs, the TOTP secret) is encrypted with
 // scrypt(masterPassword, app_settings.encryption_salt). There is no password
 // reset in the UI, and the obvious database surgery is catastrophic:
 //
@@ -16,12 +16,12 @@
 //
 // The recovery is possible because app_settings.encrypted_scheduler_key holds
 // the current master key wrapped under a key derived from SESSION_SECRET alone
-// (HKDF-SHA256, info "tracker-tracker:scheduler-key-v1") — no password
+// (HKDF-SHA256, info "tracker-tracker:scheduler-key-v1"), with no password
 // involved. The scheduler needs it to keep polling across restarts while nobody
 // is logged in, and it is also the thing that makes a lossless reset possible.
 // This tool unwraps it, decrypts every stored secret with it, re-encrypts them
 // under scrypt(newPassword, the SAME salt), re-hashes the password, clears the
-// lockout counter, and re-wraps the new master key — all in one transaction.
+// lockout counter, and re-wraps the new master key, all in one transaction.
 //
 // ─── HOW TO RUN IT ──────────────────────────────────────────────────────────
 //
@@ -38,7 +38,7 @@
 //
 // `-it` is required for the hidden password prompt. `docker exec` does not run
 // the entrypoint, so it also does not inherit the DATABASE_URL the entrypoint
-// builds — that is rebuilt from POSTGRES_* below, exactly as src/lib/db/index.ts
+// builds. That is rebuilt from POSTGRES_* below, exactly as src/lib/db/index.ts
 // does.
 //
 // ─── WHY THIS FILE IS PLAIN COMMONJS ────────────────────────────────────────
@@ -55,7 +55,7 @@
 //   argon2    is on Next's builtin server-externals list, so the file tracer
 //             leaves it out of the bundle and emits /app/node_modules/argon2.
 //   postgres  is bundled into the server chunks and has no /app/node_modules
-//             entry at all — that is the "Cannot find module 'postgres'" that
+//             entry at all, which is the "Cannot find module 'postgres'" that
 //             broke this rescue twice. The Dockerfile copies the complete
 //             package from the deps stage into /app/node_modules/postgres for
 //             this script alone. Do NOT "fix" it by adding postgres to
@@ -64,7 +64,7 @@
 //             The comment in next.config.ts records the measurements.
 //
 // Both requires are at module scope so that `tt-recover --help` fails loudly if
-// either ever stops resolving — that is what the smoke step in
+// either ever stops resolving. That is what the smoke step in
 // .github/workflows/docker.yml asserts on every pull request.
 //
 // ─── CONSOLIDATION NOTE ─────────────────────────────────────────────────────
@@ -77,9 +77,15 @@
 
 "use strict"
 
-const { createCipheriv, createDecipheriv, hkdfSync, randomBytes, scryptSync } = require("node:crypto")
+const {
+  createCipheriv,
+  createDecipheriv,
+  hkdfSync,
+  randomBytes,
+  scryptSync,
+} = require("node:crypto")
 
-// Deliberately at module scope — see "WHY THIS FILE IS PLAIN COMMONJS" above.
+// Deliberately at module scope. See "WHY THIS FILE IS PLAIN COMMONJS" above.
 const argon2 = require("argon2")
 const postgres = require("postgres")
 
@@ -100,13 +106,13 @@ const AUTH_TAG_LENGTH = 16
 const PASSWORD_MIN = 8
 const PASSWORD_MAX = 128
 
-/** scrypt(password, salt) — the master key. Mirrors deriveKey(). */
+/** scrypt(password, salt) returns the master key. Mirrors deriveKey(). */
 function deriveKey(password, salt) {
   return scryptSync(password, salt, KEY_LENGTH, { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P })
 }
 
 /**
- * HKDF(SESSION_SECRET) — the key that wraps the master key at rest.
+ * HKDF(SESSION_SECRET) produces the key that wraps the master key at rest.
  * Mirrors deriveWrappingKey(). Reads the environment because that is the whole
  * point: this key exists without the password.
  */
@@ -155,7 +161,7 @@ function decrypt(encryptedBase64, key) {
  *
  * This is the value that makes a plain `value ? decrypt(value) : ""` guard
  * insufficient: it is TRUTHY, so it sails past that check into decrypt(), where
- * it base64-decodes to 12 bytes — under the 28-byte iv+tag floor — and throws.
+ * it base64-decodes to 12 bytes (under the 28-byte iv+tag floor) and throws.
  * Read as a decrypt failure it looks like a corrupt row; read as a sentinel
  * (correct) it survives untouched and the operator keeps the visible evidence
  * that a lockdown happened.
@@ -188,13 +194,13 @@ function isPlaintextSentinel(value) {
 /**
  * Decide the fate of one encrypted column value.
  *
- *   { status: "preserved", value }  a sentinel — never decrypted, never rewritten
+ *   { status: "preserved", value }  a sentinel, never decrypted, never rewritten
  *   { status: "rekeyed",  value }   real ciphertext, now sealed under newKey
  *   { status: "failed",   error }   already unreadable; the caller reports it by
  *                                   name and leaves the column out of the UPDATE
  *
- * A value that decrypts to "" is re-encrypted as encrypt("", newKey) — a real
- * ciphertext — and is deliberately NOT collapsed to a bare "". Collapsing it
+ * A value that decrypts to "" is re-encrypted as encrypt("", newKey) (a real
+ * ciphertext) and is deliberately NOT collapsed to a bare "". Collapsing it
  * turns a valid blank credential into a sentinel and makes the credential
  * loader throw later.
  */
@@ -214,7 +220,7 @@ function rekeyField(value, oldKey, newKey) {
  *
  * Succeeding here is cryptographic proof that SESSION_SECRET is correct: the
  * GCM auth tag would not verify otherwise. It is NOT proof that the recovered
- * key matches the data — that requires actually decrypting a stored secret,
+ * key matches the data, which requires actually decrypting a stored secret,
  * which main() does before writing anything.
  *
  * A NULL/empty wrapped value throws with code ERR_NO_SCHEDULER_KEY. Callers must
@@ -222,7 +228,9 @@ function rekeyField(value, oldKey, newKey) {
  */
 function recoverMasterKey(wrapped, wrappingKey) {
   if (wrapped === null || wrapped === undefined || wrapped === "") {
-    const err = new Error("app_settings.encrypted_scheduler_key is NULL — the master key is unrecoverable")
+    const err = new Error(
+      "app_settings.encrypted_scheduler_key is NULL, so the master key is unrecoverable"
+    )
     err.code = ERR_NO_SCHEDULER_KEY
     throw err
   }
@@ -230,7 +238,7 @@ function recoverMasterKey(wrapped, wrappingKey) {
   const key = Buffer.from(keyHex, "hex")
   if (key.length !== KEY_LENGTH) {
     throw new Error(
-      `Unwrapped scheduler key is ${key.length} bytes, expected ${KEY_LENGTH} — the stored value is corrupt`
+      `Unwrapped scheduler key is ${key.length} bytes, expected ${KEY_LENGTH}, so the stored value is corrupt`
     )
   }
   return key
@@ -257,7 +265,7 @@ const MASTER_KEY_TABLES = [
   {
     table: "trackers",
     label: "name",
-    // encrypted_credentials is NULLABLE — a tracker with no vault stores NULL,
+    // encrypted_credentials is NULLABLE, and a tracker with no vault stores NULL,
     // which isPlaintextSentinel() already preserves untouched.
     columns: ["encrypted_api_token", "encrypted_credentials"],
   },
@@ -290,7 +298,7 @@ const EXIT_NO_TTY = 4
 const out = (s) => process.stdout.write(s)
 const err = (s) => process.stderr.write(s)
 
-const HELP = `tt-recover — emergency master-password recovery for tracker-tracker
+const HELP = `tt-recover - emergency master-password recovery for tracker-tracker
 
   Resets the master password AND re-encrypts every secret in the database so
   nothing is orphaned. Requires SESSION_SECRET (already set in the container)
@@ -377,7 +385,7 @@ function buildConnectionString() {
 /**
  * Read a line from a TTY without echoing it.
  *
- * Raw mode plus public stream API only — no prompt library is resolvable inside
+ * Raw mode plus public stream API only, because no prompt library is resolvable inside
  * the standalone image, and readline's `_writeToOutput` echo suppression is a
  * private field this should not depend on during an emergency.
  *
@@ -501,7 +509,7 @@ async function main() {
         "  It is the only thing that can unwrap the master key, so recovery cannot\n" +
         "  even begin without it. Inside the app container it comes from your\n" +
         "  compose file. It must be byte-identical to the value the instance has\n" +
-        "  been running with — if it was rotated, the wrapped key is already lost.\n\n" +
+        "  been running with. If it was rotated, the wrapped key is already lost.\n\n" +
         "  Nothing was changed.\n"
     )
     return EXIT_UNRECOVERABLE
@@ -587,7 +595,9 @@ async function main() {
             proven++
             readable.add(`${spec.table}:${row.id}:${col}`)
           } catch (e) {
-            failures.push(`${spec.table} #${row.id} (${row[spec.label] ?? "unnamed"}) .${col}: ${e.message}`)
+            failures.push(
+              `${spec.table} #${row.id} (${row[spec.label] ?? "unnamed"}) .${col}: ${e.message}`
+            )
           }
         }
       }
@@ -612,7 +622,7 @@ async function main() {
     if (candidates > 0 && proven === 0) {
       err(
         `\nABORT: the recovered key did not decrypt a single one of the ${candidates} stored secret(s).\n\n` +
-          "  The key unwrapped cleanly, so SESSION_SECRET is correct — but the key it\n" +
+          "  The key unwrapped cleanly, so SESSION_SECRET is correct, but the key it\n" +
           "  yields does not match the data. That happens when the wrapped key is stale\n" +
           "  relative to the ciphertext (an interrupted password change, or a restore\n" +
           "  that mixed a dump with a different instance's settings row).\n\n" +
@@ -624,18 +634,20 @@ async function main() {
 
     if (candidates === 0) {
       out(
-        "[ok] No stored secrets found to verify against — this instance has no trackers,\n" +
+        "[ok] No stored secrets found to verify against. This instance has no trackers,\n" +
           "     clients or notification targets configured yet. Nothing can be orphaned,\n" +
           "     so the reset is safe to proceed.\n"
       )
     } else {
-      out(`[ok] Proved the key against real data: ${proven} of ${candidates} stored secret(s) decrypted.\n`)
+      out(
+        `[ok] Proved the key against real data: ${proven} of ${candidates} stored secret(s) decrypted.\n`
+      )
     }
     out(`[ok] ${preserved} empty/sentinel value(s) will be preserved byte-identically.\n`)
 
     if (failures.length > 0) {
       out(`\n[!!] ${failures.length} value(s) could NOT be decrypted. They are already\n`)
-      out("     unreadable and will be LEFT EXACTLY AS THEY ARE — not cleared, not\n")
+      out("     unreadable and will be LEFT EXACTLY AS THEY ARE, not cleared, not\n")
       out("     re-keyed. Re-enter them in the app after you log back in:\n")
       for (const f of failures) out(`       - ${f}\n`)
     }
@@ -650,20 +662,20 @@ async function main() {
 
     // A username is a second credential the login form demands, and this tool
     // does not reset it. Resetting the password while the username is forgotten
-    // leaves the operator locked out just as hard, so say what it is here —
-    // nothing else in the image will tell them.
+    // leaves the operator locked out just as hard, so say what it is here.
+    // Nothing else in the image will tell them.
     if (settings.username) {
       out(
         `\n[!!] This instance also requires a USERNAME to log in: "${settings.username}"\n` +
           "     The reset does not change it. You will need both.\n"
       )
     } else {
-      out("\n[ok] No username is set — log in with the password alone.\n")
+      out("\n[ok] No username is set. Log in with the password alone.\n")
     }
 
     if (args.check) {
       out(
-        "\nCHECK ONLY — nothing was read into a password prompt and nothing was written.\n" +
+        "\nCHECK ONLY. Nothing was read into a password prompt and nothing was written.\n" +
           "Recovery IS possible. Re-run without --check for a dry run.\n\n"
       )
       return EXIT_OK
@@ -672,11 +684,13 @@ async function main() {
     // 3. Now, and only now, ask for the new password.
     const newPassword = await getNewPassword(args)
     if (newPassword.length < PASSWORD_MIN || newPassword.length > PASSWORD_MAX) {
-      err(`\nABORT: password must be between ${PASSWORD_MIN} and ${PASSWORD_MAX} characters. Nothing was changed.\n`)
+      err(
+        `\nABORT: password must be between ${PASSWORD_MIN} and ${PASSWORD_MAX} characters. Nothing was changed.\n`
+      )
       return EXIT_USAGE
     }
 
-    // encryption_salt is REUSED, never regenerated — regenerating it would make
+    // encryption_salt is REUSED, never regenerated, because regenerating it would make
     // the old ciphertext unreachable from any password at all.
     const newKey = deriveKey(newPassword, settings.encryption_salt)
 
@@ -719,7 +733,7 @@ async function main() {
 
     if (!args.apply) {
       out(
-        "\nDRY RUN — nothing was written.\n\n" +
+        "\nDRY RUN. Nothing was written.\n\n" +
           "  Take a dump first if you have not:\n" +
           "    docker exec tracker-tracker-db sh -c 'pg_dump -U \"$POSTGRES_USER\" tracker_tracker' > backup.sql\n\n" +
           "  Then commit:\n" +
@@ -755,7 +769,7 @@ async function main() {
       "\n[ok] COMMITTED.\n\n" +
         "  The master password is reset and every readable secret is re-encrypted\n" +
         "  under it. The lockout counter is cleared, so you can log in immediately.\n" +
-        (args.disableTotp ? "  TOTP is disabled — set it up again from Settings.\n" : "") +
+        (args.disableTotp ? "  TOTP is disabled. Set it up again from Settings.\n" : "") +
         "\n  Restart the app so the scheduler reloads the re-wrapped key:\n" +
         "    docker compose restart tracker-tracker-app\n" +
         // Sessions are stateless JWEs carrying the OLD master key, and they are
@@ -763,7 +777,7 @@ async function main() {
         // A restart does not invalidate them and proxy.ts refreshes them on every
         // request, so an already-signed-in browser keeps decrypting with a key
         // that no longer exists anywhere. Anything it writes afterwards is
-        // encrypted under that dead key and is unrecoverable — the exact failure
+        // encrypted under that dead key and is unrecoverable, the exact failure
         // this tool exists to prevent. Nothing can revoke a stateless token from
         // here, so the warning IS the mitigation.
         "\n[!!] SIGN OUT EVERYWHERE ELSE BEFORE ENTERING ANY NEW SECRETS.\n" +

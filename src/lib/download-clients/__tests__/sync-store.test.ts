@@ -213,7 +213,7 @@ describe("sync-store", () => {
       torrents: { abc123: makeTorrent("abc123") },
     })
 
-    // Empty delta — nothing changed
+    // Empty delta, nothing changed
     applyMaindataUpdate(BASE_URL, { rid: 2 })
 
     expect(getStoredTorrents(BASE_URL)).toHaveLength(1)
@@ -266,10 +266,10 @@ describe("sync-store", () => {
         torrents: { abc123: makeTorrent("abc123") },
       })
 
-      // Immediately after update — within 5 min
+      // Immediately after update, within 5 min
       expect(isStoreFresh(BASE_URL, 5 * 60 * 1000)).toBe(true)
 
-      // Advance 6 minutes — exceeds 5 min max age
+      // Advance 6 minutes, exceeds 5 min max age
       vi.advanceTimersByTime(6 * 60 * 1000)
       expect(isStoreFresh(BASE_URL, 5 * 60 * 1000)).toBe(false)
 

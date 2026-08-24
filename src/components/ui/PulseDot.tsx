@@ -7,14 +7,7 @@ import clsx from "clsx"
 // distinguishes states by their accessible label, not by giving every member
 // its own color.
 type PulseDotStatus =
-  | "healthy"
-  | "warning"
-  | "no-seeds"
-  | "critical"
-  | "error"
-  | "paused"
-  | "paused-user"
-  | "offline"
+  "healthy" | "warning" | "no-seeds" | "critical" | "error" | "paused" | "paused-user" | "offline"
 type PulseDotSize = "sm" | "md"
 
 interface PulseDotProps {

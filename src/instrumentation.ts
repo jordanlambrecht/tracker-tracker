@@ -22,12 +22,12 @@ export async function register() {
   try {
     const key = await loadSchedulerKey()
     if (!key) {
-      log.info("No persisted scheduler key — polling will start after first login")
+      log.info("No persisted scheduler key, polling will start after first login")
       return
     }
     startScheduler(key)
     log.info("Scheduler restored from persisted key on boot")
   } catch (err) {
-    log.warn({ err }, "Boot-time scheduler recovery failed — will start after next login")
+    log.warn({ err }, "Boot-time scheduler recovery failed, will start after next login")
   }
 }

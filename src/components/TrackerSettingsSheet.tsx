@@ -181,11 +181,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
       if (!editTlUsername.trim() || !editTlPassword) {
         validationErrors.apiToken = "Username and password are required"
       }
-    } else if (
-      changingKey &&
-      tracker.platformType !== "avistaz" &&
-      !newApiToken.trim()
-    ) {
+    } else if (changingKey && tracker.platformType !== "avistaz" && !newApiToken.trim()) {
       validationErrors.apiToken = "API token cannot be empty"
     }
 
@@ -257,7 +253,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
           return
         }
       } catch {
-        setErrors({ apiToken: "Could not verify API key — check your connection" })
+        setErrors({ apiToken: "Could not verify API key. Check your connection" })
         setSaving(false)
         return
       }
@@ -303,7 +299,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
       onUpdated(updated)
       onClose()
     } catch {
-      setErrors({ form: "Network error — please try again" })
+      setErrors({ form: "Network error. Please try again" })
       setSaving(false)
     }
   }
@@ -663,9 +659,11 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
               style={{ colorScheme: "dark" }}
             />
             <p className="text-xs font-sans text-muted mt-1">
-              {tracker.lastAccessAt ? `Currently recorded: ${tracker.lastAccessAt}` : "Not recorded yet."}
+              {tracker.lastAccessAt
+                ? `Currently recorded: ${tracker.lastAccessAt}`
+                : "Not recorded yet."}
               {!hasLoginPolicy &&
-                " This tracker has no login-interval policy, so no dashboard timer will appear — this is for your own records."}
+                " This tracker has no login-interval policy, so no dashboard timer will appear. This is for your own records."}
             </p>
           </div>
 

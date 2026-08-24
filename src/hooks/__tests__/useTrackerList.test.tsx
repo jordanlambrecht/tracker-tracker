@@ -306,7 +306,7 @@ describe("useTrackerList", () => {
       { wrapper: Wrapper }
     )
 
-    // Wait for the data to actually load — only once trackers has arrived
+    // Wait for the data to actually load, only once trackers has arrived
     // has the auto-detect effect had a chance to run and (wrongly) fire.
     await waitFor(() => expect(result.current.trackers).toHaveLength(1))
 
@@ -324,7 +324,7 @@ describe("useTrackerList", () => {
       { wrapper: Wrapper }
     )
 
-    // Wait for the data to actually load — only once trackers has arrived
+    // Wait for the data to actually load, only once trackers has arrived
     // has the auto-detect effect had a chance to run and (wrongly) fire.
     await waitFor(() => expect(result.current.trackers).toHaveLength(1))
 
@@ -432,7 +432,7 @@ describe("sortTrackers", () => {
       ]
       const result = sortTrackers(withMissing, "stat", "ratio")
       // A tracker with no value must sort after a real value that is even
-      // negative — it must never be treated as though its value were 0.
+      // negative, it must never be treated as though its value were 0.
       expect(result.map((x) => x.name)).toEqual(["Positive", "Negative", "NullStats", "NullRatio"])
     })
 
@@ -453,7 +453,7 @@ describe("sortTrackers", () => {
     // An infinite ratio crosses the wire as `ratio: null` plus the flag, because
     // JSON cannot carry Infinity (tracker-serializer.ts). Reading `ratio` alone
     // dropped it into the "missing" bucket, ranking the best possible account
-    // below one at 0.01. Fixtures use the real wire shape deliberately — the
+    // below one at 0.01. Fixtures use the real wire shape deliberately, the
     // serializer never emits `ratio: Infinity`, so testing that would prove
     // nothing about production data.
     it("sorts an infinite ratio first, above every finite ratio", () => {

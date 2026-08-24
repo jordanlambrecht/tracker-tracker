@@ -197,7 +197,7 @@ export async function GET(_request: Request, props: RouteContext) {
     if (tracker.avatarData) {
       log.warn(
         { route: "GET /api/trackers/[id]/avatar", trackerId },
-        "avatar fetch failed — serving stale cache"
+        "avatar fetch failed: serving stale cache"
       )
       const data = Buffer.from(tracker.avatarData, "base64")
       return new NextResponse(new Uint8Array(data), {
@@ -209,7 +209,7 @@ export async function GET(_request: Request, props: RouteContext) {
     }
     log.error(
       { route: "GET /api/trackers/[id]/avatar", trackerId },
-      "avatar fetch failed — no cache available"
+      "avatar fetch failed: no cache available"
     )
     return NextResponse.json({ error: "Failed to fetch avatar" }, { status: 502 })
   }

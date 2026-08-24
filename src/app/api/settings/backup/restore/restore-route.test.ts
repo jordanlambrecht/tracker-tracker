@@ -1,12 +1,12 @@
 // src/app/api/settings/backup/restore/restore-route.test.ts
 //
-// Exercises the body of POST /api/settings/backup/restore — the credential
+// Exercises the body of POST /api/settings/backup/restore, the credential
 // re-encryption paths that decide whether a restored instance can still talk to
 // its trackers and download clients.
 //
 // Crypto is deliberately NOT mocked: the whole point is the key-derivation
 // round trip (deriveKey -> encrypt -> reencrypt -> decrypt). @/lib/backup is
-// also real, so the fixtures below must survive validateBackupJson — that is
+// also real, so the fixtures below must survive validateBackupJson, that is
 // what stops a fixture from silently omitting a field the route reads.
 
 import { NextResponse } from "next/server"
@@ -75,8 +75,8 @@ vi.mock("@/lib/scheduler", () => ({
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
-const SALT_A = "a1b2c3d4".repeat(8) // 64 hex chars — the backup's salt
-const SALT_B = "f0e1d2c3".repeat(8) // 64 hex chars — a re-setup instance's salt
+const SALT_A = "a1b2c3d4".repeat(8) // 64 hex chars, the backup's salt
+const SALT_B = "f0e1d2c3".repeat(8) // 64 hex chars, a re-setup instance's salt
 
 const PASSWORD = "correct-horse-battery"
 const OTHER_PASSWORD = "a-completely-different-master-pw"
@@ -407,7 +407,7 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     )
   })
 
-  // ─── 1. Cross-salt round trip — the disaster-recovery path ───────────────────
+  // ─── 1. Cross-salt round trip: the disaster-recovery path ────────────────────
 
   it("re-encrypts every credential under the current salt when the salts differ", async () => {
     const backupKey = await deriveKey(PASSWORD, SALT_A)
@@ -503,12 +503,12 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     expect(client.encryptedPassword).toBe("")
     // The download client at least gets disabled and flagged.
     expect(client.enabled).toBe(false)
-    expect(client.lastError).toBe("Credentials cleared during restore — re-enter and re-enable")
+    expect(client.lastError).toBe("Credentials cleared during restore. Re-enter and re-enable")
 
     const target = onlyInsert(recorder, "notification_targets")
     expect(target.encryptedConfig).toBe("")
     expect(target.enabled).toBe(false)
-    expect(target.lastDeliveryError).toBe("Config cleared during restore — re-enter and re-enable")
+    expect(target.lastDeliveryError).toBe("Config cleared during restore. Re-enter and re-enable")
 
     const settings = recorder.settingsUpdate
     expect(settings?.encryptedProxyPassword).toBeNull()
@@ -557,14 +557,14 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
 
   it("clears stale credentials when the salt matches but the backup predates a password change", async () => {
     // Regression test. `POST /api/auth/change-password` re-encrypts every field under a
-    // NEW key while REUSING the existing encryptionSalt (change-password/route.ts:72) —
+    // NEW key while REUSING the existing encryptionSalt (change-password/route.ts:72),
     // the salt only rotates on nuke/setup/lockdown. So a backup taken before a password
     // change carries a MATCHING salt and OLD-key ciphertext.
     //
     // This used to take the pass-through branch on `sameSalt` alone: the route copied the
     // old-key ciphertext into the DB verbatim, left the client enabled, logged nothing and
     // reported `tokensPreserved: 1`. Every restored credential was undecryptable. The probe
-    // in route.ts (see the `canPassThrough` comment) is what stops that — do not remove it.
+    // in route.ts (see the `canPassThrough` comment) is what stops that. Do not remove it.
     const oldKey = await deriveKey(OTHER_PASSWORD, SALT_A)
     const payload = makeBackupPayload(SALT_A, encryptAll(oldKey))
     mockCurrentSettings({ encryptionSalt: SALT_A })
@@ -582,12 +582,12 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     expect(client.encryptedUsername).toBe("")
     expect(client.encryptedPassword).toBe("")
     expect(client.enabled).toBe(false)
-    expect(client.lastError).toBe("Credentials cleared during restore — re-enter and re-enable")
+    expect(client.lastError).toBe("Credentials cleared during restore. Re-enter and re-enable")
 
     // The mismatch is announced once, at the decision point.
     expect(log.warn).toHaveBeenCalledWith(
       { event: "restore_stale_ciphertext" },
-      "Backup predates a master password change — credentials that cannot be re-encrypted will be cleared"
+      "Backup predates a master password change, so credentials that cannot be re-encrypted will be cleared"
     )
 
     const body = await res.json()
@@ -598,7 +598,7 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
   })
 
   it("still passes ciphertext through when the salts match and the key opens the backup", async () => {
-    // The probe must not cost the healthy same-salt case anything — covered byte-for-byte
+    // The probe must not cost the healthy same-salt case anything, covered byte-for-byte
     // by the pass-through test above; this pins that a readable backup is left alone.
     const key = await deriveKey(PASSWORD, SALT_A)
     const payload = makeBackupPayload(SALT_A, encryptAll(key))
@@ -682,8 +682,8 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     expect(res.status).toBe(200)
 
     // The route used to stop polling and never restart it on the success path, leaving
-    // the endpoint dependent on a browser loading an authenticated page — (auth)/layout.tsx
-    // calls ensureSchedulerRunning on every one — to revive it.
+    // the endpoint dependent on a browser loading an authenticated page, (auth)/layout.tsx
+    // calls ensureSchedulerRunning on every one, to revive it.
     expect(stopScheduler).toHaveBeenCalledTimes(1)
     expect(ensureSchedulerRunning).toHaveBeenCalledWith("ab".repeat(32))
 
@@ -734,7 +734,7 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
 
     // trackerDailyCheckpoints and torrentDailyCheckpoints are absent here, but
     // both cascade off trackers/downloadClients (schema.ts:400,420) and neither
-    // is in BackupPayload — so restore destroys them with nothing to restore from.
+    // is in BackupPayload, so restore destroys them with nothing to restore from.
     expect(recorder.deletes.map((t) => (t as { __table: string }).__table)).toEqual([
       "dismissed_alerts",
       // app_coverage_gaps is wiped and restored; app_liveness is deliberately
@@ -950,7 +950,7 @@ describe("POST /api/settings/backup/restore — retention prompt state", () => {
     const res = await POST(makeRequest(payload, PASSWORD))
     expect(res.status).toBe(200)
 
-    // Restored alongside the policy it belongs to — otherwise the prompt fires again
+    // Restored alongside the policy it belongs to, otherwise the prompt fires again
     // and the user's answer overwrites the retention value just restored.
     expect(recorder.settingsUpdate?.retentionPromptedAt).toEqual(new Date(ISO))
   })
@@ -958,7 +958,7 @@ describe("POST /api/settings/backup/restore — retention prompt state", () => {
   it("leaves it null for a backup taken before the column existed", async () => {
     const backupKey = await deriveKey(PASSWORD, SALT_A)
     const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
-    // No retentionPromptedAt at all — an older backup.
+    // No retentionPromptedAt at all, an older backup.
     mockCurrentSettings({ encryptionSalt: SALT_B })
 
     const res = await POST(makeRequest(payload, PASSWORD))

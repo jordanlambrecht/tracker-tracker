@@ -7,14 +7,14 @@ description: Generate tamper-resistant proof-of-membership images for private tr
 
 !!! danger "This feature is currently unreleased"
 
-!!! warning "Beta — Highly Experimental"
+!!! warning "Beta: highly experimental"
     Transit Papers are under active development. The report format, encoding scheme, and verification behavior may change between versions. Reports generated with one version are not guaranteed to verify correctly with a future version. Use at your own risk.
 
-Transit Papers generate tamper-resistant PNG images of your tracker stats to share with moderators when applying to new trackers. Unlike a screenshot (faked in 30 seconds), they use server-side rendering with cryptographically linked elements — edit any part and the links break. The verification tool catches tampering. These reports are **Proofs of Citizenship**.
+Transit Papers generate tamper-resistant PNG images of your tracker stats to share with moderators when applying to new trackers. Unlike a screenshot (faked in 30 seconds), they use server-side rendering with cryptographically linked elements. Edit any part and the links break. The verification tool catches tampering. These reports are **Proofs of Citizenship**.
 
 !!! warning "What Transit Papers are NOT"
 
-    They're **not cryptographic proof** your stats are real. Self-hosted means you control the machine, database, and network. A determined attacker could fake data before generation. But this system makes forgery impractical — faking a screenshot takes 30 seconds; faking a Transit Paper means cloning the project, setting up a database, fabricating internally consistent stats across 10+ math-linked fields, and matching the exact API schema of your target tracker. Much harder. Transit Papers help mods decide — they don't replace human judgment. Direct tracker profile access is always more trustworthy.
+    They're **not cryptographic proof** your stats are real. Self-hosted means you control the machine, database, and network. A determined attacker could fake data before generation. But this system makes forgery impractical. Faking a screenshot takes 30 seconds; faking a Transit Paper means cloning the project, setting up a database, fabricating internally consistent stats across 10+ math-linked fields, and matching the exact API schema of your target tracker. Much harder. Transit Papers help mods decide, but they don't replace human judgment. Direct tracker profile access is always more trustworthy.
 
 ---
 
@@ -22,13 +22,13 @@ Transit Papers generate tamper-resistant PNG images of your tracker stats to sha
 
 Go to a tracker's detail page and generate a report. Tracker Tracker renders your most recent snapshot server-side and returns a 1200x630 PNG with:
 
-- **Tracker name and platform** — which tracker and its software
-- **Your identity** — username, class/rank, join date (when available)
-- **Your stats** — upload, download, ratio, buffer, seeding count, seedbonus, hit & runs (what's available varies by platform)
-- **Fractal Seal** — a unique fractal derived from your stats. Different stats = different fractal. Serves as the encryption key for the data strip.
-- **Spirograph** — a decorative hypotrochoid pattern from the generation timestamp
-- **Data Strip** — a colored barcode near the bottom. Stats are serialized, encrypted with the fractal key, and encoded as colored bands.
-- **Footer** — generation timestamp, report version, and full SHA-256 seed hash
+- **Tracker name and platform**: which tracker and its software
+- **Your identity**: username, class/rank, join date (when available)
+- **Your stats**: upload, download, ratio, buffer, seeding count, seedbonus, hit & runs (what's available varies by platform)
+- **Fractal Seal**: a unique fractal derived from your stats. Different stats = different fractal. Serves as the encryption key for the data strip.
+- **Spirograph**: a decorative hypotrochoid pattern from the generation timestamp
+- **Data Strip**: a colored barcode near the bottom. Stats are serialized, encrypted with the fractal key, and encoded as colored bands.
+- **Footer**: generation timestamp, report version, and full SHA-256 seed hash
 
 ---
 
@@ -77,7 +77,7 @@ The data strip and fractal seal are verified at the pixel level. Lossy compressi
 
 ### Lossy (may degrade verification)
 
-- ImgBB (can recompress large PNGs — test your results)
+- ImgBB (can recompress large PNGs, so test your results)
 - Discord embedded preview (proxied and resized by Discord's CDN)
 - iMessage / SMS
 - Twitter / X
@@ -118,10 +118,10 @@ The verification tool is a standalone static page, completely separate from Trac
 
 ### Verification results
 
-**Verified — Seal + Data Match**
+**Verified: seal + data match**
 : Stats in the strip match the fractal. No tampering after generation. Best result.
 
-**Data Decoded — Seal Mismatch**
+**Data decoded: seal mismatch**
 : Strip decoded but fractal doesn't match. The image was edited after generation or compressed heavily. Ask for the original.
 
 **Decode Failed**
@@ -129,7 +129,7 @@ The verification tool is a standalone static page, completely separate from Trac
 
 !!! info "What verification does NOT tell you"
 
-    It confirms internal consistency and no tampering after generation. It doesn't confirm the stats are real — the user controls their instance. Use it as one input with your own judgment.
+    It confirms internal consistency and no tampering after generation. It doesn't confirm the stats are real, because the user controls their instance. Use it as one input with your own judgment.
 
 ---
 
@@ -140,7 +140,7 @@ The verification tool is a standalone static page, completely separate from Trac
 3. The fingerprint determines the fractal. Different stats = different fractal.
 4. The fractal derives an encryption key.
 5. Stats encrypt with that key, scramble, and encode into the data strip's colored bands.
-6. Fractal and strip are linked — change one and the other breaks.
+6. Fractal and strip are linked, so change one and the other breaks.
 7. A verifier uploads the image. The system extracts the fractal, derives the decryption key, decrypts the strip, recovers the stats, regenerates the fractal from those stats, and compares it to the image.
 
 ---
@@ -149,32 +149,32 @@ The verification tool is a standalone static page, completely separate from Trac
 
 ### What Transit Papers defend against
 
-| Attack                              | Defense                                                                                    |
-| ----------------------------------- | ------------------------------------------------------------------------------------------ |
-| Inspect element / edit browser page | No DOM — the report is a flat PNG rendered server-side                                     |
-| Edit stats text in Photoshop        | Data strip still contains original values — decoded stats will not match visible text      |
-| Edit the data strip colors          | Checksum fails — decode is rejected                                                        |
-| Replace the fractal seal            | Strip becomes undecryptable — wrong key                                                    |
-| Edit both strip and fractal         | New fractal's key will not match the encryption used on the original strip                 |
-| Screenshot and re-share             | Fuzzy recovery tolerates minor compression — perceptual hashing corrects small differences |
+| Attack                              | Defense                                                                                   |
+| ----------------------------------- | ----------------------------------------------------------------------------------------- |
+| Inspect element / edit browser page | No DOM, the report is a flat PNG rendered server-side                                     |
+| Edit stats text in Photoshop        | Data strip still contains original values, so decoded stats will not match visible text   |
+| Edit the data strip colors          | Checksum fails, decode is rejected                                                        |
+| Replace the fractal seal            | Strip becomes undecryptable, wrong key                                                    |
+| Edit both strip and fractal         | New fractal's key will not match the encryption used on the original strip                |
+| Screenshot and re-share             | Fuzzy recovery tolerates minor compression, perceptual hashing corrects small differences |
 
 ### What Transit Papers do NOT defend against
 
-| Attack                                                               | Why                                     | Mitigation                                                                                |
-| -------------------------------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------- |
-| User modifies their database before generation                       | Self-hosted — user controls the machine | Faker must fabricate internally consistent stats across 10+ mathematically related fields |
-| User intercepts/modifies API response before it reaches the renderer | User controls the network stack         | Faker must produce plausible data matching the exact API schema of the target platform    |
-| User modifies the source code                                        | Open source — code is public            | Faker must reproduce pixel-perfect output from the full rendering pipeline                |
+| Attack                                                               | Why                                    | Mitigation                                                                                |
+| -------------------------------------------------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------- |
+| User modifies their database before generation                       | Self-hosted, user controls the machine | Faker must fabricate internally consistent stats across 10+ mathematically related fields |
+| User intercepts/modifies API response before it reaches the renderer | User controls the network stack        | Faker must produce plausible data matching the exact API schema of the target platform    |
+| User modifies the source code                                        | Open source, code is public            | Faker must reproduce pixel-perfect output from the full rendering pipeline                |
 
 !!! note "Honest positioning"
 
-    This makes forgery impractical, not impossible. A skilled attacker with instance control could theoretically fake a report. The real threat — someone bluffing their way into a tracker invite — is effectively blocked.
+    This makes forgery impractical, not impossible. A skilled attacker with instance control could theoretically fake a report. The real threat, someone bluffing their way into a tracker invite, is effectively blocked.
 
 ---
 
 ## Privacy Considerations
 
-- Reports contain your username, tracker name, platform, and stats — once shared, you can't control distribution.
+- Reports contain your username, tracker name, platform, and stats. Once shared, you can't control distribution.
 - Image host URLs are unguessable but publicly accessible with the link.
 - ImgBB supports auto-deletion if you want.
 - Verification runs in-browser only with no uploads or data transmission.

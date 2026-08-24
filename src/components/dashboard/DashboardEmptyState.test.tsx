@@ -3,7 +3,7 @@
 // The sidebar's "+ Add Tracker" keeps its dialog state local and the two components are
 // siblings under AuthShell, so this empty state has to own its own dialog. The wiring worth
 // pinning is what happens after a tracker is created: the dialog closes, the dashboard
-// refetches, and we navigate to the new tracker — the same three steps the sidebar does.
+// refetches, and we navigate to the new tracker, the same three steps the sidebar does.
 
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
@@ -15,13 +15,7 @@ vi.mock("next/navigation", () => ({
 }))
 
 vi.mock("@/components/AddTrackerDialog", () => ({
-  AddTrackerDialog: ({
-    open,
-    onAdded,
-  }: {
-    open: boolean
-    onAdded: (trackerId: number) => void
-  }) =>
+  AddTrackerDialog: ({ open, onAdded }: { open: boolean; onAdded: (trackerId: number) => void }) =>
     open ? (
       <div data-testid="add-tracker-dialog">
         <button type="button" onClick={() => onAdded(7)}>

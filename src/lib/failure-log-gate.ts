@@ -5,14 +5,14 @@
 // change in the raw cause, a periodic reminder, and recovery. Steady-state
 // repetition emits nothing.
 //
-// A permanently unreachable client would otherwise write ~840 lines/hour — the
+// A permanently unreachable client would otherwise write ~840 lines/hour, the
 // 5s heartbeat and the 30s deep poll both log every attempt. Downgrading the
 // severity of repeats does not help: logger.ts pins the file stream (the one
 // the events tab reads) to "debug", so a downgraded line still lands there.
 //
 // State lives on globalThis to survive HMR reloads in development. The raw
-// cause exists only in memory — downloadClients.lastError stores the lossy
-// sanitized message — so gate state cannot be reconstructed from the row.
+// cause exists only in memory, downloadClients.lastError stores the lossy
+// sanitized message, so gate state cannot be reconstructed from the row.
 //
 // Fully synchronous by design: heartbeatAllClients and deepPollAllClients run
 // their clients under Promise.allSettled, so any await between reading and
@@ -64,7 +64,7 @@ const g = globalThis as typeof globalThis & { __failureLogGate?: Gate }
 
 // Lazy accessor, not an unconditional module-scope assignment: the latter would
 // re-run on every webpack hot reload and wipe the gate, so the next heartbeat
-// would emit a fresh ERROR for every client that is down — the exact flooding
+// would emit a fresh ERROR for every client that is down, the exact flooding
 // this module exists to prevent, reintroduced through the back door.
 function getGate(): Gate {
   if (!g.__failureLogGate) {
@@ -160,8 +160,8 @@ export function noteFailure(
 }
 
 /**
- * Record a successful attempt. Returns outage stats if one was in progress —
- * the caller logs the recovery — or null if the client was already healthy.
+ * Record a successful attempt. Returns outage stats if one was in progress,
+ * the caller logs the recovery, or null if the client was already healthy.
  *
  * Deleting the entry here is the primary GC path: a healthy client holds no
  * gate state at all.

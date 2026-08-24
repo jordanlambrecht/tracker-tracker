@@ -194,12 +194,11 @@ describe("TorrentleechAdapter.fetchStats", () => {
     await adapter.fetchStats("https://www.torrentleech.org", token, "")
     await adapter.fetchStats("https://www.torrentleech.org", token, "")
 
-    // 3 calls total: one login + two profile fetches — not two logins.
+    // 3 calls total: one login + two profile fetches, not two logins.
     expect(fetchSpy).toHaveBeenCalledTimes(3)
     const loginCalls = fetchSpy.mock.calls.filter(([url]) =>
       String(url).includes("/user/account/login/")
     )
     expect(loginCalls).toHaveLength(1)
   })
-
 })

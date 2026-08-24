@@ -522,7 +522,7 @@ describe("computeAlerts", () => {
     )
     const tracker = makeTracker({
       id: 1,
-      name: "My Custom Name", // user renamed — should still match via baseUrl
+      name: "My Custom Name", // user renamed, should still match via baseUrl
       baseUrl: "https://aither.cc",
       lastError: null,
       latestStats: {

@@ -37,8 +37,7 @@ const LIVE_RESPONSE = {
   message: "Profile retrieved successfully.",
 }
 
-const okResponse = (body: unknown) =>
-  ({ ok: true, json: async () => body }) as Response
+const okResponse = (body: unknown) => ({ ok: true, json: async () => body }) as Response
 
 describe("HawkeAdapter", () => {
   const adapter = new HawkeAdapter()
@@ -98,7 +97,7 @@ describe("HawkeAdapter", () => {
     expect(stats.freeleechTokens).toBeNull()
     // `warnings` is a count, so the boolean stays unknown.
     expect(stats.warned).toBeNull()
-    // There is no avatar field in the response — nothing should be invented.
+    // There is no avatar field in the response, nothing should be invented.
     expect(stats.avatarUrl).toBeUndefined()
   })
 
@@ -255,9 +254,9 @@ describe("HawkeAdapter - auth and security", () => {
       new DOMException("signal timed out", "TimeoutError")
     )
 
-    await expect(
-      adapter.fetchStats("https://hawke.uno", "token", "/api/profile")
-    ).rejects.toThrow("Request to hawke.uno timed out")
+    await expect(adapter.fetchStats("https://hawke.uno", "token", "/api/profile")).rejects.toThrow(
+      "Request to hawke.uno timed out"
+    )
   })
 })
 

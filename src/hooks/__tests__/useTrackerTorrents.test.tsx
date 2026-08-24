@@ -91,7 +91,10 @@ function mockFetch(options: {
 }) {
   const fetchMock = vi.fn((url: string) => {
     if (url.includes("/cached")) {
-      return Promise.resolve({ ok: true, json: () => Promise.resolve(options.cached ?? makeResponse()) })
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(options.cached ?? makeResponse()),
+      })
     }
     if (url.includes("active=true")) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(makeResponse()) })
@@ -108,10 +111,9 @@ function mockFetch(options: {
 }
 
 function renderTracker(qbtTag: string | null = null) {
-  return renderHook(
-    () => useTrackerTorrents({ trackerId: 1, qbtTag, isActive: false }),
-    { wrapper: createWrapper() }
-  )
+  return renderHook(() => useTrackerTorrents({ trackerId: 1, qbtTag, isActive: false }), {
+    wrapper: createWrapper(),
+  })
 }
 
 beforeEach(() => {

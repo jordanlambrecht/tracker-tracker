@@ -208,7 +208,7 @@ async function heartbeatClient(
             distinctCauses: verdict.distinctCauses,
             downForMs,
           },
-          `Heartbeat still failing for client ${client.id} (${client.name}) — down ${Math.round(downForMs / 60_000)}m, ${verdict.failures} failed attempts, ${verdict.suppressed} log lines suppressed: ${message}`
+          `Heartbeat still failing for client ${client.id} (${client.name}), down ${Math.round(downForMs / 60_000)}m, ${verdict.failures} failed attempts, ${verdict.suppressed} log lines suppressed: ${message}`
         )
         break
       }
@@ -289,7 +289,7 @@ export async function deepPollClient(
     if (verdict.kind !== "silent") {
       log.warn(
         { clientId, clientName: client.name, authMethod: client.authMethod },
-        `Deep poll skipped for client ${clientId} (${client.name}): stored credentials are empty — re-enter them for this client`
+        `Deep poll skipped for client ${clientId} (${client.name}): stored credentials are empty, so re-enter them for this client`
       )
     }
     return
@@ -516,7 +516,7 @@ export async function deepPollClient(
             distinctCauses: verdict.distinctCauses,
             downForMs,
           },
-          `Deep poll still failing for client ${clientId} (${client?.name ?? "unknown"}) — down ${Math.round(downForMs / 60_000)}m, ${verdict.failures} failed attempts, ${verdict.suppressed} log lines suppressed: ${message}`
+          `Deep poll still failing for client ${clientId} (${client?.name ?? "unknown"}), down ${Math.round(downForMs / 60_000)}m, ${verdict.failures} failed attempts, ${verdict.suppressed} log lines suppressed: ${message}`
         )
         break
       }

@@ -3,7 +3,7 @@
 // The tracker connectability ledger is the only thing standing between "this
 // tracker was unreachable here" and a fabricated band, so every write path is
 // pinned: when a failure opens a new outage, when it extends the current one,
-// and the two places the distinction can go wrong — a configurable poll interval
+// and the two places the distinction can go wrong, a configurable poll interval
 // and a clock that jumps backwards.
 //
 // The load-bearing negative is pinned too: recording is FAILURE-ONLY. Nothing
@@ -109,8 +109,7 @@ function seed(data: Partial<SeedData> = {}) {
 
   vi.mocked(db.insert).mockImplementation(((table: unknown) => chain(table, undefined)) as never)
   vi.mocked(db.update).mockImplementation(((table: unknown) => chain(table, undefined)) as never)
-  vi.mocked(db.delete).mockImplementation(((table: unknown) =>
-    chain(table, full.deleted)) as never)
+  vi.mocked(db.delete).mockImplementation(((table: unknown) => chain(table, full.deleted)) as never)
 
   return full
 }
@@ -132,7 +131,7 @@ function updatedValues(): Record<string, unknown>[] {
  *
  * Follows `queryChunks` and nothing else. That recursion is what makes an
  * `and(...)` of several comparisons readable, while still never reaching a
- * column's `.table` back-reference — a walk that followed arbitrary properties
+ * column's `.table` back-reference, a walk that followed arbitrary properties
  * would enumerate every column on the table and make "does this filter on
  * endedAt?" unanswerable.
  */
@@ -161,11 +160,19 @@ function conditionOperators(condition: unknown): string {
   const out: string[] = []
   const visit = (n: unknown): void => {
     if (n === null || typeof n !== "object") return
-    if (Array.isArray(n)) { for (const c of n) visit(c); return }
+    if (Array.isArray(n)) {
+      for (const c of n) visit(c)
+      return
+    }
     const chunks = (n as { queryChunks?: unknown }).queryChunks
-    if (chunks !== undefined) { visit(chunks); return }
+    if (chunks !== undefined) {
+      visit(chunks)
+      return
+    }
     const v = (n as { value?: unknown }).value
-    if (Array.isArray(v)) { for (const c of v) if (typeof c === "string") out.push(c) }
+    if (Array.isArray(v)) {
+      for (const c of v) if (typeof c === "string") out.push(c)
+    }
   }
   visit(condition)
   return out.join("|")
@@ -186,8 +193,12 @@ describe("trackerOutageStitchWindowMs", () => {
   it("scales with the configured interval instead of being a fixed constant", () => {
     // A fixed window would reduce an hourly poller to a string of zero-length
     // rows, every one below MIN_BAND_MS, and the feature would draw nothing.
-    expect(trackerOutageStitchWindowMs(15)).toBe(15 * MINUTE * OUTAGE_STITCH_INTERVALS + OUTAGE_STITCH_TOLERANCE_MS)
-    expect(trackerOutageStitchWindowMs(60)).toBe(60 * MINUTE * OUTAGE_STITCH_INTERVALS + OUTAGE_STITCH_TOLERANCE_MS)
+    expect(trackerOutageStitchWindowMs(15)).toBe(
+      15 * MINUTE * OUTAGE_STITCH_INTERVALS + OUTAGE_STITCH_TOLERANCE_MS
+    )
+    expect(trackerOutageStitchWindowMs(60)).toBe(
+      60 * MINUTE * OUTAGE_STITCH_INTERVALS + OUTAGE_STITCH_TOLERANCE_MS
+    )
     expect(trackerOutageStitchWindowMs(60)).toBeGreaterThan(trackerOutageStitchWindowMs(15))
   })
 
@@ -230,7 +241,7 @@ describe("recordTrackerPollFailure", () => {
   })
 
   it("keeps a single missed cycle from shattering one outage into two", async () => {
-    // One skipped sweep is routine — a late batch, a slow tracker, a restart.
+    // One skipped sweep is routine, a late batch, a slow tracker, a restart.
     // Treating it as a recovery would produce a run of zero-length rows, every
     // one filtered out at render, and the band would silently never appear.
     seed({ latest: [{ id: 9, endedAt: new Date(T0) }] })
@@ -247,13 +258,18 @@ describe("recordTrackerPollFailure", () => {
 
     expect(updatedValues()).toEqual([])
     expect(insertedValues()).toEqual([
-      { trackerId: TRACKER, startedAt: new Date(beyond), endedAt: new Date(beyond), reason: "poll" },
+      {
+        trackerId: TRACKER,
+        startedAt: new Date(beyond),
+        endedAt: new Date(beyond),
+        reason: "poll",
+      },
     ])
   })
 
   it("does not stitch across a circuit-breaker pause", async () => {
     // Four failures trip the breaker and the app STOPS ASKING. A manual poll
-    // days later must not extend the old row across the whole pause — nothing
+    // days later must not extend the old row across the whole pause, nothing
     // observed the tracker during it, so that span stays UNKNOWN.
     seed({ latest: [{ id: 9, endedAt: new Date(T0) }] })
     await recordTrackerPollFailure(TRACKER, "manual", T0 + 3 * 24 * 60 * MINUTE)
@@ -343,7 +359,7 @@ describe("recordTrackerPollFailure", () => {
   it("takes the NEWEST usable row as the stitch candidate, not the oldest", async () => {
     // desc -> asc would compare against the OLDEST row, so sinceMs would always
     // exceed the window and stitching would stop entirely for any tracker with
-    // more than one row in its history — every failure a zero-length row, and
+    // more than one row in its history, every failure a zero-length row, and
     // nothing ever drawn. Asserted behaviourally: the mock returns whichever row
     // the real ORDER BY would have picked.
     const rows = [
@@ -367,7 +383,7 @@ describe("recordTrackerPollFailure", () => {
     expect(insertedValues()).toEqual([])
 
     // The behavioural half above can only be as good as the mock's own sort, so
-    // pin the real ORDER BY direction too — otherwise desc -> asc passes here
+    // pin the real ORDER BY direction too, otherwise desc -> asc passes here
     // while stitching is dead in production.
     const order = calls.find((c) => c.table === trackerOutages && c.method === "orderBy")
     expect(conditionOperators(order?.args[0]).toLowerCase()).toContain("desc")
@@ -419,9 +435,7 @@ describe("recordTrackerPollFailure", () => {
 describe("getTrackerOutages", () => {
   it("returns epoch-millisecond intervals for one tracker", async () => {
     seed({
-      rows: [
-        { startedAt: new Date(T0), endedAt: new Date(T0 + 30 * MINUTE), reason: "poll" },
-      ],
+      rows: [{ startedAt: new Date(T0), endedAt: new Date(T0 + 30 * MINUTE), reason: "poll" }],
     })
 
     await expect(getTrackerOutages(TRACKER, T0 - MINUTE, T0 + 60 * MINUTE)).resolves.toEqual([
@@ -444,7 +458,7 @@ describe("getTrackerOutages", () => {
 describe("pruneTrackerOutages", () => {
   it("keys on endedAt so an outage straddling the cutoff outlives it", async () => {
     // startedAt would delete an outage that began before the horizon but ended
-    // inside it — pruning the explanation while the chart data it explains
+    // inside it, pruning the explanation while the chart data it explains
     // survives, which is the exact asymmetry that makes gap-inference a lie.
     seed({ deleted: [{ id: 1 }, { id: 2 }] })
     await pruneTrackerOutages(30)
@@ -476,10 +490,19 @@ describe("pruneTrackerOutages", () => {
     const dates: Date[] = []
     const walk = (n: unknown): void => {
       if (n === null || typeof n !== "object") return
-      if (n instanceof Date) { dates.push(n); return }
-      if (Array.isArray(n)) { for (const c of n) walk(c); return }
+      if (n instanceof Date) {
+        dates.push(n)
+        return
+      }
+      if (Array.isArray(n)) {
+        for (const c of n) walk(c)
+        return
+      }
       const chunks = (n as { queryChunks?: unknown; value?: unknown }).queryChunks
-      if (chunks !== undefined) { walk(chunks); return }
+      if (chunks !== undefined) {
+        walk(chunks)
+        return
+      }
       const v = (n as { value?: unknown }).value
       if (v !== undefined) walk(v)
     }

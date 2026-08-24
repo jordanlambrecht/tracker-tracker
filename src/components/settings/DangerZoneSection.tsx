@@ -43,8 +43,8 @@ export function DangerZoneSection() {
           <H3>Reset All Tracker Stats</H3>
           <Paragraph>
             Deletes all tracker snapshots and client snapshots from the database. Trackers and their
-            settings are preserved — only historical data is removed. Trackers will re-poll on their
-            next scheduled interval.
+            settings are preserved, and only historical data is removed. Trackers will re-poll on
+            their next scheduled interval.
           </Paragraph>
         </div>
 
@@ -127,7 +127,7 @@ export function DangerZoneSection() {
                 checked={lockdownChecks.tokens}
                 onChange={(v) => setLockdownChecks((prev) => ({ ...prev, tokens: v }))}
               >
-                All tracker API tokens will be destroyed — I must re-enter them
+                All tracker API tokens will be destroyed, and I must re-enter them
               </Checkbox>
               <Checkbox
                 checked={lockdownChecks.totp}

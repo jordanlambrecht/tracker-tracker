@@ -60,15 +60,15 @@ Last audited: `2026-03-17`
 
 ### Authentication
 
-- **Password hashing**: Argon2 (memory-hard KDF) — `src/lib/auth.ts`
-- **Session tokens**: Encrypted JWE (A256GCM) via `jose` — `src/lib/auth.ts`
+- **Password hashing**: Argon2 (memory-hard KDF) in `src/lib/auth.ts`
+- **Session tokens**: Encrypted JWE (A256GCM) via `jose` in `src/lib/auth.ts`
 - **Cookie security**: httpOnly, secure (when BASE_URL is HTTPS or SECURE_COOKIES=true), sameSite=strict, 7-day hard expiry
 - **Password policy**: 8-128 characters enforced on setup and login
 - **Username**: Optional login username (6-100 chars), case-insensitive
 - **TOTP 2FA**: Optional TOTP via `otpauth` (SHA1, 6 digits, 30s period, ±1 window). Secret encrypted at rest with AES-256-GCM. Stateless enrollment via JWE setup tokens (5min TTL).
 - **Backup codes**: 8 codes in XXXX-XXXX hex format, hashed with SHA-256 + random salt, encrypted at rest. Each code is single-use.
 - **Two-step login**: When TOTP is enabled, login returns a pending token (60s JWE). The client sends the pending token + TOTP code to complete authentication.
-- **Auth model**: No whitelist or bypass — every API route independently calls `authenticate()`, which decrypts the JWE session.
+- **Auth model**: No whitelist or bypass. Every API route independently calls `authenticate()`, which decrypts the JWE session.
 
 ---
 
@@ -99,7 +99,7 @@ Last audited: `2026-03-17`
 
 ### Encryption at Rest
 
-All tracker API tokens are encrypted before database storage — `src/lib/crypto.ts`.
+All tracker API tokens are encrypted before database storage. See `src/lib/crypto.ts`.
 
 | Parameter      | Value                                                     |
 | -------------- | --------------------------------------------------------- |
@@ -129,20 +129,20 @@ Public routes are explicitly limited to: `/login`, `/setup`, `/api/auth/*`, `/ap
 
 ### Data Protection
 
-- `encryptedApiToken` is never included in API responses — `serializeTrackerResponse()` in `src/lib/tracker-serializer.ts` uses an allowlist pattern; the token is structurally unreachable from the response object.
+- `encryptedApiToken` is never included in API responses. `serializeTrackerResponse()` in `src/lib/tracker-serializer.ts` uses an allowlist pattern, so the token is structurally unreachable from the response object.
 - All database queries use Drizzle ORM (parameterized queries, no SQL injection surface).
 - No unsafe HTML injection methods anywhere in the codebase.
 - **Emergency lockdown** (`POST /api/settings/lockdown`): Stops scheduler, revokes all API tokens, rotates encryption salt, wipes TOTP/username, destroys session. Requires active session and three-checkbox UI acknowledgment.
 - **Scrub & delete** (`POST /api/settings/nuke`): Overwrites sensitive columns with random bytes, then deletes all rows. Requires active session + master password. Disk reclamation handled by PostgreSQL autovacuum.
 - **Backup/restore**: Pure JSON format (no zip/tar). Restore validates all fields before database writes. File deletion uses `path.resolve()` + base directory prefix check. Restore requires master password re-confirmation. Encrypted fields travel as ciphertext. See [Backup Security](#backup-security).
-- External HTTP requests use `AbortSignal.timeout(15_000)` — `src/lib/adapters/unit3d.ts:29`.
+- External HTTP requests use `AbortSignal.timeout(15_000)`. See `src/lib/adapters/unit3d.ts:29`.
 - Error messages sanitize hostnames and do not leak full URLs containing API tokens.
 
 ---
 
 ### Input Validation
 
-All API routes validate inputs — `src/app/api/trackers/route.ts`, `src/app/api/trackers/[id]/route.ts`.
+All API routes validate inputs. See `src/app/api/trackers/route.ts` and `src/app/api/trackers/[id]/route.ts`.
 
 | Field           | Constraint                                                                                     |
 | --------------- | ---------------------------------------------------------------------------------------------- |
@@ -206,7 +206,7 @@ When disabling, you can optionally scrub historical data to retroactively replac
 
 The character-count mask is not strong anonymization. An investigator with database access could cross-reference the character count with ratio, upload volume, and user class to narrow down the account. For stronger protection, combine privacy mode with full-disk encryption (see [Deployment Hardening](#deployment-hardening)).
 
-The test-connection flow (`POST /api/trackers/test`) always returns the real username for confirmation. This value is ephemeral — displayed in the browser, never written to the database.
+The test-connection flow (`POST /api/trackers/test`) always returns the real username for confirmation. This value is ephemeral. It is displayed in the browser and never written to the database.
 
 ---
 
@@ -215,9 +215,9 @@ The test-connection flow (`POST /api/trackers/test`) always returns the real use
 1. **Progressive lockout only (no IP-based rate limiting)**: Failed login and TOTP attempts trigger escalating lockouts (5 attempts → 30s, 10 → 2min, 15 → 15min, 20 → 1hr) via `getProgressiveLockoutMs()` in `src/lib/wipe.ts`. The counter is global (not per-IP), so an unauthenticated attacker can lock out the legitimate user. Deploy behind a reverse proxy with per-IP rate limiting on `/api/auth/login` for additional protection.
 2. **API token in URL parameter**: UNIT3D (`?api_token=TOKEN`) and GGn (`?key=TOKEN`) pass tokens in the query string, which may appear in the tracker's server access logs. Gazelle trackers use `Authorization` headers (not logged by default). Upstream limitation.
 3. **No CSP header**: Content Security Policy is not yet configured due to ECharts canvas rendering complexity. Basic headers (X-Frame-Options, X-Content-Type-Options) are in place.
-4. **Optional 2FA**: TOTP is available but not required. Backup codes use SHA-256 + random salt (not Argon2 — high-entropy generated codes don't need memory-hard KDF).
+4. **Optional 2FA**: TOTP is available but not required. Backup codes use SHA-256 + random salt (not Argon2, since high-entropy generated codes don't need a memory-hard KDF).
 5. **DNS rebinding not mitigated at fetch time**: SSRF protection validates hostnames when tracker URLs are saved, not when outbound requests are made. See [Unmitigated Attack Vectors](#6-dns-rebinding) for details.
-6. **Scheduler key persisted in DB**: The encryption key is wrapped with an HKDF-derived key from `SESSION_SECRET` and stored in `appSettings` to enable 24/7 polling. An attacker with both database access and `SESSION_SECRET` could unwrap the key and decrypt all API tokens. For Docker Compose deployments, `SESSION_SECRET` is in the same trust boundary as DB credentials. Deploy on an encrypted filesystem for defense against disk seizure. Rotating `SESSION_SECRET` invalidates the stored key — polling resumes after the next login.
+6. **Scheduler key persisted in DB**: The encryption key is wrapped with an HKDF-derived key from `SESSION_SECRET` and stored in `appSettings` to enable 24/7 polling. An attacker with both database access and `SESSION_SECRET` could unwrap the key and decrypt all API tokens. For Docker Compose deployments, `SESSION_SECRET` is in the same trust boundary as DB credentials. Deploy on an encrypted filesystem for defense against disk seizure. Rotating `SESSION_SECRET` invalidates the stored key, and polling resumes after the next login.
 7. **Client IP in auth logs**: Failed and successful login attempts include the client IP (from `CF-Connecting-IP` or the rightmost `X-Forwarded-For` entry) in server log lines. IPs are never stored in the database. To suppress, configure your reverse proxy to strip these headers before forwarding to the app, or set `LOG_LEVEL=error` to disable info/warn log events entirely.
 
 ---
@@ -228,7 +228,7 @@ These vectors are not fully mitigated at the application layer. Apply the recomm
 
 #### 1. Disk Seizure / Physical Access
 
-**Risk:** Physical access to the server exposes all unencrypted database fields — tracker names, base URLs, usernames (unless privacy mode is enabled), and usage statistics. API tokens are AES-256-GCM protected, but all metadata is plaintext.
+**Risk:** Physical access to the server exposes all unencrypted database fields: tracker names, base URLs, usernames (unless privacy mode is enabled), and usage statistics. API tokens are AES-256-GCM protected, but all metadata is plaintext.
 
 **Countermeasure:** Deploy the Docker volume on a LUKS- or dm-crypt-encrypted partition. See [Deployment Hardening](#deployment-hardening).
 
@@ -236,7 +236,7 @@ These vectors are not fully mitigated at the application layer. Apply the recomm
 
 **Risk:** Root access to a running host allows process memory dumps. The scrypt-derived encryption key is held in scheduler memory for the session duration. With this key, all encrypted API tokens can be decrypted.
 
-**Countermeasure:** On scheduler stop (triggered by lockdown, nuke, password change, or restore), the encryption key buffer is explicitly zero-filled (`Buffer.fill(0)`). Logout does not zero the key — the scheduler persists through logout for 24/7 polling. V8 may have created internal copies during GC compaction, but those are not directly inspectable. Standard server hardening also applies: patched OS, SSH key auth, non-root container.
+**Countermeasure:** On scheduler stop (triggered by lockdown, nuke, password change, or restore), the encryption key buffer is explicitly zero-filled (`Buffer.fill(0)`). Logout does not zero the key, because the scheduler persists through logout for 24/7 polling. V8 may have created internal copies during GC compaction, but those are not directly inspectable. Standard server hardening also applies: patched OS, SSH key auth, non-root container.
 
 #### 3. Correlation Attack on Masked Usernames
 
@@ -252,7 +252,7 @@ These vectors are not fully mitigated at the application layer. Apply the recomm
 
 #### 5. Tracker-Side Logging
 
-**Risk:** UNIT3D uses `?api_token=TOKEN` and GGn uses `?key=TOKEN` — the full URL including the token appears in the tracker's server access logs. Gazelle uses `Authorization` headers (not logged by default). Upstream limitation.
+**Risk:** UNIT3D uses `?api_token=TOKEN` and GGn uses `?key=TOKEN`, so the full URL including the token appears in the tracker's server access logs. Gazelle uses `Authorization` headers (not logged by default). Upstream limitation.
 
 **Countermeasure:** None at the application level. Users should be aware that API tokens may appear in tracker server logs depending on the platform.
 
@@ -264,7 +264,7 @@ These vectors are not fully mitigated at the application layer. Apply the recomm
 
 **Risk:** SSRF protection in `src/lib/network.ts` validates hostnames at configuration time, not at request time. An attacker with DNS control could register a domain that resolves to a public IP during validation, then change it to a private IP before the next poll cycle.
 
-**Countermeasure:** Low risk — single user, manually entered URLs. Deploy on an isolated network segment where the container cannot reach internal services. A future enhancement could add DNS resolution validation at fetch time.
+**Countermeasure:** Low risk, since this is a single user with manually entered URLs. Deploy on an isolated network segment where the container cannot reach internal services. A future enhancement could add DNS resolution validation at fetch time.
 
 ---
 
@@ -274,15 +274,15 @@ The backup/restore system (`src/lib/backup.ts`, `src/app/api/settings/backup/`) 
 
 #### Data Handling
 
-- **Encrypted fields travel as ciphertext** — `encryptedApiToken`, `totpSecret`, `encryptedProxyPassword`, `encryptedUsername`, `encryptedPassword` are never decrypted during backup generation.
-- **Password hash excluded** — `app_settings.password_hash` is never included in backup files. The restoring user's current password is preserved.
-- **Encryption salt included** — required to re-derive the encryption key from the master password after restore.
-- **Failed login counter reset** — `failedLoginAttempts` is always set to 0 on restore, regardless of the backup's value.
+- **Encrypted fields travel as ciphertext**: `encryptedApiToken`, `totpSecret`, `encryptedProxyPassword`, `encryptedUsername`, `encryptedPassword` are never decrypted during backup generation.
+- **Password hash excluded**: `app_settings.password_hash` is never included in backup files. The restoring user's current password is preserved.
+- **Encryption salt included**: required to re-derive the encryption key from the master password after restore.
+- **Failed login counter reset**: `failedLoginAttempts` is always set to 0 on restore, regardless of the backup's value.
 
 #### Authentication
 
 - All four backup routes (`export`, `restore`, `history`, `delete`) require a valid session via `authenticate()`.
-- **Restore requires master password re-confirmation** — failed verification increments the failed login counter and triggers lockout.
+- **Restore requires master password re-confirmation**: failed verification increments the failed login counter and triggers lockout.
 
 #### Optional Encryption Layer
 
@@ -290,14 +290,14 @@ When `backupEncryptionEnabled` is true, the entire backup JSON is wrapped in an 
 
 #### Restore Safety
 
-- Restore executes inside a PostgreSQL transaction — any failure rolls back all changes.
+- Restore executes inside a PostgreSQL transaction, so any failure rolls back all changes.
 - The scheduler is stopped before restore begins (encryption key zeroed).
-- The session remains valid after restore. The current `encryptionSalt` and `passwordHash` are never overwritten — they are preserved in place. Encrypted fields are re-encrypted from the backup's salt to the current salt via `reencryptField()`.
+- The session remains valid after restore. The current `encryptionSalt` and `passwordHash` are preserved in place rather than overwritten. Encrypted fields are re-encrypted from the backup's salt to the current salt via `reencryptField()`.
 - BigInt values are serialized as decimal strings (not JSON numbers) to avoid 53-bit integer truncation.
 
 #### File Security
 
-- Backup files are pure JSON — no zip/tar archives, eliminating zip slip attack surface.
+- Backup files are pure JSON rather than zip or tar archives, so there is no zip slip attack surface.
 - Scheduled backups write to a configurable directory with `mkdir({ recursive: true })`.
 - File deletion validates the resolved path against `backupStoragePath` using `path.resolve()` + `startsWith(base + path.sep)`.
 - On-demand exports are returned as a browser download and saved to the configured `backupStoragePath`. If the disk write fails, the browser download still proceeds.
@@ -336,15 +336,15 @@ If you discover a security vulnerability:
 
 Security invariants are verified by 106 automated tests in `src/lib/__tests__/security.test.ts`:
 
-| Category         | Tests | What's Verified                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| ---------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Auth enforcement | 59    | Every protected route returns 401 without valid session — trackers, snapshots, roles, reorder, poll-all, settings, dashboard, quicklinks, reset-stats, logs, clients (CRUD + test + torrents + snapshots + speeds), tag-groups (CRUD + members + member CRUD), fleet (snapshots + torrents), TOTP setup/confirm/disable, change-password, lockdown, nuke, proxy-test, backup (export + restore + history + get + delete), changelog, logout |
-| Token leakage    | 2     | `encryptedApiToken` never appears in API responses (list + detail)                                                                                                                                                                                                                                                                                                                                                                          |
-| Setup protection | 1     | Setup cannot be re-triggered after initial configuration                                                                                                                                                                                                                                                                                                                                                                                    |
-| Input validation | 14    | URL scheme allowlist, hex color validation, poll interval clamping, oversized input rejection, API token max length, qBT tag max length, role name max length, notes max length, date format validation, tracker ID validation                                                                                                                                                                                                              |
-| Crypto integrity | 5     | Encrypt/decrypt round-trip, tampered ciphertext rejected, wrong key rejected, truncated ciphertext rejected, random IV uniqueness                                                                                                                                                                                                                                                                                                           |
-| Key zeroing      | 2     | Encryption key buffer is zero-filled on scheduler stop; double-stop is safe                                                                                                                                                                                                                                                                                                                                                                 |
-| Backup auth      | 6     | Export, restore, history, get, and delete routes return 401 without valid session; restore validates password                                                                                                                                                                                                                                                                                                                               |
+| Category         | Tests | What's Verified                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ---------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Auth enforcement | 59    | Every protected route returns 401 without a valid session: trackers, snapshots, roles, reorder, poll-all, settings, dashboard, quicklinks, reset-stats, logs, clients (CRUD + test + torrents + snapshots + speeds), tag-groups (CRUD + members + member CRUD), fleet (snapshots + torrents), TOTP setup/confirm/disable, change-password, lockdown, nuke, proxy-test, backup (export + restore + history + get + delete), changelog, logout |
+| Token leakage    | 2     | `encryptedApiToken` never appears in API responses (list + detail)                                                                                                                                                                                                                                                                                                                                                                           |
+| Setup protection | 1     | Setup cannot be re-triggered after initial configuration                                                                                                                                                                                                                                                                                                                                                                                     |
+| Input validation | 14    | URL scheme allowlist, hex color validation, poll interval clamping, oversized input rejection, API token max length, qBT tag max length, role name max length, notes max length, date format validation, tracker ID validation                                                                                                                                                                                                               |
+| Crypto integrity | 5     | Encrypt/decrypt round-trip, tampered ciphertext rejected, wrong key rejected, truncated ciphertext rejected, random IV uniqueness                                                                                                                                                                                                                                                                                                            |
+| Key zeroing      | 2     | Encryption key buffer is zero-filled on scheduler stop; double-stop is safe                                                                                                                                                                                                                                                                                                                                                                  |
+| Backup auth      | 6     | Export, restore, history, get, and delete routes return 401 without valid session; restore validates password                                                                                                                                                                                                                                                                                                                                |
 
 Additional security-relevant tests exist across other test files.
 
@@ -360,10 +360,10 @@ pnpm test:run
 
 The GitHub Actions workflow (`.github/workflows/ci.yml`) runs on every push and PR to `main`:
 
-1. **Type check** (`pnpm tsc`) — catches type errors before runtime
-2. **Full test suite** (`pnpm test:run`) — all 2050+ tests including security invariants
-3. **Security test count guard** — fails the build if the security test count drops below 78, preventing accidental removal of security tests
-4. **Static security audit** (`scripts/security-audit.ts`) — runs on every PR, comments results on the PR, and fails on critical findings
+1. **Type check** (`pnpm tsc`) catches type errors before runtime
+2. **Full test suite** (`pnpm test:run`) runs all 2050+ tests including security invariants
+3. **Security test count guard** fails the build if the security test count drops below 78, so security tests cannot be removed by accident
+4. **Static security audit** (`scripts/security-audit.ts`) runs on every PR, comments results on the PR, and fails on critical findings
 
 The count guard ensures security coverage is monotonically non-decreasing. If a security test is removed or refactored, CI fails until the count is restored or the threshold is explicitly updated.
 
@@ -385,7 +385,7 @@ The security audit (`scripts/security-audit.ts`) performs 28 automated checks on
 | 8   | Raw SQL in routes        | Critical | No `db.execute()` in API route handlers (use Drizzle query builder)                   |
 | 9   | Unsafe redirect/fetch    | Critical | No `fetch()`/`redirect()` with user-supplied URLs in API routes (SSRF)                |
 | 10  | Timing-safe comparison   | Critical | Secret comparisons in auth/crypto/totp use `timingSafeEqual`                          |
-| 11  | No raw migrations        | Critical | No SQL migration files — enforces schema-first Drizzle approach                       |
+| 11  | No raw migrations        | Critical | No SQL migration files, which enforces the schema-first Drizzle approach              |
 | 12  | Fetch timeout            | Critical | All external HTTP requests in adapters/clients have `AbortSignal.timeout`             |
 | 13  | Dockerfile non-root      | Critical | Docker container runs as non-root user with explicit `USER` directive                 |
 | 14  | Proxy allowlist sync     | Critical | Public routes in proxy allowlist match `NO_AUTH_ROUTES` bidirectionally               |
@@ -411,7 +411,7 @@ Critical failures block the build. Warnings are reported but don't block.
 Suppress individual findings with an inline comment on the flagged line or the line above:
 
 ```ts
-// security-audit-ignore: stream closed by client disconnect — nothing to recover
+/* security-audit-ignore: stream closed by client disconnect. Nothing to recover */
 } catch { /* stream already closed */ }
 ```
 
@@ -439,7 +439,7 @@ npx tsx scripts/security-audit.ts     # Static security audit (28 checks)
 
 - [ ] Every new API route calls `authenticate()` from `src/lib/api-helpers.ts` as its first operation
 - [ ] No new public routes added without updating the proxy allowlist in `src/proxy.ts` (lines 12-14)
-- [ ] `authenticate()` failure returns `NextResponse.json({ error }, { status: 401 })` — no fallthrough
+- [ ] `authenticate()` failure returns `NextResponse.json({ error }, { status: 401 })`, with no fallthrough
 - [ ] Destructive operations (nuke, lockdown, restore) require additional password verification beyond the session
 - [ ] TOTP-protected flows use the pending token pattern (60s JWE), not direct session issuance
 - [ ] New settings or admin actions do NOT bypass the three-layer defense: proxy -> layout -> route handler
@@ -453,7 +453,7 @@ npx tsx scripts/security-audit.ts     # Static security audit (28 checks)
 - [ ] Date inputs regex-validated (`/^\d{4}-\d{2}-\d{2}$/`) or null
 - [ ] ID parameters parsed as integers with `Number()` + `Number.isNaN()` check
 - [ ] Platform type validated against allowlist, not open string
-- [ ] No user input concatenated into SQL — all queries use Drizzle ORM's parameterized API
+- [ ] No user input concatenated into SQL, since all queries use Drizzle ORM's parameterized API
 - [ ] File paths from user input validated with `path.resolve()` + `startsWith(basePath + path.sep)`
 
 #### 3. XSS Prevention
@@ -467,45 +467,45 @@ npx tsx scripts/security-audit.ts     # Static security audit (28 checks)
 
 #### 4. Encryption & Secrets
 
-- [ ] API tokens stored via `encrypt()` from `src/lib/crypto.ts` — never plaintext in the database
+- [ ] API tokens stored via `encrypt()` from `src/lib/crypto.ts`, never plaintext in the database
 - [ ] `encryptedApiToken` excluded from ALL API response objects (grep for `// SECURITY` comments)
 - [ ] `passwordHash` never included in API responses or backup exports
 - [ ] Encrypted credentials (`encryptedUsername`, `encryptedPassword`, `encryptedProxyPassword`) excluded from responses
 - [ ] Password change route re-encrypts all secrets with the new derived key
 - [ ] `SESSION_SECRET` is at least 32 characters (checked at startup)
-- [ ] No secrets in `console.log`, `console.error`, or logger calls — hostnames only, never full URLs with tokens
+- [ ] No secrets in `console.log`, `console.error`, or logger calls, hostnames only and never full URLs with tokens
 - [ ] Error messages from adapter-fetch sanitize to hostname only (no token leakage in stack traces)
 
 #### 5. Session Security
 
 - [ ] Session cookie set with: `httpOnly: true`, `sameSite: "strict"`, `secure: shouldSecureCookies()`, `path: "/"`
-- [ ] Session has hard expiry (7 days) encoded in the JWE payload — not just cookie `maxAge`
+- [ ] Session has hard expiry (7 days) encoded in the JWE payload, not just cookie `maxAge`
 - [ ] Destructive operations (lockdown, nuke, password change, restore) zero-fill the encryption key buffer and stop the scheduler. Logout preserves the scheduler for 24/7 polling.
-- [ ] Login returns the encryption key only inside the JWE session — never in the response body
+- [ ] Login returns the encryption key only inside the JWE session, never in the response body
 - [ ] Failed login attempts increment atomically via `recordFailedAttempt()` in `src/lib/wipe.ts`
 
 #### 6. External Requests
 
 - [ ] All outbound HTTP requests have a timeout (`AbortSignal.timeout(15_000)` or equivalent)
-- [ ] Tracker URLs validated at creation time — no open redirects or protocol switching
-- [ ] Proxy-required trackers (`useProxy: true`) throw if proxy is unavailable — no fallback to direct connection
-- [ ] qBT client connections validate host/port — no SSRF via user-configured client addresses
+- [ ] Tracker URLs validated at creation time, with no open redirects or protocol switching
+- [ ] Proxy-required trackers (`useProxy: true`) throw if proxy is unavailable, with no fallback to a direct connection
+- [ ] qBT client connections validate host/port, with no SSRF via user-configured client addresses
 - [ ] No user-controlled data in `Authorization` headers beyond the stored (encrypted) API token
 
 #### 7. Database Operations
 
-- [ ] All queries use Drizzle ORM — no raw SQL strings with interpolated values
+- [ ] All queries use Drizzle ORM, never raw SQL strings with interpolated values
 - [ ] BigInt values serialized as decimal strings in JSON (not `Number()` which truncates at 2^53)
-- [ ] Backup restore runs inside a transaction — partial failures roll back cleanly
+- [ ] Backup restore runs inside a transaction, so partial failures roll back cleanly
 - [ ] `scrubAndDeleteAll` overwrites sensitive columns with random bytes before deletion
-- [ ] Failed login counter uses atomic SQL (update + returning) — no TOCTOU race
+- [ ] Failed login counter uses atomic SQL (update + returning), with no TOCTOU race
 
 #### 8. File Operations
 
 - [ ] File read/delete operations validate resolved path against base directory + `path.sep`
-- [ ] Backup format is pure JSON — no zip/tar archives (eliminates zip slip surface)
+- [ ] Backup format is pure JSON, not zip or tar archives (which eliminates the zip slip surface)
 - [ ] No shell commands with user-supplied arguments
-- [ ] Scheduled backup filenames are server-generated (timestamp-based) — not user-controlled
+- [ ] Scheduled backup filenames are server-generated (timestamp-based), not user-controlled
 
 #### 9. Security Headers
 
@@ -521,7 +521,7 @@ Verify in `next.config.ts`:
 
 - [ ] Container runs as non-root user (UID 1001 `nextjs`)
 - [ ] `NODE_ENV=production` set in Dockerfile (cookie `secure` flag derived from `BASE_URL`/`SECURE_COOKIES`, not `NODE_ENV`)
-- [ ] PostgreSQL on internal network — no published ports
+- [ ] PostgreSQL on internal network, with no published ports
 - [ ] No `.env` files tracked by git (checked by security audit #7)
 - [ ] `scripts/reset-password-nuclear.mjs` not included in production Docker image
 
@@ -552,7 +552,7 @@ Comparison against the 21 vulnerabilities found in Huntarr v9.4.2 ([security rev
 | Recovery key without auth              | Mitigated | Backup codes shown only during enrollment; disable requires valid code               |
 | Zip Slip file write                    | Mitigated | Backups are pure JSON, not archives; no file extraction                              |
 | Path traversal in backup               | Mitigated | File deletion validates resolved path against configured base directory + `path.sep` |
-| Auth bypass whitelist                  | Mitigated | No whitelist — direct auth per route                                                 |
+| Auth bypass whitelist                  | Mitigated | No whitelist, direct auth per route                                                  |
 | Passwords in API responses             | Mitigated | `encryptedApiToken` explicitly excluded from all responses                           |
 | SHA-256 password hashing               | Mitigated | Argon2 memory-hard KDF                                                               |
 | Cleartext credential storage           | Mitigated | AES-256-GCM encrypted at rest                                                        |

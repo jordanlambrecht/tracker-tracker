@@ -136,14 +136,14 @@ Gets your numeric ID. After caching as `remoteUserId`, we skip this and go strai
 | `uploadedBytes`    | `response.stats.uploaded`                                                            | `number`           | `BigInt(Math.floor(...))`                               |
 | `downloadedBytes`  | `response.stats.downloaded`                                                          | `number`           | `BigInt(Math.floor(...))`                               |
 | `ratio`            | `response.stats.ratio`                                                               | `string \| number` | Parsed via `parseFloat()` if string                     |
-| `bufferBytes`      | —                                                                                    | —                  | Calculated: `uploadedBytes - downloadedBytes` — signed  |
+| `bufferBytes`      | —                                                                                    | —                  | Calculated: `uploadedBytes - downloadedBytes`, signed  |
 | `seedingCount`     | `response.community.seeding`                                                         | `number \| null`   | Defaults to `0`; null when paranoia hides it            |
 | `leechingCount`    | `response.community.leeching`                                                        | `number \| null`   | Defaults to `0`; null when paranoia hides it            |
 | `seedbonus`        | `response.stats.gold`                                                                | `number`           | GGn uses "gold" as its currency, not "bonus points"     |
 | `hitAndRuns`       | `response.personal.hnrs`                                                             | `number \| null`   | `null` when not tracked or hidden                       |
 | `requiredRatio`    | `response.stats.requiredRatio`                                                       | `number`           | Available directly in the user call                     |
-| `warned`           | `response.personal.warned`                                                           | `boolean`          | Available directly — no second call needed              |
-| `freeleechTokens`  | —                                                                                    | —                  | Always `null` — GGn does not expose FL tokens           |
+| `warned`           | `response.personal.warned`                                                           | `boolean`          | Available directly, no second call needed              |
+| `freeleechTokens`  | —                                                                                    | —                  | Always `null`, GGn does not expose FL tokens           |
 | `joinedDate`       | `response.stats.joinedDate`                                                          | `string \| null`   | ISO-style datetime string                               |
 | `lastAccessDate`   | `response.stats.lastAccess`                                                          | `string \| null`   | ISO-style datetime string                               |
 | `shareScore`       | `response.stats.shareScore`                                                          | `number \| null`   | GGn-specific metric                                     |

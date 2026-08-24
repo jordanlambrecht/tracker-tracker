@@ -227,7 +227,7 @@ describe("useDashboardData", () => {
 
   // Regression: "All" (DayRange 0) used to OMIT the days param entirely. The route
   // parses it with parseIntClamped(raw, 0, MAX, 30), and a MISSING param takes the
-  // 30 default rather than becoming 0 — so "All" silently requested 30 days.
+  // 30 default rather than becoming 0, so "All" silently requested 30 days.
   // 0 must be sent explicitly; it is the only value that round-trips unchanged.
   it("sends days=0 explicitly when dayRange is 0 (All)", async () => {
     const { result } = renderHook(() => useDashboardData({ initialTrackers: [mockTracker] }), {

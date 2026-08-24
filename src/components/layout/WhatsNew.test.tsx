@@ -28,12 +28,26 @@ function asServed(markdown: string): string {
 
 describe("parseMissedReleases", () => {
   it("reads asterisk bullets", () => {
-    const md = ["## 2.0.0 (2026-01-01)", "", "### Bug Fixes", "", "* **api:** fixed a thing", ""].join("\n")
+    const md = [
+      "## 2.0.0 (2026-01-01)",
+      "",
+      "### Bug Fixes",
+      "",
+      "* **api:** fixed a thing",
+      "",
+    ].join("\n")
     expect(parseMissedReleases(md, "1.0.0")).toEqual(["fixed a thing"])
   })
 
   it("reads dash bullets", () => {
-    const md = ["## 2.0.0 (2026-01-01)", "", "### Bug Fixes", "", "- **api:** fixed a thing", ""].join("\n")
+    const md = [
+      "## 2.0.0 (2026-01-01)",
+      "",
+      "### Bug Fixes",
+      "",
+      "- **api:** fixed a thing",
+      "",
+    ].join("\n")
     expect(parseMissedReleases(md, "1.0.0")).toEqual(["fixed a thing"])
   })
 

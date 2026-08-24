@@ -9,6 +9,6 @@ ignoredBuiltDependencies:
 overrides:
   # Forces one esbuild across the tree. drizzle-kit pins ^0.25.x, an abandoned
   # line whose binary is built on go1.23.12 and fails the Trivy scan. Do not
-  # relax below 0.28.2 — that also keeps the deprecated @esbuild-kit pin
+  # relax below 0.28.2, which also keeps the deprecated @esbuild-kit pin
   # (esbuild ~0.18.20, GHSA-67mh-4wv8-2f99) out of the tree.
   esbuild: "^0.28.2"

@@ -90,7 +90,7 @@ describe("VolumeSurface2D", () => {
     expect(option.series?.[0]?.type).toBe("heatmap")
 
     const cells = option.series?.[0]?.data ?? []
-    // 2 trackers x 2 day buckets — zero cells included so the grid stays complete
+    // 2 trackers x 2 day buckets, zero cells included so the grid stays complete
     expect(cells).toHaveLength(4)
 
     // Day 1 has no previous day to diff against, so only day 2 carries volume.

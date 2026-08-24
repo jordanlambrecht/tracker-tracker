@@ -53,14 +53,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid backup code format" }, { status: 400 })
     }
   } else if (!TOTP_CODE_RE.test(code)) {
-    return NextResponse.json({ error: "Invalid TOTP code — must be 6 digits" }, { status: 400 })
+    return NextResponse.json({ error: "Invalid TOTP code, must be 6 digits" }, { status: 400 })
   }
 
   const pending = await verifyPendingToken(pendingToken)
   if (!pending) {
     log.warn(
       { route: "POST /api/auth/totp/verify" },
-      "TOTP verify rejected — invalid or expired pending token"
+      "TOTP verify rejected: invalid or expired pending token"
     )
     return NextResponse.json({ error: "Session expired. Please log in again." }, { status: 401 })
   }

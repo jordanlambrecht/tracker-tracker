@@ -81,14 +81,7 @@ export function buildCoreStatDescriptors(
       icon: <RatioIcon width="16" height="16" />,
       value: formatRatio(ratio),
       unit: ratio != null ? "x" : undefined,
-      trend:
-        ratio == null
-          ? undefined
-          : ratio >= 2
-            ? "up"
-            : ratio >= 1
-              ? "flat"
-              : "down",
+      trend: ratio == null ? undefined : ratio >= 2 ? "up" : ratio >= 1 ? "flat" : "down",
       alert: ratioBelowRequired ? "danger" : undefined,
       alertReason: ratioAlertReason,
     },

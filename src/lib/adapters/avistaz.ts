@@ -102,7 +102,7 @@ function extractRatioBarValue(items: ParsedElement[], labelRegex: RegExp): strin
 export function parseAvistazProfile(html: string, username: string): TrackerStats {
   // Detect login redirect. AvistaZ uses /auth/login, AnimeZ and others use /login.
   if (html.includes("/auth/login") || html.includes('action="/login"')) {
-    throw new Error("Session expired — browser cookies need to be refreshed")
+    throw new Error("Session expired. Browser cookies need to be refreshed")
   }
 
   // Detect Cloudflare challenge (classic JS challenge or Turnstile widget)
@@ -111,7 +111,7 @@ export function parseAvistazProfile(html: string, username: string): TrackerStat
     html.includes("cf_chl_opt") ||
     html.includes("challenges.cloudflare.com/turnstile")
   ) {
-    throw new Error("Cloudflare challenge detected — cf_clearance cookie needs refreshing")
+    throw new Error("Cloudflare challenge detected. The cf_clearance cookie needs refreshing")
   }
 
   const doc = parseHtml(html)
@@ -119,7 +119,7 @@ export function parseAvistazProfile(html: string, username: string): TrackerStat
   // ── Ratio bar ──────────────────────────────────────────────────────────────
   const ratioBar = doc.querySelector("div.ratio-bar")
   if (!ratioBar) {
-    throw new Error("Could not find ratio bar in profile page — the page may not be authenticated")
+    throw new Error("Could not find ratio bar in profile page. The page may not be authenticated")
   }
 
   const items = Array.from(ratioBar.querySelectorAll("ul.list-inline > li"))
@@ -302,7 +302,7 @@ export function parseAvistazProfile(html: string, username: string): TrackerStat
 }
 
 // ---------------------------------------------------------------------------
-// HTML fetcher — direct fetch or proxy
+// HTML fetcher, direct fetch or proxy
 // ---------------------------------------------------------------------------
 
 function fetchHtml(
@@ -318,7 +318,7 @@ function fetchHtml(
     userAgent,
     proxyAgent,
     label: "AvistaZ",
-    sessionExpiredMessage: "Session expired — browser cookies need to be refreshed",
+    sessionExpiredMessage: "Session expired. Browser cookies need to be refreshed",
   })
 }
 

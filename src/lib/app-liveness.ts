@@ -4,7 +4,7 @@
 // collected here" instead of drawing a flat line that looks like real zeroes.
 //
 // ── What this records ───────────────────────────────────────────────────────
-// "The app was not collecting data" — NOT "the process was dead". Those differ:
+// "The app was not collecting data", NOT "the process was dead". Those differ:
 // the scheduler also stops during a lockdown, a password change, and a restore,
 // with the process very much alive. Both leave the same hole in the charts, so
 // both are recorded.
@@ -22,7 +22,7 @@
 // and the FIRST touch after a restart turns the distance from that stamp to now
 // into a closed gap row. Detection also runs on EVERY touch, not just the first,
 // so a stall inside a living process (lockdown, restore, host sleep) is caught
-// too — boot is simply the first touch.
+// too, boot is simply the first touch.
 //
 // Functions: touchAppLiveness, markAppStopped, getAppCoverage, getCoverageGaps,
 //            pruneCoverageGaps, clearAppLivenessState
@@ -39,7 +39,7 @@ import { MIN_BAND_MS } from "@/lib/outages"
  *
  * The cost is precision: a recorded gap can begin up to this much EARLIER than
  * the real outage did, which widens the band slightly rather than hiding any of
- * it. Erring wide is the safe direction — a band that starts 30s early still
+ * it. Erring wide is the safe direction, a band that starts 30s early still
  * explains the flat region; one that starts 30s late leaves a sliver of chart
  * unexplained.
  *
@@ -55,7 +55,7 @@ export const LIVENESS_WRITE_THROTTLE_MS = 30 * 1000
  */
 export const MIN_GAP_RECORD_MS = MIN_BAND_MS
 
-/** Values of app_coverage_gaps.reason. Diagnostic only — all draw identically. */
+/** Values of app_coverage_gaps.reason. Diagnostic only, all draw identically. */
 export type CoverageGapReason = "shutdown" | "unclean" | "stalled"
 
 export interface CoverageGap {
@@ -94,7 +94,7 @@ function getState(): LivenessState {
   return g.__appLivenessState
 }
 
-/** Reset in-memory state. Tests and HMR only — never touches the database. */
+/** Reset in-memory state. Tests and HMR only, never touches the database. */
 export function clearAppLivenessState(): void {
   g.__appLivenessState = undefined
 }
@@ -149,7 +149,7 @@ async function reconcile(state: LivenessState, nowMs: number): Promise<void> {
     state.rowId = inserted?.id ?? null
     state.reconciled = true
     state.lastWriteMs = nowMs
-    log.info("App liveness ledger initialised — no gap recorded for first boot")
+    log.info("App liveness ledger initialised, no gap recorded for first boot")
     return
   }
 
@@ -171,7 +171,7 @@ async function reconcile(state: LivenessState, nowMs: number): Promise<void> {
     // usual cause). A negative-length outage is not a thing; re-anchor silently.
     log.warn(
       { lastSeenAt: row.lastSeenAt.toISOString(), now: new Date(nowMs).toISOString() },
-      "App liveness stamp is in the future — clock jumped backwards, no gap recorded"
+      "App liveness stamp is in the future: clock jumped backwards, no gap recorded"
     )
   } else if (deltaMs >= MIN_GAP_RECORD_MS) {
     await insertGap(anchorMs, nowMs, reason)
@@ -202,7 +202,7 @@ async function runTouch(state: LivenessState, nowMs: number): Promise<void> {
   }
 
   if (deltaMs >= MIN_GAP_RECORD_MS) {
-    // The process survived but stopped collecting for a while — a lockdown, a
+    // The process survived but stopped collecting for a while, a lockdown, a
     // restore, a suspended host. The chart hole is identical to a crash's, so it
     // gets a gap too.
     await insertGap(prevTouchMs, nowMs, "stalled")
@@ -249,7 +249,7 @@ export async function touchAppLiveness(nowMs: number = Date.now()): Promise<void
  * rather than up to LIVENESS_WRITE_THROTTLE_MS earlier, and is labelled
  * "shutdown" rather than "unclean".
  *
- * Entirely optional — reconciliation is correct without it. Intended for
+ * Entirely optional, reconciliation is correct without it. Intended for
  * stopClientScheduler(), which also runs on lockdown/password-change/restore, so
  * a later touch in the same process correctly records those as "stalled".
  */
@@ -314,14 +314,14 @@ export async function getCoverageGaps(fromMs: number, toMs: number): Promise<Cov
  * Expire coverage gaps on the SAME horizon as the snapshots they explain.
  *
  * Takes `retentionDays` rather than a cutoff so it matches pruneOldSnapshots /
- * pruneOldCheckpoints exactly — same argument, same arithmetic, same call site.
+ * pruneOldCheckpoints exactly, same argument, same arithmetic, same call site.
  * See the comment at that call site in tracker-scheduler.ts for why the coupling
  * is load-bearing.
  *
  * The predicate is `endedAt < cutoff`, NOT `startedAt < cutoff`: a gap that
  * began before the horizon but ended inside it still explains chart data that
  * survives, and deleting it would prune explanations more aggressively than the
- * snapshots they belong to — the exact drift this coupling exists to prevent.
+ * snapshots they belong to, the exact drift this coupling exists to prevent.
  */
 export async function pruneCoverageGaps(retentionDays: number): Promise<number> {
   const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000)

@@ -17,66 +17,66 @@ Click the **+** button next to "Trackers" in the sidebar, or go to `/trackers/ne
 
 === "UNIT3D"
 
-    | Name | Abbreviation |
-    |---|---|
-    | Aither | ATH |
-    | Blutopia | BLU |
-    | Concertos | |
-    | FearNoPeer | FNP |
-    | LST | LST |
-    | OldToons | |
-    | OnlyEncodes | OE |
-    | Racing4Everyone | R4E |
-    | ReelFlix | |
-    | SkipTheCommercials | STC |
-    | Seedpool | SP |
-    | Upload.cx | |
-    | DarkPeers | DP |
-    | Luminarr | LUME |
+| Name               | Abbreviation |
+| ------------------ | ------------ |
+| Aither             | ATH          |
+| Blutopia           | BLU          |
+| Concertos          |              |
+| FearNoPeer         | FNP          |
+| LST                | LST          |
+| OldToons           |              |
+| OnlyEncodes        | OE           |
+| Racing4Everyone    | R4E          |
+| ReelFlix           |              |
+| SkipTheCommercials | STC          |
+| Seedpool           | SP           |
+| Upload.cx          |              |
+| DarkPeers          | DP           |
+| Luminarr           | LUME         |
 
 === "Gazelle"
 
-    | Name | Abbreviation |
-    |---|---|
-    | AlphaRatio | AR |
-    | AnimeBytes | AB |
-    | BroadcasTheNet | BTN |
-    | Empornium | EMP |
-    | GreatPosterWall | GPW |
-    | MoreThanTV | MTV |
-    | Orpheus | OPS |
-    | PassThePopcorn | PTP |
-    | PhoenixProject | PPT |
-    | REDacted | RED |
+| Name            | Abbreviation |
+| --------------- | ------------ |
+| AlphaRatio      | AR           |
+| AnimeBytes      | AB           |
+| BroadcasTheNet  | BTN          |
+| Empornium       | EMP          |
+| GreatPosterWall | GPW          |
+| MoreThanTV      | MTV          |
+| Orpheus         | OPS          |
+| PassThePopcorn  | PTP          |
+| PhoenixProject  | PPT          |
+| REDacted        | RED          |
 
 === "GGn"
 
-    | Name | Abbreviation |
-    |---|---|
-    | GazelleGames | GGn |
+| Name         | Abbreviation |
+| ------------ | ------------ |
+| GazelleGames | GGn          |
 
 === "Nebulance"
 
-    | Name | Abbreviation |
-    |---|---|
-    | Anthelion | ANT |
-    | Nebulance | NBL |
+| Name      | Abbreviation |
+| --------- | ------------ |
+| Anthelion | ANT          |
+| Nebulance | NBL          |
 
 === "AvistaZ"
 
-    | Name | Abbreviation |
-    |---|---|
-    | AvistaZ | AvZ |
-    | AnimeZ | AnZ |
-    | CinemaZ | CZ |
-    | ExoticaZ | ExZ |
-    | PrivateHD | PHD |
+| Name      | Abbreviation |
+| --------- | ------------ |
+| AvistaZ   | AvZ          |
+| AnimeZ    | AnZ          |
+| CinemaZ   | CZ           |
+| ExoticaZ  | ExZ          |
+| PrivateHD | PHD          |
 
 === "DigitalCore"
 
-    | Name | Abbreviation |
-    |---|---|
-    | DigitalCore | DC |
+| Name        | Abbreviation |
+| ----------- | ------------ |
+| DigitalCore | DC           |
 
 !!! note "Draft entries"
     Some trackers show a dashed border saying "Stats tracking not yet supported." You can pin them as quicklinks, but they won't poll yet.
@@ -104,8 +104,8 @@ Location varies by platform:
 
 === "Gazelle"
 
-    - **RED / OPS** — **Settings → Access Settings → API Keys**. Create a new key (read-only is fine).
-    - **BTN / PTP / AB / others** — Check **Settings → Security**, **Settings → API**, or your profile.
+    - **RED / OPS**: **Settings → Access Settings → API Keys**. Create a new key (read-only is fine).
+    - **BTN / PTP / AB / others**: check **Settings → Security**, **Settings → API**, or your profile.
 
     Gazelle shows keys only once when created, so copy it right away.
 
@@ -184,7 +184,7 @@ Location varies by platform:
 If the tracker needs a proxy (i.e., for geo-restrictions), toggle **Use Proxy** on the tracker's settings page. See [Proxy Support](../features/proxies.md) for setup.
 
 !!! tip "Getting a red dot?"
-    Check your API token — most often it's a copy-paste error or a token that rotated after you saved it.
+    Check your API token. Most often it's a copy-paste error or a token that rotated after you saved it.
 
 ## Poll manually
 
@@ -214,13 +214,13 @@ Different platforms expose different stats. Here's what you'll get:
 
 ### Gazelle: extra data on RED
 
-REDacted and Phoenix Project return additional fields — warned status, join date, avatar, and detailed seeding/leeching counts — giving you richer info than other Gazelle trackers.
+REDacted and Phoenix Project return additional fields (warned status, join date, avatar, and detailed seeding/leeching counts), which gives you richer info than other Gazelle trackers.
 
 ### GGn quirks
 
-- **Seeding/leeching can show 0** — GGn's API doesn't always expose these counts. That's normal.
-- **Hit & Runs shows unknown** for Elite Gamer and above — those classes are HNR-immune.
-- **Gold, not seedbonus** — GGn calls bonus currency "gold," which we map to the bonus points field.
+- **Seeding/leeching can show 0**: GGn's API doesn't always expose these counts. That's normal.
+- **Hit & Runs shows unknown** for Elite Gamer and above, because those classes are HNR-immune.
+- **Gold, not seedbonus**: GGn calls bonus currency "gold," which we map to the bonus points field.
 
 ---
 

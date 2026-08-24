@@ -75,8 +75,9 @@ export function CredentialFieldRow({
     setError(null)
     if (field.shown) {
       // Reverting an untouched reveal back to "not held" is what keeps looking
-      // at a secret from counting as an edit — see isDraftDirty.
-      const unchanged = revealedOriginal.current !== null && field.value === revealedOriginal.current
+      // at a secret from counting as an edit. See isDraftDirty.
+      const unchanged =
+        revealedOriginal.current !== null && field.value === revealedOriginal.current
       revealedOriginal.current = null
       onChange({ shown: false, value: unchanged ? null : field.value })
       return
@@ -86,7 +87,7 @@ export function CredentialFieldRow({
       return
     }
     if (!canReveal || !field.id) {
-      // A stored secret with nothing in it. Reveal `shown` ONLY — writing
+      // A stored secret with nothing in it. Reveal `shown` ONLY, writing
       // `value: ""` here would look identical on screen but would flip the field
       // from "not held" to "held and empty", which is a real edit and would end
       // in a "discard your changes?" prompt for someone who only clicked Show.
@@ -169,7 +170,7 @@ export function CredentialFieldRow({
         />
 
         {/* The editable name above doubles as the visible label, so the value
-            input gets a programmatic one of its own — useId ties them together
+            input gets a programmatic one of its own, and useId ties them together
             without printing the name twice. */}
         <label htmlFor={valueId} className="sr-only">
           {label}

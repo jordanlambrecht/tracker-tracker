@@ -137,11 +137,11 @@ describe("getTrackerHealth — seedingCount the adapter does not report", () => 
 describe("health metadata", () => {
   it("gives 'no-seeds' its own label and description", () => {
     expect(getHealthLabel("no-seeds")).toBe("No Seeds")
-    expect(getHealthDescription("no-seeds")).toBe("Zero active seeds — nothing is uploading")
+    expect(getHealthDescription("no-seeds")).toBe("Zero active seeds, nothing is uploading")
   })
 
   it("narrows the 'warning' description to the ratio band only", () => {
-    expect(getHealthDescription("warning")).toBe("Ratio 1.0–2.0 — thin buffer")
+    expect(getHealthDescription("warning")).toBe("Ratio 1.0–2.0, thin buffer")
     expect(getHealthDescription("warning")).not.toContain("seeds")
   })
 

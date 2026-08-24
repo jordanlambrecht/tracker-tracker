@@ -31,7 +31,7 @@ services:
       # LOG_FILE: /data/logs/tracker-tracker.log # optional
       BASE_URL: ${BASE_URL:-} # optional, i.e https://trackertracker.example.com
       # SECURE_COOKIES: ${SECURE_COOKIES:-} # set to 'true' if serving over HTTPS
-      # DISABLE_LOGIN_LOCKOUT: "true" # recovery switch — stops failed-login lockouts from being
+      # DISABLE_LOGIN_LOCKOUT: "true" # recovery switch that stops failed-login lockouts from being
       #   enforced. The in-app lockout toggle sits behind the login you cannot reach, so this is
       #   the way back in after locking yourself out. Logs a WARN on first use. Unset and restart
       #   once you are in; a successful login clears the lockout state on its own.

@@ -51,10 +51,7 @@ describe("AddTrackerDialog digitalcore credentials", () => {
     render(<AddTrackerDialog open onClose={vi.fn()} onAdded={onAdded} />)
 
     await pickDigitalCore(user)
-    await user.type(
-      screen.getByLabelText("Session Cookies"),
-      "uid=56954; pass=abc123def456"
-    )
+    await user.type(screen.getByLabelText("Session Cookies"), "uid=56954; pass=abc123def456")
     await user.click(screen.getByRole("button", { name: "Add Tracker" }))
 
     const request = createRequest()
@@ -70,10 +67,7 @@ describe("AddTrackerDialog digitalcore credentials", () => {
     render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
 
     await pickDigitalCore(user)
-    await user.type(
-      screen.getByLabelText("Session Cookies"),
-      "uid=56954; pass=abc123def456"
-    )
+    await user.type(screen.getByLabelText("Session Cookies"), "uid=56954; pass=abc123def456")
     await user.click(screen.getByRole("button", { name: "Add Tracker" }))
 
     const test = fetchMock.mock.calls.find(

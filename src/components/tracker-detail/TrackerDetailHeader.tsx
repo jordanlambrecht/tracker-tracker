@@ -39,7 +39,7 @@ interface TrackerDetailHeaderProps {
   polling: boolean
   onPollNow: () => void
   onOpenSettings: () => void
-  /** Opens the credential vault sheet. Always available — the sheet itself
+  /** Opens the credential vault sheet. Always available, the sheet itself
    *  renders the opt-in explanation when the feature is disabled, so hiding the
    *  button would leave a disabled user with no route to turning it on. */
   onOpenCredentials: () => void

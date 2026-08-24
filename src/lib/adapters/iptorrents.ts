@@ -59,7 +59,7 @@ function valueAfterLabel(wrap: ParsedElement, label: string): string {
 
 /**
  * Fallback for the newer `.up-stat` card UI (value in `.up-stat-value`, label
- * in `.up-stat-label`). The Ratio card is deliberately ignored — ratio is
+ * in `.up-stat-label`). The Ratio card is deliberately ignored, ratio is
  * derived from the byte totals below.
  */
 function parseUpStatCards(doc: ParsedElement): {
@@ -97,7 +97,7 @@ function parseUpStatCards(doc: ParsedElement): {
 
 export function parseIptProfile(html: string): TrackerStats {
   if (html.includes("/auth/login")) {
-    throw new Error("Session expired — browser cookies need to be refreshed")
+    throw new Error("Session expired. Browser cookies need to be refreshed")
   }
 
   if (
@@ -105,7 +105,7 @@ export function parseIptProfile(html: string): TrackerStats {
     html.includes("cf_chl_opt") ||
     html.includes("challenges.cloudflare.com/turnstile")
   ) {
-    throw new Error("Cloudflare challenge detected — cookies need refreshing")
+    throw new Error("Cloudflare challenge detected. Cookies need refreshing")
   }
 
   const doc = parseHtml(html)
@@ -113,7 +113,7 @@ export function parseIptProfile(html: string): TrackerStats {
   const statsDiv = doc.querySelector(".stats")
   if (!statsDiv) {
     throw new Error(
-      "Could not find stats bar on IPTorrents page — the page may not be authenticated"
+      "Could not find stats bar on IPTorrents page. The page may not be authenticated"
     )
   }
 
@@ -180,7 +180,7 @@ export function parseIptProfile(html: string): TrackerStats {
 }
 
 // ---------------------------------------------------------------------------
-// HTML fetcher — direct fetch or proxy
+// HTML fetcher, direct fetch or proxy
 // ---------------------------------------------------------------------------
 
 function fetchHtml(
@@ -197,7 +197,7 @@ function fetchHtml(
     userAgent,
     proxyAgent,
     label: "IPTorrents",
-    sessionExpiredMessage: "Session expired — browser cookies need to be refreshed",
+    sessionExpiredMessage: "Session expired. Browser cookies need to be refreshed",
     followRedirects: { loginPattern: /\/auth\/login|\/login/i },
   })
 }

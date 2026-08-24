@@ -72,7 +72,7 @@ function makeSnapshot(overrides: Partial<Snapshot> = {}): Snapshot {
 const BASE_ACCENT = "#00d4ff"
 
 // ---------------------------------------------------------------------------
-// Helper — extract slot ids from the map for a given category
+// Helper, extract slot ids from the map for a given category
 // ---------------------------------------------------------------------------
 
 function slotIds(ctx: SlotContext, category: "badge" | "stat-card" | "progress"): string[] {
@@ -305,7 +305,7 @@ describe("Gazelle context", () => {
 })
 
 // ---------------------------------------------------------------------------
-// Test 3: Minimal context — no meta, snapshot with seedbonus
+// Test 3: Minimal context, no meta, snapshot with seedbonus
 // ---------------------------------------------------------------------------
 
 describe("minimal context (no meta, seedbonus present)", () => {
@@ -426,7 +426,7 @@ describe("priority ordering", () => {
 })
 
 // ---------------------------------------------------------------------------
-// Test 6: Mutual exclusion — Nebulance context
+// Test 6: Mutual exclusion, Nebulance context
 // ---------------------------------------------------------------------------
 
 describe("mutual exclusion: Nebulance snatched-nebulance vs seedbonus", () => {
@@ -465,7 +465,7 @@ describe("mutual exclusion: Nebulance snatched-nebulance vs seedbonus", () => {
 })
 
 // ---------------------------------------------------------------------------
-// Test 7: Mutual exclusion — GGn context (hourlyGold blocks seedbonus)
+// Test 7: Mutual exclusion, GGn context (hourlyGold blocks seedbonus)
 // ---------------------------------------------------------------------------
 
 describe("mutual exclusion: GGn hourlyGold blocks seedbonus", () => {

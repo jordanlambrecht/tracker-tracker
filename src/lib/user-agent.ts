@@ -26,9 +26,7 @@ export const DEFAULT_USER_AGENT = `tracker-tracker/${major}.${minor}`
  * header rather than replace the first. Scraping adapters must keep the exact
  * UA their cookie was issued to, which is what session fingerprinting checks.
  */
-export function withDefaultUserAgent(
-  headers: Record<string, string> = {}
-): Record<string, string> {
+export function withDefaultUserAgent(headers: Record<string, string> = {}): Record<string, string> {
   const hasUserAgent = Object.keys(headers).some((key) => key.toLowerCase() === "user-agent")
   return hasUserAgent ? headers : { ...headers, "User-Agent": DEFAULT_USER_AGENT }
 }

@@ -49,7 +49,9 @@ function jsonResponse(body: unknown, { ok = true, status = 200 } = {}) {
 }
 
 function putCalls() {
-  return fetchMock.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "PUT")
+  return fetchMock.mock.calls.filter(
+    ([, init]) => (init as RequestInit | undefined)?.method === "PUT"
+  )
 }
 
 function revealCalls() {
@@ -86,7 +88,7 @@ async function ready() {
 // ─── Clipboard stubbing ───────────────────────────────────────────────────────
 //
 // jsdom implements NEITHER navigator.clipboard nor document.execCommand, so both
-// have to be installed by hand — which is convenient, because varying them is
+// have to be installed by hand, which is convenient, because varying them is
 // exactly how the fallback ladder gets tested.
 //
 // The trap: userEvent.setup() installs its OWN clipboard stub over the top of
@@ -154,7 +156,7 @@ describe("the sheet loads masked", () => {
     const passkey = screen.getByLabelText("Passkey") as HTMLInputElement
     expect(passkey.type).toBe("password")
     expect(passkey.value).toBe("")
-    // The value is not merely hidden by CSS — it was never sent.
+    // The value is not merely hidden by CSS, it was never sent.
     expect(document.body.textContent).not.toContain(PASSKEY)
     // Loading the sheet must not cost one reveal per secret; that is the entire
     // difference between reveal-on-demand and "fetch everything then hide it".
@@ -165,7 +167,7 @@ describe("the sheet loads masked", () => {
     renderSheet()
     await ready()
 
-    // secret: false means exactly this — an IRC nick is not a secret and does
+    // secret: false means exactly this, an IRC nick is not a secret and does
     // not deserve a reveal round trip.
     expect((screen.getByLabelText("Nick") as HTMLInputElement).value).toBe("jordy")
     expect(revealCalls()).toHaveLength(0)
@@ -194,7 +196,7 @@ describe("reveal fetches exactly one field", () => {
     const [url, init] = revealCalls()[0]
     expect(String(url)).toContain("/api/trackers/42/credentials/reveal")
     expect((init as RequestInit).method).toBe("POST")
-    // The id travels in the BODY, not the URL — URLs land in access logs and
+    // The id travels in the BODY, not the URL, URLs land in access logs and
     // browser history.
     expect(JSON.parse(String((init as RequestInit).body))).toEqual({ fieldId: "passkey" })
   })
@@ -221,10 +223,13 @@ describe("reveal fetches exactly one field", () => {
     const user = setupUser()
     fetchMock.mockImplementation(async (url: unknown) => {
       if (String(url).includes("/reveal")) {
-        return jsonResponse({ error: "Too many reveals. Wait a moment and try again." }, {
-          ok: false,
-          status: 429,
-        })
+        return jsonResponse(
+          { error: "Too many reveals. Wait a moment and try again." },
+          {
+            ok: false,
+            status: 429,
+          }
+        )
       }
       return jsonResponse({ vault: VAULT_VIEW })
     })
@@ -308,7 +313,7 @@ describe("copy works WITHOUT revealing", () => {
 
     await user.click(screen.getByRole("button", { name: "Show API key" }))
 
-    // There is nothing to reveal, so no round trip — and flipping to shown must
+    // There is nothing to reveal, so no round trip, and flipping to shown must
     // not quietly convert "not held" into "held and empty", which is an edit.
     expect(revealCalls()).toHaveLength(0)
     await waitFor(() => expect(screen.getByRole("button", { name: "Save" })).toBeDisabled())
@@ -354,7 +359,7 @@ describe("the clipboard fallback", () => {
     await user.click(screen.getByRole("button", { name: "Copy Passkey" }))
 
     // Safari treats a write after a network round trip as outside the user
-    // gesture, which rejects — the ladder has to catch that, not just absence.
+    // gesture, which rejects, the ladder has to catch that, not just absence.
     await waitFor(() => expect(execCommandStub).toHaveBeenCalledWith("copy"))
   })
 
@@ -382,7 +387,7 @@ describe("the clipboard fallback", () => {
     await user.click(screen.getByRole("button", { name: "Copy Passkey" }))
 
     // The escape hatch: if the machine cannot copy for them, at least let them
-    // read it. Deliberately a second, explicit click — not automatic.
+    // read it. Deliberately a second, explicit click, not automatic.
     await user.click(await screen.findByRole("button", { name: "Show it instead" }))
     await waitFor(() =>
       expect((screen.getByLabelText("Passkey") as HTMLInputElement).value).toBe(PASSKEY)
@@ -513,7 +518,11 @@ describe("saving", () => {
 
   it("shows the server's error when the save fails, and keeps the draft", async () => {
     const user = setupUser()
-    putResponse = { ok: false, status: 500, body: { error: "Could not read the stored credentials" } }
+    putResponse = {
+      ok: false,
+      status: 500,
+      body: { error: "Could not read the stored credentials" },
+    }
     renderSheet()
     await ready()
 
@@ -553,7 +562,7 @@ describe("sections and fields", () => {
     await ready()
 
     await user.click(screen.getByRole("button", { name: "Add section" }))
-    // ARRAY ORDER IS DISPLAY ORDER — there is no sortOrder to get out of sync.
+    // ARRAY ORDER IS DISPLAY ORDER, there is no sortOrder to get out of sync.
     expect(screen.getByRole("button", { name: "Move IRC up" })).toBeDisabled()
 
     await user.click(screen.getByRole("button", { name: "Move IRC down" }))
@@ -574,7 +583,7 @@ describe("sections and fields", () => {
 
     await waitFor(() => expect(putCalls()).toHaveLength(1))
     const added = lastPutVault().sections[0].fields[2]
-    // Derived late, from what the user actually typed — so it lands as
+    // Derived late, from what the user actually typed, so it lands as
     // `announce_url` rather than as `new_field`.
     expect(added.id).toBe("announce_url")
     expect(added.value).toBe("")

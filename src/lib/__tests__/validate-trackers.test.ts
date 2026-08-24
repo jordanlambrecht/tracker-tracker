@@ -10,7 +10,7 @@ import { validateDefunct } from "@/data/tracker-validation-rules"
 
 // ---------------------------------------------------------------------------
 // Local mirror of the transit-papers validation logic from
-// scripts/validate-trackers.ts. Do NOT import that script directly — it runs
+// scripts/validate-trackers.ts. Do NOT import that script directly, it runs
 // CLI side-effects (process.exit, console.log) on module load.
 //
 // The defunct rule below needs no mirror: it lives in
@@ -45,7 +45,7 @@ function validateTransitPapers(entry: Partial<TrackerRegistryEntry>): {
 }
 
 // ---------------------------------------------------------------------------
-// Fabricated base entry — only the transit-papers fields vary per test
+// Fabricated base entry, only the transit-papers fields vary per test
 // ---------------------------------------------------------------------------
 
 const baseEntry: Partial<TrackerRegistryEntry> = {
@@ -183,7 +183,7 @@ describe("defunct validation", () => {
   })
 
   // The banner leads with the shutdown date, so a defunct entry without one renders
-  // an announcement that never says when — which reads as a bug, not as missing data.
+  // an announcement that never says when, which reads as a bug, not as missing data.
   it("defunct=true without defunctDate produces an error", () => {
     const { errors } = validateDefunct({ ...defunctEntry, defunctDate: undefined })
 

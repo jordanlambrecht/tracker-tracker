@@ -20,12 +20,26 @@ export const portugas: TrackerRegistryEntry = {
   logo: "",
   trackerHubSlug: "",
   statusPageUrl: "",
-    userClasses: [
+  userClasses: [
     { name: "Mouro", requirements: "Upload ≥ 0 B, ratio ≥ 0.40, age ≥ 0. DL slots: 3" },
-    { name: "Hispanus", requirements: "Upload ≥ 250 GiB, ratio ≥ 1.25, age ≥ 3 months. DL slots: 5, invite sending" },
-    { name: "Lusitanus", requirements: "Upload ≥ 1 TiB, ratio ≥ 1.25, age ≥ 6 months. DL slots: 10, invite sending" },
-    { name: "Portucale", requirements: "Upload ≥ 5 TiB, ratio ≥ 1.25, age ≥ 1 year. DL slots: 15, upload torrents, invite sending" },
-    { name: "Portuga", requirements: "Upload ≥ 15 TiB, ratio ≥ 1.25, age ≥ 1 year. DL slots: 20, upload torrents, invite sending" }
+    {
+      name: "Hispanus",
+      requirements: "Upload ≥ 250 GiB, ratio ≥ 1.25, age ≥ 3 months. DL slots: 5, invite sending",
+    },
+    {
+      name: "Lusitanus",
+      requirements: "Upload ≥ 1 TiB, ratio ≥ 1.25, age ≥ 6 months. DL slots: 10, invite sending",
+    },
+    {
+      name: "Portucale",
+      requirements:
+        "Upload ≥ 5 TiB, ratio ≥ 1.25, age ≥ 1 year. DL slots: 15, upload torrents, invite sending",
+    },
+    {
+      name: "Portuga",
+      requirements:
+        "Upload ≥ 15 TiB, ratio ≥ 1.25, age ≥ 1 year. DL slots: 20, upload torrents, invite sending",
+    },
   ],
   releaseGroups: [],
   bannedGroups: [],
@@ -132,7 +146,7 @@ export const portugas: TrackerRegistryEntry = {
   },
   warning: false,
   warningNote: "",
-  draft: true,  // API endpoint unavailable on this custom UNIT3D build
+  draft: true, // API endpoint unavailable on this custom UNIT3D build
   supportsTransitPapers: true,
   profileUrlPattern: "/users/{username}",
 }

@@ -302,7 +302,7 @@ export async function POST(request: Request) {
         canPassThrough = false
         log.warn(
           { event: "restore_stale_ciphertext" },
-          "Backup predates a master password change — credentials that cannot be re-encrypted will be cleared"
+          "Backup predates a master password change, so credentials that cannot be re-encrypted will be cleared"
         )
       }
     }
@@ -520,7 +520,7 @@ export async function POST(request: Request) {
                   }
                 })(),
             lastError: credentialsCleared
-              ? "Credentials cleared during restore — re-enter and re-enable"
+              ? "Credentials cleared during restore. Re-enter and re-enable"
               : null,
             createdAt: new Date(fields.createdAt as string),
             updatedAt: new Date(fields.updatedAt as string),
@@ -583,7 +583,7 @@ export async function POST(request: Request) {
       // Batch insert trackerOutages (remap trackerId). Must follow the tracker
       // insert above so the FK resolves; rows whose tracker did not survive the
       // restore are dropped as orphans, exactly like snapshots. These explain
-      // the snapshots just written — dropping them would restore the flat
+      // the snapshots just written, because dropping them would restore the flat
       // stretches with no reason attached.
       if (Array.isArray(payload.trackerOutages) && payload.trackerOutages.length > 0) {
         const outageRows: Record<string, unknown>[] = []
@@ -762,7 +762,7 @@ export async function POST(request: Request) {
             includeTrackerName: (fields.includeTrackerName as boolean) ?? true,
             scope: (fields.scope as number[] | null) ?? null,
             lastDeliveryError: configCleared
-              ? "Config cleared during restore — re-enter and re-enable"
+              ? "Config cleared during restore. Re-enter and re-enable"
               : null,
             createdAt: new Date(fields.createdAt as string),
             updatedAt: new Date(fields.updatedAt as string),
@@ -976,7 +976,7 @@ export async function POST(request: Request) {
   if (totpDisabledOnRestore) {
     log.warn(
       { event: "restore_totp_cleared" },
-      "TOTP secret could not be re-encrypted — 2FA has been disabled"
+      "TOTP secret could not be re-encrypted, so 2FA has been disabled"
     )
   }
 

@@ -45,7 +45,7 @@ function lockoutDisabledByEnv(): boolean {
     disabledWarningLogged = true
     log.warn(
       { event: "login_lockout_disabled", envVar: DISABLE_LOCKOUT_ENV },
-      `${DISABLE_LOCKOUT_ENV}=true — failed-login lockout is NOT being enforced. This is a recovery switch: unset it and restart once you are back in.`
+      `${DISABLE_LOCKOUT_ENV}=true, so failed-login lockout is NOT being enforced. This is a recovery switch: unset it and restart once you are back in.`
     )
   }
   return true

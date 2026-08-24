@@ -98,7 +98,7 @@ function UsernamePromptDialog({ onSaved, onSkipped }: UsernamePromptDialogProps)
       }
       onSaved()
     } catch {
-      setError("Network error — could not save your username.")
+      setError("Network error. Could not save your username.")
     } finally {
       setSaving(false)
     }
@@ -135,8 +135,8 @@ function UsernamePromptDialog({ onSaved, onSkipped }: UsernamePromptDialogProps)
 
         <Subtext>
           Letters, numbers, underscores, hyphens, dots and spaces. Once set, this username is
-          <strong> required at your next sign-in</strong> — capitalisation is not, since the login
-          check is case-insensitive.
+          <strong> required at your next sign-in</strong>, but capitalisation is not, since the
+          login check is case-insensitive.
         </Subtext>
 
         <Notice message={error ?? undefined} />
@@ -158,7 +158,9 @@ function UsernamePromptDialog({ onSaved, onSkipped }: UsernamePromptDialogProps)
           />
         </div>
 
-        <Subtext>Skipping asks again at your next sign-in. You can also set it in Settings.</Subtext>
+        <Subtext>
+          Skipping asks again at your next sign-in. You can also set it in Settings.
+        </Subtext>
       </div>
     </Dialog>
   )

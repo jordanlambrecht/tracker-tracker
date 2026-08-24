@@ -80,9 +80,9 @@ describe("useDashboardSettings", () => {
 
   describe("update", () => {
     it("sends only the changed key, never the keys the user did not touch", async () => {
-      const spy = vi.spyOn(global, "fetch").mockResolvedValue(
-        jsonResponse({ ...DASHBOARD_SETTINGS_DEFAULTS, showLoginTimers: false })
-      )
+      const spy = vi
+        .spyOn(global, "fetch")
+        .mockResolvedValue(jsonResponse({ ...DASHBOARD_SETTINGS_DEFAULTS, showLoginTimers: false }))
       const { result } = renderHook(() => useDashboardSettings())
       await waitFor(() => expect(result.current.loaded).toBe(true))
 
@@ -140,7 +140,7 @@ describe("useDashboardSettings", () => {
       const { result } = renderHook(() => useDashboardSettings())
       await waitFor(() => expect(result.current.loaded).toBe(true))
 
-      // Only the migrated key is sent — showLoginTimers must not ride along as a
+      // Only the migrated key is sent, showLoginTimers must not ride along as a
       // default and overwrite the server's stored `false`.
       expect(putBodies(spy)).toEqual([{ showHealthIndicators: false }])
 
@@ -168,7 +168,7 @@ describe("useDashboardSettings", () => {
   })
 
   describe("cross-instance sync", () => {
-    // Several instances of this hook are mounted at once — the settings sheet,
+    // Several instances of this hook are mounted at once, the settings sheet,
     // the dashboard, the outage-band provider. Before the broadcast existed, a
     // toggle flipped in the sheet updated only the sheet's copy, so the user
     // could switch something off and watch it stay on everywhere else. This is

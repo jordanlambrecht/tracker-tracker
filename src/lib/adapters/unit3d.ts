@@ -20,7 +20,7 @@ import type {
 
 /** True when a UNIT3D build reports an unbounded buffer rather than a byte value. */
 function isUnlimitedBuffer(raw: string | number): boolean {
-  // Only the humanized string form can say "unbounded" — JSON has no literal
+  // Only the humanized string form can say "unbounded", JSON has no literal
   // for Infinity, so a numeric buffer is always a real byte count.
   if (typeof raw !== "string") return false
   const trimmed = raw?.trim().toLowerCase() ?? ""
@@ -32,17 +32,17 @@ function isUnlimitedBuffer(raw: string | number): boolean {
 // Upload.cx) send raw byte integers.
 // ---------------------------------------------------------------------------
 
-/** Unsigned byte field (uploaded, downloaded) — clamped at zero. */
+/** Unsigned byte field (uploaded, downloaded), clamped at zero. */
 function toBytes(value: string | number): bigint {
   return typeof value === "number" ? floatBytesToBigInt(value) : parseBytes(value)
 }
 
-/** Decimal field (seedbonus) — a bare number on newer builds, "964533.23" on older ones. */
+/** Decimal field (seedbonus), a bare number on newer builds, "964533.23" on older ones. */
 function toNumber(value: string | number): number {
   return (typeof value === "number" ? value : parseFloat(value)) || 0
 }
 
-/** Signed byte field (buffer only) — a deficit account must keep its sign. */
+/** Signed byte field (buffer only), a deficit account must keep its sign. */
 function toSignedBytes(value: string | number): bigint {
   return typeof value === "number" ? signedFloatBytesToBigInt(value) : parseSignedBytes(value)
 }
@@ -60,11 +60,10 @@ interface Unit3dApiResponse {
   hit_and_runs: number
 }
 
-
 // ---------------------------------------------------------------------------
 // Auth
 //
-// UNIT3D's newer auth guard reads *only* `Authorization: Bearer` — the legacy
+// UNIT3D's newer auth guard reads *only* `Authorization: Bearer`, the legacy
 // `?api_token=` query form stops authenticating once a tracker upgrades past
 // v9.2.0. Released versions accept bearer today (config/auth.php uses the
 // stock Laravel `token` driver, whose TokenGuard falls through to
@@ -98,7 +97,7 @@ function buildRequest(
 }
 
 function isAuthRejection(err: unknown): boolean {
-  // Deliberately not `err instanceof Error` — that check is unreliable across
+  // Deliberately not `err instanceof Error`, that check is unreliable across
   // module realms (it returns false under vitest), which would make this
   // fallback silently never fire.
   const message =

@@ -50,8 +50,7 @@ export function defaultShouldSetOption(
 /** Extract legend items from ECharts option. Series names and colors. */
 function extractLegendItems(option: EChartsOption): LegendItem[] {
   const series = option.series as
-    | Array<{ name?: string; itemStyle?: { color?: string } }>
-    | undefined
+    Array<{ name?: string; itemStyle?: { color?: string } }> | undefined
   if (!Array.isArray(series)) return []
 
   const globalColors = (option.color as string[] | undefined) ?? []
@@ -99,10 +98,10 @@ function ChartECharts({
     : 0
   const showExternalLegend = hasLegend && seriesCount > 1
 
-  // Extract legend items — stabilized by content key to avoid unnecessary re-renders
+  // Extract legend items, stabilized by content key to avoid unnecessary re-renders
   const legendItemsRaw = showExternalLegend ? extractLegendItems(option) : []
   const legendKey = legendItemsRaw.map((i) => `${i.name}:${i.color}`).join(",")
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally keyed on legendKey string, not legendItemsRaw reference — stabilizes the array across renders when content hasn't changed
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally keyed on legendKey string, not legendItemsRaw reference, which stabilizes the array across renders when content hasn't changed
   const legendItems = useMemo(() => legendItemsRaw, [legendKey])
 
   // Track which series are selected. Keyed by series name.

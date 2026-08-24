@@ -683,11 +683,7 @@ describe("PATCH /api/trackers/[id]", () => {
     const mockSet = vi.fn().mockReturnValue({ where: mockWhere })
     ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
 
-    const request = makeRequest(
-      "http://localhost/api/trackers/1",
-      { lastAccessAt: null },
-      "PATCH"
-    )
+    const request = makeRequest("http://localhost/api/trackers/1", { lastAccessAt: null }, "PATCH")
     const params = Promise.resolve({ id: "1" })
     const response = await PATCH(request, { params })
 
@@ -737,11 +733,7 @@ describe("PATCH /api/trackers/[id]", () => {
       lastAccessAt: 12345,
     })
 
-    const request = makeRequest(
-      "http://localhost/api/trackers/1",
-      { lastAccessAt: 12345 },
-      "PATCH"
-    )
+    const request = makeRequest("http://localhost/api/trackers/1", { lastAccessAt: 12345 }, "PATCH")
     const params = Promise.resolve({ id: "1" })
     const response = await PATCH(request, { params })
     const data = await response.json()
@@ -872,8 +864,8 @@ describe("POST /api/trackers/[id]/poll", () => {
     ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
 
     // Poll route:
-    //   1. db.update(trackers).set(...).where(...).returning(...) — atomic cooldown claim
-    //   2. db.select({...}).from(appSettings).limit(1) — settings query
+    //   1. db.update(trackers).set(...).where(...).returning(...), atomic cooldown claim
+    //   2. db.select({...}).from(appSettings).limit(1), settings query
     const mockReturning = vi.fn().mockResolvedValue([{ id: 1 }])
     const mockUpdateWhere = vi.fn().mockReturnValue({ returning: mockReturning })
     const mockSet = vi.fn().mockReturnValue({ where: mockUpdateWhere })

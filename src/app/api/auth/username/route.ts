@@ -1,7 +1,7 @@
 // src/app/api/auth/username/route.ts
 //
 // Fills in a login username for an install that never had one, from the
-// post-login prompt. Not a general username editor — see PATCH /api/settings
+// post-login prompt. Not a general username editor; see PATCH /api/settings
 // for that; this endpoint only ever turns NULL into a value.
 //
 // ⚠ SECURITY: "/api/auth/" is a PUBLIC_PREFIX in src/proxy.ts, so the proxy
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  // Same rules as initial setup, from the same function — a username accepted
+  // Same rules as initial setup, from the same function, so a username accepted
   // here has to be one the login form could have been given at account creation.
   const check = validateUsername(body.username)
   if (!check.ok) {

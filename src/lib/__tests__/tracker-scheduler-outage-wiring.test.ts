@@ -1,7 +1,7 @@
 // src/lib/__tests__/tracker-scheduler-outage-wiring.test.ts
 //
 // pollTracker is the ONLY thing that ever writes the tracker connectability
-// ledger. If this wiring is wrong the feature is silently dead — every unit test
+// ledger. If this wiring is wrong the feature is silently dead, every unit test
 // in tracker-outages.test.ts still passes, the table stays empty, and the charts
 // draw nothing forever while looking exactly like a healthy install.
 //
@@ -11,7 +11,7 @@
 //
 // The second is the load-bearing one. Rows are written closed, so a success has
 // nothing to close; a "close it on recovery" call here would be exactly the
-// unbounded overstatement the ledger's design rejects — it would band a
+// unbounded overstatement the ledger's design rejects, it would band a
 // multi-day circuit-breaker pause that nothing ever observed.
 
 import { beforeEach, describe, expect, it, vi } from "vitest"

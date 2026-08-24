@@ -4,7 +4,7 @@
 //
 // A fixed-window throttle for the ONE endpoint in this feature that returns
 // secret plaintext keyed by an id. This app is single-user and every caller is
-// already authenticated, so this is not an anti-abuse system — it is a blast
+// already authenticated, so this is not an anti-abuse system, it is a blast
 // radius limit. If a session cookie is ever stolen or an XSS lands, the reveal
 // endpoint is a loop away from draining every secret in the vault; a cap turns
 // "instant full exfiltration" into something slow enough to notice in the log.
@@ -49,7 +49,7 @@ function getWindow(): RevealWindow {
  *
  * Returns the number of ms until the window resets when the caller is over the
  * cap, or null when the reveal is allowed. A rejected call does NOT extend the
- * window — a fixed window, not a sliding penalty, so a client that backs off
+ * window, a fixed window, not a sliding penalty, so a client that backs off
  * always recovers at a predictable time.
  */
 export function consumeRevealToken(now: number = Date.now()): number | null {

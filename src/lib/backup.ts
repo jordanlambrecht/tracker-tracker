@@ -159,7 +159,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     db.select().from(notificationTargets).orderBy(notificationTargets.id),
   ])
 
-  // appSettings — exclude: id, passwordHash, failedLoginAttempts, encryptedSchedulerKey, createdAt
+  // appSettings, exclude: id, passwordHash, failedLoginAttempts, encryptedSchedulerKey, createdAt
   const settingsPayload: Record<string, unknown> = {}
   if (rawSettings) {
     const {
@@ -175,7 +175,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     }
   }
 
-  // trackers — exclude transient runtime state
+  // trackers, exclude transient runtime state
   const trackersPayload = rawTrackers.map((t) => {
     const {
       lastPolledAt: _lpa,
@@ -191,7 +191,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
   const snapshotsPayload = rawSnapshots.map((s) => serializeRow(s as Record<string, unknown>))
   const rolesPayload = rawRoles.map((r) => serializeRow(r as Record<string, unknown>))
 
-  // downloadClients — cachedTorrents/cachedTorrentsAt/lastPolledAt/lastError excluded at query level
+  // downloadClients, cachedTorrents/cachedTorrentsAt/lastPolledAt/lastError excluded at query level
   const clientsPayload = rawClients.map((c) => serializeRow(c as Record<string, unknown>))
 
   const tagGroupsPayload = rawTagGroups.map((g) => serializeRow(g as Record<string, unknown>))
@@ -407,7 +407,7 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
       assertValidIso(cg.startedAt, `${prefix}.startedAt`)
       assertValidIso(cg.endedAt, `${prefix}.endedAt`)
       assertString(cg.reason, `${prefix}.reason`)
-      // Closed intervals only — an inverted or open-ended gap would band the
+      // Closed intervals only, an inverted or open-ended gap would band the
       // chart backwards or band the present.
       if (new Date(cg.endedAt).getTime() < new Date(cg.startedAt).getTime()) {
         throw new Error(`Backup validation: ${prefix}.endedAt must not precede startedAt`)
@@ -464,7 +464,7 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
     }
 
     assertString(t.encryptedApiToken, `${prefix}.encryptedApiToken`)
-    // Empty token is valid — happens after a restore clears encrypted fields
+    // Empty token is valid, happens after a restore clears encrypted fields
 
     if (t.color !== null && t.color !== undefined) {
       assertString(t.color, `${prefix}.color`)
@@ -511,11 +511,11 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
     }
 
     assertString(c.encryptedUsername, `${prefix}.encryptedUsername`)
-    // Empty credentials are valid — happens after a restore clears encrypted fields
+    // Empty credentials are valid, happens after a restore clears encrypted fields
     assertString(c.encryptedPassword, `${prefix}.encryptedPassword`)
 
     // Both absent in backups written before API-key auth existed, so these are
-    // presence-guarded — but when present they are read as strings and must be.
+    // presence-guarded, but when present they are read as strings and must be.
     if (typeof c.authMethod !== "undefined") assertString(c.authMethod, `${prefix}.authMethod`)
     if (typeof c.encryptedApiKey !== "undefined") {
       assertString(c.encryptedApiKey, `${prefix}.encryptedApiKey`)
@@ -567,7 +567,7 @@ export function decryptBackupPayload(
     parsed = JSON.parse(jsonString)
   } catch {
     throw new Error(
-      "Failed to parse decrypted backup — data may be corrupted or the wrong key was used"
+      "Failed to parse decrypted backup. The data may be corrupted, or the wrong key was used"
     )
   }
   validateBackupJson(parsed)

@@ -406,7 +406,7 @@ describe("classifyLogEvent — priority ordering", () => {
 })
 
 // ---------------------------------------------------------------------------
-// classifyLogEvent — clients category
+// classifyLogEvent, clients category
 // ---------------------------------------------------------------------------
 
 describe("classifyLogEvent — clients category", () => {
@@ -498,7 +498,7 @@ describe("classifyLogEvent — clients category", () => {
 })
 
 // ---------------------------------------------------------------------------
-// sanitizeLogDetail — clientName in detail string
+// sanitizeLogDetail, clientName in detail string
 // ---------------------------------------------------------------------------
 
 describe("sanitizeLogDetail — clientName", () => {
@@ -550,7 +550,7 @@ describe("sanitizeLogDetail — clientName", () => {
 })
 
 // ---------------------------------------------------------------------------
-// classifyLogEvent — uncategorized errors fall to settings (no errors category)
+// classifyLogEvent, uncategorized errors fall to settings (no errors category)
 // ---------------------------------------------------------------------------
 
 describe("classifyLogEvent — no errors category: uncategorized errors fall to settings", () => {
@@ -596,7 +596,7 @@ function makePollEvent(id: string, timestamp: string, trackerName: string): Syst
     category: "polls",
     level: "info",
     title: "Poll succeeded",
-    detail: `${trackerName} — ↑ 1.0 GiB — ↓ 0.5 GiB — 2.00x`,
+    detail: `${trackerName} · ↑ 1.0 GiB · ↓ 0.5 GiB · 2.00x`,
     trackerId: 1,
     trackerName,
     source: "db",

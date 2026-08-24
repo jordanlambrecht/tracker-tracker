@@ -38,53 +38,53 @@ function EcosystemStatsSection({ trackers, aggregateStats }: EcosystemStatsSecti
 
   return (
     <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
-        <StatCard
-          label="Trackers"
-          value={trackers.length.toString()}
-          icon={AGGREGATE_ICONS.trackers}
-        />
-        <StatCard
-          label="Total Uploaded"
-          value={uploadedParts.num}
-          unit={uploadedParts.unit}
-          icon={AGGREGATE_ICONS.uploaded}
-        />
-        <StatCard
-          label="Total Downloaded"
-          value={downloadedParts.num}
-          unit={downloadedParts.unit}
-          icon={AGGREGATE_ICONS.downloaded}
-        />
-        <StatCard
-          label="Total Buffer"
-          value={bufferParts.num}
-          unit={bufferParts.unit}
-          icon={AGGREGATE_ICONS.buffer}
-        />
-        <StatCard
-          label="Avg Ratio"
-          value={formatRatio(aggregateStats.avgRatio)}
-          icon={AGGREGATE_ICONS.ratio}
-          trend={
-            aggregateStats.avgRatio === null
-              ? undefined
-              : aggregateStats.avgRatio >= 2
-                ? "up"
-                : aggregateStats.avgRatio >= 1
-                  ? "flat"
-                  : "down"
-          }
-        />
-        <StatCard
-          label="Seeding"
-          value={formatCount(aggregateStats.totalSeeding)}
-          icon={AGGREGATE_ICONS.seeding}
-        />
-        <StatCard
-          label="Leeching"
-          value={formatCount(aggregateStats.totalLeeching)}
-          icon={AGGREGATE_ICONS.leeching}
-        />
+      <StatCard
+        label="Trackers"
+        value={trackers.length.toString()}
+        icon={AGGREGATE_ICONS.trackers}
+      />
+      <StatCard
+        label="Total Uploaded"
+        value={uploadedParts.num}
+        unit={uploadedParts.unit}
+        icon={AGGREGATE_ICONS.uploaded}
+      />
+      <StatCard
+        label="Total Downloaded"
+        value={downloadedParts.num}
+        unit={downloadedParts.unit}
+        icon={AGGREGATE_ICONS.downloaded}
+      />
+      <StatCard
+        label="Total Buffer"
+        value={bufferParts.num}
+        unit={bufferParts.unit}
+        icon={AGGREGATE_ICONS.buffer}
+      />
+      <StatCard
+        label="Avg Ratio"
+        value={formatRatio(aggregateStats.avgRatio)}
+        icon={AGGREGATE_ICONS.ratio}
+        trend={
+          aggregateStats.avgRatio === null
+            ? undefined
+            : aggregateStats.avgRatio >= 2
+              ? "up"
+              : aggregateStats.avgRatio >= 1
+                ? "flat"
+                : "down"
+        }
+      />
+      <StatCard
+        label="Seeding"
+        value={formatCount(aggregateStats.totalSeeding)}
+        icon={AGGREGATE_ICONS.seeding}
+      />
+      <StatCard
+        label="Leeching"
+        value={formatCount(aggregateStats.totalLeeching)}
+        icon={AGGREGATE_ICONS.leeching}
+      />
     </div>
   )
 }

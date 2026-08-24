@@ -82,7 +82,7 @@ describe("Unit3dAdapter", () => {
 
     const calledUrl = fetchSpy.mock.calls[0][0] as string
     expect(calledUrl).toContain("https://example.com/api/user")
-    // Bearer is now the default, so the token must not appear in the URL —
+    // Bearer is now the default, so the token must not appear in the URL,
     // query strings leak into access logs and Referer headers.
     expect(calledUrl).not.toContain("api_token")
   })
@@ -138,7 +138,7 @@ describe("Unit3dAdapter - security", () => {
     )
   })
 
-  // AbortSignal timeout coverage is in adapterFetch — tested via timeout-message test above
+  // AbortSignal timeout coverage is in adapterFetch, tested via timeout-message test above
 
   it("derives bufferBytes from totals when the build reports an unlimited buffer", async () => {
     // Zenith's UNIT3D build returns "∞" for buffer; parseBytes rejects that,
@@ -168,7 +168,7 @@ describe("Unit3dAdapter - security", () => {
   })
 
   // A build that reports a deficit buffer as a negative string used to throw out
-  // of parseBytes and fail the ENTIRE poll — the account recorded no snapshot at
+  // of parseBytes and fail the ENTIRE poll, the account recorded no snapshot at
   // all, losing uploaded, downloaded and ratio along with the buffer.
   it("records a negative tracker-reported buffer instead of failing the poll", async () => {
     vi.spyOn(global, "fetch").mockResolvedValueOnce({
@@ -191,7 +191,7 @@ describe("Unit3dAdapter - security", () => {
 
     expect(stats.bufferBytes).toBe(BigInt(-1_352_399_302_164))
     expect(stats.bufferBytes).toBeLessThan(BigInt(0))
-    // The rest of the poll survives — that was the real cost of the throw.
+    // The rest of the poll survives, that was the real cost of the throw.
     expect(stats.username).toBe("DeficitUser")
     expect(stats.seedingCount).toBe(5)
   })
@@ -205,9 +205,16 @@ describe("Unit3dAdapter - security", () => {
       return Promise.resolve({
         ok: true,
         json: async () => ({
-          username: "u", group: "g", uploaded: "1 GiB", downloaded: "1 GiB",
-          ratio: "1", buffer: "0 B", seeding: 0, leeching: 0,
-          seedbonus: "0", hit_and_runs: 0,
+          username: "u",
+          group: "g",
+          uploaded: "1 GiB",
+          downloaded: "1 GiB",
+          ratio: "1",
+          buffer: "0 B",
+          seeding: 0,
+          leeching: 0,
+          seedbonus: "0",
+          hit_and_runs: 0,
         }),
       } as Response)
     })
@@ -228,9 +235,16 @@ describe("Unit3dAdapter - security", () => {
       return Promise.resolve({
         ok: true,
         json: async () => ({
-          username: "u", group: "g", uploaded: "1 GiB", downloaded: "1 GiB",
-          ratio: "1", buffer: "0 B", seeding: 0, leeching: 0,
-          seedbonus: "0", hit_and_runs: 0,
+          username: "u",
+          group: "g",
+          uploaded: "1 GiB",
+          downloaded: "1 GiB",
+          ratio: "1",
+          buffer: "0 B",
+          seeding: 0,
+          leeching: 0,
+          seedbonus: "0",
+          hit_and_runs: 0,
         }),
       } as Response)
     })
@@ -243,7 +257,6 @@ describe("Unit3dAdapter - security", () => {
     const headers = capturedInit?.headers as Record<string, string> | undefined
     expect(headers?.Authorization).toBeUndefined()
   })
-
 })
 
 describe("Unit3dAdapter - auth fallback", () => {
@@ -256,13 +269,23 @@ describe("Unit3dAdapter - auth fallback", () => {
     ).__unit3dAuthStyleCache?.clear()
   })
 
-  const okBody = () => ({ ok: true, json: async () => ({
-          username: "u", group: "g", uploaded: "1 GiB", downloaded: "1 GiB",
-          ratio: "1", buffer: "0 B", seeding: 0, leeching: 0,
-          seedbonus: "0", hit_and_runs: 0,
-        }) }) as Response
-  const unauthorized = () =>
-    ({ ok: false, status: 401, statusText: "Unauthorized" }) as Response
+  const okBody = () =>
+    ({
+      ok: true,
+      json: async () => ({
+        username: "u",
+        group: "g",
+        uploaded: "1 GiB",
+        downloaded: "1 GiB",
+        ratio: "1",
+        buffer: "0 B",
+        seeding: 0,
+        leeching: 0,
+        seedbonus: "0",
+        hit_and_runs: 0,
+      }),
+    }) as Response
+  const unauthorized = () => ({ ok: false, status: 401, statusText: "Unauthorized" }) as Response
 
   it("falls back to the api_token query param when bearer is rejected", async () => {
     const spy = vi
@@ -287,7 +310,7 @@ describe("Unit3dAdapter - auth fallback", () => {
     await adapter.fetchStats("https://old.example", "tok", "/api/user")
     await adapter.fetchStats("https://old.example", "tok", "/api/user")
 
-    // 2 for the first (probe + fallback), 1 for the second — not 4.
+    // 2 for the first (probe + fallback), 1 for the second, not 4.
     expect(spy).toHaveBeenCalledTimes(3)
     expect(String(spy.mock.calls[2][0])).toContain("api_token=tok")
   })
@@ -297,9 +320,7 @@ describe("Unit3dAdapter - auth fallback", () => {
       .spyOn(global, "fetch")
       .mockResolvedValueOnce({ ok: false, status: 500, statusText: "Server Error" } as Response)
 
-    await expect(
-      adapter.fetchStats("https://broken.example", "tok", "/api/user")
-    ).rejects.toThrow()
+    await expect(adapter.fetchStats("https://broken.example", "tok", "/api/user")).rejects.toThrow()
     expect(spy).toHaveBeenCalledTimes(1)
   })
 
@@ -319,7 +340,7 @@ describe("Unit3dAdapter - auth fallback", () => {
 // Newer UNIT3D builds (Blutopia, Upload.cx) return raw byte INTEGERS from
 // /api/user instead of the humanized strings ("500.25 GiB") older builds send.
 // parseBytes calls .trim() on its argument, so a numeric payload used to blow
-// up the whole poll with "formatted.trim is not a function" — the raw debug
+// up the whole poll with "formatted.trim is not a function", the raw debug
 // fetch succeeded while the normalized one never produced a snapshot.
 // ---------------------------------------------------------------------------
 describe("Unit3dAdapter - numeric byte payloads", () => {

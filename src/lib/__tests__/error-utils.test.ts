@@ -8,7 +8,7 @@ import { classifyFetchError, isDecryptionError, sanitizeNetworkError } from "@/l
 // ---------------------------------------------------------------------------
 
 describe("isDecryptionError", () => {
-  // Positive cases — messages that indicate AES-GCM authentication failure
+  // Positive cases, messages that indicate AES-GCM authentication failure
 
   it("returns true for 'Unsupported state or unable to authenticate data'", () => {
     expect(isDecryptionError(new Error("Unsupported state or unable to authenticate data"))).toBe(
@@ -52,7 +52,7 @@ describe("isDecryptionError", () => {
     expect(isDecryptionError(new Error("INVALID KEY supplied"))).toBe(true)
   })
 
-  // Negative cases — errors unrelated to decryption
+  // Negative cases, errors unrelated to decryption
 
   it("returns false for 'Connection refused'", () => {
     expect(isDecryptionError(new Error("Connection refused"))).toBe(false)
@@ -138,18 +138,16 @@ describe("sanitizeNetworkError", () => {
   // so they must stay distinct from each other and from the generic rules.
   it("maps a blank-credential rejection to bypass guidance", () => {
     expect(
-      sanitizeNetworkError("Authentication failed — qBittorrent rejected the blank credentials")
+      sanitizeNetworkError("Authentication failed. qBittorrent rejected the blank credentials")
     ).toBe(
-      'Blank credentials rejected — enable "Bypass authentication for clients on localhost" in qBittorrent'
+      'Blank credentials rejected. Enable "Bypass authentication for clients on localhost" in qBittorrent'
     )
   })
 
   it("maps a username/password rejection to a credentials message", () => {
     expect(
-      sanitizeNetworkError(
-        "Authentication failed — qBittorrent rejected the username and password"
-      )
-    ).toBe("Credentials rejected by qBittorrent — check the username and password")
+      sanitizeNetworkError("Authentication failed. qBittorrent rejected the username and password")
+    ).toBe("Credentials rejected by qBittorrent. Check the username and password")
   })
 
   it("maps a qBittorrent IP ban to a self-clearing ban message, not the tracker one", () => {
@@ -157,7 +155,7 @@ describe("sanitizeNetworkError", () => {
       sanitizeNetworkError(
         "qBittorrent has temporarily banned this IP after too many failed login attempts"
       )
-    ).toBe("Banned by qBittorrent after too many failed logins — it will clear on its own")
+    ).toBe("Banned by qBittorrent after too many failed logins. It will clear on its own")
   })
 
   it("maps 'rate-limit' to IP ban message", () => {

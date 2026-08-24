@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 // ---------------------------------------------------------------------------
-// Mocks — must appear before any real module imports
+// Mocks, must appear before any real module imports
 // ---------------------------------------------------------------------------
 
 vi.mock("@/lib/db", () => ({
@@ -18,7 +18,7 @@ vi.mock("@/lib/db", () => ({
 vi.mock("@/lib/db/schema", () => ({
   appCoverageGaps: {},
   trackerOutages: {},
-  // appLiveness is absent on purpose — see the exclusion test below.
+  // appLiveness is absent on purpose. See the exclusion test below.
   appSettings: {},
   trackers: {},
   trackerSnapshots: {},
@@ -353,7 +353,7 @@ describe("Backup security invariants", () => {
 })
 
 // ---------------------------------------------------------------------------
-// generateBackupPayload — sensitive field exclusion
+// generateBackupPayload, sensitive field exclusion
 //
 // These tests call the real generateBackupPayload() with a mocked DB that
 // returns a realistic appSettings row including the three sensitive fields
@@ -436,7 +436,7 @@ describe("generateBackupPayload sensitive field exclusion", () => {
 
   it("does NOT include id or createdAt in backup settings output", async () => {
     const payload = await generateBackupPayload()
-    // id and createdAt are also stripped — verify defensively
+    // id and createdAt are also stripped, verify defensively
     expect(payload.settings).not.toHaveProperty("id")
     expect(payload.settings).not.toHaveProperty("createdAt")
   })
@@ -470,7 +470,7 @@ describe("generateBackupPayload sensitive field exclusion", () => {
 // It is one mutable row meaning "the live process was here at this instant".
 // Restoring a months-old lastSeenAt would make the next touchAppLiveness()
 // measure the distance to now and write a single enormous fabricated outage
-// across every chart — an explanation for downtime that never happened.
+// across every chart, an explanation for downtime that never happened.
 //
 // The guarantee is structural (generateBackupPayload enumerates its tables by
 // hand), but "structural" is exactly what a future contributor changes while
@@ -508,7 +508,7 @@ describe("app liveness ledger exclusion", () => {
   it("DOES carry tracker_outages, for exactly the same reason", async () => {
     // tracker_outages FKs to trackers with ON DELETE CASCADE, so a restore wipes
     // it and re-inserts the snapshots it explained. Omitting it from the backup
-    // hands back the flat stretches with every explanation gone — permanently,
+    // hands back the flat stretches with every explanation gone, permanently,
     // because the rows are not recoverable from anywhere else.
     const payload = await generateBackupPayload()
     expect(payload).toHaveProperty("trackerOutages")
@@ -555,17 +555,12 @@ describe("appCoverageGaps validation", () => {
 
 describe("BACKUP_CLIENT_COLUMNS", () => {
   // A credential column missing from the backup projection is not a type
-  // error — the payload type is inferred from whatever the projection happens
+  // error, the payload type is inferred from whatever the projection happens
   // to contain. It surfaces much later, as a restore that quietly comes back
   // without that credential. So assert the columns by name.
   it("carries every credential column a client can authenticate with", () => {
     const keys = Object.keys(BACKUP_CLIENT_COLUMNS)
-    for (const key of [
-      "authMethod",
-      "encryptedUsername",
-      "encryptedPassword",
-      "encryptedApiKey",
-    ]) {
+    for (const key of ["authMethod", "encryptedUsername", "encryptedPassword", "encryptedApiKey"]) {
       expect(keys).toContain(key)
     }
   })

@@ -6,15 +6,15 @@
 | Base URL     | `https://digitalcore.club`                     |
 | API Endpoint | `https://digitalcore.club/api/v1/status`       |
 | Auth Method  | Session cookies: `uid` and `pass`              |
-| Enrichment   | Yes — second call to `/api/v1/users/:id`       |
+| Enrichment   | Yes, second call to `/api/v1/users/:id`        |
 | Auth Style   | N/A                                            |
 
 ## Notes
 
 DigitalCore uses a custom API. The adapter makes two calls:
 
-1. `GET /api/v1/status` — core stats (upload, download, class, bonus points, connectable, hit-and-runs)
-2. `GET /api/v1/users/:id` — enrichment (join date, last access, peer counts, forum activity)
+1. `GET /api/v1/status` returns core stats (upload, download, class, bonus points, connectable, hit-and-runs)
+2. `GET /api/v1/users/:id` returns enrichment (join date, last access, peer counts, forum activity)
 
 Credentials are the `uid` and `pass` **session cookies**, stored as a JSON blob
 `{"uid": "...", "pass": "...", "userAgent": "..."}`. Users copy the cookies from
@@ -36,7 +36,7 @@ Their documentation states that normal API-key access blocks "direct torrent
 detail, comments, peers, snatchlog, **profile data**, mailbox, admin tools,
 delete/edit actions, and request actions."
 
-Verified against the live API — every user endpoint returns HTTP 403 with
+Verified against the live API. Every user endpoint returns HTTP 403 with
 `"This action (GET:...) is not allowed for API key access."`:
 
 ```
@@ -51,14 +51,14 @@ Normal keys are limited to `GET /api/v1/torrents`,
 `moviedata` lookup routes.
 
 **So the session-cookie flow is required, not a legacy choice.** Don't spend time
-trying to replace it with an API key for a nicer setup experience — it cannot work
+trying to replace it with an API key for a nicer setup experience, because it cannot work
 unless DigitalCore changes their key scopes.
 
 ### Mixed value conventions
 
 The API mixes types within a single response: `connectable` is a number (`0`/`1`)
 while `warned`, `enabled`, `donor` and `seedboxdonor` are strings. There is no
-inferable rule, so never assume a field's type from a sibling — check a real
+inferable rule, so never assume a field's type from a sibling. Check a real
 response before writing a coercion.
 
 ## Slots
@@ -66,7 +66,7 @@ response before writing a coercion.
 **Profile Card:** username · class · avatar · join date (from enrichment)
 
 **Badges:** `warned` · `dc-unconnectable` (rendered when `connectable !== false`
-is falsy — note this badge id is our own label, not a field name in DigitalCore's
+is falsy; note this badge id is our own label, not a field name in DigitalCore's
 response)
 
 **Stat Cards:** bonus points (`bonuspoang`) · hit-and-runs · seeding count ·

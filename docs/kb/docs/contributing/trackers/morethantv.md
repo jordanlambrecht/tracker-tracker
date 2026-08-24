@@ -18,9 +18,9 @@ Standard Gazelle.
 
 ## Slots
 
-**Profile Card:** username · group (no avatar or join date — no enrichment)
+**Profile Card:** username · group (no avatar or join date, no enrichment)
 
-**Badges:** `warned` (conditional — always `false` since there's no enrichment)
+**Badges:** `warned` (conditional, always `false` since there's no enrichment)
 
 **Stat Cards:** `seedbonus`, `login-deadline` (loginIntervalDays: 90)
 

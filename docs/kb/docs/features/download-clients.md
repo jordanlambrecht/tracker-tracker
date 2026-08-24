@@ -20,14 +20,14 @@ Tracker Tracker connects to qBittorrent's web interface to pull live torrent dat
 
 Go to **Settings → Download Clients** and fill in your connection details:
 
-| Field    | Notes                                                       |
-| -------- | ----------------------------------------------------------- |
-| Name     | A label for this client                                     |
-| Host     | Hostname or IP — do **not** include `http://` or `https://` |
-| Port     | Default qBittorrent Web UI port is `8080`                   |
-| Username | qBittorrent Web UI username                                 |
-| Password | qBittorrent Web UI password                                 |
-| Use SSL  | Enable if your qBittorrent Web UI is served over HTTPS      |
+| Field    | Notes                                                      |
+| -------- | ---------------------------------------------------------- |
+| Name     | A label for this client                                    |
+| Host     | Hostname or IP, do **not** include `http://` or `https://` |
+| Port     | Default qBittorrent Web UI port is `8080`                  |
+| Username | qBittorrent Web UI username                                |
+| Password | qBittorrent Web UI password                                |
+| Use SSL  | Enable if your qBittorrent Web UI is served over HTTPS     |
 
 !!! warning "SSL/port mismatch"
     The form will warn you if SSL is on with port 80, or SSL is off with port 443. These combinations are usually misconfigured. You can still save, but double-check your settings.
@@ -54,7 +54,7 @@ Both loops reuse the same session. qBittorrent only re-authenticates on 403 resp
 
 ## Cross-Seed Detection
 
-Use [cross-seed](https://cross-seed.org/) to find matching torrents across trackers? Configure cross-seed tags on the download client. Any torrent with one of those tags is counted separately in the cross-seed stats — so you can see how many torrents are cross-seeded vs. original grabs.
+Use [cross-seed](https://cross-seed.org/) to find matching torrents across trackers? Configure cross-seed tags on the download client. Any torrent with one of those tags is counted separately in the cross-seed stats, so you can see how many torrents are cross-seeded vs. original grabs.
 
 Set cross-seed tags in the client settings after adding it. Common tags are `cross-seed` (the default) or category-based like `cs-link-movies`, `cs-link-tv`.
 
@@ -77,12 +77,12 @@ Your qBittorrent username and password are encrypted at rest. They're decrypted 
 
 ## Troubleshooting
 
-| Error                                                      | Meaning                                                                                           |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `ECONNREFUSED`                                             | qBittorrent is not running, or the port is wrong                                                  |
-| `ENOTFOUND`                                                | The hostname couldn't be resolved — check for typos                                               |
-| `ETIMEDOUT` / timed out after 15s                          | qBittorrent didn't respond in time — check that it's reachable from the Docker container          |
-| `Authentication failed — check username and password`      | Wrong credentials                                                                                 |
-| `Authentication failed — SID cookie not found in response` | Unexpected response from qBittorrent — check that the Web UI is enabled in qBittorrent's settings |
+| Error                                                     | Meaning                                                                                          |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `ECONNREFUSED`                                            | qBittorrent is not running, or the port is wrong                                                 |
+| `ENOTFOUND`                                               | The hostname couldn't be resolved. Check for typos                                               |
+| `ETIMEDOUT` / timed out after 15s                         | qBittorrent didn't respond in time. Check that it's reachable from the Docker container          |
+| `Authentication failed. Check username and password`      | Wrong credentials                                                                                |
+| `Authentication failed. SID cookie not found in response` | Unexpected response from qBittorrent. Check that the Web UI is enabled in qBittorrent's settings |
 
 The Test Connection button forces a fresh login, so errors reflect the current state.

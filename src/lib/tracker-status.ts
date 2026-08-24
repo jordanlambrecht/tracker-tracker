@@ -15,14 +15,7 @@ import type { TrackerSummary } from "@/types/api"
 // seeds are unrelated conditions calling for different fixes, and neither is
 // implied by the other.
 type TrackerHealth =
-  | "healthy"
-  | "warning"
-  | "no-seeds"
-  | "critical"
-  | "error"
-  | "paused"
-  | "paused-user"
-  | "offline"
+  "healthy" | "warning" | "no-seeds" | "critical" | "error" | "paused" | "paused-user" | "offline"
 
 interface HealthMeta {
   label: string
@@ -34,13 +27,13 @@ interface HealthMeta {
 const HEALTH_META: Record<TrackerHealth, HealthMeta> = {
   healthy: {
     label: "Healthy",
-    description: "Ratio \u2265 2.0 \u2014 healthy buffer",
+    description: "Ratio \u2265 2.0, healthy buffer",
     pulseDot: "healthy",
     badge: "accent",
   },
   warning: {
     label: "Warning",
-    description: "Ratio 1.0\u20132.0 \u2014 thin buffer",
+    description: "Ratio 1.0\u20132.0, thin buffer",
     pulseDot: "warning",
     badge: "warn",
   },
@@ -49,10 +42,10 @@ const HEALTH_META: Record<TrackerHealth, HealthMeta> = {
   // rather than giving every id its own color.
   "no-seeds": {
     label: "No Seeds",
-    description: "Zero active seeds \u2014 nothing is uploading",
-    // Its own dot status, not "critical". The two look identical on purpose \u2014
-    // they share the danger palette the way paused and critical already do \u2014
-    // but the dot-only surfaces (sidebar list, overview grid) expose the status
+    description: "Zero active seeds, nothing is uploading",
+    // Its own dot status, not "critical". The two look identical on purpose:
+    // they share the danger palette the way paused and critical already do.
+    // But the dot-only surfaces (sidebar list, overview grid) expose the status
     // name to screen readers, and announcing "Critical" for a tracker that is
     // simply seeding nothing describes the wrong problem.
     pulseDot: "no-seeds",
@@ -60,7 +53,7 @@ const HEALTH_META: Record<TrackerHealth, HealthMeta> = {
   },
   critical: {
     label: "Critical",
-    description: "Ratio < 1.0 \u2014 needs seeding",
+    description: "Ratio < 1.0, needs seeding",
     pulseDot: "critical",
     badge: "danger",
   },

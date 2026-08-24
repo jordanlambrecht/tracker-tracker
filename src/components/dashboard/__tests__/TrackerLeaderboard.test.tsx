@@ -1,6 +1,6 @@
 // src/components/dashboard/__tests__/TrackerLeaderboard.test.tsx
 //
-// Regression coverage: an infinite ratio (uploaded > 0, downloaded === 0 —
+// Regression coverage: an infinite ratio (uploaded > 0, downloaded === 0,
 // the best possible standing) crosses the wire as `ratio: null` plus
 // `ratioIsInfinite`. Reading `ratio` alone used to sink it to sortValue -1
 // (dead last) and render it identical to a tracker with no stats at all.
@@ -100,7 +100,7 @@ describe("TrackerLeaderboard ratio column (infinite ratio)", () => {
     })
     const unmeasured = tracker({ id: 3, name: "NoData", latestStats: null })
 
-    // Deliberately not fed in ratio order — the default sort must reorder them.
+    // Deliberately not fed in ratio order, the default sort must reorder them.
     render(<TrackerLeaderboard trackers={[finite, unmeasured, infinite]} />)
 
     const rows = screen.getAllByRole("row").slice(1)

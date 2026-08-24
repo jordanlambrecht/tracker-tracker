@@ -24,7 +24,7 @@ export const CHART_THEME = {
   // ── Surfaces ──
   surface: "#282a36", // --color-base
   elevated: "#2e3042", // --color-elevated
-  surfaceElevated: "#343648", // --color-overlay — raised handle surfaces
+  surfaceElevated: "#343648", // --color-overlay, raised handle surfaces
   overlay: "#343648", // --color-overlay
   controlBg: "#1e2029", // --color-control-bg
   tooltipBg: "#2e3042", // same as elevated
@@ -76,12 +76,12 @@ export const CHART_THEME = {
   warnDim: hexToRgba("#f59e0b", 0.15),
   warnGlow: hexToRgba("#f59e0b", 0.3),
 
-  // ── Font sizes (raw numbers — ECharts cannot read CSS vars) ──
+  // ── Font sizes (raw numbers, ECharts cannot read CSS vars) ──
   // Keep in sync with @theme inline tokens in globals.css.
-  fontSizeMicro: 9, // text-4xs — unit suffixes in chart tooltips
-  fontSizeCompact: 10, // text-3xs — axis labels, legend items
-  fontSizeDense: 10, // text-2xs — same as compact today; bump to 11 if needed
-  fontSizeSmall: 12, // text-xs  — tooltip body, larger labels
+  fontSizeMicro: 9, // text-4xs, unit suffixes in chart tooltips
+  fontSizeCompact: 10, // text-3xs, axis labels and legend items
+  fontSizeDense: 10, // text-2xs, same as compact today; bump to 11 if needed
+  fontSizeSmall: 12, // text-xs, tooltip body and larger labels
 } as const
 
 /** Escape HTML entities in untrusted strings before injecting into ECharts tooltip HTML */
@@ -126,7 +126,7 @@ export function chartTooltipHeader(label: string): string {
   return `<div style="font-family:var(--font-mono),monospace;font-size:${CHART_THEME.fontSizeDense}px;color:${CHART_THEME.textTertiary};margin-bottom:4px;">${escHtml(label)}</div>`
 }
 
-/** Standard legend configuration — plain wrapping, toggle handled by ChartECharts wrapper */
+/** Standard legend configuration. Plain wrapping, toggle handled by ChartECharts wrapper */
 export function chartLegend(overrides?: Record<string, unknown>): Record<string, unknown> {
   const merged: Record<string, unknown> = {
     type: "plain",

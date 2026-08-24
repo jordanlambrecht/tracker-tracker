@@ -111,7 +111,7 @@ vi.mock("@/lib/db/schema", () => ({
   notificationDeliveryState: {},
   clientUptimeBuckets: {},
   appCoverageGaps: {},
-  // appLiveness is absent on purpose — restore must never touch it.
+  // appLiveness is absent on purpose, restore must never touch it.
 }))
 
 vi.mock("@/lib/backup", () => ({
@@ -816,7 +816,7 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
     expect(res.status).toBe(401)
   })
 
-  // Transit papers routes — stashed, uncomment when restored
+  // Transit papers routes, stashed, uncomment when restored
   // it("GET /api/trackers/[id]/report returns 401", async () => {
   //   const req = makeRequest("http://localhost/api/trackers/1/report")
   //   const res = await ReportGET(req, { params: MOCK_PARAMS })
@@ -943,7 +943,7 @@ describe("Token leakage prevention", () => {
   it("GET /api/trackers/[id] does not include encryptedApiToken or apiPath in response", async () => {
     ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
 
-    // DB row with secrets present — the route's .select() projection must strip them
+    // DB row with secrets present, the route's .select() projection must strip them
     const trackerRow = {
       id: 1,
       name: "TestTracker",
@@ -1038,7 +1038,7 @@ describe("Token leakage prevention", () => {
   })
 
   it("GET /api/settings does not include encrypted image hosting keys in response", async () => {
-    // Mock fetchSettings — GET /api/settings calls fetchSettings() which uses
+    // Mock fetchSettings, GET /api/settings calls fetchSettings() which uses
     // settingsColumns (a projected select). The serializer converts ciphertext
     // column values to booleans via !!value before they leave the server.
     const mockLimit = vi.fn().mockResolvedValue([
@@ -1320,7 +1320,7 @@ describe("Input validation: additional field constraints", () => {
 })
 
 // ---------------------------------------------------------------------------
-// 6. Crypto round-trip integrity — covered by src/lib/crypto.test.ts
+// 6. Crypto round-trip integrity, covered by src/lib/crypto.test.ts
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
@@ -1688,7 +1688,7 @@ describe("Backup restore: new notify* column round-trip", () => {
     const { deriveKey } = await import("@/lib/crypto")
 
     vi.mocked(authenticate).mockResolvedValue({ encryptionKey: "a".repeat(64) })
-    // deriveKey is cleared by clearAllMocks() — restore it so key derivation succeeds
+    // deriveKey is cleared by clearAllMocks(), restore it so key derivation succeeds
     vi.mocked(deriveKey).mockResolvedValue(Buffer.from("a".repeat(32)))
 
     vi.mocked(db.select).mockReturnValue({
@@ -1816,7 +1816,7 @@ describe("Backup restore: new notify* column round-trip", () => {
           notifyHitAndRun: false,
           notifyTrackerDown: true,
           notifyBufferMilestone: false,
-          // notifyWarned, notifyRatioDanger, notifyZeroSeeding, notifyRankChange, notifyAnniversary — absent
+          // notifyWarned, notifyRatioDanger, notifyZeroSeeding, notifyRankChange, notifyAnniversary, absent
           thresholds: null,
           includeTrackerName: true,
           scope: null,

@@ -2,7 +2,7 @@
 
 Adding a new tracker to an **existing platform** (UNIT3D, Gazelle, GGn, Nebulance, MAM, or AvistaZ) requires one file and two lines in the barrel export. No adapter code needed.
 
-If your tracker runs on a new platform, read [Tracker API Responses](tracker-responses.md) first — you'll need to write an adapter before adding the registry entry.
+If your tracker runs on a new platform, read [Tracker API Responses](tracker-responses.md) first, because you'll need to write an adapter before adding the registry entry.
 
 ---
 
@@ -10,7 +10,7 @@ If your tracker runs on a new platform, read [Tracker API Responses](tracker-res
 
 Every tracker file follows the same field order and completeness rules. This makes diffs clean and reviews fast.
 
-**Every field must be present, even if empty.** Use `""` for empty strings, `[]` for empty arrays, and `false` for booleans. Never omit fields or use `undefined` — if it's there, you've decided on it.
+**Every field must be present, even if empty.** Use `""` for empty strings, `[]` for empty arrays, and `false` for booleans. Never omit fields or use `undefined`. If it's there, you've decided on it.
 
 ```typescript
 abbreviation: "" // not: abbreviation: undefined
@@ -23,7 +23,7 @@ warning: false // not: warning: undefined
 **Three exceptions:**
 
 1. Omit the `stats` block entirely when you don't have real data. Don't include it with `undefined` values.
-2. `rules.fulfillmentPeriodHours`, `rules.hnrBanLimit`, and `rules.fullRulesMarkdown` are truly optional — omit them when unknown.
+2. `rules.fulfillmentPeriodHours`, `rules.hnrBanLimit`, and `rules.fullRulesMarkdown` are truly optional, so omit them when unknown.
 3. Platform-specific fields (`gazelleAuthStyle`, `gazelleEnrich`, `unit3dAuthStyle`) only belong in tracker files for their own platform. Don't add them to other trackers.
 
 ---
@@ -44,7 +44,7 @@ Full template:
 // Copy this file to add a new tracker to the registry.
 //
 // 1. Duplicate this file and rename it to your tracker's slug (e.g. mytracker.ts)
-// 2. Fill in all fields below — every field must be present (use "" / [] / false
+// 2. Fill in all fields below. Every field must be present (use "" / [] / false
 //    rather than omitting). See inline comments for guidance.
 // 3. Export from src/data/trackers/index.ts (add to the barrel + ALL_TRACKERS array)
 // 4. Run `pnpm test` to validate your entry
@@ -77,16 +77,16 @@ export const mytracker: TrackerRegistryEntry = {
   // ── Identity ────────────────────────────────────────────────────────
   slug: "mytracker", // lowercase, hyphens only (e.g. "my-tracker")
   name: "My Tracker", // display name
-  abbreviation: "", // short code (e.g. "ATH", "RED") — "" if none
+  abbreviation: "", // short code (e.g. "ATH", "RED"), "" if none
   url: "https://example.com", // base URL (https only)
   description: "TODO", // 1-2 sentence overview
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "unit3d", // "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "btn" | "iptorrents" | "torrentleech" | "custom"
   // Platform-specific fields (uncomment for your platform):
-  //   gazelleAuthStyle: "token",   // gazelle only — "token" | "raw"
-  //   gazelleEnrich: true,         // gazelle only — enables enrichment call
-  //   unit3dAuthStyle: "bearer",   // unit3d only — "bearer" | "query"
+  //   gazelleAuthStyle: "token",   // gazelle only, "token" | "raw"
+  //   gazelleEnrich: true,         // gazelle only, enables enrichment call
+  //   unit3dAuthStyle: "bearer",   // unit3d only, "bearer" | "query"
   apiPath: "/api/user", // unit3d: "/api/user" | gazelle: "/ajax.php" | ggn: "/api.php" | mam: "/jsonLoad.php"
 
   // ── Content ─────────────────────────────────────────────────────────
@@ -96,36 +96,36 @@ export const mytracker: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#000000", // hex accent color for the tracker's detail page
-  logo: "", // "/tracker-logos/mytracker_logo.svg" — file must exist in public/ — "" if none
+  logo: "", // "/tracker-logos/mytracker_logo.svg", file must exist in public/, "" if none
 
   // ── External Links ──────────────────────────────────────────────────
-  trackerHubSlug: "", // slug on trackerhub.xyz, if listed — "" if none
-  statusPageUrl: "", // external status page URL — "" if none
+  trackerHubSlug: "", // slug on trackerhub.xyz, if listed, "" if none
+  statusPageUrl: "", // external status page URL, "" if none
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [], // [{ name: "Power User", requirements: "Upload ≥ 100 GiB" }]
   releaseGroups: [], // [{ name: "GrpName", description: "Encodes" }] or ["GrpName"]
-  bannedGroups: [], // ["GroupName"] — groups explicitly banned by the tracker
-  notableMembers: [], // ["handle"] — notable community figures
+  bannedGroups: [], // ["GroupName"], groups explicitly banned by the tracker
+  notableMembers: [], // ["handle"], notable community figures
 
   // ── Rules ───────────────────────────────────────────────────────────
   rules: {
     minimumRatio: 0, // 0 = no minimum
     seedTimeHours: 0, // 0 = no minimum
     loginIntervalDays: 0, // 0 = no login interval policy
-    // fulfillmentPeriodHours: 72,      // optional — hours to complete H&R seeding
-    // hnrBanLimit: 3,                  // optional — number of H&Rs before ban
-    // fullRulesMarkdown: `...`,        // optional — detailed rules as markdown string
+    // fulfillmentPeriodHours: 72,      // optional, hours to complete H&R seeding
+    // hnrBanLimit: 3,                  // optional, number of H&Rs before ban
+    // fullRulesMarkdown: `...`,        // optional, detailed rules as markdown string
   },
 
   // ── Status ──────────────────────────────────────────────────────────
   warning: false, // true if the tracker has a known issue or is at risk
-  warningNote: "", // short description of the warning — "" if none
+  warningNote: "", // short description of the warning, "" if none
 
   // ── Flags ───────────────────────────────────────────────────────────
   draft: true, // remove (or set false) once all required fields are filled in
   supportsTransitPapers: false, // true if the tracker supports transit papers export
-  profileUrlPattern: "", // e.g. "/user.php?id={id}" — required when supportsTransitPapers: true
+  profileUrlPattern: "", // e.g. "/user.php?id={id}", required when supportsTransitPapers: true
 
   // ── Stats (omit this block entirely if no real data is available) ───
   // stats: {
@@ -192,7 +192,7 @@ url: "https://blutopia.cc"
 
 The adapter appends `apiPath` to this URL to make API requests.
 
-`apiPath` is always a relative path beginning with `/` — this is enforced by
+`apiPath` is always a relative path beginning with `/`, and this is enforced by
 both the registry test and `scripts/validate-trackers.ts`. If a tracker serves
 its API from a different host, that host belongs in its adapter as a module
 constant, not in the registry; see `btn.ts`. Putting an absolute URL in
@@ -202,7 +202,7 @@ constant, not in the registry; see `btn.ts`. Putting an absolute URL in
 
 Type: `string`
 
-One or two sentences about what the tracker is — content focus, community reputation, anything someone might want to know before joining.
+One or two sentences about what the tracker is: content focus, community reputation, anything someone might want to know before joining.
 
 ```typescript
 description: "The largest general music tracker (also has some software). Has an interview to join, although the wait can be notoriously long."
@@ -222,32 +222,32 @@ Which adapter handles API requests. This tells the scheduler how to fetch stats.
 | ---------------- | ----------------------------------------------------------- |
 | `"unit3d"`       | Runs UNIT3D                                                 |
 | `"gazelle"`      | Runs Gazelle or a fork (Orpheus, Gazelle-Music, etc.)       |
-| `"ggn"`          | GazelleGames only — has its own custom API                  |
+| `"ggn"`          | GazelleGames only, has its own custom API                   |
 | `"nebulance"`    | Uses Nebulance's API                                        |
-| `"mam"`          | MyAnonaMouse — cookie-based auth via `mam_id`               |
-| `"avistaz"`      | AvistaZ network — cookie auth + profile scraping            |
-| `"digitalcore"`  | DigitalCore — custom JSON API, `uid`/`pass` session cookies |
-| `"btn"`          | BroadcasTheNet — JSON-RPC on a separate API host            |
-| `"iptorrents"`   | IPTorrents — cookie auth + profile scraping                 |
-| `"torrentleech"` | TorrentLeech — username/password login + profile scraping   |
+| `"mam"`          | MyAnonaMouse, cookie-based auth via `mam_id`                |
+| `"avistaz"`      | AvistaZ network, cookie auth + profile scraping             |
+| `"digitalcore"`  | DigitalCore, custom JSON API, `uid`/`pass` session cookies  |
+| `"btn"`          | BroadcasTheNet, JSON-RPC on a separate API host             |
+| `"iptorrents"`   | IPTorrents, cookie auth + profile scraping                  |
+| `"torrentleech"` | TorrentLeech, username/password login + profile scraping    |
 | `"custom"`       | Placeholder, not implemented yet                            |
 
 #### `gazelleAuthStyle`
 
-Type: `"token" | "raw"` — Gazelle trackers only
+Type: `"token" | "raw"`, Gazelle trackers only
 
 Controls how the API token is sent in the request.
 
-- `"token"` — sends the token in an `Authorization: token TOKEN` header (used by REDacted, Orpheus)
-- `"raw"` — sends the token directly in the `Authorization` header without a prefix
+- `"token"` sends the token in an `Authorization: token TOKEN` header (used by REDacted, Orpheus)
+- `"raw"` sends the token directly in the `Authorization` header without a prefix
 
 Only include this field for Gazelle trackers. If you are unsure which style a Gazelle tracker uses, check `docs/kb/docs/contributing/tracker-responses-gazelle.md`.
 
 #### `gazelleEnrich`
 
-Type: `boolean` — Gazelle trackers only
+Type: `boolean`, Gazelle trackers only
 
-When `true`, the adapter makes a second API call (`action=user&id=X`) after the initial `action=index` call to get seeding/leeching counts, warned status, joined date, avatar, ranks, and community stats. **Set this to `true` for all Gazelle trackers** — without it, seeding and leeching will show as 0.
+When `true`, the adapter makes a second API call (`action=user&id=X`) after the initial `action=index` call to get seeding/leeching counts, warned status, joined date, avatar, ranks, and community stats. **Set this to `true` for all Gazelle trackers**, because without it seeding and leeching will show as 0.
 
 ```typescript
 gazelleEnrich: true
@@ -257,12 +257,12 @@ Only include this field for Gazelle trackers.
 
 #### `unit3dAuthStyle`
 
-Type: `"bearer" | "query"` — UNIT3D trackers only
+Type: `"bearer" | "query"`, UNIT3D trackers only
 
 Controls how the API token is sent in the request.
 
-- `"bearer"` — sends the token in an `Authorization: Bearer TOKEN` header (required by UNIT3D v8+)
-- `"query"` — sends the token as a `?api_token=TOKEN` query parameter (legacy UNIT3D)
+- `"bearer"` sends the token in an `Authorization: Bearer TOKEN` header (required by UNIT3D v8+)
+- `"query"` sends the token as a `?api_token=TOKEN` query parameter (legacy UNIT3D)
 
 Omit this field to use the default query parameter method. Set to `"bearer"` if the tracker's UNIT3D instance has been updated to v8+ and returns 401 with query param auth.
 
@@ -338,7 +338,7 @@ Primary language of the tracker. Use `"English"` for English-language trackers.
 
 Type: `string`
 
-A hex color code used to theme the tracker's detail page — chart colors, scrollbar, stat card accents. Pick something that represents the tracker's visual identity.
+A hex color code used to theme the tracker's detail page: chart colors, scrollbar, and stat card accents. Pick something that represents the tracker's visual identity.
 
 ```typescript
 color: "#00d4ff" // Aither cyan
@@ -432,7 +432,7 @@ profileUrlPattern: ""
 
 ### Stats
 
-**Omit the `stats` block entirely** when you don't have real data. Don't include it with `undefined` values — the absence of the block signals that stats haven't been sourced yet.
+**Omit the `stats` block entirely** when you don't have real data. Don't include it with `undefined` values, because the absence of the block signals that stats haven't been sourced yet.
 
 When you have data, include only the fields you know:
 
@@ -465,17 +465,17 @@ The `userClasses` array documents the tracker's rank/class system. Each entry is
 
 ```typescript
 interface TrackerUserClass {
-  name: string // required — display name of the class
+  name: string // required, display name of the class
   requirements?: string // what it takes to reach this class
   perks?: RankPerk[] // structured perks (optional, rarely populated)
   icon?: string // path to an icon (optional)
 }
 ```
 
-For most trackers, `name` and `requirements` are enough. Write `requirements` as a human-readable summary — hit the key numeric thresholds (upload, ratio, account age, seed count) without being exhaustive.
+For most trackers, `name` and `requirements` are enough. Write `requirements` as a human-readable summary. Hit the key numeric thresholds (upload, ratio, account age, seed count) without being exhaustive.
 
 ```typescript
-// From aither.ts — upload-based progression
+// From aither.ts, upload-based progression
 userClasses: [
   { name: "Leech", requirements: "Ratio below 0.4 — download privileges revoked" },
   { name: "Phobos", requirements: "Ratio ≥ 0.4. 4 download slots" },
@@ -491,7 +491,7 @@ userClasses: [
 ```
 
 ```typescript
-// From redacted.ts — simpler progression
+// From redacted.ts, simpler progression
 userClasses: [
   { name: "User", requirements: "Default class on registration" },
   { name: "Member", requirements: "1 week, 25 GB up, 0.65 ratio" },
@@ -500,7 +500,7 @@ userClasses: [
 ```
 
 ```typescript
-// From gazellegames.ts — achievement-point based
+// From gazellegames.ts, achievement-point based
 userClasses: [
   { name: "Amateur", requirements: "Default starting class" },
   {
@@ -529,13 +529,13 @@ perks: [
 
 Valid `RankPerkType` values: `"download-slots"`, `"upload"`, `"invite"`, `"freeleech"`, `"double-upload"`, `"hnr-immune"`, `"mod-bypass"`, `"custom"`.
 
-Structured perks are not required — a plain `requirements` string is enough for the UI to display the information.
+Structured perks are not required. A plain `requirements` string is enough for the UI to display the information.
 
 ---
 
 ## 4. Release Groups
 
-The `releaseGroups` field accepts a mixed array — entries can be either a plain string or a `ReleaseGroup` object:
+The `releaseGroups` field accepts a mixed array, and entries can be either a plain string or a `ReleaseGroup` object:
 
 ```typescript
 interface ReleaseGroup {
@@ -549,7 +549,7 @@ releaseGroups: (string | ReleaseGroup)[]
 Use the object form when you have something useful to say about what the group releases. Use a plain string when the name alone is sufficient (typically for banned groups, which belong in `bannedGroups` instead).
 
 ```typescript
-// From aither.ts — objects with descriptions
+// From aither.ts, objects with descriptions
 releaseGroups: [
   { name: "ATELiER", description: "Main house group — high-quality 1080p encodes and remuxes" },
   { name: "Kitsune", description: "Primary — WEB-DL" },
@@ -557,7 +557,7 @@ releaseGroups: [
     name: "MainFrame",
     description: "Primary — 2160p encodes, secondary 1080p encodes and remuxes",
   },
-  { name: "ARTiCUN0" }, // object without description — name only
+  { name: "ARTiCUN0" }, // object without description, name only
 ]
 ```
 
@@ -581,19 +581,19 @@ The `rules` field documents the tracker's seeding and account policies. The type
 
 ```typescript
 interface TrackerRules {
-  minimumRatio: number // required — 0 = no minimum
-  seedTimeHours: number // required — 0 = no minimum
-  loginIntervalDays: number // required — days before account is disabled; 0 = no policy
+  minimumRatio: number // required, 0 = no minimum
+  seedTimeHours: number // required, 0 = no minimum
+  loginIntervalDays: number // required, days before account is disabled; 0 = no policy
   fulfillmentPeriodHours?: number // total hours allowed to complete H&R seeding
   hnrBanLimit?: number // number of active H&Rs before downloading is blocked
   fullRulesMarkdown?: string // the full rules as a markdown string
 }
 ```
 
-`minimumRatio`, `seedTimeHours`, and `loginIntervalDays` are required even if the tracker has no policy — use `0` to mean "not enforced."
+`minimumRatio`, `seedTimeHours`, and `loginIntervalDays` are required even if the tracker has no policy. Use `0` to mean "not enforced."
 
 ```typescript
-// From nebulance.ts — ratioless tracker
+// From nebulance.ts, ratioless tracker
 rules: {
   minimumRatio: 0,      // ratioless
   seedTimeHours: 72,
@@ -602,7 +602,7 @@ rules: {
 ```
 
 ```typescript
-// From aither.ts — full policy
+// From aither.ts, full policy
 rules: {
   minimumRatio: 0.4,
   seedTimeHours: 120,
@@ -693,7 +693,7 @@ If the tracker appears in search results and polls successfully, the registry en
 
 Everything above covers adding a tracker to a platform that already has an
 adapter. If the tracker runs software we don't support yet, a registry entry
-alone is not enough — it will show up in the picker and then fail at poll time.
+alone is not enough. It will show up in the picker and then fail at poll time.
 
 A new platform touches five places. Miss any one and the tracker is either
 invisible or unusable:
@@ -707,8 +707,8 @@ invisible or unusable:
 | 5 | Credential size cap | `LARGE_TOKEN_PLATFORMS` in `src/lib/limits.ts`, if credentials are a JSON blob |
 
 Steps 4 and 5 are the ones people miss. If your platform authenticates with
-anything other than a single API key — session cookies, a username/password
-pair, a JSON blob — the "API Token" textbox is the wrong input, and
+anything other than a single API key (session cookies, a username/password
+pair, a JSON blob), the "API Token" textbox is the wrong input, and
 `TRACKER_TOKEN_MAX` (500 characters) will reject a real cookie header at the
 API boundary before the adapter ever runs. Add the platform to
 `LARGE_TOKEN_PLATFORMS` and it gets the 5000-character cap in all three
@@ -723,15 +723,15 @@ body, so JSON-RPC style APIs work too.
 
 `adapterFetch` parses the response as JSON. If your tracker has no API and you
 have to scrape an authenticated page instead, use `fetchTrackerHtml`
-(`src/lib/adapters/html-fetch.ts`) — it returns the raw HTML and handles the
+(`src/lib/adapters/html-fetch.ts`). It returns the raw HTML and handles the
 browser headers, the proxy, the timeout, and sanitized errors. It takes the
 parts that vary per tracker as options:
 
-- `label` — the tracker name used in error messages
-- `sessionExpiredMessage` — thrown when the server bounces you to login
-- `userAgent` — send the user's copied browser UA; omit it if the session came
+- `label` is the tracker name used in error messages
+- `sessionExpiredMessage` is thrown when the server bounces you to login
+- `userAgent` carries the user's copied browser UA; omit it if the session came
   from your own login request rather than a browser
-- `followRedirects` — set it when a redirect can be routine rather than a
+- `followRedirects` should be set when a redirect can be routine rather than a
   session expiry, and give it the pattern that identifies the login page
 
 Only write your own fetch if neither helper fits. If you do, you must still
@@ -743,7 +743,7 @@ they configured a tunnel to prevent exactly that.
 
 Platforms that need more than one secret take a JSON blob in the `apiToken`
 field. Use `parseCredentialJson` (`src/lib/adapters/cookie-credentials.ts`) to
-read it — it validates that every field you name is a present, non-empty string
+read it. It validates that every field you name is a present, non-empty string
 and produces the error wording users already see on the other adapters.
 
 If one of those fields is a pasted `Cookie` header, run it through
@@ -768,7 +768,7 @@ The most common mistake. If you create `src/data/trackers/mytracker.ts` but skip
 
 ### Wrong `platform` type
 
-Using `"unit3d"` for a Gazelle tracker (or vice versa) causes the adapter to send the wrong API request. The scheduler will log a `fetch` error or return garbled data. Check the tracker's tech stack — most UNIT3D sites document `/api/user`, and most Gazelle sites use `/ajax.php`.
+Using `"unit3d"` for a Gazelle tracker (or vice versa) causes the adapter to send the wrong API request. The scheduler will log a `fetch` error or return garbled data. Check the tracker's tech stack. Most UNIT3D sites document `/api/user`, and most Gazelle sites use `/ajax.php`.
 
 ### Wrong `apiPath`
 

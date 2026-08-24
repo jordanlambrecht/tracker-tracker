@@ -26,7 +26,7 @@ describe("maxTokenLengthFor", () => {
   // A minimal IPTorrents blob (cf_clearance + uid + pass + UA) lands around
   // 390-480 chars, so it squeaks under the old 500 cap. Once the session also
   // carries remember_web/XSRF cookies it runs past 700. The old cap therefore
-  // failed unpredictably depending on the user's cookie set — the large cap
+  // failed unpredictably depending on the user's cookie set, the large cap
   // removes that cliff.
   const iptBlob = (cookies: string) =>
     JSON.stringify({ cookies, userAgent: `Mozilla/5.0 ${"z".repeat(120)}` })

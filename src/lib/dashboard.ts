@@ -110,7 +110,7 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
         trackerId: tracker.id,
         trackerName: tracker.name,
         trackerColor: tracker.color,
-        message: "Polling paused after repeated failures — check API key and resume",
+        message: "Polling paused after repeated failures. Check the API key and resume",
         timestamp: tracker.pausedAt ?? undefined,
         dismissible: false,
       })
@@ -171,7 +171,7 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
         trackerId: tracker.id,
         trackerName: tracker.name,
         trackerColor: tracker.color,
-        message: "Seeding 0 torrents — no active seeds",
+        message: "Seeding 0 torrents, no active seeds",
         timestamp: tracker.lastPolledAt ?? undefined,
         dismissible: true,
       })
@@ -374,7 +374,7 @@ export function computeSystemAlerts(data: SystemAlertData): DashboardAlert[] {
       trackerName: "System",
       trackerColor: "var(--color-warn)",
       message:
-        "Snapshot retention is not configured — database and backups will grow indefinitely. Configure in Settings > Security.",
+        "Snapshot retention is not configured, so database and backups will grow indefinitely. Configure in Settings > Security.",
       dismissible: true,
     })
   }

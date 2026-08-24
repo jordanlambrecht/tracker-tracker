@@ -284,7 +284,15 @@ describe("computeOutageBands — tracker bands", () => {
   it("is independent of qBT evidence in both directions", () => {
     // A tracker outage must not imply a client one, nor be implied by it.
     const clientDown = bands({
-      clients: [{ clientId: 1, buckets: buckets(0, [[0, 3], [0, 3]]) }],
+      clients: [
+        {
+          clientId: 1,
+          buckets: buckets(0, [
+            [0, 3],
+            [0, 3],
+          ]),
+        },
+      ],
     })
     expect(clientDown.tracker).toEqual([])
     expect(fmt(clientDown.allDown)).toBe("0-10")
@@ -295,14 +303,16 @@ describe("computeOutageBands — tracker bands", () => {
   })
 
   it("returns an empty tracker arm for an unusable window", () => {
-    expect(computeOutageBands({
-      window: { start: m(10), end: m(10) },
-      appGaps: [],
-      clients: [],
-      trackerOutages: [span(0, 30)],
-      appCoverage: WIDE,
-      qbtCoverage: WIDE,
-    }).tracker).toEqual([])
+    expect(
+      computeOutageBands({
+        window: { start: m(10), end: m(10) },
+        appGaps: [],
+        clients: [],
+        trackerOutages: [span(0, 30)],
+        appCoverage: WIDE,
+        qbtCoverage: WIDE,
+      }).tracker
+    ).toEqual([])
   })
 })
 

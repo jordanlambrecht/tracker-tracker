@@ -12,9 +12,9 @@ Add `snatch_summary` for torrent breakdown by category, and `notif` for notifica
 
 Optional parameters (not used by the adapter):
 
-- `clientStats` — per-client connectivity info (30-min cache)
-- `pretty` — pretty-prints JSON
-- `id={userid}` — load specific user data (limited public data for others)
+- `clientStats`: per-client connectivity info (30-min cache)
+- `pretty`: pretty-prints JSON
+- `id={userid}`: load specific user data (limited public data for others)
 
 **Note:** The `?id=` parameter doesn't add fields like join date. The `created` and `update` fields are cache timestamps, not account dates (see Quirks).
 
@@ -28,7 +28,7 @@ Cookie: mam_id={SESSION_COOKIE}
 
 Get it from User Preferences → Security. Create an IP-locked or ASN-locked session for API use. MAM rotates these monthly, so refresh periodically.
 
-Auth fails silently — you get HTML instead of JSON. We detect it by checking if `username` is missing.
+Auth fails silently, and you get HTML instead of JSON. We detect it by checking if `username` is missing.
 
 ## Example Response
 
@@ -77,16 +77,16 @@ Auth fails silently — you get HTML instead of JSON. We detect it by checking i
 | `username` | `username` | `string` | Direct |
 | `group` | `classname` | `string` | Falls back to `"Unknown"` |
 | `remoteUserId` | `uid` | `number` | Cached for future use |
-| `uploadedBytes` | `uploaded_bytes` | `number` | `BigInt()` — raw bytes, no parsing needed |
-| `downloadedBytes` | `downloaded_bytes` | `number` | `BigInt()` — raw bytes, no parsing needed |
-| `ratio` | — | — | Calculated: `uploadedBytes / downloadedBytes`. MAM's own `ratio` is a display value, not a number — an account that has downloaded nothing reports `"∞"` — so it is not read |
-| `bufferBytes` | — | — | Calculated: `uploadedBytes - downloadedBytes` — signed, negative on a deficit account |
+| `uploadedBytes` | `uploaded_bytes` | `number` | `BigInt()`, raw bytes, no parsing needed |
+| `downloadedBytes` | `downloaded_bytes` | `number` | `BigInt()`, raw bytes, no parsing needed |
+| `ratio` | — | — | Calculated: `uploadedBytes / downloadedBytes`. MAM's own `ratio` is a display value, not a number (an account that has downloaded nothing reports `"∞"`), so it is not read |
+| `bufferBytes` | — | — | Calculated: `uploadedBytes - downloadedBytes`, signed, negative on a deficit account |
 | `seedingCount` | `sSat.count + seedHnr.count + seedUnsat.count + upAct.count` | `number` | Sum of all seeding snatch categories |
 | `leechingCount` | `leeching.count` | `number` | Direct |
 | `seedbonus` | `seedbonus` | `number` | Direct; MAM caps at 99,999 |
 | `hitAndRuns` | `inactHnr.count` | `number` | Only inactive (not seeding) HnR torrents |
-| `requiredRatio` | — | — | Always `null` — MAM uses class-based ratio thresholds |
-| `warned` | — | — | Always `null` — not exposed in API |
+| `requiredRatio` | — | — | Always `null`, MAM uses class-based ratio thresholds |
+| `warned` | — | — | Always `null`, not exposed in API |
 | `freeleechTokens` | `wedges` | `number` | MAM calls them "FL Wedges" |
 | `joinedDate` | — | — | Not available from this endpoint |
 | `lastAccessDate` | — | — | Not available from this endpoint |
@@ -114,7 +114,7 @@ Auth fails silently — you get HTML instead of JSON. We detect it by checking i
 | Seeding - H&R - Not Yet Satisfied | `seedHnr` | Active HnR being resolved | Yes |
 | Seeding - pre-H&R - Not Yet Satisfied | `seedUnsat` | Seeding toward 72h | No |
 | Seeding - Uploads | `upAct` | Own uploads, seeding | No |
-| Not Seeding - H&R - Not Yet Satisfied | `inactHnr` | Inactive HnR — urgent | Yes |
+| Not Seeding - H&R - Not Yet Satisfied | `inactHnr` | Inactive HnR, urgent | Yes |
 | Not Seeding - pre-H&R - Not Yet Satisfied | `inactUnsat` | Ticking clock to HnR | Yes |
 | Not Seeding - Satisfied | `inactSat` | Completed | No |
 | Not Seeding - Uploads | `upInact` | Own uploads, inactive | No |
@@ -125,7 +125,7 @@ Each object: `name`, `count`, `red` (boolean alert flag), `size` (bytes or null)
 
 ## Quirks
 
-**Dual byte representation.** Both formatted strings (`"5.125 TiB"`) and raw bytes. We use raw bytes with `BigInt()` — no parsing needed.
+**Dual byte representation.** Both formatted strings (`"5.125 TiB"`) and raw bytes. We use raw bytes with `BigInt()`, so no parsing is needed.
 
 **Bonus points cap at 99,999.** Hard ceiling. Anything above is lost.
 
@@ -133,7 +133,7 @@ Each object: `name`, `count`, `red` (boolean alert flag), `size` (bytes or null)
 
 **Cookie auth only.** Set `mam_id` as IP-locked or ASN-locked in Security Settings. Monthly rotations are normal.
 
-**`created` and `update` are cache timestamps.** They change on each API call — they're not account dates. MAM doesn't expose join date via API.
+**`created` and `update` are cache timestamps.** They change on each API call, so they're not account dates. MAM doesn't expose join date via API.
 
 **`unsat.limit` is class-dependent.** User=50, Power User=100, VIP=150, above VIP=200.
 
@@ -200,7 +200,7 @@ Without `?id=`: empty array. With `?id={uid}` (your ID): full breakdown:
 | `ip` | string | IP address MAM sees the client connecting from |
 | `port` | number | Port the client announces |
 | `agent` | string | Torrent client user agent string |
-| `connectable` | string | `"yes"` or `"no"` — whether MAM can reach the client |
+| `connectable` | string | `"yes"` or `"no"`, whether MAM can reach the client |
 | `subResponse` | string | `"Connect"` (success) or `"timeout"` (unreachable) |
 | `startTime` | number | Unix timestamp of first seen |
 | `count` | number | Number of torrents associated with this client entry |

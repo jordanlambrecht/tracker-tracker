@@ -326,7 +326,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                 <Notice
                   variant="default"
                   box
-                  message="These trackers don't have adapter support yet — links only, no stats tracking."
+                  message="These trackers don't have adapter support yet, so they are links only with no stats tracking."
                   showIcon={false}
                   className="mb-2"
                 />

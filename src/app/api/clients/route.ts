@@ -149,7 +149,7 @@ export async function POST(request: Request) {
   // Two different conventions, because blank means different things:
   // username/password are always ciphertext, since "" is a legitimate value
   // there (the localhost bypass). encryptedApiKey uses a bare "" as a
-  // not-configured sentinel — so it must never be handed to decrypt()
+  // not-configured sentinel, so it must never be handed to decrypt()
   // unguarded. Either way the unused mode's columns hold no real secret.
   const encryptedUsername = encrypt(resolvedUsername, key)
   const encryptedPassword = encrypt(resolvedPassword, key)

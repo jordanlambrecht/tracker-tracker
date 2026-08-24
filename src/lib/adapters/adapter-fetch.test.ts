@@ -114,7 +114,7 @@ describe("adapterFetch - token sanitization", () => {
 
     // The token lives in the URL query string (i.e. ?api_token=…). adapterFetch receives
     // the fully-constructed URL as its first argument. A non-ok response throws using only
-    // the status code and statusText — neither of which contains the token — so the
+    // the status code and statusText, neither of which contains the token, so the
     // caller-supplied token must not appear in the thrown message.
     await expect(
       adapterFetch(`https://example.com/api/user?api_token=${secretToken}`, "example.com")

@@ -20,25 +20,25 @@ export function isDecryptionError(error: unknown): boolean {
 
 /**
  * Maps raw network/auth error messages to safe user-facing messages.
- * Raw errors go to server logs only — this produces the string stored in DB
+ * Raw errors go to server logs only, this produces the string stored in DB
  * and potentially shown in the UI.
  */
 export function sanitizeNetworkError(raw: string, fallback = "Connection failed"): string {
-  // qBittorrent auth outcomes first — these need different user action from
+  // qBittorrent auth outcomes first, these need different user action from
   // each other and from a plain connection fault, so they must not fall
   // through to the generic ban/401 rules below (which would flatten them to
   // "IP temporarily banned by tracker" and "Authentication failed").
   if (/rejected the blank credentials/i.test(raw)) {
-    return 'Blank credentials rejected — enable "Bypass authentication for clients on localhost" in qBittorrent'
+    return 'Blank credentials rejected. Enable "Bypass authentication for clients on localhost" in qBittorrent'
   }
   if (/rejected the username and password/i.test(raw)) {
-    return "Credentials rejected by qBittorrent — check the username and password"
+    return "Credentials rejected by qBittorrent. Check the username and password"
   }
   if (/rejected the API key/i.test(raw)) {
-    return "API key rejected by qBittorrent — check it has not been rotated, and that the server is 5.2.0 or newer"
+    return "API key rejected by qBittorrent. Check it has not been rotated, and that the server is 5.2.0 or newer"
   }
   if (/banned this IP/i.test(raw)) {
-    return "Banned by qBittorrent after too many failed logins — it will clear on its own"
+    return "Banned by qBittorrent after too many failed logins. It will clear on its own"
   }
   if (/timed?\s*out/i.test(raw)) return "Request timed out"
   if (/ECONNREFUSED/i.test(raw)) return "Connection refused"

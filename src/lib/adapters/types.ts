@@ -10,7 +10,7 @@ export interface TrackerStats {
   ratio: number
   bufferBytes: bigint
   // Nullable: some platforms (i.e. BTN) don't report these at all. The DB
-  // columns and the charts already treat them as optional — null means
+  // columns and the charts already treat them as optional, null means
   // "unknown", which must stay distinguishable from a measured 0.
   seedingCount: number | null
   leechingCount: number | null
@@ -169,14 +169,14 @@ export interface AvistazPlatformMeta {
 
 /**
  * Hawke reports a handful of fields no other platform has: a per-division seed
- * breakdown, a warning count (not a boolean — see below), and four capability
+ * breakdown, a warning count (not a boolean. See below), and four capability
  * flags the site uses to gate actions.
  */
 export interface HawkePlatformMeta {
   /**
    * Seed counts per Hawke seeding division (vanguard, squire, knight,
    * champion, legend, guardian). Left open rather than a fixed key set so a
-   * new division added site-side flows through instead of being dropped —
+   * new division added site-side flows through instead of being dropped,
    * the same reason GGn's `buffs` is a Record.
    */
   seedDivisions?: Record<string, number>

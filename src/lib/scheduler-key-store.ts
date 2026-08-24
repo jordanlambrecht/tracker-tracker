@@ -21,7 +21,7 @@ export async function persistSchedulerKey(key: Buffer, settingsId: number): Prom
       .set({ encryptedSchedulerKey: wrapped })
       .where(eq(appSettings.id, settingsId))
   } catch (err) {
-    log.warn({ err }, "Failed to persist scheduler key — polling will not survive restart")
+    log.warn({ err }, "Failed to persist scheduler key, so polling will not survive restart")
   }
 }
 
@@ -46,7 +46,7 @@ export async function loadSchedulerKey(): Promise<Buffer | null> {
     const keyHex = decrypt(settings.encryptedSchedulerKey, wrappingKey)
     return Buffer.from(keyHex, "hex")
   } catch (err) {
-    log.warn({ err }, "Could not unwrap scheduler key — will start after next login")
+    log.warn({ err }, "Could not unwrap scheduler key, will start after next login")
     return null
   }
 }

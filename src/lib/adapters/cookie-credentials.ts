@@ -21,7 +21,7 @@ function formatFieldList(fields: readonly string[], suffix = ""): string {
 
 /**
  * Parses the JSON credential blob and asserts every required field is a
- * non-empty string. Values are returned as written — callers apply their own
+ * non-empty string. Values are returned as written, callers apply their own
  * normalization, since only some fields tolerate trimming.
  */
 export function parseCredentialJson<F extends readonly string[]>(
@@ -89,7 +89,7 @@ export function validateCookieHeader(
   // Should contain at least one key=value pair
   if (!trimmed.includes("=")) {
     throw new Error(
-      `Cookie string doesn't look right — it should contain key=value pairs (i.e. ${options.example})`
+      `Cookie string doesn't look right. It should contain key=value pairs (i.e. ${options.example})`
     )
   }
 

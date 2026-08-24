@@ -9,8 +9,8 @@
 //   QBT DOWN: a bucket with ok === 0 && fail > 0. Positive evidence, and
 //             self-certifying (the app had to be alive to observe the failure).
 //   TRACKER DOWN: a RECORDED tracker_outages row for the tracker this chart is
-//             about. Positive evidence, and self-certifying for the same reason
-//             — the poller had to run to observe the failure. Requested only by
+//             about. Positive evidence, and self-certifying for the same reason:
+//             the poller had to run to observe the failure. Requested only by
 //             a single-tracker page, because a full-height band on a chart of
 //             many trackers would claim all of them were down.
 //   UNKNOWN: everything else (no band)
@@ -71,7 +71,7 @@ export interface BandInput {
   /**
    * Recorded outages for the ONE tracker this chart is about, or [] on any chart
    * that is not scoped to a single tracker. Already-ended, positive evidence
-   * only — see the header of tracker-outages.ts for why these are never widened
+   * only. See the header of tracker-outages.ts for why these are never widened
    * toward the surrounding successful polls.
    */
   trackerOutages: Interval[]

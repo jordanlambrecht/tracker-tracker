@@ -20,7 +20,7 @@ vi.mock("@/components/dashboard/useDashboardSettings", () => ({
 // The populated branch mounts a dozen ECharts instances, which in jsdom have no
 // layout and init non-deterministically under parallel load. This test is about
 // which branch TorrentsTab picks, so stub the charts out and keep it decisive.
-// (each factory inlines its own stub — vi.mock is hoisted above any local const)
+// (each factory inlines its own stub, vi.mock is hoisted above any local const)
 vi.mock("@/components/charts/ParallelTorrentsChart", () => ({
   ParallelTorrentsChart: () => <div data-testid="chart" />,
 }))
@@ -114,9 +114,7 @@ function makeData(overrides: Partial<TrackerTorrentsData> = {}): TrackerTorrents
 }
 
 function renderTab(qbtTag: string | null, data: TrackerTorrentsData) {
-  return render(
-    <TorrentsTab trackerName="LST" qbtTag={qbtTag} accentColor="#00d4ff" data={data} />
-  )
+  return render(<TorrentsTab trackerName="LST" qbtTag={qbtTag} accentColor="#00d4ff" data={data} />)
 }
 
 describe("TorrentsTab empty states", () => {
@@ -150,7 +148,10 @@ describe("TorrentsTab empty states", () => {
   })
 
   it("reports an offline client rather than claiming none is configured", () => {
-    renderTab("aither", makeData({ noClients: true, torrentError: "Client offline — no cached data available" }))
+    renderTab(
+      "aither",
+      makeData({ noClients: true, torrentError: "Client offline, no cached data available" })
+    )
 
     expect(screen.getByText(/Client offline/i)).toBeTruthy()
     expect(screen.queryByText(/No download client connected/i)).toBeNull()

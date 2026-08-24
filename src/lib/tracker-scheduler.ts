@@ -498,7 +498,7 @@ export async function pollTracker(
 
     // Write the failure into the connectability ledger that backs this tracker's
     // outage bands. Separate from the columns updated above, which are current
-    // state and are wiped by the next success — see the header of
+    // state and are wiped by the next success. See the header of
     // tracker-outages.ts. Recording is failure-only and every row is written
     // closed, so there is deliberately no matching call on the success path.
     // recordTrackerPollFailure never throws, so this needs no guard of its own.

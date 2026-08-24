@@ -253,7 +253,7 @@ describe("scrubObject — depth limit", () => {
     const result = scrubObject(deep)
     expect(result).toBeDefined()
 
-    // Navigate 11 levels in — at that point scrubObject returns the node as-is
+    // Navigate 11 levels in, at that point scrubObject returns the node as-is
     // so the passkey value is NOT [redacted] at depth > 10
     let node = result as DeepObj
     for (let i = 0; i < 11; i++) {

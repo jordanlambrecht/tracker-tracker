@@ -111,7 +111,7 @@ function buildDescription(
     }
     case "anniversary": {
       const label = data.label as string | undefined
-      return label ? `${source} — ${label}` : `${source} membership anniversary`
+      return label ? `${source} · ${label}` : `${source} membership anniversary`
     }
     case "bonus_cap": {
       const current = formatCount(Number(data.currentBonus ?? 0))
@@ -134,7 +134,7 @@ function buildDescription(
       return `${source} has **${count}** active Hit & Run${count !== 1 ? "s" : ""}. Seed them to avoid penalties.`
     }
     case "download_disabled":
-      return `${source} has lost download privileges — ratio may have dropped or account was restricted`
+      return `${source} has lost download privileges; the ratio may have dropped, or the account was restricted`
     default:
       return `${source} triggered a notification`
   }

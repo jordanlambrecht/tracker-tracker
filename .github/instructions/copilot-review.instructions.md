@@ -45,7 +45,7 @@ pnpm only. Never use npm or yarn. Node.js >= 22 required.
 ## Timezone
 
 - All date strings for checkpoint tables and daily comparisons use `localDateStr()` from `src/lib/formatters.ts`, which respects the `TZ` environment variable.
-- Do NOT use `.toISOString().slice(0, 10)` for checkpoint dates — that returns UTC, not the user's configured timezone.
+- Do NOT use `.toISOString().slice(0, 10)` for checkpoint dates, because that returns UTC, not the user's configured timezone.
 - When `TZ` is not set, `localDateStr()` falls back to UTC (same behavior as `toISOString`).
 
 ## Error Handling
@@ -104,18 +104,18 @@ All module-level singletons (cron tasks, DB client, qBT SID cache) must be store
 ## Testing
 
 - Framework: Vitest.
-- Test mocks must match real API response shapes. Do not add fields (i.e., `isPrivate: true`) that the real API does not return — this masks bugs.
+- Test mocks must match real API response shapes. Do not add fields (i.e., `isPrivate: true`) that the real API does not return, because this masks bugs.
 - Do not add test-only methods to production classes. Put test utilities in test files.
 
 ## Code Organization
 
-- Page files (`page.tsx`) should be thin wrappers — mostly orchestration and render logic. Extract business logic, UI sections, and data fetching into components and hooks.
+- Page files (`page.tsx`) should be thin wrappers holding mostly orchestration and render logic. Extract business logic, UI sections, and data fetching into components and hooks.
 - Repeated code should be extracted to helper functions or reusable components. Do not duplicate logic across files.
 - Centralized constants belong in `src/lib/constants.ts`. Avoid magic strings and magic numbers scattered throughout the codebase.
 
 ## SSR / Hydration
 
-- NEVER read `localStorage` in `useState` initializers — causes hydration mismatch. Initialize with a server-safe default, then hydrate in `useEffect`.
+- NEVER read `localStorage` in `useState` initializers, because that causes a hydration mismatch. Initialize with a server-safe default, then hydrate in `useEffect`.
 
 ## Adapter Pattern
 
@@ -123,7 +123,7 @@ All module-level singletons (cron tasks, DB client, qBT SID cache) must be store
 
 ## Precision Concerns
 
-- Daily upload/download deltas are computed as BigInt subtraction. Converting daily deltas to Number for percentage calculations is safe — `Number.MAX_SAFE_INTEGER` (~9 PiB) vastly exceeds any realistic daily transfer. Do not over-engineer BigInt arithmetic for percentage computations on daily deltas.
+- Daily upload/download deltas are computed as BigInt subtraction. Converting daily deltas to Number for percentage calculations is safe, since `Number.MAX_SAFE_INTEGER` (~9 PiB) vastly exceeds any realistic daily transfer. Do not over-engineer BigInt arithmetic for percentage computations on daily deltas.
 
 ## External HTTP Requests
 
@@ -134,7 +134,7 @@ All module-level singletons (cron tasks, DB client, qBT SID cache) must be store
 ## Validation
 
 - Use centralized helpers from `src/lib/api-helpers.ts`: `authenticate()`, `parseJsonBody()`, `parseRouteId()`, `validateHttpUrl()`, `validateHexColor()`, `validatePort()`, `validateJoinedAt()`.
-- All validators return `NextResponse | null` — check with `if (err) return err`.
+- All validators return `NextResponse | null`, so check with `if (err) return err`.
 - String inputs: check type, trim, enforce length limits (i.e., name <= 100 chars, URL <= 500 chars).
 
 ## Encryption
@@ -154,14 +154,14 @@ All module-level singletons (cron tasks, DB client, qBT SID cache) must be store
 ## Things NOT to Do
 
 - Do not use ESLint. It has been deprecated for this project.
-- Do not use `npm` or `yarn` — `pnpm` only.
+- Do not use `npm` or `yarn`. Use `pnpm` only.
 - Do not create raw SQL migration files. Use `drizzle-kit push`.
-- Do not use `.toISOString().slice(0, 10)` for checkpoint/daily dates — use `localDateStr()`.
+- Do not use `.toISOString().slice(0, 10)` for checkpoint/daily dates. Use `localDateStr()`.
 - Do not pass unknown props through to DOM elements via `{...rest}` spreads without filtering component-only props first.
 - Do not use dynamic code execution or inject raw HTML into the DOM. See `scripts/security-audit.ts` for the full list of banned functions.
-- Do not use `===` for secret comparisons — use `timingSafeEqual`.
+- Do not use `===` for secret comparisons. Use `timingSafeEqual`.
 - Do not use `Number()` or `parseInt()` directly on BigInt database columns.
 - Do not commit `.env` files.
 - Do not use `JSON.parse()` without a try/catch wrapper.
-- Do not use `console.log` in API routes — use the `log` instance from `@/lib/logger`.
+- Do not use `console.log` in API routes. Use the `log` instance from `@/lib/logger`.
 - Do not use `db.execute()` in API routes (raw SQL is banned except for the health check `SELECT 1`).

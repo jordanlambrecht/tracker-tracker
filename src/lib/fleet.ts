@@ -5,7 +5,7 @@
 
 import { CHART_THEME } from "@/components/charts/lib/theme"
 
-/** Normalized torrent record shape returned by the API — shared by fleet charts and components */
+/** Normalized torrent record shape returned by the API, shared by fleet charts and components */
 export interface TorrentRaw {
   hash: string
   name: string

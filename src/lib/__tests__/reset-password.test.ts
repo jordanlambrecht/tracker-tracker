@@ -43,7 +43,7 @@ const keyB = randomBytes(32)
 
 describe("parity with src/lib/crypto.ts", () => {
   // The CLI cannot import src/lib/crypto.ts. The production image has no tsx and
-  // cannot resolve "@/" — so the primitives are duplicated there. These four
+  // cannot resolve "@/", so the primitives are duplicated there. These four
   // assertions are the only thing standing between that duplication and a reset
   // that produces ciphertext the running app cannot open.
 
@@ -339,7 +339,7 @@ describe("unrecoverable values", () => {
 
 describe("column coverage", () => {
   // Missing a single master-key-encrypted column means that column stays sealed
-  // under a key nobody holds after the reset — permanent, silent data loss. This
+  // under a key nobody holds after the reset, permanent, silent data loss. This
   // walks the real Drizzle schema so a newly added encrypted column fails here
   // instead of failing during someone's emergency.
 
@@ -435,7 +435,7 @@ describe("argument parsing", () => {
 
 describe("hidden password entry", () => {
   // The prompt is the only interface a locked-out operator should be using, and
-  // it cannot be exercised by running the CLI here — there is no terminal. So
+  // it cannot be exercised by running the CLI here, there is no terminal. So
   // readHiddenLine() takes its stream as a parameter and gets driven directly.
 
   const ESC = String.fromCharCode(27)

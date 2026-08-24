@@ -55,7 +55,7 @@ function RetentionPromptDialog({ open, onSaved }: RetentionPromptDialogProps) {
       }
       onSaved()
     } catch {
-      setError("Network error — could not save your choice.")
+      setError("Network error. Could not save your choice.")
     } finally {
       setSaving(false)
     }
@@ -73,8 +73,8 @@ function RetentionPromptDialog({ open, onSaved }: RetentionPromptDialogProps) {
     >
       <div className="flex flex-col gap-4">
         <Subtext>
-          Every poll stores a snapshot of your tracker stats. These power the charts and history —
-          keeping them costs a small amount of database space.
+          Every poll stores a snapshot of your tracker stats. These power the charts and history,
+          and keeping them costs a small amount of database space.
         </Subtext>
 
         <Toggle
@@ -101,7 +101,10 @@ function RetentionPromptDialog({ open, onSaved }: RetentionPromptDialogProps) {
               setDays(
                 Math.max(
                   SNAPSHOT_RETENTION_MIN,
-                  Math.min(SNAPSHOT_RETENTION_MAX, Number(e.target.value) || SNAPSHOT_RETENTION_DEFAULT)
+                  Math.min(
+                    SNAPSHOT_RETENTION_MAX,
+                    Number(e.target.value) || SNAPSHOT_RETENTION_DEFAULT
+                  )
                 )
               )
             }
@@ -110,8 +113,8 @@ function RetentionPromptDialog({ open, onSaved }: RetentionPromptDialogProps) {
         )}
 
         <Subtext>
-          Download client uptime data is pruned after 90 days either way — that limit is separate and
-          is not affected by this choice.
+          Download client uptime data is pruned after 90 days either way, and that limit is separate
+          and is not affected by this choice.
         </Subtext>
 
         <Notice message={error ?? undefined} />
@@ -135,7 +138,7 @@ function RetentionPromptDialog({ open, onSaved }: RetentionPromptDialogProps) {
  * Container: asks the server whether the question has been answered yet, and
  * shows the dialog only if it has not. Self-contained so mounting it is one line.
  *
- * Fails closed — if the check errors, nothing is shown. An unanswered prompt is a
+ * Fails closed. If the check errors, nothing is shown. An unanswered prompt is a
  * far smaller problem than a modal the user cannot dismiss appearing on a broken
  * connection.
  */

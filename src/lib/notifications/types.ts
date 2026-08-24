@@ -54,11 +54,7 @@ export interface EmailConfig {
 }
 
 export type NotificationConfig =
-  | DiscordConfig
-  | GotifyConfig
-  | TelegramConfig
-  | SlackConfig
-  | EmailConfig
+  DiscordConfig | GotifyConfig | TelegramConfig | SlackConfig | EmailConfig
 
 export interface SnapshotContext {
   trackerId: number

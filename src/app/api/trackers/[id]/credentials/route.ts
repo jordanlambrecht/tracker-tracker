@@ -24,10 +24,7 @@ import { errMsg } from "@/lib/error-utils"
 import { log } from "@/lib/logger"
 import { decryptTrackerCredentials } from "@/lib/tracker-credentials/decrypt"
 import { requireCredentialVaultEnabled } from "@/lib/tracker-credentials/gate"
-import {
-  isTrackerCredentialVaultInput,
-  mergeVaultInput,
-} from "@/lib/tracker-credentials/merge"
+import { isTrackerCredentialVaultInput, mergeVaultInput } from "@/lib/tracker-credentials/merge"
 import type { TrackerCredentialVault } from "@/lib/tracker-credentials/types"
 import { validateTrackerCredentialVault } from "@/lib/tracker-credentials/validate"
 import { toVaultView } from "@/lib/tracker-credentials/view"

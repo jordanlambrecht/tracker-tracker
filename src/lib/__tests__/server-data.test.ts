@@ -8,7 +8,7 @@
 import { describe, expect, it, vi } from "vitest"
 
 // ---------------------------------------------------------------------------
-// Mocks — must be declared before any import that touches the DB
+// Mocks, must be declared before any import that touches the DB
 // ---------------------------------------------------------------------------
 
 vi.mock("@/lib/db", () => ({

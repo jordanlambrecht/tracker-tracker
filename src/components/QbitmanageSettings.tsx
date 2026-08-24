@@ -82,7 +82,7 @@ function QbitmanageSettings({ initialEnabled, initialTags }: QbitmanageSettingsP
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Network error — could not save settings")
+      setSaveError(err instanceof Error ? err.message : "Network error. Could not save settings")
     } finally {
       setSaving(false)
     }

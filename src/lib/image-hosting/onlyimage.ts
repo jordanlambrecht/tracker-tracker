@@ -55,7 +55,7 @@ export const onlyimageAdapter: ImageHostAdapter = {
     const data = (await response.json()) as CheveretoResponse
 
     if (!data.image?.url) {
-      throw new Error("OnlyImage returned unexpected response — no image URL")
+      throw new Error("OnlyImage returned unexpected response, no image URL")
     }
 
     return {

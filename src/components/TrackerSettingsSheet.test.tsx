@@ -4,7 +4,7 @@
 //
 // 1. The Last Login shortcut sits mid-form, so it must not write on its own: an immediate
 //    single-field PATCH would discard whatever else the user had already typed into the sheet.
-//    These tests pin it as a field shortcut — it fills the date, and the ordinary Save is what
+//    These tests pin it as a field shortcut, it fills the date, and the ordinary Save is what
 //    persists it, alongside every other edit.
 //
 // 2. Every write in this sheet mutates a row that lives in the shared ["trackers"] query cache,
@@ -75,7 +75,7 @@ function jsonResponse(body: unknown, { ok = true, status = 200 } = {}) {
 
 /**
  * What PATCH /api/trackers/42 answers. The real route re-reads the row and returns
- * it, which is what lets callers skip a follow-up GET — tests must model that.
+ * it, which is what lets callers skip a follow-up GET, tests must model that.
  */
 let patchResult = jsonResponse(ARCHIVED)
 
@@ -263,10 +263,7 @@ describe("TrackerSettingsSheet digitalcore credentials", () => {
     renderSheet({ tracker: DC_TRACKER })
 
     await user.click(screen.getByRole("button", { name: "Change" }))
-    await user.type(
-      screen.getByLabelText(/session cookies/i),
-      "uid=56954; pass=abc123def456"
-    )
+    await user.type(screen.getByLabelText(/session cookies/i), "uid=56954; pass=abc123def456")
     await user.click(screen.getByRole("button", { name: "Save Changes" }))
 
     await waitFor(() => expect(trackerRequests().length).toBeGreaterThan(0))

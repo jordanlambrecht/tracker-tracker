@@ -37,14 +37,14 @@ export function parseTlCredentials(apiToken: string): TlCredentials {
 /**
  * Logs in and returns the Cookie header string built from Set-Cookie response headers.
  * tunnel.ts's proxyFetch is GET-only with no body support, so login always goes
- * through a direct fetch — only the subsequent profile page fetch honors proxyAgent.
+ * through a direct fetch, only the subsequent profile page fetch honors proxyAgent.
  */
 // ---------------------------------------------------------------------------
 // Session cache
 //
 // TorrentLeech has no API, so every poll would otherwise POST the user's
 // password to /user/account/login/. Trackers watch login frequency, so reuse
-// the session cookie across polls and only re-authenticate when it expires —
+// the session cookie across polls and only re-authenticate when it expires,
 // the same approach the qBittorrent transport takes with its SID cache.
 // Stored on globalThis so an HMR reload in dev doesn't orphan the cache.
 // ---------------------------------------------------------------------------
@@ -118,7 +118,7 @@ function textAfterNode(root: ParsedElement, selector: string): string {
 
 export function parseTlProfile(html: string, username: string): TrackerStats {
   if (html.includes("/user/account/login")) {
-    throw new Error("Session expired — TorrentLeech cookies need to be refreshed")
+    throw new Error("Session expired. TorrentLeech cookies need to be refreshed")
   }
 
   if (
@@ -126,7 +126,7 @@ export function parseTlProfile(html: string, username: string): TrackerStats {
     html.includes("cf_chl_opt") ||
     html.includes("challenges.cloudflare.com/turnstile")
   ) {
-    throw new Error("Cloudflare challenge detected — TorrentLeech session needs refreshing")
+    throw new Error("Cloudflare challenge detected. The TorrentLeech session needs refreshing")
   }
 
   const doc = parseHtml(html)
@@ -136,7 +136,7 @@ export function parseTlProfile(html: string, username: string): TrackerStats {
 
   if (!uploadedText && !downloadedText) {
     throw new Error(
-      "Could not find profile stats on TorrentLeech page — the page may not be authenticated"
+      "Could not find profile stats on TorrentLeech page. The page may not be authenticated"
     )
   }
 
@@ -187,7 +187,7 @@ export function parseTlProfile(html: string, username: string): TrackerStats {
 }
 
 // ---------------------------------------------------------------------------
-// HTML fetcher — direct fetch or proxy
+// HTML fetcher, direct fetch or proxy
 // ---------------------------------------------------------------------------
 
 /**
@@ -204,7 +204,7 @@ function fetchHtml(
     cookies,
     proxyAgent,
     label: "TorrentLeech",
-    sessionExpiredMessage: "Session expired — TorrentLeech cookies need to be refreshed",
+    sessionExpiredMessage: "Session expired. TorrentLeech cookies need to be refreshed",
   })
 }
 

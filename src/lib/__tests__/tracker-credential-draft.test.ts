@@ -3,8 +3,8 @@
 // The sheet's editing rules, tested without rendering anything.
 //
 // The rule worth the most here is the three-way distinction a draft field can be
-// in — HELD (`value: "abc"`), HELD-AND-EMPTY (`value: ""`), and NOT HELD
-// (`value: null`) — and that only the last one serializes to an omitted `value`.
+// in, HELD (`value: "abc"`), HELD-AND-EMPTY (`value: ""`), and NOT HELD
+// (`value: null`), and that only the last one serializes to an omitted `value`.
 // Collapse any two of those and either secrets get wiped on every edit or the
 // Clear button stops working.
 
@@ -19,7 +19,10 @@ import {
   newDraftSection,
   slugifyCredentialId,
 } from "@/lib/tracker-credentials/draft"
-import { isCredentialSlug, validateTrackerCredentialVault } from "@/lib/tracker-credentials/validate"
+import {
+  isCredentialSlug,
+  validateTrackerCredentialVault,
+} from "@/lib/tracker-credentials/validate"
 import type { TrackerCredentialVaultView } from "@/lib/tracker-credentials/view"
 
 const VIEW: TrackerCredentialVaultView = {
@@ -102,11 +105,7 @@ describe("draftFromView", () => {
     // The documented policy. A later change to the registry must not resurrect a
     // field the user deleted, nor overwrite a label they renamed.
     const draft = draftFromView(VIEW, DEFAULTS)
-    expect(draft.sections[0].fields.map((f) => f.id)).toEqual([
-      "irc_nick",
-      "irc_nickserv",
-      "unset",
-    ])
+    expect(draft.sections[0].fields.map((f) => f.id)).toEqual(["irc_nick", "irc_nickserv", "unset"])
     expect(draft.sections.flatMap((s) => s.fields).some((f) => f.id === "api_key")).toBe(false)
   })
 

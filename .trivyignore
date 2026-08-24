@@ -1,12 +1,12 @@
-# Alpine zlib — fix requires base image rebuild. Will resolve when node:24-alpine ships with zlib 1.3.2-r0.
+# Alpine zlib. Fix requires a base image rebuild. Will resolve when node:24-alpine ships with zlib 1.3.2-r0.
 CVE-2026-22184
 
-# minimatch — transitive via npm internals baked into base image. Stripped from runner but may appear in intermediate stages.
+# minimatch. Transitive via npm internals baked into base image. Stripped from runner but may appear in intermediate stages.
 CVE-2026-26996
 CVE-2026-27903
 CVE-2026-27904
 
-# node-tar — transitive via npm internals baked into base image. Stripped from runner but may appear in intermediate stages.
+# node-tar. Transitive via npm internals baked into base image. Stripped from runner but may appear in intermediate stages.
 CVE-2026-26960
 CVE-2026-29786
 CVE-2026-31802

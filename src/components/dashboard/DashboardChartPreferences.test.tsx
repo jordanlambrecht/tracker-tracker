@@ -4,7 +4,7 @@
 //
 // The analytics grid and the settings sheet are mounted at the same time and both drive chart
 // preferences. When each owned its own useChartPreferences instance, every write serialised
-// that instance's whole object from its own stale state — so a hide made in the sheet was
+// that instance's whole object from its own stale state, so a hide made in the sheet was
 // silently reverted by the next collapse made in the grid, and vice versa.
 //
 // These tests wire both components to ONE instance the way DashboardClient does, drive each
@@ -26,7 +26,7 @@ import { DASHBOARD_SETTINGS_DEFAULTS } from "@/types/api"
 
 // ChartCard defers mounting its chart until an IntersectionObserver fires. jsdom has no
 // implementation, and a no-op one keeps every echarts instance out of these tests while
-// leaving the card's own collapse/hide controls — the thing under test — fully rendered.
+// leaving the card's own collapse/hide controls (the thing under test) fully rendered.
 class NoopIntersectionObserver {
   observe() {}
   unobserve() {}
@@ -118,7 +118,7 @@ describe("dashboard chart preferences shared across the grid and the settings sh
 
     // The sheet's drag handler ends in exactly this call. Driving dnd-kit itself needs real
     // layout, which jsdom does not provide, so the reorder is issued straight to the shared
-    // instance — the grid's collapse below still goes through the DOM, which is the half that
+    // instance, the grid's collapse below still goes through the DOM, which is the half that
     // has to observe it.
     const newOrder = ["distribution", "daily-volume"]
     act(() => {
