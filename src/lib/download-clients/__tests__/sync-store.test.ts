@@ -132,6 +132,15 @@ describe("sync-store", () => {
     expect(getStoredTorrents(BASE_URL)).toHaveLength(2)
   })
 
+  it("coerces a missing numeric field when a delta inserts a new torrent", () => {
+    // New torrents can arrive through the delta path, which skips
+    // mapQbtTorrent's coercion, and the shape check does not cover seedingTime.
+    const partial = makeTorrent("newone") as Record<string, unknown>
+    delete partial.seedingTime
+    applyMaindataUpdate(BASE_URL, { rid: 1, fullUpdate: true, torrents: { newone: partial } })
+    expect(getStoredTorrents(BASE_URL)[0]?.seedingTime).toBe(0)
+  })
+
   it("fullUpdate clears existing data before applying", () => {
     applyMaindataUpdate(BASE_URL, {
       rid: 1,

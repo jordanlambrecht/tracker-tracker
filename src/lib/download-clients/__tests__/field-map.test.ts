@@ -100,6 +100,18 @@ describe("mapQbtDelta", () => {
     expect(result).toEqual({ ratio: 3.5, progress: 0.5 })
   })
 
+  it("drops a non-numeric value for a numeric field so the stored value survives", () => {
+    // A delta merges over good stored values via Object.assign, so a garbage
+    // numeric must be dropped, not coerced to 0 like the full-torrent path.
+    const result = mapQbtDelta({ seeding_time: "86400", upspeed: 2048 })
+    expect(result).not.toHaveProperty("seedingTime")
+    expect(result.uploadSpeed).toBe(2048)
+  })
+
+  it("keeps a numeric zero for a numeric field", () => {
+    expect(mapQbtDelta({ seeding_time: 0 }).seedingTime).toBe(0)
+  })
+
   it("handles empty delta", () => {
     const result = mapQbtDelta({})
     expect(result).toEqual({})
