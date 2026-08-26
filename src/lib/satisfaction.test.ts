@@ -268,6 +268,14 @@ describe("remainingSeedSeconds", () => {
     expect(remainingSeedSeconds(torrent(40 * HOUR, 1.5), req)).toBeNull()
   })
 
+  it("owes the full requirement when the served seed time is unreadable", () => {
+    // The raw NaN survived the subtraction and rendered "Done" through the
+    // caller's falsy check, on a torrent the same row marks 0% complete.
+    expect(remainingSeedSeconds(torrent(Number.NaN, 0.1), req)).toBe(240 * HOUR)
+    expect(remainingSeedSeconds(torrent(undefined as unknown as number, 0.1), req)).toBe(240 * HOUR)
+    expect(remainingSeedSeconds(torrent(-5, 0.1), req)).toBe(240 * HOUR)
+  })
+
   it("reports null when seed time is not a route here", () => {
     expect(
       remainingSeedSeconds(torrent(0, 0.5), {

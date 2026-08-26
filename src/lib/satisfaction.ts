@@ -130,5 +130,10 @@ export function remainingSeedSeconds(
 ): number | null {
   if (req.requiredSeedSeconds === null) return null
   if (isSatisfied(torrent, req)) return null
-  return Math.max(req.requiredSeedSeconds - torrent.seedingTime, 0)
+  // An unreadable seed time counts as nothing served, so the full amount is
+  // owed. Mirrors the seedTimeProgress guard: zero progress and full debt are
+  // the same statement. The raw NaN rendered an unsatisfied torrent as "Done".
+  const served =
+    Number.isFinite(torrent.seedingTime) && torrent.seedingTime > 0 ? torrent.seedingTime : 0
+  return Math.max(req.requiredSeedSeconds - served, 0)
 }
