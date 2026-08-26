@@ -63,7 +63,9 @@ export function mapQbtDelta(partial: Record<string, unknown>): Partial<TorrentRe
     // A delta is merged over good stored values, so a garbage numeric is
     // dropped rather than coerced to 0, which would clobber them.
     if (REQUIRED_NUMERIC.includes(mapped) && typeof value !== "number") {
-      log.warn({ field: mapped, value }, "mapQbtDelta: dropped non-numeric field")
+      // Debug, not warn: this fires per field per torrent per poll, and a
+      // client that mistypes one field across a large library would flood.
+      log.debug({ field: mapped, value }, "mapQbtDelta: dropped non-numeric field")
       continue
     }
     result[mapped] = value
