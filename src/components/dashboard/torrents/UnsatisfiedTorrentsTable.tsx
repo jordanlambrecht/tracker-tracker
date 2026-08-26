@@ -100,7 +100,8 @@ export function UnsatisfiedTorrentsTable({
         const pct = ratioProgress(t.ratio, requirement) * 100
         return (
           <span className="text-xs font-mono whitespace-nowrap" style={{ color: pctColor(pct) }}>
-            {formatRatio(t.ratio)}
+            {/* qBT reports -1 for an infinite ratio, so render it as one. */}
+            {formatRatio(t.ratio < 0 ? Number.POSITIVE_INFINITY : t.ratio)}
           </span>
         )
       },

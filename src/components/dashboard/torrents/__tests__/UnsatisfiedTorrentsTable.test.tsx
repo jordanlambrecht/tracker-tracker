@@ -165,6 +165,15 @@ describe("UnsatisfiedTorrentsTable remaining column", () => {
     expect(screen.getByText("0.10 ratio")).toBeVisible()
   })
 
+  it("takes the seed-time branch when both routes are exactly tied", () => {
+    // Pins the strict > in the branch selector: a tie is not "ratio is nearer".
+    // 25 percent on both routes, so the served time (2.5d) and the remaining
+    // time (7.5d) render as different strings.
+    renderTable(EITHER_OR, [makeTorrent({ seedingTime: 60 * HOUR, ratio: 0.25 })])
+    expect(screen.getByText("7.5d")).toBeVisible()
+    expect(screen.queryByText("0.75 ratio")).toBeNull()
+  })
+
   it("quotes seed time under an either/or when seed time is the nearer route", () => {
     renderTable(EITHER_OR, [makeTorrent({ seedingTime: 200 * HOUR, ratio: 0.1 })])
     expect(screen.getByText("1.7d")).toBeVisible()
@@ -197,6 +206,10 @@ describe("UnsatisfiedTorrentsTable bad numbers", () => {
     expect(progressBar(container).style.width).toBe("0%")
     expect(barColor(container)).toBe(DANGER)
     expect(barColor(container)).not.toBe(POSITIVE)
+    // The full 240h is owed. The raw NaN rendered this cell as "Done" on a
+    // torrent the same row marks 0% complete.
+    expect(screen.getByText("10.0d")).toBeVisible()
+    expect(screen.queryByText("Done")).toBeNull()
   })
 
   it("shows no progress for a NaN seed time", () => {
@@ -220,6 +233,12 @@ describe("UnsatisfiedTorrentsTable bad numbers", () => {
     renderTable(RATIO_ONLY, [makeTorrent({ ratio: -1 })])
     expect(screen.getByText("1.00 ratio")).toBeVisible()
     expect(screen.queryByText("2.00 ratio")).toBeNull()
+  })
+
+  it("renders the -1 sentinel as an infinite ratio, not a negative one", () => {
+    renderTable(RATIO_ONLY, [makeTorrent({ ratio: -1 })])
+    expect(screen.getByText("∞")).toBeVisible()
+    expect(screen.queryByText("-1.00")).toBeNull()
   })
 
   it("does not let a sentinel ratio release a torrent under an either/or", () => {
