@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { parseTlCredentials, parseTlProfile, TorrentleechAdapter } from "./torrentleech"
 
 // The proxy path is what these tests are checking is TAKEN, so proxyFetch is
-// mocked rather than exercised — tunnel.ts has its own coverage.
+// mocked rather than exercised. tunnel.ts has its own coverage.
 vi.mock("@/lib/tunnel", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/tunnel")>()),
   proxyFetch: vi.fn(),
@@ -132,7 +132,7 @@ describe("parseTlProfile", () => {
   })
 
   it("counts torrents from the parenthesised figure, not the size beside it", () => {
-    // "10.5 GB (12)" — the first number in that cell is 10, which is a byte
+    // "10.5 GB (12)": the first number in that cell is 10, which is a byte
     // total masquerading as a torrent count.
     const stats = parseTlProfile(FULL_PROFILE_PAGE, "testuser")
     expect(stats.seedingCount).toBe(12)
@@ -330,7 +330,7 @@ describe("TorrentleechAdapter.fetchStats", () => {
 
     const body = fetchSpy.mock.calls[0][1]?.body as string
     const form = new URLSearchParams(body)
-    // The field name is TorrentLeech's own spelling, not ours — the login form
+    // The field name is TorrentLeech's own spelling, not ours. The login form
     // reads `alt2FAToken` and silently ignores anything else.
     expect(form.get("alt2FAToken")).toBe("abc123def456")
     expect(form.get("username")).toBe("testuser")
@@ -389,7 +389,7 @@ describe("TorrentleechAdapter.fetchStats", () => {
     ).rejects.toThrow("Invalid TorrentLeech credentials or Alt 2FA Token")
   })
 
-  it("rejects a 200 login that still set tluid — TL does this on a REFUSED login", async () => {
+  it("rejects a 200 login that still set tluid, as TL does on a REFUSED login", async () => {
     // Measured against the live site: a rejected login answers 200 with the
     // login page and still sets tluid/tlpass/member_id/pass_hash/session_id.
     vi.spyOn(global, "fetch").mockResolvedValueOnce(

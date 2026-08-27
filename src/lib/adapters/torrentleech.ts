@@ -8,6 +8,7 @@ import { type HTMLElement as ParsedElement, parse as parseHtml } from "node-html
 import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
 import { classifyFetchError } from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
+import { log } from "@/lib/logger"
 import { parseBytes } from "@/lib/parser"
 import { proxyFetch } from "@/lib/tunnel"
 import { parseCredentialJson } from "./cookie-credentials"
@@ -68,7 +69,7 @@ function isRedirect(status: number): boolean {
 /**
  * Logs in and returns the Cookie header string built from Set-Cookie response headers.
  *
- * Honors the configured proxy. It previously did not — the login POST always
+ * Honors the configured proxy. It previously did not. The login POST always
  * went out directly while only the profile GET was proxied, so a user who
  * configured a proxy still leaked their real address to the tracker on every
  * re-authentication, which is the one request that carries their password.
@@ -78,7 +79,7 @@ function isRedirect(status: number): boolean {
 //
 // TorrentLeech has no API, so every poll would otherwise POST the user's
 // password to /user/account/login/. Trackers watch login frequency, so reuse
-// the session cookie across polls and only re-authenticate when it expires —
+// the session cookie across polls and only re-authenticate when it expires,
 // the same approach the qBittorrent transport takes with its SID cache.
 // Stored on globalThis so an HMR reload in dev doesn't orphan the cache.
 // ---------------------------------------------------------------------------
@@ -137,7 +138,7 @@ async function login(
   try {
     if (proxyAgent) {
       // https.request does not follow redirects, which is what `redirect:
-      // "manual"` buys on the direct path — TL answers a good login with a 302
+      // "manual"` buys on the direct path. TL answers a good login with a 302
       // that carries the session cookie.
       const res = await proxyFetch(loginUrl, proxyAgent, {
         method: "POST",
@@ -175,7 +176,7 @@ async function login(
   // REJECTED login with 200 and the login page, and still sets tluid, tlpass,
   // member_id, pass_hash and session_id. Trusting the cookie means caching a
   // session that was never signed in, and every later page fetch then comes
-  // back as the login page — reported as "Session expired", which sends people
+  // back as the login page, reported as "Session expired", which sends people
   // off to refresh a session that never existed. A real login answers 302.
   //
   // The body is only inspected when the response was not a redirect: a 302
@@ -187,9 +188,10 @@ async function login(
     if (!isRedirect(loginStatus)) {
       try {
         html = await readBody()
-      } catch {
-        // Body already consumed or connection dropped — fall through to the
-        // generic message rather than masking the login failure with a read error.
+      } catch (readErr) {
+        // Fall through to the generic message rather than masking the login
+        // failure with a body read error, but leave a trace of it.
+        log.warn({ err: readErr }, "torrentleech: could not read login response body")
       }
     }
 
@@ -200,13 +202,13 @@ async function login(
 
     // Reject only on POSITIVE evidence of a refusal. A 200 whose body could not
     // be read, or that does not look like the login page, keeps the old
-    // behaviour of trusting the cookie — this tightens a check that was wrong,
+    // behaviour of trusting the cookie. This tightens a check that was wrong,
     // without inventing a new way to fail.
     if (cookieString.includes("tluid=") && !looksLikeLoginPage) return cookieString
 
     if (/One Time Password/i.test(html)) {
       throw new Error(
-        "TorrentLeech requires 2FA — add your Alt 2FA Token (Site Profile => Alt 2FA Token) to this tracker's credentials"
+        "TorrentLeech requires 2FA. Add your Alt 2FA Token (Site Profile => Alt 2FA Token) to this tracker's credentials"
       )
     }
     if (creds.alt2FAToken) {
@@ -251,7 +253,7 @@ function topBarCell(doc: ParsedElement, title: RegExp): string {
  * The active-torrent count in a top-bar cell, which reads "10.5 GB (12)": a
  * size followed by the count in parentheses.
  *
- * Taking the FIRST number instead reads the size's leading digits — "10.5 GB
+ * Taking the FIRST number instead reads the size's leading digits: "10.5 GB
  * (12)" yields 10, a plausible-looking torrent count that is really a byte
  * total. Anchor on the parentheses, and report nothing rather than a guess when
  * they are absent.
@@ -270,7 +272,7 @@ function trailingCount(text: string): number | null {
 
 export function parseTlProfile(html: string, username: string): TrackerStats {
   if (html.includes("/user/account/login")) {
-    throw new Error("Session expired — TorrentLeech cookies need to be refreshed")
+    throw new Error("Session expired. TorrentLeech cookies need to be refreshed")
   }
 
   if (
@@ -278,14 +280,14 @@ export function parseTlProfile(html: string, username: string): TrackerStats {
     html.includes("cf_chl_opt") ||
     html.includes("challenges.cloudflare.com/turnstile")
   ) {
-    throw new Error("Cloudflare challenge detected — TorrentLeech session needs refreshing")
+    throw new Error("Cloudflare challenge detected. The TorrentLeech session needs refreshing")
   }
 
   const doc = parseHtml(html)
 
   // Only the uploaded figure carries a `profile-uploaded-details` class. Its
   // downloaded counterpart is marked up as a bare `profile-info-details` span
-  // inside `.profile-downloaded` — there is no `profile-downloaded-details`
+  // inside `.profile-downloaded`. There is no `profile-downloaded-details`
   // anywhere on the page, so selecting it matched nothing and every account
   // parsed as having downloaded zero bytes. That is not a cosmetic miss: it
   // makes `computeRatio` return Infinity and `computeBufferBytes` return the
@@ -304,7 +306,7 @@ export function parseTlProfile(html: string, username: string): TrackerStats {
 
   if (!uploadedText && !downloadedText) {
     throw new Error(
-      "Could not find profile stats on TorrentLeech page — the page may not be authenticated"
+      "Could not find profile stats on TorrentLeech page. The page may not be authenticated"
     )
   }
 
@@ -317,7 +319,7 @@ export function parseTlProfile(html: string, username: string): TrackerStats {
   const leechingCount = parenCount(topBarCell(doc, /leeching/i))
 
   // Hit and runs have their own top-bar cell. It was previously reported as
-  // null — "this tracker does not expose it" — while the page showed it all
+  // null, "this tracker does not expose it", while the page showed it all
   // along, which is the one number this whole tool exists to surface.
   const hitAndRuns = trailingCount(topBarCell(doc, /hit and run/i))
 
@@ -371,7 +373,7 @@ export function parseTlProfile(html: string, username: string): TrackerStats {
 }
 
 // ---------------------------------------------------------------------------
-// HTML fetcher — direct fetch or proxy
+// HTML fetcher, direct fetch or proxy
 // ---------------------------------------------------------------------------
 
 /**
@@ -388,7 +390,7 @@ function fetchHtml(
     cookies,
     proxyAgent,
     label: "TorrentLeech",
-    sessionExpiredMessage: "Session expired — TorrentLeech cookies need to be refreshed",
+    sessionExpiredMessage: "Session expired. TorrentLeech cookies need to be refreshed",
   })
 }
 

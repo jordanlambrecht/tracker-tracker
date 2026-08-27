@@ -272,3 +272,17 @@ describe("classifyFetchError", () => {
     expect(result.message).toBe("Failed to connect to avistaz.to: Unknown")
   })
 })
+
+describe("sanitizeNetworkError TorrentLeech auth outcomes", () => {
+  it("lets the 2FA guidance through instead of the generic fallback", () => {
+    const raw =
+      "TorrentLeech requires 2FA. Add your Alt 2FA Token (Site Profile => Alt 2FA Token) to this tracker's credentials"
+    expect(sanitizeNetworkError(raw, "Tracker test failed")).toBe(raw)
+  })
+
+  it("keeps the token hint when 2FA credentials are refused", () => {
+    expect(sanitizeNetworkError("Invalid TorrentLeech credentials or Alt 2FA Token")).toBe(
+      "Invalid credentials or Alt 2FA Token"
+    )
+  })
+})

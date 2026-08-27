@@ -40,6 +40,12 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   if (/banned this IP/i.test(raw)) {
     return "Banned by qBittorrent after too many failed logins. It will clear on its own"
   }
+  // TorrentLeech auth outcomes. Static strings the adapter throws verbatim,
+  // kept because each needs different user action, like the qBittorrent rules.
+  if (/requires 2FA/i.test(raw)) {
+    return "TorrentLeech requires 2FA. Add your Alt 2FA Token (Site Profile => Alt 2FA Token) to this tracker's credentials"
+  }
+  if (/Alt 2FA Token/i.test(raw)) return "Invalid credentials or Alt 2FA Token"
   if (/timed?\s*out/i.test(raw)) return "Request timed out"
   if (/ECONNREFUSED/i.test(raw)) return "Connection refused"
   if (/ENOTFOUND/i.test(raw)) return "Host not found"

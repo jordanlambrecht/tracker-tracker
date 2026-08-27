@@ -56,7 +56,7 @@ export interface ProxyFetchResult {
   statusText: string
   /**
    * Raw response headers. Present because a login POST is only useful if the
-   * caller can read the Set-Cookie it came for — without this, an adapter that
+   * caller can read the Set-Cookie it came for. Without this, an adapter that
    * authenticates has no way to go through the proxy and must fall back to a
    * direct fetch, which defeats the point of configuring one.
    */
