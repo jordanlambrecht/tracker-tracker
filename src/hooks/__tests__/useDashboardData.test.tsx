@@ -315,3 +315,20 @@ describe("useDashboardData", () => {
     expect(result.current.alerts).toHaveLength(0)
   })
 })
+describe("retention banner state", () => {
+  it("passes the shared query's answer to computeSystemAlerts", async () => {
+    const { computeSystemAlerts } = await import("@/lib/dashboard")
+    fetchMock.mockImplementation((url: string) => {
+      if (String(url).includes("/api/settings/retention-prompt")) {
+        return Promise.resolve({ ok: true, json: async () => ({ prompted: true }) })
+      }
+      return Promise.resolve({ ok: true, json: async () => [] })
+    })
+    renderHook(() => useDashboardData(), { wrapper: createWrapper() })
+    await waitFor(() =>
+      expect(vi.mocked(computeSystemAlerts)).toHaveBeenCalledWith(
+        expect.objectContaining({ retentionAnswered: true })
+      )
+    )
+  })
+})

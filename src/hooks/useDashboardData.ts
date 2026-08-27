@@ -4,6 +4,7 @@
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useCallback, useMemo, useState } from "react"
 import { usePollingIntervals } from "@/hooks/usePollingIntervals"
+import { useRetentionPromptState } from "@/hooks/useRetentionPrompt"
 import { useUpdateCheck } from "@/hooks/useUpdateCheck"
 import type { DashboardAlert } from "@/lib/dashboard"
 import {
@@ -47,10 +48,10 @@ interface DashboardData {
 interface UseDashboardDataOptions {
   initialTrackers?: TrackerSummary[]
   snapshotRetentionDays?: number | null
-  retentionAnswered?: boolean
 }
 
 function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
+  const retentionPrompt = useRetentionPromptState()
   const [dayRange, setDayRange] = useState<DayRange>(30)
   const queryClient = useQueryClient()
   const updateCheck = useUpdateCheck()
@@ -161,7 +162,8 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
           failedBackups: (backupQuery.data ?? []).filter((b) => b.status === "failed"),
           clients: clientsQuery.data ?? [],
           snapshotRetentionDays: options?.snapshotRetentionDays ?? null,
-          retentionAnswered: options?.retentionAnswered ?? false,
+          // Unknown reads as answered so a flaky check never resurrects the nag.
+          retentionAnswered: retentionPrompt.data ? retentionPrompt.data.prompted : true,
         })
       : []
     const combined = [...trackerAlerts, ...rankAlerts, ...systemAlerts]
@@ -175,7 +177,7 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
     clientsQuery.data,
     dismissedKeys,
     options?.snapshotRetentionDays,
-    options?.retentionAnswered,
+    retentionPrompt.data,
   ])
 
   // Dismiss handlers

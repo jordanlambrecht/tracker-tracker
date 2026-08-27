@@ -12,13 +12,15 @@
 
 "use client"
 
-import { useEffect, useId, useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
+import { useId, useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { Dialog } from "@/components/ui/Dialog"
 import { Input } from "@/components/ui/Input"
 import { Notice } from "@/components/ui/Notice"
 import { Toggle } from "@/components/ui/Toggle"
 import { Subtext } from "@/components/ui/Typography"
+import { RETENTION_PROMPT_KEY, useRetentionPromptState } from "@/hooks/useRetentionPrompt"
 import {
   SNAPSHOT_RETENTION_DEFAULT,
   SNAPSHOT_RETENTION_MAX,
@@ -143,30 +145,20 @@ function RetentionPromptDialog({ open, onSaved }: RetentionPromptDialogProps) {
  * connection.
  */
 function RetentionPrompt() {
-  const [needed, setNeeded] = useState(false)
+  const queryClient = useQueryClient()
+  const { data } = useRetentionPromptState()
 
-  useEffect(() => {
-    let cancelled = false
-    async function check() {
-      try {
-        const res = await fetch("/api/settings/retention-prompt", {
-          signal: AbortSignal.timeout(15_000),
-        })
-        if (!res.ok) return
-        const data = (await res.json()) as { prompted: boolean }
-        if (!cancelled && !data.prompted) setNeeded(true)
-      } catch {
-        // Fail closed: leave the prompt hidden.
-      }
-    }
-    void check()
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  if (!needed) return null
-  return <RetentionPromptDialog open onSaved={() => setNeeded(false)} />
+  // Fail closed: while loading or on error nothing is shown. An unanswered
+  // prompt is a far smaller problem than a modal appearing on a broken
+  // connection. Writing the cache on save is what lets the dashboard's
+  // retention banner react immediately, since it reads the same query.
+  if (data === undefined || data.prompted) return null
+  return (
+    <RetentionPromptDialog
+      open
+      onSaved={() => queryClient.setQueryData(RETENTION_PROMPT_KEY, { prompted: true })}
+    />
+  )
 }
 
 // RetentionPromptDialog and its props stay private: RetentionPrompt is the only

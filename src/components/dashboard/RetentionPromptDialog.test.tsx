@@ -9,9 +9,18 @@
 // `snapshotRetentionDays === null` the prompt could never tell "chose forever"
 // from "never asked", and would either re-ask every load or never fire.
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, waitFor } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { RetentionPrompt } from "@/components/dashboard/RetentionPromptDialog"
+import { RETENTION_PROMPT_KEY } from "@/hooks/useRetentionPrompt"
+
+function renderWithClient(ui: React.ReactElement) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const view = render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
+  return { queryClient, ...view }
+}
 
 function jsonResponse(body: unknown, ok = true) {
   return { ok, status: ok ? 200 : 500, json: async () => body } as Response
@@ -33,7 +42,7 @@ describe("RetentionPrompt", () => {
   it("asks when the question has never been answered", async () => {
     vi.spyOn(global, "fetch").mockResolvedValue(jsonResponse({ prompted: false }))
 
-    render(<RetentionPrompt />)
+    renderWithClient(<RetentionPrompt />)
 
     expect(await screen.findByText(/How long should snapshot history be kept/i)).toBeInTheDocument()
   })
@@ -41,7 +50,7 @@ describe("RetentionPrompt", () => {
   it("stays out of the way once answered", async () => {
     const spy = vi.spyOn(global, "fetch").mockResolvedValue(jsonResponse({ prompted: true }))
 
-    render(<RetentionPrompt />)
+    renderWithClient(<RetentionPrompt />)
 
     await waitFor(() => expect(spy).toHaveBeenCalled())
     expect(screen.queryByText(/How long should snapshot history be kept/i)).not.toBeInTheDocument()
@@ -50,10 +59,28 @@ describe("RetentionPrompt", () => {
   it("fails closed — a broken check shows no undismissable modal", async () => {
     vi.spyOn(global, "fetch").mockRejectedValue(new Error("offline"))
 
-    render(<RetentionPrompt />)
+    renderWithClient(<RetentionPrompt />)
 
-    await Promise.resolve()
-    expect(screen.queryByText(/How long should snapshot history be kept/i)).not.toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.queryByText(/How long should snapshot history be kept/i)).not.toBeInTheDocument()
+    )
+  })
+
+  it("publishes the answer to the shared query so other surfaces react without a reload", async () => {
+    // The dashboard banner reads the same query. Save must update it in place,
+    // or the banner appears the moment the prompt closes and stays to reload.
+    vi.spyOn(global, "fetch").mockImplementation((_url, init) =>
+      Promise.resolve(jsonResponse(init?.method === "POST" ? { ok: true } : { prompted: false }))
+    )
+    const user = userEvent.setup()
+    const { queryClient } = renderWithClient(<RetentionPrompt />)
+
+    await screen.findByText(/How long should snapshot history be kept/i)
+    await user.click(screen.getByRole("button", { name: "Save" }))
+
+    await waitFor(() =>
+      expect(queryClient.getQueryData(RETENTION_PROMPT_KEY)).toEqual({ prompted: true })
+    )
   })
 
   it("sends null for 'keep forever' — an explicit answer, not an absent one", async () => {
@@ -64,7 +91,7 @@ describe("RetentionPrompt", () => {
       return Promise.resolve(jsonResponse({ prompted: false }))
     })
 
-    render(<RetentionPrompt />)
+    renderWithClient(<RetentionPrompt />)
     const save = await screen.findByRole("button", { name: /^Save$/i })
     save.click()
 

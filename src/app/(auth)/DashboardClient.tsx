@@ -63,7 +63,6 @@ const selectTagGroupBreakdowns = (data: FleetAggregation) => data.tagGroupBreakd
 interface DashboardClientProps {
   initialTrackers: TrackerSummary[]
   snapshotRetentionDays: number | null
-  retentionAnswered: boolean
   /** Read server-side from two small queries. False skips the Tag Groups fetch entirely. */
   hasTagGroups: boolean
 }
@@ -71,10 +70,9 @@ interface DashboardClientProps {
 export function DashboardClient({
   initialTrackers,
   snapshotRetentionDays,
-  retentionAnswered,
   hasTagGroups,
 }: DashboardClientProps) {
-  const data = useDashboardData({ initialTrackers, snapshotRetentionDays, retentionAnswered })
+  const data = useDashboardData({ initialTrackers, snapshotRetentionDays })
   const dashSettings = useDashboardSettings()
   const sectionCollapse = useSectionCollapse()
   // One instance for the whole page, like sectionCollapse above. The analytics grid and the
