@@ -17,6 +17,7 @@ import {
   Sheet,
   Toggle,
 } from "@/components/ui"
+import { AreaInput } from "@/components/ui/AreaInput"
 import { ColorPicker } from "@/components/ui/ColorPicker"
 
 import { findRegistryEntry } from "@/data/tracker-registry"
@@ -399,24 +400,16 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
                   onChange={(e) => setEditAvistazUsername(e.target.value)}
                   placeholder="Your username on this tracker"
                 />
-                <div className="flex flex-col gap-1">
-                  <label
-                    htmlFor="edit-avistaz-cookies"
-                    className="text-xs uppercase tracking-wider text-secondary font-mono"
-                  >
-                    Browser Cookies
-                  </label>
-                  <textarea
-                    id="edit-avistaz-cookies"
-                    autoComplete="off"
-                    data-1p-ignore
-                    value={editAvistazCookies}
-                    onChange={(e) => setEditAvistazCookies(e.target.value)}
-                    placeholder="Paste Cookie header from DevTools"
-                    rows={3}
-                    className="w-full rounded-nm-sm bg-control-bg px-3 py-2 text-sm text-primary border border-transparent focus:border-accent focus:outline-none font-mono resize-y"
-                  />
-                </div>
+                <AreaInput
+                  label="Browser Cookies"
+                  id="edit-avistaz-cookies"
+                  autoComplete="off"
+                  data-1p-ignore
+                  value={editAvistazCookies}
+                  onChange={(e) => setEditAvistazCookies(e.target.value)}
+                  placeholder="Paste Cookie header from DevTools"
+                  rows={3}
+                />
                 <Notice message={errors.apiToken} />
                 <Button
                   variant="minimal"
@@ -433,20 +426,10 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
               </div>
             ) : changingKey && tracker.platformType === "iptorrents" ? (
               <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-1">
-                  <label
-                    htmlFor="edit-ipt-cookies"
-                    className="text-xs uppercase tracking-wider text-secondary font-sans font-medium"
-                  >
-                    Browser Cookies
-                  </label>
-                  <InfoTip
-                    content="Open DevTools (F12) → Network → any request to IPTorrents → copy the full Cookie header value."
-                    size="sm"
-                    docs={DOCS.ADDING_A_TRACKER}
-                  />
-                </div>
-                <textarea
+                <AreaInput
+                  label="Browser Cookies"
+                  tooltip="Open DevTools (F12) → Network → any request to IPTorrents → copy the full Cookie header value."
+                  docs={DOCS.ADDING_A_TRACKER}
                   id="edit-ipt-cookies"
                   name="edit-ipt-cookies"
                   autoComplete="off"
@@ -455,7 +438,6 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
                   onChange={(e) => setEditIptCookies(e.target.value)}
                   placeholder="cf_clearance=...; uid=123456; pass=abc123..."
                   rows={3}
-                  className="w-full rounded-md border border-subtle bg-surface px-3 py-2 text-sm font-mono"
                 />
                 <Notice message={errors.apiToken} />
                 <Button
@@ -516,20 +498,10 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
               </div>
             ) : changingKey && tracker.platformType === "digitalcore" ? (
               <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-1">
-                  <label
-                    htmlFor="edit-dc-cookies"
-                    className="text-xs uppercase tracking-wider text-secondary font-sans font-medium"
-                  >
-                    Session Cookies
-                  </label>
-                  <InfoTip
-                    content="Open DevTools (F12) → Network → any request → copy the Cookie header value."
-                    size="sm"
-                    docs={DOCS.ADDING_A_TRACKER}
-                  />
-                </div>
-                <textarea
+                <AreaInput
+                  label="Session Cookies"
+                  tooltip="Open DevTools (F12) → Network → any request → copy the Cookie header value."
+                  docs={DOCS.ADDING_A_TRACKER}
                   id="edit-dc-cookies"
                   autoComplete="off"
                   data-1p-ignore
@@ -537,7 +509,6 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
                   onChange={(e) => setEditDcCookies(e.target.value)}
                   placeholder="uid=56954; pass=abc123def456..."
                   rows={2}
-                  className="w-full font-mono text-sm text-primary bg-control-bg rounded-nm-md px-4 py-3 placeholder:text-muted nm-inset focus:outline-none focus:nm-inset border-0 resize-y"
                 />
                 <Notice message={errors.apiToken} />
                 <Button

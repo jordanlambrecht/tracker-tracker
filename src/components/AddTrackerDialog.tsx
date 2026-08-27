@@ -538,20 +538,10 @@ function AddTrackerDialog({
               placeholder="Your username on this tracker"
             />
             <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1">
-                <label
-                  htmlFor="tracker-avistaz-cookies"
-                  className="text-xs uppercase tracking-wider text-secondary font-sans font-medium"
-                >
-                  Browser Cookies
-                </label>
-                <InfoTip
-                  content="Open DevTools (F12) → Network tab → click any request → find the Cookie header → right-click it → Copy Value. Do not select the text directly, as Firefox truncates long values in the display."
-                  size="sm"
-                  docs={DOCS.ADDING_A_TRACKER}
-                />
-              </div>
               <AreaInput
+                label="Browser Cookies"
+                tooltip="Open DevTools (F12) → Network tab → click any request → find the Cookie header → right-click it → Copy Value. Do not select the text directly, as Firefox truncates long values in the display."
+                docs={DOCS.ADDING_A_TRACKER}
                 id="tracker-avistaz-cookies"
                 name="tracker-avistaz-cookies"
                 autoComplete="off"
@@ -579,20 +569,10 @@ function AddTrackerDialog({
           </div>
         ) : selectedEntry?.platform === "digitalcore" ? (
           <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-1">
-              <label
-                htmlFor="tracker-dc-cookies"
-                className="text-xs uppercase tracking-wider text-secondary font-sans font-medium"
-              >
-                Session Cookies
-              </label>
-              <InfoTip
-                content="DigitalCore uses session cookies instead of API keys. Open DevTools (F12) → Network → any request → copy the Cookie header value."
-                size="sm"
-                docs={DOCS.ADDING_A_TRACKER}
-              />
-            </div>
             <AreaInput
+              label="Session Cookies"
+              tooltip="DigitalCore uses session cookies instead of API keys. Open DevTools (F12) → Network → any request → copy the Cookie header value."
+              docs={DOCS.ADDING_A_TRACKER}
               id="tracker-dc-cookies"
               name="tracker-dc-cookies"
               autoComplete="off"
@@ -612,20 +592,10 @@ function AddTrackerDialog({
           </div>
         ) : selectedEntry?.platform === "iptorrents" ? (
           <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-1">
-              <label
-                htmlFor="tracker-ipt-cookies"
-                className="text-xs uppercase tracking-wider text-secondary font-sans font-medium"
-              >
-                Browser Cookies
-              </label>
-              <InfoTip
-                content="IPTorrents has no API, so stats are read from your logged-in session. Open DevTools (F12) → Network → any request to the site → copy the full Cookie header value."
-                size="sm"
-                docs={DOCS.ADDING_A_TRACKER}
-              />
-            </div>
             <AreaInput
+              label="Browser Cookies"
+              tooltip="IPTorrents has no API, so stats are read from your logged-in session. Open DevTools (F12) → Network → any request to the site → copy the full Cookie header value."
+              docs={DOCS.ADDING_A_TRACKER}
               id="tracker-ipt-cookies"
               name="tracker-ipt-cookies"
               autoComplete="off"
@@ -655,20 +625,10 @@ function AddTrackerDialog({
               placeholder="Your TorrentLeech username"
             />
             <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1">
-                <label
-                  htmlFor="tracker-tl-password"
-                  className="text-xs uppercase tracking-wider text-secondary font-sans font-medium"
-                >
-                  TorrentLeech Password
-                </label>
-                <InfoTip
-                  content="TorrentLeech has no API, so stats are read by logging in on your behalf. Your password is encrypted at rest with the same key as every other tracker credential."
-                  size="sm"
-                  docs={DOCS.ADDING_A_TRACKER}
-                />
-              </div>
               <Input
+                label="TorrentLeech Password"
+                tooltip="TorrentLeech has no API, so stats are read by logging in on your behalf. Your password is encrypted at rest with the same key as every other tracker credential."
+                docs={DOCS.ADDING_A_TRACKER}
                 id="tracker-tl-password"
                 name="tracker-tl-password"
                 type="password"
@@ -681,20 +641,10 @@ function AddTrackerDialog({
               />
             </div>
             <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1">
-                <label
-                  htmlFor="tracker-tl-alt2fa"
-                  className="text-xs uppercase tracking-wider text-secondary font-sans font-medium"
-                >
-                  Alt 2FA Token (optional)
-                </label>
-                <InfoTip
-                  content="Required only if your TorrentLeech account has 2FA enabled. Find it at Site Profile => Alt 2FA Token. It is a static token, not a rotating 6-digit code."
-                  size="sm"
-                  docs={DOCS.ADDING_A_TRACKER}
-                />
-              </div>
               <Input
+                label="Alt 2FA Token (optional)"
+                tooltip="Required only if your TorrentLeech account has 2FA enabled. Find it at Site Profile => Alt 2FA Token. It is a static token, not a rotating 6-digit code."
+                docs={DOCS.ADDING_A_TRACKER}
                 id="tracker-tl-alt2fa"
                 name="tracker-tl-alt2fa"
                 type="password"
