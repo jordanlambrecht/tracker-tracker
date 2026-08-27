@@ -114,6 +114,12 @@ export const phoenixproject: TrackerRegistryEntry = {
 
   // ── Rules ───────────────────────────────────────────────────────────
   rules: {
+    // Verified against rules.php?p=ratio, 2026-08-27: Phoenix has NO per-torrent
+    // requirement and NO hit-and-run system. Its whole system is an account-level
+    // sliding required ratio (0.00 to 0.60 by download bracket, lowered by seeding
+    // more, enforced by a two-week ratio watch). Never set satisfactionMode here;
+    // an empty Unsatisfied table is correct for this tracker. The 0.6 below is the
+    // 100+ GB bracket cap, and the live Gazelle requiredRatio supersedes it.
     minimumRatio: 0.6,
     seedTimeHours: 0,
     loginIntervalDays: 0,
