@@ -587,7 +587,7 @@ interface TrackerRules {
   loginIntervalDays: number // required, days before account is disabled; 0 = no policy
   fulfillmentPeriodHours?: number // total hours allowed to complete H&R seeding
   hnrBanLimit?: number // number of active H&Rs before downloading is blocked
-  fullRulesMarkdown?: string // the full rules as a markdown string
+  fullRulesMarkdown?: string[] // the full rules as markdown lines, array-join format
 }
 ```
 
