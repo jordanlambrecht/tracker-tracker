@@ -174,6 +174,16 @@ Location varies by platform:
     !!! info "DigitalCore's API key won't work"
         DigitalCore has an API key feature, but it only allows access to torrent search endpoints. User stats require session cookies, which is why Tracker Tracker uses the cookie approach.
 
+=== "TorrentLeech"
+
+    TorrentLeech has no stats API, so Tracker Tracker logs in with your **username and password** and reads your profile page. The password is encrypted at rest with the same key as every other tracker credential.
+
+    !!! tip "2FA accounts need the Alt 2FA Token"
+        If your account has 2FA enabled, also fill in the **Alt 2FA Token** field. Find it on the site under **Site Profile → Alt 2FA Token**. It is a static token made for third-party clients, not the rotating 6-digit code. Without it, adding the tracker fails with a message asking for it.
+
+    !!! warning "Re-entering credentials"
+        Changing the stored credentials later replaces all of them at once. A 2FA account needs the token typed again alongside the username and password.
+
 !!! warning "Keep your token private"
     Your API token works like a password. Tracker Tracker encrypts it before storing it.
 
