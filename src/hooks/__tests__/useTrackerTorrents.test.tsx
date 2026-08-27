@@ -234,6 +234,33 @@ describe("useTrackerTorrents — empty live result vs populated cache", () => {
   })
 })
 
+describe("useTrackerTorrents — category stats", () => {
+  it("excludes the -1 cross-seed sentinel from the category ratio average", async () => {
+    // qBT reports -1 for a torrent that downloaded nothing. Averaging it in
+    // drags the category down; fleet-aggregation already excludes it.
+    mockFetch({
+      live: makeResponse({
+        torrents: [
+          makeTorrent("h1", { ratio: 2 }),
+          makeTorrent("h2", { ratio: -1 }),
+        ],
+      }),
+    })
+    const { result } = renderTracker("movies")
+    await waitFor(() => expect(result.current.torrents).toHaveLength(2))
+    expect(result.current.categoryStats[0]?.avgRatio).toBe(2)
+  })
+
+  it("reports 0 when every ratio in the category is the sentinel", async () => {
+    mockFetch({
+      live: makeResponse({ torrents: [makeTorrent("h1", { ratio: -1 })] }),
+    })
+    const { result } = renderTracker("movies")
+    await waitFor(() => expect(result.current.torrents).toHaveLength(1))
+    expect(result.current.categoryStats[0]?.avgRatio).toBe(0)
+  })
+})
+
 describe("useTrackerTorrents — sessionStorage snapshot", () => {
   it("does not let an empty, incomplete live response overwrite the instant-restore snapshot", async () => {
     mockFetch({

@@ -284,14 +284,21 @@ function useTrackerTorrents({
     }
 
     const categoryStats: CategoryStats[] = [...categoryMap.entries()]
-      .map(([name, items]) => ({
-        name,
-        count: items.length,
-        totalSize: items.reduce((s, t) => s + t.size, 0),
-        avgRatio: items.reduce((s, t) => s + t.ratio, 0) / items.length,
-        avgSeedTime: items.reduce((s, t) => s + t.seedingTime, 0) / items.length,
-        avgSwarmSeeds: items.reduce((s, t) => s + t.swarmSeeders, 0) / items.length,
-      }))
+      .map(([name, items]) => {
+        // qBT reports ratio -1 for a pure cross-seed. Excluded from the average
+        // like fleet-aggregation's ratio stats, not summed in as a negative.
+        const measurable = items.filter((t) => t.ratio >= 0)
+        return {
+          name,
+          count: items.length,
+          totalSize: items.reduce((s, t) => s + t.size, 0),
+          avgRatio: measurable.length
+            ? measurable.reduce((s, t) => s + t.ratio, 0) / measurable.length
+            : 0,
+          avgSeedTime: items.reduce((s, t) => s + t.seedingTime, 0) / items.length,
+          avgSwarmSeeds: items.reduce((s, t) => s + t.swarmSeeders, 0) / items.length,
+        }
+      })
       .sort((a, b) => b.count - a.count)
 
     const topBySeeding = [...seedingTorrents]
