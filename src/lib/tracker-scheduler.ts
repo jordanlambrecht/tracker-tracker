@@ -7,7 +7,6 @@ import type { Agent as HttpAgent } from "node:http"
 
 import { and, desc, eq, isNotNull, lt, notInArray, sql } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
-import { findRegistryEntry } from "@/data/tracker-registry"
 import { buildFetchOptions, getAdapter } from "@/lib/adapters"
 import type {
   AvistazPlatformMeta,
@@ -35,7 +34,7 @@ import { dispatchNotifications } from "@/lib/notifications/dispatch"
 import { maskUsername } from "@/lib/privacy"
 import { recordDatabaseSize } from "@/lib/server-data"
 import { pruneTrackerOutages, recordTrackerPollFailure } from "@/lib/tracker-outages"
-import { getPauseState } from "@/lib/tracker-status"
+import { getPauseState, resolveRequiredRatio } from "@/lib/tracker-status"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 
 // Store on globalThis to survive HMR in development.
@@ -354,7 +353,7 @@ export async function pollTracker(
           trackerIsActive: tracker.isActive,
           trackerPausedAt: null,
           trackerJoinedAt: tracker.joinedAt ?? null,
-          minimumRatio: findRegistryEntry(tracker.baseUrl)?.rules?.minimumRatio,
+          minimumRatio: resolveRequiredRatio(stats.requiredRatio, tracker.baseUrl) ?? undefined,
           platformContext:
             tracker.platformType === "mam"
               ? {

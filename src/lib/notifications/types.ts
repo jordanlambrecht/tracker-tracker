@@ -76,6 +76,8 @@ export interface SnapshotContext {
   trackerIsActive: boolean
   trackerPausedAt: string | null
   trackerJoinedAt: string | null
+  // The effective requirement: live requiredRatio when the adapter reports
+  // one, registry minimumRatio otherwise (resolveRequiredRatio).
   minimumRatio: number | undefined
   // Platform-specific extended fields; populated for MAM and AvistaZ, undefined for others
   platformContext?: {

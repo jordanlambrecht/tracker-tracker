@@ -99,7 +99,9 @@ export function TrackerDetailHeader({
 
           {/* Meta badges */}
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={getHealthBadgeVariant(health)}>{getHealthDescription(health)}</Badge>
+            <Badge variant={getHealthBadgeVariant(health)}>
+              {getHealthDescription(health, tracker)}
+            </Badge>
             <Badge variant="default">{tracker.platformType}</Badge>
             {registryEntry?.language && <Badge variant="default">{registryEntry.language}</Badge>}
             {!tracker.isActive && <Badge variant="warn">Archived</Badge>}

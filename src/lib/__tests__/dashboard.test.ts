@@ -516,6 +516,69 @@ describe("computeAlerts", () => {
     expect(alerts.find((a) => a.type === "ratio-danger")).toBeUndefined()
   })
 
+  it("suppresses the ratio-danger alert when the live requiredRatio is 0", () => {
+    // Phoenix at full seeding: the sliding requirement really is 0, and the
+    // registry's bracket cap must not keep the alert alive.
+    mockFindRegistryEntry.mockReturnValue(
+      makeRegistryEntry({ rules: { minimumRatio: 0.6, seedTimeHours: 72, loginIntervalDays: 90 } })
+    )
+    const tracker = makeTracker({
+      id: 3,
+      lastError: null,
+      latestStats: {
+        ratio: 0.2,
+        ratioIsInfinite: false,
+        uploadedBytes: "200",
+        downloadedBytes: "1000",
+        seedingCount: 1,
+        leechingCount: 0,
+        requiredRatio: 0,
+        warned: null,
+        freeleechTokens: null,
+        bufferBytes: null,
+        hitAndRuns: null,
+        seedbonus: null,
+        shareScore: null,
+        username: "u",
+        group: null,
+      },
+    })
+    const alerts = computeAlerts([tracker])
+    expect(alerts.find((a) => a.type === "ratio-danger")).toBeUndefined()
+  })
+
+  it("fires the ratio-danger alert from the live requiredRatio over the registry", () => {
+    mockFindRegistryEntry.mockReturnValue(
+      makeRegistryEntry({ rules: { minimumRatio: 0.4, seedTimeHours: 72, loginIntervalDays: 90 } })
+    )
+    const tracker = makeTracker({
+      id: 4,
+      lastError: null,
+      lastPolledAt: new Date().toISOString(),
+      latestStats: {
+        ratio: 2.0,
+        ratioIsInfinite: false,
+        uploadedBytes: "2000",
+        downloadedBytes: "1000",
+        seedingCount: 1,
+        leechingCount: 0,
+        requiredRatio: 2.5,
+        warned: null,
+        freeleechTokens: null,
+        bufferBytes: null,
+        hitAndRuns: null,
+        seedbonus: null,
+        shareScore: null,
+        username: "u",
+        group: null,
+      },
+    })
+    const alerts = computeAlerts([tracker])
+    const ratioAlert = alerts.find((a) => a.type === "ratio-danger")
+    expect(ratioAlert).toBeDefined()
+    expect(ratioAlert?.message).toContain("2.5")
+  })
+
   it("looks up registry by baseUrl not name", () => {
     mockFindRegistryEntry.mockReturnValue(
       makeRegistryEntry({ rules: { minimumRatio: 0.4, seedTimeHours: 72, loginIntervalDays: 90 } })

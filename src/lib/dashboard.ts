@@ -3,7 +3,6 @@
 // Functions: computeAggregateStats, computeAlerts, detectRankChanges, fetchDismissedKeys,
 // postDismissAlert, deleteAllDismissed, computeSystemAlerts
 
-import { findRegistryEntry } from "@/data/tracker-registry"
 import { formatDateTime, formatRatio, formatTimeAgo } from "@/lib/formatters"
 import { isRedacted } from "@/lib/privacy"
 import {
@@ -12,6 +11,7 @@ import {
   checkTrackerError,
   checkZeroSeeding,
 } from "@/lib/tracker-events"
+import { resolveRequiredRatio } from "@/lib/tracker-status"
 import type { Snapshot, TrackerSummary } from "@/types/api"
 
 // ---------------------------------------------------------------------------
@@ -129,8 +129,10 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
     }
 
     // --- Ratio danger ---
-    const registryEntry = findRegistryEntry(tracker.baseUrl)
-    const minimumRatio = registryEntry?.rules?.minimumRatio
+    // Same resolution the health tiers use: live requiredRatio first, registry
+    // minimumRatio second. Keeps the alert from contradicting the health badge.
+    const minimumRatio =
+      resolveRequiredRatio(tracker.latestStats?.requiredRatio, tracker.baseUrl) ?? undefined
     if (checkRatioBelowMinimum(tracker.latestStats?.ratio, minimumRatio)) {
       alerts.push({
         key: `ratio-danger-${tracker.id}`,
