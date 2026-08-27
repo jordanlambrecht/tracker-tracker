@@ -275,3 +275,58 @@ describe("TrackerSettingsSheet digitalcore credentials", () => {
     expect(blob.userAgent).toBe(navigator.userAgent)
   })
 })
+
+describe("TrackerSettingsSheet torrentleech credentials", () => {
+  const TL_TRACKER: TrackerSummary = {
+    ...TRACKER,
+    platformType: "torrentleech",
+    baseUrl: "https://www.torrentleech.org",
+  }
+
+  it("includes the Alt 2FA Token in the blob only when one is entered", async () => {
+    const user = userEvent.setup()
+    patchResult = jsonResponse(TL_TRACKER)
+    renderSheet({ tracker: TL_TRACKER })
+
+    await user.click(screen.getByRole("button", { name: "Change" }))
+    await user.type(screen.getByLabelText("Username"), "bob")
+    await user.type(screen.getByLabelText("Password"), "hunter2")
+    await user.type(screen.getByLabelText("Alt 2FA Token (optional)"), "tok123")
+    await user.click(screen.getByRole("button", { name: "Save Changes" }))
+
+    await waitFor(() => expect(trackerRequests().length).toBeGreaterThan(0))
+    const blob = JSON.parse(JSON.parse(String(trackerRequests().at(-1)?.[1]?.body)).apiToken)
+    expect(blob).toEqual({ username: "bob", password: "hunter2", alt2FAToken: "tok123" })
+  })
+
+  it("omits the token key for accounts without 2FA", async () => {
+    const user = userEvent.setup()
+    patchResult = jsonResponse(TL_TRACKER)
+    renderSheet({ tracker: TL_TRACKER })
+
+    await user.click(screen.getByRole("button", { name: "Change" }))
+    await user.type(screen.getByLabelText("Username"), "bob")
+    await user.type(screen.getByLabelText("Password"), "hunter2")
+    await user.click(screen.getByRole("button", { name: "Save Changes" }))
+
+    await waitFor(() => expect(trackerRequests().length).toBeGreaterThan(0))
+    const blob = JSON.parse(JSON.parse(String(trackerRequests().at(-1)?.[1]?.body)).apiToken)
+    expect("alt2FAToken" in blob).toBe(false)
+  })
+
+  it("wipes the typed secrets when the sheet is cancelled", async () => {
+    // Closing kept the password and token in component state and re-showed
+    // both on the next Change click.
+    const user = userEvent.setup()
+    renderSheet({ tracker: TL_TRACKER })
+
+    await user.click(screen.getByRole("button", { name: "Change" }))
+    await user.type(screen.getByLabelText("Password"), "hunter2")
+    await user.type(screen.getByLabelText("Alt 2FA Token (optional)"), "tok123")
+    await user.click(screen.getByRole("button", { name: "Close panel" }))
+
+    await user.click(screen.getByRole("button", { name: "Change" }))
+    expect(screen.getByLabelText("Password")).toHaveValue("")
+    expect(screen.getByLabelText("Alt 2FA Token (optional)")).toHaveValue("")
+  })
+})
