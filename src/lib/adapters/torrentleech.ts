@@ -33,24 +33,19 @@ export interface TlCredentials {
 }
 
 export function parseTlCredentials(apiToken: string): TlCredentials {
-  const { username, password } = parseCredentialJson(apiToken, "TorrentLeech", [
-    "username",
-    "password",
-  ] as const)
+  const optional = parseCredentialJson(
+    apiToken,
+    "TorrentLeech",
+    ["username", "password"] as const,
+    ["alt2FAToken", "alt2fatoken"] as const
+  )
+  const { username, password } = optional
 
-  // The optional third field is read separately: parseCredentialJson asserts
-  // every field it is given is present, and this one legitimately is not for
-  // accounts without 2FA. Re-parsing is safe — the call above has already
-  // proven the blob is valid JSON.
-  const raw = JSON.parse(apiToken) as Record<string, unknown>
   // `alt2FAToken` is the site's own spelling; `alt2fatoken` is accepted too
-  // because that is the key other clients store it under, and being strict
-  // about the capitalisation of a pasted token helps nobody.
-  const token = raw.alt2FAToken ?? raw.alt2fatoken
-  if (token !== undefined && typeof token !== "string") {
-    throw new Error("TorrentLeech credentials: alt2FAToken must be a string")
-  }
-  const alt2FAToken = typeof token === "string" ? token.trim() : ""
+  // because that is the key other clients (Prowlarr, Jackett) store it under,
+  // and being strict about the capitalisation of a pasted token helps nobody.
+  const token = optional.alt2FAToken ?? optional.alt2fatoken
+  const alt2FAToken = token?.trim() ?? ""
 
   return {
     username: username.trim(),
