@@ -655,8 +655,21 @@ function AddTrackerDialog({
               placeholder="Your TorrentLeech username"
             />
             <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1">
+                <label
+                  htmlFor="tracker-tl-password"
+                  className="text-xs uppercase tracking-wider text-secondary font-sans font-medium"
+                >
+                  TorrentLeech Password
+                </label>
+                <InfoTip
+                  content="TorrentLeech has no API, so stats are read by logging in on your behalf. Your password is encrypted at rest with the same key as every other tracker credential."
+                  size="sm"
+                  docs={DOCS.ADDING_A_TRACKER}
+                />
+              </div>
               <Input
-                label="TorrentLeech Password"
+                id="tracker-tl-password"
                 name="tracker-tl-password"
                 type="password"
                 autoComplete="off"
@@ -666,15 +679,23 @@ function AddTrackerDialog({
                 placeholder="Your TorrentLeech password"
                 error={errors.apiToken}
               />
-              <InfoTip
-                content="TorrentLeech has no API, so stats are read by logging in on your behalf. Your password is encrypted at rest with the same key as every other tracker credential."
-                size="sm"
-                docs={DOCS.ADDING_A_TRACKER}
-              />
             </div>
             <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1">
+                <label
+                  htmlFor="tracker-tl-alt2fa"
+                  className="text-xs uppercase tracking-wider text-secondary font-sans font-medium"
+                >
+                  Alt 2FA Token (optional)
+                </label>
+                <InfoTip
+                  content="Required only if your TorrentLeech account has 2FA enabled. Find it at Site Profile => Alt 2FA Token. It is a static token, not a rotating 6-digit code."
+                  size="sm"
+                  docs={DOCS.ADDING_A_TRACKER}
+                />
+              </div>
               <Input
-                label="Alt 2FA Token (optional)"
+                id="tracker-tl-alt2fa"
                 name="tracker-tl-alt2fa"
                 type="password"
                 autoComplete="off"
@@ -682,11 +703,6 @@ function AddTrackerDialog({
                 value={tlAlt2FAToken}
                 onChange={(e) => setTlAlt2FAToken(e.target.value)}
                 placeholder="Only if 2FA is enabled on your account"
-              />
-              <InfoTip
-                content="Required only if your TorrentLeech account has 2FA enabled. Find it at Site Profile => Alt 2FA Token. It is a static token, not a rotating 6-digit code."
-                size="sm"
-                docs={DOCS.ADDING_A_TRACKER}
               />
             </div>
             {testResult && (
