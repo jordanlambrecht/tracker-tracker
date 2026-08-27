@@ -970,6 +970,18 @@ describe("computeSystemAlerts", () => {
     expect(retentionAlert?.dismissible).toBe(true)
   })
 
+  it("does not nag when the user answered the prompt with keep-forever", () => {
+    // null days plus an answered prompt is a deliberate choice, not neglect.
+    const result = computeSystemAlerts({
+      currentVersion: "1.0.0",
+      failedBackups: [],
+      clients: [],
+      snapshotRetentionDays: null,
+      retentionAnswered: true,
+    })
+    expect(result.find((a) => a.type === "retention-unconfigured")).toBeUndefined()
+  })
+
   it("does not generate retention alert when snapshotRetentionDays is configured", () => {
     const result = computeSystemAlerts({
       currentVersion: "1.0.0",

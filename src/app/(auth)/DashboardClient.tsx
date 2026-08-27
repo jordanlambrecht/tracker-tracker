@@ -15,7 +15,6 @@ import { EcosystemStatsSection } from "@/components/dashboard/EcosystemStatsSect
 import { FleetDashboard } from "@/components/dashboard/FleetDashboard"
 import { LoginTimers } from "@/components/dashboard/LoginTimers"
 import { PollAllButton } from "@/components/dashboard/PollAllButton"
-import { RetentionPrompt } from "@/components/dashboard/RetentionPromptDialog"
 import { TagGroupsSection } from "@/components/dashboard/TagGroupsSection"
 import { TodayAtAGlance } from "@/components/dashboard/TodayAtAGlance"
 import { TodayAtAGlanceSkeleton } from "@/components/dashboard/TodayAtAGlanceSkeleton"
@@ -64,6 +63,7 @@ const selectTagGroupBreakdowns = (data: FleetAggregation) => data.tagGroupBreakd
 interface DashboardClientProps {
   initialTrackers: TrackerSummary[]
   snapshotRetentionDays: number | null
+  retentionAnswered: boolean
   /** Read server-side from two small queries. False skips the Tag Groups fetch entirely. */
   hasTagGroups: boolean
 }
@@ -71,9 +71,10 @@ interface DashboardClientProps {
 export function DashboardClient({
   initialTrackers,
   snapshotRetentionDays,
+  retentionAnswered,
   hasTagGroups,
 }: DashboardClientProps) {
-  const data = useDashboardData({ initialTrackers, snapshotRetentionDays })
+  const data = useDashboardData({ initialTrackers, snapshotRetentionDays, retentionAnswered })
   const dashSettings = useDashboardSettings()
   const sectionCollapse = useSectionCollapse()
   // One instance for the whole page, like sectionCollapse above. The analytics grid and the
@@ -133,7 +134,6 @@ export function DashboardClient({
     <div className="flex flex-col gap-10 max-w-6xl mx-auto pb-12">
       {/* Asks once, on first login, how long to keep snapshot history. Renders
           nothing after it has been answered. */}
-      <RetentionPrompt />
 
       {/* Page Header */}
       <div className="flex items-center justify-between">

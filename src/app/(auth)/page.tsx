@@ -24,6 +24,7 @@ export default async function DashboardPage() {
     <DashboardClient
       initialTrackers={trackers}
       snapshotRetentionDays={settings?.snapshotRetentionDays ?? null}
+      retentionAnswered={settings?.retentionPromptedAt != null}
       hasTagGroups={tagGroups.length > 0}
     />
   )

@@ -5,6 +5,7 @@ import clsx from "clsx"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
+import { RetentionPrompt } from "@/components/dashboard/RetentionPromptDialog"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { WhatsNew } from "@/components/layout/WhatsNew"
 import { BackToTop } from "@/components/ui/BackToTop"
@@ -53,6 +54,10 @@ export function AuthShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden">
+      {/* Mounted in the persistent shell, not a page: the first-run prompt must
+          survive the add-first-tracker redirect instead of vanishing with the
+          dashboard. It renders nothing once answered. */}
+      <RetentionPrompt />
       {isMobile && (
         <div
           className={clsx(

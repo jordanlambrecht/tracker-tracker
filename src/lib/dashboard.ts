@@ -317,6 +317,8 @@ export interface SystemAlertData {
   failedBackups: { createdAt: string }[]
   clients: { id: number; name: string; enabled: boolean; lastError: string | null }[]
   snapshotRetentionDays: number | null
+  /** True once the first-run retention prompt was answered; null days is then a choice. */
+  retentionAnswered?: boolean
 }
 
 export function computeSystemAlerts(data: SystemAlertData): DashboardAlert[] {
@@ -365,8 +367,9 @@ export function computeSystemAlerts(data: SystemAlertData): DashboardAlert[] {
     }
   }
 
-  // Snapshot retention unconfigured
-  if (data.snapshotRetentionDays === null) {
+  // Snapshot retention unconfigured. Suppressed once the prompt was answered:
+  // a user who chose keep-forever does not need reminding of their own choice.
+  if (data.snapshotRetentionDays === null && !data.retentionAnswered) {
     alerts.push({
       key: "retention-unconfigured",
       type: "retention-unconfigured",

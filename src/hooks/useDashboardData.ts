@@ -47,6 +47,7 @@ interface DashboardData {
 interface UseDashboardDataOptions {
   initialTrackers?: TrackerSummary[]
   snapshotRetentionDays?: number | null
+  retentionAnswered?: boolean
 }
 
 function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
@@ -160,6 +161,7 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
           failedBackups: (backupQuery.data ?? []).filter((b) => b.status === "failed"),
           clients: clientsQuery.data ?? [],
           snapshotRetentionDays: options?.snapshotRetentionDays ?? null,
+          retentionAnswered: options?.retentionAnswered ?? false,
         })
       : []
     const combined = [...trackerAlerts, ...rankAlerts, ...systemAlerts]
@@ -173,6 +175,7 @@ function useDashboardData(options?: UseDashboardDataOptions): DashboardData {
     clientsQuery.data,
     dismissedKeys,
     options?.snapshotRetentionDays,
+    options?.retentionAnswered,
   ])
 
   // Dismiss handlers
