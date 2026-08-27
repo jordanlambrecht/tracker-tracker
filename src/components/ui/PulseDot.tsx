@@ -20,7 +20,7 @@ interface PulseDotProps {
 
 const statusLabels: Record<PulseDotStatus, string> = {
   healthy: "Healthy",
-  warning: "Warning",
+  warning: "Ratio between 1 and 2",
   "no-seeds": "No seeds",
   critical: "Critical",
   paused: "Paused",

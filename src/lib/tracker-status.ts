@@ -27,13 +27,17 @@ interface HealthMeta {
 const HEALTH_META: Record<TrackerHealth, HealthMeta> = {
   healthy: {
     label: "Healthy",
-    description: "Ratio \u2265 2.0, healthy buffer",
+    description: "Ratio 2.0 or higher",
     pulseDot: "healthy",
     badge: "accent",
   },
   warning: {
-    label: "Warning",
-    description: "Ratio 1.0\u20132.0, thin buffer",
+    // Named for what the model actually measures, which is ratio alone. It
+    // never sees the buffer, so neither label nor description may claim one,
+    // and "Warning" on a 1.95 ratio read as if something was wrong. The amber
+    // badge already signals watch.
+    label: "Ratio 1-2",
+    description: "Ratio between 1.0 and 2.0",
     pulseDot: "warning",
     badge: "warn",
   },
