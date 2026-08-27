@@ -22,7 +22,7 @@ const FIELD_MAP: Record<string, string> = {
   is_private: "isPrivate",
 }
 
-const REQUIRED_NUMERIC = [
+const REQUIRED_NUMERIC = new Set([
   "uploadSpeed",
   "downloadSpeed",
   "size",
@@ -32,7 +32,7 @@ const REQUIRED_NUMERIC = [
   // Satisfaction divides by this. An undefined value yields NaN, which
   // reads as unsatisfied but renders as a completed progress bar.
   "seedingTime",
-]
+])
 
 /** Defaults missing or non-numeric required fields to 0, in place. */
 export function coerceRequiredNumeric(result: Record<string, unknown>): void {
@@ -62,7 +62,7 @@ export function mapQbtDelta(partial: Record<string, unknown>): Partial<TorrentRe
     const mapped = FIELD_MAP[key] ?? key
     // A delta is merged over good stored values, so a garbage numeric is
     // dropped rather than coerced to 0, which would clobber them.
-    if (REQUIRED_NUMERIC.includes(mapped) && typeof value !== "number") {
+    if (REQUIRED_NUMERIC.has(mapped) && typeof value !== "number") {
       // Debug, not warn: this fires per field per torrent per poll, and a
       // client that mistypes one field across a large library would flood.
       log.debug({ field: mapped, value }, "mapQbtDelta: dropped non-numeric field")

@@ -6,7 +6,6 @@
 // Functions:
 //   makeTorrent  - Build a TorrentRaw with everything zeroed
 //   progressBar  - The name cell's bar, the only element with an inline width
-//   barColor     - That bar's background-color, as jsdom reports it
 
 import { render, screen, within } from "@testing-library/react"
 import { beforeAll, describe, expect, it } from "vitest"
@@ -31,7 +30,6 @@ beforeAll(() => {
 })
 
 const DANGER = "rgb(239, 68, 68)"
-const POSITIVE = "rgb(34, 197, 94)"
 
 function makeTorrent(overrides: Partial<TorrentRaw> = {}): TorrentRaw {
   return {
@@ -99,9 +97,6 @@ function progressBar(container: HTMLElement): HTMLElement {
   return withWidth[0]
 }
 
-function barColor(container: HTMLElement): string {
-  return progressBar(container).style.backgroundColor
-}
 
 function headers(): string[] {
   return screen.getAllByRole("columnheader").map((th) => th.textContent?.trim() ?? "")
@@ -203,9 +198,9 @@ describe("UnsatisfiedTorrentsTable bad numbers", () => {
       makeTorrent({ seedingTime: undefined as unknown as number }),
     ])
     expect(screen.getByText("0%")).toBeVisible()
-    expect(progressBar(container).style.width).toBe("0%")
-    expect(barColor(container)).toBe(DANGER)
-    expect(barColor(container)).not.toBe(POSITIVE)
+    const bar = progressBar(container)
+    expect(bar.style.width).toBe("0%")
+    expect(bar.style.backgroundColor).toBe(DANGER)
     // The full 240h is owed. The raw NaN rendered this cell as "Done" on a
     // torrent the same row marks 0% complete.
     expect(screen.getByText("10.0d")).toBeVisible()
@@ -214,8 +209,9 @@ describe("UnsatisfiedTorrentsTable bad numbers", () => {
 
   it("shows no progress for a NaN seed time", () => {
     const { container } = renderTable(SEED_ONLY, [makeTorrent({ seedingTime: Number.NaN })])
-    expect(progressBar(container).style.width).toBe("0%")
-    expect(barColor(container)).toBe(DANGER)
+    const bar = progressBar(container)
+    expect(bar.style.width).toBe("0%")
+    expect(bar.style.backgroundColor).toBe(DANGER)
   })
 
   it("scores qBittorrent's -1 infinite-ratio sentinel as no progress", () => {
@@ -223,8 +219,9 @@ describe("UnsatisfiedTorrentsTable bad numbers", () => {
     // that satisfies a 1:1 rule is a hit-and-run judgement nobody has made, so
     // it clears on seed time instead. See the sentinel note in fleet-aggregation.
     const { container } = renderTable(RATIO_ONLY, [makeTorrent({ ratio: -1 })])
-    expect(progressBar(container).style.width).toBe("0%")
-    expect(barColor(container)).toBe(DANGER)
+    const bar = progressBar(container)
+    expect(bar.style.width).toBe("0%")
+    expect(bar.style.backgroundColor).toBe(DANGER)
   })
 
   it("owes the full ratio for the -1 sentinel rather than inflating it", () => {
@@ -247,7 +244,7 @@ describe("UnsatisfiedTorrentsTable bad numbers", () => {
     ])
     // 24h of 240h is 10%, and the ratio route contributes nothing.
     expect(screen.getByText("10%")).toBeVisible()
-    expect(barColor(container)).toBe(DANGER)
+    expect(progressBar(container).style.backgroundColor).toBe(DANGER)
   })
 })
 

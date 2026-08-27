@@ -65,12 +65,9 @@ export function resolveSatisfaction(rules?: TrackerRules): SatisfactionRequireme
 /** Fraction of the seed-time requirement met, 0..1. 1 when not required. */
 export function seedTimeProgress(seedingTime: number, req: SatisfactionRequirement): number {
   if (req.requiredSeedSeconds === null) return 1
-  // seeding_time is not in field-map's REQUIRED_NUMERIC, so a client that omits
-  // it leaves undefined here and the division yields NaN. NaN loses every
-  // comparison, so the torrent reads as unsatisfied but renders as a full green
-  // bar: "NaN%" is invalid CSS and gets dropped, and NaN fails both thresholds
-  // in the table's colour ramp. No progress is also the direction that
-  // over-seeds, which is the one to be wrong in.
+  // A NaN here would read as unsatisfied yet render as a full green bar, since
+  // "NaN%" is invalid CSS and NaN fails both colour thresholds. The mappers
+  // coerce fresh data, but cached payloads predate that. Zero over-seeds.
   if (!Number.isFinite(seedingTime) || seedingTime < 0) return 0
   return Math.min(seedingTime / req.requiredSeedSeconds, 1)
 }
