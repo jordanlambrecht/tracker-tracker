@@ -104,7 +104,7 @@ function Dialog({
 
   const titleIsString = typeof title === "string"
   const panelCls = clsx(
-    "relative w-full flex flex-col bg-elevated nm-raised rounded-nm-xl overflow-hidden",
+    "relative w-full flex flex-col bg-overlay nm-float rounded-nm-xl overflow-hidden",
     resolvedMaxWidth
   )
   const panelStyle = {

@@ -182,6 +182,25 @@
     /* #14151b */ inset -2px -2px 5px oklch(32.94% 0.0266 278.88); /* #323443 */
 }
 
+/*
+ * Overlay elevation (Dialog, Sheet panels). Floating surfaces must not use
+ * the raised dual shadow: that illusion needs the element's background to
+ * match the page around it, and a panel over a dimmed backdrop never does,
+ * so the light half hazes the scrim and the edge dissolves into gradient.
+ * Instead: a 1px ring draws the edge, an inset rim light keeps the
+ * light-from-above vocabulary inside the panel, and layered hue-matched dark
+ * shadows carry depth. Pair with bg-overlay (one surface step lighter) for
+ * tonal elevation. Backdrop blur was deliberately removed for perf (2780d5e);
+ * do not re-add it here.
+ */
+@utility nm-float {
+  box-shadow:
+    inset 0 1px 0 oklch(100% 0 0 / 0.1),
+    0 0 0 1px oklch(100% 0 0 / 0.14),
+    0 4px 8px oklch(10% 0.012 277.5 / 0.5),
+    0 12px 32px oklch(10% 0.012 277.5 / 0.45);
+}
+
 /* Tracker color accent glow, corner-pooling inset glow via pseudo-element
  * so it doesn't conflict with the card's nm-raised box-shadow. Four offset
  * shadows concentrate light in the corners and fade along the edges.
