@@ -257,6 +257,7 @@ function AddTrackerDialog({
     setAvistazUsername("")
     setAvistazCookies("")
     setDcCookies("")
+    setIptCookies("")
     setFlCookies("")
     // Drive-by: the TorrentLeech fields were never cleared here, so a closed
     // dialog kept the password in memory and re-showed it on reopen. Adding a
@@ -293,6 +294,7 @@ function AddTrackerDialog({
     setAvistazUsername("")
     setAvistazCookies("")
     setDcCookies("")
+    setIptCookies("")
     setFlCookies("")
   }
 

@@ -138,6 +138,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
     setEditAvistazUsername("")
     setEditAvistazCookies("")
     setEditDcCookies("")
+    setEditIptCookies("")
     setEditFlCookies("")
     setEditTlUsername("")
     setEditTlPassword("")
