@@ -32,6 +32,7 @@ export interface TrackerStats {
     | AvistazPlatformMeta
     | DigitalCorePlatformMeta
     | HawkePlatformMeta
+    | FileListPlatformMeta
 }
 
 export interface GGnPlatformMeta {
@@ -192,6 +193,18 @@ export interface HawkePlatformMeta {
   canInvite?: boolean
 }
 
+/**
+ * FileList exposes a few figures that fit no TrackerStats field. All plain
+ * numbers: platformMeta is JSON-serialized into the trackers row, and bigint
+ * does not survive JSON.
+ */
+export interface FileListPlatformMeta {
+  invites?: number
+  reputation?: number
+  /** Total size currently seeding, as reported ("total seed size of X GB"). */
+  totalSeedSizeBytes?: number
+}
+
 /** Union of all platform-specific metadata types */
 export type PlatformMeta =
   | GGnPlatformMeta
@@ -201,6 +214,7 @@ export type PlatformMeta =
   | AvistazPlatformMeta
   | DigitalCorePlatformMeta
   | HawkePlatformMeta
+  | FileListPlatformMeta
 
 /** Maps platformType string → the corresponding PlatformMeta variant */
 export interface PlatformMetaMap {
@@ -211,6 +225,7 @@ export interface PlatformMetaMap {
   avistaz: AvistazPlatformMeta
   digitalcore: DigitalCorePlatformMeta
   hawke: HawkePlatformMeta
+  filelist: FileListPlatformMeta
 }
 
 /**
