@@ -71,6 +71,7 @@ function Select<T extends string>({
         onClick={() => setOpen((o) => !o)}
         className={clsx(
           "w-full bg-control-bg text-primary font-mono flex items-center justify-between gap-1 cursor-pointer border-0",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-control-focus)] focus-visible:ring-offset-1 focus-visible:ring-offset-base",
           s.trigger
         )}
         aria-label={ariaLabel}
@@ -84,7 +85,7 @@ function Select<T extends string>({
 
       {open && (
         <div
-          className="absolute top-full left-0 right-0 mt-1 z-40 bg-elevated nm-raised-sm py-1 overflow-hidden rounded-nm-md"
+          className="absolute top-full left-0 right-0 mt-1 z-40 bg-overlay nm-float-sm py-1 overflow-hidden rounded-nm-md"
           role="listbox"
           aria-label={ariaLabel}
         >
@@ -107,7 +108,7 @@ function Select<T extends string>({
                   ? "text-muted cursor-not-allowed opacity-50"
                   : option.value === value
                     ? "text-accent bg-accent-dim cursor-pointer"
-                    : "text-secondary hover:text-primary hover:bg-overlay cursor-pointer"
+                    : "text-secondary hover:text-primary hover:bg-elevated cursor-pointer"
               )}
             >
               {option.label}

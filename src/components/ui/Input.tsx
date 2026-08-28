@@ -62,7 +62,7 @@ function Input({
           "px-4 py-3 placeholder:text-muted",
           "transition-all duration-150",
           "nm-inset",
-          "focus:outline-none focus:nm-inset",
+          "focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-control-focus)] focus-visible:ring-offset-1 focus-visible:ring-offset-base",
           "disabled:opacity-40 disabled:cursor-not-allowed",
           "border-0",
           className
