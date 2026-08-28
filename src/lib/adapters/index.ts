@@ -5,6 +5,7 @@ import { findRegistryEntry } from "@/data/tracker-registry"
 import { AvistazAdapter } from "./avistaz"
 import { BtnAdapter } from "./btn"
 import { DigitalCoreAdapter } from "./digitalcore"
+import { FilelistAdapter } from "./filelist"
 import { GazelleAdapter } from "./gazelle"
 import { GGnAdapter } from "./ggn"
 import { HawkeAdapter } from "./hawke"
@@ -22,6 +23,7 @@ const adapters: Record<string, TrackerAdapter> = {
   avistaz: new AvistazAdapter(),
   btn: new BtnAdapter(),
   digitalcore: new DigitalCoreAdapter(),
+  filelist: new FilelistAdapter(),
   gazelle: new GazelleAdapter(),
   ggn: new GGnAdapter(),
   hawke: new HawkeAdapter(),

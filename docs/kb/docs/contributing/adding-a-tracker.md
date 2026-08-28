@@ -59,7 +59,7 @@ Full template:
 //
 // Validator checks:
 //   - slug: lowercase letters and hyphens only
-//   - platform: "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "btn" | "iptorrents" | "torrentleech" | "custom"
+//   - platform: "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "custom"
 //   - apiPath must match platform default:
 //       unit3d     → "/api/user"
 //       gazelle    → "/ajax.php"
@@ -82,7 +82,7 @@ export const mytracker: TrackerRegistryEntry = {
   description: "TODO", // 1-2 sentence overview
 
   // ── Platform & API ──────────────────────────────────────────────────
-  platform: "unit3d", // "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "btn" | "iptorrents" | "torrentleech" | "custom"
+  platform: "unit3d", // "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "custom"
   // Platform-specific fields (uncomment for your platform):
   //   gazelleAuthStyle: "token",   // gazelle only, "token" | "raw"
   //   gazelleEnrich: true,         // gazelle only, enables enrichment call
@@ -214,7 +214,7 @@ description: "The largest general music tracker (also has some software). Has an
 
 #### `platform`
 
-Type: `"unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "btn" | "iptorrents" | "torrentleech" | "custom"`
+Type: `"unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "custom"`
 
 Which adapter handles API requests. This tells the scheduler how to fetch stats. Pick the one that matches the tracker's software.
 
@@ -228,8 +228,10 @@ Which adapter handles API requests. This tells the scheduler how to fetch stats.
 | `"avistaz"`      | AvistaZ network, cookie auth + profile scraping             |
 | `"digitalcore"`  | DigitalCore, custom JSON API, `uid`/`pass` session cookies  |
 | `"btn"`          | BroadcasTheNet, JSON-RPC on a separate API host             |
+| `"filelist"`     | FileList, cookie auth + profile scraping                    |
 | `"iptorrents"`   | IPTorrents, cookie auth + profile scraping                  |
 | `"torrentleech"` | TorrentLeech, username/password login + profile scraping    |
+| `"hawke"`        | HawkeUno, API key against `/api/profile`                    |
 | `"custom"`       | Placeholder, not implemented yet                            |
 
 #### `gazelleAuthStyle`
