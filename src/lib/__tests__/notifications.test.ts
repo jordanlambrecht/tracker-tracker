@@ -608,3 +608,62 @@ describe("buildDescription fallback branches", () => {
     expect(embed.description).not.toContain("undefined")
   })
 })
+
+// ─── tracker_down wording ────────────────────────────────────────────────────
+//
+// Every poll failure raises tracker_down, but only a connectivity failure
+// means the tracker is unreachable. A changed payload or a rejected key is a
+// tracker that answered, and the embed must not claim otherwise.
+
+describe("buildDiscordEmbed tracker_down wording", () => {
+  it("says unreachable for a connectivity failure", async () => {
+    const { buildDiscordEmbed } = await import("@/lib/notifications/payload")
+    const embed = buildDiscordEmbed({
+      eventType: "tracker_down",
+      trackerName: "LST",
+      includeTrackerName: true,
+      storeUsernames: false,
+      data: { error: "Connection refused" },
+    })
+    expect(embed.title).toBe("Tracker Unreachable")
+    expect(embed.description).toBe("LST is unreachable: Connection refused")
+  })
+
+  it("says poll failed when the tracker answered with something unusable", async () => {
+    const { buildDiscordEmbed } = await import("@/lib/notifications/payload")
+    const embed = buildDiscordEmbed({
+      eventType: "tracker_down",
+      trackerName: "LST",
+      includeTrackerName: true,
+      storeUsernames: false,
+      data: { error: "Tracker returned an unexpected response" },
+    })
+    expect(embed.title).toBe("Tracker Poll Failed")
+    expect(embed.description).toBe("LST poll failed: Tracker returned an unexpected response")
+  })
+
+  it("does not repeat the generic fallback after poll failed", async () => {
+    const { buildDiscordEmbed } = await import("@/lib/notifications/payload")
+    const embed = buildDiscordEmbed({
+      eventType: "tracker_down",
+      trackerName: "LST",
+      includeTrackerName: true,
+      storeUsernames: false,
+      data: { error: "Poll failed" },
+    })
+    expect(embed.title).toBe("Tracker Poll Failed")
+    expect(embed.description).toBe("LST poll failed")
+  })
+
+  it("keeps the anonymous source when the tracker name is withheld", async () => {
+    const { buildDiscordEmbed } = await import("@/lib/notifications/payload")
+    const embed = buildDiscordEmbed({
+      eventType: "tracker_down",
+      trackerName: "LST",
+      includeTrackerName: false,
+      storeUsernames: false,
+      data: { error: "Authentication failed" },
+    })
+    expect(embed.description).toBe("A tracker poll failed: Authentication failed")
+  })
+})

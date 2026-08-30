@@ -1,7 +1,12 @@
 // src/lib/__tests__/error-utils.test.ts
 
 import { describe, expect, it } from "vitest"
-import { classifyFetchError, isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
+import {
+  classifyFetchError,
+  isDecryptionError,
+  isUnreachableMessage,
+  sanitizeNetworkError,
+} from "@/lib/error-utils"
 
 // ---------------------------------------------------------------------------
 // isDecryptionError
@@ -334,5 +339,44 @@ describe("sanitizeNetworkError - unexpected response shape", () => {
     expect(sanitizeNetworkError('Negative byte values are not allowed: "-1 GiB"')).toBe(
       "Tracker returned an unexpected response"
     )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// isUnreachableMessage
+//
+// The tracker_down notification says "<name> is unreachable" for every poll
+// failure. Only the connectivity outputs of sanitizeNetworkError justify that
+// wording; an auth rejection or a changed payload means the host answered.
+// ---------------------------------------------------------------------------
+
+describe("isUnreachableMessage", () => {
+  // Driven through the sanitizer so a reworded connectivity message fails
+  // here as well as in the sanitizeNetworkError tests above.
+  it.each([
+    "Request timed out after 15s",
+    "ECONNREFUSED 127.0.0.1:443",
+    "getaddrinfo ENOTFOUND lst.gg",
+    "EHOSTUNREACH",
+    "ECONNRESET",
+    "Could not connect via proxy",
+  ])("is true for the sanitized form of %j", (raw) => {
+    expect(isUnreachableMessage(sanitizeNetworkError(raw))).toBe(true)
+  })
+
+  it("is true for the sanitizer's own connection fallback", () => {
+    expect(isUnreachableMessage(sanitizeNetworkError("Something odd"))).toBe(true)
+    expect(isUnreachableMessage("Connection failed")).toBe(true)
+  })
+
+  it.each([
+    "Poll failed",
+    "Authentication failed",
+    "Tracker returned an unexpected response",
+    "IP temporarily banned by tracker",
+    "API returned 500",
+    "Unknown error",
+  ])("is false for %j", (message) => {
+    expect(isUnreachableMessage(message)).toBe(false)
   })
 })

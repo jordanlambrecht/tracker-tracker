@@ -1,6 +1,6 @@
 // src/lib/error-utils.ts
 //
-// Functions: errMsg, sanitizeNetworkError, isDecryptionError, classifyFetchError
+// Functions: errMsg, sanitizeNetworkError, isUnreachableMessage, isDecryptionError, classifyFetchError
 
 /** Extracts a string message from an unknown error value. */
 export function errMsg(err: unknown): string {
@@ -70,6 +70,28 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   if (apiMatch) return `API returned ${apiMatch[1]}`
   return fallback
 }
+
+/**
+ * True for the sanitizeNetworkError outputs that mean the host never
+ * answered. Everything else is either a tracker that did answer
+ * ("Authentication failed", "Tracker returned an unexpected response") or the
+ * scheduler's catch-all ("Poll failed"), which covers connection faults whose
+ * error code no rule here recognizes. A notification must not call either of
+ * those unreachable.
+ */
+export function isUnreachableMessage(message: string): boolean {
+  return UNREACHABLE_MESSAGES.has(message)
+}
+
+const UNREACHABLE_MESSAGES: ReadonlySet<string> = new Set([
+  "Request timed out",
+  "Connection refused",
+  "Host not found",
+  "Host unreachable",
+  "Connection reset",
+  "Proxy connection failed",
+  "Connection failed",
+])
 
 /**
  * Classifies a fetch() error into a human-readable Error.
