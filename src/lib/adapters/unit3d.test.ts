@@ -601,5 +601,63 @@ describe("Unit3dAdapter - LST envelope (issue #214)", () => {
     expect(stats.leechingCount).toBe(1)
     expect(stats.seedbonus).toBe(11143808.2)
     expect(stats.hitAndRuns).toBe(6)
+    expect(stats.platformMeta).toEqual({ apiKeyExpiresAt: "2027-01-01T00:00:00+00:00" })
+  })
+
+  function respond(body: unknown) {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => body,
+    } as Response)
+  }
+
+  const USER = {
+    username: "thesneakyrobot",
+    group: "Dolphin",
+    uploaded: "13.14 TiB",
+    downloaded: "0.95 TiB",
+    ratio: "13.82",
+    buffer: "31.89 TiB",
+    seeding: 520,
+    leeching: 1,
+    seedbonus: "11143808.20",
+    hit_and_runs: 6,
+  }
+
+  it("records an empty platformMeta for a non-expiring key, so a stale expiry clears", async () => {
+    respond({ data: USER, api_key: { expires_at: null } })
+
+    const stats = await adapter.fetchStats("https://lst.gg", "fake-token", "/api/user")
+
+    expect(stats.platformMeta).toEqual({})
+    // The scheduler writes platformMeta only when it is truthy, so an object
+    // is what lets a later poll overwrite a previously stored expiry, and it
+    // must serialize to an empty object rather than {"apiKeyExpiresAt":null}.
+    expect(stats.platformMeta).toBeTruthy()
+    expect(JSON.stringify(stats.platformMeta)).toBe("{}")
+  })
+
+  it("ignores an expiry that is not a date", async () => {
+    respond({ data: USER, api_key: { expires_at: "soon" } })
+
+    const stats = await adapter.fetchStats("https://lst.gg", "fake-token", "/api/user")
+
+    expect(stats.platformMeta).toEqual({})
+  })
+
+  it("reads api_key.expires_at from a flat body too", async () => {
+    respond({ ...USER, api_key: { expires_at: "2026-12-31T00:00:00+00:00" } })
+
+    const stats = await adapter.fetchStats("https://lst.gg", "fake-token", "/api/user")
+
+    expect(stats.platformMeta).toEqual({ apiKeyExpiresAt: "2026-12-31T00:00:00+00:00" })
+  })
+
+  it("records an empty platformMeta for a stock flat body", async () => {
+    respond(USER)
+
+    const stats = await adapter.fetchStats("https://lst.gg", "fake-token", "/api/user")
+
+    expect(stats.platformMeta).toEqual({})
   })
 })

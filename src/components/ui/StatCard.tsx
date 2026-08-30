@@ -1,9 +1,10 @@
 // src/components/ui/StatCard.tsx
 
-//  three variants:
-//   "basic"   . single hero value (default)
-//   "stacked" . multiple label/value rows with optional total
-//   "ring"    . countdown ring (login deadline)
+//  four variants:
+//   "basic"    . single hero value (default)
+//   "stacked"  . multiple label/value rows with optional total
+//   "ring"     . countdown ring (login deadline)
+//   "deadline" . countdown ring to an absolute date (API key expiry)
 
 import clsx from "clsx"
 import type { HTMLAttributes, ReactNode } from "react"
@@ -73,7 +74,22 @@ interface StatCardRingProps extends StatCardBase {
   tooltip?: string
 }
 
-type StatCardProps = StatCardBasicProps | StatCardStackedProps | StatCardRingProps
+/**
+ * Countdown to an absolute date (an API key's expiry) rather than to
+ * lastAccess + interval. The ring fills over the final `windowDays`, so a
+ * far-off deadline shows an empty ring and the warn/danger thresholds land
+ * at the same fractions the login ring uses.
+ */
+interface StatCardDeadlineProps extends StatCardBase {
+  type: "deadline"
+  title?: string
+  deadlineAt: string
+  windowDays: number
+  tooltip?: string
+}
+
+type StatCardProps =
+  StatCardBasicProps | StatCardStackedProps | StatCardRingProps | StatCardDeadlineProps
 
 // ---------------------------------------------------------------------------
 // Shell. Shared card wrapper
@@ -302,23 +318,54 @@ function getDeadlineColor(progress: number, accent: string): string {
   return accent
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000
+
+interface RingWindow {
+  startMs: number
+  deadlineMs: number
+}
+
+/** Both ring shapes reduce to a start and a deadline; null when the date does not parse. */
+function ringWindow(props: StatCardRingProps | StatCardDeadlineProps): RingWindow | null {
+  if (props.type === "ring") {
+    const startMs = new Date(props.lastAccessAt).getTime()
+    if (Number.isNaN(startMs)) return null
+    return { startMs, deadlineMs: startMs + props.loginIntervalDays * DAY_MS }
+  }
+  const deadlineMs = new Date(props.deadlineAt).getTime()
+  if (Number.isNaN(deadlineMs)) return null
+  return { startMs: deadlineMs - props.windowDays * DAY_MS, deadlineMs }
+}
+
+function ringProgress({ startMs, deadlineMs }: RingWindow): number {
+  return Math.min(Math.max((Date.now() - startMs) / (deadlineMs - startMs), 0), 1)
+}
+
+// A login deadline is a task the user is late for; an API key's expiry is a
+// state the key is already in. Same ring, different past-tense wording.
+const PAST_DEADLINE_COPY = {
+  ring: {
+    label: "OVERDUE",
+    footer: (days: number) => `${days} ${days === 1 ? "day" : "days"} overdue`,
+  },
+  deadline: {
+    label: "EXPIRED",
+    footer: (days: number) => `expired ${days} ${days === 1 ? "day" : "days"} ago`,
+  },
+} as const
+
 function RingContent({
-  lastAccessAt,
-  loginIntervalDays,
+  startMs,
+  deadlineMs,
   accentColor,
-}: {
-  lastAccessAt: string
-  loginIntervalDays: number
+  variant,
+}: RingWindow & {
   accentColor: string
+  variant: "ring" | "deadline"
 }) {
   const now = Date.now()
-  const lastAccess = new Date(lastAccessAt).getTime()
-  if (Number.isNaN(lastAccess)) return null
-
-  const totalMs = loginIntervalDays * 24 * 60 * 60 * 1000
-  const elapsedMs = now - lastAccess
-  const remainingMs = totalMs - elapsedMs
-  const progress = Math.min(Math.max(elapsedMs / totalMs, 0), 1)
+  const remainingMs = deadlineMs - now
+  const progress = ringProgress({ startMs, deadlineMs })
   const color = getDeadlineColor(progress, accentColor)
   const isOverdue = remainingMs <= 0
   const overdueDays = isOverdue ? Math.ceil(Math.abs(remainingMs) / (1000 * 60 * 60 * 24)) : 0
@@ -330,7 +377,7 @@ function RingContent({
   // Round to 2 decimal places to prevent SSR/client hydration mismatch
   const dashOffset = Math.round(circumference * progress * 100) / 100
 
-  const deadlineDate = new Date(lastAccess + totalMs)
+  const deadlineDate = new Date(deadlineMs)
   const deadlineDateStr = deadlineDate.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -339,7 +386,9 @@ function RingContent({
 
   const days = Math.floor(remainingMs / (1000 * 60 * 60 * 24))
   const hours = Math.floor(remainingMs / (1000 * 60 * 60))
-  const valueText = remainingMs <= 0 ? "OVERDUE" : days >= 1 ? `${days}` : `${Math.max(1, hours)}`
+  const pastCopy = PAST_DEADLINE_COPY[variant]
+  const valueText =
+    remainingMs <= 0 ? pastCopy.label : days >= 1 ? `${days}` : `${Math.max(1, hours)}`
   const unitText = remainingMs <= 0 ? "" : days >= 1 ? "days" : "hrs"
 
   return (
@@ -384,9 +433,7 @@ function RingContent({
         </div>
       </div>
       <p className="timestamp text-center">
-        {isOverdue
-          ? `${overdueDays} ${overdueDays === 1 ? "day" : "days"} overdue`
-          : `by ${deadlineDateStr}`}
+        {isOverdue ? pastCopy.footer(overdueDays) : `by ${deadlineDateStr}`}
       </p>
     </>
   )
@@ -418,14 +465,10 @@ function StatCard(props: StatCardProps) {
     ...shellRest
   } = rest as Record<string, unknown>
 
-  if (props.type === "ring") {
-    const la = new Date(props.lastAccessAt).getTime()
-    if (Number.isNaN(la)) return null
-    const progress = (() => {
-      const total = props.loginIntervalDays * 86400000
-      return Math.min(Math.max((Date.now() - la) / total, 0), 1)
-    })()
-    const ringColor = getDeadlineColor(progress, accentColor ?? CHART_THEME.accent)
+  if (props.type === "ring" || props.type === "deadline") {
+    const window = ringWindow(props)
+    if (!window) return null
+    const ringColor = getDeadlineColor(ringProgress(window), accentColor ?? CHART_THEME.accent)
     return (
       <Shell
         accentColor={accentColor}
@@ -436,16 +479,16 @@ function StatCard(props: StatCardProps) {
         center
       >
         <Header
-          label={props.title ?? "Login Deadline"}
+          label={props.title ?? (props.type === "ring" ? "Login Deadline" : "Deadline")}
           icon={icon}
           tooltip={props.tooltip}
           alert={alert}
           alertReason={alertReason}
         />
         <RingContent
-          lastAccessAt={props.lastAccessAt}
-          loginIntervalDays={props.loginIntervalDays}
+          {...window}
           accentColor={accentColor ?? CHART_THEME.accent}
+          variant={props.type}
         />
       </Shell>
     )
@@ -496,6 +539,7 @@ function StatCard(props: StatCardProps) {
 export type {
   AlertLevel,
   StatCardBasicProps,
+  StatCardDeadlineProps,
   StatCardProps,
   StatCardRingProps,
   StatCardRow,

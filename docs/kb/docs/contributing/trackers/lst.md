@@ -19,6 +19,6 @@ Since late August 2026 LST wraps the user resource in a Laravel `data` envelope 
 
 **Badges:** `warned` (shows up only if `warned === true` in the API response)
 
-**Stat Cards:** `seedbonus`, `login-deadline` (loginIntervalDays: 90)
+**Stat Cards:** `seedbonus`, `login-deadline` (loginIntervalDays: 90), `api-key-expiry` (from `api_key.expires_at`)
 
 **Progress:** none

@@ -35,7 +35,7 @@ Stock UNIT3D returns byte values as formatted strings (`"500.25 GiB"`), and `rat
 ## Variants
 
 - Newer builds (Blutopia, Upload.cx) send `uploaded`, `downloaded`, `buffer`, `ratio` and `seedbonus` as raw numbers instead of humanized strings. The adapter accepts both.
-- LST wraps the whole object in a Laravel `data` envelope, `{"data": {...}, "api_key": {"expires_at": "..."}}`. The adapter reads through it when the top-level object lacks the byte fields.
+- LST wraps the whole object in a Laravel `data` envelope, `{"data": {...}, "api_key": {"expires_at": "..."}}`. The adapter reads through it when the top-level object lacks the byte fields, and keeps `api_key.expires_at` as `platformMeta.apiKeyExpiresAt` for the API Key Expiry card.
 - A body that lacks `uploaded`, `downloaded` or `buffer` in both places fails the poll with `Unexpected response from <host>: missing ...; top-level keys: ...`, which the UI shows as "Tracker returned an unexpected response". The raw message is in the server log under `cause`.
 ## Field Mapping
 

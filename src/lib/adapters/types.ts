@@ -33,6 +33,7 @@ export interface TrackerStats {
     | DigitalCorePlatformMeta
     | HawkePlatformMeta
     | FileListPlatformMeta
+    | Unit3dPlatformMeta
 }
 
 export interface GGnPlatformMeta {
@@ -205,6 +206,16 @@ export interface FileListPlatformMeta {
   totalSeedSizeBytes?: number
 }
 
+/**
+ * Stock UNIT3D reports nothing beyond TrackerStats. LST's fork adds the API
+ * key's expiry next to the user resource (issue #214), which is the one thing
+ * worth keeping, since a lapsed key fails every poll until it is replaced.
+ */
+export interface Unit3dPlatformMeta {
+  /** ISO 8601, as the tracker sent it. Absent when the key does not expire. */
+  apiKeyExpiresAt?: string
+}
+
 /** Union of all platform-specific metadata types */
 export type PlatformMeta =
   | GGnPlatformMeta
@@ -215,6 +226,7 @@ export type PlatformMeta =
   | DigitalCorePlatformMeta
   | HawkePlatformMeta
   | FileListPlatformMeta
+  | Unit3dPlatformMeta
 
 /** Maps platformType string → the corresponding PlatformMeta variant */
 export interface PlatformMetaMap {
@@ -226,6 +238,7 @@ export interface PlatformMetaMap {
   digitalcore: DigitalCorePlatformMeta
   hawke: HawkePlatformMeta
   filelist: FileListPlatformMeta
+  unit3d: Unit3dPlatformMeta
 }
 
 /**

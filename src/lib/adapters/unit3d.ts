@@ -1,6 +1,6 @@
 // src/lib/adapters/unit3d.ts
 //
-// Functions: isUnlimitedBuffer, toBytes, toNumber, toSignedBytes, isPlainObject, missingByteFields, quoteList, describeKeys, unwrapUnit3dResponse, Unit3dAdapter
+// Functions: isUnlimitedBuffer, toBytes, toNumber, toSignedBytes, isPlainObject, missingByteFields, quoteList, describeKeys, readApiKeyExpiry, unwrapUnit3dResponse, Unit3dAdapter
 
 import {
   computeBufferBytes,
@@ -16,6 +16,7 @@ import type {
   TrackerAdapter,
   TrackerStats,
   Unit3dAuthStyle,
+  Unit3dPlatformMeta,
 } from "./types"
 
 /** True when a UNIT3D build reports an unbounded buffer rather than a byte value. */
@@ -178,20 +179,37 @@ function describeKeys(record: Record<string, unknown>): string {
   return keys.length > MAX_REPORTED_KEYS ? `${shown}, …` : shown
 }
 
+/** LST's `api_key.expires_at`, when the body carries one that parses as a date. */
+function readApiKeyExpiry(record: Record<string, unknown>): string | undefined {
+  const key = record.api_key
+  if (!isPlainObject(key)) return undefined
+  const raw = key.expires_at
+  if (typeof raw !== "string" || Number.isNaN(Date.parse(raw))) return undefined
+  return raw
+}
+
+interface UnwrappedUnit3dResponse {
+  user: Unit3dApiResponse
+  apiKeyExpiresAt?: string
+}
+
 /** The user body out of a 2xx payload, or an error that says what arrived instead. */
-function unwrapUnit3dResponse(data: unknown, hostname: string): Unit3dApiResponse {
+function unwrapUnit3dResponse(data: unknown, hostname: string): UnwrappedUnit3dResponse {
   if (!isPlainObject(data)) {
     const kind = data === null ? "null" : Array.isArray(data) ? "array" : typeof data
     throw new Error(`Unexpected response from ${hostname}: expected a JSON object, got ${kind}`)
   }
 
+  const apiKeyExpiresAt = readApiKeyExpiry(data)
   const missing = missingByteFields(data)
-  if (missing.length === 0) return data as unknown as Unit3dApiResponse
+  if (missing.length === 0) return { user: data as unknown as Unit3dApiResponse, apiKeyExpiresAt }
 
   const inner = data.data
   if (isPlainObject(inner)) {
     const innerMissing = missingByteFields(inner)
-    if (innerMissing.length === 0) return inner as unknown as Unit3dApiResponse
+    if (innerMissing.length === 0) {
+      return { user: inner as unknown as Unit3dApiResponse, apiKeyExpiresAt }
+    }
     throw new Error(
       `Unexpected response from ${hostname}: missing ${quoteList(innerMissing)}; top-level keys: ${describeKeys(data)}; data keys: ${describeKeys(inner)}`
     )
@@ -211,7 +229,7 @@ export class Unit3dAdapter implements TrackerAdapter {
   ): Promise<TrackerStats> {
     const hostname = new URL(baseUrl).hostname
 
-    const data = unwrapUnit3dResponse(
+    const { user: data, apiKeyExpiresAt } = unwrapUnit3dResponse(
       await unit3dFetch<unknown>(baseUrl, apiPath, apiToken, hostname, options),
       hostname
     )
@@ -246,6 +264,10 @@ export class Unit3dAdapter implements TrackerAdapter {
       requiredRatio: null,
       warned: null,
       freeleechTokens: null,
+      // Always an object, even without an expiry, so a poll that stops reporting
+      // one overwrites the stale date instead of leaving the card counting down
+      // to it. JSON.stringify drops the undefined member.
+      platformMeta: { apiKeyExpiresAt } satisfies Unit3dPlatformMeta,
     }
   }
 
