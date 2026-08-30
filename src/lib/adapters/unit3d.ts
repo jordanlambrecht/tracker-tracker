@@ -1,6 +1,6 @@
 // src/lib/adapters/unit3d.ts
 //
-// Functions: isUnlimitedBuffer, toBytes, toNumber, toSignedBytes, Unit3dAdapter
+// Functions: isUnlimitedBuffer, toBytes, toNumber, toSignedBytes, isPlainObject, missingByteFields, quoteList, describeKeys, unwrapUnit3dResponse, Unit3dAdapter
 
 import {
   computeBufferBytes,
@@ -143,6 +143,65 @@ async function unit3dFetch<T>(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Shape check. A fork can change what /api/user returns without touching the
+// status code (issue #214, LST), and parseBytes on a missing field died with
+// "Cannot read properties of undefined (reading 'trim')", which nothing
+// downstream could explain. Only the fields whose absence crashes are
+// required; a body that lacks seeding or hit_and_runs polls degraded, not
+// failed. Laravel wraps a JsonResource in {"data": ...} unless the controller
+// opts out; stock UNIT3D opts out, so an envelope is accepted, never expected.
+// Error messages name keys, never values, a value could be a username. Their
+// wording matches the shape errors the Gazelle, BTN, GGn, MAM, Nebulance and
+// Hawke adapters throw, so one sanitizeNetworkError rule covers all of them.
+// ---------------------------------------------------------------------------
+
+const REQUIRED_BYTE_FIELDS = ["uploaded", "downloaded", "buffer"] as const
+const MAX_REPORTED_KEYS = 12
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function missingByteFields(record: Record<string, unknown>): string[] {
+  return REQUIRED_BYTE_FIELDS.filter((field) => record[field] == null)
+}
+
+function quoteList(fields: string[]): string {
+  return fields.map((f) => `"${f}"`).join(", ")
+}
+
+function describeKeys(record: Record<string, unknown>): string {
+  const keys = Object.keys(record)
+  if (keys.length === 0) return "(none)"
+  const shown = keys.slice(0, MAX_REPORTED_KEYS).join(", ")
+  return keys.length > MAX_REPORTED_KEYS ? `${shown}, …` : shown
+}
+
+/** The user body out of a 2xx payload, or an error that says what arrived instead. */
+function unwrapUnit3dResponse(data: unknown, hostname: string): Unit3dApiResponse {
+  if (!isPlainObject(data)) {
+    const kind = data === null ? "null" : Array.isArray(data) ? "array" : typeof data
+    throw new Error(`Unexpected response from ${hostname}: expected a JSON object, got ${kind}`)
+  }
+
+  const missing = missingByteFields(data)
+  if (missing.length === 0) return data as unknown as Unit3dApiResponse
+
+  const inner = data.data
+  if (isPlainObject(inner)) {
+    const innerMissing = missingByteFields(inner)
+    if (innerMissing.length === 0) return inner as unknown as Unit3dApiResponse
+    throw new Error(
+      `Unexpected response from ${hostname}: missing ${quoteList(innerMissing)}; top-level keys: ${describeKeys(data)}; data keys: ${describeKeys(inner)}`
+    )
+  }
+
+  throw new Error(
+    `Unexpected response from ${hostname}: missing ${quoteList(missing)}; top-level keys: ${describeKeys(data)}`
+  )
+}
+
 export class Unit3dAdapter implements TrackerAdapter {
   async fetchStats(
     baseUrl: string,
@@ -152,7 +211,10 @@ export class Unit3dAdapter implements TrackerAdapter {
   ): Promise<TrackerStats> {
     const hostname = new URL(baseUrl).hostname
 
-    const data = await unit3dFetch<Unit3dApiResponse>(baseUrl, apiPath, apiToken, hostname, options)
+    const data = unwrapUnit3dResponse(
+      await unit3dFetch<unknown>(baseUrl, apiPath, apiToken, hostname, options),
+      hostname
+    )
 
     const uploadedBytes = toBytes(data.uploaded)
     const downloadedBytes = toBytes(data.downloaded)

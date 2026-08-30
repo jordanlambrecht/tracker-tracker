@@ -46,6 +46,16 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
     return "TorrentLeech requires 2FA. Add your Alt 2FA Token (Site Profile => Alt 2FA Token) to this tracker's credentials"
   }
   if (/Alt 2FA Token/i.test(raw)) return "Invalid credentials or Alt 2FA Token"
+  // A tracker that answered 2xx with a body the adapter could not read.
+  // "Unexpected response from <host>: ..." is the wording the Gazelle, BTN,
+  // GGn, MAM, Nebulance, Hawke and UNIT3D adapters share (issue #214); the
+  // other three are parseBytes rejecting a byte string ("", "1,024.50 GiB").
+  // Matched before the generic rules on purpose: "Invalid byte format" and a
+  // key called "invalid" in a listed payload would otherwise both fall into
+  // the credential rule below and surface as "Invalid credentials".
+  if (/Unexpected response from|Invalid byte format|Negative byte values|Unknown unit/i.test(raw)) {
+    return "Tracker returned an unexpected response"
+  }
   if (/timed?\s*out/i.test(raw)) return "Request timed out"
   if (/ECONNREFUSED/i.test(raw)) return "Connection refused"
   if (/ENOTFOUND/i.test(raw)) return "Host not found"

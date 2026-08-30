@@ -29,8 +29,14 @@ Pass API token as a query parameter: `?api_token=TOKEN`. No special headers requ
 }
 ```
 
-Byte values return as formatted strings (`"500.25 GiB"`), not integers. Same for `ratio`, `buffer`, and `seedbonus`, all strings. The adapter parses via `parseBytes()` or `parseFloat()`.
+Stock UNIT3D returns byte values as formatted strings (`"500.25 GiB"`), and `ratio`, `buffer` and `seedbonus` as strings too. The adapter parses via `parseBytes()` or `parseFloat()`. See the variants below.
 
+
+## Variants
+
+- Newer builds (Blutopia, Upload.cx) send `uploaded`, `downloaded`, `buffer`, `ratio` and `seedbonus` as raw numbers instead of humanized strings. The adapter accepts both.
+- LST wraps the whole object in a Laravel `data` envelope, `{"data": {...}, "api_key": {"expires_at": "..."}}`. The adapter reads through it when the top-level object lacks the byte fields.
+- A body that lacks `uploaded`, `downloaded` or `buffer` in both places fails the poll with `Unexpected response from <host>: missing ...; top-level keys: ...`, which the UI shows as "Tracker returned an unexpected response". The raw message is in the server log under `cause`.
 ## Field Mapping
 
 | TrackerStats field | UNIT3D field   | Type     | Notes                                                                 |

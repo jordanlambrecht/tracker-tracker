@@ -449,6 +449,14 @@ export async function pollTracker(
         trackerName: tracker?.name,
         source: isManual ? "manual" : "scheduled",
         previousFailures: tracker?.consecutiveFailures ?? "unknown",
+        // `message` is what the UI stores and is deliberately lossy. Keep the
+        // raw cause in the server log too, or an adapter choking on a changed
+        // payload is indistinguishable from a dead host (issue #214). Adapters
+        // name the hostname in their errors, never the URL, so a query-string
+        // api_token cannot ride along; the one thing to drop is the bound
+        // params of a drizzle "Failed query" error, which for the snapshot
+        // insert include the username when privacy mode is off.
+        cause: raw.split("\nparams:")[0],
       },
       `Poll failed for tracker ${trackerId}: ${message}`
     )

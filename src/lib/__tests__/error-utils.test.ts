@@ -286,3 +286,53 @@ describe("sanitizeNetworkError TorrentLeech auth outcomes", () => {
     )
   })
 })
+
+// ---------------------------------------------------------------------------
+// Adapter shape errors (issue #214). An adapter that gets a 2xx body it cannot
+// read throws "Unexpected response from <host>: ...", the wording the Gazelle,
+// BTN, GGn, MAM, Nebulance, Hawke and UNIT3D adapters share. That must reach
+// the UI as its own message rather than the generic fallback, and it must be
+// matched BEFORE the credential rule, whose /invalid/ alternation would
+// otherwise turn a tracker key literally named "invalid" into "Invalid
+// credentials".
+// ---------------------------------------------------------------------------
+
+describe("sanitizeNetworkError - unexpected response shape", () => {
+  it("maps an adapter shape error to an unexpected-response message, not the fallback", () => {
+    expect(
+      sanitizeNetworkError(
+        'Unexpected response from lst.gg: missing "uploaded", "downloaded", "buffer"; top-level keys: data',
+        "Poll failed"
+      )
+    ).toBe("Tracker returned an unexpected response")
+  })
+
+  it("wins over the credential rule when a reported key happens to say invalid", () => {
+    expect(
+      sanitizeNetworkError(
+        'Unexpected response from lst.gg: missing "buffer"; top-level keys: invalid'
+      )
+    ).toBe("Tracker returned an unexpected response")
+  })
+
+  it("covers the shape errors the Gazelle, BTN, GGn, MAM and Hawke adapters already throw", () => {
+    expect(sanitizeNetworkError("Unexpected response from aither.cc: missing userstats")).toBe(
+      "Tracker returned an unexpected response"
+    )
+  })
+
+  // parseBytes' own messages start with "Invalid", "Negative" and "Unknown".
+  // The first of those used to fall into the credential rule, so a tracker
+  // sending "" or "1,024.50 GiB" for uploaded told the user to rotate a key.
+  it("maps a byte-string parse failure to the unexpected-response message, not to credentials", () => {
+    expect(sanitizeNetworkError('Invalid byte format: ""', "Poll failed")).toBe(
+      "Tracker returned an unexpected response"
+    )
+    expect(sanitizeNetworkError('Unknown unit: "GiBs"', "Poll failed")).toBe(
+      "Tracker returned an unexpected response"
+    )
+    expect(sanitizeNetworkError('Negative byte values are not allowed: "-1 GiB"')).toBe(
+      "Tracker returned an unexpected response"
+    )
+  })
+})

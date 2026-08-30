@@ -431,3 +431,175 @@ describe("Unit3dAdapter - numeric byte payloads", () => {
     expect(stats.downloadedBytes).toBe(BigInt(0))
   })
 })
+
+// ---------------------------------------------------------------------------
+// Issue #214: LST began answering /api/user with a 2xx JSON body that no
+// longer carries the byte fields at the top level. parseBytes(undefined) then
+// died with "Cannot read properties of undefined (reading 'trim')", which the
+// test dialog and the poll log both flattened to a generic failure. The
+// adapter must say what it was given instead: which fields are missing and
+// which top-level keys arrived. Keys only, a value could be a username.
+// ---------------------------------------------------------------------------
+describe("Unit3dAdapter - unexpected response shape", () => {
+  const adapter = new Unit3dAdapter()
+
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  function respond(body: unknown) {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => body,
+    } as Response)
+  }
+
+  const VALID_BODY = {
+    username: "JohnDoe",
+    group: "Power User",
+    uploaded: "500.25 GiB",
+    downloaded: "125.50 GiB",
+    ratio: "3.99",
+    buffer: "374.75 GiB",
+    seeding: 156,
+    leeching: 2,
+    seedbonus: "12500.00",
+    hit_and_runs: 0,
+  }
+
+  it("names every missing byte field when the body is an empty object", async () => {
+    respond({})
+
+    await expect(adapter.fetchStats("https://lst.gg", "tok", "/api/user")).rejects.toThrow(
+      'Unexpected response from lst.gg: missing "uploaded", "downloaded", "buffer"'
+    )
+  })
+
+  it("names only the field that is actually missing, keys only", async () => {
+    const { buffer: _omitted, ...withoutBuffer } = VALID_BODY
+    respond(withoutBuffer)
+
+    const err = await adapter.fetchStats("https://lst.gg", "tok", "/api/user").then(
+      () => null,
+      (e: unknown) => e as Error
+    )
+
+    expect(err?.message).toContain('missing "buffer";')
+    expect(err?.message).toContain("top-level keys: username, group, uploaded")
+    expect(err?.message).not.toContain("JohnDoe")
+    expect(err?.message).not.toContain("500.25")
+  })
+
+  it("treats an explicit JSON null as missing, not present", async () => {
+    // Eloquent returns null for an attribute a fork dropped, and
+    // parseSignedBytes(null) is the same crash as undefined.
+    respond({ ...VALID_BODY, buffer: null })
+
+    await expect(adapter.fetchStats("https://lst.gg", "tok", "/api/user")).rejects.toThrow(
+      'missing "buffer";'
+    )
+  })
+
+  it("unwraps a Laravel data envelope around an otherwise valid body", async () => {
+    // Laravel wraps a JsonResource in {"data": ...} unless the controller opts
+    // out. Stock UNIT3D opts out; a fork that forgets to is still readable.
+    respond({ data: VALID_BODY })
+
+    const stats = await adapter.fetchStats("https://lst.gg", "tok", "/api/user")
+
+    expect(stats.username).toBe("JohnDoe")
+    expect(stats.seedingCount).toBe(156)
+    expect(stats.uploadedBytes).toBeGreaterThan(BigInt(0))
+  })
+
+  it("names the envelope and its inner keys when the wrapped body is unreadable too", async () => {
+    respond({ data: { username: "JohnDoe", upload: "500.25 GiB" } })
+
+    const err = await adapter.fetchStats("https://lst.gg", "tok", "/api/user").then(
+      () => null,
+      (e: unknown) => e as Error
+    )
+
+    expect(err?.message).toContain('missing "uploaded", "downloaded", "buffer"')
+    expect(err?.message).toContain("top-level keys: data")
+    expect(err?.message).toContain("data keys: username, upload")
+    expect(err?.message).not.toContain("JohnDoe")
+    expect(err?.message).not.toContain("500.25")
+  })
+
+  it("says so when the body is not a JSON object at all", async () => {
+    respond(null)
+
+    await expect(adapter.fetchStats("https://lst.gg", "tok", "/api/user")).rejects.toThrow(
+      "Unexpected response from lst.gg: expected a JSON object, got null"
+    )
+  })
+
+  it("distinguishes an array body from an object", async () => {
+    respond([VALID_BODY])
+
+    await expect(adapter.fetchStats("https://lst.gg", "tok", "/api/user")).rejects.toThrow(
+      "Unexpected response from lst.gg: expected a JSON object, got array"
+    )
+  })
+
+  it("still tolerates a body that only lacks the optional fields", async () => {
+    // seeding/leeching/hit_and_runs/seedbonus absent is a degraded poll, not a
+    // failed one. Only the fields whose absence used to crash are required.
+    const { seeding: _s, leeching: _l, hit_and_runs: _h, seedbonus: _b, ...bare } = VALID_BODY
+    respond(bare)
+
+    const stats = await adapter.fetchStats("https://lst.gg", "tok", "/api/user")
+
+    expect(stats.username).toBe("JohnDoe")
+    expect(stats.uploadedBytes).toBeGreaterThan(BigInt(0))
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Issue #214: LST's live /api/user response, verbatim. The user resource sits
+// under a Laravel "data" envelope next to an api_key object, which is what
+// broke polling on 2026-08-28; the adapter reads through the envelope.
+// ---------------------------------------------------------------------------
+describe("Unit3dAdapter - LST envelope (issue #214)", () => {
+  const adapter = new Unit3dAdapter()
+
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it("parses LST's enveloped response", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        data: {
+          username: "thesneakyrobot",
+          group: "Dolphin",
+          uploaded: "13.14 TiB",
+          downloaded: "0.95 TiB",
+          ratio: "13.82",
+          buffer: "31.89 TiB",
+          seeding: 520,
+          leeching: 1,
+          seedbonus: "11143808.20",
+          hit_and_runs: 6,
+        },
+        api_key: { expires_at: "2027-01-01T00:00:00+00:00" },
+      }),
+    } as Response)
+
+    const stats = await adapter.fetchStats("https://lst.gg", "fake-token", "/api/user")
+
+    expect(stats.username).toBe("thesneakyrobot")
+    expect(stats.group).toBe("Dolphin")
+    // 13.14 TiB = 1314 * 1024^4 / 100, rounded half-up by parseBytes
+    expect(stats.uploadedBytes).toBe(BigInt(14_447_582_788_977))
+    expect(stats.downloadedBytes).toBe(BigInt(1_044_536_046_387))
+    expect(stats.bufferBytes).toBe(BigInt(35_063_425_809_777))
+    expect(stats.ratio).toBeCloseTo(13.83, 2)
+    expect(stats.seedingCount).toBe(520)
+    expect(stats.leechingCount).toBe(1)
+    expect(stats.seedbonus).toBe(11143808.2)
+    expect(stats.hitAndRuns).toBe(6)
+  })
+})
