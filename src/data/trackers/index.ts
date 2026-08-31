@@ -21,6 +21,7 @@ export * from "./cinemaz"
 export * from "./concertos"
 export * from "./darkpeers"
 export * from "./digitalcore"
+export * from "./dreadvault"
 export * from "./empornium"
 export * from "./exoticaz"
 export * from "./fearnopeer"
@@ -76,6 +77,7 @@ import { cinemaz } from "./cinemaz"
 import { concertos } from "./concertos"
 import { darkpeers } from "./darkpeers"
 import { digitalcore } from "./digitalcore"
+import { dreadvault } from "./dreadvault"
 import { empornium } from "./empornium"
 import { exoticaz } from "./exoticaz"
 import { fearnopeer } from "./fearnopeer"
@@ -132,6 +134,7 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   concertos,
   darkpeers,
   digitalcore,
+  dreadvault,
   empornium,
   exoticaz,
   fearnopeer,
