@@ -94,7 +94,7 @@ echo "tracker-tracker | Database ready. Syncing schema..."
 # drizzle-kit push is schema-first: reads src/lib/db/schema.ts and applies
 # changes automatically. --force skips interactive prompts (required in Docker
 # where there is no TTY). This means column renames are treated as drop+create
-# and destructive changes proceed without confirmation — acceptable because
+# and destructive changes proceed without confirmation, which is acceptable because
 # the schema in the image is the source of truth for that release.
 #
 cd /schema-sync

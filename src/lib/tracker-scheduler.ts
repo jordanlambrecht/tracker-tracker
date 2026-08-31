@@ -7,7 +7,6 @@ import type { Agent as HttpAgent } from "node:http"
 
 import { and, desc, eq, isNotNull, lt, notInArray, sql } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
-import { findRegistryEntry } from "@/data/tracker-registry"
 import { buildFetchOptions, getAdapter } from "@/lib/adapters"
 import type {
   AvistazPlatformMeta,
@@ -35,7 +34,7 @@ import { dispatchNotifications } from "@/lib/notifications/dispatch"
 import { maskUsername } from "@/lib/privacy"
 import { recordDatabaseSize } from "@/lib/server-data"
 import { pruneTrackerOutages, recordTrackerPollFailure } from "@/lib/tracker-outages"
-import { getPauseState } from "@/lib/tracker-status"
+import { getPauseState, resolveRequiredRatio } from "@/lib/tracker-status"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 
 // Store on globalThis to survive HMR in development.
@@ -354,7 +353,7 @@ export async function pollTracker(
           trackerIsActive: tracker.isActive,
           trackerPausedAt: null,
           trackerJoinedAt: tracker.joinedAt ?? null,
-          minimumRatio: findRegistryEntry(tracker.baseUrl)?.rules?.minimumRatio,
+          minimumRatio: resolveRequiredRatio(stats.requiredRatio, tracker.baseUrl) ?? undefined,
           platformContext:
             tracker.platformType === "mam"
               ? {
@@ -450,6 +449,14 @@ export async function pollTracker(
         trackerName: tracker?.name,
         source: isManual ? "manual" : "scheduled",
         previousFailures: tracker?.consecutiveFailures ?? "unknown",
+        // `message` is what the UI stores and is deliberately lossy. Keep the
+        // raw cause in the server log too, or an adapter choking on a changed
+        // payload is indistinguishable from a dead host (issue #214). Adapters
+        // name the hostname in their errors, never the URL, so a query-string
+        // api_token cannot ride along; the one thing to drop is the bound
+        // params of a drizzle "Failed query" error, which for the snapshot
+        // insert include the username when privacy mode is off.
+        cause: raw.split("\nparams:")[0],
       },
       `Poll failed for tracker ${trackerId}: ${message}`
     )
@@ -498,7 +505,7 @@ export async function pollTracker(
 
     // Write the failure into the connectability ledger that backs this tracker's
     // outage bands. Separate from the columns updated above, which are current
-    // state and are wiped by the next success — see the header of
+    // state and are wiped by the next success. See the header of
     // tracker-outages.ts. Recording is failure-only and every row is written
     // closed, so there is deliberately no matching call on the success path.
     // recordTrackerPollFailure never throws, so this needs no guard of its own.

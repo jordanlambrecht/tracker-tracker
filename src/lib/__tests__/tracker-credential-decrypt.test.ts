@@ -2,7 +2,7 @@
 //
 // Functions: decryptTrackerCredentials (real crypto round-trip tests)
 //
-// Real crypto, no mocks — same reasoning as notification-decrypt.test.ts. The
+// Real crypto, no mocks, same reasoning as notification-decrypt.test.ts. The
 // bugs worth catching live at the seam between decrypt(), JSON.parse and the
 // shape guard: format changes, key mismatches, and above all the error-message
 // shape, because a leaked crypto error tells an attacker whether the key was

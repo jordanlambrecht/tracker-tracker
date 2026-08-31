@@ -12,7 +12,7 @@ const changelog = join(root, "CHANGELOG.md")
 // 1. Generate with the conventionalcommits preset
 execFileSync(
   "pnpm",
-  ["conventional-changelog", "-p", "conventionalcommits", "-i", "CHANGELOG.md", "-s", "-r", "0"],
+  ["conventional-changelog", "-p", "conventionalcommits", "-i", "CHANGELOG.md", "-r", "0"],
   {
     cwd: root,
     stdio: "inherit",

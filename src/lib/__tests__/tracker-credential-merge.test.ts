@@ -7,10 +7,7 @@
 // just reddening "PUT preserves secrets".
 
 import { describe, expect, it } from "vitest"
-import {
-  isTrackerCredentialVaultInput,
-  mergeVaultInput,
-} from "@/lib/tracker-credentials/merge"
+import { isTrackerCredentialVaultInput, mergeVaultInput } from "@/lib/tracker-credentials/merge"
 import type { TrackerCredentialVault } from "@/lib/tracker-credentials/types"
 
 const STORED: TrackerCredentialVault = {
@@ -202,7 +199,7 @@ describe("mergeVaultInput", () => {
   it("carries unknown additive keys through an edit instead of stripping them", () => {
     // The `v` contract says additive optional keys need no migration. A sheet
     // round-trip is where they would quietly disappear, because the view layer
-    // drops them on the way out — so the merge has to put them back.
+    // drops them on the way out, so the merge has to put them back.
     const storedWithExtras = {
       v: 1,
       notes: "vault note",
@@ -211,13 +208,18 @@ describe("mergeVaultInput", () => {
           id: "rss",
           title: "RSS",
           icon: "rss-icon",
-          fields: [{ id: "passkey", label: "Passkey", value: "pk-123", lastRotatedAt: "2026-01-01" }],
+          fields: [
+            { id: "passkey", label: "Passkey", value: "pk-123", lastRotatedAt: "2026-01-01" },
+          ],
         },
       ],
     } as unknown as TrackerCredentialVault
 
     const merged = mergeVaultInput(
-      { v: 1, sections: [{ id: "rss", title: "Renamed", fields: [{ id: "passkey", label: "P" }] }] },
+      {
+        v: 1,
+        sections: [{ id: "rss", title: "Renamed", fields: [{ id: "passkey", label: "P" }] }],
+      },
       storedWithExtras
     ) as unknown as Record<string, unknown>
 

@@ -21,14 +21,23 @@ function formatFieldList(fields: readonly string[], suffix = ""): string {
 
 /**
  * Parses the JSON credential blob and asserts every required field is a
- * non-empty string. Values are returned as written — callers apply their own
+ * non-empty string. Values are returned as written, callers apply their own
  * normalization, since only some fields tolerate trimming.
+ *
+ * `optionalFields` may be absent from the blob entirely, but when present must
+ * be strings; blank is allowed, callers decide whether blank means absent.
+ * This is the seam for credential fields only some accounts need (TorrentLeech
+ * alt2FAToken), so adapters do not each re-parse the blob for them.
  */
-export function parseCredentialJson<F extends readonly string[]>(
+export function parseCredentialJson<
+  F extends readonly string[],
+  O extends readonly string[] = readonly never[],
+>(
   apiToken: string,
   label: string,
-  fields: F
-): Record<F[number], string> {
+  fields: F,
+  optionalFields?: O
+): Record<F[number], string> & Partial<Record<O[number], string>> {
   let parsed: unknown
   try {
     parsed = JSON.parse(apiToken)
@@ -52,7 +61,14 @@ export function parseCredentialJson<F extends readonly string[]>(
     }
   }
 
-  return record as Record<F[number], string>
+  for (const field of optionalFields ?? []) {
+    const value = (record as Record<string, unknown>)[field]
+    if (value !== undefined && typeof value !== "string") {
+      throw new Error(`${label} credentials: ${field} must be a string`)
+    }
+  }
+
+  return record as Record<F[number], string> & Partial<Record<O[number], string>>
 }
 
 /**
@@ -89,7 +105,7 @@ export function validateCookieHeader(
   // Should contain at least one key=value pair
   if (!trimmed.includes("=")) {
     throw new Error(
-      `Cookie string doesn't look right — it should contain key=value pairs (i.e. ${options.example})`
+      `Cookie string doesn't look right. It should contain key=value pairs (i.e. ${options.example})`
     )
   }
 

@@ -3,7 +3,7 @@
 // Regression tests for GET /api/fleet/snapshots day-range handling.
 //
 // The route used to clamp with Math.max(1, days), so the "All" sentinel (days=0)
-// became a ONE DAY window — it could not express all-history at all. It also built
+// became a ONE DAY window, it could not express all-history at all. It also built
 // its cutoff unconditionally: `new Date(Date.now() - 0)` is *now*, so a naive
 // days=0 path would filter with gte(polledAt, now) and return nothing.
 //
@@ -64,37 +64,39 @@ function collectStrings(node: unknown, seen = new Set<unknown>(), out: string[] 
 function mockDb(oldestPolledAt: Date | null, snapshots: unknown[] = []): Captured {
   const captured: Captured = { where: "NOT_CALLED", spanProbed: false, bucket: null }
 
-  ;(db.select as ReturnType<typeof vi.fn>).mockImplementation((columns: Record<string, unknown>) => {
-    const keys = Object.keys(columns ?? {})
+  ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(
+    (columns: Record<string, unknown>) => {
+      const keys = Object.keys(columns ?? {})
 
-    // The span probe: db.select({ polledAt }).from().orderBy().limit(1)
-    if (keys.length === 1 && keys[0] === "polledAt") {
-      captured.spanProbed = true
+      // The span probe: db.select({ polledAt }).from().orderBy().limit(1)
+      if (keys.length === 1 && keys[0] === "polledAt") {
+        captured.spanProbed = true
+        return {
+          from: () => ({
+            orderBy: () => ({
+              limit: () => Promise.resolve(oldestPolledAt ? [{ polledAt: oldestPolledAt }] : []),
+            }),
+          }),
+        }
+      }
+
+      // The download-client name lookup.
+      if (keys.includes("id") && keys.includes("name")) {
+        return { from: () => Promise.resolve([CLIENT]) }
+      }
+
+      // Unbucketed (raw) snapshot query.
       return {
         from: () => ({
-          orderBy: () => ({
-            limit: () => Promise.resolve(oldestPolledAt ? [{ polledAt: oldestPolledAt }] : []),
-          }),
+          where: (arg: unknown) => {
+            captured.where = arg
+            captured.bucket = null
+            return Promise.resolve(snapshots)
+          },
         }),
       }
     }
-
-    // The download-client name lookup.
-    if (keys.includes("id") && keys.includes("name")) {
-      return { from: () => Promise.resolve([CLIENT]) }
-    }
-
-    // Unbucketed (raw) snapshot query.
-    return {
-      from: () => ({
-        where: (arg: unknown) => {
-          captured.where = arg
-          captured.bucket = null
-          return Promise.resolve(snapshots)
-        },
-      }),
-    }
-  })
+  )
   ;(db.selectDistinctOn as ReturnType<typeof vi.fn>).mockImplementation(
     (distinctCols: unknown[]) => {
       // The bucket literal is embedded via sql.raw in the second distinct-on column.
@@ -175,7 +177,7 @@ describe("GET /api/fleet/snapshots", () => {
 
   // Buckets for days=0 follow the ACTUAL span of stored data. getSnapshotBucket(0)
   // hardcodes "day", which on a shallow database collapses every client to a single
-  // point — making "All" coarser than any bounded range and firing the charts'
+  // point, making "All" coarser than any bounded range and firing the charts'
   // "need at least 2 days of data" empty states.
   it("uses hourly buckets for days=0 when history is shallow", async () => {
     const captured = mockDb(new Date(Date.now() - 10 * 86_400_000))

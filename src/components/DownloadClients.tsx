@@ -57,7 +57,7 @@ const AUTH_METHOD_OPTIONS: { value: AuthMethod; label: string }[] = [
 /**
  * Auth-method picker plus whichever credential fields that method needs.
  * Shared by the add form and the per-client credential panel so the two cannot
- * drift — they already disagree on state names, which is enough difference.
+ * drift; they already disagree on state names, which is enough difference.
  */
 function CredentialFields({
   authMethod,
@@ -267,7 +267,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
       setNewPassword("")
       setNewApiKey("")
     } catch {
-      setCredError("Network error — could not save credentials")
+      setCredError("Network error. Could not save credentials")
     }
   }
 
@@ -565,7 +565,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
             : connectionStatus === "success"
               ? "Connected"
               : connectionStatus === "failed"
-                ? "Failed — Retry"
+                ? "Failed. Retry"
                 : "Test Connection"}
         </Button>
 
@@ -613,7 +613,7 @@ function AddClientForm({
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  // Username/password are intentionally not required — qBittorrent accepts
+  // Username/password are intentionally not required, because qBittorrent accepts
   // blank ones when localhost auth bypass is on. An API key has no such
   // fallback, so it is the one credential the form insists on. Mirrors
   // POST /api/clients.

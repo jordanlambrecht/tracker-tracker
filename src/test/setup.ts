@@ -13,6 +13,13 @@ process.env.LOG_FILE = ""
 // that into a feedback loop: measured on DashboardChartPreferences.test.tsx, a
 // naive stub took the file from 19s/4-passing to 90s/3-failing purely on timeouts.
 // Guarding on the current state ends the cycle after one pass.
+// jsdom does not implement scrollIntoView. Any listbox that keeps its highlighted
+// option in view calls it from an effect (see the combobox in AddTrackerDialog),
+// which throws and fails the render rather than the assertion.
+if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = function scrollIntoView() {}
+}
+
 if (typeof HTMLDialogElement !== "undefined") {
   if (!HTMLDialogElement.prototype.showModal) {
     HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {

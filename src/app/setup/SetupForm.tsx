@@ -40,7 +40,7 @@ export function SetupForm() {
     try {
       // Retention is deliberately NOT asked here. Choosing a pruning policy before
       // a single snapshot exists gives the user nothing to reason about; the
-      // dashboard asks once on first login instead (RetentionPromptDialog).
+      // authed shell asks once on first login instead (RetentionPromptDialog).
       const payload: Record<string, unknown> = { password, username: username.trim() }
 
       const setupRes = await fetch("/api/auth/setup", {
@@ -138,7 +138,6 @@ export function SetupForm() {
               disabled={isSubmitting}
               required
             />
-
 
             <Notice message={errors.form} />
 

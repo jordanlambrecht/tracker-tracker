@@ -39,7 +39,7 @@ export const OUTAGE_BAND_STYLES: Record<OutageBandKind, OutageBandStyle> = {
     kind: "app",
     label: "App not running",
     description:
-      "The app was not collecting during this range, so there is no data here — the flat or empty region is missing data, not a real zero.",
+      "The app was not collecting during this range, so there is no data here. The flat or empty region is missing data, not a real zero.",
     // Slate. Deliberately not red (reads as an error in the data itself) and
     // not cyan (the dominant series accent).
     color: CHART_THEME.neutral,
@@ -213,7 +213,7 @@ function buildBandSeries(kind: OutageBandKind, intervals: Interval[]): Record<st
   }
 }
 
-/** True when anything would actually be painted — drives the legend. */
+/** True when anything would actually be painted. Drives the legend. */
 export function hasVisibleBands(bands: ChartOutageBands): boolean {
   return bands.app.length > 0 || bands.qbt.length > 0 || bands.tracker.length > 0
 }
@@ -222,7 +222,7 @@ export function hasVisibleBands(bands: ChartOutageBands): boolean {
  * Return `option` with the three band series appended.
  *
  * ALL THREE are always present, including on charts that can never show one of
- * them — see the merge-mode note at the top of this file. A chart that emitted
+ * them. See the merge-mode note at the top of this file. A chart that emitted
  * two series and later three is fine (merge adds), but one that emitted three
  * and later two would leave the third painted forever. "Always all three, some
  * with empty data" is the only shape that cannot break that way.

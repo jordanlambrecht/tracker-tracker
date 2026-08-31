@@ -53,8 +53,7 @@ export interface TrackerCredentialPublicFieldView {
 }
 
 export type TrackerCredentialFieldView =
-  | TrackerCredentialSecretFieldView
-  | TrackerCredentialPublicFieldView
+  TrackerCredentialSecretFieldView | TrackerCredentialPublicFieldView
 
 export interface TrackerCredentialSectionView {
   id: string

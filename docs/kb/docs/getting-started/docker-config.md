@@ -14,14 +14,14 @@ Customize Tracker Tracker via environment variables, volumes, ports, reverse pro
 ### Required
 
 | Variable            | Description                                                                                                               |
-|---------------------|---------------------------------------------------------------------------------------------------------------------------|
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `SESSION_SECRET`    | Protects your session cookies. Minimum 32 characters. Generate with `openssl rand -base64 48`.                            |
 | `POSTGRES_PASSWORD` | Password for the PostgreSQL container. Generate with `openssl rand -base64 24`. Skip this if you're using `DATABASE_URL`. |
 
 ### Optional
 
 | Variable         | Default              | Description                                                                                                                                                     |
-|------------------|----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ---------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `POSTGRES_USER`  | `postgres`           | PostgreSQL username. Match this in both the app and db services.                                                                                                |
 | `POSTGRES_DB`    | `tracker_tracker`    | Database name.                                                                                                                                                  |
 | `POSTGRES_HOST`  | `tracker-tracker-db` | PostgreSQL hostname. Change only if using an external Postgres instance without `DATABASE_URL`.                                                                 |
@@ -41,13 +41,13 @@ Customize Tracker Tracker via environment variables, volumes, ports, reverse pro
 
 ## Volume mounts
 
-| Host path                    | Container path                    | Purpose                                                       |
-|------------------------------|-----------------------------------|---------------------------------------------------------------|
-| `./data`                     | `/data`                           | App data (`backups/` and `logs/`).                            |
-| `./data/backups`             | `/data/backups`                   | Scheduled backups.                                            |
-| `./data/logs`                | `/data/logs`                      | Logs when you set `LOG_FILE`.                                 |
-| `pgdata` (named volume)      | `/var/lib/postgresql/data`        | PostgreSQL data. Docker manages it—don't use a network drive. |
-| `./postgres/postgresql.conf` | `/etc/postgresql/postgresql.conf` | Custom PostgreSQL config. Required for the bundled database.  |
+| Host path                    | Container path                    | Purpose                                                           |
+| ---------------------------- | --------------------------------- | ----------------------------------------------------------------- |
+| `./data`                     | `/data`                           | App data (`backups/` and `logs/`).                                |
+| `./data/backups`             | `/data/backups`                   | Scheduled backups.                                                |
+| `./data/logs`                | `/data/logs`                      | Logs when you set `LOG_FILE`.                                     |
+| `pgdata` (named volume)      | `/var/lib/postgresql/data`        | PostgreSQL data. Docker manages it, so don't use a network drive. |
+| `./postgres/postgresql.conf` | `/etc/postgresql/postgresql.conf` | Custom PostgreSQL config. Required for the bundled database.      |
 
 !!! warning "Back up pgdata"
     This volume holds your entire database. Use the built-in backup (Settings → Backups) for app snapshots. For database-level backups, snapshot the Docker volume or run `pg_dump` separately.
@@ -162,7 +162,7 @@ docker compose pull && docker compose up -d
 The database schema updates automatically. No manual steps needed.
 
 !!! tip "Read the changelog first"
-    Check the [CHANGELOG](https://github.com/jordanlambrecht/tracker-tracker/blob/main/CHANGELOG.md) before upgrading, especially major versions—they may break backups or environment variables.
+    Check the [CHANGELOG](https://github.com/jordanlambrecht/tracker-tracker/blob/main/CHANGELOG.md) before upgrading, especially major versions, which may break backups or environment variables.
 
 Pin a version by editing `docker-compose.yml`:
 

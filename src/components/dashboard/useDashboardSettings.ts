@@ -22,7 +22,7 @@ function useDashboardSettings() {
   const [settings, setSettings] = useState<DashboardSettings>(DEFAULTS)
   // Callers that must not act on a default before the real value arrives (e.g. mounting a
   // WebGL chart for someone who turned WebGL off) gate on this instead of reading `settings`
-  // straight away. It flips only once server-confirmed settings have been applied — never on
+  // straight away. It flips only once server-confirmed settings have been applied, never on
   // a failed fetch, where `settings` is still DEFAULTS and acting on them would do the exact
   // thing the caller is trying to avoid.
   const [loaded, setLoaded] = useState(false)
@@ -53,7 +53,7 @@ function useDashboardSettings() {
             // path below spreads `data`.
             const parsed = { ...DEFAULTS, ...data, ...legacyValues }
             // Send ONLY the keys the blob actually carried. PUTting the whole object
-            // writes a default over every key the user never set in localStorage —
+            // writes a default over every key the user never set in localStorage,
             // the same whole-object-write shape this file's normal save path was
             // already changed away from. The route ignores unknown/mistyped keys.
             fetch("/api/settings/dashboard", {
@@ -107,7 +107,7 @@ function useDashboardSettings() {
         const next = { ...prev, [key]: value }
         // Fire-and-forget save inside updater so `next` is guaranteed correct
         // even under rapid sequential calls (prev is always the latest queued state).
-        // PUT is idempotent — duplicate calls in StrictMode are harmless.
+        // PUT is idempotent, so duplicate calls in StrictMode are harmless.
         //
         // Send ONLY the changed key. Sending the whole object meant that toggling
         // before the initial GET resolved wrote DEFAULTS over every other stored
@@ -135,7 +135,7 @@ function useDashboardSettings() {
 
       // Dispatched OUTSIDE the state updater on purpose: React may invoke an
       // updater twice in StrictMode, and a DOM event is a side effect. The
-      // listener above merges, so a duplicate would be harmless anyway — but
+      // listener above merges, so a duplicate would be harmless anyway, but
       // the value is already known here without reading `prev`.
       window.dispatchEvent(
         new CustomEvent<Partial<DashboardSettings>>(DASHBOARD_SETTINGS_CHANGED_EVENT, {

@@ -10,7 +10,7 @@ export interface TrackerStats {
   ratio: number
   bufferBytes: bigint
   // Nullable: some platforms (i.e. BTN) don't report these at all. The DB
-  // columns and the charts already treat them as optional — null means
+  // columns and the charts already treat them as optional, null means
   // "unknown", which must stay distinguishable from a measured 0.
   seedingCount: number | null
   leechingCount: number | null
@@ -32,6 +32,8 @@ export interface TrackerStats {
     | AvistazPlatformMeta
     | DigitalCorePlatformMeta
     | HawkePlatformMeta
+    | FileListPlatformMeta
+    | Unit3dPlatformMeta
 }
 
 export interface GGnPlatformMeta {
@@ -169,14 +171,14 @@ export interface AvistazPlatformMeta {
 
 /**
  * Hawke reports a handful of fields no other platform has: a per-division seed
- * breakdown, a warning count (not a boolean — see below), and four capability
+ * breakdown, a warning count (not a boolean. See below), and four capability
  * flags the site uses to gate actions.
  */
 export interface HawkePlatformMeta {
   /**
    * Seed counts per Hawke seeding division (vanguard, squire, knight,
    * champion, legend, guardian). Left open rather than a fixed key set so a
-   * new division added site-side flows through instead of being dropped —
+   * new division added site-side flows through instead of being dropped,
    * the same reason GGn's `buffs` is a Record.
    */
   seedDivisions?: Record<string, number>
@@ -192,6 +194,28 @@ export interface HawkePlatformMeta {
   canInvite?: boolean
 }
 
+/**
+ * FileList exposes a few figures that fit no TrackerStats field. All plain
+ * numbers: platformMeta is JSON-serialized into the trackers row, and bigint
+ * does not survive JSON.
+ */
+export interface FileListPlatformMeta {
+  invites?: number
+  reputation?: number
+  /** Total size currently seeding, as reported ("total seed size of X GB"). */
+  totalSeedSizeBytes?: number
+}
+
+/**
+ * Stock UNIT3D reports nothing beyond TrackerStats. LST's fork adds the API
+ * key's expiry next to the user resource (issue #214), which is the one thing
+ * worth keeping, since a lapsed key fails every poll until it is replaced.
+ */
+export interface Unit3dPlatformMeta {
+  /** ISO 8601, as the tracker sent it. Absent when the key does not expire. */
+  apiKeyExpiresAt?: string
+}
+
 /** Union of all platform-specific metadata types */
 export type PlatformMeta =
   | GGnPlatformMeta
@@ -201,6 +225,8 @@ export type PlatformMeta =
   | AvistazPlatformMeta
   | DigitalCorePlatformMeta
   | HawkePlatformMeta
+  | FileListPlatformMeta
+  | Unit3dPlatformMeta
 
 /** Maps platformType string → the corresponding PlatformMeta variant */
 export interface PlatformMetaMap {
@@ -211,6 +237,8 @@ export interface PlatformMetaMap {
   avistaz: AvistazPlatformMeta
   digitalcore: DigitalCorePlatformMeta
   hawke: HawkePlatformMeta
+  filelist: FileListPlatformMeta
+  unit3d: Unit3dPlatformMeta
 }
 
 /**

@@ -155,8 +155,7 @@ export async function PATCH(request: Request, props: RouteContext) {
       .from(trackers)
       .where(eq(trackers.id, trackerId))
       .limit(1)
-    const maxTokenLength =
-      maxTokenLengthFor(tracker?.platformType)
+    const maxTokenLength = maxTokenLengthFor(tracker?.platformType)
     const tokenErr = validateMaxLength(trimmedToken, maxTokenLength, "API token")
     if (tokenErr) return tokenErr
     const key = decodeKey(auth)

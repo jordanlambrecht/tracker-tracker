@@ -4,7 +4,7 @@
 //
 // The owner's requirement was verbatim: the sheet needs "an opt in button that
 // links to the button on the settings page". That link is a hash into this
-// section — and a hash pointing at an id that does not exist fails SILENTLY. The
+// section, and a hash pointing at an id that does not exist fails SILENTLY. The
 // browser just does not scroll, the user lands at the top of Settings, and
 // nothing anywhere reports a problem. Nothing but a test that renders the
 // section and looks for the exact element the href names can catch that.
@@ -63,10 +63,9 @@ describe("CredentialVaultSection", () => {
     )
     const body = JSON.parse(String(fetchMock.mock.calls[0][1].body))
     expect(body).toEqual({ credentialVaultEnabled: true })
-    expect(await screen.findByRole("switch", { name: /Store tracker credentials/ })).toHaveAttribute(
-      "aria-checked",
-      "true"
-    )
+    expect(
+      await screen.findByRole("switch", { name: /Store tracker credentials/ })
+    ).toHaveAttribute("aria-checked", "true")
   })
 
   it("says out loud that turning it off does not delete anything", () => {

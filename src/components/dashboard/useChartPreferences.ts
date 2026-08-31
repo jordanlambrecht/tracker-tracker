@@ -41,7 +41,8 @@ const DASHBOARD_CHARTS: ChartDef[] = [
   {
     id: "volume-heatmap",
     label: "Volume Heatmap",
-    description: "Upload or download volume by day of week and hour — reveals activity patterns",
+    description:
+      "Upload or download volume by day of week and hour, which reveals activity patterns",
     category: "analytics",
   },
   { id: "comparison-uploaded", label: "Total Uploaded", category: "analytics" },
@@ -53,13 +54,13 @@ const DASHBOARD_CHARTS: ChartDef[] = [
   {
     id: "ratio-stability",
     label: "Ratio Stability",
-    description: "7-point EMA with ±1σ confidence band — wider bands indicate more volatile ratios",
+    description: "7-point EMA with ±1σ confidence band; wider bands indicate more volatile ratios",
     category: "analytics",
   },
   {
     id: "fleet-composition",
     label: "Fleet Composition",
-    description: "Seeding torrent count over time per tracker — stacked to show total fleet size",
+    description: "Seeding torrent count over time per tracker, stacked to show total fleet size",
     category: "analytics",
   },
   {
@@ -71,7 +72,7 @@ const DASHBOARD_CHARTS: ChartDef[] = [
   {
     id: "buffer-velocity",
     label: "Buffer Velocity",
-    description: "Rate of buffer change per day — above zero means gaining, below means losing",
+    description: "Rate of buffer change per day; above zero means gaining, below means losing",
     category: "analytics",
   },
   {

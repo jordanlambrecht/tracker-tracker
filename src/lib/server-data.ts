@@ -159,8 +159,7 @@ export const clientColumns = {
   // Whether a credential has ever been stored, per auth mode. Deliberately
   // tests the ciphertext, not the secret: a blank username/password is a valid
   // qBittorrent localhost-bypass setup and still counts as configured.
-  hasCredentials:
-    sql<boolean>`(CASE WHEN ${downloadClients.authMethod} = 'apikey'
+  hasCredentials: sql<boolean>`(CASE WHEN ${downloadClients.authMethod} = 'apikey'
         THEN ${downloadClients.encryptedApiKey} <> ''
         ELSE ${downloadClients.encryptedUsername} IS NOT NULL AND ${downloadClients.encryptedPassword} IS NOT NULL
       END)`.as("has_credentials"),
@@ -555,7 +554,7 @@ export async function getTagGroupsWithMembers(): Promise<TagGroup[]> {
       })
       .from(tagGroupsTable)
       .orderBy(asc(tagGroupsTable.sortOrder), asc(tagGroupsTable.id)),
-    // Projected to exactly TagGroupMember — these rows are returned to the client
+    // Projected to exactly TagGroupMember, these rows are returned to the client
     // verbatim below, so a bare select() would leak any column added later.
     db
       .select({
@@ -634,7 +633,7 @@ export async function getDatabaseSizeBytes(): Promise<bigint> {
   return raw ? BigInt(raw) : 0n
 }
 
-/** Record today's database size. Upserts — safe to call multiple times per day. */
+/** Record today's database size. Upserts, safe to call multiple times per day. */
 export async function recordDatabaseSize(): Promise<void> {
   const totalBytes = await getDatabaseSizeBytes()
   const today = localDateStr(new Date())

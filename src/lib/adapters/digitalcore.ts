@@ -4,8 +4,8 @@
 //            fetchDCJson, DigitalCoreAdapter
 
 import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
-import { classifyFetchError, sanitizeNetworkError } from "@/lib/error-utils"
-import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
+import { sanitizeNetworkError } from "@/lib/error-utils"
+import { adapterRequest } from "./adapter-fetch"
 import type {
   DebugApiCall,
   DigitalCorePlatformMeta,
@@ -21,6 +21,11 @@ import type {
 export interface DigitalCoreCredentials {
   uid: string
   pass: string
+  /**
+   * Browser User-Agent the session cookies were copied from. Optional, since
+   * blobs saved before this field existed have none and must keep polling.
+   */
+  userAgent?: string
 }
 
 export function parseDigitalCoreCredentials(apiToken: string): DigitalCoreCredentials {
@@ -58,7 +63,21 @@ export function parseDigitalCoreCredentials(apiToken: string): DigitalCoreCreden
     )
   }
 
-  return { uid: trimmedUid, pass: trimmedPass }
+  const rawUserAgent = (parsed as Record<string, unknown>).userAgent
+  if (rawUserAgent !== undefined && typeof rawUserAgent !== "string") {
+    throw new Error("DigitalCore credentials: userAgent must be a string")
+  }
+  // Not run through unsafeChars. That guard rejects semicolons because uid and
+  // pass are interpolated into a Cookie header, and every real browser UA
+  // contains them. CR/LF is left to the request layer, which throws
+  // ERR_INVALID_CHAR, matching how avistaz and iptorrents treat their own UA.
+  const trimmedUserAgent = rawUserAgent?.trim() ?? ""
+
+  // Blank counts as absent rather than an error. A re-save that produced an
+  // empty string should fall back to the default UA, not stop the tracker.
+  return trimmedUserAgent
+    ? { uid: trimmedUid, pass: trimmedPass, userAgent: trimmedUserAgent }
+    : { uid: trimmedUid, pass: trimmedPass }
 }
 
 // ---------------------------------------------------------------------------
@@ -185,40 +204,15 @@ async function fetchDCJson<T>(
   proxyAgent?: FetchOptions["proxyAgent"]
 ): Promise<T> {
   const parsed = new URL(url)
-  const hostname = parsed.hostname
   const headers: Record<string, string> = {
     Cookie: `uid=${creds.uid}; pass=${creds.pass}`,
     Accept: "application/json",
+    // Sent only when the credential carries one. adapterRequest applies the
+    // app default otherwise, matching it case-insensitively so this wins.
+    ...(creds.userAgent ? { "User-Agent": creds.userAgent } : {}),
   }
 
-  if (proxyAgent) {
-    const { proxyFetch } = await import("@/lib/tunnel")
-    const result = await proxyFetch(url, proxyAgent, { headers })
-
-    if (result.status === 401) {
-      throw new Error("Session expired. Re-copy uid and pass cookies from your browser.")
-    }
-    if (!result.ok) {
-      throw new Error(
-        sanitizeNetworkError(
-          `${result.status} ${result.statusText}`,
-          `DigitalCore API error: ${result.status}`
-        )
-      )
-    }
-    const text = (await result.buffer()).toString("utf8")
-    return parseJsonSafe<T>(text, parsed.pathname)
-  }
-
-  let response: Response
-  try {
-    response = await fetch(url, {
-      headers,
-      signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
-    })
-  } catch (err) {
-    throw classifyFetchError(err, hostname)
-  }
+  const response = await adapterRequest(url, parsed.hostname, { proxyAgent }, headers)
 
   if (response.status === 401) {
     throw new Error("Session expired. Re-copy uid and pass cookies from your browser.")
@@ -233,8 +227,7 @@ async function fetchDCJson<T>(
     )
   }
 
-  const text = await response.text()
-  return parseJsonSafe<T>(text, parsed.pathname)
+  return parseJsonSafe<T>(await response.text(), parsed.pathname)
 }
 
 // ---------------------------------------------------------------------------

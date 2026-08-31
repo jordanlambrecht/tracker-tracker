@@ -14,11 +14,11 @@ type SortMode = "index" | "alpha" | "custom" | "stat"
 
 // Raw numeric value for a given StatMode, for sorting only (never for
 // display). This mirrors the field mapping inside formatStatValue in
-// src/lib/formatters.ts — keep the two in sync if a StatMode's underlying
+// src/lib/formatters.ts. Keep the two in sync if a StatMode's underlying
 // field ever changes. Consolidating the two is worthwhile and tracked
 // separately; it is a pure refactor, so it does not ride along with a fix.
 //
-// Returns null when the tracker has no value for that stat — callers must
+// Returns null when the tracker has no value for that stat, callers must
 // treat null as "missing", never coerce it to 0.
 function getStatNumericValue(stats: TrackerLatestStats | null, mode: StatMode): number | null {
   if (!stats) return null
@@ -27,7 +27,7 @@ function getStatNumericValue(stats: TrackerLatestStats | null, mode: StatMode): 
       case "ratio":
         // An infinite ratio arrives as `ratio: null` plus this flag, because
         // JSON cannot carry Infinity (see tracker-serializer.ts). Without the
-        // flag check it would land in the "missing" bucket and sort LAST —
+        // flag check it would land in the "missing" bucket and sort LAST,
         // ranking the best possible account below one at 0.01. tracker-status
         // already treats this state as the healthiest there is.
         if (stats.ratioIsInfinite) return Number.POSITIVE_INFINITY

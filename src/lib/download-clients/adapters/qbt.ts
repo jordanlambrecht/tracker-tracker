@@ -25,7 +25,7 @@ import type {
  * session cookies internally via withSessionRetry. Returns normalized
  * TorrentRecord/DeltaSyncResponse shapes (camelCase) rather than raw qBT types.
  *
- * API-key clients (qBittorrent 5.2.0+) skip the session machinery entirely —
+ * API-key clients (qBittorrent 5.2.0+) skip the session machinery entirely,
  * a Bearer key is stateless, so there is nothing to log in for, cache, or
  * retry on expiry. withAuth() is the single place that distinction is made.
  */

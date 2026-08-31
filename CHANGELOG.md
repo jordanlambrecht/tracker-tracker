@@ -1,5 +1,67 @@
 # Changelog
 
+## [2.11.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.10.1...v2.11.0) (2026-08-31)
+
+### Features
+
+* **tracker-adapters:** store an optional browser User-Agent for DigitalCore
+* **trackers:** add an API key expiry card
+* **trackers:** add filelist platform groundwork
+* **trackers:** add the filelist adapter
+* **trackers:** add the TorrentLeech logo
+* **trackers:** judge tracker health against each tracker's required ratio
+* **trackers:** let a tracker state an either/or seeding requirement
+* **trackers:** support TorrentLeech's Alt 2FA Token
+
+### Bug Fixes
+
+* **api:** send a User-Agent when proxying avatar fetches
+* **ci:** deploy hangs
+* **ci:** healthcheck now probes 127.0.0.1 instead of localhost
+* **ci:** make the security test count check able to fail
+* **dashboard:** exclude the cross-seed sentinel from category ratio averages
+* **dashboard:** respect the retention choice after the first-run prompt
+* **dashboard:** update the retention banner the moment the prompt is answered
+* **db-fleet:** coerce a missing qBittorrent seeding time to zero
+* **db-fleet:** drop garbage numerics from qBittorrent delta updates
+* **db-fleet:** log dropped delta fields at debug
+* **security:** drop vulnerable Go binaries from the runtime image
+* **tracker-adapters:** pass the shared timeout through the proxy path
+* **tracker-adapters:** simplify DigitalCore userAgent validation and cover both writers
+* **trackers:** correct six wrong figures in the TorrentLeech profile parser
+* **trackers:** count only the stated routes when combining satisfaction
+* **trackers:** owe the full requirement when seed time is unreadable
+* **trackers:** send the TorrentLeech login through the configured proxy
+* **trackers:** stop trusting TorrentLeech's cookies on a refused login
+* **trackers:** surface UNIT3D shape errors instead of a trim crash ([#214](https://github.com/jordanlambrecht/tracker-tracker/issues/214))
+* **trackers:** tighten the TorrentLeech login and error reporting
+* **trackers:** treat a non-finite seed time as no progress
+* **ui:** align the credential info icons with their field titles
+* **ui:** clear pasted iptorrents cookies on close
+* **ui:** clear TorrentLeech secrets on close and cover the add dialog
+* **ui:** crisp overlay elevation for dialogs and sheets
+* **ui:** describe the middle health tier by its ratio band
+* **ui:** float popovers and visible field focus
+* **ui:** inputs now have a labeled tooltip option
+* **ui:** lit lip keeps field corners defined
+* **ui:** overlays no longer wedge in hidden tabs
+* **ui:** parse both bullet markers in the whats-new changelog
+* **ui:** render the infinite-ratio sentinel as infinity
+* **ui:** show cross-seed ratios as infinity in every torrent table
+* **user-proxy:** guard the User-Agent version against a missing minor
+* **user-proxy:** send a User-Agent on proxied tracker requests
+* **user-proxy:** shorten the User-Agent to major.minor and mark the module server-only
+* **webhooks:** distinguish a failed poll from an unreachable tracker
+
+### Refactoring
+
+* **tracker-adapters:** add adapterRequest seam that returns non-2xx
+* **tracker-adapters:** parse optional credential fields in one place
+* **tracker-adapters:** route digitalcore through adapterRequest
+* **tracker-adapters:** route nebulance through adapterRequest
+* **ui:** collapse the duplicated remaining-ratio branches
+* **ui:** reuse remainingSeedSeconds in the remaining column
+* **user-proxy:** drop User-Agent policy from proxyFetch
 ## [2.10.1](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.10.0...v2.10.1) (2026-08-19)
 
 ### Bug Fixes

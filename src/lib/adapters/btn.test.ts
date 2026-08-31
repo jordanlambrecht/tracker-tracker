@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { BtnAdapter } from "./btn"
 
-/** Where BTN's API actually lives — the adapter owns this, callers cannot change it. */
+/** Where BTN's API actually lives, the adapter owns this, callers cannot change it. */
 const API_URL = "https://api.broadcasthe.net/"
 /** What a row created from the registry now carries in `api_path`. */
 const API_PATH = "/"
@@ -53,7 +53,7 @@ describe("BtnAdapter", () => {
     expect(stats.downloadedBytes).toBe(1000000000n)
     expect(stats.ratio).toBeCloseTo(5)
     expect(stats.bufferBytes).toBe(4000000000n)
-    // BTN does not report these — null means unknown, not zero.
+    // BTN does not report these, null means unknown, not zero.
     expect(stats.seedingCount).toBeNull()
     expect(stats.leechingCount).toBeNull()
     expect(stats.seedbonus).toBeNull()
@@ -140,7 +140,7 @@ describe("BtnAdapter", () => {
     } as Response)
 
     const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_PATH)
-    // A brand-new account has nothing to be infinite about — 0/0 is 0, not Infinity.
+    // A brand-new account has nothing to be infinite about, 0/0 is 0, not Infinity.
     expect(stats.ratio).toBe(0)
   })
 

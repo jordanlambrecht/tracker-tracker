@@ -5,7 +5,7 @@ description: How to reset the master password on a self-hosted instance without 
 
 # Recovering a Lost Master Password
 
-There is no "forgot password" email — Tracker Tracker is single-user and has no
+There is no "forgot password" email. Tracker Tracker is single-user and has no
 mail server. What it has instead is `tt-recover`, a command that ships inside the
 app container.
 
@@ -19,8 +19,8 @@ That reports whether recovery is possible and writes nothing.
 
 ## Why you cannot just edit the database
 
-Every secret in your instance — tracker API tokens, download client
-credentials, notification webhook configs, your TOTP secret — is encrypted with
+Every secret in your instance (tracker API tokens, download client
+credentials, notification webhook configs, your TOTP secret) is encrypted with
 a key derived from your master password and `app_settings.encryption_salt`.
 
 So this, which is the first thing everyone tries, is destructive:
@@ -32,7 +32,7 @@ UPDATE app_settings SET password_hash = '$argon2id$...';
 
 It lets you log in. It also gives you a key that decrypts nothing. Every token
 and credential in the database becomes unreadable, permanently, with no error
-message — you just find empty fields and failing polls.
+message. You just find empty fields and failing polls.
 
 `tt-recover` exists so that never happens. It recovers your real encryption key,
 re-encrypts every secret under the new password, and rewrites the password hash,
@@ -41,7 +41,7 @@ all in a single transaction.
 !!! info "How recovery is possible at all"
 
     `app_settings.encrypted_scheduler_key` stores your master key wrapped under a
-    key derived from `SESSION_SECRET` alone — no password involved. The scheduler
+    key derived from `SESSION_SECRET` alone, with no password involved. The scheduler
     needs it to keep polling across restarts while nobody is logged in. That same
     column is what makes a lossless password reset possible.
 
@@ -116,12 +116,12 @@ docker compose restart tracker-tracker-app
 
     A reset does **not** invalidate sessions that were already open, and the
     restart does not either. Sessions are self-contained tokens that carry the
-    old master key inside them, sealed with `SESSION_SECRET` — which the reset
+    old master key inside them, sealed with `SESSION_SECRET`, which the reset
     deliberately leaves alone so that recovery stays possible at all.
 
     So a browser still signed in from before the reset keeps working, and keeps
-    using the **old** key. Any secret you save from it — a tracker API token, a
-    proxy password — is encrypted under a key that no longer exists anywhere,
+    using the **old** key. Any secret you save from it (a tracker API token, a
+    proxy password) is encrypted under a key that no longer exists anywhere,
     and nothing can read it back. That is the same permanent loss this tool
     exists to prevent.
 
@@ -133,13 +133,13 @@ docker compose restart tracker-tracker-app
 
 ## Flags
 
-| Flag              | What it does                                                                                                                                  |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--check`         | Report only. No password prompt, no writes.                                                                                                    |
-| `--apply`         | Commit. Without it, every run is a dry run.                                                                                                    |
-| `--password <pw>` | Supply the password non-interactively. Prefer the prompt — see the warning below.                                                              |
-| `--disable-totp`  | Also clear the TOTP secret and backup codes, in the same transaction.                                                                          |
-| `--help`          | Usage.                                                                                                                                         |
+| Flag              | What it does                                                                     |
+| ----------------- | -------------------------------------------------------------------------------- |
+| `--check`         | Report only. No password prompt, no writes.                                      |
+| `--apply`         | Commit. Without it, every run is a dry run.                                      |
+| `--password <pw>` | Supply the password non-interactively. Prefer the prompt. See the warning below. |
+| `--disable-totp`  | Also clear the TOTP secret and backup codes, in the same transaction.            |
+| `--help`          | Usage.                                                                           |
 
 !!! warning "`--password` is visible to other processes"
 
@@ -187,7 +187,7 @@ gone, so is the recovery path.
 
 ### The key unwraps but decrypts nothing
 
-The key is authentic but does not match your data — typically an interrupted
+The key is authentic but does not match your data, typically an interrupted
 password change, or a restore that mixed one instance's dump with another's
 settings row. Re-keying from a key that reads nothing would destroy every secret,
 so the tool stops.
@@ -198,7 +198,7 @@ so the tool stops.
 
 - **`encryption_salt`** is reused verbatim, never regenerated. A new salt would
   put your existing ciphertext out of reach of every possible password.
-- **Values it cannot decrypt** are left exactly as they are — not cleared, not
+- **Values it cannot decrypt** are left exactly as they are, not cleared, not
   overwritten. They are reported by name so you know what to re-enter. Data that
   is merely unreadable is not the same as data that is gone.
 - **Revocation markers.** After an emergency lockdown, tracker tokens hold the
@@ -214,14 +214,14 @@ so the tool stops.
 
 ## Running it against an external database
 
-If you moved Tracker Tracker onto your own Postgres, `docker exec` still works —
+If you moved Tracker Tracker onto your own Postgres, `docker exec` still works, and
 the CLI rebuilds its connection from the container's environment, preferring
 `DATABASE_URL` and otherwise assembling one from `POSTGRES_HOST`,
 `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT` and `POSTGRES_DB`.
 
 If the app container will not start at all, you can run the same file from a
 checkout of the repository on any machine that can reach the database. Install
-dependencies first — the CLI requires `argon2` and `postgres`, and a bare clone
+dependencies first, because the CLI requires `argon2` and `postgres`, and a bare clone
 has no `node_modules`, so without this step it fails with `Cannot find module`:
 
 ```bash

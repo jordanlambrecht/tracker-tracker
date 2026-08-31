@@ -90,11 +90,9 @@ function seed(data: Partial<SeedData> = {}) {
     return chain(appLiveness, full.liveness)
   }) as never)
 
-  vi.mocked(db.insert).mockImplementation(((table: unknown) =>
-    chain(table, [{ id: 1 }])) as never)
+  vi.mocked(db.insert).mockImplementation(((table: unknown) => chain(table, [{ id: 1 }])) as never)
   vi.mocked(db.update).mockImplementation(((table: unknown) => chain(table, undefined)) as never)
-  vi.mocked(db.delete).mockImplementation(((table: unknown) =>
-    chain(table, full.deleted)) as never)
+  vi.mocked(db.delete).mockImplementation(((table: unknown) => chain(table, full.deleted)) as never)
 
   return full
 }
@@ -373,9 +371,7 @@ describe("getCoverageGaps", () => {
 
     const gaps = await getCoverageGaps(T0 - 120 * MINUTE, T0)
 
-    expect(gaps).toEqual([
-      { start: T0 - 60 * MINUTE, end: T0 - 30 * MINUTE, reason: "unclean" },
-    ])
+    expect(gaps).toEqual([{ start: T0 - 60 * MINUTE, end: T0 - 30 * MINUTE, reason: "unclean" }])
   })
 })
 

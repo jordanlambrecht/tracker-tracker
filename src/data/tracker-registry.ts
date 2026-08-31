@@ -3,6 +3,7 @@
 import type { PlatformType } from "@/lib/adapters/constants"
 import type { GazelleAuthStyle, Unit3dAuthStyle } from "@/lib/adapters/types"
 import { normalizeUrl } from "@/lib/data-transforms"
+import type { SatisfactionMode } from "@/lib/satisfaction"
 import type { TrackerCredentialFieldDefinition } from "@/lib/tracker-credentials/types"
 import { ALL_TRACKERS } from "./trackers"
 
@@ -36,6 +37,19 @@ export interface TrackerUserClass {
 export interface TrackerRules {
   minimumRatio: number // 0 = no minimum
   seedTimeHours: number // 0 = no minimum
+  /**
+   * How the per-torrent requirements above combine. See `@/lib/satisfaction`.
+   *
+   * Omit it unless the tracker's own rules have been read: an entry without a
+   * mode keeps the historical behaviour of judging satisfaction on seed time
+   * alone, and `minimumRatio` stays what it has always been here, an
+   * ACCOUNT-level figure for the ratio-danger alert.
+   *
+   * Setting `"any"` where the tracker means "and" marks torrents satisfied that
+   * are not, which is how hit-and-runs are earned. Only set it from the site's
+   * own wording.
+   */
+  satisfactionMode?: SatisfactionMode
   loginIntervalDays: number // days until prune/disable
   fulfillmentPeriodHours?: number // null = not applicable
   hnrBanLimit?: number // null = not applicable

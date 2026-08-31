@@ -114,9 +114,11 @@ export async function GET(request: Request): Promise<NextResponse> {
         .map(parseLogLine)
         .filter((e) => e !== null)
     } catch (err) {
-      if (
-        !(err instanceof Error && "code" in err && (err as NodeJS.ErrnoException).code === "ENOENT")
-      ) {
+      if (!(
+        err instanceof Error &&
+        "code" in err &&
+        (err as NodeJS.ErrnoException).code === "ENOENT"
+      )) {
         log.error({ route: "GET /api/settings/events" }, "failed to read log file for events")
       }
     }

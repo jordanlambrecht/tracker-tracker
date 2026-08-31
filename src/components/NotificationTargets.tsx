@@ -141,7 +141,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
       setChangingConfig(false)
       setNewWebhookUrl("")
     } catch {
-      setConfigError("Network error — could not save webhook URL")
+      setConfigError("Network error. Could not save webhook URL")
     }
   }
 
@@ -426,7 +426,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
             : webhookStatus === "success"
               ? "Sent"
               : webhookStatus === "failed"
-                ? "Failed — Retry"
+                ? "Failed. Retry"
                 : "Test Webhook"}
         </Button>
 

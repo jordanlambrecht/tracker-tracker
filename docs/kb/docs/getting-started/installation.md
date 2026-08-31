@@ -12,20 +12,20 @@ Tracker Tracker runs in Docker. Use Docker Compose to get it up and running.
 - [Docker](https://docs.docker.com/get-docker/) 24+
 - [Docker Compose v2](https://docs.docker.com/compose/install/) (the `docker compose` plugin, not the legacy `docker-compose` binary)
 
-That's it — nothing else to install.
+That's it. Nothing else to install.
 
 !!! info "Architecture support"
     We build for **linux/amd64** and **linux/arm64**, so you're covered on x86-64 servers, Raspberry Pi 4/5, and Apple Silicon in Linux VMs. Docker grabs the right one automatically.
 
 ---
 
-## Step 1 — Create a working directory
+## Step 1. Create a working directory
 
 ```bash
 mkdir tracker-tracker && cd tracker-tracker
 ```
 
-## Step 2 — Download the compose file and env template
+## Step 2. Download the compose file and env template
 
 ```bash
 curl -LO https://raw.githubusercontent.com/jordanlambrecht/tracker-tracker/main/docker-compose.yml
@@ -34,7 +34,7 @@ curl -L https://raw.githubusercontent.com/jordanlambrecht/tracker-tracker/main/.
 
 Or create them manually by copying the examples below.
 
-## Step 3 — Generate secrets
+## Step 3. Generate secrets
 
 Generate two secrets and paste them into `.env`:
 
@@ -55,7 +55,7 @@ TZ=America/Chicago
 !!! warning "Fresh secrets every time"
     Generate new ones each time. `SESSION_SECRET` protects your cookies, `POSTGRES_PASSWORD` protects your database. Don't copy the `.env.example` placeholder.
 
-## Step 4 — Start the stack
+## Step 4. Start the stack
 
 === "Docker Compose (recommended)"
 
@@ -87,7 +87,7 @@ docker run -d \
 
 Point `DATABASE_URL` to your Postgres instance. The app will create its schema on startup if needed.
 
-## Step 5 — Verify it's running
+## Step 5. Verify it's running
 
 ```bash
 docker compose ps
@@ -109,7 +109,7 @@ curl -s http://localhost:3000/api/health
 
 A `200 OK` means the app is up and talking to the database.
 
-## Step 6 — Open the app
+## Step 6. Open the app
 
 Go to [http://localhost:3000](http://localhost:3000).
 
@@ -119,7 +119,7 @@ On first visit you'll be redirected to `/setup` to create your account. See [Fir
 
 ## Image registries
 
-Both registries have the same image — use whichever you prefer:
+Both registries have the same image. Use whichever you prefer:
 
 | Registry                  | Image                                            |
 | ------------------------- | ------------------------------------------------ |
@@ -147,4 +147,4 @@ TZ=America/Chicago
 ```
 
 !!! tip
-    Create the database name ahead of time. The app handles the rest on startup—no SQL scripts needed.
+    Create the database name ahead of time. The app handles the rest on startup, with no SQL scripts needed.

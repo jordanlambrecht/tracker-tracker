@@ -23,7 +23,7 @@ import { stopScheduler } from "@/lib/scheduler"
 import { clearSchedulerKey } from "@/lib/scheduler-key-store"
 import { POST } from "./route"
 
-// decodeKey stays REAL — mocking it to a fixed buffer would defeat the
+// decodeKey stays REAL, mocking it to a fixed buffer would defeat the
 // entire round trip. Only the session lookup and body parsing are faked.
 vi.mock("@/lib/api-helpers", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api-helpers")>()
@@ -93,10 +93,10 @@ const TOTP_SECRET = "JBSWY3DPEHPK3PXP"
 const BACKUP_CODES = JSON.stringify([{ code: "aaaa-bbbb", usedAt: null }])
 const NOTIFICATION_CONFIG = JSON.stringify({ webhookUrl: "https://discord.com/api/webhooks/xyz" })
 
-/** Derived once — scrypt is deliberately slow. */
+/** Derived once, scrypt is deliberately slow. */
 let oldKey: Buffer
 let newKey: Buffer
-/** A key that is neither oldKey nor newKey — stands in for a stale session. */
+/** A key that is neither oldKey nor newKey, stands in for a stale session. */
 let strangerKey: Buffer
 
 type Row = Record<string, unknown>
@@ -108,7 +108,7 @@ let clientRows: Row[]
 let notificationRows: Row[]
 /** Every tx.update(...).set(...).where(...) in call order. */
 let writes: Write[]
-/** When set, any write to this table rejects — simulates an in-tx DB failure. */
+/** When set, any write to this table rejects, simulates an in-tx DB failure. */
 let failWritesFor: unknown = null
 
 function makeSettingsRow(overrides: Row = {}): Row {
@@ -192,7 +192,7 @@ beforeEach(() => {
     { id: 20, name: "discord", encryptedConfig: encrypt(NOTIFICATION_CONFIG, oldKey) },
   ]
 
-  // The session carries the OLD key — this is what decodeKey() unpacks.
+  // The session carries the OLD key, this is what decodeKey() unpacks.
   ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
     encryptionKey: oldKey.toString("hex"),
   })
@@ -276,7 +276,7 @@ describe("POST /api/auth/change-password — re-encryption round trip", () => {
     await post()
 
     // Salt is never rotated (route.ts:72). Same salt + different password must
-    // still yield a different key — that is what makes the rotation meaningful.
+    // still yield a different key, that is what makes the rotation meaningful.
     const sameSaltNewKey = await deriveKey(NEW_PASSWORD, SALT)
     expect(sameSaltNewKey.equals(oldKey)).toBe(false)
     expect(decrypt(writesTo(trackers)[0].values.encryptedApiToken as string, sameSaltNewKey)).toBe(
@@ -332,7 +332,7 @@ describe("POST /api/auth/change-password — rejection", () => {
   })
 })
 
-// ─── Failure handling — PINNED CURRENT BEHAVIOUR ──────────────────────────────
+// ─── Failure handling: PINNED CURRENT BEHAVIOUR ────────────────────────────────
 
 describe("POST /api/auth/change-password — undecryptable fields", () => {
   it("PINS: a tracker that fails to decrypt is skipped, and the rotation still commits", async () => {
@@ -353,7 +353,7 @@ describe("POST /api/auth/change-password — undecryptable fields", () => {
     expect(decrypt(trackerWrites[0].values.encryptedApiToken as string, newKey)).toBe(
       "alpha-api-token"
     )
-    // The password hash commits anyway — Beta's token is now orphaned forever.
+    // The password hash commits anyway, Beta's token is now orphaned forever.
     expect(settingsWrite().passwordHash).toBe(NEW_HASH)
   })
 
@@ -465,7 +465,7 @@ describe("POST /api/auth/change-password — blank credentials", () => {
   it("encrypt('') round-trips: 28 bytes in, empty string back out", () => {
     // crypto.ts: encrypt("") emits iv(12) + authTag(16) + 0 bytes of ciphertext.
     // The length guard admits exactly IV + TAG, so a deliberately blank secret is
-    // a readable payload. Integrity is unaffected — the GCM tag covers a
+    // a readable payload. Integrity is unaffected, the GCM tag covers a
     // zero-length ciphertext, which crypto.test.ts pins by tampering at 28 bytes.
     const ciphertext = encrypt("", oldKey)
     expect(Buffer.from(ciphertext, "base64")).toHaveLength(28)
@@ -475,7 +475,7 @@ describe("POST /api/auth/change-password — blank credentials", () => {
   it("re-keys a client whose username and password are both blank", async () => {
     // Reachable today: PATCH /api/clients/[id] gates only on
     // `typeof body.username === "string"`, so `{ username: "" }` stores
-    // encrypt("") in the NOT NULL column — the qBittorrent auth-bypass setup.
+    // encrypt("") in the NOT NULL column, the qBittorrent auth-bypass setup.
     clientRows[0] = {
       id: 10,
       name: "qbit",
@@ -490,7 +490,7 @@ describe("POST /api/auth/change-password — blank credentials", () => {
     const body = (await response.json()) as { warnings?: string[] }
     expect(body.warnings).toBeUndefined()
 
-    // Moved onto the new key, not skipped and left orphaned under the old one —
+    // Moved onto the new key, not skipped and left orphaned under the old one,
     // decrypting with the independently derived newKey is what proves it.
     const clientWrites = writesTo(downloadClients)
     expect(clientWrites).toHaveLength(1)
@@ -502,7 +502,7 @@ describe("POST /api/auth/change-password — blank credentials", () => {
   it("re-keys a client that authenticates with an API key", async () => {
     // Every secret has to move onto the new key together. A key left sealed
     // under the old password fails its GCM auth tag on the next poll, and
-    // re-entering the new password cannot recover it — the plaintext is gone.
+    // re-entering the new password cannot recover it, the plaintext is gone.
     clientRows[0] = {
       id: 10,
       name: "qbit",
@@ -563,7 +563,7 @@ describe("POST /api/auth/change-password — transaction failure", () => {
       error: "Password change failed. Your current password is unchanged.",
     })
     // The hash is written last, so an earlier failure means it was never
-    // even attempted — the user is not locked out of their own secrets.
+    // even attempted, the user is not locked out of their own secrets.
     expect(writesTo(appSettings)).toHaveLength(0)
   })
 
@@ -584,7 +584,7 @@ describe("POST /api/auth/change-password — transaction failure", () => {
     await post()
 
     // resetFailedAttempts fires at route.ts:69, before the transaction, and is
-    // not rolled back with it — lockout state persists past a failed rotation.
+    // not rolled back with it, lockout state persists past a failed rotation.
     expect(resetFailedAttempts).toHaveBeenCalledWith(1)
   })
 })
@@ -600,7 +600,7 @@ describe("POST /api/auth/change-password — session key mismatch", () => {
     //
     // This used to commit: every decrypt failed, which the handler read as every
     // row being corrupt, so it wrote the new hash, skipped every row and nulled
-    // all seven settings secrets — leaving them under a key nobody holds.
+    // all seven settings secrets, leaving them under a key nobody holds.
     ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
       encryptionKey: strangerKey.toString("hex"),
     })
@@ -609,7 +609,7 @@ describe("POST /api/auth/change-password — session key mismatch", () => {
 
     expect(response.status).toBe(409)
 
-    // Nothing is written at all — not the hash, not a single row, and no secret
+    // Nothing is written at all, not the hash, not a single row, and no secret
     // is cleared. That is the whole point: a stale key must not be able to
     // destroy data it cannot read.
     expect(writesTo(appSettings)).toHaveLength(0)
@@ -667,7 +667,7 @@ describe("POST /api/auth/change-password — tracker credential vault", () => {
     // copied the ciphertext through untouched would pass the assertion above.
     expect(() => decrypt(written, oldKey)).toThrow()
 
-    // And the ciphertext itself changed — same plaintext, new seal.
+    // And the ciphertext itself changed, same plaintext, new seal.
     expect(written).not.toBe(trackerRows[0].encryptedCredentials)
   })
 
@@ -712,7 +712,7 @@ describe("POST /api/auth/change-password — tracker credential vault", () => {
     expect(body.warnings.join(" ")).toContain("Alpha")
 
     const write = writesTo(trackers)[0].values
-    // The token still rotates — one bad vault must not orphan the whole row.
+    // The token still rotates, one bad vault must not orphan the whole row.
     expect(decrypt(write.encryptedApiToken as string, newKey)).toBe("alpha-api-token")
     // NULL, not the unreadable ciphertext. The session-key guard already proved
     // oldKey IS the current master key, so that blob is unreadable by every
@@ -734,7 +734,7 @@ describe("POST /api/auth/change-password — tracker credential vault", () => {
     expect(response.status).toBe(200)
 
     // The whole row is skipped. Re-keying the vault of a row whose token stays
-    // under the old key would split one tracker across two keys — recoverable
+    // under the old key would split one tracker across two keys, recoverable
     // as a pair, unrecoverable as a mismatch.
     expect(writesTo(trackers)).toHaveLength(0)
   })
@@ -744,7 +744,9 @@ describe("POST /api/auth/change-password — tracker credential vault", () => {
     // survives rotation; a vault whose field is still blank is a normal state.
     const emptyFieldVault = JSON.stringify({
       v: 1,
-      sections: [{ id: "api", title: "API", fields: [{ id: "api_key", label: "API key", value: "" }] }],
+      sections: [
+        { id: "api", title: "API", fields: [{ id: "api_key", label: "API key", value: "" }] },
+      ],
     })
     trackerRows = [
       {

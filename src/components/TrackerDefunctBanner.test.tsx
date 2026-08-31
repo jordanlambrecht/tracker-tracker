@@ -5,7 +5,7 @@
 // 1. It renders on `defunct: true` and on nothing else. A banner announcing a shutdown that
 //    hasn't happened is worse than no banner at all, so "renders nothing" is asserted for the
 //    ordinary tracker and for a tracker with no registry entry at all.
-// 2. "Archive Now?" archives through the same contract as TrackerSettingsSheet.handleArchive —
+// 2. "Archive Now?" archives through the same contract as TrackerSettingsSheet.handleArchive,
 //    PATCH {isActive: false}, then write the returned row through the shared ["trackers"] cache
 //    and invalidate it. Skipping that write-through is exactly the staleness bug the sheet was
 //    fixed for, so the cache assertions here are a regression guard, not decoration.
@@ -21,7 +21,8 @@ import { trackerQueryOptions } from "@/lib/query-options"
 import type { TrackerSummary } from "@/types/api"
 import { TrackerDefunctBanner } from "./TrackerDefunctBanner"
 
-const REDDIT_THREAD = "https://www.reddit.com/r/trackers/comments/1tac6ry/fearnopeer_is_shutting_down/"
+const REDDIT_THREAD =
+  "https://www.reddit.com/r/trackers/comments/1tac6ry/fearnopeer_is_shutting_down/"
 
 const LIVE_ENTRY: TrackerRegistryEntry = {
   slug: "aither",
@@ -66,9 +67,7 @@ function jsonResponse(body: unknown, { ok = true, status = 200 } = {}) {
 
 let patchResult = jsonResponse(ARCHIVED_ROW)
 
-function renderBanner(
-  overrides: Partial<Parameters<typeof TrackerDefunctBanner>[0]> = {}
-) {
+function renderBanner(overrides: Partial<Parameters<typeof TrackerDefunctBanner>[0]> = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   queryClient.setQueryData(trackerQueryOptions.queryKey, [CACHED_ROW, OTHER_ROW])
 
@@ -104,7 +103,7 @@ beforeEach(() => {
 describe("TrackerDefunctBanner visibility", () => {
   // Rendered bare, with no QueryClientProvider, on purpose. Every card in the
   // dashboard grid mounts one of these and almost none are defunct, so the
-  // inert case must not drag a QueryClient subscription in with it — otherwise
+  // inert case must not drag a QueryClient subscription in with it, otherwise
   // merely displaying the grid would require a provider.
   it("renders nothing for a tracker the registry does not mark defunct", () => {
     const { container } = render(
@@ -115,7 +114,9 @@ describe("TrackerDefunctBanner visibility", () => {
   })
 
   it("renders nothing for a tracker with no registry entry at all", () => {
-    const { container } = render(<TrackerDefunctBanner registryEntry={undefined} tracker={TRACKER} />)
+    const { container } = render(
+      <TrackerDefunctBanner registryEntry={undefined} tracker={TRACKER} />
+    )
 
     expect(container).toBeEmptyDOMElement()
   })

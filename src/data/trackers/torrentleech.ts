@@ -22,7 +22,7 @@ export const torrentleech: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#2ecc71",
-  logo: "",
+  logo: "/tracker-logos/torrentleech_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "torrent-leech",
@@ -36,8 +36,17 @@ export const torrentleech: TrackerRegistryEntry = {
 
   // ── Rules ───────────────────────────────────────────────────────────
   rules: {
+    // Both routes, verbatim from wiki.torrentleech.org/doku.php/hnr: "There are
+    // two ways for you to give back to the community" — seed a torrent to at
+    // least 1:1, OR seed it for the minimum time required for your user class.
+    // Hence `any`. FreeLeech is explicitly NOT exempt from either.
     minimumRatio: 1.0,
-    seedTimeHours: 0,
+    // 10 days, the Registered-class requirement and the longest one on the
+    // site (Power User 8d, Super User 7d, Extreme User 6d, TL GOD 4d, VIP
+    // none). Deliberately the longest: the class is not knowable from the
+    // registry, and over-seeding is the safe direction to be wrong in.
+    seedTimeHours: 240,
+    satisfactionMode: "any",
     loginIntervalDays: 0,
   },
 

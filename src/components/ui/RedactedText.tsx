@@ -28,7 +28,7 @@ function RedactedText({ value, color = "var(--color-tertiary)", className }: Red
   }
 
   return (
-    <Tooltip content="Redacted — username privacy mode is enabled">
+    <Tooltip content="Redacted, username privacy mode is enabled">
       <span
         role="img"
         className={clsx("inline-flex items-center gap-px", className)}

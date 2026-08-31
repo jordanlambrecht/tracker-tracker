@@ -276,7 +276,7 @@ describe("fetchAndMergeTorrents — fast path tag filtering", () => {
       (_url: string, pred: (t: TorrentRecord) => boolean) => stored.filter(pred)
     )
 
-    // Tags requested in lowercase — stored tags have mixed case
+    // Tags requested in lowercase, stored tags have mixed case
     const result = await fetchAndMergeTorrents([makeClient()], ["aither", "blutopia"], makeKey())
 
     expect(createAdapterForClient).not.toHaveBeenCalled()
@@ -325,7 +325,7 @@ describe("fetchAndMergeTorrents — fast path skipped when filter is present", (
   })
 
   it("calls createAdapterForClient instead of reading the store when filter is provided", async () => {
-    // Store is fresh but filter is present — must fall back to live fetch
+    // Store is fresh but filter is present, must fall back to live fetch
     await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey(), "active")
 
     expect(createAdapterForClient).toHaveBeenCalled()
@@ -537,7 +537,13 @@ describe("fetchAndMergeTorrents — null tags with a select predicate", () => {
   it("does not early-exit on null tags the way an empty tag array does", async () => {
     mockAdapter.getTorrents.mockResolvedValue([makeTorrent("h1")])
 
-    const result = await fetchAndMergeTorrents([makeClient()], null, makeKey(), undefined, () => true)
+    const result = await fetchAndMergeTorrents(
+      [makeClient()],
+      null,
+      makeKey(),
+      undefined,
+      () => true
+    )
 
     expect(createAdapterForClient).toHaveBeenCalled()
     expect(result.torrents).toHaveLength(1)
@@ -565,7 +571,13 @@ describe("fetchAndMergeTorrents — null tags with a select predicate", () => {
       makeTorrent("untagged", { tags: "" }),
     ])
 
-    const result = await fetchAndMergeTorrents([makeClient()], null, makeKey(), undefined, () => true)
+    const result = await fetchAndMergeTorrents(
+      [makeClient()],
+      null,
+      makeKey(),
+      undefined,
+      () => true
+    )
 
     expect(getStoredTorrents).toHaveBeenCalledWith("http://localhost:8080")
     expect(getFilteredTorrents).not.toHaveBeenCalled()

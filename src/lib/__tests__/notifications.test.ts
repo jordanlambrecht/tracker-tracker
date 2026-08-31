@@ -174,7 +174,7 @@ describe("buildDiscordEmbed", () => {
   })
 })
 
-// ─── Part 1: detectEvents — new event types ───────────────────────────────────
+// ─── Part 1: detectEvents, new event types ───────────────────────────────────
 
 describe("detectEvents new event types", () => {
   afterEach(() => {
@@ -197,7 +197,7 @@ describe("detectEvents new event types", () => {
 
   it("fires 'ratio_danger' when ratio crosses below minimumRatio", async () => {
     const { detectEvents } = await import("@/lib/notifications/dispatch")
-    // previousRatio was above minimum, currentRatio is below — this is a transition
+    // previousRatio was above minimum, currentRatio is below, this is a transition
     const ctx = makeContext({ previousRatio: 0.8, currentRatio: 0.5, minimumRatio: 0.6 })
     const target = makeTarget({ notifyRatioDanger: true })
     expect(detectEvents(ctx, target)).toContain("ratio_danger")
@@ -205,7 +205,7 @@ describe("detectEvents new event types", () => {
 
   it("does not fire 'ratio_danger' when already below minimum (sustained state)", async () => {
     const { detectEvents } = await import("@/lib/notifications/dispatch")
-    // Both previous and current are below minimum — sustained, not a transition
+    // Both previous and current are below minimum, sustained, not a transition
     const ctx = makeContext({ previousRatio: 0.4, currentRatio: 0.3, minimumRatio: 0.6 })
     const target = makeTarget({ notifyRatioDanger: true })
     expect(detectEvents(ctx, target)).not.toContain("ratio_danger")
@@ -241,7 +241,7 @@ describe("detectEvents new event types", () => {
 
   it("does not fire 'rank_change' when group is redacted", async () => {
     const { detectEvents } = await import("@/lib/notifications/dispatch")
-    // Redacted masks start with ▓ — checkRankChange returns null for these
+    // Redacted masks start with ▓, checkRankChange returns null for these
     const ctx = makeContext({ previousGroup: "Power User", currentGroup: "▓5" })
     const target = makeTarget({ notifyRankChange: true })
     expect(detectEvents(ctx, target)).not.toContain("rank_change")
@@ -251,7 +251,7 @@ describe("detectEvents new event types", () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date("2026-03-19T12:00:00"))
     const { detectEvents } = await import("@/lib/notifications/dispatch")
-    // Exactly 1 year after join date — within the ±3 day window
+    // Exactly 1 year after join date, within the ±3 day window
     const ctx = makeContext({ trackerJoinedAt: "2025-03-19" })
     const target = makeTarget({ notifyAnniversary: true })
     expect(detectEvents(ctx, target)).toContain("anniversary")
@@ -260,7 +260,7 @@ describe("detectEvents new event types", () => {
 
   it("does not fire 'anniversary' when joinedAt is outside milestone window", async () => {
     vi.useFakeTimers()
-    // 6 days after the 1-year anniversary — beyond the ±3 day window
+    // 6 days after the 1-year anniversary, beyond the ±3 day window
     vi.setSystemTime(new Date("2026-03-25T12:00:00"))
     const { detectEvents } = await import("@/lib/notifications/dispatch")
     const ctx = makeContext({ trackerJoinedAt: "2025-03-19" })
@@ -321,7 +321,7 @@ describe("detectEvents notify flag gating", () => {
   })
 })
 
-// ─── Part 3: buildDiscordEmbed — new event types ──────────────────────────────
+// ─── Part 3: buildDiscordEmbed, new event types ──────────────────────────────
 
 describe("buildDiscordEmbed new event types", () => {
   it("produces correct embed for warned event", async () => {
@@ -415,7 +415,7 @@ describe("buildDiscordEmbed new event types", () => {
   })
 })
 
-// ─── Part 4: buildEventData — pure switch statement coverage ─────────────────
+// ─── Part 4: buildEventData, pure switch statement coverage ─────────────────
 //
 // buildEventData is the bridge between SnapshotContext fields and the data
 // object that payload.ts consumes. Each test targets a specific fallback branch
@@ -497,7 +497,7 @@ describe("buildEventData", () => {
   })
 })
 
-// ─── Part 5: validateNotificationConfig — uncovered edge cases ────────────────
+// ─── Part 5: validateNotificationConfig, uncovered edge cases ────────────────
 
 describe("validateNotificationConfig edge cases", () => {
   it("rejects Discord config with empty string webhookUrl", async () => {
@@ -538,7 +538,7 @@ describe("validateNotificationConfig edge cases", () => {
 //
 // These test branches in buildDescription that only fire when the data object
 // is missing expected fields. The only way to reach them in production is when
-// buildEventData has a bug — so these tests pin the fallback contract.
+// buildEventData has a bug, so these tests pin the fallback contract.
 
 describe("buildDescription fallback branches", () => {
   it("rank_change with only newGroup (no previousGroup) uses the rank-only path", async () => {
@@ -594,7 +594,7 @@ describe("buildDescription fallback branches", () => {
   it("anniversary with undefined label falls back to membership anniversary text", async () => {
     // Catches: the `label ? ... : ...` ternary in buildDescription. When
     // buildEventData passes "Anniversary" (the fallback string from dispatch.ts),
-    // this branch should NOT fire — but it must work correctly when data arrives
+    // this branch should NOT fire, but it must work correctly when data arrives
     // without a label key at all.
     const { buildDiscordEmbed } = await import("@/lib/notifications/payload")
     const embed = buildDiscordEmbed({
@@ -606,5 +606,64 @@ describe("buildDescription fallback branches", () => {
     })
     expect(embed.description).toContain("membership anniversary")
     expect(embed.description).not.toContain("undefined")
+  })
+})
+
+// ─── tracker_down wording ────────────────────────────────────────────────────
+//
+// Every poll failure raises tracker_down, but only a connectivity failure
+// means the tracker is unreachable. A changed payload or a rejected key is a
+// tracker that answered, and the embed must not claim otherwise.
+
+describe("buildDiscordEmbed tracker_down wording", () => {
+  it("says unreachable for a connectivity failure", async () => {
+    const { buildDiscordEmbed } = await import("@/lib/notifications/payload")
+    const embed = buildDiscordEmbed({
+      eventType: "tracker_down",
+      trackerName: "LST",
+      includeTrackerName: true,
+      storeUsernames: false,
+      data: { error: "Connection refused" },
+    })
+    expect(embed.title).toBe("Tracker Unreachable")
+    expect(embed.description).toBe("LST is unreachable: Connection refused")
+  })
+
+  it("says poll failed when the tracker answered with something unusable", async () => {
+    const { buildDiscordEmbed } = await import("@/lib/notifications/payload")
+    const embed = buildDiscordEmbed({
+      eventType: "tracker_down",
+      trackerName: "LST",
+      includeTrackerName: true,
+      storeUsernames: false,
+      data: { error: "Tracker returned an unexpected response" },
+    })
+    expect(embed.title).toBe("Tracker Poll Failed")
+    expect(embed.description).toBe("LST poll failed: Tracker returned an unexpected response")
+  })
+
+  it("does not repeat the generic fallback after poll failed", async () => {
+    const { buildDiscordEmbed } = await import("@/lib/notifications/payload")
+    const embed = buildDiscordEmbed({
+      eventType: "tracker_down",
+      trackerName: "LST",
+      includeTrackerName: true,
+      storeUsernames: false,
+      data: { error: "Poll failed" },
+    })
+    expect(embed.title).toBe("Tracker Poll Failed")
+    expect(embed.description).toBe("LST poll failed")
+  })
+
+  it("keeps the anonymous source when the tracker name is withheld", async () => {
+    const { buildDiscordEmbed } = await import("@/lib/notifications/payload")
+    const embed = buildDiscordEmbed({
+      eventType: "tracker_down",
+      trackerName: "LST",
+      includeTrackerName: false,
+      storeUsernames: false,
+      data: { error: "Authentication failed" },
+    })
+    expect(embed.description).toBe("A tracker poll failed: Authentication failed")
   })
 })

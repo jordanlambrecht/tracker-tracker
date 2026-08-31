@@ -6,7 +6,7 @@ const BASE = {
   url: "https://tracker.example/profile",
   cookies: "uid=1; pass=abc",
   label: "ExampleTracker",
-  sessionExpiredMessage: "Session expired — browser cookies need to be refreshed",
+  sessionExpiredMessage: "Session expired. Browser cookies need to be refreshed",
 }
 
 function htmlResponse(body: string): Response {
@@ -105,7 +105,7 @@ describe("fetchTrackerHtml - redirects", () => {
   })
 
   // The headers carry the user's tracker session cookie, and Location is chosen by
-  // the remote host — so following it off-origin would hand that cookie to whoever
+  // the remote host, so following it off-origin would hand that cookie to whoever
   // the tracker names. These assert the request is never made, not merely that the
   // call rejects.
   it("refuses to follow a redirect to another host, and sends nothing there", async () => {
@@ -134,7 +134,7 @@ describe("fetchTrackerHtml - redirects", () => {
   })
 
   // A status missing from the redirect set is handed back as though it were the
-  // final response, so it never reaches the same-origin check — the guard would
+  // final response, so it never reaches the same-origin check, the guard would
   // be silently narrower than it looks. 307 and 308 preserve the method and are
   // ordinary on CDN-fronted hosts.
   it.each([301, 303, 307, 308])("refuses an off-site redirect sent as %i", async (status) => {

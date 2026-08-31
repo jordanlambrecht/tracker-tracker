@@ -65,6 +65,17 @@ describe("mapQbtTorrent", () => {
     expect(result.size).toBe(1_000_000)
   })
 
+  it("coerces a missing seeding_time to 0", () => {
+    // Left unvalidated, undefined reaches satisfaction.ts and the division
+    // yields NaN, which renders a full progress bar in the Unsatisfied table.
+    const { seeding_time: _omitted, ...withoutSeedTime } = RAW
+    expect(mapQbtTorrent(withoutSeedTime).seedingTime).toBe(0)
+  })
+
+  it("coerces a non-numeric seeding_time to 0", () => {
+    expect(mapQbtTorrent({ ...RAW, seeding_time: "86400" }).seedingTime).toBe(0)
+  })
+
   it("does not include old field names in output", () => {
     const result = mapQbtTorrent(RAW) as unknown as Record<string, unknown>
     expect(result).not.toHaveProperty("upspeed")
@@ -87,6 +98,18 @@ describe("mapQbtDelta", () => {
     const delta = { ratio: 3.5, progress: 0.5 }
     const result = mapQbtDelta(delta)
     expect(result).toEqual({ ratio: 3.5, progress: 0.5 })
+  })
+
+  it("drops a non-numeric value for a numeric field so the stored value survives", () => {
+    // A delta merges over good stored values via Object.assign, so a garbage
+    // numeric must be dropped, not coerced to 0 like the full-torrent path.
+    const result = mapQbtDelta({ seeding_time: "86400", upspeed: 2048 })
+    expect(result).not.toHaveProperty("seedingTime")
+    expect(result.uploadSpeed).toBe(2048)
+  })
+
+  it("keeps a numeric zero for a numeric field", () => {
+    expect(mapQbtDelta({ seeding_time: 0 }).seedingTime).toBe(0)
   })
 
   it("handles empty delta", () => {

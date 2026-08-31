@@ -1,8 +1,8 @@
 // src/lib/__tests__/backfill-buffer.test.ts
 //
 // Covers the pure logic behind the signed-buffer backfill CLI,
-// scripts/backfill-buffer.cjs — row selection, the repair value, the
-// per-platform classification and the summary — with no database anywhere near
+// scripts/backfill-buffer.cjs, row selection, the repair value, the
+// per-platform classification and the summary, with no database anywhere near
 // it.
 //
 // It loads the SHIPPED ARTIFACT rather than a TypeScript copy, the same way
@@ -124,7 +124,7 @@ describe("repairedBufferBytes", () => {
 
 describe("classifyPlatform", () => {
   // The registry in src/lib/adapters/index.ts. If an adapter is added there and
-  // not here, the backfill must skip it rather than guess — that is what the
+  // not here, the backfill must skip it rather than guess, that is what the
   // unknown case below asserts.
   const ALL_PLATFORMS = [
     "avistaz",
@@ -406,8 +406,8 @@ describe("parseArgs", () => {
 })
 
 describe("buildConnectionString parity with recover.cjs", () => {
-  // The copy in backfill-buffer.cjs is deliberate — requiring recover.cjs would
-  // pull its module-scope argon2 into a tool that needs no crypto at all — so
+  // The copy in backfill-buffer.cjs is deliberate, requiring recover.cjs would
+  // pull its module-scope argon2 into a tool that needs no crypto at all, so
   // this is the thing that stops the two from drifting.
   const KEYS = [
     "DATABASE_URL",

@@ -516,13 +516,76 @@ describe("computeAlerts", () => {
     expect(alerts.find((a) => a.type === "ratio-danger")).toBeUndefined()
   })
 
+  it("suppresses the ratio-danger alert when the live requiredRatio is 0", () => {
+    // Phoenix at full seeding: the sliding requirement really is 0, and the
+    // registry's bracket cap must not keep the alert alive.
+    mockFindRegistryEntry.mockReturnValue(
+      makeRegistryEntry({ rules: { minimumRatio: 0.6, seedTimeHours: 72, loginIntervalDays: 90 } })
+    )
+    const tracker = makeTracker({
+      id: 3,
+      lastError: null,
+      latestStats: {
+        ratio: 0.2,
+        ratioIsInfinite: false,
+        uploadedBytes: "200",
+        downloadedBytes: "1000",
+        seedingCount: 1,
+        leechingCount: 0,
+        requiredRatio: 0,
+        warned: null,
+        freeleechTokens: null,
+        bufferBytes: null,
+        hitAndRuns: null,
+        seedbonus: null,
+        shareScore: null,
+        username: "u",
+        group: null,
+      },
+    })
+    const alerts = computeAlerts([tracker])
+    expect(alerts.find((a) => a.type === "ratio-danger")).toBeUndefined()
+  })
+
+  it("fires the ratio-danger alert from the live requiredRatio over the registry", () => {
+    mockFindRegistryEntry.mockReturnValue(
+      makeRegistryEntry({ rules: { minimumRatio: 0.4, seedTimeHours: 72, loginIntervalDays: 90 } })
+    )
+    const tracker = makeTracker({
+      id: 4,
+      lastError: null,
+      lastPolledAt: new Date().toISOString(),
+      latestStats: {
+        ratio: 2.0,
+        ratioIsInfinite: false,
+        uploadedBytes: "2000",
+        downloadedBytes: "1000",
+        seedingCount: 1,
+        leechingCount: 0,
+        requiredRatio: 2.5,
+        warned: null,
+        freeleechTokens: null,
+        bufferBytes: null,
+        hitAndRuns: null,
+        seedbonus: null,
+        shareScore: null,
+        username: "u",
+        group: null,
+      },
+    })
+    const alerts = computeAlerts([tracker])
+    const ratioAlert = alerts.find((a) => a.type === "ratio-danger")
+    expect(ratioAlert).toBeDefined()
+    expect(ratioAlert?.message).toContain("2.5")
+  })
+
   it("looks up registry by baseUrl not name", () => {
     mockFindRegistryEntry.mockReturnValue(
       makeRegistryEntry({ rules: { minimumRatio: 0.4, seedTimeHours: 72, loginIntervalDays: 90 } })
     )
     const tracker = makeTracker({
       id: 1,
-      name: "My Custom Name", // user renamed — should still match via baseUrl
+      name: "My Custom Name", // user renamed, should still match via baseUrl
       baseUrl: "https://aither.cc",
       lastError: null,
       latestStats: {
@@ -968,6 +1031,18 @@ describe("computeSystemAlerts", () => {
     expect(retentionAlert?.message).toContain("retention")
     expect(retentionAlert?.message).toContain("Settings")
     expect(retentionAlert?.dismissible).toBe(true)
+  })
+
+  it("does not nag when the user answered the prompt with keep-forever", () => {
+    // null days plus an answered prompt is a deliberate choice, not neglect.
+    const result = computeSystemAlerts({
+      currentVersion: "1.0.0",
+      failedBackups: [],
+      clients: [],
+      snapshotRetentionDays: null,
+      retentionAnswered: true,
+    })
+    expect(result.find((a) => a.type === "retention-unconfigured")).toBeUndefined()
   })
 
   it("does not generate retention alert when snapshotRetentionDays is configured", () => {

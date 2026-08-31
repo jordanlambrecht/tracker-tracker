@@ -4,7 +4,7 @@
 // Constants: CREDENTIAL_VAULT_DISABLED_ERROR
 //
 // The server half of the opt-in gate. The sheet shows an explanation and a link
-// to the Settings toggle when the feature is off, but that is a UI courtesy —
+// to the Settings toggle when the feature is off, but that is a UI courtesy,
 // this is the part that actually holds. Without it, /reveal keeps handing out
 // passkeys to anyone who can reach the URL while the user believes the feature
 // is disabled, which makes the toggle decorative.
@@ -25,7 +25,7 @@ export const CREDENTIAL_VAULT_DISABLED_ERROR =
 
 /**
  * Returns a 403 NextResponse when the vault feature is off, or null when it is
- * on — the same "response means stop" convention as authenticate().
+ * on, the same "response means stop" convention as authenticate().
  *
  * NO SETTINGS ROW MEANS DISABLED. A fresh or half-configured install must fail
  * CLOSED: defaulting an absent row to "enabled" would make the feature's default

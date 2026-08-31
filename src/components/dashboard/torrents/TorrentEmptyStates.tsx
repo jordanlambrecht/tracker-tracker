@@ -35,7 +35,7 @@ export function NoTagState({ trackerName }: { trackerName: string }) {
       <div className="flex flex-col items-center gap-2 text-center">
         <p className="text-sm font-sans text-secondary">No torrents matched {trackerName}</p>
         <p className="text-xs font-sans text-muted max-w-sm">
-          Torrents are matched by announce URL, so no tag is needed — but nothing in your client
+          Torrents are matched by announce URL, so no tag is needed, but nothing in your client
           announces to {trackerName}. Set a qBittorrent tag in tracker settings to match by tag
           instead.
         </p>
@@ -49,13 +49,7 @@ export function NoTagState({ trackerName }: { trackerName: string }) {
  * tag or announce URL. Distinct from NoTagState so a wrong tag reads as a wrong
  * tag rather than as an empty tracker.
  */
-export function NoTorrentsState({
-  trackerName,
-  qbtTag,
-}: {
-  trackerName: string
-  qbtTag: string
-}) {
+export function NoTorrentsState({ trackerName, qbtTag }: { trackerName: string; qbtTag: string }) {
   return (
     <div className="flex flex-col items-center justify-center gap-4 py-16 nm-inset-sm bg-control-bg rounded-nm-lg">
       <TagIcon width={40} height={40} className="text-muted" />

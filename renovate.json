@@ -6,6 +6,10 @@
   "rangeStrategy": "bump",
   "packageRules": [
     {
+      "matchDatasources": ["npm"],
+      "minimumReleaseAge": "3 days"
+    },
+    {
       "matchUpdateTypes": ["patch"],
       "automerge": true
     },

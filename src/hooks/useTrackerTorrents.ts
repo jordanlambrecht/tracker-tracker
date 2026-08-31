@@ -8,6 +8,12 @@ import { usePollingIntervals } from "@/hooks/usePollingIntervals"
 import type { TorrentRaw } from "@/lib/fleet"
 import type { TagGroupBreakdown } from "@/lib/fleet-aggregation"
 import {
+  isSatisfied,
+  resolveSatisfaction,
+  type SatisfactionRequirement,
+  satisfactionProgress,
+} from "@/lib/satisfaction"
+import {
   type AggregatedTorrentsResponse,
   type CategoryStats,
   LEECHING_STATES,
@@ -57,6 +63,9 @@ interface TrackerTorrentsData {
   totalUpSpeed: number
   totalSize: number
   crossSeeded: TorrentRaw[]
+  /** The resolved per-torrent rule, or null when this tracker states none. */
+  requirement: SatisfactionRequirement | null
+  /** Kept for the seed-time chart marker; null when seed time is not required. */
   requiredSeedSeconds: number | null
   unsatisfiedTorrents: TorrentRaw[]
   unsatisfiedSorted: TorrentRaw[]
@@ -218,10 +227,10 @@ function useTrackerTorrents({
 
   const torrentError = useMemo(() => {
     if (liveQuery.data?.clientErrors?.length) {
-      return `Partial data — some clients failed: ${liveQuery.data.clientErrors.join("; ")}`
+      return `Partial data, some clients failed: ${liveQuery.data.clientErrors.join("; ")}`
     }
     if (liveQuery.error && !cachedQuery.data) {
-      return "Client offline — no cached data available"
+      return "Client offline, no cached data available"
     }
     return null
   }, [liveQuery.data, liveQuery.error, cachedQuery.data])
@@ -245,14 +254,19 @@ function useTrackerTorrents({
       return tags.some((tag) => csTagSet.has(tag))
     })
 
-    const requiredSeedSeconds =
-      rules?.seedTimeHours != null && rules.seedTimeHours > 0 ? rules.seedTimeHours * 3600 : null
-    const unsatisfiedTorrents = requiredSeedSeconds
-      ? torrents.filter((t) => t.seedingTime < requiredSeedSeconds)
+    // Satisfaction is no longer seed time alone. A tracker that states an
+    // either/or — TorrentLeech's "two ways for you to give back" — has torrents
+    // that are done at 1:1 with no seed time on the clock, and a rule that
+    // ignores ratio keeps them forever. See @/lib/satisfaction for why ratio
+    // only counts for entries that declare a mode.
+    const requirement = resolveSatisfaction(rules)
+    const requiredSeedSeconds = requirement?.requiredSeedSeconds ?? null
+    const unsatisfiedTorrents = requirement
+      ? torrents.filter((t) => !isSatisfied(t, requirement))
       : []
-    const unsatisfiedCount = requiredSeedSeconds ? unsatisfiedTorrents.length : null
+    const unsatisfiedCount = requirement ? unsatisfiedTorrents.length : null
 
-    const hnrRiskCount = requiredSeedSeconds
+    const hnrRiskCount = requirement
       ? unsatisfiedTorrents.filter(
           (t) => !SEEDING_STATES.has(t.state) && !LEECHING_STATES.has(t.state)
         ).length
@@ -270,14 +284,21 @@ function useTrackerTorrents({
     }
 
     const categoryStats: CategoryStats[] = [...categoryMap.entries()]
-      .map(([name, items]) => ({
-        name,
-        count: items.length,
-        totalSize: items.reduce((s, t) => s + t.size, 0),
-        avgRatio: items.reduce((s, t) => s + t.ratio, 0) / items.length,
-        avgSeedTime: items.reduce((s, t) => s + t.seedingTime, 0) / items.length,
-        avgSwarmSeeds: items.reduce((s, t) => s + t.swarmSeeders, 0) / items.length,
-      }))
+      .map(([name, items]) => {
+        // qBT reports ratio -1 for a pure cross-seed. Excluded from the average
+        // like fleet-aggregation's ratio stats, not summed in as a negative.
+        const measurable = items.filter((t) => t.ratio >= 0)
+        return {
+          name,
+          count: items.length,
+          totalSize: items.reduce((s, t) => s + t.size, 0),
+          avgRatio: measurable.length
+            ? measurable.reduce((s, t) => s + t.ratio, 0) / measurable.length
+            : 0,
+          avgSeedTime: items.reduce((s, t) => s + t.seedingTime, 0) / items.length,
+          avgSwarmSeeds: items.reduce((s, t) => s + t.swarmSeeders, 0) / items.length,
+        }
+      })
       .sort((a, b) => b.count - a.count)
 
     const topBySeeding = [...seedingTorrents]
@@ -289,8 +310,13 @@ function useTrackerTorrents({
       .sort((a, b) => a.addedAt - b.addedAt)
       .slice(0, 10)
 
-    const unsatisfiedSorted = requiredSeedSeconds
-      ? [...unsatisfiedTorrents].sort((a, b) => b.seedingTime - a.seedingTime)
+    // Closest to satisfied first. Sorting on seed time alone put a torrent at
+    // 0.99 ratio — one that could be released within the hour — below one with
+    // days of seeding and no chance of clearing on ratio.
+    const unsatisfiedSorted = requirement
+      ? [...unsatisfiedTorrents].sort(
+          (a, b) => satisfactionProgress(b, requirement) - satisfactionProgress(a, requirement)
+        )
       : []
 
     const torrentTagSets = torrents.map((t) => new Set(parseTorrentTags(t.tags, false)))
@@ -340,6 +366,7 @@ function useTrackerTorrents({
       totalUpSpeed,
       totalSize,
       crossSeeded,
+      requirement,
       requiredSeedSeconds,
       unsatisfiedTorrents,
       unsatisfiedSorted,

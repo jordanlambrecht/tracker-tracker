@@ -69,7 +69,7 @@ function ColorPicker({ value, onChange, label }: ColorPickerProps) {
         {mounted && (
           <div
             onTransitionEnd={onTransitionEnd}
-            className="absolute bottom-full left-0 mb-2 z-40 nm-raised-sm p-3 bg-elevated rounded-nm-md flex flex-col gap-2 w-55"
+            className="absolute bottom-full left-0 mb-2 z-40 nm-float-sm p-3 bg-overlay rounded-nm-md flex flex-col gap-2 w-55"
             style={{
               transformOrigin: "bottom left",
               opacity: visible ? 1 : 0,

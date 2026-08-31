@@ -62,7 +62,7 @@ export async function POST(_request: Request, props: RouteContext) {
     if (isDecryptionError(error)) {
       log.warn(
         { route: "POST /api/trackers/[id]/poll", trackerId },
-        "manual poll failed — stale session key"
+        "manual poll failed: stale session key"
       )
       return NextResponse.json({ error: "Session expired. Please log in again." }, { status: 401 })
     }

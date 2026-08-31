@@ -12,6 +12,7 @@
 //   replaceStoreTorrents   - Replace all torrents for a client (for non-delta-sync clients)
 
 import { log } from "@/lib/logger"
+import { coerceRequiredNumeric } from "./field-map"
 import type { DeltaSyncResponse, TorrentRecord } from "./types"
 
 /** How long a sync store entry is considered fresh */
@@ -67,9 +68,11 @@ export function applyMaindataUpdate(baseUrl: string, data: DeltaSyncResponse): v
       if (existing) {
         Object.assign(existing, partial)
       } else {
-        // New torrent. Validate it has required fields before inserting.
-        // qBT sends all fields for new torrents, but guard against partials.
-        const candidate = { ...partial, hash }
+        // New torrent. This path skips mapQbtTorrent, so missing numerics are
+        // coerced to 0 here, matching the full-list path. Only the string
+        // fields (hash, name, state) still gate insertion.
+        const candidate: Record<string, unknown> = { ...partial, hash }
+        coerceRequiredNumeric(candidate)
         if (isTorrentRecord(candidate)) {
           store.torrents.set(hash, candidate as TorrentRecord)
         } else {

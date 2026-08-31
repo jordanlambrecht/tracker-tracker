@@ -111,7 +111,7 @@ describe("UsernamePrompt", () => {
       await screen.findByText(/Username must be between 3 and 100 characters/i)
     ).toBeInTheDocument()
     expect(spy).not.toHaveBeenCalled()
-    // Still asking — a rejected value is not an answer.
+    // Still asking, a rejected value is not an answer.
     expect(screen.getByText(TITLE)).toBeInTheDocument()
   })
 

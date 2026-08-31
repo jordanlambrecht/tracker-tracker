@@ -335,7 +335,7 @@ export function SecurityPoliciesSection({
           autoLogoutMinutes === 0 && (
             <Notice
               variant="warn"
-              message="All values are zero — auto-logout is effectively disabled."
+              message="All values are zero, so auto-logout is effectively disabled."
               className="ml-8"
             />
           )}

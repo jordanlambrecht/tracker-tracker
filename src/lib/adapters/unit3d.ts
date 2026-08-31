@@ -1,6 +1,6 @@
 // src/lib/adapters/unit3d.ts
 //
-// Functions: isUnlimitedBuffer, toBytes, toNumber, toSignedBytes, Unit3dAdapter
+// Functions: isUnlimitedBuffer, toBytes, toNumber, toSignedBytes, isPlainObject, missingByteFields, quoteList, describeKeys, readApiKeyExpiry, unwrapUnit3dResponse, Unit3dAdapter
 
 import {
   computeBufferBytes,
@@ -16,11 +16,12 @@ import type {
   TrackerAdapter,
   TrackerStats,
   Unit3dAuthStyle,
+  Unit3dPlatformMeta,
 } from "./types"
 
 /** True when a UNIT3D build reports an unbounded buffer rather than a byte value. */
 function isUnlimitedBuffer(raw: string | number): boolean {
-  // Only the humanized string form can say "unbounded" — JSON has no literal
+  // Only the humanized string form can say "unbounded", JSON has no literal
   // for Infinity, so a numeric buffer is always a real byte count.
   if (typeof raw !== "string") return false
   const trimmed = raw?.trim().toLowerCase() ?? ""
@@ -32,17 +33,17 @@ function isUnlimitedBuffer(raw: string | number): boolean {
 // Upload.cx) send raw byte integers.
 // ---------------------------------------------------------------------------
 
-/** Unsigned byte field (uploaded, downloaded) — clamped at zero. */
+/** Unsigned byte field (uploaded, downloaded), clamped at zero. */
 function toBytes(value: string | number): bigint {
   return typeof value === "number" ? floatBytesToBigInt(value) : parseBytes(value)
 }
 
-/** Decimal field (seedbonus) — a bare number on newer builds, "964533.23" on older ones. */
+/** Decimal field (seedbonus), a bare number on newer builds, "964533.23" on older ones. */
 function toNumber(value: string | number): number {
   return (typeof value === "number" ? value : parseFloat(value)) || 0
 }
 
-/** Signed byte field (buffer only) — a deficit account must keep its sign. */
+/** Signed byte field (buffer only), a deficit account must keep its sign. */
 function toSignedBytes(value: string | number): bigint {
   return typeof value === "number" ? signedFloatBytesToBigInt(value) : parseSignedBytes(value)
 }
@@ -60,11 +61,10 @@ interface Unit3dApiResponse {
   hit_and_runs: number
 }
 
-
 // ---------------------------------------------------------------------------
 // Auth
 //
-// UNIT3D's newer auth guard reads *only* `Authorization: Bearer` — the legacy
+// UNIT3D's newer auth guard reads *only* `Authorization: Bearer`, the legacy
 // `?api_token=` query form stops authenticating once a tracker upgrades past
 // v9.2.0. Released versions accept bearer today (config/auth.php uses the
 // stock Laravel `token` driver, whose TokenGuard falls through to
@@ -98,7 +98,7 @@ function buildRequest(
 }
 
 function isAuthRejection(err: unknown): boolean {
-  // Deliberately not `err instanceof Error` — that check is unreliable across
+  // Deliberately not `err instanceof Error`, that check is unreliable across
   // module realms (it returns false under vitest), which would make this
   // fallback silently never fire.
   const message =
@@ -144,6 +144,82 @@ async function unit3dFetch<T>(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Shape check. A fork can change what /api/user returns without touching the
+// status code (issue #214, LST), and parseBytes on a missing field died with
+// "Cannot read properties of undefined (reading 'trim')", which nothing
+// downstream could explain. Only the fields whose absence crashes are
+// required; a body that lacks seeding or hit_and_runs polls degraded, not
+// failed. Laravel wraps a JsonResource in {"data": ...} unless the controller
+// opts out; stock UNIT3D opts out, so an envelope is accepted, never expected.
+// Error messages name keys, never values, a value could be a username. Their
+// wording matches the shape errors the Gazelle, BTN, GGn, MAM, Nebulance and
+// Hawke adapters throw, so one sanitizeNetworkError rule covers all of them.
+// ---------------------------------------------------------------------------
+
+const REQUIRED_BYTE_FIELDS = ["uploaded", "downloaded", "buffer"] as const
+const MAX_REPORTED_KEYS = 12
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function missingByteFields(record: Record<string, unknown>): string[] {
+  return REQUIRED_BYTE_FIELDS.filter((field) => record[field] == null)
+}
+
+function quoteList(fields: string[]): string {
+  return fields.map((f) => `"${f}"`).join(", ")
+}
+
+function describeKeys(record: Record<string, unknown>): string {
+  const keys = Object.keys(record)
+  if (keys.length === 0) return "(none)"
+  const shown = keys.slice(0, MAX_REPORTED_KEYS).join(", ")
+  return keys.length > MAX_REPORTED_KEYS ? `${shown}, …` : shown
+}
+
+/** LST's `api_key.expires_at`, when the body carries one that parses as a date. */
+function readApiKeyExpiry(record: Record<string, unknown>): string | undefined {
+  const key = record.api_key
+  if (!isPlainObject(key)) return undefined
+  const raw = key.expires_at
+  if (typeof raw !== "string" || Number.isNaN(Date.parse(raw))) return undefined
+  return raw
+}
+
+interface UnwrappedUnit3dResponse {
+  user: Unit3dApiResponse
+  apiKeyExpiresAt?: string
+}
+
+/** The user body out of a 2xx payload, or an error that says what arrived instead. */
+function unwrapUnit3dResponse(data: unknown, hostname: string): UnwrappedUnit3dResponse {
+  if (!isPlainObject(data)) {
+    const kind = data === null ? "null" : Array.isArray(data) ? "array" : typeof data
+    throw new Error(`Unexpected response from ${hostname}: expected a JSON object, got ${kind}`)
+  }
+
+  const apiKeyExpiresAt = readApiKeyExpiry(data)
+  const missing = missingByteFields(data)
+  if (missing.length === 0) return { user: data as unknown as Unit3dApiResponse, apiKeyExpiresAt }
+
+  const inner = data.data
+  if (isPlainObject(inner)) {
+    const innerMissing = missingByteFields(inner)
+    if (innerMissing.length === 0) {
+      return { user: inner as unknown as Unit3dApiResponse, apiKeyExpiresAt }
+    }
+    throw new Error(
+      `Unexpected response from ${hostname}: missing ${quoteList(innerMissing)}; top-level keys: ${describeKeys(data)}; data keys: ${describeKeys(inner)}`
+    )
+  }
+
+  throw new Error(
+    `Unexpected response from ${hostname}: missing ${quoteList(missing)}; top-level keys: ${describeKeys(data)}`
+  )
+}
+
 export class Unit3dAdapter implements TrackerAdapter {
   async fetchStats(
     baseUrl: string,
@@ -153,7 +229,10 @@ export class Unit3dAdapter implements TrackerAdapter {
   ): Promise<TrackerStats> {
     const hostname = new URL(baseUrl).hostname
 
-    const data = await unit3dFetch<Unit3dApiResponse>(baseUrl, apiPath, apiToken, hostname, options)
+    const { user: data, apiKeyExpiresAt } = unwrapUnit3dResponse(
+      await unit3dFetch<unknown>(baseUrl, apiPath, apiToken, hostname, options),
+      hostname
+    )
 
     const uploadedBytes = toBytes(data.uploaded)
     const downloadedBytes = toBytes(data.downloaded)
@@ -185,6 +264,10 @@ export class Unit3dAdapter implements TrackerAdapter {
       requiredRatio: null,
       warned: null,
       freeleechTokens: null,
+      // Always an object, even without an expiry, so a poll that stops reporting
+      // one overwrites the stale date instead of leaving the card counting down
+      // to it. JSON.stringify drops the undefined member.
+      platformMeta: { apiKeyExpiresAt } satisfies Unit3dPlatformMeta,
     }
   }
 

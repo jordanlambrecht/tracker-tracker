@@ -82,7 +82,7 @@ describe("carryForwardTimeSeries", () => {
     const t3 = "2024-01-01T02:00:00.000Z"
 
     const allTimestamps = [new Date(t1).getTime(), new Date(t2).getTime(), new Date(t3).getTime()]
-    // Tracker only has snapshots at t1 and t3 — t2 is a gap
+    // Tracker only has snapshots at t1 and t3, t2 is a gap
     const snaps = [makeSnap(t1, 1.0), makeSnap(t3, 2.0)]
 
     const result = carryForwardTimeSeries(allTimestamps, snaps, (s) => s.ratio)
@@ -124,7 +124,7 @@ describe("carryForwardTimeSeries", () => {
     const t2 = "2024-01-01T01:00:00.000Z"
     const t3 = "2024-01-01T02:00:00.000Z"
     const allTimestamps = [new Date(t1).getTime(), new Date(t2).getTime(), new Date(t3).getTime()]
-    // Tracker only joins at t2 — nothing exists for t1
+    // Tracker only joins at t2, nothing exists for t1
     const snaps = [makeSnap(t2, 1.0), makeSnap(t3, 2.0)]
 
     const result = carryForwardTimeSeries(allTimestamps, snaps, (s) => s.ratio)

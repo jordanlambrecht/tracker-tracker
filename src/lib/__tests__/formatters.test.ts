@@ -293,7 +293,7 @@ describe("computeBufferBytes", () => {
   })
 
   // Buffer is signed on a private tracker. Clamping a deficit to 0n drew a flat
-  // line on the buffer chart while the account got worse — indistinguishable
+  // line on the buffer chart while the account got worse, indistinguishable
   // from holding steady at breakeven.
   it("returns a negative buffer when download exceeds upload", () => {
     expect(computeBufferBytes(100n, 500n)).toBe(-400n)

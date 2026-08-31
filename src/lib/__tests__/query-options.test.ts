@@ -52,9 +52,7 @@ describe("shared query timeouts", () => {
     )
 
     const caller = new AbortController()
-    const run = fleetCachedQueryOptions.queryFn as unknown as (
-      ctx: unknown
-    ) => Promise<unknown>
+    const run = fleetCachedQueryOptions.queryFn as unknown as (ctx: unknown) => Promise<unknown>
     await run({ signal: caller.signal, queryKey: fleetCachedQueryOptions.queryKey })
 
     expect(seen).toBeDefined()

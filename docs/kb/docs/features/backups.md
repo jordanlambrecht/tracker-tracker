@@ -10,7 +10,7 @@ Tracker Tracker backs up your configuration and history. Download backups manual
 ## What Gets Backed Up
 
 | Item                                                            | Backed up? | Notes                                           |
-|-----------------------------------------------------------------|------------|-------------------------------------------------|
+| --------------------------------------------------------------- | ---------- | ----------------------------------------------- |
 | App settings (poll intervals, proxy, notifications, TOTP state) | ✓          | Encrypted                                       |
 | Trackers and configurations                                     | ✓          | All metadata                                    |
 | Upload/download history (snapshots)                             | ✓          | Full time-series                                |
@@ -22,7 +22,7 @@ Tracker Tracker backs up your configuration and history. Download backups manual
 | Transient state (last poll time, errors, cached torrents)       | ✗          | Not persisted                                   |
 | Notification delivery history                                   | ✗          | Not included                                    |
 
-Sensitive values — API tokens, client credentials, proxy passwords, webhook URLs, TOTP secrets — remain encrypted in the backup file.
+Sensitive values (API tokens, client credentials, proxy passwords, webhook URLs, TOTP secrets) remain encrypted in the backup file.
 
 ## Backup File Format
 
@@ -30,7 +30,7 @@ Backups are plain JSON (encrypted backups use `.ttbak`). The header includes ver
 
 ## Encrypted Backups (.ttbak)
 
-Add an extra encryption layer to any backup. Set the password in **Settings → Backups** — it's separate from your login password. Each backup generates a random key, so two backups with the same password produce different ciphertext.
+Add an extra encryption layer to any backup. Set the password in **Settings → Backups**. It's separate from your login password. Each backup generates a random key, so two backups with the same password produce different ciphertext.
 
 This is useful if you store backups in cloud storage, send them offsite, or anywhere you don't want the raw config readable.
 
@@ -45,7 +45,7 @@ Go to **Settings → Backups** and click **Export Now**. Manual exports download
 Scheduled backups run automatically at **03:00 server time**.
 
 | Frequency | When it runs                     |
-|-----------|----------------------------------|
+| --------- | -------------------------------- |
 | Daily     | Every day at 03:00               |
 | Weekly    | Every Monday at 03:00            |
 | Monthly   | First day of each month at 03:00 |
@@ -74,17 +74,17 @@ Set a retention count (1-365, default 14). Once exceeded, the oldest backups del
 
 ### Cross-instance restores
 
-Restoring from a different Tracker Tracker instance with a different password? The app re-encrypts sensitive fields automatically. If a field can't be re-encrypted (i.e., the backup was encrypted with an unknown password), it's cleared. For TOTP, the restore screen tells you if 2FA is disabled — re-enable it after restoring.
+Restoring from a different Tracker Tracker instance with a different password? The app re-encrypts sensitive fields automatically. If a field can't be re-encrypted (i.e., the backup was encrypted with an unknown password), it's cleared. For TOTP, the restore screen tells you if 2FA is disabled, so re-enable it after restoring.
 
 !!! warning "TOTP after a cross-instance restore"
     If 2FA was active but can't be carried over, it'll be disabled. Re-enroll in **Settings → Security** after the restore.
 
-![Backup configuration — encryption, scheduling, and storage path](../assets/images/backups-configuration.png)
+![Backup configuration: encryption, scheduling, and storage path](../assets/images/backups-configuration.png)
 
 ## Settings Reference
 
 | Setting           | Default | Description                                                 |
-|-------------------|---------|-------------------------------------------------------------|
+| ----------------- | ------- | ----------------------------------------------------------- |
 | Scheduled backups | Off     | Enable automatic backups on a schedule                      |
 | Frequency         | Daily   | How often to run: daily, weekly, or monthly                 |
 | Retention count   | 14      | How many backups to keep (1-365)                            |

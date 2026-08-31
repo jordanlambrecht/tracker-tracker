@@ -94,7 +94,7 @@ export async function POST(_request: Request, props: RouteContext) {
       { status: 400 }
     )
   }
-  // An empty token decrypts cleanly but can never authenticate — same outcome
+  // An empty token decrypts cleanly but can never authenticate, the same outcome
   // as an undecryptable one, so report it identically rather than round-tripping
   // to the tracker for a guaranteed 401.
   if (!apiToken) {
@@ -108,7 +108,7 @@ export async function POST(_request: Request, props: RouteContext) {
 
   if (tracker.useProxy && !proxyAgent) {
     return NextResponse.json(
-      { error: "Proxy required but not configured — refusing direct connection" },
+      { error: "Proxy required but not configured, refusing direct connection" },
       { status: 400 }
     )
   }

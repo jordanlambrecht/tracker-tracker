@@ -132,7 +132,7 @@ export interface FleetAggregation {
 
   ageBands: AgeBandEntry[]
 
-  /** Empty unless the caller passed tag groups — they are opt-in and most installs have none. */
+  /** Empty unless the caller passed tag groups, they are opt-in and most installs have none. */
   tagGroupBreakdowns: TagGroupBreakdown[]
 }
 
@@ -236,8 +236,8 @@ export function computeFleetAggregation(
   const categoryMonthMap = new Map<string, Map<string, number>>()
 
   // Tag groups: one counter per group, member tag -> torrents carrying it.
-  // Keyed by the member tag exactly as configured — NOT lowercased like `parsedTags`
-  // below — because the per-tracker breakdown matches member tags case-sensitively.
+  // Keyed by the member tag exactly as configured, NOT lowercased like `parsedTags`
+  // below, because the per-tracker breakdown matches member tags case-sensitively.
   // Folding case here would make the same group report different numbers on the
   // dashboard than on a tracker's detail page.
   const tagGroupCounters = tagGroups.map((group) => ({
@@ -320,9 +320,7 @@ export function computeFleetAggregation(
     }
 
     // -- Cross-seed network tracker matching (exclude cross-seed tags) --
-    const taggedNetworkKeys = parsedTags.filter(
-      (t) => !crossSeedSet.has(t) && trackerTagMap.has(t)
-    )
+    const taggedNetworkKeys = parsedTags.filter((t) => !crossSeedSet.has(t) && trackerTagMap.has(t))
     const networkTrackerTags =
       taggedNetworkKeys.length > 0
         ? taggedNetworkKeys
@@ -545,7 +543,7 @@ export function computeFleetAggregation(
 
   // Tag group breakdowns. Members nothing is tagged with are dropped, and a group is
   // dropped entirely unless it has a matching member or unmatched torrents it was
-  // configured to count — otherwise the UI would render empty cards.
+  // configured to count, otherwise the UI would render empty cards.
   const tagGroupBreakdowns: TagGroupBreakdown[] = tagGroupCounters
     .map(({ group, counts, unmatchedCount }) => ({
       group,

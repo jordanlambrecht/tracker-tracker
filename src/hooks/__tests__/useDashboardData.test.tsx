@@ -227,7 +227,7 @@ describe("useDashboardData", () => {
 
   // Regression: "All" (DayRange 0) used to OMIT the days param entirely. The route
   // parses it with parseIntClamped(raw, 0, MAX, 30), and a MISSING param takes the
-  // 30 default rather than becoming 0 — so "All" silently requested 30 days.
+  // 30 default rather than becoming 0, so "All" silently requested 30 days.
   // 0 must be sent explicitly; it is the only value that round-trips unchanged.
   it("sends days=0 explicitly when dayRange is 0 (All)", async () => {
     const { result } = renderHook(() => useDashboardData({ initialTrackers: [mockTracker] }), {
@@ -313,5 +313,22 @@ describe("useDashboardData", () => {
     })
 
     expect(result.current.alerts).toHaveLength(0)
+  })
+})
+describe("retention banner state", () => {
+  it("passes the shared query's answer to computeSystemAlerts", async () => {
+    const { computeSystemAlerts } = await import("@/lib/dashboard")
+    fetchMock.mockImplementation((url: string) => {
+      if (String(url).includes("/api/settings/retention-prompt")) {
+        return Promise.resolve({ ok: true, json: async () => ({ prompted: true }) })
+      }
+      return Promise.resolve({ ok: true, json: async () => [] })
+    })
+    renderHook(() => useDashboardData(), { wrapper: createWrapper() })
+    await waitFor(() =>
+      expect(vi.mocked(computeSystemAlerts)).toHaveBeenCalledWith(
+        expect.objectContaining({ retentionAnswered: true })
+      )
+    )
   })
 })

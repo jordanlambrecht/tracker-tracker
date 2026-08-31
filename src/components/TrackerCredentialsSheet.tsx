@@ -130,7 +130,7 @@ export function TrackerCredentialsSheet({
       setOriginal(seeded)
       setStatus("ready")
     } catch {
-      setLoadError("Network error — could not load credentials")
+      setLoadError("Network error. Could not load credentials")
       setStatus("error")
     }
   }, [trackerId, trackerBaseUrl])
@@ -307,7 +307,7 @@ export function TrackerCredentialsSheet({
       // actually stored before the user reveals anything against it.
       await load()
     } catch {
-      setSaveError("Network error — credentials were not saved")
+      setSaveError("Network error. Credentials were not saved")
     } finally {
       setSaving(false)
     }
@@ -340,7 +340,7 @@ export function TrackerCredentialsSheet({
     <Sheet
       open={open}
       onClose={handleClose}
-      title={`Credentials — ${trackerName}`}
+      title={`Credentials for ${trackerName}`}
       busy={saving}
       footer={footer}
     >
@@ -353,12 +353,7 @@ export function TrackerCredentialsSheet({
             appearing with its text is often missed. Carries testid because
             Notice renders role="status" for warn variant. Role alone is not
             unique. */}
-        <p
-          data-testid="credential-announcer"
-          role="status"
-          aria-live="polite"
-          className="sr-only"
-        >
+        <p data-testid="credential-announcer" role="status" aria-live="polite" className="sr-only">
           {announcement}
         </p>
 
@@ -369,7 +364,13 @@ export function TrackerCredentialsSheet({
         {status === "error" && (
           <div className="flex flex-col gap-3">
             <Notice variant="danger" box message={loadError ?? "Could not load credentials"} />
-            <Button variant="secondary" size="sm" onClick={load} text="Try again" className="self-start" />
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={load}
+              text="Try again"
+              className="self-start"
+            />
           </div>
         )}
 
@@ -381,7 +382,7 @@ export function TrackerCredentialsSheet({
               Credential storage is turned off
             </h3>
             <p className="text-sm font-sans text-secondary leading-relaxed">
-              Private trackers hand out a pile of per-user secrets — API keys, RSS passkeys, IRC
+              Private trackers hand out a pile of per-user secrets: API keys, RSS passkeys, IRC
               logins, announce URLs. Turn this on to keep {trackerName}&apos;s in one place,
               encrypted with your master password and shown only when you ask.
             </p>
@@ -413,7 +414,12 @@ export function TrackerCredentialsSheet({
                 onConfirm={discardAndClose}
                 onCancel={() => setConfirmingDiscard(false)}
                 additionalActions={
-                  <Button size="sm" variant="primary" onClick={handleSave} text="Save and keep editing" />
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={handleSave}
+                    text="Save and keep editing"
+                  />
                 }
               />
             )}

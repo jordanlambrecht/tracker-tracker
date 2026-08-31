@@ -17,6 +17,7 @@ import {
   Sheet,
   Toggle,
 } from "@/components/ui"
+import { AreaInput } from "@/components/ui/AreaInput"
 import { ColorPicker } from "@/components/ui/ColorPicker"
 
 import { findRegistryEntry } from "@/data/tracker-registry"
@@ -122,8 +123,10 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
   const [editAvistazCookies, setEditAvistazCookies] = useState("")
   const [editDcCookies, setEditDcCookies] = useState("")
   const [editIptCookies, setEditIptCookies] = useState("")
+  const [editFlCookies, setEditFlCookies] = useState("")
   const [editTlUsername, setEditTlUsername] = useState("")
   const [editTlPassword, setEditTlPassword] = useState("")
+  const [editTlAlt2FAToken, setEditTlAlt2FAToken] = useState("")
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
@@ -135,6 +138,11 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
     setEditAvistazUsername("")
     setEditAvistazCookies("")
     setEditDcCookies("")
+    setEditIptCookies("")
+    setEditFlCookies("")
+    setEditTlUsername("")
+    setEditTlPassword("")
+    setEditTlAlt2FAToken("")
     setErrors({})
     setSaving(false)
     setDeleting(false)
@@ -177,15 +185,18 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
       } else if (!trimmed.includes("=")) {
         validationErrors.apiToken = "Cookie string must contain key=value pairs"
       }
+    } else if (changingKey && tracker.platformType === "filelist") {
+      const trimmed = editFlCookies.trim().replace(/^Cookie:\s*/i, "")
+      if (!trimmed) {
+        validationErrors.apiToken = "Browser cookies are required"
+      } else if (!trimmed.includes("=")) {
+        validationErrors.apiToken = "Cookie string must contain key=value pairs"
+      }
     } else if (changingKey && tracker.platformType === "torrentleech") {
       if (!editTlUsername.trim() || !editTlPassword) {
         validationErrors.apiToken = "Username and password are required"
       }
-    } else if (
-      changingKey &&
-      tracker.platformType !== "avistaz" &&
-      !newApiToken.trim()
-    ) {
+    } else if (changingKey && tracker.platformType !== "avistaz" && !newApiToken.trim()) {
       validationErrors.apiToken = "API token cannot be empty"
     }
 
@@ -215,10 +226,17 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
         cookies: editIptCookies.trim().replace(/^Cookie:\s*/i, ""),
         userAgent: navigator.userAgent,
       })
+    } else if (changingKey && tracker.platformType === "filelist") {
+      trimmedToken = JSON.stringify({
+        cookies: editFlCookies.trim().replace(/^Cookie:\s*/i, ""),
+        userAgent: navigator.userAgent,
+      })
     } else if (changingKey && tracker.platformType === "torrentleech") {
+      const alt2FAToken = editTlAlt2FAToken.trim()
       trimmedToken = JSON.stringify({
         username: editTlUsername.trim(),
         password: editTlPassword,
+        ...(alt2FAToken ? { alt2FAToken } : {}),
       })
     } else if (changingKey && tracker.platformType === "digitalcore") {
       const trimmed = editDcCookies.trim()
@@ -229,9 +247,12 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
         setSaving(false)
         return
       }
+      // The stored blob never reaches the client, so this rebuild cannot
+      // preserve an existing UA. Omitting it reverts the tracker to the default.
       trimmedToken = JSON.stringify({
         uid: uidMatch[1].trim(),
         pass: passMatch[1].trim(),
+        userAgent: navigator.userAgent,
       })
     }
 
@@ -253,18 +274,8 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
           setSaving(false)
           return
         }
-        if (tracker.platformType === "avistaz") {
-          const testJson = await testRes.json().catch(() => ({}))
-          if ((testJson as Record<string, unknown>).capturedUserAgent) {
-            trimmedToken = JSON.stringify({
-              cookies: editAvistazCookies.trim(),
-              userAgent: (testJson as Record<string, string>).capturedUserAgent,
-              username: editAvistazUsername.trim(),
-            })
-          }
-        }
       } catch {
-        setErrors({ apiToken: "Could not verify API key — check your connection" })
+        setErrors({ apiToken: "Could not verify API key. Check your connection" })
         setSaving(false)
         return
       }
@@ -310,7 +321,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
       onUpdated(updated)
       onClose()
     } catch {
-      setErrors({ form: "Network error — please try again" })
+      setErrors({ form: "Network error. Please try again" })
       setSaving(false)
     }
   }
@@ -404,24 +415,16 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
                   onChange={(e) => setEditAvistazUsername(e.target.value)}
                   placeholder="Your username on this tracker"
                 />
-                <div className="flex flex-col gap-1">
-                  <label
-                    htmlFor="edit-avistaz-cookies"
-                    className="text-xs uppercase tracking-wider text-secondary font-mono"
-                  >
-                    Browser Cookies
-                  </label>
-                  <textarea
-                    id="edit-avistaz-cookies"
-                    autoComplete="off"
-                    data-1p-ignore
-                    value={editAvistazCookies}
-                    onChange={(e) => setEditAvistazCookies(e.target.value)}
-                    placeholder="Paste Cookie header from DevTools"
-                    rows={3}
-                    className="w-full rounded-nm-sm bg-control-bg px-3 py-2 text-sm text-primary border border-transparent focus:border-accent focus:outline-none font-mono resize-y"
-                  />
-                </div>
+                <AreaInput
+                  label="Browser Cookies"
+                  id="edit-avistaz-cookies"
+                  autoComplete="off"
+                  data-1p-ignore
+                  value={editAvistazCookies}
+                  onChange={(e) => setEditAvistazCookies(e.target.value)}
+                  placeholder="Paste Cookie header from DevTools"
+                  rows={3}
+                />
                 <Notice message={errors.apiToken} />
                 <Button
                   variant="minimal"
@@ -438,20 +441,10 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
               </div>
             ) : changingKey && tracker.platformType === "iptorrents" ? (
               <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-1">
-                  <label
-                    htmlFor="edit-ipt-cookies"
-                    className="text-xs uppercase tracking-wider text-secondary font-sans font-medium"
-                  >
-                    Browser Cookies
-                  </label>
-                  <InfoTip
-                    content="Open DevTools (F12) → Network → any request to IPTorrents → copy the full Cookie header value."
-                    size="sm"
-                    docs={DOCS.ADDING_A_TRACKER}
-                  />
-                </div>
-                <textarea
+                <AreaInput
+                  label="Browser Cookies"
+                  tooltip="Open DevTools (F12) → Network → any request to IPTorrents → copy the full Cookie header value."
+                  docs={DOCS.ADDING_A_TRACKER}
                   id="edit-ipt-cookies"
                   name="edit-ipt-cookies"
                   autoComplete="off"
@@ -460,7 +453,6 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
                   onChange={(e) => setEditIptCookies(e.target.value)}
                   placeholder="cf_clearance=...; uid=123456; pass=abc123..."
                   rows={3}
-                  className="w-full rounded-md border border-subtle bg-surface px-3 py-2 text-sm font-mono"
                 />
                 <Notice message={errors.apiToken} />
                 <Button
@@ -494,6 +486,16 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
                   value={editTlPassword}
                   onChange={(e) => setEditTlPassword(e.target.value)}
                 />
+                <Input
+                  label="Alt 2FA Token (optional)"
+                  name="edit-tl-alt2fa"
+                  type="password"
+                  autoComplete="off"
+                  data-1p-ignore
+                  value={editTlAlt2FAToken}
+                  onChange={(e) => setEditTlAlt2FAToken(e.target.value)}
+                  placeholder="Only if 2FA is enabled on your account"
+                />
                 <Notice message={errors.apiToken} />
                 <Button
                   variant="minimal"
@@ -502,6 +504,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
                   className="self-start"
                   onClick={() => {
                     setChangingKey(false)
+                    setEditTlAlt2FAToken("")
                     setEditTlUsername("")
                     setEditTlPassword("")
                     setErrors({})
@@ -510,20 +513,10 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
               </div>
             ) : changingKey && tracker.platformType === "digitalcore" ? (
               <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-1">
-                  <label
-                    htmlFor="edit-dc-cookies"
-                    className="text-xs uppercase tracking-wider text-secondary font-sans font-medium"
-                  >
-                    Session Cookies
-                  </label>
-                  <InfoTip
-                    content="Open DevTools (F12) → Network → any request → copy the Cookie header value."
-                    size="sm"
-                    docs={DOCS.ADDING_A_TRACKER}
-                  />
-                </div>
-                <textarea
+                <AreaInput
+                  label="Session Cookies"
+                  tooltip="Open DevTools (F12) → Network → any request → copy the Cookie header value."
+                  docs={DOCS.ADDING_A_TRACKER}
                   id="edit-dc-cookies"
                   autoComplete="off"
                   data-1p-ignore
@@ -531,7 +524,6 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
                   onChange={(e) => setEditDcCookies(e.target.value)}
                   placeholder="uid=56954; pass=abc123def456..."
                   rows={2}
-                  className="w-full font-mono text-sm text-primary bg-control-bg rounded-nm-md px-4 py-3 placeholder:text-muted nm-inset focus:outline-none focus:nm-inset border-0 resize-y"
                 />
                 <Notice message={errors.apiToken} />
                 <Button
@@ -542,6 +534,34 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
                   onClick={() => {
                     setChangingKey(false)
                     setEditDcCookies("")
+                    setErrors({})
+                  }}
+                />
+              </div>
+            ) : changingKey && tracker.platformType === "filelist" ? (
+              <div className="flex flex-col gap-2">
+                <AreaInput
+                  label="Browser Cookies"
+                  tooltip="Open DevTools (F12) → Network → any request to FileList → copy the full Cookie header value."
+                  docs={DOCS.ADDING_A_TRACKER}
+                  id="edit-fl-cookies"
+                  name="edit-fl-cookies"
+                  autoComplete="off"
+                  data-1p-ignore
+                  value={editFlCookies}
+                  onChange={(e) => setEditFlCookies(e.target.value)}
+                  placeholder="uid=123456; pass=abc123def456..."
+                  rows={3}
+                />
+                <Notice message={errors.apiToken} />
+                <Button
+                  variant="minimal"
+                  size="sm"
+                  text="Cancel"
+                  className="self-start"
+                  onClick={() => {
+                    setChangingKey(false)
+                    setEditFlCookies("")
                     setErrors({})
                   }}
                 />
@@ -612,6 +632,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
             tracker.platformType === "ggn" ||
             tracker.platformType === "avistaz" ||
             tracker.platformType === "digitalcore" ||
+            tracker.platformType === "filelist" ||
             tracker.platformType === "iptorrents" ||
             tracker.platformType === "torrentleech"
           ) && (
@@ -670,9 +691,11 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
               style={{ colorScheme: "dark" }}
             />
             <p className="text-xs font-sans text-muted mt-1">
-              {tracker.lastAccessAt ? `Currently recorded: ${tracker.lastAccessAt}` : "Not recorded yet."}
+              {tracker.lastAccessAt
+                ? `Currently recorded: ${tracker.lastAccessAt}`
+                : "Not recorded yet."}
               {!hasLoginPolicy &&
-                " This tracker has no login-interval policy, so no dashboard timer will appear — this is for your own records."}
+                " This tracker has no login-interval policy, so no dashboard timer will appear. This is for your own records."}
             </p>
           </div>
 

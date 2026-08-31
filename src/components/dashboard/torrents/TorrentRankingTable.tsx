@@ -6,7 +6,8 @@ import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
 import { Tooltip } from "@/components/ui/Tooltip"
 import type { TorrentRaw } from "@/lib/fleet"
-import { formatBytesNum, formatDuration, formatRatio, splitValueUnit } from "@/lib/formatters"
+import { formatBytesNum, formatDuration, splitValueUnit } from "@/lib/formatters"
+import { formatTorrentRatio } from "@/lib/torrent-utils"
 
 type TorrentTableVariant = "top-seeded" | "elder"
 
@@ -111,7 +112,7 @@ export function TorrentRankingTable({ torrents, variant, trackerColor }: Torrent
       header: "Ratio",
       align: "right",
       width: "8%",
-      render: (t) => <span className="torrent-cell">{formatRatio(t.ratio)}</span>,
+      render: (t) => <span className="torrent-cell">{formatTorrentRatio(t.ratio)}</span>,
     },
   ]
 

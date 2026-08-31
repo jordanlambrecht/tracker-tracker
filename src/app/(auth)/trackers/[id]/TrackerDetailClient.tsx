@@ -151,7 +151,7 @@ export function TrackerDetailClient({
       setTracker(await res.json())
     } catch {
       setTracker((prev) => ({ ...prev, userPausedAt: originalUserPausedAt }))
-      setPollError("Failed to toggle pause — please try again")
+      setPollError("Failed to toggle pause. Please try again")
     } finally {
       setPauseLoading(false)
     }

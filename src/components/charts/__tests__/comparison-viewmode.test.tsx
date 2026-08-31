@@ -1,6 +1,6 @@
 // src/components/charts/__tests__/comparison-viewmode.test.tsx
 //
-// Reproduces issue #156: "Click Stacked, then click Per-Tracker — the view
+// Reproduces issue #156: "Click Stacked, then click Per-Tracker, the view
 // stays stacked."
 
 import { render, screen } from "@testing-library/react"
@@ -51,7 +51,12 @@ describe("ComparisonChart view mode (issue #156)", () => {
     optionSpy.mockClear()
     render(
       // biome-ignore lint/suspicious/noExplicitAny: fixture trimmed to what the chart reads
-      <ComparisonChart metric="uploaded" trackerData={trackerData as any} enableStacked enableAverage />
+      <ComparisonChart
+        metric="uploaded"
+        trackerData={trackerData as any}
+        enableStacked
+        enableAverage
+      />
     )
 
     // The average toggle and the view-mode tab used to share this label, so a
@@ -113,7 +118,9 @@ describe("ComparisonChart view mode against a real ECharts instance (issue #156)
 
         // Nested one level down: emphasis merges as well, so an emphasis that
         // omits lineStyle leaves the hover glow painted on the stacked view.
-        const emphasis = s.emphasis as { lineStyle?: { shadowColor?: unknown; shadowBlur?: unknown } }
+        const emphasis = s.emphasis as {
+          lineStyle?: { shadowColor?: unknown; shadowBlur?: unknown }
+        }
         expect(emphasis.lineStyle?.shadowColor).toBeFalsy()
         expect(emphasis.lineStyle?.shadowBlur).toBeFalsy()
       }
@@ -122,7 +129,7 @@ describe("ComparisonChart view mode against a real ECharts instance (issue #156)
 
   it("still reads as a changed option to ChartECharts' JSON.stringify guard", () => {
     // defaultShouldSetOption skips setOption when the serialised options match,
-    // and JSON.stringify drops undefined-valued keys — so the clearing values
+    // and JSON.stringify drops undefined-valued keys, so the clearing values
     // alone are invisible to it. The toggle must differ elsewhere too or the
     // fix above would never be applied.
     expect(JSON.stringify(optionFor(true))).not.toBe(JSON.stringify(optionFor(false)))

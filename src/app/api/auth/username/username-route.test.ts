@@ -1,7 +1,7 @@
 // src/app/api/auth/username/username-route.test.ts
 //
 // This route sits under "/api/auth/", which src/proxy.ts treats as a PUBLIC_PREFIX
-// — the proxy waves the request through before it looks at a session cookie. The
+// The proxy waves the request through before it looks at a session cookie. The
 // handler's own authenticate() call is the entire access control story, so the
 // unauthenticated case is tested first and by name rather than left implied.
 //
@@ -77,7 +77,7 @@ describe("POST /api/auth/username", () => {
   // rejects any payload carrying a `purpose` claim (src/lib/auth.ts:82). Both roads
   // arrive here as "no session". Proving that branch needs a REAL pending token
   // driven through the real getSession, which is exactly what
-  // src/lib/__tests__/auth-jwe.test.ts:166 does — a duplicate here with getSession
+  // src/lib/__tests__/auth-jwe.test.ts:166 does, a duplicate here with getSession
   // mocked to null would assert nothing and would keep passing if the guard were
   // deleted.
   it("rejects an unauthenticated caller", async () => {

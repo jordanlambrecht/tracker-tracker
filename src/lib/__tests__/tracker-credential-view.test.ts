@@ -61,8 +61,8 @@ describe("toVaultView", () => {
   })
 
   it("does not echo unknown extra keys to the client", () => {
-    // Unknown additive keys round-trip through STORAGE untouched — that is the
-    // no-migration contract — but they have no business on the wire, and a
+    // Unknown additive keys round-trip through STORAGE untouched, that is the
+    // no-migration contract, but they have no business on the wire, and a
     // future key holding something sensitive must not leak by default.
     const withExtras = {
       v: 1,

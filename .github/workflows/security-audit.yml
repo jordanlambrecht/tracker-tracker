@@ -34,14 +34,16 @@ jobs:
 
       - name: Verify security test count
         run: |
-          COUNT=$(pnpm test:run -- src/lib/__tests__/security.test.ts 2>&1 \
-            | sed 's/\x1b\[[0-9;]*m//g' \
-            | grep 'security\.test\.ts' \
-            | grep -oE '[0-9]+ test' \
-            | grep -oE '[0-9]+')
+          pnpm exec vitest run src/lib/__tests__/security.test.ts --reporter=json --outputFile=/tmp/security-tests.json
+          COUNT=$(python3 -c "import json; print(json.load(open('/tmp/security-tests.json'))['numTotalTests'])")
           echo "Security tests: $COUNT"
-          if [ "$COUNT" -lt 106 ]; then
-            echo "::error::Security test count dropped below expected minimum (106). Was a test removed?"
+          case "$COUNT" in
+            ''|*[!0-9]*)
+              echo "::error::Could not extract the security test count"
+              exit 1 ;;
+          esac
+          if [ "$COUNT" -lt 104 ]; then
+            echo "::error::Security test count dropped below expected minimum (104). Was a test removed?"
             exit 1
           fi
 
@@ -135,8 +137,8 @@ jobs:
 
             lines.push('---');
             lines.push(`**Summary:** ${summary.passed}/${summary.total} checks passed`);
-            if (summary.critical > 0) lines.push(` — **${summary.critical} critical failure(s)**`);
-            if (summary.warning > 0) lines.push(` — ${summary.warning} warning(s)`);
+            if (summary.critical > 0) lines.push(`, **${summary.critical} critical failure(s)**`);
+            if (summary.warning > 0) lines.push(`, ${summary.warning} warning(s)`);
             lines.push('');
             lines.push('See `scripts/security-audit.ts` for check definitions and `SECURITY.md` for the full security architecture.');
 

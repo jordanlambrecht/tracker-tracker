@@ -8,7 +8,7 @@
 //
 // The headline test is "the read route never returns a secret value". It
 // asserts against the SERIALIZED response body rather than a parsed object,
-// because that is what actually crosses the wire — a secret nested somewhere
+// because that is what actually crosses the wire, a secret nested somewhere
 // unexpected still shows up in the JSON string.
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
@@ -20,7 +20,7 @@ import { REVEAL_MAX_PER_WINDOW, resetRevealLimit } from "@/lib/tracker-credentia
 import { POST as RevealPOST } from "./reveal/route"
 import { GET, PUT } from "./route"
 
-// decodeKey stays REAL — mocking it would defeat the crypto round trip.
+// decodeKey stays REAL, mocking it would defeat the crypto round trip.
 vi.mock("@/lib/api-helpers", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api-helpers")>()
   return {
@@ -49,8 +49,8 @@ vi.mock("@/lib/logger", () => ({
 
 // The gate reads app_settings through a DIFFERENT chain shape than the tracker
 // queries here (`.from().limit()`, no `.where()`), so it is mocked at the module
-// boundary rather than bent into the shared select stub. Its own logic — most
-// importantly "no settings row means disabled" — is covered separately in
+// boundary rather than bent into the shared select stub. Its own logic, most
+// importantly "no settings row means disabled", is covered separately in
 // src/lib/__tests__/tracker-credential-gate.test.ts.
 vi.mock("@/lib/tracker-credentials/gate", () => ({
   requireCredentialVaultEnabled: vi.fn(),
@@ -70,7 +70,7 @@ const VAULT = {
       id: "irc",
       title: "IRC",
       fields: [
-        // secret: false — an IRC nick is not a secret, and the flag exists so
+        // secret: false, an IRC nick is not a secret, and the flag exists so
         // the sheet can render it without a reveal round trip.
         { id: "irc_nick", label: "Nick", value: "jordy", secret: false },
         // `secret` ABSENT. Fail closed: this must be treated as a secret.
@@ -165,7 +165,7 @@ describe("GET /api/trackers/[id]/credentials — no secret ever leaves", () => {
     // careless spread away from carrying plaintext again.
     expect(nickserv).not.toHaveProperty("value")
     expect(nickserv.secret).toBe(true)
-    // hasValue is a boolean, never a length — a length is a plaintext oracle.
+    // hasValue is a boolean, never a length, a length is a plaintext oracle.
     expect(nickserv.hasValue).toBe(true)
 
     const passkey = body.vault.sections[1].fields[0]
@@ -187,7 +187,7 @@ describe("GET /api/trackers/[id]/credentials — no secret ever leaves", () => {
     const body = (await (await get()).json()) as {
       vault: { sections: { fields: Record<string, unknown>[] }[] }
     }
-    // That is the whole meaning of the flag — no reveal round trip for an IRC
+    // That is the whole meaning of the flag, no reveal round trip for an IRC
     // nick or an announce URL.
     expect(body.vault.sections[0].fields[0]).toMatchObject({
       id: "irc_nick",
@@ -220,7 +220,7 @@ describe("GET /api/trackers/[id]/credentials — no secret ever leaves", () => {
     trackerRow = { id: 1, name: "Alpha", encryptedCredentials: null }
     const response = await get()
     expect(response.status).toBe(200)
-    // NULL is "no vault" — a normal state, not an error. Handing NULL to
+    // NULL is "no vault", a normal state, not an error. Handing NULL to
     // decrypt() is the trap this whole column is shaped to avoid.
     await expect(response.json()).resolves.toEqual({ vault: null })
   })
@@ -287,7 +287,7 @@ describe("PUT /api/trackers/[id]/credentials", () => {
       },
     })
     expect(response.status).toBe(400)
-    // Field ids are unique across the WHOLE vault — the reveal endpoint
+    // Field ids are unique across the WHOLE vault, the reveal endpoint
     // resolves by id with no section context, so a duplicate is ambiguous.
     await expect(response.json()).resolves.toMatchObject({
       error: expect.stringContaining("Duplicate field id"),
@@ -297,7 +297,7 @@ describe("PUT /api/trackers/[id]/credentials", () => {
 
   it("rejects a vault of an unknown version", async () => {
     const response = await put({ vault: { v: 2, sections: [] } })
-    // v:2 with an empty sections array still clears — but a v:2 with content
+    // v:2 with an empty sections array still clears, but a v:2 with content
     // must fail closed rather than being guessed at.
     expect(response.status).toBe(200)
 
@@ -351,7 +351,7 @@ describe("PUT merges omitted values against what is stored", () => {
 
   it("PRESERVES secret plaintext when the sheet omits it", async () => {
     // THE test for this phase. Without the merge, renaming a section would send
-    // every secret back as undefined and the save would silently destroy them —
+    // every secret back as undefined and the save would silently destroy them,
     // while showing the user a successful save.
     const response = await put({ vault: RENAMED_WITHOUT_VALUES })
     expect(response.status).toBe(200)
@@ -418,9 +418,7 @@ describe("PUT merges omitted values against what is stored", () => {
     await put({
       vault: {
         v: 1,
-        sections: [
-          { id: "irc", title: "IRC", fields: [{ id: "passkey", label: "Passkey" }] },
-        ],
+        sections: [{ id: "irc", title: "IRC", fields: [{ id: "passkey", label: "Passkey" }] }],
       },
     })
     expect(storedVault().sections[0].fields[0].value).toBe(PASSKEY)

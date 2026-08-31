@@ -21,7 +21,7 @@
   --color-violet: oklch(60.56% 0.2189 292.72); /* #8b5cf6 */
   --color-sky: oklch(71.48% 0.1257 215.22); /* #06b6d4 */
 
-  /* Surfaces — dark purple-gray. Neumorphism: light/dark pair for depth. */
+  /* Surfaces, dark purple-gray. Neumorphism: light/dark pair for depth. */
   --color-surface-900: oklch(22.9% 0.0155 279.49); /* #1b1c24 */
   --color-surface-800: oklch(24.55% 0.0174 275.22); /* #1e2029 */
   --color-surface-700: oklch(28.82% 0.0221 277.51); /* #282a36 */
@@ -85,7 +85,7 @@
   --color-neutral: var(--color-gray-400);
   --color-tracker-default: var(--color-cyan);
 
-  /* Ordinal scale — ratio tiers, seed-time tiers */
+  /* Ordinal scale, ratio tiers, seed-time tiers */
   --color-scale-1: var(--color-red);
   --color-scale-2: var(--color-amber);
   --color-scale-3: var(--color-green);
@@ -101,7 +101,7 @@
   --shadow-glow-danger: 0 0 16px var(--color-danger-dim);
   --shadow-glow-success: 0 0 16px var(--color-success-dim);
 
-  /* Border radius — bubbly */
+  /* Border radius, bubbly */
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 20px;
@@ -111,7 +111,7 @@
   /* Sub-xs font sizes for dense data UI.
    * text-3xs and text-2xs are intentionally the same value today (10px).
    * text-2xs covers former 11px contexts (table cells, pills).
-   * If dense tables feel too tight, bump --text-2xs to 11px — one-line change. */
+   * If dense tables feel too tight, bump --text-2xs to 11px, one-line change. */
   --text-4xs: 9px;
   --text-3xs: 10px;
   --text-2xs: 10px;
@@ -135,7 +135,7 @@
 }
 
 /*
- * Neumorphic shadow utilities — registered as @utility so Tailwind v4
+ * Neumorphic shadow utilities, registered as @utility so Tailwind v4
  * generates variant classes (hover:nm-raised, active:nm-pressed, etc.).
  * Base: #282A36. Generated via neumorphism.io.
  *
@@ -166,6 +166,7 @@
 
 @utility nm-inset {
   box-shadow:
+    inset -1px -1px 0 oklch(100% 0 0 / 0.07),
     inset 4px 4px 8px oklch(19.74% 0.0121 277.78),
     /* #14151b */ inset -4px -4px 8px oklch(37.23% 0.0311 277.38); /* #3c3f51 */
 }
@@ -182,7 +183,35 @@
     /* #14151b */ inset -2px -2px 5px oklch(32.94% 0.0266 278.88); /* #323443 */
 }
 
-/* Tracker color accent glow — corner-pooling inset glow via pseudo-element
+/*
+ * Overlay elevation (Dialog, Sheet panels). Floating surfaces must not use
+ * the raised dual shadow: that illusion needs the element's background to
+ * match the page around it, and a panel over a dimmed backdrop never does,
+ * so the light half hazes the scrim and the edge dissolves into gradient.
+ * Instead: a 1px ring draws the edge, an inset rim light keeps the
+ * light-from-above vocabulary inside the panel, and layered hue-matched dark
+ * shadows carry depth. Pair with bg-overlay (one surface step lighter) for
+ * tonal elevation. Backdrop blur was deliberately removed for perf (2780d5e);
+ * do not re-add it here.
+ */
+@utility nm-float {
+  box-shadow:
+    inset 0 1px 0 oklch(100% 0 0 / 0.1),
+    0 0 0 1px oklch(100% 0 0 / 0.14),
+    0 4px 8px oklch(10% 0.012 277.5 / 0.5),
+    0 12px 32px oklch(10% 0.012 277.5 / 0.45);
+}
+
+/* Same grammar at popover scale (dropdowns, color picker). One depth layer:
+ * these hover close to their trigger, not high above the page. */
+@utility nm-float-sm {
+  box-shadow:
+    inset 0 1px 0 oklch(100% 0 0 / 0.08),
+    0 0 0 1px oklch(100% 0 0 / 0.12),
+    0 4px 12px oklch(10% 0.012 277.5 / 0.5);
+}
+
+/* Tracker color accent glow, corner-pooling inset glow via pseudo-element
  * so it doesn't conflict with the card's nm-raised box-shadow. Four offset
  * shadows concentrate light in the corners and fade along the edges.
  * Color passed as --card-accent via inline style. */
@@ -344,7 +373,7 @@ dialog[data-overlay][data-visible]::backdrop {
 }
 
 /*
- * Neumorphic interactive states — for clickable raised surfaces.
+ * Neumorphic interactive states, for clickable raised surfaces.
  * Three tiers matching elevation: sm (cards), base (panels), inset (dormant links).
  * Each transitions: rest → hover (raise higher) → active (press inward + scale).
  * These replace static nm-raised-* classes on interactive elements.
@@ -457,7 +486,7 @@ dialog[data-overlay][data-visible]::backdrop {
   animation-play-state: paused;
 }
 
-/* Carousel slide animations — used by DownloadClientStatusWidget */
+/* Carousel slide animations, used by DownloadClientStatusWidget */
 @keyframes slideInLeft {
   from {
     opacity: 0;
@@ -479,7 +508,7 @@ dialog[data-overlay][data-visible]::backdrop {
   }
 }
 
-/* Alert banner entrance — subtle slide from left */
+/* Alert banner entrance, subtle slide from left */
 @keyframes alertSlideIn {
   from {
     opacity: 0;
@@ -502,8 +531,8 @@ input:autofill:hover,
 input:autofill:focus,
 textarea:autofill,
 select:autofill {
-  -webkit-box-shadow: 0 0 0 1000px oklch(24.55% 0.0174 275.22) inset; /* control-bg — Chromium */
-  box-shadow: 0 0 0 1000px oklch(24.55% 0.0174 275.22) inset; /* control-bg — Firefox/standard */
+  -webkit-box-shadow: 0 0 0 1000px oklch(24.55% 0.0174 275.22) inset; /* control-bg, Chromium */
+  box-shadow: 0 0 0 1000px oklch(24.55% 0.0174 275.22) inset; /* control-bg, Firefox/standard */
   -webkit-text-fill-color: oklch(92.88% 0.0126 255.51); /* primary text */
   color: oklch(92.88% 0.0126 255.51) !important;
   background-color: oklch(24.55% 0.0174 275.22) !important;
@@ -511,7 +540,7 @@ select:autofill {
   transition: background-color 5000s ease-in-out 0s;
 }
 
-/* Hide native number input spinners — we use custom NumberInput controls */
+/* Hide native number input spinners, we use custom NumberInput controls */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
@@ -527,7 +556,7 @@ select {
   cursor: pointer;
 }
 
-/* Page scrollbar — picks up --scrollbar-color from nearest ancestor (tracker page sets it) */
+/* Page scrollbar, picks up --scrollbar-color from nearest ancestor (tracker page sets it) */
 .themed-scrollbar {
   --scrollbar-color: oklch(34.45% 0.0283 276.51); /* #353848 */
   --scrollbar-hover: oklch(40.24% 0.0439 279.12); /* #434660 */
@@ -549,7 +578,7 @@ select {
   background: var(--scrollbar-hover);
 }
 
-/* Inner horizontal scrollbars on tables/code — always subtle */
+/* Inner horizontal scrollbars on tables/code, always subtle */
 .styled-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: oklch(34.45% 0.0283 276.51) /* #353848 */ transparent;

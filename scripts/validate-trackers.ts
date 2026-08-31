@@ -71,7 +71,7 @@ function validate(slugFilter?: string[]): TrackerResult[] {
       }
       if (!tracker.apiPath.startsWith("/")) {
         errors.push(
-          `apiPath "${tracker.apiPath}" must be relative and start with "/" — an off-domain API host belongs in the adapter, not the registry`
+          `apiPath "${tracker.apiPath}" must be relative and start with "/", because an off-domain API host belongs in the adapter, not the registry`
         )
       }
     }
@@ -195,7 +195,7 @@ function validate(slugFilter?: string[]): TrackerResult[] {
     ] as const
     for (const field of CANONICAL_FIELDS) {
       if (!(field in obj)) {
-        errors.push(`Missing canonical field "${field}" — all fields must be explicitly present`)
+        errors.push(`Missing canonical field "${field}", all fields must be explicitly present`)
       }
     }
 

@@ -568,7 +568,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
             {preflight && preflight.credentialsAtRisk > 0 && (
               <Notice variant="warn" box>
                 {preflight.credentialsRecoverable === 0
-                  ? `None of the ${preflight.credentialsTotal} stored credentials in this backup can be decrypted with that master password — most likely it was taken before a password change. They will be cleared and you will need to re-enter them.`
+                  ? `None of the ${preflight.credentialsTotal} stored credentials in this backup can be decrypted with that master password. Most likely it was taken before a password change. They will be cleared and you will need to re-enter them.`
                   : `${preflight.credentialsAtRisk} of ${preflight.credentialsTotal} stored credentials in this backup cannot be decrypted with that master password. Those will be cleared and need re-entering; the other ${preflight.credentialsRecoverable} will carry over.`}
               </Notice>
             )}

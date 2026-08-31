@@ -1,6 +1,6 @@
 // src/lib/error-utils.ts
 //
-// Functions: errMsg, sanitizeNetworkError, isDecryptionError, classifyFetchError
+// Functions: errMsg, sanitizeNetworkError, isUnreachableMessage, isDecryptionError, classifyFetchError
 
 /** Extracts a string message from an unknown error value. */
 export function errMsg(err: unknown): string {
@@ -20,25 +20,41 @@ export function isDecryptionError(error: unknown): boolean {
 
 /**
  * Maps raw network/auth error messages to safe user-facing messages.
- * Raw errors go to server logs only — this produces the string stored in DB
+ * Raw errors go to server logs only, this produces the string stored in DB
  * and potentially shown in the UI.
  */
 export function sanitizeNetworkError(raw: string, fallback = "Connection failed"): string {
-  // qBittorrent auth outcomes first — these need different user action from
+  // qBittorrent auth outcomes first, these need different user action from
   // each other and from a plain connection fault, so they must not fall
   // through to the generic ban/401 rules below (which would flatten them to
   // "IP temporarily banned by tracker" and "Authentication failed").
   if (/rejected the blank credentials/i.test(raw)) {
-    return 'Blank credentials rejected — enable "Bypass authentication for clients on localhost" in qBittorrent'
+    return 'Blank credentials rejected. Enable "Bypass authentication for clients on localhost" in qBittorrent'
   }
   if (/rejected the username and password/i.test(raw)) {
-    return "Credentials rejected by qBittorrent — check the username and password"
+    return "Credentials rejected by qBittorrent. Check the username and password"
   }
   if (/rejected the API key/i.test(raw)) {
-    return "API key rejected by qBittorrent — check it has not been rotated, and that the server is 5.2.0 or newer"
+    return "API key rejected by qBittorrent. Check it has not been rotated, and that the server is 5.2.0 or newer"
   }
   if (/banned this IP/i.test(raw)) {
-    return "Banned by qBittorrent after too many failed logins — it will clear on its own"
+    return "Banned by qBittorrent after too many failed logins. It will clear on its own"
+  }
+  // TorrentLeech auth outcomes. Static strings the adapter throws verbatim,
+  // kept because each needs different user action, like the qBittorrent rules.
+  if (/requires 2FA/i.test(raw)) {
+    return "TorrentLeech requires 2FA. Add your Alt 2FA Token (Site Profile => Alt 2FA Token) to this tracker's credentials"
+  }
+  if (/Alt 2FA Token/i.test(raw)) return "Invalid credentials or Alt 2FA Token"
+  // A tracker that answered 2xx with a body the adapter could not read.
+  // "Unexpected response from <host>: ..." is the wording the Gazelle, BTN,
+  // GGn, MAM, Nebulance, Hawke and UNIT3D adapters share (issue #214); the
+  // other three are parseBytes rejecting a byte string ("", "1,024.50 GiB").
+  // Matched before the generic rules on purpose: "Invalid byte format" and a
+  // key called "invalid" in a listed payload would otherwise both fall into
+  // the credential rule below and surface as "Invalid credentials".
+  if (/Unexpected response from|Invalid byte format|Negative byte values|Unknown unit/i.test(raw)) {
+    return "Tracker returned an unexpected response"
   }
   if (/timed?\s*out/i.test(raw)) return "Request timed out"
   if (/ECONNREFUSED/i.test(raw)) return "Connection refused"
@@ -54,6 +70,28 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   if (apiMatch) return `API returned ${apiMatch[1]}`
   return fallback
 }
+
+/**
+ * True for the sanitizeNetworkError outputs that mean the host never
+ * answered. Everything else is either a tracker that did answer
+ * ("Authentication failed", "Tracker returned an unexpected response") or the
+ * scheduler's catch-all ("Poll failed"), which covers connection faults whose
+ * error code no rule here recognizes. A notification must not call either of
+ * those unreachable.
+ */
+export function isUnreachableMessage(message: string): boolean {
+  return UNREACHABLE_MESSAGES.has(message)
+}
+
+const UNREACHABLE_MESSAGES: ReadonlySet<string> = new Set([
+  "Request timed out",
+  "Connection refused",
+  "Host not found",
+  "Host unreachable",
+  "Connection reset",
+  "Proxy connection failed",
+  "Connection failed",
+])
 
 /**
  * Classifies a fetch() error into a human-readable Error.

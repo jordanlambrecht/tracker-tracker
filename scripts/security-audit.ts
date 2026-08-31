@@ -66,9 +66,9 @@ interface AuditOutput {
 // ── Constants ───────────────────────────────────────────────────────────
 
 // Routes that intentionally skip session verification.
-// These are truly public — no cookie, no JWE, no auth at all.
+// These are truly public, with no cookie, no JWE, and no auth at all.
 // Routes that do their own auth (i.e logout via getSession) are NOT listed.
-// NOTE: api/changelog is NOT listed here — it calls authenticate() and must remain protected.
+// NOTE: api/changelog is NOT listed here, because it calls authenticate() and must remain protected.
 const NO_AUTH_ROUTES = new Set([
   "api/auth/setup",
   "api/auth/login",
@@ -121,7 +121,7 @@ const SECRET_PATTERNS: Array<{ re: RegExp; name: string }> = [
   { re: /sk_test_[a-zA-Z0-9]{20,}/, name: "Stripe Test Key" },
 ]
 
-// Files with security-critical logic — flag TODO/FIXME here
+// Files with security-critical logic. Flag TODO/FIXME here
 const SECURITY_FILES = [
   "src/lib/auth.ts",
   "src/lib/crypto.ts",
@@ -237,10 +237,10 @@ function filterIgnoredFindings(results: CheckResult[]): CheckResult[] {
               file: finding.file,
               line: checkIdx + 1,
               detail:
-                "security-audit-ignore missing reason — use: // security-audit-ignore: <reason>",
+                "security-audit-ignore missing reason. Use: // security-audit-ignore: <reason>",
             })
           }
-          return true // NOT suppressed — reason is required
+          return true // NOT suppressed, reason is required
         }
       }
 
@@ -350,7 +350,7 @@ function checkAuthEnforcement(): CheckResult {
         findings.push({
           file: relativePath(file),
           line: startLine,
-          detail: `${method} /${routePath} — no auth check in handler body (missing authenticate/getSession/requireAuth)`,
+          detail: `${method} /${routePath} has no auth check in handler body (missing authenticate/getSession/requireAuth)`,
         })
       }
     }
@@ -603,12 +603,12 @@ function checkEnvFiles(): CheckResult {
       for (const file of tracked.split("\n").filter(Boolean)) {
         findings.push({
           file,
-          detail: `Environment file "${file}" is tracked by git — add to .gitignore and remove`,
+          detail: `Environment file "${file}" is tracked by git. Add to .gitignore and remove`,
         })
       }
     }
   } catch {
-    // git not available — fall back to file existence check
+    // git not available, so fall back to file existence check
     for (const name of envNames) {
       if (fs.existsSync(path.join(ROOT, name))) {
         findings.push({
@@ -649,7 +649,7 @@ function checkConsoleLogInRoutes(files?: string[]): CheckResult {
       findings.push({
         file: relativePath(file),
         line,
-        detail: "console.log/debug/info in API route — may leak sensitive data in production",
+        detail: "console.log/debug/info in API route may leak sensitive data in production",
       })
     }
   }
@@ -697,7 +697,7 @@ function checkTodoInSecurityFiles(): CheckResult {
 // ── Check 10: Raw SQL in API routes (critical) ───────────────────────────
 
 // Hardcoded-safe SQL literals permitted in route files.
-// These are DB connectivity checks with no user input — identical in safety
+// These are DB connectivity checks with no user input, identical in safety
 // to the scrub operations in nuke.ts.
 const SAFE_RAW_SQL_RE = /db\.execute\s*\(\s*sql`SELECT\s+1`\s*\)/
 
@@ -712,12 +712,12 @@ function checkRawSqlInRoutes(): CheckResult {
     for (const line of lineNums) {
       const lineContent = content.split("\n")[line - 1]?.trim()
       if (lineContent?.startsWith("//")) continue
-      // Allow hardcoded DB ping (SELECT 1) — no user input, same category as nuke.ts
+      // Allow hardcoded DB ping (SELECT 1), no user input, same category as nuke.ts
       if (lineContent && SAFE_RAW_SQL_RE.test(lineContent)) continue
       findings.push({
         file: relativePath(file),
         line,
-        detail: "Raw SQL (db.execute) in API route — use Drizzle query builder instead",
+        detail: "Raw SQL (db.execute) in API route. Use Drizzle query builder instead",
       })
     }
   }
@@ -780,7 +780,7 @@ function checkUnvalidatedJsonParse(files?: string[]): CheckResult {
 
 function checkBareCatchBlocks(files?: string[]): CheckResult {
   const findings: Finding[] = []
-  // Only scan API routes and lib files — client components legitimately
+  // Only scan API routes and lib files, because client components legitimately
   // use bare catch for fetch abort cleanup, React error boundaries, etc.
   const serverFiles = files
     ? files.filter((f) => f.includes("app/api/") || f.includes("src/lib/"))
@@ -865,7 +865,7 @@ function checkUnsafeRedirectFetch(): CheckResult {
           file: rel,
           line: i + 1,
           detail:
-            "fetch() with variable URL in route that also uses user input — validate/allowlist the URL",
+            "fetch() with variable URL in route that also uses user input. Validate or allowlist the URL",
         })
       }
 
@@ -874,7 +874,7 @@ function checkUnsafeRedirectFetch(): CheckResult {
           file: rel,
           line: i + 1,
           detail:
-            "redirect() with non-literal URL in route that also uses user input — validate the URL",
+            "redirect() with non-literal URL in route that also uses user input. Validate the URL",
         })
       }
     }
@@ -990,7 +990,7 @@ function checkTimingSafeComparison(): CheckResult {
         findings.push({
           file: relFile,
           line: i + 1,
-          detail: `Direct equality comparison involving secret variable — use timingSafeEqual instead`,
+          detail: `Direct equality comparison involving secret variable. Use timingSafeEqual instead`,
         })
       }
     }
@@ -1020,7 +1020,7 @@ function checkNoRawMigrations(): CheckResult {
       findings.push({
         file: relativePath(f),
         detail:
-          "Raw SQL migration file found — use drizzle-kit push (schema-first) instead of generate/migrate",
+          "Raw SQL migration file found. Use drizzle-kit push (schema-first) instead of generate/migrate",
       })
     }
   }
@@ -1035,7 +1035,7 @@ function checkNoRawMigrations(): CheckResult {
       if (/drizzle-kit\s+(generate|migrate)\b/.test(cmd)) {
         findings.push({
           file: "package.json",
-          detail: `Script "${name}" uses drizzle-kit generate/migrate — use drizzle-kit push instead`,
+          detail: `Script "${name}" uses drizzle-kit generate/migrate. Use drizzle-kit push instead`,
         })
       }
     }
@@ -1050,7 +1050,7 @@ function checkNoRawMigrations(): CheckResult {
       if (/drizzle-kit\s+(generate|migrate)\b/.test(content)) {
         findings.push({
           file: relativePath(f),
-          detail: "CI workflow uses drizzle-kit generate/migrate — use drizzle-kit push instead",
+          detail: "CI workflow uses drizzle-kit generate/migrate. Use drizzle-kit push instead",
         })
       }
     }
@@ -1067,7 +1067,7 @@ function checkNoRawMigrations(): CheckResult {
 
 // ── Check 17: External fetch calls have timeouts (critical) ─────────────
 
-// proxy.ts uses https.request with a timeout option — not fetch() — so it
+// proxy.ts uses https.request with a timeout option (not fetch()), so it
 // is intentionally excluded from this scan.
 function checkFetchTimeout(): CheckResult {
   const findings: Finding[] = []
@@ -1115,7 +1115,7 @@ function checkFetchTimeout(): CheckResult {
         findings.push({
           file: relFile,
           line: i + 1,
-          detail: "fetch() call without a timeout signal — add signal: AbortSignal.timeout(ms)",
+          detail: "fetch() call without a timeout signal. Add signal: AbortSignal.timeout(ms)",
         })
       }
     }
@@ -1137,7 +1137,7 @@ function checkDockerfileNonRoot(): CheckResult {
   const dockerfilePath = path.join(ROOT, "Dockerfile")
 
   if (!fs.existsSync(dockerfilePath)) {
-    // Not applicable — no Dockerfile in the repo
+    // Not applicable, no Dockerfile in the repo
     return {
       id: "dockerfile-nonroot",
       name: "Docker container runs as non-root user",
@@ -1160,7 +1160,7 @@ function checkDockerfileNonRoot(): CheckResult {
   if (userDirectives.length === 0) {
     findings.push({
       file: "Dockerfile",
-      detail: "No USER directive found — container will run as root",
+      detail: "No USER directive found, so the container will run as root",
     })
   } else {
     const lastUser = userDirectives[userDirectives.length - 1]
@@ -1168,7 +1168,7 @@ function checkDockerfileNonRoot(): CheckResult {
       findings.push({
         file: "Dockerfile",
         line: lastUser.line,
-        detail: `Final USER directive is "${lastUser.value}" — container runs as root`,
+        detail: `Final USER directive is "${lastUser.value}", so the container runs as root`,
       })
     }
   }
@@ -1184,7 +1184,7 @@ function checkDockerfileNonRoot(): CheckResult {
     findings.push({
       file: "Dockerfile",
       detail:
-        "No adduser/addgroup directive found — USER directive may reference a non-existent or root-adjacent user",
+        "No adduser/addgroup directive found, so the USER directive may reference a non-existent or root-adjacent user",
     })
   }
 
@@ -1211,7 +1211,7 @@ function checkProxyAllowlistSync(): CheckResult {
   if (!fs.existsSync(proxyPath)) {
     findings.push({
       file: "src/proxy.ts",
-      detail: "src/proxy.ts not found — cannot verify allowlist sync",
+      detail: "src/proxy.ts not found, cannot verify allowlist sync",
     })
     return {
       id: "proxy-allowlist-sync",
@@ -1254,20 +1254,20 @@ function checkProxyAllowlistSync(): CheckResult {
     if (!isCoveredByProxy(normalized)) {
       findings.push({
         file: "src/proxy.ts",
-        detail: `NO_AUTH_ROUTES contains "${route}" but it is not in the proxy public allowlist — the proxy will block unauthenticated requests before the route handler runs`,
+        detail: `NO_AUTH_ROUTES contains "${route}" but it is not in the proxy public allowlist, so the proxy will block unauthenticated requests before the route handler runs`,
       })
     }
   }
 
   // Page routes (non-API) intentionally appear in the proxy allowlist but
-  // not in NO_AUTH_ROUTES — they are excluded from the reverse check.
+  // not in NO_AUTH_ROUTES, so they are excluded from the reverse check.
   const PAGE_ROUTES = new Set(["login", "setup"])
   for (const route of proxyExact) {
     if (PAGE_ROUTES.has(route)) continue
     if (!NO_AUTH_ROUTES.has(route)) {
       findings.push({
         file: "src/proxy.ts",
-        detail: `Proxy allowlist contains exact route "/${route}" but it is absent from NO_AUTH_ROUTES in security-audit.ts — verify it is intentionally public and add it to NO_AUTH_ROUTES`,
+        detail: `Proxy allowlist contains exact route "/${route}" but it is absent from NO_AUTH_ROUTES in security-audit.ts. Verify it is intentionally public and add it to NO_AUTH_ROUTES`,
       })
     }
   }
@@ -1312,7 +1312,7 @@ function checkBigIntSafety(files?: string[]): CheckResult {
       findings.push({
         file: relativePath(file),
         line: i + 1,
-        detail: `Number()/parseInt() on BigInt column "${colName}" — use String() or .toString() to avoid precision loss above 2^53`,
+        detail: `Number()/parseInt() on BigInt column "${colName}". Use String() or .toString() to avoid precision loss above 2^53`,
       })
     }
   }
@@ -1331,7 +1331,7 @@ function checkBigIntSafety(files?: string[]): CheckResult {
 function checkPathTraversalDefense(): CheckResult {
   const findings: Finding[] = []
 
-  // Only flag file deletion — writes to server-configured paths (mkdir + writeFile
+  // Only flag file deletion, because writes to server-configured paths (mkdir + writeFile
   // with storagePath from DB) are not user-controlled and don't need traversal defense.
   const FS_DELETE_RE = /\b(?:unlink|unlinkSync|rmSync|rm)\s*\(/
   const PATH_DEFENSE_RE = /path\.resolve\b/
@@ -1347,7 +1347,7 @@ function checkPathTraversalDefense(): CheckResult {
 
       if (!FS_DELETE_RE.test(content)) continue
 
-      // File has fs delete operations — check for path traversal defense
+      // File has fs delete operations, so check for path traversal defense
       const hasResolve = PATH_DEFENSE_RE.test(content)
       const hasStartsWith = STARTS_WITH_RE.test(content)
 
@@ -1399,7 +1399,7 @@ function checkArgon2Hashing(): CheckResult {
   if (!content.includes("argon2")) {
     findings.push({
       file: rel,
-      detail: "No argon2 import found — password hashing may use a weaker algorithm",
+      detail: "No argon2 import found, so password hashing may use a weaker algorithm",
     })
   }
 
@@ -1412,7 +1412,7 @@ function checkArgon2Hashing(): CheckResult {
     findings.push({
       file: rel,
       line,
-      detail: "Weak hashing algorithm found in auth module — use Argon2 for passwords",
+      detail: "Weak hashing algorithm found in auth module. Use Argon2 for passwords",
     })
   }
 
@@ -1455,7 +1455,7 @@ function checkEncryptedColumnWrites(): CheckResult {
       const writePattern = new RegExp(`\\b${col}\\s*:(?!\\s*(?:true|false|null|undefined))`)
       if (!writePattern.test(content)) continue
 
-      // File writes to an encrypted column — verify encrypt() is used
+      // File writes to an encrypted column, so verify encrypt() is used
       const hasEncrypt = /\bencrypt\s*\(/.test(content) || /\breencrypt\s*\(/.test(content)
 
       // Allow: setting to null (clearing the field)
@@ -1519,7 +1519,7 @@ function checkTotpFlowIntegrity(): CheckResult {
       findings.push({
         file: rel,
         detail:
-          "TOTP verify should NOT call authenticate() — it uses pendingToken for mid-login auth",
+          "TOTP verify should NOT call authenticate(), because it uses pendingToken for mid-login auth",
       })
     }
     if (!/\brecordFailedAttempt\b/.test(content)) {
@@ -1849,7 +1849,7 @@ function checkBackupRestoreIntegrity(): CheckResult {
       detail: "Restore must run inside a database transaction (rollback on failure)",
     })
   }
-  // Restore SHOULD call recordFailedAttempt — a wrong password on restore is a
+  // Restore SHOULD call recordFailedAttempt, because a wrong password on restore is a
   // brute-force vector (attacker with backup file guessing the master password).
   // The restore route also checks lockedUntil, so progressive lockout applies.
   if (!/\brecordFailedAttempt\s*\(/.test(content)) {
@@ -1896,11 +1896,11 @@ function checkLoginFlowIntegrity(): CheckResult {
   const content = fs.readFileSync(loginPath, "utf8")
   const rel = relativePath(loginPath)
 
-  // Login must NOT call authenticate() — it IS the auth entry point
+  // Login must NOT call authenticate(), because it IS the auth entry point
   if (/\bauthenticate\s*\(/.test(content)) {
     findings.push({
       file: rel,
-      detail: "Login must NOT call authenticate() — it is the public auth entry point",
+      detail: "Login must NOT call authenticate(), because it is the public auth entry point",
     })
   }
   if (!/\bverifyPassword\b/.test(content)) {
@@ -1989,7 +1989,7 @@ function checkAuthResultGating(): CheckResult {
         findings.push({
           file: relativePath(file),
           line: startLine,
-          detail: `${method} /${routePath} — calls auth function but never checks the result (missing instanceof NextResponse or null check)`,
+          detail: `${method} /${routePath} calls auth function but never checks the result (missing instanceof NextResponse or null check)`,
         })
       }
     }
@@ -2036,7 +2036,7 @@ function checkBackupPasswordBounds(): CheckResult {
       findings.push({
         file: rel,
         detail:
-          "Backup password input lacks upper-bound length check before deriveKey() — scrypt DoS vector",
+          "Backup password input lacks upper-bound length check before deriveKey(), a scrypt DoS vector",
       })
     }
   }
@@ -2086,7 +2086,7 @@ function checkWebhookRedirectPolicy(): CheckResult {
         file: rel,
         line: i + 1,
         detail:
-          'fetch() in webhook delivery missing redirect: "error" — SSRF via open redirect possible',
+          'fetch() in webhook delivery missing redirect: "error", so SSRF via open redirect is possible',
       })
     }
   }
@@ -2115,7 +2115,7 @@ function checkSessionSecretLengthGuard(): CheckResult {
     if (!fs.existsSync(absPath)) {
       findings.push({
         file,
-        detail: `${file} not found — cannot verify SESSION_SECRET length guard`,
+        detail: `${file} not found, cannot verify SESSION_SECRET length guard`,
       })
       continue
     }
@@ -2196,16 +2196,16 @@ function checkNotificationSsrfValidation(): CheckResult {
 
     const caseBody = content.slice(caseStart, caseEnd + 1)
 
-    // Skip types that are "not yet supported" — no URL handling to validate
+    // Skip types that are "not yet supported", with no URL handling to validate
     if (/not yet supported/.test(caseBody)) continue
 
-    // Active type — must call isUnsafeNetworkHost
+    // Active type, must call isUnsafeNetworkHost
     if (!/isUnsafeNetworkHost/.test(caseBody)) {
       const lineNum = content.slice(0, caseStart).split("\n").length
       findings.push({
         file: rel,
         line: lineNum,
-        detail: `Notification type "${typeName}" has active validation but does not call isUnsafeNetworkHost() — SSRF risk`,
+        detail: `Notification type "${typeName}" has active validation but does not call isUnsafeNetworkHost(), an SSRF risk`,
       })
     }
     caseMatch = CASE_RE.exec(content)
@@ -2267,7 +2267,7 @@ function checkErrorMessageDisclosure(files?: string[]): CheckResult {
           file: relativePath(file),
           line: i + 1,
           detail:
-            "Raw error message passed into API response — may leak internal paths or library details",
+            "Raw error message passed into API response may leak internal paths or library details",
         })
       }
     }
@@ -2369,7 +2369,7 @@ function checkClientEnvLeak(): CheckResult {
           findings.push({
             file: relativePath(file),
             line: i + 1,
-            detail: `Client component references process.env.${envVar} — secret will be undefined but indicates confused boundary`,
+            detail: `Client component references process.env.${envVar}, so the secret will be undefined but this indicates a confused boundary`,
           })
         }
       }
@@ -2522,7 +2522,7 @@ function runAudit(changedFiles?: string[]): AuditOutput {
   const absChangedFiles = changedFiles?.map((f) => (path.isAbsolute(f) ? f : path.resolve(ROOT, f)))
 
   const results: CheckResult[] = [
-    // Critical — fail the PR
+    // Critical: fail the PR
     checkAuthEnforcement(),
     checkDangerousFunctions(absChangedFiles),
     checkHardcodedSecrets(absChangedFiles),
@@ -2554,7 +2554,7 @@ function runAudit(changedFiles?: string[]): AuditOutput {
     checkClientEnvLeak(),
     checkAdapterCookieInjection(),
     checkAdapterCredentialLogging(),
-    // Warning — flag but don't fail
+    // Warning: flag but don't fail
     checkConsoleLogInRoutes(absChangedFiles),
     checkTodoInSecurityFiles(),
     checkUnvalidatedJsonParse(absChangedFiles),

@@ -257,7 +257,7 @@ describe("QbtClientAdapter", () => {
 //
 // A Bearer key is stateless: there is no login to perform, no SID to cache,
 // and nothing to refresh on expiry. The point of these tests is that the
-// session machinery is not merely unused but unreachable — if withSessionRetry
+// session machinery is not merely unused but unreachable, if withSessionRetry
 // or login is ever called for a key client, the adapter is doing work that
 // cannot succeed.
 // ---------------------------------------------------------------------------
@@ -325,7 +325,7 @@ describe("QbtClientAdapter with API-key auth", () => {
   it("dispose still resets the sync store for a key client", () => {
     vi.mocked(invalidateSession).mockClear()
     adapter.dispose()
-    // invalidateSession also calls resetStore — guarding it behind "password"
+    // invalidateSession also calls resetStore, guarding it behind "password"
     // would leave a key client's delta-sync revision stale across a logout.
     expect(invalidateSession).toHaveBeenCalledWith("http://localhost:8080")
   })

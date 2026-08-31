@@ -16,11 +16,7 @@ import {
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
 import { sanitizeNetworkError } from "@/lib/error-utils"
-import {
-  LONG_STRING_MAX,
-  maxTokenLengthFor,
-  TRACKER_URL_MAX,
-} from "@/lib/limits"
+import { LONG_STRING_MAX, maxTokenLengthFor, TRACKER_URL_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 

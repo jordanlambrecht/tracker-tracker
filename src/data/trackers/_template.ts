@@ -17,7 +17,7 @@
 //
 // Validator checks:
 //   - slug: lowercase letters and hyphens only
-//   - platform: "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "custom"
+//   - platform: "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "custom"
 //   - apiPath must match platform default:
 //       unit3d   → "/api/user"
 //       gazelle  → "/ajax.php"
@@ -27,6 +27,7 @@
 //   - contentCategories: values must come from the allowed list above
 //   - language: required
 //   - rules: required (minimumRatio, seedTimeHours, loginIntervalDays as numbers)
+//   - rules.satisfactionMode: optional, "any" or "all". Only from the site's own wording
 //   - defunct: true requires defunctDate and defunctMessage
 //   - defunctDate: "YYYY-MM-DD" (same shape as a tracker's joinedAt)
 //   - defunctLink: https only, if present
@@ -42,7 +43,7 @@ export const mytracker: TrackerRegistryEntry = {
   description: "TODO", // 1-2 sentence overview
 
   // ── Platform & API ──────────────────────────────────────────────────
-  platform: "unit3d", // "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "custom"
+  platform: "unit3d", // "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "custom"
   // Platform-specific fields (uncomment for your platform):
   //   gazelleAuthStyle: "token",   // gazelle only. "token" | "raw"
   //   gazelleEnrich: true,         // gazelle only. Enables enrichment call
@@ -73,6 +74,11 @@ export const mytracker: TrackerRegistryEntry = {
     minimumRatio: 0, // 0 = no minimum
     seedTimeHours: 0, // 0 = no minimum
     loginIntervalDays: 0, // 0 = no login interval policy
+    // satisfactionMode: "any",         // optional. "any" = meeting seedTimeHours OR
+    //                                  // minimumRatio clears a torrent, "all" = both.
+    //                                  // Set it only from the tracker's own wording.
+    //                                  // Omitted, seed time alone decides and
+    //                                  // minimumRatio stays account-level.
     // fulfillmentPeriodHours: 72,      // optional. Hours to complete H&R seeding
     // hnrBanLimit: 3,                  // optional. Number of H&Rs before ban
     // fullRulesMarkdown: [],             // optional. Detailed rules as markdown string[]

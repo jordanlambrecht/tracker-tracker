@@ -3,7 +3,6 @@
 // Functions: computeAggregateStats, computeAlerts, detectRankChanges, fetchDismissedKeys,
 // postDismissAlert, deleteAllDismissed, computeSystemAlerts
 
-import { findRegistryEntry } from "@/data/tracker-registry"
 import { formatDateTime, formatRatio, formatTimeAgo } from "@/lib/formatters"
 import { isRedacted } from "@/lib/privacy"
 import {
@@ -12,6 +11,7 @@ import {
   checkTrackerError,
   checkZeroSeeding,
 } from "@/lib/tracker-events"
+import { resolveRequiredRatio } from "@/lib/tracker-status"
 import type { Snapshot, TrackerSummary } from "@/types/api"
 
 // ---------------------------------------------------------------------------
@@ -110,7 +110,7 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
         trackerId: tracker.id,
         trackerName: tracker.name,
         trackerColor: tracker.color,
-        message: "Polling paused after repeated failures — check API key and resume",
+        message: "Polling paused after repeated failures. Check the API key and resume",
         timestamp: tracker.pausedAt ?? undefined,
         dismissible: false,
       })
@@ -129,8 +129,10 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
     }
 
     // --- Ratio danger ---
-    const registryEntry = findRegistryEntry(tracker.baseUrl)
-    const minimumRatio = registryEntry?.rules?.minimumRatio
+    // Same resolution the health tiers use: live requiredRatio first, registry
+    // minimumRatio second. Keeps the alert from contradicting the health badge.
+    const minimumRatio =
+      resolveRequiredRatio(tracker.latestStats?.requiredRatio, tracker.baseUrl) ?? undefined
     if (checkRatioBelowMinimum(tracker.latestStats?.ratio, minimumRatio)) {
       alerts.push({
         key: `ratio-danger-${tracker.id}`,
@@ -171,7 +173,7 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
         trackerId: tracker.id,
         trackerName: tracker.name,
         trackerColor: tracker.color,
-        message: "Seeding 0 torrents — no active seeds",
+        message: "Seeding 0 torrents, no active seeds",
         timestamp: tracker.lastPolledAt ?? undefined,
         dismissible: true,
       })
@@ -317,6 +319,8 @@ export interface SystemAlertData {
   failedBackups: { createdAt: string }[]
   clients: { id: number; name: string; enabled: boolean; lastError: string | null }[]
   snapshotRetentionDays: number | null
+  /** True once the first-run retention prompt was answered; null days is then a choice. */
+  retentionAnswered?: boolean
 }
 
 export function computeSystemAlerts(data: SystemAlertData): DashboardAlert[] {
@@ -365,8 +369,9 @@ export function computeSystemAlerts(data: SystemAlertData): DashboardAlert[] {
     }
   }
 
-  // Snapshot retention unconfigured
-  if (data.snapshotRetentionDays === null) {
+  // Snapshot retention unconfigured. Suppressed once the prompt was answered:
+  // a user who chose keep-forever does not need reminding of their own choice.
+  if (data.snapshotRetentionDays === null && !data.retentionAnswered) {
     alerts.push({
       key: "retention-unconfigured",
       type: "retention-unconfigured",
@@ -374,7 +379,7 @@ export function computeSystemAlerts(data: SystemAlertData): DashboardAlert[] {
       trackerName: "System",
       trackerColor: "var(--color-warn)",
       message:
-        "Snapshot retention is not configured — database and backups will grow indefinitely. Configure in Settings > Security.",
+        "Snapshot retention is not configured, so database and backups will grow indefinitely. Configure in Settings > Security.",
       dismissible: true,
     })
   }

@@ -46,7 +46,7 @@ describe("auth middleware", () => {
     expect(setCookie).toContain("HttpOnly")
     expect(setCookie.toLowerCase()).toContain("samesite=strict")
     expect(setCookie).toContain("Max-Age=1800")
-    // shouldSecureCookies() is mocked to return false — verify Secure is absent
+    // shouldSecureCookies() is mocked to return false, verify Secure is absent
     expect(setCookie).not.toContain("Secure")
   })
 

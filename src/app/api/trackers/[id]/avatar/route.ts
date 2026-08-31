@@ -19,6 +19,7 @@ import { AVATAR_FETCH_MAX_BYTES } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { fetchFollowingSafeRedirects } from "@/lib/network"
 import { buildProxyAgentFromSettings, proxyFetch } from "@/lib/tunnel"
+import { withDefaultUserAgent } from "@/lib/user-agent"
 
 const STALE_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -137,10 +138,13 @@ export async function GET(_request: Request, props: RouteContext) {
         return NextResponse.json({ error: "Proxy required but not configured" }, { status: 503 })
       }
 
+      // The direct path below gets a User-Agent from fetch() itself; through
+      // the tunnel node sends none, and a tracker behind a WAF that requires
+      // one answers 400 rather than serving the avatar.
       const result = await proxyFetch(url, agent, {
         timeoutMs: 10000,
         maxBytes: AVATAR_FETCH_MAX_BYTES,
-        headers: { Accept: "image/*" },
+        headers: withDefaultUserAgent({ Accept: "image/*" }),
       })
 
       if (!result.ok) {
@@ -193,7 +197,7 @@ export async function GET(_request: Request, props: RouteContext) {
     if (tracker.avatarData) {
       log.warn(
         { route: "GET /api/trackers/[id]/avatar", trackerId },
-        "avatar fetch failed — serving stale cache"
+        "avatar fetch failed: serving stale cache"
       )
       const data = Buffer.from(tracker.avatarData, "base64")
       return new NextResponse(new Uint8Array(data), {
@@ -205,7 +209,7 @@ export async function GET(_request: Request, props: RouteContext) {
     }
     log.error(
       { route: "GET /api/trackers/[id]/avatar", trackerId },
-      "avatar fetch failed — no cache available"
+      "avatar fetch failed: no cache available"
     )
     return NextResponse.json({ error: "Failed to fetch avatar" }, { status: 502 })
   }

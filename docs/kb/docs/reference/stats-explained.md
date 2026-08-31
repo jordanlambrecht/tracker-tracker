@@ -13,13 +13,13 @@ We save a snapshot on every poll. Here's what each stat means.
 
 ### Uploaded
 
-Total data you've contributed since signup. It only goes up. Upload is the main currency on private trackers — it drives ratio and buffer.
+Total data you've contributed since signup. It only goes up. Upload is the main currency on private trackers, and it drives ratio and buffer.
 
 ### Downloaded
 
 Total data you've received since signup. Like upload, it's a lifetime counter. Some trackers run rare "download forgiveness" events that reduce it.
 
-A large download isn't a problem — your ratio relative to it is what matters.
+A large download isn't a problem; your ratio relative to it is what matters.
 
 ---
 
@@ -31,13 +31,13 @@ Upload divided by download. Upload 400 GiB and download 200 GiB, you get 2.00.
 
 Most trackers enforce a minimum. Fall below it and you lose download access or get warned.
 
-A ratio of `∞` means you uploaded but never downloaded — i.e., you seeded your own uploads.
+A ratio of `∞` means you uploaded but never downloaded, i.e. you seeded your own uploads.
 
 ### Required Ratio
 
 The minimum ratio you must maintain. A requirement of `0.60` means you must upload at least 60% of your download.
 
-Some trackers give new members grace — no requirement for the first few GiB.
+Some trackers give new members grace, with no requirement for the first few GiB.
 
 **Availability:** Not on UNIT3D. Available on Gazelle and GGn.
 
@@ -49,8 +49,8 @@ How far below the required minimum you could fall. A bigger buffer means you can
 
 Calculation varies:
 
-- **UNIT3D** — Server-side calculation. Most accurate.
-- **Gazelle and GGn** — Upload minus download (net surplus). Doesn't account for your required ratio.
+- **UNIT3D**: server-side calculation. Most accurate.
+- **Gazelle and GGn**: upload minus download (net surplus). Doesn't account for your required ratio.
 
 A negative buffer means you're already in deficit.
 
@@ -60,9 +60,9 @@ A negative buffer means you're already in deficit.
 
 ### Seeding Count
 
-How many torrents you're currently uploading. Seeding builds upload credit. Some trackers require minimum seeding — i.e., seed each download for a set period.
+How many torrents you're currently uploading. Seeding builds upload credit. Some trackers require minimum seeding, i.e. seed each download for a set period.
 
-**Availability:** On UNIT3D. On some Gazelle forks. On GGn, it depends on your paranoia setting — high paranoia hides it from the API.
+**Availability:** On UNIT3D. On some Gazelle forks. On GGn, it depends on your paranoia setting; high paranoia hides it from the API.
 
 ### Leeching Count
 
@@ -78,9 +78,9 @@ A site currency earned by seeding. Earn rate depends on seed time, torrent size,
 
 **Platform notes:**
 
-- **UNIT3D** — Called "seedbonus" or "Bonus Points".
-- **Gazelle** — Called "Bonus Points" or "BP".
-- **GGn** — Uses a separate `gold` currency, spent in GGn's economy (achievements, buffs, store).
+- **UNIT3D**: called "seedbonus" or "Bonus Points".
+- **Gazelle**: called "Bonus Points" or "BP".
+- **GGn**: uses a separate `gold` currency, spent in GGn's economy (achievements, buffs, store).
 
 ---
 
@@ -92,9 +92,9 @@ Too many H&Rs lead to warnings or download loss.
 
 **Availability:**
 
-- **UNIT3D** — Available. Shows 0 when you have none.
-- **Gazelle** — Not available.
-- **GGn** — Available, but may be `null` if the tracker doesn't expose it.
+- **UNIT3D**: available. Shows 0 when you have none.
+- **Gazelle**: not available.
+- **GGn**: available, but may be `null` if the tracker doesn't expose it.
 
 ---
 
@@ -106,9 +106,9 @@ Whether you're under a staff warning. Warnings come from H&Rs, ratio drops, or c
 
 **Availability:**
 
-- **UNIT3D** — Not exposed via API.
-- **Gazelle** — Available on sites that support the extended user profile call. Otherwise defaults to no warning.
-- **GGn** — Available from your profile.
+- **UNIT3D**: not exposed via API.
+- **Gazelle**: available on sites that support the extended user profile call. Otherwise defaults to no warning.
+- **GGn**: available from your profile.
 
 ### Username
 
@@ -116,7 +116,7 @@ Your tracker username. Visibility depends on the "Store Tracker Usernames" setti
 
 ### Class / Rank
 
-Your member class — "Member", "Power User", "Elite", "VIP", "Donor", etc. Promotion is based on ratio, upload, seedbonus, age, and contributions.
+Your member class: "Member", "Power User", "Elite", "VIP", "Donor", etc. Promotion is based on ratio, upload, seedbonus, age, and contributions.
 
 We record what the tracker returns. No cross-tracker comparison.
 
@@ -128,9 +128,9 @@ Apply these to torrents so downloads don't count against ratio. Grab content wit
 
 **Availability:**
 
-- **UNIT3D** — Not available.
-- **Gazelle** — Available on some forks. Not all expose it.
-- **GGn** — Not available. Uses gold economy instead.
+- **UNIT3D**: not available.
+- **Gazelle**: available on some forks. Not all expose it.
+- **GGn**: not available. Uses gold economy instead.
 
 ---
 

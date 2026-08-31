@@ -3,7 +3,7 @@
 // Functions: buildProxyUrl, createProxyAgent, proxyFetch, buildProxyAgentFromSettings
 // Exports: VALID_PROXY_TYPES, PROXY_HOST_PATTERN, ProxyType, ProxyConfig, ProxyFetchResult, ProxySettings
 
-import type { Agent as HttpAgent } from "node:http"
+import type { Agent as HttpAgent, IncomingHttpHeaders } from "node:http"
 import https from "node:https"
 import { HttpsProxyAgent } from "https-proxy-agent"
 import { SocksProxyAgent } from "socks-proxy-agent"
@@ -54,7 +54,15 @@ export interface ProxyFetchResult {
   ok: boolean
   status: number
   statusText: string
+  /**
+   * Raw response headers. Present because a login POST is only useful if the
+   * caller can read the Set-Cookie it came for. Without this, an adapter that
+   * authenticates has no way to go through the proxy and must fall back to a
+   * direct fetch, which defeats the point of configuring one.
+   */
+  headers: IncomingHttpHeaders
   json: () => Promise<unknown>
+  text: () => Promise<string>
   buffer: () => Promise<Buffer>
 }
 
@@ -87,6 +95,10 @@ export function proxyFetch(
         path: parsed.pathname + parsed.search,
         method,
         agent,
+        // No default User-Agent here on purpose. This is transport; which UA
+        // to send is the caller's policy. adapterRequest sets one for the JSON
+        // APIs, the scraping adapters send the exact UA their session cookie
+        // was issued to, and TorrentLeech deliberately sends none.
         headers: {
           Accept: "application/json",
           ...(body === undefined
@@ -114,8 +126,10 @@ export function proxyFetch(
             ok: (res.statusCode ?? 0) >= 200 && (res.statusCode ?? 0) < 300,
             status: res.statusCode ?? 0,
             statusText: res.statusMessage ?? "",
+            headers: res.headers,
             // security-audit-ignore: async wrapper converts JSON.parse throw to rejected promise. Caller handles via await/catch
             json: async () => JSON.parse(raw.toString("utf8")),
+            text: () => Promise.resolve(raw.toString("utf8")),
             buffer: () => Promise.resolve(raw),
           })
         })

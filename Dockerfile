@@ -4,26 +4,22 @@
 # Base
 # ---------------------------------------------------------------------------
 FROM node:24-alpine AS base
-RUN corepack enable && corepack prepare pnpm@latest --activate
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable
 
 # ---------------------------------------------------------------------------
-# Stage 1 — Install dependencies
+# Stage 1 - Install dependencies
 # python3/make/g++ are required for argon2 (native C++ addon)
 # libc6-compat provides glibc shims some native modules expect on Alpine
 # ---------------------------------------------------------------------------
 FROM base AS deps
 RUN apk add --no-cache python3 make g++ libc6-compat
 WORKDIR /app
-# pnpm-workspace.yaml is REQUIRED here, not optional. Since pnpm 11 it holds
-# settings that package.json no longer carries: `overrides` (the esbuild
-# security pin) and `minimumReleaseAgeExclude` (without which the
-# supply-chain policy rejects recently-published packages the lockfile
-# pins, and `--frozen-lockfile` fails outright).
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 # ---------------------------------------------------------------------------
-# Stage 2 — Build the Next.js app
+# Stage 2 - Build the Next.js app
 # ---------------------------------------------------------------------------
 FROM base AS builder
 ARG NEXT_PUBLIC_RELEASE_CHANNEL=stable
@@ -38,20 +34,20 @@ ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
 RUN pnpm build
 
 # ---------------------------------------------------------------------------
-# Stage 3 — Minimal deps for drizzle-kit
+# Stage 3 -  Deps for drizzle-kit
+#
+# --prod keeps the dev toolchain out: the TypeScript native compiler it would
+# pull in is a Go binary that fails the Trivy scan, and nothing here compiles
+# TypeScript - drizzle-kit uses its own bundled esbuild. --ignore-scripts is
+# required with it, since the "prepare": "husky" script is a devDependency.
 # ---------------------------------------------------------------------------
 FROM base AS schema-deps
 WORKDIR /schema-sync
-# pnpm-workspace.yaml is REQUIRED here, not optional. Since pnpm 11 it holds
-# settings that package.json no longer carries: `overrides` (the esbuild
-# security pin) and `minimumReleaseAgeExclude` (without which the
-# supply-chain policy rejects recently-published packages the lockfile
-# pins, and `--frozen-lockfile` fails outright).
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # ---------------------------------------------------------------------------
-# Stage 4 — Production runner
+# Stage 4 - Production runner
 # ---------------------------------------------------------------------------
 FROM node:24-alpine AS runner
 RUN apk add --no-cache libc6-compat bash && apk upgrade --no-cache \
@@ -75,7 +71,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
-# --- Drizzle schema-sync (for drizzle-kit push at startup) ---
+# --- Drizzle schema-sync for drizzle-kit push at startup ---
 RUN mkdir -p /schema-sync/src/lib
 COPY --from=schema-deps /schema-sync/node_modules /schema-sync/node_modules
 COPY --from=schema-deps /schema-sync/package.json /schema-sync/
@@ -83,7 +79,7 @@ COPY --from=builder /app/drizzle.config.ts /schema-sync/
 COPY --from=builder /app/src/lib/db /schema-sync/src/lib/db
 COPY --from=builder /app/tsconfig.json /schema-sync/
 
-# --- Changelog (served via /api/changelog) ---
+# --- Changelog  ---
 COPY --from=builder /app/CHANGELOG.md ./
 
 # --- Entrypoint ---
@@ -96,26 +92,19 @@ RUN chmod +x docker-entrypoint.sh
 # standalone bundle: .dockerignore excludes scripts/ from the builder's context
 # except for this one file, so outputFileTracingIncludes could never see it.
 #
-# require("argon2") already resolves — argon2 is on Next's builtin
+# require("argon2") already resolves - argon2 is on Next's builtin
 # server-externals list, so the tracer emits /app/node_modules/argon2 for it.
 #
 # require("postgres") does NOT, and this COPY is why it does. Next bundles
 # postgres.js into the server chunks, so nothing named "postgres" exists under
-# /app/node_modules; that is the "Cannot find module 'postgres'" that broke a
-# real password recovery. Marking it external in next.config.ts does not fix it
-# either — see the comment there. So the CLI gets its own complete copy.
+# /app/node_modules; that is the "Cannot find module 'postgres'".
 #
-# COPY dereferences pnpm's symlink into a real directory, and postgres.js has
+# COPY dereferences pnpm's symlink into a directory, and postgres.js has
 # zero runtime dependencies, so this one directory is the whole package
-# including the cjs/ build that require() needs. The app server is untouched: it
-# still uses its bundled copy and never resolves this one.
+# including the cjs/ build that require() needs. The app server
+# uses its bundled copy and never resolves this one.
 COPY --from=deps /app/node_modules/postgres /app/node_modules/postgres
 COPY --chown=nextjs:nodejs scripts/recover.cjs /app/scripts/recover.cjs
-
-# A real command instead of a path to memorise. /usr/local/bin is on PATH, the
-# shim is root-owned 0755 so uid 1001 can execute it, and `docker exec` bypasses
-# the entrypoint — so `docker exec -it tracker-tracker-app tt-recover` runs the
-# CLI directly with no server side effects.
 RUN printf '#!/bin/sh\nexec node /app/scripts/recover.cjs "$@"\n' > /usr/local/bin/tt-recover \
     && chmod 0755 /usr/local/bin/tt-recover
 
@@ -126,7 +115,7 @@ RUN printf '#!/bin/sh\nexec node /app/scripts/recover.cjs "$@"\n' > /usr/local/b
 # buffer_bytes is not encrypted, so unlike tt-recover this tool loads no argon2,
 # no crypto and no SESSION_SECRET.
 #
-# It ships in the same image as the signed-buffer fix on purpose — backfilling
+# It ships in the same image as the signed-buffer fix on purpose - backfilling
 # against the old code would repair history and then let the next poll write a
 # fresh clamped zero over it. Dry run by default; --apply commits.
 COPY --chown=nextjs:nodejs scripts/backfill-buffer.cjs /app/scripts/backfill-buffer.cjs
@@ -137,6 +126,6 @@ USER nextjs
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/health || exit 1
 
 ENTRYPOINT ["./docker-entrypoint.sh"]

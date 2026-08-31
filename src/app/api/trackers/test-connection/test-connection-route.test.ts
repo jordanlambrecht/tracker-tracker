@@ -230,7 +230,7 @@ describe("POST /api/trackers/test-connection — success", () => {
 })
 
 // ---------------------------------------------------------------------------
-// Error response — sanitized actual error (change 1 of 3)
+// Error response, sanitized actual error (change 1 of 3)
 // ---------------------------------------------------------------------------
 
 describe("POST /api/trackers/test-connection — sanitized error response", () => {
@@ -324,7 +324,7 @@ describe("POST /api/trackers/test-connection — sanitized error response", () =
   })
 
   it("does not leak raw error messages or internal details to the client", async () => {
-    const rawMessage = "ECONNREFUSED 104.21.0.1:443 — secret-internal-ip"
+    const rawMessage = "ECONNREFUSED 104.21.0.1:443 - secret-internal-ip"
     mockDbSettings()
     const { getAdapter } = await import("@/lib/adapters")
     ;(getAdapter as ReturnType<typeof vi.fn>).mockReturnValueOnce({
@@ -341,7 +341,7 @@ describe("POST /api/trackers/test-connection — sanitized error response", () =
 })
 
 // ---------------------------------------------------------------------------
-// Error logging — platform, baseUrl, raw error in log (change 2 of 3)
+// Error logging, platform, baseUrl, raw error in log (change 2 of 3)
 // ---------------------------------------------------------------------------
 
 describe("POST /api/trackers/test-connection — error log enrichment", () => {
@@ -461,7 +461,7 @@ describe("POST /api/trackers/test-connection — proxy wiring", () => {
     expect(decodeKey).toHaveBeenCalled()
     expect(buildProxyAgentFromSettings).toHaveBeenCalledOnce()
     const [, calledKey] = (buildProxyAgentFromSettings as ReturnType<typeof vi.fn>).mock.calls[0]
-    // decodeKey mock returns a Buffer — verify that Buffer was passed
+    // decodeKey mock returns a Buffer, verify that Buffer was passed
     expect(Buffer.isBuffer(calledKey)).toBe(true)
   })
 
@@ -486,7 +486,7 @@ describe("POST /api/trackers/test-connection — proxy wiring", () => {
     const res = await POST(makeRequest(VALID_BODY))
     const body = await res.json()
 
-    // Should succeed — proxy is optional
+    // Should succeed, proxy is optional
     expect(res.status).toBe(200)
     expect(body.success).toBe(true)
     // buildProxyAgentFromSettings should NOT have been called when settings row is absent

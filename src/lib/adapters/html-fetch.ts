@@ -88,7 +88,7 @@ function getHtml(url: string, headers: Record<string, string>): Promise<Response
 /**
  * Every status that carries a Location, not just the two most common. A status
  * missing from this set is returned to the caller as though it were the final
- * response, which means it never reaches the same-origin check below — so
+ * response, which means it never reaches the same-origin check below, so
  * narrowing this set silently narrows that guard too.
  */
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308])

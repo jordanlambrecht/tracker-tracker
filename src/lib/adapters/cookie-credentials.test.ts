@@ -67,6 +67,59 @@ describe("parseCredentialJson", () => {
   })
 })
 
+describe("parseCredentialJson optional fields", () => {
+  const BLOB = '{"username":"bob","password":"hunter2","alt2FAToken":"tok123"}'
+
+  it("returns an optional field when present", () => {
+    const creds = parseCredentialJson(BLOB, "TorrentLeech", ["username", "password"], [
+      "alt2FAToken",
+    ])
+    expect(creds.alt2FAToken).toBe("tok123")
+  })
+
+  it("omits an absent optional field without error", () => {
+    const creds = parseCredentialJson(
+      '{"username":"bob","password":"hunter2"}',
+      "TorrentLeech",
+      ["username", "password"],
+      ["alt2FAToken"]
+    )
+    expect(creds.alt2FAToken).toBeUndefined()
+  })
+
+  it("throws when a present optional field is not a string", () => {
+    expect(() =>
+      parseCredentialJson(
+        '{"username":"bob","password":"hunter2","alt2FAToken":123}',
+        "TorrentLeech",
+        ["username", "password"],
+        ["alt2FAToken"]
+      )
+    ).toThrow("TorrentLeech credentials: alt2FAToken must be a string")
+  })
+
+  it("throws on a null optional field rather than passing it through", () => {
+    expect(() =>
+      parseCredentialJson(
+        '{"username":"bob","password":"hunter2","alt2FAToken":null}',
+        "TorrentLeech",
+        ["username", "password"],
+        ["alt2FAToken"]
+      )
+    ).toThrow("alt2FAToken must be a string")
+  })
+
+  it("does not require optional fields to be non-empty", () => {
+    const creds = parseCredentialJson(
+      '{"username":"bob","password":"hunter2","alt2FAToken":""}',
+      "TorrentLeech",
+      ["username", "password"],
+      ["alt2FAToken"]
+    )
+    expect(creds.alt2FAToken).toBe("")
+  })
+})
+
 describe("validateCookieHeader", () => {
   const opts = { example: "uid=123; pass=abc123" }
 

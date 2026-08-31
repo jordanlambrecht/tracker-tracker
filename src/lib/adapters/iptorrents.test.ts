@@ -29,7 +29,7 @@ describe("parseIptProfile", () => {
 
   it("computes bufferBytes as upload minus download", () => {
     const stats = parseIptProfile(FULL_PAGE)
-    // This fixture is a deficit account (14.5 GB up, 19.6 GB down) — the
+    // This fixture is a deficit account (14.5 GB up, 19.6 GB down), the
     // shortfall is the point of the chart, so it is not clamped to 0n.
     expect(stats.bufferBytes).toBe(-5_100_000_000n)
   })
@@ -250,7 +250,8 @@ describe("IptorrentsAdapter - redirect handling", () => {
     let callCount = 0
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input: RequestInfo | URL) => {
       callCount++
-      const reqUrl = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
+      const reqUrl =
+        typeof input === "string" ? input : input instanceof URL ? input.href : input.url
 
       if (callCount === 1) {
         expect(reqUrl).toBe("https://iptorrents.com/")

@@ -26,7 +26,13 @@ interface Row {
 
 const columns: Column<Row>[] = [
   { key: "name", header: "Name", render: (r) => r.name },
-  { key: "value", header: "Value", sortable: true, sortValue: (r) => r.value, render: (r) => r.value },
+  {
+    key: "value",
+    header: "Value",
+    sortable: true,
+    sortValue: (r) => r.value,
+    render: (r) => r.value,
+  },
 ]
 
 describe("Table sorting with non-finite sortValues", () => {

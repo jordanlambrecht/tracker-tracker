@@ -1,7 +1,7 @@
 // src/app/api/uptime/outages/route.test.ts
 //
-// The route owns the coverage POLICY — how far back and forward the evidence is
-// allowed to speak — so these tests focus on the boundaries rather than on the
+// The route owns the coverage POLICY, how far back and forward the evidence is
+// allowed to speak, so these tests focus on the boundaries rather than on the
 // interval math, which is covered exhaustively in lib/__tests__/outages.test.ts.
 
 import { NextResponse } from "next/server"

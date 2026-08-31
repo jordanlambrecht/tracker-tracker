@@ -6,7 +6,7 @@ The tracker detail page's Data & Analytics tab uses a slot-based bento grid to r
 
 ## What is the bento grid?
 
-The analytics tab combines eight fixed core stats with platform-specific slot cards. Slots decide at render time whether to show — return `null` to hide.
+The analytics tab combines eight fixed core stats with platform-specific slot cards. Slots decide at render time whether to show; return `null` to hide.
 
 The grid packs 1-tall and 2-tall cards cleanly without orphans or gaps. Instead of CSS auto-placement, the layout algorithm pre-computes `row-start`, `col-start`, and `row-span` classes per breakpoint.
 
@@ -34,12 +34,12 @@ This document focuses on **`stat-card`** slots, as they are the most common thin
 
 ## Slot sizes
 
-| `span` | CardType | Description |
-| --- | --- | --- |
-| `1` (default) | `single` | 1x1 card |
-| `2` | `double` or `triple` | 2-row tall card; algorithm may promote to `triple` (3 rows) for better layout |
+| `span`        | CardType             | Description                                                                   |
+| ------------- | -------------------- | ----------------------------------------------------------------------------- |
+| `1` (default) | `single`             | 1x1 card                                                                      |
+| `2`           | `double` or `triple` | 2-row tall card; algorithm may promote to `triple` (3 rows) for better layout |
 
-Promotion happens automatically when it reduces gaps. You only declare `span: 1` or `span: 2` — the algorithm handles `triple`.
+Promotion happens automatically when it reduces gaps. You only declare `span: 1` or `span: 2`, and the algorithm handles `triple`.
 
 ---
 
@@ -235,7 +235,7 @@ const myTrackerTokensSlot: SlotDefinition<StatCardStackedProps> = {
 
 ### 3. Register it
 
-Add the slot to `SLOT_DEFINITIONS` in `slot-registry.ts`. Array order doesn't matter — `priority` does. Lower priority = renders first.
+Add the slot to `SLOT_DEFINITIONS` in `slot-registry.ts`. Array order doesn't matter; `priority` does. Lower priority = renders first.
 
 ```ts
 export const SLOT_DEFINITIONS: AnySlotDefinition[] = [
@@ -377,6 +377,6 @@ const myBadgeSlot: SlotDefinition<SlotBadgeProps> = {
 | `src/lib/grid-layout.ts`                          | `findOptimalLayout4Col`, `findOptimalLayout3Col`, `findOptimalLayout2Col`, `getCardClasses` |
 | `src/components/tracker-detail/slot-registry.ts`  | All slot definitions + `SLOT_DEFINITIONS` array + `renderSlotElement`                       |
 | `src/components/ui/StatCard.tsx`                  | `StatCard` component (basic / stacked / ring)                                               |
-| `src/components/tracker-detail/AnalyticsTab.tsx`  | Grid renderer — calls layout algorithms, maps card IDs to elements                          |
-| `src/components/tracker-detail/CoreStatCards.tsx` | `buildCoreStatDescriptors` — the 8 fixed core stats                                         |
+| `src/components/tracker-detail/AnalyticsTab.tsx`  | Grid renderer that calls layout algorithms and maps card IDs to elements                    |
+| `src/components/tracker-detail/CoreStatCards.tsx` | `buildCoreStatDescriptors`, the 8 fixed core stats                                          |
 | `src/components/tracker-detail/SlotRenderer.tsx`  | Renders `progress` category slots above the grid                                            |

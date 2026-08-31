@@ -3,17 +3,17 @@
 // Tests for the Poll Failure Circuit Breaker feature:
 //
 // Functions covered:
-//   pollTracker           — success resets state; failures increment atomically via SQL expression; threshold triggers pause
-//   pollAllTrackers       — skips trackers with pausedAt set; polls overdue non-paused trackers
-//   POST /api/trackers/[id]/resume — clears pausedAt + lastError + lastErrorAt; resets consecutiveFailures to 0; idempotent 200 when not paused; 404 when not found
-//   post-resume behavior — clean slate after resume; full threshold required to re-pause
+//   pollTracker:                    success resets state; failures increment atomically via SQL expression; threshold triggers pause
+//   pollAllTrackers:                skips trackers with pausedAt set; polls overdue non-paused trackers
+//   POST /api/trackers/[id]/resume: clears pausedAt + lastError + lastErrorAt; resets consecutiveFailures to 0; idempotent 200 when not paused; 404 when not found
+//   post-resume behavior:           clean slate after resume; full threshold required to re-pause
 
 import { SQL } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 // ---------------------------------------------------------------------------
-// Module mocks — establish before any imports that resolve these modules
+// Module mocks, establish before any imports that resolve these modules
 // ---------------------------------------------------------------------------
 
 vi.mock("@/lib/db", () => ({
@@ -218,7 +218,7 @@ function mockFailureAdapter(message = "Connection refused") {
 }
 
 // ---------------------------------------------------------------------------
-// pollTracker — success path
+// pollTracker, success path
 // ---------------------------------------------------------------------------
 
 describe("pollTracker: success path", () => {
@@ -287,7 +287,7 @@ describe("pollTracker: success path", () => {
     mockUpdateChain()
     const insertChain = mockInsertChain()
 
-    // Call without the 7th arg — isManual must default to false
+    // Call without the 7th arg, isManual must default to false
     await pollTracker(1, MOCK_KEY, false)
 
     // The first insert call is for trackerSnapshots; check its values argument
@@ -336,7 +336,7 @@ describe("pollTracker: success path", () => {
 })
 
 // ---------------------------------------------------------------------------
-// pollTracker — failure path: atomic increment
+// pollTracker, failure path: atomic increment
 // ---------------------------------------------------------------------------
 
 describe("pollTracker: failure path — consecutiveFailures increment", () => {
@@ -356,7 +356,7 @@ describe("pollTracker: failure path — consecutiveFailures increment", () => {
 
     await pollTracker(1, MOCK_KEY, false)
 
-    // The failure update must use sql expressions for both consecutiveFailures and pausedAt —
+    // The failure update must use sql expressions for both consecutiveFailures and pausedAt,
     // not raw numbers or null. Find the set call that contains lastError.
     const failureSetCall = updateChain.set.mock.calls.find((call: unknown[]) => {
       const arg = call[0] as Record<string, unknown>
@@ -386,7 +386,7 @@ describe("pollTracker: failure path — consecutiveFailures increment", () => {
 
     await pollTracker(1, MOCK_KEY, false)
 
-    // Must be a recorded failure — the success path writes lastError: null, so
+    // Must be a recorded failure, the success path writes lastError: null, so
     // match on a string specifically rather than merely "defined".
     const failureSetCall = updateChain.set.mock.calls.find(
       (call: unknown[]) => typeof (call[0] as Record<string, unknown>).lastError === "string"
@@ -424,7 +424,7 @@ describe("pollTracker: failure path — consecutiveFailures increment", () => {
 
     await pollTracker(1, MOCK_KEY, false)
 
-    // db.update called exactly once — single atomic operation
+    // db.update called exactly once, single atomic operation
     expect(db.update).toHaveBeenCalledTimes(1)
 
     // log.warn must NOT fire because returning.pausedAt is null
@@ -447,7 +447,7 @@ describe("pollTracker: failure path — consecutiveFailures increment", () => {
 
     await pollTracker(1, MOCK_KEY, false)
 
-    // Only ONE db.update call — the atomic CASE expression handles everything
+    // Only ONE db.update call, the atomic CASE expression handles everything
     expect(db.update).toHaveBeenCalledTimes(1)
 
     // log.warn must fire because returning.pausedAt is truthy
@@ -499,7 +499,7 @@ describe("pollTracker: failure path — consecutiveFailures increment", () => {
 })
 
 // ---------------------------------------------------------------------------
-// pollTracker — POLL_FAILURE_THRESHOLD constant
+// pollTracker, POLL_FAILURE_THRESHOLD constant
 // ---------------------------------------------------------------------------
 
 describe("POLL_FAILURE_THRESHOLD", () => {
@@ -509,7 +509,7 @@ describe("POLL_FAILURE_THRESHOLD", () => {
 })
 
 // ---------------------------------------------------------------------------
-// pollAllTrackers — skip paused trackers
+// pollAllTrackers, skip paused trackers
 // ---------------------------------------------------------------------------
 
 describe("pollAllTrackers: skips paused trackers", () => {
@@ -521,7 +521,7 @@ describe("pollAllTrackers: skips paused trackers", () => {
     const pausedTracker = makeTrackerRow({
       id: 1,
       pausedAt: new Date("2026-03-15"),
-      lastPolledAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2h ago — overdue
+      lastPolledAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2h ago, overdue
       isActive: true,
     })
 
@@ -555,7 +555,7 @@ describe("pollAllTrackers: skips paused trackers", () => {
       .mockReturnValueOnce(settingsChain)
       .mockReturnValueOnce(trackersChain)
 
-    // pollTracker internals would fire db.select again — intercept and confirm it never does
+    // pollTracker internals would fire db.select again, intercept and confirm it never does
     ;(db.insert as ReturnType<typeof vi.fn>).mockReturnValue({
       values: vi.fn().mockResolvedValue(undefined),
     })
@@ -571,7 +571,7 @@ describe("pollAllTrackers: skips paused trackers", () => {
     const overdueTracker = makeTrackerRow({
       id: 2,
       pausedAt: null,
-      lastPolledAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2h ago — overdue
+      lastPolledAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2h ago, overdue
       isActive: true,
     })
 
@@ -863,7 +863,7 @@ describe("post-resume behavior: clean slate after resume", () => {
 })
 
 // ---------------------------------------------------------------------------
-// pruneOldSnapshots — excludes user-paused trackers
+// pruneOldSnapshots, excludes user-paused trackers
 // ---------------------------------------------------------------------------
 
 describe("pruneOldSnapshots: excludes snapshots for user-paused trackers", () => {
@@ -893,13 +893,13 @@ describe("pruneOldSnapshots: excludes snapshots for user-paused trackers", () =>
     // db.delete must have been called
     expect(db.delete).toHaveBeenCalled()
 
-    // The .where() on delete must have been called — carries the AND condition
+    // The .where() on delete must have been called, carries the AND condition
     expect(mockWhere).toHaveBeenCalled()
 
     // The where argument must be an AND expression (Drizzle SQL object), not a bare lt()
     const whereArg = mockWhere.mock.calls[0]?.[0]
     expect(whereArg).toBeDefined()
-    // Drizzle builds SQL objects — not primitives. Verify it is an object (the AND clause).
+    // Drizzle builds SQL objects, not primitives. Verify it is an object (the AND clause).
     expect(typeof whereArg).toBe("object")
     expect(whereArg).not.toBeNull()
   })

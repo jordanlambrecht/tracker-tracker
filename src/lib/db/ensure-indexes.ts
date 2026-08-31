@@ -42,7 +42,7 @@ export async function ensureIndexes(): Promise<void> {
     // long-range chart queries. Log and continue.
     log.warn(
       { error: errMsg(err) },
-      "Failed to create covering index on tracker_snapshots — chart queries may be slow for long ranges"
+      "Failed to create covering index on tracker_snapshots, so chart queries may be slow for long ranges"
     )
   }
 }

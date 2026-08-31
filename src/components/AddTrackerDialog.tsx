@@ -160,7 +160,7 @@ function TrackerCombobox({ presets, value, onChange }: TrackerComboboxProps) {
       {open && (
         <div
           ref={listRef}
-          className="absolute top-full left-0 right-0 mt-1 z-40 bg-elevated nm-raised-sm py-1 max-h-60 overflow-y-auto styled-scrollbar rounded-nm-md"
+          className="absolute top-full left-0 right-0 mt-1 z-40 bg-overlay nm-float-sm py-1 max-h-60 overflow-y-auto styled-scrollbar rounded-nm-md"
           role="listbox"
         >
           {filtered.length === 0 ? (
@@ -237,8 +237,10 @@ function AddTrackerDialog({
   const [avistazCookies, setAvistazCookies] = useState("")
   const [dcCookies, setDcCookies] = useState("")
   const [iptCookies, setIptCookies] = useState("")
+  const [flCookies, setFlCookies] = useState("")
   const [tlUsername, setTlUsername] = useState("")
   const [tlPassword, setTlPassword] = useState("")
+  const [tlAlt2FAToken, setTlAlt2FAToken] = useState("")
   const [qbtTag, setQbtTag] = useState("")
   const [mouseholeUrl, setMouseholeUrl] = useState("")
   const [color, setColor] = useState<string>(CHART_THEME.accent)
@@ -255,6 +257,14 @@ function AddTrackerDialog({
     setAvistazUsername("")
     setAvistazCookies("")
     setDcCookies("")
+    setIptCookies("")
+    setFlCookies("")
+    // Drive-by: the TorrentLeech fields were never cleared here, so a closed
+    // dialog kept the password in memory and re-showed it on reopen. Adding a
+    // third secret without fixing that would have made it worse.
+    setTlUsername("")
+    setTlPassword("")
+    setTlAlt2FAToken("")
     setQbtTag("")
     setMouseholeUrl("")
     setColor(CHART_THEME.accent)
@@ -284,6 +294,8 @@ function AddTrackerDialog({
     setAvistazUsername("")
     setAvistazCookies("")
     setDcCookies("")
+    setIptCookies("")
+    setFlCookies("")
   }
 
   const availablePresets = useMemo(() => {
@@ -308,7 +320,7 @@ function AddTrackerDialog({
         next.apiToken = "Browser cookies are required"
       } else if (!avistazCookies.includes("=")) {
         next.apiToken =
-          "This doesn't look like a cookie string — it should contain key=value pairs (i.e. cf_clearance=abc123; session=xyz)"
+          "This doesn't look like a cookie string. It should contain key=value pairs (i.e. cf_clearance=abc123; session=xyz)"
       } else if (
         /^(cf_clearance|[a-z]+x_session|remember_web_\w+|XSRF-TOKEN|love)$/i.test(
           avistazCookies.trim()
@@ -338,7 +350,18 @@ function AddTrackerDialog({
         next.apiToken = "Browser cookies are required"
       } else if (!trimmed.includes("=")) {
         next.apiToken =
-          "This doesn't look like a cookie string — it should contain key=value pairs (i.e. uid=123; pass=abc123)"
+          "This doesn't look like a cookie string. It should contain key=value pairs (i.e. uid=123; pass=abc123)"
+      } else if (/^(cf_clearance|uid|pass|remember_web_\w+|XSRF-TOKEN)$/i.test(trimmed)) {
+        next.apiToken =
+          'You pasted a cookie name, not the value. Copy the entire string after "Cookie:" in the request headers.'
+      }
+    } else if (selectedEntry?.platform === "filelist") {
+      const trimmed = flCookies.trim().replace(/^Cookie:\s*/i, "")
+      if (!trimmed) {
+        next.apiToken = "Browser cookies are required"
+      } else if (!trimmed.includes("=")) {
+        next.apiToken =
+          "This doesn't look like a cookie string. It should contain key=value pairs (i.e. uid=123; pass=abc123)"
       } else if (/^(cf_clearance|uid|pass|remember_web_\w+|XSRF-TOKEN)$/i.test(trimmed)) {
         next.apiToken =
           'You pasted a cookie name, not the value. Copy the entire string after "Cookie:" in the request headers.'
@@ -370,6 +393,7 @@ function AddTrackerDialog({
     const isAvistaz = selectedEntry?.platform === "avistaz"
     const isDigitalCore = selectedEntry?.platform === "digitalcore"
     const isIptorrents = selectedEntry?.platform === "iptorrents"
+    const isFilelist = selectedEntry?.platform === "filelist"
     const isTorrentleech = selectedEntry?.platform === "torrentleech"
     let effectiveApiToken = apiToken
 
@@ -383,9 +407,13 @@ function AddTrackerDialog({
       const trimmed = dcCookies.trim()
       const uidMatch = trimmed.match(/(?:^|;\s*)uid=([^;]+)/)
       const passMatch = trimmed.match(/(?:^|;\s*)pass=([^;]+)/)
+      // The cookies were copied out of this browser, so its UA is the one the
+      // session was issued to. TrackerSettingsSheet must capture it too, or a
+      // later cookie change silently drops it.
       effectiveApiToken = JSON.stringify({
         uid: uidMatch?.[1]?.trim() ?? "",
         pass: passMatch?.[1]?.trim() ?? "",
+        userAgent: navigator.userAgent,
       })
     } else if (isIptorrents) {
       // The adapter matches the User-Agent against the session that minted the
@@ -394,10 +422,21 @@ function AddTrackerDialog({
         cookies: iptCookies.trim().replace(/^Cookie:\s*/i, ""),
         userAgent: navigator.userAgent,
       })
+    } else if (isFilelist) {
+      // Same rule as IPTorrents: the session is fingerprinted against the UA
+      // that minted the cookies, so send this browser's own UA.
+      effectiveApiToken = JSON.stringify({
+        cookies: flCookies.trim().replace(/^Cookie:\s*/i, ""),
+        userAgent: navigator.userAgent,
+      })
     } else if (isTorrentleech) {
+      const alt2FAToken = tlAlt2FAToken.trim()
       effectiveApiToken = JSON.stringify({
         username: tlUsername.trim(),
         password: tlPassword,
+        // Omitted entirely for accounts without 2FA, so their stored credential
+        // blob stays exactly the shape it has always been.
+        ...(alt2FAToken ? { alt2FAToken } : {}),
       })
     }
 
@@ -421,14 +460,6 @@ function AddTrackerDialog({
       }
 
       setTestResult({ username: testData.username, group: testData.group })
-
-      if (isAvistaz && testData.capturedUserAgent) {
-        effectiveApiToken = JSON.stringify({
-          cookies: avistazCookies.trim(),
-          userAgent: testData.capturedUserAgent,
-          username: avistazUsername.trim(),
-        })
-      }
 
       const saveRes = await fetch("/api/trackers", {
         method: "POST",
@@ -458,7 +489,7 @@ function AddTrackerDialog({
       resetForm()
       onAdded(saveData.id)
     } catch {
-      setErrors({ form: "Network error — please try again" })
+      setErrors({ form: "Network error. Please try again" })
     } finally {
       setLoading(false)
     }
@@ -531,20 +562,10 @@ function AddTrackerDialog({
               placeholder="Your username on this tracker"
             />
             <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1">
-                <label
-                  htmlFor="tracker-avistaz-cookies"
-                  className="text-xs uppercase tracking-wider text-secondary font-sans font-medium"
-                >
-                  Browser Cookies
-                </label>
-                <InfoTip
-                  content="Open DevTools (F12) → Network tab → click any request → find the Cookie header → right-click it → Copy Value. Do not select the text directly, as Firefox truncates long values in the display."
-                  size="sm"
-                  docs={DOCS.ADDING_A_TRACKER}
-                />
-              </div>
               <AreaInput
+                label="Browser Cookies"
+                tooltip="Open DevTools (F12) → Network tab → click any request → find the Cookie header → right-click it → Copy Value. Do not select the text directly, as Firefox truncates long values in the display."
+                docs={DOCS.ADDING_A_TRACKER}
                 id="tracker-avistaz-cookies"
                 name="tracker-avistaz-cookies"
                 autoComplete="off"
@@ -572,20 +593,10 @@ function AddTrackerDialog({
           </div>
         ) : selectedEntry?.platform === "digitalcore" ? (
           <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-1">
-              <label
-                htmlFor="tracker-dc-cookies"
-                className="text-xs uppercase tracking-wider text-secondary font-sans font-medium"
-              >
-                Session Cookies
-              </label>
-              <InfoTip
-                content="DigitalCore uses session cookies instead of API keys. Open DevTools (F12) → Network → any request → copy the Cookie header value."
-                size="sm"
-                docs={DOCS.ADDING_A_TRACKER}
-              />
-            </div>
             <AreaInput
+              label="Session Cookies"
+              tooltip="DigitalCore uses session cookies instead of API keys. Open DevTools (F12) → Network → any request → copy the Cookie header value."
+              docs={DOCS.ADDING_A_TRACKER}
               id="tracker-dc-cookies"
               name="tracker-dc-cookies"
               autoComplete="off"
@@ -605,20 +616,10 @@ function AddTrackerDialog({
           </div>
         ) : selectedEntry?.platform === "iptorrents" ? (
           <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-1">
-              <label
-                htmlFor="tracker-ipt-cookies"
-                className="text-xs uppercase tracking-wider text-secondary font-sans font-medium"
-              >
-                Browser Cookies
-              </label>
-              <InfoTip
-                content="IPTorrents has no API, so stats are read from your logged-in session. Open DevTools (F12) → Network → any request to the site → copy the full Cookie header value."
-                size="sm"
-                docs={DOCS.ADDING_A_TRACKER}
-              />
-            </div>
             <AreaInput
+              label="Browser Cookies"
+              tooltip="IPTorrents has no API, so stats are read from your logged-in session. Open DevTools (F12) → Network → any request to the site → copy the full Cookie header value."
+              docs={DOCS.ADDING_A_TRACKER}
               id="tracker-ipt-cookies"
               name="tracker-ipt-cookies"
               autoComplete="off"
@@ -626,6 +627,29 @@ function AddTrackerDialog({
               value={iptCookies}
               onChange={(e) => setIptCookies(e.target.value)}
               placeholder="cf_clearance=...; uid=123456; pass=abc123def456..."
+              rows={3}
+            />
+            <Notice message={errors.apiToken} />
+            {testResult && (
+              <Notice variant="success">
+                Connected as <span className="font-semibold">{testResult.username}</span>
+                {testResult.group ? ` (${testResult.group})` : ""}
+              </Notice>
+            )}
+          </div>
+        ) : selectedEntry?.platform === "filelist" ? (
+          <div className="flex flex-col gap-1">
+            <AreaInput
+              label="Browser Cookies"
+              tooltip="FileList's API is torrent-search only, so stats are read from your logged-in session. Open DevTools (F12) → Network → any request to the site → copy the full Cookie header value."
+              docs={DOCS.ADDING_A_TRACKER}
+              id="tracker-fl-cookies"
+              name="tracker-fl-cookies"
+              autoComplete="off"
+              data-1p-ignore
+              value={flCookies}
+              onChange={(e) => setFlCookies(e.target.value)}
+              placeholder="uid=123456; pass=abc123def456..."
               rows={3}
             />
             <Notice message={errors.apiToken} />
@@ -650,6 +674,9 @@ function AddTrackerDialog({
             <div className="flex flex-col gap-1">
               <Input
                 label="TorrentLeech Password"
+                tooltip="TorrentLeech has no API, so stats are read by logging in on your behalf. Your password is encrypted at rest with the same key as every other tracker credential."
+                docs={DOCS.ADDING_A_TRACKER}
+                id="tracker-tl-password"
                 name="tracker-tl-password"
                 type="password"
                 autoComplete="off"
@@ -659,10 +686,20 @@ function AddTrackerDialog({
                 placeholder="Your TorrentLeech password"
                 error={errors.apiToken}
               />
-              <InfoTip
-                content="TorrentLeech has no API, so stats are read by logging in on your behalf. Your password is encrypted at rest with the same key as every other tracker credential."
-                size="sm"
+            </div>
+            <div className="flex flex-col gap-1">
+              <Input
+                label="Alt 2FA Token (optional)"
+                tooltip="Required only if your TorrentLeech account has 2FA enabled. Find it at Site Profile => Alt 2FA Token. It is a static token, not a rotating 6-digit code."
                 docs={DOCS.ADDING_A_TRACKER}
+                id="tracker-tl-alt2fa"
+                name="tracker-tl-alt2fa"
+                type="password"
+                autoComplete="off"
+                data-1p-ignore
+                value={tlAlt2FAToken}
+                onChange={(e) => setTlAlt2FAToken(e.target.value)}
+                placeholder="Only if 2FA is enabled on your account"
               />
             </div>
             {testResult && (
@@ -745,7 +782,8 @@ function AddTrackerDialog({
           !selectedEntry.gazelleEnrich &&
           selectedEntry.platform !== "ggn" &&
           selectedEntry.platform !== "avistaz" &&
-          selectedEntry.platform !== "digitalcore" && (
+          selectedEntry.platform !== "digitalcore" &&
+          selectedEntry.platform !== "filelist" && (
             <Input
               label="Join Date (optional)"
               type="date"

@@ -1,7 +1,7 @@
 // src/components/charts/__tests__/comparison-buffer-negative.test.tsx
 //
 // Buffer is signed. This chart used to pin its axis floor to zero and, on the
-// log path, drop every non-positive point — so a tracker sliding into deficit
+// log path, drop every non-positive point, so a tracker sliding into deficit
 // vanished from the fleet comparison instead of being the thing you came to
 // look at.
 
@@ -86,7 +86,7 @@ describe("ComparisonChart with a signed buffer", () => {
 
   it("offers no log toggle on the fleet buffer comparison", () => {
     // A log axis cannot represent a non-positive value, so the buffer view is
-    // rendered without enableLogScale — matching MetricChart's issue-#36 call.
+    // rendered without enableLogScale, matching MetricChart's issue-#36 call.
     optionSpy.mockClear()
     render(
       <ComparisonChart

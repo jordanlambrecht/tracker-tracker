@@ -41,7 +41,7 @@ export async function POST(_req: Request, { params }: RouteContext) {
   } catch {
     log.error(
       { route: "POST /api/notifications/[id]/test", targetId: id },
-      "notification test failed — config decrypt error"
+      "notification test failed: config decrypt error"
     )
     return NextResponse.json({ error: "Failed to decrypt notification config" }, { status: 422 })
   }

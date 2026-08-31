@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import { LARGE_TOKEN_MAX, maxTokenLengthFor, TRACKER_TOKEN_MAX } from "@/lib/limits"
 
 describe("maxTokenLengthFor", () => {
-  it.each(["avistaz", "iptorrents", "torrentleech"])(
+  it.each(["avistaz", "digitalcore", "iptorrents", "torrentleech"])(
     "gives %s the large cap for JSON credential blobs",
     (platform) => {
       expect(maxTokenLengthFor(platform)).toBe(LARGE_TOKEN_MAX)
@@ -26,7 +26,7 @@ describe("maxTokenLengthFor", () => {
   // A minimal IPTorrents blob (cf_clearance + uid + pass + UA) lands around
   // 390-480 chars, so it squeaks under the old 500 cap. Once the session also
   // carries remember_web/XSRF cookies it runs past 700. The old cap therefore
-  // failed unpredictably depending on the user's cookie set — the large cap
+  // failed unpredictably depending on the user's cookie set, the large cap
   // removes that cliff.
   const iptBlob = (cookies: string) =>
     JSON.stringify({ cookies, userAgent: `Mozilla/5.0 ${"z".repeat(120)}` })

@@ -1,4 +1,5 @@
 # .github/workflows/dev-image.yml
+
 name: Dev Image
 
 on:
@@ -11,14 +12,28 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  DOCKERHUB_IMAGE: docker.io/jordyjordy/tracker-tracker
 
 jobs:
   build:
-    name: Build & Push :development
-    runs-on: ubuntu-latest
-
+    name: Build ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v7
+      - name: Normalise platform name
+        id: plat
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: echo "pair=${PLATFORM//\//-}" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR
         uses: docker/login-action@v4
@@ -33,21 +48,85 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+      # No setup-qemu-action: each runner builds its own native architecture.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          build-args: NEXT_PUBLIC_RELEASE_CHANNEL=development
+          outputs: type=image,"name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},${{ env.DOCKERHUB_IMAGE }}",push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=dev-${{ steps.plat.outputs.pair }}
+          cache-to: type=gha,mode=max,scope=dev-${{ steps.plat.outputs.pair }}
+
+      - name: Export digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/digests
+          touch "/tmp/digests/${DIGEST#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v7
+        with:
+          name: digests-${{ steps.plat.outputs.pair }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    name: Push :development manifest
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v8
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Build and push
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          push: true
-          platforms: linux/amd64,linux/arm64
-          build-args: NEXT_PUBLIC_RELEASE_CHANNEL=development
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:development
-            docker.io/jordyjordy/tracker-tracker:development
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Create manifest lists and push
+        working-directory: /tmp/digests
+        env:
+          GHCR_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          HUB_IMAGE: ${{ env.DOCKERHUB_IMAGE }}
+        run: |
+          set -euo pipefail
+          if [ -z "$(ls -A .)" ]; then
+            echo "::error::No digests were produced by the build jobs."
+            exit 1
+          fi
+          # Each file is named after one platform's image digest. The digests
+          # are identical in both registries because a single push produced them.
+          for image in "$GHCR_IMAGE" "$HUB_IMAGE"; do
+            refs=""
+            for digest in *; do
+              refs="${refs} ${image}@sha256:${digest}"
+            done
+            echo "Creating ${image}:development from:${refs}"
+            # shellcheck disable=SC2086
+            docker buildx imagetools create -t "${image}:development" ${refs}
+          done

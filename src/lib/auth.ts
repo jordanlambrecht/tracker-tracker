@@ -93,7 +93,7 @@ export async function clearSession(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Pending token — short-lived JWE holding the encryption key during 2FA login.
+// Pending token, short-lived JWE holding the encryption key during 2FA login.
 // Returned in the response body (NOT as a cookie) so the client holds it
 // temporarily and sends it with the TOTP verification request.
 // ---------------------------------------------------------------------------
@@ -118,7 +118,7 @@ export async function verifyPendingToken(token: string): Promise<{ encryptionKey
 }
 
 // ---------------------------------------------------------------------------
-// Setup token — short-lived JWE holding the pending TOTP secret and hashed
+// Setup token, short-lived JWE holding the pending TOTP secret and hashed
 // backup codes during enrollment. The client sends this back on confirm so
 // the server can verify the TOTP code and save to DB without intermediate
 // database writes.

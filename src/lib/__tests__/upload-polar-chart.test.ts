@@ -143,7 +143,7 @@ describe("computeHourlyAverages (upload)", () => {
   })
 
   it("sorts snapshots by polledAt before computing deltas", () => {
-    // Provide snapshots in reversed order — the function must sort them first
+    // Provide snapshots in reversed order, the function must sort them first
     const snapshots = [
       makeSnapshot({ polledAt: isoAt(0, 10), uploadedBytes: String(GiB) }),
       makeSnapshot({ polledAt: isoAt(0, 8), uploadedBytes: "0" }),

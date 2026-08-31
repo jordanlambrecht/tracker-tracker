@@ -174,10 +174,55 @@ describe("parseDigitalCoreCredentials", () => {
   it("throws on a JSON null value", () => {
     expect(() => parseDigitalCoreCredentials("null")).toThrow()
   })
+
+  // -------------------------------------------------------------------------
+  // Optional userAgent
+  // -------------------------------------------------------------------------
+
+  it("parses an optional userAgent", () => {
+    const creds = parseDigitalCoreCredentials(
+      JSON.stringify({ uid: "54321", pass: "abc123xyz", userAgent: "Mozilla/5.0" })
+    )
+    expect(creds.userAgent).toBe("Mozilla/5.0")
+  })
+
+  // Blobs saved before this field existed are {uid, pass} only. If this throws,
+  // existing users stop polling on upgrade.
+  it("accepts a legacy blob with no userAgent and reports it as absent", () => {
+    const creds = parseDigitalCoreCredentials(JSON.stringify({ uid: "54321", pass: "abc123xyz" }))
+    expect(creds.uid).toBe("54321")
+    expect(creds.pass).toBe("abc123xyz")
+    expect(creds.userAgent).toBeUndefined()
+  })
+
+  // Guards against reusing `unsafeChars` (which rejects ";") for this field.
+  // Every real browser UA contains semicolons.
+  it("accepts semicolons in userAgent", () => {
+    const ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0"
+    const creds = parseDigitalCoreCredentials(
+      JSON.stringify({ uid: "54321", pass: "abc123xyz", userAgent: ua })
+    )
+    expect(creds.userAgent).toBe(ua)
+  })
+
+  it("treats a blank userAgent as absent rather than throwing", () => {
+    const creds = parseDigitalCoreCredentials(
+      JSON.stringify({ uid: "54321", pass: "abc123xyz", userAgent: "   " })
+    )
+    expect(creds.userAgent).toBeUndefined()
+  })
+
+  it("throws when userAgent is not a string", () => {
+    expect(() =>
+      parseDigitalCoreCredentials(
+        JSON.stringify({ uid: "54321", pass: "abc123xyz", userAgent: 123 })
+      )
+    ).toThrow("userAgent must be a string")
+  })
 })
 
 // ---------------------------------------------------------------------------
-// DigitalCoreAdapter.fetchStats — happy path
+// DigitalCoreAdapter.fetchStats, happy path
 // ---------------------------------------------------------------------------
 
 describe("DigitalCoreAdapter.fetchStats — core stats", () => {
@@ -384,7 +429,7 @@ describe("DigitalCoreAdapter.fetchStats — core stats", () => {
 })
 
 // ---------------------------------------------------------------------------
-// DigitalCoreAdapter.fetchStats — "yes"/"no" boolean normalization
+// DigitalCoreAdapter.fetchStats, "yes"/"no" boolean normalization
 // ---------------------------------------------------------------------------
 
 describe("DigitalCoreAdapter.fetchStats — boolean string normalization", () => {
@@ -485,7 +530,7 @@ describe("DigitalCoreAdapter.fetchStats — boolean string normalization", () =>
 })
 
 // ---------------------------------------------------------------------------
-// DigitalCoreAdapter.fetchStats — class ID mapping
+// DigitalCoreAdapter.fetchStats, class ID mapping
 // ---------------------------------------------------------------------------
 
 describe("DigitalCoreAdapter.fetchStats — class ID mapping", () => {
@@ -536,7 +581,7 @@ describe("DigitalCoreAdapter.fetchStats — class ID mapping", () => {
 })
 
 // ---------------------------------------------------------------------------
-// DigitalCoreAdapter.fetchStats — enrichment (second call)
+// DigitalCoreAdapter.fetchStats, enrichment (second call)
 // ---------------------------------------------------------------------------
 
 describe("DigitalCoreAdapter.fetchStats — enrichment", () => {
@@ -569,7 +614,7 @@ describe("DigitalCoreAdapter.fetchStats — enrichment", () => {
   })
 
   it("overrides warned with user profile value (more authoritative)", async () => {
-    // Status says not warned, profile says warned — profile wins
+    // Status says not warned, profile says warned, profile wins
     vi.spyOn(global, "fetch")
       .mockResolvedValueOnce(mockResponse(mockStatusResponse({ warned: "no" })))
       .mockResolvedValueOnce(mockResponse(mockUserProfileResponse({ warned: "yes" })))
@@ -639,7 +684,7 @@ describe("DigitalCoreAdapter.fetchStats — enrichment", () => {
 })
 
 // ---------------------------------------------------------------------------
-// DigitalCoreAdapter.fetchStats — enrichment failure fallback
+// DigitalCoreAdapter.fetchStats, enrichment failure fallback
 // ---------------------------------------------------------------------------
 
 describe("DigitalCoreAdapter.fetchStats — enrichment failure fallback", () => {
@@ -722,7 +767,7 @@ describe("DigitalCoreAdapter.fetchStats — enrichment failure fallback", () => 
 })
 
 // ---------------------------------------------------------------------------
-// DigitalCoreAdapter.fetchStats — 401 / error responses
+// DigitalCoreAdapter.fetchStats, 401 / error responses
 // ---------------------------------------------------------------------------
 
 describe("DigitalCoreAdapter.fetchStats — HTTP error handling", () => {
@@ -801,7 +846,7 @@ describe("DigitalCoreAdapter.fetchStats — HTTP error handling", () => {
 })
 
 // ---------------------------------------------------------------------------
-// parseJsonSafe — HTML/Cloudflare/invalid JSON detection
+// parseJsonSafe, HTML/Cloudflare/invalid JSON detection
 // ---------------------------------------------------------------------------
 
 describe("DigitalCoreAdapter.fetchStats — non-JSON response handling", () => {
@@ -867,7 +912,7 @@ describe("DigitalCoreAdapter.fetchStats — non-JSON response handling", () => {
 })
 
 // ---------------------------------------------------------------------------
-// DigitalCoreAdapter.fetchStats — cookie header construction
+// DigitalCoreAdapter.fetchStats, cookie header construction
 // ---------------------------------------------------------------------------
 
 describe("DigitalCoreAdapter.fetchStats — cookie header", () => {
@@ -984,7 +1029,7 @@ describe("DigitalCoreAdapter.fetchRaw", () => {
 
 // ─── Issue #167: connectable must come from the profile endpoint ──────────
 // A live account returned connectable:0 from /api/v1/status while
-// /api/v1/users/:id returned unconnectable:0 — i.e. actually connectable.
+// /api/v1/users/:id returned unconnectable:0, i.e. actually connectable.
 // The profile endpoint wins, exactly as it already does for `warned`.
 describe("DigitalCoreAdapter — connectable (issue #167)", () => {
   const adapter = new DigitalCoreAdapter()
@@ -1029,5 +1074,138 @@ describe("DigitalCoreAdapter — connectable (issue #167)", () => {
   it("keeps the status value when the profile omits the field", async () => {
     const stats = await run(undefined)
     expect((stats.platformMeta as { connectable?: boolean })?.connectable).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// DigitalCore routes through the shared adapterRequest seam. It previously
+// hand-rolled its own proxy branch, which duplicated the 401 and non-ok
+// handling verbatim and sent no User-Agent through the tunnel.
+// ---------------------------------------------------------------------------
+
+describe("DigitalCoreAdapter - proxy routing", () => {
+  const validToken = JSON.stringify({ uid: "54321", pass: "abc123xyz" })
+
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    vi.resetModules()
+  })
+
+  function proxyOk(payload: unknown) {
+    return {
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      json: async () => payload,
+      buffer: async () => Buffer.from(JSON.stringify(payload)),
+    }
+  }
+
+  it("sends the app User-Agent through the proxy and never falls back to a direct fetch", async () => {
+    const proxyFetch = vi
+      .fn()
+      .mockResolvedValueOnce(proxyOk(mockStatusResponse()))
+      .mockResolvedValueOnce(proxyOk(mockUserProfileResponse()))
+    vi.doMock("@/lib/tunnel", () => ({ proxyFetch }))
+
+    const { DigitalCoreAdapter: FreshAdapter } = await import("./digitalcore")
+    const { DEFAULT_USER_AGENT } = await import("@/lib/user-agent")
+    const fetchSpy = vi.spyOn(global, "fetch")
+
+    const stats = await new FreshAdapter().fetchStats("https://digitalcore.club", validToken, "", {
+      proxyAgent: {} as never,
+    })
+
+    expect(stats.username).toBe("dcuser")
+    expect(proxyFetch.mock.calls[0][2].headers["User-Agent"]).toBe(DEFAULT_USER_AGENT)
+    // The session cookie must still ride along with it.
+    expect(proxyFetch.mock.calls[0][2].headers.Cookie).toContain("uid=54321")
+    // A direct fetch here would leak the user's real IP past their tunnel.
+    expect(fetchSpy).not.toHaveBeenCalled()
+    vi.doUnmock("@/lib/tunnel")
+  })
+
+  it("still reports an expired session through the proxy", async () => {
+    const proxyFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      statusText: "Unauthorized",
+      json: async () => ({}),
+      buffer: async () => Buffer.from("{}"),
+    })
+    vi.doMock("@/lib/tunnel", () => ({ proxyFetch }))
+
+    const { DigitalCoreAdapter: FreshAdapter } = await import("./digitalcore")
+
+    await expect(
+      new FreshAdapter().fetchStats("https://digitalcore.club", validToken, "", {
+        proxyAgent: {} as never,
+      })
+    ).rejects.toThrow("Session expired")
+    vi.doUnmock("@/lib/tunnel")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// DigitalCore's cookies are copied out of a browser, so a stored UA should
+// reach the wire on both transports rather than the app default.
+// ---------------------------------------------------------------------------
+
+describe("DigitalCoreAdapter - stored userAgent", () => {
+  const BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0"
+  const tokenWithUa = JSON.stringify({
+    uid: "54321",
+    pass: "abc123xyz",
+    userAgent: BROWSER_UA,
+  })
+
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    vi.resetModules()
+  })
+
+  it("sends it on the direct path, alongside the session cookie", async () => {
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce(mockResponse(mockStatusResponse()))
+      .mockResolvedValueOnce(mockResponse(mockUserProfileResponse()))
+
+    await new DigitalCoreAdapter().fetchStats("https://digitalcore.club", tokenWithUa, "")
+
+    const headers = fetchSpy.mock.calls[0][1]?.headers as Record<string, string>
+    expect(headers["User-Agent"]).toBe(BROWSER_UA)
+    expect(headers.Cookie).toBe("uid=54321; pass=abc123xyz")
+  })
+
+  it("sends it through the proxy instead of the app default", async () => {
+    const proxyFetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        json: async () => mockStatusResponse(),
+        buffer: async () => Buffer.from(JSON.stringify(mockStatusResponse())),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        json: async () => mockUserProfileResponse(),
+        buffer: async () => Buffer.from(JSON.stringify(mockUserProfileResponse())),
+      })
+    vi.doMock("@/lib/tunnel", () => ({ proxyFetch }))
+
+    const { DigitalCoreAdapter: FreshAdapter } = await import("./digitalcore")
+    const { DEFAULT_USER_AGENT } = await import("@/lib/user-agent")
+
+    await new FreshAdapter().fetchStats("https://digitalcore.club", tokenWithUa, "", {
+      proxyAgent: {} as never,
+    })
+
+    const headers = proxyFetch.mock.calls[0][2].headers
+    expect(headers["User-Agent"]).toBe(BROWSER_UA)
+    expect(headers["User-Agent"]).not.toBe(DEFAULT_USER_AGENT)
+    vi.doUnmock("@/lib/tunnel")
   })
 })

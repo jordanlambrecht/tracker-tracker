@@ -118,12 +118,12 @@ describe("extractRankHistory", () => {
     const changeTime = isoAt(2)
     const snapshots = [
       makeSnapshot({ group: "User", polledAt: isoAt(0) }),
-      makeSnapshot({ group: null, polledAt: isoAt(1) }), // gap — skipped
+      makeSnapshot({ group: null, polledAt: isoAt(1) }), // gap, skipped
       makeSnapshot({ group: "Power User", polledAt: changeTime }),
     ]
 
-    // pair (0→1): curr.group is null — skipped
-    // pair (1→2): prev.group is null — skipped
+    // pair (0→1): curr.group is null, skipped
+    // pair (1→2): prev.group is null, skipped
     // So no changes are recorded (the null bridges the gap)
     expect(extractRankHistory(snapshots)).toEqual([])
   })

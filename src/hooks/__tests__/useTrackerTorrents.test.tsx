@@ -91,7 +91,10 @@ function mockFetch(options: {
 }) {
   const fetchMock = vi.fn((url: string) => {
     if (url.includes("/cached")) {
-      return Promise.resolve({ ok: true, json: () => Promise.resolve(options.cached ?? makeResponse()) })
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(options.cached ?? makeResponse()),
+      })
     }
     if (url.includes("active=true")) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(makeResponse()) })
@@ -108,10 +111,9 @@ function mockFetch(options: {
 }
 
 function renderTracker(qbtTag: string | null = null) {
-  return renderHook(
-    () => useTrackerTorrents({ trackerId: 1, qbtTag, isActive: false }),
-    { wrapper: createWrapper() }
-  )
+  return renderHook(() => useTrackerTorrents({ trackerId: 1, qbtTag, isActive: false }), {
+    wrapper: createWrapper(),
+  })
 }
 
 beforeEach(() => {
@@ -229,6 +231,33 @@ describe("useTrackerTorrents — empty live result vs populated cache", () => {
 
     expect(result.current.stale).toBe(true)
     expect(result.current.cachedAt).toBe(CACHED_AT)
+  })
+})
+
+describe("useTrackerTorrents — category stats", () => {
+  it("excludes the -1 cross-seed sentinel from the category ratio average", async () => {
+    // qBT reports -1 for a torrent that downloaded nothing. Averaging it in
+    // drags the category down; fleet-aggregation already excludes it.
+    mockFetch({
+      live: makeResponse({
+        torrents: [
+          makeTorrent("h1", { ratio: 2 }),
+          makeTorrent("h2", { ratio: -1 }),
+        ],
+      }),
+    })
+    const { result } = renderTracker("movies")
+    await waitFor(() => expect(result.current.torrents).toHaveLength(2))
+    expect(result.current.categoryStats[0]?.avgRatio).toBe(2)
+  })
+
+  it("reports 0 when every ratio in the category is the sentinel", async () => {
+    mockFetch({
+      live: makeResponse({ torrents: [makeTorrent("h1", { ratio: -1 })] }),
+    })
+    const { result } = renderTracker("movies")
+    await waitFor(() => expect(result.current.torrents).toHaveLength(1))
+    expect(result.current.categoryStats[0]?.avgRatio).toBe(0)
   })
 })
 
