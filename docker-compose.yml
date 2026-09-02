@@ -30,6 +30,8 @@ services:
       # LOG_LEVEL: ${LOG_LEVEL} # optional, defaults to 'info'
       # LOG_FILE: /data/logs/tracker-tracker.log # optional
       BASE_URL: ${BASE_URL:-} # optional, i.e https://trackertracker.example.com
+      # Origins allowed to embed the UI in an iframe, e.g. https://organizr.example.com
+      ALLOWED_FRAME_ANCESTORS: ${ALLOWED_FRAME_ANCESTORS:-}
       # SECURE_COOKIES: ${SECURE_COOKIES:-} # set to 'true' if serving over HTTPS
       # DISABLE_LOGIN_LOCKOUT: "true" # recovery switch that stops failed-login lockouts from being
       #   enforced. The in-app lockout toggle sits behind the login you cannot reach, so this is

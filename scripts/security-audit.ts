@@ -82,9 +82,12 @@ const NO_AUTH_ROUTES = new Set([
 // - getSession() from auth.ts (used by logout)
 const AUTH_PATTERNS = [/\bauthenticate\s*\(/, /\bgetSession\s*\(/, /\brequireAuth\s*\(/]
 
+// X-Frame-Options is deliberately absent: it moved to the runtime middleware so it
+// can respond to CLICKJACKING_PROTECTION, and is verified by checkFrameSecurity()
+// against src/lib/frame-security.ts instead. A substring match on next.config.ts
+// would be satisfied by a comment mentioning the header, which is not a check.
 const REQUIRED_HEADERS = [
   "X-Content-Type-Options",
-  "X-Frame-Options",
   "X-XSS-Protection",
   "X-DNS-Prefetch-Control",
   "Referrer-Policy",
@@ -464,6 +467,61 @@ function checkSecurityHeaders(): CheckResult {
   return {
     id: "security-headers",
     name: "Security headers in next.config.ts",
+    severity: "critical",
+    status: findings.length === 0 ? "pass" : "fail",
+    findings,
+  }
+}
+
+// ── Check 4b: Framing headers ───────────────────────────────────────────
+
+// Assert the *default* stays closed: DENY plus frame-ancestors 'none', which is the
+// behaviour the hardcoded header used to give. A regression here would silently open
+// framing for every deployment that has not configured an allow-list, so it is
+// checked rather than left to the unit tests alone.
+// Strip comments before matching. Without this the check is satisfied by prose that
+// merely mentions a header — which is how the old next.config.ts check behaved, and
+// is not a check at all.
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1")
+}
+
+function checkFrameSecurity(): CheckResult {
+  const findings: Finding[] = []
+  const file = path.resolve(ROOT, "src/lib/frame-security.ts")
+
+  if (!fs.existsSync(file)) {
+    findings.push({ file: "src/lib/frame-security.ts", detail: "Module not found" })
+  } else {
+    const content = stripComments(fs.readFileSync(file, "utf8"))
+    for (const needle of ["X-Frame-Options", "DENY", "frame-ancestors 'none'"]) {
+      if (!content.includes(needle)) {
+        findings.push({
+          file: "src/lib/frame-security.ts",
+          detail: `Missing framing header value: ${needle}`,
+        })
+      }
+    }
+  }
+
+  const proxyFile = path.resolve(ROOT, "src/proxy.ts")
+  if (!fs.existsSync(proxyFile)) {
+    findings.push({ file: "src/proxy.ts", detail: "Middleware not found" })
+  } else if (
+    // The import alone must not satisfy this — require an actual call site.
+    !/applyFrameSecurityHeaders\s*\(/.test(
+      stripComments(fs.readFileSync(proxyFile, "utf8")).replace(/^\s*import[\s\S]*?$/gm, "")
+    )
+  ) {
+    findings.push({
+      file: "src/proxy.ts",
+      detail: "Middleware does not apply the framing headers",
+    })
+  }
+
+  return {
+    id: "frame-security",
+    name: "Framing headers applied at runtime",
     severity: "critical",
     status: findings.length === 0 ? "pass" : "fail",
     findings,
@@ -2527,6 +2585,7 @@ function runAudit(changedFiles?: string[]): AuditOutput {
     checkDangerousFunctions(absChangedFiles),
     checkHardcodedSecrets(absChangedFiles),
     checkSecurityHeaders(),
+    checkFrameSecurity(),
     checkCookieSecurity(),
     checkSensitiveFieldExposure(),
     checkEnvFiles(),

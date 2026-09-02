@@ -170,6 +170,7 @@ pnpm dev
 | `POSTGRES_DB`       | No       | `tracker_tracker` | Database name                                       |
 | `DATABASE_URL`      | No\*     | _(auto-built)_    | Override to use an external Postgres instance       |
 | `SECURE_COOKIES`    | No       | _(auto)_          | Set `true` for HTTPS. Auto-enabled by `BASE_URL`.   |
+| `ALLOWED_FRAME_ANCESTORS` | No   | _(unset)_       | Origins allowed to embed the UI in an iframe, space- or comma-separated (e.g. `https://organizr.example.com`). Unset means no origin may frame the app. Only well-formed origins are accepted; anything else is ignored and the default deny applies. |
 | `DISABLE_LOGIN_LOCKOUT` | No   | _(unset)_         | Set `true` to stop failed-attempt lockouts being enforced, for when you have locked yourself out, because the in-app toggle sits behind the login you cannot reach. Also suppresses enforcement on the backup-restore password check. Failed attempts are still counted, and a successful login clears them. Unset it once you are back in. |
 
 \* Set either `POSTGRES_PASSWORD` (bundled DB) or `DATABASE_URL` (external DB).

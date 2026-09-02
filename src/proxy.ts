@@ -1,6 +1,7 @@
 // src/proxy.ts
 import { type NextRequest, NextResponse } from "next/server"
 import { shouldSecureCookies } from "@/lib/cookie-security"
+import { applyFrameSecurityHeaders } from "@/lib/frame-security"
 
 const PUBLIC_EXACT = ["/login", "/setup", "/api/health"]
 const PUBLIC_PREFIX = ["/api/auth/", "/api/verify-report", "/_next/", "/img/", "/favicon"]
@@ -11,17 +12,24 @@ const MAX_COOKIE_AGE = 60 * 60 * 24 * 30 // 30-day hard cap
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // Applied to every response below, including the public and unauthenticated
+  // paths — a login page is exactly the kind of page clickjacking targets.
+  const withFrameHeaders = <T extends { headers: Headers }>(response: T): T => {
+    applyFrameSecurityHeaders(response.headers)
+    return response
+  }
+
   if (PUBLIC_EXACT.includes(pathname) || PUBLIC_PREFIX.some((p) => pathname.startsWith(p))) {
-    return NextResponse.next()
+    return withFrameHeaders(NextResponse.next())
   }
 
   const session = request.cookies.get(SESSION_COOKIE)
 
   if (!session) {
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return withFrameHeaders(NextResponse.json({ error: "Unauthorized" }, { status: 401 }))
     }
-    return NextResponse.redirect(new URL("/login", request.url))
+    return withFrameHeaders(NextResponse.redirect(new URL("/login", request.url)))
   }
 
   // Sliding window: re-set both cookies with a fresh maxAge on every
@@ -49,7 +57,7 @@ export function proxy(request: NextRequest) {
     })
   }
 
-  return response
+  return withFrameHeaders(response)
 }
 
 export const config = {
