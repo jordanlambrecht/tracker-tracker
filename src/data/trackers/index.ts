@@ -30,6 +30,7 @@ export * from "./greatposterwall"
 export * from "./hawkeuno"
 export * from "./hdbits"
 export * from "./hdtorrents"
+export * from "./infinityhd"
 export * from "./iptorrents"
 export * from "./lst"
 export * from "./luminarr"
@@ -46,6 +47,7 @@ export * from "./privatehd"
 export * from "./racing4everyone"
 export * from "./redacted"
 export * from "./reelflix"
+export * from "./rockethd"
 export * from "./secretcinema"
 export * from "./seedpool"
 export * from "./skipthecommercials"
@@ -85,6 +87,7 @@ import { greatposterwall } from "./greatposterwall"
 import { hawkeuno } from "./hawkeuno"
 import { hdbits } from "./hdbits"
 import { hdtorrents } from "./hdtorrents"
+import { infinityhd } from "./infinityhd"
 import { iptorrents } from "./iptorrents"
 import { lst } from "./lst"
 import { luminarr } from "./luminarr"
@@ -101,6 +104,7 @@ import { privatehd } from "./privatehd"
 import { racing4everyone } from "./racing4everyone"
 import { redacted } from "./redacted"
 import { reelflix } from "./reelflix"
+import { rockethd } from "./rockethd"
 import { secretcinema } from "./secretcinema"
 import { seedpool } from "./seedpool"
 import { skipthecommercials } from "./skipthecommercials"
@@ -141,6 +145,7 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   hawkeuno,
   hdbits,
   hdtorrents,
+  infinityhd,
   iptorrents,
   lst,
   luminarr,
@@ -157,6 +162,7 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   racing4everyone,
   redacted,
   reelflix,
+  rockethd,
   secretcinema,
   seedpool,
   skipthecommercials,
