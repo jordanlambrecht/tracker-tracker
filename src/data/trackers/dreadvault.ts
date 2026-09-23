@@ -22,7 +22,7 @@ export const dreadvault: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#8b0000",
-  logo: "",
+  logo: "/tracker-logos/dreadvault_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",
