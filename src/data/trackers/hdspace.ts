@@ -22,7 +22,7 @@ export const hdspace: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#1e6fb8",
-  logo: "",
+  logo: "/tracker-logos/hdspace_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",
