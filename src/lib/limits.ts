@@ -70,6 +70,7 @@ const LARGE_TOKEN_PLATFORMS: ReadonlySet<string> = new Set([
   "avistaz",
   "iptorrents",
   "torrentleech",
+  "hdspace",
 ])
 
 export function maxTokenLengthFor(platform: string | null | undefined): number {

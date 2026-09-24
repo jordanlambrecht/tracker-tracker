@@ -29,6 +29,7 @@ export * from "./gazellegames"
 export * from "./greatposterwall"
 export * from "./hawkeuno"
 export * from "./hdbits"
+export * from "./hdspace"
 export * from "./hdtorrents"
 export * from "./iptorrents"
 export * from "./lst"
@@ -84,6 +85,7 @@ import { gazellegames } from "./gazellegames"
 import { greatposterwall } from "./greatposterwall"
 import { hawkeuno } from "./hawkeuno"
 import { hdbits } from "./hdbits"
+import { hdspace } from "./hdspace"
 import { hdtorrents } from "./hdtorrents"
 import { iptorrents } from "./iptorrents"
 import { lst } from "./lst"
@@ -140,6 +142,7 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   greatposterwall,
   hawkeuno,
   hdbits,
+  hdspace,
   hdtorrents,
   iptorrents,
   lst,

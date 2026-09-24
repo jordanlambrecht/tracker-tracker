@@ -77,6 +77,10 @@ export const PLATFORM_CREDENTIAL_FIELDS: Partial<
     { id: "rss_feed_url", label: "RSS feed URL", secret: false },
   ],
   torrentleech: [{ id: "session_cookie", label: "Session cookie" }, PASSKEY_FIELD],
+  hdspace: [
+    { id: "session_cookie", label: "Session cookie" },
+    { id: "pid", label: "PID (announce passkey)" },
+  ],
   // `custom` is deliberately absent. It falls through to the universal fallback,
   // which is the only honest default for a tracker we know nothing about.
 }

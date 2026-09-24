@@ -20,6 +20,7 @@ import {
 import { ColorPicker } from "@/components/ui/ColorPicker"
 
 import { findRegistryEntry } from "@/data/tracker-registry"
+import { usesBrowserCookies } from "@/lib/adapters/constants"
 import { DOCS } from "@/lib/constants"
 import { localDateStr } from "@/lib/formatters"
 import { trackerQueryOptions } from "@/lib/query-options"
@@ -170,7 +171,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
           validationErrors.apiToken = "Cookie string must contain both uid and pass values"
         }
       }
-    } else if (changingKey && tracker.platformType === "iptorrents") {
+    } else if (changingKey && usesBrowserCookies(tracker.platformType)) {
       const trimmed = editIptCookies.trim().replace(/^Cookie:\s*/i, "")
       if (!trimmed) {
         validationErrors.apiToken = "Browser cookies are required"
@@ -210,7 +211,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
         userAgent: navigator.userAgent,
         username: editAvistazUsername.trim(),
       })
-    } else if (changingKey && tracker.platformType === "iptorrents") {
+    } else if (changingKey && usesBrowserCookies(tracker.platformType)) {
       trimmedToken = JSON.stringify({
         cookies: editIptCookies.trim().replace(/^Cookie:\s*/i, ""),
         userAgent: navigator.userAgent,
@@ -436,7 +437,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
                   }}
                 />
               </div>
-            ) : changingKey && tracker.platformType === "iptorrents" ? (
+            ) : changingKey && usesBrowserCookies(tracker.platformType) ? (
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-1">
                   <label
@@ -446,7 +447,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
                     Browser Cookies
                   </label>
                   <InfoTip
-                    content="Open DevTools (F12) → Network → any request to IPTorrents → copy the full Cookie header value."
+                    content="Open DevTools (F12) → Network → any request to the site → copy the full Cookie header value (include cf_clearance)."
                     size="sm"
                     docs={DOCS.ADDING_A_TRACKER}
                   />
@@ -612,7 +613,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
             tracker.platformType === "ggn" ||
             tracker.platformType === "avistaz" ||
             tracker.platformType === "digitalcore" ||
-            tracker.platformType === "iptorrents" ||
+            usesBrowserCookies(tracker.platformType) ||
             tracker.platformType === "torrentleech"
           ) && (
             <div>

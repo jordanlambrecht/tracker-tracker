@@ -19,6 +19,7 @@ import { Tooltip } from "@/components/ui/Tooltip"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { TRACKER_REGISTRY } from "@/data/tracker-registry"
 import { useClickOutside } from "@/hooks/useClickOutside"
+import { usesBrowserCookies } from "@/lib/adapters/constants"
 import { DOCS } from "@/lib/constants"
 import { normalizeUrl } from "@/lib/data-transforms"
 import { localDateStr } from "@/lib/formatters"
@@ -332,7 +333,7 @@ function AddTrackerDialog({
             "Cookie string is missing pass value. Paste the full Cookie header from DevTools."
         }
       }
-    } else if (selectedEntry?.platform === "iptorrents") {
+    } else if (usesBrowserCookies(selectedEntry?.platform)) {
       const trimmed = iptCookies.trim().replace(/^Cookie:\s*/i, "")
       if (!trimmed) {
         next.apiToken = "Browser cookies are required"
@@ -369,7 +370,7 @@ function AddTrackerDialog({
 
     const isAvistaz = selectedEntry?.platform === "avistaz"
     const isDigitalCore = selectedEntry?.platform === "digitalcore"
-    const isIptorrents = selectedEntry?.platform === "iptorrents"
+    const isIptorrents = usesBrowserCookies(selectedEntry?.platform)
     const isTorrentleech = selectedEntry?.platform === "torrentleech"
     let effectiveApiToken = apiToken
 
@@ -603,7 +604,7 @@ function AddTrackerDialog({
               </Notice>
             )}
           </div>
-        ) : selectedEntry?.platform === "iptorrents" ? (
+        ) : usesBrowserCookies(selectedEntry?.platform) ? (
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-1">
               <label
@@ -613,7 +614,7 @@ function AddTrackerDialog({
                 Browser Cookies
               </label>
               <InfoTip
-                content="IPTorrents has no API, so stats are read from your logged-in session. Open DevTools (F12) → Network → any request to the site → copy the full Cookie header value."
+                content={`${selectedEntry?.name ?? "This tracker"} has no API, so stats are read from your logged-in session. Open DevTools (F12) → Network → any request to the site → copy the full Cookie header value (include cf_clearance).`}
                 size="sm"
                 docs={DOCS.ADDING_A_TRACKER}
               />
