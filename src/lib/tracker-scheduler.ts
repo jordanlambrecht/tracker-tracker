@@ -29,6 +29,8 @@ import { log } from "@/lib/logger"
 import { dispatchNotifications } from "@/lib/notifications/dispatch"
 import { maskUsername } from "@/lib/privacy"
 import { recordDatabaseSize } from "@/lib/server-data"
+import { decryptTrackerCredentials } from "@/lib/tracker-credentials/decrypt"
+import { findCredentialValue } from "@/lib/tracker-credentials/lookup"
 import { pruneTrackerOutages, recordTrackerPollFailure } from "@/lib/tracker-outages"
 import { buildFetchOptions, getAdapter } from "@/lib/tracker-platforms"
 import { getPauseState, resolveRequiredRatio } from "@/lib/tracker-status"
@@ -74,6 +76,7 @@ const POLL_TRACKER_COLUMNS = {
   name: trackers.name,
   isActive: trackers.isActive,
   encryptedApiToken: trackers.encryptedApiToken,
+  encryptedCredentials: trackers.encryptedCredentials,
   platformType: trackers.platformType,
   registrySlug: trackers.registrySlug,
   baseUrl: trackers.baseUrl,
@@ -114,6 +117,22 @@ async function pollUrlFor(tracker: {
 }
 
 export const POLL_FAILURE_THRESHOLD = 4
+
+function credentialUsername(
+  tracker: { name: string; encryptedCredentials: string | null },
+  encryptionKey: Buffer
+): string {
+  if (!tracker.encryptedCredentials) return ""
+  try {
+    const vault = decryptTrackerCredentials(
+      { name: tracker.name, encryptedCredentials: tracker.encryptedCredentials },
+      encryptionKey
+    )
+    return findCredentialValue(vault, "username") ?? ""
+  } catch {
+    return ""
+  }
+}
 
 /**
  * Tolerance window for the overdue check. Trackers that would become overdue
@@ -166,6 +185,7 @@ export async function fetchTrackerStats(
     remoteUserId: tracker.remoteUserId ?? undefined,
   })
   const stats = await adapter.fetchStats(baseUrl, apiToken, tracker.apiPath, fetchOptions)
+  if (!stats.username) stats.username = credentialUsername(tracker, encryptionKey)
 
   // Write metadata side effects
   const metaUpdates: Partial<TrackerRow> = {}
@@ -232,6 +252,7 @@ export async function pollTracker(
       remoteUserId: tracker.remoteUserId ?? undefined,
     })
     const stats = await adapter.fetchStats(baseUrl, apiToken, tracker.apiPath, fetchOptions)
+    if (!stats.username) stats.username = credentialUsername(tracker, encryptionKey)
 
     // Snapshot the previous platformMeta before writing the current poll's metadata to DB.
     // dispatchNotifications uses this for change detection (i.e. canDownload transition).
