@@ -47,6 +47,7 @@ export * from "./racing4everyone"
 export * from "./redacted"
 export * from "./reelflix"
 export * from "./secretcinema"
+export * from "./seedcore"
 export * from "./seedpool"
 export * from "./skipthecommercials"
 export * from "./sportscult"
@@ -102,6 +103,7 @@ import { racing4everyone } from "./racing4everyone"
 import { redacted } from "./redacted"
 import { reelflix } from "./reelflix"
 import { secretcinema } from "./secretcinema"
+import { seedcore } from "./seedcore"
 import { seedpool } from "./seedpool"
 import { skipthecommercials } from "./skipthecommercials"
 import { sportscult } from "./sportscult"
@@ -158,6 +160,7 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   redacted,
   reelflix,
   secretcinema,
+  seedcore,
   seedpool,
   skipthecommercials,
   sportscult,
