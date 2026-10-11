@@ -46,7 +46,7 @@ export const c411: TrackerRegistryEntry = {
   warningNote: "",
 
   // ── Flags ───────────────────────────────────────────────────────────
-  draft: true,
+  draft: false,
   supportsTransitPapers: false,
   profileUrlPattern: "",
 }
