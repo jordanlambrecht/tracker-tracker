@@ -1,5 +1,6 @@
 // src/hooks/useUpdateCheck.ts
 import { useQuery } from "@tanstack/react-query"
+import { compareVersions } from "@/lib/version"
 
 const GITHUB_REPO = "jordanlambrecht/tracker-tracker"
 
@@ -7,20 +8,6 @@ interface UpdateCheckResult {
   latestVersion: string | null
   updateAvailable: boolean
   loading: boolean
-}
-
-// Compares two semver strings
-export function compareVersions(current: string, latest: string): number {
-  // Strip v prefix and pre-release/build metadata (i.e, "1.3.0-beta.1+build" → "1.3.0")
-  const clean = (s: string) => s.replace(/^v/, "").split(/[-+]/)[0]
-  const a = clean(current).split(".").map(Number)
-  const b = clean(latest).split(".").map(Number)
-
-  for (let i = 0; i < Math.max(a.length, b.length); i++) {
-    const diff = (b[i] ?? 0) - (a[i] ?? 0)
-    if (diff !== 0) return diff
-  }
-  return 0
 }
 
 async function fetchLatestVersion(): Promise<string | null> {

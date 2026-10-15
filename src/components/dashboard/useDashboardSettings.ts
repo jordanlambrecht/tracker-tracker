@@ -20,7 +20,7 @@ export const DASHBOARD_SETTINGS_CHANGED_EVENT = "tracker-tracker:dashboard-setti
 
 function useDashboardSettings() {
   const [settings, setSettings] = useState<DashboardSettings>(DEFAULTS)
-  // Callers that must not act on a default before the real value arrives (e.g. mounting a
+  // Callers that must not act on a default before the real value arrives (mounting a
   // WebGL chart for someone who turned WebGL off) gate on this instead of reading `settings`
   // straight away. It flips only once server-confirmed settings have been applied, never on
   // a failed fetch, where `settings` is still DEFAULTS and acting on them would do the exact
@@ -37,7 +37,7 @@ function useDashboardSettings() {
         const data = (await res.json()) as DashboardSettings
         if (cancelled) return
 
-        // One-time migration: if DB has defaults and localStorage has data, migrate
+        // One-time migration of the legacy localStorage blob.
         const legacy = localStorage.getItem(STORAGE_KEYS.DASHBOARD_SETTINGS)
         if (legacy) {
           try {
@@ -52,10 +52,9 @@ function useDashboardSettings() {
             // never had must keep what the server holds. Same reason the non-migration
             // path below spreads `data`.
             const parsed = { ...DEFAULTS, ...data, ...legacyValues }
-            // Send ONLY the keys the blob actually carried. PUTting the whole object
-            // writes a default over every key the user never set in localStorage,
-            // the same whole-object-write shape this file's normal save path was
-            // already changed away from. The route ignores unknown/mistyped keys.
+            // Send only the keys the blob carried. PUTting the whole object writes a
+            // default over every key the user never set in localStorage. The route
+            // ignores unknown or mistyped keys.
             fetch("/api/settings/dashboard", {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
@@ -109,10 +108,9 @@ function useDashboardSettings() {
         // even under rapid sequential calls (prev is always the latest queued state).
         // PUT is idempotent, so duplicate calls in StrictMode are harmless.
         //
-        // Send ONLY the changed key. Sending the whole object meant that toggling
-        // before the initial GET resolved wrote DEFAULTS over every other stored
-        // setting, silently reverting them. The route merges the keys it receives
-        // onto the stored row, so a single-key body cannot touch the rest.
+        // Send only the changed key. A whole-object PUT made before the initial GET
+        // resolves writes DEFAULTS over every other stored setting. The route
+        // merges the keys it receives onto the stored row.
         fetch("/api/settings/dashboard", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -133,7 +131,7 @@ function useDashboardSettings() {
         return next
       })
 
-      // Dispatched OUTSIDE the state updater on purpose: React may invoke an
+      // Dispatched outside the state updater on purpose: React may invoke an
       // updater twice in StrictMode, and a DOM event is a side effect. The
       // listener above merges, so a duplicate would be harmless anyway, but
       // the value is already known here without reading `prev`.

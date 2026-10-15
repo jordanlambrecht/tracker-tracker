@@ -13,7 +13,7 @@ import { NextResponse } from "next/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 // ---------------------------------------------------------------------------
-// Module mocks, establish before any imports that resolve these modules
+// Module mocks
 // ---------------------------------------------------------------------------
 
 vi.mock("@/lib/db", () => ({
@@ -26,7 +26,7 @@ vi.mock("@/lib/db", () => ({
   },
 }))
 
-vi.mock("@/lib/adapters", () => ({
+vi.mock("@/lib/tracker-platforms", () => ({
   getAdapter: vi.fn(),
   buildFetchOptions: vi.fn().mockReturnValue({}),
 }))
@@ -74,7 +74,7 @@ vi.mock("@/lib/download-client-scheduler", () => ({
 }))
 
 vi.mock("@/data/tracker-registry", () => ({
-  findRegistryEntry: vi.fn().mockReturnValue(undefined),
+  registryEntryFor: vi.fn(() => undefined),
 }))
 
 vi.mock("node-cron", () => ({
@@ -101,10 +101,10 @@ vi.mock("@/lib/notifications/dispatch", () => ({
 // ---------------------------------------------------------------------------
 
 import { POST as ResumePost } from "@/app/api/trackers/[id]/resume/route"
-import { getAdapter } from "@/lib/adapters"
 import { authenticate, parseTrackerId } from "@/lib/api-helpers"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
+import { getAdapter } from "@/lib/tracker-platforms"
 import {
   fetchTrackerStats,
   POLL_FAILURE_THRESHOLD,
@@ -427,7 +427,7 @@ describe("pollTracker: failure path — consecutiveFailures increment", () => {
     // db.update called exactly once, single atomic operation
     expect(db.update).toHaveBeenCalledTimes(1)
 
-    // log.warn must NOT fire because returning.pausedAt is null
+    // log.warn must not fire because returning.pausedAt is null
     const { log } = await import("@/lib/logger")
     expect(log.warn).not.toHaveBeenCalledWith(
       expect.objectContaining({}),
@@ -447,7 +447,7 @@ describe("pollTracker: failure path — consecutiveFailures increment", () => {
 
     await pollTracker(1, MOCK_KEY, false)
 
-    // Only ONE db.update call, the atomic CASE expression handles everything
+    // Only one db.update call, the atomic CASE expression handles everything
     expect(db.update).toHaveBeenCalledTimes(1)
 
     // log.warn must fire because returning.pausedAt is truthy
@@ -826,7 +826,7 @@ describe("post-resume behavior: clean slate after resume", () => {
 
     expect(db.update).toHaveBeenCalledTimes(1)
 
-    // log.warn should NOT fire (no auto-pause, just a failure increment)
+    // log.warn should not fire (no auto-pause, just a failure increment)
     const { log } = await import("@/lib/logger")
     expect(log.warn).not.toHaveBeenCalledWith(
       expect.objectContaining({}),

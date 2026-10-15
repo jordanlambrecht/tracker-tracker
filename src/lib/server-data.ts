@@ -52,10 +52,8 @@ import type { Snapshot, TagGroup, TagGroupChartType, TrackerSummary } from "@/ty
  * Explicit column projection for appSettings. Uses allowlisted columns only.
  * Encrypted/sensitive fields are structurally excluded at the query level.
  *
- * Note: `hasProxyPassword` and `hasBackupPassword` select the encrypted column
- * references so the serializer can coerce them to booleans. The raw ciphertext
- * is never returned to clients and serializeSettingsResponse() converts these to
- * `!!value` before the data leaves the server.
+ * The has* entries select encrypted columns so serializeSettingsResponse() can
+ * reduce them to booleans before anything leaves the server.
  */
 export const settingsColumns = {
   storeUsernames: appSettings.storeUsernames,
@@ -260,6 +258,7 @@ export const trackerColumns = {
   baseUrl: trackers.baseUrl,
   apiPath: trackers.apiPath,
   platformType: trackers.platformType,
+  registrySlug: trackers.registrySlug,
   isActive: trackers.isActive,
   lastPolledAt: trackers.lastPolledAt,
   lastError: trackers.lastError,
@@ -300,7 +299,7 @@ export async function getTrackerListForDashboard(): Promise<TrackerSummary[]> {
 
   // Enforce masking at response time
   // Fallback true = "store usernames" = no masking. Matches createPrivacyMask()
-  // behavior when no settings row exists. Do NOT change to false.
+  // behavior when no settings row exists. Do not change to false.
   const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
 
   const snapshotByTracker = new Map(latestSnapshots.map((s) => [s.trackerId, s]))
@@ -337,8 +336,7 @@ export async function getTrackerForClient(id: number): Promise<TrackerSummary | 
   if (!tracker) return null
 
   // Fallback true = "store usernames" = no masking. Matches createPrivacyMask()
-  // behavior when no settings row exists. Do NOT change to false.
-  // Why? Because I said so.
+  // behavior when no settings row exists. Do not change to false.
   const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
 
   // security-audit-ignore: serializeTrackerResponse omits encryptedApiToken by design
@@ -378,13 +376,8 @@ export function getSnapshotBucket(days: number): "hour" | "day" | null {
 /**
  * How many days of snapshots actually exist, for sizing the "All" bucket.
  *
- * getSnapshotBucket is deliberately pure and answers for a REQUESTED range. It
- * maps 0 to "day", the only sensible answer without knowing what is stored.
- * Passing 0 made All coarser than any bounded range: an install holding a few
- * hours of snapshots collapsed to one point per tracker, which fires every "need
- * at least 2 days of data" empty state. Measuring the real span first and asking
- * for THAT range keeps the function pure and gives a young install raw points
- * and a mature one day buckets.
+ * getSnapshotBucket maps 0 to "day", which would collapse a young install to
+ * one point per tracker, so the "All" range passes the stored span instead.
  *
  * Returns 1 when nothing is stored, so callers still get a valid bucket.
  */
@@ -487,7 +480,7 @@ function serializeSnapshot(
 }
 
 /**
- * Fetches bucketed snapshots for ALL trackers in a single query.
+ * Fetches bucketed snapshots for all trackers in a single query.
  * Same bucketing logic as getSnapshotsForTracker but partitioned by tracker_id.
  * Eliminates N+1 queries from the dashboard.
  */

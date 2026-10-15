@@ -5,12 +5,7 @@ import { MarqueeText } from "@/components/ui/MarqueeText"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
 import type { TorrentRaw } from "@/lib/fleet"
-import {
-  formatBytesNum,
-  formatPercent,
-  formatSpeed,
-  splitValueUnit,
-} from "@/lib/formatters"
+import { formatBytesNum, formatPercent, formatSpeed, splitValueUnit } from "@/lib/formatters"
 import { formatTorrentRatio } from "@/lib/torrent-utils"
 
 interface ActiveTransfersTableProps {

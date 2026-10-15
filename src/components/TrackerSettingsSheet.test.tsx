@@ -9,10 +9,10 @@
 //
 // 2. Every write in this sheet mutates a row that lives in the shared ["trackers"] query cache,
 //    which the sidebar and the dashboard render from. That cache is not remounted by navigating
-//    home, and its only automatic repair is a poll interval measured in tens of minutes. The
-//    archive path used to leave it completely untouched, so an archived tracker kept rendering
-//    as active. These tests assert the write-through + invalidation, and that a failed archive
-//    says so instead of silently doing nothing.
+//    home, and its only automatic repair is a poll interval measured in tens of minutes. An
+//    archive that skips the cache leaves the tracker rendering as active. These tests assert the
+//    write-through + invalidation, and that a failed archive says so instead of silently doing
+//    nothing.
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, waitFor } from "@testing-library/react"
@@ -33,6 +33,7 @@ const TRACKER: TrackerSummary = {
   id: 42,
   name: "Aither",
   baseUrl: "https://aither.cc",
+  registrySlug: null,
   platformType: "unit3d",
   isActive: true,
   lastPolledAt: null,
@@ -255,7 +256,14 @@ describe("TrackerSettingsSheet digitalcore credentials", () => {
     ...TRACKER,
     platformType: "digitalcore",
     baseUrl: "https://digitalcore.club",
+    registrySlug: null,
   }
+
+  it("labels the credential section Credentials rather than API Key", () => {
+    renderSheet({ tracker: DC_TRACKER })
+    expect(screen.getByText("Credentials")).toBeInTheDocument()
+    expect(screen.queryByText("API Key")).not.toBeInTheDocument()
+  })
 
   it("persists the browser User-Agent when the cookies are changed", async () => {
     const user = userEvent.setup()
@@ -281,6 +289,7 @@ describe("TrackerSettingsSheet torrentleech credentials", () => {
     ...TRACKER,
     platformType: "torrentleech",
     baseUrl: "https://www.torrentleech.org",
+    registrySlug: null,
   }
 
   it("includes the Alt 2FA Token in the blob only when one is entered", async () => {
@@ -315,8 +324,8 @@ describe("TrackerSettingsSheet torrentleech credentials", () => {
   })
 
   it("wipes the typed secrets when the sheet is cancelled", async () => {
-    // Closing kept the password and token in component state and re-showed
-    // both on the next Change click.
+    // Closing must clear the password and token, or the next Change click shows
+    // them again.
     const user = userEvent.setup()
     renderSheet({ tracker: TL_TRACKER })
 
@@ -328,5 +337,39 @@ describe("TrackerSettingsSheet torrentleech credentials", () => {
     await user.click(screen.getByRole("button", { name: "Change" }))
     expect(screen.getByLabelText("Password")).toHaveValue("")
     expect(screen.getByLabelText("Alt 2FA Token (optional)")).toHaveValue("")
+  })
+})
+
+describe("TrackerSettingsSheet registry data", () => {
+  // The row names its registry entry by slug. A stored URL that happens to
+  // match an entry is a poll address, not a key.
+  const loginHint = () => screen.queryByText(/no login-interval policy/i)
+
+  it("reads the login policy from the slug, not the stored URL", () => {
+    renderSheet({
+      tracker: { ...TRACKER, registrySlug: "aither", baseUrl: "https://moved-since.test" },
+    })
+    expect(loginHint()).toBeNull()
+  })
+
+  it("offers no registry rules to a row with no slug", () => {
+    renderSheet({ tracker: { ...TRACKER, registrySlug: null, baseUrl: "https://aither.cc" } })
+    expect(loginHint()).toBeInTheDocument()
+  })
+})
+
+describe("TrackerSettingsSheet base URL", () => {
+  // The URL is registry data copied in when the tracker was added, so the sheet
+  // neither shows a field for it nor sends one; the row keeps what the registry gave it.
+  it("offers no field for the tracker URL and sends none on save", async () => {
+    const user = userEvent.setup()
+    renderSheet()
+
+    expect(screen.queryByLabelText("Base URL")).toBeNull()
+    await user.click(screen.getByRole("button", { name: "Save Changes" }))
+
+    const [saveCall] = trackerRequests()
+    expect(saveCall[1].method).toBe("PATCH")
+    expect(JSON.parse(saveCall[1].body)).not.toHaveProperty("baseUrl")
   })
 })

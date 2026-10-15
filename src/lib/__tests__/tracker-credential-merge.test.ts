@@ -1,6 +1,6 @@
 // src/lib/__tests__/tracker-credential-merge.test.ts
 //
-// Unit coverage for the merge that lets a MASKED sheet write a WHOLE vault.
+// Unit coverage for the merge that lets a masked sheet write a whole vault.
 //
 // The route tests cover the same ground end-to-end through real crypto; these
 // pin the semantics directly, so a regression names the rule it broke instead of
@@ -17,7 +17,7 @@ const STORED: TrackerCredentialVault = {
       id: "irc",
       title: "IRC",
       fields: [
-        { id: "irc_nick", label: "Nick", value: "jordy", secret: false },
+        { id: "irc_nick", label: "Nick", value: "tealotter", secret: false },
         { id: "irc_nickserv", label: "NickServ password", value: "hunter2" },
       ],
     },

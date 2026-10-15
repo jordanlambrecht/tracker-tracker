@@ -132,5 +132,27 @@ export function isNotificationConfig(value: unknown): value is NotificationConfi
   return false
 }
 
+/**
+ * Every boolean notify column on notification_targets. The PATCH route writes
+ * only the keys listed here, so a column missing from this list is accepted
+ * and silently dropped. notification-toggle-keys.test.ts pins it to the schema.
+ */
+export const NOTIFY_TOGGLE_KEYS = [
+  "notifyRatioDrop",
+  "notifyHitAndRun",
+  "notifyTrackerDown",
+  "notifyBufferMilestone",
+  "notifyWarned",
+  "notifyRatioDanger",
+  "notifyZeroSeeding",
+  "notifyRankChange",
+  "notifyAnniversary",
+  "notifyBonusCap",
+  "notifyVipExpiring",
+  "notifyUnsatisfiedLimit",
+  "notifyActiveHnrs",
+  "notifyDownloadDisabled",
+] as const
+
 // Discord webhook URL pattern
 export const DISCORD_WEBHOOK_RE = /^https:\/\/discord\.com\/api\/webhooks\/\d+\/[\w-]+$/

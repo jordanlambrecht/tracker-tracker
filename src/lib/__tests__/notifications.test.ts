@@ -174,7 +174,7 @@ describe("buildDiscordEmbed", () => {
   })
 })
 
-// ─── Part 1: detectEvents, new event types ───────────────────────────────────
+// ─── Part 1: detectEvents event types ────────────────────────────────────────
 
 describe("detectEvents new event types", () => {
   afterEach(() => {
@@ -321,7 +321,7 @@ describe("detectEvents notify flag gating", () => {
   })
 })
 
-// ─── Part 3: buildDiscordEmbed, new event types ──────────────────────────────
+// ─── Part 3: buildDiscordEmbed event types ───────────────────────────────────
 
 describe("buildDiscordEmbed new event types", () => {
   it("produces correct embed for warned event", async () => {
@@ -432,7 +432,7 @@ describe("buildEventData", () => {
   })
 
   it("tracker_down with a real error string passes it through unchanged", async () => {
-    // Catches: the ?? operator accidentally overriding truthy values.
+    // Catches: the fallback replacing a real error string.
     const { buildEventData } = await import("@/lib/notifications/dispatch")
     const ctx = makeContext({ trackerError: "Connection refused" })
     const data = buildEventData("tracker_down", ctx)
@@ -440,8 +440,7 @@ describe("buildEventData", () => {
   })
 
   it("buffer_milestone converts bigint to Number without precision loss for 10 GiB", async () => {
-    // Catches: BigInt coercion bugs. Number(10737418240n) must equal the integer
-    // 10737418240, not be truncated, NaN, or wrapped in an object.
+    // Catches: the buffer reaching payload.ts as a bigint instead of a plain number.
     const { buildEventData } = await import("@/lib/notifications/dispatch")
     const ctx = makeContext({ currentBufferBytes: 10737418240n })
     const data = buildEventData("buffer_milestone", ctx)
@@ -476,14 +475,14 @@ describe("buildEventData", () => {
   })
 
   it("rank_change maps currentGroup to newGroup field name in the output", async () => {
-    // Catches: field name typos (e.g. "currentGroup" vs "newGroup") that would
+    // Catches: field name typos ("currentGroup" vs "newGroup") that would
     // cause payload.ts to receive undefined and fall into the wrong description branch.
     const { buildEventData } = await import("@/lib/notifications/dispatch")
     const ctx = makeContext({ currentGroup: "Elite", previousGroup: "Power User" })
     const data = buildEventData("rank_change", ctx)
     expect(data).toHaveProperty("newGroup", "Elite")
     expect(data).toHaveProperty("previousGroup", "Power User")
-    // Confirm the field is NOT stored under the context's own name
+    // Confirm the field is not stored under the context's own name
     expect(data).not.toHaveProperty("currentGroup")
   })
 
@@ -497,7 +496,7 @@ describe("buildEventData", () => {
   })
 })
 
-// ─── Part 5: validateNotificationConfig, uncovered edge cases ────────────────
+// ─── Part 5: validateNotificationConfig edge cases ───────────────────────────
 
 describe("validateNotificationConfig edge cases", () => {
   it("rejects Discord config with empty string webhookUrl", async () => {
@@ -555,7 +554,7 @@ describe("buildDescription fallback branches", () => {
     expect(embed.description).toContain("Elite")
     expect(embed.description).not.toContain("undefined")
     expect(embed.description).not.toContain("from")
-    // The generic fallback must NOT fire when newGroup is present
+    // The generic fallback must not fire when newGroup is present
     expect(embed.description).not.toBe("MyTracker rank has changed")
   })
 
@@ -594,7 +593,7 @@ describe("buildDescription fallback branches", () => {
   it("anniversary with undefined label falls back to membership anniversary text", async () => {
     // Catches: the `label ? ... : ...` ternary in buildDescription. When
     // buildEventData passes "Anniversary" (the fallback string from dispatch.ts),
-    // this branch should NOT fire, but it must work correctly when data arrives
+    // this branch should not fire, but it must work correctly when data arrives
     // without a label key at all.
     const { buildDiscordEmbed } = await import("@/lib/notifications/payload")
     const embed = buildDiscordEmbed({

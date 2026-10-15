@@ -15,7 +15,7 @@ import {
   PulseDot,
   RedactedText,
 } from "@/components/ui"
-import { findRegistryEntry, type TrackerRegistryEntry } from "@/data/tracker-registry"
+import { registryEntryFor, type TrackerRegistryEntry } from "@/data/tracker-registry"
 import { ALL_TRACKERS } from "@/data/trackers"
 import { useClickOutside } from "@/hooks/useClickOutside"
 import { formatAccountAge, formatJoinedDate, formatRatioDisplay } from "@/lib/formatters"
@@ -74,15 +74,13 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
     selectedDrafts.includes(t.slug)
   )
 
-  // Resolve each tracker's registry entry once. The cards need the whole entry
-  // now (defunct status and categories). Since findRegistryEntry scans per call,
-  // doing it here is a single pass instead of once for filtering and once for
-  // rendering.
+  // Resolve each tracker's registry entry once. The cards need defunct status
+  // and categories, and the lookup scans the registry on every call.
   const { trackerEntries, allCategories } = useMemo(() => {
     const entryMap = new Map<number, TrackerRegistryEntry | undefined>()
     const catSet = new Set<string>()
     for (const t of trackers) {
-      const entry = findRegistryEntry(t.baseUrl)
+      const entry = registryEntryFor(t)
       entryMap.set(t.id, entry)
       for (const c of entry?.contentCategories ?? []) catSet.add(c)
     }
@@ -126,7 +124,6 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Filters: only when > 6 trackers */}
       {showFilters && (
         <div className="flex flex-col gap-2">
           {/* Mobile toggle */}

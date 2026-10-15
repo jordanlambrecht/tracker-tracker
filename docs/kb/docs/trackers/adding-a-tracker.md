@@ -78,16 +78,18 @@ Click the **+** button next to "Trackers" in the sidebar, or go to `/trackers/ne
 | ----------- | ------------ |
 | DigitalCore | DC           |
 
+=== "RetroToon"
+
+| Name            | Abbreviation |
+| --------------- | ------------ |
+| RetroToon World | RTW          |
+
 !!! note "Draft entries"
     Some trackers show a dashed border saying "Stats tracking not yet supported." You can pin them as quicklinks, but they won't poll yet.
 
 Added trackers hide from the list automatically.
 
 ## Required fields
-
-### Base URL
-
-The tracker's full HTTPS address.
 
 ### API token
 
@@ -184,6 +186,29 @@ Location varies by platform:
     !!! warning "Re-entering credentials"
         Changing the stored credentials later replaces all of them at once. A 2FA account needs the token typed again alongside the username and password.
 
+=== "RetroToon World"
+
+    RetroToon's API key is upload-only, so Tracker Tracker reads your stats from your logged-in session instead.
+
+    1. Open [retrotoon.world](https://retrotoon.world) in your browser and log in
+    2. Open DevTools (F12 or Cmd+Option+I)
+    3. Go to the **Network** tab
+    4. Refresh the page
+    5. Click any request to `retrotoon.world`
+    6. Find the `Cookie` header in **Request Headers**
+    7. **Right-click** the Cookie header and select **Copy Value**
+
+    Paste it into the Add Tracker dialog. The User-Agent gets captured automatically, so add or update RetroToon from the same browser you are logged in with.
+
+    !!! info "The `rt_` API key will not work here"
+        **Settings → API Keys** issues keys for `/api/upload.php` only, for pushing torrents from batch tools. No RetroToon endpoint returns user stats, and the key does not authenticate ordinary pages. The Torznab passkey on the Prowlarr page is search-only. Cookies are the only way in.
+
+    !!! warning "Cookie expiration"
+        Session cookies expire when you log out or after a long idle period. When polling fails with "Session expired," log back in and re-copy the cookie string.
+
+    !!! danger "Do not select and copy the Cookie value directly"
+        Firefox (and some Chromium browsers) truncate long header values in the display, replacing the end with `…`. Copying the selection gets the truncated version with the ellipsis embedded, which fails with a "Tracker test failed" error. Always use **right-click → Copy Value**.
+
 !!! warning "Keep your token private"
     Your API token works like a password. Tracker Tracker encrypts it before storing it.
 
@@ -208,19 +233,19 @@ Manual polls don't interfere with the global schedule (default: every 60 minutes
 
 Different platforms expose different stats. Here's what you'll get:
 
-| Stat             | UNIT3D | Gazelle | GGn     | AvistaZ | DigitalCore | Notes                                                                        |
-| ---------------- | ------ | ------- | ------- | ------- | ----------- | ---------------------------------------------------------------------------- |
-| Upload           | Yes    | Yes     | Yes     | Yes     | Yes         |                                                                              |
-| Download         | Yes    | Yes     | Yes     | Yes     | Yes         |                                                                              |
-| Ratio            | Yes    | Yes     | Yes     | Yes     | Yes         | GGn shows extra decimal precision                                            |
-| Buffer           | Yes    | Yes     | Yes     | Yes     | Yes         | UNIT3D returns this directly; others calculate it from upload minus download |
-| Seeding count    | Yes    | Partial | Partial | Yes     | Yes         | Some Gazelle forks and GGn may return 0 even when you're seeding             |
-| Leeching count   | Yes    | Partial | Partial | Yes     | Yes         | Same as above                                                                |
-| Bonus points     | Yes    | Yes     | Yes     | Yes     | Yes         | GGn calls this "gold," DigitalCore calls it "bonuspoang"                     |
-| Hit & Runs       | Yes    | No      | Partial | Yes     | Yes         | GGn shows unknown for Elite Gamer+ (HNR immunity)                            |
-| Required ratio   | No     | Yes     | Yes     | No      | No          | Not in the UNIT3D or DigitalCore API                                         |
-| Warned status    | No     | Partial | Yes     | No      | Yes         | Most Gazelle trackers default to false; RED has extended data                |
-| Freeleech tokens | No     | Partial | No      | No      | No          | Not all Gazelle forks expose this                                            |
+| Stat             | UNIT3D | Gazelle | GGn     | AvistaZ | DigitalCore | RetroToon | Notes                                                                        |
+| ---------------- | ------ | ------- | ------- | ------- | ----------- | --------- | ---------------------------------------------------------------------------- |
+| Upload           | Yes    | Yes     | Yes     | Yes     | Yes         | Yes       |                                                                              |
+| Download         | Yes    | Yes     | Yes     | Yes     | Yes         | Yes       |                                                                              |
+| Ratio            | Yes    | Yes     | Yes     | Yes     | Yes         | Yes       | GGn shows extra decimal precision                                            |
+| Buffer           | Yes    | Yes     | Yes     | Yes     | Yes         | Yes       | UNIT3D returns this directly; others calculate it from upload minus download |
+| Seeding count    | Yes    | Partial | Partial | Yes     | Yes         | Yes       | Some Gazelle forks and GGn may return 0 even when you're seeding             |
+| Leeching count   | Yes    | Partial | Partial | Yes     | Yes         | No        | RetroToon publishes no leeching figure anywhere                              |
+| Bonus points     | Yes    | Yes     | Yes     | Yes     | Yes         | Yes       | GGn calls this "gold," DigitalCore calls it "bonuspoang"                     |
+| Hit & Runs       | Yes    | No      | Partial | Yes     | Yes         | Partial   | RetroToon reports 0 reliably; a non-empty list reads as unknown for now      |
+| Required ratio   | No     | Yes     | Yes     | No      | No          | No        | Not in the UNIT3D or DigitalCore API; RetroToon enforces no account ratio    |
+| Warned status    | No     | Partial | Yes     | No      | Yes         | No        | Most Gazelle trackers default to false; RED has extended data                |
+| Freeleech tokens | No     | Partial | No      | No      | No          | Yes       | RetroToon calls them "freeleech slots"                                       |
 
 ### Gazelle: extra data on RED
 

@@ -56,9 +56,21 @@ export const digitalcore: TrackerRegistryEntry = {
       requirements:
         "Age ≥ 730 days, upload ≥ 20 TiB, ratio ≥ 20.0. 10 extra invites, 10 extra request slots",
     },
-    { name: "Uploader", requirements: "Staff-granted for high-volume uploaders" },
-    { name: "Titan", requirements: "Staff-granted — highest community honor" },
-    { name: "VIP", requirements: "Staff-granted for significant contributions or donation" },
+    {
+      name: "Uploader",
+      requirements: "Staff-granted for high-volume uploaders",
+      outsideLadder: "above",
+    },
+    {
+      name: "Titan",
+      requirements: "Staff-granted — highest community honor",
+      outsideLadder: "above",
+    },
+    {
+      name: "VIP",
+      requirements: "Staff-granted for significant contributions or donation",
+      outsideLadder: "above",
+    },
   ],
   releaseGroups: [],
   bannedGroups: [],

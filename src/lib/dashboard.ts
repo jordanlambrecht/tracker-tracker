@@ -12,6 +12,7 @@ import {
   checkZeroSeeding,
 } from "@/lib/tracker-events"
 import { resolveRequiredRatio } from "@/lib/tracker-status"
+import { compareVersions } from "@/lib/version"
 import type { Snapshot, TrackerSummary } from "@/types/api"
 
 // ---------------------------------------------------------------------------
@@ -25,6 +26,14 @@ export interface AggregateStats {
   avgRatio: number | null
   totalSeeding: number
   totalLeeching: number
+  // Hit & runs are summed only over trackers whose adapter reports the count.
+  // Seeding and leeching read a missing value as zero; this one must not, or a
+  // fleet where nothing reports the field shows "0" and reads as clean. The
+  // reporter count is what lets the card tell unknown from a measured zero.
+  totalHitAndRuns: number
+  hitAndRunReportingTrackers: number
+  /** Trackers with at least one hit & run, highest count first. */
+  trackersWithHitAndRuns: { name: string; count: number }[]
 }
 
 export const VALID_ALERT_TYPES = new Set([
@@ -64,16 +73,27 @@ export function computeAggregateStats(trackers: TrackerSummary[]): AggregateStat
   let totalDownloaded = BigInt(0)
   let totalSeeding = 0
   let totalLeeching = 0
+  let totalHitAndRuns = 0
+  let hitAndRunReportingTrackers = 0
+  const trackersWithHitAndRuns: AggregateStats["trackersWithHitAndRuns"] = []
 
   for (const tracker of trackers) {
     if (!tracker.latestStats) continue
-    const { uploadedBytes, downloadedBytes, seedingCount, leechingCount } = tracker.latestStats
+    const { uploadedBytes, downloadedBytes, seedingCount, leechingCount, hitAndRuns } =
+      tracker.latestStats
 
     totalUploaded += uploadedBytes ? BigInt(uploadedBytes) : BigInt(0)
     totalDownloaded += downloadedBytes ? BigInt(downloadedBytes) : BigInt(0)
     totalSeeding += seedingCount ?? 0
     totalLeeching += leechingCount ?? 0
+
+    if (hitAndRuns != null) {
+      hitAndRunReportingTrackers++
+      totalHitAndRuns += hitAndRuns
+      if (hitAndRuns > 0) trackersWithHitAndRuns.push({ name: tracker.name, count: hitAndRuns })
+    }
   }
+  trackersWithHitAndRuns.sort((a, b) => b.count - a.count)
 
   const totalBuffer = totalUploaded - totalDownloaded
   const avgRatio =
@@ -86,6 +106,9 @@ export function computeAggregateStats(trackers: TrackerSummary[]): AggregateStat
     avgRatio,
     totalSeeding,
     totalLeeching,
+    totalHitAndRuns,
+    hitAndRunReportingTrackers,
+    trackersWithHitAndRuns,
   }
 }
 
@@ -132,7 +155,7 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
     // Same resolution the health tiers use: live requiredRatio first, registry
     // minimumRatio second. Keeps the alert from contradicting the health badge.
     const minimumRatio =
-      resolveRequiredRatio(tracker.latestStats?.requiredRatio, tracker.baseUrl) ?? undefined
+      resolveRequiredRatio(tracker.latestStats?.requiredRatio, tracker) ?? undefined
     if (checkRatioBelowMinimum(tracker.latestStats?.ratio, minimumRatio)) {
       alerts.push({
         key: `ratio-danger-${tracker.id}`,
@@ -149,7 +172,7 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
     // --- Stale data (skip if paused: staleness is expected) ---
     if (!tracker.pausedAt && !tracker.userPausedAt && tracker.lastPolledAt) {
       const lastPolled = new Date(tracker.lastPolledAt)
-      const thresholdMs = 2 * 60 * 60 * 1000 // 2 hours
+      const thresholdMs = 2 * 60 * 60 * 1000
       const ageMs = Date.now() - lastPolled.getTime()
       if (ageMs > thresholdMs) {
         alerts.push({
@@ -241,12 +264,10 @@ export function detectRankChanges(
       // Skip if no group data or redacted (privacy mode)
       if (!current.group || !previous.group) continue
       if (isRedacted(current.group) || isRedacted(previous.group)) continue
-      // Skip if same group
       if (current.group === previous.group) continue
 
-      // Found a rank change. check freshness
       const changeTime = new Date(current.polledAt).getTime()
-      if (changeTime < cutoff) break // Older than freshness window, stop looking
+      if (changeTime < cutoff) break
 
       alerts.push({
         key: `rank-change-${t.id}-${current.group}`,
@@ -326,8 +347,9 @@ export interface SystemAlertData {
 export function computeSystemAlerts(data: SystemAlertData): DashboardAlert[] {
   const alerts: DashboardAlert[] = []
 
-  // Update available
-  if (data.latestVersion && data.latestVersion !== data.currentVersion) {
+  // Update available. A semver compare rather than inequality, so a build
+  // running ahead of the latest GitHub Release is not offered the older one.
+  if (data.latestVersion && compareVersions(data.currentVersion, data.latestVersion) > 0) {
     alerts.push({
       key: `update-available-${data.latestVersion}`,
       type: "update-available",

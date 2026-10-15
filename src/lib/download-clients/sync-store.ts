@@ -1,7 +1,8 @@
 // src/lib/download-clients/sync-store.ts
 //
 // Functions:
-//   applyMaindataUpdate    - Merge a maindata delta (or full update) into the store
+//   applyMaindataUpdate    - Merge a maindata delta (or full update) into the store,
+//                            reporting a refusal when the update would exceed the cap
 //   getStoredTorrents      - Return a snapshot array of all torrents for a client
 //   getFilteredTorrents    - Copy + filter in one pass (avoids copying irrelevant torrents)
 //   getStoreRevision       - Return the current rid for a client (0 if uninitialized)
@@ -11,8 +12,9 @@
 //   clearAllStores         - Clear all stores (called on logout/scheduler stop)
 //   replaceStoreTorrents   - Replace all torrents for a client (for non-delta-sync clients)
 
+import { SYNC_STORE_MAX_TORRENTS } from "@/lib/limits"
 import { log } from "@/lib/logger"
-import { coerceRequiredNumeric } from "./field-map"
+import { coerceRequiredNumeric, coerceRequiredString, dropMistypedDeltaFields } from "./field-map"
 import type { DeltaSyncResponse, TorrentRecord } from "./types"
 
 /** How long a sync store entry is considered fresh */
@@ -54,8 +56,51 @@ function isTorrentRecord(value: unknown): value is TorrentRecord {
   )
 }
 
-export function applyMaindataUpdate(baseUrl: string, data: DeltaSyncResponse): void {
+/** Reported by applyMaindataUpdate when the cap refused the whole update. */
+export interface MaindataUpdateRefusal {
+  held: number
+  projected: number
+  cap: number
+}
+
+/**
+ * The size the store would end at, counting only what changes it: a hash it
+ * already holds cannot grow it however often the delta names it, and a removal
+ * shrinks it only for a hash it holds, once, however often the host repeats it.
+ */
+function projectedSize(store: TorrentStore, data: DeltaSyncResponse): number {
+  // A fullUpdate clears the store before merging, so nothing it holds counts.
+  if (data.fullUpdate) return Object.keys(data.torrents ?? {}).length
+
+  let size = store.torrents.size
+  for (const hash of Object.keys(data.torrents ?? {})) {
+    if (!store.torrents.has(hash)) size++
+  }
+  for (const hash of new Set(data.torrentsRemoved)) {
+    if (store.torrents.has(hash)) size--
+  }
+  return size
+}
+
+export function applyMaindataUpdate(
+  baseUrl: string,
+  data: DeltaSyncResponse
+): MaindataUpdateRefusal | undefined {
   const store = getOrCreateStore(baseUrl)
+
+  // Counted before anything is mutated, and before a fullUpdate clears the
+  // store: clearing first and then refusing would hand the host a way to empty
+  // it. Returned rather than swallowed, because the store still holds the
+  // previous poll and a caller that reads it now files stale figures as fresh.
+  const projected = projectedSize(store, data)
+  if (projected > SYNC_STORE_MAX_TORRENTS) {
+    const refusal = { held: store.torrents.size, projected, cap: SYNC_STORE_MAX_TORRENTS }
+    log.warn(
+      { baseUrl, ...refusal },
+      "sync-store: refused an update that would exceed the torrent cap"
+    )
+    return refusal
+  }
 
   if (data.fullUpdate) {
     store.torrents.clear()
@@ -66,13 +111,32 @@ export function applyMaindataUpdate(baseUrl: string, data: DeltaSyncResponse): v
     for (const [hash, partial] of Object.entries(data.torrents)) {
       const existing = store.torrents.get(hash)
       if (existing) {
-        Object.assign(existing, partial)
+        // The store outlives the poll and is serialized into cachedTorrents,
+        // so a bad value merged here stays. A mistyped field is dropped and the
+        // stored one kept; the merge is then validated like an insert, and the
+        // previous record survives a failure.
+        const merged: Record<string, unknown> = {
+          ...existing,
+          ...dropMistypedDeltaFields(partial),
+          hash,
+        }
+        coerceRequiredNumeric(merged)
+        coerceRequiredString(merged)
+        if (isTorrentRecord(merged)) {
+          store.torrents.set(hash, merged as TorrentRecord)
+        } else {
+          log.warn(
+            { hash, keys: Object.keys(partial) },
+            "sync-store: dropped delta, failed shape check"
+          )
+        }
       } else {
         // New torrent. This path skips mapQbtTorrent, so missing numerics are
         // coerced to 0 here, matching the full-list path. Only the string
         // fields (hash, name, state) still gate insertion.
         const candidate: Record<string, unknown> = { ...partial, hash }
         coerceRequiredNumeric(candidate)
+        coerceRequiredString(candidate)
         if (isTorrentRecord(candidate)) {
           store.torrents.set(hash, candidate as TorrentRecord)
         } else {

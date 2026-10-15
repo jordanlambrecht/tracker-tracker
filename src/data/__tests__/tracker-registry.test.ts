@@ -11,8 +11,11 @@
 import fs from "node:fs"
 import path from "node:path"
 import { afterAll, describe, expect, it } from "vitest"
+import { DEFAULT_API_PATHS, VALID_PLATFORM_TYPES } from "@/data/platform-types"
 import {
   getTrackerBySlug,
+  registryEntryFor,
+  registryHostname,
   TRACKER_REGISTRY,
   type TrackerRegistryEntry,
 } from "@/data/tracker-registry"
@@ -26,8 +29,6 @@ import {
   validateDefunct,
 } from "@/data/tracker-validation-rules"
 import { ALL_TRACKERS } from "@/data/trackers"
-import { DEFAULT_API_PATHS } from "@/lib/adapters"
-import { VALID_PLATFORM_TYPES } from "@/lib/adapters/constants"
 import { isValidHex } from "@/lib/validators"
 
 const VALID_PLATFORMS = VALID_PLATFORM_TYPES
@@ -70,6 +71,14 @@ describe("tracker registry", () => {
     expect(dupes, `Duplicate URLs: ${dupes.join(", ")}`).toEqual([])
   })
 
+  it("has no two entries sharing a hostname", () => {
+    // The startup backfill takes the first hostname match, so two entries on
+    // one hostname would give a pre-registry row the other one's slug.
+    const hosts = TRACKER_REGISTRY.map((t) => registryHostname(t.url))
+    const dupes = hosts.filter((h, i) => h !== undefined && hosts.indexOf(h) !== i)
+    expect(dupes, `Shared hostnames: ${dupes.join(", ")}`).toEqual([])
+  })
+
   it("every tracker has an explicit draft field (true or false)", () => {
     for (const tracker of ALL_TRACKERS) {
       expect(
@@ -84,7 +93,6 @@ describe("tracker registry", () => {
       .readdirSync(TRACKER_DIR)
       .filter((f) => f.endsWith(".ts") && f !== "index.ts" && !f.startsWith("_"))
       .map((f) => f.replace(/\.ts$/, ""))
-    // Read barrel to get actual imported filenames
     const barrelContent = fs.readFileSync(path.join(TRACKER_DIR, "index.ts"), "utf8")
     const unregistered = files.filter((f) => !barrelContent.includes(`./${f}`))
     expect(
@@ -160,6 +168,10 @@ describe("tracker registry", () => {
           expect(() => new URL(tracker.url)).not.toThrow()
         })
 
+        it("has no trailing slash, which adapters would double when they concatenate", () => {
+          expect(tracker.url).not.toMatch(/\/$/)
+        })
+
         it("has at least one content category", () => {
           expect(tracker.contentCategories.length).toBeGreaterThan(0)
         })
@@ -223,6 +235,16 @@ describe("tracker registry", () => {
             PLACEHOLDER_RE.test(tracker.description.trim()),
             `description is still "TODO". Fill it in before removing draft`
           ).toBe(false)
+        })
+
+        it("lists each user class once, with a stack-safe ladder", () => {
+          const names = tracker.userClasses.map((c) => c.name.toLowerCase())
+          expect(new Set(names).size).toBe(names.length)
+          // A ladder whose every class is flagged drops the tracker from the
+          // Ranks section with no signal, which is always a flagging mistake.
+          if (tracker.userClasses.length > 0) {
+            expect(tracker.userClasses.some((c) => !c.outsideLadder)).toBe(true)
+          }
         })
 
         it("has no duplicate content categories", () => {
@@ -298,17 +320,15 @@ describe("tracker registry", () => {
     }
   })
 
-  // ── Migrated from src/data/tracker-registry.test.ts ──────────────────
+  // ── Lookups and auth styles ──────────────────────────────────────────
 
   it("has at least 2 trackers", () => {
     expect(TRACKER_REGISTRY.length).toBeGreaterThanOrEqual(2)
   })
 
   describe("gazelle auth styles", () => {
-    // Regression guard for issue #155. RED returned 401 for every user because
-    // it was configured with the prefixed `token <key>` form. Upstream Gazelle
-    // has a dedicated bare-token branch commented "this first case is for
-    // compatibility with RED", so the bare form is RED-specific.
+    // Issue #155. RED answers the prefixed `token <key>` form with a 401, so it
+    // must stay on the raw style.
     it("uses the raw (unprefixed) Authorization form for Redacted", () => {
       const red = getTrackerBySlug("redacted")
       expect(red).toBeDefined()
@@ -322,6 +342,23 @@ describe("tracker registry", () => {
         expect(tracker.platform).toBe("gazelle")
         expect(["token", "raw"]).toContain(tracker.gazelleAuthStyle)
       }
+    })
+  })
+
+  describe("registryEntryFor", () => {
+    // A tracker row records which registry entry it is; the URL it stores is
+    // the poll address and never the key. A null slug is a pre-registry custom
+    // site and resolves to nothing.
+    it("resolves a row by its slug", () => {
+      expect(registryEntryFor({ registrySlug: "anthelion" })?.nebulanceAuthParam).toBe("apikey")
+    })
+
+    it("resolves nothing for a row with no slug", () => {
+      expect(registryEntryFor({ registrySlug: null })).toBeUndefined()
+    })
+
+    it("resolves nothing for a slug the registry does not carry", () => {
+      expect(registryEntryFor({ registrySlug: "not-a-tracker" })).toBeUndefined()
     })
   })
 
@@ -346,5 +383,22 @@ describe("tracker registry", () => {
       }
       console.warn("──────────────────────────────────────────────────────\n")
     }
+  })
+})
+
+describe("TorrentLeech ladder", () => {
+  it("carries the six wiki classes with VIP as the only one above the ladder", () => {
+    const tl = getTrackerBySlug("torrentleech")
+    expect(tl?.userClasses.map((c) => c.name)).toEqual([
+      "Registered",
+      "Power User",
+      "Super User",
+      "Extreme User",
+      "TL GOD",
+      "VIP",
+    ])
+    expect(tl?.userClasses.filter((c) => c.outsideLadder === "above").map((c) => c.name)).toEqual([
+      "VIP",
+    ])
   })
 })

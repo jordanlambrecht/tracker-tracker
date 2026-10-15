@@ -7,7 +7,7 @@ import { UploadDownloadChart } from "@/components/charts/UploadDownloadChart"
 import { UploadPolarChart } from "@/components/charts/UploadPolarChart"
 import { DayRangeSidebar } from "@/components/dashboard/DayRangeSidebar"
 import { Card } from "@/components/ui/Card"
-import { formatBytesFromString } from "@/lib/formatters"
+import { formatBytesFromString, formatOrdinal } from "@/lib/formatters"
 import type { DayRange, DeltaDisplay, GazellePlatformMeta, Snapshot } from "@/types/api"
 
 interface AnalyticsChartsProps {
@@ -100,7 +100,8 @@ export function AnalyticsCharts({
         {gazelleMeta?.ranks && (
           <Card lazy title="Percentile Ranks" trackerColor={tc} className="flex flex-col gap-4">
             <p className="text-xs font-mono text-tertiary">
-              Your standing relative to all users, {gazelleMeta.ranks.overall}th percentile overall
+              Your standing relative to all users, {formatOrdinal(gazelleMeta.ranks.overall)}{" "}
+              percentile overall
             </p>
             <PercentileRadarChart ranks={gazelleMeta.ranks} accentColor={tc} />
           </Card>

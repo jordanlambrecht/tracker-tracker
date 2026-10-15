@@ -8,7 +8,7 @@
 import { describe, expect, it, vi } from "vitest"
 
 // ---------------------------------------------------------------------------
-// Mocks, must be declared before any import that touches the DB
+// Mocks
 // ---------------------------------------------------------------------------
 
 vi.mock("@/lib/db", () => ({
@@ -46,7 +46,7 @@ vi.mock("@/lib/db/schema", () => ({
     backupEncryptionEnabled: "backupEncryptionEnabled",
     encryptedBackupPassword: "encryptedBackupPassword",
     backupStoragePath: "backupStoragePath",
-    // These are the sensitive columns that must NOT appear in settingsColumns:
+    // These are the sensitive columns that must not appear in settingsColumns:
     passwordHash: "passwordHash",
     encryptionSalt: "encryptionSalt",
     totpSecret: "totpSecret",
@@ -59,6 +59,7 @@ vi.mock("@/lib/db/schema", () => ({
     id: "id",
     name: "name",
     baseUrl: "baseUrl",
+    registrySlug: null,
     apiPath: "apiPath",
     platformType: "platformType",
     encryptedApiToken: "encryptedApiToken",
@@ -345,6 +346,7 @@ describe("serializeTrackerResponse excludes encryptedApiToken", () => {
       id: 1,
       name: "Test",
       baseUrl: "https://example.com",
+      registrySlug: null,
       apiPath: "/api/user",
       platformType: "unit3d",
       encryptedApiToken: "SECRET_CIPHERTEXT_MUST_NOT_LEAK",

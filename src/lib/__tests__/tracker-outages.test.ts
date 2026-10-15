@@ -1,17 +1,8 @@
 // src/lib/__tests__/tracker-outages.test.ts
 //
-// The tracker connectability ledger is the only thing standing between "this
-// tracker was unreachable here" and a fabricated band, so every write path is
-// pinned: when a failure opens a new outage, when it extends the current one,
-// and the two places the distinction can go wrong, a configurable poll interval
-// and a clock that jumps backwards.
-//
-// The load-bearing negative is pinned too: recording is FAILURE-ONLY. Nothing
-// here reaches toward the successful polls on either side of an outage, because
-// the app never observed the tracker's state in between. See the header of
-// tracker-outages.ts for why that differs from app-liveness.ts on purpose.
-//
-// Fake timers throughout. No real sleeps.
+// Pins every write path of the tracker outage ledger, including a
+// configurable poll interval and a clock that jumps backwards. Recording is
+// failure-only and never reaches toward the successful polls around an outage.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -155,7 +146,7 @@ function comparedColumns(condition: unknown): string[] {
   return out
 }
 
-/** Literal SQL fragments in a condition, e.g. ["", " < ", ""] for lt(). */
+/** Literal SQL fragments in a condition, ["", " < ", ""] for lt(). */
 function conditionOperators(condition: unknown): string {
   const out: string[] = []
   const visit = (n: unknown): void => {
@@ -268,9 +259,9 @@ describe("recordTrackerPollFailure", () => {
   })
 
   it("does not stitch across a circuit-breaker pause", async () => {
-    // Four failures trip the breaker and the app STOPS ASKING. A manual poll
+    // Four failures trip the breaker and the app stops asking. A manual poll
     // days later must not extend the old row across the whole pause, nothing
-    // observed the tracker during it, so that span stays UNKNOWN.
+    // observed the tracker during it, so that span stays unknown.
     seed({ latest: [{ id: 9, endedAt: new Date(T0) }] })
     await recordTrackerPollFailure(TRACKER, "manual", T0 + 3 * 24 * 60 * MINUTE)
 
@@ -306,13 +297,9 @@ describe("recordTrackerPollFailure", () => {
   })
 
   it("keeps recording a DRAWABLE outage after the clock jumps backwards", async () => {
-    // Regression. The probe used to take the row with the greatest endedAt with
-    // no clamp, so a future-dated row kept winning, sinceMs stayed negative, and
-    // every later failure opened a fresh zero-length row. mergeIntervals drops
-    // those, so a tracker that really was down drew NOTHING until wall clock
-    // caught up. Silently correct-looking, and the worst outcome available.
-    //
-    // A row dated 30 minutes in the future must simply be ignored.
+    // Without a clamp, a future-dated row keeps winning the probe, sinceMs stays
+    // negative, and every failure opens a zero-length row that mergeIntervals
+    // drops. A row dated in the future must be ignored.
     seed({ latest: [] })
     let store: Array<{ id: number; endedAt: Date }> = [{ id: 1, endedAt: new Date(T0) }]
     vi.mocked(db.select).mockImplementation(((columns: Record<string, unknown>) => {
@@ -338,7 +325,7 @@ describe("recordTrackerPollFailure", () => {
     expect(insertedValues()).toHaveLength(1)
     store = [...store, { id: 2, endedAt: new Date(rollback) }]
 
-    // The NEXT failure must EXTEND that row, not open another one.
+    // The next failure must extend that row, not open another one.
     nowRef = rollback + 5 * MINUTE
     calls = []
     await recordTrackerPollFailure(TRACKER, "poll", nowRef)
@@ -357,7 +344,7 @@ describe("recordTrackerPollFailure", () => {
   })
 
   it("takes the NEWEST usable row as the stitch candidate, not the oldest", async () => {
-    // desc -> asc would compare against the OLDEST row, so sinceMs would always
+    // desc -> asc would compare against the oldest row, so sinceMs would always
     // exceed the window and stitching would stop entirely for any tracker with
     // more than one row in its history, every failure a zero-length row, and
     // nothing ever drawn. Asserted behaviourally: the mock returns whichever row

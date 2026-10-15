@@ -1,7 +1,15 @@
 // src/lib/download-clients/__tests__/field-map.test.ts
 
-import { describe, expect, it } from "vitest"
-import { mapQbtDelta, mapQbtTorrent } from "../field-map"
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { log } from "@/lib/logger"
+import {
+  coerceRequiredString,
+  dropMistypedDeltaFields,
+  mapQbtDelta,
+  mapQbtTorrent,
+} from "../field-map"
+
+afterEach(() => vi.restoreAllMocks())
 
 describe("mapQbtTorrent", () => {
   const RAW = {
@@ -115,5 +123,67 @@ describe("mapQbtDelta", () => {
   it("handles empty delta", () => {
     const result = mapQbtDelta({})
     expect(result).toEqual({})
+  })
+})
+
+describe("coerceRequiredString", () => {
+  // fetch.ts strips tracker, contentPath and savePath from every torrent it
+  // returns because they carry passkeys and server filesystem paths. The log
+  // line must not put back what the stripper takes out.
+  it("logs the field and the type it received, never the value", () => {
+    const warnSpy = vi.spyOn(log, "warn").mockImplementation(() => undefined)
+    const result: Record<string, unknown> = {
+      hash: "abc",
+      tracker: { announce: "https://tracker.example.com/announce/must-not-be-logged" },
+    }
+
+    coerceRequiredString(result)
+
+    expect(warnSpy).toHaveBeenCalledOnce()
+    const [payload] = warnSpy.mock.calls[0]
+    expect(payload).not.toHaveProperty("value")
+    expect(payload).toMatchObject({ hash: "abc", field: "tracker", received: "object" })
+    expect(JSON.stringify(warnSpy.mock.calls)).not.toContain("must-not-be-logged")
+    expect(result.tracker).toBe("")
+  })
+
+  it("leaves a string field alone", () => {
+    const warnSpy = vi.spyOn(log, "warn").mockImplementation(() => undefined)
+    const result: Record<string, unknown> = { hash: "abc", savePath: "/data/movies" }
+
+    coerceRequiredString(result)
+
+    expect(result.savePath).toBe("/data/movies")
+    expect(warnSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe("dropMistypedDeltaFields", () => {
+  it("drops a required string that arrives with the wrong type", () => {
+    expect(dropMistypedDeltaFields({ tags: 123 } as never)).toEqual({})
+  })
+
+  it("drops a required numeric that arrives with the wrong type", () => {
+    expect(dropMistypedDeltaFields({ ratio: "2.0" } as never)).toEqual({})
+  })
+
+  it("keeps every field whose type matches", () => {
+    const partial = { tags: "aither", ratio: 2, isPrivate: true }
+    expect(dropMistypedDeltaFields(partial)).toEqual(partial)
+  })
+
+  it("leaves a field with no required type alone", () => {
+    expect(dropMistypedDeltaFields({ isPrivate: "yes" } as never)).toEqual({ isPrivate: "yes" })
+  })
+
+  it("logs the field and the type it received, never the value", () => {
+    const debugSpy = vi.spyOn(log, "debug").mockImplementation(() => undefined)
+
+    dropMistypedDeltaFields({ savePath: ["/data/movies"] } as never)
+
+    const [payload] = debugSpy.mock.calls[0]
+    expect(payload).not.toHaveProperty("value")
+    expect(payload).toMatchObject({ field: "savePath", received: "object" })
+    expect(JSON.stringify(debugSpy.mock.calls)).not.toContain("/data/movies")
   })
 })

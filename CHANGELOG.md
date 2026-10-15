@@ -55,7 +55,7 @@
 
 ### Refactoring
 
-* **tracker-adapters:** add adapterRequest seam that returns non-2xx
+* **tracker-adapters:** add adapterRequest helper that returns non-2xx
 * **tracker-adapters:** parse optional credential fields in one place
 * **tracker-adapters:** route digitalcore through adapterRequest
 * **tracker-adapters:** route nebulance through adapterRequest

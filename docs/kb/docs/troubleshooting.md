@@ -129,10 +129,11 @@ These appear in the **Poll Error Banner** on the tracker detail page.
 
 !!! success "Solution"
 
-    1. Check the base URL for typos.
-    2. Test: `nslookup <tracker-hostname>` from your Docker host.
-    3. If using VPN or custom DNS, add `dns:` to `docker-compose.yml` if needed.
-    4. Update the base URL if the domain changed.
+    1. Test: `nslookup <tracker-hostname>` from your Docker host.
+    2. If using VPN or custom DNS, add `dns:` to `docker-compose.yml` if needed.
+    3. If the tracker moved to a new domain, update Tracker Tracker. The address comes from
+       the built-in tracker registry, so a domain change ships as a release. If no release
+       carries it yet, open an issue naming the tracker.
 
 ---
 
@@ -154,9 +155,9 @@ These appear in the **Poll Error Banner** on the tracker detail page.
 
 !!! success "Solution"
 
-    1. Check the base URL port if the tracker uses a non-standard one.
-    2. Verify the scheme (`https://` vs `http://`).
-    3. Confirm the tracker loads in a browser.
+    1. Confirm the tracker loads in a browser at the address shown on its detail page.
+    2. If it only loads on a different port or scheme, the registry entry is out of date:
+       open an issue naming the tracker.
 
 ---
 

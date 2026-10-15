@@ -12,6 +12,7 @@ import {
   bytesToGiB,
   formatCount,
   formatDateTime,
+  formatOrdinal,
   formatPercent,
   formatRatio,
   formatRatioDisplay,
@@ -243,7 +244,7 @@ describe("floatBytesToBigInt", () => {
     expect(floatBytesToBigInt(0.1)).toBe(0n)
   })
 
-  // This clamp is load-bearing and must NOT be loosened for symmetry with the
+  // This clamp is load-bearing and must not be loosened for symmetry with the
   // signed helper: every caller converts uploaded/downloaded, which are
   // monotonic counters, so a negative there is a malformed API response and the
   // clamp is what stops it reaching the snapshots table.
@@ -303,5 +304,34 @@ describe("computeBufferBytes", () => {
   it("returns 0n only at genuine breakeven", () => {
     expect(computeBufferBytes(500n, 500n)).toBe(0n)
     expect(computeBufferBytes(0n, 0n)).toBe(0n)
+  })
+})
+
+describe("formatOrdinal", () => {
+  it("uses st, nd and rd for one, two and three", () => {
+    expect(formatOrdinal(1)).toBe("1st")
+    expect(formatOrdinal(2)).toBe("2nd")
+    expect(formatOrdinal(3)).toBe("3rd")
+    expect(formatOrdinal(4)).toBe("4th")
+  })
+
+  it("keeps th through the teens, where the last digit lies", () => {
+    expect(formatOrdinal(11)).toBe("11th")
+    expect(formatOrdinal(12)).toBe("12th")
+    expect(formatOrdinal(13)).toBe("13th")
+  })
+
+  it("reads the last digit again above twenty", () => {
+    expect(formatOrdinal(21)).toBe("21st")
+    expect(formatOrdinal(22)).toBe("22nd")
+    expect(formatOrdinal(23)).toBe("23rd")
+    expect(formatOrdinal(32)).toBe("32nd")
+    expect(formatOrdinal(111)).toBe("111th")
+    expect(formatOrdinal(101)).toBe("101st")
+  })
+
+  it("returns a dash for a missing value", () => {
+    expect(formatOrdinal(null)).toBe("—")
+    expect(formatOrdinal(undefined)).toBe("—")
   })
 })

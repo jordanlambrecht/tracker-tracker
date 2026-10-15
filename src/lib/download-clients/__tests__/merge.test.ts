@@ -144,7 +144,7 @@ describe("mergeTorrentLists", () => {
     })
 
     it("recalculates ratio correctly when only one client has downloaded > 0", () => {
-      // t1 downloaded=0 (e.g. pure cross-seed), t2 downloaded=1MB
+      // t1 downloaded=0 (a pure cross-seed), t2 downloaded=1MB
       // merged: downloaded=1MB, so ratio is computable
       const t1 = makeTorrent({ hash: "hhh", uploaded: 2_000_000, downloaded: 0, ratio: 99.0 })
       const t2 = makeTorrent({

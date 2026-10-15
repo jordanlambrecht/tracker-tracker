@@ -8,10 +8,10 @@
 // The three that would be silent regressions in production:
 //   - copy must not reveal (a copy that leaks into the DOM still "works", so
 //     nothing but a test catches it);
-//   - saving must OMIT values the client never held (a save that sends
+//   - saving must omit values the client never held (a save that sends
 //     `value: ""` looks successful and destroys the vault);
-//   - the clipboard fallback must speak up (this app is served over plain HTTP
-//     on a LAN constantly, where navigator.clipboard simply does not exist).
+//   - the clipboard fallback must speak up (this app is often served over plain
+//     HTTP on a LAN, where navigator.clipboard does not exist).
 
 import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
@@ -25,7 +25,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }))
 
 const PASSKEY = "super-secret-passkey-value"
 
-/** What GET returns: the MASKED view. Note no `value` on the secret field. */
+/** What GET returns: the masked view. Note no `value` on the secret field. */
 const VAULT_VIEW = {
   v: 1,
   sections: [
@@ -33,7 +33,7 @@ const VAULT_VIEW = {
       id: "irc",
       title: "IRC",
       fields: [
-        { id: "irc_nick", label: "Nick", secret: false, value: "jordy" },
+        { id: "irc_nick", label: "Nick", secret: false, value: "tealotter" },
         { id: "passkey", label: "Passkey", secret: true, hasValue: true },
       ],
     },
@@ -69,10 +69,10 @@ function renderSheet(overrides: Partial<TrackerCredentialsSheetProps> = {}) {
     open: true,
     trackerId: 42,
     trackerName: "Aither",
-    // Deliberately NOT in the registry, so the defaults seed is the deterministic
-    // universal fallback (a single `api_key`) rather than whatever platform list
-    // the registry happens to carry today.
-    trackerBaseUrl: "https://not-a-real-tracker.test",
+    // No slug, so the defaults seed is the deterministic universal fallback (a
+    // single `api_key`) rather than whatever platform list the registry happens
+    // to carry today.
+    trackerRegistrySlug: null,
     onClose: vi.fn(),
     ...overrides,
   }
@@ -87,15 +87,9 @@ async function ready() {
 
 // ─── Clipboard stubbing ───────────────────────────────────────────────────────
 //
-// jsdom implements NEITHER navigator.clipboard nor document.execCommand, so both
-// have to be installed by hand, which is convenient, because varying them is
-// exactly how the fallback ladder gets tested.
-//
-// The trap: userEvent.setup() installs its OWN clipboard stub over the top of
-// whatever is there. Anything defined in beforeEach is therefore silently
-// replaced the moment a test calls it, and the assertion fails with the
-// baffling "[AsyncFunction writeText] is not a spy". setupUser() below exists
-// solely to re-install ours AFTER userEvent has had its turn.
+// jsdom has neither navigator.clipboard nor document.execCommand, so both are
+// stubbed by hand. userEvent.setup() installs its own clipboard stub over ours,
+// so setupUser() puts ours back after it.
 
 let clipboardStub: { writeText: ReturnType<typeof vi.fn> } | undefined
 let execCommandStub: ReturnType<typeof vi.fn>
@@ -169,7 +163,7 @@ describe("the sheet loads masked", () => {
 
     // secret: false means exactly this, an IRC nick is not a secret and does
     // not deserve a reveal round trip.
-    expect((screen.getByLabelText("Nick") as HTMLInputElement).value).toBe("jordy")
+    expect((screen.getByLabelText("Nick") as HTMLInputElement).value).toBe("tealotter")
     expect(revealCalls()).toHaveLength(0)
   })
 
@@ -196,7 +190,7 @@ describe("reveal fetches exactly one field", () => {
     const [url, init] = revealCalls()[0]
     expect(String(url)).toContain("/api/trackers/42/credentials/reveal")
     expect((init as RequestInit).method).toBe("POST")
-    // The id travels in the BODY, not the URL, URLs land in access logs and
+    // The id travels in the body, not the URL, URLs land in access logs and
     // browser history.
     expect(JSON.parse(String((init as RequestInit).body))).toEqual({ fieldId: "passkey" })
   })
@@ -255,7 +249,7 @@ describe("copy works WITHOUT revealing", () => {
     await user.click(screen.getByRole("button", { name: "Copy Passkey" }))
 
     await waitFor(() => expect(clipboardStub?.writeText).toHaveBeenCalledWith(PASSKEY))
-    // The whole point: the fetched value went to the clipboard and nowhere else.
+    // The fetched value went to the clipboard and nowhere else.
     const passkey = screen.getByLabelText("Passkey") as HTMLInputElement
     expect(passkey.type).toBe("password")
     expect(passkey.value).toBe("")
@@ -339,7 +333,7 @@ describe("copy works WITHOUT revealing", () => {
 describe("the clipboard fallback", () => {
   it("falls back to execCommand when navigator.clipboard is absent", async () => {
     // Exactly the shape of a plain-HTTP LAN deployment: the Clipboard API is not
-    // merely permission-denied there, it is UNDEFINED.
+    // merely permission-denied there, it is undefined.
     clipboardStub = undefined
     const user = setupUser()
     renderSheet()
@@ -411,8 +405,8 @@ describe("the opt-in gate", () => {
 
     expect(await screen.findByText(/Credential storage is turned off/)).toBeInTheDocument()
     const link = screen.getByRole("link", { name: "Enable in Settings" })
-    // The owner's requirement is verbatim "links DIRECTLY to that toggle". A bare
-    // /settings link would satisfy the words and not the intent.
+    // The link must land on the toggle itself. A bare /settings link leaves the
+    // user hunting for it.
     expect(link).toHaveAttribute("href", "/settings#credential-vault-heading")
   })
 
@@ -425,7 +419,7 @@ describe("the opt-in gate", () => {
   })
 
   it("treats an ordinary 403 as an error, not as the gate", async () => {
-    // The gate is identified by a FIELD. A 403 without it is a real failure and
+    // The gate is identified by a field. A 403 without it is a real failure and
     // must not be dressed up as a friendly opt-in prompt.
     getResponse = { ok: false, status: 403, body: { error: "Forbidden" } }
     renderSheet()
@@ -459,7 +453,7 @@ describe("saving", () => {
     expect(lastPutVault().sections[0].fields[0]).toMatchObject({
       id: "irc_nick",
       secret: false,
-      value: "jordy",
+      value: "tealotter",
     })
   })
 
@@ -562,7 +556,7 @@ describe("sections and fields", () => {
     await ready()
 
     await user.click(screen.getByRole("button", { name: "Add section" }))
-    // ARRAY ORDER IS DISPLAY ORDER, there is no sortOrder to get out of sync.
+    // Array order is display order, there is no sortOrder to get out of sync.
     expect(screen.getByRole("button", { name: "Move IRC up" })).toBeDisabled()
 
     await user.click(screen.getByRole("button", { name: "Move IRC down" }))
@@ -610,11 +604,20 @@ describe("a tracker with no vault yet", () => {
     renderSheet()
     await ready()
 
-    // The universal fallback for an unrecognised tracker.
+    // The universal fallback for a row that names no registry entry.
     expect(screen.getByLabelText("API key")).toBeInTheDocument()
     expect((screen.getAllByLabelText("Section title")[0] as HTMLInputElement).value).toBe(
       "Credentials"
     )
+  })
+
+  it("seeds the fields of the entry the row's slug names", async () => {
+    // Aither is unit3d, whose defaults carry an RSS key the universal fallback
+    // does not.
+    renderSheet({ trackerRegistrySlug: "aither" })
+    await ready()
+
+    expect(screen.getByLabelText("RSS key")).toBeInTheDocument()
   })
 
   it("does not count the seed as an unsaved change", async () => {

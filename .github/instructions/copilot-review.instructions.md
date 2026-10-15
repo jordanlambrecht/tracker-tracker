@@ -119,7 +119,7 @@ All module-level singletons (cron tasks, DB client, qBT SID cache) must be store
 
 ## Adapter Pattern
 
-- Tracker platforms use an adapter pattern: `TrackerAdapter` interface with `getAdapter()` factory. UNIT3D, Gazelle, and GGn are implemented. Adding a new platform means adding a new adapter file in `src/lib/adapters/`, not modifying existing ones.
+- Tracker platforms use an adapter pattern: `TrackerAdapter` interface with `getAdapter()` factory. Thirteen platform adapters are implemented. Adding a new platform means adding a new adapter file in `src/lib/tracker-platforms/adapters/`, not modifying existing ones.
 
 ## Precision Concerns
 

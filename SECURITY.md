@@ -135,7 +135,7 @@ Public routes are explicitly limited to: `/login`, `/setup`, `/api/auth/*`, `/ap
 - **Emergency lockdown** (`POST /api/settings/lockdown`): Stops scheduler, revokes all API tokens, rotates encryption salt, wipes TOTP/username, destroys session. Requires active session and three-checkbox UI acknowledgment.
 - **Scrub & delete** (`POST /api/settings/nuke`): Overwrites sensitive columns with random bytes, then deletes all rows. Requires active session + master password. Disk reclamation handled by PostgreSQL autovacuum.
 - **Backup/restore**: Pure JSON format (no zip/tar). Restore validates all fields before database writes. File deletion uses `path.resolve()` + base directory prefix check. Restore requires master password re-confirmation. Encrypted fields travel as ciphertext. See [Backup Security](#backup-security).
-- External HTTP requests use `AbortSignal.timeout(15_000)`. See `src/lib/adapters/unit3d.ts:29`.
+- External HTTP requests use `AbortSignal.timeout(15_000)`. See `src/lib/tracker-platforms/helpers/adapter-fetch.ts`.
 - Error messages sanitize hostnames and do not leak full URLs containing API tokens.
 
 ---
@@ -144,20 +144,20 @@ Public routes are explicitly limited to: `/login`, `/setup`, `/api/auth/*`, `/ap
 
 All API routes validate inputs. See `src/app/api/trackers/route.ts` and `src/app/api/trackers/[id]/route.ts`.
 
-| Field           | Constraint                                                                                     |
-| --------------- | ---------------------------------------------------------------------------------------------- |
-| Tracker name    | string, max 100 chars, trimmed                                                                 |
-| Base URL        | string, max 500 chars, validated via `new URL()`, scheme restricted to `https://` or `http://` |
-| API token       | string, max 500 chars                                                                          |
-| Color           | hex color format only (`#[0-9a-fA-F]{3,8}`), rejects arbitrary strings                         |
-| qBittorrent tag | string, max 100 chars, trimmed                                                                 |
-| Poll interval   | integer, clamped to 15-1440 minutes                                                            |
-| Tracker ID      | parsed as integer, NaN rejected                                                                |
-| Platform type   | allowlist: `["unit3d", "gazelle", "ggn", "nebulance", "avistaz", "mam", "custom"]`             |
-| Password        | string, 8-128 chars                                                                            |
-| Role name       | string, max 255 chars                                                                          |
-| joinedAt        | regex-validated YYYY-MM-DD or null                                                             |
-| Notes (roles)   | string, max 2000 chars                                                                         |
+| Field           | Constraint                                                                               |
+| --------------- | ---------------------------------------------------------------------------------------- |
+| Tracker name    | string, max 100 chars, trimmed                                                           |
+| Tracker         | registry slug; must name a registry entry, which supplies the URL, platform and API path |
+| API token       | string, max 500 chars                                                                    |
+| Color           | hex color format only (`#[0-9a-fA-F]{3,8}`), rejects arbitrary strings                   |
+| qBittorrent tag | string, max 100 chars, trimmed                                                           |
+| Poll interval   | integer, clamped to 15-1440 minutes                                                      |
+| Tracker ID      | parsed as integer, NaN rejected                                                          |
+| Platform type   | allowlist: `["unit3d", "gazelle", "ggn", "nebulance", "avistaz", "mam", "custom"]`       |
+| Password        | string, 8-128 chars                                                                      |
+| Role name       | string, max 255 chars                                                                    |
+| joinedAt        | regex-validated YYYY-MM-DD or null                                                       |
+| Notes (roles)   | string, max 2000 chars                                                                   |
 
 ---
 
@@ -216,7 +216,7 @@ The test-connection flow (`POST /api/trackers/test`) always returns the real use
 2. **API token in URL parameter**: UNIT3D (`?api_token=TOKEN`) and GGn (`?key=TOKEN`) pass tokens in the query string, which may appear in the tracker's server access logs. Gazelle trackers use `Authorization` headers (not logged by default). Upstream limitation.
 3. **No CSP header**: Content Security Policy is not yet configured due to ECharts canvas rendering complexity. Basic headers (X-Frame-Options, X-Content-Type-Options) are in place.
 4. **Optional 2FA**: TOTP is available but not required. Backup codes use SHA-256 + random salt (not Argon2, since high-entropy generated codes don't need a memory-hard KDF).
-5. **DNS rebinding not mitigated at fetch time**: SSRF protection validates hostnames when tracker URLs are saved, not when outbound requests are made. See [Unmitigated Attack Vectors](#6-dns-rebinding) for details.
+5. **DNS rebinding not mitigated at fetch time**: SSRF protection validates hostnames when a user-entered address is saved (download clients, proxy, Mousehole URL), not when outbound requests are made; tracker addresses come from the registry. See [Unmitigated Attack Vectors](#6-dns-rebinding) for details.
 6. **Scheduler key persisted in DB**: The encryption key is wrapped with an HKDF-derived key from `SESSION_SECRET` and stored in `appSettings` to enable 24/7 polling. An attacker with both database access and `SESSION_SECRET` could unwrap the key and decrypt all API tokens. For Docker Compose deployments, `SESSION_SECRET` is in the same trust boundary as DB credentials. Deploy on an encrypted filesystem for defense against disk seizure. Rotating `SESSION_SECRET` invalidates the stored key, and polling resumes after the next login.
 7. **Client IP in auth logs**: Failed and successful login attempts include the client IP (from `CF-Connecting-IP` or the rightmost `X-Forwarded-For` entry) in server log lines. IPs are never stored in the database. To suppress, configure your reverse proxy to strip these headers before forwarding to the app, or set `LOG_LEVEL=error` to disable info/warn log events entirely.
 
@@ -264,7 +264,7 @@ These vectors are not fully mitigated at the application layer. Apply the recomm
 
 **Risk:** SSRF protection in `src/lib/network.ts` validates hostnames at configuration time, not at request time. An attacker with DNS control could register a domain that resolves to a public IP during validation, then change it to a private IP before the next poll cycle.
 
-**Countermeasure:** Low risk, since this is a single user with manually entered URLs. Deploy on an isolated network segment where the container cannot reach internal services. A future enhancement could add DNS resolution validation at fetch time.
+**Countermeasure:** Low risk: a single user, tracker addresses come from the registry, and the manually entered addresses are the download client, proxy and Mousehole ones. Deploy on an isolated network segment where the container cannot reach internal services. A future enhancement could add DNS resolution validation at fetch time.
 
 ---
 

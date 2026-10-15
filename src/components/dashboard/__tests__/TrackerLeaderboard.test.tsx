@@ -2,8 +2,8 @@
 //
 // Regression coverage: an infinite ratio (uploaded > 0, downloaded === 0,
 // the best possible standing) crosses the wire as `ratio: null` plus
-// `ratioIsInfinite`. Reading `ratio` alone used to sink it to sortValue -1
-// (dead last) and render it identical to a tracker with no stats at all.
+// `ratioIsInfinite`. Reading `ratio` alone sinks it to sortValue -1 (dead
+// last) and renders it like a tracker with no stats.
 
 import { render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
@@ -38,6 +38,7 @@ const baseTracker: TrackerSummary = {
   id: 1,
   name: "placeholder",
   baseUrl: "https://example.com",
+  registrySlug: null,
   platformType: "unit3d",
   isActive: true,
   lastPolledAt: null,
@@ -144,9 +145,8 @@ describe("TrackerLeaderboard buffer column (signed buffer)", () => {
   })
 
   it("prefers the stored buffer over recomputing it from the totals", () => {
-    // A tracker's own buffer is not always uploaded - downloaded (freeleech,
-    // bonus spending), so recomputing here made the leaderboard disagree with
-    // the detail page for every tracker that reports its own.
+    // A tracker's own buffer is not always uploaded minus downloaded (freeleech,
+    // bonus spending), so recomputing it here would disagree with the detail page.
     const reported = tracker({
       id: 1,
       name: "Reported",

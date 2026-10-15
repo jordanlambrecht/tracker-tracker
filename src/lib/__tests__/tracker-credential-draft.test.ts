@@ -32,7 +32,7 @@ const VIEW: TrackerCredentialVaultView = {
       id: "irc",
       title: "IRC",
       fields: [
-        { id: "irc_nick", label: "Nick", secret: false, value: "jordy" },
+        { id: "irc_nick", label: "Nick", secret: false, value: "tealotter" },
         { id: "irc_nickserv", label: "NickServ password", secret: true, hasValue: true },
         { id: "unset", label: "Unset", secret: true, hasValue: false },
       ],
@@ -85,7 +85,7 @@ describe("draftFromView", () => {
 
   it("holds the value of a field marked public", () => {
     const draft = draftFromView(VIEW, DEFAULTS)
-    expect(draft.sections[0].fields[0]).toMatchObject({ value: "jordy", shown: true })
+    expect(draft.sections[0].fields[0]).toMatchObject({ value: "tealotter", shown: true })
   })
 
   it("distinguishes a stored-but-empty secret from a stored one", () => {
@@ -208,7 +208,7 @@ describe("draftToValidationVault", () => {
   })
 
   it("substitutes empty for values the client does not hold", () => {
-    // Which makes the SIZE limits an under-estimate here. That is deliberate and
+    // Which makes the size limits an under-estimate here. That is deliberate and
     // documented: the server re-validates the merged vault, and that check is
     // the authoritative one.
     const draft = draftFromView(VIEW, DEFAULTS)

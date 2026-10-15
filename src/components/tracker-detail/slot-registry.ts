@@ -35,9 +35,9 @@ import type {
   StatCardStackedProps,
 } from "@/components/ui/StatCard"
 import { StatCard } from "@/components/ui/StatCard"
-import { metaFor } from "@/lib/adapters/types"
 import { formatBytesNum, formatCount, formatRatio } from "@/lib/formatters"
 import type { SlotCategory, SlotContext } from "@/types/slots"
+import { metaFor } from "@/types/tracker-stats"
 import type { GgnAchievementProgressProps } from "./platform/GgnAchievementProgress"
 import { GgnAchievementProgress } from "./platform/GgnAchievementProgress"
 import type { GgnBuffsDisplayProps } from "./platform/GgnBuffsDisplay"
@@ -366,11 +366,13 @@ const gazelleCommentsSlot: SlotDefinition<StatCardStackedProps> = {
     return {
       type: "stacked" as const,
       title: "Comments",
+      // A build that omits one of these reports it as unknown, not as zero,
+      // so show the same dash the other slots use rather than inventing a 0.
       rows: [
-        { label: "Torrent", value: c.torrentComments },
-        { label: "Artist", value: c.artistComments },
-        { label: "Collage", value: c.collageComments },
-        { label: "Request", value: c.requestComments },
+        { label: "Torrent", value: c.torrentComments ?? "—" },
+        { label: "Artist", value: c.artistComments ?? "—" },
+        { label: "Collage", value: c.collageComments ?? "—" },
+        { label: "Request", value: c.requestComments ?? "—" },
       ],
       accentColor: ctx.accentColor,
     }

@@ -9,6 +9,7 @@ import {
   RatioIcon,
   SeedingIcon,
   ShieldIcon,
+  TriangleWarningIcon,
   UploadArrowIcon,
 } from "@/components/ui/Icons"
 import { StatCard } from "@/components/ui/StatCard"
@@ -24,6 +25,13 @@ const AGGREGATE_ICONS: Record<string, ReactNode> = {
   ratio: <RatioIcon width="16" height="16" />,
   seeding: <SeedingIcon width="16" height="16" />,
   leeching: <LeechingIcon width="16" height="16" />,
+  hitAndRuns: <TriangleWarningIcon width="16" height="16" />,
+}
+
+// Doubles as the alert button's accessible name, so it has to say what the
+// numbers are: "Alert: Aither: 2" reads as nothing to a screen reader.
+function describeHitAndRuns(list: AggregateStats["trackersWithHitAndRuns"]): string {
+  return `Hit & runs: ${list.map((t) => `${formatCount(t.count)} on ${t.name}`).join(", ")}`
 }
 
 interface EcosystemStatsSectionProps {
@@ -35,6 +43,18 @@ function EcosystemStatsSection({ trackers, aggregateStats }: EcosystemStatsSecti
   const uploadedParts = splitValueUnit(formatBytesFromString(aggregateStats.totalUploaded))
   const downloadedParts = splitValueUnit(formatBytesFromString(aggregateStats.totalDownloaded))
   const bufferParts = splitValueUnit(formatBytesFromString(aggregateStats.totalBuffer))
+
+  // "0" is only honest once at least one tracker reports the field; an all-unknown
+  // fleet gets a dash so it never reads as clean.
+  const { hitAndRunReportingTrackers: hnrReporters, totalHitAndRuns } = aggregateStats
+  const hnrKnown = hnrReporters > 0
+  const hnrTooltip = !hnrKnown
+    ? "None of your trackers report hit & runs"
+    : hnrReporters < trackers.length
+      ? `${hnrReporters} of ${trackers.length} trackers report hit & runs`
+      : undefined
+  const hnrReason =
+    totalHitAndRuns > 0 ? describeHitAndRuns(aggregateStats.trackersWithHitAndRuns) : undefined
 
   return (
     <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
@@ -84,6 +104,14 @@ function EcosystemStatsSection({ trackers, aggregateStats }: EcosystemStatsSecti
         label="Leeching"
         value={formatCount(aggregateStats.totalLeeching)}
         icon={AGGREGATE_ICONS.leeching}
+      />
+      <StatCard
+        label="Hit & Runs"
+        value={hnrKnown ? formatCount(totalHitAndRuns) : "—"}
+        icon={AGGREGATE_ICONS.hitAndRuns}
+        tooltip={hnrTooltip}
+        alert={hnrReason ? "danger" : undefined}
+        alertReason={hnrReason}
       />
     </div>
   )

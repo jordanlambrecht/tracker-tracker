@@ -26,6 +26,10 @@ function createRequest() {
   )
 }
 
+function testConnectionRequest() {
+  return fetchMock.mock.calls.find(([url]) => String(url) === "/api/trackers/test-connection")
+}
+
 beforeEach(() => {
   fetchMock.mockReset()
   fetchMock.mockImplementation(async (url: unknown) => {
@@ -117,8 +121,7 @@ describe("AddTrackerDialog torrentleech credentials", () => {
   })
 
   it("clears the typed credentials when the dialog is cancelled", async () => {
-    // Closing used to keep the password (and now a second secret) in component
-    // state and re-show both on reopen.
+    // Cancelling must clear both secrets, or a reopened dialog shows them again.
     const user = userEvent.setup()
     const { rerender } = render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
 
@@ -131,5 +134,77 @@ describe("AddTrackerDialog torrentleech credentials", () => {
     await pickTorrentLeech(user)
     expect(screen.getByLabelText("TorrentLeech Password")).toHaveValue("")
     expect(screen.getByLabelText("Alt 2FA Token (optional)")).toHaveValue("")
+  })
+})
+
+async function pickRetroToon(user: ReturnType<typeof userEvent.setup>) {
+  await user.type(screen.getByPlaceholderText("Search trackers..."), "RetroToon")
+  await user.keyboard("{Enter}")
+}
+
+describe("AddTrackerDialog retrotoon credentials", () => {
+  it("stores the browser User-Agent alongside the session cookies", async () => {
+    // RetroToon fingerprints the session against the UA that minted the
+    // cookies, so the blob must carry this browser's UA, not a server default.
+    const user = userEvent.setup()
+    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+
+    await pickRetroToon(user)
+    await user.type(screen.getByLabelText("Browser Cookies"), "PHPSESSID=abc123")
+    await user.click(screen.getByRole("button", { name: "Add Tracker" }))
+
+    const blob = JSON.parse(JSON.parse(String(createRequest()?.[1]?.body)).apiToken)
+    expect(blob).toEqual({ cookies: "PHPSESSID=abc123", userAgent: navigator.userAgent })
+  })
+
+  it("strips a copied 'Cookie: ' prefix before storing", async () => {
+    const user = userEvent.setup()
+    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+
+    await pickRetroToon(user)
+    await user.type(screen.getByLabelText("Browser Cookies"), "Cookie: PHPSESSID=abc123")
+    await user.click(screen.getByRole("button", { name: "Add Tracker" }))
+
+    const blob = JSON.parse(JSON.parse(String(createRequest()?.[1]?.body)).apiToken)
+    expect(blob.cookies).toBe("PHPSESSID=abc123")
+  })
+
+  it("clears the pasted cookies when the dialog is cancelled", async () => {
+    // Cancelling must clear the pasted cookie, or a reopened dialog shows the
+    // session cookie again.
+    const user = userEvent.setup()
+    const { rerender } = render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+
+    await pickRetroToon(user)
+    await user.type(screen.getByLabelText("Browser Cookies"), "PHPSESSID=abc123")
+    await user.click(screen.getByRole("button", { name: "Cancel" }))
+
+    rerender(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    await pickRetroToon(user)
+    expect(screen.getByLabelText("Browser Cookies")).toHaveValue("")
+  })
+})
+
+describe("AddTrackerDialog request bodies", () => {
+  it("names the tracker by slug and sends no URL or platform to either route", async () => {
+    // The address is registry data keyed by the slug, so a URL in either body
+    // would be a second opinion about where the tracker lives.
+    const user = userEvent.setup()
+    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+
+    await pickTorrentLeech(user)
+    await user.type(screen.getByLabelText("TorrentLeech Username"), "bob")
+    await user.type(screen.getByLabelText("TorrentLeech Password"), "hunter2")
+    await user.click(screen.getByRole("button", { name: "Add Tracker" }))
+
+    const tested = JSON.parse(String(testConnectionRequest()?.[1]?.body))
+    expect(tested.slug).toBe("torrentleech")
+    expect(tested).not.toHaveProperty("baseUrl")
+    expect(tested).not.toHaveProperty("platformType")
+
+    const saved = JSON.parse(String(createRequest()?.[1]?.body))
+    expect(saved.slug).toBe("torrentleech")
+    expect(saved).not.toHaveProperty("baseUrl")
+    expect(saved).not.toHaveProperty("platformType")
   })
 })

@@ -8,14 +8,11 @@ import type { TrackerRules } from "@/data/tracker-registry"
 /**
  * How a torrent's per-torrent requirements combine.
  *
- * - `any` — meeting ONE of them satisfies the torrent. TorrentLeech states it
- *   outright: "There are two ways for you to give back to the community" —
- *   seed to 1:1, or seed for your class's minimum time.
- * - `all` — every stated requirement must be met.
+ * - `any`: meeting one of them satisfies the torrent, as TorrentLeech states.
+ * - `all`: every stated requirement must be met.
  *
- * Never assume `any` for a tracker that does not say so. Marking a torrent
- * satisfied at 1:1 on a seed-time-only tracker is how hit-and-runs are earned,
- * and it is the one direction this model must not fail in.
+ * Never assume `any` for a tracker that does not say so: marking a torrent
+ * satisfied at 1:1 on a seed-time-only tracker earns a hit-and-run.
  */
 export type SatisfactionMode = "any" | "all"
 
@@ -32,16 +29,11 @@ export interface SatisfactionRequirement {
  * Reads a registry entry's rules into a requirement, or null when the tracker
  * states no per-torrent requirement at all.
  *
- * **Ratio participates only when `satisfactionMode` is set.** `minimumRatio` has
- * always been in the registry, but as an ACCOUNT-level figure — it drives the
- * ratio-danger alert and the chart baseline. Reading it as a per-torrent
- * requirement wherever it happens to be non-zero would silently re-interpret all
- * 55 registry entries against rules nobody has re-read, and for a tracker whose
- * real rule is seed-time-only that lands in the unsafe direction.
- *
- * So an entry opts in by declaring its mode, and an entry that has not opted in
- * behaves exactly as it does today. That makes `satisfactionMode` a marker of
- * "these rules have been verified" as much as a combinator.
+ * Ratio counts only when `satisfactionMode` is set. `minimumRatio` is an
+ * account-level figure for the ratio-danger alert and the chart baseline, and
+ * reading it per torrent on a seed-time-only tracker would mark torrents
+ * satisfied too early. Declaring a mode also marks the entry's rules as
+ * verified.
  */
 export function resolveSatisfaction(rules?: TrackerRules): SatisfactionRequirement | null {
   const seedTimeHours = rules?.seedTimeHours ?? 0
@@ -49,8 +41,10 @@ export function resolveSatisfaction(rules?: TrackerRules): SatisfactionRequireme
 
   const mode = rules?.satisfactionMode
   if (!mode) {
-    // Unverified entry: seed time alone, ratio ignored. Today's behaviour.
-    return requiredSeedSeconds === null ? null : { requiredSeedSeconds, requiredRatio: null, mode: "all" }
+    // Unverified entry: seed time alone, ratio ignored.
+    return requiredSeedSeconds === null
+      ? null
+      : { requiredSeedSeconds, requiredRatio: null, mode: "all" }
   }
 
   const minimumRatio = rules?.minimumRatio ?? 0
@@ -75,12 +69,9 @@ export function seedTimeProgress(seedingTime: number, req: SatisfactionRequireme
 /** Fraction of the ratio requirement met, 0..1. 1 when not required. */
 export function ratioProgress(ratio: number, req: SatisfactionRequirement): number {
   if (req.requiredRatio === null) return 1
-  // qBT reports ratio -1 for a torrent that downloaded nothing, i.e. a pure
-  // cross-seed. See the sentinel note in fleet-aggregation.ts, which excludes
-  // the same value from ratio statistics. Whether that satisfies a 1:1 rule is
-  // a hit-and-run judgement nobody has made, so it counts as no progress and
-  // the torrent clears on seed time instead. Under `any` that is equivalent to
-  // dropping the ratio route, since max(seed, 0) is seed.
+  // qBittorrent reports ratio -1 for a torrent that downloaded nothing (a pure
+  // cross-seed, see fleet-aggregation.ts). It counts as no progress, so the
+  // torrent clears on seed time instead.
   if (!Number.isFinite(ratio) || ratio < 0) return 0
   return Math.min(ratio / req.requiredRatio, 1)
 }
@@ -88,9 +79,9 @@ export function ratioProgress(ratio: number, req: SatisfactionRequirement): numb
 /**
  * How close a torrent is to being satisfied, 0..1.
  *
- * Under `any` this is the BEST of the routes: an either/or means you are as
+ * Under `any` this is the best of the routes: an either/or means you are as
  * close as your nearest way out, and a torrent at 0.99 ratio is nearly done
- * even with no seed time on the clock. Under `all` it is the WORST, because
+ * even with no seed time on the clock. Under `all` it is the worst, because
  * every requirement has to land and the laggard is what you are waiting on.
  */
 export function satisfactionProgress(
@@ -98,10 +89,8 @@ export function satisfactionProgress(
   req: SatisfactionRequirement
 ): number {
   // Only the routes this tracker states may count. The per-route helpers score
-  // an absent route 1, which is right for `all` (it cannot hold the torrent
-  // back) but wrong for `any`, where it would read as a route already met and
-  // satisfy every torrent. `resolveSatisfaction` never returns a requirement
-  // with no routes; a hand-built one is vacuously satisfied, as before.
+  // an absent route 1, which is right for `all` but would satisfy every torrent
+  // under `any`. A requirement with no routes is vacuously satisfied.
   const routes: number[] = []
   if (req.requiredSeedSeconds !== null) routes.push(seedTimeProgress(torrent.seedingTime, req))
   if (req.requiredRatio !== null) routes.push(ratioProgress(torrent.ratio, req))
@@ -128,8 +117,8 @@ export function remainingSeedSeconds(
   if (req.requiredSeedSeconds === null) return null
   if (isSatisfied(torrent, req)) return null
   // An unreadable seed time counts as nothing served, so the full amount is
-  // owed. Mirrors the seedTimeProgress guard: zero progress and full debt are
-  // the same statement. The raw NaN rendered an unsatisfied torrent as "Done".
+  // owed, matching the seedTimeProgress guard. A raw NaN would render an
+  // unsatisfied torrent as "Done".
   const served =
     Number.isFinite(torrent.seedingTime) && torrent.seedingTime > 0 ? torrent.seedingTime : 0
   return Math.max(req.requiredSeedSeconds - served, 0)

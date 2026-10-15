@@ -177,7 +177,7 @@ You'll rarely need more than one ring card.
 
 ### 1. Decide what data you need
 
-If your data is in `latestSnapshot`, read it directly. For platform-specific `meta`, check `*PlatformMeta` in `src/lib/adapters/types.ts`.
+If your data is in `latestSnapshot`, read it directly. For platform-specific `meta`, check `*PlatformMeta` in `src/types/tracker-stats.ts`.
 
 ### 2. Write the slot definition
 

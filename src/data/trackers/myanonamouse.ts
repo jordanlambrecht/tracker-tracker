@@ -30,16 +30,32 @@ export const myanonamouse: TrackerRegistryEntry = {
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [
-    { name: "Mouse", requirements: "Ratio below 1.0 (auto-demotion)" },
+    { name: "Mouse", requirements: "Ratio below 1.0 (auto-demotion)", outsideLadder: "below" },
     { name: "User", requirements: "Ratio above 1.0" },
     { name: "Power User", requirements: "4 weeks membership, 25 GB uploaded, 2.0 ratio" },
-    { name: "Star", requirements: "Donor" },
-    { name: "VIP", requirements: "Bonus points or donation (requires Power User first)" },
-    { name: "Elite VIP", requirements: "Staff-selected for community contribution" },
-    { name: "Elite", requirements: "Staff-selected, immune to auto-demotion" },
-    { name: "Supporter", requirements: "Continuous supporter" },
-    { name: "Mouseketeer", requirements: "Retired staff" },
-    { name: "Uploader", requirements: "Staff-selected for consistent monthly uploads" },
+    { name: "Star", requirements: "Donor", outsideLadder: "above" },
+    {
+      name: "VIP",
+      requirements: "Bonus points or donation (requires Power User first)",
+      outsideLadder: "above",
+    },
+    {
+      name: "Elite VIP",
+      requirements: "Staff-selected for community contribution",
+      outsideLadder: "above",
+    },
+    {
+      name: "Elite",
+      requirements: "Staff-selected, immune to auto-demotion",
+      outsideLadder: "above",
+    },
+    { name: "Supporter", requirements: "Continuous supporter", outsideLadder: "above" },
+    { name: "Mouseketeer", requirements: "Retired staff", outsideLadder: "above" },
+    {
+      name: "Uploader",
+      requirements: "Staff-selected for consistent monthly uploads",
+      outsideLadder: "above",
+    },
   ],
   stats: {
     userCount: 114812,
@@ -54,7 +70,7 @@ export const myanonamouse: TrackerRegistryEntry = {
   rules: {
     minimumRatio: 1.0,
     seedTimeHours: 72,
-    loginIntervalDays: 0,
+    loginIntervalDays: 120,
     fulfillmentPeriodHours: 720,
   },
 
