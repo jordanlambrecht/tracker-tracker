@@ -8,20 +8,19 @@ export const infinityhd: TrackerRegistryEntry = {
   name: "InfinityHD",
   abbreviation: "IHD",
   url: "https://infinityhd.net",
-  description:
-    "InfinityHD is a community-built Movie/TV/FANRES database. Every piece of data has been added by our amazing members. InfinityHDs strong focus is on HD content, a proactive userbase, an awesome/secure codebase and a helpful and friendly staff team.",
+  description: "English private tracker for HD movies and TV, with anime and music sections.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "unit3d",
   apiPath: "/api/user",
 
   // ── Content ─────────────────────────────────────────────────────────
-  specialty: "Movies / TV / FANRES",
-  contentCategories: ["Movies", "TV", "Fanres"],
+  specialty: "Movies / TV",
+  contentCategories: ["Movies", "TV", "Anime", "Music"],
   language: "English",
 
   // ── Visual ──────────────────────────────────────────────────────────
-  color: "#6d28d9",
+  color: "#8f6cff",
   logo: "",
 
   // ── External Links ──────────────────────────────────────────────────
@@ -29,56 +28,7 @@ export const infinityhd: TrackerRegistryEntry = {
   statusPageUrl: "",
 
   // ── Community ───────────────────────────────────────────────────────
-  userClasses: [
-    { name: "User", requirements: "Verified user. 5 download slots" },
-    {
-      name: "Adept",
-      requirements: "1 week, 100 GiB upload, ratio ≥ 0.50, 3 days avg seedtime. 10 download slots",
-    },
-    {
-      name: "Spellbinder",
-      requirements:
-        "1 week, 250 GiB upload, 50 GiB seedsize, ratio ≥ 1.00, 5 days avg seedtime. 20 download slots",
-    },
-    {
-      name: "Conjurer",
-      requirements:
-        "2 weeks, 750 GiB upload, 150 GiB seedsize, ratio ≥ 1.10, 1 week avg seedtime. 30 download slots, invite sending",
-    },
-    {
-      name: "Sorcerer",
-      requirements:
-        "1 month, 1 TiB upload, 250 GiB seedsize, ratio ≥ 1.25, 2 weeks avg seedtime. 50 download slots, invite sending",
-    },
-    {
-      name: "Ascendant",
-      requirements:
-        "2 months, 2 TiB upload, 500 GiB seedsize, ratio ≥ 1.50, 3 weeks avg seedtime. 70 download slots, invite sending, freeleech, HnR immune",
-    },
-    {
-      name: "Channeler",
-      requirements:
-        "3 months, 3 TiB upload, 1 TiB seedsize, ratio ≥ 2.50, 1 month avg seedtime, 25 uploads. 100 download slots, invite sending, freeleech, HnR immune",
-    },
-    {
-      name: "Lorekeeper",
-      requirements:
-        "6 months, 5 TiB upload, 1 TiB seedsize, ratio ≥ 3.00, 6 weeks avg seedtime, 50 uploads. Unlimited download slots, invite sending, freeleech, HnR immune, double upload, modqueue bypass",
-    },
-    { name: "Archwizard", requirements: "Owners" },
-    { name: "Astral Keeper", requirements: "Site system operators" },
-    { name: "High Sorcerer", requirements: "Admins" },
-    { name: "Magician", requirements: "Site moderators" },
-    { name: "Sentinel", requirements: "Torrent moderators" },
-    { name: "Chronosmith", requirements: "Metadata editors" },
-    { name: "Legend", requirements: "Uploaders, higher rank" },
-    { name: "Helper", requirements: "Dedicated seeders and autobrr instances" },
-    { name: "Grand Sage", requirements: "Internal / staff / friends from other trackers" },
-    { name: "Emperor", requirements: "Known release group members" },
-    { name: "Alchemist", requirements: "Dedicated full-disc uploaders" },
-    { name: "Runesmith", requirements: "Site uploaders" },
-    { name: "Inner Circle", requirements: "Internals" },
-  ],
+  userClasses: [],
   releaseGroups: [],
   bannedGroups: [
     "1000",
@@ -165,7 +115,6 @@ export const infinityhd: TrackerRegistryEntry = {
     "MySiLU",
     "NaNi",
     "NhaNc3",
-    "nhanc3",
     "nHD",
     "nikt0",
     "nSD",
@@ -221,9 +170,9 @@ export const infinityhd: TrackerRegistryEntry = {
     fullRulesMarkdown: [
       "## Seeding / Hit & Run",
       "",
-      "- Maintain an overall ratio of 0.4 or better — falling below restricts downloading, freeleech included",
+      "- Maintain an overall ratio of 0.4 or better. Falling below restricts downloading, freeleech included",
       "- Check for other seeders before removing a torrent; don't drop the last seed",
-      "- Only seed content your client directly holds — no seeding from cloud/debrid/remote storage",
+      "- Only seed content your client directly holds. No seeding from cloud/debrid/remote storage",
       "- All torrents require a minimum of 5 days (120 hours) seedtime, regardless of ratio",
       "- Seedtime starts only after 100% completion; a 10% buffer exists before minimums apply",
       "- Disconnected > 24h without meeting seedtime → pre-warning PM, with 48h to resume",
@@ -258,8 +207,8 @@ export const infinityhd: TrackerRegistryEntry = {
   },
 
   // ── Status ──────────────────────────────────────────────────────────
-  warning: false,
-  warningNote: "",
+  warning: true,
+  warningNote: "Unverified! Not tested against a live account.",
 
   // ── Flags ───────────────────────────────────────────────────────────
   draft: false,
