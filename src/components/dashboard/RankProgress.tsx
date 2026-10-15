@@ -1,6 +1,7 @@
 // src/components/dashboard/RankProgress.tsx
 "use client"
 
+import clsx from "clsx"
 import { useState } from "react"
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import { RedactedText } from "@/components/ui/RedactedText"
@@ -8,6 +9,7 @@ import { SectionToggle } from "@/components/ui/SectionToggle"
 import type { TrackerUserClass } from "@/data/tracker-registry"
 import { hexToRgba } from "@/lib/color-utils"
 import { isRedacted } from "@/lib/privacy"
+import { findClassIndex } from "@/lib/rank-ladder"
 import { checkAnniversaryMilestone } from "@/lib/tracker-events"
 import type { Snapshot } from "@/types/api"
 
@@ -73,8 +75,8 @@ function classifyDirection(
   userClasses: TrackerUserClass[]
 ): "promotion" | "demotion" | "unknown" {
   if (userClasses.length === 0) return "unknown"
-  const fromIdx = userClasses.findIndex((uc) => uc.name.toLowerCase() === from.toLowerCase())
-  const toIdx = userClasses.findIndex((uc) => uc.name.toLowerCase() === to.toLowerCase())
+  const fromIdx = findClassIndex(userClasses, from)
+  const toIdx = findClassIndex(userClasses, to)
   if (fromIdx === -1 || toIdx === -1) return "unknown"
   return toIdx > fromIdx ? "promotion" : "demotion"
 }
@@ -82,9 +84,7 @@ function classifyDirection(
 function RankProgressBar({ userClasses, currentRank, accentColor }: RankProgressBarProps) {
   if (userClasses.length === 0 || !currentRank || isRedacted(currentRank)) return null
 
-  const currentIndex = userClasses.findIndex(
-    (uc) => uc.name.toLowerCase() === currentRank.toLowerCase()
-  )
+  const currentIndex = findClassIndex(userClasses, currentRank)
 
   return (
     <div className="flex items-center gap-1 w-full overflow-x-auto p-3 -m-3 styled-scrollbar">
@@ -105,7 +105,19 @@ function RankProgressBar({ userClasses, currentRank, accentColor }: RankProgress
               />
             )}
             <div
-              className="px-3 py-1.5 text-xs font-mono transition-all duration-150 shrink-0 rounded-nm-pill"
+              // The full list stays visible here, unlike the dashboard stacks,
+              // so a class that is not a rung has to look different from one that is.
+              className={clsx(
+                "px-3 py-1.5 text-xs font-mono transition-all duration-150 shrink-0 rounded-nm-pill",
+                uc.outsideLadder && "opacity-60"
+              )}
+              title={
+                uc.outsideLadder === "above"
+                  ? "Granted by staff, donation or invitation, not a rung of the ladder"
+                  : uc.outsideLadder === "below"
+                    ? "Demotion or administrative state, not a rung of the ladder"
+                    : undefined
+              }
               style={{
                 ...(isCurrent
                   ? {

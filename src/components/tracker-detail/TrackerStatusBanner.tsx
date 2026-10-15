@@ -22,8 +22,8 @@ export function TrackerStatusBanner({
 }: TrackerStatusBannerProps) {
   const pause = getPauseState(tracker)
 
-  // An archived tracker is not polled at all — the poll cycle selects on
-  // `isActive = true` (tracker-scheduler.ts) — so a pause banner announces a
+  // An archived tracker is not polled at all, the poll cycle selects on
+  // `isActive = true` (tracker-scheduler.ts), so a pause banner announces a
   // state that does not apply, and "Resume Polling" offers an action that
   // cannot deliver what it says: the resume route clears pausedAt, lastError
   // and consecutiveFailures without touching isActive, so the tracker stays
@@ -32,7 +32,7 @@ export function TrackerStatusBanner({
   // Nothing is rendered in the pause banner's place. Archiving is the user's
   // own deliberate choice rather than a fault needing explanation, and it is
   // already stated twice on this page: the detail header carries an "Archived"
-  // badge, and a defunct tracker's own banner — which sits above this one —
+  // badge, and a defunct tracker's own banner (which sits above this one)
   // says its history is kept and it is no longer polled. A third notice would
   // only repeat them.
   const isArchived = !tracker.isActive

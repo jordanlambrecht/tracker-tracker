@@ -243,7 +243,7 @@ describe("findOptimalLayout4Col.cards (placement)", () => {
   })
 
   it("returns correct types when doubles are promoted to triples", () => {
-    // Use a case where the algorithm promotes — 10S+2D → 4 cols, 2T
+    // Use a case where the algorithm promotes, 10S+2D → 4 cols, 2T
     const layout = findOptimalLayout4Col(10, 2)
     expect(layout.triples).toBe(2)
 

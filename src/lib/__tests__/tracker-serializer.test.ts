@@ -6,6 +6,7 @@ const mockTracker = {
   id: 1,
   name: "Test Tracker",
   baseUrl: "https://example.com",
+  registrySlug: null,
   apiPath: "/api/user",
   platformType: "unit3d",
   encryptedApiToken: "should-never-appear",

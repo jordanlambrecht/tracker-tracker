@@ -115,12 +115,12 @@ export function validateTrackerCredentialVault(value: unknown): string | null {
   }
 
   if (value.sections.length > MAX_SECTIONS) {
-    return `Too many sections — the maximum is ${MAX_SECTIONS}`
+    return `Too many sections. The maximum is ${MAX_SECTIONS}`
   }
 
   const totalFields = value.sections.reduce((sum, section) => sum + section.fields.length, 0)
   if (totalFields > MAX_FIELDS_PER_VAULT) {
-    return `Too many fields — the maximum is ${MAX_FIELDS_PER_VAULT} across all sections`
+    return `Too many fields. The maximum is ${MAX_FIELDS_PER_VAULT} across all sections`
   }
 
   const sectionIds = new Set<string>()
@@ -131,10 +131,10 @@ export function validateTrackerCredentialVault(value: unknown): string | null {
 
   for (const section of value.sections) {
     if (!isCredentialSlug(section.id)) {
-      return `Section id "${quoteId(section.id)}" must be a slug — lowercase letters, digits, "-" and "_", starting with a letter or digit, max ${MAX_ID_LENGTH} characters`
+      return `Section id "${quoteId(section.id)}" must be a slug: lowercase letters, digits, "-" and "_", starting with a letter or digit, max ${MAX_ID_LENGTH} characters`
     }
     if (sectionIds.has(section.id)) {
-      return `Duplicate section id "${quoteId(section.id)}" — section ids must be unique`
+      return `Duplicate section id "${quoteId(section.id)}". Section ids must be unique`
     }
     sectionIds.add(section.id)
 
@@ -142,15 +142,15 @@ export function validateTrackerCredentialVault(value: unknown): string | null {
       return `Section "${quoteId(section.id)}" needs a title`
     }
     if (section.title.length > MAX_LABEL_LENGTH) {
-      return `Section title for "${quoteId(section.id)}" is too long — the maximum is ${MAX_LABEL_LENGTH} characters`
+      return `Section title for "${quoteId(section.id)}" is too long. The maximum is ${MAX_LABEL_LENGTH} characters`
     }
 
     for (const field of section.fields) {
       if (!isCredentialSlug(field.id)) {
-        return `Field id "${quoteId(field.id)}" must be a slug — lowercase letters, digits, "-" and "_", starting with a letter or digit, max ${MAX_ID_LENGTH} characters`
+        return `Field id "${quoteId(field.id)}" must be a slug: lowercase letters, digits, "-" and "_", starting with a letter or digit, max ${MAX_ID_LENGTH} characters`
       }
       if (fieldIds.has(field.id)) {
-        return `Duplicate field id "${quoteId(field.id)}" — field ids must be unique across the whole vault`
+        return `Duplicate field id "${quoteId(field.id)}". Field ids must be unique across the whole vault`
       }
       fieldIds.add(field.id)
 
@@ -158,7 +158,7 @@ export function validateTrackerCredentialVault(value: unknown): string | null {
         return `Field "${quoteId(field.id)}" needs a label`
       }
       if (field.label.length > MAX_LABEL_LENGTH) {
-        return `Label for "${quoteId(field.id)}" is too long — the maximum is ${MAX_LABEL_LENGTH} characters`
+        return `Label for "${quoteId(field.id)}" is too long. The maximum is ${MAX_LABEL_LENGTH} characters`
       }
       // An EMPTY value is explicitly allowed. crypto.ts encrypts empty plaintext
       // and its decrypt() bound was widened specifically so empty values survive
@@ -166,14 +166,14 @@ export function validateTrackerCredentialVault(value: unknown): string | null {
       // a higher layer. A user who has added the field but not the secret yet is
       // a normal state.
       if (field.value.length > MAX_VALUE_LENGTH) {
-        return `Value for "${field.label}" is too long — the maximum is ${MAX_VALUE_LENGTH} characters`
+        return `Value for "${field.label}" is too long. The maximum is ${MAX_VALUE_LENGTH} characters`
       }
     }
   }
 
   const bytes = serializedVaultBytes(value)
   if (bytes > MAX_SERIALIZED_BYTES) {
-    return `Credential vault is too large — the maximum is ${MAX_SERIALIZED_BYTES} bytes`
+    return `Credential vault is too large. The maximum is ${MAX_SERIALIZED_BYTES} bytes`
   }
 
   return null

@@ -3,7 +3,7 @@
 // The opt-in gate's own logic, isolated from the routes that call it.
 //
 // The case worth writing a file for is the ABSENT settings row. A fresh install
-// has no row at all, and "no row" must read as DISABLED — if it read as enabled,
+// has no row at all, and "no row" must read as DISABLED, if it read as enabled,
 // the feature's default would depend on whether the settings row happened to
 // have been created yet, which is not a property anyone can reason about.
 

@@ -88,25 +88,55 @@ export const phoenixproject: TrackerRegistryEntry = {
     {
       name: "Interviewer",
       requirements: "Staff — selected to conduct interviews and invite new members",
+      outsideLadder: "above",
     },
-    { name: "VIP", requirements: "Staff — extraordinary contributions to the site" },
-    { name: "Legend", requirements: "Staff — extraordinary contributions to the site" },
-    { name: "Alpha Team", requirements: "Staff — special team" },
-    { name: "Bravo Team", requirements: "Staff — special team" },
-    { name: "Charlie Team", requirements: "Staff — QA team" },
-    { name: "Designer", requirements: "Staff — design team" },
-    { name: "First-Line Support", requirements: "Staff — day-to-day site tasks and user support" },
-    { name: "Concierge", requirements: "Staff — special team" },
+    {
+      name: "VIP",
+      requirements: "Staff — extraordinary contributions to the site",
+      outsideLadder: "above",
+    },
+    {
+      name: "Legend",
+      requirements: "Staff — extraordinary contributions to the site",
+      outsideLadder: "above",
+    },
+    { name: "Alpha Team", requirements: "Staff — special team", outsideLadder: "above" },
+    { name: "Bravo Team", requirements: "Staff — special team", outsideLadder: "above" },
+    { name: "Charlie Team", requirements: "Staff — QA team", outsideLadder: "above" },
+    { name: "Designer", requirements: "Staff — design team", outsideLadder: "above" },
+    {
+      name: "First-Line Support",
+      requirements: "Staff — day-to-day site tasks and user support",
+      outsideLadder: "above",
+    },
+    { name: "Concierge", requirements: "Staff — special team", outsideLadder: "above" },
     // Staff
-    { name: "Torrent Moderator", requirements: "Staff — moderates torrents" },
-    { name: "Developer", requirements: "Staff — designs and writes site code" },
-    { name: "Forum Moderator", requirements: "Staff — moderates forums and comments" },
-    { name: "Moderator", requirements: "Staff — moderates torrents and general site content" },
+    {
+      name: "Torrent Moderator",
+      requirements: "Staff — moderates torrents",
+      outsideLadder: "above",
+    },
+    {
+      name: "Developer",
+      requirements: "Staff — designs and writes site code",
+      outsideLadder: "above",
+    },
+    {
+      name: "Forum Moderator",
+      requirements: "Staff — moderates forums and comments",
+      outsideLadder: "above",
+    },
+    {
+      name: "Moderator",
+      requirements: "Staff — moderates torrents and general site content",
+      outsideLadder: "above",
+    },
     {
       name: "Administrator",
       requirements: "Staff — overall site maintenance, management, and security",
+      outsideLadder: "above",
     },
-    { name: "Sysop", requirements: "Staff — in charge of everything" },
+    { name: "Sysop", requirements: "Staff — in charge of everything", outsideLadder: "above" },
   ],
   releaseGroups: [],
   bannedGroups: [],
@@ -114,6 +144,12 @@ export const phoenixproject: TrackerRegistryEntry = {
 
   // ── Rules ───────────────────────────────────────────────────────────
   rules: {
+    // Verified against rules.php?p=ratio, 2026-08-27: Phoenix has no per-torrent
+    // requirement and no hit-and-run system. Its whole system is an account-level
+    // sliding required ratio (0.00 to 0.60 by download bracket, lowered by seeding
+    // more, enforced by a two-week ratio watch). Never set satisfactionMode here;
+    // an empty Unsatisfied table is correct for this tracker. The 0.6 below is the
+    // 100+ GB bracket cap, and the live Gazelle requiredRatio supersedes it.
     minimumRatio: 0.6,
     seedTimeHours: 0,
     loginIntervalDays: 0,

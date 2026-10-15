@@ -253,8 +253,8 @@ describe("scrubObject — depth limit", () => {
     const result = scrubObject(deep)
     expect(result).toBeDefined()
 
-    // Navigate 11 levels in — at that point scrubObject returns the node as-is
-    // so the passkey value is NOT [redacted] at depth > 10
+    // Navigate 11 levels in, at that point scrubObject returns the node as-is
+    // so the passkey value is not [redacted] at depth > 10
     let node = result as DeepObj
     for (let i = 0; i < 11; i++) {
       node = node.wrapper as DeepObj
@@ -304,5 +304,24 @@ describe("scrubObject — tracker secrets seen in real responses", () => {
       unknown
     >
     expect(scrubbed.passkey).not.toBe("38cca120bd9fda0955b9e9e4e784fa31")
+  })
+})
+
+describe("scrubObject — both spellings of an API key", () => {
+  it("redacts api_key, which a UNIT3D fork returns at the top level", () => {
+    expect(scrubObject({ api_key: { expires_at: "2027-01-01" } })).toEqual({
+      api_key: "[redacted]",
+    })
+  })
+
+  it("redacts apikey, the spelling Anthelion uses", () => {
+    expect(scrubObject({ apikey: "secret" })).toEqual({ apikey: "[redacted]" })
+  })
+
+  it("redacts them however the tracker cases them", () => {
+    expect(scrubObject({ API_Key: "secret", ApiKey: "secret" })).toEqual({
+      API_Key: "[redacted]",
+      ApiKey: "[redacted]",
+    })
   })
 })

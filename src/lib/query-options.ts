@@ -17,7 +17,9 @@ import type { SafeDownloadClient, TrackerSummary } from "@/types/api"
 export const clientQueryOptions = queryOptions({
   queryKey: ["clients"] as const,
   queryFn: async ({ signal }) => {
-    const res = await fetch("/api/clients", { signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]) })
+    const res = await fetch("/api/clients", {
+      signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]),
+    })
     if (!res.ok) return [] as SafeDownloadClient[]
     return res.json() as Promise<SafeDownloadClient[]>
   },
@@ -39,7 +41,9 @@ export const fleetCachedQueryOptions = queryOptions({
 export const trackerQueryOptions = queryOptions({
   queryKey: ["trackers"] as const,
   queryFn: async ({ signal }) => {
-    const res = await fetch("/api/trackers", { signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]) })
+    const res = await fetch("/api/trackers", {
+      signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]),
+    })
     if (!res.ok) return [] as TrackerSummary[]
     return res.json() as Promise<TrackerSummary[]>
   },

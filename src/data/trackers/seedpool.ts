@@ -39,8 +39,12 @@ export const seedpool: TrackerRegistryEntry = {
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [
-    { name: "Cesspool", requirements: "Ratio below 1 — download privileges revoked" },
-    { name: "KiddiePool", requirements: "Timeoutzone" },
+    {
+      name: "Cesspool",
+      requirements: "Ratio below 1 — download privileges revoked",
+      outsideLadder: "below",
+    },
+    { name: "KiddiePool", requirements: "Timeoutzone", outsideLadder: "below" },
     { name: "User", requirements: "Ratio ≥ 0.4 — DL Slots: ∞, Unsatisfied Slots: 20" },
     {
       name: "Pool",
@@ -64,6 +68,7 @@ export const seedpool: TrackerRegistryEntry = {
       name: "ProPool",
       requirements:
         "Can be bought or gifted with buffer in IRC — Freeleech, Double Upload, Unsatisfied Slots: 50",
+      outsideLadder: "above",
     },
     {
       name: "MegaPool",
@@ -78,16 +83,19 @@ export const seedpool: TrackerRegistryEntry = {
     {
       name: "FoundingPool",
       requirements: "Staff — founding members of Seed Pool. Freeleech, Unsatisfied Slots: 75",
+      outsideLadder: "above",
     },
     {
       name: "SpecialPool",
       requirements:
         "Staff — outstanding members. Upload Torrents, Freeleech, Double Upload, Torrent Mod bypass, Unsatisfied Slots: 100",
+      outsideLadder: "above",
     },
     {
       name: "External",
       requirements:
         "Staff — recognized release groups and respected tracker staff. Upload Torrents, Freeleech, Torrent Mod bypass, Unsatisfied Slots: 100",
+      outsideLadder: "above",
     },
   ],
   releaseGroups: [],

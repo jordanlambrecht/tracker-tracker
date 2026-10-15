@@ -249,7 +249,6 @@ export async function computeTodayAtAGlance(): Promise<TodayAtAGlance> {
   // Build checkpoint lookup
   const cpByKey = new Map(torrentCps.map((cp) => [`${cp.clientId}:${cp.hash}`, cp]))
 
-
   const movers: TorrentMover[] = []
   let addedToday = 0
   let completedToday = 0

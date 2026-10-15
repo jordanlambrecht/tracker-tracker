@@ -1,13 +1,37 @@
 // src/lib/__tests__/tracker-status.test.ts
-import { describe, expect, it } from "vitest"
+
+// Mock the registry so band tests control minimumRatio directly. The default
+// (undefined) keeps every fixture on the no-requirement fallback bands.
+vi.mock("@/data/tracker-registry", () => ({
+  registryEntryFor: vi.fn(() => undefined),
+}))
+
+import { beforeEach, describe, expect, it, vi } from "vitest"
+import { registryEntryFor } from "@/data/tracker-registry"
 import {
   getHealthBadgeVariant,
   getHealthDescription,
   getHealthLabel,
   getHealthPulseDot,
   getTrackerHealth,
+  resolveRequiredRatio,
 } from "@/lib/tracker-status"
 import type { TrackerLatestStats, TrackerSummary } from "@/types/api"
+
+const mockRegistryEntryFor = vi.mocked(registryEntryFor)
+
+// Keyed on the slug, so a row carrying none resolves nothing however its URL is
+// spelled.
+function mockRegistryMinimum(minimumRatio: number | undefined) {
+  mockRegistryEntryFor.mockImplementation((tracker) =>
+    // biome-ignore lint/suspicious/noExplicitAny: partial registry entry, only rules matter here
+    tracker.registrySlug ? ({ rules: { minimumRatio } } as any) : undefined
+  )
+}
+
+beforeEach(() => {
+  mockRegistryEntryFor.mockReturnValue(undefined)
+})
 
 function makeStats(overrides: Partial<TrackerLatestStats> = {}): TrackerLatestStats {
   return {
@@ -35,6 +59,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     id: 1,
     name: "Aither",
     baseUrl: "https://aither.cc",
+    registrySlug: "aither",
     platformType: "unit3d",
     isActive: true,
     lastPolledAt: new Date().toISOString(),
@@ -67,8 +92,8 @@ const healthOf = (stats: Partial<TrackerLatestStats>) =>
 // ---------------------------------------------------------------------------
 // The thin-ratio / zero-seed split
 //
-// These two conditions shared one "warning" pill until they were separated.
-// The tests below pin each one alone, plus the precedence when they overlap.
+// The thin-ratio and zero-seed conditions each get their own pill. The tests
+// below pin each one alone, plus the precedence when they overlap.
 // ---------------------------------------------------------------------------
 
 describe("getTrackerHealth — thin ratio vs. zero seeds", () => {
@@ -137,11 +162,14 @@ describe("getTrackerHealth — seedingCount the adapter does not report", () => 
 describe("health metadata", () => {
   it("gives 'no-seeds' its own label and description", () => {
     expect(getHealthLabel("no-seeds")).toBe("No Seeds")
-    expect(getHealthDescription("no-seeds")).toBe("Zero active seeds — nothing is uploading")
+    // Named for what the model measures, ratio against the requirement. It
+    // never sees the buffer, so the label must not claim one.
+    expect(getHealthLabel("warning")).toBe("Above Min")
+    expect(getHealthDescription("no-seeds")).toBe("Zero active seeds, nothing is uploading")
   })
 
   it("narrows the 'warning' description to the ratio band only", () => {
-    expect(getHealthDescription("warning")).toBe("Ratio 1.0–2.0 — thin buffer")
+    expect(getHealthDescription("warning")).toBe("Ratio above the required ratio, below double it")
     expect(getHealthDescription("warning")).not.toContain("seeds")
   })
 
@@ -150,5 +178,156 @@ describe("health metadata", () => {
     expect(getHealthPulseDot("no-seeds")).toBe("no-seeds")
     expect(getHealthBadgeVariant("warning")).toBe("warn")
     expect(getHealthPulseDot("warning")).toBe("warning")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Requirement-aware bands
+//
+// Each tracker is judged against its own requirement: live requiredRatio
+// first, registry minimumRatio second, and the historical 1.0/2.0 bands only
+// when neither exists. Healthy starts at twice the requirement.
+// ---------------------------------------------------------------------------
+
+describe("resolveRequiredRatio", () => {
+  it("prefers the live requiredRatio over the registry", () => {
+    mockRegistryMinimum(0.6)
+    expect(resolveRequiredRatio(2.0, { registrySlug: "example" })).toBe(2.0)
+  })
+
+  it("a live requirement of exactly 0 wins over the registry", () => {
+    // Phoenix at full seeding: the sliding requirement really is 0, and the
+    // registry's 0.6 bracket cap must not resurrect it.
+    mockRegistryMinimum(0.6)
+    expect(resolveRequiredRatio(0, { registrySlug: "example" })).toBe(0)
+  })
+
+  it("falls back to the registry minimumRatio when no live figure exists", () => {
+    mockRegistryMinimum(0.6)
+    expect(resolveRequiredRatio(null, { registrySlug: "example" })).toBe(0.6)
+  })
+
+  it("resolves nothing for a row with no slug, whatever its URL", () => {
+    // A pre-registry custom site. Its stored URL is a poll address, not a key,
+    // so no registry requirement can be read off it.
+    mockRegistryMinimum(0.6)
+    expect(resolveRequiredRatio(null, { registrySlug: null })).toBeNull()
+  })
+
+  it("returns null when neither source has a requirement", () => {
+    expect(resolveRequiredRatio(null, { registrySlug: "example" })).toBeNull()
+    expect(resolveRequiredRatio(undefined, { registrySlug: "example" })).toBeNull()
+  })
+
+  it("ignores a non-finite or negative live value", () => {
+    mockRegistryMinimum(0.6)
+    expect(resolveRequiredRatio(Number.NaN, { registrySlug: "example" })).toBe(0.6)
+    expect(resolveRequiredRatio(-1, { registrySlug: "example" })).toBe(0.6)
+  })
+})
+
+describe("getTrackerHealth — requirement-aware bands", () => {
+  it("judges against the registry minimumRatio when present", () => {
+    mockRegistryMinimum(0.6)
+    expect(healthOf({ ratio: 0.5, requiredRatio: null })).toBe("critical")
+    expect(healthOf({ ratio: 0.6, requiredRatio: null })).toBe("warning")
+    expect(healthOf({ ratio: 1.19, requiredRatio: null })).toBe("warning")
+    expect(healthOf({ ratio: 1.2, requiredRatio: null })).toBe("healthy")
+  })
+
+  it("leaves a row with no slug on the fallback bands", () => {
+    mockRegistryMinimum(0.6)
+    const noSlug = (ratio: number) =>
+      getTrackerHealth(
+        makeTracker({ registrySlug: null, latestStats: makeStats({ ratio, requiredRatio: null }) })
+      )
+    expect(noSlug(0.9)).toBe("critical")
+    expect(noSlug(1.5)).toBe("warning")
+  })
+
+  it("lets the live requiredRatio supersede the registry", () => {
+    mockRegistryMinimum(0.6)
+    expect(healthOf({ ratio: 1.5, requiredRatio: 2.0 })).toBe("critical")
+    expect(healthOf({ ratio: 3.9, requiredRatio: 2.0 })).toBe("warning")
+    expect(healthOf({ ratio: 4.0, requiredRatio: 2.0 })).toBe("healthy")
+  })
+
+  it("treats a zero requirement as healthy at any ratio", () => {
+    mockRegistryMinimum(0.6)
+    expect(healthOf({ ratio: 0.01, requiredRatio: 0 })).toBe("healthy")
+  })
+
+  it("keeps the no-seeds override above a zero requirement", () => {
+    expect(healthOf({ ratio: 0.01, requiredRatio: 0, seedingCount: 0 })).toBe("no-seeds")
+  })
+
+  it("keeps a tracker warning critical regardless of the requirement", () => {
+    expect(healthOf({ ratio: 9.9, requiredRatio: 0, warned: true })).toBe("critical")
+  })
+
+  it("keeps the historical 1.0/2.0 bands when no requirement is known", () => {
+    expect(healthOf({ ratio: 0.9 })).toBe("critical")
+    expect(healthOf({ ratio: 1.5 })).toBe("warning")
+    expect(healthOf({ ratio: 2.0 })).toBe("healthy")
+  })
+
+  it("still reads an infinite ratio as healthy under a real requirement", () => {
+    mockRegistryMinimum(0.6)
+    expect(healthOf({ ratio: null, ratioIsInfinite: true })).toBe("healthy")
+  })
+})
+
+describe("getHealthDescription — per-tracker numbers", () => {
+  const trackerWith = (stats: Partial<TrackerLatestStats>) =>
+    makeTracker({ latestStats: makeStats(stats) })
+
+  it("names the requirement on the critical band", () => {
+    mockRegistryMinimum(0.6)
+    const tracker = trackerWith({ ratio: 0.5 })
+    expect(getHealthDescription("critical", tracker)).toBe("Ratio below the 0.6 requirement")
+  })
+
+  it("names both band edges on the middle tier", () => {
+    mockRegistryMinimum(0.6)
+    const tracker = trackerWith({ ratio: 0.8 })
+    expect(getHealthDescription("warning", tracker)).toBe("Ratio between 0.6 and 1.2")
+  })
+
+  it("names the healthy line and the requirement behind it", () => {
+    mockRegistryMinimum(0.6)
+    const tracker = trackerWith({ ratio: 1.5 })
+    expect(getHealthDescription("healthy", tracker)).toBe(
+      "Ratio 1.2 or higher (2x the 0.6 requirement)"
+    )
+  })
+
+  it("says when the bands are assumed rather than known", () => {
+    const tracker = trackerWith({ ratio: 1.5 })
+    expect(getHealthDescription("warning", tracker)).toBe(
+      "Ratio between 1.0 and 2.0 (no requirement on record)"
+    )
+    expect(getHealthDescription("critical", trackerWith({ ratio: 0.5 }))).toBe(
+      "Ratio below 1.0 (no requirement on record)"
+    )
+    expect(getHealthDescription("healthy", trackerWith({ ratio: 2.5 }))).toBe(
+      "Ratio 2.0 or higher (no requirement on record)"
+    )
+  })
+
+  it("reports a zero requirement instead of inventing bands", () => {
+    const tracker = trackerWith({ ratio: 0.01, requiredRatio: 0 })
+    expect(getHealthDescription("healthy", tracker)).toBe("No ratio requirement on this tracker")
+  })
+
+  it("describes a warned account by the warning, not the ratio", () => {
+    // "critical" here comes from the tracker's own warning flag; a ratio-band
+    // description would be the wrong explanation, whatever the numbers say.
+    const tracker = trackerWith({ ratio: 9.9, warned: true })
+    expect(getHealthDescription("critical", tracker)).toBe("Warned by the tracker")
+  })
+
+  it("keeps the static wording when no tracker is supplied", () => {
+    expect(getHealthDescription("critical")).toBe("Ratio below the required ratio")
+    expect(getHealthDescription("healthy")).toBe("Ratio at least double the required ratio")
   })
 })

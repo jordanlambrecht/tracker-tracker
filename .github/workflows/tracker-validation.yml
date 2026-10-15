@@ -136,7 +136,7 @@ jobs:
               if (r.warnings.length > 0) {
                 const heading = r.errors.length > 0
                   ? `Warnings for ${r.name}`
-                  : `${r.name} (\`${r.slug}\`) — Warnings`;
+                  : `Warnings for ${r.name} (\`${r.slug}\`)`;
                 lines.push(`<details>`);
                 lines.push(`<summary>${heading} (${r.warnings.length})</summary>`);
                 lines.push('');

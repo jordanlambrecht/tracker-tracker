@@ -12,6 +12,24 @@ import type { SVGProps } from "react"
 
 type IconProps = SVGProps<SVGSVGElement>
 
+// Infinity sign. The bundled fonts lack U+221E, so a text "∞" falls back to a
+// system font that sits off-centre next to the surrounding digits
+function InfinityIcon(props: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M6 1.5a4.5 4.5 0 1 0 0 9c2.5 0 4-2.25 6-4.5s3.5-4.5 6-4.5a4.5 4.5 0 1 1 0 9c-2.5 0-4-2.25-6-4.5S8.5 1.5 6 1.5Z" />
+    </svg>
+  )
+}
+
 // External link icon. Used in TrackerOverviewGrid and tracker detail header
 // viewBox 0 0 24 24, box-with-arrow-out variant (active tracker cards)
 function ExternalLinkIcon(props: IconProps) {
@@ -827,6 +845,7 @@ export {
   GitHubIcon,
   GridIcon,
   HamburgerIcon,
+  InfinityIcon,
   InfoIcon,
   LeechingIcon,
   PauseIcon,

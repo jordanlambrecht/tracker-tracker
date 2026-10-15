@@ -19,14 +19,17 @@ import type {
   TrackerCredentialFieldInput,
   TrackerCredentialVaultInput,
 } from "@/lib/tracker-credentials/merge"
-import type { TrackerCredentialFieldDefinition, TrackerCredentialVault } from "@/lib/tracker-credentials/types"
+import type {
+  TrackerCredentialFieldDefinition,
+  TrackerCredentialVault,
+} from "@/lib/tracker-credentials/types"
 import { TRACKER_CREDENTIAL_VAULT_VERSION } from "@/lib/tracker-credentials/types"
 import { MAX_ID_LENGTH } from "@/lib/tracker-credentials/validate"
 import type { TrackerCredentialVaultView } from "@/lib/tracker-credentials/view"
 
 export interface DraftField {
   /**
-   * CLIENT identity only — a React key and nothing else. Never sent, never
+   * CLIENT identity only, a React key and nothing else. Never sent, never
    * stored. Separate from `id` because a brand-new field has no id yet, and
    * React still needs something stable to keep the input's cursor from jumping.
    */
@@ -37,7 +40,7 @@ export interface DraftField {
    * Null until the first save, at which point draftToInput() derives one from
    * the label. Deriving it lazily is what lets a field the user labelled
    * "Passkey" land as `passkey` instead of as `new_field`, while an id that has
-   * already been stored stays frozen — it is the key the reveal endpoint uses,
+   * already been stored stays frozen, it is the key the reveal endpoint uses,
    * so renaming a label must never move it.
    */
   id: string | null
@@ -46,8 +49,8 @@ export interface DraftField {
   /** Whether the SERVER reported a stored value at load time. Drives the •••• placeholder. */
   hasStoredValue: boolean
   /**
-   * What the client holds. NULL MEANS "NOT HELD" — an unrevealed, unedited
-   * secret — and serializes to an OMITTED `value`, which merge.ts reads as "keep
+   * What the client holds. NULL MEANS "NOT HELD", an unrevealed, unedited
+   * secret, and serializes to an OMITTED `value`, which merge.ts reads as "keep
    * what is stored". `""` is a real value meaning "make it empty".
    */
   value: string | null
@@ -60,7 +63,7 @@ export interface DraftSection {
   /** Null for a section the user just added; derived from the title on save. */
   id: string | null
   title: string
-  /** ARRAY ORDER IS DISPLAY ORDER — reordering is a splice, never a sortOrder field. */
+  /** ARRAY ORDER IS DISPLAY ORDER, reordering is a splice, never a sortOrder field. */
   fields: DraftField[]
 }
 
@@ -79,7 +82,7 @@ function nextKey(prefix: string): string {
  * exactly: lowercase alphanumerics, `_` and `-`, starting alphanumeric, max 64.
  *
  * Returns "" when nothing usable survives (a label of "!!!" or of pure CJK), and
- * callers MUST handle that — see the `field_N` fallback in assignIds(). Returning
+ * callers MUST handle that. See the `field_N` fallback in assignIds(). Returning
  * an empty string rather than inventing something here keeps the "is this
  * usable?" decision at the one place that knows what to count from.
  */
@@ -197,7 +200,7 @@ export function draftFromView(
  * from what the user typed.
  *
  * Uniqueness is checked against ids ALREADY TAKEN in this vault, including ones
- * assigned moments ago in the same pass — two fields both labelled "API key"
+ * assigned moments ago in the same pass, two fields both labelled "API key"
  * must not both become `api_key`, because the reveal endpoint resolves by id
  * alone and a duplicate would be ambiguous.
  */
@@ -259,7 +262,7 @@ export function draftToInput(draft: DraftVault): TrackerCredentialVaultInput {
  * Values the client does not hold stand in as "", which makes the size-related
  * limits (MAX_VALUE_LENGTH, MAX_SERIALIZED_BYTES) an UNDER-estimate here. That
  * is fine and deliberate: this pass exists to catch the errors the user can
- * actually see and fix — a blank label, a duplicate id, too many sections —
+ * actually see and fix (a blank label, a duplicate id, too many sections)
  * before a round trip. The server re-validates the MERGED vault, and that check
  * is the authoritative one.
  */
@@ -284,7 +287,7 @@ export function draftToValidationVault(draft: DraftVault): TrackerCredentialVaul
  * Has the user changed anything worth warning about on close?
  *
  * Compares everything EXCEPT `key` and `shown`. Revealing a value is not an
- * edit — the sheet un-holds a revealed-but-unmodified value on hide precisely so
+ * edit, the sheet un-holds a revealed-but-unmodified value on hide precisely so
  * that looking at a secret never marks the form dirty and never prompts the user
  * to discard changes they did not make.
  */

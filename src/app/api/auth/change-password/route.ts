@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     await recordFailedAttempt(settings.id, settings)
     log.warn(
       { route: "POST /api/auth/change-password" },
-      "password change rejected — incorrect current password"
+      "password change rejected: incorrect current password"
     )
     return NextResponse.json({ error: "Current password is incorrect" }, { status: 401 })
   }
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
   if (!timingSafeEqual(oldKey, keyFromPassword)) {
     log.warn(
       { route: "POST /api/auth/change-password" },
-      "password change aborted — session key does not match the current password"
+      "password change aborted: session key does not match the current password"
     )
     return NextResponse.json(
       { error: "Your session is out of date. Sign in again before changing your password." },
@@ -106,10 +106,7 @@ export async function POST(request: Request) {
   // notification configs below. A rotation is not the place to start rejecting
   // stored shapes: a vault written by a newer build must survive it untouched.
   const trackerPlaintexts = new Map<number, { token: string; vault: string | null }>()
-  const clientPlaintexts = new Map<
-    number,
-    { username: string; password: string; apiKey: string }
-  >()
+  const clientPlaintexts = new Map<number, { username: string; password: string; apiKey: string }>()
   const notificationPlaintexts = new Map<number, string>()
   const failedTrackers: string[] = []
   const failedVaults: string[] = []
@@ -409,7 +406,7 @@ export async function POST(request: Request) {
   if (totpDisabled) {
     log.warn(
       { route: "POST /api/auth/change-password" },
-      "TOTP disabled during password change — re-encryption failed"
+      "TOTP disabled during password change: re-encryption failed"
     )
     warnings.push("TOTP could not be re-encrypted and was disabled. Re-enroll 2FA after login.")
   }

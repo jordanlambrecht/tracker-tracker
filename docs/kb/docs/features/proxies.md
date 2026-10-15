@@ -13,7 +13,7 @@ Route tracker API requests through a proxy. Set up one global proxy, then enable
 ## Supported Proxy Types
 
 | Type     | Common use                                      |
-|----------|-------------------------------------------------|
+| -------- | ----------------------------------------------- |
 | `socks5` | Tor, SSH tunnels, most privacy-oriented proxies |
 | `http`   | Standard HTTP CONNECT proxies                   |
 | `https`  | TLS-wrapped HTTP CONNECT proxies                |
@@ -21,10 +21,15 @@ Route tracker API requests through a proxy. Set up one global proxy, then enable
 The proxy type controls how traffic reaches the proxy server. SOCKS5 uses tunnel-level proxying, HTTP/HTTPS uses CONNECT-based proxying. Either way, tracker requests stay HTTPS, keeping your API token encrypted. When enabled, the tracker sees the proxy's IP instead of yours.
 
 !!! warning "Some trackers ban proxy and VPN traffic"
-    Many private trackers prohibit access from VPNs, proxies, or shared IPs. Using a proxy for API polling may trigger security flags or get you disabled. Check your tracker's rules first. If a tracker allows API access from a different IP than your browsing IP, you're probably fine — but not all make that distinction.
+    Many private trackers prohibit access from VPNs, proxies, or shared IPs. Using a proxy for API polling may trigger security flags or get you disabled. Check your tracker's rules first. If a tracker allows API access from a different IP than your browsing IP, you're probably fine, but not all make that distinction.
 
 !!! info "DNS resolution"
-    HTTP and HTTPS proxies resolve on the proxy side — your DNS provider never sees it. SOCKS5 varies: most resolve remotely, some resolve locally first. If DNS privacy matters, verify your SOCKS5 proxy does remote resolution.
+    HTTP and HTTPS proxies resolve on the proxy side, so your DNS provider never sees it. SOCKS5 varies: most resolve remotely, some resolve locally first. If DNS privacy matters, verify your SOCKS5 proxy does remote resolution.
+
+!!! info "What the tracker sees"
+    Requests to a tracker's JSON API identify Tracker Tracker with a `User-Agent` of `tracker-tracker/<major>.<minor>`, such as `tracker-tracker/2.10`. Some trackers reject requests that carry no User-Agent at all, which is why one is always sent. The patch version is left off on purpose, so the string is not distinctive enough to link your accounts across several trackers sharing one proxy exit IP.
+
+    Trackers read with copied browser cookies (AvistaZ, IPTorrents) send that browser's own User-Agent instead, matching the session the cookies belong to.
 
 ## Setup
 
@@ -35,12 +40,12 @@ Proxy settings are in **Settings → General → Proxy**.
 Fill in your proxy details:
 
 | Field      | Description                                               |
-|------------|-----------------------------------------------------------|
+| ---------- | --------------------------------------------------------- |
 | Proxy type | `socks5`, `http`, or `https`                              |
 | Host       | Hostname or IP of your proxy                              |
 | Port       | Port number (commonly `1080` for SOCKS5, `8080` for HTTP) |
-| Username   | Optional — for authenticated proxies only                 |
-| Password   | Optional — stored securely, never plaintext               |
+| Username   | Optional, for authenticated proxies only                  |
+| Password   | Optional, stored securely, never plaintext                |
 
 The master switch controls the proxy globally. Even if trackers have the toggle on, nothing routes through while the master switch is off.
 
@@ -56,12 +61,12 @@ Your proxy password is encrypted at rest. It's decrypted in memory only when pol
 
 ## Troubleshooting
 
-| Error message                                                        | What it means                                                                                                                                    |
-|----------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
-| `Failed to create proxy agent (check proxy host/port configuration)` | Invalid host or port format. Check for typos and no `http://` prefix in the host field.                                                          |
-| `Failed to decrypt proxy password, proceeding without auth`          | The proxy password couldn't be read — can happen after restore from a backup with a different password. Re-enter the proxy password in settings. |
-| `Request timed out after 15000ms`                                    | The proxy or tracker didn't respond in 15 seconds. Check that the proxy is running and reachable.                                                |
-| `proxyFetch only supports HTTPS URLs`                                | The tracker URL uses `http://` — change it to `https://`.                                                                                        |
+| Error message                                                        | What it means                                                                                                                                        |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Failed to create proxy agent (check proxy host/port configuration)` | Invalid host or port format. Check for typos and no `http://` prefix in the host field.                                                              |
+| `Failed to decrypt proxy password, proceeding without auth`          | The proxy password couldn't be read. This can happen after restore from a backup with a different password. Re-enter the proxy password in settings. |
+| `Request timed out after 15000ms`                                    | The proxy or tracker didn't respond in 15 seconds. Check that the proxy is running and reachable.                                                    |
+| `proxyFetch only supports HTTPS URLs`                                | The tracker URL uses `http://`. Change it to `https://`.                                                                                             |
 
 ## Proxy Host Format
 

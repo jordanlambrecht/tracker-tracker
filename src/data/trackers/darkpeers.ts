@@ -30,7 +30,7 @@ export const darkpeers: TrackerRegistryEntry = {
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [
-    { name: "Validating", requirements: "New account, no privileges" },
+    { name: "Validating", requirements: "New account, no privileges", outsideLadder: "below" },
     { name: "User", requirements: "Ratio ≥ 0.8. 10 download slots" },
     {
       name: "PowerUser",

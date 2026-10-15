@@ -54,7 +54,7 @@ export async function PATCH(request: Request, props: RouteContext) {
   }
 
   const updates: Record<string, unknown> = { updatedAt: new Date() }
-  // Decoded lazily — only computed when username or password update is present
+  // Decoded lazily, only computed when username or password update is present
   let cachedKey: Buffer | null = null
   const getKey = () => {
     if (!cachedKey) cachedKey = decodeKey(auth)
@@ -179,7 +179,7 @@ export async function PATCH(request: Request, props: RouteContext) {
       break
     }
     case "password": {
-      // Blank is allowed (localhost bypass), absent is not — switching back to
+      // Blank is allowed (localhost bypass), absent is not, because switching back to
       // password auth without saying what the password is would otherwise leave
       // the client authenticating with whatever happened to be there before.
       if (!hasUsername || !hasPassword) {
@@ -200,7 +200,7 @@ export async function PATCH(request: Request, props: RouteContext) {
       break
     }
     default:
-      // No credential field in the body — leave every credential column alone.
+      // No credential field in the body, so leave every credential column alone.
       break
   }
 

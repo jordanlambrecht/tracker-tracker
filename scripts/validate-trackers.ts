@@ -10,6 +10,7 @@
 
 import fs from "node:fs"
 import path from "node:path"
+import { DEFAULT_API_PATHS, VALID_PLATFORM_TYPES } from "@/data/platform-types"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import {
   isEmpty,
@@ -21,7 +22,6 @@ import {
   validateDefunct,
 } from "@/data/tracker-validation-rules"
 import { ALL_TRACKERS } from "@/data/trackers"
-import { DEFAULT_API_PATHS, VALID_PLATFORM_TYPES } from "@/lib/adapters/constants"
 import { isValidHex } from "@/lib/validators"
 
 const VALID_PLATFORMS = [...VALID_PLATFORM_TYPES, "custom"]
@@ -71,7 +71,7 @@ function validate(slugFilter?: string[]): TrackerResult[] {
       }
       if (!tracker.apiPath.startsWith("/")) {
         errors.push(
-          `apiPath "${tracker.apiPath}" must be relative and start with "/" — an off-domain API host belongs in the adapter, not the registry`
+          `apiPath "${tracker.apiPath}" must be relative and start with "/", because an off-domain API host belongs in the adapter, not the registry`
         )
       }
     }
@@ -82,6 +82,11 @@ function validate(slugFilter?: string[]): TrackerResult[] {
         new URL(tracker.url)
       } catch {
         errors.push("Invalid URL format")
+      }
+      // Adapters both concatenate onto this and pass it to `new URL`; a stored
+      // trailing slash doubles the separator in the first form.
+      if (/\/$/.test(tracker.url)) {
+        errors.push("URL must not end with a trailing slash")
       }
     }
     if (isEmpty(tracker.contentCategories)) {
@@ -152,6 +157,24 @@ function validate(slugFilter?: string[]): TrackerResult[] {
     if (dupeCats.length > 0)
       errors.push(`Duplicate categories: ${[...new Set(dupeCats)].join(", ")}`)
 
+    // ── User class ladder (mirrors tracker-registry.test.ts) ──────────
+    // tsx does not type check, so a contributor entry that omits the field
+    // reaches this loop as undefined.
+    const userClasses = tracker.userClasses ?? []
+    const seenClasses = new Set<string>()
+    const dupeClasses = new Set<string>()
+    for (const cls of userClasses) {
+      const key = cls.name.toLowerCase()
+      if (seenClasses.has(key)) dupeClasses.add(cls.name)
+      else seenClasses.add(key)
+    }
+    if (dupeClasses.size > 0) errors.push(`Duplicate user classes: ${[...dupeClasses].join(", ")}`)
+    // A ladder whose every class is flagged drops the tracker out of the Ranks
+    // section with no signal on the page.
+    if (userClasses.length > 0 && !userClasses.some((c) => !c.outsideLadder)) {
+      errors.push("userClasses must include at least one class without outsideLadder")
+    }
+
     if (tracker.color && !isValidHex(tracker.color)) {
       errors.push(`Invalid hex color "${tracker.color}"`)
     }
@@ -195,7 +218,7 @@ function validate(slugFilter?: string[]): TrackerResult[] {
     ] as const
     for (const field of CANONICAL_FIELDS) {
       if (!(field in obj)) {
-        errors.push(`Missing canonical field "${field}" — all fields must be explicitly present`)
+        errors.push(`Missing canonical field "${field}", all fields must be explicitly present`)
       }
     }
 

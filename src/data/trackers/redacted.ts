@@ -14,9 +14,7 @@ export const redacted: TrackerRegistryEntry = {
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "gazelle",
   // RED expects a bare `Authorization: <key>` with no `token ` prefix.
-  // Upstream Gazelle carries a dedicated code path for this, commented
-  // "this first case is for compatibility with RED". The bare form is
-  // RED-specific, not the Gazelle norm. Sending the prefix returns 401.
+  // Sending the prefix returns 401.
   gazelleAuthStyle: "raw",
   gazelleEnrich: true,
   apiPath: "/ajax.php",
@@ -35,15 +33,50 @@ export const redacted: TrackerRegistryEntry = {
   statusPageUrl: "https://red.trackerstatus.info/",
 
   // ── Community ───────────────────────────────────────────────────────
+  // wiki.php?action=article&name=classes (r27). Counts are torrents uploaded,
+  // not seeding, and every earned class demotes to User below ratio 0.60.
+  // Secondary classes (FLS, Interviewer, TC, PT) are not primary classes and
+  // never come back as `class` from the API.
   userClasses: [
     { name: "User", requirements: "Default class on registration" },
-    { name: "Member", requirements: "1 week, 25 GB up, 0.65 ratio" },
-    { name: "Power User", requirements: "2 weeks, 25 GB up, 0.65 ratio, 5 torrents seeding" },
-    { name: "Elite", requirements: "4 weeks, 100 GB up, 1.0 ratio, 50 torrents seeding" },
-    { name: "Torrent Master", requirements: "8 weeks, 500 GB up, 1.0 ratio, 500 torrents seeding" },
-    { name: "Power Elite", requirements: "12 weeks, 1 TB up, 1.0 ratio, 750 torrents seeding" },
-    { name: "VIP", requirements: "24 weeks, 2.5 TB up, 1.0 ratio, 1000 torrents seeding" },
-    { name: "Legend", requirements: "48 weeks, 5 TB up, 1.0 ratio, 1500 torrents seeding" },
+    {
+      name: "Member",
+      requirements: "1 week, 10 GB up, ratio above 0.65. 25 Merit Tokens on first promotion",
+    },
+    {
+      name: "Power User",
+      requirements: "2 weeks, 5 uploads, 25 GB up, ratio above 0.65. Invites, personal collage",
+    },
+    {
+      name: "Elite",
+      requirements: "4 weeks, 50 uploads, 100 GB up, ratio above 0.65. Torrent editing",
+    },
+    {
+      name: "Torrent Master",
+      requirements:
+        "8 weeks, 500 uploads, 500 GB up, ratio above 0.65. Custom title, unlimited invites",
+    },
+    {
+      name: "Power TM",
+      requirements: "8 weeks, 500 GB up, ratio above 0.65, uploads in 500 unique groups",
+    },
+    {
+      name: "Elite TM",
+      requirements:
+        "8 weeks, 500 GB up, ratio above 0.65, 500 perfect FLAC uploads, Power TM criteria",
+    },
+    {
+      name: "VIP",
+      requirements: "Staff-granted. VIP forum, custom title, unlimited invites",
+      outsideLadder: "above",
+    },
+    { name: "Legend", requirements: "Former staff", outsideLadder: "above" },
+    { name: "Forum Moderator", requirements: "Staff", outsideLadder: "above" },
+    { name: "Moderator", requirements: "Staff", outsideLadder: "above" },
+    { name: "Senior Moderator", requirements: "Staff", outsideLadder: "above" },
+    { name: "Developer", requirements: "Staff", outsideLadder: "above" },
+    { name: "Administrator", requirements: "Staff", outsideLadder: "above" },
+    { name: "Sysop", requirements: "Staff", outsideLadder: "above" },
   ],
   releaseGroups: [],
   bannedGroups: [],

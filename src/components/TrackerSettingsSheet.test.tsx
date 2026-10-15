@@ -4,15 +4,15 @@
 //
 // 1. The Last Login shortcut sits mid-form, so it must not write on its own: an immediate
 //    single-field PATCH would discard whatever else the user had already typed into the sheet.
-//    These tests pin it as a field shortcut — it fills the date, and the ordinary Save is what
+//    These tests pin it as a field shortcut, it fills the date, and the ordinary Save is what
 //    persists it, alongside every other edit.
 //
 // 2. Every write in this sheet mutates a row that lives in the shared ["trackers"] query cache,
 //    which the sidebar and the dashboard render from. That cache is not remounted by navigating
-//    home, and its only automatic repair is a poll interval measured in tens of minutes. The
-//    archive path used to leave it completely untouched, so an archived tracker kept rendering
-//    as active. These tests assert the write-through + invalidation, and that a failed archive
-//    says so instead of silently doing nothing.
+//    home, and its only automatic repair is a poll interval measured in tens of minutes. An
+//    archive that skips the cache leaves the tracker rendering as active. These tests assert the
+//    write-through + invalidation, and that a failed archive says so instead of silently doing
+//    nothing.
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, waitFor } from "@testing-library/react"
@@ -33,6 +33,7 @@ const TRACKER: TrackerSummary = {
   id: 42,
   name: "Aither",
   baseUrl: "https://aither.cc",
+  registrySlug: null,
   platformType: "unit3d",
   isActive: true,
   lastPolledAt: null,
@@ -75,7 +76,7 @@ function jsonResponse(body: unknown, { ok = true, status = 200 } = {}) {
 
 /**
  * What PATCH /api/trackers/42 answers. The real route re-reads the row and returns
- * it, which is what lets callers skip a follow-up GET — tests must model that.
+ * it, which is what lets callers skip a follow-up GET, tests must model that.
  */
 let patchResult = jsonResponse(ARCHIVED)
 
@@ -241,5 +242,134 @@ describe("TrackerSettingsSheet shared tracker cache", () => {
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/"))
     expect(cachedTrackers(queryClient)).toEqual([OTHER])
     expect(queryClient.getQueryState(trackerQueryOptions.queryKey)?.isInvalidated).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// This sheet rebuilds the DigitalCore blob from scratch, and the stored token
+// never reaches the client, so it cannot preserve a UA it was not given.
+// Dropping the capture silently reverts the tracker to the default UA.
+// ---------------------------------------------------------------------------
+
+describe("TrackerSettingsSheet digitalcore credentials", () => {
+  const DC_TRACKER: TrackerSummary = {
+    ...TRACKER,
+    platformType: "digitalcore",
+    baseUrl: "https://digitalcore.club",
+    registrySlug: null,
+  }
+
+  it("labels the credential section Credentials rather than API Key", () => {
+    renderSheet({ tracker: DC_TRACKER })
+    expect(screen.getByText("Credentials")).toBeInTheDocument()
+    expect(screen.queryByText("API Key")).not.toBeInTheDocument()
+  })
+
+  it("persists the browser User-Agent when the cookies are changed", async () => {
+    const user = userEvent.setup()
+    patchResult = jsonResponse(DC_TRACKER)
+    renderSheet({ tracker: DC_TRACKER })
+
+    await user.click(screen.getByRole("button", { name: "Change" }))
+    await user.type(screen.getByLabelText(/session cookies/i), "uid=56954; pass=abc123def456")
+    await user.click(screen.getByRole("button", { name: "Save Changes" }))
+
+    await waitFor(() => expect(trackerRequests().length).toBeGreaterThan(0))
+
+    const body = JSON.parse(String(trackerRequests().at(-1)?.[1]?.body))
+    const blob = JSON.parse(body.apiToken)
+    expect(blob.uid).toBe("56954")
+    expect(blob.pass).toBe("abc123def456")
+    expect(blob.userAgent).toBe(navigator.userAgent)
+  })
+})
+
+describe("TrackerSettingsSheet torrentleech credentials", () => {
+  const TL_TRACKER: TrackerSummary = {
+    ...TRACKER,
+    platformType: "torrentleech",
+    baseUrl: "https://www.torrentleech.org",
+    registrySlug: null,
+  }
+
+  it("includes the Alt 2FA Token in the blob only when one is entered", async () => {
+    const user = userEvent.setup()
+    patchResult = jsonResponse(TL_TRACKER)
+    renderSheet({ tracker: TL_TRACKER })
+
+    await user.click(screen.getByRole("button", { name: "Change" }))
+    await user.type(screen.getByLabelText("Username"), "bob")
+    await user.type(screen.getByLabelText("Password"), "hunter2")
+    await user.type(screen.getByLabelText("Alt 2FA Token (optional)"), "tok123")
+    await user.click(screen.getByRole("button", { name: "Save Changes" }))
+
+    await waitFor(() => expect(trackerRequests().length).toBeGreaterThan(0))
+    const blob = JSON.parse(JSON.parse(String(trackerRequests().at(-1)?.[1]?.body)).apiToken)
+    expect(blob).toEqual({ username: "bob", password: "hunter2", alt2FAToken: "tok123" })
+  })
+
+  it("omits the token key for accounts without 2FA", async () => {
+    const user = userEvent.setup()
+    patchResult = jsonResponse(TL_TRACKER)
+    renderSheet({ tracker: TL_TRACKER })
+
+    await user.click(screen.getByRole("button", { name: "Change" }))
+    await user.type(screen.getByLabelText("Username"), "bob")
+    await user.type(screen.getByLabelText("Password"), "hunter2")
+    await user.click(screen.getByRole("button", { name: "Save Changes" }))
+
+    await waitFor(() => expect(trackerRequests().length).toBeGreaterThan(0))
+    const blob = JSON.parse(JSON.parse(String(trackerRequests().at(-1)?.[1]?.body)).apiToken)
+    expect("alt2FAToken" in blob).toBe(false)
+  })
+
+  it("wipes the typed secrets when the sheet is cancelled", async () => {
+    // Closing must clear the password and token, or the next Change click shows
+    // them again.
+    const user = userEvent.setup()
+    renderSheet({ tracker: TL_TRACKER })
+
+    await user.click(screen.getByRole("button", { name: "Change" }))
+    await user.type(screen.getByLabelText("Password"), "hunter2")
+    await user.type(screen.getByLabelText("Alt 2FA Token (optional)"), "tok123")
+    await user.click(screen.getByRole("button", { name: "Close panel" }))
+
+    await user.click(screen.getByRole("button", { name: "Change" }))
+    expect(screen.getByLabelText("Password")).toHaveValue("")
+    expect(screen.getByLabelText("Alt 2FA Token (optional)")).toHaveValue("")
+  })
+})
+
+describe("TrackerSettingsSheet registry data", () => {
+  // The row names its registry entry by slug. A stored URL that happens to
+  // match an entry is a poll address, not a key.
+  const loginHint = () => screen.queryByText(/no login-interval policy/i)
+
+  it("reads the login policy from the slug, not the stored URL", () => {
+    renderSheet({
+      tracker: { ...TRACKER, registrySlug: "aither", baseUrl: "https://moved-since.test" },
+    })
+    expect(loginHint()).toBeNull()
+  })
+
+  it("offers no registry rules to a row with no slug", () => {
+    renderSheet({ tracker: { ...TRACKER, registrySlug: null, baseUrl: "https://aither.cc" } })
+    expect(loginHint()).toBeInTheDocument()
+  })
+})
+
+describe("TrackerSettingsSheet base URL", () => {
+  // The URL is registry data copied in when the tracker was added, so the sheet
+  // neither shows a field for it nor sends one; the row keeps what the registry gave it.
+  it("offers no field for the tracker URL and sends none on save", async () => {
+    const user = userEvent.setup()
+    renderSheet()
+
+    expect(screen.queryByLabelText("Base URL")).toBeNull()
+    await user.click(screen.getByRole("button", { name: "Save Changes" }))
+
+    const [saveCall] = trackerRequests()
+    expect(saveCall[1].method).toBe("PATCH")
+    expect(JSON.parse(saveCall[1].body)).not.toHaveProperty("baseUrl")
   })
 })

@@ -18,7 +18,7 @@ function swatchBackground(style: OutageBandStyle): string {
 
 interface OutageBandLegendProps {
   bands: ChartOutageBands
-  /** The chart's own data span — the same value given to appendOutageBandSeries. */
+  /** The chart's own data span, the same value given to appendOutageBandSeries. */
   range?: Interval | null
   className?: string
 }

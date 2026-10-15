@@ -17,7 +17,7 @@ import { resolveSlots } from "@/components/tracker-detail/resolve-slots"
 import { TrackerDetailHeader } from "@/components/tracker-detail/TrackerDetailHeader"
 import { TrackerInfoTab } from "@/components/tracker-detail/TrackerInfoTab"
 import { TrackerStatusBanner } from "@/components/tracker-detail/TrackerStatusBanner"
-import { findRegistryEntry } from "@/data/tracker-registry"
+import { registryEntryFor } from "@/data/tracker-registry"
 import { useTrackerTorrents } from "@/hooks/useTrackerTorrents"
 import { hexToRgba } from "@/lib/color-utils"
 import { computeDelta } from "@/lib/data-transforms"
@@ -84,7 +84,7 @@ export function TrackerDetailClient({
   const torrentData = useTrackerTorrents({
     trackerId,
     qbtTag: tracker.qbtTag,
-    rules: findRegistryEntry(tracker.baseUrl)?.rules,
+    rules: registryEntryFor(tracker)?.rules,
     tagGroups,
     trackerSeedingCount: tracker.latestStats?.seedingCount,
     qbitmanageConfig,
@@ -151,7 +151,7 @@ export function TrackerDetailClient({
       setTracker(await res.json())
     } catch {
       setTracker((prev) => ({ ...prev, userPausedAt: originalUserPausedAt }))
-      setPollError("Failed to toggle pause — please try again")
+      setPollError("Failed to toggle pause. Please try again")
     } finally {
       setPauseLoading(false)
     }
@@ -225,8 +225,8 @@ export function TrackerDetailClient({
       }) as CSSProperties,
     [tc]
   )
-  const baseUrl = tracker?.baseUrl
-  const registryEntry = useMemo(() => (baseUrl ? findRegistryEntry(baseUrl) : undefined), [baseUrl])
+  const registrySlug = tracker?.registrySlug ?? null
+  const registryEntry = useMemo(() => registryEntryFor({ registrySlug }), [registrySlug])
 
   const { statCardSlots, badgeSlots, progressSlots } = useMemo(() => {
     if (!tracker) return { statCardSlots: [], badgeSlots: [], progressSlots: [] }
@@ -285,9 +285,9 @@ export function TrackerDetailClient({
         registryEntry={registryEntry}
         tracker={tracker}
         onArchived={(updated) => {
-          // Same handling as the settings sheet's archive: the row has already
-          // been written through the shared cache, so there is nothing to
-          // re-fetch. An archived tracker just leaves the active dashboard.
+          // The row is already written through the shared cache, so there is
+          // nothing to re-fetch. An archived tracker just leaves the active
+          // dashboard.
           if (!updated.isActive) {
             router.push("/")
             return
@@ -356,29 +356,28 @@ export function TrackerDetailClient({
         />
       )}
 
-      {/* Keyed on the tracker id for the same reason as the settings sheet:
-          navigating between trackers must not carry one tracker's draft vault
+      {/* Keyed on the tracker id so one tracker's draft vault does not carry
           into another's sheet. */}
       <TrackerCredentialsSheet
         key={`credentials-${tracker.id}`}
         open={showCredentials}
         trackerId={tracker.id}
         trackerName={tracker.name}
-        trackerBaseUrl={tracker.baseUrl}
+        trackerRegistrySlug={tracker.registrySlug}
         onClose={() => setShowCredentials(false)}
       />
 
       <TrackerSettingsSheet
+        // Remount per tracker: the sheet holds one credential slot for every
+        // platform, so without this a paste typed for one tracker would still
+        // be in the textarea when the next tracker's sheet opens.
         key={tracker.id}
         open={showSettings}
         tracker={tracker}
         onClose={() => setShowSettings(false)}
         onUpdated={(updated) => {
-          // `updated` is the PATCH response itself. This used to re-GET
-          // /api/trackers/{id} first, re-running the exact query the PATCH had
-          // just run and putting a second serial round trip in front of the
-          // redirect. The sheet has also already written this row into the
-          // shared ["trackers"] cache, so the sidebar is correct by now.
+          // `updated` is the PATCH response, and the sheet has already written
+          // it into the shared ["trackers"] cache, so no re-GET is needed.
           if (!updated.isActive) {
             router.push("/")
             return

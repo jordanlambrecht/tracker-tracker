@@ -32,7 +32,7 @@ export async function POST(request: Request) {
 
   const valid = await verifyPassword(settings.passwordHash, password)
   if (!valid) {
-    log.warn({ route: "POST /api/settings/nuke" }, "data scrub rejected — incorrect password")
+    log.warn({ route: "POST /api/settings/nuke" }, "data scrub rejected: incorrect password")
     return NextResponse.json({ error: "Incorrect password" }, { status: 401 })
   }
 

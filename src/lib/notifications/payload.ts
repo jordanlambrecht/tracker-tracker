@@ -1,9 +1,10 @@
 // src/lib/notifications/payload.ts
 //
-// Functions: buildDiscordEmbed, buildDescription
+// Functions: buildDiscordEmbed, buildTitle, trackerDownLine, buildDescription
 
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import { hexToInt } from "@/lib/color-utils"
+import { isUnreachableMessage } from "@/lib/error-utils"
 import { formatBytesNum, formatCount, formatPercent, formatRatio } from "@/lib/formatters"
 import type { NotificationEventType } from "@/lib/notifications/types"
 
@@ -62,13 +63,35 @@ export function buildDiscordEmbed(input: EmbedInput): DiscordEmbed {
   const source = includeTrackerName ? trackerName : "A tracker"
 
   const embed: DiscordEmbed = {
-    title: EVENT_TITLES[eventType] ?? eventType,
+    title: buildTitle(eventType, data),
     description: buildDescription(eventType, source, storeUsernames, data),
     color: EVENT_COLORS[eventType] ?? hexToInt(CHART_THEME.textTertiary),
     timestamp: new Date().toISOString(),
   }
 
   return embed
+}
+
+// ---------------------------------------------------------------------------
+// tracker_down fires for every poll failure, but only a connectivity failure
+// means the tracker is unreachable. A rejected key or a changed payload is a
+// tracker that answered, and the embed says so instead.
+// ---------------------------------------------------------------------------
+
+const GENERIC_POLL_ERRORS: ReadonlySet<string> = new Set(["Poll failed", "Unknown error"])
+
+function buildTitle(eventType: NotificationEventType, data: Record<string, unknown>): string {
+  if (eventType === "tracker_down" && !isUnreachableMessage(String(data.error ?? ""))) {
+    return "Tracker Poll Failed"
+  }
+  return EVENT_TITLES[eventType] ?? eventType
+}
+
+function trackerDownLine(source: string, data: Record<string, unknown>): string {
+  const error = String(data.error ?? "Unknown error")
+  if (isUnreachableMessage(error)) return `${source} is unreachable: ${error}`
+  if (GENERIC_POLL_ERRORS.has(error)) return `${source} poll failed`
+  return `${source} poll failed: ${error}`
 }
 
 function buildDescription(
@@ -86,7 +109,7 @@ function buildDescription(
     case "hit_and_run":
       return `${source} received a new Hit & Run`
     case "tracker_down":
-      return `${source} is unreachable: ${data.error ?? "Unknown error"}`
+      return trackerDownLine(source, data)
     case "buffer_milestone": {
       const bytes = data.bufferBytes as number | undefined
       const label = bytes ? formatBytesNum(bytes) : "unknown"
@@ -111,7 +134,7 @@ function buildDescription(
     }
     case "anniversary": {
       const label = data.label as string | undefined
-      return label ? `${source} — ${label}` : `${source} membership anniversary`
+      return label ? `${source} · ${label}` : `${source} membership anniversary`
     }
     case "bonus_cap": {
       const current = formatCount(Number(data.currentBonus ?? 0))
@@ -134,7 +157,7 @@ function buildDescription(
       return `${source} has **${count}** active Hit & Run${count !== 1 ? "s" : ""}. Seed them to avoid penalties.`
     }
     case "download_disabled":
-      return `${source} has lost download privileges — ratio may have dropped or account was restricted`
+      return `${source} has lost download privileges; the ratio may have dropped, or the account was restricted`
     default:
       return `${source} triggered a notification`
   }

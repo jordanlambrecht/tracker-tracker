@@ -42,12 +42,18 @@ describe("trackerHostKey", () => {
 
 describe("announceMatchesTracker", () => {
   it("matches an announce subdomain to the site's base URL", () => {
-    expect(announceMatchesTracker("https://tracker.example.org/announce", "https://example.org")).toBe(true)
-    expect(announceMatchesTracker("https://aither.cc/announce?passkey=x", "https://aither.cc")).toBe(true)
+    expect(
+      announceMatchesTracker("https://tracker.example.org/announce", "https://example.org")
+    ).toBe(true)
+    expect(
+      announceMatchesTracker("https://aither.cc/announce?passkey=x", "https://aither.cc")
+    ).toBe(true)
   })
 
   it("does not match unrelated sites", () => {
-    expect(announceMatchesTracker("https://tracker.other.org/announce", "https://example.org")).toBe(false)
+    expect(
+      announceMatchesTracker("https://tracker.other.org/announce", "https://example.org")
+    ).toBe(false)
   })
 
   it("is false when either side is missing", () => {

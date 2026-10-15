@@ -599,7 +599,7 @@ describe("fetchTrackerTorrents", () => {
 
     expect(fetchAndMergeTorrents).toHaveBeenCalledWith(
       [client],
-      null, // no qBT-side tag filter — the tag may be absent or simply wrong
+      null, // no qBT-side tag filter, the tag may be absent or simply wrong
       expect.any(Buffer),
       undefined,
       expect.any(Function)
@@ -689,7 +689,7 @@ describe("fetchTrackerTorrents", () => {
     // Tracker 1's tag claims it, so tracker 2 does not get it off the shared host.
     expect(matchesTwo(taggedForOther)).toBe(false)
     // And an ambiguous untagged torrent goes to exactly one tracker rather than
-    // both — the same single-winner rule fleet attribution uses to avoid
+    // both, the same single-winner rule fleet attribution uses to avoid
     // double-counting. Ties break on tracker order, which is why tracker 2 loses.
     expect(matchesTwo(untagged)).toBe(false)
 
@@ -875,7 +875,7 @@ describe("fetchFleetAggregation", () => {
       expect.any(Array), // stamped torrents
       [{ tag: "aither", name: "Aither", color: "#ff0000", baseUrl: "https://aither.cc" }],
       expect.any(Array), // crossSeedTags
-      [] // tagGroups — omitted by callers that don't want the breakdown
+      [] // tagGroups, omitted by callers that don't want the breakdown
     )
   })
 

@@ -162,7 +162,7 @@ describe("GET /api/clients/[id]/torrents", () => {
   })
 
   // -------------------------------------------------------------------------
-  // Input validation — client ID
+  // Input validation, client ID
   // -------------------------------------------------------------------------
 
   it("returns 400 for non-numeric client ID", async () => {
@@ -192,7 +192,7 @@ describe("GET /api/clients/[id]/torrents", () => {
   })
 
   // -------------------------------------------------------------------------
-  // Input validation — tag parameter
+  // Input validation, tag parameter
   // -------------------------------------------------------------------------
 
   it("returns 400 when tag query parameter is missing", async () => {
@@ -270,7 +270,7 @@ describe("GET /api/clients/[id]/torrents", () => {
   it("returns 502 when qBT login fails with authentication error", async () => {
     mockDbSelectClient(MOCK_CLIENT)
     mockAdapter.getTorrents.mockRejectedValue(
-      new Error("Authentication failed — check username and password")
+      new Error("Authentication failed. Check username and password")
     )
 
     const request = makeRequest("http://localhost/api/clients/1/torrents?tag=aither")
@@ -307,14 +307,14 @@ describe("GET /api/clients/[id]/torrents", () => {
   })
 
   // -------------------------------------------------------------------------
-  // Information disclosure — the route must not add credentials to errors
+  // Information disclosure, the route must not add credentials to errors
   // -------------------------------------------------------------------------
 
   it("does not add decrypted credentials to upstream error messages", async () => {
     // Simulates a poorly-written upstream library that embeds credentials in
     // the error message. The route's own catch block must not re-inject them.
     // Note: if the upstream error already contains them, that is a known risk
-    // outside this handler's control — this test validates the handler itself.
+    // outside this handler's control, this test validates the handler itself.
     mockDbSelectClient(MOCK_CLIENT)
     mockAdapter.getTorrents.mockRejectedValue(
       new Error("upstream error with no credential content")
@@ -351,7 +351,7 @@ describe("GET /api/clients/[id]/torrents", () => {
   })
 
   // -------------------------------------------------------------------------
-  // Tag passthrough — verifies the per-tag optimization actually fires
+  // Tag passthrough, verifies the per-tag optimization actually fires
   // -------------------------------------------------------------------------
 
   it("passes the tag to getTorrents for server-side filtering", async () => {
@@ -362,7 +362,7 @@ describe("GET /api/clients/[id]/torrents", () => {
     await GET(request, { params })
 
     // If this assertion fails, the route is not passing the tag to adapter.getTorrents,
-    // meaning it would fall back to fetching all torrents — the optimization is broken.
+    // meaning it would fall back to fetching all torrents, the optimization is broken.
     expect(mockAdapter.getTorrents).toHaveBeenCalledOnce()
     expect(mockAdapter.getTorrents).toHaveBeenCalledWith({ tag: "aither" })
   })
@@ -370,7 +370,7 @@ describe("GET /api/clients/[id]/torrents", () => {
   it("trims whitespace from tag before querying getTorrents", async () => {
     mockDbSelectClient(MOCK_CLIENT)
 
-    // %20aither%20 decodes to " aither " — should be trimmed to "aither"
+    // %20aither%20 decodes to " aither ", should be trimmed to "aither"
     const request = makeRequest("http://localhost/api/clients/1/torrents?tag=%20aither%20")
     const params = Promise.resolve({ id: "1" })
     await GET(request, { params })
@@ -381,11 +381,11 @@ describe("GET /api/clients/[id]/torrents", () => {
 })
 
 // ---------------------------------------------------------------------------
-// POST /api/clients — credentials are optional (issue #150)
+// POST /api/clients, credentials are optional (issue #150)
 //
 // qBittorrent skips authentication entirely for loopback clients when "Bypass
 // authentication for clients on localhost" is set, so a blank username and
-// password is a valid configuration. PATCH has always accepted "" — these
+// password is a valid configuration. PATCH has always accepted "", these
 // tests pin the matching behaviour on create.
 // ---------------------------------------------------------------------------
 
@@ -422,11 +422,13 @@ describe("POST /api/clients", () => {
   }
 
   it("creates a client when username and password are blank strings", async () => {
-    const res = await POST(postBody({ name: "Local qBT", host: "localhost", username: "", password: "" }))
+    const res = await POST(
+      postBody({ name: "Local qBT", host: "localhost", username: "", password: "" })
+    )
 
     expect(res.status).toBe(201)
     expect(inserted).not.toBeNull()
-    // Stored as real ciphertext, not NULL — the NOT NULL columns are satisfied.
+    // Stored as real ciphertext, not NULL, the NOT NULL columns are satisfied.
     expect(typeof inserted?.encryptedUsername).toBe("string")
     expect(inserted?.encryptedUsername).not.toBe("")
   })
@@ -504,7 +506,7 @@ describe("POST /api/clients", () => {
 
     expect(res.status).toBe(201)
     expect(inserted?.authMethod).toBe("apikey")
-    // Real encrypt() runs here — the plaintext must not survive into the row.
+    // Real encrypt() runs here, the plaintext must not survive into the row.
     expect(inserted?.encryptedApiKey).not.toBe("")
     expect(JSON.stringify(inserted)).not.toContain("qbt_examplekey")
     expect(decrypt(inserted?.encryptedApiKey as string, Buffer.from(VALID_KEY, "hex"))).toBe(
@@ -523,9 +525,7 @@ describe("POST /api/clients", () => {
   })
 
   it("rejects apikey auth with no key", async () => {
-    const res = await POST(
-      postBody({ name: "Local qBT", host: "localhost", authMethod: "apikey" })
-    )
+    const res = await POST(postBody({ name: "Local qBT", host: "localhost", authMethod: "apikey" }))
 
     expect(res.status).toBe(400)
     expect((await res.json()).error).toMatch(/apiKey is required/)
@@ -542,7 +542,7 @@ describe("POST /api/clients", () => {
 })
 
 // ---------------------------------------------------------------------------
-// PATCH /api/clients/[id] — the mode and its secret move together
+// PATCH /api/clients/[id], the mode and its secret move together
 //
 // The invariant these pin: naming an auth method without supplying that
 // method's credential is refused. Without it, PATCH {"authMethod":"apikey"}
@@ -587,7 +587,7 @@ describe("PATCH /api/clients/[id] credential handling", () => {
 
     expect(res.status).toBe(400)
     expect((await res.json()).error).toMatch(/apiKey is required/)
-    // Nothing was written — the stored password was not re-labelled.
+    // Nothing was written, the stored password was not re-labelled.
     expect(updates).toBeNull()
   })
 
@@ -599,10 +599,7 @@ describe("PATCH /api/clients/[id] credential handling", () => {
   })
 
   it("blanks the password columns when switching to a key", async () => {
-    const res = await PATCH(
-      patchBody({ authMethod: "apikey", apiKey: "qbt_newkey" }),
-      routeProps
-    )
+    const res = await PATCH(patchBody({ authMethod: "apikey", apiKey: "qbt_newkey" }), routeProps)
 
     expect(res.status).toBe(200)
     expect(updates?.authMethod).toBe("apikey")

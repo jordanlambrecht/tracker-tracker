@@ -15,19 +15,10 @@ const USERNAME_PATTERN = /^[\w\-. ]+$/
 type UsernameValidation = { ok: true; username: string } | { ok: false; error: string }
 
 /**
- * The one definition of a valid login username, in the order initial setup has
- * always applied it: trim FIRST, then bound the length, then the character class.
- *
- * Order matters. Checking the length of the raw string lets `" a "` through a
- * `>= 3` test and then stores the trimmed `"a"`. A username setup itself would
- * have rejected. Every surface that accepts a username has to agree with setup,
- * or the login form ends up demanding a value that could never have been typed
- * into the form that created the account.
- *
- * Deliberately pure, and deliberately free of `next/server`: this module is
- * imported by client components (i.e. the settings Account form), so anything
- * server-only in here would be dragged into the browser bundle. Route handlers
- * wrap the returned `error` in their own NextResponse.
+ * The one definition of a valid login username: trim first, then bound the
+ * length, then the character class. Checking the raw length would let `" a "`
+ * pass and store `"a"`. Client components import this module, so keep it free
+ * of `next/server`.
  */
 export function validateUsername(raw: unknown): UsernameValidation {
   if (typeof raw !== "string" || !raw.trim()) {
@@ -68,7 +59,10 @@ export const LARGE_TOKEN_MAX = 5000
  */
 const LARGE_TOKEN_PLATFORMS: ReadonlySet<string> = new Set([
   "avistaz",
+  "digitalcore",
+  "filelist",
   "iptorrents",
+  "retrotoon",
   "torrentleech",
 ])
 
@@ -130,6 +124,22 @@ export const BACKUP_RESTORE_MAX_BYTES = 50 * 1024 * 1024
 export const AVATAR_FETCH_MAX_BYTES = 5 * 1024 * 1024
 export const MOUSEHOLE_BODY_MAX_BYTES = 256
 
+/**
+ * Ceiling on a qBittorrent response body. The 15s timeout bounds elapsed time,
+ * not bytes, so without this a host that streams slowly and forever is read
+ * into memory unbounded.
+ *
+ * The number is a guess set well above any real library, not a measured figure.
+ */
+export const QBT_RESPONSE_MAX_BYTES = 64 * 1024 * 1024
+
+/**
+ * Ceiling on torrents held per client in the sync store. The store is keyed by
+ * a hash the host chooses and is never aged out, so without this a host grows
+ * it without bound by naming new hashes every poll. The number is a guess too.
+ */
+export const SYNC_STORE_MAX_TORRENTS = 100_000
+
 // ─── Image Hosting ────────────────────────────────────────────────────────────
 export const IMAGE_EXPIRATION_MIN = 60
 export const IMAGE_EXPIRATION_MAX = 15_552_000
@@ -151,3 +161,11 @@ export const EVENTS_LIMIT_CAP = 1000
 // ─── Time ─────────────────────────────────────────────────────────────────────
 export const MS_PER_DAY = 24 * 60 * 60 * 1000
 export const ADAPTER_FETCH_TIMEOUT_MS = 15_000
+
+/**
+ * Upper bound on one scheduled poll cycle. Every adapter call is bounded by
+ * ADAPTER_FETCH_TIMEOUT_MS and a tracker makes at most a handful of calls, so
+ * a cycle that is still running after two cron ticks is stuck, not slow. The
+ * cron callback releases its in-flight latch at this point instead of waiting.
+ */
+export const POLL_CYCLE_DEADLINE_MS = 10 * 60 * 1000

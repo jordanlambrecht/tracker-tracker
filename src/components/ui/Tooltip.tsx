@@ -43,7 +43,12 @@ function Tooltip({ content, children, className, docs }: TooltipProps) {
   useLayoutEffect(() => {
     if (!visible || !triggerRef.current) return
     const rect = triggerRef.current.getBoundingClientRect()
-    setPos({ top: rect.bottom + 6, left: rect.left })
+    // The popup keeps itself open while hovered, so one that runs past the
+    // bottom of the viewport (a rank stack's full rung list) could only be
+    // dismissed by leaving it. Slide it up as far as needed instead.
+    const height = tooltipRef.current?.offsetHeight ?? 0
+    const top = Math.max(8, Math.min(rect.bottom + 6, window.innerHeight - height - 8))
+    setPos({ top, left: rect.left })
     portalTarget.current = triggerRef.current.closest("dialog") ?? document.body
   }, [visible])
 

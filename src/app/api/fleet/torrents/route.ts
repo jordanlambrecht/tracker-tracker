@@ -16,7 +16,7 @@ export async function GET() {
     const result = await fetchFleetTorrents(key)
 
     if (result.sessionExpired) {
-      log.warn({ route: "GET /api/fleet/torrents" }, "fleet fetch failed — stale session key")
+      log.warn({ route: "GET /api/fleet/torrents" }, "fleet fetch failed: stale session key")
       return NextResponse.json({ error: "Session expired. Please log in again." }, { status: 401 })
     }
 

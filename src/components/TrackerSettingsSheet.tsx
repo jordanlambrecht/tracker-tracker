@@ -6,6 +6,7 @@ import { H2 } from "@typography"
 import clsx from "clsx"
 import { useRouter } from "next/navigation"
 import { type SyntheticEvent, useCallback, useEffect, useState } from "react"
+import { CredentialFields } from "@/components/CredentialFields"
 import {
   Button,
   ConfirmRemove,
@@ -19,8 +20,14 @@ import {
 } from "@/components/ui"
 import { ColorPicker } from "@/components/ui/ColorPicker"
 
-import { findRegistryEntry } from "@/data/tracker-registry"
-import { DOCS } from "@/lib/constants"
+import { registryEntryFor } from "@/data/tracker-registry"
+import {
+  buildCredentialBlob,
+  type CredentialValues,
+  credentialFormForPlatform,
+  EMPTY_CREDENTIAL_VALUES,
+  validateCredentialValues,
+} from "@/lib/credential-forms"
 import { localDateStr } from "@/lib/formatters"
 import { trackerQueryOptions } from "@/lib/query-options"
 import type { TrackerSummary } from "@/types/api"
@@ -43,7 +50,6 @@ interface FormState {
   qbtTag: string
   joinedAt: string
   lastAccessAt: string
-  baseUrl: string
   useProxy: boolean
   countCrossSeedUnsatisfied: boolean
   hideUnreadBadges: boolean
@@ -57,7 +63,6 @@ function formStateFromTracker(t: TrackerSummary): FormState {
     qbtTag: t.qbtTag ?? "",
     joinedAt: t.joinedAt ?? "",
     lastAccessAt: t.lastAccessAt ?? "",
-    baseUrl: t.baseUrl,
     useProxy: t.useProxy ?? false,
     countCrossSeedUnsatisfied: t.countCrossSeedUnsatisfied ?? false,
     hideUnreadBadges: t.hideUnreadBadges ?? false,
@@ -69,14 +74,9 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
   const router = useRouter()
   const queryClient = useQueryClient()
 
-  // Every write mutates a row in the shared ["trackers"] cache, which
-  // useTrackerList and useDashboardData render from. That cache is NOT
-  // remounted by `router.push("/")`. The sidebar sits in the persistent auth
-  // layout. Its only automatic repair is `refetchInterval`, derived from
-  // trackerPollIntervalMinutes (15 min floor, 60 min default). Without explicit
-  // write-through + invalidate, an archived tracker renders as active and the
-  // "Show Archived (N)" counter under-reports for up to an hour. This mirrors
-  // toggleFavorite and handleDragEnd in useTrackerList.
+  // Every write mutates a row in the shared ["trackers"] cache. It survives
+  // `router.push("/")` and only refetches on the poll interval, so without
+  // write-through and invalidate an archived tracker keeps rendering as active.
   const syncTrackerCache = useCallback(
     (next: TrackerSummary | null) => {
       queryClient.setQueryData<TrackerSummary[]>(trackerQueryOptions.queryKey, (prev) => {
@@ -101,7 +101,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
     setForm(formStateFromTracker(tracker))
   }, [tracker])
 
-  const registryEntry = findRegistryEntry(tracker.baseUrl)
+  const registryEntry = registryEntryFor(tracker)
   const hasLoginPolicy = !!registryEntry?.rules?.loginIntervalDays
 
   const [proxyAvailable, setProxyAvailable] = useState<boolean | null>(null)
@@ -117,13 +117,12 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
   }, [open, proxyAvailable])
 
   const [changingKey, setChangingKey] = useState(false)
-  const [newApiToken, setNewApiToken] = useState("")
-  const [editAvistazUsername, setEditAvistazUsername] = useState("")
-  const [editAvistazCookies, setEditAvistazCookies] = useState("")
-  const [editDcCookies, setEditDcCookies] = useState("")
-  const [editIptCookies, setEditIptCookies] = useState("")
-  const [editTlUsername, setEditTlUsername] = useState("")
-  const [editTlPassword, setEditTlPassword] = useState("")
+  const [credentials, setCredentials] = useState<CredentialValues>(EMPTY_CREDENTIAL_VALUES)
+  const credentialForm = credentialFormForPlatform(tracker.platformType)
+
+  const setCredentialField = useCallback((field: keyof CredentialValues, value: string) => {
+    setCredentials((prev) => ({ ...prev, [field]: value }))
+  }, [])
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
@@ -131,10 +130,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
 
   const resetTransientState = useCallback(() => {
     setChangingKey(false)
-    setNewApiToken("")
-    setEditAvistazUsername("")
-    setEditAvistazCookies("")
-    setEditDcCookies("")
+    setCredentials(EMPTY_CREDENTIAL_VALUES)
     setErrors({})
     setSaving(false)
     setDeleting(false)
@@ -150,43 +146,10 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
 
     const validationErrors: Record<string, string> = {}
     if (!form.name.trim()) validationErrors.name = "Name is required"
-    if (!form.baseUrl.trim()) {
-      validationErrors.baseUrl = "Base URL is required"
-    } else {
-      try {
-        new URL(form.baseUrl)
-      } catch {
-        validationErrors.baseUrl = "Invalid URL"
-      }
-    }
-    if (changingKey && tracker.platformType === "digitalcore") {
-      const trimmed = editDcCookies.trim()
-      if (!trimmed) {
-        validationErrors.apiToken = "Session cookies are required"
-      } else {
-        const hasUid = /(?:^|;\s*)uid=([^;]+)/.test(trimmed)
-        const hasPass = /(?:^|;\s*)pass=([^;]+)/.test(trimmed)
-        if (!hasUid || !hasPass) {
-          validationErrors.apiToken = "Cookie string must contain both uid and pass values"
-        }
-      }
-    } else if (changingKey && tracker.platformType === "iptorrents") {
-      const trimmed = editIptCookies.trim().replace(/^Cookie:\s*/i, "")
-      if (!trimmed) {
-        validationErrors.apiToken = "Browser cookies are required"
-      } else if (!trimmed.includes("=")) {
-        validationErrors.apiToken = "Cookie string must contain key=value pairs"
-      }
-    } else if (changingKey && tracker.platformType === "torrentleech") {
-      if (!editTlUsername.trim() || !editTlPassword) {
-        validationErrors.apiToken = "Username and password are required"
-      }
-    } else if (
-      changingKey &&
-      tracker.platformType !== "avistaz" &&
-      !newApiToken.trim()
-    ) {
-      validationErrors.apiToken = "API token cannot be empty"
+    // AvistaZ is deliberately absent here, see the submit-time check below.
+    if (changingKey && credentialForm.kind !== "cookies-username") {
+      const credentialError = validateCredentialValues(credentialForm, credentials)
+      if (credentialError) validationErrors.apiToken = credentialError
     }
 
     if (Object.keys(validationErrors).length > 0) {
@@ -197,42 +160,20 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
     setErrors({})
     setSaving(true)
 
-    let trimmedToken = newApiToken.trim()
+    let trimmedToken = ""
 
-    if (changingKey && tracker.platformType === "avistaz") {
-      if (!editAvistazUsername.trim() || !editAvistazCookies.trim()) {
-        setErrors({ apiToken: "Username and cookies are required" })
-        setSaving(false)
-        return
+    if (changingKey) {
+      // AvistaZ credentials are checked after the name check above, so a
+      // submit with an empty name reports the name first.
+      if (credentialForm.kind === "cookies-username") {
+        const credentialError = validateCredentialValues(credentialForm, credentials)
+        if (credentialError) {
+          setErrors({ apiToken: credentialError })
+          setSaving(false)
+          return
+        }
       }
-      trimmedToken = JSON.stringify({
-        cookies: editAvistazCookies.trim(),
-        userAgent: navigator.userAgent,
-        username: editAvistazUsername.trim(),
-      })
-    } else if (changingKey && tracker.platformType === "iptorrents") {
-      trimmedToken = JSON.stringify({
-        cookies: editIptCookies.trim().replace(/^Cookie:\s*/i, ""),
-        userAgent: navigator.userAgent,
-      })
-    } else if (changingKey && tracker.platformType === "torrentleech") {
-      trimmedToken = JSON.stringify({
-        username: editTlUsername.trim(),
-        password: editTlPassword,
-      })
-    } else if (changingKey && tracker.platformType === "digitalcore") {
-      const trimmed = editDcCookies.trim()
-      const uidMatch = trimmed.match(/(?:^|;\s*)uid=([^;]+)/)
-      const passMatch = trimmed.match(/(?:^|;\s*)pass=([^;]+)/)
-      if (!uidMatch || !passMatch) {
-        setErrors({ apiToken: "Cookie string must contain both uid and pass values" })
-        setSaving(false)
-        return
-      }
-      trimmedToken = JSON.stringify({
-        uid: uidMatch[1].trim(),
-        pass: passMatch[1].trim(),
-      })
+      trimmedToken = buildCredentialBlob(credentialForm, credentials, navigator.userAgent)
     }
 
     // Test the new API key before saving
@@ -241,11 +182,18 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
         const testRes = await fetch("/api/trackers/test-connection", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            baseUrl: form.baseUrl.trim(),
-            apiToken: trimmedToken,
-            platformType: tracker.platformType,
-          }),
+          // A row that names a registry entry is tested by slug, and the route
+          // takes the address and platform from the entry. A pre-registry row
+          // has nothing but what it stores.
+          body: JSON.stringify(
+            tracker.registrySlug
+              ? { slug: tracker.registrySlug, apiToken: trimmedToken }
+              : {
+                  baseUrl: tracker.baseUrl,
+                  apiToken: trimmedToken,
+                  platformType: tracker.platformType,
+                }
+          ),
         })
         if (!testRes.ok) {
           const testData = await testRes.json().catch(() => ({ error: "Connection failed" }))
@@ -253,18 +201,8 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
           setSaving(false)
           return
         }
-        if (tracker.platformType === "avistaz") {
-          const testJson = await testRes.json().catch(() => ({}))
-          if ((testJson as Record<string, unknown>).capturedUserAgent) {
-            trimmedToken = JSON.stringify({
-              cookies: editAvistazCookies.trim(),
-              userAgent: (testJson as Record<string, string>).capturedUserAgent,
-              username: editAvistazUsername.trim(),
-            })
-          }
-        }
       } catch {
-        setErrors({ apiToken: "Could not verify API key — check your connection" })
+        setErrors({ apiToken: "Could not verify API key. Check your connection" })
         setSaving(false)
         return
       }
@@ -273,7 +211,6 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
     const payload: Record<string, unknown> = {
       name: form.name.trim(),
       color: form.color,
-      baseUrl: form.baseUrl.trim(),
       qbtTag: form.qbtTag.trim(),
       joinedAt: form.joinedAt || null,
       lastAccessAt: form.lastAccessAt || null,
@@ -310,7 +247,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
       onUpdated(updated)
       onClose()
     } catch {
-      setErrors({ form: "Network error — please try again" })
+      setErrors({ form: "Network error. Please try again" })
       setSaving(false)
     }
   }
@@ -325,9 +262,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
         body: JSON.stringify({ isActive: !tracker.isActive }),
       })
 
-      // A non-ok response used to fall through silently. No error, no state
-      // change, sheet stays open. The user sees "I clicked Archive and nothing
-      // happened", indistinguishable from "it's slow".
+      // A failed archive must say so, or the click looks like nothing happened.
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         setErrors({
@@ -383,179 +318,17 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
             error={errors.name}
           />
 
-          <Input
-            label="Base URL"
-            value={form.baseUrl}
-            onChange={(e) => updateField("baseUrl", e.target.value)}
-            placeholder="https://aither.cc"
-            error={errors.baseUrl}
-          />
-
-          {/* API Key. Show status or change input. */}
+          {/* Credentials. Show the masked status or the change input. */}
           <div className="flex flex-col gap-1">
-            <H2 className="uppercase tracking-wider">API Key</H2>
-            {changingKey && tracker.platformType === "avistaz" ? (
+            <H2 className="uppercase tracking-wider">Credentials</H2>
+            {changingKey ? (
               <div className="flex flex-col gap-2">
-                <Input
-                  label="Username"
-                  autoComplete="off"
-                  data-1p-ignore
-                  value={editAvistazUsername}
-                  onChange={(e) => setEditAvistazUsername(e.target.value)}
-                  placeholder="Your username on this tracker"
-                />
-                <div className="flex flex-col gap-1">
-                  <label
-                    htmlFor="edit-avistaz-cookies"
-                    className="text-xs uppercase tracking-wider text-secondary font-mono"
-                  >
-                    Browser Cookies
-                  </label>
-                  <textarea
-                    id="edit-avistaz-cookies"
-                    autoComplete="off"
-                    data-1p-ignore
-                    value={editAvistazCookies}
-                    onChange={(e) => setEditAvistazCookies(e.target.value)}
-                    placeholder="Paste Cookie header from DevTools"
-                    rows={3}
-                    className="w-full rounded-nm-sm bg-control-bg px-3 py-2 text-sm text-primary border border-transparent focus:border-accent focus:outline-none font-mono resize-y"
-                  />
-                </div>
-                <Notice message={errors.apiToken} />
-                <Button
-                  variant="minimal"
-                  size="sm"
-                  text="Cancel"
-                  className="self-start"
-                  onClick={() => {
-                    setChangingKey(false)
-                    setEditAvistazUsername("")
-                    setEditAvistazCookies("")
-                    setErrors({})
-                  }}
-                />
-              </div>
-            ) : changingKey && tracker.platformType === "iptorrents" ? (
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-1">
-                  <label
-                    htmlFor="edit-ipt-cookies"
-                    className="text-xs uppercase tracking-wider text-secondary font-sans font-medium"
-                  >
-                    Browser Cookies
-                  </label>
-                  <InfoTip
-                    content="Open DevTools (F12) → Network → any request to IPTorrents → copy the full Cookie header value."
-                    size="sm"
-                    docs={DOCS.ADDING_A_TRACKER}
-                  />
-                </div>
-                <textarea
-                  id="edit-ipt-cookies"
-                  name="edit-ipt-cookies"
-                  autoComplete="off"
-                  data-1p-ignore
-                  value={editIptCookies}
-                  onChange={(e) => setEditIptCookies(e.target.value)}
-                  placeholder="cf_clearance=...; uid=123456; pass=abc123..."
-                  rows={3}
-                  className="w-full rounded-md border border-subtle bg-surface px-3 py-2 text-sm font-mono"
-                />
-                <Notice message={errors.apiToken} />
-                <Button
-                  variant="minimal"
-                  size="sm"
-                  text="Cancel"
-                  className="self-start"
-                  onClick={() => {
-                    setChangingKey(false)
-                    setEditIptCookies("")
-                    setErrors({})
-                  }}
-                />
-              </div>
-            ) : changingKey && tracker.platformType === "torrentleech" ? (
-              <div className="flex flex-col gap-2">
-                <Input
-                  label="Username"
-                  name="edit-tl-username"
-                  autoComplete="off"
-                  data-1p-ignore
-                  value={editTlUsername}
-                  onChange={(e) => setEditTlUsername(e.target.value)}
-                />
-                <Input
-                  label="Password"
-                  name="edit-tl-password"
-                  type="password"
-                  autoComplete="off"
-                  data-1p-ignore
-                  value={editTlPassword}
-                  onChange={(e) => setEditTlPassword(e.target.value)}
-                />
-                <Notice message={errors.apiToken} />
-                <Button
-                  variant="minimal"
-                  size="sm"
-                  text="Cancel"
-                  className="self-start"
-                  onClick={() => {
-                    setChangingKey(false)
-                    setEditTlUsername("")
-                    setEditTlPassword("")
-                    setErrors({})
-                  }}
-                />
-              </div>
-            ) : changingKey && tracker.platformType === "digitalcore" ? (
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-1">
-                  <label
-                    htmlFor="edit-dc-cookies"
-                    className="text-xs uppercase tracking-wider text-secondary font-sans font-medium"
-                  >
-                    Session Cookies
-                  </label>
-                  <InfoTip
-                    content="Open DevTools (F12) → Network → any request → copy the Cookie header value."
-                    size="sm"
-                    docs={DOCS.ADDING_A_TRACKER}
-                  />
-                </div>
-                <textarea
-                  id="edit-dc-cookies"
-                  autoComplete="off"
-                  data-1p-ignore
-                  value={editDcCookies}
-                  onChange={(e) => setEditDcCookies(e.target.value)}
-                  placeholder="uid=56954; pass=abc123def456..."
-                  rows={2}
-                  className="w-full font-mono text-sm text-primary bg-control-bg rounded-nm-md px-4 py-3 placeholder:text-muted nm-inset focus:outline-none focus:nm-inset border-0 resize-y"
-                />
-                <Notice message={errors.apiToken} />
-                <Button
-                  variant="minimal"
-                  size="sm"
-                  text="Cancel"
-                  className="self-start"
-                  onClick={() => {
-                    setChangingKey(false)
-                    setEditDcCookies("")
-                    setErrors({})
-                  }}
-                />
-              </div>
-            ) : changingKey ? (
-              <div className="flex flex-col gap-2">
-                <Input
-                  type="password"
-                  autoComplete="off"
-                  data-1p-ignore
-                  value={newApiToken}
-                  onChange={(e) => setNewApiToken(e.target.value)}
-                  placeholder="Paste API token"
+                <CredentialFields
+                  form={credentialForm}
+                  values={credentials}
+                  onChange={setCredentialField}
                   error={errors.apiToken}
+                  surface="sheet"
                 />
                 <Button
                   variant="minimal"
@@ -564,9 +337,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
                   className="self-start"
                   onClick={() => {
                     setChangingKey(false)
-                    setNewApiToken("")
-                    setEditAvistazUsername("")
-                    setEditAvistazCookies("")
+                    setCredentials(EMPTY_CREDENTIAL_VALUES)
                     setErrors({})
                   }}
                 />
@@ -612,8 +383,10 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
             tracker.platformType === "ggn" ||
             tracker.platformType === "avistaz" ||
             tracker.platformType === "digitalcore" ||
+            tracker.platformType === "filelist" ||
             tracker.platformType === "iptorrents" ||
-            tracker.platformType === "torrentleech"
+            tracker.platformType === "torrentleech" ||
+            tracker.platformType === "retrotoon"
           ) && (
             <div>
               <label
@@ -670,9 +443,11 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
               style={{ colorScheme: "dark" }}
             />
             <p className="text-xs font-sans text-muted mt-1">
-              {tracker.lastAccessAt ? `Currently recorded: ${tracker.lastAccessAt}` : "Not recorded yet."}
+              {tracker.lastAccessAt
+                ? `Currently recorded: ${tracker.lastAccessAt}`
+                : "Not recorded yet."}
               {!hasLoginPolicy &&
-                " This tracker has no login-interval policy, so no dashboard timer will appear — this is for your own records."}
+                " This tracker has no login-interval policy, so no dashboard timer will appear. This is for your own records."}
             </p>
           </div>
 

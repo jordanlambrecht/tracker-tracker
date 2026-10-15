@@ -58,7 +58,7 @@ describe("decryptClientCredentials", () => {
         throw err
       }
     }).toThrow(/Unsupported auth method: "carrier-pigeon"/)
-    // Must not be wrapped by the credential handler — a bad column value is a
+    // Must not be wrapped by the credential handler, a bad column value is a
     // data problem, and reporting it as a stale key would send the user to
     // re-enter a password that was never the issue.
     expect(isDecryptionError(thrown)).toBe(false)

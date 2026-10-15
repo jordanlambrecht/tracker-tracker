@@ -115,7 +115,7 @@ describe("client-scheduler column projections", () => {
 
   // CLIENT_CONNECTION_COLUMNS is what coordinator and fetch spread into their
   // own selects, so a column missing here reaches createAdapterForClient as
-  // undefined — a runtime failure the type checker cannot see, because the
+  // undefined, a runtime failure the type checker cannot see, because the
   // projection's inferred type is whatever it happens to contain.
   it("CLIENT_CONNECTION_COLUMNS covers every column decryptClientCredentials reads", () => {
     const keys = Object.keys(CLIENT_CONNECTION_COLUMNS)

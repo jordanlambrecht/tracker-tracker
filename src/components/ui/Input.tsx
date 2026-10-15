@@ -1,12 +1,17 @@
 // src/components/ui/Input.tsx
 
 import clsx from "clsx"
-import { type InputHTMLAttributes, type Ref, useId } from "react"
+import { type InputHTMLAttributes, type ReactNode, type Ref, useId } from "react"
+import type { DocsEntry } from "@/lib/constants"
+import { InfoTip } from "./InfoTip"
 
 type HintVariant = "default" | "danger"
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string
+  /** Info icon beside the label, kept outside the label element. */
+  tooltip?: ReactNode
+  docs?: DocsEntry
   error?: string
   hint?: string
   hintVariant?: HintVariant
@@ -20,6 +25,8 @@ const HINT_COLORS: Record<HintVariant, string> = {
 
 function Input({
   label,
+  tooltip,
+  docs,
   error,
   hint,
   hintVariant = "default",
@@ -36,12 +43,15 @@ function Input({
   return (
     <div className="flex flex-col gap-1 w-full">
       {label && (
-        <label
-          htmlFor={inputId}
-          className="text-xs font-sans font-medium text-secondary uppercase tracking-wider"
-        >
-          {label}
-        </label>
+        <div className="flex items-center gap-1">
+          <label
+            htmlFor={inputId}
+            className="text-xs font-sans font-medium text-secondary uppercase tracking-wider"
+          >
+            {label}
+          </label>
+          {tooltip && <InfoTip content={tooltip} size="sm" docs={docs} />}
+        </div>
       )}
       <input
         ref={ref}
@@ -52,7 +62,7 @@ function Input({
           "px-4 py-3 placeholder:text-muted",
           "transition-all duration-150",
           "nm-inset",
-          "focus:outline-none focus:nm-inset",
+          "focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-control-focus)] focus-visible:ring-offset-1 focus-visible:ring-offset-base",
           "disabled:opacity-40 disabled:cursor-not-allowed",
           "border-0",
           className

@@ -50,7 +50,7 @@ Some sites (`authStyle: "raw"`) omit the `token` prefix. The adapter checks `opt
 }
 ```
 
-Byte values are raw integers (bytes), not formatted strings. The `id` field is the remote user ID — cached as `remoteUserId` for the optional enrichment call.
+Byte values are raw integers (bytes), not formatted strings. The `id` field is the remote user ID, cached as `remoteUserId` for the optional enrichment call.
 
 ## Field Mapping (action=index)
 
@@ -61,11 +61,11 @@ Byte values are raw integers (bytes), not formatted strings. The `id` field is t
 | `uploadedBytes`    | `response.userstats.uploaded`                                 | `number`  | `BigInt(Math.floor(...))`                                      |
 | `downloadedBytes`  | `response.userstats.downloaded`                               | `number`  | `BigInt(Math.floor(...))`                                      |
 | `ratio`            | `response.userstats.ratio`                                    | `number`  | Defaults to `0` if not a number                                |
-| `bufferBytes`      | —                                                             | —         | Calculated: `uploadedBytes - downloadedBytes` — signed         |
-| `seedingCount`     | `response.userstats.seedingcount`                             | `number?` | Defaults to `0` — many forks omit this                         |
-| `leechingCount`    | `response.userstats.leechingcount`                            | `number?` | Defaults to `0` — many forks omit this                         |
+| `bufferBytes`      | —                                                             | —         | Calculated: `uploadedBytes - downloadedBytes`, signed          |
+| `seedingCount`     | `response.userstats.seedingcount`                             | `number?` | Defaults to `0`, many forks omit this                          |
+| `leechingCount`    | `response.userstats.leechingcount`                            | `number?` | Defaults to `0`, many forks omit this                          |
 | `seedbonus`        | `response.userstats.bonusPoints` or `.bonuspoints`            | `number?` | Checks both casing variants                                    |
-| `hitAndRuns`       | —                                                             | —         | Always `null` — not in Gazelle index response                  |
+| `hitAndRuns`       | —                                                             | —         | Always `null`, not in Gazelle index response                   |
 | `requiredRatio`    | `response.userstats.requiredratio`                            | `number?` | `null` if absent                                               |
 | `warned`           | —                                                             | —         | Defaults to `false` from index; overridden if enrichment runs  |
 | `freeleechTokens`  | `response.userstats.freeleechTokens` or `response.giftTokens` | `number?` | Checks `userstats` first, falls back to top-level `giftTokens` |
@@ -142,16 +142,16 @@ GET {baseUrl}/ajax.php?action=user&id={USER_ID}
 
 ### What the enrichment step overrides
 
-| Field | Source | Notes |
-| --- | --- | --- |
-| `warned` | `personal.warned` | Overrides `false` default |
-| `joinedDate` | `stats.joinedDate` | Index has none |
-| `lastAccessDate` | `stats.lastAccess` | Index has none |
-| `bufferBytes` | `stats.buffer` | Better than calculated value |
-| `seedingCount` | `community.seeding` | More reliable than index |
-| `leechingCount` | `community.leeching` | More reliable than index |
-| `avatarUrl` | `avatar` | Index has none |
-| `platformMeta` | `personal`, `ranks`, `community` | Full object |
+| Field            | Source                           | Notes                        |
+| ---------------- | -------------------------------- | ---------------------------- |
+| `warned`         | `personal.warned`                | Overrides `false` default    |
+| `joinedDate`     | `stats.joinedDate`               | Index has none               |
+| `lastAccessDate` | `stats.lastAccess`               | Index has none               |
+| `bufferBytes`    | `stats.buffer`                   | Better than calculated value |
+| `seedingCount`   | `community.seeding`              | More reliable than index     |
+| `leechingCount`  | `community.leeching`             | More reliable than index     |
+| `avatarUrl`      | `avatar`                         | Index has none               |
+| `platformMeta`   | `personal`, `ranks`, `community` | Full object                  |
 
 If enrichment fails, we keep the index stats. No problem.
 
@@ -159,15 +159,15 @@ If enrichment fails, we keep the index stats. No problem.
 
 ## Gazelle Fork Variations
 
-| Site | bonusPoints field | freeleechTokens | seedingcount in index |
-| --- | --- | --- | --- |
-| Redacted (RED) | `bonusPoints` | Sometimes | No |
-| Orpheus (OPS) | `bonusPoints` | Sometimes | No |
-| BroadcasTheNet (BTN) | Varies | No | No |
-| PassThePopcorn (PTP) | Varies | No | No |
-| AnimeBytes (AB) | Varies | Varies | No |
+| Site                 | bonusPoints field | freeleechTokens | seedingcount in index |
+| -------------------- | ----------------- | --------------- | --------------------- |
+| Redacted (RED)       | `bonusPoints`     | Sometimes       | No                    |
+| Orpheus (OPS)        | `bonusPoints`     | Sometimes       | No                    |
+| BroadcasTheNet (BTN) | Varies            | No              | No                    |
+| PassThePopcorn (PTP) | Varies            | No              | No                    |
+| AnimeBytes (AB)      | Varies            | Varies          | No                    |
 
-GGn uses a separate adapter — see the [GGn page](tracker-responses-ggn.md).
+GGn uses a separate adapter. See the [GGn page](tracker-responses-ggn.md).
 
 ## Supported Trackers
 

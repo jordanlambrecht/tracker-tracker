@@ -8,6 +8,7 @@ import clsx from "clsx"
 import Link from "next/link"
 import type { CSSProperties } from "react"
 import { CHART_THEME } from "@/components/charts/lib/theme"
+import { InfinityIcon } from "@/components/ui/Icons"
 import { PulseDot } from "@/components/ui/PulseDot"
 import { hexToRgba } from "@/lib/color-utils"
 import { formatStatValue, type StatMode } from "@/lib/formatters"
@@ -70,7 +71,16 @@ function SortableTrackerItem({
       )}
       <span className="flex-1 truncate text-sm font-semibold">{tracker.name}</span>
       <span className="font-mono text-xs tabular-nums text-tertiary shrink-0">
-        {archived ? "Archived" : stat}
+        {archived ? (
+          "Archived"
+        ) : stat.startsWith("∞") ? (
+          <>
+            <InfinityIcon className="inline-block h-[0.55em] w-[1.1em] align-middle" />
+            {stat.slice(1)}
+          </>
+        ) : (
+          stat
+        )}
       </span>
       {!unlocked && (
         // biome-ignore lint/a11y/useSemanticElements: Star must be inside parent button for visual layout

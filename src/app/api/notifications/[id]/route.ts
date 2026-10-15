@@ -18,6 +18,7 @@ import { notificationTargets } from "@/lib/db/schema"
 import { errMsg } from "@/lib/error-utils"
 import { SHORT_NAME_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
+import { NOTIFY_TOGGLE_KEYS } from "@/lib/notifications/types"
 import { validateNotificationConfig } from "@/lib/notifications/validate"
 
 export async function PATCH(req: Request, { params }: RouteContext) {
@@ -80,22 +81,7 @@ export async function PATCH(req: Request, { params }: RouteContext) {
   }
 
   // Boolean event toggles
-  for (const key of [
-    "notifyRatioDrop",
-    "notifyHitAndRun",
-    "notifyTrackerDown",
-    "notifyBufferMilestone",
-    "notifyWarned",
-    "notifyRatioDanger",
-    "notifyZeroSeeding",
-    "notifyRankChange",
-    "notifyAnniversary",
-    "notifyBonusCap",
-    "notifyVipExpiring",
-    "notifyUnsatisfiedLimit",
-    "notifyActiveHnrs",
-    "includeTrackerName",
-  ] as const) {
+  for (const key of [...NOTIFY_TOGGLE_KEYS, "includeTrackerName"] as const) {
     if (key in fields) {
       if (typeof fields[key] !== "boolean") {
         return NextResponse.json({ error: `${key} must be a boolean` }, { status: 400 })

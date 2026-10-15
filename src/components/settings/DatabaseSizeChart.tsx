@@ -158,7 +158,7 @@ export function DatabaseSizeChart() {
     return (
       <p className="text-xs font-mono text-muted">
         {data?.history.length === 1
-          ? "Collecting size data — chart available tomorrow."
+          ? "Collecting size data. Chart available tomorrow."
           : "No size data recorded yet."}
       </p>
     )

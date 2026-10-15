@@ -154,7 +154,7 @@ describe("TrackerBubbleChart axis bounds against a real ECharts instance", () =>
 
   it("stays visible to ChartECharts' JSON.stringify guard", () => {
     // defaultShouldSetOption skips setOption when the serialised options match,
-    // and JSON.stringify drops undefined-valued keys — so the clearing values
+    // and JSON.stringify drops undefined-valued keys, so the clearing values
     // are invisible to it and cannot carry the change on their own. The series
     // data differs across the leaking transition, and the axis type and name
     // differ across the scale flip, which is what keeps both reachable.

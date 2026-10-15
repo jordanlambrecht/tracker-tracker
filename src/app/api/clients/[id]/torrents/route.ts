@@ -53,7 +53,7 @@ export async function GET(request: Request, props: RouteContext) {
     return NextResponse.json(torrents.map(stripSensitiveTorrentFields))
   } catch (error) {
     if (isDecryptionError(error)) {
-      log.warn({ route: "GET /api/clients/[id]/torrents", clientId }, "failed — stale session key")
+      log.warn({ route: "GET /api/clients/[id]/torrents", clientId }, "failed: stale session key")
       return NextResponse.json({ error: "Session expired. Please log in again" }, { status: 401 })
     }
     const raw = error instanceof Error ? error.message : ""

@@ -103,7 +103,7 @@ function TwoFactorSetup() {
       setBackupCodes(data.backupCodes)
       setStep("qr-code")
     } catch {
-      setError("Network error — could not reach the server")
+      setError("Network error. Could not reach the server")
       setStep("idle")
     }
   }, [])
@@ -133,7 +133,7 @@ function TwoFactorSetup() {
         return
       }
     } catch {
-      setError("Network error — could not reach the server")
+      setError("Network error. Could not reach the server")
       setStep("qr-code")
       return
     }
@@ -174,7 +174,7 @@ function TwoFactorSetup() {
         return
       }
     } catch {
-      setError("Network error — could not reach the server")
+      setError("Network error. Could not reach the server")
       setStep("disable-prompt")
       return
     }
@@ -195,7 +195,7 @@ function TwoFactorSetup() {
         setTimeout(() => setCopied(false), 2000)
       })
       .catch(() => {
-        setError("Copy failed — select the text manually")
+        setError("Copy failed. Select the text manually")
       })
   }
 
@@ -208,7 +208,7 @@ function TwoFactorSetup() {
         setTimeout(() => setCopiedSecret(false), 2000)
       })
       .catch(() => {
-        setError("Copy failed — select the text manually")
+        setError("Copy failed. Select the text manually")
       })
   }
 

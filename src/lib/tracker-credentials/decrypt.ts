@@ -15,7 +15,7 @@ import { isTrackerCredentialVault } from "@/lib/tracker-credentials/types"
  * Neither ever reaches a caller.
  *
  * Callers must handle NULL themselves: NULL is "no vault", not an error, and
- * must never be passed here — an empty or marker string handed to decrypt() is
+ * must never be passed here, an empty or marker string handed to decrypt() is
  * exactly the trap that produced LOCKDOWN_REVOKED.
  */
 export function decryptTrackerCredentials(

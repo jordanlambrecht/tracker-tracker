@@ -8,7 +8,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 // ---------------------------------------------------------------------------
-// Per-test data store — populated by seedStore() in each test
+// Per-test data store, populated by seedStore() in each test
 // ---------------------------------------------------------------------------
 
 // These string values must match the values returned by the schema mock below.
@@ -45,11 +45,11 @@ function seedStore(
 }
 
 // ---------------------------------------------------------------------------
-// DB mock — vi.mock factory is hoisted; use ONLY inline literals here
+// DB mock, vi.mock factory is hoisted; use ONLY inline literals here
 // ---------------------------------------------------------------------------
 
 vi.mock("@/lib/db", () => {
-  // NOTE: Cannot reference outer variables here — this factory is hoisted.
+  // NOTE: Cannot reference outer variables here, this factory is hoisted.
   // The store/storeDayBefore variables are module-level so they ARE accessible
   // after hoisting as long as we reference them by closure (not by value at
   // declaration time). Vitest hoists vi.mock but the factory closure still
@@ -86,7 +86,7 @@ vi.mock("@/lib/db", () => {
   }
 })
 
-// Schema mock — each table is a string sentinel matching the from() dispatch above
+// Schema mock, each table is a string sentinel matching the from() dispatch above
 vi.mock("@/lib/db/schema", () => ({
   trackers: "SENT_trackers",
   trackerSnapshots: "SENT_snapshots",
@@ -560,7 +560,7 @@ describe("computeTodayAtAGlance — torrent movers tag filtering", () => {
 })
 
 // ---------------------------------------------------------------------------
-// Fleet aggregation — multiple trackers
+// Fleet aggregation, multiple trackers
 // ---------------------------------------------------------------------------
 
 describe("computeTodayAtAGlance — fleet aggregation with multiple trackers", () => {
@@ -642,7 +642,7 @@ describe("computeTodayAtAGlance — ratio weighted average", () => {
 
   it("returns null ratioChange when all upload deltas are zero (no progress this session)", async () => {
     const tracker = makeTracker(1)
-    // Both snapshots have same uploaded bytes — delta = 0, weight = 0
+    // Both snapshots have same uploaded bytes, delta = 0, weight = 0
     const snap1 = makeSnapshot(
       1,
       new Date(Date.now() - 3600000),

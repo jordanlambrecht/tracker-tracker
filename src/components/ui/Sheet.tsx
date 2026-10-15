@@ -41,7 +41,7 @@ function Sheet({ open, onClose, title, footer, busy, onSubmit, children, classNa
   if (!mounted) return null
 
   const panelCls = clsx(
-    "relative w-full max-w-md h-full bg-elevated nm-raised-lg flex flex-col transition-transform duration-300 ease-out",
+    "relative w-full max-w-md h-full bg-overlay nm-float flex flex-col transition-transform duration-300 ease-out",
     className
   )
   const panelStyle = {

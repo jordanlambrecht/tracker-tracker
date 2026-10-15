@@ -3,7 +3,7 @@
 // Functions: buildProxyUrl, createProxyAgent, proxyFetch, buildProxyAgentFromSettings
 // Exports: VALID_PROXY_TYPES, PROXY_HOST_PATTERN, ProxyType, ProxyConfig, ProxyFetchResult, ProxySettings
 
-import type { Agent as HttpAgent } from "node:http"
+import type { Agent as HttpAgent, IncomingHttpHeaders } from "node:http"
 import https from "node:https"
 import { HttpsProxyAgent } from "https-proxy-agent"
 import { SocksProxyAgent } from "socks-proxy-agent"
@@ -54,7 +54,15 @@ export interface ProxyFetchResult {
   ok: boolean
   status: number
   statusText: string
+  /**
+   * Raw response headers. Present because a login POST is only useful if the
+   * caller can read the Set-Cookie it came for. Without this, an adapter that
+   * authenticates has no way to go through the proxy and must fall back to a
+   * direct fetch, which defeats the point of configuring one.
+   */
+  headers: IncomingHttpHeaders
   json: () => Promise<unknown>
+  text: () => Promise<string>
   buffer: () => Promise<Buffer>
 }
 
@@ -80,6 +88,31 @@ export function proxyFetch(
     const method = options.method ?? "GET"
     const body = method === "POST" ? (options.body ?? "") : undefined
 
+    // The request's own timeout option only arms once a socket is assigned,
+    // and a proxy agent withholds the socket until its CONNECT reply arrives,
+    // so a proxy that accepts the TCP connection and never answers would hold
+    // the request open forever. This timer bounds the whole request instead.
+    // It rejects directly: req.destroy(err) only emits the error once a socket
+    // exists, which is exactly what never happens here.
+    let settled = false
+    let deadline: NodeJS.Timeout | undefined
+    const done = (result: ProxyFetchResult) => {
+      if (settled) return
+      settled = true
+      clearTimeout(deadline)
+      resolve(result)
+    }
+    const fail = (err: Error) => {
+      if (settled) return
+      settled = true
+      clearTimeout(deadline)
+      reject(err)
+    }
+    deadline = setTimeout(() => {
+      fail(new Error(`Request timed out after ${timeoutMs}ms`))
+      req.destroy()
+    }, timeoutMs)
+
     const req = https.request(
       {
         hostname: parsed.hostname,
@@ -87,6 +120,10 @@ export function proxyFetch(
         path: parsed.pathname + parsed.search,
         method,
         agent,
+        // No default User-Agent here on purpose. This is transport; which UA
+        // to send is the caller's policy. adapterRequest sets one for the JSON
+        // APIs, the scraping adapters send the exact UA their session cookie
+        // was issued to, and TorrentLeech deliberately sends none.
         headers: {
           Accept: "application/json",
           ...(body === undefined
@@ -103,19 +140,21 @@ export function proxyFetch(
           totalBytes += chunk.length
           if (maxBytes > 0 && totalBytes > maxBytes) {
             req.destroy()
-            reject(new Error(`Response exceeded ${maxBytes} byte limit`))
+            fail(new Error(`Response exceeded ${maxBytes} byte limit`))
             return
           }
           chunks.push(chunk)
         })
         res.on("end", () => {
           const raw = Buffer.concat(chunks)
-          resolve({
+          done({
             ok: (res.statusCode ?? 0) >= 200 && (res.statusCode ?? 0) < 300,
             status: res.statusCode ?? 0,
             statusText: res.statusMessage ?? "",
+            headers: res.headers,
             // security-audit-ignore: async wrapper converts JSON.parse throw to rejected promise. Caller handles via await/catch
             json: async () => JSON.parse(raw.toString("utf8")),
+            text: () => Promise.resolve(raw.toString("utf8")),
             buffer: () => Promise.resolve(raw),
           })
         })
@@ -124,11 +163,11 @@ export function proxyFetch(
 
     req.on("timeout", () => {
       req.destroy()
-      reject(new Error(`Request timed out after ${timeoutMs}ms`))
+      fail(new Error(`Request timed out after ${timeoutMs}ms`))
     })
 
     req.on("error", (err) => {
-      reject(err)
+      fail(err)
     })
 
     if (body !== undefined) req.write(body)

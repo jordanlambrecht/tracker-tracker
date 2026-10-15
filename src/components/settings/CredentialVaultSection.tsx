@@ -6,7 +6,7 @@
 //
 //   SettingsSection puts its id on the HEADING as `${id}-heading`, so this
 //   section is reachable at /settings#credential-vault-heading. Renaming the id
-//   silently breaks the sheet's "Enable in Settings" button — CredentialSheet
+//   silently breaks the sheet's "Enable in Settings" button. CredentialSheet
 //   imports the href from here rather than spelling it out, and a test asserts
 //   the element that href points at actually exists.
 
@@ -24,7 +24,7 @@ export const CREDENTIAL_VAULT_SECTION_ID = "credential-vault"
  * Deep link to this toggle, for the sheet's opt-in gate.
  *
  * Points at the HEADING rather than the switch itself so the browser scrolls the
- * section title into view with the control just below it — landing on a bare
+ * section title into view with the control just below it, because landing on a bare
  * switch with its heading scrolled off the top tells the user nothing about what
  * they are about to turn on.
  *
@@ -45,9 +45,11 @@ export function CredentialVaultSection({ initialEnabled }: CredentialVaultSectio
   async function handleToggle(checked: boolean) {
     const result = await patch({ credentialVaultEnabled: checked })
     if (result.ok) {
-      // Trust the server's echo rather than the optimistic value — the PATCH
+      // Trust the server's echo rather than the optimistic value, because the PATCH
       // handler re-reads the row, so this is the state that actually persisted.
-      setEnabled(Boolean((result.data as { credentialVaultEnabled?: boolean }).credentialVaultEnabled))
+      setEnabled(
+        Boolean((result.data as { credentialVaultEnabled?: boolean }).credentialVaultEnabled)
+      )
     }
   }
 
@@ -74,7 +76,7 @@ export function CredentialVaultSection({ initialEnabled }: CredentialVaultSectio
       ) : (
         <Notice
           variant="info"
-          // Says out loud that turning this off is not a delete — otherwise the
+          // Says out loud that turning this off is not a delete, because otherwise the
           // only way to find out is to toggle it and hope.
           message="Turning this off hides the Credentials panel and blocks the API that reads it. Anything you have already stored is kept, stays encrypted, and reappears if you turn this back on."
         />
