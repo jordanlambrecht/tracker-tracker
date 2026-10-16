@@ -8,6 +8,7 @@
 // who don't tag per-tracker (issue #152). The torrent's announce URL is
 // already captured, so fall back to matching on that.
 
+import { findRegistryEntry } from "@/data/tracker-registry"
 import { parseTorrentTags } from "@/lib/fleet"
 
 /**
@@ -73,14 +74,31 @@ export function trackerHostKey(input: string | null | undefined): string | null 
   return labels.slice(-take).join(".")
 }
 
+const announceKeyCache = new Map<string, readonly string[]>()
+
+export function trackerAnnounceKeys(trackerBaseUrl: string | null | undefined): readonly string[] {
+  const baseUrl = trackerBaseUrl ?? ""
+  const cached = announceKeyCache.get(baseUrl)
+  if (cached) return cached
+
+  const own = trackerHostKey(baseUrl)
+  const extra = baseUrl ? (findRegistryEntry(baseUrl)?.announceHosts ?? []) : []
+  const keys = [
+    ...new Set(
+      [own, ...extra.map((h) => trackerHostKey(h))].filter((k): k is string => k !== null)
+    ),
+  ]
+  announceKeyCache.set(baseUrl, keys)
+  return keys
+}
+
 /** True when a torrent's announce URL points at the same site as a tracker. */
 export function announceMatchesTracker(
   announceUrl: string | null | undefined,
   trackerBaseUrl: string | null | undefined
 ): boolean {
   const a = trackerHostKey(announceUrl)
-  const b = trackerHostKey(trackerBaseUrl)
-  return a !== null && b !== null && a === b
+  return a !== null && trackerAnnounceKeys(trackerBaseUrl).includes(a)
 }
 
 interface MatchableTracker {

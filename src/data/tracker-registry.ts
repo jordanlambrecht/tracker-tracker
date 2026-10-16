@@ -92,6 +92,8 @@ export interface TrackerRegistryEntry {
   logo?: string
   trackerHubSlug?: string
   statusPageUrl?: string
+  /** Announce domains that differ from `url`s. */
+  announceHosts?: string[]
   draft?: boolean
   warning?: boolean
   warningNote?: string

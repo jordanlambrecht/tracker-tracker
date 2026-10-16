@@ -18,7 +18,7 @@ import {
   type TrackerTag,
   toMonthKey,
 } from "@/lib/fleet"
-import { trackerHostKey } from "@/lib/tracker-matching"
+import { trackerAnnounceKeys, trackerHostKey } from "@/lib/tracker-matching"
 import type { TagGroup } from "@/types/api"
 
 // Re-export types used by callers so they don't need to import from fleet.ts
@@ -182,8 +182,9 @@ export function computeFleetAggregation(
   // even when the user tags nothing per-tracker (issue #152).
   const announceKeyMap = new Map<string, string>()
   for (const tt of trackerTags) {
-    const host = trackerHostKey(tt.baseUrl)
-    if (host) announceKeyMap.set(host, tt.tag.toLowerCase())
+    for (const host of trackerAnnounceKeys(tt.baseUrl)) {
+      announceKeyMap.set(host, tt.tag.toLowerCase())
+    }
   }
   const keyForAnnounce = (announce: string | null | undefined): string | null => {
     const host = trackerHostKey(announce)

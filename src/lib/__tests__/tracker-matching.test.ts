@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest"
 import {
   announceMatchesTracker,
   resolveTorrentTracker,
+  trackerAnnounceKeys,
   trackerHostKey,
 } from "@/lib/tracker-matching"
 
@@ -59,6 +60,13 @@ describe("announceMatchesTracker", () => {
   it("is false when either side is missing", () => {
     expect(announceMatchesTracker(null, "https://example.org")).toBe(false)
     expect(announceMatchesTracker("https://example.org/announce", null)).toBe(false)
+  })
+})
+
+describe("registry announceHosts", () => {
+  it("leaves trackers without a registry entry on their own host", () => {
+    expect(trackerAnnounceKeys("https://example.org")).toEqual(["example.org"])
+    expect(trackerAnnounceKeys(null)).toEqual([])
   })
 })
 

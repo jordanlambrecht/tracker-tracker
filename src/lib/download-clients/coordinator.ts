@@ -18,6 +18,7 @@ import { computeFleetAggregation, type FleetAggregation } from "@/lib/fleet-aggr
 import {
   createTrackedTorrentPredicate,
   resolveTorrentTracker,
+  trackerAnnounceKeys,
   trackerHostKey,
 } from "@/lib/tracker-matching"
 import type { TagGroup } from "@/types/api"
@@ -104,7 +105,7 @@ function trackerTorrentMatcher(
   allTrackers: TrackerMatchRow[]
 ): (torrent: MatchableTorrent) => boolean {
   const ownTag = target.qbtTag?.trim().toLowerCase() || null
-  const targetHost = trackerHostKey(target.baseUrl)
+  const targetHosts = new Set(trackerAnnounceKeys(target.baseUrl))
 
   return (torrent) => {
     if (ownTag && parseTorrentTags(torrent.tags ?? "").includes(ownTag)) return true
@@ -123,7 +124,7 @@ function trackerTorrentMatcher(
     // that to 31ms, and the expensive path then runs only for the handful of
     // torrents that really do announce to this tracker.
     const host = trackerHostKey(torrent.tracker)
-    if (host === null || host !== targetHost) return false
+    if (host === null || !targetHosts.has(host)) return false
 
     return resolveTorrentTracker(torrent, allTrackers)?.tracker.id === target.id
   }
@@ -256,9 +257,7 @@ export async function fetchFleetAggregation(options?: {
   const tagSet = new Set(allTags.map((t) => t.toLowerCase()))
   // Announce hosts of every tracker we know about, so a torrent from a tracked
   // site is kept even when it carries no recognised tag.
-  const knownAnnounceHosts = new Set(
-    trackerTagRows.map((r) => trackerHostKey(r.baseUrl)).filter((h): h is string => h !== null)
-  )
+  const knownAnnounceHosts = new Set(trackerTagRows.flatMap((r) => trackerAnnounceKeys(r.baseUrl)))
   const tagPredicate = createTrackedTorrentPredicate(tagSet, knownAnnounceHosts)
 
   const clientTorrents: { clientName: string; torrents: (TorrentRecord | SlimTorrent)[] }[] = []
