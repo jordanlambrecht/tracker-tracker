@@ -144,6 +144,16 @@ jobs:
 
             const body = lines.join('\n');
 
+            await core.summary.addRaw(body).write();
+
+            // A pull_request run from a fork gets a read-only GITHUB_TOKEN. Posting a
+            // comment returns 403, which fails this step and skips every step after it,
+            // including the audit gate at the end of this job.
+            if (context.payload.pull_request.head.repo.full_name !== context.payload.repository.full_name) {
+              core.info('Fork pull request: results written to the job summary instead of a PR comment.');
+              return;
+            }
+
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -194,6 +204,11 @@ jobs:
 
             if (auditFiles.length === 0) return;
 
+            if (context.payload.pull_request.head.repo.full_name !== context.payload.repository.full_name) {
+              core.warning(`Security-critical files changed in this pull request: ${auditFiles.join(', ')}. Review these changes carefully to ensure no checks were weakened or removed.`);
+              return;
+            }
+
             const marker = 'Security audit file modification';
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -232,5 +247,5 @@ jobs:
             }
 
       - name: Fail if security audit has critical findings
-        if: steps.security-audit.outputs.audit_exit != '0'
+        if: ${{ !cancelled() && steps.security-audit.outputs.audit_exit != '0' }}
         run: exit 1
