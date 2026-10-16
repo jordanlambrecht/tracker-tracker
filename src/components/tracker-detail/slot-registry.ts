@@ -144,10 +144,11 @@ const seedbonusSlot: SlotDefinition<StatCardBasicProps> = {
   resolve(ctx) {
     if (ctx.latestSnapshot?.seedbonus == null) return null
     if (metaFor(ctx, "ggn") || metaFor(ctx, "gazelle") || metaFor(ctx, "nebulance")) return null
+    const bonusName = ctx.registry?.bonusName
     return {
-      label: "Seedbonus",
+      label: bonusName ?? "Seedbonus",
       value: formatCount(Math.floor(ctx.latestSnapshot.seedbonus)),
-      unit: "BON",
+      unit: bonusName ? undefined : "BON",
       accentColor: ctx.accentColor,
       icon: icon16(StarIcon),
     }

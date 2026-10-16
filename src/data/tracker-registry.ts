@@ -92,6 +92,8 @@ export interface TrackerRegistryEntry {
   logo?: string
   trackerHubSlug?: string
   statusPageUrl?: string
+  /** The tracker's own name for bonus points, e.g. "Yen" */
+  bonusName?: string
   draft?: boolean
   warning?: boolean
   warningNote?: string

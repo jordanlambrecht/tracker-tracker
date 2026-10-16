@@ -37,6 +37,7 @@ interface AnalyticsTabProps {
   onDaysChange: (d: DayRange) => void
   delta: DeltaDisplay
   minimumRatio?: number
+  bonusName?: string
   statCardSlots: ResolvedSlot[]
   progressSlots: ResolvedSlot[]
 }
@@ -52,6 +53,7 @@ export function AnalyticsTab({
   onDaysChange,
   delta,
   minimumRatio,
+  bonusName,
   statCardSlots,
   progressSlots,
 }: AnalyticsTabProps) {
@@ -160,6 +162,7 @@ export function AnalyticsTab({
         delta={delta}
         gazelleMeta={gazelleMeta}
         minimumRatio={minimumRatio}
+        bonusName={bonusName}
       />
     </div>
   )

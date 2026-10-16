@@ -20,6 +20,7 @@ interface AnalyticsChartsProps {
   delta: DeltaDisplay
   gazelleMeta: GazellePlatformMeta | null
   minimumRatio?: number
+  bonusName?: string
 }
 
 export function AnalyticsCharts({
@@ -32,6 +33,7 @@ export function AnalyticsCharts({
   delta,
   gazelleMeta,
   minimumRatio,
+  bonusName,
 }: AnalyticsChartsProps) {
   const candlestickData = [{ name: trackerName, color: tc, snapshots }]
   return (
@@ -75,7 +77,7 @@ export function AnalyticsCharts({
         {/* Seedbonus / Gold */}
         <Card
           lazy
-          title={platformType === "ggn" ? "Gold" : "Seedbonus"}
+          title={platformType === "ggn" ? "Gold" : (bonusName ?? "Seedbonus")}
           trackerColor={tc}
           className="flex flex-col gap-4"
         >

@@ -199,6 +199,30 @@ describe("GGn context", () => {
 // Test 2: Gazelle context
 // ---------------------------------------------------------------------------
 
+describe("bonus name", () => {
+  const ctx = (registry: SlotContext["registry"]): SlotContext => ({
+    tracker: makeTracker({ platformType: "torrentleech" }),
+    latestSnapshot: makeSnapshot({ seedbonus: 1234 }),
+    meta: null,
+    registry,
+    accentColor: BASE_ACCENT,
+  })
+  const seedbonusCard = (c: SlotContext) =>
+    resolveSlots(c)
+      .get("stat-card")
+      ?.find((s) => s.id === "seedbonus")
+
+  it("labels the bonus card with the tracker's bonus name", () => {
+    const registry = { bonusName: "TL Points" } as SlotContext["registry"]
+    expect(seedbonusCard(ctx(registry))?.props).toMatchObject({ label: "TL Points" })
+    expect(seedbonusCard(ctx(registry))?.props.unit).toBeUndefined()
+  })
+
+  it("falls back to Seedbonus in BON", () => {
+    expect(seedbonusCard(ctx(undefined))?.props).toMatchObject({ label: "Seedbonus", unit: "BON" })
+  })
+})
+
 describe("Gazelle context", () => {
   const gazMeta: GazellePlatformMeta = {
     donor: true,
