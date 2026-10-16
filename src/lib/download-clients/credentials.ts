@@ -19,6 +19,37 @@ export const CLIENT_CONNECTION_COLUMNS = {
   encryptedUrlPath: downloadClients.encryptedUrlPath,
 } as const
 
+function credentialError(clientName: string, err: unknown): Error {
+  // Use "decrypt" prefix only for AES-GCM auth failures so
+  // isDecryptionError() in callers correctly classifies key mismatches.
+  const cause = err instanceof Error ? err.message : String(err)
+  if (isDecryptionError(err)) {
+    return new Error(`decrypt credentials failed for client "${clientName}": ${cause}`, {
+      cause: err,
+    })
+  }
+  return new Error(`Failed to read credentials for client "${clientName}": ${cause}`, {
+    cause: err,
+  })
+}
+
+/**
+ * The URL path alone, for callers that only need the client's base URL. The
+ * scheduler keys the sync store by that URL, path included.
+ */
+export function decryptClientUrlPath(
+  client: { name: string; encryptedUrlPath: string },
+  key: Buffer
+): string {
+  // "" means no path. It is not ciphertext and must not reach decrypt.
+  if (!client.encryptedUrlPath) return ""
+  try {
+    return decrypt(client.encryptedUrlPath, key)
+  } catch (err) {
+    throw credentialError(client.name, err)
+  }
+}
+
 export function decryptClientCredentials(
   client: {
     name: string
@@ -33,9 +64,11 @@ export function decryptClientCredentials(
   // Deliberately outside the try below: an unrecognised auth_method is a data
   // problem, not a decryption failure, and must not be re-wrapped as one.
   const authMethod = assertAuthMethod(client.authMethod)
+  // Outside it too, because the helper wraps its own failure and a second wrap
+  // would repeat the prefix.
+  const urlPath = decryptClientUrlPath(client, key)
 
   try {
-    const urlPath = client.encryptedUrlPath ? decrypt(client.encryptedUrlPath, key) : ""
     if (authMethod === "apikey") {
       return { authMethod, apiKey: decrypt(client.encryptedApiKey, key), urlPath }
     }
@@ -46,16 +79,6 @@ export function decryptClientCredentials(
       urlPath,
     }
   } catch (err) {
-    // Use "decrypt" prefix only for AES-GCM auth failures so
-    // isDecryptionError() in callers correctly classifies key mismatches.
-    const cause = err instanceof Error ? err.message : String(err)
-    if (isDecryptionError(err)) {
-      throw new Error(`decrypt credentials failed for client "${client.name}": ${cause}`, {
-        cause: err,
-      })
-    }
-    throw new Error(`Failed to read credentials for client "${client.name}": ${cause}`, {
-      cause: err,
-    })
+    throw credentialError(client.name, err)
   }
 }

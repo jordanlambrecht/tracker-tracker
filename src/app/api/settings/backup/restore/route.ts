@@ -126,6 +126,18 @@ function reencryptField(
   }
 }
 
+// What a restore lost for one download client, or null when it came back whole.
+// A stale backup key loses the credentials and the path together, and naming
+// only the credentials would leave the client polling the bare host once re-enabled.
+function clientRestoreError(credentialsCleared: boolean, urlPathCleared: boolean): string | null {
+  if (credentialsCleared && urlPathCleared) {
+    return "Credentials and URL path cleared during restore. Re-enter both and re-enable"
+  }
+  if (credentialsCleared) return "Credentials cleared during restore. Re-enter and re-enable"
+  if (urlPathCleared) return "URL path cleared during restore. Re-enter it and re-enable"
+  return null
+}
+
 export async function POST(request: Request) {
   // Step 1: Authenticate
   const auth = await authenticate()
@@ -532,12 +544,16 @@ export async function POST(request: Request) {
         // back usable. A password client legitimately has no API key.
         const credentialsCleared =
           clientAuthMethod === "apikey" ? !encApiKey : !encUsername || !encPassword
+        // A path lost in re-encryption would leave the client polling the bare
+        // host. It is disabled like a cleared credential, but keeps its mode.
+        const urlPathCleared = Boolean(fields.encryptedUrlPath) && !encUrlPath
+        const disabledOnRestore = credentialsCleared || urlPathCleared
         const [inserted] = await tx
           .insert(downloadClients)
           .values({
             name: fields.name as string,
             type: fields.type as string,
-            enabled: credentialsCleared ? false : (fields.enabled as boolean),
+            enabled: disabledOnRestore ? false : (fields.enabled as boolean),
             host: fields.host as string,
             port: fields.port as number,
             useSsl: fields.useSsl as boolean,
@@ -564,15 +580,13 @@ export async function POST(request: Request) {
                     return []
                   }
                 })(),
-            lastError: credentialsCleared
-              ? "Credentials cleared during restore. Re-enter and re-enable"
-              : null,
+            lastError: clientRestoreError(credentialsCleared, urlPathCleared),
             createdAt: new Date(fields.createdAt as string),
             updatedAt: new Date(fields.updatedAt as string),
           })
           .returning({ id: downloadClients.id })
         clientIdMap.set(oldId, inserted.id)
-        if (credentialsCleared) clientCredentialsCleared++
+        if (disabledOnRestore) clientCredentialsCleared++
       }
 
       // Insert tagGroups

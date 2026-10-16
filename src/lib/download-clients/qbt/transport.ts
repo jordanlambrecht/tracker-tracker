@@ -1,14 +1,14 @@
 // src/lib/download-clients/qbt/transport.ts
 //
 // Available functions:
-//   buildBaseUrl          - Construct base URL from host/port/ssl
+//   buildBaseUrl          - Construct base URL from host/port/ssl/URL path
 //   credentialFingerprint - Non-reversible hash identifying some secret material
 //   blockKeyFor           - Compose the auth-block map key from baseUrl + fingerprint
 //   clearAuthBlocks       - Drop auth blocks for one baseUrl (explicit user retry)
 //   login                 - Authenticate with qBittorrent Web API, returns SID cookie
 //   getSession            - Return cached SID or perform a fresh login
 //   invalidateSession     - Remove a cached SID (i.e after 403)
-//   clearAllSessions      - Remove all cached SIDs and auth blocks (called on logout)
+//   clearAllSessions      - Remove all cached SIDs and auth blocks (called when the scheduler stops)
 //   withSessionRetry      - Run an operation with automatic session retry on expiry
 //   authHeaders           - Build the request headers for a QbtAuth value
 //   qbtFetch              - Shared fetch + error handler for authenticated qBT requests
@@ -61,22 +61,12 @@ function describeFetchError(err: unknown): string {
   return "Unknown network error"
 }
 
-function normalizeUrlPath(path: string): string {
-  const trimmed = path.trim().replace(/\/+$/, "")
-  if (!trimmed) return ""
-  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`
-}
-
-export function buildBaseUrl(
-  host: string,
-  port: number,
-  ssl: boolean,
-  urlPath?: string
-): string {
+export function buildBaseUrl(host: string, port: number, ssl: boolean, urlPath: string): string {
   // Strip any protocol the user may have included (i.e "http://myhost")
   const cleanHost = sanitizeHost(host)
-  const prefix = normalizeUrlPath(urlPath ?? "")
-  return `${ssl ? "https" : "http"}://${cleanHost}:${port}${prefix}`
+  // The routes store the path validated and without a trailing slash, so it is
+  // appended as is.
+  return `${ssl ? "https" : "http"}://${cleanHost}:${port}${urlPath}`
 }
 
 // ---------------------------------------------------------------------------
@@ -118,7 +108,7 @@ export async function getSession(
   ssl: boolean,
   username: string,
   password: string,
-  urlPath?: string,
+  urlPath: string,
   signal?: AbortSignal
 ): Promise<{ baseUrl: string; sid: SidCookie }> {
   const baseUrl = buildBaseUrl(host, port, ssl, urlPath)
@@ -147,7 +137,7 @@ export function invalidateSession(baseUrl: string): void {
   resetStore(baseUrl)
 }
 
-/** Clear all cached SIDs, auth blocks, and torrent stores (called on logout/scheduler stop). */
+/** Clear all cached SIDs, auth blocks, and torrent stores (called when the scheduler stops). */
 export function clearAllSessions(): void {
   sidCache.clear()
   authBlocks.clear()
@@ -244,19 +234,29 @@ export async function withSessionRetry<T>(
 }
 
 /**
- * Credentials qBittorrent rejected. Both strings start with "Authentication
- * failed" so callers matching on that keep working, and both carry wording
+ * Credentials qBittorrent rejected. Each string starts with "Authentication
+ * failed" so callers matching on that keep working, and each carries wording
  * distinctive enough for sanitizeNetworkError to tell them apart from a
  * transient network fault.
  */
 const BLANK_CREDENTIALS_REJECTED =
   "Authentication failed. qBittorrent rejected the blank credentials. Blank credentials only " +
   'work when "Bypass authentication for clients on localhost" is enabled in qBittorrent'
+// A blank login behind a URL path is usually Qui's client proxy, which answers
+// the login itself and refuses only a client API key it does not know, so the
+// bypass advice above would send the user the wrong way.
+const PATH_LOGIN_REJECTED =
+  "Authentication failed. The login through the URL path was refused with blank credentials"
 const CREDENTIALS_REJECTED = "Authentication failed. qBittorrent rejected the username and password"
 const IP_BANNED = "qBittorrent has temporarily banned this IP after too many failed login attempts"
 const API_KEY_REJECTED =
   "Authentication failed. qBittorrent rejected the API key. Check that it has not been " +
   "rotated, and that the server is running qBittorrent 5.2.0 or newer"
+
+function rejectionFor(username: string, password: string, urlPath: string): string {
+  if (username !== "" || password !== "") return CREDENTIALS_REJECTED
+  return urlPath ? PATH_LOGIN_REJECTED : BLANK_CREDENTIALS_REJECTED
+}
 
 /**
  * The caller's deadline and this transport's own ceiling, whichever fires
@@ -275,7 +275,7 @@ export async function login(
   ssl: boolean,
   username: string,
   password: string,
-  urlPath?: string,
+  urlPath: string,
   signal?: AbortSignal
 ): Promise<SidCookie> {
   const baseUrl = buildBaseUrl(host, port, ssl, urlPath)
@@ -290,8 +290,7 @@ export async function login(
   const blocked = authBlocks.get(blockKey)
   if (blocked) throw new Error(blocked)
 
-  const rejection =
-    username === "" && password === "" ? BLANK_CREDENTIALS_REJECTED : CREDENTIALS_REJECTED
+  const rejection = rejectionFor(username, password, urlPath)
 
   let response: Response
   try {
@@ -315,7 +314,10 @@ export async function login(
     if (errName === "TimeoutError" || errName === "AbortError") {
       throw new Error(`Request to ${host} timed out after ${ADAPTER_FETCH_TIMEOUT_MS / 1000}s`)
     }
-    throw new Error(`Failed to connect to ${baseUrl}: ${describeFetchError(err)}`)
+    // The scheduler logs this message raw, so it names the client without the
+    // URL path, which can carry a proxy key.
+    const pathless = buildBaseUrl(host, port, ssl, "")
+    throw new Error(`Failed to connect to ${pathless}: ${describeFetchError(err)}`)
   }
 
   if (!response.ok) {

@@ -105,6 +105,7 @@ const SENSITIVE_FIELDS = [
   "encryptedProxyPassword",
   "encryptedCredentials",
   "encryptedMouseholeToken",
+  "encryptedUrlPath",
 ]
 
 // Dangerous JS patterns that indicate code injection risk
@@ -1450,6 +1451,7 @@ const ENCRYPTED_COLUMNS = [
   "totpSecret",
   "encryptedCredentials",
   "encryptedMouseholeToken",
+  "encryptedUrlPath",
 ]
 
 function checkEncryptedColumnWrites(): CheckResult {

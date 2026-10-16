@@ -4,7 +4,8 @@ import { describe, expect, it, vi } from "vitest"
 
 vi.mock("@/lib/download-clients/qbt/transport", () => ({
   buildBaseUrl: vi.fn(
-    (host: string, port: number, ssl: boolean) => `${ssl ? "https" : "http"}://${host}:${port}`
+    (host: string, port: number, ssl: boolean, urlPath: string) =>
+      `${ssl ? "https" : "http"}://${host}:${port}${urlPath}`
   ),
   login: vi.fn().mockResolvedValue({ name: "SID", value: "test-sid" }),
   getTorrents: vi.fn().mockResolvedValue([
@@ -83,7 +84,7 @@ import {
 import { QbtClientAdapter } from "../adapters/qbt"
 
 describe("QbtClientAdapter", () => {
-  const adapter = new QbtClientAdapter("localhost", 8080, false, "", {
+  const adapter = new QbtClientAdapter("localhost", 8080, false, {
     authMethod: "password",
     username: "admin",
     password: "pass",
@@ -221,14 +222,16 @@ describe("QbtClientAdapter", () => {
     expect(clearAuthBlocks).toHaveBeenCalledWith("http://localhost:8080")
   })
 
-  it("dispose invalidates the session", () => {
+  it("dispose drops the session and the auth blocks", () => {
     vi.mocked(invalidateSession).mockClear()
+    vi.mocked(clearAuthBlocks).mockClear()
     adapter.dispose()
     expect(invalidateSession).toHaveBeenCalledWith("http://localhost:8080")
+    expect(clearAuthBlocks).toHaveBeenCalledWith("http://localhost:8080")
   })
 
   it("does not leak plaintext credentials in error messages from getTorrents", async () => {
-    const sensitiveAdapter = new QbtClientAdapter("localhost", 8080, false, "", {
+    const sensitiveAdapter = new QbtClientAdapter("localhost", 8080, false, {
       authMethod: "password",
       username: "secret-user",
       password: "secret-pass",
@@ -246,7 +249,7 @@ describe("QbtClientAdapter", () => {
   })
 
   it("does not leak plaintext credentials in error messages from testConnection", async () => {
-    const sensitiveAdapter = new QbtClientAdapter("localhost", 8080, false, "", {
+    const sensitiveAdapter = new QbtClientAdapter("localhost", 8080, false, {
       authMethod: "password",
       username: "secret-user",
       password: "secret-pass",
@@ -265,6 +268,49 @@ describe("QbtClientAdapter", () => {
 })
 
 // ---------------------------------------------------------------------------
+// URL path
+//
+// The path travels inside the credentials. Dropped on the way to the login or
+// the session wrapper, it sends that request to the bare host instead.
+// ---------------------------------------------------------------------------
+
+describe("QbtClientAdapter behind a URL path", () => {
+  const adapter = new QbtClientAdapter("localhost", 8080, false, {
+    authMethod: "password",
+    username: "admin",
+    password: "pass",
+    urlPath: "/proxy/qui-client-key",
+  })
+
+  it("builds its baseUrl with the path", () => {
+    expect(adapter.baseUrl).toBe("http://localhost:8080/proxy/qui-client-key")
+  })
+
+  it("hands the path to the session wrapper", async () => {
+    vi.mocked(withSessionRetry).mockClear()
+    await adapter.getTorrents({ tag: "aither" })
+    expect(vi.mocked(withSessionRetry).mock.calls[0]?.[5]).toBe("/proxy/qui-client-key")
+  })
+
+  it("testConnection logs in under the path and invalidates the session it keys", async () => {
+    vi.mocked(invalidateSession).mockClear()
+    vi.mocked(login).mockClear()
+
+    await adapter.testConnection()
+
+    expect(invalidateSession).toHaveBeenCalledWith("http://localhost:8080/proxy/qui-client-key")
+    expect(login).toHaveBeenCalledWith(
+      "localhost",
+      8080,
+      false,
+      "admin",
+      "pass",
+      "/proxy/qui-client-key"
+    )
+  })
+})
+
+// ---------------------------------------------------------------------------
 // API-key mode
 //
 // A Bearer key is stateless: there is no login to perform, no SID to cache,
@@ -273,7 +319,7 @@ describe("QbtClientAdapter", () => {
 // ---------------------------------------------------------------------------
 
 describe("QbtClientAdapter with API-key auth", () => {
-  const adapter = new QbtClientAdapter("localhost", 8080, false, "", {
+  const adapter = new QbtClientAdapter("localhost", 8080, false, {
     authMethod: "apikey",
     apiKey: "qbt_examplekey",
     urlPath: "",
@@ -338,7 +384,7 @@ describe("QbtClientAdapter with API-key auth", () => {
     vi.mocked(invalidateSession).mockClear()
     adapter.dispose()
     // invalidateSession also calls resetStore, guarding it behind "password"
-    // would leave a key client's delta-sync revision stale across a logout.
+    // would leave a key client's delta-sync store behind after an address change.
     expect(invalidateSession).toHaveBeenCalledWith("http://localhost:8080")
   })
 

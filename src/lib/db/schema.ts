@@ -218,9 +218,8 @@ export const downloadClients = pgTable("download_clients", {
   encryptedPassword: text("encrypted_password").notNull(),
   // Encrypted qBittorrent WebUI API key. Empty string when authMethod is "password".
   encryptedApiKey: text("encrypted_api_key").default("").notNull(),
-  // Encrypted URL path prefix. May embed a proxy API key (e.g. a Qui path
-  // such as /user-example/example/proxy/<apikey>), so it is treated as a credential:
-  // stored as ciphertext, shown only as "saved", cleared by lockdown, and never logged.
+  // Encrypted URL path prefix. Empty string when there is none. The path can
+  // carry a proxy key, so it is handled like the other credentials.
   encryptedUrlPath: text("encrypted_url_path").default("").notNull(),
   pollIntervalSeconds: integer("poll_interval_seconds").default(300).notNull(),
   isDefault: boolean("is_default").default(false).notNull(),

@@ -37,13 +37,17 @@ export interface BackupRecord {
   notes: string | null
 }
 
-// "2 tracker API tokens and 1 download client credential"
+// "2 tracker API tokens and the credentials or URL path of 1 download client"
 function describeClearedCredentials(cleared: { tokens: number; clients: number }): string {
   const { tokens, clients } = cleared
   const parts: string[] = []
   if (tokens > 0) parts.push(`${tokens} tracker API ${tokens === 1 ? "token" : "tokens"}`)
   if (clients > 0) {
-    parts.push(`${clients} download client ${clients === 1 ? "credential" : "credentials"}`)
+    parts.push(
+      clients === 1
+        ? "the credentials or URL path of 1 download client"
+        : `the credentials or URL paths of ${clients} download clients`
+    )
   }
   return parts.join(" and ")
 }
@@ -426,8 +430,8 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
       {clearedOnRestore && (
         <Notice variant="warn" className="mb-4" header="Some credentials could not be restored">
           The restore cleared {describeClearedCredentials(clearedOnRestore)}, usually because the
-          backup predates a master password change. Everything else was restored. Re-enter the
-          affected credentials to resume polling.
+          backup predates a master password change. Everything else was restored. Re-enter what
+          was cleared to resume polling.
         </Notice>
       )}
 

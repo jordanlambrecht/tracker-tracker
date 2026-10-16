@@ -12,16 +12,17 @@ import "server-only"
 import { eq } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { downloadClients, trackers } from "@/lib/db/schema"
-import { isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
+import { errMsg, isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
 import { parseTorrentTags } from "@/lib/fleet"
 import { computeFleetAggregation, type FleetAggregation } from "@/lib/fleet-aggregation"
+import { log } from "@/lib/logger"
 import {
   createTrackedTorrentPredicate,
   resolveTorrentTracker,
   trackerHostKey,
 } from "@/lib/tracker-matching"
 import type { TagGroup } from "@/types/api"
-import { CLIENT_CONNECTION_COLUMNS } from "./credentials"
+import { CLIENT_CONNECTION_COLUMNS, decryptClientUrlPath } from "./credentials"
 import { createAdapterForClient } from "./factory"
 import type { MergedResult } from "./fetch"
 import { fetchAndMergeTorrents } from "./fetch"
@@ -42,13 +43,17 @@ const FETCH_CLIENT_COLUMNS = {
   type: downloadClients.type,
 } as const
 
-/** Columns for cached reads (no credentials, includes connection info for sync store lookup). */
+/**
+ * Columns for cached reads. No login credentials, but the encrypted URL path,
+ * which is part of the sync store key along with the connection info.
+ */
 const CACHED_CLIENT_COLUMNS = {
   id: downloadClients.id,
   name: downloadClients.name,
   host: downloadClients.host,
   port: downloadClients.port,
   useSsl: downloadClients.useSsl,
+  encryptedUrlPath: downloadClients.encryptedUrlPath,
   crossSeedTags: downloadClients.crossSeedTags,
   cachedTorrentsAt: downloadClients.cachedTorrentsAt,
 } as const
@@ -183,7 +188,7 @@ export async function fetchTrackerTorrents(
 }
 
 // ---------------------------------------------------------------------------
-// Cached reads (no encryption key needed)
+// Cached reads (no live qBT requests)
 // ---------------------------------------------------------------------------
 
 export interface FleetAggregationResponse extends FleetAggregation {
@@ -200,10 +205,13 @@ export interface FleetAggregationResponse extends FleetAggregation {
  * `tagGroups` is optional: pass it to have the aggregation also count tag-group
  * membership across the fleet (the dashboard's Tag Groups section). Callers that omit
  * it get `tagGroupBreakdowns: []` and the aggregation skips the work entirely.
+ *
+ * `key` decrypts only each client's URL path, which the sync store key carries.
  */
-export async function fetchFleetAggregation(options?: {
-  tagGroups?: TagGroup[]
-}): Promise<FleetAggregationResponse> {
+export async function fetchFleetAggregation(
+  key: Buffer,
+  options?: { tagGroups?: TagGroup[] }
+): Promise<FleetAggregationResponse> {
   const tagGroups = options?.tagGroups ?? []
 
   const clients = await db
@@ -238,10 +246,10 @@ export async function fetchFleetAggregation(options?: {
   // their torrents can be attributed without any tagging setup (issue #152).
   const trackerTagsWithMeta = trackerTagRows
     .map((r) => {
-      const key = r.qbtTag ?? trackerHostKey(r.baseUrl)
-      if (!key) return null
+      const tag = r.qbtTag ?? trackerHostKey(r.baseUrl)
+      if (!tag) return null
       return {
-        tag: key,
+        tag,
         name: r.name,
         color: r.color ?? "#01d4ff",
         baseUrl: r.baseUrl,
@@ -266,10 +274,27 @@ export async function fetchFleetAggregation(options?: {
   let oldestCacheAt: Date | null = null
 
   for (const client of clients) {
-    const baseUrl = buildBaseUrl(client.host, client.port, client.useSsl)
+    // A path that will not decrypt leaves no store key, so this client reads
+    // the JSONB copy instead of failing the whole fleet. The failure is still
+    // reported, as the live path reports it.
+    let baseUrl: string | null = null
+    try {
+      const urlPath = decryptClientUrlPath(client, key)
+      baseUrl = buildBaseUrl(client.host, client.port, client.useSsl, urlPath)
+    } catch (err) {
+      const raw = errMsg(err)
+      const message = isDecryptionError(err)
+        ? "Credential decryption failed"
+        : sanitizeNetworkError(raw)
+      clientErrors.push(`${client.name}: ${message}`)
+      log.warn(
+        { clientId: client.id, error: raw },
+        "fleet aggregation: URL path did not decrypt, reading the cached torrents"
+      )
+    }
     let torrents: TorrentRecord[] | SlimTorrent[]
 
-    if (isStoreFresh(baseUrl, STORE_MAX_AGE_MS)) {
+    if (baseUrl !== null && isStoreFresh(baseUrl, STORE_MAX_AGE_MS)) {
       torrents = getFilteredTorrents(baseUrl, tagPredicate).map(slimTorrentForCache)
     } else {
       const [row] = await db
@@ -281,7 +306,8 @@ export async function fetchFleetAggregation(options?: {
     }
 
     if (torrents.length === 0) {
-      if (client.cachedTorrentsAt) {
+      // A client whose path did not decrypt was reported above, once.
+      if (client.cachedTorrentsAt && baseUrl !== null) {
         clientErrors.push(`${client.name}: cached data unavailable or corrupt`)
       }
       continue

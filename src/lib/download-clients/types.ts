@@ -139,6 +139,10 @@ export interface ClientAdapter {
   /** Base URL for this client (used as sync store key). */
   readonly baseUrl: string
 
-  /** Clean up cached sessions. Called on logout or scheduler stop. */
+  /**
+   * Drop everything cached under this client's URL. Called when the client's
+   * address changes or the client is deleted. Stopping the scheduler clears
+   * every client at once instead.
+   */
   dispose(): void
 }

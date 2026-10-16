@@ -9,7 +9,8 @@ vi.mock("@/lib/crypto", () => ({
 import { decrypt } from "@/lib/crypto"
 import { isDecryptionError } from "@/lib/error-utils"
 
-const { decryptClientCredentials } = await import("@/lib/download-clients/credentials")
+const { decryptClientCredentials, decryptClientUrlPath } =
+  await import("@/lib/download-clients/credentials")
 
 describe("decryptClientCredentials", () => {
   it("returns decrypted username and password", () => {
@@ -117,5 +118,25 @@ describe("decryptClientCredentials", () => {
       }
     }).toThrow(/Failed to read credentials for client "MyClient"/)
     expect(isDecryptionError(thrown)).toBe(false)
+  })
+})
+
+describe("decryptClientUrlPath", () => {
+  it("returns an empty path without handing it to decrypt", () => {
+    // "" is not ciphertext; decrypt would throw on it for every client with no path.
+    ;(decrypt as ReturnType<typeof vi.fn>).mockClear()
+    const client = { name: "MyClient", encryptedUrlPath: "" }
+    expect(decryptClientUrlPath(client, Buffer.alloc(32))).toBe("")
+    expect(decrypt).not.toHaveBeenCalled()
+  })
+
+  it("wraps a failure the way decryptClientCredentials does", () => {
+    ;(decrypt as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      throw new Error("bad decrypt")
+    })
+    const client = { name: "MyClient", encryptedUrlPath: "enc-path" }
+    expect(() => decryptClientUrlPath(client, Buffer.alloc(32))).toThrow(
+      'decrypt credentials failed for client "MyClient": bad decrypt'
+    )
   })
 })

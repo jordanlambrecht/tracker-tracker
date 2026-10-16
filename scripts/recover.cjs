@@ -179,8 +179,9 @@ const ERR_NO_SCHEDULER_KEY = "ERR_NO_SCHEDULER_KEY"
  *   null                 the absent marker for every nullable encrypted column
  *   ""                   the absent marker for the NOT NULL credential columns:
  *                        written by the lockdown route, by the restore route's
- *                        failure path, and by the ordinary "this client
- *                        authenticates by password, so it has no API key" path
+ *                        failure path, by the ordinary "this client
+ *                        authenticates by password, so it has no API key" path,
+ *                        and for every client without a URL path
  *   LOCKDOWN_REVOKED     see above
  *
  * Note what is deliberately NOT a sentinel: encrypt("") is a real 28-byte

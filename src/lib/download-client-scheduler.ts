@@ -175,9 +175,8 @@ async function heartbeatClient(
     // `message` is deliberately lossy. It is what reaches the UI. Keep the
     // unsanitised cause in the server log too, or a missing DB column, a DNS
     // failure and a refused connection are all indistinguishable from the
-    // "Connection failed" fallback. Safe to log: the host pattern forbids "@",
-    // so a baseUrl can never carry credentials, and qBittorrent secrets travel
-    // in headers and bodies rather than URLs.
+    // "Connection failed" fallback. Safe to log because transport messages name
+    // the client without its URL path, which can carry a proxy key.
     const base = { clientId: client.id, clientName: client.name, cause: raw }
     switch (verdict.kind) {
       case "first":

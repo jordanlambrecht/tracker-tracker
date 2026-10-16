@@ -28,6 +28,9 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   // each other and from a plain connection fault, so they must not fall
   // through to the generic ban/401 rules below (which would flatten them to
   // "IP temporarily banned by tracker" and "Authentication failed").
+  if (/login through the URL path was refused/i.test(raw)) {
+    return "Blank login rejected through the URL path. For Qui, check the client API key in the path. Otherwise enter the qBittorrent username and password"
+  }
   if (/rejected the blank credentials/i.test(raw)) {
     return 'Blank credentials rejected. Enable "Bypass authentication for clients on localhost" in qBittorrent'
   }
@@ -52,6 +55,12 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   // following it, and the transport words every non-ok status the same way.
   if (/qBittorrent API error: 3\d\d/i.test(raw)) {
     return "qBittorrent redirected the request"
+  }
+  // A wrong port or URL path reaches a server, or a proxy route, with no
+  // qBittorrent API behind it. Something answered, so the fallback, which reads
+  // as unreachable, would be wrong.
+  if (/qBittorrent API error: 40[45]/i.test(raw)) {
+    return "qBittorrent's API was not found at this address. Check the port and URL path"
   }
   // The tracker proxy transport's own cap, worded differently and, through the
   // proxy branch, wrapped as a proxy failure that the rule further down would

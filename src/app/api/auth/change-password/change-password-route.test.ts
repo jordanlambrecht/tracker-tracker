@@ -250,6 +250,9 @@ describe("POST /api/auth/change-password — re-encryption round trip", () => {
     expect(clientWrites).toHaveLength(1)
     expect(decrypt(clientWrites[0].values.encryptedUsername as string, newKey)).toBe("admin")
     expect(decrypt(clientWrites[0].values.encryptedPassword as string, newKey)).toBe("hunter2")
+    expect(decrypt(clientWrites[0].values.encryptedUrlPath as string, newKey)).toBe(
+      "/user-example/example/proxy/key"
+    )
 
     const notificationWrites = writesTo(notificationTargets)
     expect(notificationWrites).toHaveLength(1)

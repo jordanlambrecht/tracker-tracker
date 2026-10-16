@@ -8,13 +8,14 @@ import {
   decodeKey,
   parseJsonBody,
   validateAuthMethod,
+  validateClientHost,
   validateIntRange,
   validateMaxLength,
   validatePort,
   validateUrlPath,
 } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
-import { sanitizeHost } from "@/lib/data-transforms"
+import { sanitizeHost, stripTrailingSlash } from "@/lib/data-transforms"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
 import { VALID_CLIENT_TYPES } from "@/lib/download-clients"
@@ -124,14 +125,17 @@ export async function POST(request: Request) {
   const apiKeyErr = validateMaxLength(resolvedApiKey, CREDENTIAL_MAX, "API key")
   if (apiKeyErr) return apiKeyErr
 
-  const resolvedUrlPath = typeof urlPath === "string" ? urlPath.trim() : ""
-  const urlPathErr = validateUrlPath(resolvedUrlPath)
+  const trimmedUrlPath = typeof urlPath === "string" ? urlPath.trim() : ""
+  const urlPathErr = validateUrlPath(trimmedUrlPath)
   if (urlPathErr) return urlPathErr
+  const resolvedUrlPath = stripTrailingSlash(trimmedUrlPath)
 
   const sanitizedHost = sanitizeHost(host)
   if (!PROXY_HOST_PATTERN.test(sanitizedHost)) {
     return NextResponse.json({ error: "Invalid host format" }, { status: 400 })
   }
+  const clientHostErr = validateClientHost(sanitizedHost)
+  if (clientHostErr) return clientHostErr
 
   const resolvedType = typeof type === "string" ? type : "qbittorrent"
   if (!(VALID_CLIENT_TYPES as readonly string[]).includes(resolvedType)) {

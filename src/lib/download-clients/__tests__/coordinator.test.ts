@@ -48,6 +48,7 @@ vi.mock("@/lib/db/schema", () => ({
     enabled: "downloadClients.enabled",
     encryptedUsername: "downloadClients.encryptedUsername",
     encryptedPassword: "downloadClients.encryptedPassword",
+    encryptedUrlPath: "downloadClients.encryptedUrlPath",
     crossSeedTags: "downloadClients.crossSeedTags",
     cachedTorrents: "downloadClients.cachedTorrents",
     cachedTorrentsAt: "downloadClients.cachedTorrentsAt",
@@ -76,6 +77,11 @@ vi.mock("../credentials", () => ({
     encryptedUsername: "downloadClients.encryptedUsername",
     encryptedPassword: "downloadClients.encryptedPassword",
   },
+  decryptClientUrlPath: vi.fn(() => ""),
+}))
+
+vi.mock("@/lib/logger", () => ({
+  log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }))
 
 vi.mock("../fetch", () => ({
@@ -129,7 +135,8 @@ vi.mock("../transforms", () => ({
 
 vi.mock("../qbt/transport", () => ({
   buildBaseUrl: vi.fn(
-    (host: string, port: number, ssl: boolean) => `${ssl ? "https" : "http"}://${host}:${port}`
+    (host: string, port: number, ssl: boolean, urlPath: string) =>
+      `${ssl ? "https" : "http"}://${host}:${port}${urlPath}`
   ),
   parseCachedTorrents: vi.fn(() => []),
 }))
@@ -141,6 +148,7 @@ vi.mock("../qbt/transport", () => ({
 import type { TorrentRecord } from "@/lib/download-clients"
 import { parseTorrentTags } from "@/lib/fleet"
 import { computeFleetAggregation } from "@/lib/fleet-aggregation"
+import { log } from "@/lib/logger"
 // Import module under test (after all mocks are registered)
 import {
   fetchFleetAggregation,
@@ -148,6 +156,7 @@ import {
   fetchTrackerTorrents,
   fetchTrackerTorrentsCached,
 } from "../coordinator"
+import { decryptClientUrlPath } from "../credentials"
 import { fetchAndMergeTorrents } from "../fetch"
 import { aggregateCrossSeedTags, mergeTorrentLists, stampClientNames } from "../merge"
 import { buildBaseUrl, parseCachedTorrents } from "../qbt/transport"
@@ -207,6 +216,7 @@ function makeCachedClient(
     host: string
     port: number
     useSsl: boolean
+    encryptedUrlPath: string
     crossSeedTags: string[] | null
     cachedTorrentsAt: Date | null
   }> = {}
@@ -217,6 +227,7 @@ function makeCachedClient(
     host: "localhost",
     port: 8080,
     useSsl: false,
+    encryptedUrlPath: "",
     crossSeedTags: null,
     cachedTorrentsAt: new Date("2026-04-01T12:00:00Z"),
     ...overrides,
@@ -775,6 +786,7 @@ describe("fetchFleetAggregation", () => {
     vi.mocked(isStoreFresh).mockReturnValue(false)
     vi.mocked(getFilteredTorrents).mockReturnValue([])
     vi.mocked(parseCachedTorrents).mockReturnValue([])
+    vi.mocked(decryptClientUrlPath).mockReturnValue("")
   })
 
   it("should return empty aggregation with zero clientCount when no enabled clients", async () => {
@@ -782,7 +794,7 @@ describe("fetchFleetAggregation", () => {
       [], // clients query returns nothing
     ])
 
-    const result = await fetchFleetAggregation()
+    const result = await fetchFleetAggregation(makeKey())
 
     expect(computeFleetAggregation).toHaveBeenCalledWith([], [], [], [])
     expect(result.clientCount).toBe(0)
@@ -797,7 +809,7 @@ describe("fetchFleetAggregation", () => {
       [{ cachedTorrents: null }], // DB fallback for client
     ])
 
-    await fetchFleetAggregation()
+    await fetchFleetAggregation(makeKey())
 
     // At least 2 db.select calls: one for clients, one for trackerTagRows
     expect(mockSelect).toHaveBeenCalledTimes(3)
@@ -809,7 +821,7 @@ describe("fetchFleetAggregation", () => {
 
     setupDbReturns([[makeCachedClient()], [makeTracker()]])
 
-    await fetchFleetAggregation()
+    await fetchFleetAggregation(makeKey())
 
     expect(isStoreFresh).toHaveBeenCalledWith("http://localhost:8080", expect.any(Number))
     expect(getFilteredTorrents).toHaveBeenCalledWith("http://localhost:8080", expect.any(Function))
@@ -825,7 +837,7 @@ describe("fetchFleetAggregation", () => {
       [{ cachedTorrents: "[]" }], // DB fallback query
     ])
 
-    await fetchFleetAggregation()
+    await fetchFleetAggregation(makeKey())
 
     // parseCachedTorrents called for the DB fallback
     expect(parseCachedTorrents).toHaveBeenCalled()
@@ -840,7 +852,7 @@ describe("fetchFleetAggregation", () => {
 
     setupDbReturns([[makeCachedClient()], [makeTracker()]])
 
-    await fetchFleetAggregation()
+    await fetchFleetAggregation(makeKey())
 
     // slimTorrentForCache is called via .map(), so it receives (element, index, array)
     expect(slimTorrentForCache).toHaveBeenCalled()
@@ -854,7 +866,7 @@ describe("fetchFleetAggregation", () => {
 
     setupDbReturns([[makeCachedClient({ name: "My Client" })], [makeTracker()]])
 
-    await fetchFleetAggregation()
+    await fetchFleetAggregation(makeKey())
 
     expect(mergeTorrentLists).toHaveBeenCalled()
     expect(stampClientNames).toHaveBeenCalled()
@@ -869,7 +881,7 @@ describe("fetchFleetAggregation", () => {
       [makeTracker({ qbtTag: "aither", name: "Aither", color: "#ff0000" })],
     ])
 
-    await fetchFleetAggregation()
+    await fetchFleetAggregation(makeKey())
 
     expect(computeFleetAggregation).toHaveBeenCalledWith(
       expect.any(Array), // stamped torrents
@@ -887,7 +899,7 @@ describe("fetchFleetAggregation", () => {
 
     const tagGroups = [{ id: 1, name: "Resolution", members: [] }] as never
 
-    await fetchFleetAggregation({ tagGroups })
+    await fetchFleetAggregation(makeKey(), { tagGroups })
 
     expect(computeFleetAggregation).toHaveBeenCalledWith(
       expect.any(Array),
@@ -906,7 +918,7 @@ describe("fetchFleetAggregation", () => {
       [makeTracker({ qbtTag: "aither", name: "Aither", color: null as unknown as string })],
     ])
 
-    await fetchFleetAggregation()
+    await fetchFleetAggregation(makeKey())
 
     expect(computeFleetAggregation).toHaveBeenCalledWith(
       expect.any(Array),
@@ -922,7 +934,7 @@ describe("fetchFleetAggregation", () => {
 
     setupDbReturns([[makeCachedClient({ id: 1 }), makeCachedClient({ id: 2 })], [makeTracker()]])
 
-    const result = await fetchFleetAggregation()
+    const result = await fetchFleetAggregation(makeKey())
 
     expect(result.clientCount).toBe(2)
   })
@@ -952,7 +964,7 @@ describe("fetchFleetAggregation", () => {
       [makeTracker()],
     ])
 
-    const result = await fetchFleetAggregation()
+    const result = await fetchFleetAggregation(makeKey())
 
     expect(result.cachedAt).toBe(olderDate.toISOString())
   })
@@ -963,7 +975,7 @@ describe("fetchFleetAggregation", () => {
 
     setupDbReturns([[makeCachedClient({ cachedTorrentsAt: null })], [makeTracker()]])
 
-    const result = await fetchFleetAggregation()
+    const result = await fetchFleetAggregation(makeKey())
 
     expect(result.cachedAt).toBeNull()
   })
@@ -974,7 +986,7 @@ describe("fetchFleetAggregation", () => {
 
     setupDbReturns([[makeCachedClient()], [makeTracker()]])
 
-    await fetchFleetAggregation()
+    await fetchFleetAggregation(makeKey())
 
     // mergeTorrentLists receives an empty array of lists (client was skipped)
     expect(mergeTorrentLists).toHaveBeenCalledWith([])
@@ -986,7 +998,7 @@ describe("fetchFleetAggregation", () => {
 
     setupDbReturns([[makeCachedClient()], [makeTracker()]])
 
-    const result = await fetchFleetAggregation()
+    const result = await fetchFleetAggregation(makeKey())
 
     expect(result.clientErrors).toEqual(["Home qBT: cached data unavailable or corrupt"])
   })
@@ -1010,7 +1022,7 @@ describe("fetchFleetAggregation", () => {
       [makeTracker({ qbtTag: "aither" })],
     ])
 
-    await fetchFleetAggregation()
+    await fetchFleetAggregation(makeKey())
 
     // The predicate should match "aither" and "cross-seed" but not "untracked"
     // mergeTorrentLists should receive 2 torrents (h1 and h2)
@@ -1020,6 +1032,70 @@ describe("fetchFleetAggregation", () => {
     expect(hashes).toContain("h1")
     expect(hashes).toContain("h2")
     expect(hashes).not.toContain("h3")
+  })
+
+  // The scheduler keys the sync store by the adapter's baseUrl, path included.
+  it("reads the sync store under the full path URL for a client behind a URL path", async () => {
+    const pathUrl = "http://localhost:8080/proxy/qui-client-key"
+    vi.mocked(decryptClientUrlPath).mockReturnValue("/proxy/qui-client-key")
+    vi.mocked(isStoreFresh).mockImplementation((url: string) => url === pathUrl)
+    vi.mocked(getFilteredTorrents).mockReturnValue([makeTorrent("h1", { tags: "aither" })])
+
+    setupDbReturns([[makeCachedClient({ encryptedUrlPath: "enc-path" })], [makeTracker()]])
+
+    await fetchFleetAggregation(makeKey())
+
+    expect(decryptClientUrlPath).toHaveBeenCalledWith(
+      expect.objectContaining({ encryptedUrlPath: "enc-path" }),
+      makeKey()
+    )
+    expect(getFilteredTorrents).toHaveBeenCalledWith(pathUrl, expect.any(Function))
+    // Served from memory, so the JSONB fallback is never queried.
+    expect(mockSelect).toHaveBeenCalledTimes(2)
+  })
+
+  it("falls back to the database cache when a client's URL path will not decrypt", async () => {
+    vi.mocked(decryptClientUrlPath).mockImplementation(() => {
+      throw new Error('decrypt credentials failed for client "Home qBT": bad decrypt')
+    })
+    vi.mocked(isStoreFresh).mockReturnValue(true)
+    const cached = makeTorrent("h1", { tags: "aither" })
+    vi.mocked(parseCachedTorrents).mockReturnValue([cached] as never)
+
+    setupDbReturns([
+      [makeCachedClient({ encryptedUrlPath: "enc-path" })],
+      [makeTracker()],
+      [{ cachedTorrents: "[]" }],
+    ])
+
+    const result = await fetchFleetAggregation(makeKey())
+
+    expect(getFilteredTorrents).not.toHaveBeenCalled()
+    expect(vi.mocked(mergeTorrentLists).mock.calls[0][0]).toEqual([[cached]])
+    // Reported like the live path reports it, rather than hidden behind the cache.
+    expect(result.clientErrors).toEqual(["Home qBT: Credential decryption failed"])
+    expect(log.warn).toHaveBeenCalledWith(
+      { clientId: 1, error: 'decrypt credentials failed for client "Home qBT": bad decrypt' },
+      expect.any(String)
+    )
+  })
+
+  it("names a stored path that is not ciphertext the way the live path does", async () => {
+    vi.mocked(decryptClientUrlPath).mockImplementation(() => {
+      throw new Error('Failed to read credentials for client "Home qBT": Invalid ciphertext')
+    })
+    vi.mocked(parseCachedTorrents).mockReturnValue([])
+
+    setupDbReturns([
+      [makeCachedClient({ encryptedUrlPath: "not-ciphertext" })],
+      [makeTracker()],
+      [{ cachedTorrents: "[]" }],
+    ])
+
+    const result = await fetchFleetAggregation(makeKey())
+
+    // One entry: an empty cache behind an unreadable path is not reported twice.
+    expect(result.clientErrors).toEqual(["Home qBT: Invalid credentials"])
   })
 })
 

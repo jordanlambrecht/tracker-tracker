@@ -20,17 +20,23 @@ Tracker Tracker connects to qBittorrent's web interface to pull live torrent dat
 
 Go to **Settings → Download Clients** and fill in your connection details:
 
-| Field    | Notes                                                      |
-| -------- | ---------------------------------------------------------- |
-| Name     | A label for this client                                    |
-| Host     | Hostname or IP, do **not** include `http://` or `https://` |
-| Port     | Default qBittorrent Web UI port is `8080`                  |
-| Username | qBittorrent Web UI username                                |
-| Password | qBittorrent Web UI password                                |
-| Use SSL  | Enable if your qBittorrent Web UI is served over HTTPS     |
+| Field    | Notes                                                                                                                                      |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Name     | A label for this client                                                                                                                    |
+| Host     | Hostname or IP, do **not** include `http://` or `https://`                                                                                 |
+| Port     | Default qBittorrent Web UI port is `8080`                                                                                                  |
+| Username | qBittorrent Web UI username                                                                                                                |
+| Password | qBittorrent Web UI password                                                                                                                |
+| Use SSL  | Enable if your qBittorrent Web UI is served over HTTPS                                                                                     |
+| URL path | Optional. For a reverse proxy, or Qui's client proxy at `<base path>/proxy/<client API key>`. Stored encrypted and shown masked            |
 
 !!! warning "SSL/port mismatch"
     The form will warn you if SSL is on with port 80, or SSL is off with port 443. These combinations are usually misconfigured. You can still save, but double-check your settings.
+
+!!! tip "Qui"
+    To go through Qui, set Host and Port to Qui's and the URL path to its client proxy, `<base path>/proxy/<client API key>`.
+    Leave the username and password blank. Qui answers the qBittorrent login itself.
+    If Qui is served over HTTPS, turn on **Use SSL** on the client's card after adding it.
 
 After saving, use the **Test Connection** button to confirm Tracker Tracker can reach and authenticate with qBittorrent.
 
@@ -73,7 +79,7 @@ This applies everywhere: dashboard, cached lists, API responses.
 
 ## Credential Security
 
-Your qBittorrent username and password are encrypted at rest. They're decrypted in memory only when polling starts, used for authentication, and never logged.
+Your qBittorrent username, password, API key and URL path are encrypted at rest. They're decrypted only in server memory, when Tracker Tracker needs them, and they're never logged.
 
 ## Troubleshooting
 
@@ -84,5 +90,7 @@ Your qBittorrent username and password are encrypted at rest. They're decrypted 
 | `ETIMEDOUT` / timed out after 15s                         | qBittorrent didn't respond in time. Check that it's reachable from the Docker container          |
 | `Authentication failed. Check username and password`      | Wrong credentials                                                                                |
 | `Authentication failed. SID cookie not found in response` | Unexpected response from qBittorrent. Check that the Web UI is enabled in qBittorrent's settings |
+| `Blank login rejected through the URL path`               | Qui refused the client API key in the path, or qBittorrent behind it refused blank credentials   |
+| `qBittorrent's API was not found at this address`         | Something answered, but not qBittorrent's Web API. Check the port and the URL path               |
 
 The Test Connection button forces a fresh login, so errors reflect the current state.

@@ -825,6 +825,7 @@ describe("security: slot resolution does not expose secrets", () => {
       "encryptedPassword",
       "encryptedUsername",
       "encryptedApiKey",
+      "encryptedUrlPath",
       "totpSecret",
       "totpBackupCodes",
     ]

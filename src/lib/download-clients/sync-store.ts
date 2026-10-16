@@ -95,10 +95,9 @@ export function applyMaindataUpdate(
   const projected = projectedSize(store, data)
   if (projected > SYNC_STORE_MAX_TORRENTS) {
     const refusal = { held: store.torrents.size, projected, cap: SYNC_STORE_MAX_TORRENTS }
-    log.warn(
-      { baseUrl, ...refusal },
-      "sync-store: refused an update that would exceed the torrent cap"
-    )
+    // Logged without the baseUrl, whose path can carry a proxy key. The
+    // scheduler names the client when it logs the SyncStoreRefusedError.
+    log.warn(refusal, "sync-store: refused an update that would exceed the torrent cap")
     return refusal
   }
 

@@ -37,10 +37,9 @@ export class QbtClientAdapter implements ClientAdapter {
     private readonly host: string,
     private readonly port: number,
     private readonly ssl: boolean,
-    private readonly urlPath: string,
     private readonly creds: ClientCredentials
   ) {
-    this.baseUrl = buildBaseUrl(host, port, ssl, urlPath)
+    this.baseUrl = buildBaseUrl(host, port, ssl, creds.urlPath)
   }
 
   /**
@@ -55,7 +54,7 @@ export class QbtClientAdapter implements ClientAdapter {
     if (this.creds.authMethod === "apikey") {
       return op(this.baseUrl, { mode: "apikey", key: this.creds.apiKey })
     }
-    const { username, password } = this.creds
+    const { username, password, urlPath } = this.creds
     // The signal reaches the login the wrapper may have to perform, so a
     // password client with no cached SID shares the caller's deadline too.
     return withSessionRetry(
@@ -64,7 +63,7 @@ export class QbtClientAdapter implements ClientAdapter {
       this.ssl,
       username,
       password,
-      this.urlPath,
+      urlPath,
       (baseUrl, sid) => op(baseUrl, { mode: "session", sid }),
       signal
     )
@@ -82,8 +81,8 @@ export class QbtClientAdapter implements ClientAdapter {
       await qbtGetTransferInfo(this.baseUrl, { mode: "apikey", key: this.creds.apiKey })
       return
     }
-    const { username, password } = this.creds
-    const sid = await login(this.host, this.port, this.ssl, username, password, this.urlPath)
+    const { username, password, urlPath } = this.creds
+    const sid = await login(this.host, this.port, this.ssl, username, password, urlPath)
     await qbtGetTransferInfo(this.baseUrl, { mode: "session", sid })
   }
 
@@ -134,5 +133,6 @@ export class QbtClientAdapter implements ClientAdapter {
 
   dispose(): void {
     invalidateSession(this.baseUrl)
+    clearAuthBlocks(this.baseUrl)
   }
 }

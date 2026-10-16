@@ -11,12 +11,11 @@ function createClientAdapter(
   host: string,
   port: number,
   ssl: boolean,
-  urlPath: string,
   creds: ClientCredentials
 ): ClientAdapter {
   switch (type) {
     case "qbittorrent":
-      return new QbtClientAdapter(host, port, ssl, urlPath, creds)
+      return new QbtClientAdapter(host, port, ssl, creds)
     default:
       throw new Error(`Unsupported client type: "${type}"`)
   }
@@ -34,7 +33,22 @@ export function createAdapterForClient(client: DownloadClientRow, key: Buffer): 
     client.host,
     client.port,
     client.useSsl,
-    creds.urlPath,
     creds
   )
+}
+
+/**
+ * Drop what the scheduler cached under a client row's URL. It never throws,
+ * because both client routes call it after the row is written or deleted. A key
+ * change stops the scheduler, which clears every cache, so a row that will not
+ * decrypt under this key has nothing cached to drop.
+ */
+export function disposeClient(client: DownloadClientRow, key: Buffer): void {
+  let adapter: ClientAdapter
+  try {
+    adapter = createAdapterForClient(client, key)
+  } catch {
+    return
+  }
+  adapter.dispose()
 }
