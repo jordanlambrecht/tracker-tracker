@@ -119,6 +119,13 @@ function DashboardSettingsSheet({
             onChange={(checked) => dashSettings.update("showLoginTimers", checked)}
             disabled={!dashSettings.loaded}
           />
+          <Toggle
+            label="Show rank stacks"
+            description="Display each tracker's class ladder as a stack, lit up to your current class."
+            checked={dashSettings.settings.showRankStacks}
+            onChange={(checked) => dashSettings.update("showRankStacks", checked)}
+            disabled={!dashSettings.loaded}
+          />
         </div>
 
         <Divider compact />

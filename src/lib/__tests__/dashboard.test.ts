@@ -4,12 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import type { Snapshot, TrackerSummary } from "@/types/api"
 
-// Mock findRegistryEntry so computeAlerts can look up registry entries by baseUrl
+// Mock the registry so computeAlerts is driven by the rules each test sets,
+// not by what the real registry happens to say about the fixture's tracker.
 vi.mock("@/data/tracker-registry", () => ({
-  findRegistryEntry: vi.fn(() => undefined),
+  registryEntryFor: vi.fn(() => undefined),
 }))
 
-import { findRegistryEntry } from "@/data/tracker-registry"
+import { registryEntryFor } from "@/data/tracker-registry"
 import {
   computeAggregateStats,
   computeAlerts,
@@ -21,7 +22,7 @@ import {
 } from "@/lib/dashboard"
 import { getTrackerHealth } from "@/lib/tracker-status"
 
-const mockFindRegistryEntry = vi.mocked(findRegistryEntry)
+const mockRegistryEntryFor = vi.mocked(registryEntryFor)
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -32,6 +33,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     id: 1,
     name: "Aither",
     baseUrl: "https://aither.cc",
+    registrySlug: null,
     platformType: "unit3d",
     isActive: true,
     lastPolledAt: new Date().toISOString(),
@@ -43,6 +45,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     color: "#00d4ff",
     qbtTag: null,
     mouseholeUrl: null,
+    hasMouseholeToken: false,
     hideUnreadBadges: false,
     sortOrder: 0,
     joinedAt: null,
@@ -92,8 +95,6 @@ function makeRegistryEntry(overrides: Partial<TrackerRegistryEntry> = {}): Track
     ...overrides,
   }
 }
-
-// Reset the findRegistryEntry mock before each test in computeAlerts suite
 
 const makeSnapshot = (overrides: Partial<Snapshot> = {}): Snapshot => ({
   polledAt: new Date().toISOString(),
@@ -372,16 +373,70 @@ describe("computeAggregateStats", () => {
 })
 
 // ---------------------------------------------------------------------------
+// computeAggregateStats: hit & runs
+// ---------------------------------------------------------------------------
+
+describe("computeAggregateStats hit & runs", () => {
+  function withHitAndRuns(id: number, name: string, hitAndRuns: number | null): TrackerSummary {
+    const base = makeTracker({ id, name })
+    if (!base.latestStats) throw new Error("makeTracker default carries latestStats")
+    return { ...base, latestStats: { ...base.latestStats, hitAndRuns } }
+  }
+
+  it("sums only the trackers that report the field and lists hits highest first", () => {
+    // Insertion order is deliberately not count order, so the sort is exercised.
+    const trackers = [
+      withHitAndRuns(1, "Blutopia", 1),
+      withHitAndRuns(2, "MyAnonamouse", 0),
+      withHitAndRuns(3, "BTN", null),
+      withHitAndRuns(4, "Aither", 2),
+      withHitAndRuns(5, "Nebulance", 3),
+    ]
+    const result = computeAggregateStats(trackers)
+    expect(result.totalHitAndRuns).toBe(6)
+    expect(result.hitAndRunReportingTrackers).toBe(4)
+    expect(result.trackersWithHitAndRuns).toEqual([
+      { name: "Nebulance", count: 3 },
+      { name: "Aither", count: 2 },
+      { name: "Blutopia", count: 1 },
+    ])
+  })
+
+  it("reports zero reporting trackers when no tracker carries the field", () => {
+    const trackers = [withHitAndRuns(1, "BTN", null), makeTracker({ id: 2, latestStats: null })]
+    const result = computeAggregateStats(trackers)
+    expect(result.totalHitAndRuns).toBe(0)
+    expect(result.hitAndRunReportingTrackers).toBe(0)
+    expect(result.trackersWithHitAndRuns).toEqual([])
+  })
+
+  it("distinguishes a measured zero from unknown", () => {
+    const trackers = [withHitAndRuns(1, "Aither", 0), withHitAndRuns(2, "Blutopia", 0)]
+    const result = computeAggregateStats(trackers)
+    expect(result.totalHitAndRuns).toBe(0)
+    expect(result.hitAndRunReportingTrackers).toBe(2)
+    expect(result.trackersWithHitAndRuns).toEqual([])
+  })
+
+  it("returns empty hit & run stats for an empty fleet", () => {
+    const result = computeAggregateStats([])
+    expect(result.totalHitAndRuns).toBe(0)
+    expect(result.hitAndRunReportingTrackers).toBe(0)
+    expect(result.trackersWithHitAndRuns).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
 // computeAlerts
 // ---------------------------------------------------------------------------
 
 describe("computeAlerts", () => {
   beforeEach(() => {
-    mockFindRegistryEntry.mockReset()
+    mockRegistryEntryFor.mockReset()
   })
 
   it("returns no alerts for a healthy tracker", () => {
-    mockFindRegistryEntry.mockReturnValue(
+    mockRegistryEntryFor.mockReturnValue(
       makeRegistryEntry({ rules: { minimumRatio: 0.4, seedTimeHours: 72, loginIntervalDays: 90 } })
     )
     const tracker = makeTracker({
@@ -451,7 +506,7 @@ describe("computeAlerts", () => {
   })
 
   it("generates a ratio-danger alert when ratio is below minimumRatio", () => {
-    mockFindRegistryEntry.mockReturnValue(
+    mockRegistryEntryFor.mockReturnValue(
       makeRegistryEntry({ rules: { minimumRatio: 0.4, seedTimeHours: 72, loginIntervalDays: 90 } })
     )
     const tracker = makeTracker({
@@ -487,7 +542,7 @@ describe("computeAlerts", () => {
   })
 
   it("does not generate ratio-danger alert when ratio meets minimumRatio", () => {
-    mockFindRegistryEntry.mockReturnValue(
+    mockRegistryEntryFor.mockReturnValue(
       makeRegistryEntry({ rules: { minimumRatio: 0.4, seedTimeHours: 72, loginIntervalDays: 90 } })
     )
     const tracker = makeTracker({
@@ -516,13 +571,77 @@ describe("computeAlerts", () => {
     expect(alerts.find((a) => a.type === "ratio-danger")).toBeUndefined()
   })
 
-  it("looks up registry by baseUrl not name", () => {
-    mockFindRegistryEntry.mockReturnValue(
+  it("suppresses the ratio-danger alert when the live requiredRatio is 0", () => {
+    // Phoenix at full seeding: the sliding requirement really is 0, and the
+    // registry's bracket cap must not keep the alert alive.
+    mockRegistryEntryFor.mockReturnValue(
+      makeRegistryEntry({ rules: { minimumRatio: 0.6, seedTimeHours: 72, loginIntervalDays: 90 } })
+    )
+    const tracker = makeTracker({
+      id: 3,
+      lastError: null,
+      latestStats: {
+        ratio: 0.2,
+        ratioIsInfinite: false,
+        uploadedBytes: "200",
+        downloadedBytes: "1000",
+        seedingCount: 1,
+        leechingCount: 0,
+        requiredRatio: 0,
+        warned: null,
+        freeleechTokens: null,
+        bufferBytes: null,
+        hitAndRuns: null,
+        seedbonus: null,
+        shareScore: null,
+        username: "u",
+        group: null,
+      },
+    })
+    const alerts = computeAlerts([tracker])
+    expect(alerts.find((a) => a.type === "ratio-danger")).toBeUndefined()
+  })
+
+  it("fires the ratio-danger alert from the live requiredRatio over the registry", () => {
+    mockRegistryEntryFor.mockReturnValue(
+      makeRegistryEntry({ rules: { minimumRatio: 0.4, seedTimeHours: 72, loginIntervalDays: 90 } })
+    )
+    const tracker = makeTracker({
+      id: 4,
+      lastError: null,
+      lastPolledAt: new Date().toISOString(),
+      latestStats: {
+        ratio: 2.0,
+        ratioIsInfinite: false,
+        uploadedBytes: "2000",
+        downloadedBytes: "1000",
+        seedingCount: 1,
+        leechingCount: 0,
+        requiredRatio: 2.5,
+        warned: null,
+        freeleechTokens: null,
+        bufferBytes: null,
+        hitAndRuns: null,
+        seedbonus: null,
+        shareScore: null,
+        username: "u",
+        group: null,
+      },
+    })
+    const alerts = computeAlerts([tracker])
+    const ratioAlert = alerts.find((a) => a.type === "ratio-danger")
+    expect(ratioAlert).toBeDefined()
+    expect(ratioAlert?.message).toContain("2.5")
+  })
+
+  it("keeps the registry rules when the user has renamed the row", () => {
+    mockRegistryEntryFor.mockReturnValue(
       makeRegistryEntry({ rules: { minimumRatio: 0.4, seedTimeHours: 72, loginIntervalDays: 90 } })
     )
     const tracker = makeTracker({
       id: 1,
-      name: "My Custom Name", // user renamed — should still match via baseUrl
+      name: "My Custom Name", // display only, never the registry key
+      registrySlug: "aither",
       baseUrl: "https://aither.cc",
       lastError: null,
       latestStats: {
@@ -544,7 +663,9 @@ describe("computeAlerts", () => {
       },
     })
     const alerts = computeAlerts([tracker])
-    expect(mockFindRegistryEntry).toHaveBeenCalledWith("https://aither.cc")
+    expect(mockRegistryEntryFor).toHaveBeenCalledWith(
+      expect.objectContaining({ registrySlug: "aither" })
+    )
     expect(alerts.find((a) => a.type === "ratio-danger")).toBeDefined()
   })
 
@@ -906,6 +1027,17 @@ describe("computeSystemAlerts", () => {
     expect(result.find((a) => a.type === "update-available")).toBeUndefined()
   })
 
+  it("does not generate update-available alert when the running build is ahead of the latest release", () => {
+    const result = computeSystemAlerts({
+      latestVersion: "2.10.0",
+      currentVersion: "2.11.0",
+      failedBackups: [],
+      clients: [],
+      snapshotRetentionDays: 365,
+    })
+    expect(result.find((a) => a.type === "update-available")).toBeUndefined()
+  })
+
   it("does not generate update-available alert when latestVersion is absent", () => {
     const result = computeSystemAlerts({
       currentVersion: "1.0.0",
@@ -968,6 +1100,18 @@ describe("computeSystemAlerts", () => {
     expect(retentionAlert?.message).toContain("retention")
     expect(retentionAlert?.message).toContain("Settings")
     expect(retentionAlert?.dismissible).toBe(true)
+  })
+
+  it("does not nag when the user answered the prompt with keep-forever", () => {
+    // null days plus an answered prompt is a deliberate choice, not neglect.
+    const result = computeSystemAlerts({
+      currentVersion: "1.0.0",
+      failedBackups: [],
+      clients: [],
+      snapshotRetentionDays: null,
+      retentionAnswered: true,
+    })
+    expect(result.find((a) => a.type === "retention-unconfigured")).toBeUndefined()
   })
 
   it("does not generate retention alert when snapshotRetentionDays is configured", () => {

@@ -2,7 +2,7 @@
 //
 // Issues #154 and #172: an account with uploads and zero downloads has a
 // mathematically infinite ratio. JSON cannot carry Infinity, so `ratio` arrives
-// as null and every point was filtered out — the Ratio chart rendered a bare
+// as null and every point was filtered out, the Ratio chart rendered a bare
 // grid that looked exactly like having no data at all, for precisely the
 // accounts those issues were filed about.
 //

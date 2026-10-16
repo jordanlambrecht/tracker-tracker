@@ -1,14 +1,14 @@
 // src/app/api/settings/backup/restore/restore-route.test.ts
 //
-// Exercises the body of POST /api/settings/backup/restore — the credential
+// Exercises the body of POST /api/settings/backup/restore, the credential
 // re-encryption paths that decide whether a restored instance can still talk to
 // its trackers and download clients.
 //
-// Crypto is deliberately NOT mocked: the whole point is the key-derivation
-// round trip (deriveKey -> encrypt -> reencrypt -> decrypt). @/lib/backup is
-// also real, so the fixtures below must survive validateBackupJson — that is
-// what stops a fixture from silently omitting a field the route reads.
+// Crypto is not mocked because the key-derivation round trip is under test.
+// @/lib/backup is real too, so every fixture below must pass validateBackupJson,
+// which stops a fixture from silently omitting a field the route reads.
 
+import { getTableColumns } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { authenticate } from "@/lib/api-helpers"
@@ -18,6 +18,7 @@ import { decrypt, deriveKey, encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { checkLockout } from "@/lib/lockout"
 import { log } from "@/lib/logger"
+import { NOTIFY_TOGGLE_KEYS } from "@/lib/notifications/types"
 import { ensureSchedulerRunning, stopScheduler } from "@/lib/scheduler"
 import { POST } from "./route"
 
@@ -75,8 +76,8 @@ vi.mock("@/lib/scheduler", () => ({
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
-const SALT_A = "a1b2c3d4".repeat(8) // 64 hex chars — the backup's salt
-const SALT_B = "f0e1d2c3".repeat(8) // 64 hex chars — a re-setup instance's salt
+const SALT_A = "a1b2c3d4".repeat(8) // 64 hex chars, the backup's salt
+const SALT_B = "f0e1d2c3".repeat(8) // 64 hex chars, a re-setup instance's salt
 
 const PASSWORD = "correct-horse-battery"
 const OTHER_PASSWORD = "a-completely-different-master-pw"
@@ -86,6 +87,7 @@ const ISO = "2026-01-01T00:00:00.000Z"
 
 const PLAIN = {
   trackerToken: "tracker-api-token-plaintext",
+  mouseholeToken: "fake-mousehole-token-7f3a",
   clientUsername: "qbt-user",
   clientPassword: "qbt-password",
   notificationConfig: '{"webhookUrl":"https://example.com/hook"}',
@@ -174,18 +176,25 @@ function makeBackupPayload(encryptionSalt: string, ct: Ciphertexts): BackupPaylo
         platformType: "unit3d",
         encryptedApiToken: ct.trackerToken,
         isActive: true,
+        userPausedAt: null,
         color: "#ff0000",
         qbtTag: "tt",
         remoteUserId: 42,
         platformMeta: null,
+        mouseholeUrl: null,
+        encryptedMouseholeToken: ct.mouseholeToken,
         avatarData: null,
+        avatarMimeType: null,
         avatarCachedAt: null,
         avatarRemoteUrl: null,
         useProxy: false,
         countCrossSeedUnsatisfied: false,
+        hideUnreadBadges: false,
         isFavorite: true,
         sortOrder: 1,
         joinedAt: "2020-01-01",
+        lastAccessAt: null,
+        profileUrl: null,
         createdAt: ISO,
         updatedAt: ISO,
       },
@@ -209,6 +218,7 @@ function makeBackupPayload(encryptionSalt: string, ct: Ciphertexts): BackupPaylo
         shareScore: 50,
         username: "alice",
         group: "User",
+        isManual: false,
       },
     ],
     trackerRoles: [{ id: 1, trackerId: 1, roleName: "Power User", achievedAt: ISO, notes: null }],
@@ -279,6 +289,11 @@ function makeBackupPayload(encryptionSalt: string, ct: Ciphertexts): BackupPaylo
         notifyZeroSeeding: false,
         notifyRankChange: false,
         notifyAnniversary: false,
+        notifyBonusCap: true,
+        notifyVipExpiring: true,
+        notifyUnsatisfiedLimit: true,
+        notifyActiveHnrs: true,
+        notifyDownloadDisabled: true,
         thresholds: null,
         includeTrackerName: true,
         scope: null,
@@ -407,7 +422,204 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     )
   })
 
-  // ─── 1. Cross-salt round trip — the disaster-recovery path ───────────────────
+  // ─── 0. Notify toggles survive the trip ──────────────────────────────────
+
+  // The export selects the whole row, so a toggle the insert below does not
+  // name is in the file and simply never comes back. A restored instance then
+  // stops sending that alert with nothing to show for it.
+  it("restores every notify toggle the backup carries", async () => {
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    mockCurrentSettings({ encryptionSalt: SALT_A })
+
+    expect(await POST(makeRequest(payload, PASSWORD))).toHaveProperty("status", 200)
+
+    const saved = payload.notificationTargets?.[0] as Record<string, unknown>
+    const restored = onlyInsert(recorder, "notification_targets")
+    for (const key of NOTIFY_TOGGLE_KEYS) {
+      expect(restored[key], key).toBe(saved[key])
+    }
+  })
+
+  // ─── 0b. Column drift: the insert lists columns the export does not ───────
+
+  // The five runtime fields backup.ts strips from the tracker export. Anything
+  // else in the schema travels in the file, so the insert must name it.
+  const TRACKER_RUNTIME_EXCLUSIONS = new Set([
+    "lastPolledAt",
+    "lastError",
+    "lastErrorAt",
+    "consecutiveFailures",
+    "pausedAt",
+  ])
+
+  /** backup.ts serializes BigInt and Date on the way out; undo that to compare. */
+  function serialize(value: unknown): unknown {
+    if (typeof value === "bigint") return value.toString()
+    if (value instanceof Date) return value.toISOString()
+    return value
+  }
+
+  // Same failure mode as the notify toggles above, on two inserts still listing
+  // columns by hand. A dropped userPausedAt resumes polling a tracker the user
+  // paused; a dropped isManual costs every snapshot the Manual badge PollLog
+  // keys on.
+  it("restores every tracker column the backup carries", async () => {
+    const { trackers: trackersTable } =
+      await vi.importActual<typeof import("@/lib/db/schema")>("@/lib/db/schema")
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+
+    // Non-default in every column, so a value arriving by schema default rather
+    // than from the file cannot pass as restored.
+    const saved: Record<string, unknown> = {
+      id: 1,
+      name: "Drift Tracker",
+      baseUrl: "https://drift.example.com",
+      apiPath: "/api/v2/user",
+      platformType: "gazelle",
+      registrySlug: "drift-tracker",
+      encryptedApiToken: payload.trackers[0].encryptedApiToken,
+      encryptedCredentials: encrypt('{"kind":"cookie","value":"invented"}', backupKey),
+      isActive: false,
+      userPausedAt: "2026-03-04T05:06:07.000Z",
+      color: "#ff0000",
+      qbtTag: "drift",
+      remoteUserId: 42,
+      platformMeta: '{"class":"Elite"}',
+      mouseholeUrl: "https://mousehole.example.com/u/driftling",
+      encryptedMouseholeToken: encrypt("fake-mousehole-token-7f3a", backupKey),
+      avatarData: "data:image/webp;base64,AAAA",
+      avatarMimeType: "image/webp",
+      avatarCachedAt: "2026-02-03T04:05:06.000Z",
+      avatarRemoteUrl: "https://drift.example.com/avatars/driftling.webp",
+      useProxy: true,
+      countCrossSeedUnsatisfied: true,
+      hideUnreadBadges: true,
+      isFavorite: true,
+      sortOrder: 3,
+      joinedAt: "2020-01-01",
+      lastAccessAt: "2026-03-01",
+      profileUrl: "https://drift.example.com/users/driftling",
+      createdAt: ISO,
+      updatedAt: ISO,
+    }
+    const expected = Object.keys(getTableColumns(trackersTable)).filter(
+      (key) => key !== "id" && !TRACKER_RUNTIME_EXCLUSIONS.has(key)
+    )
+    // A column added to the schema lands here first, so the fixture cannot fall
+    // behind the export it stands in for.
+    expect(Object.keys(saved).sort()).toEqual(["id", ...expected].sort())
+
+    payload.trackers = [saved]
+    mockCurrentSettings({ encryptionSalt: SALT_A })
+
+    expect(await POST(makeRequest(payload, PASSWORD))).toHaveProperty("status", 200)
+
+    const restored = onlyInsert(recorder, "trackers")
+    expect(expected.filter((key) => !(key in restored))).toEqual([])
+    for (const key of expected) {
+      expect(serialize(restored[key]), key).toEqual(saved[key])
+    }
+  })
+
+  // Backups taken before the column existed carry no slug at all, and null is
+  // what the startup backfill scans for.
+  it("leaves registrySlug null for a backup taken before the column existed", async () => {
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    mockCurrentSettings({ encryptionSalt: SALT_A })
+
+    expect(await POST(makeRequest(payload, PASSWORD))).toHaveProperty("status", 200)
+
+    expect(onlyInsert(recorder, "trackers").registrySlug).toBeNull()
+  })
+
+  // A pre-registry custom site is stored with an explicit null, which is a
+  // legitimate slug value and not a missing field.
+  it("accepts a tracker whose registrySlug is explicitly null", async () => {
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    ;(payload.trackers[0] as Record<string, unknown>).registrySlug = null
+    mockCurrentSettings({ encryptionSalt: SALT_A })
+
+    expect(await POST(makeRequest(payload, PASSWORD))).toHaveProperty("status", 200)
+
+    expect(onlyInsert(recorder, "trackers").registrySlug).toBeNull()
+  })
+
+  // The slug is the key every registry lookup goes by, so a backup handing it a
+  // number has to be refused at the door rather than stored and read back.
+  it("rejects a tracker whose registrySlug is neither a string nor null", async () => {
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    ;(payload.trackers[0] as Record<string, unknown>).registrySlug = 42
+    mockCurrentSettings({ encryptionSalt: SALT_A })
+
+    const res = await POST(makeRequest(payload, PASSWORD))
+    expect(res.status).toBe(400)
+    await expect(res.json()).resolves.toEqual({ error: "Invalid or corrupted backup file" })
+    expect(recorder.inserts).toHaveLength(0)
+  })
+
+  it("restores every snapshot column the backup carries", async () => {
+    const { trackerSnapshots: snapshotsTable } =
+      await vi.importActual<typeof import("@/lib/db/schema")>("@/lib/db/schema")
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+
+    const saved: Record<string, unknown> = {
+      id: 1,
+      trackerId: 1,
+      polledAt: "2026-04-05T06:07:08.000Z",
+      uploadedBytes: "1000",
+      downloadedBytes: "500",
+      ratio: 2,
+      bufferBytes: "250",
+      seedingCount: 10,
+      leechingCount: 1,
+      seedbonus: 100,
+      hitAndRuns: 2,
+      requiredRatio: 1,
+      warned: true,
+      freeleechTokens: 3,
+      shareScore: 50,
+      username: "driftling",
+      group: "Elite",
+      isManual: true,
+    }
+    const expected = Object.keys(getTableColumns(snapshotsTable)).filter((key) => key !== "id")
+    expect(Object.keys(saved).sort()).toEqual(["id", ...expected].sort())
+
+    payload.trackerSnapshots = [saved]
+    mockCurrentSettings({ encryptionSalt: SALT_A })
+
+    expect(await POST(makeRequest(payload, PASSWORD))).toHaveProperty("status", 200)
+
+    const restored = onlyInsert(recorder, "tracker_snapshots")
+    expect(expected.filter((key) => !(key in restored))).toEqual([])
+    for (const key of expected) {
+      // trackerId is the one column a restore must not carry over: it is remapped
+      // onto the id the tracker insert above just returned.
+      if (key === "trackerId") continue
+      expect(serialize(restored[key]), key).toEqual(saved[key])
+    }
+  })
+
+  // A backup taken before base URLs were stored bare carries the trailing
+  // slash, and restoring it verbatim would hand every adapter a doubled separator.
+  it("strips a trailing slash off a restored base URL", async () => {
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    ;(payload.trackers[0] as Record<string, unknown>).baseUrl = "https://example.com/"
+    mockCurrentSettings({ encryptionSalt: SALT_A })
+
+    expect(await POST(makeRequest(payload, PASSWORD))).toHaveProperty("status", 200)
+
+    expect(onlyInsert(recorder, "trackers").baseUrl).toBe("https://example.com")
+  })
+
+  // ─── 1. Cross-salt round trip: the disaster-recovery path ────────────────────
 
   it("re-encrypts every credential under the current salt when the salts differ", async () => {
     const backupKey = await deriveKey(PASSWORD, SALT_A)
@@ -424,6 +636,10 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     expect(decrypt(tracker.encryptedApiToken as string, currentKey)).toBe(PLAIN.trackerToken)
     // Proves re-encryption actually happened rather than a pass-through.
     expect(tracker.encryptedApiToken).not.toBe(payload.trackers[0].encryptedApiToken)
+    expect(decrypt(tracker.encryptedMouseholeToken as string, currentKey)).toBe(
+      PLAIN.mouseholeToken
+    )
+    expect(tracker.encryptedMouseholeToken).not.toBe(payload.trackers[0].encryptedMouseholeToken)
 
     const client = onlyInsert(recorder, "download_clients")
     expect(decrypt(client.encryptedUsername as string, currentKey)).toBe(PLAIN.clientUsername)
@@ -468,6 +684,7 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     const tracker = onlyInsert(recorder, "trackers")
     expect(tracker.encryptedApiToken).toBe(payload.trackers[0].encryptedApiToken)
     expect(decrypt(tracker.encryptedApiToken as string, key)).toBe(PLAIN.trackerToken)
+    expect(tracker.encryptedMouseholeToken).toBe(payload.trackers[0].encryptedMouseholeToken)
 
     const client = onlyInsert(recorder, "download_clients")
     expect(client.encryptedUsername).toBe(payload.downloadClients[0].encryptedUsername)
@@ -497,18 +714,20 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
 
     const tracker = onlyInsert(recorder, "trackers")
     expect(tracker.encryptedApiToken).toBe("")
+    // Nullable column: cleared to NULL, never to "".
+    expect(tracker.encryptedMouseholeToken).toBeNull()
 
     const client = onlyInsert(recorder, "download_clients")
     expect(client.encryptedUsername).toBe("")
     expect(client.encryptedPassword).toBe("")
     // The download client at least gets disabled and flagged.
     expect(client.enabled).toBe(false)
-    expect(client.lastError).toBe("Credentials cleared during restore — re-enter and re-enable")
+    expect(client.lastError).toBe("Credentials cleared during restore. Re-enter and re-enable")
 
     const target = onlyInsert(recorder, "notification_targets")
     expect(target.encryptedConfig).toBe("")
     expect(target.enabled).toBe(false)
-    expect(target.lastDeliveryError).toBe("Config cleared during restore — re-enter and re-enable")
+    expect(target.lastDeliveryError).toBe("Config cleared during restore. Re-enter and re-enable")
 
     const settings = recorder.settingsUpdate
     expect(settings?.encryptedProxyPassword).toBeNull()
@@ -557,14 +776,13 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
 
   it("clears stale credentials when the salt matches but the backup predates a password change", async () => {
     // Regression test. `POST /api/auth/change-password` re-encrypts every field under a
-    // NEW key while REUSING the existing encryptionSalt (change-password/route.ts:72) —
+    // new key while reusing the existing encryptionSalt (change-password/route.ts:72),
     // the salt only rotates on nuke/setup/lockdown. So a backup taken before a password
-    // change carries a MATCHING salt and OLD-key ciphertext.
+    // change carries a matching salt and old-key ciphertext.
     //
-    // This used to take the pass-through branch on `sameSalt` alone: the route copied the
-    // old-key ciphertext into the DB verbatim, left the client enabled, logged nothing and
-    // reported `tokensPreserved: 1`. Every restored credential was undecryptable. The probe
-    // in route.ts (see the `canPassThrough` comment) is what stops that — do not remove it.
+    // Without the probe in route.ts (see the `canPassThrough` comment), the route copies
+    // the old-key ciphertext through verbatim, leaves the client enabled, logs nothing and
+    // reports `tokensPreserved: 1`, and every restored credential is undecryptable.
     const oldKey = await deriveKey(OTHER_PASSWORD, SALT_A)
     const payload = makeBackupPayload(SALT_A, encryptAll(oldKey))
     mockCurrentSettings({ encryptionSalt: SALT_A })
@@ -582,12 +800,12 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     expect(client.encryptedUsername).toBe("")
     expect(client.encryptedPassword).toBe("")
     expect(client.enabled).toBe(false)
-    expect(client.lastError).toBe("Credentials cleared during restore — re-enter and re-enable")
+    expect(client.lastError).toBe("Credentials cleared during restore. Re-enter and re-enable")
 
     // The mismatch is announced once, at the decision point.
     expect(log.warn).toHaveBeenCalledWith(
       { event: "restore_stale_ciphertext" },
-      "Backup predates a master password change — credentials that cannot be re-encrypted will be cleared"
+      "Backup predates a master password change, so credentials that cannot be re-encrypted will be cleared"
     )
 
     const body = await res.json()
@@ -598,7 +816,7 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
   })
 
   it("still passes ciphertext through when the salts match and the key opens the backup", async () => {
-    // The probe must not cost the healthy same-salt case anything — covered byte-for-byte
+    // The probe must not cost the healthy same-salt case anything, covered byte-for-byte
     // by the pass-through test above; this pins that a readable backup is left alone.
     const key = await deriveKey(PASSWORD, SALT_A)
     const payload = makeBackupPayload(SALT_A, encryptAll(key))
@@ -681,9 +899,8 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     const res = await POST(makeRequest(payload, PASSWORD))
     expect(res.status).toBe(200)
 
-    // The route used to stop polling and never restart it on the success path, leaving
-    // the endpoint dependent on a browser loading an authenticated page — (auth)/layout.tsx
-    // calls ensureSchedulerRunning on every one — to revive it.
+    // Without the restart, polling stays stopped until a browser loads an authenticated
+    // page, where (auth)/layout.tsx calls ensureSchedulerRunning.
     expect(stopScheduler).toHaveBeenCalledTimes(1)
     expect(ensureSchedulerRunning).toHaveBeenCalledWith("ab".repeat(32))
 
@@ -734,7 +951,7 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
 
     // trackerDailyCheckpoints and torrentDailyCheckpoints are absent here, but
     // both cascade off trackers/downloadClients (schema.ts:400,420) and neither
-    // is in BackupPayload — so restore destroys them with nothing to restore from.
+    // is in BackupPayload, so restore destroys them with nothing to restore from.
     expect(recorder.deletes.map((t) => (t as { __table: string }).__table)).toEqual([
       "dismissed_alerts",
       // app_coverage_gaps is wiped and restored; app_liveness is deliberately
@@ -825,9 +1042,9 @@ describe("POST /api/settings/backup/restore — auth gate", () => {
 
 // ─── Dry run ──────────────────────────────────────────────────────────────────
 //
-// Credentials a restore cannot decrypt are cleared, and the user used to learn
-// that only afterwards. The dry run answers the same question in advance, using
-// the same code path so the prediction cannot drift from the restore itself.
+// Credentials a restore cannot decrypt are cleared. The dry run answers the same
+// question in advance, using the same code path so the prediction cannot drift
+// from the restore itself.
 //
 // The load-bearing property is that it writes NOTHING: it returns above
 // stopScheduler(), which is the handler's first side effect.
@@ -884,8 +1101,27 @@ describe("POST /api/settings/backup/restore — dry run", () => {
     expect(body.credentialsRecoverable).toBe(body.credentialsTotal)
   })
 
+  // The probe list is hand-maintained, so a column left out of it is never
+  // counted and never proven recoverable.
+  it("counts the Mousehole API token among the credentials", async () => {
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const withToken = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    const withoutToken = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    ;(withoutToken.trackers[0] as Record<string, unknown>).encryptedMouseholeToken = null
+    mockCurrentSettings({ encryptionSalt: SALT_B })
+
+    const counted = (await (await POST(makeRequest(withToken, PASSWORD, undefined, true))).json()) as {
+      credentialsTotal: number
+    }
+    const uncounted = (await (
+      await POST(makeRequest(withoutToken, PASSWORD, undefined, true))
+    ).json()) as { credentialsTotal: number }
+
+    expect(counted.credentialsTotal).toBe(uncounted.credentialsTotal + 1)
+  })
+
   it("counts credentials written under a different key as at risk", async () => {
-    // A backup taken BEFORE a master-password change: same salt, stale ciphertext.
+    // A backup taken before a master-password change: same salt, stale ciphertext.
     // This is the case the user most needs warning about, because matching salts
     // make it look safe right up until the credentials are cleared.
     const staleKey = await deriveKey("a-completely-different-password", SALT_A)
@@ -950,7 +1186,7 @@ describe("POST /api/settings/backup/restore — retention prompt state", () => {
     const res = await POST(makeRequest(payload, PASSWORD))
     expect(res.status).toBe(200)
 
-    // Restored alongside the policy it belongs to — otherwise the prompt fires again
+    // Restored alongside the policy it belongs to, otherwise the prompt fires again
     // and the user's answer overwrites the retention value just restored.
     expect(recorder.settingsUpdate?.retentionPromptedAt).toEqual(new Date(ISO))
   })
@@ -958,7 +1194,7 @@ describe("POST /api/settings/backup/restore — retention prompt state", () => {
   it("leaves it null for a backup taken before the column existed", async () => {
     const backupKey = await deriveKey(PASSWORD, SALT_A)
     const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
-    // No retentionPromptedAt at all — an older backup.
+    // No retentionPromptedAt at all, an older backup.
     mockCurrentSettings({ encryptionSalt: SALT_B })
 
     const res = await POST(makeRequest(payload, PASSWORD))

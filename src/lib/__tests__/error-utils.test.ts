@@ -1,14 +1,19 @@
 // src/lib/__tests__/error-utils.test.ts
 
 import { describe, expect, it } from "vitest"
-import { classifyFetchError, isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
+import {
+  classifyFetchError,
+  isDecryptionError,
+  isUnreachableMessage,
+  sanitizeNetworkError,
+} from "@/lib/error-utils"
 
 // ---------------------------------------------------------------------------
 // isDecryptionError
 // ---------------------------------------------------------------------------
 
 describe("isDecryptionError", () => {
-  // Positive cases — messages that indicate AES-GCM authentication failure
+  // Positive cases, messages that indicate AES-GCM authentication failure
 
   it("returns true for 'Unsupported state or unable to authenticate data'", () => {
     expect(isDecryptionError(new Error("Unsupported state or unable to authenticate data"))).toBe(
@@ -52,7 +57,7 @@ describe("isDecryptionError", () => {
     expect(isDecryptionError(new Error("INVALID KEY supplied"))).toBe(true)
   })
 
-  // Negative cases — errors unrelated to decryption
+  // Negative cases, errors unrelated to decryption
 
   it("returns false for 'Connection refused'", () => {
     expect(isDecryptionError(new Error("Connection refused"))).toBe(false)
@@ -138,18 +143,16 @@ describe("sanitizeNetworkError", () => {
   // so they must stay distinct from each other and from the generic rules.
   it("maps a blank-credential rejection to bypass guidance", () => {
     expect(
-      sanitizeNetworkError("Authentication failed — qBittorrent rejected the blank credentials")
+      sanitizeNetworkError("Authentication failed. qBittorrent rejected the blank credentials")
     ).toBe(
-      'Blank credentials rejected — enable "Bypass authentication for clients on localhost" in qBittorrent'
+      'Blank credentials rejected. Enable "Bypass authentication for clients on localhost" in qBittorrent'
     )
   })
 
   it("maps a username/password rejection to a credentials message", () => {
     expect(
-      sanitizeNetworkError(
-        "Authentication failed — qBittorrent rejected the username and password"
-      )
-    ).toBe("Credentials rejected by qBittorrent — check the username and password")
+      sanitizeNetworkError("Authentication failed. qBittorrent rejected the username and password")
+    ).toBe("Credentials rejected by qBittorrent. Check the username and password")
   })
 
   it("maps a qBittorrent IP ban to a self-clearing ban message, not the tracker one", () => {
@@ -157,7 +160,42 @@ describe("sanitizeNetworkError", () => {
       sanitizeNetworkError(
         "qBittorrent has temporarily banned this IP after too many failed login attempts"
       )
-    ).toBe("Banned by qBittorrent after too many failed logins — it will clear on its own")
+    ).toBe("Banned by qBittorrent after too many failed logins. It will clear on its own")
+  })
+
+  // The three refusals the qBittorrent transport raises on a host that did
+  // answer. Each fell to the fallback, which isUnreachableMessage reads as a
+  // host that never answered, so the card blamed the network.
+  it("maps an oversized response body to its own message", () => {
+    expect(
+      sanitizeNetworkError("Response from qbt.local exceeded 67108864 bytes and was refused")
+    ).toBe("qBittorrent returned an oversized response")
+  })
+
+  it("maps a session cookie carrying a control character to its own message", () => {
+    expect(
+      sanitizeNetworkError("Authentication failed. Session cookie contained an unsafe character")
+    ).toBe("qBittorrent sent an unsafe session cookie")
+  })
+
+  it("maps a refused redirect to its own message", () => {
+    expect(sanitizeNetworkError("qBittorrent API error: 307 Temporary Redirect")).toBe(
+      "qBittorrent redirected the request"
+    )
+  })
+
+  // The tracker proxy transport has a cap of its own, worded differently.
+  // Through the proxy branch it arrives wrapped as a proxy failure, which the
+  // proxy rule below would otherwise turn into a connection failure.
+  it("maps the proxy transport's oversized body to its own message", () => {
+    expect(sanitizeNetworkError("Response exceeded 65536 byte limit")).toBe(
+      "Tracker returned an oversized response"
+    )
+    expect(
+      sanitizeNetworkError(
+        "Failed to connect to tracker.example via proxy: Response exceeded 65536 byte limit"
+      )
+    ).toBe("Tracker returned an oversized response")
   })
 
   it("maps 'rate-limit' to IP ban message", () => {
@@ -261,6 +299,15 @@ describe("classifyFetchError", () => {
     expect(result.message).toBe("Failed to connect to avistaz.to: fetch failed")
   })
 
+  it("never copies a bare TypeError message other than fetch failed, since undici quotes the header in it", () => {
+    const err = new TypeError(
+      'Headers.append: "uid=1; pass=SECRETHASH" is an invalid header value.'
+    )
+    const result = classifyFetchError(err, host)
+    expect(result.message).toBe("Failed to connect to avistaz.to: TypeError")
+    expect(result.message).not.toContain("SECRETHASH")
+  })
+
   it("unwraps string cause from TypeError", () => {
     const err = new TypeError("fetch failed", { cause: "connect ECONNREFUSED 10.0.0.1:443" })
     const result = classifyFetchError(err, host)
@@ -272,5 +319,108 @@ describe("classifyFetchError", () => {
   it("returns Unknown for non-Error values", () => {
     const result = classifyFetchError("string error", host)
     expect(result.message).toBe("Failed to connect to avistaz.to: Unknown")
+  })
+})
+
+describe("sanitizeNetworkError TorrentLeech auth outcomes", () => {
+  it("lets the 2FA guidance through instead of the generic fallback", () => {
+    const raw =
+      "TorrentLeech requires 2FA. Add your Alt 2FA Token (Site Profile => Alt 2FA Token) to this tracker's credentials"
+    expect(sanitizeNetworkError(raw, "Tracker test failed")).toBe(raw)
+  })
+
+  it("keeps the token hint when 2FA credentials are refused", () => {
+    expect(sanitizeNetworkError("Invalid TorrentLeech credentials or Alt 2FA Token")).toBe(
+      "Invalid credentials or Alt 2FA Token"
+    )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Adapter shape errors (issue #214) read "Unexpected response from <host>: ...".
+// They get their own message and must match before the credential rule, whose
+// /invalid/ would turn a key named "invalid" into "Invalid credentials".
+// ---------------------------------------------------------------------------
+
+describe("sanitizeNetworkError - unexpected response shape", () => {
+  it("maps an adapter shape error to an unexpected-response message, not the fallback", () => {
+    expect(
+      sanitizeNetworkError(
+        'Unexpected response from lst.gg: missing "uploaded", "downloaded", "buffer"; top-level keys: data',
+        "Poll failed"
+      )
+    ).toBe("Tracker returned an unexpected response")
+  })
+
+  it("wins over the credential rule when a reported key happens to say invalid", () => {
+    expect(
+      sanitizeNetworkError(
+        'Unexpected response from lst.gg: missing "buffer"; top-level keys: invalid'
+      )
+    ).toBe("Tracker returned an unexpected response")
+  })
+
+  it("covers the shape errors the Gazelle, BTN, GGn, MAM and Hawke adapters already throw", () => {
+    expect(sanitizeNetworkError("Unexpected response from aither.cc: missing userstats")).toBe(
+      "Tracker returned an unexpected response"
+    )
+  })
+
+  // parseBytes' messages start with "Invalid", "Negative" and "Unknown".
+  // "Invalid" must not reach the credential rule, or a malformed uploaded field
+  // tells the user to rotate a key.
+  it("maps a byte-string parse failure to the unexpected-response message, not to credentials", () => {
+    expect(sanitizeNetworkError('Invalid byte format: ""', "Poll failed")).toBe(
+      "Tracker returned an unexpected response"
+    )
+    expect(sanitizeNetworkError('Unknown unit: "GiBs"', "Poll failed")).toBe(
+      "Tracker returned an unexpected response"
+    )
+    expect(sanitizeNetworkError('Negative byte values are not allowed: "-1 GiB"')).toBe(
+      "Tracker returned an unexpected response"
+    )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// isUnreachableMessage
+//
+// The tracker_down notification says "<name> is unreachable" for every poll
+// failure. Only the connectivity outputs of sanitizeNetworkError justify that
+// wording; an auth rejection or a changed payload means the host answered.
+// ---------------------------------------------------------------------------
+
+describe("isUnreachableMessage", () => {
+  // Driven through the sanitizer so a reworded connectivity message fails
+  // here as well as in the sanitizeNetworkError tests above.
+  it.each([
+    "Request timed out after 15s",
+    "ECONNREFUSED 127.0.0.1:443",
+    "getaddrinfo ENOTFOUND lst.gg",
+    "EHOSTUNREACH",
+    "ECONNRESET",
+    "Could not connect via proxy",
+  ])("is true for the sanitized form of %j", (raw) => {
+    expect(isUnreachableMessage(sanitizeNetworkError(raw))).toBe(true)
+  })
+
+  it("is true for the sanitizer's own connection fallback", () => {
+    expect(isUnreachableMessage(sanitizeNetworkError("Something odd"))).toBe(true)
+    expect(isUnreachableMessage("Connection failed")).toBe(true)
+  })
+
+  it.each([
+    "Poll failed",
+    "Authentication failed",
+    "Tracker returned an unexpected response",
+    "IP temporarily banned by tracker",
+    "API returned 500",
+    "Unknown error",
+    "qBittorrent returned an oversized response",
+    "qBittorrent sent an unsafe session cookie",
+    "qBittorrent redirected the request",
+    "Tracker returned an oversized response",
+  ])("is false for %j", (message) => {
+    expect(isUnreachableMessage(message)).toBe(false)
   })
 })

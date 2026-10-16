@@ -293,7 +293,7 @@ function RatioStabilityChart({
         height={height}
         message={
           allInfinite
-            ? "Ratio is infinite — nothing downloaded, so there is no finite value to chart."
+            ? "Ratio is infinite. Nothing downloaded, so there is no finite value to chart."
             : "Not enough data for stability analysis"
         }
       />

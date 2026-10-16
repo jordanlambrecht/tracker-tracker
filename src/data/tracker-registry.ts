@@ -1,9 +1,9 @@
 // src/data/tracker-registry.ts
 
-import type { PlatformType } from "@/lib/adapters/constants"
-import type { GazelleAuthStyle, Unit3dAuthStyle } from "@/lib/adapters/types"
-import { normalizeUrl } from "@/lib/data-transforms"
+import type { PlatformType } from "@/data/platform-types"
+import type { SatisfactionMode } from "@/lib/satisfaction"
 import type { TrackerCredentialFieldDefinition } from "@/lib/tracker-credentials/types"
+import type { GazelleAuthStyle, NebulanceAuthParam, Unit3dAuthStyle } from "./platform-types"
 import { ALL_TRACKERS } from "./trackers"
 
 export interface ReleaseGroup {
@@ -31,11 +31,34 @@ export interface TrackerUserClass {
   requirements?: string
   perks?: RankPerk[]
   icon?: string
+  /**
+   * Set on classes that are not rungs of the earned progression; the
+   * dashboard rank stacks leave them out. "above": granted by staff, donation
+   * or invitation, so a member holding one shows a full stack under that
+   * name. "below": a ratio demotion or an administrative state such as Banned
+   * or Validating, so a member holding one shows an empty stack under that
+   * name. Unset means the class is reached by stats. LST's Leech is its entry
+   * class, not a demotion, which is why the field is set per entry rather
+   * than inferred from the name.
+   */
+  outsideLadder?: "above" | "below"
 }
 
 export interface TrackerRules {
   minimumRatio: number // 0 = no minimum
   seedTimeHours: number // 0 = no minimum
+  /**
+   * How the per-torrent requirements above combine. See `@/lib/satisfaction`.
+   *
+   * Omit it unless the tracker's own rules have been read. Without a mode, seed
+   * time alone decides satisfaction and `minimumRatio` is the account-level
+   * figure for the ratio-danger alert.
+   *
+   * Setting `"any"` where the tracker means "and" marks torrents satisfied that
+   * are not, which is how hit-and-runs are earned. Only set it from the site's
+   * own wording.
+   */
+  satisfactionMode?: SatisfactionMode
   loginIntervalDays: number // days until prune/disable
   fulfillmentPeriodHours?: number // null = not applicable
   hnrBanLimit?: number // null = not applicable
@@ -83,18 +106,9 @@ export interface TrackerRegistryEntry {
   /** https:// link to the announcement (forum post, reddit thread, staff blog). */
   defunctLink?: string
   /**
-   * Shutdown date as "YYYY-MM-DD".
-   *
-   * Deliberately the same shape as a tracker row's `joinedAt`, so it renders
-   * through `formatJoinedDate()` ("2026-05-11" → "May 11, 2026") with no new
-   * formatting code and no timezone drift. That helper parses at local
-   * midnight. The free-form `stats.statsUpdatedAt` ("March 2026") is the other
-   * precedent in this type, but it is an unparseable display string, and this
-   * field has to be shown in a readable form, sorted on, and validated.
-   *
-   * Note this is authored data, never a stamped `new Date()`: the repo bans
-   * `.toISOString().slice(0, 10)` for producing date strings (it silently
-   * shifts the day across timezones) in favour of `localDateStr()`.
+   * Shutdown date as "YYYY-MM-DD", typed by hand. Same shape as a tracker
+   * row's `joinedAt`, so `formatJoinedDate()` renders it at local midnight
+   * with no timezone drift.
    */
   defunctDate?: string
   supportsTransitPapers?: boolean
@@ -102,13 +116,15 @@ export interface TrackerRegistryEntry {
   gazelleAuthStyle?: GazelleAuthStyle
   gazelleEnrich?: boolean
   unit3dAuthStyle?: Unit3dAuthStyle
+  /** Anthelion spells the key parameter without an underscore. Defaults to api_key. */
+  nebulanceAuthParam?: NebulanceAuthParam
   /**
    * Which credential fields this tracker issues, overriding the platform defaults
    * in src/data/tracker-credential-defaults.ts. Resolve via
    * getDefaultCredentialFields(), never read directly.
    *
-   * PUBLIC, GIT-COMMITTED DATA: these define which fields EXIST and must NEVER
-   * hold a user's actual VALUES. TrackerCredentialFieldDefinition has no `value`
+   * Public, git-committed data: these define which fields exist and must never
+   * hold a user's actual values. TrackerCredentialFieldDefinition has no `value`
    * property precisely so a passkey cannot be pasted in here and leaked into git
    * history forever. User values live only in `trackers.encrypted_credentials`.
    */
@@ -121,7 +137,32 @@ export function getTrackerBySlug(slug: string): TrackerRegistryEntry | undefined
   return TRACKER_REGISTRY.find((t) => t.slug === slug)
 }
 
-export function findRegistryEntry(baseUrl: string): TrackerRegistryEntry | undefined {
-  const normalized = normalizeUrl(baseUrl)
-  return TRACKER_REGISTRY.find((r) => normalizeUrl(r.url) === normalized)
+/**
+ * The registry entry a tracker row points at. The row names it by slug; the URL
+ * it stores is the poll address, never the key. Undefined for a row with no slug
+ * (a pre-registry custom site) or a slug the registry no longer carries.
+ */
+export function registryEntryFor(tracker: {
+  registrySlug: string | null
+}): TrackerRegistryEntry | undefined {
+  return tracker.registrySlug ? getTrackerBySlug(tracker.registrySlug) : undefined
+}
+
+/**
+ * The key both sides of a hostname lookup are reduced to. A `www.` prefix is
+ * dropped because the registry spells MAM and TorrentLeech with one while a
+ * stored row usually has not. Undefined for anything `new URL` refuses, which
+ * a restored backup can carry because it never passed the create route's
+ * validateHttpUrl.
+ *
+ * The startup backfill is the only caller: it is how a row that predates
+ * `registrySlug` is matched to an entry once. Nothing else may reach the
+ * registry by URL.
+ */
+export function registryHostname(url: string): string | undefined {
+  try {
+    return new URL(url.trim().toLowerCase()).hostname.replace(/^www\./, "")
+  } catch {
+    return undefined
+  }
 }

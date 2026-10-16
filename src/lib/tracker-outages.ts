@@ -11,7 +11,7 @@ import { appSettings, trackerOutages } from "@/lib/db/schema"
 import { POLL_INTERVAL_DEFAULT } from "@/lib/limits"
 import { log } from "@/lib/logger"
 
-/** Values of tracker_outages.reason. Diagnostic only — all draw identically. */
+/** Values of tracker_outages.reason. Diagnostic only, all draw identically. */
 export type TrackerOutageReason = "poll" | "manual"
 
 export interface TrackerOutage {

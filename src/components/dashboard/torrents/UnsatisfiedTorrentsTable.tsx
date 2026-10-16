@@ -6,28 +6,40 @@ import { MarqueeText } from "@/components/ui/MarqueeText"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
 import type { TorrentRaw } from "@/lib/fleet"
-import { formatBytesNum, formatDuration, formatPercent } from "@/lib/formatters"
+import { formatBytesNum, formatDuration, formatPercent, formatRatio } from "@/lib/formatters"
+import {
+  ratioProgress,
+  remainingSeedSeconds,
+  type SatisfactionRequirement,
+  satisfactionProgress,
+  seedTimeProgress,
+} from "@/lib/satisfaction"
+import { formatTorrentRatio } from "@/lib/torrent-utils"
 
 interface UnsatisfiedTorrentsTableProps {
   torrents: TorrentRaw[]
-  requiredSeconds: number
+  requirement: SatisfactionRequirement
   accentColor: string
 }
 
 export function UnsatisfiedTorrentsTable({
   torrents,
-  requiredSeconds,
+  requirement,
   accentColor,
 }: UnsatisfiedTorrentsTableProps) {
   const pctColor = (p: number) =>
     p < 50 ? CHART_THEME.danger : p < 80 ? CHART_THEME.warn : CHART_THEME.positive
+
+  const showSeedTime = requirement.requiredSeedSeconds !== null
+  const showRatio = requirement.requiredRatio !== null
+  const eitherOr = requirement.mode === "any" && showSeedTime && showRatio
 
   const columns: Column<TorrentRaw>[] = [
     {
       key: "name",
       header: "Name",
       render: (t) => {
-        const pct = Math.min((t.seedingTime / requiredSeconds) * 100, 100)
+        const pct = satisfactionProgress(t, requirement) * 100
         return (
           <div className="flex flex-col gap-2 min-w-0">
             <MarqueeText className="text-xs font-mono text-secondary">{t.name}</MarqueeText>
@@ -60,42 +72,86 @@ export function UnsatisfiedTorrentsTable({
         </span>
       ),
     },
-    {
+  ]
+
+  if (showSeedTime) {
+    columns.push({
       key: "seedTime",
       header: "Seed Time",
       align: "right",
       width: "12%",
       render: (t) => {
-        const pct = Math.min((t.seedingTime / requiredSeconds) * 100, 100)
+        const pct = seedTimeProgress(t.seedingTime, requirement) * 100
         return (
           <span className="text-xs font-mono whitespace-nowrap" style={{ color: pctColor(pct) }}>
             {formatDuration(t.seedingTime)}
           </span>
         )
       },
-    },
-    {
-      key: "remaining",
-      header: "Remaining",
+    })
+  }
+
+  if (showRatio) {
+    columns.push({
+      key: "ratio",
+      header: "Ratio",
       align: "right",
-      width: "12%",
+      width: "10%",
       render: (t) => {
-        const remaining = Math.max(requiredSeconds - t.seedingTime, 0)
+        const pct = ratioProgress(t.ratio, requirement) * 100
         return (
-          <span className="text-xs font-mono text-muted whitespace-nowrap">
-            {remaining > 0 ? formatDuration(remaining) : "Done"}
+          <span className="text-xs font-mono whitespace-nowrap" style={{ color: pctColor(pct) }}>
+            {formatTorrentRatio(t.ratio)}
           </span>
         )
       },
+    })
+  }
+
+  columns.push({
+    key: "remaining",
+    header: "Remaining",
+    align: "right",
+    width: "14%",
+    render: (t) => {
+      // Under an either/or the honest answer is the nearer route, and saying
+      // "6 days" at a 0.98 ratio would send someone to delete a torrent that is
+      // an hour from clearing. Which route is nearer is shown, not just how far.
+      const seedPct = seedTimeProgress(t.seedingTime, requirement)
+      const ratioPct = ratioProgress(t.ratio, requirement)
+      // Ratio is the answer when it is the only route, or the nearer one.
+      if (!showSeedTime || (eitherOr && ratioPct > seedPct)) {
+        // A sentinel ratio scores no progress, so it owes the full amount.
+        const measured = ratioPct > 0 ? t.ratio : 0
+        const owed = (requirement.requiredRatio ?? 0) - measured
+        return (
+          <span className="text-xs font-mono text-muted whitespace-nowrap">
+            {formatRatio(Math.max(owed, 0))} ratio
+          </span>
+        )
+      }
+
+      const remaining = remainingSeedSeconds(t, requirement)
+      return (
+        <span className="text-xs font-mono text-muted whitespace-nowrap">
+          {remaining ? formatDuration(remaining) : "Done"}
+        </span>
+      )
     },
-  ]
+  })
+
+  const emptyMessage = eitherOr
+    ? "All torrents meet the seed time or ratio requirement"
+    : showRatio && !showSeedTime
+      ? "All torrents meet ratio requirements"
+      : "All torrents meet seed time requirements"
 
   return (
     <Table<TorrentRaw>
       columns={columns}
       data={torrents}
       keyExtractor={(t) => t.hash}
-      emptyMessage="All torrents meet seed time requirements"
+      emptyMessage={emptyMessage}
       surface="inset"
       trackerColor={accentColor}
       fixedLayout

@@ -1,0 +1,5 @@
+# Shell scripts run inside Linux containers and as git hooks, so they must keep
+# LF endings in the working tree. Without this, core.autocrlf=true checks them
+# out as CRLF on Windows and the kernel fails to exec `#!/bin/sh\r`.
+*.sh text eol=lf
+.husky/* text eol=lf

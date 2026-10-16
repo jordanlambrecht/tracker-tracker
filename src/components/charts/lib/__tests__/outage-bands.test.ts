@@ -57,7 +57,11 @@ const baseOption: EChartsOption = {
 
 describe("appendOutageBandSeries", () => {
   it("draws a band for a recorded gap", () => {
-    const bands: ChartOutageBands = { app: [{ start: T0, end: T0 + 30 * MIN }], qbt: [], tracker: [] }
+    const bands: ChartOutageBands = {
+      app: [{ start: T0, end: T0 + 30 * MIN }],
+      qbt: [],
+      tracker: [],
+    }
     const option = appendOutageBandSeries(baseOption, bands)
 
     expect(bandSeries(option, "app").markArea?.data).toEqual([
@@ -92,7 +96,7 @@ describe("appendOutageBandSeries", () => {
 
     expect(seriesOf(option)[0]).toEqual({ name: "Ratio", type: "line", data: [[T0, 1]] })
     // One data series plus all three band series. All three are always emitted,
-    // even the ones this chart can never show — merge mode cannot remove a
+    // even the ones this chart can never show, merge mode cannot remove a
     // series that later goes missing.
     expect(seriesOf(option)).toHaveLength(4)
   })
@@ -277,9 +281,15 @@ describe("isOutageBandSeries", () => {
 describe("hasVisibleBands", () => {
   it("is false when nothing is drawn, so the legend stays hidden", () => {
     expect(hasVisibleBands(NO_OUTAGE_BANDS)).toBe(false)
-    expect(hasVisibleBands({ app: [{ start: T0, end: T0 + MIN }], qbt: [], tracker: [] })).toBe(true)
-    expect(hasVisibleBands({ app: [], qbt: [{ start: T0, end: T0 + MIN }], tracker: [] })).toBe(true)
-    expect(hasVisibleBands({ app: [], qbt: [], tracker: [{ start: T0, end: T0 + MIN }] })).toBe(true)
+    expect(hasVisibleBands({ app: [{ start: T0, end: T0 + MIN }], qbt: [], tracker: [] })).toBe(
+      true
+    )
+    expect(hasVisibleBands({ app: [], qbt: [{ start: T0, end: T0 + MIN }], tracker: [] })).toBe(
+      true
+    )
+    expect(hasVisibleBands({ app: [], qbt: [], tracker: [{ start: T0, end: T0 + MIN }] })).toBe(
+      true
+    )
   })
 })
 
@@ -298,8 +308,8 @@ describe("outageBandFill", () => {
   })
 
   it("separates the tracker kind from app by BOTH hue and angle", () => {
-    // These two CAN co-render — a tracker page draws app and tracker bands
-    // together — so they must be distinguishable without colour vision.
+    // These two CAN co-render, a tracker page draws app and tracker bands
+    // together, so they must be distinguishable without colour vision.
     expect(OUTAGE_BAND_STYLES.tracker.color).not.toBe(OUTAGE_BAND_STYLES.app.color)
     expect(OUTAGE_BAND_STYLES.tracker.angle).not.toBe(OUTAGE_BAND_STYLES.app.angle)
   })

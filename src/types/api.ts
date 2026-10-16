@@ -9,13 +9,13 @@ export type {
   MamPlatformMeta,
   NebulancePlatformMeta,
   PlatformMeta,
-} from "@/lib/adapters/types"
+} from "@/types/tracker-stats"
 
-import type { PlatformType } from "@/lib/adapters/constants"
-import type { PlatformMeta } from "@/lib/adapters/types"
+import type { PlatformType } from "@/data/platform-types"
 import type { DownloadClientRow, NotificationTargetRow } from "@/lib/db/schema"
 import type { SystemEvent } from "@/lib/events"
 import type { NotificationThresholds } from "@/lib/notifications/types"
+import type { PlatformMeta } from "@/types/tracker-stats"
 
 /** Fields shared between TrackerLatestStats and Snapshot */
 interface TrackerStatFields {
@@ -26,11 +26,8 @@ interface TrackerStatFields {
    * represent Infinity. Without this flag, an infinite ratio is indistinguishable
    * from "never measured".
    *
-   * Lives on the shared base rather than on TrackerLatestStats alone. When the
-   * latter carried it alone, every Snapshot consumer had to re-derive the state
-   * from byte totals or, more often, silently drop the point. RatioStabilityChart
-   * filtered `ratio !== null` and rendered an empty chart for exactly the accounts
-   * issues #154 and #172 were filed about.
+   * On the shared base so a Snapshot consumer can tell an infinite ratio from a
+   * missing one without re-deriving it from byte totals (issues #154 and #172).
    */
   ratioIsInfinite: boolean
   seedingCount: number | null
@@ -55,6 +52,7 @@ export interface TrackerSummary {
   id: number
   name: string
   baseUrl: string
+  registrySlug: string | null
   platformType: PlatformType
   isActive: boolean
   lastPolledAt: string | null
@@ -66,6 +64,7 @@ export interface TrackerSummary {
   color: string
   qbtTag: string | null
   mouseholeUrl: string | null
+  hasMouseholeToken: boolean
   useProxy: boolean
   countCrossSeedUnsatisfied: boolean
   hideUnreadBadges: boolean
@@ -128,13 +127,14 @@ export interface QbitmanageTagConfig {
 export interface DashboardSettings {
   showHealthIndicators: boolean
   showLoginTimers: boolean
+  showRankStacks: boolean
   showTodayAtAGlance: boolean
   /** When false, WebGL charts are swapped for 2D substitutes. Defaults to true. */
   enable3DCharts: boolean
   /**
    * Hatched background bands marking ranges where nothing was being collected.
    * On by default: a flat region with no explanation is the failure this
-   * feature exists to prevent, so the explanation has to be opt-OUT.
+   * feature exists to prevent, so the explanation has to be opt-out.
    */
   showOutageBands: boolean
 }
@@ -188,7 +188,6 @@ export interface TodayAtAGlance {
   clientLastUpdated: string | null
 }
 
-/** Response from GET /api/auth/status */
 /** Response from GET /api/settings/events */
 export interface EventsPageResponse {
   events: SystemEvent[]
@@ -206,6 +205,7 @@ export type DayRange = 0 | 1 | 7 | 30 | 90 | 365
 export const DASHBOARD_SETTINGS_DEFAULTS: DashboardSettings = {
   showHealthIndicators: true,
   showLoginTimers: true,
+  showRankStacks: true,
   showTodayAtAGlance: true,
   enable3DCharts: true,
   showOutageBands: true,

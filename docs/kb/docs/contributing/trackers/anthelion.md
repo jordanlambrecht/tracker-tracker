@@ -15,9 +15,9 @@ Anthelion runs on Nebulance, a Gazelle fork. It has two quirks: the endpoint is 
 
 ## Slots
 
-**Profile Card:** username · group (no avatar — Nebulance platform does not provide join date for ANT)
+**Profile Card:** username · group (no avatar, Nebulance platform does not provide join date for ANT)
 
-**Badges:** `warned` (conditional — always `false`, no enrichment on Nebulance platform)
+**Badges:** `warned` (conditional, always `false`, no enrichment on Nebulance platform)
 
 **Stat Cards:** `snatched-nebulance`, `login-deadline` (loginIntervalDays: 90)
 

@@ -47,7 +47,7 @@ function recordFailure(targetId: number, retryAfterMs?: number): void {
   if (state.failures >= MAX_FAILURES) {
     const cooldown = retryAfterMs ?? DEFAULT_COOLDOWN_MS
     state.openUntil = new Date(Date.now() + cooldown)
-    log.warn(`Notification circuit breaker opened for target ${targetId} — ${cooldown}ms cooldown`)
+    log.warn(`Notification circuit breaker opened for target ${targetId}, ${cooldown}ms cooldown`)
   }
   circuits.set(targetId, state)
 }
@@ -68,7 +68,7 @@ export async function deliverDiscordWebhook(
   embeds: DiscordEmbed[]
 ): Promise<DeliveryResult> {
   if (isCircuitOpen(targetId)) {
-    return { success: false, status: "failed", error: "Circuit breaker open — skipping delivery" }
+    return { success: false, status: "failed", error: "Circuit breaker open, skipping delivery" }
   }
 
   try {
@@ -92,7 +92,7 @@ export async function deliverDiscordWebhook(
         NOTIFICATION_COOLDOWN_MAX_MS
       ) // cap at 5 min
       recordFailure(targetId, retryAfter)
-      log.warn(`Discord rate limit for target ${targetId} — retry after ${retryAfter}ms`)
+      log.warn(`Discord rate limit for target ${targetId}, retry after ${retryAfter}ms`)
       return { success: false, status: "rate_limited", error: "Rate limited by Discord" }
     }
 

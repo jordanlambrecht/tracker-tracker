@@ -26,9 +26,6 @@ function DashboardEmptyState({ onAdded }: DashboardEmptyStateProps) {
   return (
     <div className="max-w-2xl mx-auto pt-12 pb-12">
       <Card elevation="raised" className="flex flex-col items-center gap-4 py-10">
-        <span className="text-2xl" aria-hidden="true">
-          📊
-        </span>
         <div className="text-center flex flex-col gap-2">
           <H3>No trackers added yet</H3>
           <Paragraph>

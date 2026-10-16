@@ -201,9 +201,9 @@ export interface FleetAggregationResponse extends FleetAggregation {
  * membership across the fleet (the dashboard's Tag Groups section). Callers that omit
  * it get `tagGroupBreakdowns: []` and the aggregation skips the work entirely.
  */
-export async function fetchFleetAggregation(
-  options?: { tagGroups?: TagGroup[] }
-): Promise<FleetAggregationResponse> {
+export async function fetchFleetAggregation(options?: {
+  tagGroups?: TagGroup[]
+}): Promise<FleetAggregationResponse> {
   const tagGroups = options?.tagGroups ?? []
 
   const clients = await db
@@ -257,9 +257,7 @@ export async function fetchFleetAggregation(
   // Announce hosts of every tracker we know about, so a torrent from a tracked
   // site is kept even when it carries no recognised tag.
   const knownAnnounceHosts = new Set(
-    trackerTagRows
-      .map((r) => trackerHostKey(r.baseUrl))
-      .filter((h): h is string => h !== null)
+    trackerTagRows.map((r) => trackerHostKey(r.baseUrl)).filter((h): h is string => h !== null)
   )
   const tagPredicate = createTrackedTorrentPredicate(tagSet, knownAnnounceHosts)
 

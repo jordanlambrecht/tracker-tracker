@@ -35,12 +35,17 @@ export const skipthecommercials: TrackerRegistryEntry = {
       name: "Pruned",
       requirements:
         "System — disabled due to 90+ days inactivity, 30 days to reactivate before deletion",
+      outsideLadder: "below",
     },
-    { name: "Banned", requirements: "System — banned" },
-    { name: "Disabled", requirements: "System — disabled" },
-    { name: "Validating", requirements: "System — awaiting validation" },
+    { name: "Banned", requirements: "System — banned", outsideLadder: "below" },
+    { name: "Disabled", requirements: "System — disabled", outsideLadder: "below" },
+    { name: "Validating", requirements: "System — awaiting validation", outsideLadder: "below" },
     // Dynamic. upload-based
-    { name: "Leech", requirements: "Ratio below 0.4 — download privileges revoked" },
+    {
+      name: "Leech",
+      requirements: "Ratio below 0.4 — download privileges revoked",
+      outsideLadder: "below",
+    },
     {
       name: "User",
       requirements:
@@ -78,23 +83,46 @@ export const skipthecommercials: TrackerRegistryEntry = {
       name: "Trial Uploader",
       requirements:
         "Staff — new uploaders, uploads require staff approval. 75 uploads to promote to Uploader",
+      outsideLadder: "above",
     },
-    { name: "Uploader", requirements: "Staff — freeleech, double upload, H&R immune, refundable" },
+    {
+      name: "Uploader",
+      requirements: "Staff — freeleech, double upload, H&R immune, refundable",
+      outsideLadder: "above",
+    },
     {
       name: "Internal",
       requirements: "Staff — internal release group. Freeleech, torrent moderation bypass",
+      outsideLadder: "above",
     },
     {
       name: "Trustee",
       requirements:
         "Staff — retired staff or staff from respected trackers. Freeleech, H&R immune, torrent moderation bypass",
+      outsideLadder: "above",
     },
-    { name: "Editor", requirements: "Staff — maintains torrent page quality" },
-    { name: "Torrent Moderator", requirements: "Staff — moderates torrent queue" },
-    { name: "Moderator", requirements: "Staff — day-to-day site moderation" },
-    { name: "Administrator", requirements: "Staff — full admin tools" },
+    {
+      name: "Editor",
+      requirements: "Staff — maintains torrent page quality",
+      outsideLadder: "above",
+    },
+    {
+      name: "Torrent Moderator",
+      requirements: "Staff — moderates torrent queue",
+      outsideLadder: "above",
+    },
+    {
+      name: "Moderator",
+      requirements: "Staff — day-to-day site moderation",
+      outsideLadder: "above",
+    },
+    { name: "Administrator", requirements: "Staff — full admin tools", outsideLadder: "above" },
     // Donation
-    { name: "VIP", requirements: "Donation — freeleech, double upload, H&R immune" },
+    {
+      name: "VIP",
+      requirements: "Donation — freeleech, double upload, H&R immune",
+      outsideLadder: "above",
+    },
   ],
   releaseGroups: ["STC", "PR0WL3R", "SP24", "GRiMM"],
   bannedGroups: [],

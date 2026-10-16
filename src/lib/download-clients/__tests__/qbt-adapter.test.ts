@@ -122,7 +122,7 @@ describe("QbtClientAdapter", () => {
     expect(torrents[0].hash).toBe("abc")
     expect(torrents[0].name).toBe("Test")
 
-    // Verify raw snake_case fields are NOT present on the result
+    // Verify raw snake_case fields are not present on the result
     expect(torrents[0]).not.toHaveProperty("upspeed")
     expect(torrents[0]).not.toHaveProperty("dlspeed")
     expect(torrents[0]).not.toHaveProperty("num_seeds")
@@ -148,8 +148,16 @@ describe("QbtClientAdapter", () => {
       expect.any(String),
       { mode: "session", sid: { name: "SID", value: "test-sid" } },
       "aither",
-      "active"
+      "active",
+      undefined
     )
+  })
+
+  it("hands the caller's signal to the session wrapper so the login shares the deadline", async () => {
+    vi.mocked(withSessionRetry).mockClear()
+    const controller = new AbortController()
+    await adapter.getTorrents({ tag: "aither", signal: controller.signal })
+    expect(vi.mocked(withSessionRetry).mock.calls[0]?.[6]).toBe(controller.signal)
   })
 
   it("returns normalized TransferStats from getTransferInfo", async () => {
@@ -256,10 +264,8 @@ describe("QbtClientAdapter", () => {
 // API-key mode
 //
 // A Bearer key is stateless: there is no login to perform, no SID to cache,
-// and nothing to refresh on expiry. The point of these tests is that the
-// session machinery is not merely unused but unreachable — if withSessionRetry
-// or login is ever called for a key client, the adapter is doing work that
-// cannot succeed.
+// and nothing to refresh on expiry. If withSessionRetry or login is ever
+// called for a key client, the adapter is doing work that cannot succeed.
 // ---------------------------------------------------------------------------
 
 describe("QbtClientAdapter with API-key auth", () => {
@@ -281,6 +287,7 @@ describe("QbtClientAdapter with API-key auth", () => {
       "http://localhost:8080",
       { mode: "apikey", key: "qbt_examplekey" },
       "aither",
+      undefined,
       undefined
     )
   })
@@ -325,7 +332,7 @@ describe("QbtClientAdapter with API-key auth", () => {
   it("dispose still resets the sync store for a key client", () => {
     vi.mocked(invalidateSession).mockClear()
     adapter.dispose()
-    // invalidateSession also calls resetStore — guarding it behind "password"
+    // invalidateSession also calls resetStore, guarding it behind "password"
     // would leave a key client's delta-sync revision stale across a logout.
     expect(invalidateSession).toHaveBeenCalledWith("http://localhost:8080")
   })

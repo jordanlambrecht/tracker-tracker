@@ -17,7 +17,7 @@ entry "Unvalidated"; the label was never verified. BTN publishes a JSON-RPC 2.0
 API, confirmed against their official API docs and cross-checked with how
 Prowlarr and Jackett talk to it.
 
-The adapter makes one call — a `POST` to the API host with:
+The adapter makes one call, a `POST` to the API host with:
 
 ```json
 { "jsonrpc": "2.0", "id": 1, "method": "userInfo", "params": ["API_KEY"] }
@@ -30,7 +30,7 @@ The key travels in the params array, not in a header or query string.
 BTN serves its API from `api.broadcasthe.net`, not from `broadcasthe.net`. Every
 BTN user hits that same host, so it is a property of the platform rather than of
 any one user's tracker row. `btn.ts` owns it as the module constant
-`BTN_API_URL` and ignores the `apiPath` argument entirely — the same thing
+`BTN_API_URL` and ignores the `apiPath` argument entirely, the same thing
 `avistaz.ts`, `digitalcore.ts`, `iptorrents.ts` and `torrentleech.ts` do with
 their own paths.
 
@@ -39,7 +39,7 @@ nothing absolute is ever written to the database.
 
 That ignore is load-bearing, not incidental. Rows created before this change
 persisted `https://api.broadcasthe.net/` into `api_path`, and the project uses
-`drizzle-kit push` only — raw SQL migrations are a CI-blocking security-audit
+`drizzle-kit push` only, and raw SQL migrations are a CI-blocking security-audit
 failure, so there is no sanctioned way to rewrite existing rows. Because the
 adapter never reads the column, those rows self-heal on deploy and would keep
 working even if BTN moved hosts. `btn.test.ts` pins this with cases that feed
@@ -48,8 +48,8 @@ the adapter a stale, empty, and outright wrong path.
 ### Migrating a BTN tracker added before this change
 
 `platformType` is stored per row when a tracker is added, so an existing BTN
-entry keeps running the Gazelle adapter after this update. It will not error —
-it quietly stops enriching, because the registry entry no longer carries
+entry keeps running the Gazelle adapter after this update. It will not error. It
+quietly stops enriching, because the registry entry no longer carries
 `gazelleEnrich`.
 
 **Existing BTN users must delete and re-add the tracker.** There is no automatic
@@ -64,7 +64,7 @@ carry `Class`, `Lumens`, `Bonus`, `HnR`, and `JoinDate`, none of which appear in
 the published spec.
 
 Seeding and leeching counts, required ratio, and the warned flag are **not in
-the response at all** and are reported as unknown rather than as `0` — a
+the response at all** and are reported as unknown rather than as `0`, because a
 hardcoded zero renders identically to a measured zero, which would show a
 confident wrong number.
 
@@ -83,7 +83,7 @@ BTN allows 150 API calls per hour. The adapter surfaces a `503` as
 **Profile Card:** username · class (`Class`, falling back to `Title`) · join
 date (from the undocumented `JoinDate`, when present)
 
-**Badges:** none — `warned` is unknown, not `false`
+**Badges:** none, because `warned` is unknown rather than `false`
 
 **Stat Cards:** `login-deadline` (loginIntervalDays: 60) · hit-and-runs (only
 when `HnR` is present)

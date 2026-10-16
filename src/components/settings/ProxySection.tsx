@@ -255,7 +255,7 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
                 : proxyTestStatus === "success"
                   ? "Connected"
                   : proxyTestStatus === "failed"
-                    ? "Failed — Retry"
+                    ? "Failed. Retry"
                     : "Test Connection"}
             </Button>
             {proxyTestStatus === "success" && (

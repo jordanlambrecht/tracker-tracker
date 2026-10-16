@@ -34,6 +34,7 @@ export const uploadcx: TrackerRegistryEntry = {
     {
       name: "Leech",
       requirements: "Ratio below 0.6 — no download slots",
+      outsideLadder: "below",
     },
     {
       name: "User",
@@ -123,36 +124,44 @@ export const uploadcx: TrackerRegistryEntry = {
       name: "Parked",
       requirements: "Staff-assigned — H&R immune, no download slots",
       perks: [{ type: "hnr-immune", label: "H&R Immune" }],
+      outsideLadder: "below",
     },
     // Staff-assigned
     {
       name: "Junior Uploader",
       requirements: "Staff — H&R immune, torrent mod bypass. Unlimited download slots",
+      outsideLadder: "above",
     },
     {
       name: "Uploader",
       requirements: "Staff — freeleech, H&R immune, torrent mod bypass. Unlimited download slots",
+      outsideLadder: "above",
     },
     {
       name: "Internal",
       requirements:
         "Staff — internal release group members. Freeleech, H&R immune, torrent mod bypass",
+      outsideLadder: "above",
     },
     {
       name: "Network Affiliate",
       requirements: "Staff — network affiliate. Unlimited download slots",
+      outsideLadder: "above",
     },
     {
       name: "Trustee",
       requirements: "Staff — freeleech, H&R immune, torrent mod bypass. Unlimited download slots",
+      outsideLadder: "above",
     },
     {
       name: "Editor",
       requirements: "Staff — freeleech, H&R immune, torrent mod bypass. Unlimited download slots",
+      outsideLadder: "above",
     },
     {
       name: "Torrent Moderator",
       requirements: "Staff — freeleech, H&R immune, torrent mod bypass. Unlimited download slots",
+      outsideLadder: "above",
     },
   ],
   releaseGroups: ["BLOOM", "Xewdy"],

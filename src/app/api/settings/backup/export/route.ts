@@ -80,7 +80,10 @@ export async function POST(request: Request) {
       await writeFile(filePath, serialized, "utf8")
       log.info(`Manual backup saved: ${filePath} (${sizeBytes} bytes)`)
     } catch (fsErr) {
-      log.error(fsErr, "Failed to save manual backup to disk — browser download will still proceed")
+      log.error(
+        fsErr,
+        "Failed to save manual backup to disk, but the browser download will still proceed"
+      )
       filePath = null
     }
 
@@ -102,7 +105,7 @@ export async function POST(request: Request) {
       })
     }
 
-    // Disk write failed or no storage path — fall through to browser download
+    // Disk write failed or no storage path, so fall through to browser download
     return new Response(serialized, {
       headers: {
         "Content-Type": contentType,

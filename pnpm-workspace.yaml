@@ -6,25 +6,9 @@ ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
 
-minimumReleaseAgeExclude:
-  - '@biomejs/biome@2.5.9'
-  - '@biomejs/cli-darwin-arm64@2.5.9'
-  - '@biomejs/cli-darwin-x64@2.5.9'
-  - '@biomejs/cli-linux-arm64-musl@2.5.9'
-  - '@biomejs/cli-linux-arm64@2.5.9'
-  - '@biomejs/cli-linux-x64-musl@2.5.9'
-  - '@biomejs/cli-linux-x64@2.5.9'
-  - '@biomejs/cli-win32-arm64@2.5.9'
-  - '@biomejs/cli-win32-x64@2.5.9'
-  - '@testing-library/user-event@14.6.5'
-  - '@vitest/expect@4.1.11'
-  - '@vitest/mocker@4.1.11'
-  - '@vitest/pretty-format@4.1.11'
-  - '@vitest/runner@4.1.11'
-  - '@vitest/snapshot@4.1.11'
-  - '@vitest/spy@4.1.11'
-  - '@vitest/utils@4.1.11'
-  - vitest@4.1.11
-
 overrides:
-  esbuild: ">=0.25.0"
+  # Forces one esbuild across the tree. drizzle-kit pins ^0.25.x, an abandoned
+  # line whose binary is built on go1.23.12 and fails the Trivy scan. Do not
+  # relax below 0.28.2, which also keeps the deprecated @esbuild-kit pin
+  # (esbuild ~0.18.20, GHSA-67mh-4wv8-2f99) out of the tree.
+  esbuild: "^0.28.2"

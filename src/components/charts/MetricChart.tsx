@@ -417,7 +417,7 @@ function MetricChart({
     return (
       <ChartEmptyState
         height={height}
-        message="Ratio is infinite — nothing was downloaded in this range, so there is no finite value to plot."
+        message="Ratio is infinite. Nothing was downloaded in this range, so there is no finite value to plot."
       />
     )
   }

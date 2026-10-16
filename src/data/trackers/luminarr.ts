@@ -30,8 +30,12 @@ export const luminarr: TrackerRegistryEntry = {
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [
-    { name: "Validating", requirements: "New account, no privileges" },
-    { name: "Leech", requirements: "Ratio below threshold. 0 download slots" },
+    { name: "Validating", requirements: "New account, no privileges", outsideLadder: "below" },
+    {
+      name: "Leech",
+      requirements: "Ratio below threshold. 0 download slots",
+      outsideLadder: "below",
+    },
     { name: "User", requirements: "Ratio ≥ 0.6. 5 download slots, can upload" },
     {
       name: "Member",

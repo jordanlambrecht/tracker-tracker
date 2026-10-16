@@ -103,7 +103,7 @@ function TorrentsTab({
         <div className="px-4 py-3 text-xs font-mono text-secondary nm-inset-sm rounded-nm-md flex items-center gap-2">
           <span className="text-warn">●</span>
           <span className="flex-1">
-            Showing cached data from {formatTimeAgo(data.cachedAt)} — client offline
+            Showing cached data from {formatTimeAgo(data.cachedAt)} (client offline)
           </span>
           <button
             type="button"
@@ -294,7 +294,7 @@ function TorrentsTab({
       {/* Torrent library scatter. 3D when WebGL charts are enabled, 2D otherwise */}
       <LazySection minHeight={400}>
         <Card
-          title={use3DScatter ? "Torrent Library — 3D Scatter" : "Torrent Library — Scatter"}
+          title={use3DScatter ? "Torrent Library (3D Scatter)" : "Torrent Library (Scatter)"}
           trackerColor={accentColor}
           className="flex flex-col gap-4"
         >
@@ -307,14 +307,14 @@ function TorrentsTab({
       </LazySection>
 
       {/* Unsatisfied Torrents */}
-      {data.requiredSeedSeconds && (
+      {data.requirement && (
         <div className="flex flex-col gap-3">
           <H2 className="uppercase tracking-wider">
             Unsatisfied Torrents ({data.unsatisfiedSorted.length})
           </H2>
           <UnsatisfiedTorrentsTable
             torrents={data.unsatisfiedSorted}
-            requiredSeconds={data.requiredSeedSeconds}
+            requirement={data.requirement}
             accentColor={accentColor}
           />
         </div>

@@ -5,7 +5,7 @@ description: Automatically categorize and visualize torrents using qbitmanage st
 
 # qbitmanage Integration
 
-[qbitmanage](https://github.com/StuffAnThings/qbit_manage) automatically manages qBittorrent torrents — tags, categories, cleanup, share limits, and more. If you're already running it, Tracker Tracker can read those tags and build charts from them.
+[qbitmanage](https://github.com/StuffAnThings/qbit_manage) automatically manages qBittorrent torrents: tags, categories, cleanup, share limits, and more. If you're already running it, Tracker Tracker can read those tags and build charts from them.
 
 For general tag group setup, see [Tag Groups](tag-groups.md).
 
@@ -47,8 +47,8 @@ Here are some tag groups that work well alongside qbitmanage.
 
 If you use qbitmanage's tracker tagging to assign priority levels, create a group to see the distribution:
 
-| qBT Tag                   | Display Label    |
-| ------------------------- | ---------------- |
+| qBT Tag                | Display Label    |
+| ---------------------- | ---------------- |
 | `🔸🔸🔸 High Priority`    | High Priority    |
 | `🔸🔸🔹 Medium Priority`  | Medium Priority  |
 | `🔸🔹🔹 Low Priority`     | Low Priority     |
@@ -75,8 +75,8 @@ tracker:
 
 A single-tag group for torrents you've committed to permanent seeding:
 
-| qBT Tag           | Display Label |
-| ----------------- | ------------- |
+| qBT Tag          | Display Label |
+| ---------------- | ------------- |
 | `💎 Seed Forever` | Seed Forever  |
 
 In qbitmanage, `💎 Seed Forever` typically maps to a share limit group with `max_ratio: -1` and `max_seeding_time: -1` (unlimited):
@@ -112,8 +112,8 @@ settings:
 
 See which share limit rules are actively holding torrents:
 
-| qBT Tag                   | Display Label            |
-| ------------------------- | ------------------------ |
+| qBT Tag                  | Display Label            |
+| ------------------------ | ------------------------ |
 | `⏳ MinTimeNotReached`    | Waiting on min seed time |
 | `🍃 MinSeedsNotMet`       | Needs more seeders       |
 | `💤 LastActiveNotReached` | Still active             |
@@ -136,9 +136,9 @@ Create a tag group with just the `⛓️‍💥 noHL` tag and enable **Count unm
 ## Tips
 
 - **qbitmanage runs independently.** Tags take a few minutes to appear, and Tracker Tracker polls every 5 minutes by default, so there's some lag.
-- **Emoji in tags work fine** — just match the exact sequence.
+- **Emoji in tags work fine**, just match the exact sequence.
 - **Priority tags come from the `tracker:` section**, not share limits. Share limits use them for filtering, but the tags come from tracker keyword matching.
-- **You don't need qbitmanage for tag groups.** Any qBittorrent tags work — qbitmanage is just popular in the homelab community.
+- **You don't need qbitmanage for tag groups.** Any qBittorrent tags work; qbitmanage is just popular in the homelab community.
 
 ## Resources
 

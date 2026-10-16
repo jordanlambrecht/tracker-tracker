@@ -4,7 +4,7 @@
 //
 // Why real crypto instead of mocks: decryptNotificationConfig is a thin wrapper
 // around decrypt() + JSON.parse(). The bugs worth catching here live at the
-// intersection of those two operations — format changes, key mismatches, and
+// intersection of those two operations, format changes, key mismatches, and
 // the error-message shape. Mocking decrypt() would skip all of that.
 
 import { randomBytes, scryptSync } from "node:crypto"
@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest"
 import { encrypt } from "@/lib/crypto"
 
 // ---------------------------------------------------------------------------
-// Key factory — mimics how the app derives encryption keys (scrypt, 32 bytes).
+// Key factory, mimics how the app derives encryption keys (scrypt, 32 bytes).
 // Using a fast N so tests run in milliseconds, not seconds.
 // ---------------------------------------------------------------------------
 function makeKey(password = "test-password", salt?: string): Buffer {

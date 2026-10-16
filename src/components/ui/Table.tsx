@@ -98,7 +98,7 @@ function Table<T>({
     return [...data].sort((a, b) => {
       const aVal = sortFn(a)
       const bVal = sortFn(b)
-      // Equal values (e.g. two Infinity ratios) keep their relative order.
+      // Equal values keep their relative order. Two Infinity ratios is the live case.
       // Subtracting them would otherwise produce NaN, which is not a valid
       // comparator result.
       if (aVal === bVal) return 0

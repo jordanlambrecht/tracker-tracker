@@ -19,7 +19,7 @@ Enrichment is on, so we make a second `?action=user&id=X` call after the first o
 
 **Badges:** `warned`, `donor`, `disabled`, `gazelle-paranoia`, `gazelle-unread`, `gazelle-announcement`
 
-**Stat Cards:** `seedbonus`, `gazelle-tokens`, `perfect-flacs`, `snatched-gazelle`, `torrents-uploaded`, `requests-filled`, `groups-contributed`, `invited`, `gazelle-bounty`, `gazelle-comments` (no `login-deadline` — loginIntervalDays is 0)
+**Stat Cards:** `seedbonus`, `gazelle-tokens`, `perfect-flacs`, `snatched-gazelle`, `torrents-uploaded`, `requests-filled`, `groups-contributed`, `invited`, `gazelle-bounty`, `gazelle-comments` (no `login-deadline`, loginIntervalDays is 0)
 
 **Progress:** none
 

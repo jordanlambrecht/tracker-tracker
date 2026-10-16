@@ -31,7 +31,7 @@ export const onlyencodes: TrackerRegistryEntry = {
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [
     // Dynamic. upload-based
-    { name: "Leech", requirements: "Ratio below 0.4" },
+    { name: "Leech", requirements: "Ratio below 0.4", outsideLadder: "below" },
     { name: "User", requirements: "Ratio ≥ 0.4" },
     { name: "Explorer", requirements: "Upload ≥ 1 TiB, ratio ≥ 0.4, age ≥ 1 month" },
     {
@@ -85,32 +85,46 @@ export const onlyencodes: TrackerRegistryEntry = {
       name: "OnlyCoinSpender",
       requirements:
         "Upload ≥ 908.59 TiB, ratio ≥ 1.0, age ≥ 12 months, seed size ≥ 5 TiB. Freeleech, 2x upload, H&R immune",
+      outsideLadder: "above",
     },
     // Staff-assigned
     {
       name: "Learner",
       requirements: "Staff — learning the ropes of uploading (Junior Uploader). Torrent mod bypass",
+      outsideLadder: "above",
     },
     {
       name: "Supplier",
       requirements:
         "Staff — uploads without staff needing to edit or fix. Freeleech, H&R immune, torrent mod bypass",
+      outsideLadder: "above",
     },
     {
       name: "ThunderKeeper",
       requirements:
         "Staff — internal uploaders. Freeleech, 2x upload, H&R immune, torrent mod bypass",
+      outsideLadder: "above",
     },
     {
       name: "SnowGlober",
       requirements: "Staff — legacy VIP class. Freeleech, 2x upload, H&R immune",
+      outsideLadder: "above",
     },
-    { name: "Bot", requirements: "Staff — automated release bot. H&R immune, torrent mod bypass" },
+    {
+      name: "Bot",
+      requirements: "Staff — automated release bot. H&R immune, torrent mod bypass",
+      outsideLadder: "above",
+    },
     {
       name: "Torrent Moderator",
       requirements: "Staff — freeleech, H&R immune, torrent mod bypass",
+      outsideLadder: "above",
     },
-    { name: "Editor", requirements: "Staff — freeleech, H&R immune, torrent mod bypass" },
+    {
+      name: "Editor",
+      requirements: "Staff — freeleech, H&R immune, torrent mod bypass",
+      outsideLadder: "above",
+    },
   ],
   releaseGroups: [
     "BiNGUS",

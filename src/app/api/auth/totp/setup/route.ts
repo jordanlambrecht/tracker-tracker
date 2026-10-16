@@ -21,7 +21,7 @@ export async function POST() {
   }
 
   if (settings.totpSecret) {
-    log.warn({ route: "POST /api/auth/totp/setup" }, "TOTP setup rejected — already enabled")
+    log.warn({ route: "POST /api/auth/totp/setup" }, "TOTP setup rejected: already enabled")
     return NextResponse.json({ error: "TOTP is already enabled" }, { status: 400 })
   }
 

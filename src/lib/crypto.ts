@@ -56,7 +56,7 @@ export function decrypt(encryptedBase64: string, key: Buffer): string {
   //   - Master-password rotation orphans those rows. change-password decrypts
   //     each credential with the old key to re-key it; a throw here does not
   //     abort the rotation, it drops the row into failedClients, leaves it
-  //     encrypted under the OLD key — permanently unreadable — and tells the
+  //     encrypted under the OLD key, permanently unreadable, and tells the
   //     user to re-enter credentials they deliberately left blank.
   //
   // Integrity is unaffected: the GCM auth tag covers a zero-length ciphertext,

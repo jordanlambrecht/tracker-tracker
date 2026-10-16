@@ -31,7 +31,11 @@ export const aither: TrackerRegistryEntry = {
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [
     // Dynamic. upload/seed-based
-    { name: "Leech", requirements: "Ratio below 0.4 — download privileges revoked" },
+    {
+      name: "Leech",
+      requirements: "Ratio below 0.4 — download privileges revoked",
+      outsideLadder: "below",
+    },
     { name: "Phobos", requirements: "Ratio ≥ 0.4. 4 download slots" },
     {
       name: "Harmonia",
@@ -72,26 +76,47 @@ export const aither: TrackerRegistryEntry = {
     {
       name: "Junior Uploader",
       requirements: "Staff — junior role model uploader. Torrent mod bypass",
+      outsideLadder: "above",
     },
-    { name: "Uploader", requirements: "Staff — role model uploader. Freeleech, H&R immune" },
-    { name: "Typhon", requirements: "Staff — deemed worthy. Freeleech, 2x upload, H&R immune" },
+    {
+      name: "Uploader",
+      requirements: "Staff — role model uploader. Freeleech, H&R immune",
+      outsideLadder: "above",
+    },
+    {
+      name: "Typhon",
+      requirements: "Staff — deemed worthy. Freeleech, 2x upload, H&R immune",
+      outsideLadder: "above",
+    },
     {
       name: "Contributor",
       requirements: "Staff — contributes work to Aither. Freeleech, H&R immune",
+      outsideLadder: "above",
     },
-    { name: "Trustee", requirements: "Staff — friends of the site. Freeleech, H&R immune" },
+    {
+      name: "Trustee",
+      requirements: "Staff — friends of the site. Freeleech, H&R immune",
+      outsideLadder: "above",
+    },
     {
       name: "Internal",
       requirements: "Staff — internal release group members. Freeleech, H&R immune",
+      outsideLadder: "above",
     },
-    { name: "FLS", requirements: "Staff — front line support. Unlimited download slots" },
+    {
+      name: "FLS",
+      requirements: "Staff — front line support. Unlimited download slots",
+      outsideLadder: "above",
+    },
     {
       name: "Editor",
       requirements: "Staff — fixes torrent pages and handles reports. Unlimited download slots",
+      outsideLadder: "above",
     },
     {
       name: "Torrent Moderator",
       requirements: "Staff — moderates torrent queue. Unlimited download slots",
+      outsideLadder: "above",
     },
   ],
   releaseGroups: [

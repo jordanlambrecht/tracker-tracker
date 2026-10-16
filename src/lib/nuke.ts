@@ -45,6 +45,7 @@ export async function scrubAndDeleteAll(): Promise<void> {
       // NULL is already its designed "no vault" state. Overwriting buys nothing
       // anyway. The rows are deleted at the bottom of this same transaction.
       encryptedCredentials: null,
+      encryptedMouseholeToken: null,
       name: randomHex(8),
       baseUrl: randomHex(16),
       lastError: null,

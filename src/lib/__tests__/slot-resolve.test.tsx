@@ -2,14 +2,15 @@
 
 import { describe, expect, it } from "vitest"
 import { resolveSlots } from "@/components/tracker-detail/resolve-slots"
+import type { Snapshot, TrackerSummary } from "@/types/api"
+import type { SlotContext } from "@/types/slots"
 import type {
   DigitalCorePlatformMeta,
   GazellePlatformMeta,
   GGnPlatformMeta,
   NebulancePlatformMeta,
-} from "@/lib/adapters/types"
-import type { Snapshot, TrackerSummary } from "@/types/api"
-import type { SlotContext } from "@/types/slots"
+  Unit3dPlatformMeta,
+} from "@/types/tracker-stats"
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -20,6 +21,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     id: 1,
     name: "Test Tracker",
     baseUrl: "https://tracker.example.com",
+    registrySlug: null,
     platformType: "ggn",
     isActive: true,
     lastPolledAt: null,
@@ -31,6 +33,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     color: "#00d4ff",
     qbtTag: null,
     mouseholeUrl: null,
+    hasMouseholeToken: false,
     hideUnreadBadges: false,
     useProxy: false,
     countCrossSeedUnsatisfied: false,
@@ -72,7 +75,7 @@ function makeSnapshot(overrides: Partial<Snapshot> = {}): Snapshot {
 const BASE_ACCENT = "#00d4ff"
 
 // ---------------------------------------------------------------------------
-// Helper — extract slot ids from the map for a given category
+// Helper, extract slot ids from the map for a given category
 // ---------------------------------------------------------------------------
 
 function slotIds(ctx: SlotContext, category: "badge" | "stat-card" | "progress"): string[] {
@@ -305,7 +308,7 @@ describe("Gazelle context", () => {
 })
 
 // ---------------------------------------------------------------------------
-// Test 3: Minimal context — no meta, snapshot with seedbonus
+// Test 3: Minimal context, no meta, snapshot with seedbonus
 // ---------------------------------------------------------------------------
 
 describe("minimal context (no meta, seedbonus present)", () => {
@@ -426,7 +429,7 @@ describe("priority ordering", () => {
 })
 
 // ---------------------------------------------------------------------------
-// Test 6: Mutual exclusion — Nebulance context
+// Test 6: Mutual exclusion, Nebulance context
 // ---------------------------------------------------------------------------
 
 describe("mutual exclusion: Nebulance snatched-nebulance vs seedbonus", () => {
@@ -465,7 +468,7 @@ describe("mutual exclusion: Nebulance snatched-nebulance vs seedbonus", () => {
 })
 
 // ---------------------------------------------------------------------------
-// Test 7: Mutual exclusion — GGn context (hourlyGold blocks seedbonus)
+// Test 7: Mutual exclusion, GGn context (hourlyGold blocks seedbonus)
 // ---------------------------------------------------------------------------
 
 describe("mutual exclusion: GGn hourlyGold blocks seedbonus", () => {
@@ -814,7 +817,7 @@ describe("security: slot resolution does not expose secrets", () => {
 
     const map = resolveSlots(ctx)
 
-    // Flatten ALL resolved slot props and verify no secrets leaked
+    // Flatten all resolved slot props and verify no secrets leaked
     const forbidden = [
       "encryptedApiToken",
       "passwordHash",
@@ -853,9 +856,6 @@ describe("security: slot resolution does not expose secrets", () => {
       accentColor: BASE_ACCENT,
     }
 
-    // "hourlyGold" in meta should NOT match via __proto__ for real JSON.parse output
-    // The gold slot resolves based on "hourlyGold" being a direct property of meta
-    // JSON.parse puts __proto__ as a literal own-key, not on the chain
     const cards = slotIds(ctx, "stat-card")
     // seedbonus should still resolve since there's no direct "hourlyGold" key
     expect(cards).toContain("seedbonus")
@@ -985,5 +985,71 @@ describe("slot resolution — DigitalCore", () => {
 
   it("resolves disabled badge when enabled is false", () => {
     expect(slotIds(dcCtx({ enabled: false }), "badge")).toContain("disabled")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// UNIT3D context: the API key expiry card (issue #214 follow-up)
+// ---------------------------------------------------------------------------
+
+describe("UNIT3D context", () => {
+  const unit3dMeta: Unit3dPlatformMeta = { apiKeyExpiresAt: "2027-01-01T00:00:00+00:00" }
+
+  function unit3dCtx(overrides: Partial<SlotContext> = {}): SlotContext {
+    return {
+      tracker: makeTracker({ platformType: "unit3d" }),
+      latestSnapshot: makeSnapshot(),
+      meta: unit3dMeta,
+      registry: undefined,
+      accentColor: BASE_ACCENT,
+      ...overrides,
+    }
+  }
+
+  it("resolves api-key-expiry when the tracker reports an expiry", () => {
+    expect(slotIds(unit3dCtx(), "stat-card")).toContain("api-key-expiry")
+  })
+
+  it("hands the card the expiry as a 30-day deadline ring", () => {
+    const slot = resolveSlots(unit3dCtx())
+      .get("stat-card")
+      ?.find((s) => s.id === "api-key-expiry")
+    expect(slot?.span).toBe(2)
+    expect(slot?.props).toMatchObject({
+      type: "deadline",
+      title: "API Key Expiry",
+      deadlineAt: "2027-01-01T00:00:00+00:00",
+      windowDays: 30,
+      accentColor: BASE_ACCENT,
+    })
+  })
+
+  it("sits beside the login deadline card", () => {
+    const registry = {
+      rules: { loginIntervalDays: 90 },
+    } as unknown as SlotContext["registry"]
+    const ctx = unit3dCtx({
+      tracker: makeTracker({ platformType: "unit3d", lastAccessAt: "2026-08-01" }),
+      registry,
+    })
+    // With no seedbonus and no other meta these are the only two stat cards,
+    // so the assertion fails if either stops resolving rather than passing
+    // vacuously on two absent ids.
+    expect(slotIds(ctx, "stat-card")).toEqual(["login-deadline", "api-key-expiry"])
+  })
+
+  it("does not resolve without meta", () => {
+    expect(slotIds(unit3dCtx({ meta: null }), "stat-card")).not.toContain("api-key-expiry")
+  })
+
+  it("does not resolve for an expiry that is not a date", () => {
+    expect(slotIds(unit3dCtx({ meta: { apiKeyExpiresAt: "soon" } }), "stat-card")).not.toContain(
+      "api-key-expiry"
+    )
+  })
+
+  it("does not resolve for another platform carrying the same meta", () => {
+    const ctx = unit3dCtx({ tracker: makeTracker({ platformType: "gazelle" }) })
+    expect(slotIds(ctx, "stat-card")).not.toContain("api-key-expiry")
   })
 })

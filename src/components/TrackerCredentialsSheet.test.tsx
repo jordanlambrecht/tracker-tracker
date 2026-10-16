@@ -8,10 +8,10 @@
 // The three that would be silent regressions in production:
 //   - copy must not reveal (a copy that leaks into the DOM still "works", so
 //     nothing but a test catches it);
-//   - saving must OMIT values the client never held (a save that sends
+//   - saving must omit values the client never held (a save that sends
 //     `value: ""` looks successful and destroys the vault);
-//   - the clipboard fallback must speak up (this app is served over plain HTTP
-//     on a LAN constantly, where navigator.clipboard simply does not exist).
+//   - the clipboard fallback must speak up (this app is often served over plain
+//     HTTP on a LAN, where navigator.clipboard does not exist).
 
 import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
@@ -25,7 +25,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }))
 
 const PASSKEY = "super-secret-passkey-value"
 
-/** What GET returns: the MASKED view. Note no `value` on the secret field. */
+/** What GET returns: the masked view. Note no `value` on the secret field. */
 const VAULT_VIEW = {
   v: 1,
   sections: [
@@ -33,7 +33,7 @@ const VAULT_VIEW = {
       id: "irc",
       title: "IRC",
       fields: [
-        { id: "irc_nick", label: "Nick", secret: false, value: "jordy" },
+        { id: "irc_nick", label: "Nick", secret: false, value: "tealotter" },
         { id: "passkey", label: "Passkey", secret: true, hasValue: true },
       ],
     },
@@ -49,7 +49,9 @@ function jsonResponse(body: unknown, { ok = true, status = 200 } = {}) {
 }
 
 function putCalls() {
-  return fetchMock.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "PUT")
+  return fetchMock.mock.calls.filter(
+    ([, init]) => (init as RequestInit | undefined)?.method === "PUT"
+  )
 }
 
 function revealCalls() {
@@ -67,10 +69,10 @@ function renderSheet(overrides: Partial<TrackerCredentialsSheetProps> = {}) {
     open: true,
     trackerId: 42,
     trackerName: "Aither",
-    // Deliberately NOT in the registry, so the defaults seed is the deterministic
-    // universal fallback (a single `api_key`) rather than whatever platform list
-    // the registry happens to carry today.
-    trackerBaseUrl: "https://not-a-real-tracker.test",
+    // No slug, so the defaults seed is the deterministic universal fallback (a
+    // single `api_key`) rather than whatever platform list the registry happens
+    // to carry today.
+    trackerRegistrySlug: null,
     onClose: vi.fn(),
     ...overrides,
   }
@@ -85,15 +87,9 @@ async function ready() {
 
 // ─── Clipboard stubbing ───────────────────────────────────────────────────────
 //
-// jsdom implements NEITHER navigator.clipboard nor document.execCommand, so both
-// have to be installed by hand — which is convenient, because varying them is
-// exactly how the fallback ladder gets tested.
-//
-// The trap: userEvent.setup() installs its OWN clipboard stub over the top of
-// whatever is there. Anything defined in beforeEach is therefore silently
-// replaced the moment a test calls it, and the assertion fails with the
-// baffling "[AsyncFunction writeText] is not a spy". setupUser() below exists
-// solely to re-install ours AFTER userEvent has had its turn.
+// jsdom has neither navigator.clipboard nor document.execCommand, so both are
+// stubbed by hand. userEvent.setup() installs its own clipboard stub over ours,
+// so setupUser() puts ours back after it.
 
 let clipboardStub: { writeText: ReturnType<typeof vi.fn> } | undefined
 let execCommandStub: ReturnType<typeof vi.fn>
@@ -154,7 +150,7 @@ describe("the sheet loads masked", () => {
     const passkey = screen.getByLabelText("Passkey") as HTMLInputElement
     expect(passkey.type).toBe("password")
     expect(passkey.value).toBe("")
-    // The value is not merely hidden by CSS — it was never sent.
+    // The value is not merely hidden by CSS, it was never sent.
     expect(document.body.textContent).not.toContain(PASSKEY)
     // Loading the sheet must not cost one reveal per secret; that is the entire
     // difference between reveal-on-demand and "fetch everything then hide it".
@@ -165,9 +161,9 @@ describe("the sheet loads masked", () => {
     renderSheet()
     await ready()
 
-    // secret: false means exactly this — an IRC nick is not a secret and does
+    // secret: false means exactly this, an IRC nick is not a secret and does
     // not deserve a reveal round trip.
-    expect((screen.getByLabelText("Nick") as HTMLInputElement).value).toBe("jordy")
+    expect((screen.getByLabelText("Nick") as HTMLInputElement).value).toBe("tealotter")
     expect(revealCalls()).toHaveLength(0)
   })
 
@@ -194,7 +190,7 @@ describe("reveal fetches exactly one field", () => {
     const [url, init] = revealCalls()[0]
     expect(String(url)).toContain("/api/trackers/42/credentials/reveal")
     expect((init as RequestInit).method).toBe("POST")
-    // The id travels in the BODY, not the URL — URLs land in access logs and
+    // The id travels in the body, not the URL, URLs land in access logs and
     // browser history.
     expect(JSON.parse(String((init as RequestInit).body))).toEqual({ fieldId: "passkey" })
   })
@@ -221,10 +217,13 @@ describe("reveal fetches exactly one field", () => {
     const user = setupUser()
     fetchMock.mockImplementation(async (url: unknown) => {
       if (String(url).includes("/reveal")) {
-        return jsonResponse({ error: "Too many reveals. Wait a moment and try again." }, {
-          ok: false,
-          status: 429,
-        })
+        return jsonResponse(
+          { error: "Too many reveals. Wait a moment and try again." },
+          {
+            ok: false,
+            status: 429,
+          }
+        )
       }
       return jsonResponse({ vault: VAULT_VIEW })
     })
@@ -250,7 +249,7 @@ describe("copy works WITHOUT revealing", () => {
     await user.click(screen.getByRole("button", { name: "Copy Passkey" }))
 
     await waitFor(() => expect(clipboardStub?.writeText).toHaveBeenCalledWith(PASSKEY))
-    // The whole point: the fetched value went to the clipboard and nowhere else.
+    // The fetched value went to the clipboard and nowhere else.
     const passkey = screen.getByLabelText("Passkey") as HTMLInputElement
     expect(passkey.type).toBe("password")
     expect(passkey.value).toBe("")
@@ -308,7 +307,7 @@ describe("copy works WITHOUT revealing", () => {
 
     await user.click(screen.getByRole("button", { name: "Show API key" }))
 
-    // There is nothing to reveal, so no round trip — and flipping to shown must
+    // There is nothing to reveal, so no round trip, and flipping to shown must
     // not quietly convert "not held" into "held and empty", which is an edit.
     expect(revealCalls()).toHaveLength(0)
     await waitFor(() => expect(screen.getByRole("button", { name: "Save" })).toBeDisabled())
@@ -334,7 +333,7 @@ describe("copy works WITHOUT revealing", () => {
 describe("the clipboard fallback", () => {
   it("falls back to execCommand when navigator.clipboard is absent", async () => {
     // Exactly the shape of a plain-HTTP LAN deployment: the Clipboard API is not
-    // merely permission-denied there, it is UNDEFINED.
+    // merely permission-denied there, it is undefined.
     clipboardStub = undefined
     const user = setupUser()
     renderSheet()
@@ -354,7 +353,7 @@ describe("the clipboard fallback", () => {
     await user.click(screen.getByRole("button", { name: "Copy Passkey" }))
 
     // Safari treats a write after a network round trip as outside the user
-    // gesture, which rejects — the ladder has to catch that, not just absence.
+    // gesture, which rejects, the ladder has to catch that, not just absence.
     await waitFor(() => expect(execCommandStub).toHaveBeenCalledWith("copy"))
   })
 
@@ -382,7 +381,7 @@ describe("the clipboard fallback", () => {
     await user.click(screen.getByRole("button", { name: "Copy Passkey" }))
 
     // The escape hatch: if the machine cannot copy for them, at least let them
-    // read it. Deliberately a second, explicit click — not automatic.
+    // read it. Deliberately a second, explicit click, not automatic.
     await user.click(await screen.findByRole("button", { name: "Show it instead" }))
     await waitFor(() =>
       expect((screen.getByLabelText("Passkey") as HTMLInputElement).value).toBe(PASSKEY)
@@ -406,8 +405,8 @@ describe("the opt-in gate", () => {
 
     expect(await screen.findByText(/Credential storage is turned off/)).toBeInTheDocument()
     const link = screen.getByRole("link", { name: "Enable in Settings" })
-    // The owner's requirement is verbatim "links DIRECTLY to that toggle". A bare
-    // /settings link would satisfy the words and not the intent.
+    // The link must land on the toggle itself. A bare /settings link leaves the
+    // user hunting for it.
     expect(link).toHaveAttribute("href", "/settings#credential-vault-heading")
   })
 
@@ -420,7 +419,7 @@ describe("the opt-in gate", () => {
   })
 
   it("treats an ordinary 403 as an error, not as the gate", async () => {
-    // The gate is identified by a FIELD. A 403 without it is a real failure and
+    // The gate is identified by a field. A 403 without it is a real failure and
     // must not be dressed up as a friendly opt-in prompt.
     getResponse = { ok: false, status: 403, body: { error: "Forbidden" } }
     renderSheet()
@@ -454,7 +453,7 @@ describe("saving", () => {
     expect(lastPutVault().sections[0].fields[0]).toMatchObject({
       id: "irc_nick",
       secret: false,
-      value: "jordy",
+      value: "tealotter",
     })
   })
 
@@ -513,7 +512,11 @@ describe("saving", () => {
 
   it("shows the server's error when the save fails, and keeps the draft", async () => {
     const user = setupUser()
-    putResponse = { ok: false, status: 500, body: { error: "Could not read the stored credentials" } }
+    putResponse = {
+      ok: false,
+      status: 500,
+      body: { error: "Could not read the stored credentials" },
+    }
     renderSheet()
     await ready()
 
@@ -553,7 +556,7 @@ describe("sections and fields", () => {
     await ready()
 
     await user.click(screen.getByRole("button", { name: "Add section" }))
-    // ARRAY ORDER IS DISPLAY ORDER — there is no sortOrder to get out of sync.
+    // Array order is display order, there is no sortOrder to get out of sync.
     expect(screen.getByRole("button", { name: "Move IRC up" })).toBeDisabled()
 
     await user.click(screen.getByRole("button", { name: "Move IRC down" }))
@@ -574,7 +577,7 @@ describe("sections and fields", () => {
 
     await waitFor(() => expect(putCalls()).toHaveLength(1))
     const added = lastPutVault().sections[0].fields[2]
-    // Derived late, from what the user actually typed — so it lands as
+    // Derived late, from what the user actually typed, so it lands as
     // `announce_url` rather than as `new_field`.
     expect(added.id).toBe("announce_url")
     expect(added.value).toBe("")
@@ -601,11 +604,20 @@ describe("a tracker with no vault yet", () => {
     renderSheet()
     await ready()
 
-    // The universal fallback for an unrecognised tracker.
+    // The universal fallback for a row that names no registry entry.
     expect(screen.getByLabelText("API key")).toBeInTheDocument()
     expect((screen.getAllByLabelText("Section title")[0] as HTMLInputElement).value).toBe(
       "Credentials"
     )
+  })
+
+  it("seeds the fields of the entry the row's slug names", async () => {
+    // Aither is unit3d, whose defaults carry an RSS key the universal fallback
+    // does not.
+    renderSheet({ trackerRegistrySlug: "aither" })
+    await ready()
+
+    expect(screen.getByLabelText("RSS key")).toBeInTheDocument()
   })
 
   it("does not count the seed as an unsaved change", async () => {

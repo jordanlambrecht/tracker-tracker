@@ -21,15 +21,51 @@ export const yuscene: TrackerRegistryEntry = {
   statusPageUrl: "",
   userClasses: [
     { name: "User", requirements: "Upload ≥ 0 B, ratio ≥ 0.00, age ≥ 0. 20 download slots" },
-    { name: "PowerUser", requirements: "Upload ≥ 1 TiB, ratio ≥ 0.40, age ≥ 1 month. Unlimited download slots, invite sending" },
-    { name: "SuperUser", requirements: "Upload ≥ 5 TiB, ratio ≥ 0.40, age ≥ 2 months. Unlimited download slots, invite sending" },
-    { name: "ExtremeUser", requirements: "Upload ≥ 20 TiB, ratio ≥ 0.40, age ≥ 3 months. Unlimited download slots, invite sending" },
-    { name: "InsaneUser", requirements: "Upload ≥ 50 TiB, ratio ≥ 0.40, age ≥ 6 months. Unlimited download slots, invite sending" },
-    { name: "Veteran", requirements: "Upload ≥ 100 TiB, ratio ≥ 0.40, age ≥ 1 year. Unlimited download slots, invite sending, freeleech, H&R immune, torrent mod bypass" },
-    { name: "Seeder", requirements: "Seed size ≥ 4 TiB, ratio ≥ 0.40, age ≥ 1 month. Unlimited download slots, invite, freeleech, torrent mod bypass" },
-    { name: "Curator", requirements: "Seed size ≥ 10 TiB, ratio ≥ 0.40, age ≥ 2 months, avg seedtime ≥ 1 month. Unlimited download slots, invite, freeleech, H&R immune, torrent mod bypass" },
-    { name: "Archivist", requirements: "Seed size ≥ 20 TiB, ratio ≥ 0.40, age ≥ 3 months, avg seedtime ≥ 2 months. Unlimited download slots, invite, freeleech, double upload, H&R immune, torrent mod bypass" },
-    { name: "Titan", requirements: "Seed size ≥ 40 TiB, ratio ≥ 0.40, age ≥ 3 months, avg seedtime ≥ 3 months. Unlimited download slots, invite, freeleech, double upload, H&R immune, torrent mod bypass" }
+    {
+      name: "PowerUser",
+      requirements:
+        "Upload ≥ 1 TiB, ratio ≥ 0.40, age ≥ 1 month. Unlimited download slots, invite sending",
+    },
+    {
+      name: "SuperUser",
+      requirements:
+        "Upload ≥ 5 TiB, ratio ≥ 0.40, age ≥ 2 months. Unlimited download slots, invite sending",
+    },
+    {
+      name: "ExtremeUser",
+      requirements:
+        "Upload ≥ 20 TiB, ratio ≥ 0.40, age ≥ 3 months. Unlimited download slots, invite sending",
+    },
+    {
+      name: "InsaneUser",
+      requirements:
+        "Upload ≥ 50 TiB, ratio ≥ 0.40, age ≥ 6 months. Unlimited download slots, invite sending",
+    },
+    {
+      name: "Veteran",
+      requirements:
+        "Upload ≥ 100 TiB, ratio ≥ 0.40, age ≥ 1 year. Unlimited download slots, invite sending, freeleech, H&R immune, torrent mod bypass",
+    },
+    {
+      name: "Seeder",
+      requirements:
+        "Seed size ≥ 4 TiB, ratio ≥ 0.40, age ≥ 1 month. Unlimited download slots, invite, freeleech, torrent mod bypass",
+    },
+    {
+      name: "Curator",
+      requirements:
+        "Seed size ≥ 10 TiB, ratio ≥ 0.40, age ≥ 2 months, avg seedtime ≥ 1 month. Unlimited download slots, invite, freeleech, H&R immune, torrent mod bypass",
+    },
+    {
+      name: "Archivist",
+      requirements:
+        "Seed size ≥ 20 TiB, ratio ≥ 0.40, age ≥ 3 months, avg seedtime ≥ 2 months. Unlimited download slots, invite, freeleech, double upload, H&R immune, torrent mod bypass",
+    },
+    {
+      name: "Titan",
+      requirements:
+        "Seed size ≥ 40 TiB, ratio ≥ 0.40, age ≥ 3 months, avg seedtime ≥ 3 months. Unlimited download slots, invite, freeleech, double upload, H&R immune, torrent mod bypass",
+    },
   ],
   releaseGroups: [
     { name: "YUTeamHD", description: "Internal release group" },

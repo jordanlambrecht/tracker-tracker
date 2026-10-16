@@ -3,8 +3,8 @@
 // Functions: (types only)
 
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
-import type { PlatformMeta } from "@/lib/adapters/types"
 import type { Snapshot, TrackerSummary } from "@/types/api"
+import type { PlatformMeta } from "@/types/tracker-stats"
 
 export type SlotCategory = "badge" | "stat-card" | "progress"
 
