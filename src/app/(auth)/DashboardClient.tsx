@@ -3,6 +3,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { H1 } from "@typography"
+import clsx from "clsx"
 import dynamic from "next/dynamic"
 import { useMemo, useState, useTransition } from "react"
 import { DashboardSkeleton } from "@/app/(auth)/DashboardSkeleton"
@@ -23,7 +24,7 @@ import { TrackerLeaderboard } from "@/components/dashboard/TrackerLeaderboard"
 import { TrackerOverviewGrid } from "@/components/dashboard/TrackerOverviewGrid"
 import { useChartPreferences } from "@/components/dashboard/useChartPreferences"
 import { useDashboardSettings } from "@/components/dashboard/useDashboardSettings"
-import { Button, Divider, GearIcon, TabBar } from "@/components/ui"
+import { Button, ClockIcon, Divider, GearIcon, TabBar } from "@/components/ui"
 import { SectionToggle } from "@/components/ui/SectionToggle"
 import { ChartGridSkeleton } from "@/components/ui/skeletons"
 import { useDashboardData } from "@/hooks/useDashboardData"
@@ -32,7 +33,7 @@ import { useSectionCollapse } from "@/hooks/useSectionCollapse"
 import { computeAggregateStats } from "@/lib/dashboard"
 import type { FleetAggregation } from "@/lib/fleet-aggregation"
 import { fleetCachedQueryOptions } from "@/lib/query-options"
-import type { Snapshot, TrackerSummary } from "@/types/api"
+import type { Snapshot, TodayAtAGlance as TodayAtAGlanceData, TrackerSummary } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 
 const DashboardSettingsSheet = dynamic(
@@ -90,6 +91,16 @@ export function DashboardClient({
   const [deferredTab, setDeferredTab] = useState<"tracker-stats" | "torrent-fleet">("tracker-stats")
   const [, startTransition] = useTransition()
   const intervals = usePollingIntervals()
+  const [showYesterday, setShowYesterday] = useState(false)
+  const yesterdayQuery = useQuery({
+    queryKey: ["dashboard-today", "yesterday"],
+    enabled: showYesterday,
+    queryFn: async ({ signal }): Promise<TodayAtAGlanceData> => {
+      const res = await fetch("/api/dashboard/today?day=yesterday", { signal })
+      if (!res.ok) throw new Error("Failed to fetch yesterday data")
+      return res.json()
+    },
+  })
 
   // Tag group counts read the Torrent Fleet tab's cached aggregation, so they cost nothing
   // before first paint and refresh on the fleet's schedule, its refresh button included.
@@ -154,13 +165,34 @@ export function DashboardClient({
       {/* Today At A Glance */}
       {dashSettings.settings.showTodayAtAGlance && (
         <div className="flex flex-col gap-4">
-          <SectionToggle
-            label="Today At A Glance"
-            expanded={todayAtAGlanceExpanded}
-            onToggle={() => sectionCollapse.toggle("today-at-a-glance")}
-          />
+          <div className="flex items-center gap-2">
+            <SectionToggle
+              label={showYesterday ? "Yesterday At A Glance" : "Today At A Glance"}
+              expanded={todayAtAGlanceExpanded}
+              onToggle={() => sectionCollapse.toggle("today-at-a-glance")}
+            />
+            <button
+              type="button"
+              aria-pressed={showYesterday}
+              aria-label={showYesterday ? "Show today" : "Show yesterday"}
+              title={showYesterday ? "Show today" : "Show yesterday"}
+              onClick={() => setShowYesterday((v) => !v)}
+              className={clsx(
+                "cursor-pointer transition-colors duration-150",
+                showYesterday ? "text-accent" : "text-tertiary hover:text-secondary"
+              )}
+            >
+              <ClockIcon width={14} height={14} />
+            </button>
+          </div>
           {todayAtAGlanceExpanded &&
-            (data.todayData ? (
+            (showYesterday ? (
+              yesterdayQuery.data ? (
+                <TodayAtAGlance data={yesterdayQuery.data} day="yesterday" />
+              ) : yesterdayQuery.isLoading ? (
+                <TodayAtAGlanceSkeleton />
+              ) : null
+            ) : data.todayData ? (
               <TodayAtAGlance data={data.todayData} />
             ) : data.todayLoading ? (
               <TodayAtAGlanceSkeleton />

@@ -96,6 +96,8 @@ vi.mock("@/lib/db/schema", () => ({
 }))
 
 vi.mock("drizzle-orm", () => ({
+  and: vi.fn((..._conds: unknown[]) => ({ type: "and" })),
+  lt: vi.fn((_col: unknown, _val: unknown) => ({ type: "lt" })),
   eq: vi.fn((_col: unknown, _val: unknown) => ({ type: "eq" })),
   gte: vi.fn((_col: unknown, _val: unknown) => ({ type: "gte" })),
   inArray: vi.fn((_col: unknown, _vals: unknown) => ({ type: "inArray" })),
@@ -772,6 +774,73 @@ describe("computeTodayAtAGlance — activity counts", () => {
 // ---------------------------------------------------------------------------
 // Output shape invariants
 // ---------------------------------------------------------------------------
+
+describe("computeTodayAtAGlance — yesterday", () => {
+  const today = localDateStr()
+  const yesterday = localDateStr(Date.now() - 86400000)
+  const at = (date: string) => (cp: ReturnType<typeof makeTorrentCheckpoint>) => ({
+    ...cp,
+    checkpointDate: date,
+  })
+
+  it("measures movers between yesterday's and today's checkpoints", async () => {
+    const tracker = makeTracker(1, { qbtTag: "aither" })
+    const torrent = makeTorrent("hash1", "Some Movie", "aither", 9000000000, 9000000000)
+    const client = { id: 1, name: "qBit", cachedTorrents: JSON.stringify([torrent]) }
+    seedStore(
+      [tracker],
+      [],
+      [],
+      [],
+      [
+        at(yesterday)(makeTorrentCheckpoint(1, "hash1", "1000000000", "0")),
+        at(today)(makeTorrentCheckpoint(1, "hash1", "3000000000", "500")),
+      ],
+      [client]
+    )
+
+    const result = await computeTodayAtAGlance("yesterday")
+
+    expect(result.movers.topUploaders[0].uploadedToday).toBe("2000000000")
+    expect(result.movers.topDownloaders[0].downloadedToday).toBe("500")
+    expect(result.clientLastUpdated).toBeNull()
+  })
+
+  it("skips torrents without a checkpoint for the end of yesterday", async () => {
+    const tracker = makeTracker(1, { qbtTag: "aither" })
+    const torrent = makeTorrent("hash1", "Some Movie", "aither", 9000000000, 0)
+    const client = { id: 1, name: "qBit", cachedTorrents: JSON.stringify([torrent]) }
+    seedStore(
+      [tracker],
+      [],
+      [],
+      [],
+      [at(yesterday)(makeTorrentCheckpoint(1, "hash1", "1000000000", "0"))],
+      [client]
+    )
+
+    const result = await computeTodayAtAGlance("yesterday")
+
+    expect(result.movers.topUploaders).toHaveLength(0)
+  })
+
+  it("compares against the two days before yesterday", async () => {
+    const tracker = makeTracker(1)
+    const d2 = localDateStr(Date.now() - 2 * 86400000)
+    const d3 = localDateStr(Date.now() - 3 * 86400000)
+    seedStore(
+      [tracker],
+      [],
+      [makeTrackerCheckpoint(1, d2, "3000", "300")],
+      [makeTrackerCheckpoint(1, d3, "1000", "100")]
+    )
+
+    const result = await computeTodayAtAGlance("yesterday")
+
+    expect(result.fleet.uploadDeltaYesterday).toBe("2000")
+    expect(result.fleet.downloadDeltaYesterday).toBe("200")
+  })
+})
 
 describe("computeTodayAtAGlance — output shape", () => {
   it("fleet object has all required keys", async () => {

@@ -4,7 +4,7 @@
 
 import "server-only"
 
-import { eq, gte, inArray, sql } from "drizzle-orm"
+import { and, eq, gte, inArray, lt, sql } from "drizzle-orm"
 import { compareBigIntDesc, isUnixTimestampOnDate } from "@/lib/data-transforms"
 import { db } from "@/lib/db"
 import {
@@ -55,18 +55,24 @@ interface TorrentMover {
 }
 
 /**
- * Computes the entire TodayAtAGlance payload in a single call.
+ * Computes the entire TodayAtAGlance payload for today, or for yesterday.
  * Fetches all required data in parallel where possible, then aggregates
  * fleet-level deltas, yesterday comparisons, torrent movers, and activity counts.
  */
-export async function computeTodayAtAGlance(): Promise<TodayAtAGlance> {
+export async function computeTodayAtAGlance(
+  day: "today" | "yesterday" = "today"
+): Promise<TodayAtAGlance> {
   // ── Date boundaries (local timezone) ──────────────────────────────────────
   const now = Date.now()
-  const todayStr = localDateStr()
-  // Start of today in local timezone for snapshot filtering
+  const offset = day === "yesterday" ? 86400000 : 0
+  // The day being summarised, and for yesterday the day after it
+  const todayStr = localDateStr(now - offset)
+  const nextDayStr = offset ? localDateStr(now) : null
   const todayStart = new Date(`${todayStr}T00:00:00`)
-  const yesterdayStr = localDateStr(now - 86400000)
-  const dayBeforeStr = localDateStr(now - 172800000)
+  const nextDayStart = nextDayStr ? new Date(`${nextDayStr}T00:00:00`) : null
+  // The two days before it, for the comparison
+  const yesterdayStr = localDateStr(now - offset - 86400000)
+  const dayBeforeStr = localDateStr(now - offset - 172800000)
 
   // ── Parallel data fetches ─────────────────────────────────────────────────
   const [allTrackers, todaySnapshots, checkpointRows, torrentCps, clients] = await Promise.all([
@@ -92,7 +98,14 @@ export async function computeTodayAtAGlance(): Promise<TodayAtAGlance> {
         seedbonus: trackerSnapshots.seedbonus,
       })
       .from(trackerSnapshots)
-      .where(gte(trackerSnapshots.polledAt, todayStart))
+      .where(
+        nextDayStart
+          ? and(
+              gte(trackerSnapshots.polledAt, todayStart),
+              lt(trackerSnapshots.polledAt, nextDayStart)
+            )
+          : gte(trackerSnapshots.polledAt, todayStart)
+      )
       .orderBy(trackerSnapshots.polledAt),
 
     db
@@ -110,11 +123,16 @@ export async function computeTodayAtAGlance(): Promise<TodayAtAGlance> {
       .select({
         clientId: torrentDailyCheckpoints.clientId,
         hash: torrentDailyCheckpoints.hash,
+        checkpointDate: torrentDailyCheckpoints.checkpointDate,
         uploadedStart: torrentDailyCheckpoints.uploadedStart,
         downloadedStart: torrentDailyCheckpoints.downloadedStart,
       })
       .from(torrentDailyCheckpoints)
-      .where(eq(torrentDailyCheckpoints.checkpointDate, todayStr)),
+      .where(
+        nextDayStr
+          ? inArray(torrentDailyCheckpoints.checkpointDate, [todayStr, nextDayStr])
+          : eq(torrentDailyCheckpoints.checkpointDate, todayStr)
+      ),
 
     db
       .select({
@@ -248,8 +266,16 @@ export async function computeTodayAtAGlance(): Promise<TodayAtAGlance> {
 
   // ── Torrent movers ─────────────────────────────────────────────────────────
 
-  // Build checkpoint lookup
-  const cpByKey = new Map(torrentCps.map((cp) => [`${cp.clientId}:${cp.hash}`, cp]))
+  // Build checkpoint lookups. A past day ends where the next day's checkpoint starts.
+  const startCps = nextDayStr
+    ? torrentCps.filter((cp) => cp.checkpointDate === todayStr)
+    : torrentCps
+  const cpByKey = new Map(startCps.map((cp) => [`${cp.clientId}:${cp.hash}`, cp]))
+  const endByKey = new Map(
+    torrentCps
+      .filter((cp) => nextDayStr && cp.checkpointDate === nextDayStr)
+      .map((cp) => [`${cp.clientId}:${cp.hash}`, cp])
+  )
 
   const movers: TorrentMover[] = []
   let addedToday = 0
@@ -275,12 +301,17 @@ export async function computeTodayAtAGlance(): Promise<TodayAtAGlance> {
       const key = `${client.id}:${torrent.hash}`
       const checkpoint = cpByKey.get(key)
       if (!checkpoint) continue
+      const end = nextDayStr ? endByKey.get(key) : undefined
+      if (nextDayStr && !end) continue
 
       let uploadedToday: bigint
       let downloadedToday: bigint
       try {
-        uploadedToday = BigInt(torrent.uploaded) - BigInt(checkpoint.uploadedStart)
-        downloadedToday = BigInt(torrent.downloaded) - BigInt(checkpoint.downloadedStart)
+        uploadedToday =
+          BigInt(end ? end.uploadedStart : torrent.uploaded) - BigInt(checkpoint.uploadedStart)
+        downloadedToday =
+          BigInt(end ? end.downloadedStart : torrent.downloaded) -
+          BigInt(checkpoint.downloadedStart)
       } catch (err) {
         log.warn(err, "BigInt conversion failed for torrent %s", torrent.hash)
         continue
@@ -374,7 +405,7 @@ export async function computeTodayAtAGlance(): Promise<TodayAtAGlance> {
       todaySnapshots.length > 0
         ? todaySnapshots[todaySnapshots.length - 1].polledAt.toISOString()
         : null,
-    clientLastUpdated: latestClientPoll?.toISOString() ?? null,
+    clientLastUpdated: nextDayStr ? null : (latestClientPoll?.toISOString() ?? null),
   }
 }
 

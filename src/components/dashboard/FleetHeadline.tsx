@@ -12,19 +12,21 @@ import {
 import { StatCard } from "@/components/ui/StatCard"
 import { computePctChange } from "@/lib/data-transforms"
 import { formatBytesFromString, formatCount, splitValueUnit } from "@/lib/formatters"
-import type { TodayAtAGlance } from "@/types/api"
+import type { GlanceDay, TodayAtAGlance } from "@/types/api"
 
 interface FleetHeadlineProps {
   fleet: TodayAtAGlance["fleet"]
+  day?: GlanceDay
 }
 
-function pctLabel(pct: number | null): string | undefined {
+function pctLabel(pct: number | null, versus: string): string | undefined {
   if (pct === null) return undefined
   const rounded = Math.round(pct)
-  return rounded >= 0 ? `+${rounded}% vs yesterday` : `${rounded}% vs yesterday`
+  return rounded >= 0 ? `+${rounded}% vs ${versus}` : `${rounded}% vs ${versus}`
 }
 
-export function FleetHeadline({ fleet }: FleetHeadlineProps) {
+export function FleetHeadline({ fleet, day = "today" }: FleetHeadlineProps) {
+  const versus = day === "today" ? "yesterday" : "the day before"
   const uploadParts = splitValueUnit(formatBytesFromString(fleet.uploadDelta))
   const downloadParts = splitValueUnit(formatBytesFromString(fleet.downloadDelta))
   const bufferParts = splitValueUnit(formatBytesFromString(fleet.bufferDelta))
@@ -60,7 +62,7 @@ export function FleetHeadline({ fleet }: FleetHeadlineProps) {
         label="Upload gained"
         value={uploadParts.num}
         unit={uploadParts.unit}
-        subValue={pctLabel(uploadPct)}
+        subValue={pctLabel(uploadPct, versus)}
         accentColor={CHART_THEME.upload}
         icon={<UploadArrowIcon width="16" height="16" />}
       />
@@ -69,7 +71,7 @@ export function FleetHeadline({ fleet }: FleetHeadlineProps) {
         label="Download gained"
         value={downloadParts.num}
         unit={downloadParts.unit}
-        subValue={pctLabel(downloadPct)}
+        subValue={pctLabel(downloadPct, versus)}
         accentColor={CHART_THEME.download}
         icon={<DownloadArrowIcon width="16" height="16" />}
       />
@@ -78,7 +80,7 @@ export function FleetHeadline({ fleet }: FleetHeadlineProps) {
         label="Buffer change"
         value={bufferParts.num}
         unit={bufferParts.unit}
-        subValue={pctLabel(bufferPct)}
+        subValue={pctLabel(bufferPct, versus)}
         accentColor={CHART_THEME.accent}
         icon={<ShieldIcon width="16" height="16" />}
       />
