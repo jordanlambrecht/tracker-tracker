@@ -27,6 +27,9 @@ beforeEach(() => {
     const res = Object.assign(Readable.from([Buffer.from('{"ok":true}')]), {
       statusCode: 200,
       statusMessage: "OK",
+      // An IncomingMessage always carries headers; proxyFetch reads
+      // content-encoding off them to decode the body.
+      headers: {},
     })
     queueMicrotask(() => callback(res))
     return { on: vi.fn(), write: vi.fn(), end: vi.fn(), destroy: vi.fn() }
