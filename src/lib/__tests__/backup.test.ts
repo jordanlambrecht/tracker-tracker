@@ -560,7 +560,13 @@ describe("BACKUP_CLIENT_COLUMNS", () => {
   // without that credential. So assert the columns by name.
   it("carries every credential column a client can authenticate with", () => {
     const keys = Object.keys(BACKUP_CLIENT_COLUMNS)
-    for (const key of ["authMethod", "encryptedUsername", "encryptedPassword", "encryptedApiKey"]) {
+    for (const key of [
+      "authMethod",
+      "encryptedUsername",
+      "encryptedPassword",
+      "encryptedApiKey",
+      "encryptedUrlPath",
+    ]) {
       expect(keys).toContain(key)
     }
   })

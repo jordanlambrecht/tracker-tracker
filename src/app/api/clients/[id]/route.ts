@@ -12,6 +12,7 @@ import {
   validateIntRange,
   validateMaxLength,
   validatePort,
+  validateUrlPath,
 } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { sanitizeHost } from "@/lib/data-transforms"
@@ -202,6 +203,15 @@ export async function PATCH(request: Request, props: RouteContext) {
     default:
       // No credential field in the body, so leave every credential column alone.
       break
+  }
+
+  // URL path is independent of auth mode. Re-encrypt only when supplied;
+  // omitting it leaves the stored ciphertext untouched.
+  if (typeof body.urlPath === "string") {
+    const trimmedUrlPath = body.urlPath.trim()
+    const urlPathErr = validateUrlPath(trimmedUrlPath)
+    if (urlPathErr) return urlPathErr
+    updates.encryptedUrlPath = trimmedUrlPath ? encrypt(trimmedUrlPath, getKey()) : ""
   }
 
   if (body.isDefault === true) {

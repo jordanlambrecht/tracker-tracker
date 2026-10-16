@@ -65,6 +65,7 @@ vi.mock("@/lib/download-clients/qbt/transport", () => ({
       _s: boolean,
       _u: string,
       _pw: string,
+      _urlPath: string,
       op: (baseUrl: string, sid: { name: string; value: string }) => unknown
     ) => op("http://localhost:8080", { name: "SID", value: "test-sid" })
   ),
@@ -82,10 +83,11 @@ import {
 import { QbtClientAdapter } from "../adapters/qbt"
 
 describe("QbtClientAdapter", () => {
-  const adapter = new QbtClientAdapter("localhost", 8080, false, {
+  const adapter = new QbtClientAdapter("localhost", 8080, false, "", {
     authMethod: "password",
     username: "admin",
     password: "pass",
+    urlPath: "",
   })
 
   it("has type 'qbittorrent'", () => {
@@ -157,7 +159,7 @@ describe("QbtClientAdapter", () => {
     vi.mocked(withSessionRetry).mockClear()
     const controller = new AbortController()
     await adapter.getTorrents({ tag: "aither", signal: controller.signal })
-    expect(vi.mocked(withSessionRetry).mock.calls[0]?.[6]).toBe(controller.signal)
+    expect(vi.mocked(withSessionRetry).mock.calls[0]?.[7]).toBe(controller.signal)
   })
 
   it("returns normalized TransferStats from getTransferInfo", async () => {
@@ -207,7 +209,7 @@ describe("QbtClientAdapter", () => {
     await adapter.testConnection()
 
     expect(invalidateSession).toHaveBeenCalledWith("http://localhost:8080")
-    expect(login).toHaveBeenCalledWith("localhost", 8080, false, "admin", "pass")
+    expect(login).toHaveBeenCalledWith("localhost", 8080, false, "admin", "pass", "")
     expect(getTransferInfo).toHaveBeenCalled()
   })
 
@@ -226,10 +228,11 @@ describe("QbtClientAdapter", () => {
   })
 
   it("does not leak plaintext credentials in error messages from getTorrents", async () => {
-    const sensitiveAdapter = new QbtClientAdapter("localhost", 8080, false, {
+    const sensitiveAdapter = new QbtClientAdapter("localhost", 8080, false, "", {
       authMethod: "password",
       username: "secret-user",
       password: "secret-pass",
+      urlPath: "",
     })
     vi.mocked(withSessionRetry).mockRejectedValueOnce(new Error("Auth failed"))
 
@@ -243,10 +246,11 @@ describe("QbtClientAdapter", () => {
   })
 
   it("does not leak plaintext credentials in error messages from testConnection", async () => {
-    const sensitiveAdapter = new QbtClientAdapter("localhost", 8080, false, {
+    const sensitiveAdapter = new QbtClientAdapter("localhost", 8080, false, "", {
       authMethod: "password",
       username: "secret-user",
       password: "secret-pass",
+      urlPath: "",
     })
     vi.mocked(login).mockRejectedValueOnce(new Error("HTTP 403 Forbidden"))
 
@@ -269,9 +273,10 @@ describe("QbtClientAdapter", () => {
 // ---------------------------------------------------------------------------
 
 describe("QbtClientAdapter with API-key auth", () => {
-  const adapter = new QbtClientAdapter("localhost", 8080, false, {
+  const adapter = new QbtClientAdapter("localhost", 8080, false, "", {
     authMethod: "apikey",
     apiKey: "qbt_examplekey",
+    urlPath: "",
   })
 
   it("passes the key to the transport without logging in or retrying a session", async () => {

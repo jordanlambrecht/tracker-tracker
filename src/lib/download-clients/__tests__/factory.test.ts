@@ -17,6 +17,7 @@ vi.mock("@/lib/download-clients/credentials", () => ({
     authMethod: "password",
     username: "admin",
     password: "pass",
+    urlPath: "",
   })),
 }))
 
@@ -35,6 +36,7 @@ describe("createAdapterForClient", () => {
       encryptedUsername: "enc-user",
       encryptedPassword: "enc-pass",
       encryptedApiKey: "",
+      encryptedUrlPath: "",
       crossSeedTags: null,
       type: "qbittorrent",
     }
@@ -55,6 +57,7 @@ describe("createAdapterForClient", () => {
       encryptedUsername: "enc-user",
       encryptedPassword: "enc-pass",
       encryptedApiKey: "",
+      encryptedUrlPath: "",
       crossSeedTags: null,
       type: "deluge",
     }
@@ -70,6 +73,7 @@ describe("createAdapterForClient", () => {
     vi.mocked(decryptClientCredentials).mockReturnValueOnce({
       authMethod: "apikey",
       apiKey: "qbt_x",
+      urlPath: "",
     })
 
     const adapter = createAdapterForClient(
@@ -82,6 +86,7 @@ describe("createAdapterForClient", () => {
         encryptedUsername: "",
         encryptedPassword: "",
         encryptedApiKey: "enc-key",
+        encryptedUrlPath: "",
         crossSeedTags: null,
         type: "qbittorrent",
       },

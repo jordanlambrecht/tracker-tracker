@@ -12,7 +12,7 @@ import { getSession } from "@/lib/auth"
 // credentials.ts, which is "server-only".
 import { VALID_AUTH_METHODS } from "@/lib/download-clients/types"
 import { localDateStr } from "@/lib/formatters"
-import { CREDENTIAL_MAX } from "@/lib/limits"
+import { CREDENTIAL_MAX, URL_PATH_MAX } from "@/lib/limits"
 import { isUnsafeNetworkHost } from "@/lib/network"
 import { DATE_RE, isValidHex, isValidPort } from "@/lib/validators"
 
@@ -205,6 +205,34 @@ export function validateAuthMethod(value: string): NextResponse | null {
       { error: `authMethod must be one of: ${VALID_AUTH_METHODS.join(", ")}` },
       { status: 400 }
     )
+  }
+  return null
+}
+
+/**
+ * Validate an optional URL path prefix. Empty string is valid (no prefix).
+ * A non-empty path must start with "/", must not contain "..", whitespace,
+ * or a URL scheme, and must be within URL_PATH_MAX characters.
+ */
+export function validateUrlPath(value: string): NextResponse | null {
+  if (value === "") return null
+  if (value.length > URL_PATH_MAX) {
+    return NextResponse.json(
+      { error: `URL path must be ${URL_PATH_MAX} characters or fewer` },
+      { status: 400 }
+    )
+  }
+  if (!value.startsWith("/")) {
+    return NextResponse.json({ error: "URL path must start with /" }, { status: 400 })
+  }
+  if (value.includes("..")) {
+    return NextResponse.json({ error: "URL path must not contain .." }, { status: 400 })
+  }
+  if (/\s/.test(value)) {
+    return NextResponse.json({ error: "URL path must not contain whitespace" }, { status: 400 })
+  }
+  if (value.includes("://")) {
+    return NextResponse.json({ error: "URL path must not include a URL scheme" }, { status: 400 })
   }
   return null
 }

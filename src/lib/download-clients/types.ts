@@ -69,6 +69,7 @@ export interface DownloadClientRow {
   encryptedUsername: string
   encryptedPassword: string
   encryptedApiKey: string
+  encryptedUrlPath: string
   crossSeedTags: string[] | null
   type: string
 }
@@ -94,8 +95,8 @@ export function assertAuthMethod(authMethod: string): AuthMethod {
  * `password` off a key client, is a compile error.
  */
 export type ClientCredentials =
-  | { authMethod: "password"; username: string; password: string }
-  | { authMethod: "apikey"; apiKey: string }
+  | { authMethod: "password"; username: string; password: string; urlPath: string }
+  | { authMethod: "apikey"; apiKey: string; urlPath: string }
 
 /**
  * Download client adapter interface. Adapters produce TorrentRecord-shaped

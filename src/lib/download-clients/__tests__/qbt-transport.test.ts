@@ -313,7 +313,7 @@ describe("the caller's deadline on a login", () => {
     vi.stubGlobal("fetch", fetchMock)
     const caller = new AbortController()
 
-    await login("qbt.local", 8080, false, "admin", "pw", caller.signal)
+    await login("qbt.local", 8080, false, "admin", "pw", "", caller.signal)
 
     const sent = (fetchMock.mock.calls[0][1] as RequestInit).signal as AbortSignal
     expect(sent.aborted).toBe(false)
@@ -332,6 +332,7 @@ describe("the caller's deadline on a login", () => {
       false,
       "admin",
       "pw",
+      "",
       async () => "polled",
       caller.signal
     )

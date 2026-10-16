@@ -63,6 +63,7 @@ vi.mock("@/lib/db/schema", () => ({
     encryptedUsername: "downloadClients.encryptedUsername",
     encryptedPassword: "downloadClients.encryptedPassword",
     encryptedApiKey: "downloadClients.encryptedApiKey",
+    encryptedUrlPath: "downloadClients.encryptedUrlPath",
   },
   notificationTargets: {
     id: "notificationTargets.id",
@@ -187,6 +188,7 @@ beforeEach(() => {
       encryptedUsername: encrypt("admin", oldKey),
       encryptedPassword: encrypt("hunter2", oldKey),
       encryptedApiKey: "",
+      encryptedUrlPath: encrypt("/user-example/example/proxy/key", oldKey),
     },
   ]
   notificationRows = [
@@ -483,6 +485,7 @@ describe("POST /api/auth/change-password — blank credentials", () => {
       encryptedUsername: encrypt("", oldKey),
       encryptedPassword: encrypt("", oldKey),
       encryptedApiKey: "",
+      encryptedUrlPath: "",
     }
 
     const response = await post()
@@ -510,6 +513,7 @@ describe("POST /api/auth/change-password — blank credentials", () => {
       encryptedUsername: encrypt("", oldKey),
       encryptedPassword: encrypt("", oldKey),
       encryptedApiKey: encrypt("qbt_examplekey", oldKey),
+      encryptedUrlPath: "",
     }
 
     const response = await post()

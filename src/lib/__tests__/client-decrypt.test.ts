@@ -19,6 +19,7 @@ describe("decryptClientCredentials", () => {
       encryptedUsername: "enc-user",
       encryptedPassword: "enc-pass",
       encryptedApiKey: "",
+      encryptedUrlPath: "enc-path",
     }
     const key = Buffer.from("a".repeat(64), "hex")
     const result = decryptClientCredentials(client, key)
@@ -26,6 +27,7 @@ describe("decryptClientCredentials", () => {
       authMethod: "password",
       username: "decrypted:enc-user",
       password: "decrypted:enc-pass",
+      urlPath: "decrypted:enc-path",
     })
   })
 
@@ -36,9 +38,10 @@ describe("decryptClientCredentials", () => {
       encryptedUsername: "enc-blank",
       encryptedPassword: "enc-blank",
       encryptedApiKey: "enc-key",
+      encryptedUrlPath: "",
     }
     const result = decryptClientCredentials(client, Buffer.alloc(32))
-    expect(result).toEqual({ authMethod: "apikey", apiKey: "decrypted:enc-key" })
+    expect(result).toEqual({ authMethod: "apikey", apiKey: "decrypted:enc-key", urlPath: "" })
   })
 
   it("rejects an unrecognised auth method without disguising it as a decryption failure", () => {
@@ -48,6 +51,7 @@ describe("decryptClientCredentials", () => {
       encryptedUsername: "x",
       encryptedPassword: "y",
       encryptedApiKey: "",
+      encryptedUrlPath: "",
     }
     let thrown: unknown
     expect(() => {
@@ -76,6 +80,7 @@ describe("decryptClientCredentials", () => {
       encryptedUsername: "x",
       encryptedPassword: "y",
       encryptedApiKey: "",
+      encryptedUrlPath: "",
     }
     let thrown: unknown
     expect(() => {
@@ -100,6 +105,7 @@ describe("decryptClientCredentials", () => {
       encryptedUsername: "x",
       encryptedPassword: "y",
       encryptedApiKey: "",
+      encryptedUrlPath: "",
     }
     let thrown: unknown
     expect(() => {

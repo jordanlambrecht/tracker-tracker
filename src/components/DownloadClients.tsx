@@ -49,6 +49,10 @@ const API_KEY_HINT =
   "Generate one in qBittorrent under Options → Web UI → API keys. Requires qBittorrent 5.2.0 " +
   "or newer."
 
+const URL_PATH_HINT =
+  "Optional path prefix, for example when qBittorrent is behind a reverse proxy. " +
+  "If the path contains an API key it is stored encrypted." 
+
 const AUTH_METHOD_OPTIONS: { value: AuthMethod; label: string }[] = [
   { value: "password", label: "Username & Password" },
   { value: "apikey", label: "API Key" },
@@ -215,6 +219,10 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
   const [newApiKey, setNewApiKey] = useState("")
   const [credError, setCredError] = useState<string | null>(null)
 
+  const [changingUrlPath, setChangingUrlPath] = useState(false)
+  const [newUrlPath, setNewUrlPath] = useState("")
+  const [urlPathError, setUrlPathError] = useState<string | null>(null)
+
   // A blank username/password is a valid localhost-bypass setup, so only the
   // API-key mode has anything to require.
   const canSaveCredentials = authMethod === "password" || newApiKey.trim().length > 0
@@ -268,6 +276,28 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
       setNewApiKey("")
     } catch {
       setCredError("Network error. Could not save credentials")
+    }
+  }
+
+  async function handleSaveUrlPath() {
+    setUrlPathError(null)
+    try {
+      const trimmed = newUrlPath.trim()
+      const res = await fetch(`/api/clients/${client.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urlPath: trimmed }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setUrlPathError(data.error || "Failed to save URL path")
+        return
+      }
+      onSaved(client.id, { ...client, hasUrlPath: trimmed.length > 0 })
+      setChangingUrlPath(false)
+      setNewUrlPath("")
+    } catch {
+      setUrlPathError("Network error. Could not save URL path")
     }
   }
 
@@ -430,6 +460,60 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
           </div>
         ) : (
           <MaskedSecret onChangeClick={() => setChangingCredentials(true)} />
+        )}
+      </div>
+
+      <div className="border-t border-border" />
+
+      {/* URL path prefix */}
+      <div className="flex flex-col gap-2">
+        <H2 className="uppercase tracking-wider">URL Path Prefix</H2>
+        {changingUrlPath ? (
+          <div className="flex flex-col gap-3">
+            <Input
+              label="Path prefix"
+              value={newUrlPath}
+              onChange={(e) => setNewUrlPath(e.target.value)}
+              placeholder="/user-example/example/proxy"
+              name="client-url-path"
+              autoComplete="off"
+              data-1p-ignore
+            />
+            <Subtext>{URL_PATH_HINT}</Subtext>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={handleSaveUrlPath}
+                text="Save Path"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setChangingUrlPath(false)
+                  setNewUrlPath("")
+                  setUrlPathError(null)
+                }}
+                className="ghost-link"
+              >
+                Cancel
+              </button>
+            </div>
+            <Notice message={urlPathError} />
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <Badge variant={client.hasUrlPath ? "success" : "default"}>
+              {client.hasUrlPath ? "Saved" : "Not set"}
+            </Badge>
+            <button
+              type="button"
+              onClick={() => setChangingUrlPath(true)}
+              className="ghost-link"
+            >
+              Change
+            </button>
+          </div>
         )}
       </div>
 
@@ -610,6 +694,7 @@ function AddClientForm({
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [apiKey, setApiKey] = useState("")
+  const [urlPath, setUrlPath] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -629,22 +714,26 @@ function AddClientForm({
         authMethod === "apikey"
           ? { authMethod, apiKey: apiKey.trim() }
           : { authMethod, username: username.trim(), password }
+      const trimmedUrlPath = urlPath.trim()
+      const body: Record<string, unknown> = {
+        name: name.trim(),
+        host: host.trim(),
+        port,
+        ...credentials,
+        isDefault: isFirst,
+      }
+      if (trimmedUrlPath) body.urlPath = trimmedUrlPath
       const res = await fetch("/api/clients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          host: host.trim(),
-          port,
-          ...credentials,
-          isDefault: isFirst,
-        }),
+        body: JSON.stringify(body),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         setError(data.error || "Failed to create client")
         return
       }
+      setUrlPath("")
       onCreated()
     } catch {
       setError("Network error")
@@ -687,6 +776,16 @@ function AddClientForm({
         apiKey={apiKey}
         onApiKeyChange={setApiKey}
       />
+      <Input
+        label="URL Path Prefix (optional)"
+        value={urlPath}
+        onChange={(e) => setUrlPath(e.target.value)}
+        placeholder="/user-example/example/proxy"
+        name="client-url-path"
+        autoComplete="off"
+        data-1p-ignore
+      />
+      <Subtext>{URL_PATH_HINT}</Subtext>
       <Notice message={error} />
       <div className="flex items-center gap-3">
         <Button

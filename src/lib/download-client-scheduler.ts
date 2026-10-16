@@ -80,6 +80,7 @@ export const HEARTBEAT_COLUMNS = {
   encryptedUsername: downloadClients.encryptedUsername,
   encryptedPassword: downloadClients.encryptedPassword,
   encryptedApiKey: downloadClients.encryptedApiKey,
+  encryptedUrlPath: downloadClients.encryptedUrlPath,
   crossSeedTags: downloadClients.crossSeedTags,
   lastError: downloadClients.lastError,
 } as const
@@ -131,6 +132,7 @@ async function heartbeatClient(
     encryptedUsername: string
     encryptedPassword: string
     encryptedApiKey: string
+    encryptedUrlPath: string
     crossSeedTags: string[] | null
     lastError: string | null
   },

@@ -72,6 +72,7 @@ const MOCK_CLIENT = {
   useSsl: false,
   encryptedUsername: "enc-admin",
   encryptedPassword: "enc-secret",
+  encryptedUrlPath: "",
   pollIntervalSeconds: 30,
   isDefault: true,
   crossSeedTags: ["cross-seed"],
@@ -539,6 +540,38 @@ describe("POST /api/clients", () => {
     expect(res.status).toBe(400)
     expect((await res.json()).error).toMatch(/authMethod must be one of/)
   })
+
+  it("stores a URL path encrypted and never returns it", async () => {
+    const res = await POST(
+      postBody({
+        name: "Local qBT",
+        host: "localhost",
+        username: "admin",
+        password: "pw",
+        urlPath: "/user-example/example/proxy",
+      })
+    )
+
+    expect(res.status).toBe(201)
+    expect(inserted?.encryptedUrlPath).not.toBe("")
+    expect(JSON.stringify(inserted)).not.toContain("/user-example/example/proxy")
+    expect(
+      decrypt(inserted?.encryptedUrlPath as string, Buffer.from(VALID_KEY, "hex"))
+    ).toBe("/user-example/example/proxy")
+  })
+
+  it("rejects a URL path with parent-directory segments", async () => {
+    const res = await POST(
+      postBody({
+        name: "Local qBT",
+        host: "localhost",
+        urlPath: "/user-example/../example/proxy",
+      })
+    )
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/must not contain \.\./)
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -657,5 +690,20 @@ describe("PATCH /api/clients/[id] credential handling", () => {
     expect(updates).not.toHaveProperty("authMethod")
     expect(updates).not.toHaveProperty("encryptedPassword")
     expect(updates).not.toHaveProperty("encryptedApiKey")
+  })
+
+  it("encrypts a URL path when supplied and leaves it out when omitted", async () => {
+    const res = await PATCH(patchBody({ urlPath: "/user-example/example/proxy" }), routeProps)
+
+    expect(res.status).toBe(200)
+    const key = Buffer.from(VALID_KEY, "hex")
+    expect(decrypt(updates?.encryptedUrlPath as string, key)).toBe("/user-example/example/proxy")
+  })
+
+  it("clears a URL path when an empty string is supplied", async () => {
+    const res = await PATCH(patchBody({ urlPath: "" }), routeProps)
+
+    expect(res.status).toBe(200)
+    expect(updates?.encryptedUrlPath).toBe("")
   })
 })

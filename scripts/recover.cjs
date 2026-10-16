@@ -273,7 +273,7 @@ const MASTER_KEY_TABLES = [
   {
     table: "download_clients",
     label: "name",
-    columns: ["encrypted_username", "encrypted_password", "encrypted_api_key"],
+    columns: ["encrypted_username", "encrypted_password", "encrypted_api_key", "encrypted_url_path"],
   },
   { table: "notification_targets", label: "name", columns: ["encrypted_config"] },
 ]

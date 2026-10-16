@@ -84,6 +84,7 @@ function backupCiphertexts(payload: BackupPayload): string[] {
       (c as Record<string, unknown>).encryptedUsername,
       (c as Record<string, unknown>).encryptedPassword,
       (c as Record<string, unknown>).encryptedApiKey,
+      (c as Record<string, unknown>).encryptedUrlPath,
     ]),
     ...(Array.isArray(payload.notificationTargets)
       ? payload.notificationTargets.map((n) => (n as Record<string, unknown>).encryptedConfig)
@@ -485,10 +486,12 @@ export async function POST(request: Request) {
         let encUsername: string
         let encPassword: string
         let encApiKey: string
+        let encUrlPath: string
         if (canPassThrough) {
           encUsername = (fields.encryptedUsername as string) || ""
           encPassword = (fields.encryptedPassword as string) || ""
           encApiKey = (fields.encryptedApiKey as string) || ""
+          encUrlPath = (fields.encryptedUrlPath as string) || ""
         } else if (canReencrypt) {
           encUsername = reencryptField(
             fields.encryptedUsername as string,
@@ -510,10 +513,19 @@ export async function POST(request: Request) {
                 `downloadClient '${fields.name}' apiKey`
               )
             : ""
+          encUrlPath = fields.encryptedUrlPath
+            ? reencryptField(
+                fields.encryptedUrlPath as string,
+                backupKey,
+                currentKey,
+                `downloadClient '${fields.name}' urlPath`
+              )
+            : ""
         } else {
           encUsername = ""
           encPassword = ""
           encApiKey = ""
+          encUrlPath = ""
         }
 
         // Only the columns the client's own mode reads decide whether it came
@@ -536,6 +548,7 @@ export async function POST(request: Request) {
             encryptedUsername: encUsername,
             encryptedPassword: encPassword,
             encryptedApiKey: encApiKey,
+            encryptedUrlPath: encUrlPath,
             pollIntervalSeconds: fields.pollIntervalSeconds as number,
             isDefault: fields.isDefault as boolean,
             crossSeedTags: Array.isArray(fields.crossSeedTags)

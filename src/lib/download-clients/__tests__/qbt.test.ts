@@ -26,6 +26,23 @@ describe("buildBaseUrl", () => {
   it("builds an https URL when ssl is true", () => {
     expect(buildBaseUrl("qbt.example.com", 443, true)).toBe("https://qbt.example.com:443")
   })
+
+  it("appends a normalized URL path prefix", () => {
+    expect(buildBaseUrl("qbt.example.com", 443, true, "user-example/example/proxy")).toBe(
+      "https://qbt.example.com:443/user-example/example/proxy"
+    )
+  })
+
+  it("strips a trailing slash from the URL path prefix", () => {
+    expect(buildBaseUrl("qbt.example.com", 443, true, "/user-example/example/proxy/")).toBe(
+      "https://qbt.example.com:443/user-example/example/proxy"
+    )
+  })
+
+  it("leaves the base URL unchanged when the path is blank", () => {
+    expect(buildBaseUrl("qbt.example.com", 443, true, "")).toBe("https://qbt.example.com:443")
+    expect(buildBaseUrl("qbt.example.com", 443, true, "   ")).toBe("https://qbt.example.com:443")
+  })
 })
 
 // ---------------------------------------------------------------------------

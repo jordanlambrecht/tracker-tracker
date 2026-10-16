@@ -16,6 +16,7 @@ export const CLIENT_CONNECTION_COLUMNS = {
   encryptedUsername: downloadClients.encryptedUsername,
   encryptedPassword: downloadClients.encryptedPassword,
   encryptedApiKey: downloadClients.encryptedApiKey,
+  encryptedUrlPath: downloadClients.encryptedUrlPath,
 } as const
 
 export function decryptClientCredentials(
@@ -25,6 +26,7 @@ export function decryptClientCredentials(
     encryptedUsername: string
     encryptedPassword: string
     encryptedApiKey: string
+    encryptedUrlPath: string
   },
   key: Buffer
 ): ClientCredentials {
@@ -33,13 +35,15 @@ export function decryptClientCredentials(
   const authMethod = assertAuthMethod(client.authMethod)
 
   try {
+    const urlPath = client.encryptedUrlPath ? decrypt(client.encryptedUrlPath, key) : ""
     if (authMethod === "apikey") {
-      return { authMethod, apiKey: decrypt(client.encryptedApiKey, key) }
+      return { authMethod, apiKey: decrypt(client.encryptedApiKey, key), urlPath }
     }
     return {
       authMethod,
       username: decrypt(client.encryptedUsername, key),
       password: decrypt(client.encryptedPassword, key),
+      urlPath,
     }
   } catch (err) {
     // Use "decrypt" prefix only for AES-GCM auth failures so

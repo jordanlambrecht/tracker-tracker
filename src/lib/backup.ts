@@ -101,6 +101,7 @@ export const BACKUP_CLIENT_COLUMNS = {
   encryptedUsername: downloadClients.encryptedUsername,
   encryptedPassword: downloadClients.encryptedPassword,
   encryptedApiKey: downloadClients.encryptedApiKey,
+  encryptedUrlPath: downloadClients.encryptedUrlPath,
   pollIntervalSeconds: downloadClients.pollIntervalSeconds,
   isDefault: downloadClients.isDefault,
   crossSeedTags: downloadClients.crossSeedTags,
@@ -524,6 +525,9 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
     if (typeof c.authMethod !== "undefined") assertString(c.authMethod, `${prefix}.authMethod`)
     if (typeof c.encryptedApiKey !== "undefined") {
       assertString(c.encryptedApiKey, `${prefix}.encryptedApiKey`)
+    }
+    if (typeof c.encryptedUrlPath !== "undefined") {
+      assertString(c.encryptedUrlPath, `${prefix}.encryptedUrlPath`)
     }
   }
 

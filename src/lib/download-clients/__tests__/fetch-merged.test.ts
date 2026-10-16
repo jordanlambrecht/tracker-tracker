@@ -66,6 +66,7 @@ function makeClient(overrides: Partial<DownloadClientRow> = {}): DownloadClientR
     encryptedUsername: "enc-admin",
     encryptedPassword: "enc-pass",
     encryptedApiKey: "",
+    encryptedUrlPath: "",
     crossSeedTags: null,
     type: "qbittorrent",
     ...overrides,

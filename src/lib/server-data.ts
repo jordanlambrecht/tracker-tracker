@@ -161,6 +161,9 @@ export const clientColumns = {
         THEN ${downloadClients.encryptedApiKey} <> ''
         ELSE ${downloadClients.encryptedUsername} IS NOT NULL AND ${downloadClients.encryptedPassword} IS NOT NULL
       END)`.as("has_credentials"),
+  // The URL path prefix may carry a proxy API key, so it is reduced to a
+  // presence boolean before leaving the server.
+  hasUrlPath: sql<boolean>`(${downloadClients.encryptedUrlPath} <> '')`.as("has_url_path"),
   pollIntervalSeconds: downloadClients.pollIntervalSeconds,
   isDefault: downloadClients.isDefault,
   crossSeedTags: downloadClients.crossSeedTags,

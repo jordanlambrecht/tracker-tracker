@@ -37,9 +37,10 @@ export class QbtClientAdapter implements ClientAdapter {
     private readonly host: string,
     private readonly port: number,
     private readonly ssl: boolean,
+    private readonly urlPath: string,
     private readonly creds: ClientCredentials
   ) {
-    this.baseUrl = buildBaseUrl(host, port, ssl)
+    this.baseUrl = buildBaseUrl(host, port, ssl, urlPath)
   }
 
   /**
@@ -63,6 +64,7 @@ export class QbtClientAdapter implements ClientAdapter {
       this.ssl,
       username,
       password,
+      this.urlPath,
       (baseUrl, sid) => op(baseUrl, { mode: "session", sid }),
       signal
     )
@@ -81,7 +83,7 @@ export class QbtClientAdapter implements ClientAdapter {
       return
     }
     const { username, password } = this.creds
-    const sid = await login(this.host, this.port, this.ssl, username, password)
+    const sid = await login(this.host, this.port, this.ssl, username, password, this.urlPath)
     await qbtGetTransferInfo(this.baseUrl, { mode: "session", sid })
   }
 

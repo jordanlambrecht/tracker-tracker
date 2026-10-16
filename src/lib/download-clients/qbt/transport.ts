@@ -61,10 +61,22 @@ function describeFetchError(err: unknown): string {
   return "Unknown network error"
 }
 
-export function buildBaseUrl(host: string, port: number, ssl: boolean): string {
+function normalizeUrlPath(path: string): string {
+  const trimmed = path.trim().replace(/\/+$/, "")
+  if (!trimmed) return ""
+  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`
+}
+
+export function buildBaseUrl(
+  host: string,
+  port: number,
+  ssl: boolean,
+  urlPath?: string
+): string {
   // Strip any protocol the user may have included (i.e "http://myhost")
   const cleanHost = sanitizeHost(host)
-  return `${ssl ? "https" : "http"}://${cleanHost}:${port}`
+  const prefix = normalizeUrlPath(urlPath ?? "")
+  return `${ssl ? "https" : "http"}://${cleanHost}:${port}${prefix}`
 }
 
 // ---------------------------------------------------------------------------
@@ -106,9 +118,10 @@ export async function getSession(
   ssl: boolean,
   username: string,
   password: string,
+  urlPath?: string,
   signal?: AbortSignal
 ): Promise<{ baseUrl: string; sid: SidCookie }> {
-  const baseUrl = buildBaseUrl(host, port, ssl)
+  const baseUrl = buildBaseUrl(host, port, ssl, urlPath)
   // Keyed by credentials as well as origin, the same way authBlocks is. Keyed
   // by baseUrl alone, a second client row on the same host would ride the first
   // row's session, and a row with a revoked password would still poll green.
@@ -116,7 +129,7 @@ export async function getSession(
   const cached = sidCache.get(cacheKey)
   if (cached) return { baseUrl, sid: cached }
 
-  const sid = await login(host, port, ssl, username, password, signal)
+  const sid = await login(host, port, ssl, username, password, urlPath, signal)
   sidCache.set(cacheKey, sid)
   return { baseUrl, sid }
 }
@@ -213,16 +226,17 @@ export async function withSessionRetry<T>(
   ssl: boolean,
   username: string,
   password: string,
+  urlPath: string,
   op: (baseUrl: string, sid: SidCookie) => Promise<T>,
   signal?: AbortSignal
 ): Promise<T> {
-  const { baseUrl, sid } = await getSession(host, port, ssl, username, password, signal)
+  const { baseUrl, sid } = await getSession(host, port, ssl, username, password, urlPath, signal)
   try {
     return await op(baseUrl, sid)
   } catch (err) {
     if (err instanceof Error && err.message === "Session expired") {
       invalidateSession(baseUrl)
-      const fresh = await getSession(host, port, ssl, username, password, signal)
+      const fresh = await getSession(host, port, ssl, username, password, urlPath, signal)
       return await op(baseUrl, fresh.sid)
     }
     throw err
@@ -261,9 +275,10 @@ export async function login(
   ssl: boolean,
   username: string,
   password: string,
+  urlPath?: string,
   signal?: AbortSignal
 ): Promise<SidCookie> {
-  const baseUrl = buildBaseUrl(host, port, ssl)
+  const baseUrl = buildBaseUrl(host, port, ssl, urlPath)
   const hostname = new URL(baseUrl).hostname
   const url = `${baseUrl}/api/v2/auth/login`
   const body = new URLSearchParams({ username, password }).toString()
